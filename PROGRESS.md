@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-09 (labeled clusters + seven unlabeled slices; 196/794; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + eight unlabeled slices; 211/794; fixture-less bulk drain underway)._
 
 ---
 
@@ -229,10 +229,33 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     not-a-constructor (esm-entrypoint spec), HTML-page build (browser specs), deprecated transitives
     (CLAUDE.md §2 principle). Corpus **146 green / 83 known-open / 0 regressions**; 94 corpus cases +
     55 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (598 remaining, all fixture-less) in ~15-record
+  - **Eighth slice — fixture-less bulk, top-15 by comment signal — drained** (211/794, ~27%).
+    6 corpus cases + 3 spec notes (in 2 files) + 6 not-carried folds. Corpus: header/footer
+    first-/even-page variants emit their child elements but omit the gating
+    `differentFirst`/`differentOddEven` flags, so apps ignore them (known-open; new `headerFooter`
+    fact + spec input); cross-sheet references in a formula and a data-validation list survive with
+    sheet-name casing + `!` intact (lock); modern functions (FILTER/XLOOKUP/LET) must be stored with
+    the `_xlfn.` prefix or Excel drops them — writer emits the plain name (known-open), explicit
+    prefix not doubled (lock); the streaming reader corrupts multi-byte UTF-8 split across a chunk
+    boundary — a large **CJK** payload returns U+FFFD (known-open) while a large emoji payload
+    happens to survive (this is why the earlier small probe falsely showed pass — the bug only fires
+    once the shared-strings XML spans chunks); loaded cells sharing an on-disk style index alias one
+    mutable style object so mutating one bleeds into siblings (known-open); copying a sheet via
+    `dst.model={...src.model,name}` drops merged ranges (known-open). Adapter grew: `headerFooter`
+    fact/spec-input, `streamReadSpec`, `loadMutateCellStyle`, `copyWorksheetModel`. Spec notes:
+    combined worksheet clone (intra) + cross-workbook merge into one requirement; extended (x14)
+    conditional-formatting expression rules must round-trip formula + extended dxf. Not-carried
+    folds: missing-sheetViews (→ worksheet-always-emits-sheetview), whole-column-DV OOM (→ its
+    bounded-memory spec, which is deliberately a note because the read hangs), columns `push`
+    TypeError (→ columns-mutable-array-ergonomics), image `{col,row}`/ext anchor (verified works,
+    no defect), IE11 RegExp (dead runtime), tmp CVE dep bump (CLAUDE.md §2). Corpus **153 green /
+    91 known-open / 0 regressions**; 100 corpus cases + 57 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (583 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
-    probe-then-fold is the default move.
+    probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
+    a bug that needs data to span a chunk boundary (or a large sqref) will falsely pass a tiny
+    probe.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -273,12 +296,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **196/794 (~25%)**; **all labeled clusters + seven unlabeled slices are drained; the
+Drain at **211/794 (~27%)**; **all labeled clusters + eight unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (146 green / 83
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (153 green / 91
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (598 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (583 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
