@@ -4,9 +4,10 @@
 > agents update it as phases complete, decisions are made, and reality diverges
 > from the plan. If you change course, change this file in the same breath.
 
-**Provisional codename:** `TBD` — the rebrand is a human decision (see Phase 4). Until
-set, refer to the project as "the library." Do not sprinkle a chosen name through
-the code prematurely; it should be a single, easily-changed constant/package field.
+**Working name:** `ts-xlsx` (npm: `@shbernal/ts-xlsx`) — a **provisional** handle chosen
+2026-07-09 to make the JS/TS ecosystem and file format legible. It is not the final
+brand; the definitive rebrand remains a human decision (see Phase 4). Keep it a single,
+easily-changed field (`package.json#name`) — do not sprinkle it through the code.
 
 ---
 
@@ -166,9 +167,22 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
   `lib/` deleted; dependency tree small and audit-clean.
 
 ### Phase 4 — Independence & identity  *(the clean break)*
-- **Stop tracking upstream.** Remove the `upstream` remote from the workflow.
+
+> **Update (2026-07-09): hosting independence pulled forward.** Rather than remain a
+> GitHub fork until the end, we did the *infrastructure* clean break up front: a fresh,
+> non-fork repo (`shbernal/ts-xlsx`) was created by mirror-pushing full history into it,
+> inherited upstream branches were pruned to `master`, and package/license/README
+> identity was repointed. `upstream` (exceljs/exceljs) is kept only as a **read-only**
+> remote (push disabled) to feed the Phase 1 harvest, and gets removed once harvest is
+> done. What remains deferred here — deliberately, per the drift lesson — is the *final
+> rebrand name* and all *code modernization*, which stay last so the legacy tree keeps
+> its shape as a mergeable base while we drain the backlog.
+
+- **Stop tracking upstream.** Remove the `upstream` remote from the workflow. *(Now: it is
+  already push-disabled and read-only; drop entirely at harvest end.)*
 - Rebrand: new package name, docs, and identity (**human decision** — this is one of
-  the few things escalated per `CLAUDE.md` §3).
+  the few things escalated per `CLAUDE.md` §3). *(`ts-xlsx` is a provisional working
+  name only; the definitive brand is still open.)*
 - First-class docs generated from the types; migration notes framed as "this is a
   different, better library," not a compatibility shim.
 - **Exit:** a `0.x` release of the independent library, published under its own name,
