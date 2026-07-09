@@ -14,6 +14,7 @@ The eager full-workbook read path allocates memory grossly disproportionate to i
 ### Prior art / notes
 - Reporters observed a competing library reading the same ~10 MB file in roughly 500 MB versus 2+ GB, indicating the blow-up is an implementation characteristic, not an intrinsic OOXML cost.
 - Shared strings are a common culprit: a large shared-strings part fully materialized as JS strings, plus a parallel index, plus the cell model referencing them, triples the footprint. Deduplication and lazy/interned strings help.
+- The **workbook-level defined-names table** is a second, independent culprit, distinct from the visible grid. A real financial workbook with a trivial sheet (~80 KB, dimensions A1:AH258) but a ~2.85 MB defined-names block — ~35,000 entries, most of them `#REF!`, thousands large array literals up to ~5 KB each, plus one external link with ~90 cached sheet names — exhausts a 900 MB heap and never resolves. The blow-up happens during *model assembly* (building objects per defined name), not sheet parsing, so its cost tracks the defined-names table, not the worksheet. The parsed model must (a) retain defined names compactly, ideally lazily, without a large object graph per entry, (b) not choke on `#REF!` values or large array-literal values, and (c) round-trip the names and the external link without loss.
 - Zip handling matters for the security posture too: decompressing all parts eagerly is both a memory and a zip-bomb concern; bounded, streamed decompression addresses both.
 
 ### Open questions
