@@ -48,6 +48,7 @@ import {
   authorCellProtection,
   streamCommitReport,
   streamWriterImageSupport,
+  streamWritePackageReport,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -284,4 +285,10 @@ export default {
   // package's media/drawing parts → { writerAddImage, sheetAddImage, error, mediaParts,
   // drawingParts } — for locking image parity with the in-memory writer once delivered.
   streamWriterImageSupport,
+
+  // Assemble a whole package via the streaming writer, then report its zip-container integrity
+  // → { partCount, emptyParts, crcValid, reloadOk, sheetNames, firstCol } — for asserting the
+  // streamed output is a valid archive (no zero-byte parts, CRCs match, re-reads cleanly), not
+  // merely valid XML. See workbook-io.mjs.
+  streamWritePackageReport,
 };

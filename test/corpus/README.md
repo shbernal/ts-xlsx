@@ -98,6 +98,11 @@ implementation is shaped. Current vocabulary:
 | `authorCellProtection(cells, protect?)` | Author per-cell protection (`cells: [{ref, value?, protection?}]`) plus an optional protected sheet (`{password?, options?}`), round-trip, and report `{readBack: {<ref>: {locked}}, hasApplyProtection, sheetProtection}` — for asserting an unlocked cell survives (default is locked), the flag is carried in cellXfs, and worksheet protection emits `<sheetProtection>`. |
 | `streamCommitReport({duplex?, timeoutMs?})` | Drive the streaming writer over a caller-supplied `PassThrough` (or `Duplex`) sink and report `{settled, timedOut, bytes, valid}` — for asserting streaming-to-a-remote-sink commit resolves within bounded time and delivers a complete, re-openable package rather than hanging on a finish signal. |
 | `streamWriterImageSupport(range?)` | Report the streaming writer's image-parity surface and (if supported) the streamed package's parts → `{writerAddImage, sheetAddImage, error, mediaParts, drawingParts}` — for locking image parity with the in-memory writer (anchor a registered image on a streamed sheet; media + drawing parts appear). |
+| `streamWritePackageReport({rows?})` | Assemble a whole package via the streaming writer, then treat the bytes as an untrusted archive → `{partCount, emptyParts, crcValid, reloadOk, sheetNames, firstCol}` — for asserting the streamed output is a valid zip (no zero-byte parts, per-entry CRC matches, re-reads cleanly), not merely valid XML. |
+
+`inspectPackage`'s per-sheet fact also carries `elementOrder` (raw positions of `drawing` /
+`legacyDrawing` / `tableParts` plus the `legacyBeforeTableParts` etc. adjacency invariants) so a
+case can assert the CT_Worksheet child-element order, not just part presence.
 
 The `spec` shape consumed by the three workbook capabilities is documented at the top of
 `adapters/workbook-io.mjs` (worksheets with cells, columns, rows, page margins, tables).

@@ -407,6 +407,16 @@ export async function inspectPackage(spec) {
       const a = attrs(t[0]);
       return {min: a.min ? Number(a.min) : null, max: a.max ? Number(a.max) : null, width: a.width ?? null};
     });
+    // OOXML fixes the order of a worksheet's trailing child elements. In particular the
+    // CT_Worksheet sequence requires `drawing` then `legacyDrawing` then `tableParts`; a file
+    // that emits `tableParts` before `legacyDrawing` is schema-invalid and Excel repairs it,
+    // discarding the sheet. Report the raw positions plus the two adjacency invariants so a case
+    // can assert order rather than mere presence (the reader tolerates the wrong order on read).
+    const posOf = tag => xml.indexOf(tag);
+    const posDrawing = posOf('<drawing ');
+    const posLegacy = posOf('<legacyDrawing ');
+    const posTable = posOf('<tableParts');
+    const ordered = (a, b) => (a >= 0 && b >= 0 ? a < b : null);
     sheets[s.name] = {
       pageMargins: {present: Object.keys(marginAttrs), values: marginAttrs},
       hasSheetViews: /<sheetViews>/.test(xml),
@@ -417,6 +427,14 @@ export async function inspectPackage(spec) {
       formulas,
       columnGroups,
       maxColumnIndex: columnGroups.reduce((m, g) => Math.max(m, g.max ?? 0), 0),
+      elementOrder: {
+        drawing: posDrawing,
+        legacyDrawing: posLegacy,
+        tableParts: posTable,
+        drawingBeforeLegacy: ordered(posDrawing, posLegacy),
+        legacyBeforeTableParts: ordered(posLegacy, posTable),
+        drawingBeforeTableParts: ordered(posDrawing, posTable),
+      },
       xmlWellFormed: xmlWellFormed(xml),
     };
   }
@@ -1382,6 +1400,65 @@ export async function streamWriteSheet({useSharedStrings = false, ops = [], read
   const cells = {};
   for (const ref of read) cells[ref] = readStreamCell(sheet.getCell(ref).value);
   return {ok: true, error: null, cells, rowCount: sheet.rowCount};
+}
+
+// Drive the streaming writer to produce a whole package, then treat the emitted bytes as an
+// untrusted archive and report its container integrity: every declared zip entry is present with
+// a non-zero byte length, every entry's stored CRC matches its decompressed bytes (JSZip verifies
+// CRC-32 on extraction when asked), and the package re-reads to the same sheet names and cell
+// values a whole-file write would yield. Lets a case assert that the streaming path assembles a
+// valid zip — not merely valid XML — because a bad CRC or a zero-byte auxiliary part makes Excel
+// reject the file even when the sheet XML is perfect.
+export async function streamWritePackageReport({rows = 50} = {}) {
+  const chunks = [];
+  const stream = new PassThrough();
+  const drained = new Promise(res => {
+    stream.on('data', c => chunks.push(c));
+    stream.on('end', res);
+    stream.on('close', res);
+  });
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream});
+  const sheet = writer.addWorksheet('S');
+  for (let i = 1; i <= rows; i++) sheet.addRow([`r${i}`, i]).commit();
+  sheet.commit();
+  await writer.commit();
+  await drained;
+
+  const buffer = Buffer.concat(chunks);
+  let crcValid = true;
+  let crcError = null;
+  const emptyParts = [];
+  let partCount = 0;
+  try {
+    const zip = await JSZip.loadAsync(buffer, {checkCRC32: true});
+    const names = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+    partCount = names.length;
+    for (const n of names) {
+      // Extracting with checkCRC32 on throws if the stored CRC disagrees with the bytes.
+      const bytes = await zip.files[n].async('nodebuffer');
+      if (bytes.length === 0) emptyParts.push(n);
+    }
+  } catch (e) {
+    crcValid = false;
+    crcError = String((e && e.message) || e);
+  }
+
+  let reloadOk = true;
+  let reloadError = null;
+  let sheetNames = [];
+  let firstCol = [];
+  try {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer);
+    sheetNames = wb.worksheets.map(s => s.name);
+    const s = wb.worksheets[0];
+    for (let i = 1; i <= Math.min(rows, 3); i++) firstCol.push(readStreamCell(s.getCell(`A${i}`).value));
+  } catch (e) {
+    reloadOk = false;
+    reloadError = String((e && e.message) || e);
+  }
+
+  return {partCount, emptyParts, crcValid, crcError, reloadOk, reloadError, sheetNames, firstCol};
 }
 
 function xmlWellFormed(xml) {

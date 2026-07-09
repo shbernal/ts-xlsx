@@ -54,5 +54,25 @@ export default {
         assert.strictEqual(e5.note, 'a comment', 'the comment survives alongside the table');
       },
     },
+    {
+      // The note's VML link (legacyDrawing) and the table link (tableParts) must appear in the
+      // order the worksheet schema fixes: legacyDrawing before tableParts. Emitting them the
+      // other way round is schema-invalid — Excel repairs the file and can drop the sheet — even
+      // though this library's own tolerant reader reads it back fine, so the round-trip above
+      // does not catch it. Order, not just presence, is the invariant.
+      name: 'the note’s legacyDrawing is emitted before the table’s tableParts (schema order)',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {sheets} = await api.inspectPackage(SPEC);
+        const order = sheets.S.elementOrder;
+        assert.ok(order.legacyDrawing >= 0, 'precondition: the note emits a legacyDrawing element');
+        assert.ok(order.tableParts >= 0, 'precondition: the table emits a tableParts element');
+        assert.strictEqual(
+          order.legacyBeforeTableParts,
+          true,
+          'legacyDrawing must precede tableParts in the worksheet XML per the CT_Worksheet schema'
+        );
+      },
+    },
   ],
 };
