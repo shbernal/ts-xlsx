@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-09 (labeled clusters + six unlabeled slices; 181/794; first fixture-less bulk slice done)._
+_Last updated: 2026-07-09 (labeled clusters + seven unlabeled slices; 196/794; fixture-less bulk drain underway)._
 
 ---
 
@@ -208,9 +208,31 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     `createWriteStream` crash (→ browser-safe-io-boundary), Node-typed `.d.ts` (→
     public-types-node-stream-portability). Corpus **140 green / 82 known-open / 0 regressions**; 92
     corpus cases + 49 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (613 remaining, all fixture-less) in ~15-record
-    slices, same triage-workflow → materialize loop. Ranking now by comment/reaction signal;
-    always check `docs/knowledge/specs/` + existing cases first (folds/dups are the common case).
+  - **Seventh slice — fixture-less bulk, top-15 by comment signal — drained** (196/794,
+    ~25%). 3 corpus behaviors carried + 6 spec notes + 6 not-carried (folds now dominate). Corpus:
+    the streaming writer produces a **valid zip**, not merely valid XML — every part present and
+    non-empty, every entry's CRC matches its bytes, re-reads to the same sheet/values (lock — the
+    reported zero-byte/bad-CRC corruption does not repro, via a new `streamWritePackageReport` that
+    treats the writer's own output as an untrusted archive); reading an `autoFilter` carrying filter
+    criteria (`filters/filter` value list + `customFilters/customFilter` comparison) does not throw
+    and loads every cell via buffered and streaming reader (lock — historic "Unexpected xml node:
+    filter" crash gone, backed by a hand-built foreign-shaped fixture); a sheet with both a note and
+    a table must emit `legacyDrawing` **before** `tableParts` per CT_Worksheet — writer emits them
+    reversed (known-open), caught by augmenting the existing `comment-and-table-coexist` case with a
+    new `elementOrder` fact on `inspectPackage` (the tolerant reader hid it from the round-trip
+    behavior). Spec notes: JS-Date timezone projection (configurable UTC/local/zone rule); document
+    default font (workbook + worksheet level); partial write-side column-definition type; atomic
+    writeFile (temp+rename, no zero-byte file); browser streaming write over a WHATWG sink;
+    DrawingML shape authoring (roundtrip half already a known-open case). Not-carried — six folds:
+    fractional-anchor EMU offset (two existing image cases), spliceRows tail removal
+    (splice-rows-removes-requested-count), NodeJS-ambient `.d.ts` (public-types spec), SSR
+    not-a-constructor (esm-entrypoint spec), HTML-page build (browser specs), deprecated transitives
+    (CLAUDE.md §2 principle). Corpus **146 green / 83 known-open / 0 regressions**; 94 corpus cases +
+    55 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (598 remaining, all fixture-less) in ~15-record
+    slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
+    check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
+    probe-then-fold is the default move.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -251,17 +273,18 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **181/794 (~23%)**; **all labeled clusters + six unlabeled slices are drained; the
-attachment-bearing queue is exhausted and the first fixture-less bulk slice is done**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (140 green / 82
+Drain at **196/794 (~25%)**; **all labeled clusters + seven unlabeled slices are drained; the
+attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (146 green / 83
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (613 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (598 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
-   these records are design discussions, feature requests, and repro-less bug reports, so expect
-   mostly spec notes and reasoned not-carried, with a corpus case only where a behavior reproduces
-   from a spec-built workbook. Reuse the now-broad adapter vocabulary before adding surface; set
-   each baseline by running `npm run corpus` (probe empirically); commit in coherent per-cluster
-   batches. Always check `docs/knowledge/specs/` and existing cases first — folds are now common.
+   these records are design discussions, feature requests, and repro-less bug reports. Folds now
+   dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
+   lands only where a fresh behavior reproduces from a spec-built (or small hand-built) fixture.
+   Reuse the now-broad adapter vocabulary before adding surface; set each baseline by running
+   `npm run corpus` (probe empirically); commit in coherent per-cluster batches. Always check
+   `docs/knowledge/specs/` and existing cases first.
 2. **Open decision #1** (merge-first vs corpus-only for the ~140 PRs) comes due before
    Phase 2; it does not block the issue drain.
