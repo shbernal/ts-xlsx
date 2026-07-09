@@ -954,6 +954,54 @@ export async function roundtripFixtureColorFidelity(rel) {
   return {checked, fillMismatches, borderMismatches, fillSample, borderSample};
 }
 
+// The value of the print-area defined name (`_xlnm.Print_Area`) in a workbook.xml, split into its
+// comma-separated ranges. Excel records multiple print areas on one sheet as ONE Print_Area name
+// whose value is a comma-separated range list sharing one localSheetId.
+const printAreaRanges = workbookXml => {
+  const m = workbookXml.match(/<definedName\b[^>]*name="_xlnm\.Print_Area"[^>]*>([\s\S]*?)<\/definedName>/);
+  if (!m) return [];
+  // The value carries XML entity escapes (&apos; around a quoted sheet name); ranges are comma-split
+  // at the top level (range refs contain no commas).
+  return m[1].replace(/&apos;/g, "'").split(',').map(s => s.trim()).filter(Boolean);
+};
+
+// Read a fixture `.xlsx` that declares more than one print area on a sheet, and report the print
+// areas along three axes → { sourceRangeCount, readPrintArea, rewrittenRangeCount } — for asserting
+// that a single Print_Area defined name holding a comma-separated list of ranges is fully recovered
+// (both ranges, not just the first) and re-emitted as both ranges, rather than being truncated to
+// one on read and mangled on write.
+export async function roundtripFixturePrintAreas(rel) {
+  const srcZip = await JSZip.loadAsync(require('node:fs').readFileSync(fixturePath(rel)));
+  const srcWbName = Object.keys(srcZip.files).find(f => /xl\/workbook\.xml$/.test(f));
+  const sourceRangeCount = printAreaRanges(srcWbName ? await srcZip.file(srcWbName).async('string') : '').length;
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const readPrintArea = workbook.worksheets[0].pageSetup ? workbook.worksheets[0].pageSetup.printArea ?? null : null;
+
+  const outZip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+  const outWbName = Object.keys(outZip.files).find(f => /xl\/workbook\.xml$/.test(f));
+  const rewrittenRangeCount = printAreaRanges(outWbName ? await outZip.file(outWbName).async('string') : '').length;
+
+  return {sourceRangeCount, readPrintArea, rewrittenRangeCount};
+}
+
+// Build a workbook whose one sheet declares a print area (a `printArea` string, which may be a
+// comma-separated list of ranges for multiple print areas), write it, and report the ranges of the
+// emitted `_xlnm.Print_Area` defined name → { rangeCount, ranges } — for asserting that authoring
+// two print areas produces one sheet-scoped defined name carrying both ranges, not a single
+// truncated/mangled one.
+export async function writePrintAreaDefinedName(printArea) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 1;
+  sheet.pageSetup.printArea = printArea;
+  const zip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+  const wbName = Object.keys(zip.files).find(f => /xl\/workbook\.xml$/.test(f));
+  const ranges = printAreaRanges(wbName ? await zip.file(wbName).async('string') : '');
+  return {rangeCount: ranges.length, ranges};
+}
+
 // Read a fixture `.xlsx` and report only { ok, error, sheetNames } — for asserting the
 // reader neither crashes nor mis-reads a workbook produced by a *foreign* (non-Excel)
 // generator: a namespace-prefixed OOXML root (`<x:workbook>` instead of `<workbook>`),

@@ -39,6 +39,8 @@ import {
   roundtripFixtureStyleFacts,
   roundtripFixtureConditionalFormatting,
   roundtripFixtureColorFidelity,
+  roundtripFixturePrintAreas,
+  writePrintAreaDefinedName,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -224,4 +226,15 @@ export default {
   // pattern="none" the writer adds) — for asserting themed/indexed colors survive a pure
   // open-then-save. See workbook-io.mjs.
   roundtripFixtureColorFidelity,
+
+  // Read a fixture whose sheet declares multiple print areas and report { sourceRangeCount,
+  // readPrintArea, rewrittenRangeCount } — for asserting a single Print_Area defined name holding a
+  // comma-separated range list is recovered and re-emitted with all ranges, not truncated to the
+  // first. See workbook-io.mjs.
+  roundtripFixturePrintAreas,
+
+  // Build a workbook with a (possibly comma-separated) printArea, write it, and report the emitted
+  // Print_Area defined name's ranges → { rangeCount, ranges } — for asserting authoring two print
+  // areas emits both ranges in one sheet-scoped name. See workbook-io.mjs.
+  writePrintAreaDefinedName,
 };
