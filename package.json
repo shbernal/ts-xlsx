@@ -38,6 +38,9 @@
   "scripts": {
     "test": "npm run test:full",
     "harvest": "node scripts/harvest/fetch-issue.mjs",
+    "harvest:list": "node scripts/harvest/list-backlog.mjs",
+    "harvest:all": "node scripts/harvest/harvest-all.mjs",
+    "harvest:status": "node scripts/harvest/status.mjs",
     "corpus": "node test/corpus/run.mjs",
     "test:es5": "export EXCEL_BUILD=es5 && npm run test:full",
     "test:full": "npm run build && npm run test:unit && npm run test:integration && npm run test:end-to-end && npm run test:jasmine",

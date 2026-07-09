@@ -68,7 +68,11 @@ async function main() {
   console.log(`corpus: ${cases.length} case(s), ${behaviorCount} behavior(s) vs adapter "${api.name}"\n`);
 
   for (const testCase of cases) {
-    console.log(`  ${testCase.id}  [#${testCase.provenance.ref}]  ${testCase.cluster}`);
+    // `provenance` is an optional, disposable trace — a case is identified by its
+    // durable `id`/`cluster`, never by an upstream number. Show a ref only if present.
+    const ref = testCase.provenance?.ref;
+    const tag = ref ? `  [#${ref}]` : '';
+    console.log(`  ${testCase.id}${tag}  ${testCase.cluster}`);
     for (const behavior of testCase.behavior) {
       const {actual, detail} = runBehavior(behavior, api);
       let status;

@@ -137,11 +137,18 @@ phase that "leaves no opportunity behind us."
   corpus case. Note which PRs are trivial dep bumps we simply supersede.
 - For proposals/enhancements: capture as **spec notes** under `docs/knowledge/specs/`
   (desired behavior, prior art, open questions) feeding Phase 2 design.
-- Maintain a single tracker `docs/knowledge/BACKLOG.md`: every upstream item →
-  `{captured | superseded | out-of-scope}` with a one-line rationale, so we can
-  prove nothing was silently dropped (per `CLAUDE.md` §"no silent caps").
-- **Exit:** 100% of open issues and PRs are dispositioned in `BACKLOG.md`; every
-  `captured` item has a corpus case or a spec note. The corpus is large, runs
+- Treat the harvest as a **one-time drain**, not a ledger (see
+  `docs/knowledge/BACKLOG.md`). `harvest:list` freezes the universe into
+  `manifest.json`; `harvest:all` fills the queue (`backlog/issues/*.json`); agents
+  then drain it thread by thread. **Distill the knowledge, delete the record, and let
+  the commit message be the durable account** of what was preserved (or why an item
+  was not carried). We do **not** maintain a per-item `{captured|superseded|…}` table,
+  and durable artifacts never cite upstream numbers — they go meaningless post-fork.
+  Nothing is silently dropped: the frozen `manifest.json` is the denominator, `git
+  log` the per-item account, an empty queue the completion proof (`CLAUDE.md` §"no
+  silent caps"). Follow it with `harvest:status`.
+- **Exit:** the queue (`backlog/issues/`) is empty — every item drained; every carried
+  item left a corpus case and/or spec note behind it. The corpus is large, runs
   against current code (mostly red where bugs are real), and is implementation-blind.
 
 ### Phase 2 — Stabilize-to-validate  *(prove the corpus, then let go)*
@@ -198,8 +205,10 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
 
 - **The corpus is the product's spine.** When in doubt, add a case. A bug without a
   corpus case is a bug that will return.
-- **Preserve provenance.** Every corpus case and spec note links back to the upstream
-  issue/PR it came from. That link is how we honor the effort we inherited.
+- **Preserve provenance as durable knowledge, not as a link.** Capture the *real-world
+  scenario* a thread taught us — that survives the fork; the issue/PR number does not.
+  Durable artifacts (corpus cases, spec notes, commit messages) never cite upstream
+  numbers. The commit that drains an item is its account of record.
 - **Capture broadly, implement selectively.** Phase 1 hoards knowledge cheaply;
   Phases 2–3 spend effort where value is highest. Reactions and real-world frequency
   guide priority.
@@ -215,11 +224,15 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
 > tooling + corpus) that does not touch the legacy shape. See `PROGRESS.md` for live
 > status.
 
-1. Write the harvest scripts; snapshot all open issues + PRs (bodies, labels,
-   reactions, attachments, attached `.xlsx`) into `docs/knowledge/backlog/`.
-2. Define the corpus format and adapter; land one real harvested case end-to-end,
+1. ✅ Harvest toolchain built: `harvest:list` (universe → `manifest.json`),
+   `harvest:all` (resumable queue fill), `harvest:status` (drain progress), plus the
+   single-thread atom. Bodies, labels, reactions, attachments, and sample `.xlsx` land
+   under `docs/knowledge/backlog/`.
+2. ✅ Corpus format + adapter defined; one real harvested case runs end-to-end,
    red/green against the *current* code.
-3. Seed `docs/knowledge/BACKLOG.md` from the snapshot and begin clustering.
+3. **Fill then drain:** run `harvest:all` once to fill the queue, then drain it per the
+   `harvest-triage` skill — distill each thread into a corpus case and/or spec note,
+   delete the record, commit. Follow with `harvest:status --clusters`.
 4. **Deferred to the end (not now):** replace the Babel/Grunt/Mocha toolchain with the
    TS/Vitest/Biome/tsup skeleton. This is the highest-drift action in the whole plan;
    it runs only once the backlog is captured and the mergeable PRs are banked.

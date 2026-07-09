@@ -27,18 +27,21 @@ A case module default-exports:
 
 ```js
 {
-  id: '0140-address-decoding',
-  provenance: { source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 140, url: '…' },
+  id: 'whole-column-defined-names',              // durable descriptive slug — no number prefix
   cluster: 'address-decoding',
   description: '…',
+  provenance: { source: 'upstream-issue' },      // OPTIONAL, disposable trace — never the identity
   behavior: [
     { name, baseline: 'pass' | 'fail', expect(api, assert) { … } },
   ],
 }
 ```
 
-- **`provenance`** links back to the harvested backlog item. Never omit it — it is how
-  we honor inherited effort and trace every case to its origin.
+- **`id` / `description`** carry the durable identity: a descriptive slug and the
+  *real-world scenario* in prose. Do **not** encode upstream issue/PR numbers here —
+  they go meaningless when we finish leaving that project (`harvest-triage` skill).
+- **`provenance`** is optional and disposable — a trace of where a case came from, never
+  its identity. The durable text must stand entirely without it.
 - **`behavior[]`** — each is one assertion about observable behavior. `expect` receives
   the **adapter** (`api`) and Node's strict `assert`; it throws to fail, returns to pass.
 - **`baseline`** records what **today's legacy code** does for this behavior:

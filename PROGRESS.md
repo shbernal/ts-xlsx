@@ -40,18 +40,20 @@ The infrastructure clean break is **done** (2026-07-09):
   green, `npm run test:unit` green (883 passing, 1 pending).
 
 ### 🔜 Phase 0 — Foundation & harvest tooling  *(additive only — does NOT touch legacy shape)*
-- ✅ **Harvest atom** built & proven: `scripts/harvest/fetch-issue.mjs` pulls one upstream
-  issue/PR (body, comments, labels, reactions, attachment links + spreadsheet fixtures,
-  PR changed-file map) into `docs/knowledge/backlog/issues/<n>.json` (schema
-  `ts-xlsx/backlog-item@1`). Auth via `gh api`; 25 MB / spreadsheet-ext download cap;
-  triage kept out of the record so re-harvest never clobbers it. Format documented in
-  `docs/knowledge/backlog/README.md`. `npm run harvest <n>`.
-  - ⏳ *Fan-out* across all ~793 open items is Phase 1 work (the atom scales trivially).
+- ✅ **Harvest toolchain** built & proven (shared core `scripts/harvest/lib.mjs`):
+  - `harvest:list` → freezes the universe into `docs/knowledge/backlog/manifest.json` (654
+    issues + 140 PRs). `harvest:all` → resumable queue fill. `harvest:status [--clusters]` →
+    drain progress. Single-thread atom (`npm run harvest <n>`) pulls body, comments, labels,
+    reactions, attachment links + spreadsheet fixtures, PR changed-file map into
+    `backlog/issues/<n>.json` (schema `ts-xlsx/backlog-item@1`). Auth via `gh api`; 25 MB /
+    spreadsheet-ext download cap. Documented in `docs/knowledge/backlog/README.md`.
+  - ⏳ *Fill + drain* across all 794 items is Phase 1 work.
 - ✅ **Regression corpus format** defined & runnable under `test/corpus/`: implementation-blind
   cases assert against an **adapter contract** vocabulary (`current` adapter binds it to
   `lib/`); each behavior carries a `baseline` (`pass`/`fail` vs legacy) so the runner tells a
   known-open bug from a real regression (exit 1 only on regression). `npm run corpus`.
-  Documented in `test/corpus/README.md`. Disposition ledger seeded: `docs/knowledge/BACKLOG.md`.
+  Documented in `test/corpus/README.md`. **Drain model** (no per-item ledger) documented in
+  `docs/knowledge/BACKLOG.md`.
 - ⏳ CI skeleton for the *additive* checks only (corpus + existing suite). **No toolchain
   rip-out yet** (see 🧊 below). — *next slice.*
 - **Exit:** ✅ **MET** — issue #140 harvested end-to-end → corpus case `0140-address-decoding`
@@ -61,16 +63,22 @@ The infrastructure clean break is **done** (2026-07-09):
 - 🧊 **Deferred out of Phase 0:** replacing Babel/Grunt/Mocha with TS/Vitest/Biome/tsup.
   Highest-drift action in the plan → runs last (see Phase 3/4).
 
-### ⏳ Phase 1 — Harvest the backlog  *("the snapshotting" — my earlier "Phase B")*
-- Triage & cluster all issues + PRs into themes (tables, styles, streaming, pivot, images,
-  conditional formatting, dates, formulas, csv, types, security/deps).
-- Every credible bug/repro → a corpus case (failing test + fixture), tagged with provenance.
-- Every open PR → extract intent + test (not the diff); push high-value PR *code* as
-  `harvest/pr-<n>` branches so patches stay cherry-pickable.
-- Maintain `docs/knowledge/BACKLOG.md`: every upstream item → `{captured | superseded |
-  out-of-scope}` with a one-line rationale (nothing silently dropped).
-- **Exit:** 100% of open issues + PRs dispositioned; every `captured` item has a corpus case
-  or spec note; corpus runs against current code (mostly red where bugs are real).
+### 🔜 Phase 1 — Harvest the backlog  *(one-time drain of the queue)*
+Model: `harvest:list` freezes the universe (`manifest.json`, 794 items), `harvest:all` fills
+the queue (`backlog/issues/*.json`), agents **drain** it — distill each thread into durable
+product, delete the record, commit. No per-item ledger; the commit message is the account of
+record; durable artifacts never cite upstream numbers (they die with the fork).
+- ✅ **Harvest toolchain** built (`harvest:list` / `:all` / `:status` + single-thread atom;
+  shared core in `scripts/harvest/lib.mjs`). Manifest snapshot taken: 654 issues + 140 PRs.
+- ✅ **Agent skills** authored: `harvest-triage` (per-item drain) and `write-corpus-case`.
+- ⏳ **Fill the queue:** `npm run harvest:all` (resumable) — *next slice.*
+- ⏳ **Drain:** cluster by theme (tables, styles, streaming, pivot, images, conditional
+  formatting, dates, formulas, csv, types, security/deps). Credible bug/repro → corpus case
+  (+ fixture); PR → intent + repro + root cause (discard the diff); proposal → spec note;
+  dep bump/noise → not carried (commit says why). High-value PR *code* may still be pushed as
+  a `harvest/pr-<n>` branch so a patch stays cherry-pickable (branch names are transient).
+- **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
+  runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
 ### ⏳ Phase 2 — Stabilize-to-validate  *(time-boxed, on the frozen legacy tree)*
 - Bank the cheaply-capturable value: fix high-value low-risk bugs test-first, and — pending
@@ -109,10 +117,10 @@ The infrastructure clean break is **done** (2026-07-09):
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-The end-to-end format proof is **done** (issue #140 → dataset entry → corpus case, red/green).
+The end-to-end format proof is **done**, and the harvest toolchain + agent skills are built.
 Next slice, in order:
-1. **CI skeleton** (final Phase 0 bullet): a workflow running `npm run test:unit` + `npm run corpus`
+1. **Fill the queue**: `npm run harvest:all` (resumable one-time bulk fetch of all 794 items).
+2. **Drain it** per the `harvest-triage` skill: cluster, distill credible bugs into corpus cases
+   and proposals into spec notes, delete each record, commit. Track with `npm run harvest:status`.
+3. **CI skeleton** (final Phase 0 bullet): a workflow running `npm run test:unit` + `npm run corpus`
    on push/PR — additive checks only, no toolchain rip-out.
-2. **Begin Phase 1 fan-out**: batch-harvest the backlog (the atom scales trivially — loop
-   `fetch-issue.mjs` over the open issue/PR list), then triage into `BACKLOG.md` clusters and
-   distill credible bugs into corpus cases.
