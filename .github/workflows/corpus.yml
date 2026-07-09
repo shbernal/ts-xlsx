@@ -1,0 +1,26 @@
+name: Corpus
+
+# The regression corpus is the knowledge we harvest across the rewrite. It must
+# stay green (exit 0 unless a real regression appears) on every push and PR. This
+# is an additive check: it does not touch the legacy toolchain, which is frozen
+# until the backlog is drained (see PROGRESS.md / STRATEGY.md).
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  corpus:
+    name: Regression corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run corpus
