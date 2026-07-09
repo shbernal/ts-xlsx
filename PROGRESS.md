@@ -40,14 +40,24 @@ The infrastructure clean break is **done** (2026-07-09):
   green, `npm run test:unit` green (883 passing, 1 pending).
 
 ### 🔜 Phase 0 — Foundation & harvest tooling  *(additive only — does NOT touch legacy shape)*
-- ⏳ Harvest scripts: pull all open issues + PRs (bodies, comments, labels, reactions,
-  attached `.xlsx`) from upstream into `docs/knowledge/backlog/` as a local, queryable dataset.
-- ⏳ Define the regression **corpus format** under `test/corpus/` — each case
-  `{ description, provenance (issue/PR #), input fixture?, expected behavior }`, runnable
-  against *any* implementation via a thin adapter.
+- ✅ **Harvest atom** built & proven: `scripts/harvest/fetch-issue.mjs` pulls one upstream
+  issue/PR (body, comments, labels, reactions, attachment links + spreadsheet fixtures,
+  PR changed-file map) into `docs/knowledge/backlog/issues/<n>.json` (schema
+  `ts-xlsx/backlog-item@1`). Auth via `gh api`; 25 MB / spreadsheet-ext download cap;
+  triage kept out of the record so re-harvest never clobbers it. Format documented in
+  `docs/knowledge/backlog/README.md`. `npm run harvest <n>`.
+  - ⏳ *Fan-out* across all ~793 open items is Phase 1 work (the atom scales trivially).
+- ✅ **Regression corpus format** defined & runnable under `test/corpus/`: implementation-blind
+  cases assert against an **adapter contract** vocabulary (`current` adapter binds it to
+  `lib/`); each behavior carries a `baseline` (`pass`/`fail` vs legacy) so the runner tells a
+  known-open bug from a real regression (exit 1 only on regression). `npm run corpus`.
+  Documented in `test/corpus/README.md`. Disposition ledger seeded: `docs/knowledge/BACKLOG.md`.
 - ⏳ CI skeleton for the *additive* checks only (corpus + existing suite). **No toolchain
-  rip-out yet** (see 🧊 below).
-- **Exit:** one real harvested case runs red/green against the *current* code through the adapter.
+  rip-out yet** (see 🧊 below). — *next slice.*
+- **Exit:** ✅ **MET** — issue #140 harvested end-to-end → corpus case `0140-address-decoding`
+  runs red/green against current code through the adapter (2 green regression-locks: the
+  `$1` crash is fixed upstream; 1 known-open red: `decodeEx('$1:$1')` still leaks
+  `"$undefined$1"` / `"NaN:NaN"` into serialized addresses). Existing suite still 883/1 pending.
 - 🧊 **Deferred out of Phase 0:** replacing Babel/Grunt/Mocha with TS/Vitest/Biome/tsup.
   Highest-drift action in the plan → runs last (see Phase 3/4).
 
@@ -99,5 +109,10 @@ The infrastructure clean break is **done** (2026-07-09):
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Build the harvest script and do **one** end-to-end pull (a single upstream issue → dataset entry
-→ corpus case) to validate the format before scaling to the full ~654 issues + ~139 PRs.
+The end-to-end format proof is **done** (issue #140 → dataset entry → corpus case, red/green).
+Next slice, in order:
+1. **CI skeleton** (final Phase 0 bullet): a workflow running `npm run test:unit` + `npm run corpus`
+   on push/PR — additive checks only, no toolchain rip-out.
+2. **Begin Phase 1 fan-out**: batch-harvest the backlog (the atom scales trivially — loop
+   `fetch-issue.mjs` over the open issue/PR list), then triage into `BACKLOG.md` clusters and
+   distill credible bugs into corpus cases.

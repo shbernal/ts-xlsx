@@ -1,0 +1,55 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 140,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/140",
+  "title": "col-cache.js: Unhandled rejection TypeError: Cannot read property '0' of null",
+  "state": "open",
+  "author": "graycrow",
+  "createdAt": "2016-06-23T14:42:49Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 5,
+  "commentCount": 4,
+  "body": "My code worked fine with exceljs up to v. 0.2.4 but doesn't work with recent exceljs versions (0.2.6 and above) with following error:\n\n```\nUnhandled rejection TypeError: Cannot read property '0' of null\n    at Object.module.exports.decodeAddress (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\exceljs\\lib\\utils\\col-cache.js:111:36)\n    at Object.module.exports.decodeEx (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\exceljs\\lib\\utils\\col-cache.js:179:21)\n    at Object.CellMatrix.addCell (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\exceljs\\lib\\utils\\cell-matrix.js:36:29)\n    at D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\exceljs\\lib\\doc\\defined-names.js:176:16\n    at Array.forEach (native)\n    at Function._.each._.forEach (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\underscore\\underscore.js:78:11)\n    at D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\exceljs\\lib\\doc\\defined-names.js:175:9\n    at Array.forEach (native)\n    at Function._.each._.forEach (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\underscore\\underscore.js:78:11)\n    at Object.model (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\exceljs\\lib\\doc\\defined-names.js:173:7)\n    at Object.model (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\exceljs\\lib\\doc\\workbook.js:146:30)\n    at D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:579:31\n    at tryCatcher (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\bluebird\\js\\release\\util.js:16:23)\n    at Promise._settlePromiseFromHandler (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\bluebird\\js\\release\\promise.js:504:31)\n    at Promise._settlePromise (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\bluebird\\js\\release\\promise.js:561:18)\n    at Promise._settlePromiseCtx (D:\\PROJECTS\\DPHKH\\src\\node-dphkh\\node_modules\\bluebird\\js\\release\\promise.js:598:10)\n```\n\nLine 111 of col-cache.js is part of `decodeAddress` function:\n\n``` javascriprt\nvar col = value.match(/[A-Z]+/)[0];\n```\n\nBasically, what happens here, is that `decodeEx` function for some reason gets `'Some Text'!$1:$1` as a parameter, then splits it two times to get `\"$1\"` string and then sends it to the `decodeAddress`. In that function it gets evaluated against regexp and that search returns `null` because there is no uppercase letters in the `\"$1\"` string. And then it takes first item from `null`, which obviously throws an exception.\n\nI hope that my explanation is clear and it will help to solve this issue.\nBtw, thank you for the library, it helps a lot.\n",
+  "comments": [
+    {
+      "author": "jaagupkymmel",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-08-16T13:28:17Z",
+      "reactions": 0,
+      "body": "I'm getting the same error. Seems to be an issue with parsing defined names. \nRelevant xml from `file.xlsx/xl/workbook.xml`:\n\n``` XML\n<definedNames>\n    <definedName name=\"Foo\">MyWorksheet!$A:$A</definedName>\n    <definedName name=\"Bar\">MyWorksheet!$A:$B</definedName>\n</definedNames>\n```\n"
+    },
+    {
+      "author": "fchevitarese",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-20T18:05:56Z",
+      "reactions": 0,
+      "body": "I'm having the same problem. But i didn't used previous releases. \r\nI try to open the file and get the same error :| "
+    },
+    {
+      "author": "jalembke",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-10-31T20:16:18Z",
+      "reactions": 0,
+      "body": "Any update to this?  Has this been fixed?  I'm running into the same issue with xlsx files created with Gnumeric (www.gnumeric.org)."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-22T13:26:47Z",
+      "reactions": 0,
+      "body": "#664 \r\n\r\nhttps://github.com/exceljs/exceljs/pull/636"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/636",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

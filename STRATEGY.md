@@ -117,6 +117,10 @@ Set up the machinery before doing the work at scale.
   runnable against *any* implementation via a thin adapter.
 - **Exit:** one end-to-end corpus case (harvested from a real upstream issue) runs
   red/green against the *current* code through the adapter.
+  → ✅ **Met (2026-07-09):** issue #140 harvested via `scripts/harvest/fetch-issue.mjs`;
+  corpus case `0140-address-decoding` runs red/green through the `current` adapter
+  (`npm run corpus`). Remaining Phase 0 bullet: the additive CI skeleton. Toolchain
+  rip-out stays deferred (see `PROGRESS.md`).
 
 ### Phase 1 — Harvest the backlog  *(preserve the knowledge)*
 Convert the backlog from GitHub threads into durable project assets. This is the
