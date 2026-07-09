@@ -1,0 +1,68 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1174,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1174",
+  "title": "[BUG] Named range lost",
+  "state": "open",
+  "author": "zymon",
+  "createdAt": "2020-03-24T10:48:24Z",
+  "closedAt": null,
+  "labels": [
+    "help wanted"
+  ],
+  "reactions": 0,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\nNamed range defined in excel in format like worksheet!$1:$10 is removed when reading the file.\r\n\r\nLib version: 3.8.1\r\n\r\n## Steps To Reproduce\r\n\r\nconst {Workbook} = require('../../lib/exceljs.nodejs');\r\n\r\nconst filenameIn = './NamedRangeIn.xlsx';\r\nconst filenameOut = './NamedRangeOut.xlsx';\r\nconst wb = new Workbook();\r\nwb.xlsx\r\n    .readFile(filenameIn)\r\n    .then(() => wb.xlsx.writeFile(filenameOut))\r\n    .then(() => {\r\n        console.log('Done.');\r\n    })\r\n    .catch(error => {\r\n        console.error('Error', error.stack);\r\n    });\r\n\r\nOpen output file: NamedRangeOut.xlsx\r\nGo to 'Formulas', open 'Name Manager'. See that there's no range named: RangeTest.\r\n\r\nLooks like only ranges like [row][col]:[row][col] are valid.\r\n\r\n[NamedRangeIn.xlsx](https://github.com/exceljs/exceljs/files/4374749/NamedRangeIn.xlsx)\r\n[NamedRangeOut.xlsx](https://github.com/exceljs/exceljs/files/4374750/NamedRangeOut.xlsx)\r\n[named_range_test.js.txt](https://github.com/exceljs/exceljs/files/4374751/named_range_test.js.txt)\r\n",
+  "comments": [
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-03-25T02:36:03Z",
+      "reactions": 0,
+      "body": "I read the exceljs source code, but I didn't find the code to handle 'Name Manager', exceljs may not currently support it.. \r\n\r\n```javascript\r\n  // app-heading-pairs-xform.js\r\n\r\n  render(xmlStream, model) {\r\n    xmlStream.openNode('HeadingPairs');\r\n    xmlStream.openNode('vt:vector', {size: 2, baseType: 'variant'});\r\n\r\n    xmlStream.openNode('vt:variant');\r\n    xmlStream.leafNode('vt:lpstr', undefined, 'Worksheets');\r\n    xmlStream.closeNode();\r\n\r\n    xmlStream.openNode('vt:variant');\r\n    xmlStream.leafNode('vt:i4', undefined, model.length);\r\n    xmlStream.closeNode();\r\n\r\n    xmlStream.closeNode();\r\n    xmlStream.closeNode();\r\n  }\r\n\r\n```\r\n\r\n```xml\r\n// app.xml\r\n\r\n<HeadingPairs>\r\n    <vt:vector size=\"4\" baseType=\"variant\">\r\n      <vt:variant>\r\n        <vt:lpstr>Worksheets</vt:lpstr>\r\n      </vt:variant>\r\n      <vt:variant>\r\n        <vt:i4>2</vt:i4>\r\n      </vt:variant>\r\n      <vt:variant>\r\n        <vt:lpstr>Named Ranges</vt:lpstr>\r\n      </vt:variant>\r\n      <vt:variant>\r\n        <vt:i4>1</vt:i4>\r\n      </vt:variant>\r\n    </vt:vector>\r\n  </HeadingPairs>\r\n````"
+    },
+    {
+      "author": "aliaksei-lebedzeu",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-17T07:41:20Z",
+      "reactions": 0,
+      "body": "The lib supports named ranges, you can see them if you run the following code:\r\n```javascript\r\n    const tWorkbook = new Excel.Workbook();\r\n    await tWorkbook.xlsx.read(fStream);\r\n    console.log(tWorkbook.definedNames);\r\n```\r\nBut I can confirm that at least named rows are not got parsed correctly. So a name assigned to a row in the 'Name Manager' looks like:\r\n\r\n![image](https://user-images.githubusercontent.com/67019510/84869353-eb9a1180-b04b-11ea-8242-abc213f6c7ab.png)\r\n\r\nWhen the `definedNames` go to console the named row is there, but it is not available in `definedNames.forEach` and disappear after saving:\r\n![image](https://user-images.githubusercontent.com/67019510/84869272-cf967000-b04b-11ea-88fb-2c8f4f8186bf.png)\r\n"
+    },
+    {
+      "author": "zymon",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-10-26T18:42:15Z",
+      "reactions": 2,
+      "body": "I've discovered more problems:\r\n- hidden name ranges are always removed\r\n- ranges like: **'Name1'!$1:$1048576** are removed (any range that spans to the entire worksheet or all rows or all columns)\r\n- long ranges cause performance problems (can crash the web page). I suppose this is becauase of the way the range validation is done"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/4374749/NamedRangeIn.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/4374750/NamedRangeOut.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/4374751/named_range_test.js.txt",
+      "ext": "txt",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/67019510/84869353-eb9a1180-b04b-11ea-8242-abc213f6c7ab.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/67019510/84869272-cf967000-b04b-11ea-88fb-2c8f4f8186bf.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

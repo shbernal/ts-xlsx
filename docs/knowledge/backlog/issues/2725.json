@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2725,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2725",
+  "title": "I need Help",
+  "state": "open",
+  "author": "zhaoyan519",
+  "createdAt": "2024-03-19T02:35:31Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "I user this , but error\r\n<script type=\"text/javascript\" src=\"[../base/js/excel/excel.min.js](https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.js)\" ></script>\r\n\r\nTypeError: fs.createWriteStream is not a function\r\nat XLSX.writeFile (excel.min.js:16156:59)\r\nat wn.showCacheInfo (manager.js:100:22)\r\nat He (vue.min.2.6.12.js:6:11384)\r\nat a.n (vue.min.2.6.12.js:6:13168)\r\nat He (vue.min.2.6.12.js:6:11384)\r\nat e.$emit (vue.min.2.6.12.js:6:34373)\r\nat a.handleClick (index.js:1:125669)\r\nat He (vue.min.2.6.12.js:6:11384)\r\nat HTMLButtonElement.n (vue.min.2.6.12.js:6:13168)",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

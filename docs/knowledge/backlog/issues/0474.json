@@ -1,0 +1,96 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 474,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/474",
+  "title": "Cannot remove the last row with .spliceRows()",
+  "state": "open",
+  "author": "vvmnnnkv",
+  "createdAt": "2018-01-09T12:10:51Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 11,
+  "body": "Hi,\r\n\r\nConsider following code:\r\n\r\n```js\r\nlet Excel = require('exceljs');\r\nlet wb = new Excel.Workbook();\r\nlet ws = wb.addWorksheet('sheet1');\r\n\r\nws.addRow(['1.1', '1.2', '1.3']);\r\nws.addRow(['2.1', '2.2', '2.3']);\r\nws.addRow(['3.1', '3.2', '3.3']);\r\n\r\nconsole.log('rows total: ', ws.rowCount);\r\nfor (let i = 1; i <= 3; i++) {\r\n  console.log(i, ':', ws.getRow(i).values);\r\n}\r\n\r\nws.spliceRows(3, 1);\r\n\r\nconsole.log('rows total: ', ws.rowCount);\r\nfor (let i = 1; i <= 3; i++) {\r\n  console.log(i, ':', ws.getRow(i).values);\r\n}\r\n```\r\nOutput before splice:\r\n```js\r\nrows total:  3\r\n1 ':' [ , '1.1', '1.2', '1.3' ]\r\n2 ':' [ , '2.1', '2.2', '2.3' ]\r\n3 ':' [ , '3.1', '3.2', '3.3' ]\r\n```\r\n\r\nOutput after splice:\r\n```js\r\nrows total:  3\r\n1 ':' [ , '1.1', '1.2', '1.3' ]\r\n2 ':' [ , '2.1', '2.2', '2.3' ]\r\n3 ':' [ , '3.1', '3.2', '3.3' ]\r\n```\r\n\r\nThe expectation is that after splice it will be:\r\n```js\r\nrows total:  2\r\n1 ':' [ , '1.1', '1.2', '1.3' ]\r\n2 ':' [ , '2.1', '2.2', '2.3' ]\r\n3 ':' []\r\n```\r\n\r\nAnalogy with arrays:\r\n```js\r\nlet a = [1,2,3];\r\na.splice(2,1);\r\nconsole.log(a); // => [1,2]\r\n```",
+  "comments": [
+    {
+      "author": "MarkusBrun",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-03-08T17:59:29Z",
+      "reactions": 0,
+      "body": "Noticing this as well"
+    },
+    {
+      "author": "cm0s",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-05-07T19:16:46Z",
+      "reactions": 0,
+      "body": "Same problem for me, but it has been resolved in the last version (working with 1.4.6, was not working in 0.7.0). This ticket should be closed."
+    },
+    {
+      "author": "FriendOfTheNight",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-11-01T04:44:17Z",
+      "reactions": 0,
+      "body": "I'm having the same issue with 1.6.0-1.6.2 and it makes it an absolute nightmare to work with. As far as I can tell it's completely random and I have to put in very hacky workarounds since splicing from the worksheet._rows array directly causes all sorts of issues too."
+    },
+    {
+      "author": "fhw-help",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-01T13:03:11Z",
+      "reactions": 0,
+      "body": "I still have that problem on version 3.8.2 are there any solutions yet?"
+    },
+    {
+      "author": "bepan",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-29T17:19:05Z",
+      "reactions": 0,
+      "body": "Hey what about this issue? its still not working in version 4.2.0"
+    },
+    {
+      "author": "bepan",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-09T15:19:59Z",
+      "reactions": 0,
+      "body": "A workaround for this is to always keep a row at the end with whatever values."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-02-14T18:42:02Z",
+      "reactions": 0,
+      "body": "#674 #628 "
+    },
+    {
+      "author": "GW-GhostWolf",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-07-08T14:16:35Z",
+      "reactions": 4,
+      "body": "Using version 4.2.1, still not fixed. My work around was to add a blank row to the bottom of the worksheet before trying to delete.\r\n```\r\nlastRow = worksheet.rowCount;\r\nworksheet.insertRow(lastRow + 1,[]);\r\nworksheet.spliceRows(lastRow, 1);\r\n```\r\n\r\n"
+    },
+    {
+      "author": "iva2k",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-07-12T22:51:30Z",
+      "reactions": 0,
+      "body": "@GW-GhostWolf \r\nAdding just one row may be not enough if number of rows deleted is more than one.\r\nLet's bump it up so the PR is merged."
+    },
+    {
+      "author": "Mandeel",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-12-31T16:50:44Z",
+      "reactions": 1,
+      "body": "using version 4.3.0, and still not deleting row without doing @GW-GhostWolf solution"
+    },
+    {
+      "author": "samuel-vianna",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-18T12:23:41Z",
+      "reactions": 0,
+      "body": "Any upates? still not working"
+    }
+  ],
+  "attachments": []
+}

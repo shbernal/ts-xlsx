@@ -1,0 +1,60 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1383,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1383",
+  "title": "[F] #1363 - Add support for excluding AutoFilter columns",
+  "state": "open",
+  "author": "remzh",
+  "createdAt": "2020-07-09T22:14:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 2,
+  "body": "## Summary\r\n\r\nI brought this up in #1363 several days back. Basically, Excel allows you to exclude specific columns from showing the AutoFilter button when setting an AutoFilter range, which is extremely helpful when you want a field to span more than one column and/or with merged cells. This would implement support for that in ExcelJS. \r\n\r\n## Test plan\r\n\r\n<!-- Demonstrate the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes UI. -->\r\nThis implementation is intended to be as minimally invasive and non-destructive as possible - it merely adds on a property, `exclude`, that can be (optionally) passed onto the `autoFilter` property. The readme has also been updated with an example of this. \r\n\r\nIf the user opts not to use said `exclude` property, then autoFilter will behave exactly the same way as before. \r\n\r\nExample: \r\n```javascript\r\nconst sheet = workbook.addWorksheet('My Sheet');\r\n\r\nsheet.autoFilter = {\r\n    from: 'A1', \r\n    to: 'E1', \r\n    exclude: [1, 2] // excludes columns B and C from showing the AutoFilter button\r\n}\r\n```",
+  "comments": [
+    {
+      "author": "remzh",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-09T22:22:51Z",
+      "reactions": 0,
+      "body": "Additionally, there was a typo in one of the changelogs - a link referencing #306 in the changelog actually linked to #304. \r\nhttps://github.com/exceljs/exceljs/pull/1383/commits/9076e4d9c2c88defcdfb52049414d2249afdee12 simply fixes that."
+    },
+    {
+      "author": "WeslleyDeSouza",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-11-16T14:01:49Z",
+      "reactions": 0,
+      "body": "any update on this?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/1383/commits/9076e4d9c2c88defcdfb52049414d2249afdee12",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 22,
+    "deletions": 2,
+    "changedFiles": [
+      {
+        "path": "README.md",
+        "status": "modified",
+        "additions": 12,
+        "deletions": 1
+      },
+      {
+        "path": "lib/xlsx/xform/sheet/auto-filter-xform.js",
+        "status": "modified",
+        "additions": 10,
+        "deletions": 1
+      }
+    ]
+  }
+}

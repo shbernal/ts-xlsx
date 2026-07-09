@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2278,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2278",
+  "title": "Downgrade regenerator runtime dependency to be CSP strict-src compliant",
+  "state": "open",
+  "author": "lakshit-dua",
+  "createdAt": "2023-05-25T05:07:01Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Summary\r\nExceljs is not CSP strict-src compliant. As per discoveries listed in issue - https://github.com/exceljs/exceljs/issues/713\r\na Function constructor is invoked by regenerator-runtime dependency (primarily used for polyfilling async/promises through generators). \r\n\r\nExceljs is compiled in strict mode by default, causing the Function constructor call in the regenerator-runtime script. \r\nA possible solution listed is to simply use the bare version of exceljs and include this regenerator-runtime lib separately (causing it to not be run in strict mode and hence not invoke the Function constructor).\r\n\r\n\r\n## Test plan\r\n\r\nA simple fix is to downgrade to regenrator-runtime to 0.13.1, which doesn't have the forbidden Function constructor call.\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/713",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 1,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": "package.json",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      }
+    ]
+  }
+}

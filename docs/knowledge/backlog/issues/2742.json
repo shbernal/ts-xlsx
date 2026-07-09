@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2742,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2742",
+  "title": "[BUG] PowerBI blob export - Cell styles not identical in ExcelJS ",
+  "state": "open",
+  "author": "slussier",
+  "createdAt": "2024-04-11T18:24:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\nI'm using ExcelJS to concat all my PowerBI Blob into a single workbook. PowerBI return this font style structure:\r\n\r\n```json\r\n<font>\r\n    <b val=\"0\"></b>\r\n    <i val=\"0\"></i>\r\n    <strike val=\"0\"></strike>\r\n    <u val=\"none\"></u>\r\n    <sz val=\"11\"></sz>\r\n    <color rgb=\"FF666666\"></color>\r\n    <name val=\"Segoe UI\"></name>\r\n</font>\r\n```\r\n\r\nSince ExcelJS seems to not support val=\"0\" for style font, all cells are bold, italic and striked.\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\nYou can use PowerBI exporter and use this file. Otherwise, create an Excel File and add `<i val=\"0\"></i>` on xl/styles.xml and use this to import this sheet in a new ExcelJS wokbook.\r\n\r\n## The expected behaviour:\r\n\r\nCell style font with val=\"0\" shouldn't apply on cell. \r\n",
+  "comments": [],
+  "attachments": []
+}

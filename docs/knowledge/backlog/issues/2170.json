@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2170,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2170",
+  "title": "[BUG] Cannot assign to read only property 'fill' of object '#<Object>'",
+  "state": "open",
+  "author": "bulolo",
+  "createdAt": "2022-11-18T09:25:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "\r\n\r\n```\r\nconst tempWorkbook = new ExcelJS.Workbook()\r\nawait tempWorkbook.xlsx.readFile(this.app.baseDir + '/app/public/a.xlsx')\r\nconst tempSheet = tempWorkbook.getWorksheet('Sheet1')\r\n\r\nconst workbook = new ExcelJS.Workbook()\r\n\r\nlet sheet = workbook.addWorksheet('Sheet1')\r\nsheet.model = Object.assign(tempSheet.model, {\r\n  mergeCells: tempSheet.model.merges,\r\n})\r\nsheet.name = 'Sheet1'\r\n\r\nsheet.getCell(`D${row}`).fill = {\r\n  type: 'pattern',\r\n  pattern: 'darkVertical',\r\n  fgColor: { argb: 'FFFF0000' },\r\n  bgColor: { argb: 'FFFF0000' },\r\n}\r\n\r\n```\r\n\r\n```\r\nCannot assign to read only property 'fill' of object '#<Object>'\r\n```",
+  "comments": [
+    {
+      "author": "nhd2106",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-12-16T04:33:41Z",
+      "reactions": 0,
+      "body": "+1"
+    }
+  ],
+  "attachments": []
+}

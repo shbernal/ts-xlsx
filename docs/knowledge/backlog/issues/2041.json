@@ -1,0 +1,75 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2041,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2041",
+  "title": "[BUG] Slow generation performance",
+  "state": "open",
+  "author": "hfhchan",
+  "createdAt": "2022-04-27T05:07:57Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 8,
+  "body": "## 🐛 Bug Report\r\n\r\nWe are generating an Excel file with lots of rows but minimal formatting.  We've found that the writeBuffer() call will spend aggregated 20.85s in addStyleModel() and only 5s in addWorksheets().\r\n\r\nOne of the bottlenecks seem to be using the serialized XML as the key on `this.index.style` in `_addStyle()`.  We tried passing an Int16Array into the method and keying it on `${style[0]},${style[1]},${style[2]},${style[3]},${style[4]},${style[5]}` instead, which reduced it to 17.12s.\r\n\r\nWe also observed that the style objects for each cell were always a different object, so the weakmap was never used. Combined with removing the weakmap checks, the total aggregate time of addStyleModel() was reduced to 558ms.\r\n\r\nLib version: 4.2.1",
+  "comments": [
+    {
+      "author": "hfhchan",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-27T06:06:54Z",
+      "reactions": 0,
+      "body": "Removing only the weakmap checks, it takes 3.74s."
+    },
+    {
+      "author": "hfhchan",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-27T10:36:37Z",
+      "reactions": 6,
+      "body": "We reduced it to 2.76s by calling `finalizeWorkbook()` before calling writeBuffer:\r\n\r\n````typescript\r\nclass ExcelGenerator {\r\n  private internStyle<T extends Partial<Excel.Style>>(internedStyles: Map<string, T>, style: T, type: number) {\r\n    let buf = `${JSON.stringify(style)}${type}`;\r\n\r\n    const internedStyle = internedStyles.get(buf);\r\n    if (internedStyle) {\r\n      return internedStyle;\r\n    }\r\n\r\n    const newInternedStyle = Object.freeze(Object.assign({}, style));\r\n    internedStyles.set(buf, newInternedStyle);\r\n    return newInternedStyle;\r\n  }\r\n\r\n  public finalizeWorkbook(workbook: Excel.Workbook) {\r\n    const internedStyles = new Map<string, Partial<Excel.Style>>();\r\n    workbook.worksheets.forEach(worksheet => {\r\n      (worksheet as any)._rows.forEach((row: Excel.Row) => {\r\n        (row as any)._cells.forEach((cell: Excel.Cell) => {\r\n          cell.style = this.internStyle(internedStyles, cell.style, cell.type);\r\n        });\r\n      });\r\n    });\r\n  }\r\n}\r\n````"
+    },
+    {
+      "author": "dhondtlaurens",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-05-17T21:07:32Z",
+      "reactions": 0,
+      "body": "@hfhchan, Do you have a Gist of the total solution you've implemented? would love to take a look at the weakmap removal. Perhaps this should be a configurable option?"
+    },
+    {
+      "author": "hfhchan",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-05-18T00:47:54Z",
+      "reactions": 0,
+      "body": "I ended up not removing the Weakmap checks because I didn't want to fork the library. I'm simply calling the `finalizeWorkbook(workbook)` method shown above before calling `writeBuffer()`."
+    },
+    {
+      "author": "SpectreWulf",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-22T14:41:27Z",
+      "reactions": 0,
+      "body": "> We reduced it to 2.76s by calling `finalizeWorkbook()` before calling writeBuffer:\r\n> \r\n> ```ts\r\n> class ExcelGenerator {\r\n>   private internStyle<T extends Partial<Excel.Style>>(internedStyles: Map<string, T>, style: T, type: number) {\r\n>     let buf = `${JSON.stringify(style)}${type}`;\r\n> \r\n>     const internedStyle = internedStyles.get(buf);\r\n>     if (internedStyle) {\r\n>       return internedStyle;\r\n>     }\r\n> \r\n>     const newInternedStyle = Object.freeze(Object.assign({}, style));\r\n>     internedStyles.set(buf, newInternedStyle);\r\n>     return newInternedStyle;\r\n>   }\r\n> \r\n>   public finalizeWorkbook(workbook: Excel.Workbook) {\r\n>     const internedStyles = new Map<string, Partial<Excel.Style>>();\r\n>     workbook.worksheets.forEach(worksheet => {\r\n>       (worksheet as any)._rows.forEach((row: Excel.Row) => {\r\n>         (row as any)._cells.forEach((cell: Excel.Cell) => {\r\n>           cell.style = this.internStyle(internedStyles, cell.style, cell.type);\r\n>         });\r\n>       });\r\n>     });\r\n>   }\r\n> }\r\n> ```\r\n\r\nThis literally cut down the writeBuffer() time in our project by nearly 50% (!) \r\n\r\nThanks a lot! ❤"
+    },
+    {
+      "author": "kumaresansv",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-04-13T15:05:54Z",
+      "reactions": 0,
+      "body": "Anyone facing slow write issues with the stream writer. Would the above approach work for stream writer as well? Any input is appreciated."
+    },
+    {
+      "author": "sithu951",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-04T09:22:08Z",
+      "reactions": 0,
+      "body": "\"finalizeWorkbook\" by @hfhchan works for me as well. The time taken for writeBuffer is significantly reduced, more than 50%. Thanks man."
+    },
+    {
+      "author": "jHabjanMXP",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-11-25T17:33:42Z",
+      "reactions": 0,
+      "body": "`finalizeWorkbook` in my case decreases execution time when calling `writeBuffer` from 50sec to 9sec! Thanks"
+    }
+  ],
+  "attachments": []
+}

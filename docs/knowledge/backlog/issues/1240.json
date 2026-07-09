@@ -1,0 +1,63 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1240,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1240",
+  "title": "[BUG] Error if table doesn't have filter buttons enabled",
+  "state": "open",
+  "author": "teemue",
+  "createdAt": "2020-04-29T14:57:38Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\nI have [this workbook](\r\nhttps://drive.google.com/file/d/1KZbWavkomaX-SNoVrb7ezsV5Ws17UWDt/view?usp=sharing) with one sheet and a table in it. Using client-sided exceljs, loading the workbook causes error:\r\n ```\r\nexceljs.js:22597 Uncaught (in promise) TypeError: Cannot set property 'filterButton' of undefined\r\n    at exceljs.js:22597\r\n    at Array.forEach (<anonymous>)\r\n    at TableXform.parseClose (exceljs.js:22596)\r\n    at exceljs.js:7813\r\n    at SaxesParser.closeTag (exceljs.js:66388)\r\n    at SaxesParser.sCloseTag (exceljs.js:65977)\r\n    at SaxesParser.write (exceljs.js:64859)\r\n    at SAXStream._write (exceljs.js:5852)\r\n    at doWrite (exceljs.js:69237)\r\n    at writeOrBuffer (exceljs.js:69226)\r\n```\r\nIf I enable filtering buttons on the table, it doesn't cause any errors.\r\n\r\nLib version: 3.8.2\r\n",
+  "comments": [
+    {
+      "author": "teemue",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-29T16:00:34Z",
+      "reactions": 1,
+      "body": "Ok it seems that it has something to do with the structured references inside the table (formulas in columns O and P. If I convert the table to a range, it works."
+    },
+    {
+      "author": "dotnetshadow",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-05T09:59:00Z",
+      "reactions": 0,
+      "body": "I see to have the same issue. In excel I need to go to the Data menu and turn off the Filter button\r\n\r\nFilter on causes the error message\r\n![image](https://user-images.githubusercontent.com/296247/156878382-5524ff87-51d2-4c0e-811c-7263b8183cfb.png)\r\n\r\n```\r\nc:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\table-xform.js:101\r\n            this.model.columns[index].filterButton = column.filterButton;\r\n                                                   ^\r\n\r\nTypeError: Cannot set properties of undefined (setting 'filterButton')\r\n    at c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\table-xform.js:101:52\r\n    at Array.forEach (<anonymous>)\r\n    at TableXform.parseClose (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\table-xform.js:100:45)\r\n    at TableXform.parse (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xform\\base-xform.js:67:21)\r\n    at async XLSX._processTableEntry (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:165:19)\r\n    at async XLSX.load (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:391:15)\r\n    at async XLSX.readFile (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:55:24)\r\n````\r\n\r\nIs there a way to ignore the filter button being enabled when reading in the workbook?\r\n"
+    },
+    {
+      "author": "mustafaKamal-fe",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-02T16:48:01Z",
+      "reactions": 1,
+      "body": "> I see to have the same issue. In excel I need to go to the Data menu and turn off the Filter button\r\n> \r\n> Filter on causes the error message ![image](https://user-images.githubusercontent.com/296247/156878382-5524ff87-51d2-4c0e-811c-7263b8183cfb.png)\r\n> \r\n> ```\r\n> c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\table-xform.js:101\r\n>             this.model.columns[index].filterButton = column.filterButton;\r\n>                                                    ^\r\n> \r\n> TypeError: Cannot set properties of undefined (setting 'filterButton')\r\n>     at c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\table-xform.js:101:52\r\n>     at Array.forEach (<anonymous>)\r\n>     at TableXform.parseClose (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\table-xform.js:100:45)\r\n>     at TableXform.parse (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xform\\base-xform.js:67:21)\r\n>     at async XLSX._processTableEntry (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:165:19)\r\n>     at async XLSX.load (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:391:15)\r\n>     at async XLSX.readFile (c:\\code\\foo\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:55:24)\r\n> ```\r\n> \r\n> Is there a way to ignore the filter button being enabled when reading in the workbook?\r\n\r\nSame here !! \r\nI ahve tried inmany ways to disable filter buttons added on table headers with no effect so far: \r\n\r\nFollowing the docs, i have tried: \r\n\r\n`sheet.addTable({..., columns: [{name: \"My header\", filterButton: false}]})`\r\n\r\nIt is not working though."
+    },
+    {
+      "author": "eberridge",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-03T14:44:53Z",
+      "reactions": 0,
+      "body": "I'm a little late to the party but I believe I've found the root cause. Per OpenXML spec, a custom 'totalsRowFormula' in a table column will add a child element in the column XML element; however, the code in `table-column-xform.js` expects columns to be leaf nodes. As `XLSX.load()` parses the table, any such columns are not recognized by the parser and do not find their way into `this.map.tableColumns.model`. However, `this.map.autoFilter.model.columns` does have the correct number of columns. This mismatch causes a index overrun in this loop (around line 101 in table-xform.js):\r\n```\r\n          this.map.autoFilter.model.columns.forEach((column, index) => {\r\n            this.model.columns[index].filterButton = column.filterButton;\r\n          });\r\n```\r\n\r\nWithout a fix there's no real workaround other than to remove custom totals row formulas from all tables."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://drive.google.com/file/d/1KZbWavkomaX-SNoVrb7ezsV5Ws17UWDt/view?usp=sharing",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/296247/156878382-5524ff87-51d2-4c0e-811c-7263b8183cfb.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/296247/156878382-5524ff87-51d2-4c0e-811c-7263b8183cfb.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

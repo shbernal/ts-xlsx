@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2641,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2641",
+  "title": "[BUG] Media and Merge Cells Issues When Copying/Cloning Sheets Across Multiple Excel Workbooks",
+  "state": "open",
+  "author": "Sarsewar",
+  "createdAt": "2023-12-29T11:31:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.4.0\r\nWhile copying worksheets from different workbooks (separate Excel files) to a new workbook, a media error occurred. Images were not copied to the new workbook, and there was also a merge cell issue. The merge cell issue has been resolved with a workaround, but ideally, it should be copied when the model is assigned to clone a sheet.\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n\r\n```javascript\r\nconst workbook = await Workbook().xlsx.readFile(...);\r\nconst srcSheet = workbook.getWorksheet(sheetName);\r\nconst newSheet = workbook.addWorksheet(newSheetName);\r\n//Issue: https://github.com/exceljs/exceljs/issues/2584\r\n//newSheet.model = srcSheet.model;  // Error: Worksheet name already exists \r\nlet model = JSON.parse(JSON.stringify(srcSheet.model));\r\nmodel.name = `${srcSheet.name} Copied`;\r\nnewSheet.model = model;\r\nnewSheet.name = `${srcSheet.name} Copied`;\r\n\r\n// Merge cells are not parsed in latest version also- Known bug I guess.\r\nconst mergesInformation = JSON.parse(JSON.stringify(srcSheet.model)).merges;\r\nmergesInformation.forEach((mergeElement) => { newSheet.mergeCells(mergeElement); });\r\n\r\n//Throwing an error: the file did not download\r\n// Source Workbook media(images) are not copying to new workbook media folder.\r\nworkbook.xlsx.writeBuffer()\r\n  .then(data => {\r\n      // Create a Blob from the workbook data\r\n      const blob = new Blob([data]);\r\n\r\n      // Resolve the Promise with the Blob\r\n      save(blob,'mergedExcels.xlsx');\r\n  });\r\n```\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n// Add media to newSheet to avoid image error;\r\nlet mediaLength = this.srcSheet.media.length;\r\nnewSheet.media.forEach(element => {\r\n    element.index = mediaLength++;\r\n    this.newSheet.media.push(element);\r\n});\r\n```\r\n\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2584",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

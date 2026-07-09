@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2728,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2728",
+  "title": "[BUG] addBackgroundImage not working",
+  "state": "open",
+  "author": "jerryheir",
+  "createdAt": "2024-03-23T13:56:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\naddBackgroundImage not working. addImage and eachSheet are working fine. even ws.addImage works fine.\r\n\r\nBut addBackgroundImage is not working ... \r\n\r\nLib version: X.Y.Z\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\n    const imageId = workbook.addImage({\r\n      buffer: image as Buffer,\r\n      extension: \"png\",\r\n    });\r\n    workbook.eachSheet((ws, _sheetId) => {\r\n\r\n      ws.addBackgroundImage(imageId);\r\n      \r\n   })\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\nImage to be added to background successfully\r\n\r\n\"exceljs\": \"^4.4.0\"\r\n\r\nnode 18.17.1\r\n",
+  "comments": [
+    {
+      "author": "ashmitbp99",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-27T07:19:31Z",
+      "reactions": 0,
+      "body": "+1\r\n\r\nUnable to see background image when adding with the following code:\r\n\r\n```\r\n    worksheet.columns = rows[0].map(header => {\r\n      return { header, key: `column${header}`, width: columnWidthMap[header] || columnWidthMap.default }\r\n    })\r\n\r\n    worksheet.insertRows(2, rows.slice(1))\r\n\r\n    const imageId1 = workbook.addImage({\r\n      filename: 'src/modules/survey/mail_logo.png',\r\n      extension: 'png',\r\n    })\r\n\r\n    worksheet.addBackgroundImage(imageId1) // does not work\r\n    return workbook```\r\n    \r\n    \r\n    using \r\n    exceljs \"^4.4.0\"\r\n    node v21.6.1\r\n    \r\n    "
+    }
+  ],
+  "attachments": []
+}

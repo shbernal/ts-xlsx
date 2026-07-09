@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2577,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2577",
+  "title": "Fixed tabColor example and documented hexadecimal format",
+  "state": "open",
+  "author": "Mike-Dax",
+  "createdAt": "2023-10-31T23:58:38Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\n<!-- Explain the **motivation** for making this change. What existing problem does the pull request solve? -->\r\n\r\nThe README had an incorrect example for `tabColor`. I've also specified the alpha-red-green-blue format used (since it's different to the expected rgba used across the web).\r\n",
+  "comments": [
+    {
+      "author": "protobi-pieter",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-11-08T06:34:07Z",
+      "reactions": 0,
+      "body": "Thanks for catching this error and for documenting the ARGB format! 🎉\n\nYour fix corrects the invalid hex color value and helps users understand the alpha-red-green-blue format. We've adopted this into our actively maintained fork at https://github.com/protobi/exceljs.\n\nYour contribution has been waiting since October 2023 - we really appreciate your patience and contribution! Credited in commit af8abfc."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/protobi/exceljs",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 2,
+    "deletions": 2,
+    "changedFiles": [
+      {
+        "path": "README.md",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      }
+    ]
+  }
+}

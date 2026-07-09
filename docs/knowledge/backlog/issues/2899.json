@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2899,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2899",
+  "title": "[BUG] Cell value comes as a Date where number should be",
+  "state": "open",
+  "author": "alinakuchai-ideals",
+  "createdAt": "2025-03-05T11:31:09Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\n\nLib version: latest\n\nPlease check out why in this file cell A84 value comes as a Date when in excel file it's a number\n\n[CellFormatting.xlsx](https://github.com/user-attachments/files/19088229/CellFormatting.xlsx)",
+  "comments": [
+    {
+      "author": "Snap3-boost",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-25T03:45:06Z",
+      "reactions": 1,
+      "body": "Same issue, any updates?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/files/19088229/CellFormatting.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

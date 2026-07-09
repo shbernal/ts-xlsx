@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3021,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/3021",
+  "title": "Add page fields support to pivot tables",
+  "state": "open",
+  "author": "protobi-pieter",
+  "createdAt": "2026-01-29T06:14:27Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "Currently pivot tables support rows, columns, and values, but not page fields (report filters).\n\nPage fields allow filtering the entire pivot table by a field value. For example, a \"latest\" field with values 0/1 could default to showing only latest=1 rows, with option to select latest=0 or all values via dropdown.\n\nThis would require:\n- Add `pages` array to pivot table model (lib/doc/pivot-table.js)\n- Generate `<pageFields>` XML in pivot-table-xform.js\n- Support for default selected item per page field\n\nExample usage:\n```javascript\npivotSheet.addPivotTable({\n  sourceSheet: dataSheet,\n  rows: ['Region', 'Product'],\n  columns: ['Quarter'],\n  values: ['Sales'],\n  pages: ['latest'],  // new property\n  pageDefaults: { latest: 1 },  // optional: default filter value\n  metric: 'sum'\n});\n```",
+  "comments": [],
+  "attachments": []
+}

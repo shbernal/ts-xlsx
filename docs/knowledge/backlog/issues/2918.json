@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2918,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2918",
+  "title": "[Q] Does Streaming XLSX Writer support addImage()?",
+  "state": "open",
+  "author": "tinhktc",
+  "createdAt": "2025-04-16T06:55:29Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 💬 Questions and Help\n\nHi, I’m currently using `exceljs` for generating reports in both normal and large-scale datasets.\n\nI understand that `WorkbookWriter` (Streaming XLSX Writer) is designed for memory efficiency by writing rows directly to disk. I’ve successfully used `addRow().commit()` for writing large datasets.\n\nHowever, I need clarification regarding image support:\n\n❓ Can `workbook.addImage()` and `worksheet.addImage()` be used with `Excel.stream.xlsx.WorkbookWriter`?\n\nWhen I attempt the following with streaming mode:\n\n```js\nconst workbook = new Excel.stream.xlsx.WorkbookWriter({ filename: 'output.xlsx' });\nconst sheet = workbook.addWorksheet('Example');\n\nconst imgId = workbook.addImage({\n  filename: './image.jpg',\n  extension: 'jpeg'\n});\nsheet.addImage(imgId, 'B2:D10');\n```\nI get the following error:\n\n> TypeError: sheet.addImage is not a function\n\nCould you confirm whether this feature is supported or planned for future versions?\n\nIf not, are there any recommended workarounds (e.g., post-processing or hybrid rendering)?\n\nThanks in advance!",
+  "comments": [
+    {
+      "author": "beiding110",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-06-12T08:07:04Z",
+      "reactions": 0,
+      "body": "Same problem. It still cannot works, any update or fix?"
+    },
+    {
+      "author": "imingyu",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-07-02T03:23:40Z",
+      "reactions": 0,
+      "body": "@tinhktc @beiding110 \nI used AI to enable Excel JS to support streaming I/O and add images. You can refer to this answer:  https://github.com/exceljs/exceljs/issues/322#issuecomment-3026225724"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/322#issuecomment-3026225724",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

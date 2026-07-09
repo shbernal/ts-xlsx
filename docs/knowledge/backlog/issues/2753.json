@@ -1,0 +1,107 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2753,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2753",
+  "title": "[Q] What's the status to support Web Stream ?",
+  "state": "open",
+  "author": "AlwaysNoobCoder",
+  "createdAt": "2024-04-23T10:46:35Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 6,
+  "body": "Web Stream are supported in modern browsers.\r\n\r\nDo we have plan to support it ?  Are there technical obstacles to implement?\r\n\r\nsee: #1228, after four years it's still open, no response from team members.\r\n\r\n",
+  "comments": [
+    {
+      "author": "danielegarciav",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-17T18:51:54Z",
+      "reactions": 0,
+      "body": "Might just have to create a fork that uses the Web Stream API instead of Node.js streams."
+    },
+    {
+      "author": "lionel-rowe",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-11-21T04:17:38Z",
+      "reactions": 0,
+      "body": "Here's what I'm using.\r\n\r\n<details>\r\n<summary>Code</summary>\r\n\r\n```ts\r\nimport type { Writable } from 'node:stream'\r\nimport type ExcelJS from 'exceljs'\r\n\r\ntype ReadableStreamResult<T> = {\r\n    readable: ReadableStream<T>\r\n    done: Promise<void>\r\n}\r\n\r\nexport function workbookToStream(workbook: ExcelJS.Workbook): ReadableStreamResult<Uint8Array> {\r\n    const transform = new TransformStream<Uint8Array, Uint8Array>()\r\n    const done = workbook.xlsx.write(new NodeJsWritableLike<Uint8Array>(transform.writable) as unknown as Writable)\r\n\r\n    return {\r\n        readable: transform.readable,\r\n        done,\r\n    }\r\n}\r\n\r\nclass NodeJsWritableLike<T> {\r\n    writer: WritableStreamDefaultWriter<T>\r\n\r\n    constructor(writable: WritableStream<T>) {\r\n        this.writer = writable.getWriter()\r\n    }\r\n\r\n    async write(chunk: T, cb: () => void): Promise<void> {\r\n        await this.writer.ready\r\n        await this.writer.write(chunk)\r\n        cb()\r\n    }\r\n    async end(): Promise<void> {\r\n        await this.writer.ready\r\n        await this.writer.close()\r\n    }\r\n}\r\n```\r\n</details>\r\n\r\n<details>\r\n<summary>Explanation</summary>\r\n\r\n`NodeJsWritableLike` is a minimal wrapper around `WritableStream` that implements only the specific methods and signatures of `node:stream`'s `Writable` that are called internally by `workbook.xlsx.write`.\r\n\r\n1. `stream` is passed as an argument to `zip.pipe`:\r\n\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/xlsx/xlsx.js#L720-L724\r\n\r\n2. It's passed as `destination` to `ZipWriter`'s `this.stream`:\r\n\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/zip-stream.js#L66-L68\r\n\r\n3. `ZipWriter`'s `this.stream` is a `StreamBuf`:\r\n\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/zip-stream.js#L22\r\n\r\n4. Upon calling `StreamBuf`'s `pipe` method, it's added to `StreamBuf`'s `this.pipes`:\r\n\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/stream-buf.js#L342-L344\r\n\r\n5. `this.pipes` are only iterated in two places, the first to `write` with a callback:\r\n\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/stream-buf.js#L202-L211\r\n\r\n6. ...and the second to `end` with no callback:\r\n\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/stream-buf.js#L289-L291\r\n</details>\r\n\r\nSeems to work well in both browser (Chrome) and server-side (Deno).\r\n\r\nAssuming my logic is sound, it should be foolproof, but not necessarily _future_-proof as the ExcelJS's implementation details could change. I might submit a PR to try and get this properly supported and tested, but for now the wrapper-based method should be good to use as of v4.4.0."
+    },
+    {
+      "author": "markedwards",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-15T10:18:42Z",
+      "reactions": 0,
+      "body": "@lionel-rowe there is a [Writable.fromWeb()](https://nodejs.org/api/stream.html#streamwritablefromwebwritablestream-options) method that takes care of this, actually.  It's marked as experimental, but it seems to work well."
+    },
+    {
+      "author": "lionel-rowe",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-15T13:28:24Z",
+      "reactions": 0,
+      "body": "> [@lionel-rowe](https://github.com/lionel-rowe) there is a [Writable.fromWeb()](https://nodejs.org/api/stream.html#streamwritablefromwebwritablestream-options) method that takes care of this, actually. It's marked as experimental, but it seems to work well.\n\nYeah I saw that, but I'd rather not make NodeJS writable streams into a runtime dependency when only a small fraction of their logic is used."
+    },
+    {
+      "author": "markedwards",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-15T14:03:55Z",
+      "reactions": 0,
+      "body": "Isn't Node.js `Stream` already a runtime dependency of ExcelJS?"
+    },
+    {
+      "author": "lionel-rowe",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-15T15:04:18Z",
+      "reactions": 0,
+      "body": "> Isn't Node.js Stream already a runtime dependency of ExcelJS?\n\nI think (?) readable is but not writable, unless writable gets pulled in somewhere indirectly."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/xlsx/xlsx.js#L720-L724",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/zip-stream.js#L66-L68",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/zip-stream.js#L22",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/stream-buf.js#L342-L344",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/stream-buf.js#L202-L211",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/utils/stream-buf.js#L289-L291",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://nodejs.org/api/stream.html#streamwritablefromwebwritablestream-options",
+      "ext": "html",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/lionel-rowe",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://nodejs.org/api/stream.html#streamwritablefromwebwritablestream-options",
+      "ext": "html",
+      "isFixture": false
+    }
+  ]
+}

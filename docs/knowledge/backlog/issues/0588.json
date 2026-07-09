@@ -1,0 +1,28 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 588,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/588",
+  "title": "Columns width resets to 0",
+  "state": "open",
+  "author": "chachora",
+  "createdAt": "2018-06-16T23:16:16Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 2,
+  "commentCount": 1,
+  "body": "Reading existing xlsx file and immediately writing it back to the new file resets all columns width to zero.\r\n `    wb.xlsx.readFile('test1.xlsx')\r\n      .then(() => {\r\n        wb.xlsx.writeFile('test.xlsx')\r\n      })`\r\nWhy it happens?",
+  "comments": [
+    {
+      "author": "bertrandmartel",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-07-17T17:03:34Z",
+      "reactions": 0,
+      "body": "I had the same issue after saving an xlsx file using LibreOffice using the Microsoft Excel 2007-2013 XML (.xlsx) format. When using the original file from Excel it worked correctly"
+    }
+  ],
+  "attachments": []
+}

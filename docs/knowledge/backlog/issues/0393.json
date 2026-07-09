@@ -1,0 +1,36 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 393,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/393",
+  "title": "Similarly Named Ranges/Inputs On Multiple Sheets Are Not Added Properly",
+  "state": "open",
+  "author": "emknbaker",
+  "createdAt": "2017-09-07T14:11:51Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "help wanted"
+  ],
+  "reactions": 1,
+  "commentCount": 2,
+  "body": "If you have Input1 and Input2 defined and scoped separately on Sheet1 and Sheet2, meaning you have 4 defined inputs in total, exceljs only records the last instances of the inputs. In this case, that would mean Sheet2's Input1 and Input2. \r\n\r\nThis causes any formulas on Sheet1 referencing Input1 and Input2 to instead reference Sheet2's Input1 and Input2. It also marks the named ranges as Workbook scope instead of Sheet2 scope. And also, any named ranges on Sheet1 are lost when trying to call worksheet.getCell(cellLoc).names ... \r\n\r\nI believe this is due to the fact that the DefinedNames are recorded via a cell matrix where the name of the inputs is the key for the object property, rather than simply storing each input as an object in an array. \r\n\r\nThank you!",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-21T21:15:43Z",
+      "reactions": 0,
+      "body": "@emknbaker could You write example code here?"
+    },
+    {
+      "author": "JesseVelden",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-11-21T12:07:11Z",
+      "reactions": 0,
+      "body": "If anyone else has trouble creating a Workbook with definedNames with a localSheetId (so have the scope only applied to a specific sheet), there is a workaround you can apply:\r\n```ts\r\nconst definedNamesModel = workbook.definedNames.model;\r\nObject.defineProperty(workbook.definedNames, 'model', {\r\n  set: function (x: typeof definedNamesModel) { (this as { _model: typeof definedNamesModel })._model = x; },\r\n  get: function () { return (this as { _model: typeof definedNamesModel })._model; }\r\n});\r\n\r\nworkbook.definedNames.model = [\r\n  ...definedNamesModel,\r\n  { name: 'example', ranges: [`'${sheet.name}'!$A$1`], localSheetId: sheet.id - 1 }\r\n]\r\n```\r\nThis works because the XML definedNames renderer then uses now the correct/ unmodified model."
+    }
+  ],
+  "attachments": []
+}

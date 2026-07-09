@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2282,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2282",
+  "title": "ExcelJS CSV Write Stream Not Writing with Large Dataset",
+  "state": "open",
+  "author": "PParamashiva",
+  "createdAt": "2023-05-31T04:06:41Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nI am using the ExcelJS library in my Node.js project to write a large dataset to a CSV file using the write stream feature. However, I am experiencing an issue where the write stream seems to fail when dealing with large datasets.\r\n\r\nThis works with small set of data and was able to upload to blob container.\r\n\r\nAdditional notes: I was using const csvBuffer = await workbook.csv.writeBuffer(); but it consumes a lot of memory while writing the file so i switched to streaming.\r\n\r\nAny help would be appreciated.\r\n\r\nLib version: Latest Version\r\n\r\n## Steps To Reproduce\r\n\r\n```\r\nconst ExcelJS = require('exceljs');\r\nconst { BlobServiceClient } = require('@azure/storage-blob');\r\nconst stream = require('stream');\r\n\r\nasync function createAndUploadCSV() {\r\n  // Create a new workbook and worksheet\r\n  const workbook = new ExcelJS.Workbook();\r\n  const worksheet = workbook.addWorksheet('Sheet 1');\r\n\r\n  // Add some sample data to the worksheet\r\n  worksheet.columns = [\r\n    { header: 'Name', key: 'name', width: 20 },\r\n    { header: 'Age', key: 'age', width: 10 },\r\n    { header: 'Email', key: 'email', width: 30 }\r\n  ];\r\n\r\n  for (let i = 1; i <= 100000; i++) {\r\n    worksheet.addRow({ name: `User ${i}`, age: i, email: `user${i}@example.com` });\r\n  }\r\n\r\n  // Create a writable stream\r\n  const writableStream = new stream.PassThrough();\r\n\r\n  // Write workbook to the stream as CSV\r\n  await workbook.csv.write(writableStream, { stream: true });\r\n\r\n  // Create a BlobServiceClient to connect to Azure Blob Storage\r\n  const connectionString = '';\r\n  const containerName = 'app-reporting';\r\n  const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);\r\n  const containerClient = blobServiceClient.getContainerClient(containerName);\r\n\r\n  // Create a unique name for the blob using a timestamp\r\n  const blobName = `data-${Date.now()}.csv`;\r\n\r\n  // Upload the CSV stream to Azure Blob Storage\r\n  const blockBlobClient = containerClient.getBlockBlobClient(blobName);\r\n  const uploadResponse = await blockBlobClient.uploadStream(writableStream);\r\n\r\n  console.log('File uploaded:', uploadResponse.requestId);\r\n}\r\n\r\ncreateAndUploadCSV().catch(console.error);\r\n```\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "Bhavyaatrivedi",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-31T06:48:24Z",
+      "reactions": 0,
+      "body": "Hi, You can try using a chunked write stream to fix the issue:\r\n// Write workbook to the stream as CSV in chunks\r\n  await workbook.csv.createWriteStream({\r\n    chunkSize: 1024 * 1024, // 1MB chunks\r\n  }).pipe(writableStream);\r\n"
+    }
+  ],
+  "attachments": []
+}

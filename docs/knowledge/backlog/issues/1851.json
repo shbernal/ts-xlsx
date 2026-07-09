@@ -1,0 +1,68 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1851,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1851",
+  "title": "[BUG] Default font size breaks column widths",
+  "state": "open",
+  "author": "lket",
+  "createdAt": "2021-09-29T08:55:01Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.3.0 (and many older versions, possibly from 1.14.0)\r\n\r\nIssue #816 looks related, but the fix doesn't seem to work in the current version.\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\nStart with a xlsx file that has as default body font something other than Calibri 11. For example, latest desktop Excel on Windows 10 uses Calibri 12 as the default font, which causes this issue. The issue is most clear with very large font size. I have attached an example that uses body font Calibri 72.\r\n\r\n[test.xlsx](https://github.com/exceljs/exceljs/files/7250252/test.xlsx)\r\n\r\n```javascript\r\nconst workbook = new ExcelJS.Workbook();\r\nawait workbook.xlsx.readFile(\"test.xlsx\");\r\nawait workbook.xlsx.writeFile(\"output.xlsx\");\r\n```\r\n\r\nCompare the input and output. Column widths (and other details in the interface) are different. This can cause surprising problems, as the default font is not usually easily visible in the interface.\r\n\r\nWhy default font affects column widths: <https://docs.microsoft.com/en-us/office/troubleshoot/excel/determine-column-widths>\r\n\r\n## The expected behaviour:\r\n\r\nThe input and output are identical.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nMy guess is that this is related to how the default font is set in [lib\\xlsx\\xform\\style\\styles-xform.js:240 (addStyleModel)](https://github.com/exceljs/exceljs/blob/master/lib/xlsx/xform/style/styles-xform.js#L240). It looks like maybe the default font is inserted *before* the styles have been read from the input file. In the normal case the default font should not be inserted, because one already exists in the input.\r\n\r\nThoughts: Similar check is already done in render, is this earlier one necessary at all? If it is, could it be done at the end of  addStyleModel, instead of in the beginning?",
+  "comments": [
+    {
+      "author": "Big-Gremlin",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-09-21T08:16:43Z",
+      "reactions": 0,
+      "body": "Same problem here.\r\nIs a fix planed?"
+    },
+    {
+      "author": "Azam2926",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-16T05:30:20Z",
+      "reactions": 0,
+      "body": "if bug was **fixed** it would be **great**.\r\n\r\nI tested the same behaviour in java [apache poi](https://poi.apache.org/) it works like a charm "
+    },
+    {
+      "author": "wusonw",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-13T06:30:16Z",
+      "reactions": 0,
+      "body": "same problem happens to me ,any solution now ?"
+    },
+    {
+      "author": "axelvugts",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-04-15T13:45:17Z",
+      "reactions": 0,
+      "body": "I'm also experiencing this issue.\nIt would be great if the styles of a loaded worksheet would be retained."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/7250252/test.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://docs.microsoft.com/en-us/office/troubleshoot/excel/determine-column-widths",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/xlsx/xform/style/styles-xform.js#L240",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://poi.apache.org/",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

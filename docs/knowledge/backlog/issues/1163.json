@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1163,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1163",
+  "title": "Databar Conditional Formatting",
+  "state": "open",
+  "author": "ahmadjawidjami",
+  "createdAt": "2020-03-12T12:10:32Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 4,
+  "body": "## 💬 Questions and Help\r\n\r\nHello,\r\n\r\nI can't figure out how to conditionally format cells using dataBars. Conditional Formatting using dataBars seems to have been added in version 3.6.0, however I can't find any example how to use it. \r\nI need to add a green background (or foreground) color to a cell based on it's value. If the value is 0.3, 30% of the cell's color becomes green; if the value is 0.5, half of cell's color becomes green; If it's 1, then all of the cell's color becomes green and so on.\r\n\r\nAny help will be appreciated.\r\n",
+  "comments": [
+    {
+      "author": "BjoernBoba",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-06T16:45:22Z",
+      "reactions": 0,
+      "body": "Hi Ahmad,\r\n\r\nwere you able to resolve your issue? I am also struggling with setting up a databar as conditional formatting for some cells.\r\n\r\nThanks!"
+    },
+    {
+      "author": "ahmadjawidjami",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-10T09:01:03Z",
+      "reactions": 3,
+      "body": "Hi, yes I solved my problem but it was a long time ago. I dug into the exceljs code and found an example. however now I don't remember which file it was. I can provide you my own code as an example.\r\n\r\nconst workbook = new ExcelJS.Workbook();\r\nconst workSheet = workbook.addWorksheet(\"TestSheet\");\r\n\r\nworkSheet.addConditionalFormatting({\r\n  ref: \"A1:C1\",\r\n  rules: [\r\n    {\r\n      type: \"dataBar\",\r\n      color: { argb: \"85de71\" },\r\n      gradient: false,\r\n      cfvo: [\r\n        { type: \"num\", value: 0 },\r\n        { type: \"num\", value: 1 }\r\n      ]\r\n    }\r\n  ]\r\n});\r\n"
+    },
+    {
+      "author": "gianam65",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-22T02:27:26Z",
+      "reactions": 0,
+      "body": "Hi @ahmadjawidjami. I am also facing databar problem, i have consulted your source code but it doesn't seem to work with version 4.3. Can you tell me what version you use."
+    },
+    {
+      "author": "ahmadjawidjami",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-22T09:19:03Z",
+      "reactions": 1,
+      "body": "Hi @gianam65, I was using version '3.8.2'."
+    }
+  ],
+  "attachments": []
+}

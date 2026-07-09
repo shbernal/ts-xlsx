@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2856,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2856",
+  "title": "[BUG] dataValidation 设置n行数据下拉框 随着行数增加，下拉框中选项却减少了",
+  "state": "open",
+  "author": "dakong112",
+  "createdAt": "2024-12-04T08:25:54Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n![image](https://github.com/user-attachments/assets/753e162e-c8b2-470b-942e-bccf2db0dda8)\r\n![image](https://github.com/user-attachments/assets/3e39e6d1-0270-4001-bc91-3802eb4d0c55)\r\n![image](https://github.com/user-attachments/assets/4cb49584-3750-459b-8dfb-8e6ffe825242)\r\n![image](https://github.com/user-attachments/assets/4e04d25b-4125-4138-888e-ccc932c08ac6)\r\n\r\nLib version: X.Y.Z\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nconst wb = new ExcelJS.Workbook();\r\nconst ws = wb.addWorksheet('XYZ');\r\n\r\nws.getCell('A1').value = 7;\r\nexpect(ws.getCell('A1').value).to.equal(7);\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\nasync exportExcel(isTemp, sheetName, sheetProperties) {\r\n      let originSheetProperties = {\r\n        maxRow: 66, //最大行数\r\n      };\r\n      if (!!sheetProperties) {\r\n        originSheetProperties = {\r\n          ...originSheetProperties,\r\n          ...sheetProperties,\r\n        };\r\n      }\r\n\r\n      const workbook = new ExcelJS.Workbook();\r\n      if (!!!sheetName) {\r\n        sheetName = \"sheet1\";\r\n      }\r\n      debugger;\r\n      // 创建一个工作表\r\n      let worksheet = workbook.addWorksheet(isTemp ? \"导入模版\" : sheetName, {\r\n        views: [{ state: \"frozen\", xSplit: 4, ySplit: 1 }],\r\n      });\r\n      worksheet.properties.defaultColWidth = 15;\r\n      let beginColumn = \"A\";\r\n      let dictColumnMapping = {};\r\n\r\n      // 设置表头\r\n      let headerColumns = [];\r\n      for (let i = 0; i < this.columns.length; i++) {\r\n        const column = this.columns[i];\r\n        //到处列表展示的列\r\n        if (this.handelShow(column.visible, column.role)) {\r\n          headerColumns.push({\r\n            header: column.label.trim(),\r\n            key: column.prop,\r\n            width: column.excelWidth || 15,\r\n          });\r\n          if (\"options\" in column || \"dictType\" in column) {\r\n            dictColumnMapping[column.prop] = beginColumn;\r\n          }\r\n          beginColumn = String.fromCharCode(beginColumn.charCodeAt(0) + 1);\r\n        }\r\n      }\r\n      // 插入表头\r\n      worksheet.columns = headerColumns;\r\n\r\n      if (isTemp) {\r\n        worksheet.addRow([1]);\r\n      } else {\r\n        this.tableData.forEach((item) => {\r\n          worksheet.addRow(item);\r\n        });\r\n      }\r\n\r\n      // 添加第二个工作表用于存放下拉菜单选项\r\n      const worksheet2 = workbook.addWorksheet(\"字典支持数据\");\r\n      const dictMap = this.verifyColumnsContainsProp();\r\n      let dictsMapping = {};\r\n      beginColumn = \"A\";\r\n\r\n      for (const key in dictMap) {\r\n        if (Object.prototype.hasOwnProperty.call(dictMap, key)) {\r\n          const dictLabels = dictMap[key].map((item) => item.label);\r\n          worksheet2.getColumn(beginColumn).values = [...dictLabels]; // 避免覆盖标题行\r\n          dictsMapping[key] = beginColumn;\r\n          beginColumn = String.fromCharCode(beginColumn.charCodeAt(0) + 1);\r\n        }\r\n      }\r\n\r\n      // 设置数据验证\r\n\r\n      for (const key in dictColumnMapping) {\r\n        const col = worksheet.getColumn(dictColumnMapping[key]);\r\n        const dictLength = dictMap[key].length;\r\n\r\n        const dictLabels = dictMap[key].map((item) => item.label);\r\n        const dictData = '\"' + Object.values(dictLabels).join(\",\") + '\"';\r\n        for (let row = 2; row <= originSheetProperties.maxRow; row++) {\r\n          worksheet.getCell(`${dictColumnMapping[key]}${row}`).dataValidation =\r\n            {\r\n              type: \"list\",\r\n              allowBlank: true,\r\n              // formulae: ['\"' + Object.values(dictLabels).join(\",\") + '\"'],\r\n              formulae: [ `='字典支持数据'!${dictsMapping[key]}1:${dictsMapping[key]}${dictMap[key].length}`],\r\n            };\r\n          console.log(\r\n            `='字典支持数据'!${dictsMapping[key]}1:${dictsMapping[key]}${dictMap[key].length}`\r\n          );\r\n        }\r\n      }\r\n\r\n```\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/assets/753e162e-c8b2-470b-942e-bccf2db0dda8",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/3e39e6d1-0270-4001-bc91-3802eb4d0c55",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/4cb49584-3750-459b-8dfb-8e6ffe825242",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/4e04d25b-4125-4138-888e-ccc932c08ac6",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

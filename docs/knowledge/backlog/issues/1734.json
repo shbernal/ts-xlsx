@@ -1,0 +1,37 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1734,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1734",
+  "title": "[BUG] Read excel file with chart and write back but the chart is missing.",
+  "state": "open",
+  "author": "sorratanak",
+  "createdAt": "2021-06-01T15:49:08Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 5,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nI have got problem when read excel file with chart and modify some data, then I write back. The chart is missing. This case also cause when I just read excel file with chart and write back, but it is still show the same problem.\r\n\r\nLib version: 4.2.1\r\n\r\n## Steps To Reproduce\r\n\r\nvar Excel = require('exceljs');\r\nvar workbook = new Excel.Workbook();\r\nworkbook.xlsx.readFile('chartsheet.xlsx')\r\n    .then(function() {\r\n        var worksheet = workbook.getWorksheet(2);\t\r\n        // TODO: modify data \r\n        return workbook.xlsx.writeFile('newchartsheet.xlsx');\r\n})\r\n",
+  "comments": [
+    {
+      "author": "GlennStreetman",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-08T20:17:35Z",
+      "reactions": 0,
+      "body": "Ambekar92,\r\nI'm dealing with a similar issue and I just got something working a few days ago inspired by this [post](https://stackoverflow.com/questions/64473898/why-are-the-charts-in-excel-deleted-if-i-export-the-data-with-exceljs)\r\n\r\nIf you have a .xlsx file that contains your source chart, you might be able to copy it. [copy-excel-chart](https://www.npmjs.com/package/copy-excel-chart)\r\n\r\nThis has barely been tested so you could always use it as a code example or post to pull/issues WHEN you run into an issue.\r\n\r\nGood luck!\r\n\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://stackoverflow.com/questions/64473898/why-are-the-charts-in-excel-deleted-if-i-export-the-data-with-exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/copy-excel-chart",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

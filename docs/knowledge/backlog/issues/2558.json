@@ -1,0 +1,170 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2558,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2558",
+  "title": "Fix the problem with writing a file using streams and not using RAM",
+  "state": "open",
+  "author": "zlooun",
+  "createdAt": "2023-10-17T09:03:15Z",
+  "closedAt": null,
+  "labels": [
+    "hacktoberfest-accepted"
+  ],
+  "reactions": 5,
+  "commentCount": 3,
+  "body": "## Summary\r\n\r\n This PR fixes the problem with writing a file using streams and not using RAM. It solves the problem of writing large excel files.\r\n\r\n## Test plan\r\n\r\n```\r\nimport * as fs from 'fs';\r\nimport { stream } from 'exceljs';\r\n\r\nconst output_file_name = \"/test.xlsx\";\r\n\r\nconst writeStream = fs.createWriteStream(output_file_name, { flags: 'w' });\r\nconst wb = new stream.xlsx.WorkbookWriter({ stream: writeStream });\r\nconst worksheet = wb.addWorksheet(\"test\");\r\n\r\nconst headers = Array.from({length: 256}, (_, i) => i + 1).map((i) => 'test' + i);\r\n\r\nfor (let i = 0; i < 100000; i++) {\r\n  const row = headers.map((header) => header + '|' + i);\r\n  await worksheet.addRow(row).commit(); // This raw will be immediately written to disk and will not clog RAM.\r\n}\r\n\r\nawait worksheet.commit(); // This is not necessary because await wb.commit() is used, but you can also write to disk not raw by raw, but worksheet by worksheet.\r\nawait wb.commit();\r\n```\r\n\r\n## Related to source code (for typings update)\r\n\r\nhttps://github.com/zlooun/exceljs\r\nhttps://www.npmjs.com/package/@zlooun/exceljs\r\n",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-10-31T20:43:36Z",
+      "reactions": 2,
+      "body": "Thank you for the contribution; I believe it enhances the handling of large file writing 🎉. Please bear with me, as this change breaks backward-compatibility and will need to wait for the next major release (5.0)."
+    },
+    {
+      "author": "AmberWilkie",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-07-01T20:14:40Z",
+      "reactions": 1,
+      "body": "Hello just hoping to bump some attention here. This PR would be very helpful for my work. I'd offer to help get it in but honestly I learned everything I know about streams and buffers trying to understand why `await workbook.commit()` was hanging forever. In my case, it's because my S3 upload releases the stream, which I expected to do after committing the workbook. So effectively that `await` will be forever if I put it before the S3 upload terminates.\r\n\r\n(Or then again, I could be off base here - like I said, new to streams)."
+    },
+    {
+      "author": "julesblancphin",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-10T17:08:45Z",
+      "reactions": 1,
+      "body": "Are there any plans to merge this PR?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/zlooun/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/@zlooun/exceljs",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": false,
+    "baseRef": "master",
+    "additions": 146,
+    "deletions": 6522,
+    "changedFiles": [
+      {
+        "path": ".eslintrc",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "README.md",
+        "status": "modified",
+        "additions": 19,
+        "deletions": 3009
+      },
+      {
+        "path": "README_zh.md",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 2850
+      },
+      {
+        "path": "TODO.txt",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 493
+      },
+      {
+        "path": "UPGRADE-4.0.md",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 77
+      },
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "lib/doc/row.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 5
+      },
+      {
+        "path": "lib/stream/xlsx/workbook-writer.js",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 7
+      },
+      {
+        "path": "lib/stream/xlsx/worksheet-writer.js",
+        "status": "modified",
+        "additions": 37,
+        "deletions": 10
+      },
+      {
+        "path": "lib/utils/stream-buf.js",
+        "status": "modified",
+        "additions": 9,
+        "deletions": 9
+      },
+      {
+        "path": "package.json",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 6
+      },
+      {
+        "path": "spec/end-to-end/express.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "spec/integration/issues/issue-275-hyperlink-query-param.spec.js",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 1
+      },
+      {
+        "path": "spec/integration/workbook-xlsx-reader.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "spec/integration/workbook-xlsx-writer/workbook-xlsx-writer.spec.js",
+        "status": "modified",
+        "additions": 14,
+        "deletions": 17
+      },
+      {
+        "path": "spec/integration/workbook/workbook.spec.js",
+        "status": "modified",
+        "additions": 34,
+        "deletions": 20
+      },
+      {
+        "path": "spec/utils/index.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 4
+      },
+      {
+        "path": "spec/utils/test-values-sheet.js",
+        "status": "modified",
+        "additions": 8,
+        "deletions": 8
+      }
+    ]
+  }
+}

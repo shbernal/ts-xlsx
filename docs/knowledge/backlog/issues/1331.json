@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1331,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1331",
+  "title": "样式fill属性中 bgcolor下面有一个indexed，这个是什么意思呢",
+  "state": "open",
+  "author": "yzkno1",
+  "createdAt": "2020-06-16T03:50:47Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "\r\n",
+  "comments": [
+    {
+      "author": "lee576",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-20T03:19:32Z",
+      "reactions": 0,
+      "body": "哭了，本来想读取这个值，结果也是搞不懂这个 indexed 啥意思"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2022-11-20T03:59:10Z",
+      "reactions": 0,
+      "body": "@lee576 \r\n\r\nsee: https://github.com/exceljs/exceljs/issues/1687#issue-866890328\r\nsee: https://openpyxl.readthedocs.io/en/stable/styles.html#colours"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1687#issue-866890328",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://openpyxl.readthedocs.io/en/stable/styles.html#colours",
+      "ext": "html",
+      "isFixture": false
+    }
+  ]
+}

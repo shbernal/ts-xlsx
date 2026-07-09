@@ -1,0 +1,194 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 322,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/322",
+  "title": "workbook.addImage is not a function",
+  "state": "open",
+  "author": "ishantiw",
+  "createdAt": "2017-05-23T13:37:37Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 22,
+  "body": "I have installed latest version of exceljs, however I'm still getting error `workbook.addImage is not a function` when i'm trying to add any image to the workbook. \r\nPS: I have 0.4.10 version",
+  "comments": [
+    {
+      "author": "ishantiw",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-05-23T13:54:28Z",
+      "reactions": 0,
+      "body": "I am using Excel.stream.xlsx.WorkbookWriter() to create a workbook writer stream"
+    },
+    {
+      "author": "ishantiw",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-06-14T08:57:35Z",
+      "reactions": 6,
+      "body": "Problem is when we create a workbook using writer stream then it doesn't find function `addImage()`. However you can also use the following to add an image.\r\n\r\n```\r\nlet workbook = Excel.stream.xlsx.WorkbookWriter()\r\nworkbook.media.push({\r\n    filename: './Picture1.png',\r\n    extension: 'png',\r\n  })\r\nworksheet.addImage(0, 'B1:E6')\r\n// where 0 is the index of the image you added in workbook, basically its an index of the image you pushed to media array\r\n```\r\nOtherwise simply use below to create a worksheet and it works,\r\n`let workbook = new Excel.Workbook()`\r\n"
+    },
+    {
+      "author": "bala-drg",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-08-11T12:41:01Z",
+      "reactions": 0,
+      "body": "@guyonroche @ishantiw i'm using the above code but i'm getting \"worksheet.addImage is not a function\".here is the code\r\n\r\nvar workbook = Excel.stream.xlsx.WorkbookWriter();\r\nworkbook.media.push({\r\n    filename: './Picture1.png',\r\n    extension: 'png',\r\n  })\r\nvar worksheet = workbook.addWorksheet();\r\nworksheet.addImage(0, 'B1:E6')\r\n"
+    },
+    {
+      "author": "ishantiw",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-08-11T15:23:14Z",
+      "reactions": 0,
+      "body": "@guyonroche If you will create a worksheet from `stream.xlsx.WorkbookWriter()` then you will have to use \r\n`workbook.media.push({\r\n    filename: './Picture1.png',\r\n    extension: 'png',\r\n  })`  \r\nYou can get these images using index `workbook.media[0]`. This is just a hack and its better not to use this one.\r\n\r\nRecommended usage,\r\n`let workbook = new Excel.Workbook()` to create a workbook and then `workbook.addImage` will work. Cheers! "
+    },
+    {
+      "author": "dong-qian",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-10-12T20:45:53Z",
+      "reactions": 0,
+      "body": "@ishantiw @guyonroche \r\nI follow the docs but add images are not working\r\n```\r\nlet workbook = new Excel.Workbook()\r\nconst imageId1 = workbook.addImage({\r\nfilename: './Picture1.png',\r\nextension: 'png',\r\n});\r\nworksheet.addBackgroundImage(imageId1);\r\n```\r\nerror: imageId1 returns 0\r\n\r\nPlease help"
+    },
+    {
+      "author": "ishantiw",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-10-12T21:19:11Z",
+      "reactions": 0,
+      "body": "@qiandongyq \r\n`workbook.addImage({}) `returns index of the image you pushed into the image array of workbook. Since it is your first image so you got index as 0 (imageId1). Now you have to use, worksheet.addImage(0, 'A1:B6') to add it over specified cells. But if you are using `addBackgroundImage` function you just need to pass the index. In my case it is working. Can you please make sure your image is getting added without any error. Try to check using `worksheet.addBackgroundImage(0)`"
+    },
+    {
+      "author": "dong-qian",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-10-15T01:38:42Z",
+      "reactions": 0,
+      "body": "@ishantiw I think the issue is that i'm using buffer to download the excel file. Everything is working before add images.  It is browser, can't see any errors\r\n```\r\n this.workbook.xlsx.writeBuffer().then(data => {\r\n      const blob = new Blob([data], {\r\n        type:\r\n          \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"\r\n      });\r\n      FileSaver.saveAs(blob, \"pshsa.xlsx\");\r\n    });\r\n```"
+    },
+    {
+      "author": "JackGit",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-11-16T05:45:01Z",
+      "reactions": 0,
+      "body": "@qiandongyq  got same issue here, stopped at `addImage` and no errors"
+    },
+    {
+      "author": "kkor",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-11-28T19:12:16Z",
+      "reactions": 0,
+      "body": "@ishantiw the workaround you posted earlier doesn't work:\r\n\r\n```\r\nlet workbook = Excel.stream.xlsx.WorkbookWriter()\r\nworkbook.media.push({\r\n    filename: './Picture1.png',\r\n    extension: 'png',\r\n  })\r\nworksheet.addImage(0, 'B1:E6') <--- addImage is not a function\r\n```\r\nThis will throw `worksheet.addImage is not a function` (Note: sheet, not workbook).\r\n\r\nUsing the recommended `let workbook = new Excel.Workbook()` is not option, because we need to use a stream. Do you know if it is possible to add images with the `Excel.stream.xlsx.WorkbookWriter`?\r\nThanks!"
+    },
+    {
+      "author": "Abouyer20",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-01-30T17:49:44Z",
+      "reactions": 0,
+      "body": "Anyone know if this is getting fixed anytime soon?\r\nI have had a look at the code, but it's a bit to complex for me at this stage, for me to try and fix.\r\nLike @kkor said my problem is `worksheet.addImage is not a function` when the file is getting streamed.\r\nAny solution or fixes will be very appreciated. I will still have a look at the code and try and fix it.\r\nThanks in advance "
+    },
+    {
+      "author": "kkor",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-01-30T21:09:25Z",
+      "reactions": 2,
+      "body": "@Abouyer20 The maintainer is too busy and won't be able to contribute for the next few months. The non-streaming version had the same problem and was fixed, maybe you can get some pointers from here: https://github.com/guyonroche/exceljs/issues/374 "
+    },
+    {
+      "author": "ritesh-nitw",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-06-06T06:12:34Z",
+      "reactions": 4,
+      "body": "This issue is a major release blocker. Surprised that, its not being addressed..\r\nRight now, its impossible to use addImage using the WorkbookWriter. \r\nAny workaround  mentioned here won't work.\r\n\r\nGuys, do you know any other library that supports all functionality in WorkbookWriter and easy to switch from exceljs(semantically similar)?"
+    },
+    {
+      "author": "JoaoAlrc",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-04-09T14:34:29Z",
+      "reactions": 4,
+      "body": "nothing yet? I'm trying to create a stream too, but, also having this error\r\n\r\n`workbook.media.push({\r\n        filename: './img/logo.png',\r\n        extension: 'png',\r\n      })\r\n    worksheet.addImage(0, 'B1:E6')` <- TypeError: worksheet.addImage is not a function"
+    },
+    {
+      "author": "amlagazon",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-04-19T18:01:15Z",
+      "reactions": 1,
+      "body": "got the same thing. no error, but it does not work tho. it does not proceed in writeBuffer()."
+    },
+    {
+      "author": "brunoargolo",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2019-04-22T10:59:49Z",
+      "reactions": 0,
+      "body": "Same issue. Printing excel with over 500k rows about 15 columns. Regular workbook won't work, so the stream workbook writer is my only option and it works great besides not allowing images. Any workaround would be greatly appreciated. "
+    },
+    {
+      "author": "ritesh-nitw",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-04-29T08:44:57Z",
+      "reactions": 0,
+      "body": "Anyone able to find any workaround?"
+    },
+    {
+      "author": "akshaykhurana123",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-09T17:05:42Z",
+      "reactions": 3,
+      "body": "Got this working by converting my image to base64 via https://www.base64-image.de/\r\nand then adding it in. Please see code below. Work Great! \r\n\r\nvar myBase64Image = \"data:image/jpeg;base64,/9.......................\";\r\n            var logo = workbook.addImage({\r\n                base64: myBase64Image,\r\n                extension: 'jpeg',\r\n            });\r\n            worksheet.addImage(logo, 'N2:O2'); \r\n"
+    },
+    {
+      "author": "michaelparkadze",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-05-04T09:37:50Z",
+      "reactions": 0,
+      "body": "Still getting this error when using ExcelJS.stream.xlsx.WorkbookWriter"
+    },
+    {
+      "author": "GGimenez96",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-08T20:18:19Z",
+      "reactions": 0,
+      "body": "Any updates on this?"
+    },
+    {
+      "author": "julesblancphin",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-12T14:14:46Z",
+      "reactions": 0,
+      "body": "Still getting this error, it's impossible to add an image to a workbook created with ExcelJS.stream.xlsx.WorkbookWriter.\n\nAt the very least it would be nice to have an explanation in the docs as to why workbooks created with WorkbookWriter don't support the same features. There are many more functions that I'm not able to call.\n\nIt doesn't help that the types are wrong too. `class WorkbookWriter extends Workbook` is simply false since many methods on `Workbook` are not available."
+    },
+    {
+      "author": "beiding110",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-06-12T08:07:29Z",
+      "reactions": 0,
+      "body": "Same problem. It still cannot works, any update or fix?"
+    },
+    {
+      "author": "imingyu",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-07-02T03:21:17Z",
+      "reactions": 0,
+      "body": "这个问题出现在使用流式 I/O(`new exceljs.stream.xlsx.WorkbookWriter()`)生成 Excel 的时候，我也遇到了同样的问题。\n\n得益于现在 AI 工具的强大，我使用 AI 对`exceljs`源码进行了修改，支持了流式 I/O 下添加图片的功能。\n\n从 AI 生成的代码上来看，流式 I/O 下的`addImage`代码实现与普通模式下十分类似，可能`exceljs`的开发团队基于更复杂的原因而选择不对流式 I/O 支持`addImage`？\n\n无所谓了，总之我现在解决了问题。\n\n虽然解决了我的问题，但我无法确定 AI 生成的代码是否适用于所有情况和边界条件，以及其他限制原因，所以我只在这里贴出代码而不选择提出 PR 请求，请有需要的朋友自行获取。\n\n按照以下步骤以支持流式 I/O 添加图片：\n\n\nstreaming I/O (` new exceljs. stream. xlsx. WorkbookWrite() `) to generate Excel.\n\nThanks to the power of AI tools nowadays, I have modified the ` exceljs ` source code using AI and now support the function of adding images under streaming I/O.\n\nFrom the code generated by AI, the implementation of 'addImage' code in streaming I/O is very similar to that in normal mode. Perhaps the development team of 'exceljs' chose not to support' addImage 'in streaming I/O for more complex reasons?\n\nIt doesn't matter anymore, I have solved the problem now.\n\nAlthough it solved my problem, I cannot be sure if the AI generated code is applicable to all situations and boundary conditions, as well as other limiting reasons. Therefore, I will only post the code here and do not choose to make a PR request. Friends who need it should obtain it themselves.\n\nFollow these steps to support streaming I/O and add images:\n\n\n1. 克隆`exceljs`到本地\n    Clone 'exceljs' to local\n\n1. 修改`lib/stream/xlsx/worksheet-writer.js`\n   Modify `lib/stream/xlsx/worksheet-writer.js`\n\n```js\n+ const Image = require('../../doc/image');\n+ const DrawingXform = require('../../xlsx/xform/sheet/drawing-xform');\n\nconst xform = {\n+  drawing: new DrawingXform(),\n};\n\n\nclass WorksheetWriter {\n    commit(){\n        this._writeBackground();\n+       this._writeDrawing();\n        this._writeHeaderFooter();\n    }\n\n+   addImage(imageId, range) {\n        const model = {\n        type: 'image',\n        imageId,\n        range,\n        };\n        this._media.push(new Image(this, model));\n    }\n\n+   getImages() {\n        return this._media.filter(m => m.type === 'image');\n    }\n\n+   _writeDrawing() {\n    const images = this.getImages();\n    if (images.length > 0) {\n      // Create drawing object if we have images\n      if (!this._drawing) {\n        // Initialize workbook drawings count if not exists\n        if (!this._workbook.drawingsCount) {\n          this._workbook.drawingsCount = 0;\n        }\n\n        const drawingName = `drawing${++this._workbook.drawingsCount}`;\n        \n        const drawingId = this._sheetRelsWriter.addMedia({\n          Target: `../drawings/${drawingName}.xml`,\n          Type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing',\n        });\n\n        this._drawing = {\n          rId: drawingId,\n          name: drawingName,\n          anchors: [],\n          rels: [],\n        };\n\n        // Add drawing to workbook's drawings collection\n        if (this._workbook.drawings) {\n          this._workbook.drawings.push(this._drawing);\n        } else {\n          this._workbook.drawings = [this._drawing];\n        }\n      }\n\n      // Process each image and add to drawing anchors\n      images.forEach(imageWrapper => {\n        const medium = imageWrapper.model;\n        const bookImage = this._workbook.getImage(medium.imageId);\n        \n        // Add relationship for the image\n        const rIdImage = `rId${this._drawing.rels.length + 1}`;\n        this._drawing.rels.push({\n          Id: rIdImage,\n          Type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image',\n          Target: `../media/${bookImage.name}`,\n        });\n\n        // Create anchor structure that matches what the drawing xforms expect\n        // The imageWrapper.range contains properly constructed Anchor objects\n        const anchor = {\n          picture: {\n            rId: rIdImage,\n          },\n          range: imageWrapper.range, // This has the proper tl/br Anchor structure\n          // Don't set anchorType manually - let the DrawingXform.prepare() determine it\n        };\n\n        // Handle hyperlinks if present\n        if (medium.hyperlinks && medium.hyperlinks.hyperlink) {\n          const rIdHyperLink = `rId${this._drawing.rels.length + 1}`;\n          anchor.picture.hyperlinks = {\n            tooltip: medium.hyperlinks.tooltip,\n            rId: rIdHyperLink,\n          };\n          this._drawing.rels.push({\n            Id: rIdHyperLink,\n            Type: RelType.Hyperlink,\n            Target: medium.hyperlinks.hyperlink,\n            TargetMode: 'External',\n          });\n        }\n\n        this._drawing.anchors.push(anchor);\n      });\n\n      // Write drawing reference to worksheet\n      this.stream.write(xform.drawing.toXml({rId: this._drawing.rId}));\n    }\n  }\n}\n```\n\n\n1. 修改`lib/stream/xlsx/workbook-writer.js`\n    Modify `lib/stream/xlsx/workbook-writer.js`\n\n```js\nclass WorkbookWriter{\n    constructor(options){\n        this.media = [];\n+       this.drawings = [];\n        this.commentRefs = [];\n    }\n\n    async commit() {\n        await this.addMedia();\n+       await this.addDrawings();\n        await this._commitWorksheets();\n    }\n\n    addContentTypes() {\n        return new Promise(resolve => {\n            const model = {\n                media: this.media,\n+               drawings: this.drawings,\n            };\n            const xform = new ContentTypesXform();\n        });\n    }\n\n    addMedia() {\n        return Promise.all(\n            this.media.map(medium => {\n                if (medium.type === 'image') {\n                    const filename = `xl/media/${medium.name}`;\n                    if (medium.filename) {\n                        return this.zip.file(medium.filename, {name: filename});\n                    }\n                    if (medium.buffer) {\n                        return this.zip.append(medium.buffer, {name: filename});\n                    }\n                    if (medium.base64) {\n                        const dataimg64 = medium.base64;\n                        const content = dataimg64.substring(dataimg64.indexOf(',') + 1);\n-                       return this.zip.append(content, {name: filename, base64: true});\n+                       const buffer = Buffer.from(content, 'base64');\n+                       return this.zip.append(buffer, {name: filename});\n                    }\n                }\n                throw new Error('Unsupported media');\n            })\n        );\n   }\n\n+  addDrawings() {\n    if (this.drawings.length === 0) {\n      return Promise.resolve();\n    }\n\n    const DrawingXform = require('../../xlsx/xform/drawing/drawing-xform');\n    const drawingXform = new DrawingXform();\n\n    return Promise.all(\n      this.drawings.map(drawing => {\n        try {\n          // Prepare the drawing before rendering\n          drawingXform.prepare(drawing);\n          \n          // Generate drawing XML\n          const xml = drawingXform.toXml(drawing);\n          const drawingPath = `xl/drawings/${drawing.name}.xml`;\n\n          // Generate drawing relationships XML if there are relationships\n          const promises = [this.zip.append(xml, {name: drawingPath})];\n          \n          if (drawing.rels && drawing.rels.length > 0) {\n            const relationshipsXform = new RelationshipsXform();\n            const relsXml = relationshipsXform.toXml(drawing.rels);\n            const relsPath = `xl/drawings/_rels/${drawing.name}.xml.rels`;\n            promises.push(this.zip.append(relsXml, {name: relsPath}));\n          }\n\n          return Promise.all(promises);\n        } catch (error) {\n          console.error('Error processing drawing:', error);\n          throw error;\n        }\n      })\n    );\n  }\n}\n```\n\n1. 将`lib`目录拷贝到你的项目中，将原来的`require(\"exceljs\")`换成`require(\"./xxx/lib/exceljs.nodejs.js\")`;\n    Copy the ` lib ` directory to your project and replace the original `require (\"exceljs\")` with `require(\"./xxx/lib/exceljs.nodejs.js\")`;\n\n1. 正常调用`workbook.addImage`和`worksheet.addImage`\n    Call `workbook.addImage` and `worksheet.addImage` normally\n\n1. 如果一切顺利，你生的excel中就已经包含了图片且正常显示了\n    If everything goes smoothly, the Excel file you created already contains images and displays them normally\n\n> 另外请注意：我只测试了`buffer`、`base64`方式添加图片，功能是正常的。\n\n> Also, please note that I only tested the `buffer` and `base64` methods for adding images, and the functionality is normal."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/guyonroche/exceljs/issues/374",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.base64-image.de/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

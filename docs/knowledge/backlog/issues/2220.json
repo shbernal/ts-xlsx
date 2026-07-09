@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2220,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2220",
+  "title": "[BUG] Cannot read properties of undefined (reading 'richText')",
+  "state": "open",
+  "author": "vaynevayne",
+  "createdAt": "2023-02-27T04:45:36Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "\r\n   \"exceljs\": \"^4.3.0\",\r\n```\r\nexceljs.min.js:3 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'richText')\r\n    at u.value (exceljs.min.js:3:1)\r\n    at a.value (exceljs.min.js:3:1)\r\n    at exceljs.min.js:3:1\r\n    at Array.forEach (<anonymous>)\r\n    at u.value (exceljs.min.js:3:1)\r\n    at exceljs.min.js:3:1\r\n    at Array.forEach (<anonymous>)\r\n    at u.value (exceljs.min.js:3:1)\r\n    at u.value (exceljs.min.js:3:1)\r\n    at exceljs.min.js:3:1\r\n    at Array.forEach (<anonymous>)\r\n    at t.value (exceljs.min.js:3:1)\r\n    at t.<anonymous> (exceljs.min.js:3:1)\r\n    at f (exceljs.min.js:17:1)\r\n    at Generator._invoke (exceljs.min.js:17:1)\r\n    at Generator.next (exceljs.min.js:17:1)\r\n    at i (exceljs.min.js:3:1)\r\n    at s (exceljs.min.js:3:1)\r\n    at exceljs.min.js:3:1\r\n    at new Promise (<anonymous>)\r\n    at t.<anonymous> (exceljs.min.js:3:1)\r\n    at t.<anonymous> (exceljs.min.js:3:1)\r\n    at t.<anonymous> (exceljs.min.js:3:1)\r\n    at f (exceljs.min.js:17:1)\r\n    at Generator._invoke (exceljs.min.js:17:1)\r\n    at Generator.next (exceljs.min.js:17:1)\r\n    at i (exceljs.min.js:3:1)\r\n    at s (exceljs.min.js:3:1)\r\n    at exceljs.min.js:3:1\r\n    at new Promise (<anonymous>)\r\n    at t.<anonymous> (exceljs.min.js:3:1)\r\n    at t.<anonymous> (exceljs.min.js:3:1)\r\n    at saveWorkbook (shared.ts:12:1)\r\n    at _callee$ (MultiHeader.ts:68:1)\r\n    at tryCatch (runtime.js:45:1)\r\n    at Generator.invoke [as _invoke] (runtime.js:274:1)\r\n    at prototype.<computed> [as next] (runtime.js:97:1)\r\n    at asyncGeneratorStep (asyncToGenerator.js:3:1)\r\n    at _next (asyncToGenerator.js:25:1)\r\n```",
+  "comments": [
+    {
+      "author": "robertmiddlekauffmckinsey",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-27T19:49:40Z",
+      "reactions": 0,
+      "body": "I am also getting this error"
+    },
+    {
+      "author": "0xSharp",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-07-30T06:27:08Z",
+      "reactions": 0,
+      "body": "Same"
+    }
+  ],
+  "attachments": []
+}

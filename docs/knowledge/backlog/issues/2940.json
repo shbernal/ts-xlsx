@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2940,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2940",
+  "title": "[Q] DISCUSSION : end of data Reached Coruppted zip not found",
+  "state": "open",
+  "author": "AravinthK820",
+  "createdAt": "2025-06-12T09:48:11Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "I have been having a issue some times that my excel has getting converterd through unit8array from their i am getting end of data reached (data length = 0 , asked index = 4) coruppted Zip ? \n\nI have been uploading an excel from an frontend  , the frontend will process an excel and upload to s3 through converting into file of arraybuffer\n\nand then i will process the excel in backend through getting an excel and send to read buffer i am getting this error why ??",
+  "comments": [
+    {
+      "author": "ShaMan123",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-04-17T03:53:14Z",
+      "reactions": 0,
+      "body": "related #1032?"
+    }
+  ],
+  "attachments": []
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2982,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2982",
+  "title": "[F] XYZ",
+  "state": "open",
+  "author": "Shikho18",
+  "createdAt": "2025-10-06T05:25:38Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🚀 Feature Proposal\n\nA clear and concise description of what the feature is.\n\n## Motivation\n\nPlease outline the motivation for the proposal.\n\n## Example\n\nPlease provide an example for how this feature would be used.\n[](url)",
+  "comments": [],
+  "attachments": []
+}

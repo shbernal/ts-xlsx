@@ -1,0 +1,29 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2789,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2789",
+  "title": "[BUG] hidden property not wokring",
+  "state": "open",
+  "author": "toknT",
+  "createdAt": "2024-07-04T03:49:45Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n[hidden property](https://github.com/exceljs/exceljs/issues/26) no work\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\nthe file row 4 is hidden.\r\n\r\n[hide-test.xlsx](https://github.com/user-attachments/files/16093090/hide-test.xlsx)\r\n\r\n\r\n```javascript\r\nconst workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(\r\n      localFilePath,\r\n    );\r\n    for await (const worksheetReader of workbookReader) {\r\n      let readRowNum = 1;\r\n      for await (const row of worksheetReader) {\r\n        Logger.debug(\r\n          `${readRowNum} row.hidden ` + (row.hidden ? 'true' : 'false'),\r\n        );\r\n        readRowNum++;\r\n      }\r\n    }\r\n```\r\n\r\nconsole output\r\n\r\n```sh\r\ndebug: 1 row.hidden false {\"timestamp\":\"2024-07-04 11:47:24\"}\r\ndebug: 2 row.hidden false {\"timestamp\":\"2024-07-04 11:47:24\"}\r\ndebug: 3 row.hidden false {\"timestamp\":\"2024-07-04 11:47:24\"}\r\ndebug: 4 row.hidden false {\"timestamp\":\"2024-07-04 11:47:24\"}\r\ndebug: 5 row.hidden false {\"timestamp\":\"2024-07-04 11:47:24\"}\r\n```\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/26",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/files/16093090/hide-test.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

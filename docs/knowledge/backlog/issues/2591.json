@@ -1,0 +1,53 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2591,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2591",
+  "title": "[BUG] Cannot read properties of undefined (reading 'anchors')",
+  "state": "open",
+  "author": "markusjohnsson",
+  "createdAt": "2023-11-15T18:49:40Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 10,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.4.0\r\n\r\nI have a file which crashes the loader. I have reduced it to just a single chart with some graphics, but I still need to check if I can share it. I'll update this issue with the file when I've cleared this. This is the error:\r\n\r\n```\r\n        (drawing.anchors || []).forEach(anchor => {\r\n                 ^\r\n\r\nTypeError: Cannot read properties of undefined (reading 'anchors')\r\n    at /xyz/node_modules/exceljs/lib/xlsx/xlsx.js:100:18\r\n    at Array.forEach (<anonymous>)\r\n    at XLSX.reconcile (/xyz/node_modules/exceljs/lib/xlsx/xlsx.js:92:33)\r\n    at XLSX.load (/xyz/node_modules/exceljs/lib/xlsx/xlsx.js:411:10)\r\n    at async XLSX.readFile (/xyz/node_modules/exceljs/lib/xlsx/xlsx.js:55:24)\r\n```\r\n\r\n<img width=\"532\" alt=\"image\" src=\"https://github.com/exceljs/exceljs/assets/557685/d9588840-b7aa-4f29-9ce4-dfee34d2b9d0\">\r\n\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nconst ExcelJS = require('exceljs');\r\nconst wb = new ExcelJS.Workbook();\r\nwb.xlsx.readFile('test2.xlsx').then(() => {\r\n    console.log(\"File is loaded\");\r\n});\r\n\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nThe file would load (as it does in Excel) without crashing. I have no need to load any charts, I'm only interested in data cells. I also have no need of saving the file back.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nWith this change the file loads with exceljs:\r\n\r\nin xlsx.js, in class XLSL, method 'reconcile':\r\n\r\n```diff\r\n    Object.keys(model.drawings).forEach(name => {\r\n      const drawing = model.drawings[name];\r\n      const drawingRel = model.drawingRels[name];\r\n-      if (drawingRel) {\r\n+      if (drawing && drawingRel) {\r\n        drawingOptions.rels = drawingRel.reduce((o, rel) => {\r\n          o[rel.Id] = rel;\r\n          return o;\r\n        }, {});\r\n        (drawing.anchors || []).forEach(anchor => {\r\n          const hyperlinks = anchor.picture && anchor.picture.hyperlinks;\r\n          if (hyperlinks && drawingOptions.rels[hyperlinks.rId]) {\r\n            hyperlinks.hyperlink = drawingOptions.rels[hyperlinks.rId].Target;\r\n            delete hyperlinks.rId;\r\n          }\r\n        });\r\n        drawingXform.reconcile(drawing, drawingOptions);\r\n      }\r\n```\r\n",
+  "comments": [
+    {
+      "author": "DarkTraveler",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-20T22:16:13Z",
+      "reactions": 1,
+      "body": "I faced the same problem. I had to change another worksheet-xform.js file.\r\n\r\n```\r\n          drawing.anchors.forEach(anchor => {\r\n            if (anchor.medium) {\r\n```\r\n\r\nAdded check\r\n\r\n```\r\n        if(drawing)\r\n        {\r\n          drawing.anchors.forEach(anchor => {\r\n```"
+    },
+    {
+      "author": "ariel-equall",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-01-27T18:56:41Z",
+      "reactions": 0,
+      "body": "Hitting this same issue - any chance it'll be prioritized?"
+    },
+    {
+      "author": "EOlivoni",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-09-09T10:55:39Z",
+      "reactions": 0,
+      "body": "Had the same issue, please accept solutions mr excel.js creator."
+    },
+    {
+      "author": "ucozlab",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-03-13T17:28:12Z",
+      "reactions": 0,
+      "body": "+1 here. same parsing error"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/557685/d9588840-b7aa-4f29-9ce4-dfee34d2b9d0",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

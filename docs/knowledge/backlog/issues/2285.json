@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2285,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2285",
+  "title": "Stretch image",
+  "state": "open",
+  "author": "aparzi",
+  "createdAt": "2023-06-12T14:30:18Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "I have merged cells, going to create a cell of this size:\r\n628px wide\r\n583px tall\r\n\r\nThe image to add in this cell has the following dimensions: 615px width and 336px height. The result is a stretched image, what am I doing wrong? I add the image via base64.\r\n\r\nLibrary version: \"^4.3.0\",\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-06-14T03:34:19Z",
+      "reactions": 0,
+      "body": "@aparzi Can you provide some code examples and screenshots of the results in excel?"
+    }
+  ],
+  "attachments": []
+}

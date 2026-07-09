@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 251,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/251",
+  "title": "RowCount and ActualRowCount come as undefined",
+  "state": "open",
+  "author": "neeraj87",
+  "createdAt": "2017-01-09T06:18:10Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 6,
+  "commentCount": 3,
+  "body": "```\r\nvar inboundWorkbook = new Excel.Workbook();\r\ninboundWorkbook.xlsx.readFile(req.file.path).then(function() {\r\n           var inboundWorksheet = inboundWorkbook.getWorksheet(1); //or give name of the sheet\r\n\t   console.log('------------- actualRowCount: ' + inboundWorksheet.actualRowCount);\r\n\t   console.log('------------ rowCount: ' + inboundWorksheet.rowCount);\r\n\r\n           inboundWorksheet.eachRow({ includeEmpty: false }, function(row, rowNumber) {\r\n\t\tconsole.log(\"Row \" + rowNumber + \" = \" + row.values);\r\n\t    });\r\n});\r\n```\r\n\r\nIn both the console.logs the row count come as undefined.",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-19T01:58:33Z",
+      "reactions": 0,
+      "body": "@neeraj87 for me it's working\r\n\r\nis it still actual?"
+    },
+    {
+      "author": "Naseem126",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-02-25T15:10:54Z",
+      "reactions": 1,
+      "body": "@Siemienik I am having the same issue with 1.7.0. Both Rowcount and Actual Rowcount gives the following error:\r\n\r\n(node:36156) UnhandledPromiseRejectionWarning: TypeError: Cannot read property 'actualRowCount' of undefined\r\n"
+    },
+    {
+      "author": "prestonlimlianjie",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-10-05T02:42:19Z",
+      "reactions": 0,
+      "body": "It's not working for me either - I wouldn't mind putting in a PR to fix it"
+    }
+  ],
+  "attachments": []
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2734,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2734",
+  "title": "[Q] How do I find merged rows in ExcelJS?",
+  "state": "open",
+  "author": "lnvtphu-tma",
+  "createdAt": "2024-04-03T02:11:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "How do I find merged rows in ExcelJS?\r\nExample: In an Excel file, a cell is merged from A14 to A22. How do I find merged rows in ExcelJS? The expected result is rows 14 to 22 \r\n",
+  "comments": [
+    {
+      "author": "LSL1618",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-10T01:48:06Z",
+      "reactions": 0,
+      "body": "Same question, if someone has answer, inform me."
+    }
+  ],
+  "attachments": []
+}

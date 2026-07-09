@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2722,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2722",
+  "title": "[BUG] XYZ",
+  "state": "open",
+  "author": "MwM-Mai",
+  "createdAt": "2024-03-09T09:12:43Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nWhen the getRow parameter is 1 or 2, you can modify the style of the whole line 1 or 2, but if the parameter is greater than 2, you can modify the style of the entire workbook, such as the fgColor of the entire workbook of the code is FF4500\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nconst workbook = new ExcelJS.Workbook();\r\nawait workbook.xlsx.readFile(filePath);\r\n\r\nconst worksheet = workbook.getWorksheet(1);\r\n\r\nworksheet.getRow(1).hidden = true;\r\nworksheet.getRow(3).fill = {\r\n     type: 'pattern',\r\n     pattern: 'solid',\r\n     fgColor: { argb: 'FF4500' },\r\n};\r\nawait workbook.xlsx.writeFile(filePath)\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\nI hope to modify a certain line of eyes, but can not achieve\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [],
+  "attachments": []
+}

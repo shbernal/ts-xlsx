@@ -1,0 +1,104 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2614,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2614",
+  "title": "fix: addImage position is wrong",
+  "state": "open",
+  "author": "newbeea",
+  "createdAt": "2023-12-05T11:29:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "## Summary\r\n\r\nThis code covers fix for https://github.com/exceljs/exceljs/issues/1820  https://github.com/exceljs/exceljs/issues/894\r\nThe image's position is wrong when set range with float numbers and change ws.properties.defaultRowHeight or defaultColWidth.\r\nThe position is also wrong when set column's width or row's height \r\n\r\n\r\n## Test plan\r\nChange defaultRowHeight defaultColWidth:\r\n```\r\nconst fs = require(\"fs\");\r\nconst path = require(\"path\");\r\n\r\nconst HrStopwatch = require(\"./utils/hr-stopwatch\");\r\n\r\nconst { Workbook } = require(\"../lib/exceljs.nodejs\");\r\n\r\nconst filename = process.argv[2];\r\n\r\nconst wb = new Workbook();\r\nconst ws = wb.addWorksheet(\"blort\");\r\nws.properties.defaultRowHeight = 100;\r\nws.properties.defaultColWidth = 20;\r\n\r\nconst imageId = wb.addImage({\r\n  filename: path.join(__dirname, \"data/image2.png\"),\r\n  extension: \"png\",\r\n});\r\n\r\n// ws.getRow(1).height = 100;\r\n// ws.getColumn(1).width = 20;\r\n\r\nws.addImage(imageId, {\r\n  tl: { col: 0.5, row: 0.5 },\r\n  ext: { width: 100, height: 100 },\r\n});\r\n\r\n\r\nconst stopwatch = new HrStopwatch();\r\nstopwatch.start();\r\nwb.xlsx\r\n  .writeFile(filename)\r\n  .then(() => {\r\n    const micros = stopwatch.microseconds;\r\n    console.log(\"Done.\");\r\n    console.log(\"Time taken:\", micros);\r\n  })\r\n  .catch((error) => {\r\n    console.error(error.stack);\r\n  });\r\n```\r\nBug: image lefttop does not at center of cell\r\n![default-height100-width20](https://github.com/exceljs/exceljs/assets/1249059/16a99e9d-b535-4aec-b962-d03f7f70c45c)\r\n[default-height100-width20.xlsx](https://github.com/exceljs/exceljs/files/13559364/default-height100-width20.xlsx)\r\n\r\nAfter this PR:\r\n![default-height100-width20-fixed](https://github.com/exceljs/exceljs/assets/1249059/006231e6-1fc2-48d9-bba3-3d066fedf133)\r\n[default-height100-width20-fixed.xlsx](https://github.com/exceljs/exceljs/files/13559396/default-height100-width20-fixed.xlsx)\r\n\r\n\r\nChange colWidth rowHeight\r\n```\r\nconst fs = require(\"fs\");\r\nconst path = require(\"path\");\r\n\r\nconst HrStopwatch = require(\"./utils/hr-stopwatch\");\r\n\r\nconst { Workbook } = require(\"../lib/exceljs.nodejs\");\r\n\r\nconst filename = process.argv[2];\r\n\r\nconst wb = new Workbook();\r\nconst ws = wb.addWorksheet(\"blort\");\r\n// ws.properties.defaultRowHeight = 100;\r\n// ws.properties.defaultColWidth = 20;\r\n\r\nconst imageId = wb.addImage({\r\n  filename: path.join(__dirname, \"data/image2.png\"),\r\n  extension: \"png\",\r\n});\r\n\r\nws.getRow(1).height = 100;\r\nws.getColumn(1).width = 20;\r\n\r\nws.addImage(imageId, {\r\n  tl: { col: 0.5, row: 0.5 },\r\n  ext: { width: 100, height: 100 },\r\n});\r\n\r\n\r\nconst stopwatch = new HrStopwatch();\r\nstopwatch.start();\r\nwb.xlsx\r\n  .writeFile(filename)\r\n  .then(() => {\r\n    const micros = stopwatch.microseconds;\r\n    console.log(\"Done.\");\r\n    console.log(\"Time taken:\", micros);\r\n  })\r\n  .catch((error) => {\r\n    console.error(error.stack);\r\n  });\r\n```\r\nBug: image lefttop does not at center of cell\r\n![custom-height100-width20](https://github.com/exceljs/exceljs/assets/1249059/230b8708-1d62-41ed-9599-e853e9370fb9)\r\n[custom-height100-width20.xlsx](https://github.com/exceljs/exceljs/files/13559385/custom-height100-width20.xlsx)\r\n\r\nAfter this PR:\r\n![custom-height100-width20-fixed](https://github.com/exceljs/exceljs/assets/1249059/aea5c189-8bf1-4511-8893-296871de1506)\r\n[custom-height100-width20-fixed.xlsx](https://github.com/exceljs/exceljs/files/13559400/custom-height100-width20-fixed.xlsx)\r\n\r\n\r\n## Related to source code (for typings update)\r\n\r\nTypings update is not required.\r\n",
+  "comments": [
+    {
+      "author": "thomasmison",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-28T13:45:33Z",
+      "reactions": 1,
+      "body": "I have the same issue, the fix supplied seems to work correctly on my side."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1820",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/894",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/1249059/16a99e9d-b535-4aec-b962-d03f7f70c45c",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/13559364/default-height100-width20.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/1249059/006231e6-1fc2-48d9-bba3-3d066fedf133",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/13559396/default-height100-width20-fixed.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/1249059/230b8708-1d62-41ed-9599-e853e9370fb9",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/13559385/custom-height100-width20.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/1249059/aea5c189-8bf1-4511-8893-296871de1506",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/13559400/custom-height100-width20-fixed.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 39,
+    "deletions": 27,
+    "changedFiles": [
+      {
+        "path": "lib/doc/anchor.js",
+        "status": "modified",
+        "additions": 21,
+        "deletions": 9
+      },
+      {
+        "path": "spec/integration/workbook-xlsx-reader.spec.js",
+        "status": "modified",
+        "additions": 8,
+        "deletions": 8
+      },
+      {
+        "path": "spec/unit/doc/anchor.spec.js",
+        "status": "modified",
+        "additions": 10,
+        "deletions": 10
+      }
+    ]
+  }
+}

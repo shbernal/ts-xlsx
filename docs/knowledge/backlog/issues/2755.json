@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2755,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2755",
+  "title": "Merging of cells duplicates the data in other merged cell instead of show text in one cell[BUG] XYZ",
+  "state": "open",
+  "author": "bkrajor19",
+  "createdAt": "2024-04-26T08:15:26Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "So, i am facing an issue while merging the cells using excelJs, below is the code where i want to merge the cells from B1 to C1, instead of merging the cell it duplicates the value of B1 into C1.See the Attached screenshot.\r\n![Screenshot from 2024-04-26 13-22-03](https://github.com/exceljs/exceljs/assets/168174785/59aad7aa-f422-4f63-bfd9-ea4ca31d9ff1)\r\n\r\nLib version: 4.4.0\r\n\r\n`async getProjectReport(data) {\r\n    try {\r\n      // Create a new workbook and add a worksheet for the report\r\n      const workbook = new ExcelJS.Workbook();\r\n      const worksheet = workbook.addWorksheet('Project Report');\r\n\r\n      // Add headers for the project data table\r\n      worksheet.addRow(['Project No.', 'Project Name']).font = {\r\n        bold: true,\r\n      };\r\n\r\n      // merge cells\r\n      worksheet.mergeCells('B1:C1');\r\n\r\n      // Set column widths for the project data table\r\n      worksheet.columns = [{ width: 12 }, { width: 30 }, { width: 15 }];\r\n\r\n      const projectDetailsRow = worksheet.addRow(['1', 'Project Abc']);\r\n\r\n      // Write the workbook to a buffer and return it\r\n      const buffer = await workbook.xlsx.writeBuffer();\r\n      return buffer;\r\n    } catch (error) {\r\n      throw new Error(error);\r\n    }\r\n  }`\r\n\r\n\r\n## The expected behaviour:\r\nI want an output like the attached screenshot \r\n![Screenshot from 2024-04-26 13-24-50](https://github.com/exceljs/exceljs/assets/168174785/69b7c508-ed1d-4adc-b3f6-20ae9271a18a)\r\n\r\n\r\n\r\nI also tried the below function to acheive the output i want but got the same result\r\n`// merge by start row, start column, end row, end column (equivalent to K10:M12)\r\nworksheet.mergeCells(1,2,2,3);\r\n`\r\n\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "dinhhai96-vn",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-29T00:41:45Z",
+      "reactions": 0,
+      "body": "It is working properly, you should merge before assigning value to it."
+    },
+    {
+      "author": "LSL1618",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-16T02:02:05Z",
+      "reactions": 0,
+      "body": "Try to fill in the value of the cell first，Then merge the cells."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/168174785/59aad7aa-f422-4f63-bfd9-ea4ca31d9ff1",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/168174785/69b7c508-ed1d-4adc-b3f6-20ae9271a18a",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

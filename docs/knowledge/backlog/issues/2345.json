@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2345,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2345",
+  "title": "Chrome extension - Uncaught EvalError",
+  "state": "open",
+  "author": "Vrok2401",
+  "createdAt": "2023-09-08T02:54:09Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "I am working on a chrome extension that scrapes food vendor information from a food delivery platform, which then saves the data into an Excel file using exceljs. Importing exceljs.min.js, however returns this error:\r\n\r\n```\r\nUncaught EvalError: Refused to evaluate a string as JavaScript because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules'\r\n```\r\n\r\nStack Trace points towards this line for ```\"regenerator-runtime/runtime\": 492``` causing the error:\r\n```\r\nexceljs.min.js:43194 (anonymous function)\r\n```\r\n\r\n```\r\ntry {\r\n    regeneratorRuntime = i\r\n} catch (t) {\r\n    // Source of error\r\n    Function(\"r\", \"regeneratorRuntime = r\")(i)\r\n}\r\n```\r\n\r\nAny solution to prevent triggering Uncaught EvalError for this problem?\r\n",
+  "comments": [
+    {
+      "author": "yehudahaber",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-11-07T00:10:14Z",
+      "reactions": 0,
+      "body": "@Vrok2401 did you get this working? How did you get the ExcelJS imported into the chrome extension?"
+    }
+  ],
+  "attachments": []
+}

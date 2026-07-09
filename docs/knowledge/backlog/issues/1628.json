@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1628,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1628",
+  "title": "I using NodeJS Ver6 : addRow() and insertRow() is not function. I can install exceljs ver ? to use",
+  "state": "open",
+  "author": "haiduong2905",
+  "createdAt": "2021-03-01T04:09:06Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "",
+  "comments": [
+    {
+      "author": "schacherle",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-04T16:11:04Z",
+      "reactions": 0,
+      "body": "From Personal-experience I can tell you that i haven't got it going with node v6 and we therefore moved up to node 14 with our app."
+    }
+  ],
+  "attachments": []
+}

@@ -1,0 +1,54 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 351,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/351",
+  "title": "addImage streaming",
+  "state": "open",
+  "author": "maksimlikharev",
+  "createdAt": "2017-06-28T22:01:05Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 5,
+  "body": "Is there a plan to add image support to streaming mode?",
+  "comments": [
+    {
+      "author": "Imperat",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2017-12-14T12:58:59Z",
+      "reactions": 0,
+      "body": "It seems that there isn't. But we can contribute it!"
+    },
+    {
+      "author": "ritesh-nitw",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-06-13T09:48:51Z",
+      "reactions": 0,
+      "body": "@maksimlikharev : Were you able to addImage on stream mode?"
+    },
+    {
+      "author": "maksimlikharev",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-06-13T19:03:56Z",
+      "reactions": 0,
+      "body": "was sidetracked to a different project, not doing any exceljs at the moment, don't have time yet for this.  \r\n"
+    },
+    {
+      "author": "lanbin45",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-09-19T10:59:39Z",
+      "reactions": 0,
+      "body": "> @maksimlikharev : Were you able to addImage on stream mode?\r\n\r\nHi, I've seen your reply on other issues of this repo for addImage on stream mode, I wanna know whether you have fixed your problem?"
+    },
+    {
+      "author": "chdh",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2020-07-23T22:53:22Z",
+      "reactions": 0,
+      "body": "Duplicate of #322"
+    }
+  ],
+  "attachments": []
+}

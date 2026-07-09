@@ -1,0 +1,70 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 427,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/427",
+  "title": "worksheet.spliceRows is not a function error when using Streaming XLSX Writer",
+  "state": "open",
+  "author": "krjj",
+  "createdAt": "2017-10-25T19:19:41Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 1,
+  "commentCount": 7,
+  "body": "Unable to use spliceRows() , spliceColumns().\r\nGetting following error : \r\n`TypeError: worksheet.spliceRows is not a function`\r\n\r\ncode : \r\n```\r\n    var options = {\r\n        filename: './streamed-workbook.xlsx',\r\n        useStyles: true,\r\n        useSharedStrings: true\r\n    };\r\n    var workbook = new Excel.stream.xlsx.WorkbookWriter(options);\r\n\r\n    var worksheet = workbook.addWorksheet('My Sheet');\r\n\r\n    worksheet.addRow([1, 2, 3]);\r\n    worksheet.addRow([4, 5, 6]);\r\n\r\n\r\n    var newRowValues = [1, 2, 3, 4, 5];\r\n    worksheet.spliceRows(1, 1, newRowValues);\r\n\r\n    workbook.commit()\r\n```\r\n\r\n\r\nEnv - Nodejs 8.x",
+  "comments": [
+    {
+      "author": "viguirilo",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-03-02T19:35:37Z",
+      "reactions": 0,
+      "body": "I am facing this problem too."
+    },
+    {
+      "author": "Caperious",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-09-17T14:45:12Z",
+      "reactions": 0,
+      "body": "The same error when using spliceColumns.."
+    },
+    {
+      "author": "awn70",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-12-03T10:27:08Z",
+      "reactions": 0,
+      "body": "Problem still exists in 3.4.0"
+    },
+    {
+      "author": "bepan",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-12-25T20:24:13Z",
+      "reactions": 0,
+      "body": "Is this problem solved already?"
+    },
+    {
+      "author": "aksharj",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-18T16:28:28Z",
+      "reactions": 0,
+      "body": "facing the same issue in `4.2.0`. any workarounds we can use till this is fixed?"
+    },
+    {
+      "author": "polter05",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-12-04T13:35:48Z",
+      "reactions": 0,
+      "body": "UP"
+    },
+    {
+      "author": "Zagrios",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-12-04T15:35:24Z",
+      "reactions": 0,
+      "body": "I know it's crappy, but I got it working with this\r\n\r\n```js\r\nconst standardWorksheet = require(\"exceljs/lib/doc/worksheet\");\r\n\r\nObject.assign(streamWorksheet, {\r\n    spliceColumns: standardWorksheet.prototype.spliceColumns,\r\n    spliceRows: standardWorksheet.prototype.spliceRows\r\n});\r\n```"
+    }
+  ],
+  "attachments": []
+}

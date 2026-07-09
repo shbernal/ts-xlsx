@@ -1,0 +1,40 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1445,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1445",
+  "title": "[BUG] excel js cannot insert  value in merge cell",
+  "state": "open",
+  "author": "ibalaji777",
+  "createdAt": "2020-09-04T16:47:33Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: current version\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nconst wb = new ExcelJS.Workbook();\r\nconst ws = wb.addWorksheet('XYZ');\r\nworksheet.mergeCells('A4:B5');\r\n\r\n// ... merged cells are linked\r\nworksheet.getCell('B5').value = 'Hell\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "Ola-Alkhateeb",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-07T13:49:06Z",
+      "reactions": 0,
+      "body": "Any updates on this ticket ? "
+    },
+    {
+      "author": "ItaloCovas",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-17T15:42:24Z",
+      "reactions": 0,
+      "body": "Any updates?? I'm facing the same issue :c"
+    },
+    {
+      "author": "imfurankase",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-05T12:44:52Z",
+      "reactions": 0,
+      "body": "If you're facing issues with merged cells when inserting new rows using ExcelJS, here's a clear approach on how i handled this:\r\n\r\n1. **Problem Recap**: ExcelJS may not automatically retain the merged state when inserting rows that involve merged cells, leading to conflicts and errors like \"Cannot merge already merged cells.\"\r\n\r\n2. **Solution Overview**: To handle this, we recommend(just in case):\r\n   - **Unmerging Cells Temporarily**: Before inserting or duplicating rows, ensure all cells in the range are unmerged.\r\n   - **Tracking Merged Cells**: Keep track of the original merged cell ranges.\r\n   - **Re-merging Cells After Modifications**: After inserting or duplicating rows, use the tracked ranges to re-merge the cells.\r\n\r\n3. **Utility Function Approach**: We created a utility function to check if cells in a range are already merged and merge them if needed. This function avoids merging cells that are already merged and handles merging cells dynamically.\r\n\r\n### Example Code:\r\n\r\n**Utility Function (`mergeCellsIfNeeded`)**:\r\n```typescript\r\nimport ExcelJS from \"exceljs\";\r\n\r\n/**\r\n * Merges cells in a given range if they are not already merged.\r\n *\r\n * @param worksheet - The ExcelJS worksheet object.\r\n * @param range - The cell range to merge, e.g., \"A1:C3\".\r\n */\r\nexport const mergeCellsIfNeeded = (\r\n  worksheet: ExcelJS.Worksheet,\r\n  range: string\r\n) => {\r\n  const [startCell, endCell] = range.split(\":\");\r\n  const startRow = worksheet.getCell(startCell).row;\r\n  const endRow = worksheet.getCell(endCell).row;\r\n  const startCol = worksheet.getCell(startCell).col;\r\n  const endCol = worksheet.getCell(endCell).col;\r\n\r\n  let alreadyMerged = false;\r\n\r\n  for (let row = startRow; row <= endRow; row++) {\r\n    for (let col = startCol; col <= endCol; col++) {\r\n      const cell = worksheet.getCell(row, col);\r\n      if (cell.isMerged) {\r\n        alreadyMerged = true;\r\n        break;\r\n      }\r\n    }\r\n    if (alreadyMerged) break;\r\n  }\r\n\r\n  if (!alreadyMerged) {\r\n    worksheet.mergeCells(range);\r\n  }\r\n};\r\n```\r\n\r\n**Usage in Your Code**:\r\n```typescript\r\nimport ExcelJS from \"exceljs\";\r\nimport { mergeCellsIfNeeded } from \"src/utils/excelUtils\";\r\n\r\nexport const modifyExcelSheet = async () => {\r\n  const templateUrl = \"/templates/example.xlsx\"; // Your template path here\r\n\r\n  try {\r\n    // Load the template workbook\r\n    const response = await fetch(templateUrl);\r\n    const data = await response.arrayBuffer();\r\n    const workbook = new ExcelJS.Workbook();\r\n    await workbook.xlsx.load(data);\r\n\r\n    const worksheet = workbook.getWorksheet(1);\r\n\r\n    if (!worksheet) {\r\n      console.error(\"Worksheet not found in the Excel file.\");\r\n      return;\r\n    }\r\n\r\n    // Merge cells if they are not already merged\r\n    mergeCellsIfNeeded(worksheet, \"A1:C1\");\r\n    worksheet.getCell(\"A1\").value = \"Merged Header\";\r\n\r\n    // Add new rows with merged cells\r\n    const newRowNumber = worksheet.lastRow.number + 1;\r\n    worksheet.insertRow(newRowNumber, [\"Data1\", \"Data2\", \"Data3\"]);\r\n    mergeCellsIfNeeded(worksheet, `A${newRowNumber}:C${newRowNumber}`);\r\n    worksheet.getCell(`A${newRowNumber}`).value = \"Merged Row Data\";\r\n\r\n    // Save the modified workbook\r\n    const buffer = await workbook.xlsx.writeBuffer();\r\n    const blob = new Blob([buffer], {\r\n      type: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\",\r\n    });\r\n\r\n    saveAs(blob, \"ModifiedExample.xlsx\");\r\n  } catch (error) {\r\n    console.error(\"Error modifying Excel file:\", error);\r\n  }\r\n};\r\n```\r\n\r\n"
+    }
+  ],
+  "attachments": []
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2652,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2652",
+  "title": "Typescript ^5.0.0 compat?",
+  "state": "open",
+  "author": "iiian",
+  "createdAt": "2024-01-07T11:08:03Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 0,
+  "body": "Please confirm compatibility with `typescript@^5.0.0`? Anecdotally, I've run into an issue where `exceljs` works with `typescript@4.9.4` but not `typescript@5.3.2`, and I'm wondering what kind of testing has been done w/ the latest ts. Wanted to ask before I do the work of writing/raising a whole issue, thanks!",
+  "comments": [],
+  "attachments": []
+}

@@ -1,0 +1,61 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 981,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/981",
+  "title": "note/comment default size",
+  "state": "open",
+  "author": "emg-py",
+  "createdAt": "2019-10-04T08:43:20Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 16,
+  "commentCount": 6,
+  "body": "Hello,\r\nWhen using the 'note/comment' method, informations are displayed in a default/small size window. All the intented content cannot be read.\r\nI have tried to modify the transmitted string, make use of the 'rich text' format... With no result.\r\n\r\nIs there a mean to adapt the size of the 'note' window to the content of a multiline string ?\r\nAm I missing something ?\r\n\r\nMany thanks,",
+  "comments": [
+    {
+      "author": "cerinoligutom",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-10-20T18:18:04Z",
+      "reactions": 0,
+      "body": "Up. Need this as well. The default size is too small."
+    },
+    {
+      "author": "mllrdev-miguelsobong",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-10-25T06:22:08Z",
+      "reactions": 2,
+      "body": "Up. I have some use cases for this too."
+    },
+    {
+      "author": "eminenceit",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-03T10:44:47Z",
+      "reactions": 6,
+      "body": "any update on this issue please? This is an important feature!"
+    },
+    {
+      "author": "hyjiacan",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-27T07:41:05Z",
+      "reactions": 1,
+      "body": "PR #1933 !\r\n\r\nI make an external change to resolve this issue. Just modify the ouput.\r\n\r\nInformation:\r\n\r\nThe styles of comments store in file _xl/drawings/vmlDrawing2.vml_\r\n\r\nReplace all occued text `<v:textbox style=\"mso-direction-alt:auto\"` with `<v:textbox style=\"mso-direction-alt:auto;mso-fit-shape-to-text:t\"`, will makes it right.\r\n\r\nHere is my function:\r\n\r\n```javascript\r\nasync function fixCommentStyle(buffer) {\r\n  const zip = await JSZip.loadAsync(buffer)\r\n  const vmlDrawing2FileName = 'xl/drawings/vmlDrawing2.vml'\r\n  // Get the style file\r\n  const vmlDrawing2 = zip.file(vmlDrawing2FileName)\r\n  if (!vmlDrawing2) {\r\n    // eslint-disable-next-line\r\n    console.warn(`Cannot find ${vmlDrawing2FileName}`)\r\n    return buffer\r\n  }\r\n  // Get content as string\r\n  const xml = await vmlDrawing2.async('string')\r\n  \r\n  const placeholder = '<v:textbox style=\"mso-direction-alt:auto;mso-fit-shape-to-text:t\"'\r\n  const newXml = xml.replace(/<v:textbox style=\"mso-direction-alt:auto\"/g, placeholder)\r\n  // Write back to the file\r\n  zip.file(vmlDrawing2FileName, newXml)\r\n  return await zip.generateAsync({type: 'arraybuffer'})\r\n}\r\n```\r\n\r\nThe `buffer` object comes from `workbook.writebuffer`.\r\n\r\nNote: Once the PR #1933 merged, we can just remove the invocation on this function.\r\n"
+    },
+    {
+      "author": "avnerI",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-06T17:54:37Z",
+      "reactions": 0,
+      "body": "> PR #1933 !\r\n> \r\n> I make an external change to resolve this issue. Just modify the ouput.\r\n> \r\n> Information:\r\n> \r\n> The styles of comments store in file _xl/drawings/vmlDrawing2.vml_\r\n> \r\n> Replace all occued text `<v:textbox style=\"mso-direction-alt:auto\"` with `<v:textbox style=\"mso-direction-alt:auto;mso-fit-shape-to-text:t\"`, will makes it right.\r\n> \r\n> Here is my function:\r\n> \r\n> ```js\r\n> async function fixCommentStyle(buffer) {\r\n>   const zip = await JSZip.loadAsync(buffer)\r\n>   const vmlDrawing2FileName = 'xl/drawings/vmlDrawing2.vml'\r\n>   // Get the style file\r\n>   const vmlDrawing2 = zip.file(vmlDrawing2FileName)\r\n>   if (!vmlDrawing2) {\r\n>     // eslint-disable-next-line\r\n>     console.warn(`Cannot find ${vmlDrawing2FileName}`)\r\n>     return buffer\r\n>   }\r\n>   // Get content as string\r\n>   const xml = await vmlDrawing2.async('string')\r\n>   \r\n>   const placeholder = '<v:textbox style=\"mso-direction-alt:auto;mso-fit-shape-to-text:t\"'\r\n>   const newXml = xml.replace(/<v:textbox style=\"mso-direction-alt:auto\"/g, placeholder)\r\n>   // Write back to the file\r\n>   zip.file(vmlDrawing2FileName, newXml)\r\n>   return await zip.generateAsync({type: 'arraybuffer'})\r\n> }\r\n> ```\r\n> \r\n> The `buffer` object comes from `workbook.writebuffer`.\r\n> \r\n> Note: Once the PR #1933 merged, we can just remove the invocation on this function.\r\n\r\nI had to use `xl/drawings/vmlDrawing1.vml`\r\nand to export the edited file: \r\n\r\n`return zip.generateNodeStream();`\r\n\r\nBut it woks (strange a bit on mac installed excel app - but that's Microsoft's problem)"
+    },
+    {
+      "author": "kaydream",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-30T11:55:02Z",
+      "reactions": 0,
+      "body": "ok thanks to hyjiacan i done this with change in exceljs source from dist folder and change mso-direction-alt:auto to mso-direction-alt:auto;mso-fit-shape-to-text:t in all files instead of change buffer every time in my program"
+    }
+  ],
+  "attachments": []
+}

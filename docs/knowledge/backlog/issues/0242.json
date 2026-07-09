@@ -1,0 +1,119 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 242,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/242",
+  "title": "set columns type",
+  "state": "open",
+  "author": "stableShip",
+  "createdAt": "2016-12-14T03:18:16Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 10,
+  "commentCount": 14,
+  "body": "in my project, I want to set all rows type as header, every row's type can automatically seted as header's type.  I found type is supported in this lib, then I try somethings like this: \r\n```\r\nworksheet.columns = [\r\n    { header: 'Id', type: Excel.ValueType.Number },\r\n    { header: 'Name', type: Excel.ValueType.String  }\r\n];\r\n```\r\nbut it didn't work.\r\nIs there a way to set the type of rows?\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "alechirsch",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-09-06T19:18:00Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "Spandana-Gajangi",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-02-13T10:23:29Z",
+      "reactions": 0,
+      "body": "I have same requirement as @stableShip , Is this fixed"
+    },
+    {
+      "author": "SeasonSu",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-09-19T06:26:13Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "nelsonkd",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-10-25T23:54:54Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "arsencenko",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-03-11T15:42:53Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "NStukenborg",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-03-16T16:11:01Z",
+      "reactions": 0,
+      "body": "We also have the same requirement."
+    },
+    {
+      "author": "rahuljoshi00794",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-05-14T11:37:16Z",
+      "reactions": 0,
+      "body": "i have same requirement. is it solved?\r\n "
+    },
+    {
+      "author": "shivasrini",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-22T21:47:19Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "fmenis",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-07T07:21:19Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "adnaanbheda",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-17T12:45:46Z",
+      "reactions": 0,
+      "body": "Any update to this issue ?"
+    },
+    {
+      "author": "hamelhmc",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-10-29T11:12:54Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "rrijvy",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-10T07:40:09Z",
+      "reactions": 0,
+      "body": "any solution?"
+    },
+    {
+      "author": "rahuljoshi00794",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-10T08:28:11Z",
+      "reactions": 1,
+      "body": "i think we can use numFmt=\"\" in the columns.. it will set it type for text  it should be '@'"
+    },
+    {
+      "author": "AnonimBella",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-09-08T07:02:21Z",
+      "reactions": 0,
+      "body": "> i think we can use numFmt=\"\" in the columns.. it will set it type for text it should be '@'\r\n\r\nTHANK YOU SO MUCH!"
+    }
+  ],
+  "attachments": []
+}

@@ -1,0 +1,37 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2819,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2819",
+  "title": "[BUG] wrong border style ",
+  "state": "open",
+  "author": "dongsheng0x",
+  "createdAt": "2024-09-10T08:21:56Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nThere are no borders in the cell, but when I use ExcelJS to read it, the borders appear.\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n```javascript\r\n  if (cell.style.border) {\r\n        const borders = ['left', 'right', 'top', 'bottom'];\r\n        borders.forEach(border => {\r\n            if (cell.style.border[border]) {\r\n                styles += `border-${border}: 1px solid black;`;\r\n            }\r\n        });\r\n    }\r\n```\r\n- the style in .xlsx\r\n![image](https://github.com/user-attachments/assets/2a2a9fc3-d207-4dca-85ee-509f7eec9774)\r\n- after in html\r\n![image](https://github.com/user-attachments/assets/ee3dde28-9a11-4bf1-9934-61362075613e)\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "mutant138",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-06T17:41:26Z",
+      "reactions": 0,
+      "body": "I would like to work on this kindly assign to me\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/assets/2a2a9fc3-d207-4dca-85ee-509f7eec9774",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/ee3dde28-9a11-4bf1-9934-61362075613e",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1868,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1868",
+  "title": "[BUG] Invalid string length",
+  "state": "open",
+  "author": "Coande",
+  "createdAt": "2021-10-18T03:37:44Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 5,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\nI have a large xlsx file export by third part system, has 153MB.\r\n\r\nUse:\r\n\r\n```\r\nconst workbook = new Excel.Workbook();\r\nawait workbook.xlsx.readFile(file);\r\nconst worksheet = workbook.worksheets[0];\r\nconst row = worksheet.getRow(1);\r\nconsole.log(row.values);\r\n```\r\n\r\nError:\r\n\r\n```\r\n(node:4584) UnhandledPromiseRejectionWarning: RangeError: Invalid string length\r\n    at Array.join (<anonymous>)\r\n    at concat (C:\\Users\\Coande\\Desktop\\excel-to-db\\node_modules\\exceljs\\node_modules\\jszip\\lib\\stream\\StreamHelper.js:51:30)\r\n    at StreamHelper.<anonymous> (C:\\Users\\Coande\\Desktop\\excel-to-db\\node_modules\\exceljs\\node_modules\\jszip\\lib\\stream\\StreamHelper.js:96:61)\r\n    at Immediate.<anonymous> (C:\\Users\\Coande\\Desktop\\excel-to-db\\node_modules\\exceljs\\node_modules\\jszip\\lib\\utils.js:381:18)\r\n    at processImmediate (internal/timers.js:464:21)\r\n(Use `node --trace-warnings ...` to show where the warning was created)\r\n(node:4584) UnhandledPromiseRejectionWarning: Unhandled promise rejection. This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). To terminate the node process on unhandled promise rejection, use the CLI flag `--unhandled-rejections=strict` (see https://nodejs.org/api/cli.html#cli_unhandled_rejections_mode). (rejection id: 1)\r\n(node:4584) [DEP0018] DeprecationWarning: Unhandled promise rejections are deprecated. In the future, promise rejections that are not handled will terminate the Node.js process with a non-zero exit code.\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\nRead file normally.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nI don't know.\r\n",
+  "comments": [
+    {
+      "author": "asherklein",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-16T19:57:32Z",
+      "reactions": 0,
+      "body": "Hi @Coande ! I got the same issue, how did you solve it?"
+    },
+    {
+      "author": "Coande",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-17T01:43:38Z",
+      "reactions": 0,
+      "body": "Not solve it yet. Also with this issue https://github.com/exceljs/exceljs/issues/1864 , I replace it to [xlsx-extract](https://github.com/ffalt/xlsx-extract)\r\n\r\n> Hi @Coande ! I got the same issue, how did you solve it?\r\n\r\n"
+    },
+    {
+      "author": "kipertech",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-14T16:45:00Z",
+      "reactions": 0,
+      "body": "I encountered this bug yesterday, and I believe that having the large Excel file caused this. My Excel file was having 1 million rows, I split it into 2 files and it worked perfectly again."
+    },
+    {
+      "author": "YuzeLou",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-22T08:33:43Z",
+      "reactions": 0,
+      "body": "I changed the code in xlsx.js from line 302 to the following and it worked:\r\n\r\n```typescript\r\ncontent = await entry.async('nodebuffer'); // Get content as Node.js Buffer\r\nconst chunkSize = 16 * 1024; // 16 KB\r\nfor (let i = 0; i < content.length; i += chunkSize) {\r\n    const chunk = content.slice(i, i + chunkSize);\r\n    stream.write(chunk);\r\n}\r\n```"
+    },
+    {
+      "author": "maoxian-1",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-27T11:51:30Z",
+      "reactions": 0,
+      "body": "> I changed the code in xlsx.js from line 302 to the following and it worked:\n> \n> content = await entry.async('nodebuffer'); // Get content as Node.js Buffer\n> const chunkSize = 16 * 1024; // 16 KB\n> for (let i = 0; i < content.length; i += chunkSize) {\n>     const chunk = content.slice(i, i + chunkSize);\n>     stream.write(chunk);\n> }\n\nIt's working, but will cause some data missing"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://nodejs.org/api/cli.html#cli_unhandled_rejections_mode",
+      "ext": "html",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1864",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/ffalt/xlsx-extract",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

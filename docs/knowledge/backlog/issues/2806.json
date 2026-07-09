@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2806,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2806",
+  "title": "[BUG] excel opens in protected view after creating tables in a loop",
+  "state": "open",
+  "author": "AmitRusso",
+  "createdAt": "2024-08-12T15:50:56Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nI have a project in which i loop through an array of objects, create a sheet for each object and a table with some data in the sheet. The issue arises when opening the generated excel. It opens in protected view and all the data validations that i have placed get erased in the restoration process.\r\n\r\nWhen creating the sheets and tables manually (not through the loop), it works fine.\r\n\r\nThe error that appears when opening the excel:\r\n![image](https://github.com/user-attachments/assets/2aa9439f-736b-4e2e-b27e-b331852c433c)\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\nthis is the code that gets executed when i access my projects backend:\r\n\r\nconst currentState = async () => {\r\n  const workbook = new exceljs.Workbook();\r\n  const buildings = await findAllBuilding();\r\n\r\n  buildings.map((building: Building) => {\r\n    addTable(building, workbook);\r\n  });\r\n\r\n  return workbook;\r\n};\r\n\r\nand the function addTable looks like this:\r\n\r\nexport const addTable = (building: Building, workbook: exceljs.Workbook) => {\r\n  const sheet = workbook.addWorksheet(`${building._id}`);\r\n  sheet.properties.defaultColWidth = 14.5;\r\n  sheet.views = [{ rightToLeft: true }];\r\n  sheet.addTable({\r\n    name: 'rooms',\r\n    ref: \"A1\",\r\n    headerRow: true,\r\n    style: {\r\n      theme: \"TableStyleMedium9\",\r\n      showRowStripes: true,\r\n    },\r\n    columns: [\r\n      { name: \"buildingID\", filterButton: true },\r\n      { name: \"compound\", filterButton: false },\r\n      { name: \"apartmentNumber\", filterButton: true },\r\n      { name: \"residentNumber\", filterButton: true },\r\n      { name: \"fullName\", filterButton: true },\r\n      { name: \"Gender\", filterButton: true },\r\n      { name: \"Section\", filterButton: true },\r\n      { name: \"Population\", filterButton: true },\r\n    ],\r\n    rows: [[]],\r\n  });\r\n};\r\n\r\nthe function doesn't do any insertions to the table right now due to it not working even in its current state.\r\n\r\n## The expected behaviour:\r\n\r\nthe expectation is that when generating the sheets and tables the excel should be valid and not require repairing.\r\n",
+  "comments": [
+    {
+      "author": "kanapka94",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-08-20T14:14:08Z",
+      "reactions": 0,
+      "body": "`rows: [[]]`\r\n\r\nTry fill rows array with data.\r\n\r\nand ensure that the column names in the table are not repeated, "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/assets/2aa9439f-736b-4e2e-b27e-b331852c433c",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

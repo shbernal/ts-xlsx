@@ -1,0 +1,46 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2172,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2172",
+  "title": "[BUG] Typescript interface WorksheetProtection does not define spinCount",
+  "state": "open",
+  "author": "ericxinzhang",
+  "createdAt": "2022-11-23T07:16:34Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n[WorksheetProtection](https://github.com/exceljs/exceljs/blob/master/index.d.ts#L867) does not define `spinCount` which is in the document.\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nAdd `spinCount` to `WorksheetProtection` interface.",
+  "comments": [
+    {
+      "author": "medero1988",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-04T23:29:51Z",
+      "reactions": 0,
+      "body": "Holas, alguna novedad con la solución a este problema, que nos esta afectando el cpu de nuestras aplicaciones. sldos"
+    },
+    {
+      "author": "chjalmar",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-08T15:50:20Z",
+      "reactions": 0,
+      "body": "@Siemienik Hello, have you guys checked this out? it would be a very helpful solution to avoid some app crashes... is there any way we could contribute to this? please let me know! Thanks!"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-05-08T17:10:42Z",
+      "reactions": 0,
+      "body": "We're going to migrate the whole code into TS somewhen. Then all the current ts errors will be resolved. At this moment the best idea is opening a PullRequest with update into `index.d.ts`.\nTo avoid TS crash you can use `// @ts-expect-error ` or `@ts-ignore`."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/index.d.ts#L867",
+      "ext": "ts",
+      "isFixture": false
+    }
+  ]
+}

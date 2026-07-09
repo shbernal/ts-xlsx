@@ -1,0 +1,68 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 134,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/134",
+  "title": "Unhandled rejection Error: Out of bounds. Invalid column letter: ",
+  "state": "open",
+  "author": "thomascayne",
+  "createdAt": "2016-06-10T23:27:42Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 6,
+  "commentCount": 3,
+  "body": "I'm attempting to read an excel xslx with a drop down column with options as the image shows. \n![excelcolumn](https://cloud.githubusercontent.com/assets/10993089/15981104/035bb23e-2f3f-11e6-9d42-b616f726c888.jpg)\n\n`js-xlsx` doesn't seem a versatile as `exceljs`, except I cannot read this file. It's a file my company uses nationally and would like read and edited through automation.\n\nThe error I am getting is \n\n```\nUnhandled rejection Error: Out of bounds. Invalid column letter: MONTH\n    at Object.l2n (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\exceljs\\lib\\utils\\col-cache.js:78:13)\n    at Object.decodeAddress (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\exceljs\\lib\\utils\\col-cache.js:112:26)\n    at Object.decodeEx (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\exceljs\\lib\\utils\\col-cache.js:179:21)\n    at Object.addCell (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\exceljs\\lib\\utils\\cell-matrix.js:36:29)\n    at C:\\Users\\Thomas\\electron\\eqs\\node_modules\\exceljs\\lib\\doc\\defined-names.js:176:16\n    at Array.forEach (native)\n    at Function._.each._.forEach (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\underscore\\underscore.js:78:11)\n    at C:\\Users\\Thomas\\electron\\eqs\\node_modules\\exceljs\\lib\\doc\\defined-names.js:175:9\n    at Array.forEach (native)\n    at Function._.each._.forEach (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\underscore\\underscore.js:78:11)\n    at Object.set model [as model] (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\exceljs\\lib\\doc\\defined-names.js:173:7)\n    at Object.set model [as model] (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\exceljs\\lib\\doc\\workbook.js:146:30)\n    at C:\\Users\\Thomas\\electron\\eqs\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:579:31\n    at tryCatcher (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\bluebird\\js\\release\\util.js:16:23)\n    at Promise._settlePromiseFromHandler (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\bluebird\\js\\release\\promise.js:502:31)\n    at Promise._settlePromise (C:\\Users\\Thomas\\electron\\eqs\\node_modules\\bluebird\\js\\release\\promise.js:559:18)\n```\n\nLine 78 of col-cache.js is: \n\n```\n if (!this._l2n[l]) {\n      throw new Error('Out of bounds. Invalid column letter: ' + l);\n }\n```\n\nSo the problem is with the columns because simplier xlsx files are read.\n\nDoes anyone have a clue how I can fix or bypass this? If I was writing, as @jozsi and @barbalex, that solution would work. Any help? Thanks in advance.\n",
+  "comments": [
+    {
+      "author": "psalmody",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-08-04T23:08:00Z",
+      "reactions": 0,
+      "body": "I think #159 is symptom of this issue. I get this same error with invalid column letter: REPT.\n\nMy mock data for testing is: \n[DB_TEST.MOCK_DATA.xlsx](https://github.com/guyonroche/exceljs/files/402867/DB_TEST.MOCK_DATA.xlsx)\n\n![image](https://cloud.githubusercontent.com/assets/12420157/17421173/49214f8c-5a54-11e6-8f73-8788d0401ab8.png)\n\nI threw a `console.log` at `lib/utils/col-cache` before the error throw (line 78) and noticed it was looping through all the columns. Interesting, it went all the way to XFD which is the last column Excel will show me in the spreadsheet. THEN it throws the error. \n\nJavascript used to generate this error:\n\n``` js\nvar filename = '...';\nvar Excel = require('c:/www/exceljs');\nvar workbook = new Excel.Workbook();\nworkbook.xlsx.readFile(filename).then(function() {\n  worksheet = workbook.getWorksheet(1);\n});\n```\n\nFull trace:\n\n```\nUnhandled rejection Error: Out of bounds. Invalid column letter: REPT\n    at Object.module.exports.l2n (c:\\www\\exceljs\\lib\\utils\\col-cache.js:79:13)\n    at Object.module.exports.decodeAddress (c:\\www\\exceljs\\lib\\utils\\col-cache.js:113:26)\n    at Object.module.exports.decodeEx (c:\\www\\exceljs\\lib\\utils\\col-cache.js:198:26)\n    at Object.CellMatrix.addCell (c:\\www\\exceljs\\lib\\utils\\cell-matrix.js:36:29)\n    at c:\\www\\exceljs\\lib\\doc\\defined-names.js:176:16\n    at Array.forEach (native)\n    at Function._.each._.forEach (c:\\www\\exceljs\\node_modules\\underscore\\underscore.js:78:11)\n    at c:\\www\\exceljs\\lib\\doc\\defined-names.js:175:9\n    at Array.forEach (native)\n    at Function._.each._.forEach (c:\\www\\exceljs\\node_modules\\underscore\\underscore.js:78:11)\n    at Object.model (c:\\www\\exceljs\\lib\\doc\\defined-names.js:173:7)\n    at Object.model (c:\\www\\exceljs\\lib\\doc\\workbook.js:166:30)\n    at c:\\www\\exceljs\\lib\\xlsx\\xlsx.js:201:31\nFrom previous event:\n    at Parse.<anonymous> (c:\\www\\exceljs\\lib\\xlsx\\xlsx.js:197:10)\n    at emitNone (events.js:72:20)\n    at Parse.emit (events.js:166:7)\n    at Parse._flush (c:\\www\\exceljs\\node_modules\\unzip2\\lib\\parse.js:319:8)\n    at processImmediate [as _immediateCallback] (timers.js:383:17)\n```\n"
+    },
+    {
+      "author": "thomascayne",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-08-05T02:46:33Z",
+      "reactions": 0,
+      "body": "My project called for reading/writing to various .xlsx files with multiple sheets without needing to open or change the format or formulas. Because I couldn't solve this issue with exceljs I ended up writing my spreadsheet handling in c# with [Spreadsheetlight](http://spreadsheetlight.com/) (creating a .dll and .exe separately). I used the .exe as there was an exception thrown that .dll couldn't handle.\n\nI use [node child_process](https://nodejs.org/api/child_process.html) in my electron app to run the processeses by calling and passing the json object data to the .dll, but with the .exe I passed the json file via command line argument.\n\nThe procedures are working flawlessly with Spreadsheetlight.\n"
+    },
+    {
+      "author": "pwillart",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-11T20:37:04Z",
+      "reactions": 1,
+      "body": "An easy workaround is to set the column property for the worksheet. I ran into a similar issue when using getColumn with index. After setting worksheet.columns I could access them by key.\r\nSomething like this:\r\n```\r\n    worksheet.columns = [\r\n      { header: 'Category', key: 'category'},\r\n      { header: 'Name', key: 'name'},\r\n      { header: 'Key', key: 'key'},\r\n      { header: 'Value', key: 'value'}\r\n    ];\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://cloud.githubusercontent.com/assets/10993089/15981104/035bb23e-2f3f-11e6-9d42-b616f726c888.jpg",
+      "ext": "jpg",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/guyonroche/exceljs/files/402867/DB_TEST.MOCK_DATA.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://cloud.githubusercontent.com/assets/12420157/17421173/49214f8c-5a54-11e6-8f73-8788d0401ab8.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "http://spreadsheetlight.com/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://nodejs.org/api/child_process.html",
+      "ext": "html",
+      "isFixture": false
+    }
+  ]
+}

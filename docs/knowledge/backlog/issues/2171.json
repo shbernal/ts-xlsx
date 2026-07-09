@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2171,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2171",
+  "title": "[BUG] Row outline & cell note not working after worksheet.insertRow",
+  "state": "open",
+  "author": "ericxinzhang",
+  "createdAt": "2022-11-23T07:14:19Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\n\r\n async function test() {\r\n  const wb = new ExcelJS.Workbook();\r\n  const ws = wb.addWorksheet('Sheet 1');\r\n  const headerFont = { bold: true };\r\n  ws.columns = [\r\n    { key: 'id', header: 'ID', style: { font: headerFont } },\r\n    { key: 'name', header: 'Name', style: { font: headerFont } },\r\n  ];\r\n\r\n  [\r\n    { id: '1', name: 'First' },\r\n    { id: '2', name: 'Second' },\r\n  ].forEach((record, index) => {\r\n    const row = ws.addRow(record);\r\n    row.outlineLevel = index + 1;\r\n    row.getCell(1).note = 'some notes';\r\n  });\r\n\r\n  // The above works fine until the following codes are added\r\n\r\n  ws.insertRow(1, ['1', '1']);\r\n  ws.mergeCells(1, 1, 1, 2);\r\n\r\n  await wb.xlsx.writeFile('./test.xlsx');\r\n}\r\n```\r\n- The outline level is wrong (not shifted accordingly) after a new row inserted.\r\n- The notes disappears after a new row inserted.\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\nThe row outline level and cell notes should be properly persisted after `worksheet.insertRow(1)` call. I did this because I'd like to show some merged cells on top row. \r\n",
+  "comments": [
+    {
+      "author": "viljark",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-27T19:32:03Z",
+      "reactions": 1,
+      "body": "I'm experiencing similar issue, notes dissappear when .spliceRows() is used after notes are set. \r\nIt does not seem to be fixed in v4.4.0?"
+    }
+  ],
+  "attachments": []
+}

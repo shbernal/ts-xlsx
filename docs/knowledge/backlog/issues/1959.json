@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1959,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1959",
+  "title": "Corrupted file generating by reading and modifing an existing XLSX file with tables [BUG] XYZ",
+  "state": "open",
+  "author": "MatteoMollo",
+  "createdAt": "2022-01-21T15:08:25Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "please help me !!!! this code generate me a xlsx corrupted file but i don't now why:\r\n\r\npublic withTables = async (matrix: any[][], cols: number, rows: number) => {\r\n        try {\r\n            let workbook = new Excel.Workbook();\r\n            workbook = await workbook.xlsx.readFile('./template/import.xlsx');\r\n            const worksheet = workbook.getWorksheet('Foglio1');\r\n            const table = worksheet.getTable('Ciao');\r\n            this.reference = (table as any).table.tableRef;\r\n            const refArray: Array<string> = this.reference.split(':');\r\n            const begin: string = refArray[0];\r\n            if (begin.length > 2) {\r\n                this.rowNum = parseInt(begin[1] + begin[2]);\r\n            } else {\r\n                this.rowNum = parseInt(begin[1]);\r\n            }\r\n            const finale: Array<any> = [];\r\n            worksheet.getRow(this.rowNum).eachCell({includeEmpty: true}, (cell, colNumber) => {\r\n                if (cell.value === null) {\r\n                    finale.push(cell.value);\r\n                }\r\n            });\r\n            for (let i = 1; i < matrix.length + 1; i++) {\r\n                worksheet.insertRow(this.rowNum + i, finale.concat(matrix[i - 1]));\r\n                console.log(this.rowNum);\r\n            }\r\n            return await workbook.xlsx.writeFile('export.xlsx');\r\n        } catch (e) {\r\n            console.log(e);\r\n        }\r\n    }",
+  "comments": [
+    {
+      "author": "sunhao12",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-07T01:12:51Z",
+      "reactions": 0,
+      "body": "I have similar problems\r\nHave you solved it"
+    }
+  ],
+  "attachments": []
+}

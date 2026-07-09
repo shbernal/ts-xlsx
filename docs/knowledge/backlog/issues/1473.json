@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1473,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1473",
+  "title": "[BUG] Export CSV garbled characters",
+  "state": "open",
+  "author": "jingwuluo",
+  "createdAt": "2020-09-23T09:13:31Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "When emoji is included in worksheet.columns, the encoding format of the exported CSV file will not be the specified encoding format",
+  "comments": [
+    {
+      "author": "jingwuluo",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-23T09:27:32Z",
+      "reactions": 0,
+      "body": "I looked at the source code and found that when using the csv.writeBuffer() method, the parameter encoding has no effect.\r\n![image](https://user-images.githubusercontent.com/30119218/93994062-0c4bd300-fdc2-11ea-844b-865d4829b851.png)\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/30119218/93994062-0c4bd300-fdc2-11ea-844b-865d4829b851.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

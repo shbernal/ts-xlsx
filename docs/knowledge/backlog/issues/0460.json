@@ -1,0 +1,140 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 460,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/460",
+  "title": "TypeError: e.createWriteStream is not a function",
+  "state": "open",
+  "author": "Ahmad19860",
+  "createdAt": "2017-12-18T10:29:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 8,
+  "commentCount": 15,
+  "body": "Hi,\r\nI am trying to create a sample excel file but i am getting error **'e.createWriteStream is not a function'**.\r\nbelow is code to create the file-\r\n\r\n```\r\nimport { Component } from '@angular/core';\r\nimport { NavController, Platform } from 'ionic-angular';\r\nimport * as Excel from \"exceljs/dist/exceljs.min.js\";\r\nimport * as ExcelProper from \"exceljs\";\r\n\r\n@Component({\r\n  selector: 'page-home',\r\n  templateUrl: 'home.html'\r\n})\r\nexport class HomePage {\r\n\r\n  constructor(platform: Platform) {\r\n    platform.ready().then(() => {\r\n      this.createSheet();\r\n    });\r\n  }\r\n\r\n  ionViewDidLoad() {\r\n  }\r\n\r\n  createSheet() {\r\n    let workbook: ExcelProper.Workbook = new Excel.Workbook();\r\n    var worksheet = workbook.addWorksheet('My Sheet');\r\n\r\n    worksheet.columns = [\r\n      { header: 'Id', key: 'id', width: 10 },\r\n      { header: 'Name', key: 'name', width: 32 },\r\n      { header: 'D.O.B.', key: 'DOB', width: 10 }\r\n    ];\r\n    worksheet.addRow({ id: 1, name: 'Ionic Android', dob: new Date(1970, 1, 1) });\r\n    worksheet.addRow({ id: 2, name: 'Ionic iOS', dob: new Date(1965, 1, 7) });\r\n    var tempFilePath = 'PATH/temp.xlsx'; // PATH is where you want to create your file\r\n\r\n    workbook.xlsx.writeFile(tempFilePath).then(function () {\r\n      console.log('file is written');\r\n    });\r\n  }\r\n}\r\n```\r\n\r\n\r\nThis is my ionic info output:\r\n```\r\n@ionic/cli-utils  : 1.19.0\r\n    ionic (Ionic CLI) : 3.19.0\r\n\r\nglobal packages:\r\n\r\n    cordova (Cordova CLI) : 7.1.0\r\n\r\nlocal packages:\r\n\r\n    @ionic/app-scripts : 3.1.4\r\n    Cordova Platforms  : android 6.3.0\r\n    Ionic Framework    : ionic-angular 3.9.2\r\n\r\nSystem:\r\n\r\n    Android SDK Tools : 26.0.2\r\n    Node              : v6.11.3\r\n    npm               : 3.10.10\r\n    OS                : Windows 7\r\n\r\nEnvironment Variables:\r\n\r\n    ANDROID_HOME : D:\\ANDROID_SDK\r\n\r\nMisc:\r\n\r\n    backend : pro\r\n```\r\n\r\nPlease help me to get out of this issue.",
+  "comments": [
+    {
+      "author": "ahaverty",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-02-14T18:47:37Z",
+      "reactions": 0,
+      "body": "Changing:\r\n```\r\nimport * as Excel from \"exceljs/dist/exceljs.min.js\";\r\nimport * as ExcelProper from \"exceljs\";\r\n```\r\nback to just:\r\n```\r\nimport * as Excel from \"exceljs\";\r\n```\r\nfixed the issue for me."
+    },
+    {
+      "author": "EdoAPP",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-08-17T19:16:52Z",
+      "reactions": 17,
+      "body": "Hi @Ahmad19860, I don't know if you could fix the problem but the problem is that you're trying to execute a filesystem function on a webview. \r\n\r\nThe documentation says: \r\n```\r\nA portion of this library has been isolated and tested for use within a browser environment.\r\n\r\nDue to the streaming nature of the workbook reader and workbook writer, these have not been included. Only the document based workbook may be used (see Create a Worbook for details).\r\n\r\nFor example code using ExcelJS in the browser take a look at the spec/browser folder in the github repo.\r\n```\r\n\r\nSo, you wouuld need to use `wb.xlsx.writeBuffer()` instead of `wb.xlsx.writeFile()`"
+    },
+    {
+      "author": "gonzobard777",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-01-15T14:19:18Z",
+      "reactions": 4,
+      "body": "using `.writeBuffer()` instead of `.writeFile()` is the right way, see example:\r\n[https://www.codeproject.com/Tips/1251189/%2FTips%2F1251189%2FExcel-Export-from-Angular-2plus](https://www.codeproject.com/Tips/1251189/%2FTips%2F1251189%2FExcel-Export-from-Angular-2plus)"
+    },
+    {
+      "author": "Nguendai",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-07-16T08:31:08Z",
+      "reactions": 2,
+      "body": "the same problem, Can you hepl me, please\r\n\r\nThanks"
+    },
+    {
+      "author": "Nguendai",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-07-16T08:32:02Z",
+      "reactions": 0,
+      "body": "> Hi,\r\n> I am trying to create a sample excel file but i am getting error **'e.createWriteStream is not a function'**.\r\n> below is code to create the file-\r\n> \r\n> ```\r\n> import { Component } from '@angular/core';\r\n> import { NavController, Platform } from 'ionic-angular';\r\n> import * as Excel from \"exceljs/dist/exceljs.min.js\";\r\n> import * as ExcelProper from \"exceljs\";\r\n> \r\n> @Component({\r\n>   selector: 'page-home',\r\n>   templateUrl: 'home.html'\r\n> })\r\n> export class HomePage {\r\n> \r\n>   constructor(platform: Platform) {\r\n>     platform.ready().then(() => {\r\n>       this.createSheet();\r\n>     });\r\n>   }\r\n> \r\n>   ionViewDidLoad() {\r\n>   }\r\n> \r\n>   createSheet() {\r\n>     let workbook: ExcelProper.Workbook = new Excel.Workbook();\r\n>     var worksheet = workbook.addWorksheet('My Sheet');\r\n> \r\n>     worksheet.columns = [\r\n>       { header: 'Id', key: 'id', width: 10 },\r\n>       { header: 'Name', key: 'name', width: 32 },\r\n>       { header: 'D.O.B.', key: 'DOB', width: 10 }\r\n>     ];\r\n>     worksheet.addRow({ id: 1, name: 'Ionic Android', dob: new Date(1970, 1, 1) });\r\n>     worksheet.addRow({ id: 2, name: 'Ionic iOS', dob: new Date(1965, 1, 7) });\r\n>     var tempFilePath = 'PATH/temp.xlsx'; // PATH is where you want to create your file\r\n> \r\n>     workbook.xlsx.writeFile(tempFilePath).then(function () {\r\n>       console.log('file is written');\r\n>     });\r\n>   }\r\n> }\r\n> ```\r\n> \r\n> This is my ionic info output:\r\n> \r\n> ```\r\n> @ionic/cli-utils  : 1.19.0\r\n>     ionic (Ionic CLI) : 3.19.0\r\n> \r\n> global packages:\r\n> \r\n>     cordova (Cordova CLI) : 7.1.0\r\n> \r\n> local packages:\r\n> \r\n>     @ionic/app-scripts : 3.1.4\r\n>     Cordova Platforms  : android 6.3.0\r\n>     Ionic Framework    : ionic-angular 3.9.2\r\n> \r\n> System:\r\n> \r\n>     Android SDK Tools : 26.0.2\r\n>     Node              : v6.11.3\r\n>     npm               : 3.10.10\r\n>     OS                : Windows 7\r\n> \r\n> Environment Variables:\r\n> \r\n>     ANDROID_HOME : D:\\ANDROID_SDK\r\n> \r\n> Misc:\r\n> \r\n>     backend : pro\r\n> ```\r\n> \r\n> Please help me to get out of this issue.\r\n\r\n"
+    },
+    {
+      "author": "b-asaf",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-11-19T13:30:54Z",
+      "reactions": 4,
+      "body": "Hey, \r\nsimilar issue happen to me in `React.js` any update regarding this issue.\r\nthe version I am using: `\"exceljs\": \"^3.4.0\"`\r\nMy code is:\r\n```\r\nimport Excel from 'exceljs';\r\n// OR\r\nimport * as Excel from 'exceljs';\r\n\r\nexport default () => {\r\n    const workbook = new Excel.Workbook();\r\n    const worksheet = workbook.addWorksheet('My Sheet');\r\n\r\n    worksheet.columns = [\r\n        { header: 'Id', key: 'id', width: 10 },\r\n        { header: 'Name', key: 'name', width: 32 },\r\n        { header: 'D.O.B.', key: 'dob', width: 15 },\r\n    ];\r\n\r\n    worksheet.addRow({ id: 1, name: 'John Doe', dob: new Date(1970, 1, 1) });\r\n    worksheet.addRow({ id: 2, name: 'Jane Doe', dob: new Date(1965, 1, 7) });\r\n\r\n    // save under export.xlsx\r\n    workbook.xlsx.writeFile('export.xlsx');\r\n```\r\n\r\n***\r\n**UPDATE**\r\nAfter additional research I understood that `workbook.xlsx.writeFile` is not support currently from **client** side so I am using `writeBuffer` and saving it with `file-saver` package instead."
+    },
+    {
+      "author": "SyedAsimAliSE",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-27T12:33:48Z",
+      "reactions": 92,
+      "body": "And here it is how to use with buffer !\r\n\r\n```Javascript\r\nimport {saveAs} from \"file-saver\";\r\n\r\nconst buffer = await workbook.xlsx.writeBuffer();\r\nconst fileType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';\r\nconst fileExtension = '.xlsx';\r\n\r\nconst blob = new Blob([buffer], {type: fileType});\r\n\r\nsaveAs(blob, 'fileName' + fileExtension);\r\n\r\n```"
+    },
+    {
+      "author": "Nishita424",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-28T12:56:48Z",
+      "reactions": 0,
+      "body": "> Hi @Ahmad19860, I don't know if you could fix the problem but the problem is that you're trying to execute a filesystem function on a webview.\r\n> \r\n> The documentation says:\r\n> \r\n> ```\r\n> A portion of this library has been isolated and tested for use within a browser environment.\r\n> \r\n> Due to the streaming nature of the workbook reader and workbook writer, these have not been included. Only the document based workbook may be used (see Create a Worbook for details).\r\n> \r\n> For example code using ExcelJS in the browser take a look at the spec/browser folder in the github repo.\r\n> ```\r\n> \r\n> So, you wouuld need to use `wb.xlsx.writeBuffer()` instead of `wb.xlsx.writeFile()`\r\n\r\nWorked for me."
+    },
+    {
+      "author": "KingDarBoja",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-13T23:42:26Z",
+      "reactions": 0,
+      "body": "This issue should be pinned so other users know how to handle the export in client side 🚀 "
+    },
+    {
+      "author": "Jeremias-Nater",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-08T11:19:37Z",
+      "reactions": 0,
+      "body": "i think the 1.3 kb of file-saver should be added as dependency so that we could just use a provided \"saveFileWithBrowser()\" function. I did fix this relatively fast, but still my time consumed to use this would be proportionally way less since all the other stuff worked instantly."
+    },
+    {
+      "author": "Alone-Michael",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-05-25T09:56:34Z",
+      "reactions": 0,
+      "body": "> Hi, I am trying to create a sample excel file but i am getting error **'e.createWriteStream is not a function'**. below is code to create the file-\r\n> \r\n> ```\r\n> import { Component } from '@angular/core';\r\n> import { NavController, Platform } from 'ionic-angular';\r\n> import * as Excel from \"exceljs/dist/exceljs.min.js\";\r\n> import * as ExcelProper from \"exceljs\";\r\n> \r\n> @Component({\r\n>   selector: 'page-home',\r\n>   templateUrl: 'home.html'\r\n> })\r\n> export class HomePage {\r\n> \r\n>   constructor(platform: Platform) {\r\n>     platform.ready().then(() => {\r\n>       this.createSheet();\r\n>     });\r\n>   }\r\n> \r\n>   ionViewDidLoad() {\r\n>   }\r\n> \r\n>   createSheet() {\r\n>     let workbook: ExcelProper.Workbook = new Excel.Workbook();\r\n>     var worksheet = workbook.addWorksheet('My Sheet');\r\n> \r\n>     worksheet.columns = [\r\n>       { header: 'Id', key: 'id', width: 10 },\r\n>       { header: 'Name', key: 'name', width: 32 },\r\n>       { header: 'D.O.B.', key: 'DOB', width: 10 }\r\n>     ];\r\n>     worksheet.addRow({ id: 1, name: 'Ionic Android', dob: new Date(1970, 1, 1) });\r\n>     worksheet.addRow({ id: 2, name: 'Ionic iOS', dob: new Date(1965, 1, 7) });\r\n>     var tempFilePath = 'PATH/temp.xlsx'; // PATH is where you want to create your file\r\n> \r\n>     workbook.xlsx.writeFile(tempFilePath).then(function () {\r\n>       console.log('file is written');\r\n>     });\r\n>   }\r\n> }\r\n> ```\r\n> \r\n> This is my ionic info output:\r\n> \r\n> ```\r\n> @ionic/cli-utils  : 1.19.0\r\n>     ionic (Ionic CLI) : 3.19.0\r\n> \r\n> global packages:\r\n> \r\n>     cordova (Cordova CLI) : 7.1.0\r\n> \r\n> local packages:\r\n> \r\n>     @ionic/app-scripts : 3.1.4\r\n>     Cordova Platforms  : android 6.3.0\r\n>     Ionic Framework    : ionic-angular 3.9.2\r\n> \r\n> System:\r\n> \r\n>     Android SDK Tools : 26.0.2\r\n>     Node              : v6.11.3\r\n>     npm               : 3.10.10\r\n>     OS                : Windows 7\r\n> \r\n> Environment Variables:\r\n> \r\n>     ANDROID_HOME : D:\\ANDROID_SDK\r\n> \r\n> Misc:\r\n> \r\n>     backend : pro\r\n> ```\r\n> \r\n> Please help me to get out of this issue.\r\n\r\nI have the same problem. Has your problem been solved? How to solve it? Can you tell me?"
+    },
+    {
+      "author": "ghost",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-09-01T12:16:20Z",
+      "reactions": 3,
+      "body": "> And here it is how to use with buffer !\r\n> \r\n> ```js\r\n> import {saveAs} from \"file-saver\";\r\n> \r\n> const buffer = await workbook.xlsx.writeBuffer();\r\n> const fileType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';\r\n> const fileExtension = '.xlsx';\r\n> \r\n> const blob = new Blob([buffer], {type: fileType});\r\n> \r\n> saveAs(blob, 'fileName' + fileExtension);\r\n> ```\r\n\r\nAs of this date, 01-09-2022, it is still not working client-side...\r\nSo thank you very much for this contribution! <3"
+    },
+    {
+      "author": "doraemonxxx",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-27T00:34:57Z",
+      "reactions": 0,
+      "body": "this issue was 6 years ago and is still open. Is there any workaround to fix the issue without using file-saver package? "
+    },
+    {
+      "author": "jasonclemens",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-06T22:08:56Z",
+      "reactions": 3,
+      "body": "The following works for me without using the `file-saver` dependency. It uses the [buffer output method](https://github.com/exceljs/exceljs?tab=readme-ov-file#writing-xlsx):\r\n\r\n``` js\r\n        file = await workbook.xlsx.writeBuffer();\r\n\r\n        // Create a hidden link to the file\r\n        const downloadLink = document.createElement(\"a\");\r\n        downloadLink.download = \"excelfile.xlsx\"; // File name\r\n        downloadLink.href = window.URL.createObjectURL(\r\n            new Blob([file], {\r\n                type: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\",\r\n            })\r\n        );\r\n        downloadLink.style.display = \"none\";\r\n\r\n        // Add the link to DOM\r\n        document.body.appendChild(downloadLink);\r\n\r\n        // \"Click\" the link\r\n        downloadLink.click();\r\n\r\n        // Remove the link from the DOM\r\n        downloadLink.remove();\r\n\r\n```"
+    },
+    {
+      "author": "619086901",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-08-27T06:14:57Z",
+      "reactions": 0,
+      "body": "使用file-saver\r\n```\r\nimport { saveAs } from 'file-saver'\r\nconst buffer = await workbook.xlsx.writeBuffer()\r\nsaveAs(new Blob([buffer]), `${filename}.xlsx`)\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.codeproject.com/Tips/1251189/%2FTips%2F1251189%2FExcel-Export-from-Angular-2plus",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.codeproject.com/Tips/1251189/%2FTips%2F1251189%2FExcel-Export-from-Angular-2plus",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs?tab=readme-ov-file#writing-xlsx",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

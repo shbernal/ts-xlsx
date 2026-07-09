@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2181,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2181",
+  "title": "[BUG] dataValidation formula returning NaN",
+  "state": "open",
+  "author": "nforbush",
+  "createdAt": "2022-12-20T23:09:49Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\ndataValidation formulas can be formulas themselves, but return NaN after read in.\r\n\r\nLib version: latest\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nif (cell.dataValidation.formulae.includes(Number.NaN)) {\r\n    // this shouldn't happen...it should return the raw value that Excel stores\r\n   // in Excel, if the formula1 for greater than or equal to is, e.g., =L26, but returns NaN...should return L26\r\n}\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\nIf the Excel data validation formula is a formula, return it, not a coerced number.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nOne possible solution is to return the original formula if NaN:\r\n```javascript\r\n case 'formula1':\r\n      case 'formula2': {\r\n        let formula = this._formula.join('');\r\n        switch (this._dataValidation.type) {\r\n          case 'whole':\r\n          case 'textLength':\r\n            formula = parseInt(formula, 10) **|| formula**;\r\n            break;\r\n          case 'decimal':\r\n            formula = parseFloat(formula) **|| formula**;\r\n            break;\r\n          case 'date':\r\n            formula = utils.excelToDate(parseFloat(formula)) **|| formula**;\r\n            break;\r\n          default:\r\n            break;\r\n        }\r\n```\r\n",
+  "comments": [
+    {
+      "author": "nforbush",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-12-30T15:18:29Z",
+      "reactions": 1,
+      "body": "This is more complicated...\r\n\r\n1) Of course, since parseInt or parseFloat can return 0 and then would return formula, the correct syntax (in data-validations-xform) would be something like:\r\n                    let formula = this._formula.join('');\r\n                    let formula1 = Number.NaN;  // *** ADDED ***\r\n                    switch (this._dataValidation.type) {\r\n                    case 'whole':\r\n                    case 'textLength':\r\n                        formula1 = parseInt(formula, 10); // *** MODIFIED ***\r\n                        break;\r\n                    case 'decimal':\r\n                        formula1 = parseFloat(formula); // *** MODIFIED ***\r\n                        break;\r\n                    case 'date':\r\n                        formula1 = utils.excelToDate(parseFloat(formula)); // *** MODIFIED ***\r\n                        break;\r\n                    default:\r\n                        break;\r\n                }\r\n                formula = isNaN(formula1) ? formula : formula1; // *** ADDED ***\r\n                this._dataValidation.formulae.push(formula);\r\n\r\n2) I have this example where I33:I34 is noted twice...the first one is correct... but that means should only add to the model if the address is undefined, e.g. if (this.model[address] === undefined) this.model[address] = this._dataValidation;\r\n\r\n    <dataValidations count=\"5\">\r\n        <dataValidation type=\"whole\" operator=\"greaterThanOrEqual\" allowBlank=\"1\" showInputMessage=\"1\"\r\n                        showErrorMessage=\"1\" sqref=\"P24:P25 I28 **I33:I34\"**\r\n                        xr:uid=\"{442302FA-720E-4FC7-9F29-E0D3BD82100B}\">\r\n            <formula1>0</formula1>\r\n        </dataValidation>\r\n        <dataValidation type=\"list\" allowBlank=\"1\" showInputMessage=\"1\" showErrorMessage=\"1\" sqref=\"H21:I21\"\r\n                        xr:uid=\"{00000000-0002-0000-0A00-000001000000}\">\r\n            <formula1>varCurrencies</formula1>\r\n        </dataValidation>\r\n        <dataValidation type=\"whole\" operator=\"greaterThanOrEqual\" allowBlank=\"1\" showInputMessage=\"1\"\r\n                        showErrorMessage=\"1\" sqref=\"P26:P27 P29\" xr:uid=\"{3B447C98-5CB4-4B2A-A1ED-9D6558C6CE3F}\">\r\n            <formula1>L26</formula1>\r\n        </dataValidation>\r\n        <dataValidation operator=\"greaterThanOrEqual\" allowBlank=\"1\" showInputMessage=\"1\" showErrorMessage=\"1\"\r\n                        sqref=\"I33:I34\" xr:uid=\"{C1D1FD86-CFEC-4D22-B3A7-EC393A513CC9}\"/>\r\n        <dataValidation type=\"whole\" operator=\"greaterThanOrEqual\" allowBlank=\"1\" showInputMessage=\"1\"\r\n                        showErrorMessage=\"1\" sqref=**\"I33:I34\"** xr:uid=\"{65461910-E85E-4D72-B896-6246E34DFB25}\">\r\n            <formula1>10</formula1>\r\n        </dataValidation>\r\n    </dataValidations>\r\n\r\n3) It gets more complicated though as Excel seemingly stores the formula in a relative way, e.g. \r\n        <dataValidation type=\"whole\" operator=\"greaterThanOrEqual\" allowBlank=\"1\" showInputMessage=\"1\"\r\n                        showErrorMessage=\"1\" sqref=\"P26:P27 P29\" xr:uid=\"{3B447C98-5CB4-4B2A-A1ED-9D6558C6CE3F}\">\r\n            <formula1>L26</formula1>\r\n        </dataValidation>\r\n\r\nAnd so would need to adjust the fomula1 (L26) by the offset of first address (P26)...so that for P27, formula1 is L27...\r\n"
+    },
+    {
+      "author": "wadiasalem",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-28T15:36:38Z",
+      "reactions": 0,
+      "body": "Any update? i have the same problem"
+    }
+  ],
+  "attachments": []
+}

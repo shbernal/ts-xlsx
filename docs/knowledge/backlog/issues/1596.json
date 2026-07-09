@@ -1,0 +1,45 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1596,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1596",
+  "title": "return destination stream when piping in StreamBuf",
+  "state": "open",
+  "author": "GabrielLomba",
+  "createdAt": "2021-01-22T23:32:03Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "Fixes StreamBuf pipe method, returning the destination stream. Fixes #1595\r\n\r\n## Summary\r\n\r\nFixes usages of StreamBuf in [stream.pipeline](https://nodejs.org/api/stream.html#stream_stream_pipeline_source_transforms_destination_callback) and calls such as:\r\n```javascript\r\nworbook.stream.pipe(fs.createWritableStream('/tmp/sheet.xlsx'))\r\n    .on('finish', ()=>console.log('Sheet has been written!'));\r\n```\r\n\r\n## Test plan\r\n\r\nAdded a unit test related to this change.\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://nodejs.org/api/stream.html#stream_stream_pipeline_source_transforms_destination_callback",
+      "ext": "html",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 6,
+    "deletions": 0,
+    "changedFiles": [
+      {
+        "path": "lib/utils/stream-buf.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "spec/unit/utils/stream-buf.spec.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 0
+      }
+    ]
+  }
+}

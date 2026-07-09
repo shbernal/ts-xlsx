@@ -1,0 +1,578 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1869,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1869",
+  "title": "Lint fixes",
+  "state": "open",
+  "author": "bno1",
+  "createdAt": "2021-10-18T18:40:55Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Summary\r\n\r\nThe project has multiple lint and formatting errors. This pull request fixes them.\r\n\r\nThere is a problem related to the eslint `no-mixed-operators` rule. It enforces expressions such as `1 + 2 * 3` to be parenthesized as `1 + (2 * 3)`. However, prettier removes the parentheses. This issue is tracked at https://github.com/prettier/prettier/issues/187. I disabled the eslint rule to fix this issue.\r\n\r\nThe alternative solution is to split the expression like eslint-config-prettier recommends: https://github.com/prettier/eslint-config-prettier#no-mixed-operators. However, this will be a bump in the road for developers who are not aware of this issue, so I believe disabling the eslint rule is easier for everyone in the long term.",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/prettier/prettier/issues/187",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/prettier/eslint-config-prettier#no-mixed-operators",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": false,
+    "baseRef": "master",
+    "additions": 183,
+    "deletions": 343,
+    "changedFiles": [
+      {
+        "path": ".eslintrc",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "benchmark.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 13
+      },
+      {
+        "path": "excel.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "lib/csv/csv.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "lib/csv/stream-converter.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 5
+      },
+      {
+        "path": "lib/doc/anchor.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "lib/doc/cell.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "lib/doc/column.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "lib/doc/defined-names.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "lib/doc/range.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 4
+      },
+      {
+        "path": "lib/doc/row.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "lib/doc/workbook.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 10
+      },
+      {
+        "path": "lib/stream/xlsx/sheet-rels-writer.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "lib/stream/xlsx/workbook-reader.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 5
+      },
+      {
+        "path": "lib/stream/xlsx/workbook-writer.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 3
+      },
+      {
+        "path": "lib/utils/cell-matrix.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "lib/utils/col-cache.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 5
+      },
+      {
+        "path": "lib/utils/shared-formula.js",
+        "status": "modified",
+        "additions": 23,
+        "deletions": 26
+      },
+      {
+        "path": "lib/utils/utils.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "lib/xlsx/rel-type.js",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 8
+      },
+      {
+        "path": "lib/xlsx/xform/book/workbook-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 4
+      },
+      {
+        "path": "lib/xlsx/xform/comment/vml-anchor-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "lib/xlsx/xform/comment/vml-client-data-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 5
+      },
+      {
+        "path": "lib/xlsx/xform/comment/vml-shape-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "lib/xlsx/xform/core/content-types-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "lib/xlsx/xform/sheet/cell-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "lib/xlsx/xform/sheet/cf-ext/databar-ext-xform.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 18
+      },
+      {
+        "path": "lib/xlsx/xform/sheet/cf/conditional-formattings-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 4
+      },
+      {
+        "path": "lib/xlsx/xform/sheet/col-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 4
+      },
+      {
+        "path": "lib/xlsx/xform/sheet/sheet-view-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 4
+      },
+      {
+        "path": "lib/xlsx/xform/sheet/worksheet-xform.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 8
+      },
+      {
+        "path": "lib/xlsx/xform/strings/text-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 3
+      },
+      {
+        "path": "lib/xlsx/xform/style/alignment-xform.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 19
+      },
+      {
+        "path": "lib/xlsx/xlsx.js",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 5
+      },
+      {
+        "path": "spec/manual/app.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "spec/unit/doc/cell.spec.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/book/defined-name-xform.spec.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/xlsx/xform/book/workbook-properties-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/book/workbook-view-xform.spec.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 6
+      },
+      {
+        "path": "spec/unit/xlsx/xform/core/app-heading-pairs-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/core/app-titles-of-parts-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/drawing/blip-xform.spec.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/xlsx/xform/drawing/cell-position-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/drawing/drawing-xform.spec.js",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/cell-xform.spec.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/cf/cf-rule-xform.spec.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/col-xform.spec.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/header-footer-xform.spec.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 6
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/page-margins-xform.spec.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/page-setup-xform.spec.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 6
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/row-xform.spec.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 6
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/sheet-format-properties-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/sheet-properties-xform.spec.js",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 8
+      },
+      {
+        "path": "spec/unit/xlsx/xform/sheet/sheet-protection-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/strings/shared-string-xform.spec.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 6
+      },
+      {
+        "path": "spec/unit/xlsx/xform/style/border-xform.spec.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 10
+      },
+      {
+        "path": "spec/unit/xlsx/xform/style/fill-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/style/font-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/style/style-xform.spec.js",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 12
+      },
+      {
+        "path": "spec/unit/xlsx/xform/table/filter-column-xform.spec.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/xlsx/xform/table/table-style-info-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 4
+      },
+      {
+        "path": "spec/unit/xlsx/xform/table/table-xform.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "spec/utils/test-conditional-formatting-sheet.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 1
+      },
+      {
+        "path": "test/regression/utils/hr-stopwatch.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "test/test-a1.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-cf.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 3
+      },
+      {
+        "path": "test/test-chart.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "test/test-comment-new.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-comment-stream-writer.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-comments.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-formula.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-header-footer.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-hyperlink.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-image-stream-writer.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-newline.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-protection-spinCount.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-protection.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/test-table.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "test/testArray.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/testBigBookOut.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/testBookIn.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/testBookOut.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/testBookOutS.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/testPerformance.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/testStreamBuf.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/testStringBuf.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/testStringtable.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/utils/column-sum.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "test/utils/hr-stopwatch.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "test/utils/utils.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      }
+    ]
+  }
+}

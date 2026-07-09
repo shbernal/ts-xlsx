@@ -1,0 +1,55 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2767,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2767",
+  "title": "Bug2675 table creation accepts invalid names",
+  "state": "open",
+  "author": "georgbuehler",
+  "createdAt": "2024-05-24T20:21:24Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "## Summary\r\n\r\nThis PR fixes [Bug 2675](https://github.com/exceljs/exceljs/issues/2675). It provides validation for the name of the Table being created, and throws an error if an invalid Table name is used (e.g. a name that contains a space or a special character, or that begins with a numeric digit).\r\n\r\n## Test plan\r\n\r\nThe PR includes a new unit test file, [worksheet-table-error-name.spec.js](https://github.com/georgbuehler/exceljs/blob/Bug2675_TableCreationAcceptsInvalidNames/spec/unit/doc/worksheet-table-error-name.spec.js), with tests for valid and invalid Table names. All unit tests, including the new tests and all existing tests, pass when running \"npm run test:unit\".\r\n\r\n## Related to source code (for typings update)\r\n\r\nNew assertion and supporting function in [table.js](https://github.com/georgbuehler/exceljs/blob/Bug2675_TableCreationAcceptsInvalidNames/lib/doc/table.js)\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2675",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/georgbuehler/exceljs/blob/Bug2675_TableCreationAcceptsInvalidNames/spec/unit/doc/worksheet-table-error-name.spec.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/georgbuehler/exceljs/blob/Bug2675_TableCreationAcceptsInvalidNames/lib/doc/table.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 69,
+    "deletions": 0,
+    "changedFiles": [
+      {
+        "path": "lib/doc/table.js",
+        "status": "modified",
+        "additions": 12,
+        "deletions": 0
+      },
+      {
+        "path": "spec/unit/doc/worksheet-table-error-name.spec.js",
+        "status": "added",
+        "additions": 57,
+        "deletions": 0
+      }
+    ]
+  }
+}

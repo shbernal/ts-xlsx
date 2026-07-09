@@ -1,0 +1,65 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1676,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1676",
+  "title": "Broken internal link on Google sheets",
+  "state": "open",
+  "author": "Troy96",
+  "createdAt": "2021-04-20T06:45:38Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "Hi,  I tried to add an internal link following the docs of exceljs but seems it is not working. Am I missing something here? Please help. \r\n![Screenshot 2021-04-20 at 10 54 56 AM](https://user-images.githubusercontent.com/24861825/115349923-0f7d3500-a1d2-11eb-8a81-7dc682f74803.png)\r\n![Screenshot 2021-04-20 at 10 57 54 AM](https://user-images.githubusercontent.com/24861825/115349932-12782580-a1d2-11eb-92b3-8eacb3d60342.png)\r\n\r\n",
+  "comments": [
+    {
+      "author": "Troy96",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-30T05:44:42Z",
+      "reactions": 0,
+      "body": "@skypesky Please help"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-04-30T10:25:34Z",
+      "reactions": 0,
+      "body": "@Troy96 hi,Troy96\r\nI can't fully understand the problems you encounter. Only by letting others understand the problems, can the problems be solved! Maybe you need to:\r\n1. Provide complete test cases\r\n2. Provide an excel file with correct format\r\n\r\n\r\n"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-11-22T10:45:37Z",
+      "reactions": 0,
+      "body": "@Troy96 This problem has been fixed and can be used only with the release version."
+    },
+    {
+      "author": "maybebane",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-07-04T07:47:06Z",
+      "reactions": 2,
+      "body": "> The fix is still buggy in wps office\r\n\r\n"
+    },
+    {
+      "author": "Champjiwrd",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-21T09:31:31Z",
+      "reactions": 0,
+      "body": "its still bug on Sep, 2023 (its work on excel but not work in Google Sheets\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/24861825/115349923-0f7d3500-a1d2-11eb-8a81-7dc682f74803.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/24861825/115349932-12782580-a1d2-11eb-92b3-8eacb3d60342.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

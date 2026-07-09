@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1499,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1499",
+  "title": "[BUG] exceljs on Browser emits TypeError: Cannot read property 'split' of undefined",
+  "state": "open",
+  "author": "darron1217",
+  "createdAt": "2020-10-10T10:01:27Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\nhttps://github.com/exceljs/exceljs/commit/33b050eaad7a604abcb025787ad09146a1cdde3b#diff-0ec03eab8a78bd1225de2927c0fd8e85\r\nThis commit causes error on browser. Accessing to `process` variable causes error.\r\n\r\nLib version: X.Y.Z\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nconst wb = new ExcelJS.Workbook();\r\nconst ws = wb.addWorksheet('XYZ');\r\n\r\nws.getCell('A1').value = 7;\r\nexpect(ws.getCell('A1').value).to.equal(7);\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "benjamin-andersen",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-02-10T19:29:41Z",
+      "reactions": 0,
+      "body": "I am also running into this issue, any workarounds?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/commit/33b050eaad7a604abcb025787ad09146a1cdde3b#diff-0ec03eab8a78bd1225de2927c0fd8e85",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

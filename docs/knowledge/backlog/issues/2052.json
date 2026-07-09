@@ -1,0 +1,40 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2052,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2052",
+  "title": "read  excel only support '.xlsx' suffix? read xls undefined",
+  "state": "open",
+  "author": "dylan66ty",
+  "createdAt": "2022-05-07T05:55:59Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 3,
+  "body": "",
+  "comments": [
+    {
+      "author": "xyunsh",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-17T05:38:21Z",
+      "reactions": 0,
+      "body": "same issue, any solution?"
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-15T13:21:48Z",
+      "reactions": 0,
+      "body": "@dylan66ty @xyunsh Support for reading xls suffixes, can you give an example of a problematic excel file and code?"
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-29T15:11:10Z",
+      "reactions": 1,
+      "body": "@dylan66ty @xyunsh exceljs does not support xls format excel for the time being, you can choose xlsx library"
+    }
+  ],
+  "attachments": []
+}

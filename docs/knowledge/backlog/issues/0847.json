@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 847,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/847",
+  "title": "exceljs need higher performance, thank you",
+  "state": "open",
+  "author": "zlzdp",
+  "createdAt": "2019-06-06T09:56:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "I did some performance test, just compare exceljs with https://github.com/SheetJS/js-xlsx/ and xlsx-populate js lib.\r\njs lib and version:\r\nxlsx.js@0.14.3\r\nexceljs@1.11.0\r\nxlsx-populate@1.19.1\r\nI tested it on web browser.\r\n\r\nexceljs vs xlsx.js vs xlsx-populate\r\nparse .xlsx file:\r\n1MB file parse:\r\n  882.985107421875ms\r\n2481.923583984375ms\r\n1339.385009765625ms\r\n\r\n15MB file parse:\r\n13153.964111328125ms\r\nexceljs crashed\r\n22480.077880859375ms\r\n\r\nexceljs is so slowly.\r\nany plan with better performance?\r\nthank you.\r\n",
+  "comments": [
+    {
+      "author": "zlzdp",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-06-06T10:00:03Z",
+      "reactions": 0,
+      "body": "https://github.com/SheetJS/js-xlsx/  have better performance, but it is not full features excel lib.\r\n\r\n"
+    },
+    {
+      "author": "alubbe",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-02-23T11:56:38Z",
+      "reactions": 2,
+      "body": "hey @zlzdp we've just merged some performance improvements, some benchmarks show a 4x speedup. could you share how you tested your benchmark and run it again against our `master`?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/SheetJS/js-xlsx/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/SheetJS/js-xlsx/",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

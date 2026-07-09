@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2704,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2704",
+  "title": "[BUG] XYZ",
+  "state": "open",
+  "author": "sbardijs",
+  "createdAt": "2024-02-22T16:14:38Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\nI am trying to access an xlxs file.\r\nI have verified and the file is NOT corrupt.\r\nWhen I load the file with the following script I get an error.\r\n\r\n```js\r\nconst workbook = new Excel.Workbook();\r\nawait workbook.xlsx.readFile(this.filePath, { skipStyles: true });\r\n```\r\n\r\n\r\n```sh\r\nnode_modules/exceljs/lib/xlsx/xform/sheet/col-xform.js:81\r\n      model.style = options.styles.getStyleModel(model.styleId);\r\n                                   ^\r\n\r\nTypeError: Cannot read properties of undefined (reading 'getStyleModel')\r\n    at ColXform.reconcile (/Users/manueltardivo/Sviluppo/soource/compass/node_modules/exceljs/lib/xlsx/xform/sheet/col-xform.js:81:36)\r\n    at /Users/manueltardivo/Sviluppo/soource/compass/node_modules/exceljs/lib/xlsx/xform/list-xform.js:89:20\r\n    at Array.forEach (<anonymous>)\r\n    at ListXform.reconcile (/Users/manueltardivo/Sviluppo/soource/compass/node_modules/exceljs/lib/xlsx/xform/list-xform.js:88:13)\r\n    at WorkSheetXform.reconcile (/Users/manueltardivo/Sviluppo/soource/compass/node_modules/exceljs/lib/xlsx/xform/sheet/worksheet-xform.js:483:19)\r\n    at /Users/manueltardivo/Sviluppo/soource/compass/node_modules/exceljs/lib/xlsx/xlsx.js:132:22\r\n    at Array.forEach (<anonymous>)\r\n    at XLSX.reconcile (/Users/manueltardivo/Sviluppo/soource/compass/node_modules/exceljs/lib/xlsx/xlsx.js:130:22)\r\n    at XLSX.load (/Users/manueltardivo/Sviluppo/soource/compass/node_modules/exceljs/lib/xlsx/xlsx.js:411:10)\r\n    at async XLSX.readFile (/Users/manueltardivo/Sviluppo/soource/compass/node_modules/exceljs/lib/xlsx/xlsx.js:55:24)\r\n    at async CompassAidaJob.getData (file:///Users/manueltardivo/Sviluppo/soource/compass/src/jobs/CompassAidaJob.js:12:5)\r\n```\r\n\r\nLib version: 4.4.0\r\n",
+  "comments": [],
+  "attachments": []
+}

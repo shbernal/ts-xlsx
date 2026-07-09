@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2850,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2850",
+  "title": "[F] Add `Symbol.iterator` methods to classes that currently implement callback-based `*each*` methods",
+  "state": "open",
+  "author": "lionel-rowe",
+  "createdAt": "2024-11-22T05:07:07Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🚀 Feature Proposal\r\n\r\nAdd `Symbol.iterator` methods to classes that currently implement callback-based `*each*` methods:\r\n\r\n* `Row#eachCell`\r\n* `Column#eachCell`\r\n* `Worksheet#eachRow` (and possibly an additional iterator method for `Worksheet#eachColumnKey`)\r\n* `CellMatrix#forEach`\r\n* `DefinedNames#forEach`\r\n* `Workbook#eachSheet`\r\n\r\n## Motivation\r\n\r\nCurrently, these are all implemented via callbacks, which are less than ideal due to lack of async support and inability to break early without `throw`ing.\r\n\r\nTo avoid redundancy while supporting backward compatibility, the existing methods could be provided as wrappers around the iterator methods.\r\n\r\n## Example\r\n\r\nUsage:\r\n\r\n```ts\r\nfor (const cell of sheet.getRow(1)) {\r\n    console.log(cell.value)\r\n}\r\n```\r\n\r\nCode changes could look something like this (example for `Row#eachCell`, passes all existing tests):\r\n\r\n<details>\r\n<summary>Diff</summary>\r\n\r\n```diff\r\ndiff --git a/exceljs.d.ts b/exceljs.d.ts\r\nindex 5eb691e..6d2ee66 100644\r\n--- a/exceljs.d.ts\r\n+++ b/exceljs.d.ts\r\n@@ -585,6 +585,12 @@ export interface Row extends Style {\r\n \t */\r\n \teachCell(opt: { includeEmpty: boolean }, callback: (cell: Cell, colNumber: number) => void): void;\r\n \r\n+\t/**\r\n+\t * Iterate over all cells in a row.\r\n+\t * @param opt.includeEmpty - if true, include empty cells\r\n+\t */\r\n+\t[Symbol.iterator](opt?: { includeEmpty: boolean }): Generator<Cell>;\r\n+\r\n \t/**\r\n \t * Cut one or more cells (cells to the right are shifted left)\r\n \t *\r\ndiff --git a/lib/doc/row.js b/lib/doc/row.js\r\nindex 054f52a..c891370 100644\r\n--- a/lib/doc/row.js\r\n+++ b/lib/doc/row.js\r\n@@ -126,23 +126,29 @@ class Row {\r\n     }\r\n   }\r\n \r\n+  *[Symbol.iterator](options) {\r\n+    if (options && options.includeEmpty) {\r\n+      for (const i of this._cells.keys()) {\r\n+        yield this.getCell(i + 1);\r\n+      }\r\n+    } else {\r\n+      for (const i of Object.keys(this._cells)) {\r\n+        const cell = this._cells[i];\r\n+        if (cell && cell.type !== Enums.ValueType.Null) {\r\n+          yield cell;\r\n+        }\r\n+      }\r\n+    }\r\n+  }\r\n+\r\n   // Iterate over all non-null cells in this row\r\n   eachCell(options, iteratee) {\r\n     if (!iteratee) {\r\n       iteratee = options;\r\n       options = null;\r\n     }\r\n-    if (options && options.includeEmpty) {\r\n-      const n = this._cells.length;\r\n-      for (let i = 1; i <= n; i++) {\r\n-        iteratee(this.getCell(i), i);\r\n-      }\r\n-    } else {\r\n-      this._cells.forEach((cell, index) => {\r\n-        if (cell && cell.type !== Enums.ValueType.Null) {\r\n-          iteratee(cell, index + 1);\r\n-        }\r\n-      });\r\n+    for (const cell of this[Symbol.iterator](options)) {\r\n+      iteratee(cell, Number(cell.col));\r\n     }\r\n   }\r\n```\r\n\r\n</details>",
+  "comments": [],
+  "attachments": []
+}

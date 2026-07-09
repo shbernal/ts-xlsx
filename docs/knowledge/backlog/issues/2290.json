@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2290,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2290",
+  "title": "Failing to Load Excel JS Workbook from a Buffer",
+  "state": "open",
+  "author": "Ari1029",
+  "createdAt": "2023-06-23T13:43:28Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "Hi, I would like to report an issue with loading Excel JS workbooks loading from a buffer. After reviewing Excel JS documentation, I noticed that this was the correct method:\r\n![image](https://github.com/exceljs/exceljs/assets/45503218/e2ae1a8d-4fe9-48f3-9007-5e519adcd3fb)\r\n\r\nThe goal is to load a template Excel sheet like the following:\r\n![image](https://github.com/exceljs/exceljs/assets/45503218/6022f3d8-f439-4d9e-be89-eeb2256eefa6)\r\n\r\nHowever, when I attempt to load this custom Excel template using the code I sent above, I receive the following error in console:\r\n![image](https://github.com/exceljs/exceljs/assets/45503218/fdb370d5-7774-4dcf-abb7-eda49c515c4e)\r\n\r\nIs there any other code I could use to load a workbook from customExcelBuffer? Please let me know, thank you.\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-06-24T03:37:04Z",
+      "reactions": 0,
+      "body": "@Ari1029 Can you provide the excel file and post the full code?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/45503218/e2ae1a8d-4fe9-48f3-9007-5e519adcd3fb",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/45503218/6022f3d8-f439-4d9e-be89-eeb2256eefa6",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/45503218/fdb370d5-7774-4dcf-abb7-eda49c515c4e",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

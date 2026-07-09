@@ -1,0 +1,63 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2968,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2968",
+  "title": "Outdated dependencies detected in package",
+  "state": "open",
+  "author": "amritmmmec",
+  "createdAt": "2025-09-18T09:51:18Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 4,
+  "body": "### Description \n\n  \n\nWe are using your package as a dependency in our project. \n\n  \n\nIn our internal security scan (conducted via **Black Duck**), we found that **some of the dependencies included in your package have not been updated for more than 12 months**. \n\n  \n\nThis includes both runtime and transitive dependencies that are part of your package's dependency tree. \n\n  \n\nWe are raising this issue to make you aware of this observation.  Are these outdated dependencies something you plan to update? \n\n  \n\n### Outdated Dependency List (from Black Duck scan) \n\n  \n\nThe following are the dependencies (direct or transitive) in your package that were identified as outdated (last updated >12 months ago): \n\n  \n\n | Library Name   | Current Version | Package Name | Package Version | \n\n  |:--------------|:---------------:| :-----------:|----------------:| \nabort-controller\t3.0.0\texcel.js\t4.4.0\nansi-regex\t5.0.1\texcel.js\t4.4.0\nansi-styles\t6.2.1\texcel.js\t4.4.0\narchiver-utils\t5.0.2\texcel.js\t4.4.0\nbalanced-match\t3.0.1\texcel.js\t4.4.0\nbase64-js\t1.5.1\texcel.js\t4.4.0\nBluebird JS\t3.7.2\texcel.js\t4.4.0\nBuffer\t6.0.3\texcel.js\t4.4.0\nbuffer-crc32\t1.0.0\texcel.js\t4.4.0\ncalvinmetcalf/lie\t3.3.0\texcel.js\t4.4.0\ncompress-commons\t6.0.2\texcel.js\t4.4.0\ncrc-32\t1.2.2\texcel.js\t4.4.0\ncrc32-stream\t6.0.0\texcel.js\t4.4.0\nduplexer2\t0.1.4\texcel.js\t4.4.0\neastasianwidth\t0.2.0\texcel.js\t4.4.0\nemoji-regex\t9.2.2\texcel.js\t4.4.0\nemoji-regex\tv8.0.0\texcel.js\t4.4.0\nevent-target-shim\t5.0.1\texcel.js\t4.4.0\nfast-csv\t4.3.6\texcel.js\t4.4.0\n@fast-csv/format\t4.3.5\texcel.js\t4.4.0\n@fast-csv/parse\t4.3.6\texcel.js\t4.4.0\nfast-fifo\t1.3.2\texcel.js\t4.4.0\nGozala/events\t3.3.0\texcel.js\t4.4.0\nieee754\tv1.2.1\texcel.js\t4.4.0\nimmediate\t3.0.6\texcel.js\t4.4.0\n@isaacs/cliui\t8.0.2\texcel.js\t4.4.0\nisaacs/jackspeak\t3.4.3\texcel.js\t4.4.0\nisarray\t1.0.0\texcel.js\t4.4.0\nisexe\t2.0.0\texcel.js\t4.4.0\nis-fullwidth-code-point\t3.0.0\texcel.js\t4.4.0\njszip\t3.10.1\texcel.js\t4.4.0\nlazystream\t1.0.1\texcel.js\t4.4.0\nLodash\t4.17.21\texcel.js\t4.4.0\nlodash.escaperegexp\t4.1.2\texcel.js\t4.4.0\nlodash.groupby\t4.6.0\texcel.js\t4.4.0\nlodash.isequal\t4.5.0\texcel.js\t4.4.0\nlodash.isfunction\t3.0.9\texcel.js\t4.4.0\nlodash.isnil\t4.0.0\texcel.js\t4.4.0\nlodash.isundefined\t3.0.1\texcel.js\t4.4.0\nlodash.uniq\t4.5.0\texcel.js\t4.4.0\nminimatch\t5.1.6\texcel.js\t4.4.0\nminimatch\t9.0.5\texcel.js\t4.4.0\nminipass\t7.1.2\texcel.js\t4.4.0\nnode-archiver\t7.0.1\texcel.js\t4.4.0\nnodeca/pako\t1.0.11\texcel.js\t4.4.0\nnode-glob\t10.4.5\texcel.js\t4.4.0\nnode-graceful-fs\t4.2.11\texcel.js\t4.4.0\nnode-int64\t0.4.0\texcel.js\t4.4.0\nnodejs/string_decoder\t1.1.1\texcel.js\t4.4.0\nnodejs/string_decoder\t1.3.0\texcel.js\t4.4.0\nnode-lru-cache\t10.4.3\texcel.js\t4.4.0\nnode-process\t0.11.10\texcel.js\t4.4.0\nnormalize-path\t3.0.0\texcel.js\t4.4.0\npath-key\t3.1.1\texcel.js\t4.4.0\npath-scurry\t1.11.1\texcel.js\t4.4.0\n@pkgjs/parseargs\t0.11.0\texcel.js\t4.4.0\nprocess-nextick-args\tv2.0.1\texcel.js\t4.4.0\nreadable-stream\t2.3.8\texcel.js\t4.4.0\nreadable-stream\t3.6.2\texcel.js\t4.4.0\nreaddir-glob\t1.1.3\texcel.js\t4.4.0\nsafe-buffer\t5.1.2\texcel.js\t4.4.0\nsaxes\t5.0.1\texcel.js\t4.4.0\nsetImmediate\t1.0.5\texcel.js\t4.4.0\nshebang-command\t2.0.0\texcel.js\t4.4.0\nshebang-regex\t3.0.0\texcel.js\t4.4.0\nsignal-exit\t4.1.0\texcel.js\t4.4.0\nstring-width\t4.2.3\texcel.js\t4.4.0\nstring-width\t5.1.2\texcel.js\t4.4.0\nStrip ANSI\t6.0.1\texcel.js\t4.4.0\nStrip ANSI\t7.1.0\texcel.js\t4.4.0\ntar-stream\t3.1.7\texcel.js\t4.4.0\n@types/node\t14.18.63\texcel.js\t4.4.0\nuniversalify\t2.0.1\texcel.js\t4.4.0\nunzipper\t0.12.3\texcel.js\t4.4.0\nutil-deprecate\t1.0.2\texcel.js\t4.4.0\nuuid\t8.3.2\texcel.js\t4.4.0\nwhich\t2.0.2\texcel.js\t4.4.0\nwrap-ansi\t8.1.0\texcel.js\t4.4.0\nxmlchars\t2.2.0\texcel.js\t4.4.0\nzip-stream\t6.0.1\texcel.js\t4.4.0\n",
+  "comments": [
+    {
+      "author": "Florine0113",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-11T12:58:01Z",
+      "reactions": 0,
+      "body": "Below dependencies are outdated as well:\n| Library Name              | Current Version | Package Name | Package Version |\n|:--------------------------|:---------------:|:------------:|----------------:|\n| b4a                       | 1.6.7           | excel.js     | 4.4.0           |\n| balanced-match            | 3.0.1           | excel.js     | 4.4.0           |\n| excel.js                  | 4.4.0           | excel.js     | 4.4.0           |\n| moxystudio/node-cross-spawn | 7.0.6         | excel.js     | 4.4.0           |\n| package-json-from-dist    | 1.0.1           | excel.js     | 4.4.0           |\n| tapjs/signal-exit         | 4.1.0           | excel.js     | 4.4.0           |\n"
+    },
+    {
+      "author": "gameroman",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-04-12T13:07:08Z",
+      "reactions": 0,
+      "body": "Try one of these which are more actively maintained forks\n\nhttps://github.com/excel-js/exceljs\n\nhttps://github.com/cjnoname/excelts\n\nhttps://github.com/protobi/exceljs"
+    },
+    {
+      "author": "Ben-CA",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-04-29T17:13:54Z",
+      "reactions": 0,
+      "body": "Would be nice if we could avoid these notices without switching to a fork.\n\n**npm install exceljs**  \nnpm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.\nnpm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported\nnpm warn deprecated fstream@1.0.12: This package is no longer supported."
+    },
+    {
+      "author": "gameroman",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-04-29T17:21:03Z",
+      "reactions": 0,
+      "body": "> Would be nice if we could avoid these notices without switching to a fork.\n> \n> **npm install exceljs** npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead. npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported npm warn deprecated fstream@1.0.12: This package is no longer supported.\n\nYou could probably use overrides, but I would recommend to try one of those forks since `exceljs` is unlikely to receive new updates in the near future\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/excel-js/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/cjnoname/excelts",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/protobi/exceljs",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

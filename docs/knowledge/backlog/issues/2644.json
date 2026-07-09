@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2644,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2644",
+  "title": "[F] Create XLSB file formats",
+  "state": "open",
+  "author": "silverbullettruck2001",
+  "createdAt": "2024-01-02T16:00:28Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "Add the ability to generate XLSB (binary worksheet) format as well as XLSX\r\n\r\nXLSB are much smaller files and is very helpful when dealing with generating large spreadsheets\r\n\r\n",
+  "comments": [],
+  "attachments": []
+}

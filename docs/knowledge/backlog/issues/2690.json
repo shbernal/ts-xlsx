@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2690,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2690",
+  "title": "Write worksheet to xml file without writing the whole workbook",
+  "state": "open",
+  "author": "drypatrick",
+  "createdAt": "2024-02-14T22:50:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 2,
+  "body": "I would like to know if there is any way to write a specific worksheet directly to an `xml` file, without writing the whole workbook, like in the following pseudo code:\r\n\r\n```\r\nconst ExcelJS = require('exceljs');\r\nconst workbook = new ExcelJS.Workbook();\r\nworkbook.xlsx.readFile(ExcelTemplate);\r\nlet worksheet = workbook.getWorksheet(worksheetName);\r\nworksheet.getCell(1, 1).value = 123;\r\n\r\n// Instead ow writing the full workbook, write the worksheet as xml\r\n// workbook.xlsx.writeFile(`${outputDir}/${fileName}.xlsx`);\r\nworksheet.xlsx.writeFile(`${outputDir}/${fileName}.xml`);\r\n```\r\n\r\nI'm asking this because loading my ExcelTemplate into ExcelJS breaks some feature (charts, named range...), so I end up to a workaround where I use ExcelJS to fullfill with data an excel file, then I need to replace the blank data worksheet of the ExcelTemplate with the fulfilled one.\r\nWriting the workseeth to xml, will simplify the process\r\n\r\nMany thanks to everyone!\r\n",
+  "comments": [
+    {
+      "author": "saddy113",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-17T01:54:48Z",
+      "reactions": 0,
+      "body": "I encountered this problem too."
+    },
+    {
+      "author": "drypatrick",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-26T19:22:36Z",
+      "reactions": 0,
+      "body": "I end up to something like that to replace individual sheet from an Xlsx to another one.\r\nUnfortunately it breaks even more stuff, so I'm going to write a macro to create elements like charts, named range, and so on...\r\n```\r\nconst AdmZip = require('adm-zip');\r\n\r\nconst data_workbook_Zip = new AdmZip(workbook_with_data);\r\n// data_workbook_Zip.extractAllTo(`${outputDir}/${fileName}/`)\r\n\r\nconst template_workbook_Zip = new AdmZip(template_blank);\r\n// template_workbook_Zip.extractAllTo(`${outputDir}/template_blank/`)\r\n\r\nconst worksheet_data = data_workbook_Zip.readAsText('xl/worksheets/sheet4.xml', 'utf8');\r\ntemplate_workbook_Zip.updateFile('xl/worksheets/sheet1.xml', Buffer.from(worksheet_data, 'utf8'));\r\n```"
+    }
+  ],
+  "attachments": []
+}

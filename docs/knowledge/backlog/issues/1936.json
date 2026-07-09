@@ -1,0 +1,51 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1936,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1936",
+  "title": "Fix loading of tables with calculated columns.",
+  "state": "open",
+  "author": "antoineacy",
+  "createdAt": "2021-12-20T14:02:34Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\nLoading a table with calculated columns fails. It stops loading columns after the first calculated one, resulting in a wrong column number.\r\n\r\n## Test plan\r\n\r\nSee the test provided. Columns number should be 3, and it is only 2 because column 2 contains a formula.\r\n\r\n## Related to source code (for typings update)\r\n\r\nhttps://github.com/antoineacy/exceljs/blob/antoine-patch-1/lib/xlsx/xform/table/table-column-xform.js\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/antoineacy/exceljs/blob/antoine-patch-1/lib/xlsx/xform/table/table-column-xform.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 18,
+    "deletions": 2,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xform/table/table-column-xform.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "spec/integration/data/test-pr-1936.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/pr/test-pr-1936.spec.js",
+        "status": "added",
+        "additions": 16,
+        "deletions": 0
+      }
+    ]
+  }
+}

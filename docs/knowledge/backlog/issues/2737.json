@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2737,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2737",
+  "title": "Don't render empty rich text substrings",
+  "state": "open",
+  "author": "Blackhol3",
+  "createdAt": "2024-04-07T15:32:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "Excel can't open file with empty rich text substrings. For instance, this code:\r\n\r\n```\r\nconst workbook = new Workbook();\r\nconst worksheet = workbook.addWorksheet('Test');\r\n\r\nworksheet.getCell('C1').value = {\r\n\trichText: [\r\n\t\t{font: {size: 10, color: {argb: 'ffff0000'}}, text: 'Test 1'},\r\n\t\t{font: {size: 10, color: {argb: 'ff00ff00'}}, text: ''},       // Empty string\r\n\t\t{font: {size: 10, color: {argb: 'ff0000ff'}}, text: 'Test 2'},\r\n\t],\r\n};\r\n\r\nworkbook.xlsx.writeFile('test.xlsx');\r\n```\r\n\r\ncreates a file for which Excel will throw the following error:\r\n\r\n> We found a problem with some content in 'test.xlsx'. Do you want us to try to recover as much as we can? If you trust the source of this workbook, click Yes.\r\n\r\nNot rendering the empty substring in the XML solves the problem, without changing the appearance of the resulting rich text.",
+  "comments": [],
+  "attachments": [],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 3,
+    "deletions": 0,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xform/strings/rich-text-xform.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 0
+      }
+    ]
+  }
+}

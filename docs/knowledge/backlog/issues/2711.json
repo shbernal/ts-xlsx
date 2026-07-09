@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2711,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2711",
+  "title": "[BUG] spliceRows无法正确删除",
+  "state": "open",
+  "author": "2514765066",
+  "createdAt": "2024-02-28T11:15:00Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "我的表格中结构是这样的[\r\n  <1 empty item>,\r\n  [ <1 empty item>, 1 ],\r\n  [ <1 empty item>, 2 ],\r\n  [ <1 empty item>, 3 ],\r\n  [ <1 empty item>, 4 ],\r\n  [ <1 empty item>, 5 ]\r\n]，我使用  worksheet.spliceRows(3, 2);删除后结果是[\r\n  <1 empty item>,\r\n  [ <1 empty item>, 1 ],\r\n  [ <1 empty item>, 2 ],\r\n  [ <1 empty item>, 5 ],\r\n  [ <1 empty item>, 4 ]\r\n]我是用  worksheet.spliceRows(3, 1);两次的结果是[\r\n  <1 empty item>,\r\n  [ <1 empty item>, 1 ],\r\n  [ <1 empty item>, 2 ],\r\n  [ <1 empty item>, 5 ],\r\n  []\r\n]也不对，我想他的结果是[\r\n  <1 empty item>,\r\n  [ <1 empty item>, 1 ],\r\n  [ <1 empty item>, 2 ],\r\n  [ <1 empty item>, 4 ],\r\n  [ <1 empty item>, 5 ],\r\n  ]",
+  "comments": [],
+  "attachments": []
+}

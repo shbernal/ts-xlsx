@@ -1,0 +1,96 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2055,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2055",
+  "title": "[BUG] Cells from loaded files reuse the same style object",
+  "state": "open",
+  "author": "frosas",
+  "createdAt": "2022-05-10T09:08:40Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 8,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nFor loaded files, the same style object is used in multiple cells.\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\nPlease, see https://github.com/frosas/exceljs-style-bug-scenario for the full setup.\r\n\r\nCopying the meaty parts here for context:\r\n\r\n```javascript\r\nconst workbook = new Excel.Workbook();\r\nawait workbook.xlsx.readFile(\"spreadsheet.xlsx\");\r\nconst seenStyles = new Set();\r\nworkbook.eachSheet((sheet) => {\r\n  sheet.eachRow((row) => {\r\n    row.eachCell((cell) => {\r\n      if (seenStyles.has(cell.style)) {\r\n        console.log(\r\n          `${cell.$col$row} style object was already seen on another cell`\r\n        );\r\n      }\r\n      seenStyles.add(cell.style);\r\n    });\r\n  });\r\n});\r\n```\r\n\r\nThe above prints \r\n\r\n```\r\n$B$1 style object was already seen on another cell\r\n$A$2 style object was already seen on another cell\r\n$B$2 style object was already seen on another cell\r\n```\r\n\r\nfor a 2x2 spreadsheet.\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\nNo \"style object was already seen on another cell\" lines are printed.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nThis is the workaround I'm currently applying:\r\n\r\n```ts\r\nimport cloneDeep from 'lodash/cloneDeep'\r\n\r\n/** Fixes multiple cells possibly referring to the same style object */\r\nfunction fixCellStyle(cell: Cell) {\r\n  cell.style = cloneDeep(cell.style)\r\n}\r\n```\r\n",
+  "comments": [
+    {
+      "author": "josephaw1022",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-07-31T21:09:57Z",
+      "reactions": 0,
+      "body": "# What exactly is different about the cell's styling with the file provided? \r\n\r\n\r\n<img width=\"1792\" alt=\"Screen Shot 2022-07-31 at 5 03 30 PM\" src=\"https://user-images.githubusercontent.com/47674962/182045255-92898edc-89d6-436e-994e-6d94b0299f63.png\">\r\n "
+    },
+    {
+      "author": "pointlesscore",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-14T19:27:38Z",
+      "reactions": 5,
+      "body": "> What exactly is different about the cell's styling with the file provided?\r\n\r\nThe problem isn't that the cells' styling _look_ the same or differently, but that it's the same object. This causes any changes to one cell's `style` field to propagate to other cells that share the same object, even when it's not intended.\r\n\r\nIf we read the file, change style in **only one** cell (here: A1) causes the style to change on all the other cells as well.\r\n\r\n```js\r\nawait workbook.xlsx.readFile(\"spreadsheet.xlsx\");\r\n//...\r\nsheet.getCell('A1').fill = {\r\n  type: 'pattern',\r\n  pattern: 'darkTrellis', \r\n  fgColor: { argb: 'FFFFFF00' },\r\n  bgColor: { argb: 'FF0000FF' },\r\n}\r\n// ...\r\nawait workbook.xlsx.writeFile(\"spreadsheet.xlsx\");\r\n```\r\n\r\n![image](https://user-images.githubusercontent.com/45142318/184551734-32f6fc1e-0bd4-45a1-8ef4-aa20ba3eaf70.png)\r\n"
+    },
+    {
+      "author": "gudgyo",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-01-13T11:56:24Z",
+      "reactions": 0,
+      "body": "Any news on this? I'm having the same issue, cells getting modified on unrelated never touched sheets etc.\r\nIf you have some kind of workaround it would much appreciated as well, thanks!"
+    },
+    {
+      "author": "bradwoo8621",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-20T03:24:22Z",
+      "reactions": 13,
+      "body": "Having same issue, finally found why.\r\n\r\nlib read styles from excel, and the impacted cells share one style object in excel file. so if update the style property, it impacts other cells. the solution is clone style and assign to cell again.\r\n\r\n\r\n```typescript\r\nawait workbook.xlsx.readFile(\"spreadsheet.xlsx\");\r\n//...\r\n\r\n// do not assign fill directly\r\nsheet.getCell('A1').fill = {\r\n  type: 'pattern',\r\n  pattern: 'darkTrellis', \r\n  fgColor: { argb: 'FFFFFF00' },\r\n  bgColor: { argb: 'FF0000FF' },\r\n}\r\n\r\n// change to this\r\nsheet.getCell('A1').style = {\r\n  ...(sheet.getCell('A1').style || {}),\r\n  fill: {\r\n    type: 'pattern',\r\n    pattern: 'darkTrellis', \r\n    fgColor: { argb: 'FFFFFF00' },\r\n    bgColor: { argb: 'FF0000FF' }\r\n  }\r\n}\r\n\r\n\r\n// ...\r\nawait workbook.xlsx.writeFile(\"spreadsheet.xlsx\");\r\n```\r\n\r\nexcel file is known as a zip file, simply change the ext file name, and extract. to find the worksheet and style xml, will found excel save style and shared by multiple cells if they are same. \r\n\r\nSo lib exactly follows the excel format, seems it is not an issue. And for #1994, seems caused by the same reason.\r\n\r\n"
+    },
+    {
+      "author": "Echo-YeZi",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-23T19:26:46Z",
+      "reactions": 2,
+      "body": "> Having same issue, finally found why.\r\n> \r\n> lib read styles from excel, and the impacted cells share one style object in excel file. so if update the style property, it impacts other cells. the solution is clone style and assign to cell again.\r\n> \r\n> ```ts\r\n> await workbook.xlsx.readFile(\"spreadsheet.xlsx\");\r\n> //...\r\n> \r\n> // do not assign fill directly\r\n> sheet.getCell('A1').fill = {\r\n>   type: 'pattern',\r\n>   pattern: 'darkTrellis', \r\n>   fgColor: { argb: 'FFFFFF00' },\r\n>   bgColor: { argb: 'FF0000FF' },\r\n> }\r\n> \r\n> // change to this\r\n> sheet.getCell('A1').style = {\r\n>   ...(sheet.getCell('A1').style || {}),\r\n>   fill: {\r\n>     type: 'pattern',\r\n>     pattern: 'darkTrellis', \r\n>     fgColor: { argb: 'FFFFFF00' },\r\n>     bgColor: { argb: 'FF0000FF' }\r\n>   }\r\n> }\r\n> \r\n> \r\n> // ...\r\n> await workbook.xlsx.writeFile(\"spreadsheet.xlsx\");\r\n> ```\r\n> \r\n> excel file is known as a zip file, simply change the ext file name, and extract. to find the worksheet and style xml, will found excel save style and shared by multiple cells if they are same.\r\n> \r\n> So lib exactly follows the excel format, seems it is not an issue. And for #1994, seems caused by the same reason.\r\n\r\nit works! thanks a lot"
+    },
+    {
+      "author": "julimuchi",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-01-05T14:47:38Z",
+      "reactions": 0,
+      "body": "It works!! Thanks!! you save me!"
+    },
+    {
+      "author": "thswanson97",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-25T19:37:04Z",
+      "reactions": 0,
+      "body": "This also saved me! This issue needs to be linked or the problem needs to be referenced in the style section of the readme docs. Such weird behavior. "
+    },
+    {
+      "author": "kang-int",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-22T03:31:29Z",
+      "reactions": 0,
+      "body": "> Having same issue, finally found why.\n> \n> lib read styles from excel, and the impacted cells share one style object in excel file. so if update the style property, it impacts other cells. the solution is clone style and assign to cell again.\n> \n> await workbook.xlsx.readFile(\"spreadsheet.xlsx\");\n> //...\n> \n> // do not assign fill directly\n> sheet.getCell('A1').fill = {\n>   type: 'pattern',\n>   pattern: 'darkTrellis', \n>   fgColor: { argb: 'FFFFFF00' },\n>   bgColor: { argb: 'FF0000FF' },\n> }\n> \n> // change to this\n> sheet.getCell('A1').style = {\n>   ...(sheet.getCell('A1').style || {}),\n>   fill: {\n>     type: 'pattern',\n>     pattern: 'darkTrellis', \n>     fgColor: { argb: 'FFFFFF00' },\n>     bgColor: { argb: 'FF0000FF' }\n>   }\n> }\n> \n> \n> // ...\n> await workbook.xlsx.writeFile(\"spreadsheet.xlsx\");\n> excel file is known as a zip file, simply change the ext file name, and extract. to find the worksheet and style xml, will found excel save style and shared by multiple cells if they are same.\n> \n> So lib exactly follows the excel format, seems it is not an issue. And for [#1994](https://github.com/exceljs/exceljs/issues/1994), seems caused by the same reason.\n\nThe author should add this solution to the doc!!!!! I wasted half a day on this \"bug\""
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/frosas/exceljs-style-bug-scenario",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/47674962/182045255-92898edc-89d6-436e-994e-6d94b0299f63.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/45142318/184551734-32f6fc1e-0bd4-45a1-8ef4-aa20ba3eaf70.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1994",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

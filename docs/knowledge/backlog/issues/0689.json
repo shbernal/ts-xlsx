@@ -1,0 +1,36 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 689,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/689",
+  "title": "dateFormat option for csv.writeFile does not work",
+  "state": "open",
+  "author": "IRCraziestTaxi",
+  "createdAt": "2018-11-06T15:29:40Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "question"
+  ],
+  "reactions": 2,
+  "commentCount": 2,
+  "body": "When workbook.xlsx.writeFile, I have no need to use a dateFormat because it saves the date as it was in the original workbook (in MM/DD/YYYY format), but when using workbook.csv.writeFile, the date appears as `2018-01-05T18:00:00-06:00` rather than the desired `01/05/2018` format.\r\n\r\nMy code for saving csv is:\r\n\r\n```ts\r\n        await this._workbook.csv.writeFile(\r\n            newFilename,\r\n            {\r\n                dateFormat: \"MM/DD/YYYY\"\r\n            }\r\n        );\r\n```\r\n\r\nI have also tried `MM-DD-YYYY` and `MMDDYYYY` for dateFormat, but it always comes out in `2018-01-05T18:00:00-06:00` format.",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-11T22:17:33Z",
+      "reactions": 0,
+      "body": "@IRCraziestTaxi  is cell type of Date?\r\n"
+    },
+    {
+      "author": "IRCraziestTaxi",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-01-28T16:32:18Z",
+      "reactions": 0,
+      "body": "@Siemienik Apologies for the delayed response. Yes, I did ensure that the cell in question is of type Date."
+    }
+  ],
+  "attachments": []
+}

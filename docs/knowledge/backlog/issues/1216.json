@@ -1,0 +1,85 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1216,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1216",
+  "title": "Unable to add image from a full web url",
+  "state": "open",
+  "author": "senna-cheil",
+  "createdAt": "2020-04-14T16:03:52Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "Unable to embed a picture from full url\r\n\r\nvar imageId1 = workbook.addImage({\r\n                        filename: 'https://www.example.com/uploads/images/1586877486564_toppicks_thb4.jpg',\r\n                        extension: 'jpeg',\r\n                    });\r\n\r\nworksheet.addImage(imageId1, {\r\n                        tl: { col: colIndex, row: rowIndex },\r\n                        ext: { width: 250, height: 250 }\r\n                    });",
+  "comments": [
+    {
+      "author": "Sunday9787",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-06-13T17:10:10Z",
+      "reactions": 0,
+      "body": "你需要下载此图片然后转为 buffer\r\n```ts\r\nfunction downloadImage(data:Product[] ) {\r\n  const buffers = data.map((item => {\r\n    const buffer = got.get({\r\n      url: item.image,\r\n      headers: {\r\n        accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',\r\n        'accept-language': 'zh-CN,zh;q=0.9',\r\n        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36'\r\n      },\r\n    }).buffer()\r\n\r\n    return buffer\r\n  }))\r\n\r\n  return Promise.all(buffers)\r\n}\r\n```\r\n\r\n```ts\r\nconst buffers = await downloadImage(data)\r\n\r\nconst worksheet = workbook.addWorksheet('sheet1')\r\nbuffers.forEach((buffer, index) => {\r\n  const imageId = workbook.addImage({ buffer, extension: 'jpeg' })\r\n\r\n  worksheet.addImage(imageId, {\r\n    tl: { col: 0, row: index },\r\n    ext: { width: 170, height: 220 },\r\n    editAs: 'oneCell',\r\n    hyperlinks: {\r\n      hyperlink: data[index].url,\r\n      tooltip: data[index].title\r\n    }\r\n  })\r\n})\r\n```"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2022-02-22T10:04:21Z",
+      "reactions": 4,
+      "body": "react version simple demo, relations: #1973 \r\n```javascript\r\n        const imageUrl = `https://pic1.zhimg.com/v2-3be05963f5f3753a8cb75b6692154d4a_1440w.jpg?source=172ae18b`;\r\n        fetch(imageUrl)\r\n            .then((r) => {\r\n                const workbook = new Workbook();\r\n                const image = workbook.addImage({\r\n                    buffer: r.arrayBuffer(),\r\n                    extension: \"jpeg\",\r\n                });\r\n                const worksheet = workbook.addWorksheet(\"sheet1\");\r\n                worksheet.addImage(image, \"A1:A1\");\r\n                return workbook.xlsx\r\n                    .writeBuffer()\r\n                    .then((arrayBuffer) => saveAs(new Blob([arrayBuffer]), `abc.xlsx`));\r\n            }).catch(console.error);\r\n```"
+    },
+    {
+      "author": "RainBoard01",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-08T23:20:15Z",
+      "reactions": 0,
+      "body": "> react version simple demo, relations: #1973\r\n> \r\n> ```js\r\n>         const imageUrl = `https://pic1.zhimg.com/v2-3be05963f5f3753a8cb75b6692154d4a_1440w.jpg?source=172ae18b`;\r\n>         fetch(imageUrl)\r\n>             .then((r) => {\r\n>                 const workbook = new Workbook();\r\n>                 const image = workbook.addImage({\r\n>                     buffer: r.arrayBuffer(),\r\n>                     extension: \"jpeg\",\r\n>                 });\r\n>                 const worksheet = workbook.addWorksheet(\"sheet1\");\r\n>                 worksheet.addImage(image, \"A1:A1\");\r\n>                 return workbook.xlsx\r\n>                     .writeBuffer()\r\n>                     .then((arrayBuffer) => saveAs(new Blob([arrayBuffer]), `abc.xlsx`));\r\n>             }).catch(console.error);\r\n> ```\r\n\r\nThe snippet works well but for me It not displays the images when opening the file.\r\n\r\n![image](https://user-images.githubusercontent.com/43224784/236957235-606ac102-5eb5-464d-b6a1-a963f55bc071.png)\r\n\r\n"
+    },
+    {
+      "author": "sithu951",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-01-17T06:28:18Z",
+      "reactions": 0,
+      "body": "> > react version simple demo, relations: #1973\r\n> > ```js\r\n> >         const imageUrl = `https://pic1.zhimg.com/v2-3be05963f5f3753a8cb75b6692154d4a_1440w.jpg?source=172ae18b`;\r\n> >         fetch(imageUrl)\r\n> >             .then((r) => {\r\n> >                 const workbook = new Workbook();\r\n> >                 const image = workbook.addImage({\r\n> >                     buffer: r.arrayBuffer(),\r\n> >                     extension: \"jpeg\",\r\n> >                 });\r\n> >                 const worksheet = workbook.addWorksheet(\"sheet1\");\r\n> >                 worksheet.addImage(image, \"A1:A1\");\r\n> >                 return workbook.xlsx\r\n> >                     .writeBuffer()\r\n> >                     .then((arrayBuffer) => saveAs(new Blob([arrayBuffer]), `abc.xlsx`));\r\n> >             }).catch(console.error);\r\n> > ```\r\n> \r\n> The snippet works well but for me It not displays the images when opening the file.\r\n> \r\n> ![image](https://user-images.githubusercontent.com/43224784/236957235-606ac102-5eb5-464d-b6a1-a963f55bc071.png)\r\n\r\nI had the same problem when I put my image file under \"src\" folder and used relative path to access it. Then I tried moved my image file under \"public\" folder and used absolute path to access it. For example, I change the path from \"../../letter_head.png\" to \"/letter_head.png\". Then it worked instantly."
+    },
+    {
+      "author": "yurii-shkoropad",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-01T12:34:48Z",
+      "reactions": 0,
+      "body": "Not fixed in 2024?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.example.com/uploads/images/1586877486564_toppicks_thb4.jpg",
+      "ext": "jpg",
+      "isFixture": false
+    },
+    {
+      "url": "https://pic1.zhimg.com/v2-3be05963f5f3753a8cb75b6692154d4a_1440w.jpg?source=172ae18b`",
+      "ext": "jpg",
+      "isFixture": false
+    },
+    {
+      "url": "https://pic1.zhimg.com/v2-3be05963f5f3753a8cb75b6692154d4a_1440w.jpg?source=172ae18b`",
+      "ext": "jpg",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/43224784/236957235-606ac102-5eb5-464d-b6a1-a963f55bc071.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://pic1.zhimg.com/v2-3be05963f5f3753a8cb75b6692154d4a_1440w.jpg?source=172ae18b`",
+      "ext": "jpg",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/43224784/236957235-606ac102-5eb5-464d-b6a1-a963f55bc071.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

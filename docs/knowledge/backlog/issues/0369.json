@@ -1,0 +1,190 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 369,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/369",
+  "title": "Problems with \\n or \\r",
+  "state": "open",
+  "author": "Mafi78",
+  "createdAt": "2017-07-24T09:39:51Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 20,
+  "body": "Hi,\r\nI am using this tool for an addon to export the results to excel - when i assign those values in the like thisworksheet.getCell (\"C2\").value = \"My Text with \\na line break\" on multiple cells i get a strange behaviour. In Chrome this works in some cases (in others not).\r\nIn IE this is not working at all. \r\n\r\nWhat is needed to be able to debug it ?\r\nIs there a method to export an worksheet Object in Javascript ?\r\nThank you for your excellent work !\r\nI am using the latest source (5 days ago ...)\r\nBest regards\r\nManfred\r\n",
+  "comments": [
+    {
+      "author": "Rycochet",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2017-07-24T10:11:46Z",
+      "reactions": 0,
+      "body": "Should have been fixed about a month ago (see #296) - are you using the 0.4.13+? (Be careful if using from JSDelivr as it seems to have a problem with keeping up to date lately...)"
+    },
+    {
+      "author": "jimaek",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T10:16:22Z",
+      "reactions": 1,
+      "body": "This is the new endpoint that points directly to npm http://cdn.jsdelivr.net/npm/exceljs@0.5.0/dist/exceljs.min.js\r\n\r\nIts automatically updated and works great"
+    },
+    {
+      "author": "Mafi78",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T10:18:19Z",
+      "reactions": 0,
+      "body": "i've seen the entry that it should have been fixed - therefore i am wondering what i did wrong !\r\nI used the npm way ?? is there a problem ? i will try the exceljs.min.js link that you've send me "
+    },
+    {
+      "author": "Rycochet",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2017-07-24T10:29:02Z",
+      "reactions": 0,
+      "body": "@jimaek I think npmjs is the problem - it sometimes reports different versions for the listings and the actual entries - there's an open issue regarding it that will hopefully get fixed at some point :-)\r\n\r\n@Mafi78 Second thing I'd try is adding the normal MS newline stuff, and putting \"`\\r\\n`\" instead (I think that's what I do where I use this) - not sure if it's necessary at all, but worth trying ;-)"
+    },
+    {
+      "author": "MartinKolarik",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T10:44:15Z",
+      "reactions": 0,
+      "body": "@Rycochet any chance you got a link to the mentioned issue?"
+    },
+    {
+      "author": "Mafi78",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T11:03:54Z",
+      "reactions": 0,
+      "body": "Hi, i tried it with the new link.\r\ni switched my linebreak now to the suggested \" \\r\\n\" and it seems to work now (at least in Firefox). Internet Explorer shows me a linebreak in the console, but when the excel is generated i can see only a space character and no line break ??\r\n\r\nI experienced also one non IE javascript line in the exceljs source\r\nline 3351 ->     } else if (reference.startsWith('#')) {\r\n\r\ni have to replace it with \r\n\r\n    } else if (reference.startsWith('#')) {\r\n\r\notherwise my IE will get an exception"
+    },
+    {
+      "author": "Rycochet",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2017-07-24T11:18:28Z",
+      "reactions": 0,
+      "body": "@MartinKolarik https://github.com/npm/registry/issues/174\r\n\r\n@Mafi78 Which version IE?\r\n\r\nAlmost seems like this needs to find and replace newlines to `\\r\\n` on setting values (so it's correct when saved and when re-reading it stays consistent). An alternative would be transparent set/get so internally it's `\\r\\n` but all reading / writing uses plain `\\n` (I always have to check the correct order because I don't do it often - and I can't be the only one)."
+    },
+    {
+      "author": "Mafi78",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T12:09:13Z",
+      "reactions": 0,
+      "body": "@Rycochet: IT is IE 11.0.9600 (on Windows 7) it is the actual version available (at least when you trust Windows Update)\r\n\r\nI don't get your last comment ? should i update my string with \\n\\r instead of \\r\\n ?? I am sorry :)\r\nI've also read that a special setting (i think it was a style of the worksheet itself) was necessary - should i try that out ?\r\n"
+    },
+    {
+      "author": "Mafi78",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T12:16:26Z",
+      "reactions": 0,
+      "body": "@Rycochet: as in issue 296 described (https://github.com/guyonroche/exceljs/issues/296) i tried to set the style of the workbook. \r\n\r\nBut i am not using a WorkbookWriter ?\r\n I instantiate a new Workbook Object and don'T know how to set the correct attribute\r\nthat.workbook = new Excel.Workbook();\r\n"
+    },
+    {
+      "author": "Rycochet",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2017-07-24T12:18:06Z",
+      "reactions": 0,
+      "body": "Putting `\\r\\n` in is correct - I'm just wondering if ExcelJS should automatically handle it so it's not needed (MS does seem to love `\\r\\n` even if nobody else does :-P )\r\n\r\nI did read elsewhere that there is a flag related to multi-line, but I honestly can't remember what it is (check the other issues maybe?), or what it does.\r\n\r\nHopefully someone gets the time to look at that specific error on IE - though it's most likely the use of `string.startsWith()` which isn't supported on IE at all, and needs either polyfill or a simple workaround -\r\n\r\n```javascript\r\nfunction startsWith(str, prefix, position) {\r\n   if (str.startsWith) {\r\n      return str.startsWith(prefix, position);\r\n   }\r\n   return str.substr(position || 0, prefix.length) === prefix;\r\n}\r\n```"
+    },
+    {
+      "author": "Mafi78",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T12:29:12Z",
+      "reactions": 0,
+      "body": "Another thing that IE does not love is an assignment of an object with \r\nThis syntax. I also saw it in the exceljs.js file\r\n/*var worksheetOptions = Object.assign({}, options, {\r\n      id: id,\r\n      name: name,\r\n      workbook: this\r\n    });*/\r\n\r\ni had to change it to this \r\n    var worksheetOptions = {\r\n      id: id,\r\n      name: name,\r\n      workbook: this\r\n    };\r\n\r\nthen i was able to use exceljs in IE :) \r\nIE javascript behaviour and the rest of the world is really nasty - so much work to do twice. Not good.\r\n\r\nI made some more tests ... and thought i found my solution by replacing my &lt;br&gt; in html with \" \\n\" but i did not make an difference ..."
+    },
+    {
+      "author": "Mafi78",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T12:55:31Z",
+      "reactions": 11,
+      "body": "the flag for the multiline is this setting:\r\nworksheet.getCell(\"A1\").alignment = { wrapText: true };\r\n\r\nthen the content is also shown on multiple lines. If this is not set the cell has the height of 1 line and you can see the second (or third) line when you manually click in the cell and hit enter\r\nBut this does not help in my IE problem :(\r\nDo you have another idea ?"
+    },
+    {
+      "author": "Mafi78",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T13:09:25Z",
+      "reactions": 0,
+      "body": "i tested it with firefox - and there are also problems with assigning the \\n character ??"
+    },
+    {
+      "author": "Rycochet",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2017-07-24T13:24:36Z",
+      "reactions": 0,
+      "body": "Not sure about Firefox, but you could add ES6 shims for IE - https://github.com/paulmillr/es6-shim - Object.assign also copies over (like `jQuery.extend()`), and it also needs some string ones. That repo has standalone ones too if you want to look at them instead of a bigger (but easier) \"everything\" fix for IE.\r\n\r\nedit: Another (possibly better) polyfill - https://github.com/zloirock/core-js"
+    },
+    {
+      "author": "Mafi78",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T20:25:24Z",
+      "reactions": 0,
+      "body": "ES6-Shim was a very good tip - now i can use exceljs.js without modifications !\r\nI found an example and will try to upload it (webcontent.zip)\r\nIt includes a requirejs base with an error1.html that behaves different on chrome and IE and Firefox.\r\nWith chrome i can see always newlines and in IE and firefox for the cells C1 to H1 there is no newline ?!\r\nI used the following value for this 'My text with two \\n\\n newlines' if i change it to 'My text with two \\n \\n newlines' it works - also in IE. \r\n\r\nDue to the fact that my application is embedded in an application it is hard for me to reproduce the error. Is it possible to save the workbook object with javascript (stringify it JSON.stringify) and read this text on my other application with JSON.Parse ?\r\n\r\nThen i would make sure it has something todo with the other application !\r\nThanks"
+    },
+    {
+      "author": "Mafi78",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-07-24T20:26:46Z",
+      "reactions": 0,
+      "body": "[WebContent.zip](https://github.com/guyonroche/exceljs/files/1171100/WebContent.zip)\r\n"
+    },
+    {
+      "author": "Rycochet",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2017-07-26T08:12:49Z",
+      "reactions": 1,
+      "body": "A general search shows a lot of people complaining about inconsistent newlines, but nothing definitive on what any actual problem is - hopefully someone else has more time to look into it :-/"
+    },
+    {
+      "author": "IRCraziestTaxi",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-11-01T17:11:55Z",
+      "reactions": 0,
+      "body": "I would love an option to use windows carriage returns instead of the standard \\n. The app I wrote to transform data and output to CSV generates the files with \\n newlines and I have to open in excel and save to get windows newlines because the ingestor that reads the files just has to have windows newlines, apparently. So it's not a huge deal - exceljs already did 99% of the work :) - but it would be nice to have it as an option in CsvWriteOptions."
+    },
+    {
+      "author": "trigg-mosaic",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-05T19:06:42Z",
+      "reactions": 5,
+      "body": "For some reason I still have this issue with 4.1.1 (unless I'm just doing something else wrong):\r\n\r\nNone of the fixes here or in #296  worked for me. What finally worked was to create a string with backticks and then hit the enter key between them, store as a const, and then add to whatever string where I needed a break.\r\n\r\n```\r\nconst lineBreak = `\r\n`;\r\n\r\nconst myText = `This is my text.${lineBreak}`;\r\n```\r\n\r\nI don't know enough to know if there's a better way, but it worked."
+    },
+    {
+      "author": "JeanBaptisteBolh",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-12-06T14:20:14Z",
+      "reactions": 0,
+      "body": "Hi all, I am having issues with this still (almost 2025).  I've tried everything in this thread but no dice.  Let me know if anyone comes up with anything."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "http://cdn.jsdelivr.net/npm/exceljs@0.5.0/dist/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/npm/registry/issues/174",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/guyonroche/exceljs/issues/296",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/paulmillr/es6-shim",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/zloirock/core-js",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/guyonroche/exceljs/files/1171100/WebContent.zip",
+      "ext": "zip",
+      "isFixture": true
+    }
+  ]
+}

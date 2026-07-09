@@ -1,0 +1,99 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2687,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2687",
+  "title": "[Breaking] Replace unzipper with yauzl-promise",
+  "state": "open",
+  "author": "pnappa",
+  "createdAt": "2024-02-13T02:44:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 3,
+  "body": "## Summary\r\n\r\nUnzipper had a transitive dependency on a package that does not have a license. This means that every user is potentially violating the law in using it. Personally, I think it's better to stick to following it, so I've replaced the root dependency with a modern (and updated) alternative.\r\n\r\nHowever, yauzl-promise requires node v16 and above! I think there's some bikeshedding to be done for whether this is worthwhile or not.\r\n\r\nThis is a breaking change, as the minimum node engine has been bumped from v10 to v16. Note that the engines before this claimed v8 was supported, but the transitive dependencies required >=10. I believe this is an okay change to merge, as anything older than v18 is not supported anymore. https://endoflife.date/nodejs\r\n\r\n## Test plan\r\n\r\nThe test suite passes locally (on my machine).\r\n\r\nResolves https://github.com/exceljs/exceljs/issues/2686",
+  "comments": [
+    {
+      "author": "jjshinobi",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-29T22:41:07Z",
+      "reactions": 0,
+      "body": "This change will also resolve https://security.snyk.io/vuln/SNYK-JS-INFLIGHT-6095116 due to the transitive dependency\r\nexceljs@4.4.0 › unzipper@0.10.14 › fstream@1.0.12 › rimraf@2.7.1 › glob@7.2.3 › inflight@1.0.6. Can we please bump this PR for review?\r\n"
+    },
+    {
+      "author": "pnappa",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-29T23:06:10Z",
+      "reactions": 1,
+      "body": "Another alternative is to implement what's described here in https://github.com/exceljs/exceljs/issues/2703 . I probably reckon this is a better solution. It's supported in NodeJS (>=18), which is the minimum version that this PR requires anyway."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2024-12-20T09:59:51Z",
+      "reactions": 1,
+      "body": "Hi everyone,  \r\nI’ve released  a version with PR [Request to bump version of unzipper to eliminate license concerns](https://github.com/exceljs/exceljs/pull/2744) as a pre-release version: `4.4.1-prerelease.0`.  \r\n\r\nIf no issues are reported with this version, I plan to officially release it as `4.4.1` soon.\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://endoflife.date/nodejs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2686",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://security.snyk.io/vuln/SNYK-JS-INFLIGHT-6095116",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2703",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2744",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 90,
+    "deletions": 73,
+    "changedFiles": [
+      {
+        "path": ".github/workflows/tests.yml",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".npmrc",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 1
+      },
+      {
+        "path": "lib/stream/xlsx/workbook-reader.js",
+        "status": "modified",
+        "additions": 86,
+        "deletions": 68
+      },
+      {
+        "path": "package.json",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 3
+      }
+    ]
+  }
+}

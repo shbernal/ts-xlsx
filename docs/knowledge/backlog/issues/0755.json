@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 755,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/755",
+  "title": "Worksheet indent alignment property not working on Ubuntu OS",
+  "state": "open",
+  "author": "247software-lokesh-patil",
+  "createdAt": "2019-03-04T10:44:32Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "When I am trying to indent the cell by some value(integer), the cell is not getting indent when viewed in Excel, but when I indent the same cell directly through Excel(downloaded) it's takes the indent value applied from our code and indent it.\r\nCode: \r\nlet row = worksheet.lastRow; // getting the last rendered row\r\nrow.getCell(1).alignment = { indent: 2 }; // indenting the first cell of row by value 2",
+  "comments": [
+    {
+      "author": "lluiscab",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-10T19:49:50Z",
+      "reactions": 0,
+      "body": "Hi, I'm facing exactly the same issue here, did you ever find a solution?"
+    }
+  ],
+  "attachments": []
+}

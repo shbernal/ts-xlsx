@@ -1,0 +1,52 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2691,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2691",
+  "title": "fix: inefficient merge check for large amount of merged cells within …",
+  "state": "open",
+  "author": "aorsten",
+  "createdAt": "2024-02-15T11:38:29Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "When there are a lot of merged cells within a worksheet, e.g. 30.000 merged cells (e.g. the same 2 cells are merged in every row in a 30.000 row table), parsing mergeCells is increasingly slow. This is due to the inefficient conflict check within `_mergeCellsInternal(dimensions, ignoreStyle)` in worksheet.js.\r\n\r\n## Summary\r\n\r\nMy motivation is to let these big files function, rather than load forever. I believe the massive check is unnecessary. Rather than check every other merged range, can't you just see if any of the cells in the new range are merged, and then throw an error?\r\n\r\nI do not know the original motivation for the `throw new Error('Cannot merge already merged cells');` error, and whether it always breaks the program, or if the error is caught somewhere. Hopefully the new implementation is much more efficient without breaking anything.\r\n\r\n## Test plan\r\n\r\nSee the issue https://github.com/exceljs/exceljs/issues/2689\r\nI have attached a file there. Loading that file goes from 1.5 minutes in node JS to only seconds. In the browser that file just will not load.\r\n\r\n## Related to source code (for typings update)\r\n\r\n<!-- List with permalink into source code to prove that changes are true -->\r\n",
+  "comments": [
+    {
+      "author": "3ximus",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-17T14:27:20Z",
+      "reactions": 0,
+      "body": "I've applied the suggested comments on this PR: https://github.com/exceljs/exceljs/pull/2920 (preserving the author's commit)\r\nSo you could discard this one so you could apply the other one instead.\r\nCheers."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2689",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2920",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 11,
+    "deletions": 8,
+    "changedFiles": [
+      {
+        "path": "lib/doc/worksheet.js",
+        "status": "modified",
+        "additions": 11,
+        "deletions": 8
+      }
+    ]
+  }
+}

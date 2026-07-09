@@ -1,0 +1,71 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2001,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2001",
+  "title": "fix xlsx parser can not compatible with rich text tags that are not closed",
+  "state": "open",
+  "author": "WingMrL",
+  "createdAt": "2022-03-11T16:08:32Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\nFix xlsx parser can not compatible with rich text tags that are not closed.\r\n\r\n<!-- Explain the **motivation** for making this change. What existing problem does the pull request solve? -->\r\n\r\n## Test plan\r\nUnable to read an xlsx containing a hyperlink described in rich text. Here's the error infos:\r\n```\r\nerror:  TypeError: Cannot create property 'richText' on string ''\r\n    at SharedStringXform.parseClose (/Users/wingmrl/Code/exceljs-demo/node_modules/exceljs/lib/xlsx/xform/strings/shared-string-xform.js:81:40)\r\n    at SharedStringsXform.parseClose (/Users/wingmrl/Code/exceljs-demo/node_modules/exceljs/lib/xlsx/xform/strings/shared-strings-xform.js:111:24)\r\n    at SharedStringsXform.parse (/Users/wingmrl/Code/exceljs-demo/node_modules/exceljs/lib/xlsx/xform/base-xform.js:67:21)\r\n```\r\n\r\n<!-- Demonstrate the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes UI. -->\r\n\r\n## Related to source code (for typings update)\r\n\r\n```javascript\r\n'use strict';\r\n\r\n/**\r\n * Minimum reproducible program\r\n */\r\n\r\nconst fs = require('fs');\r\nconst stream = require('stream');\r\n\r\nconst Excel = require('../excel');\r\n\r\nconst filename = process.argv[2];\r\nconst buffer = fs.readFileSync(filename);\r\nconst workbook = new Excel.Workbook();\r\n\r\nconst streamReadable = new stream.Readable();\r\nstreamReadable.push(buffer);\r\nstreamReadable.push(null);\r\n\r\nworkbook.xlsx\r\n  .read(streamReadable)\r\n  .then(allWorksheet => {\r\n    console.log('allWorksheet: ', allWorksheet);\r\n  })\r\n  .catch(error => {\r\n    console.error('something went wrong', error.stack);\r\n  });\r\n\r\n```\r\n\r\n<!-- List with permalink into source code to prove that changes are true -->\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-08-01T07:34:16Z",
+      "reactions": 0,
+      "body": "@WingMrL  Could you please move [over here](https://github.com/zurmokeeper/excelize)? I'd be happy to merge this feature. "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/zurmokeeper/excelize",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 38,
+    "deletions": 0,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xform/strings/shared-string-xform.js",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/data/xlsx-parse-test.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/workbook-xlsx-reader.spec.js",
+        "status": "modified",
+        "additions": 8,
+        "deletions": 0
+      },
+      {
+        "path": "test/data/xlsx-parse-test.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "test/testXlsxInRichText.js",
+        "status": "added",
+        "additions": 27,
+        "deletions": 0
+      }
+    ]
+  }
+}

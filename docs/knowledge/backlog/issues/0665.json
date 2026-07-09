@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 665,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/665",
+  "title": "Bad type in Cell.fullAddress",
+  "state": "open",
+  "author": "CalibanAngel",
+  "createdAt": "2018-10-15T13:18:34Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "hi ! I'm trying to get the `row` and the `column` from a cell, so to access these property I saw that you must access them with `cell.fullAddress`. But when i'm doing \r\n`console.log(cell.fullAddress);` it returns me `{ sheetName: 'Sheet1', address: 'A1', row: 1, col: 1 }`.\r\nOr `fullAddress` is define as following:\r\n```\r\nfullAddress: {\r\n  sheetName: string;\r\n  address: Address;\r\n  row: Row;\r\n  col: Column;\r\n};\r\n```\r\nSo could you please update the doc with `rowKey: number, colKey: number` or fixing the creation cell ?\r\nAlso my worksheet is perfectly defined the file generated works perfectly",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-11T23:51:56Z",
+      "reactions": 0,
+      "body": "@CalibanAngel `Cell` has getters for `col` and `row` numbers:\r\nhttps://github.com/exceljs/exceljs/blob/master/lib/doc/cell.js#L116\r\nhttps://github.com/exceljs/exceljs/blob/master/lib/doc/cell.js#L119\r\n\r\nin fact `fullAddress` should be defined as:\r\n```\r\nfullAddress: {\r\n  sheetName: string;\r\n  address: Address;\r\n  row: number ;\r\n  col: number ;\r\n};\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/doc/cell.js#L116",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/doc/cell.js#L119",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

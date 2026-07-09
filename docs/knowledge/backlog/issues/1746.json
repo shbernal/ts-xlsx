@@ -1,0 +1,75 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1746,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1746",
+  "title": "Add removeNote method",
+  "state": "open",
+  "author": "dolbyzerr",
+  "createdAt": "2021-06-12T12:39:30Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 1,
+  "body": "## Summary\r\nThere is no way to remove a note currently. I found related question: https://github.com/exceljs/exceljs/issues/1153 \r\n\r\nAccording to @Siemienik's comment\r\n```\r\nws.getCell('A1').note = {};\r\n```\r\nshould work. But it just sets the empty comment and not removing it, which can be seen in excel.\r\n\r\n<img width=\"260\" alt=\"Screenshot 2021-06-12 at 20 26 55\" src=\"https://user-images.githubusercontent.com/664335/121775887-a5bf4d00-cbbc-11eb-887a-d2e788d21c91.png\">\r\n\r\n\r\n## Test plan\r\n\r\nI've added some unit tests to test that `_comment` property is removed from the Cell class.\r\nI've added a `test-comment-remove.js` script that gets `comments.xlsx` file with comments and generates `test.xlsx` file without comments to check that it's working properly.\r\n\r\n<img width=\"214\" alt=\"Screenshot 2021-06-12 at 20 29 10\" src=\"https://user-images.githubusercontent.com/664335/121775985-23835880-cbbd-11eb-842d-47ec9ad4c113.png\">\r\n",
+  "comments": [
+    {
+      "author": "elefevre",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-10-28T15:31:12Z",
+      "reactions": 2,
+      "body": "Any idea when this will be released?\r\nIn the meantime, I'm using this ugly hack:\r\n```\r\ndelete (cell.model as any).comment;\r\ndelete (cell as any)._comment;\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1153",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/664335/121775887-a5bf4d00-cbbc-11eb-887a-d2e788d21c91.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/664335/121775985-23835880-cbbd-11eb-842d-47ec9ad4c113.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 47,
+    "deletions": 6,
+    "changedFiles": [
+      {
+        "path": "README.md",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 0
+      },
+      {
+        "path": "lib/doc/cell.js",
+        "status": "modified",
+        "additions": 7,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/doc/cell.spec.js",
+        "status": "modified",
+        "additions": 23,
+        "deletions": 4
+      },
+      {
+        "path": "test/test-comments-remove.js",
+        "status": "added",
+        "additions": 14,
+        "deletions": 0
+      }
+    ]
+  }
+}

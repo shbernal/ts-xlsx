@@ -1,0 +1,100 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1543,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1543",
+  "title": "[BUG] Can't create columns in typescript",
+  "state": "open",
+  "author": "Gennier",
+  "createdAt": "2020-11-29T02:51:18Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 22,
+  "commentCount": 10,
+  "body": "## 🐛 Bug Report\r\n\r\nI have created worksheet and using that worksheet i cant seems to create columns header.\r\n\r\n```\r\nconst workbook = new Workbook();\r\nworkbook.creator = workbookName;\r\n\r\nconst worksheet = workbook.addWorksheet(workSheetName);\r\nworksheet.columns = [\r\n    { header: 'Id', key: 'id', width: 10 },\r\n    { header: 'Name', key: 'name', width: 32 },\r\n    { header: 'D.O.B.', key: 'DOB', width: 10, outlineLevel: 1 },\r\n];\r\n```\r\n\r\nError give.\r\n`Type '{ header: string; key: string; width: number; }' is missing the following properties from type 'Column': outlineLevel, hidden, style, values, and 11 more.`\r\n\r\nIt just seems like under Type Columns all is required.\r\n\r\nLib version: 4.2.0\r\n\r\n## Steps To Reproduce\r\n\r\n```\r\nconst workbook = new Workbook();\r\nworkbook.creator = workbookName;\r\n\r\nconst worksheet = workbook.addWorksheet(workSheetName);\r\nworksheet.columns = [\r\n    { header: 'Id', key: 'id', width: 10 },\r\n    { header: 'Name', key: 'name', width: 32 },\r\n    { header: 'D.O.B.', key: 'DOB', width: 10, outlineLevel: 1 },\r\n];\r\n```\r\n## The expected behaviour:\r\n\r\n`Type '{ header: string; key: string; width: number; }' is missing the following properties from type 'Column': outlineLevel, hidden, style, values, and 11 more.`\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```\r\nMake fields in Type Columns optional\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "dhruvpsaru",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-02T14:08:12Z",
+      "reactions": 0,
+      "body": "Seems like it was introduced in version `4.2` as  we have `columns: Array<Column>;`\r\nI checked in 4.1 it was \t`columns: Array<Partial<Column>>` in the type definition file."
+    },
+    {
+      "author": "ccarstens",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-02T15:37:28Z",
+      "reactions": 1,
+      "body": "Thank you @dhruvpsaru, we're using version 4.1 now until there is a fix! "
+    },
+    {
+      "author": "vchouhan",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-02T22:56:10Z",
+      "reactions": 0,
+      "body": "Is this issue resolved in 4.2?\r\n\r\n`ws.columns = sheet.content.headers;`\r\n\r\n<img width=\"620\" alt=\"image\" src=\"https://user-images.githubusercontent.com/1222739/100941251-57234e80-34c7-11eb-8332-8d7100b60869.png\">\r\n\r\n`TS2322: Type 'Headers[]' is not assignable to type 'Column[]'.   Type 'Headers' is not assignable to type 'Column'.     Property 'outlineLevel' is optional in type 'Headers' but required in type 'Column’.`"
+    },
+    {
+      "author": "ccarstens",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-03T12:18:58Z",
+      "reactions": 1,
+      "body": "@vchouhan the issue was, according to @dhruvpsaru, introduced in v4.2. If you don't depend on features or improvements added in v4.2 you can simply use 4.1, so far that's working for me."
+    },
+    {
+      "author": "alehkot",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-04T19:14:27Z",
+      "reactions": 0,
+      "body": "This was introduced in https://github.com/exceljs/exceljs/pull/1488 PR"
+    },
+    {
+      "author": "KingDarBoja",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-10T16:16:21Z",
+      "reactions": 11,
+      "body": "You can cast if you are using 4.2 in the meantime:\r\n\r\n```ts\r\nconst workbook = new Workbook();\r\nworkbook.creator = workbookName;\r\n\r\nconst worksheet = workbook.addWorksheet(workSheetName);\r\nworksheet.columns = [\r\n    { header: 'Id', key: 'id', width: 10 },\r\n    { header: 'Name', key: 'name', width: 32 },\r\n    { header: 'D.O.B.', key: 'DOB', width: 10, outlineLevel: 1 },\r\n] as as ExcelProper.Column[]; // :)\r\n```"
+    },
+    {
+      "author": "liuweiGL",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-16T14:45:23Z",
+      "reactions": 0,
+      "body": "1. Column interface should split:\r\n```ts\r\ninterface Column{\r\n    header?: string | string[];\r\n    key?: string;\r\n    width?: number;\r\n    outlineLevel?: number;\r\n    hidden?: boolean;\r\n    style?: Partial<Style>;\r\n}\r\n\r\ninterface ReadonlyColumn extends Column {\r\n    toString(): string\r\n    equivalentTo(other: Column): boolean\r\n}\r\n```\r\n\r\n2. Columns create and read should split:\r\n```ts\r\nworkSheet.columns=ReadonlyColumn[]\r\nworkSheet.setColumns(columns: Column[])\r\n```"
+    },
+    {
+      "author": "Artaud",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-11T19:50:26Z",
+      "reactions": 0,
+      "body": "> You can cast if you are using 4.2 in the meantime:\r\n> \r\n> ```ts\r\n> const workbook = new Workbook();\r\n> workbook.creator = workbookName;\r\n> \r\n> const worksheet = workbook.addWorksheet(workSheetName);\r\n> worksheet.columns = [\r\n>     { header: 'Id', key: 'id', width: 10 },\r\n>     { header: 'Name', key: 'name', width: 32 },\r\n>     { header: 'D.O.B.', key: 'DOB', width: 10, outlineLevel: 1 },\r\n> ] as as ExcelProper.Column[]; // :)\r\n> ```\r\n\r\nWhere is the ExcelProper coming from @KingDarBoja ? I don't see it in this lib."
+    },
+    {
+      "author": "Aidam1",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-12T06:59:19Z",
+      "reactions": 15,
+      "body": "> Where is the ExcelProper coming from @KingDarBoja ? I don't see it in this lib.\r\n\r\n@Artaud ExcelProper is just your default import of the library. You can name it differently.\r\n```ts\r\nimport ExcelJS from 'exceljs';\r\n\r\nworksheet.columns = [\r\n    {header: 'id', key: 'id', width: 10},\r\n] as ExcelJS.Column[];\r\n```\r\n"
+    },
+    {
+      "author": "petrzjunior",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-09T16:31:50Z",
+      "reactions": 0,
+      "body": "Seems to be duplicate of #1517. The type used to be `Partial`, which was removed in 4.2 and added back in PR #1518, GitHub says it is part of 4.2.1 tag. TS does no longer complain on my machine."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/1222739/100941251-57234e80-34c7-11eb-8332-8d7100b60869.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/1488",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

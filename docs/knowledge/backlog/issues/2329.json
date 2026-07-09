@@ -1,0 +1,56 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2329,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2329",
+  "title": "[BUG] addConditionalFormatting does nothing when the attribute ref is a multiple range",
+  "state": "open",
+  "author": "rodrigosalinas2",
+  "createdAt": "2023-08-09T16:47:36Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\nNo rule is added when calling the addConditionalFormatting function, passing as **ref** a multiple range like **A1:D1;A3:D3**, which is accepted by Excel's Conditional Formatting feature.\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n```javascript\r\nconst wb = new ExcelJS.Workbook();\r\nconst ws = wb.addWorksheet('Test');\r\n\r\nfor (let col = 1; col < 6; col++) {\r\n\tfor (let row = 1; row < 6; row++) {\r\n\t\tlet cell = ws.getCell(col, row);\r\n\t\tcell.value = row * col;\r\n\t}\r\n}\r\nws.addConditionalFormatting({\r\n\tref: '$A$1:$E$1;$A$3:$E$3;$A$5:$E$5',\r\n\trules: [\r\n\t\t      {\r\n\t\t         type : 'colorScale', \r\n\t\t         cfvo : [ { type: 'min' }, { type: 'max' }], \r\n\t\t         color: [ { argb: 'FF77F22C' }, { argb: 'FFDA3F2A' }]\r\n\t\t      }\r\n\t\t  ]\r\n})\r\nawait workbook.xlsx.writeFile('testCF.xlsx')\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<img width=\"1062\" alt=\"excel-conditional-formatting\" src=\"https://github.com/exceljs/exceljs/assets/81311738/24792546-6ea7-4d81-bfa3-2cbe94a8c579\">\r\n\r\nThe result **should** be like the image. Instead **no rule is added** and **no error is thrown**.\r\n\r\nPlease help.",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-08-10T09:18:08Z",
+      "reactions": 0,
+      "body": "@rodrigosalinas2 \r\n\r\n![image](https://github.com/exceljs/exceljs/assets/25943604/55d0dfeb-9b26-4769-8370-3fd5a76bc4fc)\r\n\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/25943604/1cefe2f6-f60b-4fb7-bce8-730af3501184)\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n**Looking at the source code, there is no support for setting multiple ranges at once at the same time. It can only be set by multiple calls. Like this:**\r\n\r\n\r\n\r\n```\r\n(async () => {\r\n  const wb = new ExcelJS.Workbook();\r\n  const ws = wb.addWorksheet('Test');\r\n\r\n  for (let col = 1; col < 6; col++) {\r\n    for (let row = 1; row < 6; row++) {\r\n      const cell = ws.getCell(col, row);\r\n      cell.value = row * col;\r\n    }\r\n  }\r\n  ws.addConditionalFormatting({\r\n    // ref: '$A$1:$E$1;$A$3:$E$3;$A$5:$E$5',\r\n    // ref: 'A1:E1;A3:E3;A5:E5',\r\n    ref: 'A1:E1',\r\n    rules: [\r\n      {\r\n        type: 'colorScale',\r\n        cfvo: [{ type: 'min' }, { type: 'max' }],\r\n        color: [{ argb: 'FF77F22C' }, { argb: 'FFDA3F2A' }]\r\n      }\r\n    ]\r\n  });\r\n  ws.addConditionalFormatting({\r\n    // ref: '$A$1:$E$1;$A$3:$E$3;$A$5:$E$5',\r\n    // ref: 'A1:E1;A3:E3;A5:E5',\r\n    ref: 'A3:E3',\r\n    rules: [\r\n      {\r\n        type: 'colorScale',\r\n        cfvo: [{ type: 'min' }, { type: 'max' }],\r\n        color: [{ argb: 'FF77F22C' }, { argb: 'FFDA3F2A' }]\r\n      }\r\n    ]\r\n  });\r\n  await wb.xlsx.writeFile('testCF.xlsx');\r\n})();\r\n```\r\n\r\n\r\n\r\n"
+    },
+    {
+      "author": "rodrigosalinas2",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-10T13:04:37Z",
+      "reactions": 0,
+      "body": "Thank you @zurmokeeper for your time. The problem with this solution is that the colors will be calculated again according to the values of each row, not the values of the whole range. I already solved it another way. Thanks again."
+    },
+    {
+      "author": "rodrigosalinas2",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-10T13:11:08Z",
+      "reactions": 1,
+      "body": "If really is not possible to pass multiple ranges, I think the documentation should state so."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/81311738/24792546-6ea7-4d81-bfa3-2cbe94a8c579",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/25943604/55d0dfeb-9b26-4769-8370-3fd5a76bc4fc",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/25943604/1cefe2f6-f60b-4fb7-bce8-730af3501184",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

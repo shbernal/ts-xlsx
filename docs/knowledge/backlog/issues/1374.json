@@ -1,0 +1,158 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1374,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1374",
+  "title": "BUG importing exceljs doesnt let my other pages load,page breaks and it will need double click to load full component in firefox",
+  "state": "open",
+  "author": "anusha801",
+  "createdAt": "2020-07-03T11:27:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 14,
+  "body": "I have built export functionality using exceljs,its working fine in chrome,but its usage in firefox lets other pages in application break or they doesn't load on first click,it requires double click and modals doesnt load at all,they break completely and this happens in firefox,everything works fine in chrome.\r\nThings I have tried to solve this:\r\n1.added below polyfills suggested in npm module page\r\n// polyfills required by exceljs\r\nrequire('core-js/modules/es.promise'); // this caused issue like it was overriding zone.js promise and app was not loading so had to remove it\r\nrequire('core-js/modules/es.string.includes');\r\nrequire('core-js/modules/es.object.assign');\r\nrequire('core-js/modules/es.object.keys');\r\nrequire('core-js/modules/es.symbol');\r\nrequire('core-js/modules/es.symbol.async-iterator');\r\nrequire('regenerator-runtime/runtime');\r\n2. Tried to install npm  regenerator-runtime and core-js\r\n3.Tried downgrading exceljs 3.8.1 and @types/node 12.11.1. as per suggested by someone in exceljs issues link \r\n[https://github.com/exceljs/exceljs/issues/810]\r\n4.Added min.js through angular.json like \"scripts\": [\"node_modules/exceljs/dist/exceljs.min.js\"] [https://github.com/exceljs/exceljs/issues/810](url)\r\n5.Added import * as ExcelJS from 'exceljs/dist/exceljs.min.js' from the above link [https://github.com/exceljs/exceljs/issues/810](url)\r\n\r\nNone of the above things solved my issue.It doesnt throw any error in console,the other pages in application just breaks and functionalities doesn't work\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "gauravDaffod",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-14T08:20:42Z",
+      "reactions": 0,
+      "body": "Exact same is happening to me. I tried every possible solution, but nothing works."
+    },
+    {
+      "author": "gauravDaffod",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-14T09:29:43Z",
+      "reactions": 0,
+      "body": "> I have built export functionality using exceljs,its working fine in chrome,but its usage in firefox lets other pages in application break or they doesn't load on first click,it requires double click and modals doesnt load at all,they break completely and this happens in firefox,everything works fine in chrome.\r\n> Things I have tried to solve this:\r\n> 1.added below polyfills suggested in npm module page\r\n> // polyfills required by exceljs\r\n> require('core-js/modules/es.promise'); // this caused issue like it was overriding zone.js promise and app was not loading so had to remove it\r\n> require('core-js/modules/es.string.includes');\r\n> require('core-js/modules/es.object.assign');\r\n> require('core-js/modules/es.object.keys');\r\n> require('core-js/modules/es.symbol');\r\n> require('core-js/modules/es.symbol.async-iterator');\r\n> require('regenerator-runtime/runtime');\r\n> 2. Tried to install npm regenerator-runtime and core-js\r\n> 3.Tried downgrading exceljs 3.8.1 and @types/node 12.11.1. as per suggested by someone in exceljs issues link\r\n> [https://github.com/[/issues/810](https://github.com/exceljs/exceljs/issues/810)]\r\n> 4.Added min.js through angular.json like \"scripts\": [\"node_modules/exceljs/dist/exceljs.min.js\",https://github.com/exceljs/exceljs/issues/810](url)\r\n> 5.Added import * as ExcelJS from 'exceljs/dist/exceljs.min.js' from the above link [https://github.com/exceljs/exceljs/issues/810](url)\r\n> \r\n> None of the above things solved my issue.It doesnt throw any error in console,the other pages in application just breaks and functionalities doesn't work\r\n\r\nlet me know if you resolve this ?"
+    },
+    {
+      "author": "anusha801",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-14T09:40:29Z",
+      "reactions": 0,
+      "body": "@gauravDaffod I have switched to other npm "
+    },
+    {
+      "author": "gauravDaffod",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-14T09:51:06Z",
+      "reactions": 0,
+      "body": "@anusha801 XLSX?"
+    },
+    {
+      "author": "anusha801",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-14T10:06:05Z",
+      "reactions": 0,
+      "body": "@gauravDaffod yes"
+    },
+    {
+      "author": "gauravDaffod",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-14T10:07:24Z",
+      "reactions": 0,
+      "body": "@anusha801 Okay but we can't achieve styling in it."
+    },
+    {
+      "author": "anusha801",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-14T10:12:38Z",
+      "reactions": 0,
+      "body": "@gauravDaffod yaa but I had no other option we had deliverables to give so skipped styling.. better not having styling rather than a breaking application"
+    },
+    {
+      "author": "gauravDaffod",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-14T10:36:52Z",
+      "reactions": 0,
+      "body": "Hmm In my case I need styling in many places. I designed everything then I get to know that It's breaking in firefox.\r\nAnyway thanks."
+    },
+    {
+      "author": "anusha801",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-14T10:42:45Z",
+      "reactions": 1,
+      "body": "hmm yaa in my case as well after the entire functionlity is implemented then got to know abt this issue.. @gauravDaffod "
+    },
+    {
+      "author": "pfreibauer",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-10T11:51:00Z",
+      "reactions": 3,
+      "body": "i had the same issue. i could solve it by adding\r\nimport 'exceljs/dist/exceljs.min.js';\r\nto the polyfill.ts (before all other polyfills)"
+    },
+    {
+      "author": "gauravDaffod",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-10T12:31:16Z",
+      "reactions": 0,
+      "body": "@pfreibauer Yup its working.Where did you get it ??"
+    },
+    {
+      "author": "pfreibauer",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-10T13:33:00Z",
+      "reactions": 0,
+      "body": "i have seen strange ngZone errors in my browser console and so i have tried the solution from \r\nhttps://github.com/exceljs/exceljs/issues/1008\r\n"
+    },
+    {
+      "author": "gauravDaffod",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-10T13:56:51Z",
+      "reactions": 0,
+      "body": "Great "
+    },
+    {
+      "author": "wesleysmitthe",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-31T00:33:06Z",
+      "reactions": 0,
+      "body": "> i had the same issue. i could solve it by adding import 'exceljs/dist/exceljs.min.js'; to the polyfill.ts (before all other polyfills)\r\n\r\nThank you so much, that works really good to me."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/810",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/810",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/810",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/[/issues/810",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/810",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/810",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/810",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1008",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

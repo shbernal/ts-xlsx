@@ -1,0 +1,58 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2148,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2148",
+  "title": "Issue 2147: stream.xlsx.WorkbookReader.parse() doesn't cleanup temporary files if not fully iterated",
+  "state": "open",
+  "author": "Turtlefight",
+  "createdAt": "2022-10-05T23:07:02Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "fixes #2147 \r\n\r\n## Summary\r\n\r\nThis pull request provides a fix for the problem described in [Issue 2147: stream.xlsx.WorkbookReader.parse() doesn't cleanup temporary files if not fully iterated](https://github.com/exceljs/exceljs/issues/2147)\r\n\r\nIt ensures that the temporary xml files get deleted, even if iteration of the async iterable returned from `.parse()` doesn't run to completion.\r\n\r\n## Test plan\r\n\r\nmocha test for this issue is included in the pull request.\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-08-05T10:43:07Z",
+      "reactions": 0,
+      "body": "@Turtlefight Could you please move [over here](https://github.com/zurmokeeper/excelize)? I'd be happy to merge this feature. "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2147",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/zurmokeeper/excelize",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 114,
+    "deletions": 54,
+    "changedFiles": [
+      {
+        "path": "lib/stream/xlsx/workbook-reader.js",
+        "status": "modified",
+        "additions": 64,
+        "deletions": 54
+      },
+      {
+        "path": "spec/integration/issues/issue-2147-parse-does-not-cleanup-temporary-files.spec.js",
+        "status": "added",
+        "additions": 50,
+        "deletions": 0
+      }
+    ]
+  }
+}

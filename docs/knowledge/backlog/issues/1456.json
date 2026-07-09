@@ -1,0 +1,75 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1456,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1456",
+  "title": "[BUG] Last cell doesn't get returned in the array if it's empty",
+  "state": "open",
+  "author": "BENLKAMLENourdine",
+  "createdAt": "2020-09-11T12:43:08Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 7,
+  "commentCount": 8,
+  "body": "## 🐛 Bug Report\r\n\r\n- When trying to read an excel file, the array containing each row columns values doesn't return the last cell if it's empty (the same problem if we have more consecutive empty cells at the end of the row, they don't get returned)\r\nI tried this option: { includeEmpty: true } but it works just if the cells are in the middle of the row not at the end.\r\n\r\n- the arrays returned also contain always an empty field (null), in the beginning, even though there is not an empty cell at the beginning of each row in the excel file \r\n\r\nLib version: 4.1.1\r\n\r\n## Steps To Reproduce\r\n\r\n```javascript\r\n                        const wb = new ExcelJS.Workbook();\r\n\t\t\tconst reader = new FileReader()\r\n\t\t\treader.readAsArrayBuffer(this.file)\r\n\t\t\treader.onload = () => {\r\n\t\t\t\tconst buffer = reader.result;\r\n\t\t\t\twb.xlsx.load(buffer).then(workbook => {\r\n\t\t\t\t\tworkbook.eachSheet((sheet, id) => {\r\n\t\t\t\t\t\tsheet.eachRow({ includeEmpty: true }, (row, rowIndex) => {\r\n\t\t\t\t\t\t\tconsole.log(row.values, row.values.length, rowIndex)\r\n\t\t\t\t\t\t\tif(rowIndex !== 1) this.fileArrayData.push(row.values.splice(1))\r\n\t\t\t\t\t\t})\r\n\t\t\t\t\t})\r\n\t\t\t\t}).catch(error => {\r\n\t\t\t\t})\r\n\t\t\t}\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nGet an array of each row without the empty field (null) at the beginning of each one of them\r\nGet the last consecutive cells even if they are empty.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "kiba-d",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2020-09-22T17:44:02Z",
+      "reactions": 4,
+      "body": "I  faced the same bug. I also noticed that in such case` sheet.columnCount` returns right value. Also, I noticed that `eachRow` starts work correctly, If I call the next code before \r\n```\r\n    sheet.columns.forEach(c => {\r\n        c.eachCell?.({ includeEmpty: true }, cell => {\r\n          //OD NOTHING\r\n        })\r\n    })\r\n   sheet.getRow(2).eachCell({includeEmpty: true}, (cell, colNumber) => {\r\n    //NOW EVERY CELL IS PRESENT\r\n  })\r\n\r\n```"
+    },
+    {
+      "author": "kmorte",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-04T11:27:28Z",
+      "reactions": 0,
+      "body": "I encountered the same bug. How did you fix it? I don't quite understant what you did.\r\nsheet.columns returns a number suposedly"
+    },
+    {
+      "author": "sukharev-deel",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-09T13:36:07Z",
+      "reactions": 0,
+      "body": "any resolution to this BUG WHICH TOOK ME AGES TO FIND?"
+    },
+    {
+      "author": "sukharev-deel",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-09T13:53:04Z",
+      "reactions": 1,
+      "body": "here is a temporary workaround, hope you can make sense of it:\r\n\r\n```js\r\nasync convertXlsToCsv(xlsBuffer) {\r\n        const workbook = new ExcelJS.Workbook();\r\n        await workbook.xlsx.load(xlsBuffer);\r\n\r\n        const csvBuffer = await workbook.csv.writeBuffer({\r\n            formatterOptions: {\r\n                transform: (row) => {\r\n                    // this is a scary workaround, i know, but it works\r\n                    const expectedRowLength = COLUMNS_LENGTH;\r\n                    if (row.length < expectedRowLength) {\r\n                        row.length = expectedRowLength;\r\n                        return row.fill(row.length, row.length + 1);\r\n                    }\r\n\r\n                    return row;\r\n                },\r\n            },\r\n        });\r\n\r\n        return csvBuffer;\r\n}\r\n```"
+    },
+    {
+      "author": "gabrielsaviank",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-14T17:09:10Z",
+      "reactions": 1,
+      "body": "The includeEmpty is the way to go also, can we close this?, I've did this: \r\n```\r\nconst rowData: (string | number | boolean | Date | ExcelJS.CellErrorValue | ExcelJS.CellRichTextValue | ExcelJS.CellHyperlinkValue | ExcelJS.CellFormulaValue | ExcelJS.CellSharedFormulaValue | null | undefined)[] = [];\r\n\r\n                row.eachCell({ includeEmpty: true }, (cell) => {\r\n                        const cellValue = cell.value === null || cell.value === undefined ? null : cell.value;\r\n                        rowData.push(cellValue);\r\n                });\r\n\r\n                data.push(rowData);\r\n"
+    },
+    {
+      "author": "JonathanLangton1",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-08T16:17:31Z",
+      "reactions": 0,
+      "body": "Here's my simple solution 🙂\r\nIt returns an array of rows which include blank cells, even if the blank cell is in the last column.\r\n\r\n```ts\r\n  // Get header count (we will iterate this many times for each row to get each cell's value)\r\n  const headers = worksheet.getRow(1).cellCount;\r\n  const rows: any[] = [];\r\n\r\n  worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {\r\n    const rowData = [];\r\n\r\n    // For every header item, get cell value & add to row array\r\n    for (let cellIndex = 1; cellIndex < headers+1; cellIndex++) {\r\n      const cellValue = row.getCell(cellIndex)?.value || \"\";\r\n      rowData.push(cellValue);\r\n    }\r\n\r\n    rows.push(rowData);\r\n  });\r\n```"
+    },
+    {
+      "author": "ethyaan",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-08-15T18:00:51Z",
+      "reactions": 0,
+      "body": "> The includeEmpty is the way to go also, can we close this?, I've did this:\r\n> \r\n> ```\r\n> const rowData: (string | number | boolean | Date | ExcelJS.CellErrorValue | ExcelJS.CellRichTextValue | ExcelJS.CellHyperlinkValue | ExcelJS.CellFormulaValue | ExcelJS.CellSharedFormulaValue | null | undefined)[] = [];\r\n> \r\n>                 row.eachCell({ includeEmpty: true }, (cell) => {\r\n>                         const cellValue = cell.value === null || cell.value === undefined ? null : cell.value;\r\n>                         rowData.push(cellValue);\r\n>                 });\r\n> \r\n>                 data.push(rowData);\r\n> ```\r\n\r\nThis doesn't work, that why we are talking about it here."
+    },
+    {
+      "author": "sulo1337",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-18T16:34:10Z",
+      "reactions": 0,
+      "body": "> I faced the same bug. I also noticed that in such case` sheet.columnCount` returns right value. Also, I noticed that `eachRow` starts work correctly, If I call the next code before\r\n> \r\n> ```\r\n>     sheet.columns.forEach(c => {\r\n>         c.eachCell?.({ includeEmpty: true }, cell => {\r\n>           //OD NOTHING\r\n>         })\r\n>     })\r\n>    sheet.getRow(2).eachCell({includeEmpty: true}, (cell, colNumber) => {\r\n>     //NOW EVERY CELL IS PRESENT\r\n>   })\r\n> ```\r\n\r\nFor anyone still facing this issue, this workaround worked for me."
+    }
+  ],
+  "attachments": []
+}

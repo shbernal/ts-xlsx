@@ -1,0 +1,129 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1361,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1361",
+  "title": "[BUG]getting cannot find name AsyncGenerator while build",
+  "state": "open",
+  "author": "anusha801",
+  "createdAt": "2020-06-30T12:51:09Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "Typescript"
+  ],
+  "reactions": 1,
+  "commentCount": 13,
+  "body": "I am using exceljs@4.1.0 ,I am on node 12.12.0, angular \"@angular/compiler\": \"~8.2.5\",\r\nI am getting this error \r\n`ERROR in node_modules/exceljs/index.d.ts:1960:30 - error TS2304: Cannot find name 'AsyncGenerator'.\r\n1960  \t\t[Symbol.asyncIterator](): AsyncGenerator<WorksheetReader>;`",
+  "comments": [
+    {
+      "author": "tnitsiri",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-05T20:05:15Z",
+      "reactions": 1,
+      "body": "try to update \"ts-node\" and \"typescript\"\r\n\r\nor\r\n\r\nin tsconfig.json `compilerOptions: {\r\n    \"lib\": [\r\n        \"esnext\",\r\n        \"esnext.asynciterable\"\r\n    ]\r\n}`"
+    },
+    {
+      "author": "aaroncarlin",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-20T12:19:27Z",
+      "reactions": 0,
+      "body": "Same issue for me, using exceljs@4.1.1, node 12.13.0, \"@angular/compiler\": \"8.2.11\".\r\n\"ts-node\": \"7.0.1\", and  \"typescript\": \"3.4.5\".\r\n\r\nI have tried adding the following in tsconfig.json, with no luck: `compilerOptions: { \"lib\": [ \"esnext\", \"esnext.asynciterable\" ] }` \r\n\r\nMy errors while compiling:\r\n```\r\nERROR in ../node_modules/exceljs/index.d.ts:1959:30 - error TS2304: Cannot find name 'AsyncGenerator'.\r\n1959            [Symbol.asyncIterator](): AsyncGenerator<WorksheetReader>;\r\n```\r\n```\r\n../node_modules/exceljs/index.d.ts:1973:30 - error TS2304: Cannot find name 'AsyncGenerator'.\r\n1973            [Symbol.asyncIterator](): AsyncGenerator<Row>;\r\n```\r\n"
+    },
+    {
+      "author": "tnitsiri",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-21T02:09:38Z",
+      "reactions": 0,
+      "body": "Please try to update\r\n`\"ts-node\": \"8.10.2\"`\r\n`\"typescript\": \"3.9.6\"`"
+    },
+    {
+      "author": "aaroncarlin",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-21T12:25:07Z",
+      "reactions": 0,
+      "body": "Ran the updates, noticing the issue is likely that the typescript library needed some updates, but it is not compatible with Angular 8 which I am running. Will have to upgrade to Angular 9 to support `\"typescript\": \"3.9.6\"`."
+    },
+    {
+      "author": "danielantoniocruz",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-10T16:56:20Z",
+      "reactions": 0,
+      "body": "> I am using exceljs@4.1.0 ,I am on node 12.12.0, angular \"@angular/compiler\": \"~8.2.5\",\r\n> I am getting this error\r\n> `ERROR in node_modules/exceljs/index.d.ts:1960:30 - error TS2304: Cannot find name 'AsyncGenerator'. 1960 [Symbol.asyncIterator](): AsyncGenerator<WorksheetReader>;`\r\n\r\nhttps://www.ngdevelop.tech/export-to-excel-in-angular-6/"
+    },
+    {
+      "author": "athilmubarak",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-28T07:10:58Z",
+      "reactions": 0,
+      "body": "ERROR in node_modules/exceljs/index.d.ts(1959,30): error TS2304: Cannot find name 'AsyncGenerator'.\r\nnode_modules/exceljs/index.d.ts(1973,30): error TS2304: Cannot find name 'AsyncGenerator'.\r\nI am using exceljs and getting this error"
+    },
+    {
+      "author": "jagabs",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-30T13:22:22Z",
+      "reactions": 0,
+      "body": "updating them worked for me\r\n\r\n\"@types/node\": \"^14.11.2\",\r\n\"ts-node\": \"^9.0.0\",\r\n\"typescript\": \"^4.0.3\""
+    },
+    {
+      "author": "abhijithcuaspirenxt",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-10-15T11:25:39Z",
+      "reactions": 1,
+      "body": "i have changed the type and typescript version to this=>\r\n \"@types/node\": \"^14.11.8\",\r\n\"typescript\": \"^3.2.4\"\r\nand in the node_modules\\exceljs\\index.d.ts , I commented the lines showing error \r\n//[Symbol.asyncIterator](): AsyncGenerator<WorksheetReader>; and //[Symbol.asyncIterator](): AsyncGenerator<Row>;,\r\nthat solved my problem  , but its not the right way, I thing if the same done in that \"https://github.com/exceljs/exceljs\"\r\nit may effective to every one"
+    },
+    {
+      "author": "HynesIP",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-05T16:25:50Z",
+      "reactions": 0,
+      "body": "> i have changed the type and typescript version to this=>\r\n> \"@types/node\": \"^14.11.8\",\r\n> \"typescript\": \"^3.2.4\"\r\n> and in the node_modules\\exceljs\\index.d.ts , I commented the lines showing error\r\n> //Symbol.asyncIterator: AsyncGenerator; and //Symbol.asyncIterator: AsyncGenerator;,\r\n> that solved my problem , but its not the right way, I thing if the same done in that \"https://github.com/exceljs/exceljs\"\r\n> it may effective to every one\r\n\r\nWhat do those lines do. I commented them out and the NodeJS reference and it didn't effect my Angular 8 app."
+    },
+    {
+      "author": "abhijithcuaspirenxt",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-06T03:16:58Z",
+      "reactions": 9,
+      "body": "try adding \" \"skipLibCheck\": true \", inside your tsconfig.json, and undo the comment  and check whether it is working.. ,\r\n\"\"\r\n{\r\n  \"compileOnSave\": false,\r\n  \"compilerOptions\": {\r\n    \"baseUrl\": \"./\",\r\n    \"outDir\": \"./dist/out-tsc\",\r\n    \"sourceMap\": true,\r\n    \"declaration\": false,\r\n\t  \"moduleResolution\": \"node\",\r\n    \"emitDecoratorMetadata\": true,\r\n\t  \"experimentalDecorators\": true,\r\n\t  \"allowSyntheticDefaultImports\": true,\r\n    \"target\": \"es5\",\r\n    \"typeRoots\": [\r\n      \"node_modules/@types\"\r\n    ],\r\n    \"lib\": [\r\n      \"es2017\",\r\n      \"dom\", \r\n    ],\r\n    \"skipLibCheck\": true,\r\n  }\r\n} \r\n\"\"\r\n this is my tsconfig.json  in the angular 7, i think it will works for you... "
+    },
+    {
+      "author": "HynesIP",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-06T16:21:08Z",
+      "reactions": 0,
+      "body": "> try adding \" \"skipLibCheck\": true \", inside your tsconfig.json, and undo the comment and check whether it is working.. ,\r\n> \"\"\r\n> {\r\n> \"compileOnSave\": false,\r\n> \"compilerOptions\": {\r\n> \"baseUrl\": \"./\",\r\n> \"outDir\": \"./dist/out-tsc\",\r\n> \"sourceMap\": true,\r\n> \"declaration\": false,\r\n> \"moduleResolution\": \"node\",\r\n> \"emitDecoratorMetadata\": true,\r\n> \"experimentalDecorators\": true,\r\n> \"allowSyntheticDefaultImports\": true,\r\n> \"target\": \"es5\",\r\n> \"typeRoots\": [\r\n> \"node_modules/@types\"\r\n> ],\r\n> \"lib\": [\r\n> \"es2017\",\r\n> \"dom\",\r\n> ],\r\n> \"skipLibCheck\": true,\r\n> }\r\n> }\r\n> \"\"\r\n> this is my tsconfig.json in the angular 7, i think it will works for you...\r\n\r\nWorked for me. TY!"
+    },
+    {
+      "author": "pcolaianni",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-07T13:11:07Z",
+      "reactions": 0,
+      "body": "Unrelated to _exceljs_, but I had a similar error and found this issue page.\r\n\r\nI solved using:\r\n\r\n```\r\n\"lib\": [\r\n  \"es2018\",\r\n  ...\r\n```\r\n\r\nInstead of `\"es2017\"`, in _tsconfig.json_.\r\n\r\nAnd packages versions:\r\n```\r\n\"ts-node\": \"^10.9.1\",\r\n\"typescript\": \"^4.8.0\",\r\n```\r\n\r\nIn an Angular 14 project."
+    },
+    {
+      "author": "Subhakarpandey",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-28T06:13:30Z",
+      "reactions": 0,
+      "body": "lib\": [\r\n      \"es2018\",\r\n      \"dom\",\r\n      \"esnext\", \"esnext.asynciterable\"\r\n    ],\r\n    I already have this setting, but I still produce the same error\r\n\r\nI;m using Angular 17"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.ngdevelop.tech/export-to-excel-in-angular-6/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

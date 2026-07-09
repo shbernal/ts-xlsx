@@ -1,0 +1,94 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1185,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1185",
+  "title": "Cannot set property 'outlineProperties' of null (v3.8.2)",
+  "state": "open",
+  "author": "tpkn",
+  "createdAt": "2020-03-30T13:45:22Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 7,
+  "body": "This issue is closed https://github.com/exceljs/exceljs/issues/655, but that bug is still exists:\r\n\r\n    TypeError: Cannot set property 'outlineProperties' of null\r\n        at WorkSheetXform.parseClose (E:\\test\\parser\\node_modules\\exceljs\\lib\\xlsx\\xform\\sheet\\worksheet-xform.js:388:40)\r\n        at saxStream.sax.on.node (E:\\test\\parser\\node_modules\\exceljs\\lib\\xlsx\\xform\\base-xform.js:91:21)\r\n        at SaxesParser.closeTag (E:\\test\\parser\\node_modules\\saxes\\saxes.js:2012:65)\r\n        at SaxesParser.sCloseTag (E:\\test\\parser\\node_modules\\saxes\\saxes.js:1601:18)\r\n        at SaxesParser.write (E:\\test\\parser\\node_modules\\saxes\\saxes.js:483:36)\r\n        at SAXStream._write (E:\\test\\parser\\node_modules\\exceljs\\lib\\utils\\sax-stream.js:11:14)\r\n        at doWrite (_stream_writable.js:415:12)\r\n        at writeOrBuffer (_stream_writable.js:399:5)\r\n        at SAXStream.Writable.write (_stream_writable.js:299:11)\r\n        at resolve (E:\\test\\parser\\node_modules\\exceljs\\lib\\utils\\stream-buf.js:205:14)\r\n        at new Promise (<anonymous>)\r\n        at write (E:\\test\\parser\\node_modules\\exceljs\\lib\\utils\\stream-buf.js:204:14)\r\n        at Array.map (<anonymous>)\r\n        at StreamBuf._pipe (E:\\test\\parser\\node_modules\\exceljs\\lib\\utils\\stream-buf.js:210:34)\r\n        at StreamBuf._flush (E:\\test\\parser\\node_modules\\exceljs\\lib\\utils\\stream-buf.js:275:14)\r\n        at writeComplete (E:\\test\\parser\\node_modules\\exceljs\\lib\\utils\\stream-buf.js:288:14)\r\n\r\n\r\nv3.8.2\r\n",
+  "comments": [
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-03-31T10:01:04Z",
+      "reactions": 0,
+      "body": "@tpkn It seems to be a typo according to the code below! To let us better determine the cause of the problem, would you mind providing your file? I will submit a PR as soon as possible. \r\n```javascript\r\nif (this.map.sheetPr.model && this.map.sheetPr.model.outlineProperties) {\r\n     // outlinePropertiesx\r\n     properties.outlineProperties = this.map.sheetPr.model.outlinePropertiesx;\r\n}\r\n```"
+    },
+    {
+      "author": "tpkn",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-03-31T12:03:23Z",
+      "reactions": 1,
+      "body": "@Alanscut sure, here's my test file\r\n[test.xlsx](https://github.com/exceljs/exceljs/files/4408883/test.xlsx)\r\n"
+    },
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-04-01T08:34:11Z",
+      "reactions": 0,
+      "body": "@tpkn Please tell me the version of excel software you are using, because I found that the structure of the xml file in **text.xlsx** is very different from my newly created file, I can’t know if it needs to be compatible.\r\n\r\n## For example\r\n* The ``target``  attribute of **text.xlsx** is an absolute path and the other is a relative path.\r\n```xml.\r\n//  workbook.xml\r\n<Relationship Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"/xl/worksheets/sheet1.xml\" Id=\"rId6\" />\r\n\r\n<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\" />\r\n```\r\n* The **sheet1.xml** in the newly created file should have the ```sheetFormatPr``` tag and default attributes, but the **test.xlsx** file does not have.\r\n```xml\r\n// sheet1.xml\r\n <sheetFormatPr defaultRowHeight=\"13.5\" x14ac:dyDescent=\"0.15\" />\r\n````\r\n"
+    },
+    {
+      "author": "tpkn",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-01T09:17:23Z",
+      "reactions": 0,
+      "body": "@Alanscut the whole engine that creates that xlsx files is a black box. \r\n\r\nIs it possible to inject `sheetFormatPr` node with manually setted attributes?"
+    },
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-04-01T09:40:58Z",
+      "reactions": 0,
+      "body": "@tpkn See https://github.com/exceljs/exceljs/blob/master/README.md#worksheet-properties.\r\n\r\n```javascript\r\nconst Excel = require('../../lib/exceljs.nodejs');\r\n\r\nconst workbook = new Excel.Workbook();\r\nworkbook.xlsx.readFile('./test.xlsx').then(function () {\r\n  const worksheet = workbook.getWorksheet(1);\r\n // setting\r\n  worksheet.properties.defaultRowHeight = 15;\r\n  workbook.xlsx.writeFile('./target.xml').then(() => {\r\n    console.log('ok_write')\r\n  });\r\n});\r\n```\r\n"
+    },
+    {
+      "author": "tpkn",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-01T10:23:03Z",
+      "reactions": 1,
+      "body": "@Alanscut example crashes with the same error."
+    },
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-04-02T02:34:47Z",
+      "reactions": 0,
+      "body": "@tpkn  The error is caused because there is no ``sheetFormatPr`` tag, but there are other errors. I will come up with my solution and then need to ask the authors and members of excel.js for suggestions.\r\n\r\n@Siemienik @guyonroche any thoughts?\r\n\r\n## Problems and solutions\r\n1. The target attribute of **workbook.xml.rels** is an absolute path issue.\r\n> Solutions\r\n```javascript\r\n// workbook.xml \r\n// worksheet = model.worksheetHash[`xl/${rel.Target}`];\r\nworksheet = model.worksheetHash[`xl/${rel.Target.replace(/^(\\s|\\/xl\\/)+/, '')}`]; \r\n```\r\n2. The **sheet1.xml** in the newly created file should have the ``sheetFormatPr`` tag and default attribute.\r\n> Solutions\r\n```javascript\r\n// worksheet.-xform.js\r\n// const properties = this.map.sheetFormatPr.model; \r\nconst properties = this.map.sheetFormatPr.model || {}; \r\nif (this.map.sheetPr.model && this.map.sheetPr.model.outlineProperties) {\r\n   properties.outlineProperties = this.map.sheetPr.model.outlineProperties;\r\n}\r\n\r\n// sheet-format-properties-xform.js\r\n const attributes = {\r\n    // defaultRowHeight: model.defaultRowHeight\r\n    defaultRowHeight: model.defaultRowHeight || 15,\r\n};\r\n```\r\n3.  Error messag: ``Deleted record: Document subject (workbook) in xl / workbook.xml section``.\r\n>Solutions\r\n```javascript\r\n// workbook-properties-xform.js\r\n render(xmlStream, model) {\r\n    xmlStream.leafNode('workbookPr', {\r\n      date1904: model.date1904 ? 1 : undefined,\r\n      // defaultThemeVersion: 164011,\r\n      defaultThemeVersion: 124226,\r\n      filterPrivacy: 1,\r\n   });\r\n}\r\n```\r\n\r\n\r\n\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/655",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/4408883/test.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/README.md#worksheet-properties",
+      "ext": "md",
+      "isFixture": false
+    }
+  ]
+}

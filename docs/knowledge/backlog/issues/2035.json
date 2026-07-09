@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2035,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2035",
+  "title": "Dropdown option values for a call",
+  "state": "open",
+  "author": "usman074",
+  "createdAt": "2022-04-19T17:17:01Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "### Discussed in https://github.com/exceljs/exceljs/discussions/2034\r\n\r\n<div type='discussions-op-text'>\r\n\r\n<sup>Originally posted by **usman074** April 19, 2022</sup>\r\nHi\r\nI want to populate the cell dropdown from a different sheet. Following is my code:\r\n\r\n const workbook = new Excel.Workbook();\r\nconst sheet1 = workbook.addWorksheet('Sheet1');\r\nconst sheet2 = workbook.addWorksheet('Sheet2');\r\nsheet1.getCell('A1').dataValidation = {\r\n  type: 'list',\r\n  allowBlank: true,\r\n  formulae: ['$D$5:$D$15']  //At this point I want to add the values of sheet2 from column D5 to D15\r\n};\r\n\r\nThe lib documentation only shows the method if we have the values in the same sheet. Please update me with an answer if we can add these formulae values from another sheet.</div>",
+  "comments": [
+    {
+      "author": "dogeTan",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-10-06T04:28:42Z",
+      "reactions": 1,
+      "body": " formulae['=Sheet2!$D$5:$D$15'] should be work"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/discussions/2034",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

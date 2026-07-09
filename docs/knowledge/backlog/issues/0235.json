@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 235,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/235",
+  "title": "Error on committing worksheet on xlxs\\worksheet-writer",
+  "state": "open",
+  "author": "king612",
+  "createdAt": "2016-12-02T20:04:05Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 2,
+  "body": "Love this module - thanks so much for building it.\r\n\r\nI am streaming a large amount of data (500K rows) to build a spreadsheet using the xlsx streaming framework.  I commit each row of data as I add it, and my workbook has many sheets that are created as I find certain data.  Then I commit the workbook (which I see in the code commits each worksheet), and the resulting xlsx is in fact open-able from Excel, but Excel clearly has some indigestion opening it.  It takes a long time, looks like it starts over a couple times, etc., but it does eventually open.  Also, I tried to manually commit each sheet before committing the workbook, but the streaming interface does not have the same eachSheet() features as the non-streaming one has.\r\n\r\nI'm on a client system, so I can't post the code, but here is a summary of the (harmless?) stack trace I get on every workbook.commit():\r\n\r\nerror: uncaughtException: Cannot read property 'length' on null\r\nworksheet-writer.js, function _nextRow, line 273\r\nworksheet-writer.js, function addRow, line 340\r\n\r\nI'm on 0.2.24, but I can't easily upgrade to the latest (offline system).\r\n\r\nAny help or suggestions appreciated.",
+  "comments": [
+    {
+      "author": "orestis",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-07-31T09:11:22Z",
+      "reactions": 1,
+      "body": "I was seeing a similar error, which I think is the result on trying to addRow to an already committed sheet. I was streaming from a mongo cursor using forEach, which (obviously) returns immediately — so I was committing my sheet/workbook and then adding the rows. So, in the case someone finds this error, make sure you aren't committing the sheet and then adding rows in some forgotten callback."
+    },
+    {
+      "author": "mochmdruizki",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-09T12:50:19Z",
+      "reactions": 0,
+      "body": "I also experienced this when I used forEach to insert rows. Then i change it to for loop because I think the problem was because we should await each iteration."
+    }
+  ],
+  "attachments": []
+}

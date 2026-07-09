@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1824,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1824",
+  "title": "ExcelJS not defined error",
+  "state": "open",
+  "author": "HarithaKR",
+  "createdAt": "2021-08-31T05:11:00Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "Hi. I have used excel js min file as library and using new ExcelJS command. It was working earlier. \r\nI added script tag with the cdn link of amd js \r\n<script src=\"https://cdn.jsdelivr.net/npm/systemjs@6.9.0/dist/extras/amd.min.js\"></script>\r\nIf I add this, then I get the error ExcelJS is not defined.  Is there any link with amd file with ExcelJS? Other library files are loading fine with this.\r\nWhen I added excel js package and imported, it works fine. ",
+  "comments": [
+    {
+      "author": "ghost",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-30T18:46:38Z",
+      "reactions": 0,
+      "body": "Also struggling with this..."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://cdn.jsdelivr.net/npm/systemjs@6.9.0/dist/extras/amd.min.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

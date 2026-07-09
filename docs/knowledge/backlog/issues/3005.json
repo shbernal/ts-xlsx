@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3005,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/3005",
+  "title": "[Q] How to apply a formula to a column in my spreadsheet minus the header",
+  "state": "open",
+  "author": "Zub164",
+  "createdAt": "2025-11-18T17:05:37Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 💬 Questions and Help\n\nI am generating a spreadsheet dynamically which can have different data depending on search criteria but the columns always remain contsant. I'd like to apply a formula to a certain column which is the sum of a few other columns in the row.\n\nfor example in my cell L2 the formula would be SUM(A2+B2+C2)\n\nAs a basic example i have the following working\nworksheet.getCell('L2').value = { formula: 'SUM(A2+B2+C2)'}; \n\nhowever this just applies the formula in row 2 for that cell L2. My spreadsheet can have hundreds of rows. Is there an easy way to add the formula to all the cells in the column L? Like specifying range from L2 to the no of rows in the ss?\n\nAny help would be appreciated\nThanks!",
+  "comments": [
+    {
+      "author": "protobi-pieter",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-15T04:19:16Z",
+      "reactions": 0,
+      "body": "Can you specify this as an array formula?  https://github.com/exceljs/exceljs?tab=readme-ov-file#array-formula    \n\nOtherwise regular formulas are added to each cell and I think this how Excel represents formulas internally.  You might write your own convenience function to iterate over rows starting from row 2, where one cell is non empty, and apply the formula to another cell on that column. "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs?tab=readme-ov-file#array-formula",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

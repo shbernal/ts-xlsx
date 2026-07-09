@@ -1,0 +1,165 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1930,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1930",
+  "title": "Is there a js file that can be used in .html",
+  "state": "open",
+  "author": "JCBernie",
+  "createdAt": "2021-12-16T02:09:48Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 10,
+  "body": "1.I want to know if there is any js file that can be used in .html? I did not find in the document\r\n2.If not, can you compile and build one?\r\n\r\nI wrote an old project, using native js and jq, no framework, no npm or yml management code\r\n\r\n\r\n1.我想知道有没有js文件可以在.html内使用,我在文档内没有找到\r\n2.如果没有，能否编译构建一个？\r\n\r\n我写的是一个老项目，使用原生的js和jq，没有框架，没有npm或者yml管理代码",
+  "comments": [
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-12-16T09:41:52Z",
+      "reactions": 0,
+      "body": "看看这个: https://github.com/exceljs/exceljs#browserify"
+    },
+    {
+      "author": "JCBernie",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-16T09:54:09Z",
+      "reactions": 0,
+      "body": "这个不行的。写出文件的时候会报错。\r\n我试过引入了polyfill.js文件，exceljs.js文件，和exceljs.bare.js文件。都不起效果\r\n\r\n\r\n![image](https://user-images.githubusercontent.com/64625346/146348977-0fb54b7e-1d00-4933-995b-1915c1e4dd7f.png)\r\n"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-12-16T10:08:41Z",
+      "reactions": 0,
+      "body": "可以提供一下完整的测试代码吗?\r\n"
+    },
+    {
+      "author": "JCBernie",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-17T00:44:42Z",
+      "reactions": 0,
+      "body": "```html\r\n<!DOCTYPE html>\r\n<html lang=\"en\">\r\n<head>\r\n  <meta charset=\"UTF-8\">\r\n  <title>编写js导出文件</title>\r\n\r\n  <script language='javascript' src='https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js'></script>\r\n<!--  <script lang=\"javascript\" src=\"dist/xlsx.full.min.js\"></script>-->\r\n<!--    <script src=\"./js/excelUtils.js\"></script>-->\r\n<!--  <script src=\"./js/example.js\"></script>-->\r\n\r\n</head>\r\n<body>\r\n\r\n<button id=\"exportDate\" value=\"导出\" onclick=\"exportToExcel()\">导出</button>\r\n\r\n<script>\r\n  function exportToExcel() {\r\n    // var newVar = $(\"#exportDate\").val();\r\n    // console.log(newVar)\r\n\r\n\r\n    // exportDataToExcel();\r\n    // getData(\"http://localhost:8080/postExcelData\",{});\r\n\r\n\r\n    let data = [\r\n      {\"id\": \"9960\", \"name\": \"郭德祥0\", \"age\": 20, \"classname\": \"大师0班\", \"address\": \"广东中山0\"}, {\r\n        \"id\": \"9961\",\r\n        \"name\": \"郭德祥1\",\r\n        \"age\": 21,\r\n        \"classname\": \"大师1班\",\r\n        \"address\": \"广东中山1\"\r\n      }, {\"id\": \"9962\", \"name\": \"郭德祥2\", \"age\": 22, \"classname\": \"大师2班\", \"address\": \"广东中山2\"}, {\r\n        \"id\": \"9963\",\r\n        \"name\": \"郭德祥3\",\r\n        \"age\": 23,\r\n        \"classname\": \"大师3班\",\r\n        \"address\": \"广东中山3\"\r\n      }, {\"id\": \"9964\", \"name\": \"郭德祥4\", \"age\": 24, \"classname\": \"大师4班\", \"address\": \"广东中山4\"}, {\r\n        \"id\": \"9965\",\r\n        \"name\": \"郭德祥5\",\r\n        \"age\": 25,\r\n        \"classname\": \"大师5班\",\r\n        \"address\": \"广东中山5\"\r\n      }, {\"id\": \"9966\", \"name\": \"郭德祥6\", \"age\": 26, \"classname\": \"大师6班\", \"address\": \"广东中山6\"}, {\r\n        \"id\": \"9967\",\r\n        \"name\": \"郭德祥7\",\r\n        \"age\": 27,\r\n        \"classname\": \"大师7班\",\r\n        \"address\": \"广东中山7\"\r\n      }, {\"id\": \"9968\", \"name\": \"郭德祥8\", \"age\": 28, \"classname\": \"大师8班\", \"address\": \"广东中山8\"}, {\r\n        \"id\": \"9969\",\r\n        \"name\": \"郭德祥9\",\r\n        \"age\": 29,\r\n        \"classname\": \"大师9班\",\r\n        \"address\": \"广东中山9\"\r\n      }]\r\n\r\n    let headlist  = {\r\n      id: \"id\",\r\n      name: \"姓名\",\r\n      age: \"年龄\",\r\n      classname: '班级',\r\n      address: '地址'\r\n    }\r\n\r\n    let head = ['id','姓名','年龄','班级','地址'];\r\n\r\n    exportExcel();\r\n\r\n  }\r\n\r\n</script>\r\n\r\n\r\n</body>\r\n</html>\r\n\r\n```\r\n\r\n```js\r\n// document.write(\"<script language='javascript' src='dist/xlsx.full.min.js'></script>\");\r\n\r\ndocument.write(\"<script language='javascript' src='https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/6.26.0/polyfill.js'></script>\");\r\n// document.write(\"<script language='javascript' src='./exceljs_dist/exceljs.js'></script>\");\r\ndocument.write(\"<script language='javascript' src='./exceljs_dist/exceljs.bare.js'></script>\");\r\n\r\n\r\nfunction exportExcel(){\r\n  // let wb = XLSX.utils.book_new();\r\n\r\n  // 创建工作簿\r\n  const workbook = new ExcelJS.Workbook();\r\n  // 添加工作表\r\n  const sheet = workbook.addWorksheet('My Sheet');\r\n\r\n  sheet.columns = [\r\n    { header: 'Id', key: 'id', width: 10 },\r\n    { header: 'Name', key: 'name', width: 32 },\r\n    { header: 'D.O.B.', key: 'DOB', width: 10, outlineLevel: 1 }\r\n  ];\r\n\r\n  // sheet.getColumn(1).value = ['001','张三','asd'];\r\n  sheet.addRow({id: 1, name: 'John Doe', dob: new Date(2021,12,16)});\r\n\r\n\r\n  workbook.xlsx.writeFile(\"测试成功.xlsx\");\r\n\r\n}\r\n\r\n\r\n```"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-12-17T08:38:02Z",
+      "reactions": 0,
+      "body": "```\r\n<!DOCTYPE html>\r\n<html lang=\"en\">\r\n  <head>\r\n    <meta charset=\"UTF-8\" />\r\n    <title>编写js导出文件</title>\r\n\r\n    <script\r\n      language=\"javascript\"\r\n      src=\"https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js\"\r\n    ></script>\r\n    <script\r\n      language=\"javascript\"\r\n      src=\"https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/6.26.0/polyfill.js\"\r\n    ></script>\r\n    <script src=\"https://cdn.bootcdn.net/ajax/libs/exceljs/4.2.1/exceljs.js\"></script>\r\n    <script src=\"https://cdn.bootcdn.net/ajax/libs/FileSaver.js/2.0.5/FileSaver.js\"></script>\r\n  </head>\r\n  <body>\r\n    <button id=\"exportDate\" value=\"导出\" onclick=\"exportToExcel()\">导出</button>\r\n\r\n    <script>\r\n      function exportToExcel() {\r\n        // var newVar = $(\"#exportDate\").val();\r\n        // console.log(newVar)\r\n\r\n        // exportDataToExcel();\r\n        // getData(\"http://localhost:8080/postExcelData\",{});\r\n\r\n        let data = [\r\n          {\r\n            id: \"9960\",\r\n            name: \"郭德祥0\",\r\n            age: 20,\r\n            classname: \"大师0班\",\r\n            address: \"广东中山0\",\r\n          },\r\n          {\r\n            id: \"9961\",\r\n            name: \"郭德祥1\",\r\n            age: 21,\r\n            classname: \"大师1班\",\r\n            address: \"广东中山1\",\r\n          },\r\n          {\r\n            id: \"9962\",\r\n            name: \"郭德祥2\",\r\n            age: 22,\r\n            classname: \"大师2班\",\r\n            address: \"广东中山2\",\r\n          },\r\n          {\r\n            id: \"9963\",\r\n            name: \"郭德祥3\",\r\n            age: 23,\r\n            classname: \"大师3班\",\r\n            address: \"广东中山3\",\r\n          },\r\n          {\r\n            id: \"9964\",\r\n            name: \"郭德祥4\",\r\n            age: 24,\r\n            classname: \"大师4班\",\r\n            address: \"广东中山4\",\r\n          },\r\n          {\r\n            id: \"9965\",\r\n            name: \"郭德祥5\",\r\n            age: 25,\r\n            classname: \"大师5班\",\r\n            address: \"广东中山5\",\r\n          },\r\n          {\r\n            id: \"9966\",\r\n            name: \"郭德祥6\",\r\n            age: 26,\r\n            classname: \"大师6班\",\r\n            address: \"广东中山6\",\r\n          },\r\n          {\r\n            id: \"9967\",\r\n            name: \"郭德祥7\",\r\n            age: 27,\r\n            classname: \"大师7班\",\r\n            address: \"广东中山7\",\r\n          },\r\n          {\r\n            id: \"9968\",\r\n            name: \"郭德祥8\",\r\n            age: 28,\r\n            classname: \"大师8班\",\r\n            address: \"广东中山8\",\r\n          },\r\n          {\r\n            id: \"9969\",\r\n            name: \"郭德祥9\",\r\n            age: 29,\r\n            classname: \"大师9班\",\r\n            address: \"广东中山9\",\r\n          },\r\n        ];\r\n\r\n        let headlist = {\r\n          id: \"id\",\r\n          name: \"姓名\",\r\n          age: \"年龄\",\r\n          classname: \"班级\",\r\n          address: \"地址\",\r\n        };\r\n\r\n        let head = [\"id\", \"姓名\", \"年龄\", \"班级\", \"地址\"];\r\n\r\n        exportExcel();\r\n      }\r\n\r\n      function exportExcel() {\r\n        // let wb = XLSX.utils.book_new();\r\n\r\n        // 创建工作簿\r\n        const workbook = new ExcelJS.Workbook();\r\n        // 添加工作表\r\n        const sheet = workbook.addWorksheet(\"My Sheet\");\r\n\r\n        sheet.columns = [\r\n          { header: \"Id\", key: \"id\", width: 10 },\r\n          { header: \"Name\", key: \"name\", width: 32 },\r\n          { header: \"D.O.B.\", key: \"DOB\", width: 10, outlineLevel: 1 },\r\n        ];\r\n\r\n        // sheet.getColumn(1).value = ['001','张三','asd'];\r\n        sheet.addRow({ id: 1, name: \"John Doe\", dob: new Date(2021, 12, 16) });\r\n\r\n        download(\"测试成功\", workbook);\r\n      }\r\n\r\n      function download(excelFileName, workbook) {\r\n        return new Promise((resolve, reject) => {\r\n          workbook.xlsx\r\n            .writeBuffer()\r\n            .then((data) => {\r\n              const blob = new Blob([data], {\r\n                type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`,\r\n              });\r\n              saveAs(blob, excelFileName + \".xlsx\");\r\n              resolve(true);\r\n            })\r\n            .catch((error) => {\r\n              reject(error);\r\n            });\r\n        });\r\n      }\r\n    </script>\r\n  </body>\r\n</html>\r\n```"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-12-20T01:29:35Z",
+      "reactions": 0,
+      "body": "@JCBernie \r\n你的问题得到解决了吗?"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-12-20T01:38:29Z",
+      "reactions": 0,
+      "body": "最终版本\r\n```typescript\r\n<!DOCTYPE html>\r\n<html lang=\"en\">\r\n  <head>\r\n    <meta charset=\"UTF-8\" />\r\n    <title>编写js导出文件</title>\r\n\r\n    <script\r\n      language=\"javascript\"\r\n      src=\"https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js\"\r\n    ></script>\r\n    <script src=\"https://cdn.bootcdn.net/ajax/libs/babel-polyfill/7.12.1/polyfill.min.js\"></script>\r\n    <script src=\"https://cdn.bootcdn.net/ajax/libs/exceljs/4.2.1/exceljs.min.js\"></script>\r\n    <script src=\"https://cdn.bootcdn.net/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js\"></script>\r\n  </head>\r\n  <body>\r\n    <button id=\"exportDate\" value=\"导出\" onclick=\"exportToExcel()\">导出</button>\r\n\r\n    <script>\r\n      function exportToExcel() {\r\n        // var newVar = $(\"#exportDate\").val();\r\n        // console.log(newVar)\r\n\r\n        // exportDataToExcel();\r\n        // getData(\"http://localhost:8080/postExcelData\",{});\r\n\r\n        let data = [\r\n          {\r\n            id: \"9960\",\r\n            name: \"郭德祥0\",\r\n            age: 20,\r\n            classname: \"大师0班\",\r\n            address: \"广东中山0\",\r\n          },\r\n          {\r\n            id: \"9961\",\r\n            name: \"郭德祥1\",\r\n            age: 21,\r\n            classname: \"大师1班\",\r\n            address: \"广东中山1\",\r\n          },\r\n          {\r\n            id: \"9962\",\r\n            name: \"郭德祥2\",\r\n            age: 22,\r\n            classname: \"大师2班\",\r\n            address: \"广东中山2\",\r\n          },\r\n          {\r\n            id: \"9963\",\r\n            name: \"郭德祥3\",\r\n            age: 23,\r\n            classname: \"大师3班\",\r\n            address: \"广东中山3\",\r\n          },\r\n          {\r\n            id: \"9964\",\r\n            name: \"郭德祥4\",\r\n            age: 24,\r\n            classname: \"大师4班\",\r\n            address: \"广东中山4\",\r\n          },\r\n          {\r\n            id: \"9965\",\r\n            name: \"郭德祥5\",\r\n            age: 25,\r\n            classname: \"大师5班\",\r\n            address: \"广东中山5\",\r\n          },\r\n          {\r\n            id: \"9966\",\r\n            name: \"郭德祥6\",\r\n            age: 26,\r\n            classname: \"大师6班\",\r\n            address: \"广东中山6\",\r\n          },\r\n          {\r\n            id: \"9967\",\r\n            name: \"郭德祥7\",\r\n            age: 27,\r\n            classname: \"大师7班\",\r\n            address: \"广东中山7\",\r\n          },\r\n          {\r\n            id: \"9968\",\r\n            name: \"郭德祥8\",\r\n            age: 28,\r\n            classname: \"大师8班\",\r\n            address: \"广东中山8\",\r\n          },\r\n          {\r\n            id: \"9969\",\r\n            name: \"郭德祥9\",\r\n            age: 29,\r\n            classname: \"大师9班\",\r\n            address: \"广东中山9\",\r\n          },\r\n        ];\r\n\r\n        let headlist = {\r\n          id: \"id\",\r\n          name: \"姓名\",\r\n          age: \"年龄\",\r\n          classname: \"班级\",\r\n          address: \"地址\",\r\n        };\r\n\r\n        let head = [\"id\", \"姓名\", \"年龄\", \"班级\", \"地址\"];\r\n\r\n        exportExcel();\r\n      }\r\n\r\n      function exportExcel() {\r\n        // let wb = XLSX.utils.book_new();\r\n\r\n        // 创建工作簿\r\n        const workbook = new ExcelJS.Workbook();\r\n        // 添加工作表\r\n        const sheet = workbook.addWorksheet(\"My Sheet\");\r\n\r\n        sheet.columns = [\r\n          { header: \"Id\", key: \"id\", width: 10 },\r\n          { header: \"Name\", key: \"name\", width: 32 },\r\n          { header: \"D.O.B.\", key: \"DOB\", width: 10, outlineLevel: 1 },\r\n        ];\r\n\r\n        // sheet.getColumn(1).value = ['001','张三','asd'];\r\n        sheet.addRow({ id: 1, name: \"John Doe\", dob: new Date(2021, 12, 16) });\r\n\r\n        download(\"测试成功\", workbook);\r\n      }\r\n\r\n      function download(excelFileName, workbook) {\r\n        return new Promise((resolve, reject) => {\r\n          workbook.xlsx\r\n            .writeBuffer()\r\n            .then((data) => {\r\n              const blob = new Blob([data], {\r\n                type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`,\r\n              });\r\n              saveAs(blob, excelFileName + \".xlsx\");\r\n              resolve(true);\r\n            })\r\n            .catch((error) => {\r\n              reject(error);\r\n            });\r\n        });\r\n      }\r\n    </script>\r\n  </body>\r\n</html>\r\n```"
+    },
+    {
+      "author": "JCBernie",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-20T01:46:46Z",
+      "reactions": 0,
+      "body": "嗯，导出的问题已经解决了，我现在在看样式的问题。\r\n\r\n不知道有没有可以批量设置边框，居中之类的？就像操作excel表一样，选中多行多列，然后一点就可以了\r\n\r\n官方文档里介绍的都是摸一个cell添加，又或者是某一行添加，这样的话有点麻烦\r\n"
+    },
+    {
+      "author": "JCBernie",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-20T01:47:16Z",
+      "reactions": 0,
+      "body": "嗯，导出的问题已经解决了，我现在在看样式的问题。\r\n\r\n不知道有没有可以批量设置边框，居中之类的？就像操作excel表一样，选中多行多列，然后一点就可以了\r\n\r\n官方文档里介绍的都是摸一个cell添加，又或者是某一行添加，这样的话有点麻烦\r\n"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-12-20T02:27:36Z",
+      "reactions": 0,
+      "body": "建议把这些操作封装函数或者一个工具类 :)"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs#browserify",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/64625346/146348977-0fb54b7e-1d00-4933-995b-1915c1e4dd7f.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "http://localhost:8080/postExcelData",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/6.26.0/polyfill.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/6.26.0/polyfill.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.bootcdn.net/ajax/libs/exceljs/4.2.1/exceljs.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.bootcdn.net/ajax/libs/FileSaver.js/2.0.5/FileSaver.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "http://localhost:8080/postExcelData",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.bootcdn.net/ajax/libs/babel-polyfill/7.12.1/polyfill.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.bootcdn.net/ajax/libs/exceljs/4.2.1/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.bootcdn.net/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "http://localhost:8080/postExcelData",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

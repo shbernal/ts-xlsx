@@ -1,0 +1,108 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1429,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1429",
+  "title": "Unable to add cell comment to worksheet if there  is a table presest ",
+  "state": "open",
+  "author": "dev-1603",
+  "createdAt": "2020-08-14T04:12:41Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "help wanted"
+  ],
+  "reactions": 1,
+  "commentCount": 10,
+  "body": "Hi ... i am trying to add cell comments to worksheet   but unable to do it if there is a table in the sheet it is setting sheet as blank if there is already a table present  below are 2 snaps 1st is table without  cell comment nd later the sheet if i add cell comment. please hep me with this \r\n![image](https://user-images.githubusercontent.com/53967786/90212775-ce967a80-de11-11ea-973f-5525e7dc3f7e.png)\r\n![image](https://user-images.githubusercontent.com/53967786/90213001-5ed4bf80-de12-11ea-8430-12f5284549a6.png)\r\n![image](https://user-images.githubusercontent.com/53967786/90213039-72802600-de12-11ea-9730-22f8595ec871.png)\r\n\r\n",
+  "comments": [
+    {
+      "author": "Vaigadre",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-22T10:44:24Z",
+      "reactions": 0,
+      "body": "@dev-1603 did you find any resolution or workaround for this issue? As we are also facing this issue while putting comments table cells."
+    },
+    {
+      "author": "ShraddhaJ11",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-22T10:47:05Z",
+      "reactions": 0,
+      "body": "@Siemienik  Do you have any solution for this issue ?"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-02-23T08:17:04Z",
+      "reactions": 0,
+      "body": "It's the first time when I meet this problem. \r\nAs far as I understood, adding a cell comment causes by removing a table?\r\n\r\nCould I please to create a repo for this code?\r\n\r\nIf it is private, I'm able to respond by mail at exjs@siemienik.pl .\r\n\r\n\r\n---\r\n_I'm contributing ExcelJS just for. If you want you to know something more, go into #1500. \r\nI accept orders for the resolve of issues._"
+    },
+    {
+      "author": "ShraddhaJ11",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-23T10:27:54Z",
+      "reactions": 0,
+      "body": "@Siemienik  I am adding cell comments on a existing sheet that is having a table. After adding the cell comments on a particular table's cell , whole sheet is becoming blank."
+    },
+    {
+      "author": "GaryHyland",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-15T02:36:04Z",
+      "reactions": 0,
+      "body": "Similar for me. Adding a comment (note) to a sheet cell within in a table causes corrupt XLS on open."
+    },
+    {
+      "author": "kfvenkatasama",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-21T15:22:43Z",
+      "reactions": 0,
+      "body": "same here"
+    },
+    {
+      "author": "FParsons",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-28T13:59:35Z",
+      "reactions": 0,
+      "body": "same here!"
+    },
+    {
+      "author": "zhannan-cn",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-03T07:47:48Z",
+      "reactions": 0,
+      "body": "I'm having the same issue. After adding comments to cells, I encountered an error when opening the file with Microsoft Excel. After repairing, the cells are blank, but everything is normal when opening with WPS."
+    },
+    {
+      "author": "ggravallon",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-07-02T13:19:15Z",
+      "reactions": 0,
+      "body": "Facing the same issue."
+    },
+    {
+      "author": "Pintiboy",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-07-10T15:25:49Z",
+      "reactions": 0,
+      "body": "Yep, can confirm (4.4.0)\nAnd it doesn't matter if the Cell is within the data table or not. There just has to be one on the same sheet. "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/53967786/90212775-ce967a80-de11-11ea-973f-5525e7dc3f7e.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/53967786/90213001-5ed4bf80-de12-11ea-8430-12f5284549a6.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/53967786/90213039-72802600-de12-11ea-9730-22f8595ec871.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

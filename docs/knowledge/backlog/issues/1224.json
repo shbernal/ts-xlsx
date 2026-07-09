@@ -1,0 +1,61 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1224,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1224",
+  "title": "[BUG] Colour change between reading an writing xlsx",
+  "state": "open",
+  "author": "ajmas",
+  "createdAt": "2020-04-18T23:45:44Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\nBetween reading in a given xlsx and writing it out, I am seeing the cell and border colours change.\r\n\r\nLib version: 3.0.2\r\n\r\nScreenshot of input and output file, as seen in Numbers on macOS X:\r\n\r\n<img width=\"951\" alt=\"Screenshot 2020-04-18 at 19 34 13\" src=\"https://user-images.githubusercontent.com/682269/79673964-a755d680-81ac-11ea-8323-523a498b4f29.png\">\r\n<img width=\"948\" alt=\"Screenshot 2020-04-18 at 19 36 45\" src=\"https://user-images.githubusercontent.com/682269/79673965-a8870380-81ac-11ea-92b1-440215b779ba.png\">\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nasync function createExcelSpreadsheet(filePath, data, options: any = {}) {\r\n\r\n    const workbook = new Workbook();\r\n    let worksheet;\r\n\r\n    if (options.template) {\r\n        const templatePath = './templates/xlsx/my-template.xlsx';\r\n        await workbook.xlsx.readFile(templatePath);\r\n        worksheet = workbook.getWorksheet(1);\r\n    }\r\n\r\n    if (!worksheet) {\r\n        worksheet = workbook.addWorksheet('Sheet 1');\r\n    }\r\n\r\n    if (options.columns) {\r\n        worksheet.columns = options.columns;\r\n    }\r\n\r\n    worksheet.addRows(data);\r\n\r\n    await workbook.xlsx.writeFile(filePath);\r\n\r\n    return filePath;\r\n}\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nThe styling should not change for unmodified cells, between input and output.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n\r\n```\r\n\r\nI have attached the two files. Note the initial one was created in Numbers and exported as xlsx. The second was slightly modified to take out data that was not to be shared.\r\n\r\n[my-template.xlsx](https://github.com/exceljs/exceljs/files/4498051/my-template.xlsx)\r\n[output.xlsx](https://github.com/exceljs/exceljs/files/4498050/output.xlsx)\r\n",
+  "comments": [
+    {
+      "author": "ajmas",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-19T00:13:25Z",
+      "reactions": 0,
+      "body": "Decided to dig a bit further. The first cell on the first row has the following style:\r\n\r\n```json\r\n{\r\n  \"numFmt\": \"@\",\r\n  \"font\": {\r\n    \"size\": 11,\r\n    \"color\": {\r\n      \"indexed\": 9\r\n    },\r\n    \"name\": \"Calibri\"\r\n  },\r\n  \"border\": {\r\n    \"left\": {\r\n      \"style\": \"thin\",\r\n      \"color\": {\r\n        \"indexed\": 11\r\n      }\r\n    },\r\n    \"right\": {\r\n      \"style\": \"thin\",\r\n      \"color\": {\r\n        \"indexed\": 11\r\n      }\r\n    },\r\n    \"top\": {\r\n      \"style\": \"thin\",\r\n      \"color\": {\r\n        \"indexed\": 11\r\n      }\r\n    },\r\n    \"bottom\": {\r\n      \"style\": \"thin\",\r\n      \"color\": {\r\n        \"indexed\": 11\r\n      }\r\n    }\r\n  },\r\n  \"fill\": {\r\n    \"type\": \"pattern\",\r\n    \"pattern\": \"solid\",\r\n    \"fgColor\": {\r\n      \"indexed\": 10\r\n    }\r\n  },\r\n  \"alignment\": {\r\n    \"vertical\": \"bottom\"\r\n  }\r\n}\r\n```\r\n\r\nWhat I notice is the colours are using indexed values, rather than hex values. I could not see any indication of indexed colour support in the docs and no evidence that exceljs tries converting the indexed values to hex values.\r\n\r\nExtracting the source xlsx I do see an xl/styles.xml document. which contains the following block:\r\n\r\n```xml\r\n\t<colors>\r\n\t\t<indexedColors>\r\n\t\t\t<rgbColor rgb=\"ff000000\" />\r\n\t\t\t<rgbColor rgb=\"ffffffff\" />\r\n\t\t\t<rgbColor rgb=\"ffff0000\" />\r\n\t\t\t<rgbColor rgb=\"ff00ff00\" />\r\n\t\t\t<rgbColor rgb=\"ff0000ff\" />\r\n\t\t\t<rgbColor rgb=\"ffffff00\" />\r\n\t\t\t<rgbColor rgb=\"ffff00ff\" />\r\n\t\t\t<rgbColor rgb=\"ff00ffff\" />\r\n\t\t\t<rgbColor rgb=\"ff000000\" />\r\n\t\t\t<rgbColor rgb=\"ffffffff\" />\r\n\t\t\t<rgbColor rgb=\"ff3f6797\" />\r\n\t\t\t<rgbColor rgb=\"ffaaaaaa\" />\r\n\t\t</indexedColors>\r\n\t</colors>\r\n```\r\n\r\nThe colour as indexed 10 is \"3f6797\", which is what is shown in the original.\r\n\r\nIn the output file, the indexed colours are indeed different, with no reference to colour '3f6797':\r\n\r\n```xml\r\n\t\t<indexedColors>\r\n\t\t\t<rgbColor rgb=\"ff000000\" />\r\n\t\t\t<rgbColor rgb=\"ffffffff\" />\r\n\t\t\t<rgbColor rgb=\"ffff0000\" />\r\n\t\t\t<rgbColor rgb=\"ff00ff00\" />\r\n\t\t\t<rgbColor rgb=\"ff0000ff\" />\r\n\t\t\t<rgbColor rgb=\"ffffff00\" />\r\n\t\t\t<rgbColor rgb=\"ffff00ff\" />\r\n\t\t\t<rgbColor rgb=\"ff00ffff\" />\r\n\t\t\t<rgbColor rgb=\"ff000000\" />\r\n\t\t\t<rgbColor rgb=\"ffffffff\" />\r\n\t\t\t<rgbColor rgb=\"ffff0000\" />\r\n\t\t\t<rgbColor rgb=\"ff00ff00\" />\r\n\t\t\t<rgbColor rgb=\"ffaaaaaa\" />\r\n\t\t</indexedColors>\r\n```\r\n\r\nTaking the styles file from the original and using it in the output results in the correct colours being used."
+    },
+    {
+      "author": "aaga",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-07T16:41:03Z",
+      "reactions": 0,
+      "body": "+1\r\nMine is similarly because the original file is using indexed colors that totally disappear from the styles file in the output.\r\n\r\n@ajmas do you know if there's a nice-ish way to script the \"xl/styles.xml\" workaround without unzipping/rezipping (e.g. using adm-zip)?"
+    },
+    {
+      "author": "joker8x",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-29T21:08:40Z",
+      "reactions": 0,
+      "body": "I have the same problem, turn out the cause is Numbers's xlsx file. After change to Excel's xlsx file problem fixed"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/682269/79673964-a755d680-81ac-11ea-8323-523a498b4f29.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/682269/79673965-a8870380-81ac-11ea-92b1-440215b779ba.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/4498051/my-template.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/4498050/output.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

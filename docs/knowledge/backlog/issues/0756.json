@@ -1,0 +1,37 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 756,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/756",
+  "title": "promises do not work for eachSheet",
+  "state": "open",
+  "author": "simonjcarr",
+  "createdAt": "2019-03-04T11:13:26Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "I have tried a number of things such as bluebird promise injection as specified in the docs, I have also tried bluebird promisfyAll but nothing works. here is the problem.\r\n\r\nI have a node api that receives an xlsx file. It extracts records from that file and writes them to a database.\r\n\r\nin some cases the data will not write to the database because of missing related data. I want to catch all these errors before I return the results back to the user, so I need to use a promise.\r\n\r\nThis is how the docs show the worksheet.eachRow should work\r\n\r\n```\r\nworksheet.eachRow(function(row, rowNumber) {\r\n    console.log('Row ' + rowNumber + ' = ' + JSON.stringify(row.values));\r\n});\r\n```\r\nthe docs also say that exceljs has built in node promises excelJS Promises, but the following code does not work\r\n\r\n```\r\nworksheet.eachRow(function(row, rowNumber) {\r\n        console.log('Row ' + rowNumber + ' = ' + JSON.stringify(row.values));\r\n}).then((result)=>{\r\n  console.log(\"Done\")\r\n})\r\n```\r\nI get the error Cannot read property 'then' of undefined",
+  "comments": [
+    {
+      "author": "vchouhan",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-04-17T01:43:14Z",
+      "reactions": 0,
+      "body": "@simonjcarr worksheet.eachRow does not return a promise. It's simply looping over eachRow of the worksheet and providing the rowNumber and rowValue. You can't use .then() on something that does not return a promise.\r\n\r\n> Here's more info on the above method\r\n\r\n[https://www.npmjs.com/package/exceljs#010](https://www.npmjs.com/package/exceljs#010)"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.npmjs.com/package/exceljs#010",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/exceljs#010",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

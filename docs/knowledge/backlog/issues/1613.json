@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1613,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1613",
+  "title": "Thank You Issue",
+  "state": "open",
+  "author": "greggman",
+  "createdAt": "2021-02-12T04:52:03Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 7,
+  "commentCount": 1,
+  "body": "I hope you don't consider this spam and I hope maybe you'll consider pinning this issue so other people can add their thanks but I just wanted to say,  I've been using this library for a couple of projects and I'd be dead without it so ....\r\n\r\n# Thank you so much for all the work all of the contributors have put into this! ❤\r\n\r\nAlso, I know that donations bring their own set of problems but if you took donations I'd happily donate with no expectations.",
+  "comments": [
+    {
+      "author": "tukutela",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-27T22:10:56Z",
+      "reactions": 0,
+      "body": "I've been using it in production for years, very thankful..... "
+    }
+  ],
+  "attachments": []
+}

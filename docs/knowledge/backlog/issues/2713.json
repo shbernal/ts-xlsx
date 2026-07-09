@@ -1,0 +1,49 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2713,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2713",
+  "title": "Checkmarx detected a vulnerability",
+  "state": "open",
+  "author": "rajarajac",
+  "createdAt": "2024-02-29T17:47:02Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 2,
+  "body": "![image](https://github.com/exceljs/exceljs/assets/25912416/b9bb25ca-035b-448a-864a-acaf0b7163a9)\r\n\r\nIs it possible to use the latest version of archiver dependency ?\r\n",
+  "comments": [
+    {
+      "author": "rajarajac",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-29T18:22:55Z",
+      "reactions": 0,
+      "body": "More Details:\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/25912416/f1204ed6-85e9-46bd-a5f0-2276a080ff23)\r\n"
+    },
+    {
+      "author": "pnappa",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-29T23:19:43Z",
+      "reactions": 0,
+      "body": "Best addressed by this: https://github.com/exceljs/exceljs/issues/2703"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/25912416/b9bb25ca-035b-448a-864a-acaf0b7163a9",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/25912416/f1204ed6-85e9-46bd-a5f0-2276a080ff23",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2703",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

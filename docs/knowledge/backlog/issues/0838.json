@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 838,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/838",
+  "title": "sharedFormula results in empty cells",
+  "state": "open",
+  "author": "Tilogorn",
+  "createdAt": "2019-05-27T09:31:42Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "Executing this minimal working example:\r\n\r\n```js\r\nvar Excel = require('exceljs');\r\n\r\nvar workbook_write_stream = new Excel.stream.xlsx.WorkbookWriter({\r\n    filename: './test.xlsx'\r\n});\r\n\r\nvar sheet1 = workbook_write_stream.addWorksheet('yua');\r\n\r\n// Add Data\r\nfor (var i = 1; i <= 10; i++) {\r\n    sheet1.getCell('A' + i).value = i * 10;\r\n}\r\n\r\n// Master formula\r\nsheet1.getCell('B1').value = { formula: 'A1*2'};\r\n\r\n// Shared formulas\r\nfor (var j = 2; j <= 10; j++) {\r\n    sheet1.getCell('B' + j).value = {\r\n        sharedFormula: 'B1'\r\n    };\r\n}\r\n\r\nconsole.log(sheet1.getCell('B3').formula);\r\n// undefined\r\n\r\nsheet1.commit();\r\nworkbook_write_stream.commit()\r\n    .then(function () {\r\n        console.log('Ready');\r\n    });\r\n\r\n```\r\nLeads to this table:\r\n\r\n![Bildschirmfoto vom 2019-05-27 11-27-50](https://user-images.githubusercontent.com/7524854/58410566-b8689700-8072-11e9-9e4a-7470f22bede7.png)\r\n\r\nExpected:\r\n\r\n![Bildschirmfoto vom 2019-05-27 11-28-52](https://user-images.githubusercontent.com/7524854/58410576-bacaf100-8072-11e9-8d4a-b73ed2bb58c5.png)\r\n\r\nI used this example from the docs, am I missing something?\r\n\r\nhttps://github.com/exceljs/exceljs#shared-formula\r\n\r\nEdit: This debugging output may help:\r\n\r\n```js\r\nconsole.log(console.log(sheet1.getCell('B3'));\r\n```\r\n```js\r\n{ _row: \r\n   { _worksheet: \r\n      { id: 1,\r\n        name: 'yua',\r\n        state: 'visible',\r\n        _rows: [Array],\r\n        _columns: [Array],\r\n        _keys: {},\r\n        _merges: [Array],\r\n        _sheetRelsWriter: [Object],\r\n        _dimensions: [Object],\r\n        _rowZero: 1,\r\n        committed: false,\r\n        dataValidations: [Object],\r\n        _formulae: {},\r\n        _siFormulae: 0,\r\n        properties: [Object],\r\n        pageSetup: [Object],\r\n        useSharedStrings: false,\r\n        _workbook: [Object],\r\n        _views: [],\r\n        autoFilter: null,\r\n        _stream: [Object],\r\n        startedData: false },\r\n     _number: 3,\r\n     _cells: [ [Object], [Circular] ],\r\n     style: {},\r\n     _outlineLevel: 0 },\r\n  _column: \r\n   { _worksheet: \r\n      { id: 1,\r\n        name: 'yua',\r\n        state: 'visible',\r\n        _rows: [Array],\r\n        _columns: [Array],\r\n        _keys: {},\r\n        _merges: [Array],\r\n        _sheetRelsWriter: [Object],\r\n        _dimensions: [Object],\r\n        _rowZero: 1,\r\n        committed: false,\r\n        dataValidations: [Object],\r\n        _formulae: {},\r\n        _siFormulae: 0,\r\n        properties: [Object],\r\n        pageSetup: [Object],\r\n        useSharedStrings: false,\r\n        _workbook: [Object],\r\n        _views: [],\r\n        autoFilter: null,\r\n        _stream: [Object],\r\n        startedData: false },\r\n     _number: 2,\r\n     style: {},\r\n     _outlineLevel: 0 },\r\n  _address: 'B3',\r\n  _value: \r\n   { cell: [Circular],\r\n     model: \r\n      { address: 'B3',\r\n        type: 6,\r\n        formula: undefined,\r\n        sharedFormula: 'B1',\r\n        result: 10 } },\r\n  style: {},\r\n  _mergeCount: 0 }\r\n\r\n```",
+  "comments": [
+    {
+      "author": "bodelia",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-15T10:38:33Z",
+      "reactions": 0,
+      "body": "I was running into similar difficulties with sharedFormulas and took me some time to figure it out. Hoping it might help, here's an explanation.\r\n\r\nFirst, when writing the master formula, you need to include the **ref** and **sharetype** attributes.\r\n\r\nThe ref attributes must contain the range of cells that the master formula will be shared to. Note that any cell receiving the shared formula while not in this range will cause Excel issues and that you need to include the master formula's cell in the range for the same reason.\r\nSharetype is to separate array type from shared type formulas as mentioned in the docs.\r\n\r\n\r\nHere, the fixing change would be :\r\n\r\n\r\n```\r\n// Master formula\r\nsheet1.getCell('B1').value = { \r\n    formula: 'A1*2',\r\n    ref: 'B1:B10',\r\n    shareType: 'shared'\r\n};\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/7524854/58410566-b8689700-8072-11e9-9e4a-7470f22bede7.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/7524854/58410576-bacaf100-8072-11e9-8d4a-b73ed2bb58c5.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs#shared-formula",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

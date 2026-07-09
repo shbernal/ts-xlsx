@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2185,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2185",
+  "title": "fix file not opening because of wrong defaults",
+  "state": "open",
+  "author": "nbelyh",
+  "createdAt": "2022-12-26T12:34:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "Fixes reading the default values #2184\r\n\r\n## Summary\r\n\r\nThis fixes a bug with Excel showing an error when reading the generated file.\r\n\r\n## Test plan\r\n\r\nPlease refer to the linked issue #2184 ",
+  "comments": [],
+  "attachments": [],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 12,
+    "deletions": 8,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xform/table/filter-column-xform.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 3
+      },
+      {
+        "path": "lib/xlsx/xform/table/table-xform.js",
+        "status": "modified",
+        "additions": 7,
+        "deletions": 5
+      }
+    ]
+  }
+}

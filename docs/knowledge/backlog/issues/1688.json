@@ -1,0 +1,59 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1688,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1688",
+  "title": "fix issue #894",
+  "state": "open",
+  "author": "SuyongSun",
+  "createdAt": "2021-04-25T03:56:03Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 1,
+  "body": "## Summary\r\nWhen I use this lib for excel exporting, I found that the issue with image exporting.\r\nWhen add image with none integer coordinates, I get the wrong position in result file. I found others also facing this problem in issues like #894.\r\n\r\nI make some test and lookup the data affter unziping the drawing.xml file. I found that the error is caused by the wrong colwidth and rowheight. The tl and br are set to float number, if the col and row are not resized, the result is ok. But when width or height of the cell, in which tl or br defined, were resized, the result were still calculated with the standard cell width and row. So we got the wrong result.\r\n\r\n## Test plan\r\nI read the code related with this problem. Finally, I found the reason occured in anchor.js. There is my fix below.\r\n\r\nPut the following code in the first line in constructor function. After this we can get the real column width and row height in worksheet.\r\nthis.worksheet = worksheet;\r\n\r\nThen, modify the colWidth and rowHeight getters methods to get the correct number. As the default height or width can be undefined in worksheet properties, so we can add some protection code for below sample. We can check if the default heigth or width defined, if not, use constant value instead. (for example, height is 15, width is 9.14XXXXXX.)\r\nMath.floor(this.worksheet.getRow(this.nativeRow + 1).height/this.worksheet.properties.defaultRowHeight * 180000) Math.floor(this.worksheet.getColumn(this.nativeCol + 1).width/this.worksheet.properties.defaultColWidth * 640000)\r\n\r\nas the following code we put the image in xlsx with correct positions.\r\nworksheet.addImage(imageId, { tl: {col: 1.1, row: 5.83 }, br: {col: 8.85, row: 10.2 } });\r\ntestimage\r\n\r\n![111744731-a64e8d00-88c6-11eb-827f-bff3231177ba](https://user-images.githubusercontent.com/12286518/115980249-c35d3680-a5bd-11eb-9239-b3e157bdaa44.png)\r\n\r\n",
+  "comments": [
+    {
+      "author": "SuyongSun",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-28T01:05:40Z",
+      "reactions": 0,
+      "body": "The master code can not pass npm test successfully with node 8.17.0 on ubuntu. So it seems that not my modification causing this problem.\r\nAnd, I got the successful result with node 12.22.1 on local, but failed here.\r\n\r\nMy local os is ubuntu 20.04.2 LTS"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/12286518/115980249-c35d3680-a5bd-11eb-9239-b3e157bdaa44.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 28,
+    "deletions": 10,
+    "changedFiles": [
+      {
+        "path": "lib/doc/anchor.js",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 3
+      },
+      {
+        "path": "spec/integration/workbook-xlsx-reader.spec.js",
+        "status": "modified",
+        "additions": 16,
+        "deletions": 5
+      },
+      {
+        "path": "spec/unit/doc/anchor.spec.js",
+        "status": "modified",
+        "additions": 8,
+        "deletions": 2
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1695,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1695",
+  "title": "[BUG] throws error when map is provided in CSV reader and headers = true.",
+  "state": "open",
+  "author": "dhruvv90",
+  "createdAt": "2021-05-01T10:23:56Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 5,
+  "commentCount": 5,
+  "body": "## 🐛 Bug Report\r\n\r\nError String : data.map is not a function\r\n\r\n## Steps To Reproduce\r\nUse any simple CSV for reading and provide following in options.\r\nparserOptions.headers = true,\r\nmap =  the given map function in documentation \r\n\r\nCall csv.readFile on this.\r\n\r\n```\r\nconst anotherBook = new excel.Workbook();\r\n\r\nawait anotherBook.csv.readFile(csvPath, {\r\n    parserOptions: { headers: true },\r\n    map: function (value, index) {\r\n        switch (index) {\r\n            case 0:\r\n                // column 1 is string\r\n                return value;\r\n            case 1:\r\n                // column 2 is a date\r\n                return new Date(value);\r\n            case 2:\r\n                // column 3 is JSON of a formula value\r\n                return JSON.parse(value);\r\n            default:\r\n                // the rest are numbers\r\n                return parseFloat(value);\r\n        }\r\n    }\r\n});\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nEither feature should be supported or error should be caught and described in better way.\r\n\r\n## Possible solution (optional, but very helpful):\r\nIf the custom map function is not supported when headers=true, we need to update documentation AND throw this with a better error message.\r\nIf it's supposed to be supported , it must be fixed. \r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "dan-boehm",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-06-02T19:38:19Z",
+      "reactions": 9,
+      "body": "It appears this happens even without the map function.  All you need is `{ parserOptions: { headers: true } }`.\r\n\r\nThis is because when headers is true, it will return each row as an Object, which doesn't have a map function."
+    },
+    {
+      "author": "zakaria-chahboun",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-11-15T01:21:47Z",
+      "reactions": 3,
+      "body": "Still the same bug!"
+    },
+    {
+      "author": "cpprookie",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-19T07:57:04Z",
+      "reactions": 0,
+      "body": "Any update about the pr?"
+    },
+    {
+      "author": "dhruvv90",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-19T09:06:43Z",
+      "reactions": 3,
+      "body": "@cpprookie - In review, will get back soon."
+    },
+    {
+      "author": "indira-lima",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-03T15:05:51Z",
+      "reactions": 0,
+      "body": "Hi, any update in 2025?"
+    }
+  ],
+  "attachments": []
+}

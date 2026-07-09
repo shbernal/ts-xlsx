@@ -1,0 +1,58 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 482,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/482",
+  "title": "Error in jszip",
+  "state": "open",
+  "author": "CountryGuide",
+  "createdAt": "2018-01-19T15:44:30Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "I get this error trying to read file\r\n```\r\nError: Can't find end of central directory : is this a zip file ? If it is, see http://stuk.github.io/jszip/documentation/howto/read_zip.html\r\n    at Object.readEndOfCentral (C:\\Users\\yakovlev\\Desktop\\TypescriptAPIServer\\node_modules\\exceljs\\node_modules\\jszip\\lib\\zipEntries.js:168:23)\r\n    at Object.load (C:\\Users\\yakovlev\\Desktop\\TypescriptAPIServer\\node_modules\\exceljs\\node_modules\\jszip\\lib\\zipEntries.js:256:14)\r\n    at C:\\Users\\yakovlev\\Desktop\\TypescriptAPIServer\\node_modules\\exceljs\\node_modules\\jszip\\lib\\load.js:49:20\r\n    at process._tickCallback (internal/process/next_tick.js:103:7)\r\n```\r\n\r\nMy code\r\n```\r\nimport * as Excel from 'exceljs';\r\nExcel.config.setValue('promise', global.Promise);\r\nconst wb = new Excel.Workbook();\r\n        const filename = path.join(__dirname, '../../test/test.xls');\r\n        wb.xlsx.readFile(filename)\r\n            .then(\r\n                () => console.log('test'),\r\n                (err) => console.log(err));\r\n```\r\ncode in typescript file with following compiler params\r\n```\r\n\"compilerOptions\": {\r\n    \"target\": \"es2015\",\r\n    \"module\": \"CommonJS\",\r\n    \"moduleResolution\": \"node\"\r\n  }\r\n```",
+  "comments": [
+    {
+      "author": "iraycd",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-02-21T14:52:16Z",
+      "reactions": 0,
+      "body": "I have noticed this for `xls` file. I `.xlsx` doesn't have any similar issue.\r\n\r\nhttps://github.com/sheetjs/js-xlsx"
+    },
+    {
+      "author": "Rycochet",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2018-02-21T16:29:47Z",
+      "reactions": 3,
+      "body": "This project supports `.xlsx` only - there is no support for `.xls` at all as that's a completely different format (despite the similar name)."
+    },
+    {
+      "author": "yocontra",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-08-22T15:54:29Z",
+      "reactions": 9,
+      "body": "It would be great if this returned a more user-friendly error (\"XLS files are not supported!\") since it's quite hard to expose this stream directly without hacking that in yourself. Will send a PR if the maintainers are interested."
+    },
+    {
+      "author": "Moveharder",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-07-08T06:06:12Z",
+      "reactions": 3,
+      "body": "Still does not support xls file ！！！ "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "http://stuk.github.io/jszip/documentation/howto/read_zip.html",
+      "ext": "html",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/sheetjs/js-xlsx",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

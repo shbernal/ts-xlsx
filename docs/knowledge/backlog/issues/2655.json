@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2655,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2655",
+  "title": "add: add color field in data bar cf in typescript",
+  "state": "open",
+  "author": "krhambaliyaavesta",
+  "createdAt": "2024-01-13T06:43:13Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\nWhile working with the Databar feature in Conditional formating (cf), I encountered an issue related to the color property in TypeScript typings.\r\n\r\n## Purpose of Change\r\n\r\nI identified a deficiency in the existing TypeScript typings for the Databar feature in conditional formatting. The current Databar interface lacks a 'color' type, which is essential for specifying colors within the Databar. This gap in the typings prevents developers from accurately representing and utilizing color settings in Databar conditions.\r\n\r\n## Changes Made\r\n\r\nI have made a targeted change to the TypeScript type file associated with the Databar interface. Specifically, I introduced the 'color' type, which aligns with the functionality of assigning colors in Databar conditions.\r\n\r\n## Details\r\n\r\n- **Issue Faced:** The absence of the 'color' type in the Databar interface impairs the ability to set colors for Databar conditions in conditional formatting.\r\n\r\n- **Solution Proposed:** Addition of the 'color' type to the Databar interface in the TypeScript type file.\r\n\r\n## Testing\r\n\r\nI have conducted thorough testing to ensure that the introduced 'color' type integrates seamlessly with the Databar feature and does not introduce any regressions.\r\n\r\n## Related to Source Code (for typings update)\r\n\r\nI made a change in the TypeScript type file, specifically in the Databar interface, to address the color property's absence, enabling developers to utilize color settings in Databar conditions effectively.\r\n\r\n<!-- Feel free to connect me. -->\r\n",
+  "comments": [],
+  "attachments": [],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 1,
+    "deletions": 0,
+    "changedFiles": [
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0
+      }
+    ]
+  }
+}

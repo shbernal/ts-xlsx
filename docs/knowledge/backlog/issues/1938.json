@@ -1,0 +1,71 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1938,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1938",
+  "title": "Fix loadin of table rows and ref from xlsx file",
+  "state": "open",
+  "author": "antoineacy",
+  "createdAt": "2021-12-20T16:37:46Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 1,
+  "body": "## Summary\r\n\r\nOnly structure (columns) of tables are loaded when reading a xlsx file. The data is missing : rows and ref properties remain undefined.\r\n\r\n## Test plan\r\n\r\nA test file is commited. It tests that table data is properly loaded.\r\n\r\n## Related to source code (for typings update)\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-08-01T07:50:41Z",
+      "reactions": 0,
+      "body": "@antoineacy Could you please move [over here](https://github.com/zurmokeeper/excelize)? I'd be happy to merge this feature. "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/zurmokeeper/excelize",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 51,
+    "deletions": 37,
+    "changedFiles": [
+      {
+        "path": "lib/doc/table.js",
+        "status": "modified",
+        "additions": 30,
+        "deletions": 33
+      },
+      {
+        "path": "lib/doc/worksheet.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 2
+      },
+      {
+        "path": "lib/xlsx/xform/table/table-column-xform.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "spec/integration/data/test-pr-1938.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/pr/test-pr-1938.spec.js",
+        "status": "added",
+        "additions": 18,
+        "deletions": 0
+      }
+    ]
+  }
+}

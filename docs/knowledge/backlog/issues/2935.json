@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2935,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2935",
+  "title": "[BUG] font parameter is being overwritten if used in the same row for different cells",
+  "state": "open",
+  "author": "marcio3457",
+  "createdAt": "2025-05-30T23:30:16Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\n\n<!-- A clear and concise description of what the bug is. -->\nWhile using exceljs to change the font of diferent cells in the same row, the font is overwritten in both cells to the latest value, and it makes impossible to set font to diferente fields\nLib version: 4.4.0\n\n## Steps To Reproduce\n\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\n\n```javascript\n    for(let i = 17; i < worksheetQuotation._rows.length+1; i++)  {\n        var row = worksheetQuotation.getRow(i);\n\n        if(row .getCell(10).value == \"TOTAL\"){\n            break;\n        }\n\n        row.getCell(8).font = { name: 'Arial', size: 12, bold: false };\n        row.getCell(9).font = { name: 'Arial', size: 14, bold: true };\n        row.commit();\n    }\nIf you executed a for like this, the font argument of cell 8 gets the same value as the font argument of cell 9\nand the xlsx shows fields in column 9 without bold and fields in column 8 with bold\n\n```\n\n## The expected behaviour:\n\n<!-- A clear and concise description of what you expected to happen. -->\n\n\n## Possible solution (optional, but very helpful):\n\n```javascript\n\n```\n",
+  "comments": [
+    {
+      "author": "LSL1618",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-06-18T03:55:53Z",
+      "reactions": 0,
+      "body": "```\n// 这里由于相同的对象引用直接赋值会影响其它单元格，所以需要克隆原始样式并创建新的对象。\ncell.font = {\n\t...(cell.style.font || {}),\n\tcolor: {argb: 'FF0000FF'},\n};\n```"
+    }
+  ],
+  "attachments": []
+}

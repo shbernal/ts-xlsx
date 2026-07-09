@@ -1,0 +1,62 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2893,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2893",
+  "title": "[BUG] Custom date formats cannot be parsed when streaming reading Excel",
+  "state": "open",
+  "author": "Jun-Ao",
+  "createdAt": "2025-02-26T06:29:41Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\nWhen I format a cell as a custom format in Excel, I can only get a number instead of a date when I parse this cell with streaming reading.\n\n![Image](https://github.com/user-attachments/assets/6a033462-53fd-4a7b-aa47-111a6bccf871)\n\nAfter debugging, I found that the problem is in the following code\n```\n// lib/xlsx/xform/style/numfmt-xform.js\nNumFmtXform.getDefaultFmtCode = function getDefaultFmtCode(numFmtId) {\n  return defaultNumFormats[numFmtId] && defaultNumFormats[numFmtId].f;\n};\n```\nAnd the content of this defaultNumFormats is as follows:\n```\n// lib/xlsx/defaultnumformats.js\nmodule.exports = {\n  ......\n  14: {f: 'mm-dd-yy'},\n  ......\n  31: {\n    'zh-tw': 'yyyy\"年\"m\"月\"d\"日\"',\n    'zh-cn': 'yyyy\"年\"m\"月\"d\"日\"',\n    'ja-jp': 'yyyy\"年\"m\"月\"d\"日\"',\n    'ko-kr': 'yyyy\"년\" mm\"월\" dd\"일\"',\n  },\n  ......\n}\n```\nIt should be noted that the default structure is different for numFmtId of 14 and 31.\nThis code returns 'mm-dd-yy' when numFmtId is 14(address: A2) and undefined when numFmtId is 31(Address: A4), which results in a cell with numFmtId 27 being considered unformatted and just a number\n\n![Image](https://github.com/user-attachments/assets/09b7a054-2114-44d1-8947-8b8f3f5a4c34)\n\n![Image](https://github.com/user-attachments/assets/19c363a3-4b58-4c79-96f9-b9965f12394a)\n\nparsed result:\n\n![Image](https://github.com/user-attachments/assets/e3878977-2574-4da2-b3c7-5f8a123bb7cf)\n\n## My question:\n\nI probably know the cause of the problem, but I'm not sure how to solve it:\n1. How to obtain the location of the file to determine the use of zh-tw/zh-cn/ja-jp/ko-kr to replace the f attribute\n2. Will this affect streaming write, non-streaming read and write after I adjust it?\n3. Is the content in lib/xlsx/defaultnumformats.js complete?\n\n## The expected behaviour:\n\nI want to parse the date in the custom format correctly, instead of getting the number\n\n## Possible solution (optional, but very helpful):\n\nMy current solution is to simply get the f attribute or the zh-cn attribute, because I only need to judge whether the content of this cell is a date, but if someone can provide a better way, I would be very grateful\n```\ndefaultNumFormats[numFmtId] && (defaultNumFormats[numFmtId].f || defaultNumFormats[numFmtId]['zh-cn']\n```\n## file:\nI guess any custom date format can reproduce this problem\n[wode.xlsx](https://github.com/user-attachments/files/18978456/wode.xlsx)",
+  "comments": [
+    {
+      "author": "noah227",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-20T06:16:08Z",
+      "reactions": 0,
+      "body": "To get the date instead of a number, refer to the [datevalue-function#remarks](https://support.microsoft.com/en-us/office/datevalue-function-df8b07d4-7761-4a93-bc33-b7471bbff252). \n[excel-date-to-js](https://www.npmjs.com/package/excel-date-to-js) works well, btw."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/assets/6a033462-53fd-4a7b-aa47-111a6bccf871",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/09b7a054-2114-44d1-8947-8b8f3f5a4c34",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/19c363a3-4b58-4c79-96f9-b9965f12394a",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/e3878977-2574-4da2-b3c7-5f8a123bb7cf",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/files/18978456/wode.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://support.microsoft.com/en-us/office/datevalue-function-df8b07d4-7761-4a93-bc33-b7471bbff252",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/excel-date-to-js",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

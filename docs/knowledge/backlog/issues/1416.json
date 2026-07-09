@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1416,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1416",
+  "title": "workbook.csv.writeFile can't create worksheet",
+  "state": "open",
+  "author": "PhilipsYuan",
+  "createdAt": "2020-07-30T08:52:39Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "when I want to new csv file, like below code\r\n\r\n`\r\nconst workbook = new Excel.Workbook();\r\nvar worksheet = workbook.addWorksheet(\"first\", {\r\n  views: [{ showGridLines: false }],\r\n});\r\n\r\nworksheet.headerFooter = {\r\n  firstHeader: \"Hello Exceljs\",\r\n  firstFooter: \"Hello World\",\r\n  oddFooter: \"Page &P of &N\",\r\n  evenFooter: \"even footer\",\r\n  oddHeader: \"oddHeader\",\r\n  evenHeader: \"evenHeader\",\r\n};\r\n\r\nworkbook.csv.writeFile(\"./test1.csv\");\r\n`\r\nbut in file, there is not worksheet(first). there is only default worksheet (test1).\r\n\r\nwhen I change code by xlsx export (workbook.xlsx.writeFile(\"./test1.csv\");), it is work well.\r\n\r\nCan someone help that ?",
+  "comments": [
+    {
+      "author": "juanarze",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-02-09T18:59:15Z",
+      "reactions": 0,
+      "body": "same"
+    }
+  ],
+  "attachments": []
+}

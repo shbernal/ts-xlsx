@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1515,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1515",
+  "title": "[BUG] Sheets containing multiple printing areas are not correctly serialized",
+  "state": "open",
+  "author": "peterkooijmans",
+  "createdAt": "2020-10-27T14:57:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.1.1\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n- In Excel, create two printing areas on the same sheet\r\n- Load the workbook using this library and then immediately write it back to a different file\r\n- Load the newly written workbook in Excel. Notice that there is only 1 printing area.\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\nLoading and immediately saving a workbook should not lose printing areas.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nI'm preparing a PR to fix this.\r\n",
+  "comments": [],
+  "attachments": []
+}

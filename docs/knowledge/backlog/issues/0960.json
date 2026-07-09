@@ -1,0 +1,145 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 960,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/960",
+  "title": "TypeError: Excel.Workbook is not a constructor",
+  "state": "open",
+  "author": "tvrashid",
+  "createdAt": "2019-09-12T11:11:13Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 15,
+  "body": "",
+  "comments": [
+    {
+      "author": "tvrashid",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-09-12T11:15:28Z",
+      "reactions": 0,
+      "body": "I get this most of the time when using excel js inside node application\r\n"
+    },
+    {
+      "author": "Tenison",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-25T21:28:16Z",
+      "reactions": 0,
+      "body": "How do you solve this problem\r\n"
+    },
+    {
+      "author": "sagungargs15",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-30T07:10:53Z",
+      "reactions": 0,
+      "body": "@alexfauquette  @Tenison @tvrashid @guyonroche\r\nAny luck on this issue ? While importing an excel file using **exceljs .xlsx in ReactJs + Typescript** I receive a similar error \r\n\r\n```\r\nimport { Workbook } from 'exceljs';\r\nimport { Importer } from 'xlsx-import/lib/Importer';\r\nimport Dropzone, { FileWithPath, useDropzone } from \"react-dropzone\";\r\n\r\nasync function handleFileUpload() {\r\n    return Promise.resolve(fetch('invoice.xlsx').then((r) => r.blob()));\r\n}\r\n\r\n    const onDrop = useCallback(async(acceptedFiles: File[]) => {\r\n      setFiles(acceptedFiles);\r\n      const reader = new FileReader();\r\n      const invoiceFile = await handleFileUpload()\r\n      reader.readAsArrayBuffer(invoiceFile);\r\n      reader.addEventListener('loadend', async e => {\r\n            if (reader.result instanceof ArrayBuffer) {\r\n                        const wb =  new Workbook();\r\n                        await wb.xlsx.load(reader.result);\r\n                        const importer = new Importer(wb);\r\n                        setInvoice(onImportInvoice(importer));\r\n            }\r\n    })\r\n\r\n\r\n```\r\n\r\nI am getting this Error on the line [const wb =  new Workbook();] \r\n\r\n```\r\nindex.tsx:86 Uncaught (in promise) TypeError: exceljs__WEBPACK_IMPORTED_MODULE_1__.Workbook is not a constructor\r\n    at FileReader.<anonymous> (index.tsx:86:1)\r\n```"
+    },
+    {
+      "author": "alexfauquette",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-30T08:46:11Z",
+      "reactions": 0,
+      "body": "@sagungargs15 If you're using vite or remix, the [PR linked to this issue](https://github.com/mui/mui-x/issues/5035) could be helpfull."
+    },
+    {
+      "author": "Tenison",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-30T08:46:25Z",
+      "reactions": 0,
+      "body": "I used excelJS. In my use case, I clone a file template.xlsx and inserted some data. I then saved it to another file at the end. Hope this helps.\r\n\r\n```js\r\nconst runMainTemplate = () => {\r\n    const workbook = new ExcelJS.Workbook();\r\n    //file name to clone\r\n    let filename = 'template.xlsx';\r\n\r\n    workbook.xlsx.readFile(filename)\r\n    .then(function() {\r\n        //Accessing Sheet to clone\r\n        let sheetA = workbook.getWorksheet(\"Sheet1\");\r\n        let sheetB = workbook.getWorksheet(\"Sheet2\");\r\n        \r\n\r\n        insertMonthlyDataIntoTemplate(sheetA);\r\n        //Creating new sheet\r\n        // let row = sheetB.getRow(5);\r\n        // row.getCell(1).value = 5; // A5's value set to 5\r\n        // row.commit();\r\n\r\n        return workbook.xlsx.writeFile(\"finalsavepoint.xlsx\");\r\n    }); \r\n} \r\n\r\nconst insertMonthlyDataIntoTemplate = (worksheet) => {\r\n    worksheet.getCell('P7').value = todaysDate();\r\n    worksheet.getCell('Q4').value = \"PERCENTAGE  SERVICE AVAILABILITY FOR THE MONTH: \" + metaDataHolder.monthlyPercentage + \"%\";\r\n    worksheet.getCell('I4').value = \"TRANSMISSION STATION: \" + metaDataHolder.station;\r\n\r\n}\r\n```"
+    },
+    {
+      "author": "sagungargs15",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-30T11:29:57Z",
+      "reactions": 0,
+      "body": "@Tenison I am also using exceljs to import a file in .xlsx format in ReactJs + Typescript. I am also attaching the file for reference here. The challenge is my code is failing at the `const workbook = new ExcelJS.Workbook(); `stage because of the following error \r\n\r\n```\r\n[invoice.xlsx](https://github.com/exceljs/exceljs/files/10122718/invoice.xlsx)\r\n\r\nindex.tsx:86 Uncaught (in promise) TypeError: exceljs__WEBPACK_IMPORTED_MODULE_1__.Workbook is not a constructor\r\n    at FileReader.<anonymous> (index.tsx:86:1)\r\n```"
+    },
+    {
+      "author": "vibhash1083",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-19T10:11:24Z",
+      "reactions": 1,
+      "body": "Any solution for this issue? I am facing same issue with reactjs + typescript."
+    },
+    {
+      "author": "tonioriol",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-24T14:15:27Z",
+      "reactions": 5,
+      "body": "This was the solution for me, seems to happen in quite a bit of other imports too in a nuxt/nitro project:\r\n\r\n```js\r\nimport * as ExcelJS from 'exceljs'\r\n\r\nconst workbook = new ExcelJS.default.Workbook()\r\n```\r\nAs mentioned in this other issue https://github.com/mui/mui-x/issues/5035#issuecomment-1156240336, \"the excelJs is imported, but set into a default property. So the constructor is not excelJS.Workbook but excelJS.default.Workbook\"\r\n\r\n"
+    },
+    {
+      "author": "vibhash1083",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-24T18:33:58Z",
+      "reactions": 0,
+      "body": "> ```js\r\n> import * as ExcelJS from 'exceljs'\r\n> \r\n> const workbook = new ExcelJS.default.Workbook()\r\n> ```\r\n\r\nI am getting following error while using this:\r\n\r\nProperty 'default' does not exist on type 'typeof import(\"node_modules/exceljs/index\")'.ts(2339)\r\n"
+    },
+    {
+      "author": "tonioriol",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-25T08:52:06Z",
+      "reactions": 0,
+      "body": "@vibhash1083 sorry to hear that. I would suggest what is mentioned in the issue comment I linked in my previous response. Do the import as I show and try to console log and see the actual shape of the ExcelJS variable.\r\n\r\nBut reading again your error output, it says “does not exist in **type**” so are you doing the import exactly the way is shown in my previous comment? Cause it seems you are doing `import type...`."
+    },
+    {
+      "author": "vibhash1083",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-25T10:05:34Z",
+      "reactions": 0,
+      "body": "> @vibhash1083 sorry to hear that. I would suggest what is mentioned in the issue comment I linked in my previous response. Do the import as I show and try to console log and see the actual shape of the ExcelJS variable.\r\n> \r\n> But reading again your error output, it says “does not exist in **type**” so are you doing the import exactly the way is shown in my previous comment? Cause it seems you are doing `import type...`.\r\n\r\nI am getting empty object in a reactjs + typescript library."
+    },
+    {
+      "author": "kztera",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-23T04:23:57Z",
+      "reactions": 0,
+      "body": "> Any solution for this issue? I am facing same issue with reactjs + typescript.\r\n\r\nI unchecked Disable cache in Networking tab and problem solved\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/116504460/08064246-cb65-43b9-a162-fcff75a78cae)\r\n\r\n"
+    },
+    {
+      "author": "WilberthGamboa",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-30T06:09:31Z",
+      "reactions": 3,
+      "body": "In my case, I had importation issues because I wanted to use ES6 imports instead of CommonJS. I managed to solve it with the following import statement.\r\n``` javascript\r\nimport exceljs from 'exceljs';\r\nconst { Workbook } = exceljs;\r\nconst workbook = new Workbook();\r\n\r\n```\r\n**Remember that if you want to use ES6, you need to change the \"type\" to \"module\" in the package.json.**"
+    },
+    {
+      "author": "musthafa1996",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-15T15:09:41Z",
+      "reactions": 0,
+      "body": "> In my case, I had importation issues because I wanted to use ES6 imports instead of CommonJS. I managed to solve it with the following import statement.\r\n> \r\n> ```js\r\n> import exceljs from 'exceljs';\r\n> const { Workbook } = exceljs;\r\n> const workbook = new Workbook();\r\n> ```\r\n> \r\n> **Remember that if you want to use ES6, you need to change the \"type\" to \"module\" in the package.json.**\r\n\r\nThank you. This worked for me in my ESM set up."
+    },
+    {
+      "author": "AdamGaskins",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-05-03T07:29:35Z",
+      "reactions": 0,
+      "body": "Instead of \n\n```js\nimport * as ExcelJS from 'exceljs'\n```\n\ntry\n\n```js\nimport ExcelJS from 'exceljs'\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/mui/mui-x/issues/5035",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/10122718/invoice.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/mui/mui-x/issues/5035#issuecomment-1156240336",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/116504460/08064246-cb65-43b9-a162-fcff75a78cae",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 475,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/475",
+  "title": "Number stored as Text error",
+  "state": "open",
+  "author": "eli8levit",
+  "createdAt": "2018-01-11T13:31:32Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 0,
+  "commentCount": 11,
+  "body": "In my code I'm formatting the numbers to strings with commas separators this way: `num.toLocaleString('en')` in order to get something like that:\r\n![acreen](https://user-images.githubusercontent.com/31045769/34827591-58daa6a8-f6e3-11e7-8d9f-2031e238cb3a.PNG)\r\nThe problem is that this green sign appears and writes me \"Number stored as Text\" and that I need to convert it back to number manually. I didn't find a feature that enables excel 1000 separator or ignores errors in this package. Is there something to do with it?\r\n",
+  "comments": [
+    {
+      "author": "aragornf",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-02-01T18:45:51Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "magp86",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-07-20T17:46:38Z",
+      "reactions": 2,
+      "body": "Hi,\r\n\r\nI have the same problem, How did you resolve it?\r\nI put at configuration at cell \r\nstyle: { numFmt : \"#,##0\" }, but It doesn´t work"
+    },
+    {
+      "author": "Dalfons0",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-10-22T14:34:59Z",
+      "reactions": 1,
+      "body": "Hi @JediYozh, could you please share the solution for this? Because It happens also to me and I didn't find any solution."
+    },
+    {
+      "author": "junaidinam",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-01-09T20:28:30Z",
+      "reactions": 3,
+      "body": "Hi,\r\nI was able to find solution for this. You have to return Number and numFmt should be #,#"
+    },
+    {
+      "author": "mllrdev-miguelsobong",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-01-07T05:32:06Z",
+      "reactions": 2,
+      "body": "> Hi,\r\n> I was able to find solution for this. You have to return Number and numFmt should be #,#\r\n\r\nCan you elaborate please?"
+    },
+    {
+      "author": "francisstefan",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-03-07T06:16:10Z",
+      "reactions": 0,
+      "body": "> Hi,\r\n> I was able to find solution for this. You have to return Number and numFmt should be #,#\r\n\r\nHey @junaidinam, Could you please show me how to remove this warning?"
+    },
+    {
+      "author": "KatElizabeth",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-17T21:00:45Z",
+      "reactions": 4,
+      "body": "> > Hi,\r\n> > I was able to find solution for this. You have to return Number and numFmt should be #,#\r\n> \r\n> Can you elaborate please?\r\n\r\nWhen he says you need to return number, it means the type of data you are putting into exceljs for that row or column, should be a Number and not a string. Instead of using the toLocaleString, maybe you can just write in code the format you want so that it is never a string and uses something else to place decimals etc. Like in angular, I use the number pipe:\r\n{{yourField | number: '1.2-2'}}\r\n\r\nWhen he's talking about number formats, numFmt, I am fairly sure he is referencing actual excel number formats, which is what you put into your code when exporting. You can read about excel number formats here:\r\nhttps://www.excel-easy.com/examples/custom-number-format.html\r\n\r\nFor me, I had been using the method toFixed() on my data to get 2 decimal places, and it was turning it into a string. I removed that to keep it as a number, and when exported to excel, I no longer have the issue.\r\n"
+    },
+    {
+      "author": "macaranduba",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-18T18:32:21Z",
+      "reactions": 1,
+      "body": "My JavaScript/TypeScript ignorance does not allow me to understand how an object's property of type number can hold a string.\r\nThat was my case with the following interface, particulary the `semana` property: \r\n```\r\nexport interface Article {\r\n  semana: number;\r\n  data_informe: string;\r\n  ID: string;\r\n  excluir: string;\r\n  autores: string;\r\n  titulo: string;\r\n  tecnologias: string;\r\n  sumario_achados: string;\r\n  aval_qual_metod: string;\r\n  resumo: string;\r\n  referencia_bibliografica: string;\r\n  país: string;\r\n  NE: number;\r\n  URL: string;\r\n\r\n  tipo_estudo: string;\r\n  data_publ: string;\r\n}\r\n```\r\nTherefor, the situation described in the original text of this issue was also happening to me. I was able to solve this by executing `parseInt(article.semana)` before passing the `semana` value to the ExcelJS package.\r\n"
+    },
+    {
+      "author": "acss1881",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-05-01T02:50:55Z",
+      "reactions": 1,
+      "body": "No se debe insertar como arreglo,  columnas = ['10', '20', 'hola']; esto es un error.\r\nSolución, debe ser insertado columna por columna\r\nEjemplo: \r\n// display value as '1 3/5'\r\nws.getCell('A1').value = 1.6;\r\nws.getCell('A1').numFmt = '# ?/?';\r\n\r\n// display value as '1.60%'\r\nws.getCell('B1').value = 0.016;\r\nws.getCell('B1').numFmt = '0.00%';"
+    },
+    {
+      "author": "Aymkdn",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-10-03T12:56:05Z",
+      "reactions": 0,
+      "body": "The format `numFmt: '$#,##0.00'` works. In my case, the issue was for the `blank` values because I used `\"\"`. I replaced it with `null` and now the whole column is seen as a number."
+    },
+    {
+      "author": "joatansampaio",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-28T09:16:59Z",
+      "reactions": 2,
+      "body": "For those still trying to fix that:\r\n\r\njust add a + before the variable you're storing into the row.\r\n\r\n**Example**\r\n\r\n sheet.addRow({\r\n      name: student.studentName,\r\n      studentid: +student.studentID\r\n});\r\n\r\n`studentid: +student.studentID`\r\n\r\nYou see the **plus symbol** before the variable ? That is what worked for me.\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/31045769/34827591-58daa6a8-f6e3-11e7-8d9f-2031e238cb3a.PNG",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://www.excel-easy.com/examples/custom-number-format.html",
+      "ext": "html",
+      "isFixture": false
+    }
+  ]
+}

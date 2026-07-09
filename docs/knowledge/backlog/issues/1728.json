@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1728,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1728",
+  "title": "NumFmt issues (Number Stored as text)",
+  "state": "open",
+  "author": "rahul1597",
+  "createdAt": "2021-05-28T19:54:57Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "When I click a cell then comes out of it then the formatting is applied but it is not working directly. I am getting numbers stored as text errors. It is happening with all the numFmt specified.\r\n\r\nPlease see the screenshot below. Any help would be great.\r\n\r\n![image](https://user-images.githubusercontent.com/22730148/120035503-5bff3000-c01c-11eb-839c-458b461163f2.png)\r\n\r\nAnybody who has faced this issue before? \r\n",
+  "comments": [
+    {
+      "author": "finwo",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-07-27T12:57:22Z",
+      "reactions": 4,
+      "body": "Based on my current experience when using this library:\r\n\r\nThe format of the data you insert into a cell defines as what type the cell is rendered. If you run the numbers you're inserting through `parseFloat` before inserting them into the sheet, all numbers should be stored as numbers instead of as text."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/22730148/120035503-5bff3000-c01c-11eb-839c-458b461163f2.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2916,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2916",
+  "title": "[BUG] Memory leak in ExcelJS.stream.xlsx.WorkbookWriter",
+  "state": "open",
+  "author": "NazarKalytiuk",
+  "createdAt": "2025-04-09T16:10:03Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\n\n<!-- A clear and concise description of what the bug is. -->\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\n\n```javascript\n// Filename: generate_xlsx_low_memory.js\nconst ExcelJS = require(\"exceljs\");\nconst fs = require(\"fs\");\nconst path = require(\"path\");\n\nconst numRows = 1000000;\nconst numCols = 100;\nconst outputFilename = \"large_file_exceljs_stream.xlsx\";\nconst outputDir = path.join(__dirname, \"output\"); // Create an output directory\n\nasync function generateLargeXlsxStream() {\n  console.log(\n    `Starting generation of ${outputFilename} (${numRows}x${numCols}) using exceljs stream...`\n  );\n  console.info(\n    \"INFO: This method uses streaming and should have low memory usage.\"\n  );\n\n  if (!fs.existsSync(outputDir)) {\n    fs.mkdirSync(outputDir, { recursive: true });\n    console.log(`Created output directory: ${outputDir}`);\n  }\n  const outputPath = path.join(outputDir, outputFilename);\n\n  const startTime = Date.now();\n  let peakMemory = 0; // Monitor memory\n\n  const options = {\n    useStyles: false, // Skip styles for performance/memory\n    useSharedStrings: false, // Often better for memory with repetitive text\n    stream: fs.createWriteStream(outputPath, { flags: \"w\" }), // Stream to file\n  };\n\n  const workbookWriter = new ExcelJS.stream.xlsx.WorkbookWriter(options);\n\n  try {\n    const worksheet = workbookWriter.addWorksheet(\"LargeDataSheet\");\n\n    // Add Header Row\n    const header = [];\n    for (let c = 0; c < numCols; c++) {\n      header.push(`Column ${c + 1}`);\n    }\n    worksheet.addRow(header).commit(); // Commit header row\n\n    // Add Data Rows and Commit frequently\n    console.log(\"Generating and streaming data rows...\");\n    for (let r = 0; r < numRows; r++) {\n      const rowData = [];\n      for (let c = 0; c < numCols; c++) {\n        // Simple data\n        rowData.push(`R${r + 1}C${c + 1}`);\n      }\n      worksheet.addRow(rowData).commit(); // Add row and COMMIT it to the stream\n      // Optional: Log progress and memory periodically\n      if ((r + 1) % 10000 === 0) {\n        // Log every 10k rows\n        // THIS HELPS !!!\n        // await new Promise((resolve) => setTimeout(resolve, 1000));\n        const currentMemory = process.memoryUsage().rss / (1024 * 1024); // MB\n        peakMemory = Math.max(peakMemory, currentMemory);\n        console.log(\n          `  Processed ${r + 1} rows... Memory usage: ${currentMemory.toFixed(\n            2\n          )} MB (Peak: ${peakMemory.toFixed(2)} MB)`\n        );\n      }\n    }\n\n    // Crucial: Finalize the workbook writing process\n    await workbookWriter.commit();\n\n    const endTime = Date.now();\n    const duration = (endTime - startTime) / 1000; // seconds\n    const finalMemory = process.memoryUsage().rss / (1024 * 1024);\n    peakMemory = Math.max(peakMemory, finalMemory);\n\n    console.log(\"--------------------------------------------------\");\n    console.log(`SUCCESS: File '${outputPath}' created using exceljs stream.`);\n    console.log(`Dimensions: ${numRows} rows x ${numCols} columns`);\n    console.log(`Time taken: ${duration.toFixed(2)} seconds`);\n    console.log(\n      `Peak memory usage during script: ~${peakMemory.toFixed(2)} MB`\n    );\n    console.log(\"--------------------------------------------------\");\n  } catch (error) {\n    console.error(\"--------------------------------------------------\");\n    console.error(\"ERROR generating XLSX file via stream:\", error);\n    const finalMemory = process.memoryUsage().rss / (1024 * 1024);\n    peakMemory = Math.max(peakMemory, finalMemory);\n    console.error(\n      `Peak memory usage before error: ~${peakMemory.toFixed(2)} MB`\n    );\n    console.error(\"--------------------------------------------------\");\n    // Attempt to remove potentially corrupted file\n    try {\n      if (fs.existsSync(outputPath)) {\n        fs.unlinkSync(outputPath);\n        console.warn(`Removed potentially incomplete file: ${outputPath}`);\n      }\n    } catch (cleanupError) {\n      console.error(`Error removing incomplete file: ${cleanupError.message}`);\n    }\n  }\n}\n\ngenerateLargeXlsxStream();\n\n```\n\n## The expected behaviour:\n\n<!-- A clear and concise description of what you expected to happen. -->\nWhy do memory leaks happen?\n\n## Possible solution (optional, but very helpful):\n\n```javascript\n// If I add a 1s timeout after every 10k rows, it cleans memory and works as expected.\nawait new Promise((resolve) => setTimeout(resolve, 1000));\n```\n",
+  "comments": [
+    {
+      "author": "seidelmartin",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-28T14:56:37Z",
+      "reactions": 0,
+      "body": "I’m experiencing the same issue; I'm not writing to the file system, but instead uploading a file directly to S3. I believe the problem lies in how streams are designed to manage the flow of data being sent upstream. In this scenario, there's a continuous stream of data being written without a mechanism to determine when to pause.\n\nI think the `commit` method should return a boolean value: `true` or `false`. If it returns `false`, it should wait for the `drain` event to occur before resuming the writing process. This behavior is outlined in the [NodeJS Writable Stream documentation](https://nodejs.org/api/stream.html#writablewritechunk-encoding-callback)."
+    },
+    {
+      "author": "NazarKalytiuk",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-28T21:12:54Z",
+      "reactions": 0,
+      "body": "> I’m experiencing the same issue; I'm not writing to the file system, but instead uploading a file directly to S3. I believe the problem lies in how streams are designed to manage the flow of data being sent upstream. In this scenario, there's a continuous stream of data being written without a mechanism to determine when to pause.\n> \n> I think the `commit` method should return a boolean value: `true` or `false`. If it returns `false`, it should wait for the `drain` event to occur before resuming the writing process. This behavior is outlined in the [NodeJS Writable Stream documentation](https://nodejs.org/api/stream.html#writablewritechunk-encoding-callback).\n\nI know how to fix it (a better possible solution than I provided) without changing the library code. Will send a code snippet tomorrow."
+    },
+    {
+      "author": "seidelmartin",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-31T06:48:21Z",
+      "reactions": 0,
+      "body": "That would be great. Thanks @NazarKalytiuk "
+    },
+    {
+      "author": "NazarKalytiuk",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-31T19:05:17Z",
+      "reactions": 3,
+      "body": "> That would be great. Thanks [@NazarKalytiuk](https://github.com/NazarKalytiuk)\n\n```typescript\nimport { Worksheet } from 'exceljs';\n\nconst MAX_BUFFER_SIZE = 50;\nconst MAX_BUFFER_SIZE_THRESHOLD = 10;\n\ninterface WorksheetWithStream extends Worksheet {\n  _stream: {\n    pipes: {\n      _writableState: {\n        bufferedRequestCount: number;\n      };\n    }[];\n  };\n}\n\nexport async function waitForStreamDrainExcel(sheet: Worksheet): Promise<void> {\n  const worksheet = sheet as WorksheetWithStream;\n  if (!worksheet._stream?.pipes?.[0]?._writableState) {\n    console.error('Exceljs API changed. Please update the code.');\n    return;\n  }\n\n  if (worksheet._stream.pipes[0]._writableState.bufferedRequestCount > MAX_BUFFER_SIZE) {\n    while (worksheet._stream.pipes[0]._writableState.bufferedRequestCount > MAX_BUFFER_SIZE_THRESHOLD) {\n      await new Promise((resolve) => setTimeout(resolve, 1));\n    }\n  }\n}\n```\n\nCall this `await waitForStreamDrainExcel(sheet)` function periodically. I call it every 1000 rows, for example. "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://nodejs.org/api/stream.html#writablewritechunk-encoding-callback",
+      "ext": "html",
+      "isFixture": false
+    },
+    {
+      "url": "https://nodejs.org/api/stream.html#writablewritechunk-encoding-callback",
+      "ext": "html",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/NazarKalytiuk",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

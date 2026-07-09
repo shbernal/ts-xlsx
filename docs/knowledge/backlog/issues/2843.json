@@ -1,0 +1,46 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2843,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2843",
+  "title": "[BUG] Excel is not generated correctly if the name in AddTable contains a ```hyphen(-)```",
+  "state": "open",
+  "author": "ramiKang",
+  "createdAt": "2024-10-30T09:52:43Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n### 1. Write code\r\n```javascript\r\n\r\n...\r\n\r\nworkSheet.addTable({\r\n  name: \"test-name\",\r\n  ref: `testRef`,\r\n  headerRow: true,\r\n  totalsRow: false,\r\n  columns: testTableHeader,\r\n  rows: testTableRows,\r\n});\r\n\r\n...\r\n```\r\n\r\n### 2. DownLoad Excel\r\n\r\n### 3. Open Excel by Microsoft 365\r\nThe following message appears:\r\n\r\n**Korean** : (파일 제목).xlsx의 내용에 문제가 있습니다. 이 통합 문서의 내용을 최대한 복구하시겠습니까? 이 통합 문서의 원본을 신뢰하는 경우 [예]를 클릭하세요.\r\n\r\n**English** : We found a problem with some content in '<filename>.xlsx'. Do you want us to try to recover as much as we can? If you trust the source of this workbook, click Yes.\r\n\r\n\r\n![스크린샷 2024-10-30 오후 6 41 20](https://github.com/user-attachments/assets/e800a734-c5b4-4f0a-8266-535316b58d81)\r\n\r\n\r\n## The expected behaviour:\r\n\r\nPlease fix the issue to ensure that the Excel file can be opened correctly even if the name field contains a hyphen.\r\n\r\n## ETC\r\nIf the Excel file does not open correctly when using the `addTable` function, try modifying the name field to `camelCase`.\r\n",
+  "comments": [
+    {
+      "author": "fadingNA",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-11-06T04:01:05Z",
+      "reactions": 0,
+      "body": "Can I work on this issue?"
+    },
+    {
+      "author": "ramiKang",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-11-23T10:50:37Z",
+      "reactions": 0,
+      "body": "@fadingNA\r\nHello fadingNa!\r\nWhen using the addTable method, I understand that using a ```hyphen(-)``` in the name field is **fundamentally** unmodifiable. However, it is possible to convert it to camelCase by removing the hyphen. Please keep this in mind!"
+    },
+    {
+      "author": "fadingNA",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-11-23T16:25:12Z",
+      "reactions": 1,
+      "body": "@ramiKang  got it let me do that"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/assets/e800a734-c5b4-4f0a-8266-535316b58d81",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

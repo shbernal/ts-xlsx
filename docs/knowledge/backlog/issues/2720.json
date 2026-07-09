@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2720,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2720",
+  "title": "Fix type mismatch in Address interface",
+  "state": "open",
+  "author": "ashc0",
+  "createdAt": "2024-03-05T08:11:48Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Summary\r\n\r\nFix [#2719](https://github.com/exceljs/exceljs/issues/2719)\r\n\r\n## Test plan\r\n\r\n## Related to source code (for typings update)\r\nhttps://github.com/exceljs/exceljs/blob/master/index.d.ts#L1625C2-L1626C14\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2719",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/index.d.ts#L1625C2-L1626C14",
+      "ext": "ts",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 2,
+    "deletions": 2,
+    "changedFiles": [
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      }
+    ]
+  }
+}

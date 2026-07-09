@@ -1,0 +1,57 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1323,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1323",
+  "title": "  error using exceljs",
+  "state": "open",
+  "author": "Nana186",
+  "createdAt": "2020-06-09T18:16:48Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "Typescript"
+  ],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "Hi,\r\n\r\nI'm getting this  error using ExcelJS:\r\n```\r\n\r\n63% building 8/8 modules 0 active    \r\n    ERROR in ../../../../node_modules/exceljs/index.d.ts:1415:22 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1415  read(stream: import('stream').Stream): Promise<Workbook>;\r\n                              ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1436:23 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1436  write(stream: import('stream').Stream, options?: Partial<XlsxWriteOptions>): Promise<void>;\r\n                               ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1523:22 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1523  read(stream: import('stream').Stream, options?: Partial<CsvReadOptions>): Promise<Worksheet>;\r\n                              ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1543:23 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1543  write(stream: import('stream').Stream, options?: Partial<CsvWriteOptions>): Promise<void>;\r\n                               ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1840:19 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1840                stream: import('stream').Stream;\r\n                                       ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1884:25 - error TS2503: Cannot find namespace 'NodeJS'.\r\n    \r\n    1884                dictionary: Buffer | NodeJS.TypedArray | DataView | ArrayBuffer; // deflate/inflate only, empty dictionary by default\r\n                                             ~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1936:39 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1936                constructor(input: string | import('stream').Stream, options: Partial<WorkbookStreamReaderOptions>);\r\n                                                           ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1945:18 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1945                entry: import('stream').Stream;\r\n                                      ~~~~~~~~\r\n    \r\n\r\nDate: 2020-06-09T16:34:46.286Z - Hash: 6bd7c8494954fb2af354\r\n6 unchanged chunks\r\nchunk {main} main.js, main.js.map (main) 462 kB [initial] [rendered]\r\nchunk {vendor} vendor.js, vendor.js.map (vendor) 9.89 MB [initial] [rendered]\r\nTime: 8107ms\r\n\r\nWARNING in ./node_modules/crypto-js/core.js\r\nModule not found: Error: Can't resolve 'crypto' in 'E:\\proyectos\\sia-caecs\\sia-caecs-angular\\node_modules\\crypto-js'\r\n: Compiled successfully.\r\n95% emitting CopyPlugin    \r\n    ERROR in ../../../../node_modules/exceljs/index.d.ts:1415:22 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1415  read(stream: import('stream').Stream): Promise<Workbook>;\r\n                              ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1436:23 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1436  write(stream: import('stream').Stream, options?: Partial<XlsxWriteOptions>): Promise<void>;\r\n                               ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1523:22 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1523  read(stream: import('stream').Stream, options?: Partial<CsvReadOptions>): Promise<Worksheet>;\r\n                              ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1543:23 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1543  write(stream: import('stream').Stream, options?: Partial<CsvWriteOptions>): Promise<void>;\r\n                               ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1840:19 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1840                stream: import('stream').Stream;\r\n                                       ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1884:25 - error TS2503: Cannot find namespace 'NodeJS'.\r\n    \r\n    1884                dictionary: Buffer | NodeJS.TypedArray | DataView | ArrayBuffer; // deflate/inflate only, empty dictionary by default\r\n                                             ~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1936:39 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1936                constructor(input: string | import('stream').Stream, options: Partial<WorkbookStreamReaderOptions>);\r\n                                                           ~~~~~~~~\r\n    ../../../../node_modules/exceljs/index.d.ts:1945:18 - error TS2307: Cannot find module 'stream'.\r\n    \r\n    1945                entry: import('stream').Stream;\r\n                                      ~~~~~~~~\r\n    \r\n\r\nDate: 2020-06-09T16:35:36.553Z - Hash: 6bd7c8494954fb2af354\r\n8 unchanged chunks\r\n\r\nTime: 3970ms\r\n\r\nWARNING in ./node_modules/crypto-js/core.js\r\nModule not found: Error: Can't resolve 'crypto' in 'E:\\proyectos\\sia-caecs\\sia-caecs-angular\\node_modules\\crypto-js'\r\n: Compiled successfully.\r\nPS E:\\proyectos\\sia-caecs\\sia-caecs-angular\\src\\app\\reportes\\servicios> node -v\r\nv12.16.1\r\nPS E:\\proyectos\\sia-caecs\\sia-caecs-angular\\src\\app\\reportes\\servicios> ng serve\r\n\r\nchunk {main} main.js, main.js.map (main) 2.01 kB [initial] [rendered]\r\nchunk {polyfills} polyfills.js, polyfills.js.map (polyfills) 686 bytes [initial] [rendered]\r\nchunk {runtime} runtime.js, runtime.js.map (runtime) 6.15 kB [entry] [rendered]\r\nchunk {scripts} scripts.js, scripts.js.map (scripts) 189 kB [entry] [rendered]\r\nchunk {styles} styles.js, styles.js.map (styles) 358 kB [initial] [rendered]\r\nchunk {vendor} vendor.js, vendor.js.map (vendor) 340 kB [initial] [rendered]\r\nDate: 2020-06-09T16:45:36.426Z - Hash: 2cdedcc6ed1f7d0454fb - Time: 12816ms\r\n\r\nERROR in ../../../../node_modules/exceljs/index.d.ts:1415:22 - error TS2307: Cannot find module 'stream'.\r\n\r\n1415  read(stream: import('stream').Stream): Promise<Workbook>;\r\n                          ~~~~~~~~\r\n../../../../node_modules/exceljs/index.d.ts:1436:23 - error TS2307: Cannot find module 'stream'.\r\n\r\n1436  write(stream: import('stream').Stream, options?: Partial<XlsxWriteOptions>): Promise<void>;\r\n                           ~~~~~~~~\r\n../../../../node_modules/exceljs/index.d.ts:1523:22 - error TS2307: Cannot find module 'stream'.\r\n\r\n1523  read(stream: import('stream').Stream, options?: Partial<CsvReadOptions>): Promise<Worksheet>;\r\n                          ~~~~~~~~\r\n../../../../node_modules/exceljs/index.d.ts:1543:23 - error TS2307: Cannot find module 'stream'.\r\n\r\n1543  write(stream: import('stream').Stream, options?: Partial<CsvWriteOptions>): Promise<void>;\r\n                           ~~~~~~~~\r\n../../../../node_modules/exceljs/index.d.ts:1840:19 - error TS2307: Cannot find module 'stream'.\r\n\r\n1840            stream: import('stream').Stream;\r\n                               ~~~~~~~~\r\n../../../../node_modules/exceljs/index.d.ts:1884:25 - error TS2503: Cannot find namespace 'NodeJS'.\r\n\r\n1884            dictionary: Buffer | NodeJS.TypedArray | DataView | ArrayBuffer; // deflate/inflate only, empty dictionary by default\r\n                                     ~~~~~~\r\n../../../../node_modules/exceljs/index.d.ts:1936:39 - error TS2307: Cannot find module 'stream'.\r\n\r\n1936            constructor(input: string | import('stream').Stream, options: Partial<WorkbookStreamReaderOptions>);\r\n                                                   ~~~~~~~~\r\n../../../../node_modules/exceljs/index.d.ts:1945:18 - error TS2307: Cannot find module 'stream'.\r\n\r\n1945            entry: import('stream').Stream;\r\n```",
+  "comments": [
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-06-12T01:40:43Z",
+      "reactions": 0,
+      "body": "@Nana186 See issue #1191, hope it helps you.  "
+    },
+    {
+      "author": "sebcza",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-17T09:59:41Z",
+      "reactions": 3,
+      "body": "I have the same issue in Angular 8 app. \r\nI updated nodeJS to newest.\r\nI added \"types\": [ \"node\" ] to tsconfig.json\r\nI installed 13.13.12 @types/node\r\n\r\nAnd still Cannot find module 'stream'."
+    },
+    {
+      "author": "Umashankar8895",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-01T06:41:01Z",
+      "reactions": 34,
+      "body": "I fixed it by add \"types\": [\"node\"] to \"tsconfig.app.json\" inside \"compilerOptions\" as-\r\n**\"compilerOptions\": {\r\n   .........\r\n    \"types\": [\"node\"]\r\n  }**"
+    },
+    {
+      "author": "MohammedBrh",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-14T16:29:54Z",
+      "reactions": 0,
+      "body": "**solution without the change in the tsConfig file**\r\n\r\nthis method does not support an array of objects or objects, but it does support an array or an array of arrays.\r\n\r\nif you have used excelJs methods with objects or an array of objects this problem will occur.\r\nu can use a function to transfer the object to array : \r\n\r\n- Object.values(obj)\r\n\r\n**Angular CLI: 12.2.3\r\nNode: 14.17.4\r\nPackage Manager: npm 6.14.14**"
+    },
+    {
+      "author": "allexandry",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-17T17:27:28Z",
+      "reactions": 1,
+      "body": "> I fixed it by add \"types\": [\"node\"] to \"tsconfig.app.json\" inside \"compilerOptions\" as- **\"compilerOptions\": { ......... \"types\": [\"node\"] }**\r\n\r\nThis worked for me using \"tsconfig.app.json\" not \"tsconfig.json\""
+    }
+  ],
+  "attachments": []
+}

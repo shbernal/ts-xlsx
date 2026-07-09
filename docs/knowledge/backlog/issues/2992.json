@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2992,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2992",
+  "title": "[BUG] Worksheet protection with sort: true and autoFilter: true doesn't allow sorting in Excel",
+  "state": "open",
+  "author": "sjadiscohen",
+  "createdAt": "2025-11-04T14:14:59Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Bug Description\nWhen using worksheet protection with `sort: true` and `autoFilter: true` options, the generated Excel file still prevents sorting and shows the error: \"The cell or chart you're trying to change is on a protected sheet. To make a change, unprotect the sheet.\"\n\n## Expected Behavior\nBased on Excel's documentation and protection options, setting `sort: true` and `autoFilter: true` should allow users to sort and filter data while keeping specific cells locked.\n\n## Actual Behavior\nExcel blocks all sorting operations on the protected sheet, even with explicit sort permissions enabled.\n\n## Code to Reproduce\n```javascript\nconst workbook = new ExcelJS.Workbook()\nconst worksheet = workbook.addWorksheet('Test')\n\n// Add sample data\nworksheet.columns = [\n  { header: 'ID', key: 'id', width: 10 },\n  { header: 'Name', key: 'name', width: 20 },\n  { header: 'Department', key: 'department', width: 20 }\n]\n\nworksheet.addRows([\n  { id: 1, name: 'John', department: 'IT' },\n  { id: 2, name: 'Jane', department: 'HR' }\n])\n\n// Lock some cells\nworksheet.getCell('A2').protection = { locked: true }\nworksheet.getCell('A3').protection = { locked: true }\n\n// Enable autofilter\nworksheet.autoFilter = { from: 'A1', to: 'C3' }\n\n// Protect with sort and autoFilter permissions\nawait worksheet.protect('password', {\n  selectLockedCells: true,\n  selectUnlockedCells: true,\n  sort: true,        // Should allow sorting\n  autoFilter: true,  // Should allow filtering\n  formatCells: false,\n  insertRows: false,\n  deleteRows: false\n})",
+  "comments": [],
+  "attachments": []
+}

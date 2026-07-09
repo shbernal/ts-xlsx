@@ -1,0 +1,81 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 385,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/385",
+  "title": "Merge workbooks / append sheets with data",
+  "state": "open",
+  "author": "ghost",
+  "createdAt": "2017-08-31T08:00:41Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 8,
+  "body": "This may be a long shot, but is there way to either add a a sheet with sheet data from another workbook, or merge two workbooks together?\r\n\r\nI'm using exceljs and currently experiencing that the workbook generation takes quite a while with a huge number of rows (5000+) and columns (20+). Ideally I'd like to be able to split this work across a Node cluster per-sheet then merge the sheets together into a single workbook.\r\n\r\nI could probably do this manually, but I'm concerned there's internal state in the workbook object itself that would prevent this working.",
+  "comments": [
+    {
+      "author": "ghost",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-08-31T10:27:27Z",
+      "reactions": 0,
+      "body": "My initial investigations into this lead me to using the model property to retrieve a serialised copy of a sheet, then setting a new Worksheet's model to be this data at the other end. This lets me safely marshal sheets across NodeJS processes.\r\n\r\nI assume this is most likely the best way to achieve this as it stands."
+    },
+    {
+      "author": "nswarr",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-11-01T20:02:39Z",
+      "reactions": 0,
+      "body": "I need to do something similar.  Do you have code demonstrating this?"
+    },
+    {
+      "author": "mfahmirukman",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-11-11T02:38:53Z",
+      "reactions": 0,
+      "body": "@lyptt \r\n> workbook generation takes quite a while with a huge number of rows (5000+) and columns (20+)\r\n\r\nI'm guessing that you're not using a streaming API because that many cells shouldn't take too long.\r\n\r\nIf you're trying to add data from workbook A with worksheet A to workbook B with worksheet B:\r\n1) Access workbook A and then access worksheet A\r\n2) traverse worksheet A and read every row there is and store it in an array storedData\r\n3) access workbook B and then access worksheet B\r\n4) then do \r\n\r\n`storedData.forEach(function(item, index) {`\r\n    `worksheetB.addRow({`\r\n             `//your data here`\r\n    `})`\r\n`})`\r\n5) Write excel file with streaming api method (takes less memory and clear the memory footprint compared to the writing to a file method)\r\n"
+    },
+    {
+      "author": "ghost",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-11-12T09:26:12Z",
+      "reactions": 0,
+      "body": "Hi @mfahmirukman, I've tried with and without streaming. Regardless of which method I chose, the worksheet generation took an incredibly long time and was the major bottleneck in my process. I decided to limit the data size in the end to avoid the issue."
+    },
+    {
+      "author": "mfahmirukman",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-11-12T16:34:25Z",
+      "reactions": 0,
+      "body": "@lyptt\r\nHmm, I'm not sure what causes it then. If it were the problem of memory leak, then yeah streaming API is the answer. I'm not entirely sure about your case though. In my latest case I did, writing 40,000-50,000 rows x 40 columns doesn't seem to be an issue."
+    },
+    {
+      "author": "lakshminarayana915213",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-01-03T14:19:30Z",
+      "reactions": 0,
+      "body": "Hi @mfahmirukman, can you post the sample code for streaming API usage using exceljs. I have also memory leak problem. Currently i am using writeBuffer method to write the data.\r\n"
+    },
+    {
+      "author": "shubhamseth29",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-05-09T07:24:48Z",
+      "reactions": 0,
+      "body": "Hi @mfahmirukman , The solution you told is not working as of now , as on iterating over worksheet the JSON that I get is not same as the format required to addRow method, so it's not possible to use that JSON..\r\n\r\n  const book = new Workbook();\r\n\r\n    bookOld.worksheets.forEach((sheetLocal) => {\r\n      const storedData = [];\r\n      bookNew.addWorksheet(sheetLocal.name);\r\n      sheet.eachRow((row) => {\r\n        storedData.push(row);\r\n      });\r\n      storedData.forEach((row) => {\r\n        bookNew.getWorksheet(sheetLocal.name).addRow(row);\r\n      });\r\n    });\r\n    \r\n    "
+    },
+    {
+      "author": "liashchynskyi",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-04-26T14:23:52Z",
+      "reactions": 0,
+      "body": "https://github.com/exceljs/exceljs/discussions/2053#discussioncomment-5732379\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/discussions/2053#discussioncomment-5732379",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

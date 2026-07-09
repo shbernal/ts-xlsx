@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2938,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2938",
+  "title": "[F] Decouple CSV/XLSX Loading Logic in `exceljs`",
+  "state": "open",
+  "author": "electroluxcode",
+  "createdAt": "2025-06-09T14:12:54Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Feature Proposal  \n\n\n**Decouple CSV/XLSX Loading Logic in `exceljs`**  , The path is `lib/doc/workbook.js`\n\n\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/doc/workbook.js#L34-L42\n\nCurrently, the library bundles all parsing logic (CSV, XLSX, etc.) into a single monolithic file, even when users only need a subset of functionalities. This proposal suggests:  \n1. **Modularize dependencies**: Split CSV and XLSX loaders into optional submodules.  \n2. **Lazy-loading**: Allow developers to import only the required parsers \n3. **Core-only bundle**: Provide a minimal bundle (528KB in testing) when no file parsers are needed.  \n\n﻿\n## Motivation  \n\nIn my actual business, there are situations where only load CSV, load XLSX are used, or there is no need to load these two at all. But the packaged min file is about 960KB\nAnd only using these few lines of code\n```js\nimport ExcelJS from 'exceljs';\nconst wb = new ExcelJS.Workbook();\nwb.csv.load(\"xxxxxxxxxxxxxxx\")\n```\n\n- Current minified bundle: **960KB** (all parsers).  \n- After decoupling:  \n- **CSV-only**: 648KB (**32.4% smaller**).  \n- **XLSX-only**: 880KB(**10% smaller**).  \n- **Core-only (no parsers)**: 528KB (**45% smaller**).  \n\nCritical for browser environments and performance-sensitive apps.  \n﻿\n\n\n\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/doc/workbook.js#L34-L42",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2544,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2544",
+  "title": "[BUG] Can't open excel file generated wit mini excel dll",
+  "state": "open",
+  "author": "apis3445",
+  "createdAt": "2023-09-27T16:43:43Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "## 🐛 Bug Report\r\n\r\nI generated some excel files with this library https://www.nuget.org/packages/MiniExcel#versions-body-tab. I am trying to read the excel file and I got an error: \r\n\r\nCannot set properties of undefined (setting 'sheetNo')\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\nTry to open a excel file generated with external library.\r\n\r\n```javascript\r\n`workbook.xlsx.readFile(pathFile).then(function () {\r\n            const headers: string[] = [];\r\n            const sheet = workbook.getWorksheet(sheetNumber);\r\n            for (let index = 1; index <= totalColumns; index++) {\r\n                headers.push(sheet.getRow(1).getCell(index).text);\r\n            }\r\n            return headers;`\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nOpen the excel file\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-09-27T21:31:37Z",
+      "reactions": 0,
+      "body": "it seems be an issue rather for the MiniExcel, that they don't write some data."
+    },
+    {
+      "author": "apis3445",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-28T04:40:30Z",
+      "reactions": 0,
+      "body": "I can open the filme manually and while I was debugging I saw some of the Excel columna data"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-09-28T07:04:24Z",
+      "reactions": 0,
+      "body": "Are you able to attach that file?"
+    },
+    {
+      "author": "apis3445",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-28T18:54:14Z",
+      "reactions": 0,
+      "body": "Sure, this is some sample \r\n[Student Detail Report (2).xlsx](https://github.com/exceljs/exceljs/files/12752985/Student.Detail.Report.2.xlsx)\r\n"
+    },
+    {
+      "author": "apis3445",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-11T19:22:08Z",
+      "reactions": 0,
+      "body": "any updates on this?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.nuget.org/packages/MiniExcel#versions-body-tab",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/12752985/Student.Detail.Report.2.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

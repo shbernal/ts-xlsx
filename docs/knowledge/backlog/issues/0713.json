@@ -1,0 +1,287 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 713,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/713",
+  "title": "Uncaught EvalError:  'unsafe-eval' is not an allowed source of script in the following Content",
+  "state": "open",
+  "author": "charutiwari04",
+  "createdAt": "2018-12-19T19:21:08Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "help wanted"
+  ],
+  "reactions": 9,
+  "commentCount": 27,
+  "body": "Hi, I am getting following error from excel.min.js for using new Function(). I am not able to use exceljs. Please help\r\n\r\n﻿\r\nexceljs.min.js:9 Uncaught EvalError: Refused to evaluate a string as JavaScript because 'unsafe-eval' is not an allowed source of script in the following Content Security Policy directive: \"script-src 'self':\r\n\r\n\r\n    at new Function (<anonymous>)\r\n    at b (exceljs.min.js:9)\r\n    at exceljs.min.js:9\r\n    at Object.118 (exceljs.min.js:9)\r\n    at e (exceljs.min.js:3)\r\n    at exceljs.min.js:3\r\n    at Object.119../declare.js (exceljs.min.js:10)\r\n    at e (exceljs.min.js:3)\r\n    at exceljs.min.js:3\r\n    at Object.<anonymous> (exceljs.min.js:10)",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-11T17:48:28Z",
+      "reactions": 0,
+      "body": "hello @charutiwari04, did You fix it? Could you write some additional info?"
+    },
+    {
+      "author": "charutiwari04",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-01-14T18:19:31Z",
+      "reactions": 0,
+      "body": "Hi @Siemienik, I am not able to solve it. This is what i have. the above error is content security policy error."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-14T18:33:26Z",
+      "reactions": 0,
+      "body": "@charutiwari04 have you any example code/repo/gist?"
+    },
+    {
+      "author": "charutiwari04",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-01-14T18:46:37Z",
+      "reactions": 0,
+      "body": "@Siemienik Here it is. Below function is being called when button is clicked.\r\n```\r\nimport * as Excel from 'exceljs';\r\nexportExcel(){\r\n    var workbook = new Excel.Workbook();\r\n    var worksheet = workbook.addWorksheet('Log');\r\n    worksheet.columns = [\r\n      { header: \"IP Number\", key: 'ip_address', width: 10 },\r\n      { header: \"Actor\", key: 'actor_type', width: 10 },\r\n      { header: \"Date/Time (PST/PDT)\", key: 'date_created', width: 20 },\r\n      { header: \"ID\", key: 'activity_id', width: 15, numFmt: '0' },\r\n      { header: \"Action\", key: 'action_type', width: 10 },\r\n      { header: \"Action Data\", key: 'action_data', width: 30, numFmt: '@' }\r\n    ];\r\n    worksheet.addRows(this.props.data);\r\n    workbook.xlsx.writeFile('act1.xlsx').then(function() {\r\n      console.log(\"saved\");\r\n    });\r\n  }\r\n```"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-14T19:11:35Z",
+      "reactions": 0,
+      "body": "@charutiwari04 I've just tested your example, and I note, that the wrong data type pushed into `addRows` cause thrown errors.\r\n\r\n`this.props.data` should be an array. is it?"
+    },
+    {
+      "author": "papandreou",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2019-01-15T09:03:24Z",
+      "reactions": 5,
+      "body": "Does it work if you add `script-src 'self' 'unsafe-eval'` to the Content-Security-Policy of the web page (or Chrome Extension or whatever) that you're trying to use exceljs on, as the error message suggests?\r\n\r\nIt looks like the \"dist\" version of the lib does contain `new Function`, which would explain why that directive is needed."
+    },
+    {
+      "author": "charutiwari04",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-01-15T17:52:36Z",
+      "reactions": 2,
+      "body": "@papandreou Perfect Solution. It is working for me. Thank You. After I added `script-src: 'self' 'unsafe-eval'`.This is the working modified code:\r\n\r\n```\r\nvar workbook = new Excel.Workbook();\r\n    var worksheet = workbook.addWorksheet('Log');\r\n    worksheet.columns = [\r\n      { header: \"IP Number\", key: 'ip_address', width: 10 },\r\n      { header: \"Actor\", key: 'actor_type', width: 10 },\r\n      { header: \"Date/Time (PST/PDT)\", key: 'date_created', width: 20 },\r\n      { header: \"ID\", key: 'activity_id', width: 15, numFmt: '0' },\r\n      { header: \"Action\", key: 'action_type', width: 10 },\r\n      { header: \"Action Data\", key: 'action_data', width: 30, numFmt: '@' }\r\n    ];\r\n    var firstRow = worksheet.getRow(1);\r\n    firstRow.font = { name: 'New Times Roman', family: 4, size: 10, bold: true, color: {argb:'80EF1C1C'} };\r\n    firstRow.alignment = { vertical: 'middle', horizontal: 'center'};\r\n    firstRow.height = 20;\r\n    worksheet.addRows(data);\r\n    var buff = workbook.xlsx.writeBuffer().then(function (data) {\r\n     var blob = new Blob([data], {type: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"});\r\n      const url = window.URL.createObjectURL(blob);\r\n     const anchor = document.createElement('a');\r\n     anchor.href = url;\r\n     anchor.setAttribute('download', 'Log.xls');\r\n     document.body.appendChild(anchor)\r\n     anchor.click();\r\n```"
+    },
+    {
+      "author": "pierre-aurele-martin",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-03-05T10:30:24Z",
+      "reactions": 10,
+      "body": "Following this bug that I had too \r\n\r\nThe `new Function()` which make CSP unsafe-eval not happy is in [declare.js](https://github.com/doug-martin/declare.js) - not updated since a long time\r\n\r\ndeclare.js is required by extended.js required by fast-csv required by exceljs (something like that)\r\n\r\nAllow 'unsafe-eval' in CSP is not a solution we could afford as it reduces the CSP purpose ! The only solution I've found so far is to : \r\n\r\n* tell webpack to resolve declare.js through a custom path ; \r\n* the custom path being a fork of declare.js in which I replace `new Function()` by `function(){}`\r\n\r\nI'll submit a PR to declare.js in order to fix that. **But, if it's never accepted, what do you think will be the best solution for exceljs ?**\r\n\r\nOne solution is to define an option to toggle the load of  CSV capabilities (and therefor fast-csv) but not super practical as it means you can not use work on CSV with strong CSP.\r\n\r\n\r\n\r\n"
+    },
+    {
+      "author": "zachariahtimothy",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-06-03T22:02:43Z",
+      "reactions": 0,
+      "body": "@pierre-aurele-martin did you ever submit a PR for this issue? I am like you and cannot allow unsafe-eval. "
+    },
+    {
+      "author": "cashewnuts",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-28T04:19:40Z",
+      "reactions": 6,
+      "body": "The unsafe-eval problem has been existing so long.\r\nI finally manage to find the cause.\r\n\r\nThe cause is that regenerator library ([regenerator-runtime](https://www.npmjs.com/package/regenerator-runtime)) requires us to not be running on strict mode.\r\nSee this comment.\r\nhttps://github.com/facebook/regenerator/blob/491714f6aac228397bd845a83faf18dda966e366/packages/regenerator-runtime/runtime.js#L719-L728\r\n\r\nAs a quick fix, I modified `dist/exceljs.js` with this command and check if it works. This worked great on CSP protected page!\r\n```bash\r\nsed -i \"s/[\\\"|']use strict[\\\"|']/;/g\" dist/exceljs.js\r\n```\r\n\r\nI also confirmed tests pass.\r\n```bash\r\nnpm run build && sed -i \"s/[\\\"|']use strict[\\\"|']/;/g\" dist/exceljs*js && npm run test:jasmine\r\n```\r\n\r\nUnfortunately I don't know much about grunt and browserify. So I can't immediately make a pull-request according to this.\r\n"
+    },
+    {
+      "author": "dominic-simplan",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-15T09:50:09Z",
+      "reactions": 0,
+      "body": "So it seems like fast-csv was actually an issue but has been fixed in the meanwhile and this should not cause errors anymore.\r\nHowever, the unsafe-eval Error is still thrown, so there must be some other reason. \r\n\r\n@cashewnuts Are you sure that the regenerator library was the cause? It seems to be only a devDependency, so why would it cause an error at runtime? Or is it used by one of the dependencies?\r\n\r\nEdit: Okay it seems the regenerator-runtime is required here: https://cdn.jsdelivr.net/npm/exceljs@4.1.1/dist/es5/exceljs.browser.js\r\nWhere is the \"use strict\" at top of this script coming from?"
+    },
+    {
+      "author": "mdantonio",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-11T18:06:07Z",
+      "reactions": 0,
+      "body": "regenerator-runtime reports ([here](https://github.com/facebook/regenerator/blob/063f14ef7f01bb29830e3f17e9ef151e7a5cb2f3/packages/regenerator-runtime/runtime.js#L713-L726)) the following comment:\r\n\r\n```\r\ntry {\r\n  regeneratorRuntime = runtime;\r\n} catch (accidentalStrictMode) {\r\n  // This module should not be running in strict mode, so the above\r\n  // assignment should always work unless something is misconfigured. Just\r\n  // in case runtime.js accidentally runs in strict mode, we can escape\r\n  // strict mode using a global Function call. This could conceivably fail\r\n  // if a Content Security Policy forbids using Function, but in that case\r\n  // the proper solution is to fix the accidental strict mode problem. If\r\n  // you've misconfigured your bundler to force strict mode and applied a\r\n  // CSP to forbid Function, and you're not willing to fix either of those\r\n  // problems, please detail your unique predicament in a GitHub issue.\r\n  Function(\"r\", \"regeneratorRuntime = r\")(runtime);\r\n}\r\n```\r\n\r\nThis comment definitely confirms (if still needed) that the strict mode is the problem... Is there any chance to officially solve this issue?\r\nThe trick suggested by @cashewnuts (really thank you for that) is very tempting, but it is quite dirty\r\n"
+    },
+    {
+      "author": "charleaux",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-17T14:27:25Z",
+      "reactions": 1,
+      "body": "Is there any way we can get this bumped in priority?"
+    },
+    {
+      "author": "laurisvan",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-07T19:59:57Z",
+      "reactions": 0,
+      "body": "Since my project very much needs CSP to work and we are using this package, I spent some time investigating this one.\r\n\r\nIt appears \"use strict\" is may be added by browserify process already, and it seems like the interplay with babel just makes it more difficult. There are many ways to disable babel from adding \"use strict\" definitions, but as they are not defined by babel at all, all the known ways seem to fail (I tried many).\r\n\r\nI haven't been played with ES transpilation lately, but I must ask if we even need Browserify anymore? Could the stack be simplified by using babel alone, and the \"use strict\" definitions would be easier to solve?"
+    },
+    {
+      "author": "laurisvan",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-13T11:20:40Z",
+      "reactions": 1,
+      "body": "I made a PR #1664  for a brute force replacement of \"use strict\". I believe it should have no shortcomings except that somebody could slip unstrict code into web builds. I believe most of us use ExcelJS bundled with Webpack or such, so I believe the builds are already strict by various other ways.\r\n\r\nPlease let me know if this works for you and whether it is an acceptable fix to the problem."
+    },
+    {
+      "author": "notclive",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-06-30T16:52:06Z",
+      "reactions": 1,
+      "body": "I've worked around this issue on my project by importing the bare version of `exceljs`, which doesn't include any polyfills (including `regenerator-runtime`), and importing `regenerator-runtime` separately."
+    },
+    {
+      "author": "laurisvan",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-07-03T17:32:10Z",
+      "reactions": 0,
+      "body": "@notclive How did you manage to do such an import? Would be nice to get it working in our webpack based build."
+    },
+    {
+      "author": "notclive",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-07-05T10:22:12Z",
+      "reactions": 7,
+      "body": "> \r\n> \r\n> @notclive How did you manage to do such an import? Would be nice to get it working in our webpack based build.\r\n\r\nWe put the following in our webpack config\r\n```\r\nresolve: {\r\n        alias: {\r\n            'exceljs': 'exceljs/dist/exceljs.bare.min.js'\r\n        }\r\n    }\r\n```"
+    },
+    {
+      "author": "FantomNY",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-11-17T07:08:07Z",
+      "reactions": 0,
+      "body": "> Following this bug that I had too\r\n> \r\n> The `new Function()` which make CSP unsafe-eval not happy is in [declare.js](https://github.com/doug-martin/declare.js) - not updated since a long time\r\n> \r\n> declare.js is required by extended.js required by fast-csv required by exceljs (something like that)\r\n> \r\n> Allow 'unsafe-eval' in CSP is not a solution we could afford as it reduces the CSP purpose ! The only solution I've found so far is to :\r\n> \r\n> * tell webpack to resolve declare.js through a custom path ;\r\n> * the custom path being a fork of declare.js in which I replace `new Function()` by `function(){}`\r\n> \r\n> I'll submit a PR to declare.js in order to fix that. **But, if it's never accepted, what do you think will be the best solution for exceljs ?**\r\n> \r\n> One solution is to define an option to toggle the load of CSV capabilities (and therefor fast-csv) but not super practical as it means you can not use work on CSV with strong CSP.\r\n\r\nThank you very much. I spend 4 hours finding a decision. Its really works. I just replace by step 2 the original file (exceljs.min.js). Greet day. "
+    },
+    {
+      "author": "achimmihca",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-23T14:10:48Z",
+      "reactions": 0,
+      "body": "Duplicate of #512\r\n\r\nI still find `Function('return this')` in current versions of this lib, when looking in `node_modules/exceljs/dist/exceljs.bare.min.js`.\r\nHas no fix arrived yet in exceljs?"
+    },
+    {
+      "author": "watton-chen",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-10-19T07:23:53Z",
+      "reactions": 0,
+      "body": "> The unsafe-eval problem has been existing so long. I finally manage to find the cause.\r\n> \r\n> The cause is that regenerator library ([regenerator-runtime](https://www.npmjs.com/package/regenerator-runtime)) requires us to not be running on strict mode. See this comment. https://github.com/facebook/regenerator/blob/491714f6aac228397bd845a83faf18dda966e366/packages/regenerator-runtime/runtime.js#L719-L728\r\n> \r\n> As a quick fix, I modified `dist/exceljs.js` with this command and check if it works. This worked great on CSP protected page!\r\n> \r\n> ```shell\r\n> sed -i \"s/[\\\"|']use strict[\\\"|']/;/g\" dist/exceljs.js\r\n> ```\r\n> \r\n> I also confirmed tests pass.\r\n> \r\n> ```shell\r\n> npm run build && sed -i \"s/[\\\"|']use strict[\\\"|']/;/g\" dist/exceljs*js && npm run test:jasmine\r\n> ```\r\n> \r\n> Unfortunately I don't know much about grunt and browserify. So I can't immediately make a pull-request according to this.\r\n\r\nmanifest v3, it worked, thank you!"
+    },
+    {
+      "author": "ftes",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-13T08:05:27Z",
+      "reactions": 2,
+      "body": "The easiest workaround for us:\r\n`import exceljs/dist/exceljs.bare.min.js`\r\n\r\nOur build takes care of polyfills by itself anyway.\r\n\r\nThanks @notclive."
+    },
+    {
+      "author": "dmathisen",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-07T16:37:39Z",
+      "reactions": 6,
+      "body": "I managed to fix this by simply importing `regenerator-runtime` before importing `exceljs`. I don't know why it works (I figure it's importing a later, patched version) and I don't know if it's a good or bad idea, but it did work.\r\n```js\r\nimport 'regenerator-runtime';\r\nimport { Table, Workbook, Worksheet } from 'exceljs';\r\n```\r\n\r\nAnd as others have mentioned, adding `script-src 'self' 'unsafe-eval'` is **NOT** a fix.\r\n\r\nEdit: maybe it's safer to first add `regenerator-runtime` as a separate package (`npm -i regenerator-runtime`)?"
+    },
+    {
+      "author": "mahanandyadav",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-28T05:14:04Z",
+      "reactions": 1,
+      "body": "> I've worked around this issue on my project by importing the bare version of `exceljs`, which doesn't include any polyfills (including `regenerator-runtime`), and importing `regenerator-runtime` separately.\r\n\r\nthis worked for me:\r\nimport 'regenerator-runtime/runtime'; // Import regenerator-runtime separately\r\nimport ExcelJS from 'exceljs/dist/exceljs.min'; // Import the bare version of exceljs"
+    },
+    {
+      "author": "cherniavskii",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-27T22:51:13Z",
+      "reactions": 0,
+      "body": "Hi,\r\nI'm coming from this issue in MUI X: https://github.com/mui/mui-x/issues/11153\r\nI've inspected the `exclejs` build from NPM and the `new Function()` seems to be coming from the `jszip` dependency:\r\n\r\nhttps://github.com/Stuk/jszip/blob/2ceb998e29d4171b4f3f2ecab1a2195c696543c0/dist/jszip.js#L11404 \r\n\r\n<img width=\"774\" src=\"https://github.com/exceljs/exceljs/assets/13808724/bf42cf4e-0401-49bb-be04-6fb327b22b18\">\r\n\r\n<img width=\"550\" src=\"https://github.com/exceljs/exceljs/assets/13808724/bf02b517-d0ac-4d3e-8538-f5eb25260ed7\">\r\n\r\n---\r\n\r\nThe `new Function` in `jszip` is coming from browserify's [`insert-module-globals`](https://www.npmjs.com/package/insert-module-globals)."
+    },
+    {
+      "author": "cherniavskii",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-01-26T11:07:13Z",
+      "reactions": 0,
+      "body": "Since `jszip` is not maintained anymore (the last release was in August 2022), would it make sense to migrate to https://github.com/101arrowz/fflate?\r\nThis would fix this CSP issue, but also reduce the bundle size a bit (~16kB gzipped).\r\n\r\n@Siemienik What do you think? I can give it a try, but I would appreciate some guidance if there's an interest in this."
+    },
+    {
+      "author": "itsaakashpatel",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-31T23:38:13Z",
+      "reactions": 1,
+      "body": "I think this issue has been fixed in the 4.4.0 release. https://www.unpkg.com/browse/exceljs@4.4.0/dist/exceljs.bare.js"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/doug-martin/declare.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/regenerator-runtime",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/facebook/regenerator/blob/491714f6aac228397bd845a83faf18dda966e366/packages/regenerator-runtime/runtime.js#L719-L728",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/exceljs@4.1.1/dist/es5/exceljs.browser.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/facebook/regenerator/blob/063f14ef7f01bb29830e3f17e9ef151e7a5cb2f3/packages/regenerator-runtime/runtime.js#L713-L726",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/doug-martin/declare.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/regenerator-runtime",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/facebook/regenerator/blob/491714f6aac228397bd845a83faf18dda966e366/packages/regenerator-runtime/runtime.js#L719-L728",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/mui/mui-x/issues/11153",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/Stuk/jszip/blob/2ceb998e29d4171b4f3f2ecab1a2195c696543c0/dist/jszip.js#L11404",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/13808724/bf42cf4e-0401-49bb-be04-6fb327b22b18",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/13808724/bf02b517-d0ac-4d3e-8538-f5eb25260ed7",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/insert-module-globals",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/101arrowz/fflate?",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.unpkg.com/browse/exceljs@4.4.0/dist/exceljs.bare.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

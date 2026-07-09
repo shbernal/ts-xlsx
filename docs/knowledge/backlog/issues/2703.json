@@ -1,0 +1,73 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2703,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2703",
+  "title": "Replace zip dependencies for CompressionStream browser API",
+  "state": "open",
+  "author": "oliviertassinari",
+  "createdAt": "2024-02-22T13:06:43Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 9,
+  "commentCount": 4,
+  "body": "## 🚀 Feature Proposal\r\n\r\nReplace zip dependencies for the `CompressionStream` browser API.\r\n\r\nThere might be a need for separate browser and server bundles.\r\n\r\n## Motivation\r\n\r\nThis project has a dependency on `jszip`, `archiver`, and `unzipper`:\r\n\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/package.json#L98-L108\r\n\r\nwhich are bundlesize heavy https://bundlephobia.com/package/jszip, over 150 kB gzipped combined. Instead, we could use https://developer.mozilla.org/en-US/docs/Web/API/Compression_Streams_API. The browser support starts to be good enough.",
+  "comments": [
+    {
+      "author": "cherniavskii",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-26T09:58:26Z",
+      "reactions": 0,
+      "body": "This would also solve https://github.com/exceljs/exceljs/issues/713#issuecomment-1828759610 👍🏻"
+    },
+    {
+      "author": "pnappa",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-29T23:18:09Z",
+      "reactions": 0,
+      "body": "The above linked PR removes the node-unzipper dependency with another one (see #2687). The reason for doing so was:\r\n\r\na) remove a security vulnerability in a transitive dependency of `node-unzipper`, and\r\nb) remove a transitive dependency on a package with no licensing.\r\n\r\nHowever, I believe what's suggested here is even better than using the `yauzl-promise` library (given it also addresses package size). Note that implementing zipping via the `CompressionStream` API would bump the required NodeJS version to version 18, but my above linked PR also does so.\r\n\r\nI'm not even using this library, so I don't have the bandwidth to port this (and I'm not sure if it'll be merged, given the bump in minimum node version), but it'll probably be about a 4-8 hour patch?"
+    },
+    {
+      "author": "AyushAher",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-06T06:42:38Z",
+      "reactions": 0,
+      "body": "@alubbe @Siemienik @Alanscut Could you please investigate this issue? The node-unzipper library is no longer maintained and has known vulnerabilities. Consequently, we cannot use the `exceljs` library in projects where security vulnerabilities are a significant concern."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2024-12-20T09:57:58Z",
+      "reactions": 0,
+      "body": "Hi everyone,  \r\nI’ve released  a version with PR [Request to bump version of unzipper to eliminate license concerns](https://github.com/exceljs/exceljs/pull/2744) as a pre-release version: `4.4.1-prerelease.0`.  \r\n\r\nIf no issues are reported with this version, I plan to officially release it as `4.4.1` soon.\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/package.json#L98-L108",
+      "ext": "json",
+      "isFixture": false
+    },
+    {
+      "url": "https://bundlephobia.com/package/jszip",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Compression_Streams_API",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/713#issuecomment-1828759610",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2744",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2095,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2095",
+  "title": "fix: saving a worksheet with conditional formatting breaks the font styles",
+  "state": "open",
+  "author": "Codeneos",
+  "createdAt": "2022-07-15T15:51:03Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 1,
+  "body": "\r\n<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\nWhen opening a workbook with conditional formatting rules and saving it back font style applied by when the conditional formatting rule is true can change. \r\n\r\nTo reproduce the issue create workbook using Excel (latest version) with a conditional formatting rule that enables all font styles (italic, bold, strikethrough, etc). The condition of the rule is not relevant just make sure it applies to some rows in the sheet. Save the workbook, close it and reopen it in Excel. Now disable some of the font styles that are applied through the conditional formatting rule. Save the workbook and close it.\r\n\r\nNow open the workbook using exceljs and save it without making any changes.\r\n\r\nExpected behavior should be that the conditional formatting is exactly the same, observed behavior is that the cells to which conditional formatting is applied will have **all** font styles (italic, bold, strikethrough, etc) applied.\r\n\r\nAfter analysis I found that the dfxs tag in styles.xml containing conditional styles was not getting parsed properly. Each font style is parsed as Boolean tag. When a font should be **bold** the `b` tag is present with no value or attributes: `<b/>`. When the bold is unchecked a `val` attribute is added and set to 0 making the tag look as follows: `<b val=\"0\"/>`.\r\n\r\nLooking at the font xform parser the configuration on first inspection looks correct, i.e:\r\n```js\r\nthis.map = {\r\n      b: {prop: 'bold', xform: new BooleanXform({tag: 'b', attr: 'val'})},\r\n      i: {prop: 'italic', xform: new BooleanXform({tag: 'i', attr: 'val'})}\r\n      ...\r\n```\r\n\r\nLooking a bit deeper in the `BooleanXform` class the `attr` property is being set but completely ignored during the actual parsing of the tag and always returns true. And that is correct when the value is actually true but incorrect when there is an `val` attribute on the tag. In which case `BooleanXform` should honor the value in `val` instead of just checking if the \r\n\r\n```js\r\nclass BooleanXform extends BaseXform {\r\n  constructor(options) {\r\n    super();\r\n\r\n    this.tag = options.tag;\r\n    this.attr = options.attr;\r\n  }\r\n  \r\n  ...\r\n\r\n  parseOpen(node) {\r\n    if (node.name === this.tag) {\r\n      this.model = true;\r\n    }\r\n  }\r\n```\r\n\r\nThis also fixes issue #1732\r\n\r\n## Test plan\r\nWe use exceljs to generate a workbook from a database using an excel file as template that defines which columns to export. The template excel file as conditional formattings that makes certain rows as italic. The formatting is copied from the template sheet to the new sheet. The proposed fix has been tested and is confirmed to work for our application.\r\n\r\nThe spec file that tests the Boolean parser is also updated to test `val='0'` is parsed as false.\r\n\r\nThe `BooleanXform`-class which is changed in the PR is only used in `FontXform` therefore I expect this change will not have any side effects. Apart from that these changes are backward compatible and only when there is an attribute will the attribute value be honored instead of just checking if the tag exists.\r\n",
+  "comments": [
+    {
+      "author": "Codeneos",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-07-15T16:12:19Z",
+      "reactions": 0,
+      "body": "This might also fix a few other issues related to font styles changing after opening a workbook with exceljs which include: `condensed`, `outline`, `shadow`, `extended`."
+    }
+  ],
+  "attachments": [],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 29,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xform/simple/boolean-xform.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "spec/unit/xlsx/xform/simple/boolean-xform.spec.js",
+        "status": "modified",
+        "additions": 24,
+        "deletions": 0
+      }
+    ]
+  }
+}

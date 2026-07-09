@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2305,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2305",
+  "title": "row",
+  "state": "open",
+  "author": "fassm2008",
+  "createdAt": "2023-07-13T09:41:28Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "i want to add a row in multiple sheet",
+  "comments": [
+    {
+      "author": "bricejoosten",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-13T10:14:42Z",
+      "reactions": 0,
+      "body": "Hello,\r\n\r\nas mentioned in the [documentation ] that I invite you to read or at least Ctrl+F (https://github.com/exceljs/exceljs#add-rows), if you want to go through a workbook's worksheets and add a row, you can write this :\r\n```js\r\nworkbook.eachSheet((sheet, sheetId) => {\r\n    worksheet.addRow({id: 1, name: 'John Doe', dob: new Date(1970,1,1)});\r\n}\r\n```\r\n\r\nIf you don't want to go through every sheet, you can just do an array of the sheets' name you want to go through and for each of your workbook's sheets, if the name appears in your array then addRow, just as written below :\r\n```js\r\n  const mySheetsNames = ['Sheet1', 'Sheet3'];\r\n\r\n  workbook.eachSheet((sheet, sheetId) => {\r\n    if (mySheetsNames.includes(sheet.name)) {\r\n      const rowValues = ['Data 1', 'Data 2', 'Data 3'];\r\n      sheet.addRow(rowValues);\r\n    }\r\n  });\r\n```\r\n\r\nPlease don't forget to close this issue if this answers your question."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs#add-rows",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2608,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2608",
+  "title": "[BUG] Missing Release of Resource after Effective Lifetime [High Severity]",
+  "state": "open",
+  "author": "ocasiom",
+  "createdAt": "2023-12-01T15:02:45Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 6,
+  "body": "## 🐛 Bug Report\r\n\r\nThere's a snyk issue with the latest build\r\n\r\nMissing Release of Resource after Effective Lifetime [High Severity][https://security.snyk.io/vuln/SNYK-JS-INFLIGHT-6095116] in inflight@1.0.6\r\n\r\nLib version: 4.4.0\r\n\r\nIntroduced through: exceljs@4.4.0 › archiver@5.3.2 › archiver-utils@2.1.0 › glob@7.2.3 › inflight@1.0.6",
+  "comments": [
+    {
+      "author": "moodys-onkar",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-05T02:35:36Z",
+      "reactions": 0,
+      "body": "Yes, this is also impacting us. Please resolve this at the earliest."
+    },
+    {
+      "author": "chandanjainn",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-11T14:52:31Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "AshishGuptaNGupta",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-23T09:30:15Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "raffaele-moodys",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-28T11:00:04Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "relaxedleaf",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-29T17:50:30Z",
+      "reactions": 0,
+      "body": "Is there an update on this?"
+    },
+    {
+      "author": "henryfung3a27",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-18T04:33:32Z",
+      "reactions": 0,
+      "body": "Try https://github.com/exceljs/exceljs/issues/2829#issuecomment-2421305827"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://security.snyk.io/vuln/SNYK-JS-INFLIGHT-6095116",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2829#issuecomment-2421305827",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

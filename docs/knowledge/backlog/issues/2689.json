@@ -1,0 +1,56 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2689,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2689",
+  "title": "[BUG] Worksheets with a lot of merged cells take forever to parse",
+  "state": "open",
+  "author": "aorsten",
+  "createdAt": "2024-02-13T20:31:08Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\nFiles with too many merged cells will not load - they take too long.\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n\r\n1. Create an Excel book with a worksheet.\r\n2. In the worksheet, add a large amount of rows where one cell is merged on each row. See attached file. \r\n[toomanymerges.xlsx](https://github.com/exceljs/exceljs/files/14271763/toomanymerges.xlsx)\r\n3. Try to parse the workbook using:\r\n```\r\n  const buffer = fs.readFileSync(filename);\r\n  const workbook = new Workbook();\r\n  console.time('Buffer');\r\n  await workbook.xlsx.load(buffer);\r\n```\r\n4. Experience how it takes a long long time to parse.\r\n\r\n\r\n## The expected behaviour:\r\n\r\nIt should not be so slow. The attached file takes 1.5 minutes to parse in my Node environment. I have encountered worse examples from users of our product, and it runs in the browser, so those instances have just never finished.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nI have noticed that the slow culprit is the `_mergeCellsInternal` function inside `worksheet.js`, specifically the check that cells aren't already merges. Which makes sense, because it is built with n squared loops. See my discussion here: https://github.com/exceljs/exceljs/discussions/2568 \r\n\r\n```javascript\r\n// worksheet.js, ._mergeCellsInternal\r\n    // check cells aren't already merged\r\n    _.each(this._merges, merge => {\r\n      if (merge.intersects(dimensions)) {\r\n        throw new Error('Cannot merge already merged cells');\r\n      }\r\n    });\r\n```\r\n\r\nThe above code is the culprit. When I comment out this code, parsing is very fast again. Is there a way this could be more efficient? Is it even necessary? Is it necessary on first parse of the document?",
+  "comments": [
+    {
+      "author": "aorsten",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-15T08:02:08Z",
+      "reactions": 0,
+      "body": "Question: Rather than loop every other merge to see if there's a collision, couldn't the following:\r\n\r\n```\r\n    // apply merge\r\n    const master = this.getCell(dimensions.top, dimensions.left);\r\n    for (let i = dimensions.top; i <= dimensions.bottom; i++) {\r\n      for (let j = dimensions.left; j <= dimensions.right; j++) {\r\n        // merge all but the master cell\r\n        if (i > dimensions.top || j > dimensions.left) {\r\n          this.getCell(i, j).merge(master, ignoreStyle);\r\n        }\r\n      }\r\n    }\r\n```\r\nCheck the cells in question and see if they are already part of a merge? As such there are only n-merged cells included in the check?"
+    },
+    {
+      "author": "aorsten",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-15T11:39:38Z",
+      "reactions": 4,
+      "body": "My attempt at a fix in a PR: https://github.com/exceljs/exceljs/pull/2691"
+    },
+    {
+      "author": "hubyhub",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-26T07:55:45Z",
+      "reactions": 0,
+      "body": "thanks you very much! I would also desperately need exactly that fix!"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/14271763/toomanymerges.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/discussions/2568",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2691",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

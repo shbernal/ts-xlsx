@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1915,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1915",
+  "title": "[BUG] Different behavior for CSV export from Node.js and browser",
+  "state": "open",
+  "author": "joshkel",
+  "createdAt": "2021-12-01T19:03:53Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nThe Node.js and browser builds of exceljs have different behavior when exporting to CSV. The Node.js build works like I'd expect it to. In browser builds, however, the length of the first row limits the length of any subsequent rows. For example, if the first row has one column, then only one column is printed.\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n```javascript\r\nconst nodeExceljs = require('exceljs');\r\nconst browserExceljs = require('exceljs/dist/exceljs.min');\r\n\r\nasync function writeSampleCsv(exceljs) {\r\n  const workbook = new exceljs.Workbook();\r\n  const worksheet = workbook.addWorksheet();\r\n\r\n  worksheet.addRow(['Title']);\r\n  worksheet.addRow(['A', 'B', 'C']);\r\n  worksheet.addRow([1, 2, 3]);\r\n\r\n  console.log((await workbook.csv.writeBuffer()).toString());\r\n}\r\n\r\nasync function main() {\r\n  console.log('Testing Node.js build');\r\n  await writeSampleCsv(nodeExceljs);\r\n  console.log();\r\n\r\n  console.log('Testing browser build');\r\n  await writeSampleCsv(browserExceljs);\r\n}\r\nmain();\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nThe two blocks of output should be identical. Instead, I get the following output:\r\n\r\n```\r\nTesting Node.js build\r\nTitle\r\nA,B,C\r\n1,2,3\r\n\r\nTesting browser build\r\nTitle\r\nA\r\n1\r\n```\r\n",
+  "comments": [
+    {
+      "author": "thecheeto",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-16T22:53:18Z",
+      "reactions": 2,
+      "body": "I've noticed the same thing. A generic workaround I found is to do the following after adding all the data to the workbook. It basically just checks every cell of the first row up to the worksheet.columnCount and will set the value as an empty string if there currently isn't a value.\r\n\r\n``` js\r\nconst workbook = new Workbook();\r\nconst worksheet = workbook.addWorksheet();\r\n\r\n// populate worksheet with data\r\n\r\nlet firstRow = worksheet.getRow(1);\r\n\r\nfor (let i = 1; i <= worksheet.columnCount; i++) {\r\n  let cell = firstRow.getCell(i);\r\n\r\n  if (!cell.value) {\r\n    cell.value = '';\r\n  }\r\n}\r\n```\r\n\r\nIt seems hacky to have to do this, so hopefully this can be fixed."
+    }
+  ],
+  "attachments": []
+}

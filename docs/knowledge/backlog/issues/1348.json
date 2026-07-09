@@ -1,0 +1,58 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1348,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1348",
+  "title": "Excel crashes on opening when pageSetup fitToPage and outlineProperties settings used at the same time",
+  "state": "open",
+  "author": "EugeniyKiyashko",
+  "createdAt": "2020-06-22T10:31:27Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 11,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen trying to use pageSetup fitToPage setting with outlineProperties setting at opening the excel gives an error message stating that there is an error:\r\n\"We found a problem with some content in 'File.xlsx'. Do you want us to try to recover as much as we can? If you trust the source of this workbook, click Yes.\"\r\n\r\nLib version: 4.0.1\r\n\r\n## Steps To Reproduce\r\n\r\n[Live Example](https://codepen.io/EugeniyKiyashko/pen/pogeqrd?editors=1010)\r\n\r\n```javascript\r\n  var worksheet = workbook.addWorksheet('SheetName', { pageSetup: { fitToPage: true } });\r\n  worksheet.properties.outlineProperties = { summaryBelow: false };\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nThe exported file opens without any errors.\r\n\r\nThank you very much in advance.\r\n",
+  "comments": [
+    {
+      "author": "novsstation",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-23T07:07:21Z",
+      "reactions": 0,
+      "body": "I am getting the same behavior too."
+    },
+    {
+      "author": "vincentlaw94",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-06-14T17:44:27Z",
+      "reactions": 0,
+      "body": "any updates on this issue?"
+    },
+    {
+      "author": "GaryHyland",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-10-03T06:06:41Z",
+      "reactions": 0,
+      "body": "Also keen to be able to set outlineSummary to above on a page that has fitToPage. Get a corrupt file warning and if I try to recover it shows a blank sheet and the log shows.\r\n\r\n<recoveryLog xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">\r\n<logFileName>error491200_01.xml</logFileName>\r\n<summary>Errors were detected in file 'C:\\Users\\gary\\Downloads\\blah.xlsx'</summary>\r\n<removedParts>\r\n<removedPart>Replaced Part: /xl/worksheets/sheet1.xml part with XML error. Load error. Line 2, column 0.</removedPart>\r\n</removedParts>\r\n</recoveryLog>\r\n\r\nIf I remove outlineProperties the XLSX is fine."
+    },
+    {
+      "author": "strelok372",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-08-12T11:14:04Z",
+      "reactions": 0,
+      "body": "Hi!\r\nI checked this problem and it comes from invalid order of tags\r\nIn a worksheet the tag <pageSetUpPr> must be in the end of, not at the beginning <sheetPr>"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://codepen.io/EugeniyKiyashko/pen/pogeqrd?editors=1010",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

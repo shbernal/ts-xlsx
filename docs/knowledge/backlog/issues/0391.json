@@ -1,0 +1,28 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 391,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/391",
+  "title": "Excel reading error",
+  "state": "open",
+  "author": "Chronicless",
+  "createdAt": "2017-09-06T12:02:01Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "```\r\nDebugger listening on [::]:62770\r\n(node:22204) UnhandledPromiseRejectionWarning: Unhandled promise rejection (rejection id: 8): Error: Non-whitespace before first tag.\r\nLine: 0\r\nColumn: 1\r\nChar: ﻿\r\n```\r\nSo , what i found - with regular excel files all works fine - but with files transferred via internet (skype/email etc.) i got this error - after some investigation i found that such files are blocked because they are from internet and could be not safe (when open such file in excel it is blocked on editing - and there is a button in excel - allow editing , or it could be found in file properties (main file property window below read-only and hidden checkbox there is a warning with additional unblock check box))\r\n\r\nSo after unblocking this file (in any way from excel button or in file prorepties and !!!resaving!!! it , file reads fine.\r\nCan we handle it automatically ,e.g. adding in read options additional flag for accept reading not-safe files?",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-21T21:11:44Z",
+      "reactions": 0,
+      "body": "@Chronicless could You upload here blocked file?"
+    }
+  ],
+  "attachments": []
+}

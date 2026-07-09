@@ -1,0 +1,118 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2803,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2803",
+  "title": "Fix corrupted file with conditional formatting and hyperlinks",
+  "state": "open",
+  "author": "TheAsda",
+  "createdAt": "2024-08-01T09:57:19Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "## Summary\r\n\r\nI faced the issue with stream writer creating corrupted file. Through some experiments and inspecting differences between the file created by the library and handmade file using Microsoft Excel I found out that the corruption appears when you use conditional formatting together with hyperlinks. The issue is that the order of blocks in the worksheet is wrong. This pull request solves this issue.\r\n\r\n## Test plan\r\n\r\nFirst we create file using Microsoft Excel with links and some conditional formatting eg. `=MOD(ROW();2)=0` to color every odd row:\r\n![image](https://github.com/user-attachments/assets/d6e0138d-21a5-4d6d-8d1c-5a8ea2b713b3)\r\nThen we inspect the file and see that the order in sheet is: first conditional formatting, second hyperlinks\r\n![image](https://github.com/user-attachments/assets/f9eab3d3-07a8-4bfe-a1b3-1cfc5c470e1e)\r\nAfter that we create similar file using the library:\r\n```js\r\nconst ExcelJS = require(\"exceljs\");\r\nconst fs = require(\"fs\");\r\n\r\nconst fileStream = fs.createWriteStream(\"output.xlsx\");\r\n\r\nconst workbook = new ExcelJS.stream.xlsx.WorkbookWriter({\r\n  stream: fileStream,\r\n  useSharedStrings: false,\r\n  useStyles: true,\r\n});\r\nconst worksheet = workbook.addWorksheet(\"Sheet1\");\r\nfor (let index = 0; index < 4; index++) {\r\n  worksheet.addRow([\r\n    \"test\",\r\n    {\r\n      text: \"Link\",\r\n      hyperlink: \"https://google.com\",\r\n      tooltip: \"https://google.com\",\r\n    },\r\n  ]);\r\n}\r\n\r\nworksheet.addConditionalFormatting({\r\n  ref: `A1:B4`,\r\n  rules: [\r\n    {\r\n      priority: 1,\r\n      type: \"expression\",\r\n      formulae: [\"MOD(ROW(),2)=0\"],\r\n      style: {\r\n        fill: {\r\n          type: \"pattern\",\r\n          pattern: \"solid\",\r\n          bgColor: \"FFEDEDED\",\r\n        },\r\n      },\r\n    },\r\n  ],\r\n});\r\n\r\nworksheet.commit();\r\nworkbook.commit();\r\n\r\n```\r\n\r\nIf we open the resulting file with Excel we see the error:\r\n\r\n![image](https://github.com/user-attachments/assets/2d54f3d4-a2ed-4e2a-9890-ebc55ff36b85)\r\n\r\nIf we inspect the underlying xml file we see that the order is different:\r\n\r\n![image](https://github.com/user-attachments/assets/32b444c3-34cd-4cc9-a2cd-84e4e9a9316c)\r\n\r\nSo then we can change the order in `worksheet-writer.js` and try the script again:\r\n\r\n![image](https://github.com/user-attachments/assets/1980bdd5-2b71-4739-ad92-4017e54b7f14)\r\n\r\nThe file generates successfully and opens in Excel:\r\n\r\n![image](https://github.com/user-attachments/assets/403672bc-46d8-40a6-b1db-d8c781714e0e)\r\n",
+  "comments": [
+    {
+      "author": "J43fura",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-24T22:40:52Z",
+      "reactions": 0,
+      "body": "I see this PR and many others are not merged,\r\nDid you fork this repo or migrate to another package? If so what did you choose to use?"
+    },
+    {
+      "author": "TheAsda",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-25T10:54:49Z",
+      "reactions": 1,
+      "body": "We used yarn patch functionality"
+    },
+    {
+      "author": "J43fura",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-25T11:44:31Z",
+      "reactions": 0,
+      "body": "Thank you"
+    },
+    {
+      "author": "protobi-pieter",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-11-07T19:05:28Z",
+      "reactions": 0,
+      "body": "👋 We've adopted this fix in our [@protobi/exceljs](https://www.npmjs.com/package/@protobi/exceljs) fork!\n\n✅ **Status**: Applied and tested successfully\n📦 **Version**: Included in 4.4.0-protobi.2\n🔗 **Our issue**: https://github.com/protobi/exceljs/issues/25\n💾 **Our commit**: https://github.com/protobi/exceljs/commit/0509050\n\nThis fix resolves file corruption when using conditional formatting and hyperlinks together. We're tracking this and 12 other upstream PRs, and will sunset our fork once they're merged upstream.\n\nThank you for this important fix! 🙏"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/assets/d6e0138d-21a5-4d6d-8d1c-5a8ea2b713b3",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/f9eab3d3-07a8-4bfe-a1b3-1cfc5c470e1e",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://google.com",
+      "ext": "com",
+      "isFixture": false
+    },
+    {
+      "url": "https://google.com",
+      "ext": "com",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/2d54f3d4-a2ed-4e2a-9890-ebc55ff36b85",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/32b444c3-34cd-4cc9-a2cd-84e4e9a9316c",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/1980bdd5-2b71-4739-ad92-4017e54b7f14",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/403672bc-46d8-40a6-b1db-d8c781714e0e",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/@protobi/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/protobi/exceljs/issues/25",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/protobi/exceljs/commit/0509050",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 1,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": "lib/stream/xlsx/worksheet-writer.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1640,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1640",
+  "title": "[BUG] addImage to single cell with floating point has wrong behaviour",
+  "state": "open",
+  "author": "amay077",
+  "createdAt": "2021-03-19T11:20:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 13,
+  "body": "## 🐛 Bug Report\r\n\r\nI'd like to fit image to single cell with margin.\r\nBut addImage({ row: 1.1 to 1.9, col: 1.1 to 1.9 }) is not expected image size.\r\n\r\nLib version: 4.2.1\r\n\r\n## Steps To Reproduce\r\n\r\n```javascript\r\nconst wb = new ExcelJS.Workbook();\r\nconst ws = wb.addWorksheet('sheet1');\r\n\r\nconst res = await fetch('https://avatars.githubusercontent.com/u/401369');\r\nconst imgBuffer = await res.arrayBuffer();\r\n\r\nws.getColumn(1).width = 3;\r\nws.getColumn(2).width = 20;\r\nws.getColumn(3).width = 3;\r\n\r\nws.getRow(1).height = 10;\r\nws.getRow(2).height = 100;\r\nws.getRow(3).height = 10;\r\nws.getRow(4).height = 100;\r\nws.getRow(5).height = 10;\r\nws.getRow(6).height = 100;\r\nws.getRow(7).height = 10;\r\n\r\nconst imageId = wb.addImage({\r\nbuffer: imgBuffer,\r\n  extension: 'png',\r\n});\r\n\r\nws.addImage(imageId, {\r\n  tl: { col: 1, row: 1 },\r\n  br: { col: 2, row: 2 }\r\n});\r\n\r\nws.addImage(imageId, {\r\n  tl: { col: 1.1, row: 3.1 },\r\n  br: { col: 1.9, row: 3.9 }\r\n});\r\n\r\nws.addImage(imageId, {\r\n  tl: { col: 1.1, row: 5.1 },\r\n  br: { col: 2.9, row: 6.9 }\r\n});\r\n```\r\n\r\n[Full repro code is here!](https://jsfiddle.net/amay077/01bv5mo4)\r\n\r\nFirst and third images are expected, but second image is unexpected.\r\n\r\n![image](https://user-images.githubusercontent.com/401369/111771986-ae6ef280-88ef-11eb-9e26-f9cd6777adec.png)\r\n\r\n## The expected behaviour:\r\n\r\nThe expected second image is 10% margin.\r\n\r\n![image](https://user-images.githubusercontent.com/401369/111772108-d4949280-88ef-11eb-880c-273149e9c07a.png)\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nI'm not sure.\r\nAny solution?\r\n",
+  "comments": [
+    {
+      "author": "ShawnZeng",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-08-08T02:20:56Z",
+      "reactions": 0,
+      "body": "I have same issue. It seems it happened after I set a height for the row and use floating point, the floating point is calculated by the old height. \r\n\r\nI set height just before adding image.\r\n`          let tempRow = workSheet.getRow(j+2)\r\n           tempRow.height = EXCEL_IMAGE_CELL_HEIGHT\r\n`\r\nAdd image using floating point:\r\n`   \r\n          workSheet.addImage(alldata[j,i,0].ImageID,{\r\n            tl: { col: i, row: j+1 },\r\n            br: { col: colEnd, row: rowEnd }   // rowEnd  is 1.75\r\n          })`\r\n\r\n![image](https://user-images.githubusercontent.com/29124100/128618588-e89c68d9-7f3b-4c3b-a73d-51f95e39f9cb.png)\r\n\r\n\r\n"
+    },
+    {
+      "author": "zhongG",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-08-30T07:58:22Z",
+      "reactions": 0,
+      "body": "same issue"
+    },
+    {
+      "author": "HensCoderoad",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-22T08:33:11Z",
+      "reactions": 0,
+      "body": "same issue, Does anyone else have a solution？"
+    },
+    {
+      "author": "zhongG",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-22T08:33:35Z",
+      "reactions": 0,
+      "body": "gsdg54sdg5s4d5gカなフアやャクヤなどがミドっぱくラバニラサダウのブはとてもお"
+    },
+    {
+      "author": "ywy739",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-04T08:44:38Z",
+      "reactions": 0,
+      "body": "some issue，please"
+    },
+    {
+      "author": "zhongG",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-04T08:44:59Z",
+      "reactions": 0,
+      "body": "gsdg54sdg5s4d5gカなフアやャクヤなどがミドっぱくラバニラサダウのブはとてもお"
+    },
+    {
+      "author": "ywy739",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-04T09:32:59Z",
+      "reactions": 0,
+      "body": "> gsdg54sdg5s4d5gカなフアやャクヤなどがミドっぱくラバニラサダウのブはとてもお\r\n\r\ncan't understand"
+    },
+    {
+      "author": "wangyunhui1993",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-01-04T01:37:39Z",
+      "reactions": 0,
+      "body": "same issue"
+    },
+    {
+      "author": "zhongG",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-01-04T01:38:00Z",
+      "reactions": 0,
+      "body": "gsdg54sdg5s4d5gカなフアやャクヤなどがミドっぱくラバニラサダウのブはとてもお"
+    },
+    {
+      "author": "stringthread",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-04T06:00:53Z",
+      "reactions": 0,
+      "body": "Hello! I encountered the same issue and after investigating, I identified the cause of the bug.\r\n\r\nThe cause of this bug is incorrect unit conversion to calculate the fractional part of the coordinates (\\<xdr:colOff\\>, \\<xdr:rowOff\\>).\r\n\r\nIn [lib/doc/anchor.js@L62](https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/doc/anchor.js#L62), the column widths (font-dependent) should be converted to EMUs (English Metric Units). However, they are currently being multiplied by 10,000 instead.\r\nAs a result, in my environment, the column offset (Anchor.nativeColOff), which should be 321,945 EMUs, ends up being only 22,650 EMUs, approximately 1/14th of the correct value.\r\n\r\nThis Microsoft document explains how to convert columns to pixels, which can be used to determine the correct multiplication factor for the offset:\r\nhttps://learn.microsoft.com/en-us/previous-versions/office/developer/office-2010/cc802410(v=office.14)\r\n\r\nHowever, it’s not feasible to specify `{br: {col: 1.9}}` as you intended, since the offset needs to be a value less than 1.\r\n\r\nThe best solution might be to fork the repository and modify the multiplication factor at [lib/doc/anchor.js@L62](https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/doc/anchor.js#L62)z. While adjusting ExcelJS itself could be challenging due to its dependency on font settings, forking and making the modification for personal use is relatively straightforward.\r\n\r\nI hope this information helps you."
+    },
+    {
+      "author": "zhongG",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-04T06:01:25Z",
+      "reactions": 0,
+      "body": "gsdg54sdg5s4d5gカなフアやャクヤなどがミドっぱくラバニラサダウのブはとてもお"
+    },
+    {
+      "author": "iniceice88",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-07-05T08:11:57Z",
+      "reactions": 1,
+      "body": "It seems that this PR https://github.com/exceljs/exceljs/pull/2614 fixes the issue, but it hasn't been merged yet. You can use the following patch before the PR gets merged:\n\n[Example](https://stackblitz.com/edit/exceljs-addimage-ekdbmai6?file=src%2FApp.vue)\n\n\n```typescript\nimport ExcelJS from 'exceljs'\n\nexport function patchExceljsImageAnchor() {\n  function getAnchorClass() {\n    const wb = new ExcelJS.Workbook()\n    const imageId = wb.addImage({\n      buffer: new Uint8Array([]),\n      extension: 'jpeg',\n    })\n    const sheet = wb.addWorksheet()\n    sheet.addImage(imageId, {\n      tl: { col: 0, row: 0 },\n      ext: { width: 1, height: 1 },\n    })\n    const img = sheet.getImages()[0]\n    return img.range.tl.constructor\n  }\n\n  const anchorClass = getAnchorClass()\n\n  Object.defineProperty(anchorClass.prototype, 'colWidth', {\n    get: function () {\n      const col = this.worksheet && this.worksheet.getColumn(this.nativeCol + 1)\n      const defaultColWidth =\n        this.worksheet && this.worksheet.properties && this.worksheet.properties.defaultColWidth\n          ? this.worksheet.properties.defaultColWidth\n          : 9.02\n      const customColWidth = this.worksheet && col && col.width ? col.width : undefined\n      const width = customColWidth || defaultColWidth\n      return Math.floor(width * 76000)\n    },\n  })\n\n  Object.defineProperty(anchorClass.prototype, 'rowHeight', {\n    get: function () {\n      const row = this.worksheet && this.worksheet.getRow(this.nativeRow + 1)\n      const defaultRowHeight =\n        this.worksheet && this.worksheet.properties && this.worksheet.properties.defaultRowHeight\n          ? this.worksheet.properties.defaultRowHeight\n          : 15\n      const customRowHeight = this.worksheet && row && row.height ? row.height : undefined\n      const height = customRowHeight || defaultRowHeight\n      return Math.floor(height * 12700)\n    },\n  })\n}\n\n```"
+    },
+    {
+      "author": "zhongG",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-07-05T08:12:28Z",
+      "reactions": 0,
+      "body": "gsdg54sdg5s4d5gカなフアやャクヤなどがミドっぱくラバニラサダウのブはとてもお"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://avatars.githubusercontent.com/u/401369",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://jsfiddle.net/amay077/01bv5mo4",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/401369/111771986-ae6ef280-88ef-11eb-9e26-f9cd6777adec.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/401369/111772108-d4949280-88ef-11eb-880c-273149e9c07a.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/29124100/128618588-e89c68d9-7f3b-4c3b-a73d-51f95e39f9cb.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/doc/anchor.js#L62",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/previous-versions/office/developer/office-2010/cc802410(v=office.14",
+      "ext": "14",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/doc/anchor.js#L62",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2614",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://stackblitz.com/edit/exceljs-addimage-ekdbmai6?file=src%2FApp.vue",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

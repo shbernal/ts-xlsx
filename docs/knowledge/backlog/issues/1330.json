@@ -1,0 +1,187 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1330,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1330",
+  "title": "Data Validation with type 'list', the formulae can't be dynamic",
+  "state": "open",
+  "author": "ahmedfarag1993",
+  "createdAt": "2020-06-16T03:46:11Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 24,
+  "body": "How can be the formulae of data validation for the type 'list' **dynamic**?\r\nHere is my code snippet:\r\n`sheet.dataValidations.add('M2:M4999', {\r\n      type: 'list',\r\n      allowBlank: false,\r\n      formulae: [\r\n        arrayToTargetFormulae(array)\r\n      ],\r\n      showErrorMessage: true,\r\n      errorStyle: 'error',\r\n      error: 'The value Valid',\r\n    });`\r\nThe function **arrayToTargetFormulae** takes an array and covert it.\r\nHere is the code for the function **arrayToTargetFormulae**:\r\n`function arrayToTargetFormulae(arr) {\r\n  let str = '\\'\"';\r\n  str += arr.join(', ');\r\n  str += '\"\\'';\r\n  console.log(str);\r\n  return str;\r\n}`\r\n\r\nThe array values after convert will be one string like **'\"Male,Female\"'**",
+  "comments": [
+    {
+      "author": "chrisjcnewton",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-24T14:45:15Z",
+      "reactions": 0,
+      "body": "I have the same issue. Did you manage to resolve it?"
+    },
+    {
+      "author": "ahmedfarag1993",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-11T16:03:49Z",
+      "reactions": 13,
+      "body": "> I have the same issue. Did you manage to resolve it?\r\n\r\nYes, I solved it by adding the dynamic content to another sheet (on one column) and set the state of  that sheet to \"very hidden\" so no one can edit or change that hidden sheet or its content. Then, i added the \"dataValidations\" for the column as follows:\r\n`sheetStudents.dataValidations.add('L2:L9999', {\r\n    type: 'list',\r\n    allowBlank: false,\r\n    formulae: ['=Levels!$A$2:$A$9999'],\r\n    showErrorMessage: true,\r\n    errorStyle: 'error',\r\n    error: 'Please select a valid value from the list',\r\n  });`\r\n\r\nNote: \r\n- **Levels** in this part `formulae: ['=Levels!$A$2:$A$9999']` is the hidden sheet name which contains the dynamic data. Also, **A** is the column name in that sheet.\r\n"
+    },
+    {
+      "author": "nikhilism15",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-12T13:59:18Z",
+      "reactions": 0,
+      "body": "Hi, I cannot seem to find the `dataValidation` property in `workSheet` object. Can you please help me with this?"
+    },
+    {
+      "author": "ahmedfarag1993",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-12T14:59:59Z",
+      "reactions": 0,
+      "body": "Can you provide the code ?"
+    },
+    {
+      "author": "nikhilism15",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-19T12:47:29Z",
+      "reactions": 0,
+      "body": "I figured it out, there was an issue with my formula. Thanks anyway! "
+    },
+    {
+      "author": "sfxtoyewole",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-25T19:50:56Z",
+      "reactions": 0,
+      "body": "\r\n@ahmedfarag1993 \r\nformat the list into comma separated string as formulaList  and then add that in dat validation \r\n> `\"${formulaList}\"`\r\n\r\n\r\n"
+    },
+    {
+      "author": "sfxtoyewole",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-25T19:53:17Z",
+      "reactions": 0,
+      "body": "> @ahmedfarag1993\r\n> format the list into comma separated string as formulaList and then add that in dat validation\r\n> \r\n> > `\"${formulaList}\"`\r\n\r\nthere is a **grave accent** before the starting quotation mark and after the ending quotation mark "
+    },
+    {
+      "author": "karthikmpa",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-04T10:16:46Z",
+      "reactions": 0,
+      "body": "This is not working for me, while opening excel it is giving the error\r\n"
+    },
+    {
+      "author": "karthikmpa",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-04T11:28:07Z",
+      "reactions": 0,
+      "body": "ERROR Error: Uncaught (in promise): TypeError: (t.formulae || []).forEach is not a function\r\nTypeError: (t.formulae || []).forEach is not a function\r\n    at exceljs.min.js:3\r\n    at Array.forEach (<anonymous>)\r\n    at y.value (exceljs.min.js:3)\r\n    at L.value (exceljs.min.js:3)\r\n    at exceljs.min.js:3\r\n    at Array.forEach (<anonymous>)\r\n    at exceljs.min.js:3\r\n    at u (exceljs.min.js:12)\r\n    at Generator._invoke (exceljs.min.js:12)\r\n    at Generator.forEach.e.<computed> [as next] (exceljs.min.js:12)"
+    },
+    {
+      "author": "karthikmpa",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-04T11:29:22Z",
+      "reactions": 0,
+      "body": "> > I have the same issue. Did you manage to resolve it?\r\n> \r\n> Yes, I solved it by adding the dynamic content to another sheet (on one column) and set the state of that sheet to \"very hidden\" so no one can edit or change that hidden sheet or its content. Then, i added the \"dataValidations\" for the column as follows:\r\n> `sheetStudents.dataValidations.add('L2:L9999', { type: 'list', allowBlank: false, formulae: ['=Levels!$A$2:$A$9999'], showErrorMessage: true, errorStyle: 'error', error: 'Please select a valid value from the list', });`\r\n> \r\n> Note:\r\n> \r\n> * **Levels** in this part `formulae: ['=Levels!$A$2:$A$9999']` is the hidden sheet name which contains the dynamic data. Also, **A** is the column name in that sheet.\r\n\r\nfor this..im getting empty space in dropdown in excel is there is no data in cell"
+    },
+    {
+      "author": "yashsharma04",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-24T07:21:40Z",
+      "reactions": 0,
+      "body": "@karthikmpa  were you able to solve this? I am also stuck with the same problem."
+    },
+    {
+      "author": "sfxtoyewole",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-24T07:24:20Z",
+      "reactions": 0,
+      "body": "@yashsharma04  while not use  template string instead of single quote "
+    },
+    {
+      "author": "yashsharma04",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-24T07:26:48Z",
+      "reactions": 0,
+      "body": "@sfxtoyewole what are you talking about? Are you saying use template string here ? formulae: ['=Levels!$A$2:$A$9999']"
+    },
+    {
+      "author": "sfxtoyewole",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-24T07:29:05Z",
+      "reactions": 0,
+      "body": " @yashsharma04  yes\r\n\r\n"
+    },
+    {
+      "author": "yashsharma04",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-24T07:40:02Z",
+      "reactions": 0,
+      "body": "@sfxtoyewole can you share a working example. The excel sheet that I am getting is always corrupted because of data validation. "
+    },
+    {
+      "author": "linghao518",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-09T08:41:39Z",
+      "reactions": 6,
+      "body": "> > I have the same issue. Did you manage to resolve it?\r\n> \r\n> Yes, I solved it by adding the dynamic content to another sheet (on one column) and set the state of that sheet to \"very hidden\" so no one can edit or change that hidden sheet or its content. Then, i added the \"dataValidations\" for the column as follows:\r\n> `sheetStudents.dataValidations.add('L2:L9999', { type: 'list', allowBlank: false, formulae: ['=Levels!$A$2:$A$9999'], showErrorMessage: true, errorStyle: 'error', error: 'Please select a valid value from the list', });`\r\n> \r\n> Note:\r\n> \r\n> * **Levels** in this part `formulae: ['=Levels!$A$2:$A$9999']` is the hidden sheet name which contains the dynamic data. Also, **A** is the column name in that sheet.\r\n\r\nthis solution solve my requirement"
+    },
+    {
+      "author": "BlueBomberman",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-21T11:04:03Z",
+      "reactions": 0,
+      "body": "> > I have the same issue. Did you manage to resolve it?\r\n> \r\n> Yes, I solved it by adding the dynamic content to another sheet (on one column) and set the state of that sheet to \"very hidden\" so no one can edit or change that hidden sheet or its content. Then, i added the \"dataValidations\" for the column as follows: `sheetStudents.dataValidations.add('L2:L9999', { type: 'list', allowBlank: false, formulae: ['=Levels!$A$2:$A$9999'], showErrorMessage: true, errorStyle: 'error', error: 'Please select a valid value from the list', });`\r\n> \r\n> Note:\r\n> \r\n> * **Levels** in this part `formulae: ['=Levels!$A$2:$A$9999']` is the hidden sheet name which contains the dynamic data. Also, **A** is the column name in that sheet.\r\n\r\nIn my case the dataValidation type list, passing the string (like '\"One, two, three...\"') wasn't working because I had too many options and it was failing. But this approach was a good workaround. Thank you!"
+    },
+    {
+      "author": "ShadabFaiz",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-21T14:58:50Z",
+      "reactions": 0,
+      "body": "No Solution within the same sheet ? It only happens with Mircosoft Excel. I tried it with LibreOffice and Google Sheet. Both are working as intended."
+    },
+    {
+      "author": "sureshHARDIYA",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-01T07:43:22Z",
+      "reactions": 0,
+      "body": "@ahmedfarag1993  how were you able to insert array of items into a column in the second hidden sheet?"
+    },
+    {
+      "author": "AbdelrhmanAmin",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-30T16:15:23Z",
+      "reactions": 0,
+      "body": "@ahmedfarag1993 Thanks a lot bro! :)"
+    },
+    {
+      "author": "het4199",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-09T11:33:48Z",
+      "reactions": 0,
+      "body": "I want to add a dropdown to a column, but the list array is coming from an API. The array has 185 items, I converted them into the format accepted by the library, but it is showing data till a particular limit. If the item length goes beyond a particular limit it does not show any data. Does anyone have a workaround for this issue? Can we increase the limit of the dropdown list?"
+    },
+    {
+      "author": "Matrix02",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-09-24T13:28:36Z",
+      "reactions": 0,
+      "body": "> > > I have the same issue. Did you manage to resolve it?\r\n> > \r\n> > \r\n> > Yes, I solved it by adding the dynamic content to another sheet (on one column) and set the state of that sheet to \"very hidden\" so no one can edit or change that hidden sheet or its content. Then, i added the \"dataValidations\" for the column as follows:\r\n> > `sheetStudents.dataValidations.add('L2:L9999', { type: 'list', allowBlank: false, formulae: ['=Levels!$A$2:$A$9999'], showErrorMessage: true, errorStyle: 'error', error: 'Please select a valid value from the list', });`\r\n> > Note:\r\n> > \r\n> > * **Levels** in this part `formulae: ['=Levels!$A$2:$A$9999']` is the hidden sheet name which contains the dynamic data. Also, **A** is the column name in that sheet.\r\n> \r\n> for this..im getting empty space in dropdown in excel is there is no data in cell\r\n\r\nT\r\n\r\n> > I have the same issue. Did you manage to resolve it?\r\n> \r\n> Yes, I solved it by adding the dynamic content to another sheet (on one column) and set the state of that sheet to \"very hidden\" so no one can edit or change that hidden sheet or its content. Then, i added the \"dataValidations\" for the column as follows: `sheetStudents.dataValidations.add('L2:L9999', { type: 'list', allowBlank: false, formulae: ['=Levels!$A$2:$A$9999'], showErrorMessage: true, errorStyle: 'error', error: 'Please select a valid value from the list', });`\r\n> \r\n> Note:\r\n> \r\n> * **Levels** in this part `formulae: ['=Levels!$A$2:$A$9999']` is the hidden sheet name which contains the dynamic data. Also, **A** is the column name in that sheet.\r\n\r\nA good workaround solution for the dynamic list problem.\r\nAt first, I was getting a blank cell, after removing the '=' in the formulae field it worked like a charm.\r\n`      worksheet.getCell(\"B2\").dataValidation = {\r\n        type: \"list\",\r\n        allowBlank: false,\r\n        showErrorMessage: true,\r\n        error: \"Please select a supplier\",\r\n        formulae: [\"Suppliers!$A$2:$A$99\"],\r\n      };`\r\n\r\n"
+    },
+    {
+      "author": "andru-roshan",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-01T06:20:12Z",
+      "reactions": 0,
+      "body": "I have a same issue I have value in array , how i give the formulae\r\n\r\n[\r\n{ name:'roshan',id: '1},\r\n{ name:'Andrew',id: '1}\r\n]"
+    },
+    {
+      "author": "richard-here",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-07-18T03:49:02Z",
+      "reactions": 0,
+      "body": "> > I have the same issue. Did you manage to resolve it?\r\n> \r\n> Yes, I solved it by adding the dynamic content to another sheet (on one column) and set the state of that sheet to \"very hidden\" so no one can edit or change that hidden sheet or its content. Then, i added the \"dataValidations\" for the column as follows: `sheetStudents.dataValidations.add('L2:L9999', { type: 'list', allowBlank: false, formulae: ['=Levels!$A$2:$A$9999'], showErrorMessage: true, errorStyle: 'error', error: 'Please select a valid value from the list', });`\r\n> \r\n> Note:\r\n> \r\n> * **Levels** in this part `formulae: ['=Levels!$A$2:$A$9999']` is the hidden sheet name which contains the dynamic data. Also, **A** is the column name in that sheet.\r\n\r\nThis one worked for me as well. Thank you for the workaround solution."
+    }
+  ],
+  "attachments": []
+}

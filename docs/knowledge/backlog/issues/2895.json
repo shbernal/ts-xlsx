@@ -1,0 +1,37 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2895,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2895",
+  "title": "[BUG] csv write not work correct",
+  "state": "open",
+  "author": "WormGirl",
+  "createdAt": "2025-03-03T10:35:50Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\n\n<!-- A clear and concise description of what the bug is. -->\n\nexceljs 4.4.0\n\n## Steps To Reproduce\n\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\n\n```javascript\nconst ExcelJS = require('exceljs');\nconst fs = require('fs');\n\nconst workbook = new ExcelJS.Workbook();\nconst worksheet = workbook.addWorksheet('My Sheet');\n\nconst rows = [\n  [1, 'John Doe', new Date(1970, 1, 1)],\n  [2, 'Jane Doe', new Date(1965, 1, 7)],\n  [3, 'Sam Smith', new Date(1980, 5, 15)]\n];\nworksheet.addRows(rows);\n\nconst fileOptions = { sheetName: 'My Sheet' };\n\n// Ensure the worksheet name is correct and exists\nif (workbook.getWorksheet('My Sheet')) {\n  await workbook.csv.writeFile('output.csv', fileOptions)\n    .then(() => {\n      console.log('CSV 文件写入成功。');\n    })\n    .catch(error => {\n      console.error('写入 CSV 文件时出错:', error);\n    });\n} else {\n  console.error('工作表名称 \"My Sheet\" 不存在。');\n}\n\ncannot write to 'My Sheet', open csv jsut  get a output sheet, how to resolve?\n```\n\n## The expected behaviour:\n\n<!-- A clear and concise description of what you expected to happen. -->\n\n\n## Possible solution (optional, but very helpful):\n\n```javascript\n\n```\n",
+  "comments": [
+    {
+      "author": "WormGirl",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-03T10:48:16Z",
+      "reactions": 0,
+      "body": "i run this test file, the export file not correct too,, the sheet name should be blort, https://github.com/exceljs/exceljs/blob/master/test/testCsvOut.js\n\n![Image](https://github.com/user-attachments/assets/27cbdd5c-087d-4116-a1b2-12801784ef0a)"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/test/testCsvOut.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/27cbdd5c-087d-4116-a1b2-12801784ef0a",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

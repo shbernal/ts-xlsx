@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2175,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2175",
+  "title": "[BUG] Developer Tools not showing (Electron v21.3.1)",
+  "state": "open",
+  "author": "MisiekDP",
+  "createdAt": "2022-11-30T01:28:20Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. --> The Developer Tools not showing at start and can't be launched from Menu Panel (Toggle Developer Tools).\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n1. Run app with `const ExcelJS = require('exceljs');` code.\r\n\r\n```const { app, BrowserWindow, ipcMain, shell, Notification } = require('electron');\r\nconst path = require('path');\r\nconst date = require('date-and-time');\r\n// const fs = require('fs');\r\nconst cmd = require('node-cmd');\r\n\r\n// const {getDesktopFolder} = require('platform-folders');\r\n\r\nlet windowsClosedIf = false;\r\nlet values1toIpcRenderer = {};\r\nlet sendToIpcRenderer = false;\r\n\r\nconst ExcelJS = require('exceljs');\r\n\r\nconst createWindow = () => {\r\n  // Create the browser window\r\n\tconst mainWindow = new BrowserWindow({\r\n\t\t// frame: false,\r\n\t\tautoHideMenuBar: false,\r\n\t\twidth: 1200,\r\n\t\theight: 650,\r\n\t\ticon: __dirname + '/files/icon.ico',\r\n\t\twebPreferences: {\r\n\t\t\tnodeIntegration: true,\r\n\t\t\tcontextIsolation: false\r\n\t\t}\r\n\t});\r\n\r\n\t// Load index.html (primary file) to app\r\n\tmainWindow.loadFile(path.join(__dirname, 'index.html'));\r\n\t\r\n\tmainWindow.webContents.openDevTools();\t\r\n\t// mainWindow.webContents.setDevToolsWebContents(devtools.webContents);\r\n//   mainWindow.webContents.openDevTools({ mode: 'detach' });\r\n\t\t\r\n\tsetInterval(() => {\r\n\t\tif (windowsClosedIf == false){\r\n\t\t\tif (sendToIpcRenderer == true){\r\n\t\t\t\tmainWindow.webContents.send('valuesProbki', values1toIpcRenderer);\r\n\t\t\t\tvalues1toIpcRenderer = {};\r\n\t\t\t\tsendToIpcRenderer = false;\r\n\t\t\t}\r\n\t\t}\r\n\t},500);\r\n};\r\n\r\n// If Electron is ready, create windows\r\napp.on('ready', createWindow);\r\n\r\n// If all windows are closed do...\r\napp.on('window-all-closed', () => {\r\n\twindowsClosedIf = true;\r\n\tapp.quit();\r\n});\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nDeveloper Tools panel can be opened by user from Menu or can be started automatically when application starts.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nComment the line `const ExcelJS = require('exceljs');` and DevTools window opens automatically and works correct.\r\n\r\n\r\n## Other files\r\n\r\nHere are the project files: [2.zip](https://github.com/electron/electron/files/10118479/2.zip)\r\nAnd video with preview: [LINK](https://puu.sh/JsR7q/a47a7df63f.mp4).",
+  "comments": [
+    {
+      "author": "gitfocux",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-01-20T17:28:59Z",
+      "reactions": 0,
+      "body": "Same problem here."
+    },
+    {
+      "author": "alexk0ch",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-26T10:09:28Z",
+      "reactions": 0,
+      "body": "doing force reload and opening dev tools helped me.\r\n(view -> force reload, view -> open dev tools, mac os ventura 13.6)"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/electron/electron/files/10118479/2.zip",
+      "ext": "zip",
+      "isFixture": true
+    },
+    {
+      "url": "https://puu.sh/JsR7q/a47a7df63f.mp4",
+      "ext": "mp4",
+      "isFixture": false
+    }
+  ]
+}

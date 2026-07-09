@@ -1,0 +1,58 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1690,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1690",
+  "title": "[BUG] Missing cell fill color when parsing xlsx",
+  "state": "open",
+  "author": "ZoharLiran",
+  "createdAt": "2021-04-27T03:17:52Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 4,
+  "body": "[Look Ahead 4.21.21.xlsx](https://github.com/exceljs/exceljs/files/6381608/Look.Ahead.4.21.21.xlsx)\r\n## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\nWhen parsing the attached xlsx file with background fill color in some of the cells the style object does not return the correct information.\r\n\r\nLib version: 4.2.1\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\nparse the attached file and see that cell AO48 for example returns the following fill object under the cell.style.fill:\r\n{\r\n  bgColor: {indexed: 64}\r\n  fgColor: {theme: 4, tint: -0.249977111117893}\r\n  pattern: \"solid\"\r\n  type: \"pattern\"\r\n}\r\n\r\nwhere as cell AO19 returns the correct value as:\r\n{\r\n  bgColor: {indexed: 64}\r\n  fgColor: {argb: \"FF92D050\"}\r\n  pattern: \"solid\"\r\n  type: \"pattern\"\r\n}\r\n\r\n```javascript\r\nvar cell = sheet.getCell('AO48');\r\nconsole.log(cell.style.fill);\r\n\r\ncell = sheet.getCell('AO19');\r\nconsole.log(cell.style.fill);\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\nI expect that the cell will have a fill object that contains the `argb` key with a value instead of `theme` and `tint`\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "KaivnD",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-09T12:27:27Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "jerry-TangHao",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-19T23:47:20Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "ryanmee-ix",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-08-20T16:41:18Z",
+      "reactions": 0,
+      "body": "If the fill color used is one of the colors of the Excel theme it doesn't come through with an argb value, just the theme and tint. How do we convert from a theme and tint to argb?"
+    },
+    {
+      "author": "Shadowfita",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-12-02T03:55:59Z",
+      "reactions": 2,
+      "body": "@ryanmee-ix , @KaivnD , @ZoharLiran \r\n\r\nRead `workbook._themes.theme1` and parse the XML. FG Colour `theme` correlates to each `<a:accent#index#>` in the theme XML. If you are only wanting accent colours, then subtract 3 from the `theme` value and it will line up with the accents.\r\n\r\nTint is a percentage of lightness or darkness. You can use the function found here: [programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors](https://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors) , multiply tint by 100 and pass that as the amount to lighten (0.41 * 100 becomes 41%). "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/6381608/Look.Ahead.4.21.21.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color-or-rgb-and-blend-colors",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

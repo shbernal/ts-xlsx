@@ -1,0 +1,54 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1681,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1681",
+  "title": "[BUG] The is no forEachAddress function definition",
+  "state": "open",
+  "author": "Siemienik",
+  "createdAt": "2021-04-22T07:16:25Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nType definition has no `forEachAddress` function definition.\r\n\r\nhttps://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/index.d.ts#L927-L972\r\n\r\nhttps://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/lib/doc/range.js#L248-L254\r\n\r\nLib version: 4.2.1\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```ts\r\n  const style = {numFmt:'### ### ### ###'};\r\n  const range = new Range('B5','C99');\r\n\r\n  // There is no `forEachAddress` in a index.d.ts\r\n  range.forEachAddress((address) => {worksheet.getCell(address).style = {...style} });\r\n```\r\n\r\n## The expected behavior:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\nNo error\r\n\r\n## Current workaround\r\n\r\nBy adding `@ts-ignore`\r\n\r\n```ts\r\n  const style = {numFmt:'### ### ### ###'};\r\n\r\n  const range = new Range('B5','C99');\r\n\r\n  // There is no `forEachAddress` in a index.d.ts\r\n  // @ts-ignore \r\n  range.forEachAddress((address) => {worksheet.getCell(address).style = {...style} });\r\n```",
+  "comments": [
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-04-22T07:57:52Z",
+      "reactions": 0,
+      "body": "@Siemienik hi,Siemienik,\r\n\r\nRange is a Interface,it is not a Class.\r\n```typescript\r\nconst range: Range = new Range('B5','C99'); // Error\r\n```\r\nhttps://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/index.d.ts#L927-L928"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-04-22T11:09:07Z",
+      "reactions": 1,
+      "body": "Yeah, our types are bad 😞 \r\nThat why I'm a big fan to convert all lib into typescript, which will finally resolve all bugs with types.\r\n\r\nHere you have example how to import this class:\r\n\r\nhttps://github.com/Siemienik/XToolset/blob/f6f0a7de85d719fb7937a19d61ca9a09c96dc6d8/packages/xlsx-renderer/src/cell/ForEachCell.ts#L6-L7"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/index.d.ts#L927-L972",
+      "ext": "ts",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/lib/doc/range.js#L248-L254",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/index.d.ts#L927-L928",
+      "ext": "ts",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/Siemienik/XToolset/blob/f6f0a7de85d719fb7937a19d61ca9a09c96dc6d8/packages/xlsx-renderer/src/cell/ForEachCell.ts#L6-L7",
+      "ext": "ts",
+      "isFixture": false
+    }
+  ]
+}

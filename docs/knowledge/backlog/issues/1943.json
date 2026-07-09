@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1943,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1943",
+  "title": "[BUG] I am getting below issue is there anything wrong i am doing here?",
+  "state": "open",
+  "author": "prashantrbs",
+  "createdAt": "2021-12-24T10:49:02Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\nI am trying to understand how it works. i have created sample.js file for write operation and when i run i got below isssu please assit\r\n\r\nLib version: Latest\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\nCode:\r\n// construct a streaming XLSX workbook writer with styles and shared strings\r\nconst options = {\r\n    filename: './streamed-workbook.xlsx',\r\n    useStyles: true,\r\n    useSharedStrings: true\r\n  };\r\n  const workbook = new Excel.stream.xlsx.WorkbookWriter(options);\r\n  \r\n  worksheet.addRow({\r\n    id: i,\r\n    name: theName,\r\n    etc: someOtherDetail\r\n }).commit();\r\n\r\n<!-- A clear and concise description about error. -->\r\n const workbook = new Excel.stream.xlsx.WorkbookWriter(options);\r\n                   ^\r\nReferenceError: Excel is not defined\r\n    at Object.<anonymous> (/home/prashant/VWork/write.js:7:20)\r\n    at Module._compile (internal/modules/cjs/loader.js:1085:14)\r\n    at Object.Module._extensions..js (internal/modules/cjs/loader.js:1114:10)\r\n    at Module.load (internal/modules/cjs/loader.js:950:32)\r\n    at Function.Module._load (internal/modules/cjs/loader.js:790:12)\r\n    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:76:12)\r\n    at internal/main/run_main_module.js:17:47",
+  "comments": [
+    {
+      "author": "hardikdiyora",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-01-06T17:38:06Z",
+      "reactions": 0,
+      "body": "you need to import the module. \r\n\r\nfor example,\r\nconst Excel = require('exceljs')"
+    }
+  ],
+  "attachments": []
+}

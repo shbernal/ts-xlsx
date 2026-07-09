@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2598,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2598",
+  "title": "[Q] How to remove the \"frozen\" state of a worksheet using ExcelJS",
+  "state": "open",
+  "author": "Mercer-L",
+  "createdAt": "2023-11-22T02:30:05Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "I am attempting to utilize ExcelJS to remove the \"frozen\" state of a worksheet. My Code is as follows:\r\n```\r\nconst workbook = new Workbook();\r\nawait workbook.xlsx.readFile(excel_path);\r\nconst worksheet = workbook.getWorksheet(sheet_name);\r\n\r\nif(worksheet){\r\n    if(worksheet?.views[0]){\r\n        (worksheet.views as any) = [{\r\n            state: 'normal',\r\n            zoomScale: 100,\r\n            zoomScaleNormal: 100,\r\n            rightToLeft: false,\r\n            showGridLines: true,\r\n            showRowColHeaders: true,\r\n            showRuler: true,\r\n            workbookViewId: (worksheet.views[0] as any).workbookViewId,\r\n        }];\r\n    }\r\n}\r\nawait workbook.xlsx.writeFile(excel_path);\r\n```\r\nHowever, upon saving and subsequently attempting to open the saved Excel file with Microsoft Excel, an alert is presented indicating an issue with the worksheet's view that necessitates repair.\r\nI read the saved file using the following code, and then get the worksheet's view property:\r\n```\r\nconst workbook = new Workbook();\r\nawait workbook.xlsx.readFile(excel_path);\r\nconst worksheet = workbook.getWorksheet(sheet_name);\r\n\r\nif(worksheet){\r\n    console.log(worksheet.views);\r\n}\r\n```\r\nThe result I got is:\r\n```\r\n[{\r\n    state: 'frozen',\r\n    zoomScale: 100,\r\n    zoomScaleNormal: 100,\r\n    rightToLeft: false,\r\n    showGridLines: true,\r\n    showRowColHeaders: true,\r\n    showRuler: true,\r\n    xSplit: 0,\r\n    ySplit: 0,\r\n    topLeftCell: \"A1\",\r\n    workbookViewId: 0,\r\n}]\r\n```\r\nIndeed, there is a problem. I would like to ask how to correctly remove the \"frozen\" property of a worksheet?\r\n\r\n\r\n",
+  "comments": [],
+  "attachments": []
+}

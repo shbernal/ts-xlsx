@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1433,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1433",
+  "title": "Replace new Buffer(...) calls",
+  "state": "open",
+  "author": "OSjoerdWie",
+  "createdAt": "2020-08-20T12:01:11Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 2,
+  "body": "When used in node, the following \r\n\r\n`const exceljs = require(\"exceljs\")` \r\n\r\nresults in a deprecation warning:\r\n\r\n`[DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.`\r\n\r\nPlease update the module accordingly.",
+  "comments": [
+    {
+      "author": "vobarian",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-08T17:19:37Z",
+      "reactions": 1,
+      "body": "The warning appears to result from calling `new Buffer(...)` in the transitive dependency `buffer-indexof-polyfill` brought in by `unzipper`.\r\n\r\nSadly, npm does not have an easy way to exclude a transitive dependency. Until it gets fixed I developed a hacky workaround by adding the following script in `package.json`:\r\n\r\n```json\r\n{\r\n  \"scripts\": {\r\n    \"postinstall\": \"echo // > node_modules/buffer-indexof-polyfill/index.js # delete transitive dependency polyfill causing deprecation warning until exceljs package fixes it, see exceljs #1433\"\r\n  }\r\n}\r\n```\r\n\r\nThis script will run automatically after `npm install` and will simply make the `index.js` of that package a harmless empty comment. This script will work on both bash and Windows shells."
+    },
+    {
+      "author": "EHadoux",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-06T17:38:20Z",
+      "reactions": 0,
+      "body": "Looks like it will be fixed at some point (see [https://github.com/ZJONSSON/node-unzipper/issues/164](https://github.com/ZJONSSON/node-unzipper/issues/164))."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/ZJONSSON/node-unzipper/issues/164",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/ZJONSSON/node-unzipper/issues/164",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

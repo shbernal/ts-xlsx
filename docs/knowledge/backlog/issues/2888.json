@@ -1,0 +1,37 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2888,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2888",
+  "title": "[BUG] ReactNative使用时，Promise.allSettled is not a function",
+  "state": "open",
+  "author": "sankin815",
+  "createdAt": "2025-02-14T02:36:27Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "react-native + \"exceljs\": \"^4.4.0\",\n\n使用exceljs之后，无法使用Promise.allSettled（is not a function），Promise的执行也会与预期不一致",
+  "comments": [
+    {
+      "author": "lionel-rowe",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-21T06:52:38Z",
+      "reactions": 0,
+      "body": "这估计是打包啊平台之类的问题吧，exceljs源码中[根本不涉及](https://github.com/search?q=repo%3Aexceljs%2Fexceljs%20Promise.allSettled&type=code) `Promise.allSettled`。也可以参考一下这个react native提问：https://github.com/facebook/react-native/issues/35363 。如果溯源还是解决不了也可以强制添加一个 `Promise.allSettled` polyfill，没几行代码，大概是这样：\n\n```js\nPromise.allSettled ??= (promises) => Promise.all(promises.map(async (p) => {\n    try {\n        return { status: 'fulfilled', value: await promise }\n    } catch (err) {\n        return { status: 'rejected', reason: err }\n    }\n}))\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/search?q=repo%3Aexceljs%2Fexceljs%20Promise.allSettled&type=code",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/facebook/react-native/issues/35363",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

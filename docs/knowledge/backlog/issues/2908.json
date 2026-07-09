@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2908,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2908",
+  "title": "[F] Headless Table",
+  "state": "open",
+  "author": "syedfquadri",
+  "createdAt": "2025-03-25T22:33:37Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 0,
+  "body": "### 🚀 Feature Proposal\nAdd improved support for truly headerless tables in ExcelJS with explicit control over AutoFilter functionality.\n\n#### Motivation\nThe current implementation of headerless tables in ExcelJS (using `headerRow: false`) does not reliably prevent Excel from generating AutoFilter components. This causes Excel to display repair prompts when opening files, degrading the user experience and requiring workarounds.\n\nWhen generating reports, many developers need to create Excel tables without headers or filtering capabilities for pure data presentation and consistent styling. \n\nCurrently, ExcelJS users are forced to either:\n\n1. Accept the Excel repair notifications and potential data corruption\n2. Implement complex cell-by-cell styling as a workaround\n\nThis feature would allow developers to reliably create headerless tables without triggering Excel's repair mechanisms, resulting in clean, professional Excel outputs with no error prompts.",
+  "comments": [],
+  "attachments": []
+}

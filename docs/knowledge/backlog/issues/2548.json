@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2548,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2548",
+  "title": "[BUG] Typescript typings don't work",
+  "state": "open",
+  "author": "koldoon",
+  "createdAt": "2023-10-04T19:55:10Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nLooks like typescript d.ts file is wrong: typings are not suggested at all (using webstorm). \r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n```typescript\r\nimport { Workbook } from 'exceljs/index';\r\nconst workbook = new Workbook();\r\nconst worksheet = workbook.addWorksheet(name); // <--- unresolved function method \"addWorksheet()\"\r\n```\r\n\r\nIt looks like *.ts file imports js implementation as \"*\" in index.ts file which is tricky and not well supported. \r\n\r\n\r\nWhat should be done:\r\nSimply rename index.ts -> index.js (since \"ts\" makes no sense in the way it is used)",
+  "comments": [
+    {
+      "author": "alexandre-embie",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-29T12:41:53Z",
+      "reactions": 0,
+      "body": "I encountered the same issue. To ensure proper development, I added your PR as the package source in my package.json file. While in prod, the actual exceljs package."
+    },
+    {
+      "author": "tangrun",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-06-10T14:59:03Z",
+      "reactions": 0,
+      "body": " 编辑文件 ```ts.config.app.json```，添加映射，完美解决\n```\n \"compilerOptions\": {\n    \"paths\": {\n      \"exceljs\": [\"node_modules/exceljs/index.d.ts\"]\n    }\n  }\n```"
+    }
+  ],
+  "attachments": []
+}

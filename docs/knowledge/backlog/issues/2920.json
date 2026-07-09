@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2920,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2920",
+  "title": "fix: inefficient merge check for large amount of merged cells",
+  "state": "open",
+  "author": "3ximus",
+  "createdAt": "2025-04-17T14:25:52Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "This pull request is the same as this stale one https://github.com/exceljs/exceljs/pull/2691 with the comments applied to it. I would really like to see this merge.\r\nThank you",
+  "comments": [
+    {
+      "author": "yuuk",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-06-02T02:02:25Z",
+      "reactions": 1,
+      "body": "any update?\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2691",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 10,
+    "deletions": 8,
+    "changedFiles": [
+      {
+        "path": "lib/doc/worksheet.js",
+        "status": "modified",
+        "additions": 10,
+        "deletions": 8
+      }
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2887,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2887",
+  "title": "[BUG] various methods’ param names `index`, `indexOrName`, `indexOrKey` in `index.d.ts` are misleading (1-indexed)",
+  "state": "open",
+  "author": "lionel-rowe",
+  "createdAt": "2025-02-12T04:54:05Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\n\nparam names `index`, `indexOrName`, and `indexOrKey` in `index.d.ts` are misleading, due to being 1-indexed.\n\nSome of these methods specify \"1-indexed\" in the JSDoc, but others don't. JS is 0-indexed, so params named \"index\" are usually understood to be 0-indexed.\n\nExample:\n\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/index.d.ts#L1761-L1764\n\nFor a newly created workbook with 1 sheet, `wb.getWorksheet(0)` doesn't get the first worksheet, `wb.getWorksheet(1)` does. Meanwhile, `wb.worksheets[0]` gets the first sheet as expected. The JSDoc for `getWorksheet` isn't much help, as it contradicts the param name (is it an ID or an index?)\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\nCall one of the affected methods from TypeScript and view intellisense docs.\n\n## The expected behaviour:\n\nParam names/JSDoc to be clearer.\n\n## Possible solution (optional, but very helpful):\n\nWould be better to use `number`/`num` where 1-indexed, or `id` if it's an ID.\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/index.d.ts#L1761-L1764",
+      "ext": "ts",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1889,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1889",
+  "title": "Support nested columns feature",
+  "state": "open",
+  "author": "jeka1985",
+  "createdAt": "2021-11-03T16:18:41Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 12,
+  "commentCount": 14,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\nThanks for a great lib!\r\n\r\nUsed it for generating styled dynamic reports and found generating dynamic nested headers pretty complicated because of low-level methods for adding rows and manual cell merging.\r\n\r\nIt would be great to have some declarative way for such tasks. Imho nested JSON tree looks like a solution.\r\n\r\nIn a nutshell, recursive walk the tree, collect items meta (such as cell size, including aggregated size of all children). Build flat list, use it for generating header rows and columns.\r\n\r\n<!-- Explain the **motivation** for making this change. What existing problem does the pull request solve? -->\r\n\r\n## Test plan\r\nBackward compatibility is not affected, added new worksheet method `makeColumns` for building flat columns from nested json tree\r\n\r\n<!-- Demonstrate the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes UI. -->\r\n\r\n```\r\nworksheet.makeColumns([\r\n  {\r\n    id: 1, \r\n    title: 'Some', \r\n  },\r\n  {id: 2, title: 'Qwe'},\r\n  {id: 3, title: 'Foo'},\r\n  {\r\n    id: 4,\r\n    title: 'Zoo',\r\n    child: [\r\n      { id: 41, title: 'Zoo 1' },\r\n      { id: 42, title: 'Zoo 2' },\r\n      { id: 44, title: 'Zoo 3' },\r\n      { id: 45, title: 'Zoo 4' },\r\n    ]\r\n  }\r\n]);\r\n```\r\nAlso you can pass column props such as `width` ad `style` to \"leaf\" tree items.\r\nThis input will be converted into 3 native entity groups\r\n\r\n- Columns \r\n- Rows\r\n- Merge rules\r\n\r\n```\r\nmakeColumns(input) {\r\n    const flatter = new ColumnFlatter(input);\r\n    const merges = flatter.getMerges();\r\n    this.columns = flatter.getCoumns();\r\n\r\n    this.views.push({state: 'frozen', ySplit: flatter.getRows().length});\r\n    \r\n    this.addRows(flatter.getRows().map(row => row.map(item => item?.title || item?.id || null)));\r\n\r\n    merges.forEach(item => {\r\n      this.mergeCells(item);\r\n    });\r\n} \r\n```\r\n\r\n## Related to source code (for typings update)\r\n\r\n<!-- List with permalink into source code to prove that changes are true -->\r\n",
+  "comments": [
+    {
+      "author": "jeka1985",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-11-16T05:39:33Z",
+      "reactions": 0,
+      "body": "@Siemienik sorry to bother you, but is there any updates on this?"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-11-16T14:50:18Z",
+      "reactions": 2,
+      "body": "Thank you for your effort. Currently, I've no time. I'm going to see this in the first free-time slot."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-11-21T10:24:39Z",
+      "reactions": 0,
+      "body": "Wow, it is really great feature. I see that I have to analyze it deeply and the relations between nested columns and other features like borders, merged cells, styles etc. please don't blame me that It takes me a lot of time."
+    },
+    {
+      "author": "jeka1985",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-11-22T07:15:43Z",
+      "reactions": 0,
+      "body": "> Wow, it is really great feature. I see that I have to analyze it deeply and the relations between nested columns and other features like borders, merged cells, styles etc. please don't blame me that It takes me a lot of time.\r\n\r\nSure, no problem, take your time )"
+    },
+    {
+      "author": "jeka1985",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-16T13:56:34Z",
+      "reactions": 1,
+      "body": "@Siemienik Just wondering about estimates, looking forward to switch to nested-columns released version and drop off ad-hoc  solution :)"
+    },
+    {
+      "author": "jeka1985",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-25T16:55:35Z",
+      "reactions": 0,
+      "body": "@Siemienik ?"
+    },
+    {
+      "author": "AlFalahTaieb",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-02-02T08:19:15Z",
+      "reactions": 1,
+      "body": "This is awesome @jeka1985 Thank you"
+    },
+    {
+      "author": "jeka1985",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-02-03T07:35:12Z",
+      "reactions": 4,
+      "body": "@alubbe @Alanscut Hi guys, looks like Pawel still have no time for this PR, could you please take a look on this?"
+    },
+    {
+      "author": "vaynevayne",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-10T05:48:07Z",
+      "reactions": 0,
+      "body": "How is the progress?"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-05-10T09:19:02Z",
+      "reactions": 0,
+      "body": "> How is the progress?\n\nThank you for refreshing the topic. Recently I have got much more spare time so going to look on this with higher priority. I will check this one on the next MergeFest which is quite reqular online meetups for contributors on our  [Discord](https://discord.gg/siema).\n\n"
+    },
+    {
+      "author": "dmk1111",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-24T09:11:54Z",
+      "reactions": 0,
+      "body": "@Siemienik any updates on this? This fixes 6-year old issue (#365) but still not merged"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-11-25T23:20:59Z",
+      "reactions": 1,
+      "body": "> @Siemienik any updates on this? This fixes 6-year old issue (#365) but still not merged\r\n\r\nI'm aware of that. Everything I plan to merge must be thoroughly tested to prevent regressions, which is time-consuming. This is more of a volunteer effort for me, and even though I do my best, there are many other tasks to prioritize.\r\n\r\nBy the way, all of you can help contribute to this project by:\r\n* Being active on our Discord and responding to other users' questions.\r\n\r\n[![SiemaTeam](https://discordapp.com/api/guilds/976854442009825321/widget.png?style=banner2)](https://discord.gg/siema)\r\n\r\n* Reviewing [PRs](https://github.com/exceljs/exceljs/pulls?q=is%3Apr+is%3Aopen+sort%3Areactions-%2B1-desc) and adding a thumbs-up 👍 to those that are most important to you. I prioritize PRs for review based on the number of thumbs-ups they receive.\r\n* Being active in pinned [discussions](https://github.com/exceljs/exceljs/discussions) – these are the most important topics for me as a maintainer. Your active participation there helps me make decisions faster, more accurately, and wisely.\r\n\r\n\r\nIf you're interested in the project's progress, you can check out:\r\n#2351\r\n[ExcelJS v4.4.0 Release Notes](https://github.com/exceljs/exceljs/releases/tag/v4.4.0)\r\n\r\nI would also like to suggest these discussions as candidates for inclusion in the next release:\r\n#2573\r\n#2574\r\n"
+    },
+    {
+      "author": "livingforjesus",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-13T23:44:30Z",
+      "reactions": 0,
+      "body": "@jeka1985 What's up with the review?"
+    },
+    {
+      "author": "jeka1985",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-14T06:17:46Z",
+      "reactions": 0,
+      "body": "@livingforjesus I've applied proposed changes but looks like there is a negligible chance for this PR to be merged. To gain time imho better copy` ColumnFlatter` to your project and manually apply `makeColumns` logic to your docs\r\n\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://discord.gg/siema",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://discordapp.com/api/guilds/976854442009825321/widget.png?style=banner2",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://discord.gg/siema",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pulls?q=is%3Apr+is%3Aopen+sort%3Areactions-%2B1-desc",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/discussions",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/releases/tag/v4.4.0",
+      "ext": "0",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 288,
+    "deletions": 0,
+    "changedFiles": [
+      {
+        "path": "README.md",
+        "status": "modified",
+        "additions": 23,
+        "deletions": 0
+      },
+      {
+        "path": "lib/doc/worksheet.js",
+        "status": "modified",
+        "additions": 19,
+        "deletions": 0
+      },
+      {
+        "path": "lib/utils/column-flatter.js",
+        "status": "added",
+        "additions": 246,
+        "deletions": 0
+      }
+    ]
+  }
+}

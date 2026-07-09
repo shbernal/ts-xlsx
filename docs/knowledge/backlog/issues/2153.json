@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2153,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2153",
+  "title": "Export Vietnamese garbled characters in CSV format",
+  "state": "open",
+  "author": "peng8934763",
+  "createdAt": "2022-10-11T08:14:52Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nExport Vietnamese garbled characters in CSV format\r\n\r\nconst ec = require('encoding');\r\nconst Excel = require('exceljs');\r\nconst { rows, cb, fileOptions, fileName, type } = opts;\r\nconst workbook = new Excel.Workbook();\r\nconst worksheet = workbook.addWorksheet('sheet');\r\nthis.addStyle(worksheet, rows);\r\ncb(worksheet);\r\nworksheet.addRows(rows);\r\nctx.set('Content-type', 'application/octet-stream;charset=gbk');\r\nconst fileBuffer = await workbook.csv.writeBuffer(fileOptions);\r\nreturn ec.convert(fileBuffer, 'gbk', 'utf8');\r\n\r\nThis is my code，The text in the variable rows is normal，Of course, it's Vietnamese，How can I fix it ? I really appreciate your help\r\n\r\n\r\n \r\n\r\n\r\n\r\n\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-28T15:39:15Z",
+      "reactions": 0,
+      "body": "@peng8934763 Can you post the full code? And by the way, can you provide the excel file everywhere?"
+    }
+  ],
+  "attachments": []
+}

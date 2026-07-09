@@ -1,0 +1,49 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1958,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1958",
+  "title": "[BUG] \"unexpected close tag\" error from saxes when parsing an excel with multiline text",
+  "state": "open",
+  "author": "lmX2015",
+  "createdAt": "2022-01-19T16:14:37Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen trying to read an excel files with \"/<br>/\" tags (for instance on multi row text within a button), ExcelJS crash with the following error\r\n```\r\nError: 43:10: unexpected close tag.\r\nat SaxesParser.makeError ( --- node_modules/saxes/saxes.js:410:16)\r\nat SaxesParser.fail (--- node_modules/saxes/saxes.js:422:26)\r\nat SaxesParser.closeTag (--- node_modules/saxes/saxes.js:2019:18)\r\nat SaxesParser.sCloseTag (--- node_modules/saxes/saxes.js:1605:18)\r\nat SaxesParser.write (--- node_modules/saxes/saxes.js:481:36)\r\nat module.exports (---  node_modules/exceljs/lib/utils/parse-sax.js:21:17)\r\n\r\n```\r\nIn short this is due to XML code that is accepted by Excel but refused by the saxes parser (typically unclosed tags)\r\n\r\nLib version: 3.10.0 or higher (tested up to 4.3.0). Seems to work on 3.9.0, since the issue comes from saxes that was introduced in replacement of sax-js (see comment below).\r\n\r\n## Steps To Reproduce\r\nImport this file [bugged.xlsx](https://github.com/exceljs/exceljs/files/7898621/bugged.xlsx)\r\n\r\n\r\n```javascript\r\nconst workbook = new Workbook();\r\nworkbook.xlsx.load(file);\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nFile should be loaded without crashing. \r\n\r\n## Related issue\r\n\r\n#https://github.com/exceljs/exceljs/issues/1316 previously reported the bug without further details.\r\n\r\n\r\n\r\n## Possible solution\r\nSee below\r\n",
+  "comments": [
+    {
+      "author": "lmX2015",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-19T16:19:58Z",
+      "reactions": 0,
+      "body": "Just putting here the comment I had on the other issue about the cause of the issue and ways to resolve.\r\n\r\nTLDR, issue comes from the saxes library that has been used since 3.10.10 in replacement of sax-js. \r\n\r\nI encountered this issue too with latest release. Problem does not seems to be related to xlsm but rather to malformed xlm such as unclosed <br> tags, which is allowed by excel but not valid xml. \r\n\r\nDigging further, this is due to this PR #1127 which explains why @vanyadymousky had only this problem starting at 3.10.0).\r\n\r\nThe PR itself is a migration of the XML parser from [sax-js ](https://github.com/isaacs/sax-js) that has been unmaintained for 6 years to [saxes](url), one of its forks which is faster, supports typescript and is currently maintained.  \r\n\r\nThe downside is that saxes has a different philosophy than sax regarding what it is supposed to parse. Saxes refuses to parse XML that is not strictly well formatted and throws error in this case, meanwhile sax has the \"best effort\" approach and tries to parse even not strictly valid files. For most XML files it doesn't make any difference, however excel is more permissive in terms of XML formatting, and accept some unclosed tags, including \"\\<br>\\\".  If an excel file contains such XML content, parsing with ExcelJS will fail.\r\n\r\nI only see three options to fix that:\r\n- reintegrate sax (even if it is used in complement of saxes, for non standard xml strings)\r\n- fork sax to fix vulnerabilities, support typescript, improve speed etc.\r\n- fork saxes to allow non standard XML to be parsed\r\n\r\nWhile I could spend some times on one of these options, happy to have your opinions about it. \r\n\r\nAlso for those who run a similar problem and want quick and dirty fix, a simple solution is downgrade to 3.9.0 or older version of exceljs.\r\n"
+    },
+    {
+      "author": "KirianCaumes",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-19T20:10:03Z",
+      "reactions": 3,
+      "body": "Another solution I have found is to handle (remove) the unclosing tags before opening it with `exceljs`.\r\n\r\nA .xlsx file is just a zip containing some .xml files. So if you can identify the unclosing tags, you can remove them like this: Rename .xlsx file to .zip -> Unzip it -> Rename file content needed -> Zip it -> Go back .xlsx.\r\n\r\nExample:\r\n\r\n```ts\r\nimport AdmZip from 'adm-zip'\r\n\r\n/**\r\n * Prepare excel file: Rename to Zip -> Unzip -> Rename file content needed -> Zip folder -> Go back to original format\r\n * @param filePath filePath\r\n */\r\nasync function prepare(filePath: string): Promise<void> {\r\n    const folderPath = filePath.replace(/\\.[^/.]+$/, '')\r\n    const zipPath = `${folderPath}.zip`\r\n\r\n    // Rename .xlsx to .zip\r\n    await rename(filePath, zipPath)\r\n\r\n    // Unzip content to folder\r\n    const unzip = new AdmZip(zipPath)\r\n    await new Promise((resolve, reject) => {\r\n        unzip.extractAllToAsync(folderPath, true, true, (error: never) => {\r\n            if (error) {\r\n                reject(error)\r\n            } else {\r\n                resolve('')\r\n            }\r\n        })\r\n    })\r\n\r\n    // Remove zip file\r\n    await unlink(zipPath)\r\n\r\n    /**\r\n     * Get all files recursively\r\n     * @param path path\r\n     */\r\n    const walk = (path: string): Array<string> =>\r\n        readdirSync(path, { withFileTypes: true }).flatMap(file =>\r\n            file.isDirectory() ? walk(join(path, file.name)) : join(path, file.name),\r\n        )\r\n\r\n    /** List of all files decompressed */\r\n    const files = walk(folderPath)\r\n\r\n    // Apply all transformation needed\r\n    await Promise.all(\r\n        files\r\n            .filter(path => path.endsWith('.vml'))\r\n            .map(async path => {\r\n                // Remove problematic elements\r\n                const content = await readFile(path, 'utf-8')\r\n                const newContent = content.replace(/<br>/g, '')\r\n                await writeFile(path, newContent)\r\n            }),\r\n    )\r\n\r\n    // Create a new zip\r\n    const zip = new AdmZip()\r\n    zip.addLocalFolder(folderPath)\r\n    await zip.writeZipPromise(zipPath)\r\n\r\n    // Remove folder\r\n    await rm(folderPath, { recursive: true, force: true })\r\n\r\n    // Rename .zip to .xlsx\r\n    await rename(zipPath, filePath)\r\n}\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/7898621/bugged.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1316",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/isaacs/sax-js",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

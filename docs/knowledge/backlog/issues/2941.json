@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2941,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2941",
+  "title": "[BUG] xlsx.writeFile is extremely slow.",
+  "state": "open",
+  "author": "acrazing",
+  "createdAt": "2025-06-17T00:05:56Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\n\n<!-- A clear and concise description of what the bug is. -->\n\nwb.xlsx.writeFile is very very very slow.\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\n\n```javascript\n    console.time('xlsx');\n    const rows: any[] = [];\n    const keys: string[] = [];\n    for (let i = 0; i < 20; i++) {\n      keys.push(Math.random() + '');\n    }\n    for (let i = 0; i < 5e5 /* 500k */; i++) {\n      rows.push(Object.fromEntries(keys.map((k) => [k, Math.random() + ''])));\n    }\n    console.timeLog('xlsx', 'load', rows.length);\n    const testXlsx = async () => {\n      const book = XLSX.utils.book_new();\n      const sheet = XLSX.utils.json_to_sheet(rows, { dense: true });\n      XLSX.utils.book_append_sheet(book, sheet);\n      console.timeLog('xlsx', 'xlsx insert rows', sheet['!ref']);\n      const buf = XLSX.writeXLSX(book, { type: 'buffer', compression: true, WTF: true });\n      await fs.writeFile('temp/test-xlsx.xlsx', buf);\n      console.timeLog('xlsx', 'xlsx write');\n    };\n    const testExcel = async () => {\n      const book = new ExcelJS.Workbook();\n      const sheet = book.addWorksheet('data');\n      sheet.addRows([keys].concat(rows.map((e) => keys.map((c) => mustStr(e[c])))));\n      console.timeLog('xlsx', 'exceljs insert rows', sheet.rowCount);\n      await book.xlsx.writeFile('temp/test-excel.xlsx', {\n        useStyles: false,\n        useSharedStrings: false,\n        zip: { compression: 'DEFLATE', compressionOptions: { level: 6 } },\n      });\n      console.timeLog('xlsx', 'exceljs write');\n    };\n\n    await testXlsx();\n    await testExcel();\n```\n\nThis code compares `xlsx` and `exceljs`, when I execute the code, the `xlsx` part will output as expected, but `exceljs` part cannot. The output looks like this:\n\n```bash\nxlsx: 1.781s load 500000\nxlsx: 2.354s xlsx insert rows A1:T500001\nxlsx: 17.726s xlsx write\nxlsx: 20.088s exceljs insert rows 500001\n^C%\nTime: 0h:01m:37s\n```\n\n## The expected behaviour:\n\nShould write to file successfully.\n",
+  "comments": [],
+  "attachments": []
+}

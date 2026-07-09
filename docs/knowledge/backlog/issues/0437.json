@@ -1,0 +1,82 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 437,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/437",
+  "title": "Duplicate worksheets on readFile()",
+  "state": "open",
+  "author": "perfeliclemente",
+  "createdAt": "2017-11-17T11:09:36Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 9,
+  "body": "@guyonroche  How can I duplicate/copy worksheets on an existing workbook on my local storage? Should I access and do it inside workbook.xlsx.readFile().then()? Thank you! \r\n\r\nI just want to have another copy of worksheet and then just edit it. \r\n\r\nOr even better, if I have a template of a workbook with the worksheet on it, I'll add the worksheet to the current/selected workbook and then perform editing.",
+  "comments": [
+    {
+      "author": "slim1979",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-05-11T13:26:40Z",
+      "reactions": 0,
+      "body": "@perfeliclemente hi there!\r\ndid you solve this?"
+    },
+    {
+      "author": "msedek",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-10-19T00:40:14Z",
+      "reactions": 0,
+      "body": "im stuck here, i can copy de sheets with newSheet.model = oldSHeet,model and then when I open the book excel says it needs to recover Removed Records: Named range from /xl/workbook.xml part (Workbook).. sheets are there the error is unacceptable"
+    },
+    {
+      "author": "msedek",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-10-19T13:47:07Z",
+      "reactions": 3,
+      "body": "solved the issue, get a copy of the sheet you want to clone then create a new sheet with a standar name, then copy the model then put the real name:\r\n```\r\nlet sheetToClone = workbook.getWorkSheet(\"ID TO CLONE\")\r\nlet copySheet = workbook.addWorkSheet(\"Sheet\")\r\n\r\ncopySheet.model = sheetToClone.model\r\ncopySheet.name = \"THE REAL ID/NAME YOU WANT FOR THIS SHEET\"\r\n\r\n//DO STUFF HERE\r\n\r\n\r\n\r\nreturn workbook.xlsx.writeFile(\"your_file\")"
+    },
+    {
+      "author": "zohaib545",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-09-01T19:22:10Z",
+      "reactions": 0,
+      "body": "> solved the issue, get a copy of the sheet you want to clone then create a new sheet with a standar name, then copy the model then put the real name:\r\n> \r\n> ```\r\n> let sheetToClone = workbook.getWorkSheet(\"ID TO CLONE\")\r\n> let copySheet = workbook.addWorkSheet(\"Sheet\")\r\n> \r\n> copySheet.model = sheetToClone.model\r\n> copySheet.name = \"THE REAL ID/NAME YOU WANT FOR THIS SHEET\"\r\n> \r\n> //DO STUFF HERE\r\n> \r\n> \r\n> \r\n> return workbook.xlsx.writeFile(\"your_file\")\r\n> ```\r\n\r\n`TypeError: workbook.addWorkSheet is not a function`\r\nI think you meant `addWorksheet`."
+    },
+    {
+      "author": "aditya9970",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-09-07T15:03:36Z",
+      "reactions": 2,
+      "body": "does this work on worksheets from different workbooks?\r\n I'm having some issues with media in the excel file as well as the merged cells"
+    },
+    {
+      "author": "avalencia-vso",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-09T21:59:00Z",
+      "reactions": 0,
+      "body": "> solved the issue, get a copy of the sheet you want to clone then create a new sheet with a standar name, then copy the model then put the real name:\r\n> \r\n> ```\r\n> let sheetToClone = workbook.getWorkSheet(\"ID TO CLONE\")\r\n> let copySheet = workbook.addWorkSheet(\"Sheet\")\r\n> \r\n> copySheet.model = sheetToClone.model\r\n> copySheet.name = \"THE REAL ID/NAME YOU WANT FOR THIS SHEET\"\r\n> \r\n> //DO STUFF HERE\r\n> \r\n> \r\n> \r\n> return workbook.xlsx.writeFile(\"your_file\")\r\n> ```\r\n\r\nI get a \"Worksheet name already exists\" error."
+    },
+    {
+      "author": "avalencia-vso",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-09T23:11:38Z",
+      "reactions": 5,
+      "body": "I adapted the code above as shown below and it works for me!\r\n\r\n```\r\nlet sheetToClone = workbook.getWorksheet(\"Original\");\r\nlet cloneSheet = workbook.addWorksheet(\"Clone\");\r\n\r\nconst tmpModel = structuredClone( sheetToClone.model );  // Create Deep Clone of Original Sheet's Model\r\n\r\ntmpModel.name = cloneSheet.name;  // Update Cloned Model's Name to Match the Cloned Sheet Name\r\n \r\ncloneSheet.model = tmpModel;  // Replace Cloned Sheet's Model\r\n```"
+    },
+    {
+      "author": "Egor-Lee",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-12-06T06:34:57Z",
+      "reactions": 1,
+      "body": "This does NOT clone sheet, but only create EMPTY sheets, liar!"
+    },
+    {
+      "author": "khanhngt",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-25T09:25:27Z",
+      "reactions": 0,
+      "body": "avalencia-vso's solution is effective."
+    }
+  ],
+  "attachments": []
+}

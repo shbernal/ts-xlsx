@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2240,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2240",
+  "title": "列超出占用别的单元格",
+  "state": "open",
+  "author": "hu936363800",
+  "createdAt": "2023-04-07T01:57:28Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "![微信图片_20230407095710](https://user-images.githubusercontent.com/85013534/230525026-0107ad54-fa01-4de8-a58c-48ff2fa1450d.png)\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-14T16:00:13Z",
+      "reactions": 0,
+      "body": "Can you tell us the steps to reproduce or give us the code to reproduce?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/85013534/230525026-0107ad54-fa01-4de8-a58c-48ff2fa1450d.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

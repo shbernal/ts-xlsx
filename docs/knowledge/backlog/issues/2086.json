@@ -1,0 +1,61 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2086,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2086",
+  "title": "[BUG] Excel file lost shape after download by Exceljs",
+  "state": "open",
+  "author": "dinhhai96-vn",
+  "createdAt": "2022-06-24T08:37:45Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\nFirst, I created a workbook by downloading a template, inside there were Shapes to overwrite the data. But after being downloaded, the Shapes disappear but the data on the Cell remains.\r\nI don't know if ExcelJs supports data processing on Shapes or not?\r\n```javascript\r\n![image](https://user-images.githubusercontent.com/57510449/175497322-a01243c1-be07-432d-9b02-55beed525301.png)\r\n\r\nBefore: \r\n![image](https://user-images.githubusercontent.com/57510449/175497557-7a9dd1ea-1c31-458c-b2e7-c0a39e3f005f.png)\r\nAfter:\r\n![image](https://user-images.githubusercontent.com/57510449/175497649-9ddb69e8-596a-4b07-8700-3d565c523255.png)\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "dongphongtieungao",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-20T12:33:58Z",
+      "reactions": 0,
+      "body": "now, i also have the same problem"
+    },
+    {
+      "author": "EUGinsane",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-27T10:59:44Z",
+      "reactions": 0,
+      "body": "same question, do we support shapes?"
+    },
+    {
+      "author": "kigh-ota",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-11-25T08:13:00Z",
+      "reactions": 0,
+      "body": "Probably a duplicate of https://github.com/exceljs/exceljs/issues/1147"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/57510449/175497322-a01243c1-be07-432d-9b02-55beed525301.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/57510449/175497557-7a9dd1ea-1c31-458c-b2e7-c0a39e3f005f.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/57510449/175497649-9ddb69e8-596a-4b07-8700-3d565c523255.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1147",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

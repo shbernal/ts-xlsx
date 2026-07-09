@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2917,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2917",
+  "title": "[BUG] npm warn",
+  "state": "open",
+  "author": "OnePiecesjc",
+  "createdAt": "2025-04-11T03:00:01Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\n\nnpm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.\nnpm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported\nnpm warn deprecated fstream@1.0.12: This package is no longer supported.\n",
+  "comments": [
+    {
+      "author": "s-light",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-29T10:10:21Z",
+      "reactions": 0,
+      "body": "extended version of this is in #2921 "
+    },
+    {
+      "author": "anders8",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-13T19:19:12Z",
+      "reactions": 0,
+      "body": "At least part of this looks easy to handle:\n```\n├─┬ exceljs@4.4.0\n│ └─┬ unzipper@0.10.14\n│   └─┬ fstream@1.0.12\n│     └── rimraf@2.7.1 deduped\n```\n\nthe rimraf, which is what the complaint is about, is coming from fstream, but the latest unzipper no longer uses fstream. so updating unzipper dependency to the latest version should quiet down some warnings"
+    }
+  ],
+  "attachments": []
+}

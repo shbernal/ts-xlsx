@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2607,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2607",
+  "title": "[F] Accept and preserve files with charts",
+  "state": "open",
+  "author": "bets3012",
+  "createdAt": "2023-12-01T14:29:52Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 20,
+  "commentCount": 0,
+  "body": "## 🚀 Feature Proposal\r\n\r\nIt should be possible to read an excel file which has charts, update the data and create a new file where the charts are preserved.\r\n\r\n## Motivation\r\nUsing ExcelJS to produce complex reports based on multiple kind of data, it is useful to prepare a template with all the calculation rules and the charts needed, and use it as the base to produce the final report: in these cases, charts are pivotal for the capability of the reader to quickly grasp the data significance.\r\nAt the moment, ExcelJS removes the charts when reading the file and converting it into a workbook. Therefore, if a template with charts is used to produce a new file, the charts will be removed from the final result. The incapability of preserving the charts when uploading the template limits the usability of this library in these more complex cases.\r\n\r\n## Example\r\n[Esempio.xlsx](https://github.com/exceljs/exceljs/files/13527452/Esempio.xlsx)\r\nIt is clear how adding the charts gives much more clarity to the data, from the report generation point of view. So it should be possible to read this template with ExcelJS, update the data in the columns via code and then download the updated excel file without losing the chart.\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/13527452/Esempio.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

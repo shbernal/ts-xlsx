@@ -1,0 +1,65 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1664,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1664",
+  "title": "FIXES #713 Remove 'use strict' strings brute force to enable module packaging",
+  "state": "open",
+  "author": "laurisvan",
+  "createdAt": "2021-04-13T11:17:27Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## Summary\r\n\r\nThe current ExcelJS fails with CSP unsafe code evaluation when exceljs is bundled with recent WebPack versions. It appears that the root cause is regenerator-runtime resorting to 'eval':ing the source code whenever it encounters \"use strict\". This is probably because \"use strict\" shouldn't be necessary with ES modules (they are strict by default).\r\n\r\nI tried various workarounds, such as replacing all \"use strict\" clauses when babelifying code, having similar replacements with browserify etc. I am almost sure the root cause relates to browserify, e.g. it somehow ends up adding the \"use strict\" clauses. In absence of a better solution, I thought that brute force removal of \"use strict\" strings was the only option left, so I added a Grunt task for that. I tried the more popular \"grunt-replace\" module for this, but unfortunately it failed to process some of the libraries included (because of @@ character somewhere within the code).\r\n\r\nI think the long term solution would be to replace the current build system with some other than browserify that would supply the needed polyfills, but I believe such an architectural change would be much bigger undertaking.\r\n\r\n## Test plan\r\n\r\nSteps to repeat:\r\n1) Include the module in a Webpack build, insert `new CspHtmlWebpackPlugin(cspConfigPolicy, cspOptions)` into plugins array\r\n2) `npm link` the exceljs module into your project\r\n3) Build and load the web page\r\n\r\n## Related to source code (for typings update)\r\n\r\nN/A",
+  "comments": [
+    {
+      "author": "laurisvan",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-01T07:40:16Z",
+      "reactions": 6,
+      "body": "Note: we have been running this in production since submitting this MR. I would respect if we could get it into mainline, or at least a suggestion of an alternative for how to fix this blocking issue."
+    },
+    {
+      "author": "dmathisen",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-07T16:50:18Z",
+      "reactions": 0,
+      "body": "For anyone stumbling across this and is experiencing the `unsafe-eval` issue, it could be related to #713 \r\n\r\nIt's still an issue, but there are a few suggested fixes (see [here](https://github.com/exceljs/exceljs/issues/713#issuecomment-873997340) and [here](https://github.com/exceljs/exceljs/issues/713#issuecomment-1581175494)). The second one (my comment) worked for me and, to me, seems to be the lowest impact fix."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/713#issuecomment-873997340",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/713#issuecomment-1581175494",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 19,
+    "deletions": 2,
+    "changedFiles": [
+      {
+        "path": "gruntfile.js",
+        "status": "modified",
+        "additions": 18,
+        "deletions": 2
+      },
+      {
+        "path": "package.json",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0
+      }
+    ]
+  }
+}

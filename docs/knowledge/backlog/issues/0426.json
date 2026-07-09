@@ -1,0 +1,51 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 426,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/426",
+  "title": "Iterate CSV auto filter rows",
+  "state": "open",
+  "author": "AhmadMurtaza1",
+  "createdAt": "2017-10-24T09:47:20Z",
+  "closedAt": null,
+  "labels": [
+    "help wanted"
+  ],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "What I want is to retrieve only filtered rows from csv but It will shows or results all rows in console.log\r\n\r\n```\r\n    var file = './uploads/attachFile-1508833322746.csv';\r\n    var workbook = new Excel.Workbook();\r\n    workbook.csv.readFile(file).then(function(worksheet) {\r\n        worksheet.autoFilter = {\r\n            from: {\r\n                row: 3,\r\n                column: 1\r\n            },\r\n            to: {\r\n                row: 5,\r\n                column: 12\r\n            }\r\n        }\r\n        worksheet.eachRow({ includeEmpty: true }, function(row, rowNumber) {\r\n            console.log(JSON.stringify(row.values));\r\n        });\r\n    })\r\n```\r\nLooking forward to hear from you.\r\nThanks in Advance 👍",
+  "comments": [
+    {
+      "author": "ghost",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-21T22:50:55Z",
+      "reactions": 0,
+      "body": "@Siemienik how did you resolve it? Having the same issue currently"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-04-22T01:09:12Z",
+      "reactions": 0,
+      "body": "As far as I know, it isn't a feature design for  `eachRow`/`eachCol`.\r\nIt's just a property, that can be read by for instance in Excel.\r\n\r\nIn our logic, it exists only in 3 lines:\r\n\r\nhttps://github.com/exceljs/exceljs/blob/master/lib/doc/worksheet.js#L108\r\nhttps://github.com/exceljs/exceljs/blob/master/lib/doc/worksheet.js#L720\r\nhttps://github.com/exceljs/exceljs/blob/master/lib/doc/worksheet.js#L781"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/doc/worksheet.js#L108",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/doc/worksheet.js#L720",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/doc/worksheet.js#L781",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

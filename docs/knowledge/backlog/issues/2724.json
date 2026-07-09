@@ -1,0 +1,90 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2724,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2724",
+  "title": "请求帮助，传统项目直接在浏览器里引用这个为什么报错",
+  "state": "open",
+  "author": "zhaoyan519",
+  "createdAt": "2024-03-19T02:32:50Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "引用了这个 https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.js ， 报错如下，请求帮助\r\n\r\nTypeError: fs.createWriteStream is not a function\r\n    at XLSX.writeFile (excel.min.js:16156:59)\r\n    at wn.showCacheInfo (manager.js:100:22)\r\n    at He (vue.min.2.6.12.js:6:11384)\r\n    at a.n (vue.min.2.6.12.js:6:13168)\r\n    at He (vue.min.2.6.12.js:6:11384)\r\n    at e.$emit (vue.min.2.6.12.js:6:34373)\r\n    at a.handleClick (index.js:1:125669)\r\n    at He (vue.min.2.6.12.js:6:11384)\r\n    at HTMLButtonElement.n (vue.min.2.6.12.js:6:13168)\r\n",
+  "comments": [
+    {
+      "author": "LSL1618",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-12T01:53:39Z",
+      "reactions": 1,
+      "body": "用这个 **[https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js](https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js)**\r\n我一般都是下载到项目内部来使用\r\n`<script type=\"text/javascript\" src=\"../static/plugins/exceljs/4.4.0/exceljs.min.js\"></script>`"
+    },
+    {
+      "author": "zonefile",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-12T09:55:03Z",
+      "reactions": 0,
+      "body": "@LSL1618 可以试试南科大的公共 CDN: https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/exceljs/4.4.0/exceljs.min.js\r\n\r\n或者 Zstatic 的也不错: https://s4.zstatic.net/ajax/libs/exceljs/4.4.0/exceljs.min.js"
+    },
+    {
+      "author": "LSL1618",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-15T01:22:14Z",
+      "reactions": 0,
+      "body": "> @LSL1618 可以试试南科大的公共 CDN: https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/exceljs/4.4.0/exceljs.min.js\r\n> \r\n> 或者 Zstatic 的也不错: https://s4.zstatic.net/ajax/libs/exceljs/4.4.0/exceljs.min.js\r\n\r\n确实不错，可我的是内网项目，无法访问外网，所以静态资源必须放在项目内部。"
+    },
+    {
+      "author": "AlwaysNoobCoder",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-25T05:51:40Z",
+      "reactions": 0,
+      "body": "浏览器里面哪里来的`fs`，那是nodejs里才有的吧"
+    },
+    {
+      "author": "LSL1618",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-26T01:46:28Z",
+      "reactions": 0,
+      "body": "> 浏览器里面哪里来的`fs`，那是nodejs里才有的吧\r\n\r\nfs确实是nodejs才有的，题主引用错了文件，exceljs.js是nodejs端用的，exceljs.min.js才是浏览器端用的。"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/exceljs/4.4.0/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://s4.zstatic.net/ajax/libs/exceljs/4.4.0/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/exceljs/4.4.0/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://s4.zstatic.net/ajax/libs/exceljs/4.4.0/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

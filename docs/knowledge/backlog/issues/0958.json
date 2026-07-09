@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 958,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/958",
+  "title": "Unexpected xml node in parseOpen ",
+  "state": "open",
+  "author": "Tri-Vi",
+  "createdAt": "2019-09-11T18:56:46Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 2,
+  "body": "I got this issue when I tried to parse an excel file, but I'm not sure what caused the issue. Could someone help me with this?\r\n\r\nexceljs version: 1.15.0\r\n\r\n```\r\nError: Unexpected xml node in parseOpen: {\"name\":\"x:sst\",\"attributes\":{\"xmlns:x\":\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"},\"isSelfClosing\":false}\r\n    at SharedStringsXform.parseOpen (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/xlsx/xform/strings/shared-strings-xform.js:124:17)\r\n    at SAXStream.<anonymous> (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/xlsx/xform/base-xform.js:104:19)\r\n    at emitOne (events.js:116:13)\r\n    at SAXStream.emit (events.js:211:7)\r\n    at SAXParser.me._parser.(anonymous function) [as onopentag] (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/sax/lib/sax.js:258:17)\r\n    at emit (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/sax/lib/sax.js:624:35)\r\n    at emitNode (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/sax/lib/sax.js:629:5)\r\n    at openTag (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/sax/lib/sax.js:825:5)\r\n    at SAXParser.write (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/sax/lib/sax.js:1391:13)\r\n    at SAXStream.write (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/sax/lib/sax.js:239:18)\r\n    at /Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/utils/stream-buf.js:259:14\r\n    at new Promise (<anonymous>)\r\n    at write (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/utils/stream-buf.js:258:14)\r\n    at Array.map (<anonymous>)\r\n    at StreamBuf._pipe (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/utils/stream-buf.js:265:31)\r\n    at StreamBuf._flush (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/utils/stream-buf.js:336:14)\r\n    at writeComplete (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/utils/stream-buf.js:352:15)\r\n    at StreamBuf.end (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/utils/stream-buf.js:365:7)\r\n    at StreamBuf.pipe (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/utils/stream-buf.js:418:12)\r\n    at SharedStringsXform.parseStream (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/xlsx/xform/base-xform.js:138:14)\r\n    at ZipReader.<anonymous> (/Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/xlsx/xlsx.js:356:43)\r\n    at emitOne (events.js:116:13)\r\n    at ZipReader.emit (events.js:211:7)\r\n    at /Users/tvi/Documents/BCM projects/cvd-genomics/node_modules/exceljs/dist/es5/utils/zip-stream.js:95:22\r\n    at <anonymous>\r\n```",
+  "comments": [
+    {
+      "author": "straiki",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-14T08:12:08Z",
+      "reactions": 0,
+      "body": "I've had same problem lately, found out why.\r\n\r\nIf you have data table in excel sheet, you need to clear all filtres unless you'll end up with this error.\r\n\r\n![image](https://user-images.githubusercontent.com/724967/118241741-c81a5980-b49c-11eb-8e35-48f4811953d6.png)\r\n"
+    },
+    {
+      "author": "Emiya0306",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-14T08:54:14Z",
+      "reactions": 0,
+      "body": "+1, I got these error messages.\r\n```\r\n/Users/xxxxx/node_modules/exceljs/lib/xlsx/xform/core/core-xform.js:79\r\n        throw new Error(`Unexpected xml node in parseOpen: ${JSON.stringify(node)}`);\r\n              ^\r\n\r\nError: Unexpected xml node in parseOpen: {\"name\":\"lastModifiedBy\",\"attributes\":{},\"isSelfClosing\":false}\r\n    at CoreXform.parseOpen (/xxxxx/node_modules/exceljs/lib/xlsx/xform/core/core-xform.js:79:15)\r\n    at CoreXform.parse (/xxxxx/node_modules/exceljs/lib/xlsx/xform/base-xform.js:63:16)\r\n    at async XLSX.load (/xxxxx/node_modules/exceljs/lib/xlsx/xlsx.js:353:36)\r\n    at async XLSX.readFile (/xxxxx/node_modules/exceljs/lib/xlsx/xlsx.js:55:24)\r\n    at async /xxxxx/edit.js:6:3\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/724967/118241741-c81a5980-b49c-11eb-8e35-48f4811953d6.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

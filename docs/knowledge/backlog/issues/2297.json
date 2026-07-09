@@ -1,0 +1,65 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2297,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2297",
+  "title": "[BUG] Can't access data inside a table",
+  "state": "open",
+  "author": "okon3",
+  "createdAt": "2023-06-29T10:45:32Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 12,
+  "commentCount": 5,
+  "body": "## 🐛 Bug Report\r\n\r\nI'm developing a web app using react and I need to read data inside and Excel Table. I can get the table using `worksheet.getTable()` but then I'm unable to **read** the data directly from the table and im forced to just cycle the rows of the entire worksheet.\r\nFrom the documentation it seems that there should be a `rows` property in the table to access the data, but I keep getting errors as it's undefined in my case.\r\n\r\nHere is the Excel i'm trying to read: [test.xlsx](https://github.com/exceljs/exceljs/files/11904782/test.xlsx)\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nconst workbook = new Workbook();\r\nconst xlsx = await workbook.xlsx.load(file);\r\nconst worksheet = xlsx.getWorksheet('test');\r\nconst table = worksheet.getTable('tbl_dictionary');\r\n\r\ntable.rows <---  undefined\r\ntable.table.rows <---  undefined\r\n\r\ntable.addRow(['test']) <--- throws error Cannot read properties of undefined (reading 'length')\r\n\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nI'm able to loop through table rows using `table.rows` or `table.table.rows`\r\n",
+  "comments": [
+    {
+      "author": "singhxamit21",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-10T11:35:37Z",
+      "reactions": 3,
+      "body": "You can use table.getColumn\r\n\r\nfor example\r\n\r\n// Get Column Wrapper for second column\r\nconst column = table.getColumn(1);\r\n\r\n"
+    },
+    {
+      "author": "lhousaine",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-14T11:24:04Z",
+      "reactions": 0,
+      "body": "@okon3  , yeah, I have already coming across to the same problem working on a professional project. @singhxamit21 using getColumn(1) works for me but it does not present any useful data about the table content as all properties are undefined as specified in the given screen \r\n![image](https://github.com/exceljs/exceljs/assets/44302703/4327ca30-16d2-447c-b7b5-b437cb6681c0)\r\n"
+    },
+    {
+      "author": "Walnussbaer",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-15T20:37:08Z",
+      "reactions": 2,
+      "body": "I am experiencing the same issue :/ "
+    },
+    {
+      "author": "hyperliskdev",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-17T19:14:42Z",
+      "reactions": 2,
+      "body": "I also cannot grab any meaningful data using this table function."
+    },
+    {
+      "author": "hb-webdev",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-06-16T18:02:22Z",
+      "reactions": 2,
+      "body": "I can't find a single (free) xlsx-reading library for Node.js that can read Cell contents BY TABLE NAME. This is insane to me."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/11904782/test.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/44302703/4327ca30-16d2-447c-b7b5-b437cb6681c0",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

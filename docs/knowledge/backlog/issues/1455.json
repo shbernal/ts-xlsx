@@ -1,0 +1,66 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1455,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1455",
+  "title": "[BUG] `editAs` not working",
+  "state": "open",
+  "author": "EugeniyKiyashko",
+  "createdAt": "2020-09-11T06:08:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 7,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen you insert an image into a worksheet, the `editAs` property controls how the image is anchored to a cell(s). The default value of editAs is `oneCell`. It could be undefined, `oneCell` or `absolute` - [https://github.com/exceljs/exceljs/blob/master/README.md#add-image-over-a-range.](https://github.com/exceljs/exceljs/blob/master/README.md#add-image-over-a-range.) But when you set it to `undefined`, the value of `editAs` in a generated excel file will still be `oneCell`.\r\n\r\n![image](https://user-images.githubusercontent.com/15689080/92871200-579ed280-f40d-11ea-9330-e0dad705106c.png)\r\n\r\nAccording to the official Excel documentation, valid values of `editAs` are the following: https://docs.microsoft.com/en-gb/dotnet/api/documentformat.openxml.drawing.spreadsheet.editasvalues?view=openxml-2.8.1. It looks like the documentation is not completely correct, and one of the acceptable values ('twoCell') is missing.\r\n\r\nLib version: 4.1.1\r\n\r\n## Steps To Reproduce\r\n\r\nSet editAs to `undefined`, but it is still `oneCell`.\r\n```javascript\r\nws.addImage(imageId, {\r\n  tl: { col: 2, row: 2 },\r\n  br: { col: 3, row: 3 },\r\n  editAs: undefined\r\n});\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nMove and Resize With Anchor Cells. When the item is serialized out as xml, its value is \"twoCell\".\r\n\r\n![image](https://user-images.githubusercontent.com/15689080/92871958-27a3ff00-f40e-11ea-9463-08b3ddeef920.png)\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\nws.addImage(imageId, {\r\n  tl: { col: 2, row: 2 },\r\n  br: { col: 3, row: 3 },\r\n  editAs: 'twoCell'\r\n});\r\n```\r\n",
+  "comments": [
+    {
+      "author": "shahsaab",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-21T20:49:10Z",
+      "reactions": 0,
+      "body": "Setting the value as 'twoCell' works.\r\n\r\nNot seeing any errors while opening the file, the image works with filters too.\r\nBut, does not move while sorting rows. \r\n"
+    },
+    {
+      "author": "wattonchd",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-02T01:37:36Z",
+      "reactions": 0,
+      "body": "` tl: { col: 0.2, row: r - 1 },  \r\n  br: { col: 0.67, row: r },  \r\n  editAs: 'xxx', `  \r\n  'xxx'  is fine too, haha\r\nAnything except ’oneCell‘ and ’absolute‘ and ’‘."
+    },
+    {
+      "author": "nnfans",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-11-09T01:55:41Z",
+      "reactions": 0,
+      "body": "is there any update regarding this issue?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/README.md#add-image-over-a-range",
+      "ext": "md",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/README.md#add-image-over-a-range",
+      "ext": "md",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/15689080/92871200-579ed280-f40d-11ea-9330-e0dad705106c.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://docs.microsoft.com/en-gb/dotnet/api/documentformat.openxml.drawing.spreadsheet.editasvalues?view=openxml-2.8.1",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/15689080/92871958-27a3ff00-f40e-11ea-9463-08b3ddeef920.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

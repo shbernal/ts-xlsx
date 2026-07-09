@@ -1,0 +1,34 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2604,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2604",
+  "title": "[F] Ability to add a formula within the Name Manager",
+  "state": "open",
+  "author": "JonathanLangton1",
+  "createdAt": "2023-11-28T14:54:09Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "## 🚀 Feature Proposal\r\n\r\nCurrently, it's possible to add a range to the name manager `wb.definedNames.add('Sheet1!A2:A6', 'myName'`, but it's not possible to add a formula such as `=INDEX(department_filter1_table,,MATCH(department,departments_list,0))`.\r\n\r\n## Motivation\r\n\r\nThis would allow us to create scalable solutions such as many dynamic dropdowns which can all be based off of different parents. At the moment, the only possible way to do this is to create a cell with the dynamic data for every single dynamic dropdown ([discussion](https://github.com/exceljs/exceljs/issues/1330#issuecomment-657086530)). This isn't efficient/viable for a large workbook.\r\n\r\n## Example\r\nIt would open up the ability for all sorts of dynamic data use cases. Here is a use-case for a dynamic dropdown.\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/41968179/5be0a96e-4fae-43ea-9597-f4c2449b916e)\r\n*Formulas within the Name Manager*\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/41968179/9795055e-391e-4f83-ad3f-f63a546a2903)\r\n*Filter 1 & 2 dropdown options change based on the department selected*\r\n\r\nI've spent days trying to figure out a workaround for this, but I've come to the conclusion that this just isn't possible with the current ExcelJS functionality.\r\n\r\nThanks for reading,\r\nJonathan\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1330#issuecomment-657086530",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/41968179/5be0a96e-4fae-43ea-9597-f4c2449b916e",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/41968179/9795055e-391e-4f83-ad3f-f63a546a2903",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

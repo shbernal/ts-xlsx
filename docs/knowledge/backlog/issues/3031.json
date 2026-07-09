@@ -1,0 +1,57 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3031,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/3031",
+  "title": "fix:  terminates early on macOS with Node.js 22, causing  to fail for…",
+  "state": "open",
+  "author": "tkambler",
+  "createdAt": "2026-03-31T17:05:24Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Problem\r\n\r\n`Excel.stream.xlsx.WorkbookReader` silently fails to parse xlsx files on macOS with Node.js 22 when worksheet ZIP entries appear before `xl/workbook.xml` in the archive. The error thrown is:\r\n\r\n```js\r\nTypeError: Cannot read properties of undefined (reading 'sheets') at WorkbookReader._parseWorksheet\r\n```\r\n\r\nThis is a valid and common ZIP ordering — the spec does not mandate entry order, and files produced by openpyxl and other tools frequently have this layout.\r\n\r\n## Root cause\r\n\r\n`lib/utils/iterate-stream.js` calls `stream.pause()` before yielding each ZIP entry. The intent is backpressure, but it is counterproductive for the zip Transform stream.\r\n\r\nWhen a worksheet entry is encountered before `workbook.xml`, `WorkbookReader` writes it to a temp file and awaits the write before continuing. During that `await`, the generator is suspended and the zip stream is paused. On macOS/ Node 22, unzipper's internal push loop does not buffer entries pushed to a paused Transform — it drops them and eventually calls `push(null)`. The stream emits `'end'` before `workbook.xml` has been yielded, `this.model` is never set, and `_parseWorksheet` crashes.\r\n\r\nThe same code works on Linux because epoll and kqueue handle backpressure on paused Transform streams differently in Node 22.\r\n\r\n## Fix\r\n\r\nRemove the `stream.pause()` call.\r\n\r\nThe `'data'` listener attached at the top of `iterateStream` already puts the stream into flowing mode and collects all entries into a `contents` array. There is no need to pause — allowing the zip Transform to run freely ensures all entries are buffered before `'end'` fires. The `contents` array holds lightweight ZIP entry objects (not raw file data), so buffering all of them is not a memory concern.\r\n\r\n## Changes\r\n\r\n- **`lib/utils/iterate-stream.js`** — remove `stream.pause()`\r\n- **`spec/integration/issues/iterate-stream-worksheet-before-workbook.spec.js`**\r\n— regression test: reads an xlsx fixture whose ZIP has `sheet1.xml` before\r\n`workbook.xml`, asserts all rows are parsed\r\n- **`test/data/simple_excel.xlsx`** — test fixture with the triggering ZIP\r\nentry order (un-ignored in `.gitignore`)\r\n[simple_excel.xlsx](https://github.com/user-attachments/files/26384697/simple_excel.xlsx)\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/files/26384697/simple_excel.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 34,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": ".gitignore",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "lib/utils/iterate-stream.js",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 1
+      },
+      {
+        "path": "spec/integration/issues/iterate-stream-worksheet-before-workbook.spec.js",
+        "status": "added",
+        "additions": 33,
+        "deletions": 0
+      },
+      {
+        "path": "test/data/simple_excel.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      }
+    ]
+  }
+}

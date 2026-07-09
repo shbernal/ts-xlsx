@@ -1,0 +1,88 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2267,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2267",
+  "title": "[BUG] The WorkbookWriter() function in ExcelJS is overwriting RichText objects in multiple cells with the first RichText object.",
+  "state": "open",
+  "author": "techiesalman",
+  "createdAt": "2023-05-10T07:30:17Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 2,
+  "commentCount": 8,
+  "body": "## 🐛 Bug Report\r\n\r\nThe `WorkbookWriter()` function in ExcelJS is overwriting RichText objects in multiple cells with the first RichText object.\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```import * as ExcelJS from 'exceljs';\r\n\r\nconst workbook = new ExcelJS.stream.xlsx.WorkbookWriter(options);\r\nconst worksheet = workbook.addWorksheet('Sheet 1');\r\n\r\nconst richText1 = [\r\n  { font: { bold: true }, text: 'Bold text' },\r\n  { text: ' and regular text.' }\r\n];\r\n\r\nconst richText2 = [\r\n  { font: { bold: true }, text: 'Just' },\r\n  { text: ' another sentence' }\r\n];\r\n\r\nworksheet.getCell('A1').value = {richText: richText1}\r\nworksheet.getCell('A2').value = {richText: richText2}\r\n\r\nawait workbook.commit();\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nCell A1 contains the text: \"Bold text and regular text.\" with \"Bold text\" in bold.\r\nCell A2 contains the text: \"Just another sentence\" with \"Just\" in bold\r\n\r\n## Actual Behaviour:\r\nBoth cells A1 and A2 contain the same `RichText `object. They both display \"Bold text and regular text.\" with \"Bold text\" in bold.\r\nThis issue prevents the use of different RichText objects in different cells when using `WorkbookWriter()`. Any insight or workaround would be appreciated.\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/37684962/d9872ddc-5545-4b1d-83f6-4e9ec4a3a452)\r\n",
+  "comments": [
+    {
+      "author": "techiesalman",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-10T12:45:41Z",
+      "reactions": 2,
+      "body": "```\r\nconst options = {\r\n      useStyles: true,\r\n      useSharedStrings: false\r\n    };\r\n```\r\n\r\nWhen `useSharedStrings` is false then it works."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-05-11T06:06:10Z",
+      "reactions": 2,
+      "body": "Thanks fot investing this It seems like comparing these cells by string values (toString) except rich text settings."
+    },
+    {
+      "author": "HelloYie",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-03T03:29:50Z",
+      "reactions": 0,
+      "body": "+1， This seems to be a bug."
+    },
+    {
+      "author": "belanEu",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-25T22:17:21Z",
+      "reactions": 0,
+      "body": "Hello!\r\nAny updates on that bug?"
+    },
+    {
+      "author": "belanEu",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-25T22:26:43Z",
+      "reactions": 0,
+      "body": "When option `useSharedStrings: false` is set, text gets changed, but for some reason there are no richText styles applied in the result xlsx file."
+    },
+    {
+      "author": "belanEu",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-14T13:51:28Z",
+      "reactions": 1,
+      "body": "@Siemienik Hi!\r\nI see that PetrChalov has pushed some fixes. I'm wondering if those changes are going to be merged soon. 👉👈"
+    },
+    {
+      "author": "belanEu",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-19T08:58:29Z",
+      "reactions": 1,
+      "body": "Also to be mentioned about the case I've written before: I noticed that richText styles are ignored when `useSharedStrings: false` and `WorkbookWriter` is used. When `Workbook` is used, richText styles are applied as expected."
+    },
+    {
+      "author": "protobi-pieter",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-05-07T03:28:21Z",
+      "reactions": 1,
+      "body": "For anyone hitting this on a current release: the protobi fork has cherry-picked a fix as [protobi/exceljs#66](https://github.com/protobi/exceljs/pull/66), with regression tests. Upstream PR #2588 also addresses this bug but has been stale since Feb 2024."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/37684962/d9872ddc-5545-4b1d-83f6-4e9ec4a3a452",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/protobi/exceljs/pull/66",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

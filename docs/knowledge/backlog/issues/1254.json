@@ -1,0 +1,57 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1254,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1254",
+  "title": "[BUG] getSheetValues() typescript definition is incorrect",
+  "state": "open",
+  "author": "danielnitsche",
+  "createdAt": "2020-05-06T03:45:05Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "Typescript"
+  ],
+  "reactions": 2,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 3.9.0\r\n\r\n## Steps To Reproduce\r\n\r\n`getSheetValues()` is [defined as](https://github.com/exceljs/exceljs/blob/master/index.d.ts#L1197):\r\n```\r\n\t/**\r\n\t * return all rows as sparse array\r\n\t */\r\n\tgetSheetValues(): Row[];\r\n```\r\n\r\nSo one would expect a `Row` type to be returned.\r\n\r\n## The expected behaviour:\r\n\r\nHowever reviewing the [code for this function](https://github.com/exceljs/exceljs/blob/master/lib/doc/worksheet.js#L444):\r\n```\r\n  // return all rows as sparse array\r\n  getSheetValues() {\r\n    const rows = [];\r\n    this._rows.forEach(row => {\r\n      if (row) {\r\n        rows[row.number] = row.values;\r\n      }\r\n    });\r\n    return rows;\r\n  }\r\n```\r\n\r\nA plain array is being returned instead.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nUpdate type definition to\r\n\r\n```typescript\r\n\t/**\r\n\t * return all rows as sparse array\r\n\t */\r\n\tgetSheetValues(): Cell[][];\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-05-07T06:17:21Z",
+      "reactions": 0,
+      "body": "The array may be any type of value, string, object, etc.\r\n<img width=\"349\" alt=\"issue_1254\" src=\"https://user-images.githubusercontent.com/21104054/86081721-90930080-bac8-11ea-91cd-0d70b78394ce.png\">\r\n\r\n\r\n```javascript\r\n/**\r\n* return all rows as sparse array\r\n*/\r\ngetSheetValues(): any[];\r\n```"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-06-30T14:04:37Z",
+      "reactions": 0,
+      "body": "@Alanscut we shout avoid using of `any`. It means that we haven't idea what happens.\r\n\r\n\r\nAs we can find here:\r\nhttps://github.com/exceljs/exceljs/blob/2d8215477be382fc95d475025c0c66c95c44f30a/index.d.ts#L536-L540\r\n\r\nthe following code should works great:\r\n\r\n```ts\r\ntype RowValues=CellValue[] | { [key: string]: CellValue }; \r\n/*...*/\r\ngetSheetValues(): RowValues[];\r\n```\r\n\r\n\r\nP.S. I wrote it in comment without test, please apologize if I made a mistake."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/index.d.ts#L1197",
+      "ext": "ts",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/doc/worksheet.js#L444",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/21104054/86081721-90930080-bac8-11ea-91cd-0d70b78394ce.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/2d8215477be382fc95d475025c0c66c95c44f30a/index.d.ts#L536-L540",
+      "ext": "ts",
+      "isFixture": false
+    }
+  ]
+}

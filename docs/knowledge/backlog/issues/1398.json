@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1398,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1398",
+  "title": "[BUG] Typescript inconsisdence for Range",
+  "state": "open",
+  "author": "Siemienik",
+  "createdAt": "2020-07-21T00:21:08Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen working on https://github.com/Siemienik/xlsx-renderer/pull/43 there was found a bug with types definition.\r\nExceljs has defined type for interface Range but not a class. \r\n\r\n## Steps To Reproduce\r\n\r\n```ts\r\nimport { Range } from 'exceljs';\r\nconst range = new Range(...);\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n`Range` should be able to create\r\n\r\n## Possible solution (workaround):\r\n\r\n```ts\r\n// @ts-ignore\r\nimport Range from 'exceljs/lib/doc/range';\r\n```\r\n\r\nI recommend starting to use Typescript for this project.\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/Siemienik/xlsx-renderer/pull/43",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

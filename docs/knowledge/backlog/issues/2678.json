@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2678,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2678",
+  "title": "[BUG] Table creation accepts empty row array, resulting in corrupted Excel file",
+  "state": "open",
+  "author": "georgbuehler",
+  "createdAt": "2024-02-05T15:59:26Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen creating a table, it's possible to define the rows array, but still leave it empty. ExcelJS will not warn that this will be an issue, but it will result in the Excel file being corrupted.  One changed line of code in the validate() method in the Table class should resolve this issue.\r\n\r\nLib version: 9.4.2\r\n\r\n## Steps To Reproduce\r\n\r\n1. Run the Jest unit test (below) to a project with exceljs installed.\r\n2. Open the generated EmptyRowsTableTest.xlsx file.\r\n3. User will receive the following error message: \"We found a problem with some content in 'BadTablenameTest.xlsx'. Do you want us to try to recover as much as we can? If you trust the source of this workbook, click Yes.\"\r\n4. If you click \"Yes\" for the repairs, Excel will present the message: \"Repaired Records: Table from /xl/tables/table1.xml part (Table)\". However, the table will not be created in the file.\r\n\r\n```javascript\r\nimport Excel from \"exceljs\";\r\nimport path from \"path\";\r\n\r\ndescribe(\"addTable()\", () => {\r\n  it(\"should not allow an empty rows array\", async () => {\r\n    const excelDoc = new Excel.Workbook();\r\n    const accountSheet = excelDoc.addWorksheet(\"Accounts\");\r\n\r\n    accountSheet.addTable({\r\n      name: \"Bob_s_Accounts\",\r\n      ref: \"A1\",\r\n      headerRow: true,\r\n      totalsRow: false,\r\n      style: {\r\n        theme: \"TableStyleMedium2\",\r\n        showRowStripes: true,\r\n      },\r\n      columns: [\r\n        { name: \"Name\", filterButton: true },\r\n        { name: \"Description\", filterButton: true },\r\n        { name: \"Credit Limit\", filterButton: true },\r\n        { name: \"Account Type\", filterButton: true },\r\n      ],\r\n      rows: [], // EMPTY ROWS ARRAY -- currently this is permitted, but it will corrupt the Excel file\r\n    });\r\n    expect(excelDoc).toBeInstanceOf(Excel.Workbook);\r\n    await excelDoc.xlsx.writeFile(\r\n      path.join(__dirname, \"../../data/EmptyRowsTableTest.xlsx\")\r\n    );\r\n  });\r\n});\r\n\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nWhen the developer tries to create a Table without populating the rows array, a runtime error should result: \"Table must have row definitions.\"\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nUpdate the validate() function to check that the rows array is not only defined by also populated:\r\n```javascript\r\nassert(table.rows && table.rows.length > 0, 'Table must have row definitions');\r\n```\r\n",
+  "comments": [],
+  "attachments": []
+}

@@ -1,0 +1,86 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2791,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2791",
+  "title": "Issue 2790/xlsx stream missing worksheets",
+  "state": "open",
+  "author": "LarryKen",
+  "createdAt": "2024-07-07T21:13:07Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\n<!-- Explain the **motivation** for making this change. What existing problem does the pull request solve? -->\r\nProvides a integration test case for [issue 2790](https://github.com/exceljs/exceljs/issues/2790) as well as a possible solution.\r\n\r\nThe stream namespace for xlsx workbook reader does not correctly parse large numbers of worksheets > 100. This is due to the way it is unzipping the file, it is reading the entries from the unzipper parse however it is not correctly draining each entry resulting in the stream halting [node-unzipper](https://github.com/ZJONSSON/node-unzipper?tab=readme-ov-file#parse-zip-file-contents:~:text=If%20you%20do%20not%20intend%20to%20consume%20an%20entry%20stream%27s%20raw%20data%2C%20call%20autodrain()%20to%20dispose%20of%20the%20entry%27s%20contents.%20Otherwise%20the%20stream%20will%20halt.). The iterateStream util does not call autodrain for each data when reading the unzipper stream.\r\n\r\n## Test plan\r\n\r\n<!-- Demonstrate the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes UI. -->\r\n\r\nThis is the test xlsx file that has 188 worksheets.\r\n[WORKBOOK_WITH_188_SHEETS.xlsx](https://github.com/LarryKen/exceljs-fork/blob/issue-2790/xlsx-stream-missing-worksheets/spec/integration/data/WORKBOOK_WITH_188_SHEETS.xlsx)\r\n\r\nI've created a [test case](https://github.com/LarryKen/exceljs-fork/blob/issue-2790/xlsx-stream-missing-worksheets/spec/integration/issues/issue-2790-xlsx-stream-read-large-worksheet-count.spec.js) that will read the file and check whether the count of worksheets emitted is equal to the count of worksheets in the file.\r\n\r\nRunning `npm run test:integration` get 194 tests passing 2 failing (The 2 failing tests are also failing on master).\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/58814227/949f60cf-81b5-4d67-9174-ae514fb4ac36)\r\n\r\n\r\n## Related to source code (for typings update)\r\n\r\n<!-- List with permalink into source code to prove that changes are true -->\r\n",
+  "comments": [
+    {
+      "author": "elouie99",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-17T21:32:14Z",
+      "reactions": 0,
+      "body": "Are there any guarantees that the workbookReader would return worksheets in the order they appear in the workbook? I ran a test and it seems like the order is not guaranteed. The total number of worksheets returned appear correct.\r\n\r\nIn addition, each worksheet returned doesn't appear to return the correct row data if I iterate through the rows and add rows to a new worksheet. If you add some sample rows to a few worksheets in the workbook and run this code, it should reproduce.\r\n\r\n\r\n\r\n    async function printWorkbook() {\r\n        const outputWorkbook = new ExcelJS.Workbook();\r\n        let combinedWorksheet = outputWorkbook.addWorksheet('Test worksheet');    \r\n        const filePath = 'WORKBOOK_WITH_188_SHEETS.xlsx';\r\n        const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(filePath, {\r\n          worksheets: 'emit',\r\n        });\r\n  \r\n        for await (const worksheet of workbookReader) {\r\n        console.log('===> worksheet:', worksheet.name);\r\n            for await (const row of worksheet) {\r\n                combinedWorksheet.addRow(row.values).commit();\r\n            }\r\n        }\r\n        await outputWorkbook.xlsx.writeFile('combined.xlsx');\r\n    }\r\n\r\n    printWorkbook().catch(console.error);\r\n\r\n"
+    },
+    {
+      "author": "LarryKen",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-27T17:01:51Z",
+      "reactions": 0,
+      "body": "There are no guarantee that the worksheets are returned in the way they appear in the workbook. I believe the order is effectively set by how unzipper extracts the xlsx. I believe the order on this branch is the same as on `master`.\r\n\r\nAlso regarding the rows not return the correct data. I think that is not an issue introduced by my changes. I am able to replicate the same results on `master` as on my branch."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2790",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/ZJONSSON/node-unzipper?tab=readme-ov-file#parse-zip-file-contents:~:text=If%20you%20do%20not%20intend%20to%20consume%20an%20entry%20stream%27s%20raw%20data%2C%20call%20autodrain(",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/LarryKen/exceljs-fork/blob/issue-2790/xlsx-stream-missing-worksheets/spec/integration/data/WORKBOOK_WITH_188_SHEETS.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/LarryKen/exceljs-fork/blob/issue-2790/xlsx-stream-missing-worksheets/spec/integration/issues/issue-2790-xlsx-stream-read-large-worksheet-count.spec.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/58814227/949f60cf-81b5-4d67-9174-ae514fb4ac36",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 44,
+    "deletions": 5,
+    "changedFiles": [
+      {
+        "path": "lib/stream/xlsx/workbook-reader.js",
+        "status": "modified",
+        "additions": 17,
+        "deletions": 5
+      },
+      {
+        "path": "spec/integration/data/WORKBOOK_WITH_188_SHEETS.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/issues/issue-2790-xlsx-stream-read-large-worksheet-count.spec.js",
+        "status": "added",
+        "additions": 27,
+        "deletions": 0
+      }
+    ]
+  }
+}

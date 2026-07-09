@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2929,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2929",
+  "title": "Extremely slow loop",
+  "state": "open",
+  "author": "karimkawambwa",
+  "createdAt": "2025-05-19T18:09:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/xlsx/xform/sheet/data-validations-xform.js#L220-L223\n\nI am having issues where this area in the code runs extremely slow with the address T9:T1048576 however, V9:V1048576 does not run that slow. The addresses loop takes something like 3 or more seconds each time we add to the model.",
+  "comments": [
+    {
+      "author": "karimkawambwa",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-20T22:28:41Z",
+      "reactions": 0,
+      "body": "Performance workaround for large data validation ranges\n\nAfter encountering severe performance issues with data validations on large ranges, I found a practical workaround by capping the range size.\n\nThe issue occurs in `xform/sheet/data-validations-xform.js` (lines 220-223) when applying data validation to ranges like \"T9:T1048576\":\n\n```js\nconst range = new Range(addr);\nrange.forEachAddress(address => {\n  this.model[address] = this._dataValidation;\n});\n```\n\nhowever i ran into another issue with styles and e.t.c.. so i decided to work with the xml themselves, maybe i'll try contribute to resolve the issue on this library but for now i will work with the xml files directly without this library."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/xlsx/xform/sheet/data-validations-xform.js#L220-L223",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

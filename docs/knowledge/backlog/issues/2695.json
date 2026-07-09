@@ -1,0 +1,68 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2695,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2695",
+  "title": "[BUG] Dates are not correct when loading files saved in \"Strict Mode\"",
+  "state": "open",
+  "author": "jec006",
+  "createdAt": "2024-02-16T21:52:18Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\nTL;DR When parsing Strict mode xlsx files, date cells are parsed incorrectly resulting in dates in 1904/1905.\r\n\r\nIf you go into excel, do \"Save As\" and select \"Strict Open XML Spreadsheet (.xlsx)\" it creates a file in the Strict format (rather than the default \"Transitional\" format).  The strict format has a few differences, but the one I'm running into issues with is the Date formatting.\r\n\r\nI found this reference regarding the date formatting: https://www.loc.gov/preservation/digital/formats/fdd/fdd000401.shtml\r\n\r\n> Textual and serial numeric representations of dates and times: In the Strict variant of XLSX, dates may be stored using textual forms specified in the ISO 8601 standard. Late in the ISO standardization process for OOXML, a proposal was made to adopt the ISO 8601 format for dates and times in spreadsheets. Dates and times in spreadsheets have usually been stored as numbers (sometimes termed \"serial date-time\" values)\r\n\r\nUnfortunately, when loading a Strict mode xlsx file with excelJS, any date cells are improperly treated as floats and you end up with a date in 1904 or 1905 (depending on OS).\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\nUsing the attached file: [DateFormatStrict.xlsx](https://github.com/exceljs/exceljs/files/14316248/DateFormatStrict.xlsx)\r\n\r\n```javascript\r\nconst ExcelJS = require('./excel')\r\nconst fs = require('fs/promises')\r\n\r\nconst fh = await fs.open('../DateFormatStrict.xlsx')\r\nconst bufferData = await fh.readFile()\r\n\r\nconst workbook = new ExcelJS.Workbook();\r\nawait workbook.xlsx.load(bufferData)\r\n\r\nconst cell = workbook.worksheets[0].getCell('A2')\r\n\r\nexpect(cell.value).to.equal(new Date('02/09/2024'));\r\n// cell.value is actually 1905-07-16T00:00:00.000Z\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nThe date value should be parsed correctly and match what was entered in excel (so a date object representing 02/09/2024).\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nI noticed that the t attribute for the cell values is `d`, so perhaps we could add a handler for that value type to CellXform parseClose here: https://github.com/exceljs/exceljs/blob/master/lib/xlsx/xform/sheet/cell-xform.js#L358\r\n\r\n```javascript\r\n\r\nelse if (this.t === 'd') {\r\n  model.result = new Date(model.value)\r\n}\r\n\r\n```\r\nIt looks like there is other code that also needs updating since that code is just parsing a float (somewhere else is turning it into a date).  If I have time tonight I'll try to figure it out and make a PR",
+  "comments": [
+    {
+      "author": "hugo082",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-01T09:08:28Z",
+      "reactions": 3,
+      "body": "Hii @jec006 👋 \r\n\r\nAny chance to see the PR merged? What are the next steps?\r\nI would be happy to help if needed\r\n\r\n_Edit:_ the project seems inactive: https://github.com/exceljs/exceljs/issues/2764"
+    },
+    {
+      "author": "suuunly",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-15T09:43:10Z",
+      "reactions": 0,
+      "body": "Heard anything back on this issue?\nSince not being able to read dates makes this package unusable when it comes to working with dates 😅"
+    },
+    {
+      "author": "jec006",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-15T11:50:48Z",
+      "reactions": 1,
+      "body": "Hi, I haven't heard anything back and don't have the ability to merge.  I've taken to just using this commit and doing a git reference for this package "
+    },
+    {
+      "author": "suuunly",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-06-24T15:53:27Z",
+      "reactions": 0,
+      "body": "It is very unfortunate that they haven't labelled the project as shelved, since a lot of people will hop into using it, without knowing these underlying bugs that will not get fixed 🫠\nBut thank you for your insight! I will do the same then, and find a different library in future prospects 😁"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.loc.gov/preservation/digital/formats/fdd/fdd000401.shtml",
+      "ext": "shtml",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/14316248/DateFormatStrict.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/xlsx/xform/sheet/cell-xform.js#L358",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2764",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

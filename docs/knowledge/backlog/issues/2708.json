@@ -1,0 +1,34 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2708,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2708",
+  "title": "[BUG] Wrong image positioning if previous rows have long text with 'wrapText: true' on LibreOffice Calc",
+  "state": "open",
+  "author": "Ks89",
+  "createdAt": "2024-02-26T16:49:19Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\nUse the following code with the 2 files attached to this post and open the resulting file `output.xlsx` with `LibreOffice Calc 24.2.0.3 (Community)`.\r\n\r\n\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\nRun this code with the provided input files:\r\n\r\n```javascript\r\nconst fs = require(\"fs\");\r\nconst Excel = require ('exceljs');\r\n\r\n// Lorem ipsum long texts\r\nconst text1 = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer ac condimentum tortor. Nulla facilisi. Nunc faucibus elit eu lectus maximus aliquet. Mauris ac maximus odio. Nulla accumsan ante eu malesuada venenatis. Nam eu nisi in sapien ornare eleifend. Maecenas interdum tincidunt tellus id dapibus. Phasellus bibendum cursus velit, vel molestie mauris tempor eget. In lorem mi, euismod vel justo feugiat, cursus efficitur tellus. In blandit, dolor eget dictum elementum, enim nisl rutrum orci, sed tincidunt sapien ex vel justo. Maecenas elit erat, accumsan ultricies commodo a, ultrices nec leo. Phasellus ut lacus maximus, laoreet neque quis, tincidunt tortor. Nulla scelerisque, libero id mollis aliquam, lectus risus condimentum diam, vitae ornare nulla dui eu urna. Etiam mi massa, lacinia id est sed, faucibus semper lectus.';\r\nconst text2 = 'Pellentesque in lacus id lectus euismod sodales et sit amet ligula. Vivamus pharetra eros eu ante accumsan lobortis. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean a dolor purus. Duis sed malesuada ex. Nunc placerat, metus quis semper condimentum, justo libero blandit turpis, sed consequat diam leo quis turpis.';\r\nconst text3 = 'Duis ultricies gravida ante sit amet interdum. Pellentesque ac hendrerit nulla. Ut risus quam, pellentesque ac turpis a, ultricies tincidunt risus. Quisque feugiat dolor mi, a egestas justo varius a. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Aenean posuere dignissim purus, ut vehicula elit condimentum ut. In scelerisque lacus nec dignissim pretium. Donec et sagittis nibh. Nunc eget nibh quis leo facilisis interdum. Proin sit amet lectus ex. Mauris eu diam tempor, tempus erat vitae, egestas purus. Mauris egestas scelerisque semper. Duis ultrices rhoncus erat, sit amet viverra mauris mattis ut. Donec et venenatis nisi.';\r\n\r\nconst img = fs.readFileSync(\"./512x512.png\", { encoding: \"base64\" });\r\n\r\n(async function (){\r\n    const workbook = new Excel.Workbook();\r\n    await workbook.xlsx.readFile('./test.xlsx');\r\n    \r\n    const imgId = workbook.addImage({\r\n        extension: 'png',\r\n        base64: img,\r\n      });\r\n    \r\n    const ws = workbook.getWorksheet('page1');\r\n\r\n    // add some text\r\n    ws.insertRow(7, [{ richText: [{ text: text1, font: { size: 11} }, { text: 'bold', font: { bold: true} }] }]);\r\n    ws.getRow(7).alignment = {wrapText: true};\r\n    ws.mergeCells('A' + 7 + ':F' + 7);\r\n  \r\n    ws.insertRow(8, [{ richText: [{ text: text2, font: { size: 11} }, { text: 'bold', font: { bold: true} }] }]);\r\n    ws.getRow(8).alignment = {wrapText: true};\r\n    ws.mergeCells('A' + 8 + ':F' + 8);\r\n\r\n    ws.insertRow(10, [{ richText: [{ text: text3, font: { size: 11} }, { text: 'bold', font: { bold: true} }] }]);\r\n    ws.getRow(10).alignment = {wrapText: true};\r\n    ws.mergeCells('A' + 10 + ':F' + 10);\r\n\r\n    // add image to row 12 and column C\r\n    const rowToInsert = 12;\r\n    ws.addImage(imgId, {\r\n        tl: { col: 2, row: rowToInsert - 1 },\r\n        ext: { width: 256, height: 256 }\r\n    });\r\n\r\n    await workbook.xlsx.writeFile('output.xlsx');\r\n})();\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nThe image position should be correct on LibreOffice Calc. Instead, the image anchor is in the right position, but not the Image (the image is not attached to the upper left corner of the image).\r\n\r\n[test.xlsx](https://github.com/exceljs/exceljs/files/14407657/test.xlsx)\r\n![512x512](https://github.com/exceljs/exceljs/assets/6057207/ddacfdb1-4cdf-4e01-9566-822d747b9b6d)\r\n[output.xlsx](https://github.com/exceljs/exceljs/files/14407675/output.xlsx)\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/14407657/test.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/6057207/ddacfdb1-4cdf-4e01-9566-822d747b9b6d",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/14407675/output.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1440,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1440",
+  "title": "[BUG]Unable to use Exceljs (4.1.1) in IE11 using Angular 9",
+  "state": "open",
+  "author": "shashi92",
+  "createdAt": "2020-08-27T11:11:21Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nInvalid range in character set\" error on IE11 if using excelJs.\r\n\r\nLib version: \r\npackage.json\r\n------------------------\r\n\r\n    \"@angular/animations\": \"~9.0.3\",\r\n    \"@angular/cdk\": \"^9.2.4\",\r\n    \"@angular/common\": \"~9.0.3\",\r\n    \"@angular/compiler\": \"~9.0.3\",\r\n    \"@angular/core\": \"~9.0.3\",\r\n    \"@angular/forms\": \"~9.0.3\",\r\n       \"exceljs\": \"^4.1.1\",\r\n\r\nPolyfills.ts\r\n-------------\r\n\r\nimport 'core-js'\r\nrequire('core-js/modules/es.promise');\r\nrequire('core-js/modules/es.string.includes');\r\nrequire('core-js/modules/es.object.assign');\r\nrequire('core-js/modules/es.object.keys');\r\nrequire('core-js/modules/es.symbol');\r\nrequire('core-js/modules/es.symbol.async-iterator');\r\nrequire('regenerator-runtime/runtime');\r\nimport 'regenerator-runtime/runtime';\r\nimport './unicode-regex-polyfill';\r\n\r\nunicode-regex-polyfill.ts\r\n---------------------------------------------\r\n\r\nimport rewritePattern from 'regexpu-core';\r\nimport { generateRegexpuOptions } from '@babel/helper-create-regexp-features-plugin/lib/util';\r\nconst { RegExp } = global;\r\ntry {\r\n  new RegExp('a', 'u');\r\n} catch (err) {\r\n  // @ts-ignore\r\n  global.RegExp = function(pattern, flags) {\r\n    if (flags && flags.includes('u')) {\r\n      return new RegExp(\r\n        rewritePattern(\r\n          pattern,\r\n          flags,\r\n          generateRegexpuOptions({ flags, pattern })\r\n        )\r\n      );\r\n    }\r\n    return new RegExp(pattern, flags);\r\n  };\r\n  // @ts-ignore\r\n  global.RegExp.prototype = RegExp;\r\n}\r\n\r\n",
+  "comments": [
+    {
+      "author": "EugeniyKiyashko",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-14T19:08:02Z",
+      "reactions": 0,
+      "body": "Seems, that is a similar issue - https://github.com/exceljs/exceljs/issues/1380"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1380",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

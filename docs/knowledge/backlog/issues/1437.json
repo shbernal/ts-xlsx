@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1437,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1437",
+  "title": "Error while reading an Excel file written with OpenXML SDK",
+  "state": "open",
+  "author": "OSjoerdWie",
+  "createdAt": "2020-08-24T09:51:31Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 1,
+  "body": "OpenXML SDK generates valid output, yet without a global namespace. For example, the contents of xl/workbook.xml could look like the following\r\n\r\n`<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"true\"?>\r\n<x:workbook xmlns:x=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">\r\n<x:fileVersion rupBuild=\"9302\" lowestEdited=\"4\" lastEdited=\"5\" appName=\"xl\"/>\r\n<x:workbookPr defaultThemeVersion=\"124226\" filterPrivacy=\"1\"/>\r\n<x:bookViews>\r\n  <x:workbookView activeTab=\"1\" firstSheet=\"1\" windowHeight=\"8010\" windowWidth=\"14805\" yWindow=\"105\" xWindow=\"240\"/>\r\n</x:bookViews>\r\n<x:sheets>\r\n  <x:sheet r:id=\"rId2\" sheetId=\"1\" name=\"Sheet1\"/>\r\n  <x:sheet r:id=\"rId3\" sheetId=\"2\" name=\"Sheet2\"/>\r\n  <x:sheet r:id=\"rId4\" sheetId=\"3\" name=\"Sheet3\"/>\r\n</x:sheets>\r\n<x:definedNames>\r\n  <x:definedName>....</x:definedName>\r\n</x:definedNames><x:calcPr calcId=\"122211\"/>\r\n</x:workbook>`\r\n\r\nUpon loading an xlsx file with this workbook content, the parsing of xl/workbook.xml results in an undefined workbook. This is probably due to the fact that node matching is done without taking into account namespaces.",
+  "comments": [
+    {
+      "author": "visnup",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-10-08T17:20:34Z",
+      "reactions": 0,
+      "body": "I've run into the same issue. For example, this file from Microsoft's test suite fails: https://github.com/OfficeDev/Open-XML-SDK/blob/main/test/DocumentFormat.OpenXml.Tests.Assets/assets/TestFiles/Spreadsheet.xlsx."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/OfficeDev/Open-XML-SDK/blob/main/test/DocumentFormat.OpenXml.Tests.Assets/assets/TestFiles/Spreadsheet.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

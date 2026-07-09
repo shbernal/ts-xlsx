@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2854,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2854",
+  "title": "[BUG] Workbook Protection is removed, after reading and downloading the sheet. Locking Structure is not preserved.",
+  "state": "open",
+  "author": "sanjusabu",
+  "createdAt": "2024-12-03T05:21:51Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nSo, I was passing a protected workbook, and when I read it and then download it, it removes the protection on the workbook.\r\n\r\nNote it doesn't do the same for the worksheets. It keeps only those cells locked which were present in the sheet passed to it.\r\n\r\nLib version: \"^4.4.0\",\r\n\r\n## The expected behaviour\r\n\r\nKeep the workbook structure as it is in the original sheet. Do not remove the lock on the structure if it is present already.\r\n\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "ivashog",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-01-23T11:53:59Z",
+      "reactions": 0,
+      "body": "I have the same issue"
+    }
+  ],
+  "attachments": []
+}

@@ -1,0 +1,37 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2597,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2597",
+  "title": "[BUG] Table Rows and Columns are undefined/ incomplete",
+  "state": "open",
+  "author": "Walnussbaer",
+  "createdAt": "2023-11-19T14:26:48Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen trying to read the columns and rows of an Excel data table, rows are undefined and columns are incomplete. \r\n\r\nContext: I am developing an Electron app. The exceljs processing is done in Node context (Backend of Electron App, not in browser context) \r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\n// in my case, a table with more than 3 columns should be loaded\r\nconst table = worksheet.getTable(tableName);\r\nconst columns = table.columns\r\n// --> columns is undefined --> Bug\r\n\r\nconst columnsB = table.model.columns\r\n// --> columnsB is an array of 3 columns, but my table has way more then 3 columns (ExcelJs only reads the first 3 columns) --> Bug\r\n\r\nconst rows = table.rows\r\n// --> rows is undefined --> Bug\r\n```\r\n\r\nSome output from the debugger:\r\n![grafik](https://github.com/exceljs/exceljs/assets/49414693/47ad3e78-9a3e-44d6-a88a-0c5da29fbe60)\r\n\r\nThe actual table in Excel\r\n![grafik](https://github.com/exceljs/exceljs/assets/49414693/a1fb9dd8-ffa5-4a90-afc6-16b31d8fea1f)\r\n\r\n\r\n\r\n## The expected behaviour:\r\n\r\nI expect that all 3 variables mentioned above (columns, columnsB and rows) are not undefined/ contain the correct table data. \r\n\r\nEDIT: I tried reading a different table in the workbook. It is always the same result: table.model.columns always only contains the first 3 columns of the table, the rest is missing. \r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n-\r\n",
+  "comments": [
+    {
+      "author": "henrymcl",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-16T08:06:36Z",
+      "reactions": 0,
+      "body": "It seems that both rows and columns are missing.\r\nWe can resort to reading the cells directly for the moment."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/49414693/47ad3e78-9a3e-44d6-a88a-0c5da29fbe60",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/49414693/a1fb9dd8-ffa5-4a90-afc6-16b31d8fea1f",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

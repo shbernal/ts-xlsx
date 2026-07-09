@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1641,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1641",
+  "title": "[BUG] adding displayName to table",
+  "state": "open",
+  "author": "YaseenAlMufti",
+  "createdAt": "2021-03-20T18:41:40Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\n\nAdding displayName to the properties of addTable will result in a recoverable corrupted Excel file.\n\nAfter Excel repair tool, the table will not contain the displayName.\n\nLib version: 4.2.0\n\n## Steps To Reproduce\n\n1. Create workbook\n2. Create worksheet\n3. Add Table with displayName property in options.\n\n```javascript\nconst wb = new ExcelJS.Workbook();\nconst ws = wb.addWorksheet(\"Test\");\n\nws.addTable({\n   name: 'MyTable', \n   displayName: 'My Test Table',\n   ref: 'A1', \n   headerRow: true,    \n   totalsRow: true, \n   style: { \n        theme: 'TableStyleDark3', \n        showRowStripes: true, \n   },\n   columns: [ \n       {\n           name: 'Date', \n           totalsRowLabel: 'Totals:',\n           filterButton: true\n       }, \n      {\n           name: 'Amount', \n           totalsRowFunction: 'sum', \n           filterButton: false\n      },\n   ], \n   rows: [ \n       [new Date('2019-07-20'), 70.10], \n       [new Date('2019-07-21'), 70.60], \n       [new Date('2019-07-22'), 70.10], \n   ],\n})\n```\n\n## The expected behaviour:\n\n1. displayName chosen for the table would show on a cell above the table.\n2. The file is not corrupted.\n\n## Possible solution (optional, but very helpful):\n\nRemoving displayName from the options will fix the corrupted file issue. However, we will have to add the name of the Table manually by figuring out in which cell we will need to add it to.\n",
+  "comments": [
+    {
+      "author": "YaseenAlMufti",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-21T02:53:41Z",
+      "reactions": 5,
+      "body": "As of now, the things I see broken are like follows:\n\n1. Adding displayName => corrupted file.\n2. Adding note and table in the same worksheet => corrupted file.\n\n3. (headerRow: false) in properties => corrupted file.\n4. Adding a table with empty rows => corrupted file.\n\nAll testing is done on Mac Catalina and exceljs v4.2.0."
+    },
+    {
+      "author": "Jigna-Rathod",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-12T02:11:33Z",
+      "reactions": 0,
+      "body": "@YaseenAlMufti I do not have displayName in my table still  the corrupt file issue. below is the code\r\n` worksheet.addTable({\r\n      name: 'cc' + 'E10',\r\n      ref: 'E10',\r\n      headerRow: true,\r\n      style: {\r\n        theme: 'TableStyleLight9',\r\n        showRowStripes: false,\r\n      },\r\n      columns: [{name:'integer'},{name:'chars'}],\r\n      rows: [[12.2,'aa'],[23.3,'cc']],\r\n    });`"
+    },
+    {
+      "author": "YaseenAlMufti",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-12T07:47:00Z",
+      "reactions": 1,
+      "body": "> @YaseenAlMufti I do not have displayName in my table still  the corrupt file issue. below is the code\n> ` worksheet.addTable({\n>       name: 'cc' + 'E10',\n>       ref: 'E10',\n>       headerRow: true,\n>       style: {\n>         theme: 'TableStyleLight9',\n>         showRowStripes: false,\n>       },\n>       columns: [{name:'integer'},{name:'chars'}],\n>       rows: [[12.2,'aa'],[23.3,'cc']],\n>     });`\n\nYeah, it looks like you cannot have any numbers on the \"name\" property even if its a string.\n\nTry the same code but with only 'cc' or 'cc' + 'E'.\nIt should work."
+    },
+    {
+      "author": "Jigna-Rathod",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-12T08:18:19Z",
+      "reactions": 1,
+      "body": "@YaseenAlMufti It worked. Super thanks. "
+    }
+  ],
+  "attachments": []
+}

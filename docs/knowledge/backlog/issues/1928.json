@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1928,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1928",
+  "title": "[BUG] \"1/1/1900\" produces incorrect Date value",
+  "state": "open",
+  "author": "nxn",
+  "createdAt": "2021-12-13T17:18:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nExcel dates set to \"1/1/1900\" are incorrectly producing Date objects with a value of 1899-12-31T00:00:00.000Z.\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\nI have created a demo of this bug available here: https://codesandbox.io/s/naughty-cohen-02j2g?file=/src/index.js\r\n\r\nThe following excel file can be used to illustrate this issue when the value of cell A2 is read:\r\n[1900.xlsx](https://github.com/exceljs/exceljs/files/7705620/1900.xlsx)\r\n\r\nAlternatively, create an excel file and enter \"1/1/1900\" into any cell (excel will format the cell as a date), then use Exceljs to read that cell value.\r\n\r\n\r\n## The expected behaviour:\r\n\r\n\"1/1/1900\" should result in a Date object with a value of 1900-01-01T00:00:00.000Z.\r\n",
+  "comments": [
+    {
+      "author": "nxn",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-13T19:13:31Z",
+      "reactions": 0,
+      "body": "Did a bit of research: It seems that Excel intentionally included a leap year bug from Lotus 1-2-3 for compatibility reasons. Any dates prior to March 1st 1900 are off by one because Excel behaves as if February 29th 1900 existed.\r\n\r\nhttps://docs.microsoft.com/en-us/office/troubleshoot/excel/wrongly-assumes-1900-is-leap-year\r\n\r\n[1900_LeapDay.xlsx](https://github.com/exceljs/exceljs/files/7706549/1900_LeapDay.xlsx)"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://codesandbox.io/s/naughty-cohen-02j2g?file=/src/index.js",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/7705620/1900.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://docs.microsoft.com/en-us/office/troubleshoot/excel/wrongly-assumes-1900-is-leap-year",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/7706549/1900_LeapDay.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 904,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/904",
+  "title": "Sorting is not working after i apply auto filter",
+  "state": "open",
+  "author": "amitarabatti",
+  "createdAt": "2019-07-30T11:41:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "I have added the autofilter by using the below code :\r\n\r\n`var ws = XLSX.utils.json_to_sheet(excelData);\r\n                    var lastcell = excelData.length + 1;\r\n                    ws['!autofilter'] = { ref: \"A1:M\" + String(lastcell) };\r\n                    ws[\"!freeze\"] = \"A2\";\r\n                    ws['!formatColumns'] = true;\r\n                    var wscols = [\r\n                        { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 10 },\r\n                        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 },\r\n                        { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 15 }\r\n                    ];\r\n                    ws['!cols'] = wscols;\r\n\r\n                    XLSX.utils.sheet_set_range_style(ws, \"A1:M\" + String(lastcell), {\r\n                        alignment: {\r\n                            vertical: \"top\",\r\n                            wrapText: true\r\n                        }\r\n                    });\r\n\r\n                    var range = XLSX.utils.decode_range(ws['!ref']);\r\n                    XLSX.utils.sheet_set_range_style(ws, range, {\r\n                        sz: 10\r\n                    });\r\n\r\n                    XLSX.utils.sheet_set_range_style(ws, \"B2:B\" + String(lastcell), {\r\n                        sz: 8\r\n                    });\r\n\r\n                    XLSX.utils.sheet_set_range_style(\r\n\t                    ws, // worksheet\r\n\t                    \"A1:M1\", // header range\r\n\t                    { // style object\r\n\t                        fgColor: { rgb: '0x285276' }, // blue solid background\r\n\t                        color: { rgb: '0xFFFFFF' }, // white text\r\n\t                        bold: true,\r\n\t                        alignment: {\r\n\t                            horizontal: \"center\",\r\n\t                            vertical: \"center\",\r\n\t                            wrapText: true\r\n\t                        }\r\n\t                    }\r\n                    );\r\n\r\n                    var wb = XLSX.utils.book_new();\r\n                    XLSX.utils.book_append_sheet(wb, ws, \"Applications\");`\r\n\r\nWith this i am getting filter dropdowns on all columns however when i try to sort , excel crashes\r\nI am using Excel 2010\r\n\r\nRegards,\r\nAmit\r\n                    ",
+  "comments": [
+    {
+      "author": "ShyamL1319",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-22T10:59:57Z",
+      "reactions": 0,
+      "body": "Till when it will be fixed @exceljs team please help here"
+    }
+  ],
+  "attachments": []
+}

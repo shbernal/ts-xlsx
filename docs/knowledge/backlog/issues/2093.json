@@ -1,0 +1,58 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2093,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2093",
+  "title": "[BUG] VueE3 and Vite",
+  "state": "open",
+  "author": "OlegFromOmsk",
+  "createdAt": "2022-07-12T05:28:37Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- Building with error -->\r\n\"vue\": \"^3.2.33\",\r\n\"exceljs\": \"^4.3.0\",\r\n\r\nnode: 'v18.2.0', npm: '8.9.0', vite v2.9.9\r\n\r\n## Steps To Reproduce\r\ntry to build project with \r\nvite build\r\n\r\nBut where is an error^\r\n\r\nvite v2.9.9 building for production...\r\n✓ 50 modules transformed.\r\n[commonjs] Unexpected token (11:63288) in C:/VueProjects/hpv-vue3/node_modules/exceljs/dist/exceljs.min.js\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "bogdan-calapod",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-01-18T15:54:52Z",
+      "reactions": 0,
+      "body": "Seeing the same here with ViteJS 4.0.4 - any hints on how to fix that ? "
+    },
+    {
+      "author": "ConradSollitt",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-03T06:50:25Z",
+      "reactions": 2,
+      "body": "I started having this happen with Vite on last January 2023 after it was working fine for 9 months. It caused my Vite/React app to break at random times in production and not load. I solved it using the snippet below by loading ExcelJS from a CDN and not the build version.\r\n\r\nExcelJS hasn't been updated since November 2021 so it seems like this might be an abandon project which would be unfortunate as it's the best Excel JavaScript library I've worked with.\r\n\r\nAnyways, I'm the author of the snippet and it was created for a non-build process but it works great with Vite or build process too. Fixed my app. If you didn't want to point to a CDN you could just copy the file local and change the URL. The key thing is use the already built version of exceljs and don't let a build process handle it.\r\n\r\nhttps://github.com/dataformsjs/dataformsjs/blob/master/js/web-components/export-to-excel-service.js#L96\r\n```js\r\nfunction downloadExcelJS(callback) {\r\n    if (window.ExcelJS !== undefined) {\r\n        callback();\r\n        return;\r\n    }\r\n    const script = document.createElement('script');\r\n    script.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js';\r\n    script.onload = callback;\r\n    document.querySelector('head').appendChild(script);\r\n}\r\n```\r\n"
+    },
+    {
+      "author": "bernard-uerm",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-16T07:17:57Z",
+      "reactions": 0,
+      "body": "Hi any other workaround on this? I'm currently using it on my Vue Project, Thank you so much for the help."
+    },
+    {
+      "author": "BerenLuth",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-28T14:38:59Z",
+      "reactions": 0,
+      "body": "Same problem here, I'm using\r\n```\r\n\"react\": \"^18.2.0\"\r\n\"vite\": \"^3.2.3\"\r\n\"exceljs\": \"^4.3.0\"\r\n``` \r\nit works locally, but then when I try to build for deploy i get the same error.\r\n\r\nHere is the error i get on build\r\n```sh\r\nerror during build:\r\nSyntaxError: Unexpected token (11:63288) in /builds/greendecision/sunshine/sunshine/node_modules/exceljs/dist/exceljs.min.js\r\n    at Parser.pp$4.raise (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:19420:13)\r\n    at Parser.pp$9.unexpected (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:16714:8)\r\n    at Parser.pp$5.parseIdent (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:19351:10)\r\n    at Parser.pp$5.parsePropertyName (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:19155:109)\r\n    at Parser.pp$5.parseProperty (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:19082:8)\r\n    at Parser.pp$5.parseObj (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:19036:21)\r\n    at Parser.pp$5.parseExprAtom (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18771:17)\r\n    at Parser.pp$5.parseExprSubscripts (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18587:19)\r\n    at Parser.pp$5.parseMaybeUnary (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18553:17)\r\n    at Parser.pp$5.parseExprOps (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18480:19)\r\n    at Parser.pp$5.parseMaybeConditional (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18463:19)\r\n    at Parser.pp$5.parseMaybeAssign (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18430:19)\r\n    at Parser.pp$5.parseExprList (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:19299:18)\r\n    at Parser.pp$5.parseSubscript (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18649:25)\r\n    at Parser.pp$5.parseSubscripts (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18606:24)\r\n    at Parser.pp$5.parseExprSubscripts (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18590:21)\r\n    at Parser.pp$5.parseMaybeUnary (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18553:17)\r\n    at Parser.pp$5.parseExprOp (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18505:41)\r\n    at Parser.pp$5.parseExprOp (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18510:19)\r\n    at Parser.pp$5.parseExprOps (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18482:91)\r\n    at Parser.pp$5.parseMaybeConditional (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18463:19)\r\n    at Parser.pp$5.parseMaybeAssign (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18430:19)\r\n    at Parser.pp$5.parseParenAndDistinguishExpression (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18891:28)\r\n    at Parser.pp$5.parseExprAtom (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18754:41)\r\n    at Parser.pp$5.parseExprSubscripts (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18587:19)\r\n    at Parser.pp$5.parseMaybeUnary (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18553:17)\r\n    at Parser.pp$5.parseExprOp (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18505:41)\r\n    at Parser.pp$5.parseExprOp (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18510:19)\r\n    at Parser.pp$5.parseExprOps (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18482:91)\r\n    at Parser.pp$5.parseMaybeConditional (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18463:19)\r\n    at Parser.pp$5.parseMaybeAssign (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18430:19)\r\n    at Parser.pp$5.parseParenAndDistinguishExpression (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18891:28)\r\n    at Parser.pp$5.parseExprAtom (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18754:41)\r\n    at Parser.pp$5.parseExprSubscripts (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18587:19)\r\n    at Parser.pp$5.parseMaybeUnary (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18553:17)\r\n    at Parser.pp$5.parseExprOp (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18505:41)\r\n    at Parser.pp$5.parseExprOps (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18482:91)\r\n    at Parser.pp$5.parseMaybeConditional (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18463:19)\r\n    at Parser.pp$5.parseMaybeAssign (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18430:19)\r\n    at Parser.pp$5.parseExpression (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18393:19)\r\n    at Parser.pp$8.parseStatement (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:16904:45)\r\n    at Parser.pp$8.parseBlock (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:17190:21)\r\n    at Parser.pp$5.parseFunctionBody (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:19246:22)\r\n    at Parser.pp$8.parseFunction (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:17312:8)\r\n    at Parser.pp$5.parseExprAtom (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18776:17)\r\n    at Parser.pp$5.parseExprSubscripts (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18587:19)\r\n    at Parser.pp$5.parseMaybeUnary (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18553:17)\r\n    at Parser.pp$5.parseExprOps (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18480:19)\r\n    at Parser.pp$5.parseMaybeConditional (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18463:19)\r\n    at Parser.pp$5.parseMaybeAssign (file:///builds/greendecision/sunshine/sunshine/node_modules/rollup/dist/es/shared/rollup.js:18430:19)\r\n🛑 Build command \"npm run-script build\" exited with failure\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/dataformsjs/dataformsjs/blob/master/js/web-components/export-to-excel-service.js#L96",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,479 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 106,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/106",
+  "title": "Microsoft Excel needs to recover XLSX before opening",
+  "state": "open",
+  "author": "anmolnar",
+  "createdAt": "2016-04-13T09:38:27Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "enhancement"
+  ],
+  "reactions": 15,
+  "commentCount": 58,
+  "body": "Hi,\n\nExcel pops up a message whether I want to repair the file, because it has found some issues with it.\nAfter recovery it says:\n\nRepaired Records: Cell information from /xl/worksheets/sheet1.xml part\n\nRecovery log:\n\n```\n<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"true\"?>\n<recoveryLog xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">\n<logFileName>error212120_01.xml</logFileName>\n<summary>Errors were detected in file 'C:\\0\\test.xlsx'</summary>\n<repairedRecords summary=\"Following is a list of repairs:\">\n<repairedRecord>Repaired Records: Cell information from /xl/worksheets/sheet1.xml part</repairedRecord>\n</repairedRecords>\n</recoveryLog>\n```\n\nPlease advise.\n\nThanks,\nAndor\n",
+  "comments": [
+    {
+      "author": "ashleyschuett",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-04-13T13:08:58Z",
+      "reactions": 2,
+      "body": "If you have a formula in your spread sheet it could be that you did not assign a result to that cell as well. \n\nI had the same issue when I had a cell with .formula = 'A1+A2' and .result='Nan'\n"
+    },
+    {
+      "author": "anmolnar",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-04-13T14:17:37Z",
+      "reactions": 0,
+      "body": "No, I don't use formula or any other fancy stuff.\nI generate a basic excel file with one sheet with the following code:\n\n```\nvar workbook = new Excel.Workbook();\n  var sheet = workbook.addWorksheet();\n  sheet.columns = [\n    { header: 'Account Name', key: 'name', width: 24},\n    { header: 'Account ID', key: 'id', width: 40},\n    { header: 'Created Date', key: 'createdDate', width: 15},\n    { header: 'Last Modified Date', key: 'lastModifiedDate', width: 20},\n    { header: 'Created By', key: 'createdBy', width: 40},\n    { header: 'Number Of Devices', key: 'numberOfDevices', width: 10},\n    { header: 'Number Of End Users', key: 'numberOfEndUsers', width: 10}\n  ];\n\n  _.forEach(accounts, function (acc) {\n    sheet.addRow({\n      name: acc.name,\n      id: acc.id,\n      createdDate: acc.created,\n      lastModifiedDate: acc.lastModified,\n      createdBy: acc.createdById,\n      numberOfDevices: acc.deviceCount,\n      numberOfEndUsers:  acc.endUserCount\n    });\n  });\n  sheet.getRow(1).font = { bold: true };\n\n```\n"
+    },
+    {
+      "author": "jayflo",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-05-17T20:19:39Z",
+      "reactions": 0,
+      "body": "I am also getting a similar error:\n\n> Excel found unreadable content in ... Do you want to recover the contents of this workbook?\n\nbut for `Worksheets`:\n\n```\n<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"true\"?>\n-<recoveryLog xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">\n<logFileName>error203880_01.xml</logFileName>\n<summary>Errors were detected in file 'C:\\...\\something.xlsx'</summary>\n-<repairedRecords summary=\"Following is a list of repairs:\">\n<repairedRecord>Repaired Records: Worksheet properties from /xl/workbook.xml part (Workbook)</repairedRecord>\n</repairedRecords>\n</recoveryLog>\n```\n\nI am also not using any validation.\n"
+    },
+    {
+      "author": "jayflo",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-05-17T20:22:26Z",
+      "reactions": 21,
+      "body": "For me, it looks like the worksheet names are the issue:  http://stackoverflow.com/questions/11706393/excel-found-unreadable-content-in-xslx\n\nI need to use shorter names.\n"
+    },
+    {
+      "author": "Lenok",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-04-05T08:08:14Z",
+      "reactions": 1,
+      "body": "@ashleyschuett In this case you should write cell with sheet name:\r\n'Sheet1'!A1+'Sheet1'!A2 instead of A1+A2"
+    },
+    {
+      "author": "amkoehler",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-01-02T21:46:40Z",
+      "reactions": 0,
+      "body": "@jayflo thanks! That was my problem as well. The xml error log from Excel wasn't very helpful with this problem. "
+    },
+    {
+      "author": "GaneshPL",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-01-03T10:00:15Z",
+      "reactions": 0,
+      "body": "I too had the same problem, not sure if this will help everyone. Declare your Excel.Workbook() within the function, this way helped me."
+    },
+    {
+      "author": "ShenTengTu",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-04-07T15:51:51Z",
+      "reactions": 0,
+      "body": "@GaneshPL Can you provide some example? \r\n> Declare your Excel.Workbook() within the function\r\n\r\n"
+    },
+    {
+      "author": "GaneshPL",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-04-08T00:59:56Z",
+      "reactions": 0,
+      "body": "I had a dedicated JS file to use in my nodejs project to prepare Excel file, where my DB.js file will call Excel.js to prepare, in that I had\r\nvar workbook = new Excel.Workbook()\r\ndeclared along with importing modules, but that doesn't work as the module gets loaded only once per node start. So I declared the above within function in the Excel.js\r\n\r\n/*\r\nOther module imports\r\n*/\r\nvar prepareExcel = (filename, callBack) =>{\r\nvar workbook = new Excel.Workbook()\r\n//prepare Excel file.\r\n}"
+    },
+    {
+      "author": "sanjayg11",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-04-15T15:49:59Z",
+      "reactions": 0,
+      "body": "@ashleyschuett ashleyschuet, \r\ni am facing issue with formulas as mentioned above. any solutions??"
+    },
+    {
+      "author": "rob2d",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-05-10T19:02:26Z",
+      "reactions": 3,
+      "body": "I am having a similar issue. The error I get is:\r\n\r\n```Repaired Records: String properties from /xl/sharedStrings.xml part (Strings)```\r\n\r\nNot doing anything fancy here e.g. no formulas or colors, and each tab is within the 31 character limit.\r\n\r\nI ran an XML validator pre-repair after extracting the generated xlsx for `xl/sharedStrings.xml` which (aside from standalone=\"yes\") came back as a valid XML (https://codebeautify.org/xmlvalidator). I also stripped any non ASCII while printing out to the .xlsx file columns just to be sure. This is very weird."
+    },
+    {
+      "author": "rob2d",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-05-11T16:29:44Z",
+      "reactions": 18,
+      "body": "Just to update in case it helps anyone else, I finally found the source of my problem. I had some data generated in cells which exceeded the length allowed (32,767 characters). There's other constraints on things like row height/cell length/etc which when violated work in non Microsoft products (e.g. Google Docs) but bring up a Microsoft recovery message. You can find that info here: https://support.office.com/en-us/article/excel-specifications-and-limits-1672b34d-7043-467e-8e27-269d656771c3\r\n\r\nI think it would be a great idea to detect these issues in excelJS and pass a warning. This way, we won't need to troubleshoot blindly and drive ourselves crazy (and usually an excel UI would apply these constraints to the inputs themselves).\r\n\r\nAny thoughts on it? I am considering putting in a PR as library this seems to be the best hope at isomorphic excel solutions currently."
+    },
+    {
+      "author": "mg1075",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-11-13T19:49:20Z",
+      "reactions": 3,
+      "body": "Similar issue experienced when a column with _date_ values also included _null_ values. After replacing _null_ values with empty string (see https://stackoverflow.com/questions/40984737/using-alasql-can-you-replace-null-column-with-empty-string), warning no longer happened. "
+    },
+    {
+      "author": "satspl",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-03-07T11:24:27Z",
+      "reactions": 0,
+      "body": "excel found unreadable content in .xlsx.Do you want to recover error the contents of this workbook? While using excel-js module also, a tab called recovered sheet is added to the file."
+    },
+    {
+      "author": "PratixaPathak",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-05-29T07:12:22Z",
+      "reactions": 1,
+      "body": "Hi,\r\n   I had the similar issue and i have used the font with bold. \r\n   After looking into it it seems that what causes the issue is the font part.\r\n\r\n  Font font = workbook.createFont();\r\n        font.setBold(true);        \r\n        boldAndCenteredCellStyle.setFont(font);\r\n\r\n  Ok, I figured out what the bug is.\r\n\r\n  Let's say you create a workbook using POI. This has one font in it by default.\r\n  When we create another font on the workbook using workbook.createFont(); a second font is added in the Workbook.\r\n\r\nHence I wrote a static method that I use passing it my current workbook and a current cellstyle that will create a Font with bold for me that will be rendered correctly!\r\nYou need to set Family as well as FontHeightInPoints both with the current font style.\r\npublic static XSSFFont getNewXSSFFont(XSSFWorkbook workbook, XSSFCellStyle cellStyle)\r\n        {\r\n            XSSFFont currentFont = (XSSFFont)workbook.GetFontAt(cellStyle.FontIndex);  \r\n            XSSFFont newFont = (XSSFFont)workbook.CreateFont(); \r\n            newFont.SetFamily(FontFamily.ValueOf(currentFont.Family));\r\n            newFont.IsBold = true;\r\n            newFont.FontHeightInPoints = currentFont.FontHeightInPoints;\r\n            return newFont;\r\n        }\r\n"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-05-29T21:00:35Z",
+      "reactions": 0,
+      "body": "#732 #35 #745 "
+    },
+    {
+      "author": "chenop",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-06-02T15:25:57Z",
+      "reactions": 2,
+      "body": "In my case the tab name consists single quote: \"my tab's\".\r\nI just omitted them:\r\n`title = title.replace(/'/g, \"\");`"
+    },
+    {
+      "author": "Alebat",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-06-04T10:15:16Z",
+      "reactions": 0,
+      "body": "In my case it seems that long formulas are the issue. I can't figure out how to solve the problem, the xml in the xlsx that is produced looks good.\r\n\r\nEDIT> I just figured out: **internationalization issue**. The functions parameters in formulas have to be separated by \",\" not by \";\" as I was doing.\r\n\r\nAs per **international settings** in Italy, decimals are separated by \",\" not by \".\", hence every \",\" becomes a \";\". The library however does not adapt to internationalization settings, correctly."
+    },
+    {
+      "author": "tamora-dawn",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-02-11T19:46:47Z",
+      "reactions": 0,
+      "body": "I was creating an Excel file from SSRS. The issue turned out to be \"invalid-to-Excel\" zero values passed by SSRS.\r\n\r\nFor example, the Expression **=Fields!Hours.Value * Fields!rate.Value** was returning an \"invalid-to-Excel\" zero value when the value of the rate field was zero. I substituted the Expression  **=IIF(CDec(Fields!rate.Value) = CDec(0), CDec(0), Fields!Hours.Value * Fields!rate.Value)** which fixed the problem with Excel."
+    },
+    {
+      "author": "teja123r",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-10T14:28:34Z",
+      "reactions": 1,
+      "body": "In my case, the issue was with dropdowns in columns. Apparently, the total length of dropdown list cannot be more than 255. Once I fix that, the issue is resolved."
+    },
+    {
+      "author": "rnrneverdies",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-15T02:25:20Z",
+      "reactions": 8,
+      "body": "In my case, the issue was with data tables. It seems the table name must start with a letter and does not contains any dash (\"-\") in the name... for instance, using \"2020-10-02\" as table name is not allowed. Using \"d20201002\" as table name works fine! hope that helps!\r\n\r\n```\r\nws.addTable({\r\n  name: \"d\" + sheetname.replace(/-/gi, \"\"),\r\n  ...\r\n});\r\n```"
+    },
+    {
+      "author": "skp17",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-10T21:37:22Z",
+      "reactions": 1,
+      "body": "> \r\n> \r\n> In my case, the issue was with data tables. It seems the table name must start with a letter and does not contains any dash (\"-\") in the name... for instance, using \"2020-10-02\" as table name is not allowed. Using \"d20201002\" as table name works fine! hope that helps!\r\n> \r\n> ```\r\n> ws.addTable({\r\n>   name: \"d\" + sheetname.replace(/-/gi, \"\"),\r\n>   ...\r\n> });\r\n> ```\r\n\r\nThanks @rnrneverdies \r\nYour comment helped me :)"
+    },
+    {
+      "author": "zont",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-27T10:51:20Z",
+      "reactions": 0,
+      "body": "Simple code to reproduce 'Repaired Records: String properties from /xl/sharedStrings.xml (Strings)':\r\n```js\r\nconst book = new Excel.Workbook();\r\n\r\nconst sheet = book.addWorksheet();\r\nsheet.addRow([\r\n  {\r\n    richText: [\r\n      { text: '', font: { bold: true } }, // empty text + bold font = BUG\r\n      { text: 'test' }\r\n    ]\r\n  }\r\n]);\r\n```"
+    },
+    {
+      "author": "sambafall",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-02T07:28:47Z",
+      "reactions": 0,
+      "body": "In my case it was due to data validation present in different sheets of my excel file. I used this link below to find and delete them, after that everythings worked fine\r\n\r\nhttps://www.ablebits.com/office-addins-blog/2017/08/16/data-validation-excel/"
+    },
+    {
+      "author": "arion-p",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-21T16:43:55Z",
+      "reactions": 0,
+      "body": "Having the same issue (even without making any changes to the worksheet - just reading and writing it). \r\nIn my case the issue is the Print Area. Exceljs changes it and uses the following range: $ANaN:$FNaN. Not sure at which point it fails and outputs NaN for the row number.\r\n\r\nA simple solution is to remove defined names but haven't figured out yet how to do it\r\n\r\nEdit: The problem seems to be that the original excel sheet has the Print Area set to $A:$F which is a valid ref but apparently ExcelJS can't handle it. Obviously the NaN is the result of converting the empty string to number."
+    },
+    {
+      "author": "SergeyKorotaev",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-02T20:54:09Z",
+      "reactions": 0,
+      "body": "In my case it was Nan value in Item Excel. I use parseFloat(null) or Number(null). Be careful with this"
+    },
+    {
+      "author": "DonnaWuDongxia",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-12T08:54:07Z",
+      "reactions": 0,
+      "body": "In my case, it was the same table names I specified for multiple sheets. I made table name to vary according to the sheet name, it fixed the issue."
+    },
+    {
+      "author": "ttaha8",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-28T09:23:01Z",
+      "reactions": 0,
+      "body": "In my case, I just read a file and print it again. on reading it, all the cells values are empty objects. \r\nfunny thing, if I open the original file > save it (even without making any changes) > close it and then read it with Exceljs, it works fine,"
+    },
+    {
+      "author": "ZaWertun",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-11T11:52:37Z",
+      "reactions": 0,
+      "body": "Just bumped into this bug while trying to edit template file produced by the LibreOffice Calc.\r\nI've seen this error in the Excel:\r\n```xml\r\n<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"true\"?>\r\n-<recoveryLog xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">\r\n<logFileName>error039440_01.xml</logFileName>\r\n<summary>Errors were detected in file 'C:\\Users\\...\\Documents\\test.xlsx'</summary>\r\n-<repairedRecords summary=\"Following is a list of repairs:\">\r\n<repairedRecord>Repaired Records: Worksheet properties from /xl/workbook.xml part (Workbook)</repairedRecord>\r\n</repairedRecords>\r\n</recoveryLog>\r\n```\r\n\r\nError is gone after opening XLSX template in the MS Excel and saving it again."
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-17T10:29:49Z",
+      "reactions": 0,
+      "body": "My experience has been with adding tables to a worksheet.\r\n\r\nI noticed that the popup comes if the table name has a digit.\r\n\r\nIt also shows up if there is already another table in the workbook (not only worksheet) that has the same name. \r\n\r\nAgain, it shows up if you assign the table a certain name eg 'c' or 'p'.\r\n\r\nFor example, this will give an error:\r\n````\r\n// bad, excel gives warning when you open the file\r\nworksheet.addTable({\r\n                name: 'table5', // bad idea to include a digit\r\n                ref: 'A6',\r\n                headerRow: true,\r\n                style: {\r\n                    theme: 'TableStyleLight11',\r\n                    showRowStripes: true,\r\n                },\r\n                columns: reportColumns(),\r\n                rows: await reportRows(invoices)\r\n            })\r\n```\r\nWhat you should do is to make sure that the table name consists only of letters and that it is unique in the entire workbook.\r\n\r\n```javascript\r\n// good. \r\nconst tablenames = Array.from('abcdefghijklmnopqrstuvwxyz').map(l => 'a' + l)\r\n \r\nworksheet.addTable({\r\n                name: tablesnames[0], // all letters and unique in workbook\r\n                ref: 'A6',\r\n                headerRow: true,\r\n                style: {\r\n                    theme: 'TableStyleLight11',\r\n                    showRowStripes: true,\r\n                },\r\n                columns: reportColumns(),\r\n                rows: await reportRows(invoices)\r\n            })\r\n```"
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-20T13:20:27Z",
+      "reactions": 1,
+      "body": "hello everyone!\r\n\r\nI am using tables in excel worksheet. I have created table columns by using dates and all dates are unique string. but when the excel file creates it excel appends some random number at the end and gives error warning that some content has been repaired while opening.\r\nI am attaching image for your reference. In the screenshot, After tue/28, it should be wed/1, thu/2 and so on, but it is appending some random number at the end like 2, 4. While consoling the same columns data, it shows correct data without random number. WHY THIS THING IS THERE? \r\nFor other date ranges, it works fine. Only for Jan to march, I am facing issue.\r\n\r\nSample code:\r\ndatearray = await this.getDatesInRange(new Date(\"1/31/2023\"), new Date(\"3/8/2023\"))\r\n\r\n sheetCols = [];\r\n data = [...new Array(this.datearray.length + 1).fill(\"1\")];\r\n\r\n\r\nasync getDatesInRange(startDate, endDate) {\r\n    const date = new Date(startDate.getTime());\r\n    const dates = [];\r\n    while (date <= endDate) {\r\n      let dt = new Date(date);\r\n      let day = this.daysInWeek[dt.getDay()];\r\n      let month = dt.getMonth() + 1;\r\n      let dte = dt.getDate();\r\n      let year = dt.getFullYear();\r\n      dates.push({\r\n        day,\r\n        'date': `${month}/${dte}`,\r\n        'month': this.monthArrFullName[month - 1],\r\n        'year': year,\r\n        'dateOnly': dte,\r\n        'fullDate': `${month}/${dte}/${year}`,\r\n      });\r\n      date.setDate(date.getDate() + 1);\r\n    }\r\n    return dates;\r\n  }\r\n    \r\n\r\nfor (var j = 0; j < datearray.length; j++) {\r\n          sheetCols.push({ name: datearray[j].day + '/' + datearray[j].dateOnly })\r\n        }\r\n sheetCols.push({ name: 'Total' })\r\n\r\nworksheet.addTable({\r\n          name: tableName,\r\n          ref: 'A' + (++lastRowTable),\r\n          headerRow: true,\r\n          style: {\r\n            showFirstColumn: true,\r\n            // showRowStripes: true\r\n          },\r\n          columns: sheetCols,\r\n          rows: data, // it includes the data of the length of sheetCols\r\n        });\r\n\r\n![image](https://user-images.githubusercontent.com/103244040/226347985-f2106962-fdb0-485e-b995-5bd7ed51f3a6.png)\r\n"
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-20T15:21:53Z",
+      "reactions": 0,
+      "body": "Hi @skareer95 , can you first try running it without the \"/\" symbol in the column header.\r\n\r\nAlso, can you provide a reproducible code sample that I can run on my side.\r\n\r\nThe error about excel doing repairs, I've been mostly getting it when providing a name for the table. Here:\r\n```javascript\r\nworksheet.addTable({\r\nname: tableName, ...\r\n```"
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T07:16:38Z",
+      "reactions": 0,
+      "body": "Hi @rsgilbert \r\n\r\nThe tableName is not the issue. I have checked it properly. The issue is only coming when I pick the dates for Jan to March. Otherwise, it works fine even for the five months data except the first three months of the year. This issue is strange.\r\nFor the sample code, I have edited the previous comment's code. Just use it in the typescript file to regenerate it at your end. I am using 4.3.0 of exceljs npm. \r\nAlso, using this '/' in the header is not the issue.\r\n"
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T07:40:37Z",
+      "reactions": 0,
+      "body": "Hi @skareer95 , can you share a full code snippet I can copy/paste into a javascript file on my side and run to see the error.\r\nI've seen the updated sample code but its not reproducible. For example the first line says:\r\n```javascript\r\ndatearray = await this.getDatesInRange(new Date(\"1/31/2023\"), new Date(\"3/8/2023\"))\r\n\r\n```\r\ndatearray is not defined, there is a top-level await, you're using the this keyword and I dont what `this` is etc"
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T07:43:52Z",
+      "reactions": 0,
+      "body": "Hi @rsgilbert \r\n\r\ni have shared almost the required code. I can't shared more due to some security reasons. It will work fine with little bit changes in JS like setting variable name and so on.\r\nCan you please try on it?\r\n"
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T07:45:30Z",
+      "reactions": 0,
+      "body": "@skareer95 , the code you shared is not reproducible. See my updated comment above. Here it is again:\r\nI've seen the updated sample code but its not reproducible. For example the first line says:\r\n```javascript\r\ndatearray = await this.getDatesInRange(new Date(\"1/31/2023\"), new Date(\"3/8/2023\"))\r\n\r\n```\r\ndatearray is not defined, there is a top-level await, you're using the this keyword and I dont what `this` is etc"
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T07:51:11Z",
+      "reactions": 0,
+      "body": "you can remove this from this.getDatesInRange  to call function in js.\r\n\r\nIf you run this in angular, it will work fine."
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T07:57:42Z",
+      "reactions": 0,
+      "body": "@skareer95 , thats the point. I am not using angular. The sample code you provided is making many assumptions on the environment developed in so its not reproducible. I should be able to run it with the only dependency being exceljs. Thats why you should first trim it to only the essentials I need to see the excel error message. That means creating a file eg index.js and putting in the code I need to run it including any imports necessary."
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T08:01:38Z",
+      "reactions": 0,
+      "body": "okay. I'll provide you the js code."
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T08:17:37Z",
+      "reactions": 0,
+      "body": "Hi @rsgilbert \r\nHere you go with JS code\r\n\r\n\r\nlet sheetCols = [];\r\nlet daysInWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];\r\n function getDatesInRange(startDate, endDate) {\r\nconst date = new Date(startDate.getTime());\r\nconst dates = [];\r\nwhile (date <= endDate) {\r\nlet dt = new Date(date);\r\nlet day = daysInWeek[dt.getDay()];\r\nlet month = dt.getMonth() + 1;\r\nlet dte = dt.getDate();\r\nlet year = dt.getFullYear();\r\ndates.push({\r\nday,\r\n'date': month/dte,\r\n'year': year,\r\n'dateOnly': dte,\r\n});\r\ndate.setDate(date.getDate() + 1);\r\n}\r\nreturn dates;\r\n}\r\n\r\nlet datearray = getDatesInRange(new Date(\"1/31/2023\"), new Date(\"3/8/2023\"))\r\nlet data = [...new Array(datearray.length + 1).fill(\"1\")];\r\n\r\n\r\nfor (var j = 0; j < datearray.length; j++) {\r\nsheetCols.push({ name: datearray[j].day + '/' + datearray[j].dateOnly })\r\n}\r\nsheetCols.push({ name: 'Total' })\r\n\r\nworksheet.addTable({\r\nname: tableName,\r\nref: 'A' + (++lastRowTable),\r\nheaderRow: true,\r\nstyle: {\r\nshowFirstColumn: true,\r\n// showRowStripes: true\r\n},\r\ncolumns: sheetCols,\r\nrows: data, // it includes the data of the length of sheetCols\r\n});"
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T08:26:31Z",
+      "reactions": 0,
+      "body": "Hi @rsgilbert \r\n\r\nis it working for you now?\r\nCan you please confirm here?"
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T08:30:19Z",
+      "reactions": 0,
+      "body": "Hi @skareer95 , I've made a few changes and I've been able to reproduce the warning you're getting.\r\nExcel gives the warning: `Repaired Records: Table from /xl/tables/table1.xml part (Table)`\r\nBelow is the full script I am running\r\n```javascript\r\nconst ExcelJS = require('exceljs')\r\n\r\nlet sheetCols = [];\r\nlet daysInWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];\r\nfunction getDatesInRange(startDate, endDate) {\r\n    const date = new Date(startDate.getTime());\r\n    const dates = [];\r\n    while (date <= endDate) {\r\n        let dt = new Date(date);\r\n        let day = daysInWeek[dt.getDay()];\r\n        let month = dt.getMonth() + 1;\r\n        let dte = dt.getDate();\r\n        let year = dt.getFullYear();\r\n        dates.push({\r\n            day,\r\n            'date': month / dte,\r\n            'year': year,\r\n            'dateOnly': dte,\r\n        });\r\n        date.setDate(date.getDate() + 1);\r\n    }\r\n    return dates;\r\n}\r\n\r\nlet datearray = getDatesInRange(new Date(\"1/31/2023\"), new Date(\"3/8/2023\"))\r\nlet data = [[...new Array(datearray.length + 1).fill(\"1\")]];\r\n\r\nfor (var j = 0; j < datearray.length; j++) {\r\n    sheetCols.push({ name: datearray[j].day + '/' + datearray[j].dateOnly })\r\n}\r\nsheetCols.push({ name: 'Total' })\r\n\r\nconst workbook = new ExcelJS.Workbook()\r\nconst worksheet = workbook.addWorksheet('try', {});\r\n   \r\nworksheet.addTable({\r\n    name: 'abc',\r\n    ref: 'A' + (1+worksheet.rowCount),\r\n    headerRow: true,\r\n    style: {\r\n        showFirstColumn: true,\r\n        // showRowStripes: true\r\n    },\r\n    columns: sheetCols,\r\n    rows: data, // it includes the data of the length of sheetCols\r\n});\r\nworkbook.xlsx.writeFile('./try.xlsx')\r\n```\r\n\r\nI am looking into it."
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T08:37:24Z",
+      "reactions": 0,
+      "body": "@rsgilbert \r\n\r\nplease share the header screenshot of excel for the last few columns. so i can look if the error is same for you."
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T08:46:54Z",
+      "reactions": 0,
+      "body": "@skareer95 Hi! Good news.\r\nThe error is coming because your function `getDatesInRange` is giving incorrect days. In the month of Feb, it is including 29th and 30th Feb eventhough Feb ends on 28th.\r\n\r\nHere use below function to calculate the datearray:\r\n```\r\nconst { eachDayOfInterval } = require('date-fns');\r\nlet datearray = eachDayOfInterval({start: new Date(\"2023-01-30\"), end: new Date(\"2023-03-30\")}).map(d => ({\r\n    dateOnly: d, day: d.getDate()\r\n}))\r\n```"
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T08:53:48Z",
+      "reactions": 0,
+      "body": "@rsgilbert \r\n\r\nI can look here, it is not returning 29 and 30 feb for me on consoling the same array of objects\r\n\r\n![image](https://user-images.githubusercontent.com/103244040/226557488-8a78b06d-0331-49fb-a280-ae190df5486c.png)\r\n"
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T09:03:09Z",
+      "reactions": 0,
+      "body": "@skareer95 , in my case it was failing whenever I included 29th feb in the date range.\r\nTry running like below and see if you get the error:\r\n```\r\nlet datearray = getDatesInRange(new Date(\"1/29/2023\"), new Date(\"2/28/2023\"))\r\n```\r\nAlso try the advise I gave earlier and let me know if it works."
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T09:06:10Z",
+      "reactions": 0,
+      "body": "@rsgilbert , \r\nI have no option of including 29th feb because in the UI I am using calendar to select dates. So user can't select date like 29th feb, as it is disabled for the current year, which is not leap year."
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T09:13:29Z",
+      "reactions": 0,
+      "body": "@rsgilbert \r\nconst { eachDayOfInterval } = require('date-fns');\r\nlet datearray = eachDayOfInterval({start: new Date(\"2023-01-30\"), end: new Date(\"2023-03-30\")}).map(d => ({\r\n    dateOnly: d, day: d.getDate()\r\n}))\r\n\r\nIt is not working as expected"
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T09:26:54Z",
+      "reactions": 0,
+      "body": "@skareer95 , I was saying that try a date range that stops on 28th Feb and see if it wont give the warning.\r\n\r\n```\r\nlet datearray = getDatesInRange(new Date(\"1/29/2023\"), new Date(\"2/28/2023\"))\r\n```\r\n\r\nAbout your second comment, what do you mean its not working as expected?"
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T09:35:38Z",
+      "reactions": 0,
+      "body": "@rsgilbert \r\n\r\nyes, I tried it\r\nif you try from 1 jan to 28th feb, the issue is not there.\r\nif you try from 24 feb to 15 march, in this case also the issue is not there.\r\n\r\nso the change in month of february is there in the second case still without the issue."
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T09:50:58Z",
+      "reactions": 0,
+      "body": "@skareer95 , you're right. \r\n\r\nI dont get the error with 24 feb to 15 march"
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T09:54:19Z",
+      "reactions": 1,
+      "body": "@skareer95  I think the warning is coming because sometimes the table header names get repeated. Like `Fri/24`"
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T09:55:38Z",
+      "reactions": 0,
+      "body": "@rsgilbert \r\njust check for another months except feb, it works fine. "
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T10:00:16Z",
+      "reactions": 1,
+      "body": "I've included the month in the column name. It's working fine now.\r\n\r\nHere:\r\n```javascript\r\nconst { eachDayOfInterval } = require('date-fns');\r\nconst ExcelJS = require('exceljs')\r\n\r\nlet sheetCols = [];\r\nlet daysInWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];\r\nfunction getDatesInRange(startDate, endDate) {\r\n    const date = new Date(startDate.getTime());\r\n    const dates = [];\r\n    while (date <= endDate) {\r\n        let dt = new Date(date);\r\n        let day = daysInWeek[dt.getDay()];\r\n        let month = dt.getMonth() + 1;\r\n        let dte = dt.getDate();\r\n        let year = dt.getFullYear();\r\n        dates.push({\r\n            day,\r\n            month,\r\n            'date': month / dte,\r\n            'year': year,\r\n            'dateOnly': dte,\r\n        });\r\n        date.setDate(date.getDate() + 1);\r\n    }\r\n    return dates;\r\n}\r\nlet datearray = getDatesInRange(new Date(\"1/24/2023\"), new Date(\"8/15/2023\"))\r\n// let datearray = eachDayOfInterval({start: new Date(\"2023-01-30\"), end: new Date(\"2023-03-30\")}).map(d => ({\r\n//     dateOnly: d.getDate(), day: daysInWeek[d.getDay()]\r\n// }))\r\nlet data = [[...new Array(datearray.length + 1).fill(\"1\")]];\r\n\r\nconsole.log({ datearray})\r\nfor (var j = 0; j < datearray.length; j++) {\r\n    sheetCols.push({ name: [datearray[j].day, datearray[j].dateOnly, datearray[j].month].join('/') })\r\n}\r\nsheetCols.push({ name: 'Total' })\r\nconsole.log(sheetCols)\r\n\r\nconst workbook = new ExcelJS.Workbook()\r\nconst worksheet = workbook.addWorksheet('try', {});\r\n   \r\nworksheet.addTable({\r\n    name: 'abc',\r\n    ref: 'A1' ,\r\n    // headerRow: true,\r\n    // style: {\r\n    //     showFirstColumn: true,\r\n    //     // showRowStripes: true\r\n    // },\r\n    columns: sheetCols,\r\n    rows: data, // it includes the data of the length of sheetCols\r\n});\r\nworkbook.xlsx.writeFile('./try.xlsx')\r\n\r\n```"
+    },
+    {
+      "author": "rsgilbert",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T10:02:16Z",
+      "reactions": 1,
+      "body": "@skareer95  maybe it was working fine for the other months because for those months there was no collision of day-of-week and day "
+    },
+    {
+      "author": "skareer95",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-21T10:03:55Z",
+      "reactions": 1,
+      "body": "@rsgilbert \r\n\r\nI got your point. The repeated name of the month is causing issue.\r\nYou are right. Appending some other string in the name of header will work fine.\r\n\r\nThanks for your continuous efforts.\r\nYou really helped a lot in this issue and I was not able to think so much about this issue.\r\n\r\nThanks!\r\n"
+    },
+    {
+      "author": "nelsondias3",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-08T21:51:14Z",
+      "reactions": 0,
+      "body": "I had the same problem reported by anmolnar and the solution was simple for me.\r\nI added blank lines at the end of the worksheet.\r\n\r\nwhile (linha < 50)\r\n{\r\n    for (int k = 0; k < dt.Columns.Count; k++)\r\n    {\r\n        WS.Cells[linha, k] = new Cell(String.Empty);\r\n    }\r\n    linha++;\r\n}"
+    },
+    {
+      "author": "khashashin",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-06-18T12:45:13Z",
+      "reactions": 0,
+      "body": "I fixed the issue by using the following snippet\n\n```typescript\nimport { FastifyReply } from 'fastify';\nimport ExcelJS from 'exceljs';\nimport { PassThrough } from 'node:stream';\n\ninterface ExportHandler {\n  writeHeader(): Promise<void>;\n  writeRow(row: any[]): Promise<void>;\n  finalize(): Promise<void>;\n}\n\nclass StreamingXLSXHandler implements ExportHandler {\n  private workbook: ExcelJS.stream.xlsx.WorkbookWriter;\n  private worksheet: ExcelJS.Worksheet;\n  private passThrough: PassThrough;\n  private headerWritten = false;\n\n  constructor(\n    private reply: FastifyReply,\n    private headerRow: string[]\n  ) {\n    this.passThrough = new PassThrough({\n      highWaterMark: 1024 * 1024,\n      objectMode: false,\n    });\n\n    this.workbook = new ExcelJS.stream.xlsx.WorkbookWriter({\n      stream: this.passThrough,\n      useSharedStrings: false,\n      useStyles: false,\n      zip: {\n        zlib: { level: 1 },\n      },\n    });\n    this.worksheet = this.workbook.addWorksheet('Test');\n\n    reply.send(this.passThrough);\n\n    this.passThrough.on('error', (error) => {\n      console.log('XLSX stream error', error);\n    });\n  }\n\n  async writeHeader(): Promise<void> {\n    if (!this.headerWritten) {\n      const headerRow = this.worksheet.addRow(this.headerRow);\n      headerRow.commit();\n      this.headerWritten = true;\n      console.log('XLSX header written manually');\n    }\n  }\n\n  async writeRow(row: any[]): Promise<void> {\n    const sanitizedRow = row.map((cell) => {\n      if (cell === null || cell === undefined) {\n        return '';\n      }\n      const cellValue = String(cell);\n      return cellValue.length > 32767 ? cellValue.substring(0, 32767) : cellValue;\n    });\n\n    const excelRow = this.worksheet.addRow(sanitizedRow);\n    excelRow.commit();\n  }\n\n  async finalize(): Promise<void> {\n    console.log('Finalizing XLSX export');\n    this.worksheet.commit();\n    await this.workbook.commit();\n  }\n}\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://stackoverflow.com/questions/11706393/excel-found-unreadable-content-in-xslx",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://codebeautify.org/xmlvalidator",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://support.office.com/en-us/article/excel-specifications-and-limits-1672b34d-7043-467e-8e27-269d656771c3",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://stackoverflow.com/questions/40984737/using-alasql-can-you-replace-null-column-with-empty-string",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.ablebits.com/office-addins-blog/2017/08/16/data-validation-excel/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/103244040/226347985-f2106962-fdb0-485e-b995-5bd7ed51f3a6.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/103244040/226557488-8a78b06d-0331-49fb-a280-ae190df5486c.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

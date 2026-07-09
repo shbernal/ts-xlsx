@@ -1,0 +1,103 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2910,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2910",
+  "title": "[BUG] Using FILTER Function in Formula Not Persisting in ExcelJS",
+  "state": "open",
+  "author": "jorisvo2",
+  "createdAt": "2025-03-28T17:14:10Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 9,
+  "body": "## 🐛 Bug Report\n\nI'm encountering an issue with ExcelJS version 4.3 where the FILTER formula is not retained when opening the generated Excel file in Excel 365. The formula in question is:\n\n```excel\n=FILTER(ZoneSettingsSheet!$A$1:$DM$1,ZoneSettingsSheet!$A$2:$DM$2 = N382)\n```\nLib version: 4.3.0\n\n## Steps To Reproduce\n\n1. Generate an Excel file using ExcelJS version 4.3 with the above FILTER formula.​\n2. Open the generated file in Excel 365.​\n3. Observe that the FILTER formula is removed or not functioning as expected.\n\n## The expected behaviour:\n\nThe FILTER formula should be preserved and function correctly when the Excel file is opened in Excel 365.\n\n## Additional Information:\n\nI have verified that manually entering the same FILTER formula directly into Excel 365 works as intended. This suggests that the issue may be related to how ExcelJS handles the serialization or compatibility of dynamic array formulas.​\n\nAny guidance or fixes for this issue would be greatly appreciated.\n",
+  "comments": [
+    {
+      "author": "mutatedplague",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-08T17:17:40Z",
+      "reactions": 1,
+      "body": "I have the same issue with different formula. @jorisvo2 have you found a work around?"
+    },
+    {
+      "author": "jorisvo2",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-08T17:25:41Z",
+      "reactions": 0,
+      "body": "@mutatedplague \n> I have the same issue with different formula. [@jorisvo2](https://github.com/jorisvo2) have you found a work around?\n\nNo sorry 😞 I ll probably use another package"
+    },
+    {
+      "author": "mutatedplague",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-08T17:44:20Z",
+      "reactions": 1,
+      "body": "@jorisvo2  looks like this one is related as well. https://github.com/exceljs/exceljs/issues/2838 #"
+    },
+    {
+      "author": "mutatedplague",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-10T18:36:26Z",
+      "reactions": 0,
+      "body": "@jorisvo2  This may work for you\n         .value = {formula: `_xlfn.FILTER(ZoneSettingsSheet!$A$1:$DM$1,ZoneSettingsSheet!$A$2:$DM$2 = N382)`} "
+    },
+    {
+      "author": "jorisvo2",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-10T18:41:06Z",
+      "reactions": 0,
+      "body": "@mutatedplague \n> [@jorisvo2](https://github.com/jorisvo2) This may work for you .value = {formula: `_xlfn.FILTER(ZoneSettingsSheet!$A$1:$DM$1,ZoneSettingsSheet!$A$2:$DM$2 = N382)`}\n\nI already tried to prefix all function with \"_xlfn\" but without success :/ I ll try your code just in case !"
+    },
+    {
+      "author": "mutatedplague",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-10T18:44:48Z",
+      "reactions": 0,
+      "body": "Okay my bad, it somewhat works on my end it still adds a damn @ sign you need to remove. But for whatever reason this solution works for XLOOKUP.\n\nIt adds an @ in front of xlookup but excel still works?? WTH"
+    },
+    {
+      "author": "mutatedplague",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-01-01T15:33:58Z",
+      "reactions": 0,
+      "body": "Any updates?"
+    },
+    {
+      "author": "Kzuy1",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-01-06T01:23:46Z",
+      "reactions": 0,
+      "body": "Same problem here"
+    },
+    {
+      "author": "chan-a",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-01-09T05:33:42Z",
+      "reactions": 0,
+      "body": "Not sure if this help, but I had a similar issue when using =LET\n\nTurns out in addition to the function prefix, the variables inside need the _xlpm prefix\n\nhttps://stackoverflow.com/a/68134437\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/jorisvo2",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2838",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/jorisvo2",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://stackoverflow.com/a/68134437",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

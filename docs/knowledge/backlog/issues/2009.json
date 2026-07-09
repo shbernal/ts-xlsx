@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2009,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2009",
+  "title": "Fix addThemes",
+  "state": "open",
+  "author": "bno1",
+  "createdAt": "2022-03-15T13:09:04Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## Summary\r\n\r\nThis function would not insert the default theme if model.themes is an empty object. This causes errors when opening the spreadsheet in Excel.",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-07-21T10:33:34Z",
+      "reactions": 0,
+      "body": "@bno1  Could you please move [over here](https://github.com/zurmokeeper/excelize)? I'd be happy to merge this feature. "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/zurmokeeper/excelize",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 6,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xlsx.js",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 1
+      }
+    ]
+  }
+}

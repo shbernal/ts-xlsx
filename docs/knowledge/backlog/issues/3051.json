@@ -1,0 +1,87 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3051,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/3051",
+  "title": "Tolerate non-canonical refs",
+  "state": "open",
+  "author": "martinslota",
+  "createdAt": "2026-05-26T20:29:24Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Summary\r\n\r\nSome spec-compliant workbook variants currently throw while being loaded. The goal of this PR is to make those workbooks loadable.\r\n\r\nCloses #2591.\r\n\r\n## Detailed description\r\n\r\nThere are two independent fixes, each preceded by a regression-test commit so reviewers can verify both the failure and the fix:\r\n1. [Drawing parts whose root isn't `<xdr:wsDr>`](https://github.com/exceljs/exceljs/issues/2591). `DrawingXform` returns `null` for unrecognized roots (e.g `<c:userShapes>` chart overlays, or `<wsDr>` declared under the default namespace). We now skip storing those `null`s in `model.drawings` and guard the one consumer that looks drawings up by basename.\r\n1. Worksheet rels pointing at parts loaded under non-canonical paths. Open Packaging Conventions let a workbook name a part anything the rel's `Target` points at, but `exceljs` identifies comments / table / VML drawing parts by filename glob. When a part lives at e.g. `xl/sheet1_comments.xml`, the loader skips it and `WorkSheetXform.reconcile` blows up while walking the rels. We centralize the cleanup as a single `partsByRelType` filter at the top of `reconcile`, so every consumer below can assume its target exists.\r\n\r\n## Scope and non-goals\r\n\r\nThis PR is deliberately a robustness patch, not a redesign. The deeper issues it surfaces are intentionally left for follow-ups:\r\n* Filename-glob dispatch instead of `[Content_Types].xml` routing. The spec-correct fix is to dispatch every part by its declared content type, which would obsolete the regex-based detection for comments, tables, VML drawings, and drawings. That's a much larger and riskier change and is out of scope here.\r\n* Silent data loss. A dropped table / comment / VML drawing currently disappears without a warning. Surfacing those would be a useful follow-up. This PR focuses on preventing crashes on valid inputs.\r\n* Similarly, data for unsupported drawing parts does not get extracted. For instance, `<c:userShapes>` is dropped on the floor rather than rendered; we just stop crashing on it.\r\n\r\n## Test plan\r\n\r\nIntegration tests were added for these fixes (see bb26732ca4edb1311acda9207f33f6bc00ceed18 and 07c43f3ce3e90aa42cc78b06cc28865d9b4bc03e).\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2591",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 166,
+    "deletions": 17,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xform/sheet/worksheet-xform.js",
+        "status": "modified",
+        "additions": 43,
+        "deletions": 16
+      },
+      {
+        "path": "lib/xlsx/xlsx.js",
+        "status": "modified",
+        "additions": 7,
+        "deletions": 1
+      },
+      {
+        "path": "spec/integration/data/test-issue-2591-chart-user-shapes.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/data/test-issue-2591-default-namespace.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/data/test-non-canonical-comments.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/data/test-non-canonical-table.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/data/test-non-canonical-vml-drawing.xlsx",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/issues/issue-2591-unrecognized-drawing-root.spec.js",
+        "status": "added",
+        "additions": 48,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/issues/non-canonical-part-paths.spec.js",
+        "status": "added",
+        "additions": 68,
+        "deletions": 0
+      }
+    ]
+  }
+}

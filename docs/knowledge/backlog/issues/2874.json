@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2874,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2874",
+  "title": "Fix: Changed error-prone race conditions",
+  "state": "open",
+  "author": "StevenGee3398",
+  "createdAt": "2025-01-03T10:05:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Summary\r\n\r\nWhen dealing with import/export streams, different errors occured under certain circumstances. For example sharedStrings could sometimes not be resolved after editing the exported .xlsx file with excel, even though the inputOptions are set appropiately. More over there were also cases where the sheetnames could not be read after an export, due to the race conditions in the old iterate-stream method. The workbook was not properly initialized in time. There are surely more edge cases in which the current iterate-stream implementation would lead to unexpected behavior.\r\n\r\nUnfortunately, I cannot offer sample files since it is somewhat flaky to reproduce and my own data include client information.\r\n\r\nThe new implementation utilizes Nodes built-in .once method and removes the race conditions that lead to the problems above.\r\n\r\n## Test plan\r\n\r\nNone.\r\n\r\n## Related to source code (for typings update)\r\n",
+  "comments": [],
+  "attachments": [],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 29,
+    "deletions": 39,
+    "changedFiles": [
+      {
+        "path": "lib/utils/iterate-stream.js",
+        "status": "modified",
+        "additions": 29,
+        "deletions": 39
+      }
+    ]
+  }
+}

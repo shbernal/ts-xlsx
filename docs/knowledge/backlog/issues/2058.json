@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2058,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2058",
+  "title": "[BUG]  workbook.xlsx.writeBuffer() returns the buffer two times if application uses React.StrictMode",
+  "state": "open",
+  "author": "Krijovnick",
+  "createdAt": "2022-05-12T08:47:20Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\n## Steps To Reproduce\r\n\r\ndemo.js\r\n```\r\nimport * as Excel from 'exceljs/dist/exceljs.min.js';\r\n\r\nconst onSave = (workbook) => {\r\n  workbook.xlsx.writeBuffer().then((buffer) => {\r\n    console.log('write file')\r\n  });\r\n};\r\n\r\nexport default () => {\r\nconst workbook = new Excel.Workbook();\r\nonSave(workbook);\r\n  return null;\r\n};\r\n```\r\n\r\nindex.js\r\n```\r\nimport React from 'react';\r\nimport ReactDOM from 'react-dom';\r\nimport Demo from \"./demo\";\r\n\r\nReactDOM.render(\r\n  <React.StrictMode>\r\n    <Demo />\r\n  </React.StrictMode>,\r\n  document.getElementById('root')\r\n);\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nwriteBuffer() should not returns the buffer two times\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nRemove the `React.StrictMode` and all works well.\r\n",
+  "comments": [
+    {
+      "author": "Elecweb",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-28T18:39:31Z",
+      "reactions": 0,
+      "body": "@Krijovnick this is known behavior for React 18\r\nhttps://github.com/facebook/react/issues/24502\r\n\r\nit's not related with exceljs"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/facebook/react/issues/24502",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

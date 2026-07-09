@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2204,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2204",
+  "title": "splice vs merge on spliceColumns",
+  "state": "open",
+  "author": "yogithesymbian",
+  "createdAt": "2023-01-25T23:06:50Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "any updates for this issue https://github.com/exceljs/exceljs#splice-vs-merge ?\r\ni have a column in the middle of column that have merge , need to delete . :( any solution ???",
+  "comments": [
+    {
+      "author": "yogithesymbian",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-01-25T23:10:19Z",
+      "reactions": 0,
+      "body": "i have tried with **unmerge**\r\n```\r\n  worksheetPS.unMergeCells('P9') // at 16 - 27\r\n  worksheetPS.unMergeCells('P10') // at 16 - 21\r\n  worksheetPS.unMergeCells('V10') // at 22 - 27\r\n  worksheetPS.spliceColumns(16, 27) // remove/delete from 16 - 27 , i have columns until 35\r\n```\r\nthen my columns at **28 - 35** the values are gone ...\r\nthe **merge move** is correctly, but **value is gone**\r\n\r\n"
+    },
+    {
+      "author": "ashiquemohammed",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-12T10:00:36Z",
+      "reactions": 0,
+      "body": "Hello @yogithesymbian  , Any updates on this ? "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs#splice-vs-merge",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

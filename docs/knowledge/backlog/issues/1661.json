@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1661,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1661",
+  "title": "[BUG] In production file corrupted, how to debug?!",
+  "state": "open",
+  "author": "ikochetkov",
+  "createdAt": "2021-04-12T12:36:37Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "\r\n[download (10).xlsx](https://github.com/exceljs/exceljs/files/6296697/download.10.xlsx)\r\nHi all!\r\nTrying to use this amazing lib on client side, in browser, and on localhost and in dev (after direct deployment) it works pretty well, but as soon it's deployed it to prod - file corrupted. I attached screenshots from dev (works) and prod (does not work),\r\nall console logs from my code I'm able to see, but size of blob is different (**6437** vs **6371**)\r\n\r\nI downloaded **1.10.0** exceljs.min.js file, and put it in my scripts folder to use directly this file (because found somewhere issues with new version, but also tried new one)\r\n\r\nSo in my code simple excel with 1 styled cell and 3 columns:\r\n```\r\n        import * as ExcelJS from './scripts/exceljs.min.js';\r\n        import * as FileSaver from 'file-saver';\r\n\r\n        const EXCEL_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8';\r\n        const wb = new ExcelJS.Workbook()\r\n        const ws = wb.addWorksheet('Sheet1')\r\n        ws.columns = [\r\n          { header: 'Id', key: 'id', width: 10 },\r\n          { header: 'Name', key: 'name', width: 32 },\r\n          { header: 'D.O.B.', key: 'DOB', width: 10, outlineLevel: 1 }\r\n        ];\r\n        ws.getCell('A1').fill = {\r\n          type: 'pattern',\r\n          pattern: 'darkVertical',\r\n          fgColor: { argb: 'FFFF0000' }\r\n        };\r\n\r\n        console.log('debug_point_1')\r\n        wb.xlsx.writeBuffer().then((data) => {\r\n          console.log('debug_point_2', data)\r\n          const blob = new Blob([data], { type: EXCEL_TYPE });\r\n          console.log('debug_point_3', blob)\r\n          // Given name\r\n          FileSaver.saveAs(blob, 'download.xlsx');\r\n        });\r\n        console.log('debug_point_4')\r\n```\r\nAlso I want to note, that I tried different libs (msexcel-builder and SheetJS), both works on dev, but not work in test, there was successful deployment with SheetJS with specific **bookType: xls** (instead of default xlsx) and it worked fine (but in SheetJS I can't format styles, so had to look for something else), but non of excel libraries works in prod.\r\n\r\nAny ideas guys how to debug it and detect the issue, or maybe to change bookType in ExcelJS lib to xls (for my opinion it will work fine then)\r\n\r\n![does_not_work](https://user-images.githubusercontent.com/58396084/114394417-d88c9b00-9ba3-11eb-80c7-76ef4f4b6634.jpg)\r\n![works](https://user-images.githubusercontent.com/58396084/114394421-d9253180-9ba3-11eb-9b80-0b0e3ad2fce8.jpg)\r\n\r\n",
+  "comments": [
+    {
+      "author": "Ddevon",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-28T08:23:16Z",
+      "reactions": 0,
+      "body": "+1"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/6296697/download.10.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/58396084/114394417-d88c9b00-9ba3-11eb-80c7-76ef4f4b6634.jpg",
+      "ext": "jpg",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/58396084/114394421-d9253180-9ba3-11eb-9b80-0b0e3ad2fce8.jpg",
+      "ext": "jpg",
+      "isFixture": false
+    }
+  ]
+}

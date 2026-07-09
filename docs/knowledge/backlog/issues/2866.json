@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2866,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2866",
+  "title": "[BUG] Licensing Vulnerability in ExcelJS Dependency ",
+  "state": "open",
+  "author": "klaw772",
+  "createdAt": "2024-12-19T17:56:25Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen running a FOSSA scan, the 'buffers' package version 0.1.1 returns a flag of 'no license found'. This bubbles up to the 'unzipper' package being required by ExcelJS. The most up-to-date version of the unzipper package (0.12.3) has since removed the unlicensed 'buffers' package as a dependency. Additional behavior changes in unzipper do not seem to affect how it's being currently used in ExcelJS.\r\n\r\nLib version: 4.4.0\r\n\r\n## Possible solution:\r\n\r\nUpgrading unzipper to 0.12.3 seems to not have any interference with its usage in ExcelJS.\r\n",
+  "comments": [
+    {
+      "author": "willisplummer",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-01-10T20:31:43Z",
+      "reactions": 0,
+      "body": "Relatedly, I get these warnings with the latest version of this library due to the out of date unzipper dependency:\r\n\r\n```\r\nnpm warn deprecated fstream@1.0.12: This package is no longer supported.\r\nnpm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported\r\n```"
+    },
+    {
+      "author": "gameroman",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-04-12T13:06:53Z",
+      "reactions": 0,
+      "body": "Hi, I've forked this into https://github.com/excel-js/exceljs if someone is interested\n\nThere is also https://github.com/cjnoname/excelts"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/excel-js/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/cjnoname/excelts",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

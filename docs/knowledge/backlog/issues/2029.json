@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2029,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2029",
+  "title": "[BUG] Cell.fill.fgColor not processing properly in Libre/Excel",
+  "state": "open",
+  "author": "Thunderpat45",
+  "createdAt": "2022-04-12T15:19:28Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nImplementation of cell.fill.fgColor with black text is displaying appropriate colors in GoogleSheets, but showing black fill/white text on Libre, and black fill/black text in Excel.\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n```\r\n//startCell has been already merged with all necessary relevant cells up to this point;\r\n\r\nstartCell.value = team.name +\"\\n\" + timeConverterExpress.runConvertTotalMinutesToTime(trainingDay.startTime) +\" :\\n \" + timeConverterExpress.runConvertTotalMinutesToTime(trainingDay.endTime);\r\nstartCell.alignment = {vertical: \"middle\", horizontal: \"center\", wrapText: true};\r\nstartCell.border = {top: {style:'medium'}, left: {style:'medium'}, bottom: {style:'medium'}, right: {style:'medium'}}\r\nstartCell.font = { name: 'Calibri', size: 11 }\r\nstartCell.fill = {type: \"pattern\", pattern: \"solid\", fgColor: {argb: team.color}};\r\n\r\n// appropriate team.color is working in GoogleSheets, but not Libre or Excel\r\n//order or existence of assigning other style properties do not seem to have any bearing on output\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nCell fill colors should work similarly throughout Excel/Libre/GoogleSheets \r\n\r\nExcel:\r\n\r\nExcel file as is:\r\n![Screenshot (28)](https://user-images.githubusercontent.com/72631699/162993894-0aefebc4-7626-41bc-8f76-765d1f56df03.png)\r\n\r\nExcel file after manually changing fgColor to white (text is showing up just fine)\r\n![Screenshot (29)](https://user-images.githubusercontent.com/72631699/162994066-0f63c34c-9861-45af-a81b-87270371c86a.png)\r\n\r\nLibre:\r\n\r\nLibre file as is: fgColor is black, text is auto-switched to white(?)\r\n![Screenshot from 2022-04-12 10-45-52](https://user-images.githubusercontent.com/72631699/162994466-71d3348c-25d4-41e9-bf75-6fb61861c802.png)\r\n\r\nGoogleSheets:\r\nExpected colors appearing as per assignment\r\n![Screenshot (31)](https://user-images.githubusercontent.com/72631699/162994106-0943570c-2d12-46d4-99c4-283d7cc9a9a5.png)\r\n\r\n",
+  "comments": [
+    {
+      "author": "3ximus",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-24T15:32:59Z",
+      "reactions": 0,
+      "body": "I had the same exact issue and the problem is that the color hex value should not have the hashtag. If that's the case for you change it to this\r\n`fgColor: { argb: '#FFBFBFBF' }`    // error\r\n`fgColor: { argb: 'FFBFBFBF' }`     // correct"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/72631699/162993894-0aefebc4-7626-41bc-8f76-765d1f56df03.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/72631699/162994066-0f63c34c-9861-45af-a81b-87270371c86a.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/72631699/162994466-71d3348c-25d4-41e9-bf75-6fb61861c802.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/72631699/162994106-0943570c-2d12-46d4-99c4-283d7cc9a9a5.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

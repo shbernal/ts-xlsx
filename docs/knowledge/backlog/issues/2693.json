@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2693,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2693",
+  "title": "[BUG] xlsx.WriteBuffer() takes too much time",
+  "state": "open",
+  "author": "alex0598",
+  "createdAt": "2024-02-15T19:21:44Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nWorkbook with a Worksheet takes forever to write buffer. \r\nThe goal is to create a blob out of the buffer to save the file (download to the user in angular)\r\n\r\n~35k rows = 4 seconds\r\n~65k rows = 7 seconds\r\n~97k rows = 12 seconds\r\n~120k rows = 25 seconds\r\n~300k rows = 10-20 minutes\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\n workbook.xlsx.writeBuffer()\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nWrite buffer should take much less time ...",
+  "comments": [
+    {
+      "author": "pnappa",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-20T02:13:18Z",
+      "reactions": 0,
+      "body": "Sadly I think you're just hitting the limitations of using a Javascript library here.\r\n\r\nTry to profile your process. If this is running in a NodeJS process, it's as simple as adding the `--prof` CLI flag to node (e.g. `node --prof dist/index.js`), invoking the code a bunch of time (to get a good sample of what's taking up all the time).\r\n\r\nAfter doing so you should see a bunch of `isolate-0x<num>.log` files where you run the process. To inspect them, run `node --prof-process --preprocess -j isolate.log | npx flamebearer` (replacing `isolate.log` with the actual filename, make sure to use the same nodejs version as when you're running it), and it should open up a browser window with a flamegraph of where the time is being used up. You can look at the chunks where it's spending all of it's time.\r\n\r\nIf you're running this on the frontend, you'll need to use the performance monitoring built-in to your browser's dev tools. They'll also have a flamegraph option.\r\n\r\nhttps://nodejs.org/en/learn/getting-started/profiling/\r\nhttps://github.com/mapbox/flamebearer/\r\n\r\nHowever, at the end of the day, with that many rows you're generating many millions of XML nodes (try unzipping some of your .xlsx files, and inspect the worksheet .xml files, you'll see what I mean), each of which take a tiny bit to make. The process of iterating/sorting/stringifying them takes a small bit of time each, but when doing it lots; forever. JS just isn't very good at this, especially when using layers-upon-layers of abstracted libraries to perform the task. I'm sure you could write a library that prioritises writing XLSX as fast as possible, but it would be harder to maintain, and probably support less features. Although, this is just conjecture without having seen your application profile.\r\n\r\nThere's a few options you can do:\r\n - Export to CSV, and open in Excel via importing it.\r\n - Switch to generating it in a language that's a bit closer to the metal (e.g. use Rust's xlsx-writer crate).\r\n - Limit the amount of data you generate into each your sheets.\r\n - Build the worksheet, but import the data using data loaders in excel (https://superuser.com/questions/235438/can-you-pull-excel-data-from-an-external-and-dynamic-csv-file). The way you'd do this is to make some HTTP endpoints which return CSV files, and the XLSX is configured to load from them, one per worksheet. This lets you have auto-updating excel files, too."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://nodejs.org/en/learn/getting-started/profiling/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/mapbox/flamebearer/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://superuser.com/questions/235438/can-you-pull-excel-data-from-an-external-and-dynamic-csv-file",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

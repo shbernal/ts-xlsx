@@ -1,0 +1,67 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2997,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2997",
+  "title": "feat: Add applyWidthHeightFormats option for pivot table column widths",
+  "state": "open",
+  "author": "protobi-pieter",
+  "createdAt": "2025-11-07T16:33:15Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Summary\n\nAdds optional `applyWidthHeightFormats` parameter to pivot tables, allowing users to preserve worksheet column widths instead of using Excel's default pivot table style widths.\n\n## Problem\n\nBy default, Excel pivot table styles control column widths, overriding any custom column widths set on the worksheet. This is Excel's standard behavior (`applyWidthHeightFormats='1'`), but users often want to preserve their carefully crafted column widths.\n\n**Current behavior:**\n```javascript\nworksheet.getColumn(1).width = 30;  // Set custom width\nworksheet.addPivotTable({...});     // Custom width ignored! \n```\n\nThe pivot table style resets all column widths, making custom sizing impossible.\n\n## Solution\n\nAdd optional `applyWidthHeightFormats` parameter (default: `'1'` for backwards compatibility):\n\n```javascript\nworksheet.getColumn(1).width = 30;  // Set custom width\nworksheet.addPivotTable({\n  sourceSheet: dataSheet,\n  rows: ['Region'],\n  columns: ['Quarter'],\n  values: ['Amount'],\n  applyWidthHeightFormats: '0'  // ✅ Preserve custom widths\n});\n```\n\n## Implementation\n\n### 1. **API Change** (`lib/doc/pivot-table.js`)\n\nAdded parameter to pivot table model with sensible default:\n\n```javascript\napplyWidthHeightFormats: model.applyWidthHeightFormats !== undefined \n  ? model.applyWidthHeightFormats \n  : '1'  // Default to standard Excel behavior\n```\n\n### 2. **XML Generation** (`lib/xlsx/xform/pivot-table/pivot-table-xform.js`)\n\nPass the setting to Excel via OOXML attribute:\n\n```xml\n<pivotTableDefinition \n  ... \n  applyWidthHeightFormats=\"0\">\n```\n\nPer [OOXML spec](http://www.datypic.com/sc/ooxml/e-ssml_pivotTableDefinition.html):\n- `'1'` (default) - Apply pivot table style widths/heights\n- `'0'` - Preserve worksheet widths/heights\n\n### 3. **Test Case** (`test/test-pivot-table.js`)\n\nAdded test demonstrating custom width preservation:\n\n```javascript\nworksheet.getColumn(1).width = 30;\nworksheet.getColumn(2).width = 15;\n\nworksheet.addPivotTable({\n  ...\n  applyWidthHeightFormats: '0'\n});\n```\n\n## Use Cases\n\n**1. Custom Dashboard Layouts**\n```javascript\n// Wide label column, narrow data columns\nworksheet.getColumn(1).width = 40;\nworksheet.getColumn(2).width = 12;\nworksheet.addPivotTable({..., applyWidthHeightFormats: '0'});\n```\n\n**2. Print-Optimized Reports**\n```javascript\n// Precise column widths for PDF export\nworksheet.columns = [\n  { width: 25 },\n  { width: 15 },\n  { width: 15 },\n];\nworksheet.addPivotTable({..., applyWidthHeightFormats: '0'});\n```\n\n**3. Responsive Layouts**\n```javascript\n// Adapt to different screen sizes\nconst isWideScreen = true;\nworksheet.getColumn(1).width = isWideScreen ? 50 : 30;\nworksheet.addPivotTable({..., applyWidthHeightFormats: '0'});\n```\n\n## Backwards Compatibility\n\n✅ **100% backwards compatible**\n- Default value `'1'` maintains existing behavior\n- Existing code works identically\n- Opt-in feature - only affects users who explicitly set it\n\n```javascript\n// Before (still works exactly the same)\nworksheet.addPivotTable({...});\n\n// After (new optional feature)\nworksheet.addPivotTable({..., applyWidthHeightFormats: '0'});\n```\n\n## Standards Compliance\n\nFollows [Office Open XML Part 1 Section 18.10](http://www.datypic.com/sc/ooxml/e-ssml_pivotTableDefinition.html):\n\n> **applyWidthHeightFormats** (Apply Width and Height Formats)  \n> Specifies a boolean value that indicates whether to apply width and height formatting from the PivotTable style.\n\nThis is a standard Excel feature exposed through the OOXML format.\n\n## Files Changed\n\n- `lib/doc/pivot-table.js` - Accept parameter, set default\n- `lib/xlsx/xform/pivot-table/pivot-table-xform.js` - Pass to XML\n- `test/test-pivot-table.js` - Test case demonstrating feature\n\n## Checklist\n\n- [x] Includes test case\n- [x] All existing tests pass\n- [x] No breaking changes\n- [x] Backwards compatible (opt-in)\n- [x] Follows OOXML specification\n- [x] Tested manually with Excel\n\n---\n\n**Fork Context:** This PR originates from [@protobi/exceljs](https://www.npmjs.com/package/@protobi/exceljs), a temporary fork with pivot table enhancements. We're submitting all improvements back to upstream.",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "http://www.datypic.com/sc/ooxml/e-ssml_pivotTableDefinition.html",
+      "ext": "html",
+      "isFixture": false
+    },
+    {
+      "url": "http://www.datypic.com/sc/ooxml/e-ssml_pivotTableDefinition.html",
+      "ext": "html",
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/@protobi/exceljs",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 200,
+    "deletions": 9,
+    "changedFiles": [
+      {
+        "path": "README.md",
+        "status": "modified",
+        "additions": 178,
+        "deletions": 7
+      },
+      {
+        "path": "lib/doc/pivot-table.js",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 0
+      },
+      {
+        "path": "lib/xlsx/xform/pivot-table/pivot-table-xform.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "test/test-pivot-table.js",
+        "status": "modified",
+        "additions": 16,
+        "deletions": 0
+      }
+    ]
+  }
+}

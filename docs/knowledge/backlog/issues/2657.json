@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2657,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2657",
+  "title": "excel formula Problem While creating a copy of an excel sheet ",
+  "state": "open",
+  "author": "Arun6121143",
+  "createdAt": "2024-01-15T12:05:35Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "i am using the library excel js\r\n\r\nconst downloadExcel = async () => {\r\n    try {\r\n      const response = await fetch(`${process.env.PUBLIC_URL}/veccalc.xlsx`);\r\n      // const arrayBuffer = await response.arrayBuffer();\r\n      const blob1 = await response.blob();\r\n      const originalWorkbook = new ExcelJS.Workbook();\r\n      console.log(\"arun\")\r\n      await originalWorkbook.xlsx.load(blob1);\r\n      console.log(\"arun1\")\r\n      const copiedWorkbook = new ExcelJS.Workbook();\r\n\r\n      originalWorkbook.eachSheet((originalSheet) => {\r\n        const newSheet = copiedWorkbook.addWorksheet(originalSheet.name);\r\n        newSheet.model = Object.assign({}, originalSheet.model);;\r\n        // newSheet.model = Object.assign({}, originalSheet.model);\r\n      });\r\n\r\n      \r\n\r\n      const sheetName = \"INPUT_FERM\";\r\n      const sheet = copiedWorkbook.getWorksheet(sheetName);\r\n\r\n      let rowNumber = 18;\r\n      while (sheet.getRow(rowNumber).getCell(\"A\").value) {\r\n        const lowercase = sheet.getRow(rowNumber).getCell(\"A\").value.toLowerCase();\r\n        const value = responseData[lowercase];\r\n        sheet.getRow(rowNumber).getCell(\"B\").value = value;\r\n        rowNumber++;\r\n      }\r\n      console.log(\"arun3\")\r\n      copiedWorkbook.eachSheet((ws) => {\r\n        ws.recalculate = true;\r\n      });\r\n      console.log(\"arun2\")\r\n\r\n      const buffer = await copiedWorkbook.xlsx.writeBuffer();\r\n      const blob = new Blob([buffer], { type: \"application/octet-stream\" });\r\n\r\n      hiddenLinkRef.current.href = URL.createObjectURL(blob);\r\n      hiddenLinkRef.current.click();\r\n    } catch (error) {\r\n      console.error(error);\r\n    }\r\n  };\r\n\r\nthis is my cod what i am trying to do here is create a copy of my original workbook then in the copiedworkbook i will do some update on one of the sheet based this update my copied excel sheet should calculate some values \r\n\r\nbut the issue i am presisting is whenever i try to open my copiedexceksheet after downloading \r\n\r\nit gives me following error \r\n\r\nRepaired Records: Cell information from /xl/worksheets/sheet1.xml part\r\nRepaired Records: Cell information from /xl/worksheets/sheet6.xml part\r\n\r\n=@INPUT_MP_SUM/@INPUT_DAYS_YEAR(this is the formula in my downloaded excel sheet )\r\n=INPUT_MP_SUM/INPUT_DAYS_YEAR(this is the formula in older one)\r\n\r\nplzz help me in this \r\n\r\n\r\n\r\n\r\n",
+  "comments": [],
+  "attachments": []
+}

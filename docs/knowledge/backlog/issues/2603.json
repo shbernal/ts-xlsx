@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2603,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2603",
+  "title": "[BUG] Cannot load an excel file with Error: Unexpected xml node in parseOpen: {\"name\":\"lastModifiedBy\",\"attributes\":{},\"isSelfClosing\":false}",
+  "state": "open",
+  "author": "goforlee",
+  "createdAt": "2023-11-28T04:07:08Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nError: Unexpected xml node in parseOpen: {\"name\":\"lastModifiedBy\",\"attributes\":{},\"isSelfClosing\":false}\r\n    at CoreXform.parseOpen (...\\node_modules\\exceljs\\lib\\xlsx\\xform\\core\\core-xform.js:82:15)\r\n    at CoreXform.parse (...\\node_modules\\exceljs\\lib\\xlsx\\xform\\base-xform.js:63:16)\r\n    at async XLSX.load (...\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:355:36)\r\n\r\nversion \"exceljs\": \"^4.4.0\",\r\n\r\nI found this error when I was trying to get images from an excel file. \r\nIt only occurs with a few of my excel files. Other excel files work just fine.\r\nAll of my excel file has xlsx extension.\r\n\r\nWhen I looked at core-xform.js, it has \"cp:lastModifiedBy\" but not just \"lastModifiedBy\". \r\nI dont think adding the missing key string in a map would be a solution for it in a long term...? I am not so sure. \r\nhere is how the core.xml looks like\r\nj\r\n```\r\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n\r\n<coreProperties xmlns=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\r\n  <dcterms:created xsi:type=\"dcterms:W3CDTF\">2016-08-03T05:32:42Z</dcterms:created>\r\n  <dc:creator>Windows user</dc:creator>\r\n  <lastModifiedBy>Windows user</lastModifiedBy>\r\n  <lastPrinted>2017-08-02T03:34:29Z</lastPrinted>\r\n  <dcterms:modified xsi:type=\"dcterms:W3CDTF\">2017-08-02T04:16:14Z</dcterms:modified>\r\n</coreProperties>\r\n\r\n```\r\n \r\nIf anybody has a good idea to fix this issue, please help me!\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nawait workbook.xlsx.load(req.file.buffer);\r\n```\r\n\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "http://schemas.openxmlformats.org/package/2006/metadata/core-properties",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/package/2006/metadata/core-properties",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://purl.org/dc/elements/1.1/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://purl.org/dc/terms/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://www.w3.org/2001/XMLSchema-instance",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2675,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2675",
+  "title": "[BUG] Table creation accepts illegal Table names without complaint, resulting in corrupted Excel files",
+  "state": "open",
+  "author": "georgbuehler",
+  "createdAt": "2024-02-02T19:27:15Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen creating a new Table in an Excel file, the user can provide a Table name that is not a legal table name.\r\nExcel requires that Table names begin with a letter, an underscore, or a backslash, and that all other characters are letters, numbers, periods or underscores. Spaces can't be part of the name. \r\nFor more details on Excel requirements for table names, see this: [Rename an Excel Table](https://support.microsoft.com/en-us/office/rename-an-excel-table-fbf49a4f-82a3-43eb-8ba2-44d21233b114)\r\n\r\nIf the user tries to create a Table with ExcelJS with an invalid name, **the code will not throw an error** (as it ought) but instead just create the Table with the bad name. When the resulting Excel file is loaded, Excel will complain that the file is corrupt and then attempt to fix it. It does appear that Excel can usually recover the file by replacing any illegal characters with underscores.\r\n\r\nLib version: 9.7.2\r\n\r\n## Steps To Reproduce\r\n\r\n1. Run the Jest test (below) in a project with exceljs installed.\r\n2. Open the generated **BadTableNameTest.xlsx** in Excel.\r\n3. User will receive the following error message: \"We found a problem with some content in 'BadTablenameTest.xlsx'. Do you want us to try to recover as much as we can? If you trust the source of this workbook, click Yes.\"\r\n4. If you click \"Yes\" for the repairs, Excel will present the message: \"Repaired Records: Table from /xl/tables/table1.xml part (Table)\"\r\n\r\n```javascript\r\ndescribe(\"addTable()\", () => {\r\n  it(\"should not allow an illegal table name\", async () => {\r\n    const excelDoc = new Excel.Workbook();\r\n    const accountSheet = excelDoc.addWorksheet(\"Accounts\");\r\n\r\n    accountSheet.addTable({\r\n      name: \"Bob's Accounts\", // This is an illegal table name, containing an apostrophe and spaces\r\n      ref: \"A1\",\r\n      headerRow: true,\r\n      totalsRow: false,\r\n      style: {\r\n        theme: \"TableStyleMedium2\",\r\n        showRowStripes: true,\r\n      },\r\n      columns: [\r\n        { name: \"Name\", filterButton: true },\r\n        { name: \"Description\", filterButton: true },\r\n        { name: \"Credit Limit\", filterButton: true },\r\n        { name: \"Account Type\", filterButton: true },\r\n      ],\r\n      rows: [[\"Dummy Row\", \"Dummy Row\", 0, \"Dummy Row\"]],\r\n    });\r\n    expect(excelDoc).toBeInstanceOf(Excel.Workbook);\r\n    await excelDoc.xlsx.writeFile(\r\n      path.join(__dirname, \"../../data/BadTableNameTest.xlsx\")\r\n    );\r\n  });\r\n});\r\n```\r\n\r\n\r\n\r\n## The expected behaviour:\r\n\r\nThe code should throw a runtime error when an obviously invalid Table name is provided, such as \"Invalid Table name. See Microsoft documentation for requirements for table names.\"\r\n\r\n\r\n## Possible solution \r\nThe validate() method called by the Table constructor [Table class](https://github.com/exceljs/blob/master/lib/doc/table.js) ought to include an assert() call to check that the Table name is valid.\r\n```javascript\r\nassert(isValidExcelTableName(table.name), \"Invalid Table name. See Microsoft documentation for requirements for table names.\" )\r\n\r\nfunction isValidExcelTableName(name: string): boolean {\r\n  // Regular expression for valid Excel table names\r\n  const regex = /^[a-zA-Z_][a-zA-Z0-9._]*$/;\r\n  return regex.test(name);\r\n}\r\n```\r\nI would be happy to submit a pull request with the suggested fix if this sounds appropriate. ",
+  "comments": [
+    {
+      "author": "AshotN",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-09T22:55:16Z",
+      "reactions": 1,
+      "body": "Just ran into this same issue, thank you for documenting that table names can't have spaces. Would be good to have some sort of fix in for this"
+    },
+    {
+      "author": "abeel50",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-16T11:53:59Z",
+      "reactions": 0,
+      "body": "@georgbuehler I faced the same issues a few days back I would like to create this PR."
+    },
+    {
+      "author": "georgbuehler",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-24T20:23:58Z",
+      "reactions": 0,
+      "body": "@abeel50 @AshotN FYI, I just made a [PR to address this issue](https://github.com/exceljs/exceljs/pull/2767)."
+    },
+    {
+      "author": "TimUnderhay-StellarCyber",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-23T18:30:13Z",
+      "reactions": 0,
+      "body": "I've just wasted hours due to this bug.  It would be amazing if someone would accept @georgbuehler 's PR."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://support.microsoft.com/en-us/office/rename-an-excel-table-fbf49a4f-82a3-43eb-8ba2-44d21233b114",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/blob/master/lib/doc/table.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2767",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

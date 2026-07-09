@@ -1,0 +1,46 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1855,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1855",
+  "title": "cannot find module",
+  "state": "open",
+  "author": "LiamYaoLian",
+  "createdAt": "2021-10-06T02:57:37Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 3,
+  "body": "\"dependencies\": {\r\n    \"core-js\": \"^3.18.2\",\r\n    \"electron\": \"^1.8.8\",\r\n    \"exceljs\": \"7.11.2\",\r\n    \"regenerator-runtime\": \"^0.13.9\"\r\n  }\r\n\r\nI tried both: \r\n//const Excel = require('exceljs/dist/es5');\r\nconst Excel = require('exceljs');\r\n\r\n![image](https://user-images.githubusercontent.com/71479080/136133741-adcc381e-5b84-49ac-8773-fa18459cd6ba.png)\r\n\r\n",
+  "comments": [
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-10-07T00:28:22Z",
+      "reactions": 0,
+      "body": "@LiamYaoLian \r\nhi, Now its highest version seems to be 4.3.0.\r\nPlease install with the latest version.\r\nIt may help you!\r\n```shell\r\n# modify version in package.json\r\n\"exceljs\": \"7.11.2\" => \"exceljs\": \"~4.3.0\"\r\n# install\r\nnpm install\r\n# If this problem still occurs, please check if node_modules/ has an exceljs plugin\r\n```"
+    },
+    {
+      "author": "LiamYaoLian",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-10-07T22:16:55Z",
+      "reactions": 0,
+      "body": "> @LiamYaoLian hi, Now its highest version seems to be 4.3.0. Please install with the latest version. It may help you!\r\n> \r\n> ```shell\r\n> # modify version in package.json\r\n> \"exceljs\": \"7.11.2\" => \"exceljs\": \"~4.3.0\"\r\n> # install\r\n> npm install\r\n> # If this problem still occurs, please check if node_modules/ has an exceljs plugin\r\n> ```\r\n\r\nThanks very much! I tried to change it into \"~4.3.0\" and I checked node_modules as well. I got the following error when I ran the project. If I delete codes regarding importing exceljs, other codes work fine. \r\n\r\n\r\n\r\n> electron .\r\n\r\nApp threw an error during load\r\n/Users/xxx-project/node_modules/readdir-glob/index.js:62\r\nasync function* exploreWalkAsync(dir, path, followSyslinks, useStat, shouldSkip, strict) {\r\n              ^\r\n\r\nSyntaxError: Unexpected token *\r\n    at createScript (vm.js:74:10)\r\n    at Object.runInThisContext (vm.js:116:10)\r\n    at Module._compile (module.js:533:28)\r\n    at Object.Module._extensions..js (module.js:580:10)\r\n    at Module.load (module.js:503:32)\r\n    at tryModuleLoad (module.js:466:12)\r\n    at Function.Module._load (module.js:458:3)\r\n    at Module.require (module.js:513:17)\r\n    at require (internal/module.js:11:18)\r\n    at Object.<anonymous> (/Users/xxx-project/node_modules/archiver/lib/core.js:9:12)\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n"
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-10-08T00:36:45Z",
+      "reactions": 0,
+      "body": "@LiamYaoLian \r\n```cmd\r\nSyntaxError: Unexpected token * # Please check node.js version!One possibility is that your version is too old.\r\n\r\n# If you need to solve your problem faster, I suggest you upload your project (of course, please remove your trade secrets) to github so that we can clone it for analysis\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/71479080/136133741-adcc381e-5b84-49ac-8773-fa18459cd6ba.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

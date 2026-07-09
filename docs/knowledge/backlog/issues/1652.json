@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1652,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1652",
+  "title": "Add program Features from Excel",
+  "state": "open",
+  "author": "potier97",
+  "createdAt": "2021-04-05T22:16:04Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "Hello, could you add the option to add views of the programmer option, such as the checkbox, etc?\r\n",
+  "comments": [
+    {
+      "author": "yogithesymbian",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-04-09T11:35:02Z",
+      "reactions": 0,
+      "body": "Anyone have tricky for that question ? I need to.. for shape rectangle with checkbox or without rectangle , can we use css or there is any programatically on excelhs ??"
+    }
+  ],
+  "attachments": []
+}

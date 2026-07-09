@@ -1,0 +1,91 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2698,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2698",
+  "title": "Issue: style.xml has [Object object] as formatCode",
+  "state": "open",
+  "author": "jmatth11",
+  "createdAt": "2024-02-20T21:15:11Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 3,
+  "body": "## Summary\r\n\r\nSomehow the excel file is in a state where exceljs does not handle extracting the numFmt of a DXF conditional format properly and instead has it set to an object.\r\n\r\nThis results in the generate style.xml file to have a formatCode of `[Object object]` inside which corrupts the file.\r\n\r\nThis fix is to check if the numFmt is of the appropriate string type and if not, corrects it by extracting the formatCode before moving forward on the prepare step of writing.\r\n\r\n## Test plan\r\n\r\n<!-- Demonstrate the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes UI. -->\r\n\r\nThis is the test Excel file I used which has a conditional format on A1:C1 which conditional changes the fill color to yellow and the format to be a custom number format if A1 equals \"NO\".\r\n\r\n[CF1.xlsx](https://github.com/exceljs/exceljs/files/14351092/CF1.xlsx)\r\n\r\nI setup a simple `main.js` to read in the test Excel file and write a new file `temp.xlsx`.\r\n\r\n```\r\nconst ExcelJS = require(\"exceljs\");\r\nconst workbook = new ExcelJS.Workbook();\r\nworkbook.xlsx.readFile(\"CF1.xlsx\").then(() => {\r\n  workbook.xlsx.writeFile(\"temp.xlsx\");\r\n});\r\n```\r\n\r\nWith current master branch the result of opening the generated file is this:\r\n\r\n<img width=\"605\" alt=\"original_error\" src=\"https://github.com/exceljs/exceljs/assets/5776125/0e4bbd66-2740-4b79-b3a7-230d75ad88da\">\r\n<img width=\"377\" alt=\"original_error_repair_report\" src=\"https://github.com/exceljs/exceljs/assets/5776125/8b7e47b1-3ac4-4631-9644-e7bdab80eecc\">\r\n\r\nAfter repair conditional formatting is removed.\r\n\r\n<img width=\"418\" alt=\"original_error_cf_removed\" src=\"https://github.com/exceljs/exceljs/assets/5776125/97ef75a5-542a-4b55-a2aa-acaf0d584101\">\r\n\r\nScreenshot of xl/style.xml file with the error:\r\n\r\n<img width=\"398\" alt=\"original_xml_file\" src=\"https://github.com/exceljs/exceljs/assets/5776125/b0835d47-67ad-4e91-b72d-0f03f4e95058\">\r\n\r\n\r\nAfter the fix the file is generated properly and conditional formatting works as expected.\r\n\r\n<img width=\"448\" alt=\"after_fix\" src=\"https://github.com/exceljs/exceljs/assets/5776125/eb8226b6-4b4c-46eb-b15e-b45f377454c5\">\r\n\r\nScreenshot of xl/style.xml with fixed format code:\r\n\r\n<img width=\"654\" alt=\"after_fix_xml_file\" src=\"https://github.com/exceljs/exceljs/assets/5776125/d724c554-3dac-41e1-b85d-a41e0fc184d9\">\r\n\r\n\r\n## Related to source code (for typings update)\r\n\r\nI'm not really sure what is supposed to go here.\r\n",
+  "comments": [
+    {
+      "author": "thestuckster",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-22T21:42:49Z",
+      "reactions": 1,
+      "body": "lgtm"
+    },
+    {
+      "author": "Ks89",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-04T13:37:28Z",
+      "reactions": 0,
+      "body": "I found the same problem, please could you merge and publish a patch release.\r\nThanks."
+    },
+    {
+      "author": "alex-mazzariol",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-04T13:38:36Z",
+      "reactions": 0,
+      "body": "We're finding this issue too when updating an existing excel file that has conditional formatting for some cells. :+1: "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/14351092/CF1.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/5776125/0e4bbd66-2740-4b79-b3a7-230d75ad88da",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/5776125/8b7e47b1-3ac4-4631-9644-e7bdab80eecc",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/5776125/97ef75a5-542a-4b55-a2aa-acaf0d584101",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/5776125/b0835d47-67ad-4e91-b72d-0f03f4e95058",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/5776125/eb8226b6-4b4c-46eb-b15e-b45f377454c5",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/5776125/d724c554-3dac-41e1-b85d-a41e0fc184d9",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 5,
+    "deletions": 0,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xform/style/styles-xform.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 0
+      }
+    ]
+  }
+}

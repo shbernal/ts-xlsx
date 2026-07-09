@@ -1,0 +1,50 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2800,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2800",
+  "title": "fix: worksheet-reader hidden prop",
+  "state": "open",
+  "author": "babu-ch",
+  "createdAt": "2024-07-27T13:08:04Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\n<!-- Explain the **motivation** for making this change. What existing problem does the pull request solve? -->\r\n\r\nfix https://github.com/exceljs/exceljs/issues/2789\r\n\r\n## Test plan\r\n\r\n<!-- Demonstrate the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes UI. -->\r\n\r\ntest code\r\n\r\nThe test content is the same as workshee.spec\r\n\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/spec/integration/worksheet.spec.js#L1190\r\n\r\n## Related to source code (for typings update)\r\n\r\n<!-- List with permalink into source code to prove that changes are true -->\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2789",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/spec/integration/worksheet.spec.js#L1190",
+      "ext": "js",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 48,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": "lib/stream/xlsx/worksheet-reader.js",
+        "status": "modified",
+        "additions": 5,
+        "deletions": 1
+      },
+      {
+        "path": "spec/integration/issues/issue-2789-worksheet-reader-fix-hidden.spec.js",
+        "status": "added",
+        "additions": 43,
+        "deletions": 0
+      }
+    ]
+  }
+}

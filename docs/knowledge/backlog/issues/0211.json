@@ -1,0 +1,34 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 211,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/211",
+  "title": "Copy format from on excel to another",
+  "state": "open",
+  "author": "joeSaad",
+  "createdAt": "2016-10-28T18:56:24Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "I'm wondering if this option exists. I'm trying to copy excel and writeFile() but the copied file seems to be corrupt with error: \n\n![image](https://cloud.githubusercontent.com/assets/1170032/19818653/4c1294b2-9d16-11e6-8bcc-acb2ced8cf7c.png)\n\nThen when clicking \"Open and Repair\", the file gets open with distorted format all broken. \nIs there a fix for that? or am I missing something? \n\nThanks, \n",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-17T01:26:43Z",
+      "reactions": 0,
+      "body": "#664 "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://cloud.githubusercontent.com/assets/1170032/19818653/4c1294b2-9d16-11e6-8bcc-acb2ced8cf7c.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

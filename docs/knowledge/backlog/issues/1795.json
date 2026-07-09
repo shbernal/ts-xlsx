@@ -1,0 +1,53 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1795,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1795",
+  "title": "[BUG] File open from pure JavaScript: exceljs.js:7246 - Cannot read property 'F_OK' of undefined",
+  "state": "open",
+  "author": "the1bit",
+  "createdAt": "2021-07-21T07:56:09Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\nI would like to use your solution from pure JavaScript to edit excel file which are stored on SharePoint online document library. Unfortunately the open file and save file for pure JavaScript is not clear according to documentation.\r\n\r\nUnfortunately when I would like to do it, I am facing the following error message:\r\n```javascript\r\nexceljs.js:7246 Uncaught (in promise) TypeError: Cannot read property 'F_OK' of undefined\r\n    at exceljs.js:7246\r\n    at new Promise (<anonymous>)\r\n    at Object.exists (exceljs.js:7245)\r\n    at XLSX._callee$ (exceljs.js:23936)\r\n    at tryCatch (exceljs.js:74579)\r\n    at Generator.invoke [as _invoke] (exceljs.js:74796)\r\n    at Generator.next (exceljs.js:74632)\r\n    at asyncGeneratorStep (exceljs.js:23847)\r\n    at _next (exceljs.js:23849)\r\n    at exceljs.js:23849\r\n```\r\n\r\nLib version: 4.2.1\r\n\r\n## Steps To Reproduce\r\n\r\n```javascript\r\n<html>\r\n\r\n<body>\r\n    <script src=\"/sites/mysite/SiteAssets/excel/poc/js/jquery-3.2.0.min.js\"></script>\r\n    <script src=\"/sites/mysite/SiteAssets/excel/poc/js/jquery-ui.min.js\"></script>\r\n    <script src=\"https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/6.26.0/polyfill.js\"></script>\r\n    <script type=\"text/javascript\" src=\"/sites/mysite/SiteAssets/excel/poc/js/exceljs.js\"></script>\r\n    <script type=\"text/javascript\">\r\n        async function readExcelFile(filename) {\r\n            // read from a file\r\n            const workbook = new ExcelJS.Workbook();\r\n            await workbook.xlsx.readFile(filename);\r\n\r\n            console.log(workbook);\r\n            // ... use workbook\r\n        }\r\n        // ############## RENDER is READY\r\n        $(document).ready(function () {\r\n            readExcelFile(\"/sites/mysite/SiteAssets/excel/poc/excel/myexample.xlsx\");\r\n        });\r\n    </script>\r\n</body>\r\n\r\n</html>```\r\n\r\n## The expected behaviour:\r\n\r\nExcelfile content is in workbook variable.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n",
+  "comments": [
+    {
+      "author": "chandanrjit2021",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-21T08:18:56Z",
+      "reactions": 0,
+      "body": "Any update on this ?"
+    },
+    {
+      "author": "chandanrjit2021",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-21T08:20:01Z",
+      "reactions": 0,
+      "body": "Hey @the1bit  even I am getting the same error. did you manage to get it working?  "
+    },
+    {
+      "author": "the1bit",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-21T10:42:21Z",
+      "reactions": 1,
+      "body": "Hi @chandanrjit2021,\r\n\r\nUnfortunately I had to find another way to solve the requirements. Finally, I imported the XLSX to a SharePoint list, then I exported the related data to XLSX with this library. "
+    },
+    {
+      "author": "chandanrjit2021",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-21T10:43:55Z",
+      "reactions": 0,
+      "body": "no worries @the1bit. Thanks for the reply. any change in export method part. I have the data in the js object. Once the worksheet is loaded I need to add those in rows and then download.  "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/6.26.0/polyfill.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

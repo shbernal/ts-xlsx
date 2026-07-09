@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2912,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2912",
+  "title": "Fix a constant identifier naming error in the Chinese documentation",
+  "state": "open",
+  "author": "yusn",
+  "createdAt": "2025-04-02T08:01:34Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\nFix a constant identifier naming error in the Chinese documentation。\r\n<!-- Explain the **motivation** for making this change. What existing problem does the pull request solve? -->\r\n\r\n## Test plan\r\n\r\n<!-- Demonstrate the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes UI. -->\r\n\r\n## Related to source code (for typings update)\r\n\r\n<!-- List with permalink into source code to prove that changes are true -->\r\n",
+  "comments": [
+    {
+      "author": "protobi-pieter",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-11-08T06:34:52Z",
+      "reactions": 0,
+      "body": "谢谢你修复这个命名不一致的问题！🎉 (Thanks for fixing this naming inconsistency!)\n\nYour fix improves code consistency in the Chinese documentation. We've adopted this into our actively maintained fork at https://github.com/protobi/exceljs.\n\nYour contribution is appreciated and credited in commit 2d1ddcf."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/protobi/exceljs",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 1,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": "README_zh.md",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      }
+    ]
+  }
+}

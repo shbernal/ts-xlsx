@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2825,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2825",
+  "title": "[BUG] Style not implemented for cell",
+  "state": "open",
+  "author": "manzhos",
+  "createdAt": "2024-09-25T12:49:10Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\nin the file cell-xform.js I fix the next part.\r\nAdd validation for variable (**cellStylesCache?**)\r\n\r\n```\r\nif (cellStylesCache?.has(modelStyleKey)) {\r\n      model.styleId = cellStylesCache.get(modelStyleKey);\r\n    }\r\n\r\n    if (!model.styleId) {\r\n      const styleId = options.styles.addStyleModel(modelStyle, getEffectiveCellType(model));\r\n      if (styleId) {\r\n        model.styleId = styleId;\r\n        cellStylesCache?.set(modelStyleKey, styleId);\r\n      }\r\n    }\r\n```\r\n\r\nit's work for me now",
+  "comments": [],
+  "attachments": []
+}

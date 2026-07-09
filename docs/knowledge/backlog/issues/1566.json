@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1566,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1566",
+  "title": "useStyles not getting applied?",
+  "state": "open",
+  "author": "aksharj",
+  "createdAt": "2020-12-15T16:14:56Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 2,
+  "body": "Hi,\r\n\r\nI am trying to read -> manipulate -> create excel. I am using `streams`. most of it is working fine, but the styles do not seem to be copied over. Below is my relevant part of the code.\r\n\r\n```\r\nconst readerOptions = {\r\n sharedStrings: 'cache',\r\n hyperlinks: 'cache',\r\n worksheets: 'emit',\r\n styles: 'cache',\r\n};\r\nconst writerOptions = {\r\n  filename: fpath,\r\n  useStyles: true,\r\n  useSharedStrings: true\r\n}\r\nconst workbook = new ExcelJS.stream.xlsx.WorkbookWriter(writerOptions)\r\nconst myworksheet = workbook.addWorksheet('Sheet 1');\r\nconst workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(sheet.path, readerOptions);\r\nworkbookReader.read();\r\nworkbookReader.on('worksheet', worksheet => {\r\n  worksheet.on('row', row => {\r\n    myworksheet.addRow(row.values).commit();\r\n  });\r\n});\r\n\r\nworkbookReader.on('end', async () => {\r\n await workbook.commit();\r\n});\r\nworkbookReader.on('error', (err) => {\r\n console.log(err);\r\n});\r\n```\r\n\r\nplease see the attached image for your reference.\r\n\r\nOn left is source excel file and on right is the copied re-generated excel file. The styles and font styles do not match,\r\n<img width=\"1002\" alt=\"use_styles\" src=\"https://user-images.githubusercontent.com/8026629/102241234-02d19300-3ef9-11eb-9a33-ed3187825a9d.png\">\r\n\r\nAny help on how to fix this will be really great, Thanks.\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "fbibeau",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-23T19:58:13Z",
+      "reactions": 0,
+      "body": "I have the same issue. Here's what Excel is returning in the logs : \r\n`/xl/styles.xml part with XML error.  (Styles) Load error. Line 2, column 0.`"
+    },
+    {
+      "author": "kelmore5",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-02T15:33:14Z",
+      "reactions": 0,
+      "body": "I haven't confirmed if this works, but supposedly a fix was found here: https://stackoverflow.com/questions/65309694/styles-not-getting-copied-from-source-excel-file\r\n\r\nThe change was this:\r\n\r\n```\r\nworkbookReader.on('worksheet', worksheet => {\r\n  worksheet.on('row', row => {\r\n    myworksheet.addRow(row.values).commit();\r\n  });\r\n});\r\n```\r\n\r\nto this:\r\n\r\n```\r\nworkbookReader.on('worksheet', worksheet => {\r\n worksheet.on('row', row => {\r\n  const r = myworksheet.addRow();\r\n  Object.assign(r, row);\r\n });\r\n});\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/8026629/102241234-02d19300-3ef9-11eb-9a33-ed3187825a9d.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://stackoverflow.com/questions/65309694/styles-not-getting-copied-from-source-excel-file",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2296,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2296",
+  "title": "[BUG] This xlsx file that cannot be opened seems to be stuck",
+  "state": "open",
+  "author": "bleehome",
+  "createdAt": "2023-06-29T08:31:23Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 7,
+  "body": "## 🐛 Bug Report\r\nCan not open this file.\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n[hang.xlsx](https://github.com/exceljs/exceljs/files/11903623/hang.xlsx)\r\n\r\n```javascript\r\n(async () => {\r\n  const workbook = new ExcelJS.Workbook();\r\n  const fund = await workbook.xlsx.readFile('/path/to/hang.xlsx');\r\n  const sheet = fund.worksheets[0];\r\n  console.log(sheet);\r\n})()\r\n```\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-06-29T10:47:07Z",
+      "reactions": 0,
+      "body": "@bleehome Yeah, there is a problem. Amazing. Execute to this line of code:\r\n\r\n`await workbook.xlsx.readFile('/path/to/hang.xlsx');`\r\n\r\nAnd it got stuck"
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-07-01T12:29:14Z",
+      "reactions": 0,
+      "body": " \r\n```\r\n<dataValidations count=\"5\">\r\n        <dataValidation type=\"list\" allowBlank=\"1\" showInputMessage=\"1\" showErrorMessage=\"1\" sqref=\"Q1 Q3:Q11 Q13:Q1048576\" xr:uid=\"{00000000-0002-0000-0000-000000000000}\">\r\n            <formula1>\"未处理,已处理\"</formula1>\r\n        </dataValidation>\r\n        <dataValidation allowBlank=\"1\" showInputMessage=\"1\" showErrorMessage=\"1\" sqref=\"L2 Q2 C2:C3 D2:D3 E2:E3 F2:F3 G1:G11 G13:G1048576 H1:H11 H13:H1048576 I2:I3 J2:J3 K2:K3\" xr:uid=\"{00000000-0002-0000-0000-000001000000}\"/>\r\n        <dataValidation type=\"list\" allowBlank=\"1\" showInputMessage=\"1\" showErrorMessage=\"1\" sqref=\"L3\" xr:uid=\"{00000000-0002-0000-0000-000002000000}\">\r\n            <formula1>\"ChatGPT指定关键字生成,自定义评论列表随机选择\"</formula1>\r\n        </dataValidation>\r\n        <dataValidation type=\"list\" allowBlank=\"1\" showInputMessage=\"1\" showErrorMessage=\"1\" sqref=\"I4:J5\" xr:uid=\"{00000000-0002-0000-0000-000003000000}\">\r\n            <formula1>\"是,否\"</formula1>\r\n        </dataValidation>\r\n        <dataValidation type=\"list\" allowBlank=\"1\" showInputMessage=\"1\" showErrorMessage=\"1\" sqref=\"K4:K5 E10:F11 E6:F9\" xr:uid=\"{00000000-0002-0000-0000-000004000000}\">\r\n            <formula1>\"未发布,已发布\"</formula1>\r\n        </dataValidation>\r\n    </dataValidations>\r\n```\r\n你的数据有效性验证是怎么添加，怎么会有Q13:Q1048576 H13:H1048576 这些这么大范围的验证，导致exceljs去读取的范围太多，然后生成的 dataValidation 对象太多了，有几百万，卡死了。然后程序就一直停在那里了？"
+    },
+    {
+      "author": "bleehome",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-01T12:47:17Z",
+      "reactions": 0,
+      "body": "\r\n我也跟到这个validation是循环了，这个excel是我们客户弄出来的，问了说是选中一整列，设置只能填值是和否，但是我同样的操作却弄不出这样的excel。"
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-07-01T13:00:59Z",
+      "reactions": 0,
+      "body": "@bleehome 只能是找找excel高手问下能不能重现，手动用WPS重新设置这几个单元格的数据有效性验证，别那么大了，exceljs暂时应该就可以处理了，后续得研究下这里，看下其他语言的库是怎么处理这种超大范围的数据有效性验证的。"
+    },
+    {
+      "author": "bleehome",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-04T09:42:30Z",
+      "reactions": 0,
+      "body": "\r\nhttps://github.com/exceljs/exceljs/assets/1271744/b2fda4b1-e753-4595-8c4f-7768d7cb3a87\r\n\r\n"
+    },
+    {
+      "author": "bleehome",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-04T09:51:50Z",
+      "reactions": 0,
+      "body": "我看了一下apache poi (Java 的xlsx库实现)，它并不为每个单元格创建一个validator，而是为每个规则创建一个validator并指定了它的range。如下图：\r\n<img width=\"1003\" alt=\"poi\" src=\"https://github.com/exceljs/exceljs/assets/1271744/23ba5f33-d24b-41bd-9440-bbec19598396\">\r\n\r\n不过我对xlsx格式完全不懂，以上不构成建议"
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-07-04T10:05:19Z",
+      "reactions": 0,
+      "body": "@bleehome \r\n\r\nhttps://github.com/zurmokeeper/excelize/issues/6\r\n\r\n我在这里新开了一个issue，不想再跳来跳去，以后可以在那边讨论，这个问题我得持续跟进下"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/11903623/hang.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/1271744/b2fda4b1-e753-4595-8c4f-7768d7cb3a87",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/1271744/23ba5f33-d24b-41bd-9440-bbec19598396",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/zurmokeeper/excelize/issues/6",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 971,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/971",
+  "title": "ERROR in node_modules/exceljs/index.d.ts(1648,34): error TS2503: Cannot find namespace 'NodeJS'.",
+  "state": "open",
+  "author": "phanbien9x",
+  "createdAt": "2019-09-20T10:43:46Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 10,
+  "body": "My application can not start after integrated exceljs. I use angular 7. I checked on node_modules/exceljs/index.d.ts but there are not error. I tried to run example with angular 6 then it work. Please let me know how to implement exceljs in angular 7. Advanced thanks!\r\n\r\nI use:\r\n\"exceljs\": \"^2.0.1\",\r\n\"file-saver\": \"^2.0.2\",\r\n\r\n\"@angular/cli\": \"^7.3.0\",\r\n\"@types/node\": \"^12.7.5\",",
+  "comments": [
+    {
+      "author": "sasapet",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-09-20T13:44:03Z",
+      "reactions": 3,
+      "body": "I have the same issue. \r\nThe other import \r\nimport * as Excel from \"exceljs/dist/exceljs.min.js\";\r\nFixes the issue, but then you don't get the types."
+    },
+    {
+      "author": "guiqui",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-09-20T20:27:48Z",
+      "reactions": 0,
+      "body": "Changing the version of @types/node to \"@types/node\": \"^10.12.0\" works for me."
+    },
+    {
+      "author": "sanjayrane",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-09-21T17:57:36Z",
+      "reactions": 1,
+      "body": " I have the same issue.\r\nThe other import\r\nadd  tsconfig.json  below code\r\n\"compilerOptions\" :{\r\n\"exceljs\": [\r\n        \"node_modules/exceljs/dist/exceljs.min.js\"\r\n      ]\r\n}\r\n\r\n"
+    },
+    {
+      "author": "phanbien9x",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-09-23T02:18:19Z",
+      "reactions": 2,
+      "body": "I tried all of your suggestion but it only work when I use \"workbook\" imported by @sasapet way like this:\r\nconst workbook = new Excel.Workbook();\r\nThank all of you to help me! :)"
+    },
+    {
+      "author": "neeravpanchal26",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-10-14T15:35:44Z",
+      "reactions": 0,
+      "body": "Instead of importing\r\nUse it in the following way in your function: \r\n**const Excel = require('exceljs');**\r\n\r\nExample:\r\n```\r\n// Excel exporter\r\n    ExportToExcel(Header, ReportName): void {\r\n        // Excel object\r\n        const Excel = require('exceljs');\r\n\r\n        //  Create workbook\r\n        const workbook = new Excel.Workbook();\r\n\r\n        // Create worksheet\r\n        const worksheet = workbook.addWorksheet(ReportName);\r\n\r\n        // Title row\r\n        const titleRow = worksheet.addRow([ReportName]);\r\n        // Customize Title row\r\n        titleRow.font = { name: 'Helvetica Neue', family: 4, size: 16};\r\n\r\n        // Export to file\r\n        workbook.xlsx.writeBuffer().then((data) => {\r\n            FService.saveAs(new Blob([data]), ReportName + '_export_' + new Date().getTime() + '.xlsx');\r\n        });\r\n    }\r\n```"
+    },
+    {
+      "author": "GustavDjavulen",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-11-28T00:39:47Z",
+      "reactions": 0,
+      "body": "I erase the NodeJS.TypedArray from \"index.d.ts\" in de \"node_modules/exceljs\"\r\n\r\nthat works for me :)\r\n\r\n![image](https://user-images.githubusercontent.com/54324708/69768198-45d19480-1145-11ea-8fb1-f8ebb7356694.png)\r\n\r\nnot the best form to fix it but works"
+    },
+    {
+      "author": "tahseen0amin",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-12-04T14:31:10Z",
+      "reactions": 5,
+      "body": "update \"@types/node\"-dependency\" in your devDependencies to the latest version.\r\n\r\n`\"@types/node\": \"~12.12.14\",`"
+    },
+    {
+      "author": "codertapsu",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-02-14T05:06:25Z",
+      "reactions": 0,
+      "body": "> I have the same issue.\r\n> The other import\r\n> import * as Excel from \"exceljs/dist/exceljs.min.js\";\r\n> Fixes the issue, but then you don't get the types.\r\n\r\nI faced this issue and this solution works for me"
+    },
+    {
+      "author": "chrishna1",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-29T08:21:24Z",
+      "reactions": 0,
+      "body": "It may help - https://www.ngdevelop.tech/export-to-excel-in-angular-6/"
+    },
+    {
+      "author": "MohammedBrh",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-14T16:31:56Z",
+      "reactions": 0,
+      "body": "**solution without the change in the tsConfig file**\r\n\r\nthis method does not support an array of objects or objects, but it does support an array or an array of arrays.\r\n\r\nif you have used excelJs methods with objects or an array of objects this problem will occur.\r\nu can use a function to transfer the object to array : \r\n\r\n- Object.values(obj)"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/54324708/69768198-45d19480-1145-11ea-8fb1-f8ebb7356694.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://www.ngdevelop.tech/export-to-excel-in-angular-6/",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

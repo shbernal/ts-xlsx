@@ -1,0 +1,84 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2578,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2578",
+  "title": "PivotTable: Support multiple values",
+  "state": "open",
+  "author": "Rablet",
+  "createdAt": "2023-11-01T12:46:39Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\nThis adds support for multiple values in pivot tables.\r\nIt also allows not supplying any columns. This mimics the built-in Excel functionality where it populates the columns field with \"Values\".\r\n\r\n**Limitation:** It is not currently possible to provide multiple values AND any columns.\r\n\r\n<!-- Explain the **motivation** for making this change. What existing problem does the pull request solve? -->\r\n\r\nWith the first implementation checked in yesterday it is not possible to use multiple values. This PR removes that limitation (as long as custom columns are not used)\r\n\r\n## Test plan\r\n\r\n<!-- Demonstrate the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes UI. -->\r\n\r\nI created a PivotTable with multiple values and no columns without problems.\r\nI crated a PivotTable with one value and multiple columns without problems",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-11-12T00:05:11Z",
+      "reactions": 0,
+      "body": "@Rablet Thank you for development that, for more implementation details you can drive into #2575 :) \r\n\r\nFrom my end, I required tests which proves and concrete the behaviour  in the future. Would you like to add it? \r\n\r\nThanks 👍 "
+    },
+    {
+      "author": "Rablet",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-13T10:00:36Z",
+      "reactions": 0,
+      "body": "Absolutely! Please see below:\r\n\r\n1: Multiple values, no columns:\r\n```\r\nconst ExcelJS = require('exceljs');\r\n\r\nconst createWorkbook = async () => {\r\n    const workbook = new ExcelJS.Workbook();\r\n    workbook.calcProperties.fullCalcOnLoad = true;\r\n\r\n    const worksheet1 = workbook.addWorksheet('Sheet1');\r\n    worksheet1.addRows([\r\n        ['Description', 'Initial Cost', 'VAT', 'Total',],\r\n        ['Potatoes', 10, 2, 12],\r\n        ['Potatoes', 10, 2, 12],\r\n        ['Potatoes', 10, 2, 12],\r\n        ['Grapes', 20, 4, 24],\r\n        ['Grapes', 20, 4, 24],\r\n        ['Strawberries', 15, 3, 18],\r\n    ]);\r\n\r\n    const worksheet2 = workbook.addWorksheet('Sheet2');\r\n    worksheet2.addPivotTable({\r\n        sourceSheet: worksheet1,\r\n        rows: ['Description'],\r\n        columns: [],\r\n        values: ['Initial Cost', 'VAT', 'Total'],\r\n        metric: 'sum',\r\n    });\r\n\r\n    await workbook.xlsx.writeFile(\"PivotWithMultipleValues.xlsx\");\r\n}\r\ncreateWorkbook();\r\n```\r\n![image](https://github.com/exceljs/exceljs/assets/96488933/ac6cd4a9-f7bf-4ec5-bb1e-1fc5f851bc9d)\r\n\r\n2: Attempt with multiple values & columns:\r\n```\r\n worksheet2.addPivotTable({\r\n        sourceSheet: worksheet1,\r\n        rows: ['Description'],\r\n        columns: ['Description', 'Initial Cost'],\r\n        values: ['Initial Cost', 'VAT', 'Total'],\r\n        metric: 'sum',\r\n    });\r\n```\r\nOutput:\r\n```\r\nWarning: Pivot Table support is experimental. \r\nPlease leave feedback at https://github.com/exceljs/exceljs/discussions/2575\r\n/Users/robin/dev/exceljs/lib/doc/pivot-table.js:81\r\n    throw new Error(\r\n          ^\r\n\r\nError: It is currently not possible to have multiple values when columns are specified. Please either supply an empty array for columns or a single value.\r\n    at validate (/Users/robin/dev/exceljs/lib/doc/pivot-table.js:81:11)\r\n    at makePivotTable (/Users/robin/dev/exceljs/lib/doc/pivot-table.js:20:3)\r\n    at Worksheet.addPivotTable (/Users/robin/dev/exceljs/lib/doc/worksheet.js:821:24)\r\n    at createWorkbook (/Users/robin/dev/nodeexceldemo/index.js:21:16)\r\n    at Object.<anonymous> (/Users/robin/dev/nodeexceldemo/index.js:31:1)\r\n    at Module._compile (node:internal/modules/cjs/loader:1101:14)\r\n    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1153:10)\r\n    at Module.load (node:internal/modules/cjs/loader:981:32)\r\n    at Function.Module._load (node:internal/modules/cjs/loader:822:12)\r\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:81:12)\r\n    at node:internal/main/run_main_module:17:47\r\n```\r\n\r\n3: Showing that your scenario from the original PR still works:\r\n\r\n```\r\nconst Excel = require('exceljs');\r\n\r\nconst workbook = new Excel.Workbook();\r\n\r\nconst worksheet1 = workbook.addWorksheet('Sheet1');\r\nworksheet1.addRows([\r\n    ['A', 'B', 'C', 'D', 'E'],\r\n    ['a1', 'b1', 'c1', 4, 5],\r\n    ['a1', 'b2', 'c1', 4, 5],\r\n    ['a2', 'b1', 'c2', 14, 24],\r\n    ['a2', 'b2', 'c2', 24, 35],\r\n    ['a3', 'b1', 'c3', 34, 45],\r\n    ['a3', 'b2', 'c3', 44, 45],\r\n]);\r\n\r\nconst worksheet2 = workbook.addWorksheet('Sheet2');\r\nworksheet2.addPivotTable({\r\n    // Source data: entire sheet range; header in first row\r\n    sourceSheet: worksheet1,\r\n    // Pivot table fields: via header row in `worksheet1`\r\n    rows: ['A', 'B'],\r\n    columns: ['C'],\r\n    values: ['E'], // Exactly 1 field\r\n    metric: 'sum', // Metric: 'sum' only\r\n});\r\n\r\nworkbook.xlsx.writeFile(\"RegressionTest.xlsx\");\r\n```\r\n![image](https://github.com/exceljs/exceljs/assets/96488933/aac257d2-63b2-461a-b1b1-d3d655896c7d)\r\n\r\n\r\nPlease let me know if you'd like to see anything else."
+    },
+    {
+      "author": "Rablet",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-18T08:07:06Z",
+      "reactions": 0,
+      "body": "Are you all good with this PR or do you need something else? "
+    },
+    {
+      "author": "budaesandrei",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-27T17:03:52Z",
+      "reactions": 1,
+      "body": "is this going to get merged anytime soon?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/96488933/ac6cd4a9-f7bf-4ec5-bb1e-1fc5f851bc9d",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/discussions/2575",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/96488933/aac257d2-63b2-461a-b1b1-d3d655896c7d",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 27,
+    "deletions": 12,
+    "changedFiles": [
+      {
+        "path": "lib/doc/pivot-table.js",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 4
+      },
+      {
+        "path": "lib/xlsx/xform/pivot-table/pivot-table-xform.js",
+        "status": "modified",
+        "additions": 21,
+        "deletions": 8
+      }
+    ]
+  }
+}

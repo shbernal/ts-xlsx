@@ -1,0 +1,75 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1666,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1666",
+  "title": "Exporting the dates are in the string format",
+  "state": "open",
+  "author": "vinodhreddygs",
+  "createdAt": "2021-04-14T05:27:57Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 5,
+  "body": "Hi,\r\nwhen i export the dates to excel, the cell format is in the date only but the **date value has the single quote at the beginning**.\r\nPlease refer below screen shot for reference.\r\n![image](https://user-images.githubusercontent.com/37541181/114658833-1eff0880-9d10-11eb-9bf3-0c9dbc2e729c.png)\r\nPlease let me know how to solve this issue.\r\nThanks.\r\n",
+  "comments": [
+    {
+      "author": "cebbens",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-19T13:34:34Z",
+      "reactions": 0,
+      "body": "Hi.\r\n\r\n\\Don't forget to assign a Date object to that column. Otherwise, it won't format it.\r\n\r\nApart from that, I really don't know why that single quote at the beginning.\r\n\r\nI hope you fix it."
+    },
+    {
+      "author": "vinodhreddygs",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-20T01:17:32Z",
+      "reactions": 0,
+      "body": "> Hi.\r\n> \r\n> \\Don't forget to assign a Date object to that column. Otherwise, it won't format it.\r\n> \r\n> Apart from that, I really don't know why that single quote at the beginning.\r\n> \r\n> I hope you fix it.\r\n\r\n@cebbens actually single quote at the beginning is coming only when i open file in LibreOffice but on the Microsoft excel.\r\nbut the real concern in Microsoft excel is that, cell format is in the custom instead of actual Date format.\r\nPlease look below screen shoot for reference : \r\n![image](https://user-images.githubusercontent.com/37541181/115322423-ab437c80-a1a3-11eb-883d-47e601ee4b64.png)\r\n\r\nCode snippet that I'am using for cell format is: \r\n```\r\nworksheet.columns = [\r\n { header: 'Submission Date', key: 'Submission_Date(EST)', width: 25, style : { numFmt: 'MM/DD/YYYY' }},\r\n]\r\n```\r\n\r\nThe file  generated using this npm is : \r\n[Report (46).xlsx](https://github.com/exceljs/exceljs/files/6339933/Report.46.xlsx)\r\n"
+    },
+    {
+      "author": "cebbens",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-20T14:17:06Z",
+      "reactions": 0,
+      "body": "The format is okay, and I **guess** that it ends up being Custom (instead of Date) because the format is different than the pre-defined ones and/or different than the one is configured in Excel."
+    },
+    {
+      "author": "vinodhreddygs",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-21T04:55:03Z",
+      "reactions": 0,
+      "body": "> The format is okay, and I **guess** that it ends up being Custom (instead of Date) because the format is different than the pre-defined ones and/or different than the one is configured in Excel.\r\n\r\n@cebbens The format which I'am trying to give i.e. MM/DD/YYYY is one of pre-defined formats of excel as you can see in the below screenshot : \r\n![image](https://user-images.githubusercontent.com/37541181/115498662-99d59f80-a28b-11eb-9d5e-4249626ba417.png)\r\n\r\nBy the way whatever format i give, its setting as custom format instead of date in excel."
+    },
+    {
+      "author": "cebbens",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-28T19:03:49Z",
+      "reactions": 0,
+      "body": "Got it. So, don't know what else you could do. I'm not an expert nor the author of this lib, just a user. I hope you find the solution :)"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/37541181/114658833-1eff0880-9d10-11eb-9bf3-0c9dbc2e729c.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/37541181/115322423-ab437c80-a1a3-11eb-883d-47e601ee4b64.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/6339933/Report.46.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/37541181/115498662-99d59f80-a28b-11eb-9d5e-4249626ba417.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

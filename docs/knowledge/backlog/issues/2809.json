@@ -1,0 +1,110 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2809,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2809",
+  "title": "Added quote prefix feature",
+  "state": "open",
+  "author": "ldefelici-mitobit",
+  "createdAt": "2024-08-14T15:36:13Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Summary\r\n\r\nThe pull request add the feature to quote cell content, using the 'quote prefix' style of the xlsx file format.\r\nUsing this feature we have the same behavior of the cell A2 in the following image.\r\n  \r\n![image](https://github.com/user-attachments/assets/5a909e6c-8477-4412-abbc-36cad55c759c)\r\n\r\n## Test plan\r\n\r\nTo test the new feature we added a new test 'spec/escape/escape.js' that creates 2 files and into the second one the cell 'A1' use the new feature and escape correctly the cell content (that contains a formula)\r\n\r\n## Related to source code (for typings update)\r\n\r\n[Feature changes](https://github.com/exceljs/exceljs/commit/9e2b0882c43b491ce9c170c808b6ce8e30360c3f)\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/assets/5a909e6c-8477-4412-abbc-36cad55c759c",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/commit/9e2b0882c43b491ce9c170c808b6ce8e30360c3f",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 149,
+    "deletions": 26,
+    "changedFiles": [
+      {
+        "path": ".npmrc",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": ".prettier",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "README.md",
+        "status": "modified",
+        "additions": 13,
+        "deletions": 7
+      },
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 0
+      },
+      {
+        "path": "lib/doc/cell.js",
+        "status": "modified",
+        "additions": 12,
+        "deletions": 2
+      },
+      {
+        "path": "lib/doc/column.js",
+        "status": "modified",
+        "additions": 11,
+        "deletions": 5
+      },
+      {
+        "path": "lib/doc/row.js",
+        "status": "modified",
+        "additions": 9,
+        "deletions": 3
+      },
+      {
+        "path": "lib/stream/xlsx/workbook-reader.js",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 1
+      },
+      {
+        "path": "lib/xlsx/xform/style/style-xform.js",
+        "status": "modified",
+        "additions": 7,
+        "deletions": 0
+      },
+      {
+        "path": "lib/xlsx/xform/style/styles-xform.js",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 0
+      },
+      {
+        "path": "package.json",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 5
+      },
+      {
+        "path": "spec/escape/escape.js",
+        "status": "added",
+        "additions": 76,
+        "deletions": 0
+      }
+    ]
+  }
+}

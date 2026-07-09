@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1922,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1922",
+  "title": "Options for WorkbookReader should have an optional type",
+  "state": "open",
+  "author": "vicary",
+  "createdAt": "2021-12-03T09:20:37Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "",
+  "comments": [],
+  "attachments": [],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 1,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      }
+    ]
+  }
+}

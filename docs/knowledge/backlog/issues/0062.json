@@ -1,0 +1,110 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 62,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/62",
+  "title": "Style format is broken after read and save the same file",
+  "state": "open",
+  "author": "dgofman",
+  "createdAt": "2016-01-12T00:53:59Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 0,
+  "commentCount": 9,
+  "body": "[template.xlsx](https://github.com/guyonroche/exceljs/files/86619/template.xlsx)\r\n\r\nI attached my template I need to read and write some data using my file.\r\n\r\n```js\r\n        var workbook = new Excel.Workbook();\r\n        workbook.xlsx.readFile('./reports/templates/template.xlsx')\r\n            .then(function(stream) {\r\n                var options = {\r\n                    useSharedStrings: true,\r\n                    useStyles: true\r\n                };\r\n\r\n       stream.xlsx.writeFile(\"Test.xlsx\", options)\r\n            .then(function(){      \r\n                console.log(\"Done.\");\r\n            })\r\n\r\n    });\r\n```\r\n\r\nPlease can you look, \r\nThanks,\r\nDavid\r\n",
+  "comments": [
+    {
+      "author": "lakshmiramesh4221",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-08-23T10:36:50Z",
+      "reactions": 0,
+      "body": "Hi,\r\n\r\nDid you solved this problem using exceljs?"
+    },
+    {
+      "author": "dgofman",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-08-27T22:47:23Z",
+      "reactions": 0,
+      "body": "yes"
+    },
+    {
+      "author": "dimitrisal",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-10T16:04:56Z",
+      "reactions": 0,
+      "body": "Hello,\r\n\r\nHow did you solve it?"
+    },
+    {
+      "author": "max-konin",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-15T05:18:41Z",
+      "reactions": 0,
+      "body": "Hello,\r\n\r\nI have the same issue. @dgofman Could you share any information about how you have solved the issue"
+    },
+    {
+      "author": "vinicioslc",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-21T14:00:12Z",
+      "reactions": 0,
+      "body": "> yes\r\n\r\n@dgofman How you solved ? im facing this issue right now on an in-production application"
+    },
+    {
+      "author": "vinicioslc",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-21T14:16:07Z",
+      "reactions": 0,
+      "body": "Hello @Siemienik,Do you have any suspicion of what may be happening? I tested the example posted by @dgofman (open and save file) and is actually modifying the layout, as in the case of the company that i work for.\r\n\r\nThe layout style still better in libre office instead of excel\r\nBefore open and save (Libre Office)\r\n![image](https://user-images.githubusercontent.com/10997022/105365512-18636800-5bdd-11eb-828b-32e29c55535e.png)\r\nAfter open and save (Libre Office)\r\n![image](https://user-images.githubusercontent.com/10997022/105366016-a0497200-5bdd-11eb-9a23-9e66aa52f4b4.png)\r\nAfter open and save (Excel)\r\n![image](https://user-images.githubusercontent.com/10997022/105366118-b9522300-5bdd-11eb-81e2-1f368e6a6be3.png)\r\n\r\n"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-01-21T15:24:27Z",
+      "reactions": 1,
+      "body": "Unfortunately, I cannot explore this (and many other issues) that I would like - I don't have enough time for volunteer working as earlier.\r\n\r\nIf you would like to allow me to spend more time on open source activities around spreadsheet files (ExcelJS + [XToolSet](https://github.com/siemienik/XToolSet)) or order me some issue being done, write me hi@siemienik.pl.\r\n\r\n#1500 "
+    },
+    {
+      "author": "DinoZenka",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-08-25T12:22:08Z",
+      "reactions": 0,
+      "body": "> yes\r\n\r\nHello,\r\n\r\nHow did you solve it using exceljs?"
+    },
+    {
+      "author": "smoliakov",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-16T19:10:29Z",
+      "reactions": 0,
+      "body": "Same here.\r\n\r\nMy task is to copy a template, fill in data and save.\r\nBut unfortunately styles are corrupted."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/guyonroche/exceljs/files/86619/template.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/10997022/105365512-18636800-5bdd-11eb-828b-32e29c55535e.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/10997022/105366016-a0497200-5bdd-11eb-9a23-9e66aa52f4b4.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/10997022/105366118-b9522300-5bdd-11eb-81e2-1f368e6a6be3.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/siemienik/XToolSet",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

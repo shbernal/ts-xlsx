@@ -1,0 +1,34 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2719,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2719",
+  "title": "[BUG] Type Mismatch in cell.col and cell.row with Type Hint as String Instead of Expected Number",
+  "state": "open",
+  "author": "ashc0",
+  "createdAt": "2024-03-05T08:07:56Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n I've encountered a type mismatch issue where the type hints for cell.col and cell.row are indicated as string instead of the expected number.\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```typescript\r\nimport ExcelJs from 'exceljs';\r\n\r\nexport function printTypes() {\r\n  const workbook = new ExcelJs.Workbook();\r\n  const worksheet = workbook.addWorksheet('Sheet1');\r\n  worksheet.addRow([1, 2, 3, 4, 5]);\r\n  worksheet.eachRow(row => {\r\n    row.eachCell(cell => {\r\n      console.log('typeof Address.col:', typeof cell.col);\r\n      console.log('typeof Address.row:', typeof cell.row);\r\n    });\r\n  })\r\n}\r\n```\r\n\r\n![ejs1](https://github.com/exceljs/exceljs/assets/91787357/f646141a-52b1-43a2-b7b9-a0e0bbcdb194)\r\n![ejs2](https://github.com/exceljs/exceljs/assets/91787357/96480e90-0250-4426-88f1-e96b857c4788)\r\n![ejs-brow](https://github.com/exceljs/exceljs/assets/91787357/2820463f-8050-4d7a-95c3-d04a46630c6a)\r\n\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/91787357/f646141a-52b1-43a2-b7b9-a0e0bbcdb194",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/91787357/96480e90-0250-4426-88f1-e96b857c4788",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/91787357/2820463f-8050-4d7a-95c3-d04a46630c6a",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2818,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2818",
+  "title": "[BUG] Property 'dataValidations' does not exist on type 'Worksheet'. ts(2339)",
+  "state": "open",
+  "author": "canhuyh",
+  "createdAt": "2024-09-09T16:39:19Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\nHi team, I noticed a bug when accessing the `dataValidations` through a sheet.\r\nLib version: 4.4.0\r\nI am applying this to my NestJS code.\r\n\r\n## Steps To Reproduce\r\n\r\n## My error code:\r\n```typescript\r\nconst workbook = new Workbook();\r\nawait workbook.xlsx.readFile(templatePath);\r\nconst productsSheet = workbook.getWorksheet('products');\r\n\r\nproductsSheet.dataValidations.add('D2:D9999', {\r\n      type: 'list',\r\n      allowBlank: false,\r\n      showErrorMessage: true,\r\n      formulae: [`product_categories!$B:$B`],\r\n      error: 'Please select any value from dropdown',\r\n });\r\n// TS Error: Property 'dataValidations' does not exist on type 'Worksheet'.ts(2339)\r\n```\r\nI've checked the `Worksheet` interface that is defined on `index.d.ts`. Actually the `dataValidations` not exist here.\r\n\r\nBut, when I'm using `as any` for `productsSheet` It work-well 😮\r\n## My update code:\r\n```typescript\r\nconst workbook = new Workbook();\r\nawait workbook.xlsx.readFile(templatePath);\r\nconst productsSheet = workbook.getWorksheet('products');\r\n\r\n(productsSheet as any).dataValidations.add('D2:D9999', {\r\n      type: 'list',\r\n      allowBlank: false,\r\n      showErrorMessage: true,\r\n      formulae: [`product_categories!$B:$B`],\r\n      error: 'Please select any value from dropdown',\r\n });\r\n```\r\n\r\nI think the `dataValidations` is available in the JavaScript code but hasn't been added to the TypeScript definition file `index.d.ts`\r\n",
+  "comments": [
+    {
+      "author": "DrShortStack",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-11T15:40:51Z",
+      "reactions": 0,
+      "body": "I was literally about to come here and create this issue. The dataValidations method is also not in the documentation as far as I can see."
+    },
+    {
+      "author": "Azuky",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-17T16:49:29Z",
+      "reactions": 1,
+      "body": "I temporarily fixed this issue in my project by using module augmentation. All the methods declared here are implemented, but they weren't correctly typed.\r\n\r\nYou can add the following in a file like `types/exceljs.d.ts`:\r\n\r\n```ts\r\nimport 'exceljs';\r\nimport { DataValidation } from 'exceljs';\r\n\r\ndeclare module 'exceljs' {\r\n  interface DataValidations {\r\n    add(address: string, validation: DataValidation): void;\r\n\r\n    find(address: string): DataValidation | undefined;\r\n\r\n    remove(address: string): void;\r\n  }\r\n\r\n  interface Worksheet {\r\n    dataValidations: DataValidations;\r\n  }\r\n}\r\n```"
+    },
+    {
+      "author": "canhuyh",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-30T03:28:24Z",
+      "reactions": 0,
+      "body": "@Azuky \r\n> I temporarily fixed this issue in my project by using module augmentation. All the methods declared here are implemented, but they weren't correctly typed.\r\n> \r\n> You can add the following in a file like `types/exceljs.d.ts`:\r\n> \r\n> ```ts\r\n> import 'exceljs';\r\n> import { DataValidation } from 'exceljs';\r\n> \r\n> declare module 'exceljs' {\r\n>   interface DataValidations {\r\n>     add(address: string, validation: DataValidation): void;\r\n> \r\n>     find(address: string): DataValidation | undefined;\r\n> \r\n>     remove(address: string): void;\r\n>   }\r\n> \r\n>   interface Worksheet {\r\n>     dataValidations: DataValidations;\r\n>   }\r\n> }\r\n> ```\r\n\r\nThis is a workaround, but it's not official for the Exceljs package core issue.\r\n\r\nI've resolved this with your similar solution, but I'm defined into the head of my Excel file service 😄:\r\n\r\n``` ts\r\ndeclare module 'exceljs' {\r\n  interface Worksheet {\r\n    dataValidations: {\r\n      add(\r\n        range: string,\r\n        options: {\r\n          type: string;\r\n          allowBlank: boolean;\r\n          showErrorMessage: boolean;\r\n          formulae: string[];\r\n          error: string;\r\n        },\r\n      ): void;\r\n    };\r\n  }\r\n}\r\n\r\n@Injectable()\r\nexport class ExcelService {\r\n async createProductsExcelFile(): Promise<{ fileName: string; content: Buffer }> {\r\n    ...\r\n\r\n    productsSheet.dataValidations.add('D2:D9999', {\r\n      type: 'list',\r\n      allowBlank: false,\r\n      showErrorMessage: true,\r\n      formulae: [`product_categories!$B:$B`],\r\n      error: 'Please select any value from dropdown',\r\n    });\r\n\r\n    ...\r\n  }\r\n}\r\n```\r\n\r\n"
+    }
+  ],
+  "attachments": []
+}

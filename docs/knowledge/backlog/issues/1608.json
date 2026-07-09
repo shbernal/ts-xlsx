@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1608,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1608",
+  "title": "Editing the excel file removes the data table formula(What if analysis)",
+  "state": "open",
+  "author": "wasif-shehzad",
+  "createdAt": "2021-02-03T14:27:42Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\nI'm using an excel template with some formulas(IRR, Data table) and saving the changes to a new file after adding values to few cells. But somehow the data table formula got removed in the new file.\r\n\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\n  const Excel = require(\"exceljs\");\r\n  const workbook = new Excel.Workbook();\r\n  const templateName = \"./Book1.xlsx\";\r\n  workbook.xlsx.readFile(templateName).then((result) => {\r\n    let worksheet1 = workbook.getWorksheet(1);\r\n\r\n    const row1 = worksheet1.getRow(1);\r\n    row1.getCell(6).value =  -199;\r\n    row1.commit();\r\n   workbook.xlsx.writeFile('Book2.xlsx');\r\n});\r\n```\r\nSo the Book1.xlsx is the template I'm using and Book2.xlsx is the new file with the changes. Datatable formula is removed in Book2.xlsx file.\r\nEven if there are multiple workbooks in the template and I don't even edit in that particular workbook still the formula got removed.\r\n## The expected behavior:\r\nThe formula should stay in place\r\n\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "vikasqb",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-04T09:54:34Z",
+      "reactions": 0,
+      "body": "I also have the same issue. Tried to insert value in column and after that import the file in browser using\r\n workbook.xlsx.writeBuffer().then( data => {\r\n                    const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); \r\n                    FileSaver.saveAs(blob, 'newPath');\r\n                })\r\nI am getting the file downloaded but formula applied in one column is shown as #REF! which refers one of the columns.\r\nCan we expect a fix soon ?\r\n"
+    }
+  ],
+  "attachments": []
+}

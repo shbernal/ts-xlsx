@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2975,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2975",
+  "title": "Publish exceljs Version 4.4.1 to NPM",
+  "state": "open",
+  "author": "lecrivi",
+  "createdAt": "2025-09-24T09:40:14Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 1,
+  "body": "Publish exceljs Version 4.4.1 to NPM",
+  "comments": [
+    {
+      "author": "cjnoname",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-13T07:18:29Z",
+      "reactions": 0,
+      "body": "try https://www.npmjs.com/package/@cj-tech-master/excelts"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.npmjs.com/package/@cj-tech-master/excelts",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

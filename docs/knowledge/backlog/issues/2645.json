@@ -1,0 +1,46 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2645,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2645",
+  "title": "[BUG] Formatting or aligning a cell within an `eachCell()` loop changes all cells in the worksheet",
+  "state": "open",
+  "author": "tomcatmwi",
+  "createdAt": "2024-01-02T20:49:23Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\nAfter adding a row, I iterate through the cells of that row to replace their content (a boolean value to a checkmark or an X) and format them accordingly (align to center, then change font color to green or red depending on the boolean value).\r\nThe value is updated correctly, but the style changes appear in every cell.\r\nThere seems to be no way to correct this. Even if I try to format the other cells back to their desired format, it has no effect.\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n```\r\nconst workbook = new exceljs.Workbook();\r\nconst worksheet = workbook.addWorksheet('bugdemo');\r\n\r\nconst columns = ['Col 1', 'Col 2', 'Col 3', 'Col 4', 'Col 5'];\r\nworksheet.columns = columns.forEach(column => ({\r\n                    header: column,\r\n                    key: column,\r\n                    width: 30\r\n}));\r\n\r\nconst worksheetContent = [\r\n  {\r\n    \"Col 1\": \"Some value\",\r\n    \"Col 2\": \"Some other value\",\r\n    \"Col 3\": false\r\n  },\r\n  {\r\n    \"Col 1\": \"Some value\",\r\n    \"Col 2\": \"Some other value\",\r\n    \"Col 3\": false,\r\n    \"Col 4\": 34,\r\n    \"Col 5\": \"cucumber\"\r\n  },\r\n  {\r\n    \"Col 1\": \"Epstein didn't kill himself\",\r\n    \"Col 3\": true,\r\n  }\r\n];\r\n\r\nworksheetContent.forEach(row => {\r\n  const currentRow = worksheet.addRow(row);\r\n  currentRow.eachCell({ includeEmpty: true }, (cell) => {\r\n\r\n    cell.style = serviceSettings.formatting.rows.style;\r\n    cell.alignment = serviceSettings.formatting.rows.alignment;\r\n\r\n    if (typeof cell.value === 'boolean') {\r\n      cell.value = cell.value ? 'YES' : 'NO';\r\n      cell.alignment = {\r\n          vertical: 'top',\r\n          horizontal: 'center'\r\n      };\r\n      cell.style.font.color = {\r\n         argb: cell.value ? 'FF00FF00' : 'FFFF0000'\r\n      }\r\n   }\r\n  });\r\n});\r\n```\r\n\r\n## The expected behaviour:\r\nIndividual cells containing a boolean value should receive a new string value, `YES` or `NO` (this works).\r\nThey must also be horizontally centered, and red or green, depending on their boolean value (this doesn't work!)\r\n\r\n## Possible solution (optional, but very helpful):\r\n```\r\n¯\\_(ツ)_/¯\r\n```",
+  "comments": [
+    {
+      "author": "reactuz",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-01-03T12:18:50Z",
+      "reactions": 0,
+      "body": "+1\r\n\r\nPossibly the same issue has been around for more than a year, like [this](https://github.com/exceljs/exceljs/issues/2136)"
+    },
+    {
+      "author": "reactuz",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-01-03T15:05:13Z",
+      "reactions": 0,
+      "body": "@Siemienik Can you please have a look at this?"
+    },
+    {
+      "author": "molan002",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-21T07:53:22Z",
+      "reactions": 1,
+      "body": "我也遇到了类似的问题，生成交替颜色的行，结果所有单元格都是同一种颜色，我已经解决这个问题。\r\n我是这样解决的，如果你设置了一个对象预设，例如：\r\n```\r\nrow: {\r\n    style: {\r\n        fill: {\r\n            type: 'pattern',\r\n            pattern: 'solid',\r\n            fgColor: { argb: 'FFFF0000' },\r\n        }\r\n    }\r\n}\r\n```\r\n\r\n在给cell.style进行赋值时，应该是 \r\n\r\n`cell.style = JSON.parse(JSON.stringify(row.style)) `\r\n\r\n而不是\r\n\r\n`cell.style = row.style`\r\n\r\n这只是设置了row.style的引用而不是拷贝，后面修改fgColor的值也只是修改原始对象的值，你需要拷贝row对象才行。\r\n\r\n希望对你有帮助！\r\n\r\n\"I also encountered a similar problem, generating rows with alternating colors, but all cells ended up being the same color. I have solved this problem. Here’s how I solved it. If you have set a preset object, for example:\r\n\r\n```\r\nrow: {\r\n    style: {\r\n        fill: {\r\n            type: 'pattern',\r\n            pattern: 'solid',\r\n            fgColor: { argb: 'FFFF0000' },\r\n        }\r\n    }\r\n}\r\n```\r\n\r\nWhen assigning a value to cell.style, it should be\r\n\r\n`cell.style = JSON.parse(JSON.stringify(row.style))`\r\n\r\ninstead of\r\n\r\n`cell.style = row.style`\r\n\r\nThe latter only sets a reference to row.style rather than making a copy. Later modifications to fgColor only modify the value of the original object. You need to make a copy of the row object.\r\n\r\nI hope this helps you!\""
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2136",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

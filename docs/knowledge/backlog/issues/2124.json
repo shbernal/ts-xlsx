@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2124,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2124",
+  "title": "Adding Rows to Table",
+  "state": "open",
+  "author": "CarlosCommits",
+  "createdAt": "2022-08-30T16:37:25Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 6,
+  "commentCount": 2,
+  "body": "I can't seem to add rows to an existing table. For example, I have an existing workbook named 'test.xlsx', an existing sheet named 'Sheet 1' and an existing Table in that sheet named 'JDB'. The library seems to read everything fine but when I try the addRow method on the Table I get an error: \"return this.table.rows.length -- TypeError: Cannot read property 'length' of undefined\"\r\n\r\nSample code that is causing error:\r\n\r\n```\r\nconst addRows = async () => {\r\n\tconst workbook = new ExcelJS.Workbook();\r\n\tawait workbook.xlsx.readFile('test.xlsx');\r\n\tconst sheet = workbook.getWorksheet('Sheet 1');\r\n\tconst table = sheet.getTable('JDB');\r\n\r\n\ttable.addRow([8,9,0,'End']);\r\n\ttable.commit();\r\n\r\n\tawait workbook.xlsx.writeFile('test.xlsx');\r\n} \r\n```\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "guggu1",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-27T14:13:21Z",
+      "reactions": 0,
+      "body": "it depends on the environment.\r\n\r\n- it works for me running it in Visual Studio Code, on a Raspberry PI, LINUX.\r\n- it does NOT work for me running it in ioBroker (at home automation platform), on the same computer as above, but using ioBroker's javascript adapter (which may have another js engine than Visual Studio Code\r\n\r\nCCS"
+    },
+    {
+      "author": "guggu1",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-27T14:20:18Z",
+      "reactions": 0,
+      "body": "I found a workaround, where rowValues is an array containing the data.: add the cells to the newly created row 'newRow' using 'addRow' with arbitrary data (not shown in the code snippet). \r\n\r\nfor (var index in rowValues) {\r\n        console.log('index = ' + index);\r\n        var wert = rowValues[index];\r\n        console.log('Wert in Liste = ' + wert);\r\n        /* die Zellenindizes sind offenbar nicht numerisch. Also umwandeln in Integer.\r\n        Arrays sind von 0 numeriert, Zellen von 1! */\r\n        var newCell = newRow.getCell(parseInt(index) + 1).value = wert;\r\n    };"
+    }
+  ],
+  "attachments": []
+}

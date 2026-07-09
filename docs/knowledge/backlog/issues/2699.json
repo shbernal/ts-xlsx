@@ -1,0 +1,54 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2699,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2699",
+  "title": "[BUG] Adding extra @ at my sheet name",
+  "state": "open",
+  "author": "Javadebi",
+  "createdAt": "2024-02-21T08:25:28Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nStill having the problem that excel js adds extra @ at the first of my sheet name in MATCH function\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\nadd formula to a column value like this:\r\n\r\n\r\n```\r\n  data.getCell(`A1`).value = {\r\n      formula: `_xlfn.IFERROR(_xlfn.INDEX(list!$B$1:$B$10000,_xlfn.MATCH(TRUE,_xlfn.EXACT(B1,list!$A$1:$A$10000),0)),\"\")`,\r\n      date1904: true,\r\n    };\r\n```\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/37909821/f13badb2-8de5-472c-9255-5eb72f7dbf45)\r\n\r\n\r\nexpected formula:\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/37909821/1387eb69-254f-41b5-8485-ffbc75e11741)\r\n\r\nI have tried a solution that was proposed in this [thread](https://github.com/exceljs/exceljs/issues/2006#issue-1168544195) but no luck with my formula. I even replied but got no answer\r\n",
+  "comments": [
+    {
+      "author": "ngochip",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-29T18:48:04Z",
+      "reactions": 0,
+      "body": "same issue. but with formula.\r\n\r\nexpected:\r\n`=IFNA(VLOOKUP(INDIRECT(\"A\" & ROW()),'Master Data'!A:B,2,FALSE),\"\")`\r\n\r\nbut value:\r\n\r\n`=@IFNA(VLOOKUP(@INDIRECT(\"A\" & ROW()),'Master Data'!A:B,2,FALSE),\"\")`"
+    },
+    {
+      "author": "kschiew",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-08T15:39:48Z",
+      "reactions": 2,
+      "body": "Ran into the same problem today, resolved it with the proposed method in the [thread](https://github.com/exceljs/exceljs/issues/2006#issue-1168544195) you mentioned, ie. prepending formula string with `_xlfn.`.\r\n\r\nOriginal code: \r\n```\r\ncell.value = {\r\n          formula: `IFNA(VLOOKUP(${toExcelColumnName(colNumber - 1)}${rowNumber}, ${doctorsSheet.name}!A1:B${doctors.length + 1}, 2, FALSE), \"\")`,\r\n        }\r\n```\r\n\r\nSolution:\r\n```\r\ncell.value = {\r\n          formula: `_xlfn.IFNA(VLOOKUP(${toExcelColumnName(colNumber - 1)}${rowNumber}, ${doctorsSheet.name}!A1:B${doctors.length + 1}, 2, FALSE), \"\")`,\r\n        }\r\n```\r\n\r\n@Javadebi Have you tried only prepending to the start of the string instead of every single Excel function?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/37909821/f13badb2-8de5-472c-9255-5eb72f7dbf45",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/37909821/1387eb69-254f-41b5-8485-ffbc75e11741",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2006#issue-1168544195",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2006#issue-1168544195",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

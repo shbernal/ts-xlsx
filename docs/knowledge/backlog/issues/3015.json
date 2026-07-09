@@ -1,0 +1,49 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3015,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/3015",
+  "title": "[BUG] Data bar conditional formatting produces corrupted/incompatible Excel files",
+  "state": "open",
+  "author": "bjoechan",
+  "createdAt": "2026-01-20T21:22:54Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## Description\n\nWhen using ExcelJS to add data bar conditional formatting via `worksheet.addConditionalFormatting()`, the resulting XLSX file does not render data bars correctly when opened in Microsoft Excel. The data bars either don't appear or Excel shows a file repair dialog.\n\n## Environment\n\n- ExcelJS version: 4.4.0\n- Node.js version: v20.15.0\n- OS: macOS 15.5\n- Excel version used to open: Microsoft Excel for Mac 16.x / Microsoft 365\n\n## Steps to Reproduce\n\nimport * as ExcelJS from 'exceljs'\n\nconst workbook = new ExcelJS.Workbook()\nconst worksheet = workbook.addWorksheet('Sheet1')\n\n// Add sample data\nfor (let i = 1; i <= 10; i++) {\n  worksheet.getCell(`A${i}`).value = i * 10\n}\n\n// Add data bar conditional formatting\nworksheet.addConditionalFormatting({\n  ref: 'A1:A10',\n  rules: [\n    {\n      type: 'dataBar',\n      priority: 1,\n    },\n  ],\n})\n\n// Write to buffer\nconst buffer = await workbook.xlsx.writeBuffer()\n\n// Save to file\nconst fs = require('fs')\nfs.writeFileSync('test-databar.xlsx', Buffer.from(buffer))\n\n## Expected Behavior\nData bars should render in cells A1:A10, showing horizontal blue bars proportional to each cell's value.\n\n## Actual Behavior\nWhen opening the generated file in Excel:\n- Data bars do not appear, OR\n- Excel displays a repair dialog indicating the file has issues\n\n## Workaround\nI was able to get data bars working by manually injecting the conditional formatting XML directly into the XLSX archive using JSZip, bypassing ExcelJS's conditional formatting API:\n\n\nimport JSZip from 'jszip'\n\n// Generate initial buffer with ExcelJS\nconst initialBuffer = await workbook.xlsx.writeBuffer()\n\n// Load as ZIP and inject XML manually\nconst zip = await JSZip.loadAsync(initialBuffer)\nconst sheetXml = await zip.file('xl/worksheets/sheet1.xml')?.async('string')\n\nconst dataBarXml = `<conditionalFormatting sqref=\"A1:A10\">` +\n  `<cfRule type=\"dataBar\" priority=\"1\">` +\n  `<dataBar>` +\n  `<cfvo type=\"min\"/>` +\n  `<cfvo type=\"max\"/>` +\n  `<color rgb=\"FF638EC6\"/>` +\n  `</dataBar>` +\n  `</cfRule>` +\n  `</conditionalFormatting>`\n\n// Insert before </worksheet>\nconst modifiedXml = sheetXml.replace('</worksheet>', dataBarXml + '</worksheet>')\nzip.file('xl/worksheets/sheet1.xml', modifiedXml)\n\nconst finalBuffer = await zip.generateAsync({ type: 'arraybuffer' })\n\nThis workaround produces data bars that render correctly in Excel.\n\n## Additional Context\nIcon set conditional formatting works correctly using worksheet.addConditionalFormatting() with type: 'iconSet'\nOnly data bar formatting appears to have this issue\n\nThe issue may be related to how ExcelJS serializes the data bar XML structure",
+  "comments": [
+    {
+      "author": "cjnoname",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-01-25T01:45:08Z",
+      "reactions": 0,
+      "body": "You could try this:\nhttps://www.npmjs.com/package/@cj-tech-master/excelts?activeTab=versions"
+    },
+    {
+      "author": "protobi-pieter",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-01-26T20:34:44Z",
+      "reactions": 0,
+      "body": "@bjoechan This is resolved in PR https://github.com/exceljs/exceljs/pull/3019 and available via  `npm install @protobi/exceljs@4.4.0-protobi.7` \n\n\n<img width=\"135\" height=\"273\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/03d99f66-7661-4d84-b4e4-49de64d11834\" />"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.npmjs.com/package/@cj-tech-master/excelts?activeTab=versions",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/3019",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/03d99f66-7661-4d84-b4e4-49de64d11834",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

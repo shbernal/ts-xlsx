@@ -1,0 +1,72 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1615,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1615",
+  "title": "AddTables result in Removed Records: AutoFilter from /xl/tables/table1.xml part (Table) when header row not displayed",
+  "state": "open",
+  "author": "GeeWee",
+  "createdAt": "2021-02-16T07:39:16Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 6,
+  "body": "## 🐛 Bug Report\r\n\r\nI create a table with the following code (there is nothing else in the worksheet):\r\n```typescript\r\n// This does not work\r\n  const table = worksheet.addTable({\r\n    name: 'MyName',\r\n    ref: 'A1',\r\n    headerRow: false,\r\n    columns: [\r\n      { name: 'foo' },\r\n      { name: 'bar' },\r\n      { name: 'qux' },\r\n    ],\r\n    rows: [\r\n      [1, 2, 3]\r\n    ],\r\n  });\r\n  table.commit();\r\n```\r\n\r\nWhen opened in Excel it tells me there are errors and asks me whether or not I want to recover the document.\r\nThe full error log is as follows:\r\n```xml\r\n<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<recoveryLog xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><logFileName>error109280_01.xml</logFileName>\r\n<summary>Errors were detected in file 'C:\\Users\\Wengel\\WebstormProjects\\unihelper-monorepo\\test-file.xlsx'</summary>\r\n<removedRecords><removedRecord>Removed Records: AutoFilter from /xl/tables/table1.xml part (Table)</removedRecord></removedRecords>\r\n</recoveryLog>\r\n```\r\n\r\nWhen excel recovers the table it displays fine.\r\n\r\nIt seems like the same type of error as in #1122 \r\n\r\n**Lib version: 4.2.0**\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nIt seems to me like this *only* happens when `headerRow` is set to false. If I take the same code above and change `headerRow` to be true (see following snippet) the **error does not occur and the file opens normally**\r\n\r\n```typescript\r\n// This works fine\r\n  const table = worksheet.addTable({\r\n    name: 'MyName',\r\n    ref: 'A1',\r\n    headerRow: true,\r\n    columns: [\r\n      { name: 'foo' },\r\n      { name: 'bar' },\r\n      { name: 'qux' },\r\n    ],\r\n    rows: [\r\n      [1, 2, 3]\r\n    ],\r\n  });\r\n  table.commit();\r\n```\r\n# \r\n",
+  "comments": [
+    {
+      "author": "XuJaven",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-06T16:09:32Z",
+      "reactions": 0,
+      "body": "At first,I found it will error when the columns has  two same name😥\r\nthen,I let its header not displayed but it ticket new error😥"
+    },
+    {
+      "author": "Gastonite",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-12T13:34:18Z",
+      "reactions": 1,
+      "body": "I also faced this bug and this issue helped me, thanks =)\r\n\r\nSo my solution was to monkeypatch the `addTable` method to avoid these bugs (without having to modify each call):\r\n```js\r\nconst Worksheet = require('exceljs/lib/doc/worksheet.js');\r\n\r\nlet unnamedIndex = 0\r\nconst addTable = Worksheet.prototype.addTable\r\nWorksheet.prototype.addTable = function (model) {\r\n\r\n  let { name, rows } = model\r\n\r\n  if (!name)\r\n    name = 'unnamed' + (unnamedIndex++)\r\n\r\n  if (rows.length < 1)\r\n    rows = [['']]\r\n\r\n  return addTable.call(this, {\r\n    ...model,\r\n    name,\r\n    rows,\r\n  })\r\n}\r\n```\r\n"
+    },
+    {
+      "author": "alexhalf",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-09-19T22:00:45Z",
+      "reactions": 1,
+      "body": "The same issue is happened also if you merge cells a1:a2"
+    },
+    {
+      "author": "nbelyh",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-12-22T16:08:26Z",
+      "reactions": 0,
+      "body": "This seems to be the reason for this bug:\r\nhttps://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/lib/xlsx/xform/table/table-xform.js#L45\r\n\r\nMost probably should be:\r\n```js\r\n  headerRowCount: model.headerRow ? '1' : undefined,\r\n```"
+    },
+    {
+      "author": "juliofihdeldev",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-07T00:05:39Z",
+      "reactions": 0,
+      "body": "Did someone find an alternative for that ?"
+    },
+    {
+      "author": "jihun-ko",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-25T09:38:19Z",
+      "reactions": 4,
+      "body": "For me, the issue was naming table name with hyphen(-). DO NOT NAME THE TABLE NAME WITH HYPHEN. NAME IT CAMELCASE INSTEAD."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/lib/xlsx/xform/table/table-xform.js#L45",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

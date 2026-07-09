@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2723,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2723",
+  "title": "Whether there is an excel method for reading floating insert images",
+  "state": "open",
+  "author": "MwM-Mai",
+  "createdAt": "2024-03-10T10:15:51Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "![4280428667d6e7285194c3f4c15eda2](https://github.com/exceljs/exceljs/assets/104347298/1d1195c6-ac11-4984-aff4-2c5c56cab8a4)\r\nSomething like this How do you read it",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/104347298/1d1195c6-ac11-4984-aff4-2c5c56cab8a4",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

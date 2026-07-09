@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2587,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2587",
+  "title": "Fix types of Row and Column values",
+  "state": "open",
+  "author": "pex",
+  "createdAt": "2023-11-13T12:07:27Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 0,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\n- https://github.com/exceljs/exceljs/commit/2225238343151f0c81035aa4a99895a5425d47a2 was supposed to only remove the readonly modifier on `values` of `Column` but accidentally defined it as `string` while it actually remains an `Array`\r\n- Afaik `values` of `Row` will always be an array – thus the obsolete union type was also removed",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/commit/2225238343151f0c81035aa4a99895a5425d47a2",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 2,
+    "deletions": 3,
+    "changedFiles": [
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 3
+      }
+    ]
+  }
+}

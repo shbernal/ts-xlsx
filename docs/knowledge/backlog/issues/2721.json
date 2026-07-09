@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2721,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2721",
+  "title": "[F] Protect file with password",
+  "state": "open",
+  "author": "mcordoba",
+  "createdAt": "2024-03-08T12:17:23Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "## 🚀 Feature Proposal\r\n\r\nIt would be useful the possibility to protect the file with a password as you can do already on excel files.\r\n\r\n## Motivation\r\n\r\nIt is useful for excels with personal data that must be protected.\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2024-03-09T15:28:28Z",
+      "reactions": 0,
+      "body": "@mcordoba Is it possible to set password encryption when directing out excel?"
+    },
+    {
+      "author": "mcordoba",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-19T09:10:21Z",
+      "reactions": 0,
+      "body": "I mean an excel password and not a zip password or similar as once decompressed the file may be saved on hard disk without protection while with an excel password the file is always protected.\r\n\r\nI don't know how to achieve this with the output data. Any idea?"
+    },
+    {
+      "author": "masciugo",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-11T09:49:08Z",
+      "reactions": 0,
+      "body": "@mcordoba did you find a solution?\r\n\r\n"
+    },
+    {
+      "author": "rajeev-ayer",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-21T15:01:17Z",
+      "reactions": 0,
+      "body": "This feature would be very useful for my project as well.  Any more news on this feature?  Is there a plan to implement this in the near future?\r\n\r\nMy motivation is the same as stated by @mcordoba."
+    }
+  ],
+  "attachments": []
+}

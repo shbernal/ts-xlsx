@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1697,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1697",
+  "title": "[BUG] SyntaxError: Unexpected token *",
+  "state": "open",
+  "author": "renatojuniorrs",
+  "createdAt": "2021-05-04T11:48:03Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nLib version: xlsx@^0.16.8\r\nNode-red: v0.20.7\r\n\r\n## Steps To Reproduce\r\n\r\nInstalling Packages\r\n```\r\nnpm install exceljs\r\nnpm install core-js\r\nnpm install regenerator-runtime\r\n```\r\nThe Code:\r\n```\r\n// Require is a node-red global enviroment var created in settings.js\r\n\r\nrequire('core-js/modules/es.promise');\r\nrequire('core-js/modules/es.string.includes');\r\nrequire('core-js/modules/es.object.assign');\r\nrequire('core-js/modules/es.object.keys');\r\nrequire('core-js/modules/es.symbol');\r\nrequire('core-js/modules/es.symbol.async-iterator');\r\nrequire('regenerator-runtime/runtime');\r\n\r\ntry{\r\n    var xlsx = require('exceljs/dist/es5/exceljs.nodejs');\r\n    node.warn(xlsx);   \r\n}catch(ex){\r\n    node.warn(ex);   // SyntaxError: Unexpected token *\r\n}\r\n\r\n```\r\n\r\n\r\n## The expected behaviour:\r\n\r\nNo errors\r\n",
+  "comments": [
+    {
+      "author": "heyauri",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-06-07T09:15:01Z",
+      "reactions": 2,
+      "body": "I have encounter this error too.\r\nAnd I found that it may  result from the using of a dependency named \"readdir-glob\" which uses the generator function in its code directly.\r\nI found the core-js not work on this problem.\r\nHave you addressed this?\r\n\r\nnode verson:v8.11.3\r\n"
+    },
+    {
+      "author": "song-coco",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-02-15T02:08:01Z",
+      "reactions": 0,
+      "body": "I have the same error.\r\nHave you solved this problem？\r\nMy version is :\r\n  node version: v8.9.1,\r\n  exceljs version:4.3.0,\r\n  core-js version:3.21.0,\r\n  regenerator-runtime version:0.13.9"
+    }
+  ],
+  "attachments": []
+}

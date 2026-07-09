@@ -1,0 +1,114 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1600,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1600",
+  "title": "Fix spliceRows() issues with delete",
+  "state": "open",
+  "author": "iva2k",
+  "createdAt": "2021-01-29T03:04:21Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 8,
+  "body": "## Summary\r\n\r\nFixes #674 #628 #474\r\n\r\n## Test plan\r\n\r\n```bash\r\nnpm run test\r\n```\r\nThere are couple new testcases that exercise deletes near the end of the worksheet rows. They fail prior to the spliceRows() code edits, and pass with the fixes.",
+  "comments": [
+    {
+      "author": "iva2k",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-01-29T03:05:27Z",
+      "reactions": 0,
+      "body": "Note that this PR includes PR 1599 (fixed lint violations)."
+    },
+    {
+      "author": "zhi-zhi-zhi",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-05T22:05:29Z",
+      "reactions": 0,
+      "body": "\"As it stands now, spliceRows() is useless to delete rows at the end of the worksheet.\"\r\n\r\nI had this problem three hours ago. Thank you fix it!"
+    },
+    {
+      "author": "zhi-zhi-zhi",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-05T22:13:13Z",
+      "reactions": 0,
+      "body": "BUT!\r\n**spliceColumns()** is useless to delete rows at the end of the worksheet."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-02-14T19:01:29Z",
+      "reactions": 0,
+      "body": "@iva2k could I please you to update this branch from the current master?"
+    },
+    {
+      "author": "iva2k",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-02-24T17:16:26Z",
+      "reactions": 0,
+      "body": "Not sure it has to be done as merge can be done automatically, there are no conflicts and all checks have passed. The actual fix is localized to 1 function. All other edits are to deal with this project not passing its own lint checks.\r\n\r\nIf you insist on me doing it - I was tied up with other stuff and still am. I will circle back to that perhaps in a couple of weeks, when my bandwidth opens up."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-04-11T11:22:10Z",
+      "reactions": 0,
+      "body": "> Not sure it has to be done as merge can be done automatically\r\n\r\nAd the #1599 has been merged. Updating with master causing reduce the file to review from 19 to 5. Additionally, all tests run with up-to-date code. \r\nDon't worry. I did it. 😄 "
+    },
+    {
+      "author": "iva2k",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-04-13T00:18:53Z",
+      "reactions": 1,
+      "body": "I checked against master - no merge conflicts and no fails.\r\n\r\nBTW, styling issues (if there are) are separate. This only deals with issue of not removing rows that should be removed."
+    },
+    {
+      "author": "OTheNonE",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-24T12:06:49Z",
+      "reactions": 0,
+      "body": "Is this gonna be merged?"
+    }
+  ],
+  "attachments": [],
+  "pr": {
+    "merged": false,
+    "mergeable": false,
+    "baseRef": "master",
+    "additions": 168,
+    "deletions": 2,
+    "changedFiles": [
+      {
+        "path": ".gitignore",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 1
+      },
+      {
+        "path": "lib/doc/worksheet.js",
+        "status": "modified",
+        "additions": 30,
+        "deletions": 1
+      },
+      {
+        "path": "spec/integration/workbook/workbook.spec.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 0
+      },
+      {
+        "path": "spec/unit/doc/worksheet.values.spec.js",
+        "status": "modified",
+        "additions": 30,
+        "deletions": 0
+      },
+      {
+        "path": "spec/utils/test-spliced-sheet.js",
+        "status": "modified",
+        "additions": 104,
+        "deletions": 0
+      }
+    ]
+  }
+}

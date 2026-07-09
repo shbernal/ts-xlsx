@@ -1,0 +1,44 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1657,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1657",
+  "title": "[BUG] Promise.resolve(...).finally is not a function in Firefox 66-68",
+  "state": "open",
+  "author": "gerhat",
+  "createdAt": "2021-04-09T05:22:57Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 2,
+  "body": "Simply importing `ExcelJS` breaks a react application in Firefox 66-68 (could be in versions < 66 but haven't tested) since it somehow overrides `Promise.resolve(...).finally` for this browser.\r\n\r\nExcelJS versions: 4.2.1, 3.8.1\r\n\r\n**Steps To Reproduce:**\r\nYou may reproduce the error by cloning this repo:\r\nhttps://github.com/gerhat/ExcelJS-Firefox-66-68-issue\r\n\r\n**The expected behaviour:**\r\nIt should work correctly in firefox >=66\r\n",
+  "comments": [
+    {
+      "author": "thetilliwilli",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-19T11:29:20Z",
+      "reactions": 0,
+      "body": "same here https://github.com/exceljs/exceljs/issues/1545"
+    },
+    {
+      "author": "tkallsen",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-01-09T15:05:57Z",
+      "reactions": 0,
+      "body": "Same problem in a React Native (expo) app.\r\n\r\n```\r\nconst somePromise = new Promise(() => {});\r\nconsole.log(\"Promise finally: \", somePromise.finally);\r\n// --> [Function anonymous]\r\n```\r\n\r\nWith exceljs:\r\n\r\n```\r\nimport * as ExcelJS from \"exceljs\"\r\nconst somePromise = new Promise(() => {});\r\nconsole.log(\"Promise finally: \", somePromise.finally);\r\n// --> undefinied"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/gerhat/ExcelJS-Firefox-66-68-issue",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1545",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

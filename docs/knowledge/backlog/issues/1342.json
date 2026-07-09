@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1342,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1342",
+  "title": "error after build --prod angular",
+  "state": "open",
+  "author": "conhuhien",
+  "createdAt": "2020-06-18T08:03:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 4,
+  "body": "When I build no prod, It works, but After i build prod, have error when I load website . error \"Super expression must either be null or a function\"",
+  "comments": [
+    {
+      "author": "Subhajitdas298",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2020-06-25T01:53:57Z",
+      "reactions": 0,
+      "body": "Can you share how you cinfigured?\r\n"
+    },
+    {
+      "author": "conhuhien",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-25T06:45:00Z",
+      "reactions": 0,
+      "body": "in tsconfig,json, I add  \"exceljs\": [ \"node_modules/exceljs/dist/exceljs.min\" ] in paths, I use @type/node 14.0.13 and exceljs 4.0.1"
+    },
+    {
+      "author": "edwinsp94",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-09T14:53:11Z",
+      "reactions": 0,
+      "body": "Two months ago I tried to use ExcelJS in my Angular project, it seemed to me an excellent library, everything works fine but it has a problem when building with \"ng build --prod\" it does not work, I read in several Issues with the same problem but nobody had the solution and it is because the .min does not recognize it. I would appreciate @Subhajitdas298  to provide us with a repository with an example of how you configured it and what version of node and CLI you used. Thank you."
+    },
+    {
+      "author": "Poccomaxazt",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-16T19:38:23Z",
+      "reactions": 5,
+      "body": "Spent a lot of time to find the right fix for angular / exceljs combination. My current issue was related to version **\"exceljs\": \"^4.2.0\"**, and **Angular 8**. In production mode received the same error as an author: from **static-xform.js** file of the library and this function\r\n\r\n`function _inherits(subClass, superClass) { if (typeof superClass !== \"function\" && superClass !== null) { throw new TypeError(\"Super expression must either be null or a function\"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }`\r\n\r\nMy current solution is to import library from the dist folder, because if we use standard import - Angular removes some classes from the final bundle:\r\n```\r\nimport {\r\n  Buffer, Column, Row, Workbook, Worksheet, WorksheetView,\r\n} from 'exceljs';\r\nimport * as ExcelJS from 'exceljs/dist/exceljs';\r\nimport saveAs from 'file-saver';\r\n---\r\nprivate workbook: Workbook = new ExcelJS.Workbook();\r\n```\r\nPlease be careful with the resource - some people are writing about import of the minified version of the library. For me it doesn't work. So the main point **'exceljs/dist/exceljs'**."
+    }
+  ],
+  "attachments": []
+}

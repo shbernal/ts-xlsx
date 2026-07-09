@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2872,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2872",
+  "title": "[BUG] protect() throws: \"Secure random number generation is not supported by this browser\"",
+  "state": "open",
+  "author": "chenop",
+  "createdAt": "2024-12-29T06:33:10Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen using sheet.protect() function encounter the following error:\r\n```\r\n[server] This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason:\r\n[server] Error: Secure random number generation is not supported by this browser.\r\n[server] Use Chrome, Firefox or Internet Explorer 11\r\n[server]     at Object.oldBrowser (/Users/chenop/MyProjects/meeba-web/node_modules/exceljs/dist/exceljs.js:49249:9)\r\n[server]     at Object.randomBytes (/Users/chenop/MyProjects/meeba-web/node_modules/exceljs/dist/exceljs.js:4614:19)\r\n[server]     at /Users/chenop/MyProjects/meeba-web/node_modules/exceljs/dist/exceljs.js:3888:52\r\n[server]     at new Promise (<anonymous>)\r\n[server]     at Worksheet.protect (/Users/chenop/MyProjects/meeba-web/node_modules/exceljs/dist/exceljs.js:3878:12)\r\n[server]     at addShiftsPerEmployeeSheets (/Users/chenop/MyProjects/meeba-web/managers/ExcelManager.js:1135:9)\r\n```\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\nWhen using the following line got the exception above.\r\n```javascript\r\nawait sheet.protect('myPass', { selectLockedCells: false, selectUnlockedCells: false });\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nno error is expected\r\n\r\nnode: v18.19.1",
+  "comments": [],
+  "attachments": []
+}

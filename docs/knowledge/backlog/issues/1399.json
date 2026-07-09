@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1399,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1399",
+  "title": "[BUG] `Cell.text` throw error if cell is merged and isn't a master",
+  "state": "open",
+  "author": "Siemienik",
+  "createdAt": "2020-07-21T00:42:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen working on https://github.com/Siemienik/xlsx-renderer/pull/43 founded issue with merged child cells\r\n\r\n\r\n## Steps To Reproduce\r\n\r\nConditions:\r\n* Merged cell: `A1:B1` with value `hello world`\r\n* Cell A1 is master\r\n* Cell B1 is a child\r\n\r\n```javascript\r\nws.getCell('A1').text // `hello world`\r\nws.getCell('B1').text // exception `TypeError: Cannot read property 'toString' of null` \r\n```\r\n\r\n## The expected behaviour:\r\n\r\n```javascript\r\nws.getCell('A1').text // `hello world`\r\nws.getCell('B1').text // `hello world`\r\n```\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nInvestigate and fix the behaviour of `MergeValueType`",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/Siemienik/xlsx-renderer/pull/43",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

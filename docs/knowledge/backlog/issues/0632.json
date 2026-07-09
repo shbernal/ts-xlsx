@@ -1,0 +1,65 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 632,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/632",
+  "title": "Write Workbook (containg two worksheets) in CSV file",
+  "state": "open",
+  "author": "jcabannes",
+  "createdAt": "2018-08-24T13:41:40Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "I am developing an angular 6 app and I am trying to write in a csv file a workbook containg two worksheets with this code : \r\n\r\n```\r\n    const workBook: Excel.Workbook = this.setupDownload();\r\n    workBook.csv.writeBuffer().then( data => {\r\n      const blob: Blob = new Blob( [data], {type: 'text/plain;charset=utf-8'} );\r\n      saveAs( blob, 'virga.csv');\r\n    });\r\n```\r\n\r\nBut I only got the first worksheet in the downloaded csv file.",
+  "comments": [
+    {
+      "author": "MaksimKlepikov",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-08-27T17:03:47Z",
+      "reactions": 0,
+      "body": "+1 \r\nSame on .xlsx.writeBuffer()\r\nAll worksheets persist in workbook, but file contain only one\r\n\r\nOk, looks like they just hidden. Related to #630 \r\nAnd i dont know how to fix it. `worksheet.state = 'show';` dont work"
+    },
+    {
+      "author": "nazrdogan",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-09-13T19:51:20Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "FabioMFGaspar",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-27T11:30:20Z",
+      "reactions": 0,
+      "body": "This issue is still happening.\r\nWhen creating more than 1 worksheet with csv only the 1st one is actually added"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-09-27T21:28:29Z",
+      "reactions": 0,
+      "body": "All inactive issues were closed.\n\nAbout CSV, I can't imagine how it should work for many spreadsheets - csv is just simple file without features like spreadsheets. Taking only one seems be reasonable.\n\nIf you don't mind please describe what do you expect as a result?\n\n---\nJoin our Discord: https://discord.gg/siema"
+    },
+    {
+      "author": "nhuanhoangduc",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-07-27T12:13:33Z",
+      "reactions": 0,
+      "body": "<img width=\"1181\" height=\"236\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/3e651b30-bcce-4ab8-8e09-f81cea7e9e70\" />\nSolution is creating a cloned workbook"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://discord.gg/siema",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/3e651b30-bcce-4ab8-8e09-f81cea7e9e70",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

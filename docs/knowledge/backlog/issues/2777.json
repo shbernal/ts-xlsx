@@ -1,0 +1,34 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2777,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2777",
+  "title": "[BUG] addImage editAs:'absolute' not working when use ext，the documentation needs to be more precise",
+  "state": "open",
+  "author": "wwwxy80s",
+  "createdAt": "2024-06-14T11:09:40Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n\r\n[Codesandbox reproduce](https://codesandbox.io/p/sandbox/exceljs-test-87jxyk?file=%2Fsrc%2FApp.tsx)\r\n\r\n```javascript\r\nconst workbook = new ExcelJS.Workbook();\r\nconst imageDataURL = await qrcode.toDataURL(\"123\");\r\nconst imageId = workbook.addImage({\r\n      base64: imageDataURL,\r\n      extension: \"png\",\r\n});\r\nconst sheet = workbook.addWorksheet(\"My Sheet\");\r\n    sheet.addImage(imageId, {\r\n      tl: { col: 0, row: 0 },\r\n      ext: { width: 500, height: 200 },\r\n      editAs: \"absolute\",\r\n});\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nImage will not be moved or sized with cells\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n\r\nTLDR\r\n\r\ntranslated:\r\nWhen the addImage parameter contains a br attribute, the generated XML is xdr:twoCellAnchor. In other cases, xdr:oneCellAnchor is generated. However, xdr:oneCellAnchor does not support the editAs attribute.\r\n\r\naddImage参数中存在br属性时，生成的xml才是xdr:twoCellAnchor，其他情况生成的都是xdr:oneCellAnchor，但是xdr:oneCellAnchor不支持editAs属性\r\n\r\n\r\nInvestigation process and speculation:\r\n\r\ntranslated：\r\nI ran the test case and debugged the code in image.spec.js. I found that when adding images with the br attribute, editAs:absolute is valid, but images added with the ext attribute are invalid.\r\n\r\nBased on this result, I tried to decompress the corresponding generated xlsx file and found that the xml files of the final images in the two files used twoCellAnchor for the valid ones and oneCellAnchor for the invalid ones. Then I searched the code and the information on the Internet and found that oneCellAnchor does not support the editAs attribute, and twoCellAnchor is used only when there is a br attribute in the code, so I guess this may be the reason why editAs:absolute is invalid.\r\n\r\nThe above is just some searches and guesses, without more detailed investigations, for reference only.\r\n\r\nSuggestions:\r\n1. Adjust the document description first to reduce misleading\r\n2. See if there is a way to support the use of the editAs:absolute attribute when adding images with the ext attribute\r\n\r\n\r\n我运行了测试用例，调试了image.spec.js中的代码，发现在添加图片使用br属性时，editAs:absolute是有效的，使用ext属性添加的图片是无效的。\r\n\r\n基于此结果，我试着解压缩了对应生成的xlsx文件，发现两种文件中最终图片的xml文件，有效的使用的是twoCellAnchor，无效的使用的是oneCellAnchor。然后去搜索了代码和网络上的资料，发现oneCellAnchor不支持editAs属性，然后代码中存在br属性时才会使用twoCellAnchor，所以我猜测可能是这个原因导致editAs:absolute无效。\r\n\r\n以上仅只是一些搜索和猜测，没有更详细的调查，仅供参考。\r\n\r\n建议：\r\n1. 先调整文档描述，减少误导\r\n2. 看有没有办法能够支持使用ext属性添加图片时，使用editAs:absolute属性\r\n\r\n\r\n\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/xlsx/xform/drawing/drawing-xform.js#L11\r\n\r\n[officeopenxml Two-Cell Anchoring](http://officeopenxml.com/drwPicInSpread-twoCell.php)\r\n\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://codesandbox.io/p/sandbox/exceljs-test-87jxyk?file=%2Fsrc%2FApp.tsx",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/xlsx/xform/drawing/drawing-xform.js#L11",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "http://officeopenxml.com/drwPicInSpread-twoCell.php",
+      "ext": "php",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2653,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2653",
+  "title": "[BUG] Image in-cell doesn't work in Windows and Mac",
+  "state": "open",
+  "author": "vicary",
+  "createdAt": "2024-01-09T11:05:13Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.4.0\r\n\r\nWhen adding an image with `editAs: undefined` in an XLSX file, we expect it to be placed \"in cell\" where images resized along with the cell.\r\n\r\nThis behaviour is only observed when Google Sheets converts XLSX into it's own sheets format, and none of the followings respect said image config:\r\n\r\n1. Excel in Windows\r\n2. Excel in macOS\r\n3. Numbers in macOS\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nws.addImage(imageId, {\r\n  tl: { col: 0, row: 0 },\r\n  br: { col: 1, row: 1 },\r\n  editAs: undefined,\r\n});\r\n```\r\n\r\nThe stack trace appears that `image.media.range.editAs` was never used in `worksheet.xlsx.write()`.\r\n\r\nhttps://github.com/exceljs/exceljs/blob/ddab279a882aba8f18fc5127c6d59e3aa9f596c7/lib/xlsx/xlsx.js#L427-L441\r\n\r\nI am suspecting the actual behaviour really depends on the default of the viewing app.\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\nWhen `editAs: undefined` is specified for `worksheet.addImage()`, images in the resulting file should be \"in cell\" where is resizes along with the corresponding cell it resides.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nN/A",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/ddab279a882aba8f18fc5127c6d59e3aa9f596c7/lib/xlsx/xlsx.js#L427-L441",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

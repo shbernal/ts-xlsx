@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3025,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/3025",
+  "title": "[BUG] The WorkbookReader 'worksheet' event seems to notify a wrong worksheet name",
+  "state": "open",
+  "author": "rsartoriLectra",
+  "createdAt": "2026-03-11T15:27:18Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\n\nThe WorkbookReader 'worksheet' event seems to a wrong worksheet name\n\nLib version: 4.3.0\n\n## Steps To Reproduce\n\n- Use the following test function to load an excel file\n\n```javascript\n    static readFileStream(file) {\n        return new Promise((resolve, reject) => {\n            const result = {};\n\n            const readerOptions = {\n                entries: 'emit',\n                sharedStrings: 'cache',\n                hyperlinks: 'cache',\n                styles: 'cache',\n                worksheets: 'emit',\n            };\n\n            const reader = new ExcelJS.stream.xlsx.WorkbookReader(file, readerOptions);\n\n            reader.on('worksheet', (worksheetReader) => {\n                const sheetName = worksheetReader.name;\n                console.log('[readFileStream] worksheet created – name:', sheetName, '| id:', worksheetReader.id);\n\n                const headers = [];\n                const rows = [];\n\n                worksheetReader.on('row', (row) => {\n                    const { values } = row;\n                    const cells = Array.isArray(values) ? values.slice(1) : [];\n                    // console.log(`[readFileStream]   row #${row.number} –`, cells.map((v, i) => `col${i}: ${v}`).join(', '));\n\n                    if (row.number === 1) {\n                        cells.forEach((v, i) => {\n                            headers[i] = v != null ? String(v) : '';\n                        });\n                    } else {\n                        rows.push(cells);\n                    }\n                });\n\n                worksheetReader.on('end', () => {\n                    result[sheetName] = { headers, rows };\n                    console.log('[readFileStream] worksheet done –', sheetName, '| headers:', headers, '| dataRows:', rows.length);\n                });\n            });\n\n            reader.on('end', () => {\n                console.log('[readFileStream] all done – result keys:', Object.keys(result));\n                resolve(result);\n            });\n\n            reader.on('error', (err) => {\n                reject(err);\n            });\n\n            reader.read().catch(reject);\n        });\n    }\n```\n\n## The expected behaviour:\n\n- Logs should be:\n\n[readFileStream] worksheet created – name: Article | id: 1\n[readFileStream] worksheet created – name: Extended attributes | id: 2\n[readFileStream] worksheet created – name: Color data | id: 3\n[readFileStream] worksheet created – name: Test summary | id: 4\n[readFileStream] worksheet created – name: Detail quality tests | id: 5\n[readFileStream] worksheet created – name: Tables | id: 6\n[readFileStream] worksheet created – name: Index | id: 7\n[readFileStream] worksheet created – name: -Info- | id: 7\n \n- Instead of\nreadFileStream] worksheet created – name: Sheet1 | id: 1\n[readFileStream] worksheet created – name: Sheet2 | id: 2\n[readFileStream] worksheet created – name: Sheet3 | id: 3\n[readFileStream] worksheet created – name: Sheet4 | id: 4\n[readFileStream] worksheet created – name: Sheet5 | id: 5\n[readFileStream] worksheet created – name: Sheet6 | id: 6\n[readFileStream] worksheet created – name: Sheet7 | id: 7\n\n- In attachment there is the file i tried to load (created with ExcelJS)\n\n[test_load.xlsx](https://github.com/user-attachments/files/25909139/test_load.xlsx)\n\n## Possible solution (optional, but very helpful):\n\n```javascript\n\n```\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/files/25909139/test_load.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

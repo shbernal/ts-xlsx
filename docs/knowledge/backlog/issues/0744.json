@@ -1,0 +1,169 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 744,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/744",
+  "title": "Column width not accurate",
+  "state": "open",
+  "author": "fbele",
+  "createdAt": "2019-02-09T14:47:51Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "help wanted"
+  ],
+  "reactions": 3,
+  "commentCount": 13,
+  "body": "Hi,\r\nIf I want to define the column width, I need to add to almost every width a value of 0.71. So if I want a width of 12, I need actually to define it like `column.width = 12.71`.\r\nOnly when it comes to the width of less then 1, this addition actually varies.\r\n\r\nDoes anybody have an experience, what could cause such a behavior?\r\n\r\nThanks",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-02-18T22:22:27Z",
+      "reactions": 0,
+      "body": "@fbele may I please You to share with code?"
+    },
+    {
+      "author": "fbele",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-02-19T20:37:34Z",
+      "reactions": 0,
+      "body": "Hi,\r\n\r\nFirst, I would like to point out, that I am using a **browser** version with Angular 7.\r\n\r\nI just have a normal worksheet:\r\n\r\n`const worksheet = workbook.addWorksheet('Sheet', {views: [{}]);`\r\n\r\nAnd then I am adding my columns like following:\r\n\r\n`\r\n        worksheet.columns = [\r\n            { key: 'A', width: 3.71 },\r\n            { key: 'B', width: 5.42 },\r\n            { key: 'C', width: 74.71 },\r\n            { key: 'D', width: 22.71 },\r\n            { key: 'E', width: 16.57 },\r\n            { key: 'F', width: 12.71 },\r\n            { key: 'G', width: 1 },\r\n            { key: 'H', width: 22.71 },\r\n            { key: 'I', width: 1 },\r\n            { key: 'J', width: 50.71 }\r\n        ];\r\n`\r\n\r\nThe width values here have mostly (not always) added value of 0.71 value to the actual wanted width value.\r\nFor the width values that are less then 1, then I actually added a value of 0.42.\r\nFor the width above 74 value I added just 0.57 to it.\r\nSo this is not constant.\r\n\r\nHere is an example of three columns in my project, which is the result of the width values configured above:\r\n\r\n![image](https://user-images.githubusercontent.com/33025896/53045688-8a315500-348e-11e9-94a3-133530d5d762.png)"
+    },
+    {
+      "author": "jkRaccoon",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-11-29T08:40:30Z",
+      "reactions": 2,
+      "body": "same on me. mine is Vuejs"
+    },
+    {
+      "author": "werkilla",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-12-30T15:04:46Z",
+      "reactions": 0,
+      "body": "Thanks, I'm having the same problem in node with the stream workbook writer.  I thought my width values were just not taking but this helped me."
+    },
+    {
+      "author": "yktakaha4",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-24T17:27:49Z",
+      "reactions": 0,
+      "body": "The same thing happened in my environment (Excel for Mac, Version 16.41, In Japanese, node v12.14.1),\r\nThe solution was to multiply the width of each column by `1.17` instead of adding the value.\r\n\r\n```\r\n[...new Array(ws.columnCount)].map((_, index) => ws.getColumn(index + 1)).forEach((column) => column.width = (column.width ?? 0) * 1.17)\r\n```\r\n\r\nIt seemed that the size of the width(幅) corresponding to the pixel(ピクセル) changed before and after saving by exceljs.\r\n(Is there a phenomenon such as loss of column width units due to saving?)\r\n\r\n[original]\r\n![image](https://user-images.githubusercontent.com/20282867/94178278-dac42c00-fed5-11ea-9797-c93a181a5766.png)\r\n\r\n[after saving(* 1.17)]\r\n![image](https://user-images.githubusercontent.com/20282867/94178293-def04980-fed5-11ea-8ed2-cfbc310f528c.png)\r\n\r\n[after saving(do nothing)]\r\n![image](https://user-images.githubusercontent.com/20282867/94178557-368eb500-fed6-11ea-9603-b32ad26e0895.png)\r\n"
+    },
+    {
+      "author": "anterta",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-06T16:04:02Z",
+      "reactions": 0,
+      "body": "no news?"
+    },
+    {
+      "author": "fbele",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-06T16:34:14Z",
+      "reactions": 0,
+      "body": "> no news?\r\n\r\nnope, unfortunately not. and as you see also not much attantion was put to.\r\nit's also kind of baffeling that us few could experienced such a bug.\r\nbut back then I have given up on exceljs so I don't know if the bug was fixed in the newer releases."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-02-12T02:21:03Z",
+      "reactions": 0,
+      "body": "I suppose it is dependent on which OS is used while opening a created file, or which spreadsheet program&version, or used system DPI, or default font.\r\n\r\n1. Could I please share with the wrong file and information which OS and App you use?\r\n2. Did you tested it during some different App or OS?\r\n\r\n---\r\n_I'm contributing ExcelJS just for fun. If want you to know something more go into #1500_ "
+    },
+    {
+      "author": "fbele",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-02-13T13:56:43Z",
+      "reactions": 0,
+      "body": "> I suppose it is dependent on which OS is used while opening a created file, or which spreadsheet program&version, or used system DPI, or default font.\r\n> \r\n> 1. Could I please share with the wrong file and information which OS and App you use?\r\n> 2. Did you tested it during some different App or OS?\r\n> \r\n> _I'm contributing ExcelJS just for fun. If want you to know something more go into #1500_\r\n\r\nAt that time I was using Angular on Windows 10 and I haven't thought of it testing it on some other app or OS. I didn't think that something like that could make a difference.\r\nI hope I was able to answer your questions correctly. "
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-02-13T22:27:44Z",
+      "reactions": 0,
+      "body": "I mean that, which software version are you using to open xlsx (for me it is Microsoft Macintosh Excel v16). It is essential because xlsx format keeps width as a character length, that occurs different width through different OS (dpi changed) or when different default font has been set. More information could be found on the MS Excel documentation page: https://docs.microsoft.com/en-us/office/troubleshoot/excel/determine-column-widths\r\n\r\nHowever, I don't know if I understand your issue. Have you possibility to write a simple test code which currently fails? This issue will be resolved if the test becomes to pass.\r\n\r\n\r\n---\r\n_I'm contributing ExcelJS just for fun. If want you to know something more go into #1500_"
+    },
+    {
+      "author": "fbele",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-13T21:05:35Z",
+      "reactions": 0,
+      "body": "> I mean that, which software version are you using to open xlsx (for me it is Microsoft Macintosh Excel v16). It is essential because xlsx format keeps width as a character length, that occurs different width through different OS (dpi changed) or when different default font has been set. More information could be found on the MS Excel documentation page: https://docs.microsoft.com/en-us/office/troubleshoot/excel/determine-column-widths\r\n> \r\n> However, I don't know if I understand your issue. Have you possibility to write a simple test code which currently fails? This issue will be resolved if the test becomes to pass.\r\n> \r\n> _I'm contributing ExcelJS just for fun. If want you to know something more go into #1500_\r\n\r\nSorry for the late reply.\r\nUnfortunately I don't know how much of help can I be in this matter as this bug is from long ago. I know that I was using Windows and the latest Excel at that time, probably v16.\r\nHere is my Git repository of the code, but it's at exactly the same state from that time, as I haven't been working on it since, so it's obsolete: https://github.com/fbele/contracts-prototype\r\n\r\nHope it helps! "
+    },
+    {
+      "author": "ctheiss",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-01T14:35:53Z",
+      "reactions": 1,
+      "body": "I'm also getting this issue; here's some output to help with debugging.\r\n\r\n**OS version**\r\nEdition\tWindows 10 Home\r\nVersion\t22H2\r\nInstalled on\t‎2020-‎07-‎02\r\nOS build\t19045.2846\r\nExperience\tWindows Feature Experience Pack 120.2212.4190.0\r\n\r\n**Environment**\r\nWSL version 2\r\nUbuntu 18.04.5 LTS\r\nNode v16.19.1\r\nExcelJS 4.3.0\r\nExcel 2021 MSO (Version 2303 Build 16.0.16227.20202) 64-bit\r\n\r\n**Test file**\r\n```js\r\nconst ExcelJS = require('exceljs');\r\n\r\nconst workbook = new ExcelJS.Workbook();\r\nconst sheet = workbook.addWorksheet('Test');\r\nsheet.columns = [{ header:'Data', width:10 }];\r\n\r\nsheet.addRow([ 50 ]);\r\nsheet.addRow([ 80 ]);\r\n\r\nworkbook.xlsx.writeFile('test.xlsx');\r\n```\r\n\r\n**Output**\r\n![Screenshot 2023-05-01 102219](https://user-images.githubusercontent.com/167414/235468017-1211352d-c2c7-421c-bf48-501bb76d9925.png)\r\n\r\nI've also uploaded the resultant file: \r\n[test.xlsx](https://github.com/exceljs/exceljs/files/11365918/test.xlsx)\r\n"
+    },
+    {
+      "author": "ctheiss",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-01T14:53:26Z",
+      "reactions": 3,
+      "body": "This is perhaps a difference between how the width is specified in the OpenXML and how it's interpreted by Excel.\r\n\r\nI found a post on the OpenXML MSDN forum that is very similar to this issue: https://social.msdn.microsoft.com/Forums/sqlserver/en-US/3202fa49-0bae-4846-a1b5-fa29b7f64576/setting-column-width-in-excel?forum=oxmlsdk\r\n\r\nThis led me to the following explanation of width: https://learn.microsoft.com/en-us/previous-versions/office/developer/office-2010/cc802410(v=office.14)?redirectedfrom=MSDN\r\n\r\n> Column width measured as the number of characters of the maximum digit width of the numbers 0, 1, 2, …, 9 as rendered in the normal style's font. There are 4 pixels of margin padding (two on each side), plus 1 pixel padding for the gridlines.\r\n>\r\n>width = Truncate([{Number of Characters} * {Maximum Digit Width} + {5 pixel padding}]/{Maximum Digit Width}*256)/256\r\n>\r\n>[Example: Using the Calibri font as an example, the maximum digit width of 11 point font size is 7 pixels (at 96 dpi). In fact, each digit is the same width for this font. Therefore, if the cell width is 8 characters wide, the value of this attribute must be Truncate([8*7+5]/7*256)/256 = 8.7109375. end example]\r\n\r\nSo there's the 0.71.\r\n\r\nIt seems that, in order to fix this issue, we would have to:\r\n1. find all (font, size) pairs used in a column\r\n2. render the digits 0-9 in each pair, and find the max width in pixels\r\n3. add 5/(max width) to the column width\r\n\r\nOr, just assume Calibri 11 is used and add 5/7."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/33025896/53045688-8a315500-348e-11e9-94a3-133530d5d762.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/20282867/94178278-dac42c00-fed5-11ea-9797-c93a181a5766.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/20282867/94178293-def04980-fed5-11ea-8ed2-cfbc310f528c.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/20282867/94178557-368eb500-fed6-11ea-9603-b32ad26e0895.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://docs.microsoft.com/en-us/office/troubleshoot/excel/determine-column-widths",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://docs.microsoft.com/en-us/office/troubleshoot/excel/determine-column-widths",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/fbele/contracts-prototype",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/167414/235468017-1211352d-c2c7-421c-bf48-501bb76d9925.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/11365918/test.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://social.msdn.microsoft.com/Forums/sqlserver/en-US/3202fa49-0bae-4846-a1b5-fa29b7f64576/setting-column-width-in-excel?forum=oxmlsdk",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/previous-versions/office/developer/office-2010/cc802410(v=office.14",
+      "ext": "14",
+      "isFixture": false
+    }
+  ]
+}

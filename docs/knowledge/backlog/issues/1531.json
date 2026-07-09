@@ -1,0 +1,59 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1531,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1531",
+  "title": "docs: fix default options for streaming xlsx reader",
+  "state": "open",
+  "author": "yocontra",
+  "createdAt": "2020-11-13T17:17:54Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## Summary\r\n\r\nThe docs do not match the implementation or the type information: https://github.com/exceljs/exceljs/blob/4e38ad8ed2a18b6fe3999528cd30bf8b6579c249/index.d.ts#L1958\r\n\r\nCloses https://github.com/exceljs/exceljs/issues/1430\r\n\r\n\r\n## Semi-related\r\n\r\n- I think it would improve the docs to identify what \"styles\" means to the user - it isn't clear that type information (dates, for example) are a style and without `styles: 'cache'` all dates are unusable.\r\n- The default values for these options seem like a bit of a footgun, maybe worth revisiting why these are the defaults?",
+  "comments": [
+    {
+      "author": "alubbe",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-11-21T08:40:32Z",
+      "reactions": 0,
+      "body": "I think I'm in favour of both changing the defaults and better documenting what the options do, and that you probably only want to disable the caching for a small performance boost. Would you mind adding that to this PR?"
+    },
+    {
+      "author": "yocontra",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-23T18:50:31Z",
+      "reactions": 0,
+      "body": "@alubbe Will do."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/4e38ad8ed2a18b6fe3999528cd30bf8b6579c249/index.d.ts#L1958",
+      "ext": "ts",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1430",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 3,
+    "deletions": 3,
+    "changedFiles": [
+      {
+        "path": "README.md",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 3
+      }
+    ]
+  }
+}

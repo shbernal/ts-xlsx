@@ -1,0 +1,70 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 894,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/894",
+  "title": "Wrong image position for non-integer coordinates",
+  "state": "open",
+  "author": "r4tz52",
+  "createdAt": "2019-07-18T10:06:51Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "enhancement"
+  ],
+  "reactions": 9,
+  "commentCount": 6,
+  "body": "Hi all,\r\nI'm trying to place 16x16 image at arbitrary place of the worksheet. I set col number to 1.5, but it looks like image appears at the beginning of \"B\" column PLUS half of default column width, not half \"B\" column width.\r\n\r\n**Code:**\r\n```\r\nconst exceljs = require('exceljs');\r\n\r\nconst workbook = new exceljs.Workbook();\r\nconst worksheet = workbook.addWorksheet();\r\n\r\nworksheet.columns = [{ width: 10 }, { width: 100 }, { width: 50 }];\r\n\r\nconst imageData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAA'\r\n\t+ 'AQCAYAAAAf8/9hAAADBklEQVR42n2Se0hTURzHv3f3Xh/VysdmzlXLaiaIZtnTtMh'\r\n\t+ 'qVmNUaNADXFlBDwqCHlD/VERRRmVJ6001wqCgl9ibXKYSZajhtNK9tG1OF97yzrbr'\r\n\t+ 'vbdb/ZU0D/w4cM6Pz5fzOT8Cg9ZinSFW2t5LNUEURT9E8S0IYTzHDey3VD1/MLifG'\r\n\t+ 'HyQt2iZmxd4FSGK6GUCYNkgaJpCbEwUBEGYW1drqQ0LyM5ZoCQI+ESRgLPjG1YVpC'\r\n\t+ 'NVq0BFZTM+NHqhVsn3vntbUxIWMGfO3HHebtb5vZ/HOGUkLM82Q64cCwgMitaZ8bL'\r\n\t+ 'OvsftbDkZ/gmqGepDxVM7V+eORMqUZOmWBu9nQGpGoaHJh5kGs5Hzf7oZFnArZ8TY'\r\n\t+ 'tY+uuxB0AF4vBvo8kkMO9HASPmcAV858zD1gsb0ZUqLYcFQMdVVD7GcgIymIkCEiJ'\r\n\t+ 'hI/bL14X2bV5r370TYkwHcwvVE5X5PBe+wQqFF/OmjSD9P5zhfbXrCLh/5GKnHq8d'\r\n\t+ '1rK/fqoxOZumuQ8wz6Qz8RnVqA6z4d9pku7Oux1p/4L0Cl1mwsLCy8cvaMJFkU0P+'\r\n\t+ '5HvaOz0hUJCAu82+wftlKNDU3VXa6bPp/AIoEla7YuOEpFUH/HhYcO3oY1X6gzAVs'\r\n\t+ 'SQEWUAGcu2yGyXQJCkUs3O6v59vbWrf/ASgTVEuSkyceWW8syrp48TLYAAvDUh1Ol'\r\n\t+ 'Z7Grtc9OD1PAVOZCUeOlUCbMgkURcHj8YDt+25wOm0VREZmVoVOl693OFxoa/+CUJ'\r\n\t+ 'BD2mQtyu/expr7X3FrhRonDh7CVXM5ElUqyGQyBCUvvq6uGpejPYfIW5jfNH3mrPS'\r\n\t+ 'qV1XgeQ4cx0Mpp1H68DWW3mjB461puLBjE+49sUCdlARp1CGjCHQ4XZ5Olz2JmDE7'\r\n\t+ 'u36MWj3NZnOAJEkpgQLFduNUdSuyr/bgklEBf8lOlN15gtGKeCmAw4BUDMNIKpxqY'\r\n\t+ 'oQ8Jl7Sro2IiDLSNDmLkFGp+MnyU3TL8fRTHzI1cYi2v6Ga7W5v9LBhjVwoaBV41N'\r\n\t+ 'CRpLXb57X/AnGNSiD8VccPAAAAAElFTkSuQmCC';\r\n\r\nconst imageIndex = workbook.addImage({ base64: imageData, extension: 'png' });\r\nconst imageRange = {\r\n\ttl: { col: 1.5, row: 1 },\r\n\text: { width: 16, height: 16 }\r\n};\r\n\r\nworksheet.addImage(imageIndex, imageRange);\r\nworkbook.xlsx.writeFile('./output.xlsx');\r\n```\r\n\r\n**Expected result:**\r\nImage appear in the middle of \"B\" column.\r\n\r\n**Observed result:**\r\nImage appear near left border of \"B\" column.\r\n\r\n**Environment:**\r\n-  exceljs: 1.13.0\r\n-  nodejs: 10.13.0\r\n",
+  "comments": [
+    {
+      "author": "AndrewEgorov",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-09-25T05:32:40Z",
+      "reactions": 0,
+      "body": "Any updates in this issue or way to fix it in near future?"
+    },
+    {
+      "author": "hijamoya",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-11-18T11:04:15Z",
+      "reactions": 0,
+      "body": "+1, same issue here."
+    },
+    {
+      "author": "chk-",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-11-20T14:49:06Z",
+      "reactions": 0,
+      "body": "It doesn't work for me too. If I put tl: { col: 6.9, row: 0 } to ws.addImage() it appears near left side of cell 6. I have made the column 6 large.\r\nA { tr: { col: 6, row: 0 } option would be great to be able to position an image at the top right position of a cell. "
+    },
+    {
+      "author": "CocoFeng",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-13T06:22:50Z",
+      "reactions": 0,
+      "body": "how about to fix it?"
+    },
+    {
+      "author": "SuyongSun",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-17T07:19:53Z",
+      "reactions": 0,
+      "body": "I make some test and lookup the data affter unziping the drawing.xml file. I found that the error is caused by the wrong colwidth and rowheight. The tl and br are set to float number, if the col and row are not resized, the result is ok. But when width or height of  the cell, in which tl or br defined,  were resized, the result were still calculated with the standard cell width and row. So we got the wrong result."
+    },
+    {
+      "author": "SuyongSun",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-19T07:20:52Z",
+      "reactions": 2,
+      "body": "@Siemienik @r4tz52 \r\n\r\nI read the code related with this problem. Finally, I found the reason occured in anchor.js. There is my fix below.\r\n\r\nPut the following code in the first line in constructor function. After this we can get the real column width and row height in worksheet.\r\n`\r\nthis.worksheet = worksheet;\r\n`\r\n\r\nThen, modify the colWidth and rowHeight getters methods to get the correct number. As the default height or width can be undefined in worksheet properties, so we can add some protection code for below sample. We can check if the default heigth or width defined, if not, use constant value instead. (for example, height is 15, width is 9.14XXXXXX.)\r\n`\r\nMath.floor(this.worksheet.getRow(this.nativeRow + 1).height/this.worksheet.properties.defaultRowHeight * 180000)\r\nMath.floor(this.worksheet.getColumn(this.nativeCol + 1).width/this.worksheet.properties.defaultColWidth * 640000)\r\n`\r\n\r\nas the following code we put the image in xlsx with correct positions.\r\n`\r\nworksheet.addImage(imageId, {\r\n     tl: {col: 1.1, row: 5.83 },\r\n     br: {col: 8.85, row: 10.2 }\r\n });\r\n`\r\n![testimage](https://user-images.githubusercontent.com/12286518/111744731-a64e8d00-88c6-11eb-827f-bff3231177ba.png)\r\n\r\n\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/12286518/111744731-a64e8d00-88c6-11eb-827f-bff3231177ba.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

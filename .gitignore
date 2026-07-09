@@ -67,3 +67,6 @@ _SpecRunner.html
 # Ignore xlsx files generated during testing
 *.xlsx
 enpm-lock.yaml
+# Harvested attachment binaries are regenerable scratch (npm run harvest:all).
+# Durable fixtures are promoted into test/corpus/fixtures/. Keep binaries out of history.
+docs/knowledge/backlog/attachments/

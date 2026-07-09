@@ -1,0 +1,65 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 530,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/530",
+  "title": "addRow by array don't work?",
+  "state": "open",
+  "author": "t1hk",
+  "createdAt": "2018-04-02T09:58:50Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "exceljs 1.1.0\r\nAddRow and addRows by array don’t work.\r\nI’ve copied your examples, but only addRow by key-value works. The xlsx-result file shows only row \"6; Barbara;..\" . Previous rows added by arrays are empty. Here is the simple code:\r\n\r\n`var Excel = require('exceljs');\r\nvar workbook = new Excel.Workbook();\r\nvar worksheet = workbook.addWorksheet('ExampleWS');\r\n\r\nworksheet.columns = [\r\n    { header: 'Id', key: 'id', width: 10 },\r\n    { header: 'Name', key: 'name', width: 32 },\r\n    { header: 'D.O.B.', key: 'dob', width: 10 }\r\n];\r\n\r\n// Add a row by sparse Array (assign to columns A, E & I)\r\nvar rowValues = [];\r\nrowValues[1] = 4;\r\nrowValues[5] = 'Kyle';\r\nrowValues[9] = new Date();\r\nworksheet.addRow(rowValues);\r\n\r\nvar rows = [\r\n    [5,'Bob',new Date()], // row by array\r\n    {id:6, name: 'Barbara', dob: new Date()}\r\n];\r\nworksheet.addRows(rows);\r\n\r\n//write in File\r\nvar strFilename = \"testExceljs01.xlsx\";\r\nworkbook.xlsx.writeFile(strFilename)\r\n    .then(function() {\r\n        console.log(\"file OK\");\r\n    });  \r\n`\r\n\r\nAnd here is the xlsx-result file:\r\n[Uploading testExceljs01.xlsx…]()\r\n![image](https://user-images.githubusercontent.com/38001318/38192322-a185fd26-366c-11e8-8f8d-f40a5f9c7ba5.png)\r\n",
+  "comments": [
+    {
+      "author": "dilignt",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-04-05T14:27:40Z",
+      "reactions": 0,
+      "body": "I can't get addRow or addRows to work at all - the values property of the row object is an empty array after calling the function."
+    },
+    {
+      "author": "guyonroche",
+      "authorAssociation": "COLLABORATOR",
+      "createdAt": "2018-04-25T07:29:38Z",
+      "reactions": 0,
+      "body": "@t1hk I can't seem to reproduce your issue. I copied your code and the spreadsheet looks fine:\r\n\r\n![2018-04-25 01 excel](https://user-images.githubusercontent.com/540916/39231688-c5711952-4862-11e8-9414-b725612382e2.png)\r\n"
+    },
+    {
+      "author": "guggu1",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-27T14:09:16Z",
+      "reactions": 1,
+      "body": "I am probably kind of late.\r\nThe function addRow supplying an array of values such as in\r\naddRow['1', '2', '3']\r\n\r\n- does NOT work for me executing it on a Rasperry PI, LINUX,  computer from within th ioBroker (a home automation system) using a script developed in JS with the ioBroker javascript adapter. The row is added, but there are no data.\r\n- DOES work for me executing it in Visual Studio Code, on the same computer, i.e. Rasperry PI , LINUX.\r\n\r\nLooks like the function depends to the js engine?\r\n\r\nCCS"
+    },
+    {
+      "author": "ff-mela-works",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-05T16:15:06Z",
+      "reactions": 0,
+      "body": "Me too, in Node-RED I have the same problem"
+    },
+    {
+      "author": "ff-mela-works",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-05T17:56:36Z",
+      "reactions": 0,
+      "body": "I wrote this trick to solve..\n\n```js\nconst data = [[1,2,3],[4,5,6],[7,8,9]]\n\nconst start = ws.actualRowCount\nfor (let r = 0; r < data.length; r++) {\n    for (let c = 0; c <= data[r].length; c++) {\n        ws.getRow(start+r+1).getCell(c+1).value = data[r,c]\n    }\n}\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/38001318/38192322-a185fd26-366c-11e8-8f8d-f40a5f9c7ba5.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/540916/39231688-c5711952-4862-11e8-9414-b725612382e2.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

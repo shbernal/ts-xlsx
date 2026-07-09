@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2075,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2075",
+  "title": "[BUG] Invalid row number in model",
+  "state": "open",
+  "author": "jokerwon",
+  "createdAt": "2022-06-07T06:32:51Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen reading a .xlsx file like the attachment, exceljs throws an error: Invalid row number in model at Row.set model.\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\nHere is a example file to reproduce the situation. [attachment](https://github.com/exceljs/exceljs/files/6464604/staged_data.xlsx)\r\n\r\n```javascript\r\nconst workbookHelper = new ExcelJS.Workbook();\r\nconst cache = [];\r\nworkbookHelper.xlsx\r\n  .readFile(`${__dirname}/staged_data.xlsx`)\r\n  .then((workbook) => {\r\n    fs.outputFile(\r\n      `${__dirname}/__excel__/src.json`,\r\n      JSON.stringify(workbook, function (key, value) {\r\n        if (typeof value === 'object' && value !== null) {\r\n          if (cache.indexOf(value) !== -1) {\r\n            return;\r\n          }\r\n          cache.push(value);\r\n        }\r\n        return value;\r\n      })\r\n    );\r\n\r\n    const spreadJSON = transform2SpreadJSON(workbook);\r\n    fs.outputFile(\r\n      `${__dirname}/__excel__/res.json`,\r\n      JSON.stringify(spreadJSON)\r\n    );\r\n  });\r\n```\r\n\r\n## The expected behaviour:\r\nGet the correct result json file without any error.",
+  "comments": [
+    {
+      "author": "jokerwon",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-07T07:12:43Z",
+      "reactions": 1,
+      "body": "I open the attachment with MS Office Excel and save it again, then exceljs work properly. But what I wanna say is that I would not open manually download file and save every time."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/6464604/staged_data.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

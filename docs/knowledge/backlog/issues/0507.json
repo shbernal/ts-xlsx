@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 507,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/507",
+  "title": "worksheet.views is doesn't work in Streaming I/O",
+  "state": "open",
+  "author": "DerekYeung",
+  "createdAt": "2018-02-26T14:23:27Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "Here's my code\r\n```\r\nvar options = {\r\n\tfilename: './test.xlsx',\r\n\tuseStyles: true,\r\n\tuseSharedStrings: true\r\n};\r\nvar workbook = new Excel.stream.xlsx.WorkbookWriter(options);\r\nvar worksheet = workbook.addWorksheet('test');\r\nworksheet.views = [\r\n\t{\r\n\t\tstate: 'frozen',\r\n\t\txSplit: 3,\r\n\t\tySplit: 4\r\n\t}\r\n];\r\n```\r\nIt's doesn't work\r\nBut if I create worksheet and set options like this\r\n```\r\nvar worksheet = workbook.addWorksheet('test', {\r\n\tviews: [{\r\n\t\tstate: 'frozen',\r\n\t\tySplit: 3\r\n\t}]\r\n});\r\n```\r\nIt runs\r\nThe problem is that these two variables(x&y) are dynamic computing, I can't determine the value at the time of initialization.\r\nPlease help me with this problem. Thank you.",
+  "comments": [
+    {
+      "author": "JGregoryAtiba",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-06-23T15:32:01Z",
+      "reactions": 0,
+      "body": "Thanks for sharing that setting the views in `addWorksheet()` works.  That was a good find!  I ran into this same issue, but fortunately for my use case, the splits were already defined and didn't need to be computed on the fly."
+    }
+  ],
+  "attachments": []
+}

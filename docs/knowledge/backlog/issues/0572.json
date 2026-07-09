@@ -1,0 +1,112 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 572,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/572",
+  "title": "Standard font",
+  "state": "open",
+  "author": "timh1004",
+  "createdAt": "2018-05-17T16:41:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 25,
+  "commentCount": 11,
+  "body": "It seems the standard font size is Calibri 11pt when creating a workbook. Is there a way to set another font for the whole worksheet or even workbook? Setting the font for each row, column or even each cell is not very comfortable. ",
+  "comments": [
+    {
+      "author": "JMStudiosJoe",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-08-10T00:17:02Z",
+      "reactions": 0,
+      "body": "+1 agreed and having an error pop up in numbers and excel about the missing default font for all empty cells which \r\n`\r\nsheet.eachRow(row => {\r\n        row.eachCell({ includeEmpty: true }, cell => {\r\n`\r\nIs not setting the font of every cell.\r\n<img width=\"1261\" alt=\"screen shot 2018-08-09 at 5 09 32 pm\" src=\"https://user-images.githubusercontent.com/4028643/43932283-ff0844d6-9bf7-11e8-89f8-f4c925f44f56.png\">\r\n<img width=\"994\" alt=\"screen shot 2018-08-09 at 5 09 12 pm\" src=\"https://user-images.githubusercontent.com/4028643/43932286-03084c48-9bf8-11e8-8fdc-cdb8dd7e3550.png\">\r\n\r\n"
+    },
+    {
+      "author": "dogusev",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2019-05-23T20:30:46Z",
+      "reactions": 0,
+      "body": "@alubbe  @guyonroche \r\nThe same issue exists for me"
+    },
+    {
+      "author": "Azam2926",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-08-16T08:03:29Z",
+      "reactions": 0,
+      "body": "@guyonroche\r\nAlso me this is problem"
+    },
+    {
+      "author": "vincentwuhrlin",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-13T11:55:08Z",
+      "reactions": 0,
+      "body": "Hello, great library but any solution to void this popin in Numbers ?\r\n\r\nThanks\r\n<img width=\"1029\" alt=\"Capture d’écran 2020-04-13 à 13 54 32\" src=\"https://user-images.githubusercontent.com/16716356/79118496-5e59e880-7d8e-11ea-85df-2b81b590c532.png\">\r\n"
+    },
+    {
+      "author": "urbantumbleweed",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-28T21:06:05Z",
+      "reactions": 0,
+      "body": "I am running into this issue too.  Any word on where this falls on the priority list?"
+    },
+    {
+      "author": "chdh",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2020-05-20T23:21:43Z",
+      "reactions": 6,
+      "body": "I found an ugly way to change the standard font.\r\nExample to change the font size to 9 pt:\r\n\r\n```\r\nconst StylesXform = require(\"exceljs/lib/xlsx/xform/style/styles-xform.js\");\r\nconst origStylesXformInit = StylesXform.prototype.init;\r\nStylesXform.prototype.init = function() {\r\n   origStylesXformInit.apply(this, arguments);\r\n   this._addFont({size: 9, color: {theme: 1}, name: 'Calibri', family: 2, scheme: 'minor'});\r\n};\r\n\r\n```"
+    },
+    {
+      "author": "alexalexiuc",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-08T10:01:35Z",
+      "reactions": 4,
+      "body": "+1"
+    },
+    {
+      "author": "Will-at-FreedomDev",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-29T16:55:04Z",
+      "reactions": 6,
+      "body": "Here is a workaround if anyone is interested. This code is at the end of the routine (after all data and cell formats are configured). I only needed to default the font size and name, but you can expand on this to include other styles as well.\r\n\r\n```javascript\r\nworkbook.eachSheet(sheet => {\r\n  sheet.eachRow(row => {\r\n    row.eachCell(cell => {\r\n      // default styles\r\n      if (!cell.font?.size) {\r\n        cell.font = Object.assign(cell.font || {}, { size: 10 });\r\n      }\r\n      if (!cell.font?.name) {\r\n        cell.font = Object.assign(cell.font || {}, { name: 'Arial' });\r\n      }\r\n    });\r\n  });\r\n});"
+    },
+    {
+      "author": "kodie",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-09-16T14:22:25Z",
+      "reactions": 9,
+      "body": "@Will-at-FreedomDev's solution works. A `style` option for the `addWorksheet` function would make since.\r\n\r\n```js\r\n  const ws = wb.addWorksheet('My sheet', {\r\n    style: {\r\n      font: {\r\n        size: 10,\r\n        name: 'Arial'\r\n      }\r\n    }\r\n  })\r\n```"
+    },
+    {
+      "author": "ardabeyazoglu",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-10-24T09:31:26Z",
+      "reactions": 3,
+      "body": "> @Will-at-FreedomDev's solution works. A `style` option for the `addWorksheet` function would make since.\r\n> \r\n> ```js\r\n>   const ws = wb.addWorksheet('My sheet', {\r\n>     style: {\r\n>       font: {\r\n>         size: 10,\r\n>         name: 'Arial'\r\n>       }\r\n>     }\r\n>   })\r\n> ```\r\n\r\nAbility to customize default styling would be very useful like this."
+    },
+    {
+      "author": "jbojbo",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-01-26T21:59:28Z",
+      "reactions": 1,
+      "body": "I did the following workaround:\r\n\r\n```\r\nconst addRow = (worksheet, row = []) => {\r\n  const newRow = worksheet.addRow(row);\r\n  newRow.font = {\r\n    size: 10\r\n  };\r\n\r\n  return newRow;\r\n}\r\n```\r\n\r\nfind: `worksheet.addRow\\((.*)\\)`\r\nreplace: `addRow(worksheet,$1)`\r\n\r\n\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/4028643/43932283-ff0844d6-9bf7-11e8-89f8-f4c925f44f56.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/4028643/43932286-03084c48-9bf8-11e8-8fdc-cdb8dd7e3550.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/16716356/79118496-5e59e880-7d8e-11ea-85df-2b81b590c532.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2802,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2802",
+  "title": "[BUG] Exported xlsx file can't be loaded.",
+  "state": "open",
+  "author": "Codyooo",
+  "createdAt": "2024-07-30T18:37:20Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\nexport a xlsx file from lark sheet, it can be opened in local excel software.\r\nbut can't be loaded using  workbook.xlsx.load() method.\r\n![image](https://github.com/user-attachments/assets/f5cd32b7-4506-42e2-9f5e-b177bcee76dd)\r\n\r\nHowever, if I open this xlsx file in ms excel and save it, change nothing. Then it can be loaded with the lib.\r\n\r\nI uploaded the two files, the original exported  version and the saved version.\r\n[exported.xlsx](https://github.com/user-attachments/files/16432123/exported.xlsx)\r\n[exported_copy.xlsx](https://github.com/user-attachments/files/16432124/exported_copy.xlsx)\r\n\r\n\r\n\r\n\r\n\r\n```javascript\r\n\r\nawait workbook.xlsx.load(arrayBuffer, { ignoreNodes: ignoreList });\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nThe exported file can be loaded directly instead of re saving the file in ms excel.\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/assets/f5cd32b7-4506-42e2-9f5e-b177bcee76dd",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/files/16432123/exported.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/user-attachments/files/16432124/exported_copy.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1573,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1573",
+  "title": "fix: cell.style.fill problems",
+  "state": "open",
+  "author": "huyunan",
+  "createdAt": "2020-12-19T14:37:40Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "# Summary\r\nAfter all the borders of (A1: B1) are set, read the excel file, and then change the background color of cell A1. The background color of cell B1 will also change.\r\ncreate test_a.xlsx\r\n```javascript\r\n  const wb = new ExcelJS.Workbook();\r\n  const worksheet = wb.addWorksheet('Sheet1');\r\n  const border = {\"left\":{\"style\":\"thin\"},\"right\":{\"style\":\"thin\"},\"top\":{\"style\":\"thin\"},\"bottom\":{\"style\":\"thin\"}};\r\n  worksheet.getCell('A1').style.border = border;\r\n  worksheet.getCell('A1').value = 'A1';\r\n  worksheet.getCell('B1').style.border = border;\r\n  worksheet.getCell('B1').value = 'B1';\r\n  wb.xlsx.writeFile(path.resolve('./spec/unit/doc/test_a.xlsx'));\r\n```\r\n![image](https://user-images.githubusercontent.com/40879024/102712035-0dc16480-42f9-11eb-8aac-28079ae09888.png)\r\nThen read excel\r\n```javascript\r\n  const wb = new ExcelJS.Workbook();\r\n  const workbook = await wb.xlsx.readFile('./spec/unit/doc/test_a.xlsx');\r\n  workbook.getWorksheet(1).getCell('A1').style.fill = {\r\n    type: 'pattern',\r\n    pattern: 'solid',\r\n    fgColor: { argb: 'FFFF0000' },\r\n    bgColor: { indexed: 64 }\r\n  };\r\n  console.log(workbook.getWorksheet(1).getCell('A1').style.fill === workbook.getWorksheet(1).getCell('B1').style.fill);\r\n  // **true**\r\n\r\n  console.log(workbook.getWorksheet(1).getCell('B1').style.fill);\r\n  console.log(workbook.getWorksheet(1).getCell('A1').style.fill);\r\n  workbook.xlsx.writeFile(path.resolve('./spec/unit/doc/test_a0000.xlsx'));\r\n```\r\nfill A1 with red solid but A2 also red solid\r\n![image](https://user-images.githubusercontent.com/40879024/102712085-32b5d780-42f9-11eb-808a-ab4e9026907c.png)\r\n\r\n# Test plan spec\\unit\\utils\r\nA simple test is included in spec/unit/utils/utils.spec.js\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/40879024/102712035-0dc16480-42f9-11eb-8aac-28079ae09888.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/40879024/102712085-32b5d780-42f9-11eb-808a-ab4e9026907c.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": false,
+    "baseRef": "master",
+    "additions": 74,
+    "deletions": 3,
+    "changedFiles": [
+      {
+        "path": "lib/doc/cell.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 1
+      },
+      {
+        "path": "lib/utils/utils.js",
+        "status": "modified",
+        "additions": 19,
+        "deletions": 0
+      },
+      {
+        "path": "spec/integration/workbook/workbook.spec.js",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/utils/utils.spec.js",
+        "status": "modified",
+        "additions": 47,
+        "deletions": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 763,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/763",
+  "title": "Fills error",
+  "state": "open",
+  "author": "TonnyCheng",
+  "createdAt": "2019-03-08T07:17:39Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "",
+  "comments": [
+    {
+      "author": "TonnyCheng",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-03-08T07:22:16Z",
+      "reactions": 0,
+      "body": "hi bro ,i faced a issue to add bgcolor to a merged column ,but use fills function is useless,what can i notice?\r\n"
+    }
+  ],
+  "attachments": []
+}

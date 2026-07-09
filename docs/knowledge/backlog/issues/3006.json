@@ -1,0 +1,54 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3006,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/3006",
+  "title": "[BUG] Exceljs requires glob 7.x, which has a command injection vulnerability",
+  "state": "open",
+  "author": "kgaspard",
+  "createdAt": "2025-11-21T15:06:50Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 7,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\n\nExceljs requires glob 7.x, which has a command injection vulnerability (https://nvd.nist.gov/vuln/detail/CVE-2025-64756)\n\nLib version: 4.4.0\n\n## Possible solution (optional, but very helpful):\n\nUpgrade glob dependency to 10.5.0+",
+  "comments": [
+    {
+      "author": "cjnoname",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-04T13:29:44Z",
+      "reactions": 5,
+      "body": "try https://www.npmjs.com/package/@cj-tech-master/excelts"
+    },
+    {
+      "author": "protobi-pieter",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-06T03:17:54Z",
+      "reactions": 1,
+      "body": "## Investigation Results: glob 7.x Security Risk Assessment\n\nI've investigated this issue and have good news: **the security risk is much lower than initially reported**.\n\n### Key Findings\n\n**CVE-2025-64756 does NOT affect glob 7.x:**\n- This CVE only affects glob versions **10.2.0 through 11.0.3**\n- The vulnerability is in the **CLI interface** (the `glob -c` command), not the library API\n- ExcelJS and its dependencies use glob's **library API** (JavaScript functions), not the CLI\n- Therefore, this specific CVE is **not exploitable** in ExcelJS\n\n### Actual Risk Assessment\n\n**glob 7.x status:**\n- ✅ No known security vulnerabilities (CVEs)\n- ⚠️ Deprecated and no longer supported (versions prior to v9)\n- ⚠️ Depends on `minimatch ^3.0.4` which has ReDoS vulnerabilities\n- 📊 Used as transitive dependency through: `archiver` → `archiver-utils` → `glob@7.2.3`\n\n**Risk Level: LOW**\n- Not directly exploitable in typical ExcelJS usage\n- Main concern is lack of ongoing security updates\n- Indirect risk through vulnerable minimatch dependency\n\n### Attempted Solution\n\nI attempted to upgrade to `archiver@7.0.1` which uses `glob@10.x` (safe version), but this upgrade **requires code changes**:\n\n**Issue:** `lib/utils/stream-buf.js` doesn't implement required `_read()` and `_write()` methods for Stream.Duplex interface. Archiver 7.x uses stricter stream validation (`is-stream@2.0.1`) which requires these methods.\n\n**Test failure:**\n```\nError: input source must be valid Stream or Buffer instance\n  at Archiver.append (node_modules/archiver/lib/core.js:583:24)\n  at WorkbookWriter._openStream (lib/stream/xlsx/workbook-writer.js:70:14)\n```\n\n### What We Did\n\nUpdated to latest compatible versions:\n- ✅ `archiver`: ^5.0.0 → ^5.3.2\n- ✅ `unzipper`: 0.10.11 → 0.12.3\n- ✅ Tests passing (883 passing, 1 pending)\n\n### Recommendation\n\n**Short-term:** Current state is acceptable\n- glob 7.x risk is minimal for this use case\n- No immediate security threat\n\n**Long-term:** To fully resolve:\n1. Fix `StreamBuf` class to properly implement Duplex interface\n2. Upgrade to `archiver@7.x` which removes glob 7.x dependency\n3. Or wait for upstream ExcelJS to address this\n\n### References\n- [CVE-2025-64756](https://github.com/advisories/GHSA-5j98-mcp5-4vw2) - Only affects glob 10.x-11.x CLI\n- [Snyk: glob vulnerabilities](https://security.snyk.io/package/npm/glob)\n- Commit: f8e3e47\n\n**Conclusion:** The title of this issue is misleading - glob 7.x does **not** have the command injection vulnerability (CVE-2025-64756). The main issue is deprecation, not active security vulnerabilities."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-64756",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/@cj-tech-master/excelts",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-5j98-mcp5-4vw2",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://security.snyk.io/package/npm/glob",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

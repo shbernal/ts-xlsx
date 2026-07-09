@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 628,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/628",
+  "title": "spliceRows does not clear all removed rows if worksheet.row.count is less than start+count",
+  "state": "open",
+  "author": "KingAMS",
+  "createdAt": "2018-08-14T07:25:26Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "The spliceRows shift up rows to replace the removed ones.\r\nBut if the number of rows to shift up is less than the number of rows that where removed not all removed rows are cleared.\r\n\r\ne.g. If I have a sheet that has 3 rows and I spliceRows(2,1) row 2 will remain as is (row 3 will be cleared):\r\n\r\n```js\r\n let wb = new Excel.Workbook();\r\n    let ws = wb.addWorksheet('sheet1');\r\n\r\n    ws.addRow(['1.1', '1.2', '1.3']);\r\n    ws.addRow(['2.1', '2.2', '2.3']);\r\n    ws.addRow(['3.1', '3.2', '3.3']);\r\n\r\n    console.log('rows total: ', ws.rowCount);\r\n    for (let i = 1; i <= 3; i++) {\r\n      console.log(i, ':', ws.getRow(i).values);\r\n    }\r\n\r\n    ws.spliceRows(1, 2);\r\n\r\n    console.log('rows total: ', ws.rowCount);\r\n    for (let i = 1; i <= 3; i++) {\r\n      console.log(i, ':', ws.getRow(i).values);\r\n    }\r\n```\r\n\r\nthe output:\r\n```\r\n**B4**\r\nrows total:  3\r\n1 ':' [ <1 empty item>, '1.1', '1.2', '1.3' ]\r\n2 ':' [ <1 empty item>, '2.1', '2.2', '2.3' ]\r\n3 ':' [ <1 empty item>, '3.1', '3.2', '3.3' ]\r\n**After**\r\nrows total:  2\r\n1 ':' [ <1 empty item>, '3.1', '3.2', '3.3' ]\r\n2 ':' [ <1 empty item>, '2.1', '2.2', '2.3' ]\r\n3 ':' []\r\n\r\n**Expected**\r\nrows total: 1\r\n1 ':' [ <1 empty item>, '3.1', '3.2', '3.3' ]\r\n2 ':' []\r\n3 ':' []\r\n```",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2021-02-14T18:40:43Z",
+      "reactions": 0,
+      "body": "#674 "
+    }
+  ],
+  "attachments": []
+}

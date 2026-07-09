@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1367,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1367",
+  "title": "numFmt undefined after setting to cell",
+  "state": "open",
+  "author": "censys-git",
+  "createdAt": "2020-07-01T18:16:34Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nLib version: 4.0.1\r\n\r\n## Steps To Reproduce\r\n1. Set formats to the cell \r\n```\r\nnumFmt = \"yyyy-mmm-dd\"\r\nalignment: {horizontal: 'center'})\r\nfont: {name: 'Arial', family: 2, bold: false, size: 8}\r\nprotection: {locked: false}\r\n```\r\n\r\n2. Set data validation:\r\n```\r\nvar min_date = x;  // a valid date object\r\nvar max_date = y; // a valid date object\r\nvar min_date_str = s1;  // formatted to a date string of yyyy-mm-dd\r\nvar max_date_str = s2;  // formatted to a date string of yyyy-mm-dd\r\n{\r\n  type: 'date',\r\n  allowBlank: true,\r\n  operator: 'between',\r\n  showErrorMessage: true,\r\n  errorTitle: 'Invalid Date!',\r\n  error: 'The order ship date must be on or between ' + s1 + ' and ' + s2 + '!',\r\n  formulae: [min_date, max_date]\r\n}\r\n```\r\n\r\n3. Set Conditional Formatting:\r\n```\r\n{\r\n  ref: 'A1',  // actual a1-style reference\r\n  rules: [{\r\n    type    : 'expression',\r\n    formulae: [\"OR(ISBLANK('Order Setup'!C24),'Order Setup'!C24=\\\"\\\",'Order Setup'!C24=0)\"],\r\n    style   : {fill: (ws.Style).condFormatBgColor((Config.colors).LIGHT_RED)}  // returns the properly formatted color\r\n  }]\r\n}\r\n\r\n```\r\n\r\n4. Inspect cell (e.g. window.console.log('CELL', cell)) shows numFmt as undefined, yet all other styles/formats are set correctly. Finished excel file also shows number format as 'general'.\r\n\r\n5. Same exact method is applied to many other cells but without both data validation and conditional formatting and numFmt sticks. Only this setup it doesn't take.\r\n\r\n6. The final file shows the cell with proper format and colors, conditional formatting in place correctly, data validation in place correctly, but number format not set.\r\n\r\n## Possible solution (optional, but very helpful):\r\nTried reassigning numFmt after data validation and conditional formatting applied but still did not take.\r\nHave not yet tried removing one or both data validations and conditional formatting (a lot of code mods just to test) but am planning to. Hoping someone else may have run into this and know the fix/workaround/issue.\r\n",
+  "comments": [
+    {
+      "author": "censys-git",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-18T01:12:16Z",
+      "reactions": 0,
+      "body": "Anyone on this? This seems like such an easy thing. Reverts back to original format."
+    },
+    {
+      "author": "jmatth11",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-12T20:17:24Z",
+      "reactions": 0,
+      "body": "I have encountered a bug similar but not exactly the same as this issue.\r\nI have a template Excel file that I need to ingest and one of the cells has a `numFmt` set to an object of `{id: 0, formatCode: ''}` which causes an error in the generated Excel file. The generated `styles.xml` file has a `numFmt` entry with `formatCode=[Object object]` causing the \"corrupted excel file\" pop up to come up when initially opening the generated Excel file.\r\n\r\nIt would be nice for some kind of type enforcement or a way to handle these errors to give a default value when something is malformed."
+    }
+  ],
+  "attachments": []
+}

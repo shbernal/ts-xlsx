@@ -1,0 +1,40 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2056,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2056",
+  "title": "Web explorer crash when we try to download big data list",
+  "state": "open",
+  "author": "stephcyrille",
+  "createdAt": "2022-05-11T15:08:14Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\nI use the lib with react and typescript, when I try to compose the xlsx file that contains more than 250k line of data, the web explorer crash. \r\n\r\nReact v17.0.2\r\nExceljs v4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nworkbook.xlsx.writeBuffer().then(function (buffer) {\r\n      const blob = new Blob([buffer], { type: \"applicationi/xlsx\" });\r\n      const fileName = dayjs(new Date()).format('YYYY-MM-DD hhmmss')\r\n      saveAs(blob, `${fileName} REPORT(TEST).xlsx`);\r\n});```\r\n\r\n",
+  "comments": [
+    {
+      "author": "jjosef",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-05-23T15:55:45Z",
+      "reactions": 0,
+      "body": "use `workbook.xlsx.write(stream);`"
+    },
+    {
+      "author": "arrizkyhp",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-27T03:44:12Z",
+      "reactions": 0,
+      "body": "any solution for this?"
+    },
+    {
+      "author": "tangjiayi1994",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-17T03:25:24Z",
+      "reactions": 0,
+      "body": "I also encountered this problem, I use angular. It seems that the browser does not support streaming methods, I can only split the file into smaller files.Expect a solution."
+    }
+  ],
+  "attachments": []
+}

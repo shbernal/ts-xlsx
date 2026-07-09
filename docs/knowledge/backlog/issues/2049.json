@@ -1,0 +1,115 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2049,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2049",
+  "title": "improved media properties with rotation, extent, offset",
+  "state": "open",
+  "author": "GitSamson",
+  "createdAt": "2022-04-30T14:50:46Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "add media rotation, extent, offset property\r\n\r\n<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\nadd more properties for media object, such as rotation. \r\nnow can define image rotation in addImage()\r\n\r\n## Test plan\r\nSheet with images to duplicate (test location and rotation, etc..)\r\n![Screenshot 2022-04-30 224542](https://user-images.githubusercontent.com/19159941/166110310-26a4592c-095d-4fb3-b92b-ca66c2400322.jpeg)\r\nduplicated sheet, (using addImage(), not duplicate model directly)\r\n![Screenshot 2022-04-30 224555](https://user-images.githubusercontent.com/19159941/166110333-ecbf4530-5c76-4bea-8edf-735cf50a78a8.jpeg)\r\nNow the media can be exactly the same as provided properties\r\n\r\n## Related to source code (for typings update)\r\nxfrm-xform.js:\r\n\r\n  parseOpen(node) {\r\n    if (this.parser) {\r\n      this.parser.parseOpen(node);\r\n      return true;\r\n    }\r\n    switch (node.name) {\r\n      case this.tag:\r\n        this.reset();\r\n        this.model = {\r\n          rot: parseInt(node.attributes['rot']) / 60000,\r\n        };\r\n        break;\r\n      default:\r\n        this.parser = this.map[node.name];\r\n        if (this.parser) {\r\n          this.parser.parseOpen(node);\r\n        }\r\n        break;\r\n    }\r\n    return true;\r\n  }\r\n\r\n<!-- List with permalink into source code to prove that changes are true -->\r\nhttps://github.com/GitSamson/FFE_Database_Builder",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/19159941/166110310-26a4592c-095d-4fb3-b92b-ca66c2400322.jpeg",
+      "ext": "jpeg",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/19159941/166110333-ecbf4530-5c76-4bea-8edf-735cf50a78a8.jpeg",
+      "ext": "jpeg",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/GitSamson/FFE_Database_Builder",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": false,
+    "baseRef": "master",
+    "additions": 391,
+    "deletions": 73,
+    "changedFiles": [
+      {
+        "path": "README.md",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 0
+      },
+      {
+        "path": "lib/doc/image.js",
+        "status": "modified",
+        "additions": 27,
+        "deletions": 14
+      },
+      {
+        "path": "lib/doc/worksheet.js",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 4
+      },
+      {
+        "path": "lib/xlsx/xform/drawing/ext.js",
+        "status": "added",
+        "additions": 43,
+        "deletions": 0
+      },
+      {
+        "path": "lib/xlsx/xform/drawing/off.js",
+        "status": "added",
+        "additions": 36,
+        "deletions": 0
+      },
+      {
+        "path": "lib/xlsx/xform/drawing/one-cell-anchor-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "lib/xlsx/xform/drawing/pic-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      },
+      {
+        "path": "lib/xlsx/xform/drawing/sp-pr.js",
+        "status": "modified",
+        "additions": 68,
+        "deletions": 17
+      },
+      {
+        "path": "lib/xlsx/xform/drawing/xfrm-xform.js",
+        "status": "added",
+        "additions": 70,
+        "deletions": 0
+      },
+      {
+        "path": "lib/xlsx/xform/sheet/worksheet-xform.js",
+        "status": "modified",
+        "additions": 55,
+        "deletions": 29
+      },
+      {
+        "path": "lib/xlsx/xform/sheet/xfrm-xform.js",
+        "status": "added",
+        "additions": 70,
+        "deletions": 0
+      },
+      {
+        "path": "package.json",
+        "status": "modified",
+        "additions": 12,
+        "deletions": 7
+      }
+    ]
+  }
+}

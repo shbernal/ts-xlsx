@@ -1,0 +1,49 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2315,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2315",
+  "title": "[BUG] File is not recognized (file embedded in the issue)",
+  "state": "open",
+  "author": "jihun-ko",
+  "createdAt": "2023-07-23T12:32:32Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n[template.xlsx](https://github.com/exceljs/exceljs/files/12138739/template.xlsx)\r\nThis template is not recognized with exceljs. Exceljs thinks it's a correct file but the writeFile result is bad.\r\n\r\n## Steps To Reproduce\r\n<img width=\"253\" alt=\"스크린샷 2023-07-23 오후 9 30 56\" src=\"https://github.com/exceljs/exceljs/assets/37041154/3206a9a7-c0ff-485d-b023-4637e9b1db31\">\r\n\r\n=> Translated in English : \"There is a problem with the contents of 'sample.xlsx'. Do you want to recover as much of the contents of this workbook as possible? Click [Yes] if you trust the source of this workbook.\"\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n[template.xlsx](https://github.com/exceljs/exceljs/files/12138739/template.xlsx)\r\nWith this file, I just simply readFile and writeFile. And the file is broken immediately.\r\nThis file is one of the Microsoft website's excel template, and I wanted to test the exceljs feature.\r\n\r\n```javascript\r\nconst wb = new ExcelJS.Workbook();\r\nawait wb.readFile('template.xlsx');\r\nawait wb.writeFile('output.xlsx'); // breaks when open\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\nI want to know why this file breaks so that I can know the exceljs's limitation. It can be pivot table, sheet reference, sheet styling but I don't know why. (because there's no way I can check the error log in exceljs or excel)\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nDon't have one.",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-07-23T14:50:37Z",
+      "reactions": 0,
+      "body": "@lopun Maybe it is a pivot table, exceljs doesn't support pivot table. sheetName is 'Assignment Details' and there is a pivot table in it."
+    },
+    {
+      "author": "dinhhai96-vn",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-26T02:31:15Z",
+      "reactions": 0,
+      "body": "Maybe a few cells in the file were formatted incorrectly. You can check it again, where you have recorded data"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/12138739/template.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/37041154/3206a9a7-c0ff-485d-b023-4637e9b1db31",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/12138739/template.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

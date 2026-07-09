@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1837,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1837",
+  "title": "xlsx generation in nodejs, along with data and graph",
+  "state": "open",
+  "author": "selvatheeban",
+  "createdAt": "2021-09-15T08:02:12Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🚀 Feature Proposal\r\n\r\nTo write the excel with data and with chart \r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "benamrou",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-02T15:12:11Z",
+      "reactions": 0,
+      "body": "Go ahead Selvatheeban start writing it... we can ask the team to integrate your code in it."
+    }
+  ],
+  "attachments": []
+}

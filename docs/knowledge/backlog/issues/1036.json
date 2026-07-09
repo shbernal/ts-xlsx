@@ -1,0 +1,81 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1036,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1036",
+  "title": "[Bug] Insert Image to Excel returns wrong size",
+  "state": "open",
+  "author": "TranBaVinhSon",
+  "createdAt": "2019-11-25T06:56:00Z",
+  "closedAt": null,
+  "labels": [
+    "help wanted"
+  ],
+  "reactions": 3,
+  "commentCount": 7,
+  "body": "I have an image that has `191x47` pixels.\r\n![arubaito](https://user-images.githubusercontent.com/12994069/69518701-90171200-0f9b-11ea-9a1e-210497432195.png)\r\n\r\n```js\r\n    worksheet.addImage(imageID, {\r\n      tl: { col: column, row: row },\r\n      ext: { width: size.width, height: size.height }, // width: 191, height: 47\r\n    });\r\n```\r\nBut when I open excel file, the height was automatically scaled 160%, and 157% with width.\r\n\r\n<img width=\"300\" alt=\"Screen Shot 2019-11-25 at 15 54 10\" src=\"https://user-images.githubusercontent.com/12994069/69518820-d66c7100-0f9b-11ea-995e-4b84c8901e0f.png\">\r\n\r\n**So how can I insert the original size of an image to excel?**\r\n",
+  "comments": [
+    {
+      "author": "sairamc",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-02-10T18:49:42Z",
+      "reactions": 2,
+      "body": "We had a similar experience working with the library. When using width and height with tl and br parameters, then width and height are getting ignored. "
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-02-12T14:07:59Z",
+      "reactions": 0,
+      "body": "do you attempt to use ` editAs: 'absolute'`?"
+    },
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-02-12T14:13:24Z",
+      "reactions": 1,
+      "body": "It seems that the problem is related to `dpi`, The specified width and height are calculated based on 96dpi. But when the dpi of the image is not 96dpi, this size will change proportionally in exceljs."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-02-13T21:33:26Z",
+      "reactions": 0,
+      "body": "@Alanscut have you any ideas to resolve it?"
+    },
+    {
+      "author": "sairamc",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-20T16:49:27Z",
+      "reactions": 0,
+      "body": "@Alanscut - Any update here? Our platform depends on this library heavily. Unfortunately, we are unable to insert images with the required width and height even after adjusting different settings."
+    },
+    {
+      "author": "censys-git",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-19T23:18:14Z",
+      "reactions": 3,
+      "body": "If you do any modification to rows or columns, adding an image is like a crap shoot. I have an image that I have modified to be 96 DPI and know the pixel size height and width.\r\n\r\nUsing ext with height and width results in Excel barfing and having to fix all the images -- Drawing at sheet X...\r\n\r\nUsing tl and br produces an image scaled to 30% because I have the height of the row at 51. Setting the br.row to anything under 0 will reduce to 30%. Setting br.row to 1 or above will scale correctly. Problem is I have an image I want to fit in the row because the bottom of the row has a double border. Setting br.row to 1 overlaps the border (looks like crap). Setting br.row to 0.9999 ends up with a scale of 30% (I'm assuming because the default row height is 15 and the new height is 51 and 15/51 is 0.29999 -- guessing.\r\n\r\nIn any case, addImage is majorly buggy and should be identified as 'beta'. Certainly not covering some simple conditions of rows and columns.\r\n"
+    },
+    {
+      "author": "wattonchd",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-01T08:01:37Z",
+      "reactions": 0,
+      "body": "> do you attempt to use ` editAs: 'absolute'`?\r\n\r\n@Siemienik if I use `tl: { col: 0.2, row: r - 1 },\r\n                    ext: { width: 28, height: 28 },` not tl, br , \r\n` editAs: 'absolute'` Not working"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/12994069/69518701-90171200-0f9b-11ea-9a1e-210497432195.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/12994069/69518820-d66c7100-0f9b-11ea-995e-4b84c8901e0f.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

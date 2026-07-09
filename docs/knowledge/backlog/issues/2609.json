@@ -1,0 +1,73 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2609,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2609",
+  "title": "[BUG] Transitive Dependency Vulnerability: inflight: 1.0.6",
+  "state": "open",
+  "author": "fmaiavieira",
+  "createdAt": "2023-12-01T20:29:18Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 5,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\nTransitive Dependency Vulnerability: exceljs >  archiver > archiver-utils > glob > inflight: 1.0.6\r\n\r\nLib version: 4.4.0\r\n\r\nvulnerability: https://security.snyk.io/vuln/SNYK-JS-INFLIGHT-6095116\r\n\r\n",
+  "comments": [
+    {
+      "author": "yikenman",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-04T06:30:59Z",
+      "reactions": 1,
+      "body": "relate to https://github.com/isaacs/inflight/issues/18"
+    },
+    {
+      "author": "raffaele-moodys",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-18T12:00:34Z",
+      "reactions": 0,
+      "body": "Hi @yikenman, are you sure the issue can be related to the one in _inflight_ repo?\r\n\r\nAs far as I know the chain of dependencies is `exceljs@4.4.0 -> archiver@5.3.2 -> archiver-utils@2.1.0 -> glob@7.2.3 -> inflight@1.0.6`, but `glob` removed the `inflight` dependency since version `9.0.0`.\r\n\r\nI think the related issue is [archiverjs/archiver-utils#168](https://github.com/archiverjs/archiver-utils/issues/168) and that makes the issues in `inflight` irrelevant for this library.\r\n\r\n#### Update:\r\n\r\n[archiver@6](https://github.com/archiverjs/node-archiver/blob/master/package.json) currently updated the ***glob*** dependency from version 8 to version 10 and they dropped dependencies from ***inflight***."
+    },
+    {
+      "author": "relaxedleaf",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-29T17:50:54Z",
+      "reactions": 4,
+      "body": "Is there an update on this?"
+    },
+    {
+      "author": "henryfung3a27",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-18T04:33:00Z",
+      "reactions": 0,
+      "body": "Try https://github.com/exceljs/exceljs/issues/2829#issuecomment-2421305827"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://security.snyk.io/vuln/SNYK-JS-INFLIGHT-6095116",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/isaacs/inflight/issues/18",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/archiverjs/archiver-utils/issues/168",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/archiverjs/node-archiver/blob/master/package.json",
+      "ext": "json",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2829#issuecomment-2421305827",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

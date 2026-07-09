@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2949,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2949",
+  "title": "[BUG] Reading files with drawings/images",
+  "state": "open",
+  "author": "IhorFedoryn",
+  "createdAt": "2025-07-16T21:39:30Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\n\n<!-- A clear and concise description of what the bug is. -->\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\n\n```javascript\n// Try to read files with drawings/images\nawait new Workbook().xlsx.read(Readable.from(file.buffer));\n// Catch next errors (can't read from undefined):\n// D:\\Dev\\_github\\exceljs\\lib\\xlsx\\xform\\sheet\\worksheet-xform.js (line:494 in node_modules and line:500 in the source file)\n//Source:\n      if (match) {\n        const drawingName = match[1];\n        const drawing = options.drawings[drawingName];\n//Fix:\n      const drawingName = match[1];\n      const drawing = options.drawings[drawingName];\n      // There have cases(files) where drawing can by undefined/null\n      if (drawing && match) {\n\n<img width=\"1683\" height=\"147\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/fd3b547a-72b9-4cdc-a326-a47e35522378\" />\n\n// D:\\Dev\\_github\\exceljs\\lib\\xlsx\\xlsx.js (line:95 in node_modules and line:98 in the source file)\n//Source:\n      if (drawingRel) {\n//Fix:\n      // There have cases(files) where drawing can by undefined/null\n      if (drawing && drawingRel) {\n\n<img width=\"1679\" height=\"349\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/41dd8ed6-f170-46b5-91d3-d32eddb75a1c\" />\n\n<img width=\"436\" height=\"83\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/b54d92e6-9e3b-4e81-8e91-397b6e4980c7\" />\n\n## The expected behaviour:\n\n<!-- A clear and concise description of what you expected to happen. -->\nFile was loaded\n\n## Possible solution (optional, but very helpful):\n\n```javascript\n\n```\n",
+  "comments": [
+    {
+      "author": "IhorFedoryn",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-07-16T21:40:32Z",
+      "reactions": 0,
+      "body": "My screenshots were losts :("
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/assets/fd3b547a-72b9-4cdc-a326-a47e35522378",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/41dd8ed6-f170-46b5-91d3-d32eddb75a1c",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/b54d92e6-9e3b-4e81-8e91-397b6e4980c7",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

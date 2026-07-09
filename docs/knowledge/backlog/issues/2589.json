@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2589,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2589",
+  "title": "[BUG] getRow,getColumn,getCell --- worksheet.sth.protection is not working",
+  "state": "open",
+  "author": "wangh1998",
+  "createdAt": "2023-11-14T13:28:43Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "```js\r\nconst workbook = new Excel.Workbook()\r\nawait workbook.xlsx.readFile(filePath)\r\nconst worksheet = workbook.getWorksheet(1) // or workbook.eachSheet\r\n\r\nworksheet.getRow(1).protection = { locked: false };\r\nworksheet.getColumn(1).protection = { locked: false };\r\nworksheet.getCell('B2').protection = { locked: false };\r\n\r\nawait worksheet.protect('password')\r\n\r\nawait workbook.xlsx.writeFile(xlsxFilePath)\r\n```",
+  "comments": [],
+  "attachments": []
+}

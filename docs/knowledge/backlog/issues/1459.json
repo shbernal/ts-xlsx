@@ -1,0 +1,61 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1459,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1459",
+  "title": "render html directly into a cell",
+  "state": "open",
+  "author": "lkm1developer",
+  "createdAt": "2020-09-13T03:44:33Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 13,
+  "commentCount": 6,
+  "body": "Hi ,\r\ncan I directly render html in a cell  (don't want to use richText feature)\r\nexample \r\n worksheet.getCell('B4').value ='this is simple text';\r\n`worksheet.getCell('B5').html='<span style=\"color:red\">colored text</span><br><p>trying to render paragraph</p>' `\r\n",
+  "comments": [
+    {
+      "author": "rdzakmic",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-16T16:19:02Z",
+      "reactions": 0,
+      "body": "Yeah, same question here."
+    },
+    {
+      "author": "mohit000001",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-22T16:05:08Z",
+      "reactions": 0,
+      "body": "Same question here."
+    },
+    {
+      "author": "baptistegaut",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-07-01T10:49:46Z",
+      "reactions": 0,
+      "body": "same"
+    },
+    {
+      "author": "blazing-panda",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-22T11:47:26Z",
+      "reactions": 0,
+      "body": "same"
+    },
+    {
+      "author": "pabloherre",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-27T19:50:20Z",
+      "reactions": 0,
+      "body": "same"
+    },
+    {
+      "author": "napachandramohan",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-30T07:41:13Z",
+      "reactions": 0,
+      "body": "Hi All,\n\nAny solutions for this html render in the cell?"
+    }
+  ],
+  "attachments": []
+}

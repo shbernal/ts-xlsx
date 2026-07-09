@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 992,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/992",
+  "title": "Generate large file",
+  "state": "open",
+  "author": "sm2017",
+  "createdAt": "2019-10-24T09:18:39Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 2,
+  "body": "What is the recommended way to export large file?\r\n\r\n```js\r\nexport async function export(ctx: koa.Context) {\r\n    ctx.response.attachment(\"report.xlsx\")\r\n    ctx.status = 200\r\n\r\n    const workbook = new Excel.Workbook()\r\n    const worksheet = workbook.addWorksheet(\"report\")\r\n   \r\n\r\n    worksheet.columns = [\r\n      { header: 'Id', key: 'id', width: 10 },\r\n      { header: 'Name', key: 'name', width: 32 },\r\n      { header: 'D.O.B.', key: 'DOB', width: 10, outlineLevel: 1 }\r\n    ];\r\n\r\n\r\n  // million rows\r\n   for(const row of fetchDataFromDatabaseWithCursor()){\r\n       await worksheet.addRow(row);\r\n   }\r\n\r\n    await workbook.xlsx.write(ctx.res)\r\n    ctx.res.end()\r\n}\r\n```\r\n\r\nI have a code like the above mentioned script , I want to send file data to user in `for` loop too , not at the end of loop\r\n\r\nHow can I do it? if I move `workbook.xlsx.write` into loop it create only 1 row",
+  "comments": [
+    {
+      "author": "dtboy1995",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-06T06:17:55Z",
+      "reactions": 0,
+      "body": "same issue"
+    },
+    {
+      "author": "huy-lv",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-30T06:11:34Z",
+      "reactions": 1,
+      "body": "@sm2017 did you resolve it after 4 years :D"
+    }
+  ],
+  "attachments": []
+}

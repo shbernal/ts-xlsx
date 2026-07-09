@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1547,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1547",
+  "title": "[BUG] Corrupted Zip error during appending row",
+  "state": "open",
+  "author": "paulatsydney",
+  "createdAt": "2020-12-01T23:09:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nBelow error happens when I am trying to append a new row into existing excel. \r\nI run it in high volume concurrency, basically you can think my script calls web-service to get a return json object, transform json object and insert into excel. \r\nMost time it works fine, but the error occurs after hundreds executions, not always the same time.\r\n![image](https://user-images.githubusercontent.com/46672720/100806937-8022ef80-3485-11eb-9ca0-2c11b0266d1c.png)\r\n\r\n\r\nLib version: 4.2.0\r\n\r\n## Steps To Reproduce\r\n\r\nBelow code is responsible for appending jsonData into the last row of excel file. \r\nFYI. I use async-lock package (v1.2.4) to ensure data consistency, other \"threads\" are unable to read excel until lock is released.\r\n\r\n```javascript\r\nasync function addRowWithJson(filePath, jsonData) {\r\n  await lock\r\n    .acquire(\"excelKey\", async function () {\r\n      console.log(\"Acquire lock to write excel\");\r\n      const workbook = new ExcelJS.Workbook();\r\n      await workbook.xlsx.readFile(filePath);\r\n\r\n      let worksheet = workbook.getWorksheet(sheetName);\r\n      worksheet.columns = columnSetting;\r\n      const row = worksheet.addRow(jsonData);\r\n      row.alignment = { vertical: \"bottom\", horizontal: \"center\" };\r\n\r\n      await workbook.xlsx.writeFile(filePath);\r\n      console.log(\"Row added\");\r\n    })\r\n    .then(function () {\r\n      console.log(\"Release lock\");\r\n    })\r\n    .catch((error) => {\r\n      return Promise.reject(error);\r\n    });\r\n}\r\n```\r\n\r\n\r\nI want to understand why it happens, then think about how to fix it. Therefore any thoughts is quite welcomed.\r\n",
+  "comments": [
+    {
+      "author": "7odri9o",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-04-02T01:16:30Z",
+      "reactions": 0,
+      "body": "same error."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/46672720/100806937-8022ef80-3485-11eb-9ca0-2c11b0266d1c.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

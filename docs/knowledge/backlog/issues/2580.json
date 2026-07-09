@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2580,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2580",
+  "title": "[BUG] addImage function is not working as expected in version 4.4.0",
+  "state": "open",
+  "author": "premjo",
+  "createdAt": "2023-11-02T13:10:13Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nGenerating the excel with image is broken in version 4.4.0, I have scenario where we need to add image into each row of the column. I have used the function addImage. \r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\nThe below code generate the excel sheet, which would have headers (Column 1, Column 2, Column 3) along with data row with respective header. But the generated excel is broken, the images miss aligned in order and size.  \r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n![image](https://github.com/exceljs/exceljs/assets/39150323/0c12d818-f3f3-4d0b-beb8-66648caf6391)\r\n\r\n\r\n```javascript\r\nconst ExcelJs = require('exceljs');\r\nconst path = require('path');\r\nconst items = [\r\n    { col1: \"abc\", col2: new Date(), col3: \"dummyImage.jpg\" },\r\n    { col1: \"dummy1\", col2: new Date(), col3: \"dummyImage.jpg\" },\r\n    { col1: \"dummy2\", col2: new Date(), col3: \"dummyImage.jpg\" }\r\n]\r\nconst generateExcel = async () => {\r\n    const workbook = new ExcelJs.Workbook();\r\n    let ws = workbook.addWorksheet('my first worksheet');\r\n    ws.columns = [\r\n        { header: 'column 1', key: 'col1' },\r\n        { header: 'column 2', key: 'col2' },\r\n        { header: 'column 3', key: 'col3' }\r\n    ];\r\n    ws.getRow(1).eachCell((cell) => {\r\n        cell.fill = {\r\n            type: 'pattern',\r\n            pattern: 'solid',\r\n            fgColor: { argb: '0082f0' }\r\n        };\r\n        cell.font = { bold: true, color: { argb: 'fafafa' } }\r\n    })\r\n    // add a filter to the header row\r\n    ws.autoFilter = 'A1:C1';\r\n    // freeze the header row\r\n    ws.views = [\r\n        { state: 'frozen', xSplit: 0, ySplit: 1, topLeftCell: 'A2', activeCell: 'A2' }\r\n    ];\r\n    let rowPos = 2;\r\n    for (let item of items) {\r\n        ws.addRow({\r\n            col1: item.col1,\r\n            col2: item.col2\r\n        })\r\n        if (item.col3) {\r\n            const imageId = workbook.addImage({\r\n                filename: path.join('images', item.col3),\r\n                extension: 'jpeg',\r\n            });\r\n            let cellName = `C${rowPos}:C${rowPos}`;\r\n            ws.addImage(imageId, cellName);\r\n        }\r\n        let lastRow = ws.lastRow;\r\n        lastRow.height = 115;\r\n        rowPos++;\r\n    }\r\n    const filename = `todo.xlsx`;\r\n    await workbook.xlsx.writeFile(filename);\r\n    return filename;\r\n}\r\ngenerateExcel();\r\n```\r\n\r\n## The expected behaviour:\r\n![image](https://github.com/exceljs/exceljs/assets/39150323/9d84b954-b8bf-4bcf-90f7-8e895c3b5dac)\r\nThis is output of the exceljs version 4.3.0 with same above code\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\nThe excel which get generated should have sheet with three columns and each row data get align with respective order along with image.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "motinados",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-18T06:16:07Z",
+      "reactions": 0,
+      "body": "Due to changes in anchor.js (https://github.com/exceljs/exceljs/pull/1934) , it seems that a new row may be added when using addImage. \r\nUntil this is fixed, it is advisable to explicitly specify the row to use when employing addImage.\r\nFor instance, the following code should work.\r\n\r\n```js\r\nlet rowPos = 2;\r\nfor (let item of items) {\r\n  const imageId = workbook.addImage({\r\n    filename: path.join(\"images\", item.col3),\r\n    extension: \"jpeg\",\r\n  });\r\n  let cellName = `C${rowPos}:C${rowPos}`;\r\n  ws.addImage(imageId, cellName);\r\n\r\n  const row = ws.getRow(rowPos);\r\n  row.values = [item.col1, item.col2];\r\n  row.height = 115;\r\n\r\n  rowPos++;\r\n}\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/39150323/0c12d818-f3f3-4d0b-beb8-66648caf6391",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/39150323/9d84b954-b8bf-4bcf-90f7-8e895c3b5dac",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/1934",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

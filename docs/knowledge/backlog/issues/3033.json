@@ -1,0 +1,29 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3033,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/3033",
+  "title": "Untrusted impersonation of the project at exceljs.org",
+  "state": "open",
+  "author": "zerobitflux",
+  "createdAt": "2026-04-05T18:51:11Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## ⚠️ Warning: This project is being impersonated\n\nAn untrusted website at **[exceljs.org](https://exceljs.org)** is impersonating this project. The site poses as an official resource. While it currently links to GitHub for downloads, **the site operator can replace these links with malicious files at any moment** without warning.\n\n### What the site does\n\n- Copies the project name, description, and branding to appear legitimate\n- Currently links to GitHub downloads, but these links are **under the site operator's control and can be swapped out at any time**\n- May collect user data or serve tampered downloads in the future\n\n### How this was discovered\n\nThis domain was found as part of a broader investigation into a network of impersonation sites targeting open-source projects. Many of these sites share the same infrastructure and template.\n\n### Recommended actions\n\nFor steps on how to report this site and request a DMCA takedown, see:\n**https://gist.github.com/zerobitflux/57f3791086e18481030df9c204b323fe**\n\n---\n\n*This issue was created to alert maintainers. If you believe this was filed in error, please close it with a comment.*\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://exceljs.org",
+      "ext": "org",
+      "isFixture": false
+    },
+    {
+      "url": "https://gist.github.com/zerobitflux/57f3791086e18481030df9c204b323fe**",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

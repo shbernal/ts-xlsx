@@ -1,0 +1,73 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1529,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1529",
+  "title": "Conditional formatting \"Data Bar\" example",
+  "state": "open",
+  "author": "L1Odev",
+  "createdAt": "2020-11-11T10:17:46Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 4,
+  "body": "## 💬 Questions and Help\r\n\r\nPlease, can you provide any example how to use Data Bar option in Conditional formatting?\r\nhttps://github.com/exceljs/exceljs#data-bar\r\n\r\nI tried this\r\n`\r\nworksheet.addConditionalFormatting({\r\n      ref: 'A1:E7',\r\n      rules: [\r\n        {\r\n          priority: 0,\r\n          type: 'dataBar',\r\n          minLength: 0,\r\n          maxLength: 100,\r\n          showValue: true,\r\n          gradient: false,\r\n          border: true,\r\n          negativeBarColorSameAsPositive: true,\r\n          negativeBarBorderColorSameAsPositive: true,\r\n          axisPosition: 'auto',\r\n          direction: 'leftToRight',\r\n          cfvo: [{type: 'percent', value: 0}],\r\n          style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FF00FF00'}}},\r\n        }\r\n      ]\r\n    });\r\n`\r\n\r\nbut after saving my excel file always invalid \r\n\r\nerror message (in russian)\r\n`<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"true\"?>\r\n\r\n-<recoveryLog xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">\r\n\r\n<logFileName>error021240_01.xml</logFileName>\r\n\r\n<summary>Обнаружены ошибки в файле \"D:\\PivotGrid (38).xlsx\"</summary>\r\n\r\n\r\n-<repairedParts>\r\n\r\n<repairedPart>Восстановленный компонент: часть /xl/worksheets/sheet1.xml с ошибкой XML. Разрушительный сбой Строка 2, столбец 0.</repairedPart>\r\n\r\n</repairedParts>\r\n\r\n</recoveryLog>`\r\n\r\n",
+  "comments": [
+    {
+      "author": "BjoernBoba",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-06T17:21:55Z",
+      "reactions": 0,
+      "body": "Hi,\r\n\r\nwere you able to solve this and create a working example in the meantime?\r\nBecause I am also struggling to find a working solution.\r\n\r\nThanks :-)"
+    },
+    {
+      "author": "tearfur",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-08-10T03:02:56Z",
+      "reactions": 0,
+      "body": "This worked for me... It seems like their documentation is outright wrong on this part\r\n\r\n```js\r\nws.addConditionalFormatting({\r\n    ref: \"A1:B4\",\r\n    rules: [\r\n        {\r\n            type: \"dataBar\",\r\n            minLength: 10,\r\n            cfvo: [{type: \"min\"}, {type: \"max\"}],\r\n            color: {argb: \"FFFF5050\"}\r\n        }\r\n    ]\r\n});\r\n```\r\n\r\nI found out from here: https://www.gitmemory.com/issue/exceljs/exceljs/1163/836431274"
+    },
+    {
+      "author": "ctheiss",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-06T16:13:10Z",
+      "reactions": 1,
+      "body": "This databar works for me: values are clamped to -20,000...20,000 and show red for negative, green for positive, with a dark gray axis in the middle.\r\n\r\n   ```js\r\n ws.addConditionalFormatting({\r\n        ref: `D2:D${sheet.rowCount}`,\r\n        rules: [\r\n            {\r\n                type: \"dataBar\",\r\n                gradient: false,\r\n                border: false,\r\n                negativeBarColorSameAsPositive: false,\r\n                cfvo: [ { type:'num', value:-20000 }, { type:'num', value:20000 } ],\r\n                color: { argb:'40DD4A' },\r\n                negativeFillColor: { argb:'FF0000' },\r\n                axisColor: { argb:'4D4D4D' }\r\n            }\r\n        ]\r\n    });\r\n```\r\n\r\nI figured this out by examining the code here: https://github.com/exceljs/exceljs/blob/ec92cb3b898bdf7f806ff9d7b8370c955ee8ba20/lib/xlsx/xform/sheet/cf-ext/databar-ext-xform.js#L36-L59\r\n\r\nand comparing with an \"unzipped\" XLSX file."
+    },
+    {
+      "author": "lamminhthien",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-10T04:59:07Z",
+      "reactions": 0,
+      "body": "> This databar works for me: values are clamped to -20,000...20,000 and show red for negative, green for positive, with a dark gray axis in the middle.\r\n> \r\n> ```js\r\n> ws.addConditionalFormatting({\r\n>      ref: `D2:D${sheet.rowCount}`,\r\n>      rules: [\r\n>          {\r\n>              type: \"dataBar\",\r\n>              gradient: false,\r\n>              border: false,\r\n>              negativeBarColorSameAsPositive: false,\r\n>              cfvo: [ { type:'num', value:-20000 }, { type:'num', value:20000 } ],\r\n>              color: { argb:'40DD4A' },\r\n>              negativeFillColor: { argb:'FF0000' },\r\n>              axisColor: { argb:'4D4D4D' }\r\n>          }\r\n>      ]\r\n>  });\r\n> ```\r\n> \r\n> I figured this out by examining the code here:\r\n> \r\n> https://github.com/exceljs/exceljs/blob/ec92cb3b898bdf7f806ff9d7b8370c955ee8ba20/lib/xlsx/xform/sheet/cf-ext/databar-ext-xform.js#L36-L59\r\n> \r\n> and comparing with an \"unzipped\" XLSX file.\r\n\r\nThanks you so much,\r\nI can use border from"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs#data-bar",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.gitmemory.com/issue/exceljs/exceljs/1163/836431274",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/ec92cb3b898bdf7f806ff9d7b8370c955ee8ba20/lib/xlsx/xform/sheet/cf-ext/databar-ext-xform.js#L36-L59",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/ec92cb3b898bdf7f806ff9d7b8370c955ee8ba20/lib/xlsx/xform/sheet/cf-ext/databar-ext-xform.js#L36-L59",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

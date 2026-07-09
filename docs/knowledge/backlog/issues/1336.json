@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1336,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1336",
+  "title": "[BUG] It will make a problem when set column print area",
+  "state": "open",
+  "author": "qmhc",
+  "createdAt": "2020-06-17T08:24:52Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\nI created a new xlsx file without any content, but only set some column for a print area.\r\n\r\nlike this:\r\n\r\n![image](https://user-images.githubusercontent.com/40221744/84871302-f2a83a80-b0b2-11ea-9ef7-b237ed5eb1bf.png)\r\n\r\nLib version: 4.0.1\r\nMS Excel version: 2016\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```typescript\r\nimport { Workbook } from 'exceljs'\r\n\r\nasync function createWorkbook () {\r\n  const workbook = new Workbook()\r\n\r\n  await workbook.xlsx.readFile('a-template-excel-path.xlsx')\r\n  await workbook.xlsx.writeFile('other-or-new-excel.xlsx')\r\n}\r\n\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\nOpen the export excel then I got popup like this.\r\n\r\n![image](https://user-images.githubusercontent.com/40221744/84872343-5bdc7d80-b0b4-11ea-95f0-a402ef5af1a4.png)\r\n\r\nEN: Some contents in this file are found to be defective. Whether try to recover as much content as we can. If you trust where the file came from, click 'yes'.\r\n\r\nThere will be no such problem if use a limited area for a print area, like this:\r\n\r\n![image](https://user-images.githubusercontent.com/40221744/84874079-a8c15380-b0b6-11ea-8199-a9da5eb40e66.png)\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nOne more, all exported xlsx files will prompt me to save on the first exist (without any change), and it will be about 4k larger after the first save.\r\n",
+  "comments": [
+    {
+      "author": "decentraliser",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-05T05:15:56Z",
+      "reactions": 0,
+      "body": "Same issue here!"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/40221744/84871302-f2a83a80-b0b2-11ea-9ef7-b237ed5eb1bf.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/40221744/84872343-5bdc7d80-b0b4-11ea-95f0-a402ef5af1a4.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/40221744/84874079-a8c15380-b0b6-11ea-8199-a9da5eb40e66.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

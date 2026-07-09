@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1545,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1545",
+  "title": "[BUG] Windows Edge browser Promise finally undefined when import exceljs package",
+  "state": "open",
+  "author": "lidianhao123",
+  "createdAt": "2020-11-30T10:16:50Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.2.0\r\nMicrosoft Edge: 44.18362.449.0\r\nMicrosoft EdgeHTML: 18.18362\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nimport React from \"react\";\r\nimport \"./styles.css\";\r\nimport ExcelJs from \"exceljs/dist/exceljs\";\r\n\r\nconsole.log(Promise.prototype.finally); // print undefined\r\nexport default function App() {\r\n  return (\r\n    <div className=\"App\">\r\n      <h1>https://codesandbox.io/s/exceljs-finally-bug-9yclv</h1>\r\n      <h2>Start editing to see some magic happen!</h2>\r\n    </div>\r\n  );\r\n}\r\n```\r\n\r\nwhen run above code in Edge browser, will show undefined\r\n<img width=\"1112\" alt=\"B46F4A14-3276-4dce-A7D1-DE2280FF1B67\" src=\"https://user-images.githubusercontent.com/7970645/100597046-e6016100-3337-11eb-9cce-c702d2e21ee2.png\">\r\n\r\n\r\nfull code can see [codesandbox exceljs-finally-bug-9yclv](https://codesandbox.io/s/exceljs-finally-bug-9yclv)\r\n\r\nyou can download the code and run `yarn start`, then visit localhost:3000 in Edge browser.\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\nPromise finally can be correctly after import exceljs package\r\n",
+  "comments": [
+    {
+      "author": "thetilliwilli",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-19T11:28:01Z",
+      "reactions": 0,
+      "body": "same issue in Internet Explorer Version 21H1 (OS Build 19043.1466)"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://codesandbox.io/s/exceljs-finally-bug-9yclv",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/7970645/100597046-e6016100-3337-11eb-9cce-c702d2e21ee2.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://codesandbox.io/s/exceljs-finally-bug-9yclv",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

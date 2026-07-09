@@ -1,0 +1,61 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2012,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2012",
+  "title": "Merge Cell is causing Excel Issue.",
+  "state": "open",
+  "author": "RastogiNishant",
+  "createdAt": "2022-03-16T08:29:16Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 3,
+  "body": "### Discussed in https://github.com/exceljs/exceljs/discussions/2011\r\n\r\n<div type='discussions-op-text'>\r\n\r\n<sup>Originally posted by **RastogiNishant** March 16, 2022</sup>\r\nHey There,\r\n\r\nI'm using exceljs lib on the frontend, in which I need to show something like as below.\r\n\r\nFirst Row --> Column 1 will have empty name (A1), Column 2-7(B1-G1) will be merged cell having some name.\r\nSecond Row --> Column 1 will have Serial Number (A2), Column 2-7 will have different header for each B2-G2.\r\n\r\nSo if I use merge cell then after opening the excel, I got an alert saying that 'We found a problem with some content in FileName.xlsx. Do you want us to try to recover as much as we can?.\r\n\r\nIf we select yes then it works fine, however If I don't user mergeCell then it works fine but the requirement is not achieved in that case?.\r\n\r\nPlease suggest, how can I proceed further.\r\nSharing Snap as well.\r\n\r\nSnap 1(Requirement) as below --\r\n<img width=\"657\" alt=\"image\" src=\"https://user-images.githubusercontent.com/93122635/158547846-7d9945aa-6283-4b79-8fbc-ab4e049c0f0c.png\">\r\n \r\nSnap 2 (Error) as below -\r\n<img width=\"333\" alt=\"image\" src=\"https://user-images.githubusercontent.com/93122635/158547977-6a187e9a-62f2-43e6-9531-cb9ae93d6de8.png\">\r\n</div>",
+  "comments": [
+    {
+      "author": "Slash214",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-22T09:15:32Z",
+      "reactions": 0,
+      "body": "Hello, I have also encountered this warning at present, and would like to ask whether you have solved it?"
+    },
+    {
+      "author": "RastogiNishant",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-22T09:35:32Z",
+      "reactions": 1,
+      "body": "@Slash214 I added empty text in column and then I merge it with mergeCell.\r\n\r\nFor example. \r\nA1 = 'ID'\r\nB1 = ''\r\n\r\nC1 = 'Location'\r\nD1 = ''\r\nupto H1 = ''\r\n\r\n`const row = ['ID', '', 'Location', '', '', '', '', '']`\r\n\r\n`worksheet.addRow(row)`\r\n\r\nthen I just called mergeCell as below in order to merge the header and centralised the text.\r\n\r\n  ```\r\nconst mergeColumnAsHeader = (instance, fromCell, toCell) => {\r\n  const cellAlignment = { horizontal: 'center', vertical: 'middle' }\r\n  const mergeColumns = (sheetRef) => {\r\n    sheetRef.mergeCells(fromCell, toCell)\r\n    sheetRef.getCell(fromCell).style.alignment = cellAlignment\r\n  }\r\n  instance && mergeColumns(instance)\r\n}\r\n```\r\n\r\nCalling the method as\r\n`mergeColumnAsHeader(worksheet, 'A1', 'B1')`\r\n\r\nIt worked for me, hope it will solve your issue as well.\r\n<img width=\"990\" alt=\"image\" src=\"https://user-images.githubusercontent.com/93122635/185890101-7493d99f-b3e4-499d-809e-4beba0a20ef1.png\">\r\n"
+    },
+    {
+      "author": "Slash214",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-22T09:51:07Z",
+      "reactions": 2,
+      "body": "Thank you very much for your answer, which is very helpful to me. \r\nAt the same time,\r\nI find that my problem is to add the warning of the emergence of tables.\r\nIf   worksheet. AddRows (data) is used to generate and merge, \r\nthere will be no warning of Excel flavor. Thank you very much\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/discussions/2011",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/93122635/158547846-7d9945aa-6283-4b79-8fbc-ab4e049c0f0c.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/93122635/158547977-6a187e9a-62f2-43e6-9531-cb9ae93d6de8.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/93122635/185890101-7493d99f-b3e4-499d-809e-4beba0a20ef1.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

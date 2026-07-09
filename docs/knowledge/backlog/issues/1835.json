@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1835,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1835",
+  "title": "[BUG] DefinedName and localSheetId lost when workBook.xlsx.load",
+  "state": "open",
+  "author": "master-maintenance1-peer-connect",
+  "createdAt": "2021-09-13T12:42:14Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report!\r\nExcept for print_title, DefinedName and localSheetId are lost.\r\nLib version: exceljs@4.2.1\r\n\r\n## Steps To Reproduce\r\n\r\n 1. make EXCEL-book by MS-EXCEL that's Named ranges with the same name on different pages.\r\n 2. Load the XLSX-Book-file in exceljs and write it. \r\n　　(Nothing changes XLSX-object, as shown in the javascript-code at the bellow)\r\n 3.  Compare the contents of the /xl/workbook.xml in the excel-book zip directory  to before load and after write.\r\n   Please see the attached figure.\r\n   Except for print_title, DefinedName and localSheetId are lost. \r\n\r\n```javascript code\r\nvar workBook1 = new ExcelJS.Workbook();\r\nworkBook1.xlsx.load(fileData1)\r\n .then(workBook2 => {\r\n    console.log(\"at loaded definedName id lost:\", workBook2)\r\n    return  workBook2.xlsx.writeBuffer()\r\n                 .then(wbout1 => {\r\n                      saveAs(new Blob([wbout1], { type: \"application/octet-stream\" }), newBookName);\r\n                  });\r\n                });\r\n           })\r\n```\r\n\r\n * Compared the contents:\r\n![exceljs-lost-definedNames-bug3](https://user-images.githubusercontent.com/64691446/133082709-29799867-f021-4b0f-9d12-17807de55326.png)\r\n\r\n## The expected behaviour:\r\n\r\n- Expect the DefinedName and localSheetId not to be lost. \r\n-  Similar to MS-excel, which allows exceljs-API to define named ranges with the same name on different pages. \r\n-  I also hope that the following issues will be resolved.\r\n    https://github.com/exceljs/exceljs/issues/1497\r\n    https://github.com/exceljs/exceljs/issues/393\r\n\r\n## Possible solution (optional, but very helpful):\r\n　None, for long times.",
+  "comments": [
+    {
+      "author": "a-ledu",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-11T11:31:13Z",
+      "reactions": 0,
+      "body": "+1"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/64691446/133082709-29799867-f021-4b0f-9d12-17807de55326.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1497",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/393",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

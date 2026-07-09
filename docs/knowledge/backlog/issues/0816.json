@@ -1,0 +1,68 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 816,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/816",
+  "title": "document scale (width only) is different after read & write",
+  "state": "open",
+  "author": "dogusev",
+  "createdAt": "2019-05-15T20:21:47Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "Hi!\r\nFaced with a very strange issue:\r\nWhen I read the document and write it back as a new file without any changes width of columns became different.\r\nInput:\r\n<img width=\"1400\" alt=\"input\" src=\"https://user-images.githubusercontent.com/6179780/57806447-d3c8cd80-7767-11e9-93ad-e6c09d90eb70.png\">\r\noutput:\r\n<img width=\"1400\" alt=\"output\" src=\"https://user-images.githubusercontent.com/6179780/57806488-e511da00-7767-11e9-8ae0-0b388bea6d93.png\">\r\n\r\n\r\nhere is input file\r\n[tov.xlsx](https://github.com/exceljs/exceljs/files/3184310/tov.xlsx)\r\n",
+  "comments": [
+    {
+      "author": "dogusev",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2019-05-21T20:29:32Z",
+      "reactions": 0,
+      "body": "it seems that height also changed.\r\nProbably related to Dpi parsing.\r\n\r\n@guyonroche could you please take a look at this issue? It's quite critical for me.\r\n\r\n\r\nWhat currently I found:\r\n 1. In output document lost properties: \r\n    ```\r\n    pageSetup.fitToPage\r\n    useFirstPageNumber\r\n    ```\r\n2. in both (input output) parsed documents data set to default `horizontalDpi: 4294967295,\r\n  verticalDpi: 4294967295,`"
+    },
+    {
+      "author": "dogusev",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2019-06-04T22:01:37Z",
+      "reactions": 0,
+      "body": "this is kind of \"dirty hack\", to prevent such issues\r\nseems that wrong units used\r\n```\r\nworkbook.eachSheet(function(worksheet, sheetId) {\r\n                worksheet._columns.forEach((cl) => { cl.width = cl.width/2*1.3148148148148149; } );\r\n              });\r\n```"
+    },
+    {
+      "author": "dogusev",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2019-06-10T21:46:11Z",
+      "reactions": 0,
+      "body": "https://github.com/exceljs/exceljs/pull/854"
+    },
+    {
+      "author": "remi-guan",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-04-29T16:01:07Z",
+      "reactions": 0,
+      "body": "This bug is still existed, the column's width seems to be auto resized to the width of it's content.\r\n\r\nHowever, this hack works good.\r\n\r\n> this is kind of \"dirty hack\", to prevent such issues seems that wrong units used\r\n> \r\n> ```\r\n> workbook.eachSheet(function(worksheet, sheetId) {\r\n>                 worksheet._columns.forEach((cl) => { cl.width = cl.width/2*1.3148148148148149; } );\r\n>               });\r\n> ```\r\n\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/6179780/57806447-d3c8cd80-7767-11e9-93ad-e6c09d90eb70.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/6179780/57806488-e511da00-7767-11e9-8ae0-0b388bea6d93.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/3184310/tov.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/854",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

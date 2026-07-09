@@ -1,0 +1,104 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 510,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/510",
+  "title": "Using exceljs in a browser",
+  "state": "open",
+  "author": "BeginnerJS",
+  "createdAt": "2018-03-04T19:38:53Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 7,
+  "body": "How to include exceljs in a browser. There isn't any prebundled files in the folder (exceljs.js\r\nexceljs.min.js)....\r\n\r\nThank you in advance!",
+  "comments": [
+    {
+      "author": "TomWagg",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-03-08T02:13:56Z",
+      "reactions": 1,
+      "body": "I'm also a little confused by how to implement this, I know the docs say to follow the spec but are we supposed to use browserify on this, if so how exactly?\r\nSorry if this is obvious, I'm fairly new to the idea of node, I've only ever really done things within the browser. I'm trying to use this in a chrome extension and if that can be done with the node version as opposed to the browser I would be happy to learn how if someone could point me in the right direction!\r\nThanks very much for making this, it will be such a useful tool!"
+    },
+    {
+      "author": "fidoogle",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-03-14T15:22:55Z",
+      "reactions": 4,
+      "body": "https://cdnjs.com/libraries/exceljs"
+    },
+    {
+      "author": "grbspltt",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-03-29T20:53:53Z",
+      "reactions": 6,
+      "body": "I'm using this library in a create-react-app typescript project and didn't want to expose globally.  \r\nI'm requiring the library like this:\r\n`const Excel = require('exceljs/dist/es5/exceljs.browser');`\r\nHope this helps."
+    },
+    {
+      "author": "bedsDev",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-11-02T16:07:43Z",
+      "reactions": 0,
+      "body": "> https://cdnjs.com/libraries/exceljs\r\n\r\nI use this one + HTML 5 File APIs to migrate my codes from server side to client side."
+    },
+    {
+      "author": "i365",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-07-05T02:07:30Z",
+      "reactions": 3,
+      "body": "\r\nimport exceljs from cdn: https://cdn.jsdelivr.net/npm/exceljs@1.12.1/dist/exceljs.min.js\r\nread xlsx file and parse it:\r\n```\r\nworkbook.xlsx.load(arrayBuffer).then()\r\n```\r\n\r\n[Using exceljs.js in a web browser](https://jstool.gitlab.io/demo/exceljs/)"
+    },
+    {
+      "author": "jimmywarting",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-05T13:21:28Z",
+      "reactions": 0,
+      "body": "Exceljs seems fine and dandy, can parse & generate excel and other stuff\r\nbut is there any visual editor that allows visitor to edit files? similar to google sheet or [x-spreadsheet](https://github.com/myliang/x-spreadsheet)?\r\n\r\nx-spreadsheet didn't seem to support image in cell's https://github.com/myliang/x-spreadsheet/issues/223\r\n\r\nknow that it's not ExcelJS responsibility to do visual UI stuff but is there any tool that utilize ExcelJS to embed an editor? "
+    },
+    {
+      "author": "softboy99",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-20T01:39:00Z",
+      "reactions": 0,
+      "body": "with https://cdnjs.com/libraries/exceljs, chrome said it is not a utf-8 file, but in notepad++, it is a utf-8 infact"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://cdnjs.com/libraries/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://cdnjs.com/libraries/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://cdn.jsdelivr.net/npm/exceljs@1.12.1/dist/exceljs.min.js",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://jstool.gitlab.io/demo/exceljs/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/myliang/x-spreadsheet",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/myliang/x-spreadsheet/issues/223",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://cdnjs.com/libraries/exceljs",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

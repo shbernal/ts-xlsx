@@ -1,0 +1,54 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2896,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2896",
+  "title": "[BUG] Place base64 Image In Cell",
+  "state": "open",
+  "author": "Amiram-Abergel",
+  "createdAt": "2025-03-04T08:13:47Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\nWhen using the Workbook.addImage function in ExcelJS, setting the editAs property to 'oneCell', 'absolute', or leaving it undefined does not produce the expected behavior in Microsoft Excel or LibreOffice. The images do not move or resize with the cells as intended. However, the desired behavior is observed when opening the file in Google Sheets. The goal is to have the image \"placed in cell\" or \"Move and Size with cells\".\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n1. Create a new workbook and add a worksheet.​[github.com](https://github.com/exceljs/exceljs/issues/2096)\n2. Add an image to the workbook.​\n3. Insert the image into the worksheet using the `addImage` function with the `editAs` property set to `oneCell`, `absolute`, or `undefined`.​\n4. Save and open the workbook in Microsoft Excel or LibreOffice.\n\n\n```javascript\nconst ExcelJS = require('exceljs');\nconst workbook = new ExcelJS.Workbook();\nconst worksheet = workbook.addWorksheet('Sheet1');\n\n// Add your image to the workbook\nconst imageId = workbook.addImage({\n  base64: base64,\n  extension: 'png',\n});\n\n// Define the position and size of the image\nworksheet.addImage(imageId, {\n  tl: { col: 1, row: 1 }, // Top-left corner\n  br: { col: 3, row: 5 }, // Bottom-right corner\n  editAs: 'oneCell', // Also tested with 'absolute' and undefined\n});\n\n// Save the workbook\nawait workbook.xlsx.writeFile('output.xlsx');\n```\n\n## The expected behaviour:\n\nThe image should move and resize with the cells when the editAs property is set to `oneCell` or `undefined`. \nIn Microsoft Excel and LibreOffice, the image does not move or resize with the cells as expected. The behavior is inconsistent with the settings of the editAs property. However, in Google Sheets, the image behaves as intended.\n\n​Additional Context:​\n This issue seems to be related to previously reported problems, such as\n[Issue #2196](https://github.com/exceljs/exceljs/issues/2196) and [Issue #2777](https://github.com/exceljs/exceljs/issues/2777), where the editAs property did not function as expected.\n\n## Possible solution (optional, but very helpful):\n\n```javascript\n\n```\n\nhttps://github.com/user-attachments/assets/745779f8-05dc-4c58-8d2e-9787c2536575\n",
+  "comments": [
+    {
+      "author": "yu-zhipeng",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-26T07:34:01Z",
+      "reactions": 0,
+      "body": "Hi I'm also experiencing the same issue. may I ask how it was resolved?"
+    },
+    {
+      "author": "Amiram-Abergel",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-26T08:41:22Z",
+      "reactions": 0,
+      "body": "> Hi I'm also experiencing the same issue. may I ask how it was resolved?\n\nUnfortunately, it is still not resolved, the bug is still open..."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2096",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2196",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/2777",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/745779f8-05dc-4c58-8d2e-9787c2536575",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

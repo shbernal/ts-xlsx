@@ -1,0 +1,31 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1492,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1492",
+  "title": "[BUG] Cannot read property 'F_OK' of undefined",
+  "state": "open",
+  "author": "watanabethais",
+  "createdAt": "2020-10-07T13:24:20Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "Hi!\r\n\r\nI'm trying to use @Siemienik [xlsx-renderer](https://github.com/Siemienik/xlsx-renderer) library with React, like this:\r\n```javascript\r\nimport { Renderer } from \"xlsx-renderer\";\r\n// ...\r\n async function testingXlsxRenderer() {\r\n    const renderer = new Renderer();\r\n    const viewModel = {\r\n      title: \"testing\",\r\n      items: [/*.. my array ..*/],\r\n    };\r\n    const result = await renderer.renderFromFile(\r\n      \"./hts-template.xlsx\",\r\n      viewModel\r\n    );\r\n    await result.xlsx.writeFile(\"./my-awesome-report.xlsx\");\r\n  }\r\n```\r\n\r\nBut I'm getting the following error:\r\n```\r\nUncaught (in promise) TypeError: Cannot read property 'F_OK' of undefined\r\n    at exceljs.min.js:3\r\n    at new Promise (<anonymous>)\r\n    at Object.exists (exceljs.min.js:3)\r\n    at e.<anonymous> (exceljs.min.js:3)\r\n...\r\n```\r\n\r\nWhen using:\r\n\"react\": \"^16.13.1\",\r\n\"xlsx-renderer\": \"^2.2.3\"\r\n\r\nxlsx-renderer's exceljs version: \"3.8.1\"\r\n\r\n**EDIT:** related to https://github.com/Siemienik/xlsx-renderer/issues/13#issuecomment-704589977",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/Siemienik/xlsx-renderer",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/Siemienik/xlsx-renderer/issues/13#issuecomment-704589977",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

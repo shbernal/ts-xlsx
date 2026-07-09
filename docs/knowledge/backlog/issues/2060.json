@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2060,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2060",
+  "title": "having issues on the item which has 387 options",
+  "state": "open",
+  "author": "YanLIU0822",
+  "createdAt": "2022-05-16T03:01:17Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 💬 Questions and Help\r\nThe column item with 387 options leads to a crash, therefore this item doesn't show the dropdown options in excel. Please help me out on showing 387 dropdown options.\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-28T15:51:55Z",
+      "reactions": 0,
+      "body": "@YanLIU0822 Can you post the code? And by the way, would you like a screenshot or excel file of the excel project?"
+    }
+  ],
+  "attachments": []
+}

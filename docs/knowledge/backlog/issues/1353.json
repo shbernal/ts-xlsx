@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1353,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1353",
+  "title": "Unit test cases are failing because of exceljs",
+  "state": "open",
+  "author": "jitendernegi",
+  "createdAt": "2020-06-24T10:30:42Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "Unit test cases are failing because of exceljs and error is :\r\n\r\n Error: Zone.js has detected that ZoneAwarePromise `(window|global).Promise` has been overwritten.\r\n        Most likely cause is that a Promise polyfill has been loaded after Zone.js (Polyfilling Promise api is not necessary when zone.js is loaded. If you must load one, do so before loading zone.js.)\r\n            at Function.Zone.assertZonePatched (webpack:///./node_modules/zone.js/dist/zone.js?:57:23)\r\n            at new NgZone (webpack:///./node_modules/@angular/core/fesm5/core.js?:3993:14)\r\n            at TestBed._initIfNeeded (webpack:///./node_modules/@angular/core/fesm5/testing.js?:1008:22)\r\n            at TestBed.execute (webpack:///./node_modules/@angular/core/fesm5/testing.js?:1093:14)\r\n            at UserContext.eval (webpack:///./node_modules/@angular/core/fesm5/testing.js?:1246:45)\r\n            at ZoneDelegate.invoke (webpack:///./node_modules/zone.js/dist/zone.js?:390:26)\r\n            at ProxyZoneSpec.onInvoke (webpack:///./node_modules/zone.js/dist/zone-testing.js?:288:39)\r\n            at ZoneDelegate.invoke (webpack:///./node_modules/zone.js/dist/zone.js?:389:52)\r\n            at Zone.run (webpack:///./node_modules/zone.js/dist/zone.js?:149:43)\r\n            at runInTestZone (webpack:///./node_modules/zone.js/dist/zone-testing.js?:509:34)\r\nHeadlessChrome 83.0.4103 (Windows 10.0.0): Executed 1 of 1602 (1 FAILED) (0 secs / 0.063 secs)\r\nHeadlessChrome 83.0.4103 (Windows 10.0.0) LoaderService should be created FAILED",
+  "comments": [
+    {
+      "author": "Subhajitdas298",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2020-06-25T00:07:47Z",
+      "reactions": 0,
+      "body": "Similar to #1008.\r\nThis may help"
+    },
+    {
+      "author": "jitendernegi",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-25T05:04:42Z",
+      "reactions": 0,
+      "body": "> Similar to #1008.\r\n> This may help\r\n\r\nThanks for reply but the thread you mentioned, i have already gone through but no luck. Issue still persist. \r\nAlso i have tried multiple ways as mentioned in different blogs but no luck till now."
+    },
+    {
+      "author": "jitendernegi",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-25T05:06:28Z",
+      "reactions": 0,
+      "body": "This issue is because of ExcelJS only, because i tried to run test cases in one of old branch before implementing Excel JS , on that branch, unit test cases are running successfully without any issue. "
+    },
+    {
+      "author": "hafedh95",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-24T15:19:32Z",
+      "reactions": 0,
+      "body": "Error: node_modules/exceljs/index.d.ts:1466:22 - error TS2307: Cannot find module 'stream' or its corresponding type declarations.\r\n\r\n1466  read(stream: import('stream').Stream): Promise<Workbook>;\r\n                          ~~~~~~~~\r\n\r\n\r\nError: node_modules/exceljs/index.d.ts:1487:23 - error TS2307: Cannot find module 'stream' or its corresponding type declarations.\r\n\r\n1487  write(stream: import('stream').Stream, options?: Partial<XlsxWriteOptions>): Promise<void>;\r\n                           ~~~~~~~~\r\n\r\n\r\nError: node_modules/exceljs/index.d.ts:1574:22 - error TS2307: Cannot find module 'stream' or its corresponding type declarations.\r\n\r\n1574  read(stream: import('stream').Stream, options?: Partial<CsvReadOptions>): Promise<Worksheet>;\r\n                          ~~~~~~~~\r\n\r\n\r\nError: node_modules/exceljs/index.d.ts:1579:63 - error TS7016: Could not find a declaration file for module 'events'. 'C:/Users/HM5176/Documents/GitLab/FrontPDCA-1/node_modules/events/events.js' implicitly has an 'any' type.\r\n  Try `npm i --save-dev @types/events` if it exists or add a new declaration (.d.ts) file containing `declare module 'events';`\r\n\r\n1579  createInputStream(options?: Partial<CsvReadOptions>): import('events').EventEmitter;\r\n                                                                   ~~~~~~~~\r\n\r\n\r\nError: node_modules/exceljs/index.d.ts:1594:23 - error TS2307: Cannot find module 'stream' or its corresponding type declarations.\r\n\r\n1594  write(stream: import('stream').Stream, options?: Partial<CsvWriteOptions>): Promise<void>;\r\n                           ~~~~~~~~\r\n\r\n\r\nError: node_modules/exceljs/index.d.ts:1898:19 - error TS2307: Cannot find module 'stream' or its corresponding type declarations.\r\n\r\n1898    stream: import('stream').Stream;\r\n                       ~~~~~~~~\r\n\r\n\r\nError: node_modules/exceljs/index.d.ts:1942:25 - error TS2503: Cannot find namespace 'NodeJS'.\r\n\r\n1942    dictionary: Buffer | NodeJS.TypedArray | DataView | ArrayBuffer; // deflate/inflate only, empty dictionary by default\r\n                             ~~~~~~\r\n\r\n\r\nError: node_modules/exceljs/index.d.ts:1994:39 - error TS2307: Cannot find module 'stream' or its corresponding type declarations.\r\n\r\n1994    constructor(input: string | import('stream').Stream, options: Partial<WorkbookStreamReaderOptions>);\r\n                                           ~~~~~~~~\r\n\r\n\r\nError: node_modules/exceljs/index.d.ts:2003:18 - error TS2307: Cannot find module 'stream' or its corresponding type declarations.\r\n\r\n2003    entry: import('stream').Stream;\r\n\r\nsame here\r\nany help?"
+    }
+  ],
+  "attachments": []
+}

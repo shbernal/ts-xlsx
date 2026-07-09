@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 579,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/579",
+  "title": "rowspan colspan",
+  "state": "open",
+  "author": "OlegFromOmsk",
+  "createdAt": "2018-05-31T10:36:33Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 2,
+  "body": "Hello\r\nI need Excel file with columns from this table:\r\n\r\n```\r\n<thead>\r\n<tr>\r\n<th rowspan=\"2\" colspan=\"1\"></th> \r\n<th rowspan=\"2\" colspan=\"1\"></th>\r\n<th rowspan=\"2\" colspan=\"1\"></th>\r\n<th rowspan=\"1\" colspan=\"2\"></th>\r\n</tr> \r\n<tr>\r\n<th></th>\r\n<th></th>\r\n</tr>\r\n</thead>\r\n```\r\n\r\nHow I can do it?\r\nThanks",
+  "comments": [
+    {
+      "author": "anirudh411",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-24T11:47:32Z",
+      "reactions": 0,
+      "body": "Is there any update on this?"
+    },
+    {
+      "author": "jocongmin",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-08-13T14:51:59Z",
+      "reactions": 0,
+      "body": "```ts\r\n<template>\r\n  <div>\r\n    <table id=\"export-table\" ref=\"table\">\r\n      <tr>\r\n        <th>Header 1</th>\r\n        <th>Header 2</th>\r\n        <th>Header 3</th>\r\n      </tr>\r\n      <tr>\r\n        <td rowspan=\"2\">Rowspan 2</td>\r\n        <td colspan=\"2\">Colspan 2</td>\r\n      </tr>\r\n      <tr>\r\n        <td><img src=\"path_to_image1.jpg\" alt=\"Image 1\" width=\"50\"></td>\r\n        <td>Data 2-2</td>\r\n      </tr>\r\n      <tr>\r\n        <td>Data 3-1</td>\r\n        <td><img src=\"path_to_image2.jpg\" alt=\"Image 2\" width=\"50\"></td>\r\n        <td>Data 3-3</td>\r\n      </tr>\r\n    </table>\r\n    <button @click=\"exportToExcel\">Export to Excel</button>\r\n  </div>\r\n</template>\r\n\r\n<script>\r\nimport ExcelJS from 'exceljs';\r\n\r\nexport default {\r\n  methods: {\r\n    async exportToExcel() {\r\n      const table = this.$refs.table;\r\n      const workbook = new ExcelJS.Workbook();\r\n      const worksheet = workbook.addWorksheet('Sheet1');\r\n\r\n      let currentRow = 1;\r\n\r\n      for (let row of table.rows) {\r\n        let currentColumn = 1;\r\n\r\n        for (let cell of row.cells) {\r\n          const rowspan = parseInt(cell.getAttribute('rowspan')) || 1;\r\n          const colspan = parseInt(cell.getAttribute('colspan')) || 1;\r\n\r\n          // 找到第一个空闲的单元格\r\n          while (worksheet.getCell(currentRow, currentColumn).value) {\r\n            currentColumn++;\r\n          }\r\n\r\n          const imgElement = cell.querySelector('img');\r\n          if (imgElement) {\r\n            const imgSrc = imgElement.getAttribute('src');\r\n            const imageId = workbook.addImage({\r\n              filename: imgSrc,\r\n              extension: imgSrc.split('.').pop(),\r\n            });\r\n\r\n            worksheet.addImage(imageId, {\r\n              tl: { col: currentColumn - 1, row: currentRow - 1 },\r\n              ext: { width: imgElement.width, height: imgElement.height },\r\n            });\r\n          } else {\r\n            const cellValue = cell.innerText;\r\n            const excelCell = worksheet.getCell(currentRow, currentColumn);\r\n            excelCell.value = cellValue;\r\n\r\n            // 处理 colspan: 在横向单元格中先填充 null\r\n            for (let i = 1; i < colspan; i++) {\r\n              worksheet.getCell(currentRow, currentColumn + i).value = null;\r\n            }\r\n\r\n            // 合并单元格处理\r\n            if (rowspan > 1 || colspan > 1) {\r\n              worksheet.mergeCells(currentRow, currentColumn, currentRow + rowspan - 1, currentColumn + colspan - 1);\r\n            }\r\n          }\r\n\r\n          // 移动到下一个列位置\r\n          currentColumn += colspan;\r\n        }\r\n\r\n        // 移动到下一行\r\n        currentRow++;\r\n      }\r\n\r\n      // 使用 writeFile 直接导出 Excel 文件\r\n      await workbook.xlsx.writeFile('table_with_images.xlsx');\r\n      console.log('Excel file with images created successfully');\r\n    }\r\n  }\r\n}\r\n</script>\r\n```"
+    }
+  ],
+  "attachments": []
+}

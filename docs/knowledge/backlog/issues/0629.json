@@ -1,0 +1,41 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 629,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/629",
+  "title": "Memory is released only from first uncommited worksheet (Stream Write)",
+  "state": "open",
+  "author": "Wafel",
+  "createdAt": "2018-08-20T17:12:06Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "The library has problem to release memory on row.commit() if there is a previous worksheet that is not commited. By \"previous\" I mean worksheet with lower index.\r\n\r\nI have process that fetches data page by page. Based on every page I write data to all worksheets, so I cannot commit worksheet before I write all data from all pages. That leads to memory issue on a server.\r\n\r\nI have created sample app, that shows the problem. \r\nhttps://github.com/Wafel/ExcelJSMemoryIssue\r\nIn readme there is full description and screenshots from memory profiler. \r\n\r\nHere is piece of code that creates few worksheets and writes data to it.\r\nIt's works fine until I remove `PROBLEMATIC LINE`. If I remove `PROBLEMATIC LINE` then memory is released only from first worksheet and all next worksheets leads to memory issue.\r\n```\r\nconst options = {\r\n    filename: `test-${new Date().getTime()}.xlsx`\r\n};\r\nconst workbook = new Excel.stream.xlsx.WorkbookWriter(options);\r\n\r\nconst sheetsCount = parseInt(req.query.sheetsCount) || 3;\r\nconst columnsCount = parseInt(req.query.columnsCount) || 10;\r\nconst rowsCount = parseInt(req.query.rowsCount) || 1000000;\r\n\r\n_.range(sheetsCount).forEach(sheetIndex => workbook.addWorksheet(`Sheet ${sheetIndex}`));\r\n\r\nfor (let sheetIndex = 1; sheetIndex <= sheetsCount; sheetIndex++) {\r\n\r\n    let worksheet = workbook.getWorksheet(sheetIndex);\r\n\r\n    for (let rowIndex = 0; rowIndex < rowsCount; rowIndex++) {\r\n        worksheet.addRow(_.range(columnsCount)).commit();\r\n        await setImmediatePromise();\r\n    }\r\n\r\n    worksheet.commit(); // PROBLEMATIC LINE\r\n}\r\n\r\nawait workbook.commit();\r\n```\r\n\r\nPlease tell me if there is any chance that it will be fixed.",
+  "comments": [
+    {
+      "author": "sudonate91",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-02-05T21:13:37Z",
+      "reactions": 0,
+      "body": "Did you ever find a solution for this? "
+    },
+    {
+      "author": "Wafel",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-02-07T17:35:26Z",
+      "reactions": 0,
+      "body": "I have not fixed it directly, but I have implemented a workaround. \r\nI just create n workbooks and at the end of the process, I merge them into 1 final workbook. It's a little bit slower, but it is a fair tradeoff."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/Wafel/ExcelJSMemoryIssue",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

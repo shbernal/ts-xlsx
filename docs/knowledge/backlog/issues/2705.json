@@ -1,0 +1,37 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2705,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2705",
+  "title": "[BUG] exporting with alignment | indent does not work",
+  "state": "open",
+  "author": "sandzone",
+  "createdAt": "2024-02-22T22:14:44Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\nAlignment -> indent does not work properly. Rest of the alignment options have no issue.\r\n\r\nI have saved the workbook with an indent of 3 on that cell. But, the property is not getting saved properly.\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/2245672/c38393c2-d4fc-4ec3-b99e-48e73459a0f7)\r\n\r\nLib version: 4.4.0\r\n\r\nThis issue is happening with Libreoffice Calc. If I open the file in Microsoft Excel, it does not happen. \r\n\r\n## Steps To Reproduce\r\n\r\n```\r\nconst ExcelJS = require('exceljs');\r\n\r\nconst wb = new ExcelJS.stream.xlsx.WorkbookWriter({filename: 'test.xlsx', useStyles: true});\r\nconst ws = wb.addWorksheet('Sheet1');\r\nws.addRow([\"Hello World!\"]);\r\nws.eachRow(row=>{\r\n    row.eachCell(cell=>{\r\n        cell.alignment = {indent: 3};\r\n        cell.font = {bold: true};\r\n    })\r\n})\r\n\r\nwb.commit()\r\n```\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nInterestingly, if i try to modify the indent using the UI of libreoffice calc - the indent suddenly becomes 3. \r\n\r\nCheckout the following screenshot. I decreased the indent by 1 using the UI. It seems like the indent property is getting saved somewhere but in a buggy way. I am not sure if this is a Libreoffice Calc issue or an exceljs issue.\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/2245672/02cf0972-8e6c-403e-b19e-bfdf27b203ba)\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "ibam-voxel",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-16T03:30:35Z",
+      "reactions": 0,
+      "body": "change this code cell.alignment = {indent: 3}\r\n\r\ncell.alignment = {\r\n  horizontal: 'left',\r\n  indent: 3\r\n};\r\n\r\ni think if you wanna use indent, you must set alignment.horizontal = 'left'"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/2245672/c38393c2-d4fc-4ec3-b99e-48e73459a0f7",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/2245672/02cf0972-8e6c-403e-b19e-bfdf27b203ba",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

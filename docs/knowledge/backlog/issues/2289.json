@@ -1,0 +1,58 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2289,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2289",
+  "title": "[BUG] Sorting is not working after I apply auto filter",
+  "state": "open",
+  "author": "ShyamL1319",
+  "createdAt": "2023-06-22T10:57:57Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n**Sorting is not working after I apply auto filter**\r\nWe create excel file using below code and try to sort on filters but it gets closed unexpectedly.\r\n\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nconst ExcelJS = require('exceljs');\r\n\r\n// Create a new workbook and add a worksheet\r\nconst workbook = new ExcelJS.Workbook();\r\nconst worksheet = workbook.addWorksheet('Sheet1');\r\n\r\n// Add data to the worksheet\r\nworksheet.addRow(['Name', 'Age', 'City']);\r\nworksheet.addRow(['John Doe', 30, 'New York']);\r\nworksheet.addRow(['Jane Smith', 23, 'London']);\r\nworksheet.addRow(['Jane Smith', 21, 'PAk']);\r\nworksheet.addRow(['Jane Smith', 20, 'India']);\r\nworksheet.addRow(['Jane Smith', 33, 'London']);\r\n\r\n// worksheet.mergeCells('B2:C2');\r\n// worksheet.getCell('B2').value = \"flight not found\";\r\n\r\n// Enable filters on the desired columns\r\nworksheet.autoFilter = {\r\n  from: {\r\n    row: 1,\r\n    column: 1\r\n  },\r\n  to: {\r\n    row: 3,\r\n    column: 3\r\n  }\r\n};\r\n// Save the workbook to a file\r\nworkbook.xlsx.writeFile('output.xlsx')\r\n  .then(function() {\r\n    console.log('Excel file created successfully.');\r\n  })\r\n  .catch(function(error) {\r\n    console.log('An error occurred while creating the Excel file:', error);\r\n  });\r\n\r\nOpen created excel and try to apply sorting on filters the gets closed unexpectedly.\r\n\r\n```\r\n\r\n## The expected behavior:\r\nOpened created file should  be able to apply sorting on columns\r\n\r\n",
+  "comments": [
+    {
+      "author": "ShyamL1319",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-22T10:58:55Z",
+      "reactions": 0,
+      "body": "Please let us know if any solution is there or there is another way of implementation"
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-06-22T12:45:01Z",
+      "reactions": 0,
+      "body": "\r\n@ShyamL1319 The excel generated after running your code locally to me is sorting properly, and is now a screenshot in ascending order by Age. What software are you using to open it, I am using WPS.\r\n\r\n![image](https://github.com/exceljs/exceljs/assets/25943604/43a8276a-5b6d-45e4-933c-36258426dcc2)\r\n\r\n"
+    },
+    {
+      "author": "HarshJogani",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-08-15T06:15:33Z",
+      "reactions": 0,
+      "body": "@zurmokeeper  I am  facing the same issue with autofilter i am using MS Excel for open my file. In my case after applying filter sorting is working but if i try to sorting without filter excel is  unexpectedly closed.  and  the same filter  is  working well in wps excel  If you want i can share my code. and this is  the file i am  facing issue with.\r\n[Stocklist-15-8-2024 1140114.xlsx](https://github.com/user-attachments/files/16622025/Stocklist-15-8-2024.1140114.xlsx)\r\n"
+    },
+    {
+      "author": "ds-talaviya",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-27T07:35:23Z",
+      "reactions": 0,
+      "body": "@ShyamL1319 did you find any solution ?\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/25943604/43a8276a-5b6d-45e4-933c-36258426dcc2",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/files/16622025/Stocklist-15-8-2024.1140114.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

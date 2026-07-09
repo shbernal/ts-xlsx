@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2981,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2981",
+  "title": "[ERROR] column.equivalentTo is not a function (the function is required to execute your programs)",
+  "state": "open",
+  "author": "cakrayp",
+  "createdAt": "2025-10-03T22:19:24Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\n\nPlease fix it to execute your program, because the function are required to execute this program, but they will have difficulty to use your packages, when the package are installed with command `npm i exceljs`, thank you...\n\n```\nTypeError: column.equivalentTo is not a function\n    at Z:\\Lenovo Project\\Finance Notes\\node_modules\\exceljs\\lib\\doc\\column.js:275:36\n    at Array.forEach (<anonymous>)\n    at Column.toModel (Z:\\Lenovo Project\\Finance Notes\\node_modules\\exceljs\\lib\\doc\\column.js:270:15)\n    at get model (Z:\\Lenovo Project\\Finance Notes\\node_modules\\exceljs\\lib\\doc\\worksheet.js:862:25)\n    at Z:\\Lenovo Project\\Finance Notes\\node_modules\\exceljs\\lib\\doc\\workbook.js:161:62\n    at Array.map (<anonymous>)\n    at get model (Z:\\Lenovo Project\\Finance Notes\\node_modules\\exceljs\\lib\\doc\\workbook.js:161:35)\n    at XLSX.write (Z:\\Lenovo Project\\Finance Notes\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:645:12)\n    at Z:\\Lenovo Project\\Finance Notes\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:677:12\n    at new Promise (<anonymous>)\n    at XLSX.writeFile (Z:\\Lenovo Project\\Finance Notes\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:669:12)\n    at Z:\\Lenovo Project\\Finance Notes\\index.js:305:33\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n```",
+  "comments": [
+    {
+      "author": "Arvind054",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-10-04T15:46:58Z",
+      "reactions": 0,
+      "body": "Hi! 👋\nI was able to reproduce this TypeError: column.equivalentTo is not a function issue, which seems to occur when trying to write to an XLSX file after setting up columns. It looks like it may be related to how column equivalence is being checked in the model conversion logic.\n\nI’d like to investigate this further and work on a fix. Could you please assign this issue to me? I’ll debug the column.equivalentTo reference in column.js and test the behavior after installing via npm i exceljs.\n\nThanks! 🙌"
+    }
+  ],
+  "attachments": []
+}

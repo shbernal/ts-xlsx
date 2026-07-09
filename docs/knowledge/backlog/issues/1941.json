@@ -1,0 +1,42 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1941,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1941",
+  "title": "[BUG] addRow with Array does not work inside NodeVM new context",
+  "state": "open",
+  "author": "almercier",
+  "createdAt": "2021-12-23T16:45:52Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nLib version: 4.3.0 \r\n\r\n## Steps To Reproduce\r\n\r\nWhen passing in an array of values to addRow, the values get added to the file in normal execution but does not get added to the file when creating it through Node's VM runInNewContext.\r\n\r\n```javascript\r\nconst excelJS = require('exceljs');\r\nconst vm = require('vm');\r\n(async () => {\r\n    const workbook1 = new excelJS.Workbook();\r\n    const sheet1 = workbook1.addWorksheet('Data');\r\n    sheet1.addRow(['test', 'these', 'values']);\r\n    sheet1.addRow(['and', 'also', 'these', 'values']);\r\n    await workbook1.xlsx.writeFile('file1.xlsx');\r\n\r\n    vm.runInNewContext(`\r\n        (async () => {\r\n            const workbook2 = new excelJS.Workbook();\r\n            const sheet2 = workbook2.addWorksheet('Data');\r\n            sheet2.addRow(['test', 'these', 'values']);\r\n            sheet2.addRow(['and', 'also', 'these', 'values']);\r\n            await workbook2.xlsx.writeFile('file2.xlsx');\r\n        })();\r\n    `, {excelJS: excelJS});\r\n})();\r\n```\r\n\r\n![image](https://user-images.githubusercontent.com/30079507/147269253-7bbf8bef-af89-41b3-abcd-53d52cc3bba9.png)\r\n\r\n\r\n\r\n## The expected behaviour:\r\n\r\nExcelJS works consistently regardless of context being run in.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nThis is almost guaranteed to be the use of \"instanceof\" throughout the codebase, where doing \"x instanceof Array\" will return false inside a VM context. Similar to iFrames, the built-in class declarations are actually different in the new context. If this is the issue, then likely other things are broken inside a nodeVM as well.\r\n\r\nhttps://github.com/nodejs/help/issues/2880\r\nhttp://web.mit.edu/jwalden/www/isArray.html\r\n\r\nThese work...\r\n- Array.isArray(x) \r\n- typeof (for base types)\r\n- x.constructor.name === 'Array';\r\n- Object.prototype.toString.call(obj) == '[object Array]'\r\n\r\nThese do not work...\r\n- x instanceof Array\r\n- x.constructor === Array\r\n\r\nArray.isArray is preferred for checking arrays instead of instanceof specifically for this reason. Unfortunately checking other types requires checking constructor strings.",
+  "comments": [
+    {
+      "author": "almercier",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-27T15:20:24Z",
+      "reactions": 0,
+      "body": "To further prove this, the code below generates a file with data as expected. I do not want to have to do this workaround to use the module.\r\n\r\n```javascript\r\n    vm.runInNewContext(`\r\n        (async () => {\r\n            const workbook3 = new excelJS.Workbook();\r\n            const sheet3 = workbook3.addWorksheet('Data');\r\n            sheet3.addRow(createArray('test', 'these', 'values'));\r\n            sheet3.addRow(createArray('and', 'also', 'these', 'values'));\r\n            await workbook3.xlsx.writeFile('file3.xlsx');\r\n        })();\r\n    `, {excelJS: excelJS, createArray: function (...args) { return [...args]} });"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/30079507/147269253-7bbf8bef-af89-41b3-abcd-53d52cc3bba9.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/nodejs/help/issues/2880",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://web.mit.edu/jwalden/www/isArray.html",
+      "ext": "html",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 969,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/969",
+  "title": "Setting a cell or row Protection Locked to true does not prevent editing in xlsx",
+  "state": "open",
+  "author": "ahouck",
+  "createdAt": "2019-09-17T14:17:00Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 5,
+  "commentCount": 18,
+  "body": "When setting a column or row level Protection lock, the resulting .xlsx file still has those columns/cells editable.  It is possible to lock the entire worksheet, but not individual cells.\r\n\r\n\r\n```Typescript\r\nimport * as Excel from 'exceljs';\r\nimport * as fs from 'fs';  \r\n\r\n  const stream = fs.createWriteStream(\r\n    `${FilePath}`,\r\n    {\r\n      flags: 'a',\r\n    }\r\n  );\r\nconst DefaultColumns = [\r\n    'Col1',\r\n    'Col2',\r\n    'Col3',\r\n    'Col4',\r\n    'Col5',\r\n  ];\r\n\r\n  const placeHolders = new Array(DefaultColumns.length);\r\n  const workbook = new Excel.Workbook();\r\n  workbook.created = new Date();\r\n  workbook.modified = new Date();\r\n\r\n  const sheet = workbook.addWorksheet('sheet 1', {\r\n    //Also not sure what this is supposed to show\r\n    //No difference if datavalidation condition is failed\r\n    pageSetup: { errors: 'dash' },\r\n  });\r\n\r\n  const headerRow = sheet.addRow(DefaultColumns);\r\n  headerRow.eachCell((cell, rowNum) => {\r\n    //@ts-ignore  Typing is wrong\r\n    cell.note = `This is ${rowNum}`;\r\n    //Doesn't do anything\r\n    cell.protection = { locked: true };\r\n  });\r\n\r\n  //Also doesn't do anything\r\n  headerRow.protection = { locked: true };\r\n  headerRow.commit();\r\n\r\nawait workbook.xlsx.write(res);\r\n```",
+  "comments": [
+    {
+      "author": "FlorisVALETUDIE",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-11-05T10:30:41Z",
+      "reactions": 0,
+      "body": "Any news on this issue ? I observed the same behaviour."
+    },
+    {
+      "author": "Kelendria",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-02-20T17:52:14Z",
+      "reactions": 13,
+      "body": "After setting the protection information on a cell or a row and before writing the file you have to protect the worksheet.\r\n\r\n```\r\nsheet.protect('thepassword', {\r\n          formatCells: true,\r\n          formatColumns: true,\r\n          formatRows: true,\r\n          insertRows: true,\r\n          insertColumns: false,\r\n          insertHyperlinks: true,\r\n          deleteRows: true,\r\n          deleteColumns: false,\r\n          sort: true,\r\n          autoFilter: true\r\n        })\r\n```"
+    },
+    {
+      "author": "maqtulio",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-04-02T02:49:43Z",
+      "reactions": 0,
+      "body": "sheet.protect() Wont work if u are using a worksheet that came from a WorkbookWriter.\r\n\r\n`var workbook = new Excel.stream.xlsx.WorkbookWriter(options);\r\nvar worksheet = workbook.addWorksheet(\"BASE\").protect(\"pass\");`\r\n"
+    },
+    {
+      "author": "DavidBronfen",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-05-03T10:38:07Z",
+      "reactions": 2,
+      "body": "Can I just protect 2 specific columns and unprotect the rest of the sheet (including new columns/cells that will be added in the future by the user)?\r\nDid anyone manage to do that?\r\n\r\nBasically, I've protected the whole sheet and then unprotected the cells which should be editable (e.g. all the cells under columns C, D, E) the issue with this kind of workaround is that the user can't create new cells because the rest of the sheet is protected"
+    },
+    {
+      "author": "mcmule",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-05-14T12:14:35Z",
+      "reactions": 0,
+      "body": "I have the exact same issue : locking cells/rows doesn't do anything, even if protect() is called on the sheet. I also tried to protect() the sheet without using per cell/per row locking, and this does not do anything. \r\nUsing v3.8.2 on Node 10 w. Typescript."
+    },
+    {
+      "author": "FlorisVALETUDIE",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-05-15T08:52:01Z",
+      "reactions": 0,
+      "body": "I kinda gave up on this issue when I realised it depends on your spreadsheet editor : protect worked when I used Microsoft excel, but it was ignored by every other editor (gSheet, openOffice, numbers, etc.)."
+    },
+    {
+      "author": "VikasAnand354",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-13T04:52:34Z",
+      "reactions": 0,
+      "body": "Any resolution on this issue?\r\nI am facing the same issue"
+    },
+    {
+      "author": "VikasAnand354",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-13T05:41:13Z",
+      "reactions": 0,
+      "body": "> Can I just protect 2 specific columns and unprotect the rest of the sheet (including new columns/cells that will be added in the future by the user)?\r\n> Did anyone manage to do that?\r\n> \r\n> Basically, I've protected the whole sheet and then unprotected the cells which should be editable (e.g. all the cells under columns C, D, E) the issue with this kind of workaround is that the user can't create new cells because the rest of the sheet is protected\r\n\r\nany updates on this ????\r\n"
+    },
+    {
+      "author": "philipe77",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-05T22:04:37Z",
+      "reactions": 0,
+      "body": "I am facing the same issue too. Any updates ?"
+    },
+    {
+      "author": "maxpaynene",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-06-24T21:31:07Z",
+      "reactions": 0,
+      "body": "any solution ?? i need this .. "
+    },
+    {
+      "author": "8kbhaskar",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-01T11:44:10Z",
+      "reactions": 0,
+      "body": "I have created an excel and i want to block the headers so that users cannot update the headers.\r\nany other way if there is no update in this library."
+    },
+    {
+      "author": "preyash2047",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-27T07:52:31Z",
+      "reactions": 7,
+      "body": "I have solved it 🚀\r\n\r\nthere are 2 steps in implementing excel protection,\r\n\r\nstep 1: set the cell/ row as unlocked (by default all cells in excel are locked)\r\n-> for cell: `sheet.getCell('A1').protection =  { locked: false, lockText: false };`\r\n-> for row: `sheet.getRow(2).protection =  { locked: false, lockText: false };`\r\n\r\nstep 2: protect the sheet with optional values\r\n-> with password: `\r\n    await sheet.protect('312dsasfafewr312edqwdqd213ed', {\r\n      selectLockedCells: false,\r\n      selectUnlockedCells: true,\r\n    });\r\n`\r\n-> without password:`\r\n    await sheet.protect('', {\r\n      selectLockedCells: false,\r\n      selectUnlockedCells: true,\r\n    });\r\n`\r\n\r\nNote: Flow to implement cell/row protection of Microsoft excel, as well as exceljs, are the same logically."
+    },
+    {
+      "author": "RamNelluru001",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-23T18:09:23Z",
+      "reactions": 0,
+      "body": "> \r\n\r\nI tried as mentioned in your reply, but  \" sheet.getCell('A1').protection \" is unloacking entire  column and \" sheet.getRow(2).protection \" is unloacking all rows. I need to unlock specific rows / cells. Can you please help.  \r\nmy line of code : worksheet.getCell('O5').protection = {locked: false, lockText: false }; "
+    },
+    {
+      "author": "preyash2047",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-24T02:57:16Z",
+      "reactions": 0,
+      "body": "> > \r\n> \r\n> I tried as mentioned in your reply, but \" sheet.getCell('A1').protection \" is unloacking entire column and \" sheet.getRow(2).protection \" is unloacking all rows. I need to unlock specific rows / cells. Can you please help. my line of code : worksheet.getCell('O5').protection = {locked: false, lockText: false };\r\n\r\nDid you followed the step 2 ?"
+    },
+    {
+      "author": "RamNelluru001",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-24T14:00:05Z",
+      "reactions": 0,
+      "body": "> > > \r\n> > \r\n> > \r\n> > I tried as mentioned in your reply, but \" sheet.getCell('A1').protection \" is unloacking entire column and \" sheet.getRow(2).protection \" is unloacking all rows. I need to unlock specific rows / cells. Can you please help. my line of code : worksheet.getCell('O5').protection = {locked: false, lockText: false };\r\n> \r\n> Did you followed the step 2 ?\r\n\r\nThank you for your reply. Yes, I have tried with 2nd step with password. Still it is unlocking entire column. "
+    },
+    {
+      "author": "preyash2047",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-08-24T14:02:52Z",
+      "reactions": 0,
+      "body": "Ok.\nI don't know why it's not working now.\nLet us know if you find, solution.\n\nOn Wed, 24 Aug, 2022, 7:30 pm RamNelluru001, ***@***.***>\nwrote:\n\n> I tried as mentioned in your reply, but \" sheet.getCell('A1').protection \"\n> is unloacking entire column and \" sheet.getRow(2).protection \" is\n> unloacking all rows. I need to unlock specific rows / cells. Can you please\n> help. my line of code : worksheet.getCell('O5').protection = {locked:\n> false, lockText: false };\n>\n> Did you followed the step 2 ?\n>\n> Thank you for your reply. Yes, I have tried with 2nd step with password.\n> Still it is unlocking entire column.\n>\n> —\n> Reply to this email directly, view it on GitHub\n> <https://github.com/exceljs/exceljs/issues/969#issuecomment-1225767463>,\n> or unsubscribe\n> <https://github.com/notifications/unsubscribe-auth/AJV47HE6OBLY3FWW4UUTSK3V2YTHBANCNFSM4IXQVISQ>\n> .\n> You are receiving this because you commented.Message ID:\n> ***@***.***>\n>\n"
+    },
+    {
+      "author": "Sajith-Lakmal",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-23T13:19:19Z",
+      "reactions": 1,
+      "body": "### **Workaround for Cell Locking in ExcelJS**  \n\nLocking the entire worksheet and unlocking specific cells did not work for my use case. Instead, I used a **data validation rule** that prevents users from entering any value other than the existing value in the cell.  \n\nHere’s how I implemented it:  \n\n```javascript\nconst a2Cell = worksheet.getCell(\"A2\");\nconst a2CellAddress = a2Cell.address;\n\na2Cell.dataValidation = {\n  type: \"custom\",\n  formulae: [`${a2CellAddress}=${<YOUR LOCKED VALUE>}`],\n  showErrorMessage: true,\n  errorTitle: \"Locked Cell\",\n  error: \"This cell is locked and cannot be edited.\",\n};\n````\n\n**Replace  `<YOUR LOCKED VALUE>` with the value you expect in the cell.\n\nThis works in Google Sheets\n"
+    },
+    {
+      "author": "spyridonpallis",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-08-21T17:25:11Z",
+      "reactions": 0,
+      "body": "@Sajith-Lakmal This worked for my use case. Thank you for the great workaround!"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/969#issuecomment-1225767463",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/notifications/unsubscribe-auth/AJV47HE6OBLY3FWW4UUTSK3V2YTHBANCNFSM4IXQVISQ",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1430,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1430",
+  "title": "[BUG] date parsing doesn't work in streaming mode",
+  "state": "open",
+  "author": "yocontra",
+  "createdAt": "2020-08-17T22:47:09Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 5,
+  "commentCount": 12,
+  "body": "## 🐛 Bug Report\r\n\r\nDates are not being parsed correctly when using streaming - issue seems to be the parser internally not getting the \"style\" for the field.\r\n\r\nLib version: 4.1.1 (latest)\r\n\r\n## Steps To Reproduce\r\n\r\n```javascript\r\nconst through = require('through2')\r\nconst { pipeline, Readable } = require('readable-stream')\r\n\r\nconst reader = new Excel.stream.xlsx.WorkbookReader(fs.createReadStream('file.xlsx'))\r\nconst createReader = async function* () {\r\n  for await (const worksheet of reader) {\r\n    for await (const row of worksheet) {\r\n      yield row\r\n    }\r\n  }\r\n}\r\n  \r\n\r\nconst out = pipeline(\r\n  Readable.from(createReader()),\r\n  through.obj(function (row, _, cb) {\r\n    console.log(row.values)\r\n    cb(null, row)\r\n  }),\r\n  (err) => {\r\n    if (err) out.emit('error', err)\r\n  }\r\n)\r\n```\r\n\r\nYou'll see the second column always comes back as a number, even though it should be an ISO string. This file is parsed perfectly fine and gives the correct results when not using streaming mode.\r\n\r\nAttached the excel file, you can see the second column is properly date formatted.\r\n\r\n[file.xlsx](https://github.com/exceljs/exceljs/files/5087163/file.xlsx)\r\n\r\n\r\n## Possible solution\r\n\r\nI debugged into the library, it seems like the issue is that [this](https://github.com/exceljs/exceljs/blob/master/lib/stream/xlsx/worksheet-reader.js#L278) is always returning null and not finding the style, which means that later on when it checks the number format to see if it is a date it returns false and just treats it as a number. In the case of this excel sheet, `c.s` is `2` - so it could be that `s` is not being parsed right, because it looks like `2` in `defaultnumformats.js` = general number. I've tried changing to every other date format in excel and re-saving the file and it still comes back as 2 every time.",
+  "comments": [
+    {
+      "author": "yocontra",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-17T23:11:18Z",
+      "reactions": 0,
+      "body": "Dump of the XML for this worksheet from `utils/parse-sax.js`:\r\n\r\n```xml\r\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">\r\n  <sheetPr filterMode=\"false\">\r\n    <pageSetUpPr fitToPage=\"false\" />\r\n  </sheetPr>\r\n  <dimension ref=\"A1:D65536\" />\r\n  <sheetViews>\r\n    <sheetView windowProtection=\"false\" showFormulas=\"false\" showGridLines=\"true\" showRowColHeaders=\"true\" showZeros=\"true\" rightToLeft=\"false\" tabSelected=\"true\" showOutlineSymbols=\"true\" defaultGridColor=\"true\" view=\"normal\" topLeftCell=\"A1\" colorId=\"64\" zoomScale=\"100\" zoomScaleNormal=\"100\" zoomScalePageLayoutView=\"60\" workbookViewId=\"0\">\r\n      <selection pane=\"topLeft\" activeCell=\"A1\" activeCellId=\"0\" sqref=\"A1\" />\r\n    </sheetView>\r\n  </sheetViews>\r\n  <sheetFormatPr defaultRowHeight=\"15.75\" />\r\n  <cols>\r\n    <col collapsed=\"false\" hidden=\"false\" max=\"256\" min=\"1\" style=\"0\" width=\"14.4285714285714\" />\r\n    <col collapsed=\"false\" hidden=\"false\" max=\"1025\" min=\"257\" style=\"0\" width=\"11.5204081632653\" />\r\n  </cols>\r\n  <sheetData>\r\n    <row r=\"1\" customFormat=\"false\" ht=\"15.75\" hidden=\"false\" customHeight=\"false\" outlineLevel=\"0\" collapsed=\"false\">\r\n      <c r=\"A1\" s=\"1\" t=\"s\">\r\n        <v>0</v>\r\n      </c>\r\n      <c r=\"B1\" s=\"1\" t=\"s\">\r\n        <v>1</v>\r\n      </c>\r\n      <c r=\"C1\" s=\"1\" t=\"s\">\r\n        <v>2</v>\r\n      </c>\r\n      <c r=\"D1\" s=\"1\" t=\"s\">\r\n        <v>3</v>\r\n      </c>\r\n    </row>\r\n    <row r=\"2\" customFormat=\"false\" ht=\"15.1\" hidden=\"false\" customHeight=\"false\" outlineLevel=\"0\" collapsed=\"false\">\r\n      <c r=\"A2\" s=\"1\" t=\"s\">\r\n        <v>4</v>\r\n      </c>\r\n      <c r=\"B2\" s=\"2\" t=\"n\">\r\n        <v>42774</v>\r\n      </c>\r\n      <c r=\"C2\" s=\"1\" t=\"n\">\r\n        <v>100</v>\r\n      </c>\r\n      <c r=\"D2\" s=\"1\" t=\"n\">\r\n        <v>111</v>\r\n      </c>\r\n    </row>\r\n    <row r=\"3\" customFormat=\"false\" ht=\"15.1\" hidden=\"false\" customHeight=\"false\" outlineLevel=\"0\" collapsed=\"false\">\r\n      <c r=\"A3\" s=\"1\" t=\"s\">\r\n        <v>5</v>\r\n      </c>\r\n      <c r=\"B3\" s=\"2\" t=\"n\">\r\n        <v>42774</v>\r\n      </c>\r\n      <c r=\"C3\" s=\"1\" t=\"n\">\r\n        <v>300</v>\r\n      </c>\r\n      <c r=\"D3\" s=\"1\" t=\"n\">\r\n        <v>222</v>\r\n      </c>\r\n    </row>\r\n    <row r=\"4\" customFormat=\"false\" ht=\"15.1\" hidden=\"false\" customHeight=\"false\" outlineLevel=\"0\" collapsed=\"false\">\r\n      <c r=\"A4\" s=\"1\" t=\"s\">\r\n        <v>6</v>\r\n      </c>\r\n      <c r=\"B4\" s=\"2\" t=\"n\">\r\n        <v>42774</v>\r\n      </c>\r\n      <c r=\"C4\" s=\"1\" t=\"n\">\r\n        <v>4</v>\r\n      </c>\r\n      <c r=\"D4\" s=\"1\" t=\"n\">\r\n        <v>333</v>\r\n      </c>\r\n    </row>\r\n    <row r=\"5\" customFormat=\"false\" ht=\"15.1\" hidden=\"false\" customHeight=\"false\" outlineLevel=\"0\" collapsed=\"false\">\r\n      <c r=\"A5\" s=\"1\" t=\"s\">\r\n        <v>7</v>\r\n      </c>\r\n      <c r=\"B5\" s=\"2\" t=\"n\">\r\n        <v>42774</v>\r\n      </c>\r\n      <c r=\"C5\" s=\"1\" t=\"n\">\r\n        <v>53</v>\r\n      </c>\r\n      <c r=\"D5\" s=\"1\" t=\"n\">\r\n        <v>444</v>\r\n      </c>\r\n    </row>\r\n    <row r=\"1048576\" customFormat=\"false\" ht=\"15.75\" hidden=\"false\" customHeight=\"true\" outlineLevel=\"0\" collapsed=\"false\" />\r\n  </sheetData>\r\n  <printOptions headings=\"false\" gridLines=\"false\" gridLinesSet=\"true\" horizontalCentered=\"false\" verticalCentered=\"false\" />\r\n  <pageMargins left=\"0.7875\" right=\"0.7875\" top=\"1.025\" bottom=\"1.025\" header=\"0.7875\" footer=\"0.7875\" />\r\n  <pageSetup paperSize=\"9\" scale=\"100\" firstPageNumber=\"1\" fitToWidth=\"1\" fitToHeight=\"1\" pageOrder=\"downThenOver\" orientation=\"portrait\" usePrinterDefaults=\"false\" blackAndWhite=\"false\" draft=\"false\" cellComments=\"none\" useFirstPageNumber=\"true\" horizontalDpi=\"300\" verticalDpi=\"300\" copies=\"1\" />\r\n  <headerFooter differentFirst=\"false\" differentOddEven=\"false\">\r\n    <oddHeader>&amp;C&amp;A</oddHeader>\r\n    <oddFooter>&amp;CPage &amp;P</oddFooter>\r\n  </headerFooter>\r\n</worksheet>\r\n```\r\n\r\nSo it does appear that the file does have column B with `s=\"2\"` which this library understands as a general number, but Excel renders as a date - at a loss for how to debug this any further."
+    },
+    {
+      "author": "coolwhite520",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-01T06:51:59Z",
+      "reactions": 0,
+      "body": "I Have the same question. Who can help me to solve this bug???"
+    },
+    {
+      "author": "coolwhite520",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-03T01:52:08Z",
+      "reactions": 0,
+      "body": "This problem has been bothering me. I hope the team can fix this bug."
+    },
+    {
+      "author": "rheidari",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-16T14:41:09Z",
+      "reactions": 11,
+      "body": "I had this issue as well, and it was due to me ignoring styles. The streaming reader has a second options parameter `WorkbookStreamReaderOptions`. The docs says it defaults to cache, but according to the type definition it defaults to ignore. https://github.com/exceljs/exceljs#streaming-xlsx-readercontents\r\n\r\n```javascript\r\nnew Excel.stream.xlsx.WorkbookReader(filePath, {\r\n\tentries: 'emit',\r\n\tsharedStrings: 'cache',\r\n\thyperlinks: 'cache',\r\n\tstyles: 'cache',\r\n\tworksheets: 'emit',\r\n});\r\n```"
+    },
+    {
+      "author": "yocontra",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-16T20:21:35Z",
+      "reactions": 0,
+      "body": "@rheidari That would explain a lot, I looked at the docs and couldn't figure out why the behavior looked correct in the code but in practice was broken. I'll try it out and see if that fixes it."
+    },
+    {
+      "author": "yocontra",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-16T21:07:26Z",
+      "reactions": 0,
+      "body": "Quick note @rheidari - didn't seem to help, don't think the defaults are the issue unless the merging is broken. I'll dig into it more today."
+    },
+    {
+      "author": "dxhuy",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-10-30T12:52:32Z",
+      "reactions": 0,
+      "body": "> I had this issue as well, and it was due to me ignoring styles. The streaming reader has a second options parameter `WorkbookStreamReaderOptions`. The docs says it defaults to cache, but according to the type definition it defaults to ignore. https://github.com/exceljs/exceljs#streaming-xlsx-readercontents\r\n> \r\n> ```js\r\n> new Excel.stream.xlsx.WorkbookReader(filePath, {\r\n> \tentries: 'emit',\r\n> \tsharedStrings: 'cache',\r\n> \thyperlinks: 'cache',\r\n> \tstyles: 'cache',\r\n> \tworksheets: 'emit',\r\n> });\r\n> ```\r\n\r\nThanks a lot. I got the same issue, after changing the second option as your comment, it parsed the date type correctly."
+    },
+    {
+      "author": "vksonagara1996",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-11T05:45:42Z",
+      "reactions": 0,
+      "body": "> I had this issue as well, and it was due to me ignoring styles. The streaming reader has a second options parameter `WorkbookStreamReaderOptions`. The docs says it defaults to cache, but according to the type definition it defaults to ignore. https://github.com/exceljs/exceljs#streaming-xlsx-readercontents\r\n> \r\n> ```js\r\n> new Excel.stream.xlsx.WorkbookReader(filePath, {\r\n> \tentries: 'emit',\r\n> \tsharedStrings: 'cache',\r\n> \thyperlinks: 'cache',\r\n> \tstyles: 'cache',\r\n> \tworksheets: 'emit',\r\n> });\r\n> ```\r\n\r\nThanks, after using these options, my issue got fixed!"
+    },
+    {
+      "author": "vksonagara1996",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-11T05:46:43Z",
+      "reactions": 0,
+      "body": "And yeah by default it is ignoring styles, but in documentation it says by default it is \"cache\"."
+    },
+    {
+      "author": "yocontra",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-11-12T17:09:07Z",
+      "reactions": 0,
+      "body": "I can also confirm the issue is fixed with those options - I think the solution here is to adjust the code default value to match the README, I can send a PR for it later today"
+    },
+    {
+      "author": "yocontra",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-16T21:03:44Z",
+      "reactions": 0,
+      "body": "Quick update: There is a race condition with the streaming parser, depending on the ordering of the files in the excel zip it will start parsing the worksheet before the styles have been parsed and dates will just come in as numbers. \r\n\r\nSpecifically I've fixed it with this change: https://github.com/contra/exceljs/commit/457b0b35d54b5eea4c72d3c9fb53318e817083a0\r\n\r\nI've run into a handful of race conditions, stalls and other issues with the streaming parser - once I have everything working perfectly I'll send a PR."
+    },
+    {
+      "author": "pavitran10",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-01-20T13:01:39Z",
+      "reactions": 0,
+      "body": "I just came through this solution. It is worked for me. But, when I checked date that created by formula still I am getting date as serial, how I get normal cell date without setting this option. How make work for also date that created by formula?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/5087163/file.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/stream/xlsx/worksheet-reader.js#L278",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs#streaming-xlsx-readercontents",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs#streaming-xlsx-readercontents",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs#streaming-xlsx-readercontents",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/contra/exceljs/commit/457b0b35d54b5eea4c72d3c9fb53318e817083a0",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

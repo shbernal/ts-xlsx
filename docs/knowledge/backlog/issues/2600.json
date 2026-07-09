@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2600,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2600",
+  "title": "[BUG] Font information missing for some cells",
+  "state": "open",
+  "author": "PRR24",
+  "createdAt": "2023-11-23T14:29:50Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nFont information may be unavailable for cells that creator has not formatted.\r\n\r\nLib version: 4.4\r\n\r\n## Steps To Reproduce\r\n\r\n* Create new Excel file\r\n* Type any word on A1\r\n* Save\r\n* Load with ExcelJS\r\n\r\n## The expected behaviour:\r\n\r\nFont info is available for cell A1\r\n\r\n## Actual behaviour:\r\n\r\nFont info is unknown for cell, row or column.",
+  "comments": [
+    {
+      "author": "PRR24",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-23T17:39:32Z",
+      "reactions": 0,
+      "body": "After looking around in code, this is what I found:\r\n* Default font and corresponding default style is loaded correctly by StylesXform.\r\n* This info is ignored during reconcile process, assigning styles only to entitites (like cells) with styleId and destroyed in the end of the process.\r\n\r\nI think this is incorrect. So instead of\r\n```const style = model.styleId && options.styles && options.styles.getStyleModel(model.styleId);```\r\nit should read\r\n```const style = options.styles && options.styles.getStyleModel(model.styleId || 0);```\r\n\r\nPlease note that currently options.styles[0] remains inaccessible, even if model.styleId would be explicitly set to 0.\r\n\r\nHope it helps."
+    },
+    {
+      "author": "cjnoname",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-02-09T11:43:30Z",
+      "reactions": 0,
+      "body": "It's fixed in here:\nhttps://www.npmjs.com/package/@cj-tech-master/excelts"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.npmjs.com/package/@cj-tech-master/excelts",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2260,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2260",
+  "title": "[BUG] XYZ",
+  "state": "open",
+  "author": "JBarzdo",
+  "createdAt": "2023-04-27T20:48:16Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 1,
+  "body": "![image](https://user-images.githubusercontent.com/79201655/234987348-8968cccf-f5d0-4e07-a787-e04bc031d279.png)\r\n\r\nSame thing. Nothing changes. \r\nWhy previous bug rep was closed?",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-05-03T09:10:06Z",
+      "reactions": 0,
+      "body": "So please try do it in that way: https://github.com/Siemienik/XToolset/blob/master/packages/xlsx-renderer/src/Renderer.ts#L1\n\nalso, please update the issue title."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/79201655/234987348-8968cccf-f5d0-4e07-a787-e04bc031d279.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/Siemienik/XToolset/blob/master/packages/xlsx-renderer/src/Renderer.ts#L1",
+      "ext": "ts",
+      "isFixture": false
+    }
+  ]
+}

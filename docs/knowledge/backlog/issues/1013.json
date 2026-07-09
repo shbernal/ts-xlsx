@@ -1,0 +1,60 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1013,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1013",
+  "title": "Loading chunk failed with Webpack and IE11",
+  "state": "open",
+  "author": "Aymkdn",
+  "createdAt": "2019-10-31T15:38:32Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "Hi,\r\n\r\nI try to dynamically import ExcelJS using Webpack. If it works with modern browsers, the chunk load fails with IE11.\r\n\r\nThe below will work with both modern browsers and IE11 (calling `exceljs` not dynamically, at the beginning of my file):\r\n```javascript\r\nimport Excel from 'exceljs'\r\n```\r\n\r\nBut the below will fail with IE11 (but will work with modern browsers):\r\n```javascript\r\n// [... some code ...]\r\nimport('exceljs')\r\n.then(ModuleExcel => {\r\n  const Excel = ModuleExcel.default;\r\n})\r\n```\r\n\r\nI also tried with `import(\"exceljs/dist/es5/exceljs.browser.js\")` (that used to work with older versions of ExcelJS).\r\n\r\nAny solution?\r\n\r\nThanks for this great library :-)\r\n\r\n",
+  "comments": [
+    {
+      "author": "Aymkdn",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-11-04T14:49:55Z",
+      "reactions": 0,
+      "body": "My solution was to downgrade to v2.0.1"
+    },
+    {
+      "author": "szymanek-event-it",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-11-07T07:33:26Z",
+      "reactions": 0,
+      "body": "This is a duplicate of #989 \r\nIt is marked as closed but the problem persists."
+    },
+    {
+      "author": "szymanek-event-it",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-02-06T06:35:32Z",
+      "reactions": 0,
+      "body": "#989 now contains a fix for this issue."
+    },
+    {
+      "author": "Aymkdn",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-03-31T15:38:03Z",
+      "reactions": 0,
+      "body": "The fix from https://github.com/exceljs/exceljs/issues/989#issuecomment-580300161 (using `transpileDependencies:['fast-csv']`) doesn't work for me. Only the downgrade to v2.0.1 works…"
+    },
+    {
+      "author": "nikthequik",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-05-29T14:44:22Z",
+      "reactions": 0,
+      "body": "I can confirm that downgrading to v2.0.1 worked for me as well."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/989#issuecomment-580300161",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

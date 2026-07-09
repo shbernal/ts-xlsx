@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2199,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2199",
+  "title": "[BUG] Upgrade jszip to fix the vulnerabilities",
+  "state": "open",
+  "author": "PranjalAgni",
+  "createdAt": "2023-01-19T06:07:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 3,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nThe current latest version of `exceljs`  (v4.3.0) has an indirect vulnerability coming from `jszip` package. \r\nCheck this synk page for more details: https://security.snyk.io/package/npm/jszip/3.7.1\r\n\r\nUpgrading `jszip` to v3.8.0 fixes this vulnerability. \r\n\r\nIs there any plan to release a new version of `exceljs` with this fix?",
+  "comments": [
+    {
+      "author": "DaphneChang",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-02T09:37:05Z",
+      "reactions": 0,
+      "body": "I changed my `dependencies`  to correct it."
+    },
+    {
+      "author": "pkgiriswamy",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-02T12:34:24Z",
+      "reactions": 0,
+      "body": "Please update the \"jszip\" package and release a new version as it is a blocker for us."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://security.snyk.io/package/npm/jszip/3.7.1",
+      "ext": "1",
+      "isFixture": false
+    }
+  ]
+}

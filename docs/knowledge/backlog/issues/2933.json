@@ -1,0 +1,32 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2933,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2933",
+  "title": "Old dependencies and memory leak...... Please update using latest libraries.",
+  "state": "open",
+  "author": "codyng",
+  "createdAt": "2025-05-25T15:07:26Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 21,
+  "commentCount": 1,
+  "body": "npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.\nnpm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported\nnpm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.\nnpm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported\nnpm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported\nnpm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported\nnpm warn deprecated fstream@1.0.12: This package is no longer supported.",
+  "comments": [
+    {
+      "author": "cjnoname",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-04T13:29:34Z",
+      "reactions": 1,
+      "body": "try https://www.npmjs.com/package/@cj-tech-master/excelts"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.npmjs.com/package/@cj-tech-master/excelts",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

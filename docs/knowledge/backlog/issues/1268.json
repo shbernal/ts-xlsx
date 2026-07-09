@@ -1,0 +1,34 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1268,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1268",
+  "title": "[BUG]  breaks the selectbox after writing the file.",
+  "state": "open",
+  "author": "VerilogR",
+  "createdAt": "2020-05-12T09:18:11Z",
+  "closedAt": null,
+  "labels": [
+    "Troubleshooting"
+  ],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 💬 Questions and Help\r\nHello everybody. we use the file to write data to it using exceljs, but after the data is written, the selectbox does not work. please help\r\n![Screenshot_2](https://user-images.githubusercontent.com/6389207/81666366-a0884f80-944a-11ea-8fbc-e41f0c7e218a.png)\r\n",
+  "comments": [
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-05-22T06:53:08Z",
+      "reactions": 0,
+      "body": "Do you mind providing a complete example? And tell you the version you are using."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/6389207/81666366-a0884f80-944a-11ea-8fbc-e41f0c7e218a.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

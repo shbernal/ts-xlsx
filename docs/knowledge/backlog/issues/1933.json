@@ -1,0 +1,71 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1933,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1933",
+  "title": "Add automatic size for comment box",
+  "state": "open",
+  "author": "csgka1",
+  "createdAt": "2021-12-18T04:16:55Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 2,
+  "body": "<!-- Thanks for submitting a pull request! Please provide enough information so that others can review your pull request. The two fields below are mandatory. -->\r\n\r\n## Summary\r\n\r\nAdd a feature to solve issue #981 (#1493 ).\r\n\r\nThis PR add a option for comment. With that option the comment can be set `Automatic Size` property.\r\nusage:\r\n\r\n```js\r\nsheet.getCell('C3').comment = {\r\n    texts: ['This\\nIs\\nA\\nComment\\nThat\\nNeed\\nA\\nLarge\\nBox'],\r\n    autoShape: true,  // with this option the size of comment box will be adjusted automatically\r\n };\r\n```\r\n\r\nThe corresponding setting in excel is in the screenshot below:\r\n\r\n<img width=\"355\" alt=\"image\" src=\"https://user-images.githubusercontent.com/16380986/146628424-f1327c40-7f9c-438c-923a-d7b69df72c08.png\">\r\n\r\n\r\n## Test plan\r\n\r\n<!-- Demonstrate the code is solid. Example: The exact commands you ran and their output, screenshots / videos if the pull request changes UI. -->\r\n\r\n`npm i && npm run test:all`\r\n\r\nAll test cases has passed.\r\n\r\n## Questions\r\n\r\nShould I update `README.MD` at the same time?\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-08-01T07:51:19Z",
+      "reactions": 0,
+      "body": "@csgka1 Could you please move [over here](https://github.com/zurmokeeper/excelize)? I'd be happy to merge this feature. "
+    },
+    {
+      "author": "timo-kauranen",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-21T10:48:13Z",
+      "reactions": 5,
+      "body": "could this be merged, pretty please 👍 "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/16380986/146628424-f1327c40-7f9c-438c-923a-d7b69df72c08.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/zurmokeeper/excelize",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 13,
+    "deletions": 4,
+    "changedFiles": [
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0
+      },
+      {
+        "path": "lib/xlsx/xform/comment/vml-textbox-xform.js",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 3
+      },
+      {
+        "path": "test/test-comments.js",
+        "status": "modified",
+        "additions": 6,
+        "deletions": 1
+      }
+    ]
+  }
+}

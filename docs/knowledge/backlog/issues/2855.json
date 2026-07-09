@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2855,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2855",
+  "title": "[BUG] Inline image is not parsed",
+  "state": "open",
+  "author": "liudonghua123",
+  "createdAt": "2024-12-04T01:53:02Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\nI tried to use this package to parse data.xlsx and want to get the inline image, but it failed.\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nimport ExcelJS  from 'exceljs';\r\nconst { Workbook } = ExcelJS ;\r\nconst workbook = new Workbook();\r\nconst data = await workbook.xlsx.readFile('data.xlsx');\r\n\r\nconst worksheet = workbook.worksheets[0];\r\nfor (const image of worksheet.getImages()) {\r\n  console.log('processing image row', image.range.tl.nativeRow, 'col', image.range.tl.nativeCol, 'imageId', image.imageId);\r\n  // fetch the media item with the data (it seems the imageId matches up with m.index?)\r\n  const img = workbook.model.media.find(m => m.index === image.imageId);\r\n  console.log('found image for imageId', image.imageId, 'extension', img.extension);\r\n  // fs.writeFileSync(`${image.range.tl.nativeRow}.${image.range.tl.nativeCol}.${img.name}.${img.extension}`, img.buffer);\r\n}\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n`worksheet.getImages()` should returns the inline images.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n1. `worksheet.getImages()` returns the inline images.\r\n2. `worksheet.getCell('C2')` returns the image data.\r\n\r\n[data.xlsx](https://github.com/user-attachments/files/18001550/data.xlsx)\r\n\r\n",
+  "comments": [
+    {
+      "author": "rduque1",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-04-08T09:07:25Z",
+      "reactions": 1,
+      "body": "Same for me, it's doesn't work"
+    },
+    {
+      "author": "leviv",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-09T23:15:31Z",
+      "reactions": 0,
+      "body": "+1 doesn't work when creating an excel file in MS excel, but works for files created in Google sheets"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/user-attachments/files/18001550/data.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

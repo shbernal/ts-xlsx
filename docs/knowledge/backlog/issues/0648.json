@@ -1,0 +1,53 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 648,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/648",
+  "title": "Worksheets are hidden by default",
+  "state": "open",
+  "author": "Tilogorn",
+  "createdAt": "2018-09-14T12:07:23Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 4,
+  "body": "Referencing issue #630 and #632 \r\nThis bug came with version 1.5.0 since one can show/hide worksheets.\r\n\r\nMinimal working example:\r\n\r\n```javascript\r\n\r\nvar Excel = require('exceljs');\r\nvar workbook = new Excel.Workbook();\r\nvar sheet1 = workbook.addWorksheet('S1');\r\nvar sheet2 = workbook.addWorksheet('S2');\r\n\r\nvar fn = 'mwe.xlsx';\r\nworkbook.xlsx.writeFile(fn)\r\n    .then(function () {\r\n        console.log('Spreadsheet \"' + fn + '\" generated');\r\n    });\r\n\r\n```\r\noutputs\r\n\r\n![bildschirmfoto vom 2018-09-14 13-54-12](https://user-images.githubusercontent.com/7524854/45548742-b385ef00-b825-11e8-986d-dc67e094267a.png)\r\n\r\nAs the documentation for the \"new\" (`v1.5.0`!) `hide`/`show` feature is not the best, providing a workaround would be nice. At least knowing how to access the show/hide API correctly would be nice until someone can fix it.\r\n\r\n",
+  "comments": [
+    {
+      "author": "mram888",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-09-17T10:28:24Z",
+      "reactions": 1,
+      "body": "In the definition of the worksheet you should put it like this:\r\n`var sheet2 = workbook.addWorksheet('S2',{state: 'visible'});\r\n`"
+    },
+    {
+      "author": "brihter",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-10-18T10:06:29Z",
+      "reactions": 0,
+      "body": "@Tilogorn Can confirm.\r\n\r\n@mram888 I disagree. When adding a sheet one expects it to be visible. `{state: 'visible'}` should be the default behavior."
+    },
+    {
+      "author": "Tilogorn",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-10-18T11:33:31Z",
+      "reactions": 0,
+      "body": "@wickedsheep I think it was more ment as  a temporary workaround (answering my question for one). Looks like WIP when you take the missing docs into account."
+    },
+    {
+      "author": "darshanksexathought",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-01T13:25:22Z",
+      "reactions": 0,
+      "body": "it works for xlsx not for csv"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/7524854/45548742-b385ef00-b825-11e8-986d-dc67e094267a.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1569,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1569",
+  "title": "Chart supported in excel",
+  "state": "open",
+  "author": "vcomplyRahul",
+  "createdAt": "2020-12-17T10:32:35Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 4,
+  "body": "I'm using google chart in excel to show different chart visualization data. Currently I'm having issue in using all charts in the excel so it would be very helpful if you could help me with this. like what are the different libraries you provide that can help me out with this issue.\r\n![image](https://user-images.githubusercontent.com/68936695/102476545-422aeb80-4081-11eb-895d-d9e030227bf8.png)\r\n",
+  "comments": [
+    {
+      "author": "ghosTedBuddy",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-01-15T13:03:58Z",
+      "reactions": 4,
+      "body": "@vcomplyRahul https://github.com/exceljs/exceljs/issues/1173 is describing there isn't yet chart support what i learned the hard way... it wipes all existing charts too..."
+    },
+    {
+      "author": "ambekar92",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-06T09:18:34Z",
+      "reactions": 2,
+      "body": "> I'm using google chart in excel to show different chart visualization data. Currently I'm having issue in using all charts in the excel so it would be very helpful if you could help me with this. like what are the different libraries you provide that can help me out with this issue.\r\n> ![image](https://user-images.githubusercontent.com/68936695/102476545-422aeb80-4081-11eb-895d-d9e030227bf8.png)\r\n\r\n\r\nWe are looking for MS Excel file with a graph it should export the file using exceljs npm"
+    },
+    {
+      "author": "GlennStreetman",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-08T19:53:49Z",
+      "reactions": 1,
+      "body": "Ambekar92,\r\nI'm dealing with a similar issue and I just got something working a few days ago inspired by this [post](https://stackoverflow.com/questions/64473898/why-are-the-charts-in-excel-deleted-if-i-export-the-data-with-exceljs)\r\n\r\nIf you have a .xlsx file that contains your source chart, you might be able to copy it. [copy-excel-chart](https://www.npmjs.com/package/copy-excel-chart)\r\n\r\nThis has barely been tested so you could always use it as a code example or post to pull/issues WHEN you run into an issue.\r\n\r\nGood luck!\r\n\r\n"
+    },
+    {
+      "author": "MisiekDP",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-25T03:30:57Z",
+      "reactions": 0,
+      "body": "> Ambekar92, I'm dealing with a similar issue and I just got something working a few days ago inspired by this [post](https://stackoverflow.com/questions/64473898/why-are-the-charts-in-excel-deleted-if-i-export-the-data-with-exceljs)\r\n> \r\n> If you have a .xlsx file that contains your source chart, you might be able to copy it. [copy-excel-chart](https://www.npmjs.com/package/copy-excel-chart)\r\n> \r\n> This has barely been tested so you could always use it as a code example or post to pull/issues WHEN you run into an issue.\r\n> \r\n> Good luck!\r\n\r\nThis module doesn't work :/\r\nI get an error when I import `import copyExcelChart from 'copy-excel-chart';`\r\n\r\n`SyntaxError: Cannot use import statement outside a module\r\n    at Object.compileFunction (node:vm:352:18)\r\n    at wrapSafe (node:internal/modules/cjs/loader:1040:15)\r\n    at Module._compile (node:internal/modules/cjs/loader:1076:27)\r\n    at Module._extensions..js (node:internal/modules/cjs/loader:1175:10)\r\n    at Module.load (node:internal/modules/cjs/loader:988:32)\r\n    at Module._load (node:internal/modules/cjs/loader:829:12)\r\n    at c._load (node:electron/js2c/asar_bundle:5:13339)\r\n    at loadApplicationPackage (C:\\!Temp\\!MGR_dysk_roboczy\\Node.js\\Test aplikacja MGR\\node_modules\\electron\\dist\\resources\\default_app.asar\\main.js:121:16)\r\n    at Object.<anonymous> (C:\\!Temp\\!MGR_dysk_roboczy\\Node.js\\Test aplikacja MGR\\node_modules\\electron\\dist\\resources\\default_app.asar\\main.js:233:9)\r\n    at Module._compile (node:internal/modules/cjs/loader:1120:14)\r\n[27268:1125/035157.756:ERROR:gpu_init.cc(521)] Passthrough is not support`"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/68936695/102476545-422aeb80-4081-11eb-895d-d9e030227bf8.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1173",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/68936695/102476545-422aeb80-4081-11eb-895d-d9e030227bf8.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://stackoverflow.com/questions/64473898/why-are-the-charts-in-excel-deleted-if-i-export-the-data-with-exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/copy-excel-chart",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://stackoverflow.com/questions/64473898/why-are-the-charts-in-excel-deleted-if-i-export-the-data-with-exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/copy-excel-chart",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2972,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2972",
+  "title": "[BUG] Error parsing dynamicFilter in Excel table: \"Unexpected xml node in parseOpen\"",
+  "state": "open",
+  "author": "johnnyoshika",
+  "createdAt": "2025-09-22T21:10:49Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\n\n<!-- A clear and concise description of what the bug is. -->\n\nFull repo to easily reproduce this bug is available here: https://github.com/examind-ai/exceljs-dynamicfilter-bug\n\nLib version: 4.4.0\n\nExcelJS fails to parse Excel files containing dynamicFilter elements in table XML with the error: Unexpected xml node in parseOpen. This occurs when Excel tables use dynamic filters (like \"Above Average\"), but only affects table-level filters - worksheet-level dynamic filters parse successfully.\n\n## Steps To Reproduce\n\n1. Open Excel\n2. Create a new workbook\n3. Add sample data\n\nID | Age\n-- | --\n1 | 10\n2 | 11\n3 | 12\n4 | 13\n5 | 14\n6 | 15\n7 | 16\n8 | 17\n9 | 18\n10 | 19\n\n4. Convert to a table: `Insert` -> `Table`\n5. Select the `Age` filter and choose: `Number filters` -> `Above Average`\n\nThen try to load that file into exceljs with:\n\n```javascript\n  const workbook = new ExcelJS.Workbook();\n  await workbook.xlsx.readFile('excel-file.xlsx');\n```\n\n## The expected behaviour:\n\n<!-- A clear and concise description of what you expected to happen. -->\n\nExpect ExcelJS to not throw an exception. Instead, it results in this exception:\n\n```\nexceljs-dynamicfilter-bug\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\filter-column-xform.js:72\n        throw new Error(`Unexpected xml node in parseOpen: ${JSON.stringify(node)}`);\n              ^\n\nError: Unexpected xml node in parseOpen: {\"name\":\"dynamicFilter\",\"attributes\":{\"type\":\"aboveAverage\",\"val\":\"14.5\"},\"isSelfClosing\":true}\n    at FilterColumnXform.parseOpen (exceljs-dynamicfilter-bug\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\filter-column-xform.js:72:15)\n    at AutoFilterXform.parseOpen (exceljs-dynamicfilter-bug\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\auto-filter-xform.js:37:19)\n    at TableXform.parseOpen (exceljs-dynamicfilter-bug\\node_modules\\exceljs\\lib\\xlsx\\xform\\table\\table-xform.js:57:19)\n    at TableXform.parse (exceljs-dynamicfilter-bug\\node_modules\\exceljs\\lib\\xlsx\\xform\\base-xform.js:63:16)\n    at async XLSX._processTableEntry (exceljs-dynamicfilter-bug\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:165:19)\n    at async XLSX.load (exceljs-dynamicfilter-bug\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:393:15)\n    at async XLSX.readFile (exceljs-dynamicfilter-bug\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:55:24)\n```\n\nFull repo to easily reproduce this bug is available here: https://github.com/examind-ai/exceljs-dynamicfilter-bug\n\n## Possible solution (optional, but very helpful):\n\n```javascript\n\n```\n",
+  "comments": [
+    {
+      "author": "cjnoname",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-11T12:31:15Z",
+      "reactions": 0,
+      "body": "You could also try this:\nhttps://www.npmjs.com/package/@cj-tech-master/excelts"
+    },
+    {
+      "author": "johnnyoshika",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-13T17:19:07Z",
+      "reactions": 0,
+      "body": "> You could also try this: https://www.npmjs.com/package/@cj-tech-master/excelts\n\nInteresting! Is this a fork of exceljs? Also, is it backwards compatible with exceljs for easy replacement? Lastly, does it support (or at least doesn't destruct) pivot tables and charts (both features that get destroyed once opened in exceljs)?"
+    },
+    {
+      "author": "cjnoname",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-12-13T19:58:13Z",
+      "reactions": 0,
+      "body": "It’s a fork of exceljs (main branch). All you need to do is change the import, and it should work. If it doesn’t, please report a bug and I’ll fix it.\n\nThe same applies to pivot tables. I’m not sure whether they’re working or not, so please let me know if they aren’t, and I’ll take care of it."
+    },
+    {
+      "author": "johnnyoshika",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-01-21T23:42:52Z",
+      "reactions": 0,
+      "body": "> It’s a fork of exceljs (main branch). All you need to do is change the import, and it should work. If it doesn’t, please report a bug and I’ll fix it.\n> \n> The same applies to pivot tables. I’m not sure whether they’re working or not, so please let me know if they aren’t, and I’ll take care of it.\n\nThanks @cjnoname for your project. I finally got around to testing it and ran into a problem. I filed the issue here: https://github.com/cjnoname/excelts/issues/41"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/examind-ai/exceljs-dynamicfilter-bug",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/examind-ai/exceljs-dynamicfilter-bug",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/@cj-tech-master/excelts",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/@cj-tech-master/excelts",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/cjnoname/excelts/issues/41",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

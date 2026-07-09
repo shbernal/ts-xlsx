@@ -1,0 +1,103 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1747,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1747",
+  "title": "[BUG] Type '{ col: number; row: number; }' is missing the following properties from type 'Anchor': nativeCol, nativeColOff, nativeRow, nativeRowOff, and 3 more.",
+  "state": "open",
+  "author": "jakehockey10",
+  "createdAt": "2021-06-16T16:15:35Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 5,
+  "commentCount": 9,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.2.1\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nworksheet.addImage(imageId, {\r\n  tl: { col: 0, row: 31 },\r\n  br: { col: 15, row: 31 },\r\n});\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\nIn TypeScript projects (like my Angular project) will not run if I use the example syntax shown in the README: \r\n![image](https://user-images.githubusercontent.com/1821383/122255507-6d08c780-ce8b-11eb-8cbc-2458184aacdd.png)\r\n\r\nI get the following errors and cannot build because the interface requires all properties to be present.\r\n\r\n![image](https://user-images.githubusercontent.com/1821383/122255573-7e51d400-ce8b-11eb-90a7-522ae373f4c2.png)\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n// You could make those properties optional by putting a `?` before the semicolon defining the properties type to be optional.  \r\n\r\nexport interface Anchor {\r\n  nativeCol?: number;\r\n  nativeColOff?: number;\r\n  nativeRow?: number;\r\n  nativeRowOff?: number;\r\n  ....\r\n}\r\n\r\n// Or you could use a Partial of Anchor in the method declaration for `addImage`:\r\n\r\nPartial<Anchor>\r\n```\r\n",
+  "comments": [
+    {
+      "author": "jakehockey10",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-06-16T16:20:44Z",
+      "reactions": 9,
+      "body": "You can get around this by doing the following, but I couldn't find an example of this in the documentation:\r\n\r\n```typescript\r\nworksheet.addImage(imageId, {\r\n    tl: new Anchor({ col: 0, row: 31 }),\r\n    br: new Anchor({ col: 15, row: 31})\r\n});\r\n```"
+    },
+    {
+      "author": "jakehockey10",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-06-16T16:24:38Z",
+      "reactions": 0,
+      "body": "I should clarify.  This is not a solution.  This let's my project transpile.  However, I get an error: `exceljs__WEBPACK_IMPORTED_MODULE_0__.Anchor is not a constructor`.\r\n\r\nThis is what my import statement looks like:\r\n\r\n```typescript\r\nimport { Anchor, Row, Workbook, Worksheet } from 'exceljs';\r\n```"
+    },
+    {
+      "author": "mjiskinng",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-07-24T10:25:36Z",
+      "reactions": 1,
+      "body": "Hi @jakehockey10 what is the solution to this problem. Please i am going crazy with this image stretch issue.. Nothing is working. Thanks in advance if your solution can make my life easier. "
+    },
+    {
+      "author": "jakehockey10",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-07-24T14:29:32Z",
+      "reactions": 1,
+      "body": "So far? To not write this code. \r\n\r\nI was really hoping I'd get a response. But I have no solution to this"
+    },
+    {
+      "author": "rob4226",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-08-18T06:12:35Z",
+      "reactions": 7,
+      "body": "Any updates??\r\n\r\nI just overrode the errors and it seems to work fine so it must be an issue with the TS type definitions in this lib.\r\n\r\n```typescript\r\nworksheet.addImage(imageId1, {\r\n   // @ts-expect-error Issue with ExcelJs types.\r\n   tl: { col: 8, row: 0.2 },\r\n   // @ts-expect-error Issue with ExcelJs types.\r\n   br: { col: 8.8, row: 4.2 }\r\n});\r\n```"
+    },
+    {
+      "author": "Emiya0306",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-20T06:04:54Z",
+      "reactions": 3,
+      "body": "Is there any updates??? I got the same error.\r\n![WX20230320-111111@2x](https://user-images.githubusercontent.com/12878132/226238097-014627ca-2d0f-4f30-9b2e-fe3fd7085f96.png)\r\n\r\nBut I try `as Anchor`, it seems worked.\r\n\r\n![WX20230320-140417@2x](https://user-images.githubusercontent.com/12878132/226259958-2231f76a-0443-405f-a296-17b54de45ae9.png)\r\n\r\n\r\n\r\n"
+    },
+    {
+      "author": "YumeThings",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-01-25T11:11:41Z",
+      "reactions": 0,
+      "body": "Just encountered the same thing.\r\n\r\nMinimal reproducible example:\r\n```ts\r\nimport ExcelJS from \"exceljs\";\r\n\r\nconst createExcel = (image: string) => {\r\n\tconst workbook = new ExcelJS.Workbook();\r\n\tconst worksheet = workbook.addWorksheet(\"sheet1\");\r\n\r\n\tconst imageId = workbook.addImage({\r\n\t\tbase64: image,\r\n\t\textension: \"png\",\r\n\t});\r\n\r\n\tworksheet.addImage(imageId, {\r\n\t\ttl: { col: 0, row: 5 }, // type error here\r\n\t\tbr: { col: 0, row: 15 }, // type error here\r\n\t});\r\n};\r\n```\r\nThe error:\r\n```\r\nType '{ col: number; row: number; }' is missing the following properties from\r\ntype 'Anchor': nativeCol, nativeColOff, nativeRow, nativeRowOff, and 3 more.ts(2740)\r\n```\r\n\r\nThe exports work without errors on my end with similar to above implementations though."
+    },
+    {
+      "author": "Ks89",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-23T16:49:32Z",
+      "reactions": 0,
+      "body": "still no solution after 3 years?"
+    },
+    {
+      "author": "pablovillazon",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-03T22:35:02Z",
+      "reactions": 0,
+      "body": "It looks combining T1 and ext would work:\r\n`worksheet.addImage(logoElement, {\r\n            tl: { col: 0, row: 0 },\r\n            ext: { width: 180, height: 80 },\r\n            });`"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/1821383/122255507-6d08c780-ce8b-11eb-8cbc-2458184aacdd.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/1821383/122255573-7e51d400-ce8b-11eb-90a7-522ae373f4c2.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/12878132/226238097-014627ca-2d0f-4f30-9b2e-fe3fd7085f96.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/12878132/226259958-2231f76a-0443-405f-a296-17b54de45ae9.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

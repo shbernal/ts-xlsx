@@ -1,0 +1,52 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2061,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2061",
+  "title": "'None' is another theme style for a table",
+  "state": "open",
+  "author": "gocs",
+  "createdAt": "2022-05-18T01:49:42Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## Summary\r\n\r\nThere is another table theme.\r\nWorks best when customizing.\r\n\r\n## Test plan\r\n\r\nexcel table styles:\r\n\r\n![image](https://user-images.githubusercontent.com/27877342/168939790-b06efe38-5ba1-493b-bfda-6c77fa64fe01.png)\r\n\r\n\r\nsample js with vscode typescript type checker:\r\n\r\n```js\r\n// @ts-check\r\n\r\nworksheet.addTable({\r\n    name: 'MyTable',\r\n    ref: 'J3',\r\n    headerRow: true,\r\n    totalsRow: true,\r\n    style: {\r\n      theme: 'None'\r\n      showRowStripes: true,\r\n    },\r\n    columns: [\r\n      {name: 'Date', totalsRowLabel: 'Totals:', filterButton: true},\r\n      {name: 'Amount', totalsRowFunction: 'sum', filterButton: false},\r\n    ],\r\n    rows: [\r\n      [new Date('2019-07-20'), 70.10],\r\n      [new Date('2019-07-21'), 70.60],\r\n      [new Date('2019-07-22'), 70.10],\r\n    ],\r\n  });\r\n```\r\n\r\nwhat it renders:\r\n\r\n![image](https://user-images.githubusercontent.com/27877342/168939881-eadf5e7e-cd9f-4fb6-b430-2493a4879f40.png)\r\n\r\n",
+  "comments": [
+    {
+      "author": "AshotN",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-04T00:18:04Z",
+      "reactions": 0,
+      "body": "Any reason this was never merged?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/27877342/168939790-b06efe38-5ba1-493b-bfda-6c77fa64fe01.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/27877342/168939881-eadf5e7e-cd9f-4fb6-b430-2493a4879f40.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 1,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      }
+    ]
+  }
+}

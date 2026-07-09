@@ -1,0 +1,88 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 161,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/161",
+  "title": "TypeError: column.equivalentTo is not a function",
+  "state": "open",
+  "author": "christophedebatz",
+  "createdAt": "2016-08-02T09:21:36Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 9,
+  "body": "Hi,\n\nI have just encoutered this error since yersterday.\n\nCan you please give me the \"real reason\" of that? What's happened?\n\n`````` javascript\n  var exportForApp = function (app_id, callback) {\n  var wb = initializeWorkbook();\n  var sheet = initializeWorksheet(wb, getSheetTabName());\n  var headers = getExportHeaders();\n\n  formService.findByAppWithGift(app_id, function (err, forms) {\n    if (err) { callback(true, err); }\n    else {\n      for (var i in forms) {\n        var row = {\n          gender: forms[i].gender,\n          first_name: forms[i].first_name,\n          last_name: forms[i].last_name,\n          email: forms[i].email,\n          optin: forms[i].optin,\n          prize: forms[i].gift_name\n        };\n        sheet.addRow(row);\n      }\n\n      var filePath = getExportFileName();\n      var streamFile = fs.createWriteStream(filePath);\n      streamFile.end();\n\n      wb.xlsx.writeFile(filePath)\n      .then(function() {\n        callback(false, filePath);\n      })\n      .catch(function (err) {\n        console.log(err);\n        callback(true, err);\n      });\n    }\n  });\n}\n\n// returns the export file name\nfunction getExportFileName () {\n  return format(\"%s/File-export-%s.xlsx\", config.admin.exportStoragePath, moment().format(config.admin.exportDateFormat));\n}\n\n// returns the headers\nfunction getExportHeaders () {\n  return [\n    { key: \"gender\", title: \"Civilité\" },\n    { key: \"first_name\", title: \"Prénom\" },\n    { key: \"last_name\", title: \"Nom\" },\n    { key: \"email\", title: \"Email\" },\n    { key: \"optin\", title: \"Optin newsletter\"},\n    { key: \"prize\", title: \"Gain\" }\n  ];\n}\n\n// returns the sheet tab name\nfunction getSheetTabName () {\n  return \"Participants\";\n}\n\n// intitialize the workbook and return it\nfunction initializeWorkbook () {\n  var wb = new xls.Workbook();\n  wb.creator = \"LOL\";\n  wb.created = new Date();\n  wb.modified = new Date();\n  return wb;\n}\n\n// initialize the worksheet and return it\nfunction initializeWorksheet (workbook, name) {\n  var sheet = workbook.addWorksheet(name);\n  var headers = getExportHeaders();\n\n  sheet.properties.outlineLevelCol = headers.length;\n  sheet.properties.outlineLevelRow = headers.length > 0 ? 1 : 0;\n  sheet.columns = [];\n\n  for (var i in headers) {\n    sheet.columns.push({ key: headers[i].key, header: headers[i].title, width: 40, outlineLevel: 1 });\n  }\n\n  return sheet;\n}```\n``````\n",
+  "comments": [
+    {
+      "author": "kpsuperplane",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-08-15T15:16:30Z",
+      "reactions": 0,
+      "body": "@christophedebatz how did you solve this? I'm getting the same issue\n"
+    },
+    {
+      "author": "christophedebatz",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-08-15T19:46:28Z",
+      "reactions": 2,
+      "body": "Hi @kpsuperplane, I removed the getExportHeaderName function and I simpliefed all this code just to keep the base that work. In fact, I think it was an error in my own code in the loop (for ()) that filled each row... I was missing some data and the column key (or value, I don't remember) was null... That's why I got that error. I hope it will help you. Kiss!\n"
+    },
+    {
+      "author": "kpsuperplane",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-08-17T00:52:16Z",
+      "reactions": 44,
+      "body": "@christophedebatz it appears you have to dump the entire columns array into the columns property at once... I was pushing to it inplace before with a for loop... reassigned it into a variable, dumped it in all at once after, and it worked\n"
+    },
+    {
+      "author": "joewinger",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-06-23T06:45:23Z",
+      "reactions": 4,
+      "body": ">  it appears you have to dump the entire columns array into the columns property at once\r\n\r\nJust wanted to pop in a few years late and say that this fixed it for me too. I was trying to use `worksheet.columns.push(x)` in a for loop and having an issue. Thanks!"
+    },
+    {
+      "author": "LVMuser",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-01-16T17:55:53Z",
+      "reactions": 0,
+      "body": "Hi @joewinger How did you get around this? #377 "
+    },
+    {
+      "author": "alberttomasiak",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-01-20T16:11:39Z",
+      "reactions": 41,
+      "body": "@LVMuser \r\nYou can't use `worksheet.columns.push(x)` .\r\n\r\nIn order to make this work you can only define the columns once. So, to get it to work define a variable with your columns, add the extra ones afterwards and THEN define the columns on your worksheet:\r\n\r\n```\r\nconst sheetColumns = [\r\n  { header: 'name', key: 'name', width: 5 },\r\n  { header: 'age', key: 'age', width: 10 },\r\n];\r\n\r\nsheetColumns.push(\r\n  { header: 'gender', key: 'gender', width: 10}\r\n);\r\n\r\nworksheet.columns = sheetColumns;\r\n```\r\n\r\nEDIT: atleast I think you can't use .push(x). Correct me if I'm wrong! Tried it myself but didn't work, whereas defining it once, like suggested above, works :) "
+    },
+    {
+      "author": "RishabhParashar",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-29T15:47:40Z",
+      "reactions": 1,
+      "body": "@alberttomasiak thanks but instead of const I used let. "
+    },
+    {
+      "author": "blaues0cke",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-10T14:59:17Z",
+      "reactions": 4,
+      "body": "Can confirm that the problem is to call `sheet.columns.push()`. The fix/workaround is to build the column array earlier and apply it once like in the example of @alberttomasiak."
+    },
+    {
+      "author": "ghost",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-02-18T13:15:36Z",
+      "reactions": 0,
+      "body": "> @LVMuser You can't use `worksheet.columns.push(x)` .\r\n> \r\n> In order to make this work you can only define the columns once. So, to get it to work define a variable with your columns, add the extra ones afterwards and THEN define the columns on your worksheet\r\n\r\n\r\nThank you [alberttomasiak](https://github.com/alberttomasiak). This is the solution for me. "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/alberttomasiak",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

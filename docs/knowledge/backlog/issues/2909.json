@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2909,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2909",
+  "title": "[BUG] Specifying a column width of 9 results in the default column width being applied, even if the default column width is different than 9",
+  "state": "open",
+  "author": "Levils",
+  "createdAt": "2025-03-28T14:10:22Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\n\nPer the title, if you specify the column width to 9, then the width that gets applied is the default column width, even if the default column width is changed to something other than 9.\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\nexcelJSWorksheet.getColumn(1).width = 1; // This works as expected. It sets the width of column 1 to 1.\nexcelJSWorksheet.getColumn(2).width = 2; // Also works as expected.\nexcelJSWorksheet.getColumn(3).width = 3; // Also works as expected.\nexcelJSWorksheet.getColumn(4).width = 4; // Also works as expected.\nexcelJSWorksheet.getColumn(5).width = 5; // Also works as expected.\nexcelJSWorksheet.getColumn(6).width = 6; // Also works as expected.\nexcelJSWorksheet.getColumn(7).width = 7; // Also works as expected.\nexcelJSWorksheet.getColumn(8).width = 8;; // Also works as expected.\nexcelJSWorksheet.getColumn(7).width = 9; // This one does not work. Changing the default column width (two lines below) unexpectedly overrides it.\nexcelJSWorksheet.getColumn(8).width = 10; // Also works as expected.\nexcelJSWorksheet.properties.defaultColWidth = 0.000001; // This effectively sets the default column width to zero / hides it.\n\n## The expected behaviour:\n\nI expected it to work in the intuitive way, i.e. if you set a column width to 9 then the column width should be 9 regardless of what the default column width is.\n\n## Possible solution (optional, but very helpful):\n\nJust a guess as I don't know how to find things in the source code: It seems like changes to the default column width get applied after other changes to column widths. If the default column width was changed first, and all other specific changes to column widths come after that, then maybe the issue would disappear.",
+  "comments": [],
+  "attachments": []
+}

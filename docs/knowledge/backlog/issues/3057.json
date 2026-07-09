@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3057,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/3057",
+  "title": "fix: parse wrapText/shrinkToFit as booleans, not truthy strings",
+  "state": "open",
+  "author": "chatman-media",
+  "createdAt": "2026-06-23T16:01:44Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Problem\n\nWhen an OOXML `.xlsx` file contains `<alignment wrapText=\"0\"/>` or `<alignment shrinkToFit=\"0\"/>`, the attributes are parsed incorrectly.\n\nIn JavaScript, the string `\"0\"` is **truthy** (non-empty string). The `parseOpen` guard:\n\n```js\nadd(node.attributes.wrapText, 'wrapText', utils.parseBoolean(node.attributes.wrapText));\n```\n\nuses `node.attributes.wrapText` (the raw string `\"0\"`) as the truthy condition. This means:\n- `valid` is set to `true` even when the only attributes present are `\"0\"` (the default/false value)  \n- The alignment model is returned as `{wrapText: false}` instead of `null`\n- Cells that should have no alignment return a non-null alignment object\n\nThis results in `cell.alignment` being `{wrapText: false}` (an object) rather than `undefined` when Excel writes the attribute explicitly as `\"0\"`.\n\nRelates to issue #1908.\n\n## Fix\n\nUse `utils.parseBoolean()` as the truthy guard so that `\"0\"` maps to `false` (skip) and `\"1\"` maps to `true` (include). Since `parseBoolean` already handles the `\"0\"` → `false` conversion, the stored value is always `true` when the guard passes:\n\n```js\n// Before\nadd(node.attributes.wrapText, 'wrapText', utils.parseBoolean(node.attributes.wrapText));\n\n// After\nadd(utils.parseBoolean(node.attributes.wrapText), 'wrapText', true);\n```\n\n## Tests\n\nAdded two new parse-only test cases:\n- `wrapText=\"0\"` → parsed model should be `null` (no alignment)  \n- `shrinkToFit=\"0\"` → parsed model should be `null` (no alignment)\n\nBoth tests fail before the fix and pass after.\n\nAll existing 883 unit tests continue to pass.",
+  "comments": [],
+  "attachments": [],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 18,
+    "deletions": 2,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xform/style/alignment-xform.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      },
+      {
+        "path": "spec/unit/xlsx/xform/style/alignment-xform.spec.js",
+        "status": "modified",
+        "additions": 16,
+        "deletions": 0
+      }
+    ]
+  }
+}

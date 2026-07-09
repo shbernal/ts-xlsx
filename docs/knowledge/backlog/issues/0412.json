@@ -1,0 +1,75 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 412,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/412",
+  "title": "Out of Heap Memory ",
+  "state": "open",
+  "author": "GeorgeAnanthSoosai",
+  "createdAt": "2017-09-25T15:57:39Z",
+  "closedAt": null,
+  "labels": [
+    "enhancement",
+    "help wanted"
+  ],
+  "reactions": 1,
+  "commentCount": 6,
+  "body": "Hi, \r\n\r\nI'm running into issue that, when the data i huge it uses all RAM memory and end up with \"Heap out of memory\" issues. (Actual file size is 14MB but it use 2GB RAM) -- it works only when increase the heapsize to 8G.. Please advise\r\n\r\nCan you please advise me if any fix for this any luck ? \r\n\r\n",
+  "comments": [
+    {
+      "author": "mfahmirukman",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-11-07T09:06:44Z",
+      "reactions": 0,
+      "body": "any chance you've solved this?"
+    },
+    {
+      "author": "vishnu-kyatannawar",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2017-11-21T17:32:48Z",
+      "reactions": 0,
+      "body": "@GeorgeAnanthSoosai What operation are you trying to perform?"
+    },
+    {
+      "author": "Aymkdn",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-02-04T14:52:50Z",
+      "reactions": 0,
+      "body": "I have the same issue. My file has almost 1 million rows (file size is 40MB).\r\n\r\nIt's the read operation on the file that fails ( `workbook.xlsx.readFile(\"Audit_Log.xlsx\")`)... \r\n\r\nI'm not sure how to make it work.\r\n\r\nEdit : my solution is to save my file in CSV and then use PapaParse library to read it..."
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-02-18T23:11:37Z",
+      "reactions": 0,
+      "body": "@Aymkdn @GeorgeAnanthSoosai \r\nIf you could, any example code will be useful to reproduce this issue."
+    },
+    {
+      "author": "Aymkdn",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-02-20T11:13:00Z",
+      "reactions": 0,
+      "body": "@Siemienik here you go: https://github.com/Aymkdn/exceljs-issue-412\r\n\r\nVery simple repo/code."
+    },
+    {
+      "author": "hofnarwillie",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2022-09-15T14:14:00Z",
+      "reactions": 0,
+      "body": "I've created a PR that I think solves this issue: https://github.com/exceljs/exceljs/pull/2132"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/Aymkdn/exceljs-issue-412",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2132",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 3039,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/3039",
+  "title": "我想设置公式 \"=[测试.xlsx]Sheet1!A1\"，链接相对路径工作簿的数据，设置之后office和wps都不会获取相对路径文件夹内的工作簿",
+  "state": "open",
+  "author": "itsegg",
+  "createdAt": "2026-04-17T10:24:11Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 report\n\n我想设置公式 \"=[测试.xlsx]Sheet1!A1\"，链接相对路径工作簿的数据，设置之后office和wps都不会获取相对路径文件夹内的工作簿。\noffice会默认使用Documents 文档的文件夹当相对路径；\nwps中可以设置公式 \"=./[测试.xlsx]Sheet1!A1\"获取当前文件夹为相对路径。\n请问有什么办法可以让office也支持相对路径吗\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\n\n```javascript\nconst wb = new ExcelJS.Workbook();\nconst ws = wb.addWorksheet('XYZ');\n\nws.getCell('A1').value = {formula: `=[测试.xlsx]Sheet1!A1`};\n```\n\n## The expected behaviour:\n\n<!-- A clear and concise description of what you expected to happen. -->\n\n\n## Possible solution (optional, but very helpful):\n\n```javascript\n\n```\n",
+  "comments": [],
+  "attachments": []
+}

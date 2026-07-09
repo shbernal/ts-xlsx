@@ -1,0 +1,68 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1032,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1032",
+  "title": "writeBuffer doesn't return Buffer type",
+  "state": "open",
+  "author": "TranBaVinhSon",
+  "createdAt": "2019-11-22T02:06:57Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 11,
+  "commentCount": 7,
+  "body": "Thanks for the great package. \r\nI'm using `exceljs` with Typescript, but `writeBuffer()` function returns `ExcelJS.Buffer` instead of `Buffer` type. And since `ExcelJS.Buffer` inherits from `ArrayBuffer`, converting `ArrayBuffer` to `Buffer` will break excel file. Does anyone have a solution to this problem?\r\nThanks in advance!\r\n```ts\r\ndeclare interface Buffer extends ArrayBuffer { }\r\n```\r\n```ts\r\nlet resultExcel: Buffer; // buffer\r\nconst tmpResultExcel: ExcelJS.Buffer = await tmpWorkBook.xlsx.writeBuffer(); // arraybuffer\r\nresultExcel = Buffer.from(tmpResultExcel); // doesn't work well\r\n```",
+  "comments": [
+    {
+      "author": "pavlo-mais",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-24T11:08:59Z",
+      "reactions": 0,
+      "body": "any updates?"
+    },
+    {
+      "author": "10YAR",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-21T16:43:25Z",
+      "reactions": 0,
+      "body": "any updates?"
+    },
+    {
+      "author": "budiselic",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-03T11:28:45Z",
+      "reactions": 1,
+      "body": "any updates?"
+    },
+    {
+      "author": "erickcestari",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-04T20:26:14Z",
+      "reactions": 0,
+      "body": "I just cast it as a javascript buffer and used it, it works fine to me\r\n\r\n\r\n``` ts\r\nconst buffer = (await workbook.xlsx.writeBuffer()) as Buffer; \r\n```"
+    },
+    {
+      "author": "smidouni",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-07T14:52:14Z",
+      "reactions": 2,
+      "body": "> I just cast it as a javascript buffer and used it, it works fine to me\r\n> \r\n> ```ts\r\n> const buffer = (await workbook.xlsx.writeBuffer()) as Buffer; \r\n> ```\r\n\r\nI had to do the same thing. Basically it seems that ExcelJS.Buffer is really a Buffer, but incorrectly extends ArrayBuffer"
+    },
+    {
+      "author": "hotrungnhan",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-08-30T19:58:13Z",
+      "reactions": 0,
+      "body": "Just remove the \r\n```ts\r\ndeclare interface Buffer extends ArrayBuffer { }\r\n``` \r\nin the definition  and everything will be correct. \r\n"
+    },
+    {
+      "author": "ShaMan123",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-04-17T03:45:21Z",
+      "reactions": 1,
+      "body": "+1\nI get `Unit8Array` using on web. This is crucial to fix in order to be able to transfer the buffer between threads using `postMessage`, currently throwing an error if passing the buffer to the transfer list.\n\nWorkaround:\n\n```typescript\n((await workbook.xlsx.writeBuffer()) as unknown as Uint8Array).buffer;\n```"
+    }
+  ],
+  "attachments": []
+}

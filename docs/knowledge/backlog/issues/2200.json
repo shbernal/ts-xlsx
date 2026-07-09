@@ -1,0 +1,206 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2200,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2200",
+  "title": "[BUG] Streaming I/O Workbook commit never resolve with Stream Passthrough ",
+  "state": "open",
+  "author": "shujer",
+  "createdAt": "2023-01-20T15:47:14Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 23,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.3.2\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nimport * as ExcelJS from 'exceljs'\r\nimport { Stream, PassThrough } from 'stream'\r\nconst stream = new Stream.Duplex.PassThrough({})\r\nconst wb = new ExcelJS.stream.xlsx.WorkbookWriter({\r\n      stream: this.stream,\r\n      useStyles: true,\r\n      useSharedStrings: true\r\n    })\r\nconst ws = wb.addWorksheet('XYZ');\r\n\r\nws.addRow({}).commit()\r\nws.commit()\r\nawait wb.commit()\r\n```\r\n\r\n## The expected behaviour:\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\nPromise be resolved\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nnot sure why, any code example for this case? seems finish event not triggered so that commit can't resolved.\r\nBackground: \r\nI want to use Stream PassThrough as I can directly to upload  the stream to S3 with sdk\r\n",
+  "comments": [
+    {
+      "author": "kumaresansv",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-11T03:41:33Z",
+      "reactions": 0,
+      "body": "I am also facing similar issue when streaming directly to GCP. Is there a resolution for this? Did you find any workaround?\r\n\r\n"
+    },
+    {
+      "author": "kumaresansv",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-11T04:30:47Z",
+      "reactions": 0,
+      "body": "I did see a difference in behavior when I updated my default GCP credentials(that got expired) locally. I was not able to create any file on GCP for many of my runs. In all of those runs, the call workbook.commit() never resolved. It almost felt like that the issue was in the workbook.commit() step. \r\nOnce I updated my credentials, everything started to work again. I am keeping my fingers crossed for the issue to be associated with expired credentials.\r\n\r\nCan you check if you also have similar issue?\r\n"
+    },
+    {
+      "author": "zlooun",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-03T15:37:39Z",
+      "reactions": 0,
+      "body": "So much time has passed, and no one wants to solve such a banal and at the same time important problem. Why waste time on steam if it doesn't work properly anyway?\r\n\r\nSolve this problem pls"
+    },
+    {
+      "author": "HyunTaek5",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-07T16:26:03Z",
+      "reactions": 0,
+      "body": "I faced similar issue while streaming file directly to AWS S3 bucket. I resolved the issue with removing 'await' in front of workbook commit and make it synchronous. After i removed 'await', I just put Stream into Parameter Body and  upload to S3 with aws-sdk.\r\n\r\n```typescript\r\nimport * as stream from 'stream';\r\nimport * as Excel from 'exceljs';\r\nimport { S3 } from 'aws-sdk';\r\n\r\nconst Stream = new stream.PassThrough();\r\n\r\nconst wb = new Excel.stream.xlsx.WorkbookWriter({\r\n      stream: Stream,\r\n    });\r\n\r\nconst ws = wb.addWorksheet('Example');\r\n\r\nws.addRow({}).commit();\r\n\r\nws.commit();\r\n// Remove await in front of workbook commit.\r\nwb.commit();\r\n\r\n// Upload Stream to S3\r\nconst params = {\r\n      Bucket: ExampleBucket,\r\n      Key: 'example.xlsx',\r\n      Body: stream,\r\n      CacheControl: 'no-cache',\r\n   };\r\n\r\nconst s3 = new S3({\r\n      region: S3_REGION,\r\n      accessKeyId: ACCESS_KEY,\r\n      secretAccessKey: SECRET_KEY,\r\n});\r\n\r\nnew Promise<S3.ManagedUpload>((resolve, reject) => {\r\n     s3.upload(params, (err, data) => {\r\n        if (err) reject(err);\r\n        resolve(data);\r\n      });\r\n    });\r\n```\r\n\r\nI don't know why this issue is resolved with removing 'await', but may be there might be some issues with using Stream on Workbook commit? \r\n\r\nMay be there can be a better way to resolve this issue, but it's out of my league. :joy:"
+    },
+    {
+      "author": "zlooun",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-03-07T20:23:20Z",
+      "reactions": 7,
+      "body": "@HyunTaek5 i solved problem with streams in this fork: https://www.npmjs.com/package/@zlooun/exceljs"
+    },
+    {
+      "author": "armujahid",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-31T10:38:50Z",
+      "reactions": 0,
+      "body": "@zlooun can you please create a PR to resolve this issue in this repo? Because forks will diverge and this issue should be fixed in this repo."
+    },
+    {
+      "author": "AnkitKadam567",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-29T08:41:27Z",
+      "reactions": 0,
+      "body": "@armujahid @zlooun is this merged? I'm still facing similar issue"
+    },
+    {
+      "author": "armujahid",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-29T08:45:31Z",
+      "reactions": 0,
+      "body": "@AnkitKadam567 for now we are using @zlooun 's fork in production and we are satisfied with its performance and less memory usage using streaming. https://www.npmjs.com/package/@zlooun/exceljs"
+    },
+    {
+      "author": "AnkitKadam567",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-06-30T03:31:52Z",
+      "reactions": 0,
+      "body": "@armujahid @zlooun I'm using the package suggested by you but still facing same issue\r\n\r\n```\r\nconst { stream } = require(\"@zlooun/exceljs\");\r\n\r\nfunction processUpload(bucket, streamData, filename) {\r\n  return new Promise(async (resolve, reject) => {\r\n    const file = await createWritableStream(filename);\r\n    const options = {\r\n      stream: file.createWriteStream(createUploadOptions()),\r\n    };\r\n\r\n    const workbook = new stream.xlsx.WorkbookWriter(options);\r\n    const worksheet = workbook.addWorksheet(\"Sheet1\");\r\n    let counter = 0;\r\n    let headersWritten = false;\r\n    streamData.on(\"data\", (data) => {\r\n      counter++;\r\n      console.log(\"DATA RECEIVED : \", counter);\r\n      if (!headersWritten) {\r\n        worksheet.addRow(Object.keys(data)).commit();\r\n        headersWritten = true;\r\n      }\r\n\r\n      worksheet.addRow(Object.values(data)).commit();\r\n    });\r\n\r\n    streamData.on(\"end\", async (data) => {\r\n      console.log(\"COMMITTING WORKBOOK\");\r\n      await workbook.commit();\r\n      console.log(\"RESOLVING PROMISE : \", file.metadata);\r\n      resolve(file.metadata);\r\n    });\r\n\r\n    streamData.on(\"error\", async (err) => {\r\n      logger.info(\"Error while exporting file\");\r\n      console.error(err);\r\n      reject(err);\r\n    });\r\n  });\r\n}\r\n```\r\n\r\nam I missing something? I am getting data in stream of JSON format "
+    },
+    {
+      "author": "zlooun",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-12T17:46:19Z",
+      "reactions": 1,
+      "body": "@AnkitKadam567\r\n\r\nIt is important to put **await** before each commit\r\n```\r\nawait worksheet.addRow(Object.keys(data)).commit();\r\n```"
+    },
+    {
+      "author": "zlooun",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-12T17:50:03Z",
+      "reactions": 0,
+      "body": "@armujahid\r\nAt first I planned it that way, but after I saw that the last time exceljs was published 2 years ago, I decided to make my fork."
+    },
+    {
+      "author": "armujahid",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-07-13T06:38:46Z",
+      "reactions": 0,
+      "body": "@zlooun last merge in master was on May 5, 2023. so the repo is active. Maintainer might create a release soon. Or we can create an issue to request a release after merging your PR. "
+    },
+    {
+      "author": "dmitry-zaporozhan",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-08-03T07:37:12Z",
+      "reactions": 0,
+      "body": "there is active fork https://github.com/zurmokeeper/excelize\r\nmaybe they will accept pr"
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-08-04T01:38:02Z",
+      "reactions": 0,
+      "body": "@dmitry-zaporozhan @armujahid @zlooun @AnkitKadam567 @shujer \r\n\r\nHi everyone, I'm the @zurmokeeper/excelize author, and I'm happy to merge any features or bugfixes that would be useful to you, so feel free to PR.\r\n\r\nI used to join the merge meetings of the exceljs maintainers, but nothing has happened since 2023.5.5, so I'm pessimistic about a new version of exceljs, and that's why I feel like deciding to folk a branch out."
+    },
+    {
+      "author": "h4l-yup",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-12T03:35:29Z",
+      "reactions": 0,
+      "body": "Hi, I am facing the same issue. (workbook.commit never resolved)\r\n\r\nIs there no plan for fixing this in this package?"
+    },
+    {
+      "author": "zlooun",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-17T09:21:22Z",
+      "reactions": 0,
+      "body": "PR: https://github.com/exceljs/exceljs/pull/2558"
+    },
+    {
+      "author": "baolongt",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-27T19:16:05Z",
+      "reactions": 0,
+      "body": "> Hi, I am facing the same issue. (workbook.commit never resolved)\r\n> \r\n> Is there no plan for fixing this in this package?\r\n\r\nSeems the PR #2558 they mark as release in version 5. Just create patch and wait"
+    },
+    {
+      "author": "akshayhubilo",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-31T15:02:41Z",
+      "reactions": 0,
+      "body": "Its been more than a year, and this issue has still not been resolved. Any timeline?"
+    },
+    {
+      "author": "AmberWilkie",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-25T20:58:28Z",
+      "reactions": 0,
+      "body": "Same problem... this wasn't an issue for me until I sent my code to a dev environment to test and it just got hung up only sometimes in the most frustrating way. Based on logging, it also appears to be related to `workbook.commit()` - which TS won't let me await because it's not async (same for `addRow`)."
+    },
+    {
+      "author": "julesblancphin",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-10T17:05:41Z",
+      "reactions": 0,
+      "body": "Hi, this has now been open for two years and still hasn't been fixed. Any timeline?"
+    },
+    {
+      "author": "AmberWilkie",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-10T20:37:13Z",
+      "reactions": 2,
+      "body": "I just published this article / tutorial I've had in draft for ages (and was probably going to give up on) based on your ping @julesblancphin . I believe most of the internet is doing exceljs + streams wrong, including the examples in this issue. I was able to resolve these problems by writing code like I have here: https://medium.com/@heyamberwilkie/stream-exceljs-notebook-to-s3-in-typescript-43799cc3bd75\n\nI hope that's useful to you or anyone else.\n\nThe other super useful thing to know about these technologies is that any little thing that goes wrong with the workbook (like having too many characters in a sheet name) will cause malformatting, which can look very much like the stream was terminated early or didn't get the right data. When troubleshooting, always look for problems on the exceljs side first because streams can take you down a mad rabbithole. Every time a problem like that cropped up with my project, it was because of the inputs, not anything with streams."
+    },
+    {
+      "author": "julesblancphin",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-11T15:35:42Z",
+      "reactions": 2,
+      "body": "@AmberWilkie thank you very much, I can confirm your solution worked for me. You saved my code from being thrown in the trash.\n\nI had to slightly amend the solution because my setup is different (it's a serverless function where a template is downloaded from Azure blob storage and then the new workbook is again saved on Azure blob storage) and so my specific problem was that I was initializing my blob storage query after committing the workbook, it feels counter intuitive to do it before the stream has ended but it works!\n\nFor anyone that comes accross this issue, I highly recommend @AmberWilkie 's guide"
+    },
+    {
+      "author": "ian-weir",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-11-10T18:39:44Z",
+      "reactions": 0,
+      "body": "@AmberWilkie @julesblancphin Thank you for the input, mine was similar. I had actually found Amber's article before I was running into my issue and what solved it for me was using `Promise.allSettled(...)` and passing workbook.commit() and the function that completes the upload ( `upload.done()` for s3 in my case). Not sure if this is specific to S3 but it seems like awaiting one before the other caused some sort of deadlock where the promise wouldn't resolve."
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.npmjs.com/package/@zlooun/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/@zlooun/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/zurmokeeper/excelize",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2558",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://medium.com/@heyamberwilkie/stream-exceljs-notebook-to-s3-in-typescript-43799cc3bd75",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

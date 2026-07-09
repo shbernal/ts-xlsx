@@ -1,0 +1,46 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1318,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1318",
+  "title": "Help with cellIs",
+  "state": "open",
+  "author": "josuedelgado123",
+  "createdAt": "2020-06-06T07:09:26Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 3,
+  "body": "## 💬 Questions and Help\r\n\r\nHi, guys I'm kind of having some trouble when using the cellIs in conditional formating. I want to put a background color if certains cells equal \"T\". So for that I do these:\r\n\r\n` {\r\n          type: \"cellIs\",\r\n          formulae: [\"T\"],\r\n          operator: \"equal\",\r\n          style: {\r\n            fill: {\r\n              type: \"pattern\",\r\n              pattern: \"solid\",\r\n              bgColor: { argb: \"FFFF00\" },\r\n            },\r\n          },\r\n        }`\r\nI don't know if I'm actually doing the formulae part correctly. I couldn`t find a way to grab like the current cell and compare it.\r\nBtw, I'm not using containsText because I have another rule that applies for when the cell value is \"AT\" so because of the 'T' being on both cells, one overrules each other.\r\nHope you can help and if if you can, could you please provide me with a better example for formulae ? Thanks",
+  "comments": [
+    {
+      "author": "Mei152",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-24T01:52:09Z",
+      "reactions": 1,
+      "body": "I am also having an issue with conditional formatting.  I am trying to apply a fill to cells that contain 'X' and it is not working.\r\n\r\nHere is my code:\r\n\r\n```\r\n    sheet.addConditionalFormatting({\r\n      ref: 'A1:A26',\r\n      rules: [\r\n        {\r\n          type: 'containsText',\r\n          operator: 'containsText',\r\n          text: 'X',\r\n          style: {\r\n            fill: {\r\n              type: 'pattern',\r\n              pattern: 'solid',\r\n              bgColor: { argb: 'FF00FF00' }\r\n            }\r\n          }\r\n        }\r\n      ]\r\n    });\r\n```\r\n\r\nCan't figure out for the life of me what I am doing wrong.  It's probably something simple I am overlooking. Any help would be appreciated!!\r\n\r\n@josuedelgado123 I too tried CellIs with equal and it wound up applying the fill to all blank cells. "
+    },
+    {
+      "author": "Mei152",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-09-25T00:16:32Z",
+      "reactions": 0,
+      "body": "Turned out my issue was that because I was opening the xlsx file in Libre office.  Opened it in Excel and all the formatting was fine.  I knew I had to be doing something silly."
+    },
+    {
+      "author": "Prakhar0409",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-05-01T18:02:22Z",
+      "reactions": 1,
+      "body": "Looks like I'm quite late here.\r\nCould not get cellIs to work, however achieved the same result using custom expression\r\n\r\n```\r\nworksheet.addConditionalFormatting({\r\n      ref: 'A2:Z100',\r\n      rules: [\r\n        {\r\n          type: 'expression',\r\n          formulae: ['A2=\"T\"'],\r\n          style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FF00FF00'}}}\r\n        }\r\n      ]\r\n    });\r\n```\r\n\r\nBasically, Formulae based on cell values use the top-left addr as this gets translated\r\n\r\nRef: https://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/TODO.txt"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/2ab468b8bae2c8d5844f922d61ac7d960fee26be/TODO.txt",
+      "ext": "txt",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2549,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2549",
+  "title": "Hello folks, Export functionality is working on local but not working on server why this is happening I don't understand ?",
+  "state": "open",
+  "author": "prasadaher1999",
+  "createdAt": "2023-10-06T11:15:53Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 11,
+  "body": " generateExcelFile(res: any[]){\r\n    var response = res[0];\r\n    const workbook = new ExcelJS.Workbook();\r\n\r\n    //#region Common COC Worksheet\r\n    const commonCoCWorksheet = workbook.addWorksheet('worksheetA');\r\n    const commonCoCHeaders =['test1','test2','test3'];\r\n\r\n    const commonDtRow = commonCoCWorksheet.addRow(commonCoCHeaders);\r\n\r\n    commonDtRow.eachCell((cell) => {\r\n      cell.style = {\r\n        font : {bold: true},\r\n        fill: {\r\n          type: 'pattern',\r\n          pattern: 'solid',\r\n          fgColor: { argb: 'FFFFC000' },\r\n          bgColor: { argb: 'FFFFC000' }\r\n        }\r\n      };\r\n    });\r\n\r\n    const CommonCoCRows = response['commondatas'].map((row) => [row.test1,row.test2,row.test3]);\r\n\r\n      commonCoCWorksheet.addRows(CommonCoCRows);\r\n\r\n      commonCoCWorksheet.columns.forEach((column) => {\r\n        const values = column.values.map((cell) => cell.toString());\r\n        //const maxLength = Math.max(...values.map(value => value.length));\r\n        const maxLength = Math.max(...values.filter(str => typeof str === 'string' && str.length > 0).map(str => str.length));\r\n        column.width = maxLength + 5;\r\n      });\r\n\r\n\r\n    //#endregion\r\n\r\n \r\n    workbook.xlsx.writeBuffer().then((data:any) => {\r\n      console.log(\"workbook data lpgdom :\", data);\r\n      const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });\r\n      console.log(\"workbook blob\");\r\n      FileSaver.saveAs(blob, 'test.xlsx');\r\n    });\r\n  }",
+  "comments": [
+    {
+      "author": "Shahekta51995",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-06T11:49:01Z",
+      "reactions": 0,
+      "body": "I am also facing the same issue. For me, It was working before some days. Now suddenly it stops.\r\nhttps://github.com/exceljs/exceljs/discussions/2550#discussion-5707781"
+    },
+    {
+      "author": "chetanclozio",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-09T05:17:29Z",
+      "reactions": 0,
+      "body": "@guyonroche @alubbe Hi Guys, Good morning!. I am also facing the same issue as reported by @prasadaher1999 Can you please help us to solve this item? It's wired behavoiur like code is working correctly on local and after deployment on server it is not working. "
+    },
+    {
+      "author": "arjay-dala",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-13T23:02:22Z",
+      "reactions": 0,
+      "body": "Same I am having this error \"Cannot call a class as a function\" when using const workbook = new ExcelJS.Workbook()"
+    },
+    {
+      "author": "arjay-dala",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-13T23:02:54Z",
+      "reactions": 0,
+      "body": "> Same I am having this error \"Cannot call a class as a function\" when using const workbook = new ExcelJS.Workbook()\r\n\r\nIt is working on development side, but when building in production this error occurs"
+    },
+    {
+      "author": "jack-robson",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-17T12:58:10Z",
+      "reactions": 0,
+      "body": "Hey everyone 👋\n\nAny got steps to replicate this issue?\n\nEager to write a patch, but haven't been able to trigger the error."
+    },
+    {
+      "author": "stx-chris",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-18T08:10:33Z",
+      "reactions": 3,
+      "body": "Sure:\r\n\r\n1. Install latest next.js (13.5.3 and above)\r\n2. add a react-component using `import { Workbook } from \"exceljs\"`\r\n3. call `const workbook = new Workbook();`\r\n4. Make sure it doesn't cause an error when running `yarn dev`\r\n5. Build the production version `yarn build` and start the build locally `yarn start`\r\n\r\nThe error now appears when visiting the page. As mentioned in #2557 , a workaround is currently to use `react-use-exceljs`, which lazily loads the libraries."
+    },
+    {
+      "author": "vinz-mehra",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-19T14:53:27Z",
+      "reactions": 0,
+      "body": "I am also facing this issue. I can't use the react-use-exceljs wrapper as I primarily use this package to read Excel files and have no idea how to migrate in my case"
+    },
+    {
+      "author": "jack-robson",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-20T14:34:09Z",
+      "reactions": 0,
+      "body": "Unfortunately, I was still unable to replicate this issue.\n\nI created a new next app and made page.tsx the following:\n\n```\nimport { Workbook } from \"exceljs\";\n\nexport default function Home() {\n  const workbook = new Workbook();\n  return <main>Home</main>;\n}\n```\n\nWith my package.json looking like\n\n```\n{\n  \"name\": \"next-playground\",\n  \"version\": \"0.1.0\",\n  \"private\": true,\n  \"scripts\": {\n    \"dev\": \"next dev\",\n    \"build\": \"next build\",\n    \"start\": \"next start\",\n    \"lint\": \"next lint\"\n  },\n  \"dependencies\": {\n    \"exceljs\": \"^4.3.0\",\n    \"next\": \"13.5.3\",\n    \"react\": \"^18\",\n    \"react-dom\": \"^18\"\n  },\n  \"devDependencies\": {\n    \"@types/node\": \"^20\",\n    \"@types/react\": \"^18\",\n    \"@types/react-dom\": \"^18\",\n    \"autoprefixer\": \"^10\",\n    \"eslint\": \"^8\",\n    \"eslint-config-next\": \"13.5.5\",\n    \"postcss\": \"^8\",\n    \"tailwindcss\": \"^3\",\n    \"typescript\": \"^5\"\n  }\n}\n```\n"
+    },
+    {
+      "author": "stcore",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-20T14:52:44Z",
+      "reactions": 0,
+      "body": "> Desafortunadamente, todavía no puedo replicar este problema.\r\n> \r\n> Creé una nueva aplicación siguiente e hice que page.tsx fuera lo siguiente:\r\n> \r\n> ```\r\n> import { Workbook } from \"exceljs\";\r\n> \r\n> export default function Home() {\r\n>   const workbook = new Workbook();\r\n>   return <main>Home</main>;\r\n> }\r\n> ```\r\n> \r\n> Con mi paquete.json luciendo así\r\n> \r\n> ```\r\n> {\r\n>   \"name\": \"next-playground\",\r\n>   \"version\": \"0.1.0\",\r\n>   \"private\": true,\r\n>   \"scripts\": {\r\n>     \"dev\": \"next dev\",\r\n>     \"build\": \"next build\",\r\n>     \"start\": \"next start\",\r\n>     \"lint\": \"next lint\"\r\n>   },\r\n>   \"dependencies\": {\r\n>     \"exceljs\": \"^4.3.0\",\r\n>     \"next\": \"13.5.3\",\r\n>     \"react\": \"^18\",\r\n>     \"react-dom\": \"^18\"\r\n>   },\r\n>   \"devDependencies\": {\r\n>     \"@types/node\": \"^20\",\r\n>     \"@types/react\": \"^18\",\r\n>     \"@types/react-dom\": \"^18\",\r\n>     \"autoprefixer\": \"^10\",\r\n>     \"eslint\": \"^8\",\r\n>     \"eslint-config-next\": \"13.5.5\",\r\n>     \"postcss\": \"^8\",\r\n>     \"tailwindcss\": \"^3\",\r\n>     \"typescript\": \"^5\"\r\n>   }\r\n> }\r\n> ```\r\n\r\npruebe con 13.5.4 o 13.5.5"
+    },
+    {
+      "author": "lss3070",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-24T03:19:19Z",
+      "reactions": 3,
+      "body": "I raised the version to 4.4 and it worked"
+    },
+    {
+      "author": "MJsuriya",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-20T16:38:44Z",
+      "reactions": 0,
+      "body": "@lss3070 @stx-chris Thank you. 🙏🏽 \r\n\r\nThe combination of both solutions worked in my case. Yes, our site using Exceljs lib.\r\n\r\nI had been struggling with this for the past two days, and finally, the site is working on the server. \r\n\r\nThe problem I encountered was upgrading Next.js from v13.4.2 to v14.1.4 (the latest version).\r\n\r\nAn error was appearing on the console: \"Cannot call a class as a function\". "
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/discussions/2550#discussion-5707781",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

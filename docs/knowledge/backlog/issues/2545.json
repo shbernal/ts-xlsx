@@ -1,0 +1,84 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2545,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2545",
+  "title": "[F] Dropdown Multiselect",
+  "state": "open",
+  "author": "akash-pal",
+  "createdAt": "2023-09-28T12:03:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 7,
+  "commentCount": 7,
+  "body": "## 🚀 Feature Proposal\r\n\r\nCurrently the feature to render a dropdown is present.\r\nRequesting to add multiselect drop-down option too\r\n\r\n## Motivation\r\n\r\nhttps://www.extendoffice.com/documents/excel/2448-excel-drop-down-list-multiple-selection.html\r\n\r\n<img width=\"454\" alt=\"image\" src=\"https://github.com/exceljs/exceljs/assets/10221403/ba4567bd-0023-4ea5-bfaf-2949f6312608\">\r\n\r\n\r\n\r\n## Example\r\n\r\n\r\n\r\n<img width=\"511\" alt=\"image\" src=\"https://github.com/exceljs/exceljs/assets/10221403/3a83701b-f0be-4bb8-8095-4abe6126cc46\">\r\n\r\n",
+  "comments": [
+    {
+      "author": "hrithiqball",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-24T13:40:11Z",
+      "reactions": 3,
+      "body": "i support this feature. actually needed it"
+    },
+    {
+      "author": "chavda-bhavik",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-12-26T10:42:55Z",
+      "reactions": 4,
+      "body": "In support of this feature!"
+    },
+    {
+      "author": "yassineakermi",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-28T13:27:43Z",
+      "reactions": 2,
+      "body": "I also support this feature, I really need it.\r\nThank you."
+    },
+    {
+      "author": "pankajstorehippo",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-05-06T10:48:37Z",
+      "reactions": 2,
+      "body": "I need this feature "
+    },
+    {
+      "author": "tejo-makineni",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-11-22T18:59:52Z",
+      "reactions": 0,
+      "body": "We need this feature"
+    },
+    {
+      "author": "WindyWin",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-13T02:24:03Z",
+      "reactions": 0,
+      "body": "I support this feature"
+    },
+    {
+      "author": "AfarsheziF",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-07-10T09:10:53Z",
+      "reactions": 1,
+      "body": "We need it as well!"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.extendoffice.com/documents/excel/2448-excel-drop-down-list-multiple-selection.html",
+      "ext": "html",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/10221403/ba4567bd-0023-4ea5-bfaf-2949f6312608",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/10221403/3a83701b-f0be-4bb8-8095-4abe6126cc46",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

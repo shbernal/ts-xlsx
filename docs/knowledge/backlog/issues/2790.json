@@ -1,0 +1,24 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2790,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2790",
+  "title": "[BUG] stream xlsx dropping worksheets",
+  "state": "open",
+  "author": "LarryKen",
+  "createdAt": "2024-07-07T20:23:51Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\nThe stream namespace for xlsx workbook reader does not correctly parse large numbers of worksheets > 100. This is due to the way it is unzipping the file, it is reading the entries from the unzipper parse however it is not correctly draining each entry resulting in the stream halting [node-unzipper](https://github.com/ZJONSSON/node-unzipper?tab=readme-ov-file#parse-zip-file-contents:~:text=If%20you%20do%20not%20intend%20to%20consume%20an%20entry%20stream%27s%20raw%20data%2C%20call%20autodrain()%20to%20dispose%20of%20the%20entry%27s%20contents.%20Otherwise%20the%20stream%20will%20halt.). The iterateStream util does not call autodrain for each data when reading the unzipper stream.\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\n    const fileStream = createReadStream(PATH_TO_WORKBOOK_WITH_100_WORSHEETS);\r\n    const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(fileStream, {\r\n            worksheets: 'emit'\r\n    });\r\n    let count = 0;\r\n    for await (const worksheetReader of workbookReader) {\r\n        console.log('worksheet', worksheetReader.name);\r\n        count+=1;\r\n    };\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nShould consistently read all worksheets of a xlsx file.\r\n",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/ZJONSSON/node-unzipper?tab=readme-ov-file#parse-zip-file-contents:~:text=If%20you%20do%20not%20intend%20to%20consume%20an%20entry%20stream%27s%20raw%20data%2C%20call%20autodrain(",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

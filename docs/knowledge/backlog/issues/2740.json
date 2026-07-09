@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2740,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2740",
+  "title": "Unable to format a columns header definition to be a date format.",
+  "state": "open",
+  "author": "dan-scrumsdotcom",
+  "createdAt": "2024-04-10T11:04:05Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\nUnable to format a columns header definition to be in date format. I can format it to a string that looks like a date, for example `yyyy/mm/dd` however, the cell type is a string and not a date so I cannot use the exported excel sheet as needed. My use case is creating pivot tables amongst other things based on the date that column is for. \r\n\r\nLib version: **latest**\r\n\r\n## Steps To Reproduce\r\n\r\nconst datedColumns = ['2024/02/02']\r\n\r\n1. Create a workbook\r\n2. Assign a column `[{ header: '2024/02/02', key: '2024/02/02', width: 32 }]` with `worksheet.columns = columns;`\r\n3. Add a row `[{ '2024/02/02': \"Dummy Test\" }]`\r\n\r\n```\r\n    rows.forEach(async (row) => {\r\n      worksheet.addRow(row);\r\n    });\r\n ```\r\n\r\n4. Attempt to format cells to date format\r\n    \r\n```\r\n    dateColumns.forEach((column) => {\r\n    // try 1\r\n      worksheet.getRow(1).getCell(column).style = { numFmt: 'yyyy/mm/dd' };\r\n    // try 2\r\n      worksheet.getRow(1).numFmt = 'yyyy/mm/dd';\r\n    // try 3, this formats the data in the rows below the column header to be dates\r\n      worksheet.getColumn(column).numFmt = 'yyyy/mm/dd';\r\n    });\r\n```\r\n\r\nI've also tried defining the format on the column definition like so: \r\n\r\n``[{ header: '2024/02/02', key: '2024/02/02', width: 32, style: { numFmt: 'yyyy/dd/mm' } }]`\r\n\r\n\r\n## The expected behaviour:\r\n\r\nI expect the resulting cell in my export to be formatted as a date cell, this would make the data in the cell right aligned too.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nenable column header formatting\r\n",
+  "comments": [
+    {
+      "author": "dan-scrumsdotcom",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-10T11:07:45Z",
+      "reactions": 0,
+      "body": "To add further: \r\n\r\nI am able to format the dates in the subsequent rows to be the correct date format and display right aligned. However, not in the column headers. "
+    }
+  ],
+  "attachments": []
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2349,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2349",
+  "title": "Convert x14Id exceljs formatting",
+  "state": "open",
+  "author": "nilankamanoj",
+  "createdAt": "2023-09-17T03:08:05Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "\r\n\r\nI added some conditional formatting to an excel sheet using ms-excel. And printed/ copied to new sheet in exceljs as follows:\r\n\r\n```\r\nif (oldSheet.conditionalFormattings) {\r\n      oldSheet.conditionalFormattings.forEach((conditionalFormatting) => {\r\n        console.log(conditionalFormatting);\r\n        newSheet.addConditionalFormatting(conditionalFormatting);\r\n      });\r\n    }\r\n```\r\n\r\nthis logs :\r\n\r\n```\r\n{\r\n  ref: 'G2:G7',\r\n  rules: [\r\n    {\r\n      type: 'containsText',\r\n      operator: 'containsText',\r\n      priority: 1,\r\n      timePeriod: undefined,\r\n      percent: undefined,\r\n      bottom: undefined,\r\n      rank: undefined,\r\n      aboveAverage: undefined,\r\n      formulae: [Array],\r\n      style: [Object]\r\n    }\r\n  ]\r\n}\r\n```\r\n\r\nand when I open new sheet it shows conditional format correctly.\r\n\r\nThen I do few edits on excel sheet in ms excel then re run the excel sheet logs :\r\n```\r\n\r\n{\r\n  rules: [\r\n    {\r\n      type: 'containsText',\r\n      x14Id: '{FB6921CD-5991-484A-A817-95052B69C3E1}',\r\n      priority: 1\r\n    }\r\n  ],\r\n  ref: 'G2:G6'\r\n}\r\n```\r\n\r\nnew sheet is corrupted and ms excel asks to recover it. Once recovered no conditional formatting are there.\r\n\r\nSo, my problem is, How can I convert x14Id based rule to original rule format which supports copy and never corrupts the sheet.\r\n\r\n",
+  "comments": [],
+  "attachments": []
+}

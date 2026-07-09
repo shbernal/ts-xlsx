@@ -1,0 +1,48 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 734,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/734",
+  "title": "Add support for backpressure indication when using streams",
+  "state": "open",
+  "author": "paustint",
+  "createdAt": "2019-01-24T21:29:51Z",
+  "closedAt": null,
+  "labels": [
+    "question"
+  ],
+  "reactions": 5,
+  "commentCount": 3,
+  "body": "I have a use-case where from my server I am fetching paginated data from a remote server and turning it into a streaming XLSX file download to the user.  I might have to fetch data 50+ times to get all the data, and have a queue to manage concurrency.\r\n\r\nThe problem comes when we are fetching data faster than the user is downloading the data, and we keep pushing more and more data on, which causes memory issues.\r\n\r\nThis is solved in streams by having an indicator of backpressure where the stream indicates if more data is allowed to be pushed.\r\n\r\nSince I have implemented my CSV stream by hand, I can pause the stream and wait as needed, but with this library don't see where I can know if I should be allowed to push more data or not to the stream.\r\n\r\nWould it be possible to return the backpressure boolean indicator when a row is committed?\r\n\r\n**Node Reference:** https://nodejs.org/en/docs/guides/backpressuring-in-streams/",
+  "comments": [
+    {
+      "author": "dreamdevil00",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-07-22T02:30:34Z",
+      "reactions": 0,
+      "body": "Any updates?"
+    },
+    {
+      "author": "alesmenzel",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-05-13T17:24:54Z",
+      "reactions": 0,
+      "body": "This was really frustrating to find out after several debugging sessions. Are there any plans on supporting backpressure? Even just returning true/false from row `.commit(...)` would fix those issues. As of now, the streaming feature is not usable in production since it will eat up all of your memory in case the readable stream is faster then destination... I am really sad about this to be honest."
+    },
+    {
+      "author": "Mike-Dax",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-06T13:35:20Z",
+      "reactions": 0,
+      "body": "For anyone that stumbles upon this, we do the following:\r\n\r\nUse a streaming writer, eg:\r\n\r\n```ts\r\nconst writeStream = fs.createWriteStream(filePath)`\r\n\r\nconst workbook = new stream.xlsx.WorkbookWriter({\r\n    stream: writeStream,\r\n})\r\n```\r\n\r\nAfter each 'batch' of rows, we manually poll to see if the stream needs to be drained:\r\n\r\n```ts\r\nconst shouldPause = () => {\r\n  if (writeStream.writableNeedDrain) {\r\n    return new Promise<void>((resolve, reject) => {\r\n      writeStream.once('drain', resolve)\r\n    })\r\n  }\r\n  return null\r\n}\r\n```\r\n\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://nodejs.org/en/docs/guides/backpressuring-in-streams/",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 910,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/910",
+  "title": "Error: Worksheet name already exists: My Sheet",
+  "state": "open",
+  "author": "useralive003",
+  "createdAt": "2019-08-02T16:36:45Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "i18n"
+  ],
+  "reactions": 0,
+  "commentCount": 10,
+  "body": "Error: Worksheet name already exists: My Sheet\r\n\r\nvar Excel = require('exceljs');\r\n\r\nfunction test(invoices) {\r\n\r\n \r\n\r\n    var workbook = new Excel.Workbook();\r\n\r\n    var worksheet = workbook.addWorksheet('My Sheet');\r\n\r\n    worksheet.getRow(1).font = { bold: true };\r\n    worksheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };\r\n    worksheet.getColumn('B').alignment = { horizontal: 'center' };\r\n    worksheet.getCell('A1').value = 'Invoice Number';\r\n    worksheet.getCell('B1').value = 'Invoice Total';\r\n    worksheet.getColumn('A').width = 15;\r\n    worksheet.getColumn('B').width = 10;\r\n\r\n     for (var i = 0; i < invoices.length; i++) {\r\n\r\n        worksheet.getCell('A' + (i + 2)).value = invoices[i].InvoiceNumber;\r\n\r\n        worksheet.getCell('D' + (i + 2)).value = invoices[i].InvoiceTotal;\r\n\r\n \r\n\r\n    }\r\n\r\n    return workbook;\r\n\r\n}\r\n\r\nIt's working on ExcelJS version 10.0.0 but when update to new version of ExcelJS (1.14.0) getting this error \r\n\r\nNode version : 12.6.0",
+  "comments": [
+    {
+      "author": "mitravi2005",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-08-13T10:04:30Z",
+      "reactions": 0,
+      "body": "I am having the same issue."
+    },
+    {
+      "author": "samwanderman",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-08-28T10:18:18Z",
+      "reactions": 3,
+      "body": "The problem is in workbook.js within this block (see at row 48)\r\n```\r\n      if (this._worksheets.find(function (ws) {\r\n        return ws && ws.name === name;\r\n      })) {\r\n        throw new Error(\"Worksheet name already exists: \".concat(name));\r\n      } // if options is a color, call it tabColor (and signal deprecated message)\r\n```\r\nthis._worksheets.find(...) will return -1 if nothing is found. Within \"if\" condition it's value is casting to bool. Obviously (bool) -1 == true and we have the error.\r\n\r\nTemporarily can be fixed by this:\r\n```\r\n      if (this._worksheets.find(function (ws) {\r\n        return ws && ws.name === name;\r\n      }) !== -1) {\r\n        throw new Error(\"Worksheet name already exists: \".concat(name));\r\n      } // if options is a color, call it tabColor (and signal deprecated message)\r\n```"
+    },
+    {
+      "author": "kBien",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-01-20T02:52:10Z",
+      "reactions": 1,
+      "body": "One could also change the `Array.find()` method into `Array.some()`.\r\n\r\n###### *Still an issue as of Jan 20, 2020, exceljs@3.6.0*"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-01-21T12:00:23Z",
+      "reactions": 0,
+      "body": "#https://github.com/exceljs/exceljs/pull/1065"
+    },
+    {
+      "author": "chenkksho",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-05-11T09:04:12Z",
+      "reactions": 0,
+      "body": "Still an issue as of May 11, 2020, exceljs@3.9.0   @Siemienik \r\n![image](https://user-images.githubusercontent.com/12905007/81544382-07096100-93aa-11ea-9378-950038b1ec61.png)\r\n![image](https://user-images.githubusercontent.com/12905007/81544171-b85bc700-93a9-11ea-9503-8e2ef1788253.png)\r\n"
+    },
+    {
+      "author": "nithin-pb",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-03-14T12:37:53Z",
+      "reactions": 2,
+      "body": "The issue still there in exceljs@4.2.1.\r\nany workaround for this issue?\r\n\r\nWorks fine for v1.0.0"
+    },
+    {
+      "author": "wellyal",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-08-03T13:11:16Z",
+      "reactions": 0,
+      "body": "This is still an issue with version exceljs@4.2.1 why is this still closed? Is the project dead?"
+    },
+    {
+      "author": "IvanShirokikh",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-06T13:04:37Z",
+      "reactions": 3,
+      "body": "Hi stumbled upon the same problem as I found out the problem occurs when there is a [collections](https://github.com/montagejs/collections) library with version lower than 5.1.0. There's a redefinition of the array [find](https://github.com/montagejs/collections/blob/v5.0.7/shim-array.js#L135) method that returns -1 if the lookup is missing."
+    },
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2022-01-13T01:58:06Z",
+      "reactions": 0,
+      "body": "@IvanShirokikh \r\nDo you have the wrong test code?"
+    },
+    {
+      "author": "jaemyunlee",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-09-22T23:33:35Z",
+      "reactions": 0,
+      "body": "@IvanShirokikh already explained. but I want to elaborate on what happened in my team. Suddenly my team had the same error. It turned out that we had imported [excel-export](https://www.npmjs.com/package/excel-export) library and it uses old version collections library. Exceljs library(4.3.0) was not problem in our situation.\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/1065",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/12905007/81544382-07096100-93aa-11ea-9378-950038b1ec61.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/12905007/81544171-b85bc700-93a9-11ea-9503-8e2ef1788253.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/montagejs/collections",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/montagejs/collections/blob/v5.0.7/shim-array.js#L135",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://www.npmjs.com/package/excel-export",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 661,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/661",
+  "title": "Can't read file",
+  "state": "open",
+  "author": "krisstoof",
+  "createdAt": "2018-10-11T10:43:00Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "I have an error \r\n```\r\nTypeError: e.exists is not a function\r\n    at exceljs.min.js:4\r\n    at E (exceljs.min.js:10)\r\n    at c.M [as constructor] (exceljs.min.js:10)\r\n    at new c (exceljs.min.js:15)\r\n    at Object.exists (exceljs.min.js:4)\r\n    at b.exports.readFile (exceljs.min.js:7)\r\n    at ProjectsListComponent.push../src/app/projects-list/projects-list.component.ts.ProjectsListComponent.flags2 (projects-list.component.ts:88)\r\n    at Object.eval [as handleEvent] (ProjectsListComponent.html:141)\r\n    at handleEvent (core.js:10258)\r\n    at callWithDebugContext (core.js:11351)\r\n```\r\n\r\nwhen I'm using angular \r\nthis is my code \r\n```\r\nreadExcel() {\r\n   const workbook = new Excel.Workbook();\r\n    workbook.xlsx.readFile('../assets/Raport.xlsx')\r\n    .then(function() {\r\n      const workSheet = workbook.getWorksheet('Project Data');\r\n    }).catch(function(error) {\r\n      console.log(error);\r\n  });\r\n  }\r\n```",
+  "comments": [
+    {
+      "author": "rsatyan",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-12-27T18:36:51Z",
+      "reactions": 0,
+      "body": "@krisstoff  -  Did you find a solution to this problem?"
+    },
+    {
+      "author": "krisstoof",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-12-27T18:47:08Z",
+      "reactions": 0,
+      "body": "@rsatyan Unfortunately, no. However I did used other library to parse data from xlsx file. \r\n\r\nsheetjs\r\n\r\n."
+    },
+    {
+      "author": "rsatyan",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-12-27T19:07:42Z",
+      "reactions": 0,
+      "body": ":( Thank you. @krisstoof "
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-01-12T00:14:32Z",
+      "reactions": 0,
+      "body": "@krisstoof @rsatyan \r\nI am using same workflow like @krisstoof and I've never had this error..\r\n\r\nDid you try use absolute path ?"
+    },
+    {
+      "author": "nesscx",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-04-04T03:11:31Z",
+      "reactions": 1,
+      "body": "Angular 6+ do not support \"fs\" module, that's why we're getting that error."
+    }
+  ],
+  "attachments": []
+}

@@ -1,0 +1,74 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2256,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2256",
+  "title": "[BUG] The exported table inserts a drop-down menu for the cell. The cell cannot display drop-down options",
+  "state": "open",
+  "author": "Lin-Min",
+  "createdAt": "2023-04-25T12:17:29Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 7,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\n\r\n  const wb = new ExcelJS.Workbook();\r\n  const ws = wb.addWorksheet(\"sheet1\");\r\n  const colums = [\r\n    {\r\n      header: \"测试1\",\r\n      key: \"test1\",\r\n      width: 25\r\n    },\r\n    {\r\n      header: \"测试2\",\r\n      key: \"test2\",\r\n      width: 25\r\n    },\r\n    {\r\n      header: \"测试3\",\r\n      key: \"test3\",\r\n      width: 25\r\n    },\r\n    {\r\n      header: \"测试4\",\r\n      key: \"test4\",\r\n      width: 25\r\n    }\r\n  ];\r\n  ws.columns = colums;\r\n  const cell = ws.getCell(\"A2\");\r\n  cell.dataValidation = {\r\n    type: \"list\",\r\n    allowBlank: true,\r\n    formulae: [\r\n      '\"1234 Main St, Anytown 56789,5678 Elm Ave, Smallville 23456,9012 Oak Rd, Big City 34567,3456 Pine Dr, Tinytown 67890,7890 Maple Ln, Mediumtown 12345,2345 Hickory St, Suburbia 45678,6789 Cedar Cir, Urbanville 89012,0123 Birch Blvd, Countryside 23456,4567 Walnut Way, Metropolis 78901,8901 Cherry Lane, Hamlet 23456,2345 Poplar Place, Cityville 78901,6789 Spruce Street, Villagetown 12345,0123 Juniper Blvd, Boroughville 45678,4567 Acacia Court, Metroville 89012,8901 Sycamore Ave, Thetown 23456,2345 Cypress Circle, Hometown 78901,6789 Chestnut Sq, Thecity 12345,0123 Laurel Ave, Villageville 45678,4567 Grove Road, Lakeville 89012,8901 Flower Lane, Districtville 23456\"'\r\n    ]\r\n  };\r\n  wb.xlsx.writeBuffer().then((buffer) => {\r\n\r\n    const blob = new Blob([buffer], {\r\n      type: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"\r\n    });\r\n\r\n    const link = document.createElement(\"a\");\r\n    link.href = window.URL.createObjectURL(blob);\r\n    link.download = \"test.xlsx\";\r\n    link.click();\r\n  });\r\n```\r\n## [This is my duplicate address](https://codesandbox.io/s/crazy-browser-rpbx9r?file=/src/App.js)\r\n## The expected behaviour: Cells normally display drop-down options\r\n\r\n<!-- A clear and concise description of what you expected to happen. -->\r\n\r\n\r\n## Possible solution (optional, but very helpful): \r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-26T03:06:37Z",
+      "reactions": 0,
+      "body": "@Lin-Min It may be because in Excel, a single cell set the maximum length of the data validation drop-down list string of `255` characters, more than this number of characters limit, it will not be able to properly display the drop-down list options.\r\n\r\nChange the content of your `formulae` to\r\n\r\n`'\"1234 Main St, Anytown 56789,5678 Elm Ave, Smallville 23456,9012 Oak Rd, Big City 34567,3456 Pine Dr, Tinytown 67890,7890 Maple Ln, Mediumtown 12345. 2345 Hickory St, Suburbia 45678,6789 Cedar Cir, Urbanville 89012,0123 Birch Blvd, Countryside 23456,4567 Wa\"'`\r\n\r\nLess than or equal to `255` can be displayed normally, more than `255` will not be displayed normally"
+    },
+    {
+      "author": "Lin-Min",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-04-26T03:47:59Z",
+      "reactions": 2,
+      "body": "> @Lin-Min可能是因为在Excel中，单个单元格设置了数据验证下拉列表字符串的最大长度`255`，超过这个字符数限制，将无法正常显示下拉列表选项。\r\n> \r\n> 将您的内容更改`formulae`为\r\n> \r\n> `'\"1234 Main St, Anytown 56789,5678 Elm Ave, Smallville 23456,9012 Oak Rd, Big City 34567,3456 Pine Dr, Tinytown 67890,7890 Maple Ln, Mediumtown 12345. 2345 Hickory St, Suburbia 45678,6789 Cedar Cir, Urbanville 89012,0123 Birch Blvd, Countryside 23456,4567 Wa\"'`\r\n> \r\n> 小于等于`255`可以正常显示，大于`255`不能正常显示\r\n\r\nI don't think so, I think it is a bug, even if you said there is 255 characters limit, then I can not normally display the drop-down menu options with the data you provided, you can see my test link"
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-26T06:04:52Z",
+      "reactions": 0,
+      "body": "@Lin-Min \r\nSorry, I copied it wrong when I copied it, here\r\n`Mediumtown 12345. 2345 Hickory St,`\r\nshould be\r\n`Mediumtown 12345,2345 Hickory St,`\r\n\r\nTry this again\r\n`'\"1234 Main St, Anytown 56789,5678 Elm Ave, Smallville 23456,9012 Oak Rd, Big City 34567,3456 Pine Dr, Tinytown 67890,7890 Maple Ln, Mediumtown 12345,2345 Hickory St, Suburbia 45678,6789 Cedar Cir, Urbanville 89012,0123 Birch Blvd, Countryside 23456,4567 Wal\"'`\r\n\r\nIn fact, it does not matter what string is inside, do not exceed 255 characters on the good, I gave you the one due to the wrong copy, resulting in the length has exceeded 255, you can output the length of the string to see for yourself"
+    },
+    {
+      "author": "Lin-Min",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-04-26T08:43:33Z",
+      "reactions": 0,
+      "body": "As you said, there is a character length limit. I hope you can add an optimization check that the length exceeds 255 and throw a warning to remind the user, otherwise the user may feel the bug. For this character is too long I find the way to the next in the drop-down menu on another sheet reference: formulae: [` = Sheet2! $A $2: $A $${reportAddressOptions. Length + 1} `]. Thank you for your reply. Thank you!"
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-26T10:13:09Z",
+      "reactions": 0,
+      "body": "@Lin-Min This is a great idea for a PR, and I'd like to ask about the use of `formulae: ['$D$5:$F$5'] `to avoid the problem of length limits, is that what you mean?"
+    },
+    {
+      "author": "Lin-Min",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-04-26T10:24:01Z",
+      "reactions": 0,
+      "body": "Yes, I now use Formulae: ['$ D $ 5: $ F $ 5'] to avoid the problem of length limit. I hope that this reminder can be added to the official documentation so that users can timely discover the length of length limit.And when the user inserts the drop -down option in the form of character forms, if the character length exceeds 255, you can throw a warning warning that the user's character is too long, and the table cannot show the drop -down option. Please change another way and check the official documentation in detail."
+    },
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-05-07T05:44:04Z",
+      "reactions": 0,
+      "body": "@Lin-Min #2264 Do you want this PR like this?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://codesandbox.io/s/crazy-browser-rpbx9r?file=/src/App.js",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 141,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/141",
+  "title": "Chart support",
+  "state": "open",
+  "author": "Toub",
+  "createdAt": "2016-06-26T12:43:57Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 33,
+  "commentCount": 5,
+  "body": "Is it possible to read or write charts with exceljs?\n",
+  "comments": [
+    {
+      "author": "lcotonea",
+      "authorAssociation": "NONE",
+      "createdAt": "2016-12-09T16:04:37Z",
+      "reactions": 2,
+      "body": "Another nodejs library allow to do that : https://www.npmjs.com/package/xlsx-chart but it seems there's no way to merge workbook."
+    },
+    {
+      "author": "Toub",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-05-23T13:14:23Z",
+      "reactions": 1,
+      "body": "We should get inspiration here: https://github.com/optilude/xlsx-template\r\n\r\nAnd also see this discussion here: https://github.com/SheetJS/js-xlsx/issues/111"
+    },
+    {
+      "author": "nowherenearithaca",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-11-16T19:40:57Z",
+      "reactions": 10,
+      "body": "I'm guessing this is not simple :)\r\n"
+    },
+    {
+      "author": "felix25",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-07-08T04:38:04Z",
+      "reactions": 12,
+      "body": "there is already the integration for excelljs??"
+    },
+    {
+      "author": "akarait-boobalan",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-02T09:31:59Z",
+      "reactions": 0,
+      "body": "> Is it possible to read or write charts with exceljs?\r\n\r\nHow to download excel table and chart in same excel. Anyone can you give me some references?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.npmjs.com/package/xlsx-chart",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/optilude/xlsx-template",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/SheetJS/js-xlsx/issues/111",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

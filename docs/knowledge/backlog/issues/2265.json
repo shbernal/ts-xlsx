@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2265,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2265",
+  "title": "await workbook.xlsx.writeFile(filePath); using xlsx.writeFile function excel file update successfully but file size not changed it shows default file size,when we saved file manually then file size got changed ",
+  "state": "open",
+  "author": "autotest-web",
+  "createdAt": "2023-05-08T05:27:18Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 💬 Questions and Help\r\n\r\nPlease do not use issues for making a questions, for this purposes much better is GitHub Discussions feature:\r\nhttps://github.com/exceljs/exceljs/discussions/categories/q-a\r\n\r\n### How to make a question?\r\n\r\n1. First, try to find it by using search bar - anware what are you looking for was be done before.\r\n2. Push the `New discussion` button.\r\n3. Select `Q&A` category.\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-05-08T12:12:51Z",
+      "reactions": 0,
+      "body": "@autotest-web Can you post the code and the excel file before and after the operation?"
+    },
+    {
+      "author": "autotest-web",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-08T17:49:18Z",
+      "reactions": 0,
+      "body": "using this function we write the excel file after updating                                                                                                        \r\n  await workbook.xlsx.writeFile(filePath); \r\nnot able to attached file here\r\n\r\n\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/discussions/categories/q-a",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

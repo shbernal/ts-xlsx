@@ -1,0 +1,76 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2878,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2878",
+  "title": "Outdated Archiever version used by exceljs (latest version)",
+  "state": "open",
+  "author": "shrutinidhi",
+  "createdAt": "2025-01-16T02:13:39Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nLib version: **Archiver 5.3.2**\r\n\r\n**Description** :\r\nWe are using exceljs 4.4.0 which in turn is dependent on archiver 5.3.2. \r\nOn scanning our application war, we are getting below severe vulnerability.\r\n \r\n**Vulnerability** : GFI Archiver Telerik Web UI Remote Code Execution Vulnerability. This vulnerability allows remote attackers to execute arbitrary code on affected installations of GFI Archiver. Authentication is not required to exploit this vulnerability.\r\n\r\nThe specific flaw exists within the product installer. The issue results from the use of a vulnerable version of Telerik Web UI. An attacker can leverage this vulnerability to execute code in the context of NETWORK SERVICE. Was ZDI-CAN-24041.\r\n\r\nSuggested fix to mitigate the risk is by updating archiver version to 7.0.1.\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```\r\n1. Use excelJs  with latest version in any angular project.\r\n2. Build and zip the project war file.\r\n3. Scan the zip using any vulnerability scanner.\r\n4. We get critical vulnerability as mentioned above regarding archiver version.\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nArchiver version should be updated to 7.0.1 in the exceljs latest versions.\r\n\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\n```javascript\r\n\r\n```\r\n",
+  "comments": [
+    {
+      "author": "rengare",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-18T19:35:56Z",
+      "reactions": 0,
+      "body": "I have created a PR with change https://github.com/exceljs/exceljs/pull/2890\nlets wait for maintainers\n\n**edit**\nafter archiver upgrade, some tests fails due to timeout, I have to take a look at that"
+    },
+    {
+      "author": "rengare",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-02-18T21:14:22Z",
+      "reactions": 0,
+      "body": "All tests passes\n\n![Image](https://github.com/user-attachments/assets/139d1a68-f4f6-4b0e-ba9b-e64fd467a80d)"
+    },
+    {
+      "author": "foder-srv",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-03-09T19:05:45Z",
+      "reactions": 0,
+      "body": "I disagree on @shrutinidhi's reported problem - and updating to the latest archiver version won't fix it.\n\nThe vulnerability you mention ([CVE-2024-11948](https://nvd.nist.gov/vuln/detail/CVE-2024-11948)) is referenced as linked to the package [cpe:2.3:a:gfi:archiver:\\*:\\*:\\*:\\*:\\*:\\*:\\*:\\*](https://gfi.ai/products-and-solutions/network-security-solutions/archiver/resources/documentation/product-releases) , GFI Archiver is a windows-server solution for email storage.\nIt has nothing to do with the used npm package archiver, [archiverjs/node-archiver](https://github.com/archiverjs/node-archiver).\n[ZDI](https://www.zerodayinitiative.com/advisories/ZDI-24-1671/) mentions for this issue : \"Fixed in version 15.7 - https://upgrade.gfi.com/check/gfi-archiver/12x\" - but there is no version 15.7 for archiverjs/node-archiver, latest is 7.0.1 as you said.\n\n**Your issue is that the vulnerability scanners often detect false-positive**, you then need to manually validate that the product was correctly detected, and the vulnerability correctly associated.\nBumping archiver to 7.0.1 probably won't fix your scanner's false-positive detection of this vulnerability, as they base their detection on the package name (and sometimes the version, but here it is \\* in the cpe)\n\nI don't have an opinion on bumping archiver anyway, as a good practice to keep the dependencies up-to-date, but it doesn't need to be done for cyber security reasons"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/pull/2890",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/user-attachments/assets/139d1a68-f4f6-4b0e-ba9b-e64fd467a80d",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-11948",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://gfi.ai/products-and-solutions/network-security-solutions/archiver/resources/documentation/product-releases",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/archiverjs/node-archiver",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://www.zerodayinitiative.com/advisories/ZDI-24-1671/",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://upgrade.gfi.com/check/gfi-archiver/12x",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

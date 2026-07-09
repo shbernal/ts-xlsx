@@ -1,0 +1,53 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1115,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1115",
+  "title": "Stream write not working properly",
+  "state": "open",
+  "author": "raghuchahar007",
+  "createdAt": "2020-02-11T13:09:54Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 4,
+  "body": "I wants to create excel and download it for huge data that can't be done by saving whole data in a buffer and then write into the xlsx file(Memory issue) so I tried using streams so that I can generate and download file on the fly without using much memory.\r\n\r\nHere is my code : \r\n```javascript\r\nconst Excel = require(\"exceljs\");\r\n\r\nconst createExcel = async resp => {\r\n  //Setting up boilerplate for xlsx\r\n  const workbook = new Excel.stream.xlsx.WorkbookWriter({ stream: resp });\r\n  const worksheet = workbook.addWorksheet(\"Test\");\r\n  worksheet.state = \"visible\";\r\n  worksheet.columns = [\r\n    {\r\n      header: \"Name\",\r\n      key: \"name\",\r\n      width: 20\r\n    },\r\n    {\r\n      header: \"Age\",\r\n      key: \"age\",\r\n      width: 20\r\n    },\r\n    {\r\n      header: \"City\",\r\n      key: \"city\",\r\n      width: 20\r\n    }\r\n  ];\r\n  const limit = 20;\r\n  let skip;\r\n  //fetching huge data and adding it in xlsx using pagination\r\n  while (true) {\r\n    const { result } = await fetch(); //restAPI which returns array of json\r\n    for (const element of result) {\r\n      const { name, age, city } = element;\r\n      worksheet\r\n        .addRow({\r\n          name,\r\n          age,\r\n          city\r\n        })\r\n        .commit();\r\n    }\r\n    if (result.length < limit) {\r\n      await workbook.commit();\r\n      return;\r\n    }\r\n    skip = { id: result[result.length - 1].id };\r\n    console.log(\"Skip : \", skip);\r\n  }\r\n};\r\n\r\n//Rest API to download xlsx\r\napp.get(\"/download\", (req, resp) => {\r\n  resp.writeHead(200, {\r\n    \"Content-Type\": \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\",\r\n    \"Content-Disposition\": `attachment; filename=\"${\"outputFileName.xlsx\"}\"`,\r\n    \"Access-Control-Allow-Origin\": \"*\",\r\n    \"Access-Control-Allow-Methods\": \"GET, POST, OPTIONS\"\r\n  });\r\n  createExcel(resp);\r\n});\r\n```\r\nI excpected that I would get chunks on browser/client side(from stream) whenever any row is committed but I am getting some 2800 KB data initially and rest data I am getting after committing workbook.\r\n\r\nAm I doing something wrong here?",
+  "comments": [
+    {
+      "author": "lifan0127",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-04T21:39:54Z",
+      "reactions": 0,
+      "body": "Looks like this is related to an earlier issue from 2016: https://github.com/exceljs/exceljs/issues/209\r\n\r\n"
+    },
+    {
+      "author": "raghuchahar007",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-08-24T09:31:17Z",
+      "reactions": 0,
+      "body": "@lifan0127 No, I am not getting chunks for every row instead chunks are sending only after the worksheet is committed.\r\nis there any way I can do stream for every row committed?"
+    },
+    {
+      "author": "palmerye",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-27T08:35:56Z",
+      "reactions": 0,
+      "body": "is this issue solved? my program work like this. @raghuchahar007 @lifan0127 "
+    },
+    {
+      "author": "thiagoissao",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-17T13:56:18Z",
+      "reactions": 0,
+      "body": "i'm having the same problem, is there any fix for this issue?"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/209",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

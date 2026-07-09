@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1648,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1648",
+  "title": "[BUG] The border property is lost when merge cells",
+  "state": "open",
+  "author": "Rickyc81",
+  "createdAt": "2021-03-29T16:18:40Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\n The border property is lost when duplicate a WS and merge cells \r\n\r\nLib version: 4.2.1\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nasync function readData () {\r\n    const workbook = new Excel.Workbook();\r\n    await workbook.xlsx.readFile('MODELLO.xlsx');\r\n    const ws1 = workbook.getWorksheet('1')\r\n    let copySheet = workbook.addWorksheet(\"2\")\r\n    \r\n    copySheet.model = Object.assign(ws1.model, {\r\n        mergeCells: ws1.model.merges\r\n    })\r\n\r\n    copySheet.name = \"2\"\r\n    console.log(ws1.getCell('G44').style)\r\n    console.log(copySheet.getCell('G44').style)\r\n    \r\n    await workbook.xlsx.writeFile('MODELLO_PROVA.xlsx', {\r\n        useStyles: true\r\n    });\r\n}\r\n```\r\nResult:\r\n```\r\nPS D:\\TIM> node .\\index.js\r\n{\r\n  numFmt: '@',\r\n  font: { size: 10, name: 'Arial' },\r\n  border: {\r\n    top: { style: 'thin', color: [Object] },\r\n    bottom: { style: 'medium', color: [Object] }\r\n  },\r\n  fill: { type: 'pattern', pattern: 'none' },\r\n  alignment: { horizontal: 'left' }\r\n}\r\n{\r\n  numFmt: '@',\r\n  font: { size: 10, name: 'Arial' },\r\n  alignment: { horizontal: 'center', vertical: 'middle' },\r\n  border: {},\r\n  fill: { type: 'pattern', pattern: 'none' }\r\n}\r\nPS D:\\TIM>\r\n```",
+  "comments": [
+    {
+      "author": "potier97",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-04-18T04:41:43Z",
+      "reactions": 0,
+      "body": "Hi @Rickyc81 , how you fixed this?"
+    },
+    {
+      "author": "dingtwo",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-11-29T06:16:01Z",
+      "reactions": 1,
+      "body": "I add a patch to solve this, although it's not very elegant.\r\n```\r\ndiff --git a/node_modules/exceljs/lib/doc/worksheet.js b/node_modules/exceljs/lib/doc/worksheet.js\r\nindex 13e4141..de937bc 100644\r\n--- a/node_modules/exceljs/lib/doc/worksheet.js\r\n+++ b/node_modules/exceljs/lib/doc/worksheet.js\r\n@@ -896,7 +896,8 @@ class Worksheet {\r\n     _.each(model.mergeCells, merge => {\r\n       // Do not merge styles when importing an Excel file\r\n       // since each cell may have different styles intentionally.\r\n-      this.mergeCellsWithoutStyle(merge);\r\n+      this.mergeCells(merge)\r\n+      // this.mergeCellsWithoutStyle(merge);\r\n     });\r\n   }\r\n \r\n \r\n```"
+    }
+  ],
+  "attachments": []
+}

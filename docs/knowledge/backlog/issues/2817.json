@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2817,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2817",
+  "title": "Bug Report: async Library Version 3.2.5 Violation",
+  "state": "open",
+  "author": "Naveed1842",
+  "createdAt": "2024-09-08T08:01:25Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report: `async` Library Version 3.2.5 Violation\r\n\r\n**Description:**  \r\nThere is a violation issue with the `async` library version 3.2.5 that affects our project . We request that the `async` library be updated to a newer version in order to resolve this violation.\r\n\r\n**Lib versions in use:**  \r\n- `async`: 3.2.5  \r\n- `exceljs`: 4.4.0  \r\n- `archiver`: 5.3.2\r\n\r\n## Request:\r\n\r\nPlease update the `async` library to a newer version async : 3.2.6 that resolves this violation.\r\n\r\n---",
+  "comments": [],
+  "attachments": []
+}

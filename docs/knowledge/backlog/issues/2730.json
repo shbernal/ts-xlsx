@@ -1,0 +1,51 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2730,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2730",
+  "title": "[BUG] When using the addImage method and specifying the cell width with tl and br after changing the cell width, the intended width is not set.",
+  "state": "open",
+  "author": "RyokoKassai",
+  "createdAt": "2024-03-27T01:06:58Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 4,
+  "commentCount": 3,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen using the addImage method and specifying the cell width with tl and br after changing the cell width, the intended width is not set. The image is displayed with a smaller cell width than specified.\r\n\r\nIs there a way to specify the \"br\" while changing the cell width? \r\nPlease note that I also want to set the editAs property at the same time, so specifying it with br instead of ext is necessary.\r\n\r\nLib version: 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n■javascript source\r\n\r\n    const workbook = new ExcelJS.Workbook();\r\n\r\n    const worksheet = workbook.addWorksheet('My Sheet');\r\n    worksheet.columns = [\r\n        { header: 'Id', key: 'id', width: 10 },\r\n        { header: 'Name', key: 'name', width: 32 },\r\n        { header: 'test', key: 't1', width: 32 },\r\n        { header: 'test2', key: 't2', width: 32 },\r\n        { header: 'test3', key: 't3', width: 32 },\r\n      ];\r\n\r\n    // read image files\r\n    const imageId = workbook.addImage({\r\n        filename: 'img_7483.jpg',\r\n        extension: 'jpg',\r\n    });\r\n    \r\n    worksheet.addImage(imageId,{\r\n        tl:{col:2,row:2},\r\n        br:{col:3.8,row:3.5},\r\n        editAs:'twoCell'\r\n    });\r\n    \r\n    // save Excel file\r\n    workbook.xlsx.writeFile(outputfile)\r\n        .then(() => {\r\n            console.log('completed!');\r\n        })\r\n        .catch(error => {\r\n            console.error('an error ocurred.', error);\r\n        });\r\n\r\n## The expected behaviour:\r\n\r\nExpected: The specified \"br\" is applied to the changed cell width, and the image is displayed.\r\nActual: The image is displayed with a smaller cell width than specified.\r\n[out_otamesi_gazo.xlsx](https://github.com/exceljs/exceljs/files/14766158/out_otamesi_gazo.xlsx)\r\n\r\n",
+  "comments": [
+    {
+      "author": "wwwxy80s",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-19T09:03:01Z",
+      "reactions": 0,
+      "body": "I read the source code of exceljs and consulted some information. I found a way to accurately add images through the br attribute, but I don’t know if it is universal. I would like to share some information I found.\r\n\r\nWhen calling addImage using the br attribute, you need to determine the two anchor points of the upper left corner and the lower right corner of the image.\r\n\r\nTake a single anchor point br (bottomRight) as an example. In addition to col and row attributes, you also need to pass nativeCol, nativeRow, nativeColOff, and nativeRowOff (all must be passed. I tested that after passing these four values, col and row parameters can be omitted). nativeRowOff and nativeColOff represent the offset size of the anchor point in the cell where it is located. The unit is EMUs. nativeCol and nativeRow represent the row and column of the cell where it is located. The value is an integer.\r\n\r\nThen there is the following conversion formula\r\n\r\n1. 1EMU =1 / 914400 inch\r\n2. 1 inch = 96 pixels (assuming the display DPI is 96)\r\n3. So 1 pixel = 914400 / 96EMU\r\n4. ExcelJsColWidthInEMU = ExcelJsColWidth * 10000\r\n5. ExcelJsrowHeightInEMU = ExcelJsRowHeight * 10000\r\n\r\nIn my case,I calculate the Image pixel offset  in bottom right cell\r\nHere is the code\r\n\r\n``` typescript\r\n// The pixel offset of the lower right corner of the image in the cell where it is located\r\nconst ImageWidthPixelOffsetInBottomRightCell = 20\r\nconst bottomRightCellWidth = 32\r\nconst bottomRightCellWidthInEmu = bottomRightCellWidth * 10000\r\n// index of the cell where the bottom right corner of the image is located (starting from 0, integer value)\r\nconst nativeRow = 3\r\nconst imageWidthEMUOffsetInBottomRightCell =  ImageWidthPixelOffsetInBottomRightCell * 914400 / 96\r\nconst nativeRowOff = ImageWidthEMUOffsetInBottomRightCell\r\nconst row = nativeRow + nativeRowOff/bottomRightCellWidthInEmu\r\n```\r\n\r\nThe calculation of column-related parameters is similar\r\nThe above calculation method is implemented by referring to the calculation logic in the exceljs source code, removing some fault-tolerant logic. If possible, it is recommended to look at the code in the following file\r\nhttps://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/doc/anchor.js"
+    },
+    {
+      "author": "wwwxy80s",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-19T09:39:32Z",
+      "reactions": 1,
+      "body": "In your case\r\ncalculate params in br\r\nI don't know if it works, you can try it\r\n```typescript\r\nconst bottomRightCellWidth = 32\r\nconst bottomRightCellWidthInEmu = bottomRightCellWidth * 10000\r\nconst nativeRowOff = 0.8 * bottomRightCellWidthInEmu\r\nconst nativeRow = 3\r\nconst row = 3.8\r\n\r\n// maybe different,my excel default font is chinese font\r\nconst bottomRightRowHeight = 16.8\r\nconst bottomRightRowHeightInEmu = bottomRightRowHeight * 10000\r\nconst nativeColOff = 0.5 * bottomRightRowHeightInEmu\r\nconst nativeCol = 3\r\nconst col = 3.5\r\n\r\n```"
+    },
+    {
+      "author": "ff-stan",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-06-24T16:29:06Z",
+      "reactions": 0,
+      "body": "> 在你的情况 下计算参数 我不知道它是否有效，你可以尝试一下\r\n> \r\n> ```ts\r\n> const bottomRightCellWidth = 32\r\n> const bottomRightCellWidthInEmu = bottomRightCellWidth * 10000\r\n> const nativeRowOff = 0.8 * bottomRightCellWidthInEmu\r\n> const nativeRow = 3\r\n> const row = 3.8\r\n> \r\n> // maybe different,my excel default font is chinese font\r\n> const bottomRightRowHeight = 16.8\r\n> const bottomRightRowHeightInEmu = bottomRightRowHeight * 10000\r\n> const nativeColOff = 0.5 * bottomRightRowHeightInEmu\r\n> const nativeCol = 3\r\n> const col = 3.5\r\n> ```\r\nThis is very useful to me, thank you！！！\r\n"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/files/14766158/out_otamesi_gazo.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/5bed18b45e824f409b08456b59b87430ded023ab/lib/doc/anchor.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 317,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/317",
+  "title": "dataValidation only coming through when cells selected individually",
+  "state": "open",
+  "author": "Daise316",
+  "createdAt": "2017-05-15T13:58:42Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "proposal"
+  ],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "There's an issue where data validation is not coming through for cells, if they had their validation applied (in Excel) when multiple cells were selected.\r\n\r\nSo to repro: Make or open an xlsx file in Excel.  Select multiple cells, and click Data Validation.  Put whatever validation you want in.  Load the xlsx using workbook.xlsx.readFile.  Notice the cells will not have dataValidation.\r\n\r\nIf you then go back into Excel and select a single cell (even one of the cells that was previously multiselected), and tweak the validation so it's different - it will work.\r\n\r\nThe attached Book1.xlsx demonstrates the issue:\r\n[Book1.xlsx](https://github.com/guyonroche/exceljs/files/1001289/Book1.xlsx)\r\n\r\nTested on 0.4.6",
+  "comments": [
+    {
+      "author": "vsantoscte",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-12-12T22:51:40Z",
+      "reactions": 0,
+      "body": "I have this same error. I set the property \"showErrorMessage\" on dataValidation, but when generation the .xlsx file don't have values on the maximum and minimun values in Data Validations Settings. If I don't set the property \"showErrorMessage\" the values are inserting corret, but don't show the erro message:"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/guyonroche/exceljs/files/1001289/Book1.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

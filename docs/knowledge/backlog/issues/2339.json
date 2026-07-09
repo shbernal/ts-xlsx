@@ -1,0 +1,49 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2339,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2339",
+  "title": "[BUG] Open the same file with WPS and Execl, but the height of the line number is different",
+  "state": "open",
+  "author": "ukicker",
+  "createdAt": "2023-08-24T08:27:02Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\r\n\r\n Open the same file with WPS and Execl, but the height of the line number is different，WPS preview is normal.\r\n用WPS和Execl打开同一个生成的表格，行高不一样，WPS 是正确的。\r\n\r\nLib version: 4.3.0\r\nWPS version：12.1.0.15120\r\nOffice version:  office home and student edition 2019\r\n\r\n\r\n## Execl\r\n<img width=\"696\" alt=\"execl\" src=\"https://github.com/exceljs/exceljs/assets/87855462/637bd633-270e-47e6-9bad-9b69c406081d\">\r\n\r\n## WPS\r\n<img width=\"799\" alt=\"wps\" src=\"https://github.com/exceljs/exceljs/assets/87855462/1aeaffff-81e4-4472-9317-2d90dd55480d\">\r\n\r\n## xlsx\r\n[demo.xlsx](https://github.com/exceljs/exceljs/files/12427284/demo.xlsx)\r\n",
+  "comments": [
+    {
+      "author": "yanglee2421",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-07T16:09:26Z",
+      "reactions": 0,
+      "body": "Same issue here\n"
+    },
+    {
+      "author": "yanglee2421",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-05-07T17:47:07Z",
+      "reactions": 0,
+      "body": "因为Excel在算这个行高的时候回除以系统的缩放而WPS不受系统缩放影响，简单来说就是100缩放两者行高一致，200缩放Excel的行高只有WPS的一半，以此类推"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/87855462/637bd633-270e-47e6-9bad-9b69c406081d",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/assets/87855462/1aeaffff-81e4-4472-9317-2d90dd55480d",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/files/12427284/demo.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

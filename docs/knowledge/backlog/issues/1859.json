@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1859,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1859",
+  "title": "Cell Padding support",
+  "state": "open",
+  "author": "rodrigosalinas2",
+  "createdAt": "2021-10-13T03:01:03Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 11,
+  "commentCount": 4,
+  "body": "Apparently exceljs doesn't support Cell Padding. Is it possible to add it? Can I help to add this functionality? Thanks in advance.",
+  "comments": [
+    {
+      "author": "Ledarath",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-09-28T09:31:40Z",
+      "reactions": 3,
+      "body": "Any update on this please?"
+    },
+    {
+      "author": "pinkpigeonltd",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-04T09:26:59Z",
+      "reactions": 0,
+      "body": "+1 from me. This would be extremely helpful in formatting spreadsheets with lots of information, for additional legibility"
+    },
+    {
+      "author": "mehmetVidout",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-03-15T15:00:19Z",
+      "reactions": 0,
+      "body": "+1 from me"
+    },
+    {
+      "author": "robzet",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-07-17T15:57:29Z",
+      "reactions": 0,
+      "body": "+1 this would be nice."
+    }
+  ],
+  "attachments": []
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2950,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2950",
+  "title": "[BUG] worksheet addRows - undefined",
+  "state": "open",
+  "author": "salisbury-espinosa",
+  "createdAt": "2025-07-30T17:56:48Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\n\n```javascript\nimport Excel from 'exceljs';\nimport { PassThrough } from 'stream';\n\nconst workbook = new Excel.stream.xlsx.WorkbookWriter({\n            stream: new PassThrough(),\n            useStyles: true,\n            useSharedStrings: true,\n});\n\nconst worksheet = workbook.addWorksheet('My Sheet', {\n            pageSetup: { paperSize: 9, orientation: 'landscape' },\n          });\n\nconsole.log({ addRows: worksheet.addRows });\n```\n\n## The expected behaviour:\n\naddRows - must be function\n\n\n## Possible solution (optional, but very helpful):\n\n```javascript\n\n```\n",
+  "comments": [],
+  "attachments": []
+}

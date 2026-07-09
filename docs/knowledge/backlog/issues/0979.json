@@ -1,0 +1,40 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 979,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/979",
+  "title": "Formulas with IFS result in #NAME error.",
+  "state": "open",
+  "author": "zawarski",
+  "createdAt": "2019-10-03T04:09:11Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 2,
+  "commentCount": 3,
+  "body": "Looked and did not see this previously reported, if you assign a cell a formula with IFS() -- there may be others, but that is the one I had issue with -- the resulting spreadsheet will display #NAME error. However, if you click in the cell and hit return, it displays the result of the formula as expected. If you save that excel sheet and then unarchive it, you will find the entry in the corresponding XML file is not IFS, but _xlfn.IFS. When I altered my code to specify the formula prefaced with 'xlfn.', it displayed as expected.\r\n",
+  "comments": [
+    {
+      "author": "lukas1994",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-18T20:35:17Z",
+      "reactions": 0,
+      "body": "@zawarski I just ran into the same issue. Were you able to resolve it?"
+    },
+    {
+      "author": "verlok",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-03-12T17:45:06Z",
+      "reactions": 0,
+      "body": "same here, any ideas?"
+    },
+    {
+      "author": "mortenhillbom",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-02-23T23:44:41Z",
+      "reactions": 0,
+      "body": "For me, switching out semicolons with commas did the trick!\r\nWhen opening in excel, they show up as semicolons again.\r\n```\r\n{ formula: `=IF([SomeColumn]=TRUE; [SomeOtherColumn]; 0)` } // not working\r\n{ formula: `=IF([SomeColumn]=TRUE, [SomeOtherColumn], 0)` } // working\r\n```"
+    }
+  ],
+  "attachments": []
+}

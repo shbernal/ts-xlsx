@@ -1,0 +1,54 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1838,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1838",
+  "title": "iterable is not async iterable ",
+  "state": "open",
+  "author": "ksmarty",
+  "createdAt": "2021-09-15T14:19:57Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 5,
+  "body": "I'm trying to read an xlsx file, but every time I get the error `iterable is not async iterable`.\r\n\r\nI've tried reading a file written by exceljs and one created externally but both report the same error. I also attempted reading the file with `fs` and passing the buffer to exceljs but got the same error. Here is my code:\r\n\r\n```ts\r\nimport Excel from \"exceljs\";\r\nconst workbook = new Excel.Workbook();\r\nawait workbook.xlsx.readFile(\"very_cool_file.xlsx\");\r\n```\r\n\r\nAnd here is the full error:\r\n```\r\niterable is not async iterable \r\n  ​​​​​at ​​​​​​​​module.exports​​​ ​./node_modules/exceljs/lib/utils/parse-sax.js:20​\r\n  ​​​​​at ​​​​​​​​RelationshipsXform.parse​​​ ​./node_modules/exceljs/lib/xlsx/xform/base-xform.js:60​\r\n  ​​​​​at ​​​​​​​​RelationshipsXform.parseStream​​​ ​./node_modules/exceljs/lib/xlsx/xform/base-xform.js:77​\r\n  ​​​​​at ​​​​​​​​XLSX.parseRels​​​ ​./node_modules/exceljs/lib/xlsx/xlsx.js:66​\r\n  ​​​​​at ​​​​​​​​XLSX.load​​​ ​./node_modules/exceljs/lib/xlsx/xlsx.js:316​\r\n  ​​​​​at ​​​​​​​​async XLSX.readFile​​​ ​./node_modules/exceljs/lib/xlsx/xlsx.js:55\r\n```\r\n\r\nnode: v16.9.1\r\nTypeScript: v4.4.2",
+  "comments": [
+    {
+      "author": "BiancaFL",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-20T23:32:59Z",
+      "reactions": 0,
+      "body": "same problem here"
+    },
+    {
+      "author": "ksmarty",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-12-21T03:27:04Z",
+      "reactions": 0,
+      "body": "I ultimately gave up and used python with xlwings. Much better tool, honestly."
+    },
+    {
+      "author": "RedEyePilot",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-23T01:37:39Z",
+      "reactions": 0,
+      "body": "> same problem here\r\n\r\nWere you able to find a fix? Same problem here.\r\n\r\nupd (resolved):\r\nSo after some poking around figured out that there is interference with package readable-stream which in my case is a dependency of mysql package. Once it is removed (anyways mysql does not look supported any more), the error goes away. I do not have enough competency to figure out what exactly is wrong inside either of those, so delete and forget."
+    },
+    {
+      "author": "rigperro",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-26T06:49:43Z",
+      "reactions": 0,
+      "body": "> > same problem here\r\n> \r\n> Were you able to find a fix? Same problem here.\r\n> \r\n> upd (resolved): So after some poking around figured out that there is interference with package readable-stream which in my case is a dependency of mysql package. Once it is removed (anyways mysql does not look supported any more), the error goes away. I do not have enough competency to figure out what exactly is wrong inside either of those, so delete and forget.\r\n\r\nHello, same problem here. What do you mean removed? readable-stream is also a dependency of exceljs, right?"
+    },
+    {
+      "author": "RedEyePilot",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-26T15:11:49Z",
+      "reactions": 0,
+      "body": "> > Were you able to find a fix? Same problem here.\r\n\r\nSo after poking around some more I came to the conclusion that some of the dependencies were missing. Deleting readable-stream (even though it is a dependency of exceljs) did resolve the issue without affecting the functionality I needed. However the real cause, in my mind, was that more dependencies were missing. I ran inventory and realized that somewhere on the way I lost a number of other dependencies. I ended up reinstalling the packages I use to a clean project and replaced the node_modules folder in the old one with this new one. This time readable-stream was there and the error did not reappear. So that could be the case.\r\n\r\n"
+    }
+  ],
+  "attachments": []
+}

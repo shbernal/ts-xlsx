@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2953,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2953",
+  "title": "[BUG] Out of memory while writing a large file supposed to result in 15 Mo of xlsx",
+  "state": "open",
+  "author": "dubzzz",
+  "createdAt": "2025-08-04T10:33:22Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "## 🐛 Bug Report\n\n<!-- A clear and concise description of what the bug is. -->\n\nWhen trying to write a large workbook (10 by 500,000) into a buffer, Node ran out-of-memory. The resulting file should be at most of 15Mo which seems reasonable from a memory stand-point.\n\nThe code below is a reproduction case for a case I got on an application running in the browser and performing `writeBuffer` on a 7 by 220k grid full of data and with formatting on each cell.\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\n\n```javascript\nimport pkg from \"exceljs\";\nconst { Workbook } = pkg;\n\nconst workbook = new Workbook();\nconst worksheet = workbook.addWorksheet(undefined, {\n  views: [{ showGridLines: true }],\n});\nfor (let columnIndex = 0; columnIndex !== 10; ++columnIndex) {\n  for (let rowIndex = 0; rowIndex !== 500_000; ++rowIndex) {\n    const cell = worksheet.getCell(rowIndex + 1, columnIndex + 1);\n    cell.value = \"Xxx Xxxxxx Xxx Xxxxxx Xxxxxxxxxxxx\";\n    const defaultBorder = {\n      style: \"thin\",\n      color: { argb: \"E0E0E0\" },\n    };\n    cell.style = {\n      border: {\n        bottom: defaultBorder,\n        left: defaultBorder,\n        right: defaultBorder,\n        top: defaultBorder,\n      },\n      vertical: \"middle\",\n    };\n  }\n}\nawait workbook.xlsx.writeBuffer({ useStyles: true });\n// await workbook.xlsx.write('filename.xlsx', { useStyles: true }); // does not work either\n```\n\n## The expected behaviour:\n\n<!-- A clear and concise description of what you expected to happen. -->\n\nGiven 100,000 rows results into a 2,287 Ko file, I don't expect 500,000 rows to cause out-of-memory of Node when creating the file.\n\nThe code above fails with:\n\n```\nFATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory\n```\n\n## Possible solution (optional, but very helpful):\n\nNone yet. Except maybe dropping all the styling, but not an ideal option given I want to preserve it.",
+  "comments": [
+    {
+      "author": "dubzzz",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-08-05T09:58:03Z",
+      "reactions": 0,
+      "body": "By reading the documentation, I fell upon an helper called `Excel.stream.xlsx.WorkbookWriter`. Unfortunately it cannot make it in my case as I'm on a browser so I cannot really trigger filesystem APIs.\n\nBut what's interesting is that when switching to it, I don't have the OOM anymore if I go for a file export.\n\n<details>\n<summary>Snippet</summary>\n\n```js\nconst workbook = new Excel.stream.xlsx.WorkbookWriter({\n  filename: \"streamed.xlsx\",\n  useStyles: true,\n});\nconst worksheet = workbook.addWorksheet(undefined, {\n  views: [{ showGridLines: true }],\n});\nfor (let rowIndex = 0; rowIndex !== 500_000; ++rowIndex) {\n  for (let columnIndex = 0; columnIndex !== 10; ++columnIndex) {\n    const cell = worksheet.getCell(rowIndex + 1, columnIndex + 1);\n    cell.value = \"Xxx Xxxxxx Xxx Xxxxxx Xxxxxxxxxxxx\";\n    const defaultBorder = {\n      style: \"thin\",\n      color: { argb: \"E0E0E0\" },\n    };\n    cell.style = {\n      border: {\n        bottom: defaultBorder,\n        left: defaultBorder,\n        right: defaultBorder,\n        top: defaultBorder,\n      },\n      vertical: \"middle\",\n    };\n  }\n  worksheet.getRow(rowIndex + 1).commit();\n}\nworksheet.commit();\nawait workbook.commit();\n```\n</details>\n\nBut this solution made me thing of a possible trick to make it work in the browser. As the library relies on stream and fs being two node only library I tweaked the library to import `@zenfs/core` instead of fs and everything could work via a fake file system replacing fs.\n\nThe only requirement would be to have \"Excel.stream\" accessible from the browser."
+    },
+    {
+      "author": "dubzzz",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-08-05T10:33:36Z",
+      "reactions": 0,
+      "body": "Any plan to offer an equivalent of WorkbookWriter for browser side?"
+    }
+  ],
+  "attachments": []
+}

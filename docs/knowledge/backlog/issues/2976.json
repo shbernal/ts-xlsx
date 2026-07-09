@@ -1,0 +1,66 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2976,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2976",
+  "title": "Update tmp dependency to >=0.2.4 to fix vulnerability (GHSA-52f5-9888-hmc6)",
+  "state": "open",
+  "author": "lgcarlinf",
+  "createdAt": "2025-09-24T22:37:43Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 3,
+  "body": "\nHello 👋,  \n\nFirst, thanks for maintaining this project 🙏.  \n\nI noticed that this library depends on **[`tmp`](https://www.npmjs.com/package/tmp)** in a version lower than `0.2.4`. That version has a known vulnerability:  \n\n- **Advisory:** [GHSA-52f5-9888-hmc6](https://github.com/advisories/GHSA-52f5-9888-hmc6)  \n- **Severity:** High  \n- **Patched in:** `tmp@0.2.4`  \n\n## Steps to reproduce\n1. Install this library.  \n2. Run `npm audit` / `pnpm audit` / `yarn audit`.  \n3. Observe the warning about the vulnerable `tmp` dependency.  \n\n## Suggested fix\nBump the `tmp` dependency to at least **`0.2.4`** to ensure downstream users are not exposed to this vulnerability.  \n\nThanks again for your work on this project 🙌.",
+  "comments": [
+    {
+      "author": "TamanRise",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-09-29T07:09:31Z",
+      "reactions": 0,
+      "body": "Hi 👋,\n\nJust wanted to add that we're also facing the same issue in our project. We've been alerted about the tmp vulnerability (GHSA-52f5-9888-hmc6) and are seeing the same warning in our npm audit reports. It’s affecting us when using exceljs@4.4.0 due to the older version of tmp being included.\n\nI second the suggestion to bump tmp to at least 0.2.4 to avoid exposing downstream users to this vulnerability.\n\nThanks for the hard work on this project! "
+    },
+    {
+      "author": "Silentscripter",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-10-15T07:30:28Z",
+      "reactions": 0,
+      "body": "FYI updating tmp to v >= 0.2.4 is causing this bug as side effect when using the strem reader https://github.com/exceljs/exceljs/issues/683"
+    },
+    {
+      "author": "gameroman",
+      "authorAssociation": "NONE",
+      "createdAt": "2026-04-12T13:02:36Z",
+      "reactions": 0,
+      "body": "Hi, I've forked this into https://github.com/excel-js/exceljs if someone is interested\n\nThere is also https://github.com/cjnoname/excelts"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://www.npmjs.com/package/tmp",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/advisories/GHSA-52f5-9888-hmc6",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/683",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/excel-js/exceljs",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/cjnoname/excelts",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

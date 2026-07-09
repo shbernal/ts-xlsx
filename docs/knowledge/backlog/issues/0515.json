@@ -1,0 +1,53 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 515,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/515",
+  "title": "IE10 problems",
+  "state": "open",
+  "author": "sergeisnitko",
+  "createdAt": "2018-03-14T17:38:36Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 8,
+  "commentCount": 4,
+  "body": "Hi guys!\r\n\r\nFirst of all, thank you for your brilliant solution. It is awesome and we use it almost in every our project. We love it very much.\r\n\r\nIn one of the projects we need to use exceljs in browser, and it works perfectly in modern browsers (like chrome, ff, edge). But there are some problems using it in InternetExplorer10. We understand that the problem is with Uint8Array and it strange work in IE10.\r\n\r\nHow do you think, could you do something to enhance your solution with IE10 support?\r\n\r\nThank you for your work!\r\n\r\n_Some screenshots and code. It fails on writeBuffer => write => ZipWriter=>finalize_\r\n\r\n![image](https://user-images.githubusercontent.com/7835251/37419697-17b38d66-27c6-11e8-838b-1d12ef3b1223.png)\r\n``` JavaScript\r\n    return (workbook.xlsx)\r\n      .writeBuffer({ base64: true })\r\n      .then(function(xls64) {\r\n          var data = new Blob([xls64], {\r\n              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'\r\n          });\r\n          if (model.filename) {\r\n              return download(data, model.filename, 'application/excel');\r\n          } else {\r\n              return data;\r\n          }\r\n      });\r\n```\r\n",
+  "comments": [
+    {
+      "author": "sergeisnitko",
+      "authorAssociation": "NONE",
+      "createdAt": "2018-03-30T05:46:22Z",
+      "reactions": 0,
+      "body": "any thoughts?"
+    },
+    {
+      "author": "longwangsam",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-18T03:14:39Z",
+      "reactions": 0,
+      "body": "I also have this question. How do you solve it？"
+    },
+    {
+      "author": "alubbe",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-06-19T08:12:29Z",
+      "reactions": 0,
+      "body": "We do not target or support IE10 anymore. However, exceljs v4 is known to work with IE11, so maybe there's been changes that make it work. Feel free to try that out and report back any findings."
+    },
+    {
+      "author": "longwangsam",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-19T12:54:36Z",
+      "reactions": 0,
+      "body": "> We do not target or support IE10 anymore. However, exceljs v4 is known to work with IE11, so maybe there's been changes that make it work. Feel free to try that out and report back any findings.\r\n\r\nI try to use other components to solve this problem，Thank you"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/7835251/37419697-17b38d66-27c6-11e8-838b-1d12ef3b1223.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

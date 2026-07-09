@@ -1,0 +1,33 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2651,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2651",
+  "title": "Fix issue #2547",
+  "state": "open",
+  "author": "darkag",
+  "createdAt": "2024-01-05T10:54:13Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "invert order of negativeFillColor and negativeBorderColor\r\n\r\n## Summary\r\n\r\nFix the issue #2547\r\n\r\n## Test plan\r\n\r\nadd the following conditionalFormatting rule\r\nthe exported file will open with this fix but won't without.\r\n\r\n```javascript\r\n worksheet.addConditionalFormatting({\r\n    ref: \"A1:A1\"\r\n    rules: [\r\n        {\r\n            type: \"dataBar\",\r\n            cfvo: [{ type: \"min\" }, { type: \"max\" }],\r\n            color: { argb: \"FF50FF50\" },\r\n            negativeFillColor: { argb: 'FFFF5050' },\r\n            border: true,\r\n            negativeBarBorderColorSameAsPositive: false,\r\n            borderColor: { argb: \"FF50FF50\" },\r\n            negativeBorderColor: { argb: 'FFFF5050' },\r\n            axisColor: { auto: \"1\"},\r\n        }\r\n    ]\r\n});\r\n```\r\n\r\n\r\n",
+  "comments": [],
+  "attachments": [],
+  "pr": {
+    "merged": false,
+    "mergeable": true,
+    "baseRef": "master",
+    "additions": 1,
+    "deletions": 1,
+    "changedFiles": [
+      {
+        "path": "lib/xlsx/xform/sheet/cf-ext/databar-ext-xform.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1
+      }
+    ]
+  }
+}

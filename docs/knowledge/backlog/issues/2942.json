@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2942,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2942",
+  "title": "[BUG] `Filter` array function not able to `SPILL` after reading and re-writing the file",
+  "state": "open",
+  "author": "pacifiquem",
+  "createdAt": "2025-06-18T08:02:47Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\n\nI have an excel file which already has some formulas one of them being something like this: `=LET(\n  results, FILTER(\n    Sheet3!$B$2:$B$1000,\n    VALUE(Sheet3!$A$2:$A$1000) = VALUE(INDIRECT(\"Sheet1!S\" & Sheet2!B1))\n  ),\n  IFERROR(results, \"\")\n)`\n\nAfter reading my `.xlsx` and literally do nothing that affects the cell where that formula is, when I save the the file again with `.writeFile` method, the formula is affected as {} are added around it & this prevents it from SPILLing the results into multiple columns, causing it to return only the top most value.\n\nLib version: 4.4.0\n\n## Steps To Reproduce\n\n1. Create an excel file (not by using code)\n2. Add an array formula which is intended to SPILL returned multiple values into different cells of the same column\n3. Read that file\n4. Write file <save>\n5. Check how the array formula gets wrapped into {} causing the array formula not to spill.\n\n## The expected behaviour:\n\nArray formulas must remain as they are without getting modified or even if they are modified their behavior must be preserved. in this case the formula has to still be able to SPILL even if exceljs modified it internally.\n\n## Possible solution (optional, but very helpful):\n\nN/A\n",
+  "comments": [],
+  "attachments": []
+}

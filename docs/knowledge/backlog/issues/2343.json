@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2343,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2343",
+  "title": "[BUG] Sheet-specific defined names for rows are not included in the output",
+  "state": "open",
+  "author": "micthiesen",
+  "createdAt": "2023-08-30T17:51:25Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\nSheet-specific defined names for rows are not included in the output. I'm mostly writing this issue in case my patch is useful for others, but it would be nice to have a proper fix too. I looked at the code base and I'm not sure how to fix this properly tbh.\r\n\r\nLib version: 4.3.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nworkbook.definedNames.add(\r\n  `'Sheet Name'!15:15`,\r\n  \"some_name\"\r\n);\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nThe `some_name` defined name shows up in the Names Manager for the generated model in Excel.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nIf you patch the library as follows you can force the library to include these defined names. But it bypasses a lot of the existing logic and will likely break some other features. I'm currently using this with caution\r\n\r\n```javascript\r\ndiff --git a/lib/doc/defined-names.js b/lib/doc/defined-names.js\r\nindex e33baf3155d39ee8ef7bf954b9d15201ead7ed16..e5a457637942508690c273f84370f82a08942396 100755\r\n--- a/lib/doc/defined-names.js\r\n+++ b/lib/doc/defined-names.js\r\n@@ -10,6 +10,10 @@ const rangeRegexp = /[$](\\w+)[$](\\d+)(:[$](\\w+)[$](\\d+))?/;\r\n class DefinedNames {\r\n   constructor() {\r\n     this.matrixMap = {};\r\n+\r\n+    // Bypass all the existing logic and trust that the provided names are valid. This is to get defined names\r\n+    // working; they were not before. We just have to be more careful when using them (lots of testing).\r\n+    this.simpleDefinedNames = [];\r\n   }\r\n \r\n   getMatrix(name) {\r\n@@ -19,6 +23,9 @@ class DefinedNames {\r\n \r\n   // add a name to a cell. locStr in the form SheetName!$col$row or SheetName!$c1$r1:$c2:$r2\r\n   add(locStr, name) {\r\n+    this.simpleDefinedNames.push({ name, ranges: [locStr] }); // Bypass all existing logic\r\n+    return;\r\n+\r\n     const location = colCache.decodeEx(locStr);\r\n     this.addEx(location, name);\r\n   }\r\n@@ -173,6 +180,8 @@ class DefinedNames {\r\n   }\r\n \r\n   get model() {\r\n+    return this.simpleDefinedNames; // Bypass all existing logic\r\n+\r\n     // To get names per cell - just iterate over all names finding cells if they exist\r\n     return _.map(this.matrixMap, (matrix, name) => this.getRanges(name, matrix)).filter(\r\n       definedName => definedName.ranges.length\r\n```\r\n",
+  "comments": [],
+  "attachments": []
+}

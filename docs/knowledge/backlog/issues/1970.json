@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1970,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1970",
+  "title": "I'm export exceljs with angular after export system show Error Checking",
+  "state": "open",
+  "author": "KanKai",
+  "createdAt": "2022-02-08T10:56:56Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 2,
+  "body": "I would like close warning\r\n<img width=\"257\" alt=\"Screen Shot 2565-02-08 at 17 55 27\" src=\"https://user-images.githubusercontent.com/9978562/152973591-1175a693-f48b-4e36-b4df-dcb6a457df6e.png\">\r\n\r\n",
+  "comments": [
+    {
+      "author": "skypesky",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2022-02-11T06:09:00Z",
+      "reactions": 0,
+      "body": "@KanKai \r\nhello, What does this warning show? How to reproduce this error? Is there a test case?"
+    },
+    {
+      "author": "NegiKiran",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-11T13:06:37Z",
+      "reactions": 0,
+      "body": "check if you are passing number not string\r\n\r\nthis\r\n```\r\nthis.worksheet.getCell('A1').value = 5;\r\n```\r\nnot this\r\n```\r\nthis.worksheet.getCell('A1').value = \"5\";\r\n```"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://user-images.githubusercontent.com/9978562/152973591-1175a693-f48b-4e36-b4df-dcb6a457df6e.png",
+      "ext": "png",
+      "isFixture": false
+    }
+  ]
+}

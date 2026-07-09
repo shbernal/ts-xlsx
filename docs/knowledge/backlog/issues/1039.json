@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1039,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1039",
+  "title": "Is there a way to group certain column or row with the help of exceljs library ?",
+  "state": "open",
+  "author": "DharamveerYadav",
+  "createdAt": "2019-12-02T10:58:45Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 8,
+  "commentCount": 0,
+  "body": "I need to group certain column in exported excel, is there a way i can do this with the help of exceljs library ?",
+  "comments": [],
+  "attachments": []
+}

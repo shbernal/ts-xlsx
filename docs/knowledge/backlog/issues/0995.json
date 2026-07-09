@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 995,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/995",
+  "title": "Can't get hebrew to display correctly in a generted CSV file",
+  "state": "open",
+  "author": "adame21",
+  "createdAt": "2019-10-24T16:15:06Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "Hello,\r\n\r\nI've recently started using the lib and am loving the ease of use and options.\r\n\r\nMy only problem is that hebrew strings are not displaying correctly.\r\n\r\nI have tried all kinds of encoding/decoding but nothing seems to work.\r\n\r\nDoes this lib support hebrew? if so, can you point me in the right direction to get it working?\r\n\r\nWhat im doing right now is this: \r\n\r\n````\r\n                worksheet.addRow({\r\nmessage:\"משהו שכתוב בעברית\" // this translates to: \"something in hebrew\" \r\n})\r\n\r\n````\r\nThe CSV file gets generated perfectly, but what I get in the \"message\" field is something like this:\r\n׳^^׳©׳”׳• ׳©׳›׳×׳•׳‘ ׳‘׳¢׳‘׳¨׳™׳×\r\n\r\nI hope this is enough information to resolve this.\r\nOnce again - loving this lib, thanks so much for making it.\r\n\r\nThanks :) ",
+  "comments": [
+    {
+      "author": "ArtskydJ",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2020-10-09T05:42:15Z",
+      "reactions": 0,
+      "body": "I think the problem is with the encoding. When you save it, try something like this:\r\n```js\r\nconst wb = new ExcelJS.Workbook();\r\nconst ws = wb.addWorksheet('wheee');\r\nws.getCell('A1').value = 'משהו שכתוב בעברית';\r\nwb.csv.writeFile('test.csv', { encoding: 'UTF-8' })\r\n```"
+    }
+  ],
+  "attachments": []
+}

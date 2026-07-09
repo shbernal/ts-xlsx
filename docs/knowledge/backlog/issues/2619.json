@@ -1,0 +1,18 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2619,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2619",
+  "title": "[BUG] Unable to align images correctly if a custom column width is applied. ",
+  "state": "open",
+  "author": "joshvarun",
+  "createdAt": "2023-12-06T17:55:02Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## 🐛 Bug Report\r\n\r\nConsider a scenario where the column widths have been increased. \r\n\r\nI am trying to add an image which starts from 50% of the column width. However the image still considers the old column width when it should actually consider the new width of the column\r\n\r\nLib version: 4.3.0 / 4.4.0\r\n\r\n## Steps To Reproduce\r\n\r\n<!-- The exact steps required to reproduce the issue, ideally with a code example -->\r\n\r\n```javascript\r\nworksheet.addImage(imageId2, {\r\n  tl: { col: 1.5, row: 1 },\r\n  br: { col: 3.5, row: 3 }\r\n});\r\n```\r\n\r\n## The expected behaviour:\r\nImage should start from 50% of the updated column width. \r\n\r\nCurrently it takes the default column width and starts from 50% of default width.\r\n\r\n",
+  "comments": [],
+  "attachments": []
+}

@@ -1,0 +1,144 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1355,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1355",
+  "title": "[BUG] Formules are not available",
+  "state": "open",
+  "author": "bodyajoy",
+  "createdAt": "2020-06-26T11:16:22Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 0,
+  "commentCount": 11,
+  "body": "## 🐛 Bug Report\r\n\r\n## Steps To Reproduce\r\n\r\n```javascript\r\ncell.value.formula += `\"blabla \"&$E${i}-$D${i}&CHAR(10)`; //WORKED\r\ncell.value.formula += `&\"Rating \"&IF(ROUND($G${i}; 1)=ROUND($F${i};1); \"doesn't change\"; \"\")&IF(ROUND($G${i}; 1)>ROUND($F${i};1); \"raised \"&ROUND($G${i}-$F${i};1); \"\")` //ERROR when open xlsx, but when you type this formula Excel works fine\r\n\r\n```\r\nIF - doesn't work in value.formula\r\nHow have I use formules for cells in Excel?",
+  "comments": [
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-06-28T10:31:30Z",
+      "reactions": 0,
+      "body": "1. About formules\r\nPlease use\r\n`worksheet.getCell('A3').value = { formula: 'A1+A2', result: 7 };`\r\n\r\nFor result I recommend use 'undefined' - this will made calculation when file was opened in Excel\r\n\r\nIf you need calculate value of formula - it is out of scope of Exceljs. So it's required to use external lib like [Hyperformula](https://github.com/handsontable/hyperformula)\r\n\r\n2. If it is working under Excel, please unzip working.xlsx and find this formula in worksheet1.xml"
+    },
+    {
+      "author": "bodyajoy",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-28T10:43:47Z",
+      "reactions": 0,
+      "body": "> 1. About formules\r\n>    Please use\r\n>    `worksheet.getCell('A3').value = { formula: 'A1+A2', result: 7 };`\r\n\r\nWhen i write some excel formula there with \"IF\", \"IFELSE\" and other functions - document opens with error.\r\n\r\n> If you need calculate value of formula - it is out of scope of Exceljs. So it's required to use external lib like [Hyperformula](https://github.com/handsontable/hyperformula)\r\n\r\nI don't need calculating in my program, just in excel\r\n\r\n> 1. If it is working under Excel, please unzip working.xlsx and find this formula in worksheet1.xml\r\n\r\nDon't understand this advice"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-06-29T19:30:20Z",
+      "reactions": 0,
+      "body": "> > If it is working under Excel, please unzip working.xlsx and find this formula in worksheet1.xml\r\n\r\n> Don't understand this advice\r\n\r\n1. Create file in Microsoft Excel with expected formula,\r\n2. Save as `file.xlsx`\r\n3. Rename  from `file.xlsx` into `file.zip`, \r\n4. Unzip into dir `./file`\r\n5. Go into `./file/xl/worksheets/sheet1.xml` \r\n6. Should find something like that: `<f>IF(A1&gt;0, B1,\"Jak się masz?\")</f>`\r\n7. It is sure that `IF(A1&gt;0, B1,\"Jak się masz?\")`  is correct value for formulas"
+    },
+    {
+      "author": "bodyajoy",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-01T10:06:49Z",
+      "reactions": 0,
+      "body": "> 7\\. It is sure that `IF(A1&gt;0, B1,\"Jak się masz?\")`  is correct value for formulas\r\n\r\n```xml\r\n<c r=\"J5\" s=\"6\" t=\"str\">\r\n<f>\r\n\"Написано положительных отзывов: \"&$G5-$F5&CHAR(10)&\"Рейтинг \"&IF(ROUND($I5,1)=ROUND($H5,1),\"не изменился\",\"\")&IF(ROUND($I5,1)<ROUND($H5,1),\"упал на \"&ROUND($H5-$I5, 1),\"\")&IF(ROUND($I5,1)>ROUND($H5,1),\"вырос на \"&ROUND($I5-$H5, 1),\"\")\r\n</f>\r\n<v>\r\nНаписано положительных отзывов: -2 Рейтинг упал на 4.3\r\n</v>\r\n</c>\r\n```\r\n\r\n```javascript\r\nmysheet.getCell(`J5`).value = {\r\n    formula: `Написано положительных отзывов: \"&$G5-$F5&CHAR(10)&\"Рейтинг \"&IF(ROUND($I5,1)=ROUND($H5,1),\"не изменился\",\"\")&IF(ROUND($I5,1)<ROUND($H5,1),\"упал на \"&ROUND($H5-$I5, 1),\"\")&IF(ROUND($I5,1)>ROUND($H5,1),\"вырос на \"&ROUND($I5-$H5, 1),\"\")`,\r\n    result: `Написано положительных отзывов: -2 Рейтинг упал на 4.3`,\r\n  };\r\n```\r\n\r\nstill works when set up formula from excel, but gets error from js"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-07-01T21:16:29Z",
+      "reactions": 0,
+      "body": "@bodyajoy thank you for recognize this bug\r\n\r\nCould you paste full error ?"
+    },
+    {
+      "author": "bodyajoy",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-02T17:44:51Z",
+      "reactions": 0,
+      "body": "> Could you paste full error ?\r\n\r\n![Screenshot_4](https://user-images.githubusercontent.com/33304441/86392889-da384280-bca4-11ea-8ef1-ad7d182029f1.png)\r\n![Screenshot_5](https://user-images.githubusercontent.com/33304441/86392894-db696f80-bca4-11ea-94a4-0ff837d24982.png)\r\n![Screenshot_6](https://user-images.githubusercontent.com/33304441/86392896-db696f80-bca4-11ea-8b8e-a8331cb36053.png)\r\n"
+    },
+    {
+      "author": "bodyajoy",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-02T17:45:12Z",
+      "reactions": 0,
+      "body": "I hope you could solve that problem"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-07-02T19:39:39Z",
+      "reactions": 0,
+      "body": ":) I don't understand what was written there. \r\n1. Could you change langue to English or translate?\r\n2. Could you do same thing like here: https://github.com/exceljs/exceljs/issues/1355#issuecomment-651315076 (steps 3-6) for generated file? "
+    },
+    {
+      "author": "bodyajoy",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-02T19:57:34Z",
+      "reactions": 1,
+      "body": "> :) I don't understand what was written there.\r\n![Screenshot_5](https://user-images.githubusercontent.com/33304441/86403873-3b691180-bcb7-11ea-8923-2f97908d0c91.jpg)\r\n![Screenshot_6](https://user-images.githubusercontent.com/33304441/86403876-3c01a800-bcb7-11ea-9281-cbf8722b3b9f.jpg)\r\n![Screenshot_4](https://user-images.githubusercontent.com/33304441/86403877-3c9a3e80-bcb7-11ea-98c2-89b4ffb6da46.jpg)\r\n\r\n\r\n\r\n\r\n> 2\\. Could you do same thing like here:\r\n```xml\r\n<f>\r\n\"Написано положительных отзывов: \"&$G6-$F6&CHAR(10)&\"Рейтинг \"&IF(ROUND($I6,1)=ROUND($H6,1),\"не изменился\",\"\")&IF(ROUND($I6,1)<ROUND($H6,1),\"упал на \"&ROUND($H6-$I6, 1),\"\")&IF(ROUND($I6,1)>ROUND($H6,1),\"вырос на \"&ROUND($I6-$H6, 1),\"\")\r\n</f>\r\n<v>\r\nНаписано положительных отзывов: -5 Рейтинг упал на 4.3\r\n</v>\r\n```\r\n"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-07-04T10:52:28Z",
+      "reactions": 0,
+      "body": "Thank you for translation :)\r\n\r\nIt's strange because the only difference what I see it's a shift by one cell down (G6 instead of G5, I6 instead I5, etc.) \r\n\r\nhas it any meaning?"
+    },
+    {
+      "author": "bodyajoy",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-04T10:58:02Z",
+      "reactions": 0,
+      "body": "> has it any meaning?\r\n\r\nNo, its just others cells)\r\nColumns are the same"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/handsontable/hyperformula",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/handsontable/hyperformula",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/33304441/86392889-da384280-bca4-11ea-8ef1-ad7d182029f1.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/33304441/86392894-db696f80-bca4-11ea-94a4-0ff837d24982.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/33304441/86392896-db696f80-bca4-11ea-8b8e-a8331cb36053.png",
+      "ext": "png",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1355#issuecomment-651315076",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/33304441/86403873-3b691180-bcb7-11ea-8923-2f97908d0c91.jpg",
+      "ext": "jpg",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/33304441/86403876-3c01a800-bcb7-11ea-9281-cbf8722b3b9f.jpg",
+      "ext": "jpg",
+      "isFixture": false
+    },
+    {
+      "url": "https://user-images.githubusercontent.com/33304441/86403877-3c9a3e80-bcb7-11ea-98c2-89b4ffb6da46.jpg",
+      "ext": "jpg",
+      "isFixture": false
+    }
+  ]
+}

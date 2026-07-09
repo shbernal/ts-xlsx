@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1611,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1611",
+  "title": "worksheet undefined error",
+  "state": "open",
+  "author": "DktPhl2019",
+  "createdAt": "2021-02-10T21:05:22Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "The statement: const worksheet = workbook.getWorksheet('My Sheet');\r\nRunning the above statement produces error: worksheet is undefined\r\nCode:\r\nconst ExcelJS = require('exceljs');\r\nconst workbook = new ExcelJS.Workbook;\r\nconst filename = \"test.xlsx\";\r\nworkbook.xlsx.readFile(filename).then(function(){\r\n    const worksheet = workbook.getWorksheet(\"MySheet\");\r\n    const cell1 = worksheet.getCell('A1');\r\n    input1.value = cell1.text;\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-30T05:47:22Z",
+      "reactions": 0,
+      "body": "@DktPhl2019 Can you provide your excel file?"
+    }
+  ],
+  "attachments": []
+}

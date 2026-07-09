@@ -1,0 +1,65 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 108,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/108",
+  "title": "Change the CSV delimiter",
+  "state": "open",
+  "author": "vedran-maestral",
+  "createdAt": "2016-04-18T14:11:53Z",
+  "closedAt": null,
+  "labels": [
+    "bug",
+    "question",
+    "Typescript"
+  ],
+  "reactions": 0,
+  "commentCount": 6,
+  "body": "Currently when I import the CSV file, CSV expects values to be delimited with a , (comma). How can I change it to work with ; (semi column)?\n",
+  "comments": [
+    {
+      "author": "kgajowy",
+      "authorAssociation": "NONE",
+      "createdAt": "2017-03-28T13:56:59Z",
+      "reactions": 0,
+      "body": "```\r\nThe CSV parser uses fast-csv to read the CSV file. The options passed into the read functions above is also passed to fast-csv for parsing of the csv data. Please refer to the fast-csv README.md for details.\r\n```\r\nAs `fast-csv` states:\r\n```\r\ndelimiter=',': If your data uses an alternate delimiter such as ; or \\t.\r\nNOTE When specifying an alternate delimiter you may only pass in a single character delimiter\r\n```"
+    },
+    {
+      "author": "frankiDotNet",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-12-18T20:16:04Z",
+      "reactions": 0,
+      "body": "Any chance to do this with csv.writeBuffer?"
+    },
+    {
+      "author": "frankiDotNet",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-12-19T08:20:57Z",
+      "reactions": 0,
+      "body": "Sorry didn't find it because the declared export methods are missing.\r\nIs it possible to update the 'index.ts'-file?"
+    },
+    {
+      "author": "binaryhq",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-12-24T10:15:21Z",
+      "reactions": 0,
+      "body": "Any update on this? Why this is closed??"
+    },
+    {
+      "author": "ardabeyazoglu",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-11-09T08:31:04Z",
+      "reactions": 0,
+      "body": "Any update ?\r\nThis is an annoying piece. In browser we have to use writeBuffer and need to change csv options. Giving options to writeBuffer doesnt work right now."
+    },
+    {
+      "author": "eml-transdev",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-05-22T08:58:28Z",
+      "reactions": 0,
+      "body": "I managed to bypass the issue by changing the delimiter in the ParserOptions class from node modules installed package.  \r\nIn this file the delimiter is hardcoded to comma, therefore the delimiter specified in the option object will not be taken into accoun. "
+    }
+  ],
+  "attachments": []
+}

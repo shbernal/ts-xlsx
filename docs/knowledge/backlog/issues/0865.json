@@ -1,0 +1,46 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 865,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/865",
+  "title": "exceljs parse .xlsx throws: TypeError: Cannot read property 'company' of undefined",
+  "state": "open",
+  "author": "zlzdp",
+  "createdAt": "2019-06-18T02:56:33Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 5,
+  "commentCount": 3,
+  "body": "exceljs parse .xlsx throws: TypeError: Cannot read property 'company' of undefined.\r\n\r\nhttps://cdn.jsdelivr.net/npm/exceljs@1.12.1/dist/exceljs.js\r\nrow No.  14886\r\n```\r\n          case 'docProps/app.xml':\r\n          {\r\n            var appXform = new AppXform();\r\n            promise = appXform.parseStream(entry).then(function (appProperties) {\r\n              Object.assign(model, {\r\n                company: appProperties.company,\r\n                manager: appProperties.manager\r\n              });\r\n            });\r\n            break;\r\n          }\r\n```\r\nbut parse it in sheetjs is well.\r\n\r\nmy code:\r\n```\r\nworkbook.xlsx.load(fileArrayBuffer).then()\r\n```\r\n\r\n\r\nthank you.",
+  "comments": [
+    {
+      "author": "zlzdp",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-06-18T02:56:59Z",
+      "reactions": 0,
+      "body": "I use it in browser."
+    },
+    {
+      "author": "JayEdver",
+      "authorAssociation": "NONE",
+      "createdAt": "2019-07-04T02:40:16Z",
+      "reactions": 0,
+      "body": "did you found the solution? i have the same problem"
+    },
+    {
+      "author": "TranBaVinhSon",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-07-20T08:09:02Z",
+      "reactions": 4,
+      "body": "Same problem here !"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://cdn.jsdelivr.net/npm/exceljs@1.12.1/dist/exceljs.js",
+      "ext": "js",
+      "isFixture": false
+    }
+  ]
+}

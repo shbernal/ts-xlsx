@@ -1,0 +1,95 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1788,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1788",
+  "title": "[BUG] workbook.xlsx.readFile fails when auto filters are applied on a column",
+  "state": "open",
+  "author": "mlstoppa",
+  "createdAt": "2021-07-16T13:42:49Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 10,
+  "body": "## 🐛 Bug Report\r\n\r\nworkbook.xlsx.readFile fails when auto filters are applied on a column.\r\n\r\nLib version: 4.2.1\r\nnode version: v14.17.3\r\n\r\n## Steps To Reproduce\r\n\r\nMy goal is to read an XLSX file to export it as CSV. When the XLSX file has an auto filter on a column, set with a single value then the following code\r\n\r\n```javascript\r\n  const workbook = new Excel.Workbook();\r\n  if (!await workbook.xlsx.readFile(convertParams.path)) {\r\n    return {\r\n      success: false,\r\n      messagge: 'Error reading Excel file'\r\n    }\r\n  }\r\n```\r\nfails with error: \r\n```\r\nError: 500  ->  Unexpected xml node in parseClose: customFilters\r\n```\r\nWhen the XLSX file has more than one value set for a given auto filter then the error is as follow:\r\n```\r\nError: 500  ->  Unexpected xml node in parseOpen: {\"name\":\"filter\",\"attributes\":{\"val\": \"set value\"},\"isSelfClosing\":true}\r\n```\r\n## The expected behaviour:\r\n\r\nAll or only filtered rows should be loaded into the workbook.\r\n\r\n## Possible solution (optional, but very helpful):\r\n\r\nAdding some options to workbook readfile method:\r\n\r\n```javascript\r\n{\r\n\"options\" : {\r\n\"customFilters\": true/false\r\n}\r\n}\r\n```\r\nto control whether filtered rows should be load or omitted. \r\nMight this be an option?\r\n\r\nThank you",
+  "comments": [
+    {
+      "author": "thambley",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2021-07-22T16:47:39Z",
+      "reactions": 0,
+      "body": "Possible duplicate of #1669"
+    },
+    {
+      "author": "MuneebZafar13",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-16T08:02:39Z",
+      "reactions": 0,
+      "body": "Do need solution to this as filtered rows still give following error while reading file.\r\n\r\n`Unexpected xml node in parseOpen: {\"name\":\"filter\",\"attributes\":{\"val\":\"20\"},\"isSelfClosing\":true}`"
+    },
+    {
+      "author": "sezny",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-06T14:35:04Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "craiq",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-10T13:26:11Z",
+      "reactions": 0,
+      "body": "+1"
+    },
+    {
+      "author": "namoscato",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-01-18T17:28:41Z",
+      "reactions": 0,
+      "body": "_Looping in @Siemienik, who has recently merged to `master`._\r\n\r\nI'm getting the similar error (initially described in https://github.com/exceljs/exceljs/issues/1633) when streaming a file that was saved with applied Excel table filters.\r\n\r\nFor example:\r\n\r\n```ts\r\nconst readStream = new Stream.PassThrough();\r\nreadStream.end(buffer);\r\n\r\nconst workbook = new ExcelJS.Workbook();\r\nawait workbook.xlsx.read(readStream);\r\n```\r\n\r\nresults in:\r\n\r\n```\r\nUnexpected xml node in parseClose: filters\r\n```\r\n\r\nAre there any plans to support this?"
+    },
+    {
+      "author": "makobasuri",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-02-18T15:52:49Z",
+      "reactions": 0,
+      "body": "I fixed the problem on my end, and was constructing a testcase, to be able to make a pr.\r\nWhen I tested the exceljs code without my fix, I expected a failiure but everything was fine...so apparently, the fix for this is allready in master but not on npm. 4.3.0 was released in august 2021, so there was plenty of time for someone else to implement the (probably better) fix.\r\n\r\nHowever, if you're not comfortable using using unreleased code in production, you can check out my commit for a quick fix until exceljs releases a new version."
+    },
+    {
+      "author": "namoscato",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-02-18T21:56:14Z",
+      "reactions": 0,
+      "body": "Thanks for the note, @makobasuri!\r\n\r\n@Siemienik, it looks like you have recent commits to master. Are there plans to cut another release? Do you have any context on this filter issue?"
+    },
+    {
+      "author": "andyyapwl",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-06-04T16:03:40Z",
+      "reactions": 0,
+      "body": "for the time sake, i hacked by registering customFilters into the switch statement of auto-filter-xform.js:\r\n\r\n  switch (name) {\r\n      case this.tag:\r\n        return false;\r\n\t  case \"customFilters\":\r\n\t\treturn false;\r\n      default:\r\n        throw new Error(`Unexpected xml node in parseClose: ${name}`);\r\n    }\r\n"
+    },
+    {
+      "author": "andylacko",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-09-21T22:48:06Z",
+      "reactions": 0,
+      "body": "@namoscato , what do you think? this blocks me from using this lib to read xlsx. Right now I have to read the file with SheetJS, which causes issues on different places. Can you check this? It would be helpful for me"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2023-09-21T23:10:05Z",
+      "reactions": 1,
+      "body": "I will take a look, but first has a lot of work on a diffrent places. First I plan to release 4.4.0 soon (see #2352) and gain control over PRs and issues (now there is too many open issues and prs).\r\n\r\nJust for reminder, my effort on this project is doing mostly voluntarily. If any issue/bug or feature is essential for you, it's possible to help me reach it out by buying my consulting services: exceljs@siemienik.com"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1633",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

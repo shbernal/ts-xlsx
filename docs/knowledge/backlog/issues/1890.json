@@ -1,0 +1,26 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1890,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1890",
+  "title": "[BUG] writeFile(filename) can't export the image to the file",
+  "state": "open",
+  "author": "youareminelove",
+  "createdAt": "2021-11-04T09:26:56Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 1,
+  "body": "## 🐛 Bug Report\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\nwhen i use this function to export excel , but there is no image in the final excel file.\r\n\r\n\r\n```javascript\r\n\r\nconst workbook = createAndFillWorkbook();\r\nawait workbook.xlsx.writeFile(filename);\r\n```\r\n",
+  "comments": [
+    {
+      "author": "zurmokeeper",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2023-04-29T16:03:16Z",
+      "reactions": 0,
+      "body": "@youareminelove Can you provide the detailed code?"
+    }
+  ],
+  "attachments": []
+}

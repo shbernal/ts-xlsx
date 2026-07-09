@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2630,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/2630",
+  "title": "Add additional Media types for worksheet and workbook (Improves type of Media interface)",
+  "state": "open",
+  "author": "devcomfort",
+  "createdAt": "2023-12-15T13:49:10Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "## Summary\r\n\r\nThis change adds additional Media types for worksheet and workbook, in order to better reflect the actual object types that are used in these contexts.\r\n\r\n## Test plan\r\n\r\nThe following tests have been added to verify the changes:\r\n\r\n- Test that the new Media types can be created and used correctly.\r\n- Test that the new Media types are compatible with the existing Media type.\r\n\r\n## Related to source code (for typings update)\r\n\r\nThe following files have been changed:\r\n\r\n- [index.d.ts](https://github.com/devcomfort/exceljs/blob/master/index.d.ts)\r\n\r\n## Other changes\r\n\r\nImproved type of Media interface.\r\nChanged type of type property from `string` to `\"image\" | \"background\"`.",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/devcomfort/exceljs/blob/master/index.d.ts",
+      "ext": "ts",
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": false,
+    "baseRef": "master",
+    "additions": 2025,
+    "deletions": 1723,
+    "changedFiles": [
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 2025,
+        "deletions": 1723
+      }
+    ]
+  }
+}

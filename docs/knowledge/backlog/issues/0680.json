@@ -1,0 +1,55 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 680,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/680",
+  "title": "TypeError: Cannot create property 'editAs' on string 'B198:BN198'",
+  "state": "open",
+  "author": "espekkaya",
+  "createdAt": "2018-10-31T11:11:29Z",
+  "closedAt": null,
+  "labels": [
+    "bug"
+  ],
+  "reactions": 2,
+  "commentCount": 4,
+  "body": "Hello,\r\n\r\nI have got an error while reading excel because of image objects.\r\n\r\nI have added excel at attachments\r\n[sample.xlsx](https://github.com/guyonroche/exceljs/files/2534008/sample.xlsx)\r\n\r\nHere is my code\r\n\r\n`    var Excel = require('exceljs');\r\n\r\n    var wrkbook = new Excel.Workbook();\r\n\r\n    await wrkbook.xlsx.readFile(downloadedDir + downloadedFileName).then(async function() {\r\n\r\n        var worksheet = await wrkbook.getWorksheet(1);\r\n        let row = await worksheet.getRow(10);\r\n        console.log(await row.getCell(1).value);\r\n        // await worksheet.eachRow(async function (Row, rowNumber) {\r\n        //     let currRow = workSheet.getRow(rowNumber);\r\n        //     console.log(\"Row \" + rowNumber + \" = \" + JSON.stringify(Row.values));\r\n        // });\r\n\r\n\r\n    });`\r\n\r\nThank you in advanced.",
+  "comments": [
+    {
+      "author": "mbenzenhoefer",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2019-02-08T12:05:12Z",
+      "reactions": 0,
+      "body": "I have the same issue. Adding a further condition before assigning fixes the issue but I do not have any idea if this fixes the issue or if it just covers it:\r\n\r\nlib/xlsx/xform/drawing/two-cell-anchor-xform.js:141\r\n```ts\r\n// old\r\nif (model.editAs) {\r\n// new\r\nif (model.editAs && typeof model.range === 'object') {\r\n```\r\n\r\nWhat do you think?"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-02-18T23:03:18Z",
+      "reactions": 0,
+      "body": "@mbenzenhoefer  it will be really great to do PR with fix, would You do it? :D"
+    },
+    {
+      "author": "mbenzenhoefer",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2019-03-10T19:39:54Z",
+      "reactions": 0,
+      "body": "Done, see #764 \r\n\r\nLet me know if you need more information on that"
+    },
+    {
+      "author": "Siemienik",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2019-04-25T16:25:58Z",
+      "reactions": 0,
+      "body": "@mbenzenhoefer nice, thank you, \r\nas I've written there, I need any test written to check this situation before I can merge it"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/guyonroche/exceljs/files/2534008/sample.xlsx",
+      "ext": "xlsx",
+      "isFixture": true
+    }
+  ]
+}

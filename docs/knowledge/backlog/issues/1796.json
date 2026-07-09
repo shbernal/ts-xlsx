@@ -1,0 +1,39 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1796,
+  "type": "pull_request",
+  "url": "https://github.com/exceljs/exceljs/pull/1796",
+  "title": "resolves #1033 - Make date1904 property on CellFormulaValue interface optional",
+  "state": "open",
+  "author": "Barobi",
+  "createdAt": "2021-07-22T08:37:06Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 0,
+  "commentCount": 0,
+  "body": "See https://github.com/exceljs/exceljs/issues/1033",
+  "comments": [],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1033",
+      "ext": null,
+      "isFixture": false
+    }
+  ],
+  "pr": {
+    "merged": false,
+    "mergeable": false,
+    "baseRef": "master",
+    "additions": 2,
+    "deletions": 2,
+    "changedFiles": [
+      {
+        "path": "index.d.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2
+      }
+    ]
+  }
+}

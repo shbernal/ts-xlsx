@@ -1,0 +1,56 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1287,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1287",
+  "title": "[BUG] Formulae not included when inserting rows",
+  "state": "open",
+  "author": "tjvg91",
+  "createdAt": "2020-05-21T05:22:34Z",
+  "closedAt": null,
+  "labels": [
+    "help wanted",
+    "feature"
+  ],
+  "reactions": 0,
+  "commentCount": 4,
+  "body": "## 🐛 Bug Report\r\n\r\nWhen I execute `duplicateRow` to insert a new row, the formulae won't follow.\r\n\r\nLib version: 3.9.0\r\n\r\n## Steps To Reproduce\r\n\r\n```\r\nconst worksheet = workbook.getWorksheet(sheetName);\r\nworksheet.duplicateRow(18, 1, true)\r\n```\r\n\r\n## The expected behaviour:\r\n\r\nExpecting the formulae to copy also. Expecting also the other formulae in the rest of the worksheet to update\r\n",
+  "comments": [
+    {
+      "author": "Alanscut",
+      "authorAssociation": "MEMBER",
+      "createdAt": "2020-05-22T03:13:10Z",
+      "reactions": 0,
+      "body": "@tjvg91 Currently `duplicaterow()` only supports copying values and styles, See https://github.com/exceljs/exceljs#duplicate-a-row.\r\n\r\n## Solution\r\nI read the source code and found the source of the problem. Please tell me which way you use to add formulae? `dataValidation` or `addConditionalFormatting`.\r\n\r\n## Source code\r\n```javascript\r\n// source code worksheet.js\r\nduplicateRow(rowNum, count, insert = false) {\r\n    // create count duplicates of rowNum\r\n    // either inserting new or overwriting existing rows\r\n    const rSrc = this._rows[rowNum - 1];\r\n    const inserts = new Array(count).fill(rSrc.values);\r\n    this.spliceRows(rowNum + 1, insert ? 0 : count, ...inserts);\r\n    // now copy styles...\r\n    for (let i = 0; i < count; i++) {\r\n      const rDst = this._rows[rowNum + i];\r\n      rDst.style = rSrc.style;\r\n      rDst.height = rSrc.height;\r\n      // eslint-disable-next-line no-loop-func\r\n      rSrc.eachCell({includeEmpty: true}, (cell, colNumber) => {\r\n        rDst.getCell(colNumber).style = cell.style;\r\n        /***************************************************************/\r\n        //rDst.getCell(colNumber).dataValidation = cell.dataValidation; // Operate here\r\n      });\r\n    }\r\n  }\r\n```\r\n"
+    },
+    {
+      "author": "agupta93",
+      "authorAssociation": "NONE",
+      "createdAt": "2020-06-14T17:36:03Z",
+      "reactions": 0,
+      "body": "@Alanscut I would like to take this up, if anyone else is already not working on it."
+    },
+    {
+      "author": "pfouque06",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-05-04T11:36:17Z",
+      "reactions": 0,
+      "body": "@Alanscut I need this feature as well which is major as long as it is an ancestral and  fundamental inherent function of excell.\r\nThanks to push this one up.\r\nTo add design details, duplicate formulas should be update along used cell pointers, I.e\r\nA1 = 0\r\nA2 = A1+1\r\nduplicate A2 to A3 should provide : A3 = A2 +1 (column id is updated within formula, except if it is fixed with '$' par design).\r\n\r\nquestion is to also create a duplicate column method with same behaviors as well"
+    },
+    {
+      "author": "superxiaoao",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-11-22T08:13:45Z",
+      "reactions": 0,
+      "body": "> only supports copying values and styles, See\r\n\r\n@Alanscut  Duplicate columns are not supported"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs#duplicate-a-row",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}

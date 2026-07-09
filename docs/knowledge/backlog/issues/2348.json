@@ -1,0 +1,47 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 2348,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/2348",
+  "title": "Cannot read properties of undefined (reading 'company')",
+  "state": "open",
+  "author": "rigood",
+  "createdAt": "2023-09-14T16:40:06Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 1,
+  "commentCount": 4,
+  "body": "I'm trying to read .xlsx file but there's an error.\r\n\r\n```js\r\nC:\\Users\\rigood\\Downloads\\form-to-excel\\node_modules\\exceljs\\lib\\xlsx\\xlsx.js:346\r\n\r\nmodel.company = appProperties.company;\r\n\r\nTypeError: Cannot read properties of undefined (reading 'company')\r\n```\r\n\r\nI guess it's because .xlsx file that I'm trying to read is created not by Microsoft Excel but another spreadsheet editor.\r\nIt's working fine when I read a normal excel file.\r\n\r\nHow can I fix this error? ",
+  "comments": [
+    {
+      "author": "idrmn",
+      "authorAssociation": "NONE",
+      "createdAt": "2023-10-07T12:03:15Z",
+      "reactions": 0,
+      "body": "just open the file in exel and save it without changes\r\nit worked for me"
+    },
+    {
+      "author": "OtavioCleyderman",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-02-15T01:03:04Z",
+      "reactions": 0,
+      "body": "Hi, i'm also going through the same problem. But, it would not be viable in my case to open and close the file. Would anyone have another solution? Any way to not need to have this validation?"
+    },
+    {
+      "author": "DarkTraveler",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-04-18T12:44:03Z",
+      "reactions": 0,
+      "body": "> Hi, i'm also going through the same problem. But, it would not be viable in my case to open and close the file. Would anyone have another solution? Any way to not need to have this validation?\r\n\r\nYou can modify the code in the library yourself.\r\n\r\n```\r\n          case 'docProps/app.xml': {\r\n            const appXform = new AppXform();\r\n            const appProperties = await appXform.parseStream(stream);\r\n            model.company = appProperties ? appProperties.company : 'Company';\r\n            model.manager = appProperties ? appProperties.manager : 'Manager';\r\n            break;\r\n          }\r\n```\r\n          \r\n        Path: node_modules\\exceljs\\lib\\xlsx\\xlsx.js"
+    },
+    {
+      "author": "lionnnnn",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-08-06T13:17:55Z",
+      "reactions": 0,
+      "body": "I created the xlsx from npm json2xls, also go through the same problem.\r\nModify the code in the library yourself => doesn't work.\r\njust open the file in exel and save it without changes => it works.\r\nBut How to fix the bug?"
+    }
+  ],
+  "attachments": []
+}

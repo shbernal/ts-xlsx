@@ -1,0 +1,153 @@
+{
+  "schema": "ts-xlsx/backlog-item@1",
+  "repo": "exceljs/exceljs",
+  "number": 1842,
+  "type": "issue",
+  "url": "https://github.com/exceljs/exceljs/issues/1842",
+  "title": "[BUG] Extremely poor performance with slow readFile and slow writeFile on very small files",
+  "state": "open",
+  "author": "oscarcoding",
+  "createdAt": "2021-09-22T02:23:55Z",
+  "closedAt": null,
+  "labels": [],
+  "reactions": 10,
+  "commentCount": 9,
+  "body": "## 🐛 Bug Report\r\n\r\nMany files are extremely slow to read and write, despite being very small, eg less than 100kb.  For example a file with 2 sheets, columns A - L, 200 rows. \r\n\r\nThis occurs when reading/writing on the API side, ie using nodejs\r\n\r\nLib version: 4.3.0. Node v10 on a Docker image.\r\nWas also occurring on exceljs 3.x\r\n\r\n## Steps To Reproduce\r\n\r\n```\r\nconst filePath = path.join(__dirname, 'myfile.xlsx')\r\nlet workbook = new Excel.Workbook()\r\nworkbook = await workbook.xlsx.readFile(filePath)\r\n// takes 10 seconds\r\n      \r\nconst outFilePath = path.join(__dirname, 'myfile_updated.xslx')\r\nawait workbook.xlsx.writeFile(outFilePath)\r\n// takes 45 seconds to one minute\r\n```\r\n\r\nLogs output: \r\n\r\n```\r\n[02:30:31 5170]  START readFile .... \r\n[02:30:41 1680]  ... DONE readFile\r\n[02:30:41 1700]  START writeFile ....\r\n[02:31:24 9620]   ... DONE writeFile\r\n[02:31:24 9630]  Set headers\r\n[02:31:24 9630]  Send file\r\n```\r\nAlso, occasionally it crashes with an out of memory error when writing the file, which indicates that the slow performance is due to excessive memory use.  This is a 67kb file.  It should not cause an out of memory error.\r\n\r\n```\r\n==== JS stack trace =========================================\r\n 0: ExitFrame [pc: 0x22878ba5bf1d]\r\n Security context: 0x2c572fb9e6c1 <JSObject>\r\n    1: /* anonymous */ [0x3333573c1149] [/var/www/api/node_modules/exceljs/lib/xlsx/xform/sheet/data-validations-xform.js:~36] [pc=0x22878ba61947](this=0x3cc2c678d461 <JSGlobal Object>,dataValidation=0x0cfda8d0ac19 <Object map = 0x369bde2c94d9>,address=0x168ed0a4c5a1 <String[7]: K486175>)\r\n    2: /* anonymous */ [0x3333573c11c1] [/var/www/api/node_modules/exc...\r\n\r\nFATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory\r\n```\r\n\r\nHopefully the stacktrace helps to find where this is occurring.\r\n\r\nI have tried the `patchDefinedNames` fix suggested in other issues however it does not work because `DefinedNames.prototype ` is undefined:\r\n\r\n```\r\n(function patchDefinedNames() {\r\n  console.log('START patchDefinedNames', DefinedNames, DefinedNames.prototype)\r\n    try {\r\n      const desc = Object.getOwnPropertyDescriptor(DefinedNames.prototype, \"model\");\r\n      console.log('START defineProperty', desc)\r\n      if (desc) {\r\n        Object.defineProperty(DefinedNames.prototype, \"model\", {\r\n          get: desc.get,\r\n          set: noop\r\n        });\r\n      }\r\n      console.log('DONE defineProperty')\r\n    } catch (error) {\r\n      console.log('ERROR in patchDefinedNames', error)\r\n    }\r\n  console.log('DONE patchDefinedNames')\r\n})();\r\n```\r\n\r\nLog output from the fix is:\r\n```\r\nSTART patchDefinedNames { default: [Function: DefinedNames] } undefined }\r\nERROR in patchDefinedNames TypeError: Cannot convert undefined or null to object\r\n    at Object.getOwnPropertyDescriptor (<anonymous>)\r\n    at getOwnPropertyDescriptor (/var/www/api/node_modules/core-js/library/fn/object/get-own-property-descriptor.js:4:18)\r\n    at Timeout.patchDefinedNames [as _onTimeout] (/var/www/api/dist/controllers/approval/index.js:71:18)\r\n    at ontimeout (timers.js:436:11)\r\n    at tryOnTimeout (timers.js:300:5)\r\n    at listOnTimeout (timers.js:263:5)\r\n    at Timer.processTimers (timers.js:223:10)\r\nDONE patchDefinedNames\r\n```\r\n\r\nThis error occurs because `DefinedNames.prototype` is undefined.  So this suggested fix does not work as at v4.3.0\r\n\r\n\r\nNote that there are many other reported issues regarding read/write performance, and it does not look like it is being fixed.  Instead it looks like this is a serious and ongoing issue.\r\n\r\nhttps://github.com/exceljs/exceljs/issues/535, \r\nhttps://github.com/exceljs/exceljs/issues/1494, \r\nhttps://github.com/exceljs/exceljs/issues/1609, \r\nhttps://github.com/exceljs/exceljs/issues/1017, \r\nhttps://github.com/exceljs/exceljs/issues/1597, \r\nhttps://github.com/exceljs/exceljs/issues/847, \r\nhttps://github.com/exceljs/exceljs/issues/742, \r\nhttps://github.com/exceljs/exceljs/issues/566, \r\nhttps://github.com/exceljs/exceljs/issues/535, \r\nhttps://github.com/exceljs/exceljs/issues/527, \r\nhttps://github.com/exceljs/exceljs/issues/282, \r\nhttps://github.com/exceljs/exceljs/issues/125, \r\n\r\n## The expected behaviour:\r\n\r\nFile should be read in sub 1 second time.\r\nFile should write in 1 or 2 seconds time.  Obviously file operations have some overhead.\r\n\r\nIf this not fixable then sadly we will have to stop using exceljs\r\n\r\n\r\n\r\n",
+  "comments": [
+    {
+      "author": "lket",
+      "authorAssociation": "NONE",
+      "createdAt": "2021-09-29T10:36:16Z",
+      "reactions": 0,
+      "body": "We had similar problem when the input xlsx had data validation set to the whole column (with few first rows excluded). When limiting it to the first few hundred rows (something like rows 3-500), the issue disappeared."
+    },
+    {
+      "author": "tkt028",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-01T16:20:45Z",
+      "reactions": 0,
+      "body": "For data with around 3000 rows, 13 rows, exceljs could generate Excel fast.\r\nI have data table with more than 500+ columns, 12000 rows. I have been waiting for >15mins, but no Excel was generated. This is a big minus. However, the package `csv-stringify` takes around 4 seconds to complete the generation of a CSV report of the same data.\r\n\r\n\r\n"
+    },
+    {
+      "author": "yugu91",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-04-21T02:26:04Z",
+      "reactions": 0,
+      "body": "Same to me, Write file 700kb 4K+ row used 2s on m1 and 9s on server"
+    },
+    {
+      "author": "ryegye24",
+      "authorAssociation": "NONE",
+      "createdAt": "2022-05-16T13:52:26Z",
+      "reactions": 0,
+      "body": "I was running into a problem like this on a 49kb file where it wouldn't finish loading in even after literally days. I did a deep dive into this and this is what I found. \r\n\r\nWhen loading in a file with data validations applied to ranges of cells, it enumerates the address of each individual cell which the validation applies to and stores that (see https://github.com/exceljs/exceljs/blob/master/lib/xlsx/xform/sheet/data-validations-xform.js#L218). This goes relatively quickly (a little less than a millisecond per address on my machine) until it hits 8,388,607 total cell addresses across all validations, at which point it immediately slows WAY down (~3 seconds per address on my machine). As it happened my small spreadsheet had a lot of data validations applied to large ranges (well past what actually existed in the spreadsheet yet).\r\n\r\nHere's the odd thing though, `exceljs` completely supports data validations by ranges (see https://github.com/exceljs/exceljs/issues/1109#issuecomment-610339362). I ended up pulling a really screwy workaround where I pre-parsed the spreadsheet using `JSZip` and `xmldom` to remove data validations from the sheet xml files, loaded the spreadsheet with `exceljs`, and then added the data validations back in by their original ranges and that worked. It seems like it should be possible to change the loading logic to just use the ranges though and skip the cell address enumeration. "
+    },
+    {
+      "author": "papandreou",
+      "authorAssociation": "CONTRIBUTOR",
+      "createdAt": "2022-05-27T19:05:46Z",
+      "reactions": 3,
+      "body": "I just ran into the same thing with a weird (but non-malicious) spreadsheet that got uploaded to a service I'm working on.\r\n\r\nSomehow it ended up containing this crazy data validation:\r\n\r\n```xml\r\n<dataValidation type=\"list\" allowBlank=\"1\" showInputMessage=\"1\" showErrorMessage=\"1\" sqref=\"F1583:F1048576 G1583:I1048576 Q1583:Q1048576 U1583:AB1048576 S1583:S1048576 L1583:L1048576 AD1583:AE1048576\"><formula1>#REF!</formula1></dataValidation>\r\n```\r\n\r\n... which then makes exceljs loop over 17,798,898 cells and set a hash key for each(!)\r\n\r\nI came up with this super hacky workaround to turn `Range#forEachAddress` into a noop:\r\n\r\n```js\r\nrequire('exceljs/lib/doc/range').prototype.forEachAddress = function () {};\r\n```\r\n\r\nIt would be nice to avoid that. In my application I don't really need these data validations to be applied, so it would be great if they could be turned off. Alternatively we could use the existing `maxCols` / `maxRows` to intersect the ranges with the supported data area."
+    },
+    {
+      "author": "mavyfaby",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-09-10T03:43:33Z",
+      "reactions": 0,
+      "body": "any updates on this?"
+    },
+    {
+      "author": "markygab",
+      "authorAssociation": "NONE",
+      "createdAt": "2024-10-02T01:31:05Z",
+      "reactions": 0,
+      "body": "I've just run into this exact issue too.\r\n\r\nMy 2c is that it seems Google Sheets cuts off these data ranges with 1048576 rows (the maximum that Excel supports btw) at 1000 rows.\r\n\r\nMy \"fix\" for this is to limit the aforementioned `forEachAddress` method on the `Range` class to 1000 rows as follows. Had to fork to achieve this. \r\n\r\n```ts\r\nforEachAddress(cb) {\r\n    for (let col = this.left; col <= this.right; col++) {\r\n      for (let row = this.top; row <= Math.min(this.bottom, 1000); row++) {\r\n        cb(colCache.encodeAddress(row, col), row, col);\r\n      }\r\n    }\r\n }\r\n```\r\n\r\nMaybe a contributor that knows more might be able to limit it to the actual number or rows that have data in them if that exists?"
+    },
+    {
+      "author": "JayJayDee",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-08-18T07:47:33Z",
+      "reactions": 2,
+      "body": "@papandreou  Thank you so much! you just saved my day. you're true hero to me"
+    },
+    {
+      "author": "josenavastx",
+      "authorAssociation": "NONE",
+      "createdAt": "2025-11-12T20:16:04Z",
+      "reactions": 0,
+      "body": "I got a similar problem, but this solved my issue\n\nawait workbook.xlsx.load(data, {\n  ignoreNodes: [\n    'dataValidations' // ignores the workbook's Data Validations\n  ],\n});"
+    }
+  ],
+  "attachments": [
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/535",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1494",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1609",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1017",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1597",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/847",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/742",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/566",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/535",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/527",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/282",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/125",
+      "ext": null,
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/blob/master/lib/xlsx/xform/sheet/data-validations-xform.js#L218",
+      "ext": "js",
+      "isFixture": false
+    },
+    {
+      "url": "https://github.com/exceljs/exceljs/issues/1109#issuecomment-610339362",
+      "ext": null,
+      "isFixture": false
+    }
+  ]
+}
