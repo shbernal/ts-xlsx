@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-09 (labeled clusters + four unlabeled slices; 153/794)._
+_Last updated: 2026-07-09 (labeled clusters + five unlabeled slices; 166/794; attachment queue exhausted)._
 
 ---
 
@@ -171,8 +171,25 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     Corpus **127 green / 72 known-open / 0 regressions**; 83 corpus cases + 43 spec notes.
     GOTCHA banked: a mangled write can still pass a weak count check (two print areas → one range +
     a bare `A12` token) — assert range *shape* (must contain `:`), not just comma-split count.
-  - ⏳ **Next: continue the unlabeled bulk** (641 remaining) in ~15-record slices, same
-    triage-workflow → materialize loop, prioritizing attachment-bearing records.
+  - **Fifth slice — the last 13 attachment-bearing records — drained** (166/794, ~21%).
+    4 corpus cases + 1 added behavior + 1 new spec note + 2 folds + 6 not-carried. Foreign-file
+    reads: Lark export throws on a mixed empty-`<t/>`+richtext shared string (known-open, Excel
+    -normalized copy loads = control lock); CJK built-in date numFmt ids 57/31 read as bare
+    numbers with empty format code (known-open); a `#fragment` in a hyperlink's `location` attr is
+    dropped on read (known-open, added to the existing fragment case). Streaming: hidden-row flag
+    lost (`hidden="true"` string form, known-open); worksheet-part-before-`workbook.xml` ZIP order
+    reads fine (lock). New spec note: VML-comment read **hangs** (>30s, hostile-input termination).
+    Folds: huge-defined-names-table **OOM** (~2.85 MB / 35k names exhausts 900 MB) → bounded-memory
+    spec. Not-carried: Electron devtools quirk, old dep-audit scan, and four already-banked dups
+    (omitted-`r`, legacy-`.xls`, richtext-hyperlink, streaming-names). Adapter grew:
+    `readFixtureHyperlinks`, `readFixtureCells` (+numFmt), `streamVsEagerRowHidden`,
+    `streamReadReport`. Corpus **131 green / 78 known-open / 0 regressions**; 87 corpus cases + 44
+    spec notes. **The attachment-bearing queue is now exhausted** — all 628 remaining records have
+    no promoted fixture (design discussions, feature requests, repro-less bug reports), so the next
+    slices skew toward spec notes and reasoned not-carried, with corpus cases only where a behavior
+    is reproducible from a spec-built workbook.
+  - ⏳ **Next: continue the unlabeled bulk** (628 remaining, all fixture-less) in ~15-record
+    slices, same triage-workflow → materialize loop.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -213,14 +230,16 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **153/794 (~19%)**; **all labeled clusters + four unlabeled slices are drained**.
-The full pipeline is proven: parallel triage workflow → serial materialization → green corpus
-(127 green / 72 known-open / 0 regressions). CI corpus check is committed
-(`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Continue the unlabeled bulk** (641 remaining) in ~15-record slices, same triage-workflow
-   → materialize loop. Prioritize by **attachment presence** (a promoted fixture is a credible
-   reproduction → corpus case). Reuse the now-broad adapter vocabulary before adding surface;
-   set each baseline by running `npm run corpus` (probe empirically — triage guesses are often
-   wrong); commit in coherent per-cluster batches.
+Drain at **166/794 (~21%)**; **all labeled clusters + five unlabeled slices are drained, and the
+entire attachment-bearing queue is now exhausted**. The full pipeline is proven: parallel triage
+workflow → serial materialization → green corpus (131 green / 78 known-open / 0 regressions). CI
+corpus check is committed (`.github/workflows/corpus.yml`). Next slices, in order:
+1. **Continue the unlabeled bulk** (628 remaining, all fixture-less) in ~15-record slices, same
+   triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
+   these records are design discussions, feature requests, and repro-less bug reports, so expect
+   mostly spec notes and reasoned not-carried, with a corpus case only where a behavior reproduces
+   from a spec-built workbook. Reuse the now-broad adapter vocabulary before adding surface; set
+   each baseline by running `npm run corpus` (probe empirically); commit in coherent per-cluster
+   batches. Always check `docs/knowledge/specs/` and existing cases first — folds are now common.
 2. **Open decision #1** (merge-first vs corpus-only for the ~140 PRs) comes due before
    Phase 2; it does not block the issue drain.
