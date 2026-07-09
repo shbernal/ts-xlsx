@@ -285,7 +285,12 @@ export async function readFixtureCells(rel, cells = []) {
   for (const addr of cells) {
     const cell = sheet ? sheet.getCell(addr) : null;
     out[addr] = cell
-      ? {type: typeName(cell.type), value: normalizeStreamValue(cell.value), note: cell.note !== undefined ? noteText(cell.note) : undefined}
+      ? {
+          type: typeName(cell.type),
+          value: normalizeStreamValue(cell.value),
+          numFmt: cell.numFmt ?? null,
+          note: cell.note !== undefined ? noteText(cell.note) : undefined,
+        }
       : null;
   }
   return out;
