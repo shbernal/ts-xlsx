@@ -19,10 +19,11 @@
 //       name,                                                       // required
 //       cells:   [{ ref, value|formula(+result)|sharedFormula(+result)|text+hyperlink,
 //                   numFmt, font, fill, alignment, note }],
-//       images:  [{ range }],                                       // string "B2:D6" or {tl, br?, ext?}
+//       images:  [{ range, extension? }],                           // range: "B2:D6" or {tl,br?,ext?}; extension defaults 'png'
 //       columns: [{ index, width, hidden, numFmt, style }],         // index: 1-based
 //       rows:    [{ index, height, hidden }],
 //       pageMargins: { left, right, top, bottom, header, footer },  // any subset
+//       pageSetup:   { fitToPage, fitToWidth, fitToHeight, scale, orientation, … },
 //       tables:  [{ name, ref, headers:[…], rows:[[…]], totalsRow }],
 //     }],
 //   }
@@ -98,10 +99,14 @@ export function buildFrom(spec = {}) {
     // string ("B2:D6") or an object anchor ({tl, br?, ext?}). Anchor geometry — not the
     // image bytes — is what these cases assert on.
     for (const img of s.images || []) {
-      const imageId = workbook.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+      // `extension` defaults to 'png'; a spec may set it to a bad/missing value on purpose
+      // to exercise write-side validation of the media part + content-type declaration.
+      const extension = 'extension' in img ? img.extension : 'png';
+      const imageId = workbook.addImage({buffer: ONE_PX_PNG, extension});
       sheet.addImage(imageId, img.range);
     }
     if (s.pageMargins) sheet.pageSetup.margins = {...s.pageMargins};
+    if (s.pageSetup) Object.assign(sheet.pageSetup, s.pageSetup);
     for (const t of s.tables || []) {
       sheet.addTable({
         name: t.name,
@@ -215,11 +220,18 @@ export async function roundtripWorkbook(spec) {
       const r = sheet.getRow(row.index);
       rows[row.index] = {height: r.height ?? null, hidden: !!r.hidden};
     }
+    const ps = sheet.pageSetup || {};
     sheets[s.name] = {
       cells,
       columns,
       rows,
       margins: sheet.pageSetup ? {...sheet.pageSetup.margins} : null,
+      pageSetup: {
+        fitToPage: !!ps.fitToPage,
+        fitToWidth: ps.fitToWidth ?? null,
+        fitToHeight: ps.fitToHeight ?? null,
+        scale: ps.scale ?? null,
+      },
       rowCount: sheet.rowCount,
       actualRowCount: sheet.actualRowCount,
     };
@@ -273,6 +285,12 @@ export async function inspectPackage(spec) {
   });
   const wsRelIds = worksheetRels.map(r => r.id);
   const overrides = [...contentTypes.matchAll(/<Override[^>]*PartName="([^"]*)"[^>]*\/>/g)].map(m => m[1]);
+  // A `<Default>` content-type declaration MUST carry an Extension attribute; a missing one,
+  // or a bogus media type like `image/undefined`, produces a package strict Excel repairs.
+  const contentTypeDefaults = [...contentTypes.matchAll(/<Default\b[^>]*\/>/g)].map(t => {
+    const a = attrs(t[0]);
+    return {extension: a.Extension ?? null, contentType: a.ContentType ?? null};
+  });
   const sheetEntries = [...workbookXml.matchAll(/<sheet\b[^>]*?\/?>/g)].map(t => {
     const a = attrs(t[0]);
     return {name: a.name, rid: a['r:id']};
@@ -296,12 +314,20 @@ export async function inspectPackage(spec) {
     for (const m of xml.matchAll(/<c\b[^>]*r="([^"]*)"[^>]*>[\s\S]*?<f\b[^>]*>([\s\S]*?)<\/f>/g)) {
       formulas[m[1]] = m[2];
     }
+    // Column groups: a `<col>` addresses columns [min, max]. Excel rejects a file whose
+    // col group runs past the sheet's 16384-column limit, so a case asserts on the maxima.
+    const columnGroups = [...xml.matchAll(/<col\b[^>]*\/>/g)].map(t => {
+      const a = attrs(t[0]);
+      return {min: a.min ? Number(a.min) : null, max: a.max ? Number(a.max) : null, width: a.width ?? null};
+    });
     sheets[s.name] = {
       pageMargins: {present: Object.keys(marginAttrs), values: marginAttrs},
       hasSheetViews: /<sheetViews>/.test(xml),
       sheetViewCount: sheetViewTags.length,
       hasDimension: /<dimension\b/.test(xml),
       formulas,
+      columnGroups,
+      maxColumnIndex: columnGroups.reduce((m, g) => Math.max(m, g.max ?? 0), 0),
       xmlWellFormed: xmlWellFormed(xml),
     };
   }
@@ -347,6 +373,7 @@ export async function inspectPackage(spec) {
     parts,
     worksheetParts,
     overrides,
+    contentTypeDefaults,
     sheetEntries,
     rels,
     worksheetRels,
