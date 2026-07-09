@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-09 (labeled clusters + two unlabeled slices; 123/794)._
+_Last updated: 2026-07-09 (labeled clusters + three unlabeled slices; 138/794)._
 
 ---
 
@@ -137,7 +137,20 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     `roundtripFixtureStyleFacts`; spec-level `autoFilter`; inspectPackage `autoFilterRef`/
     `dimensionRef`. Corpus **104 green / 46 known-open / 0 regressions**; 62 corpus cases
     + 39 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (671 remaining) in ~15-record slices, same
+  - **Unlabeled bulk — third slice (15) drained** (138/794, ~17%). 11 corpus cases + 4
+    spec notes + 3 not-carried. Reader robustness: legacy .xls silent-empty, malformed-VML
+    abort, missing-Company crash, missing-`r` implied position, 1900-epoch date serials
+    (all known-open); empty comments read as blank notes + merges preserved/overlap-rejected
+    (locks). Passthrough: pivot+slicer parts dropped, x14 cross-sheet list validation
+    dropped (known-open). Spec notes: phantom row-value slot, merge-registration O(n²),
+    in-cell rich-value images, streaming many-sheet drop. Not-carried: two broken HTML
+    "fixtures" (1437, 2791 — downloads saved as error pages) and environmental non-defects
+    (row-height OS scaling, prod-build corruption). Adapter grew: `readFixtureCells` (+note),
+    `roundtripFixturePackageParts` (+slicers), spec `merges`, mutateWorksheet `mergeCells`.
+    Corpus **109 green / 59 known-open / 0 regressions**; 71 corpus cases + 43 spec notes.
+    GOTCHA banked: several attachments are broken HTML downloads (check magic bytes); a
+    slow/hanging read (30k merges, whole-column validation) stays a spec note, never a case.
+  - ⏳ **Next: continue the unlabeled bulk** (656 remaining) in ~15-record slices, same
     triage-workflow → materialize loop, prioritizing attachment-bearing records.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
@@ -179,9 +192,9 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **123/794 (~15%)**; **all labeled clusters + two unlabeled slices are drained**.
+Drain at **138/794 (~17%)**; **all labeled clusters + three unlabeled slices are drained**.
 The full pipeline is proven: parallel triage workflow → serial materialization → green corpus
-(104 green / 46 known-open / 0 regressions). CI corpus check is committed
+(109 green / 59 known-open / 0 regressions). CI corpus check is committed
 (`.github/workflows/corpus.yml`). Next slices, in order:
 1. **Continue the unlabeled bulk** (686 remaining) in ~15-record slices, same triage-workflow
    → materialize loop. Prioritize by **attachment presence** (a promoted fixture is a credible
