@@ -33,7 +33,7 @@
 
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
-import {Readable, PassThrough} from 'node:stream';
+import {Readable, PassThrough, Duplex} from 'node:stream';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
@@ -139,11 +139,13 @@ function definedNamesOf(workbook) {
   return out;
 }
 
-// Apply a sequence of structural mutations (row/column splices) to a fresh single
-// worksheet and report the observable result — for asserting that in-memory model
-// edits behave predictably regardless of how many rows/columns they touch. Ops:
+// Apply a sequence of structural mutations (row/column splices, row insert/duplicate) to a
+// fresh single worksheet and report the observable result — for asserting that in-memory
+// model edits behave predictably regardless of how many rows/columns they touch. Ops:
 //   { op: 'spliceRows',    start, count, inserts?: any[][] }
 //   { op: 'spliceColumns', start, count, inserts?: any[][] }
+//   { op: 'insertRow',     pos, value?: any[] }
+//   { op: 'duplicateRow',  start, count?, insert?: boolean }
 // Returns { rowCount, columnCount, cells: { <ref>: value|null }, merges: [ranges…], error? } —
 // never an implementation object. A throwing op is reported as { error } rather than propagated,
 // so a case can distinguish "mutation threw" from "mutation silently did nothing".
@@ -159,6 +161,8 @@ export function mutateWorksheet({cells = [], ops = [], read = []} = {}) {
       if (op.op === 'spliceRows') sheet.spliceRows(op.start, op.count, ...inserts);
       else if (op.op === 'spliceColumns') sheet.spliceColumns(op.start, op.count, ...inserts);
       else if (op.op === 'mergeCells') sheet.mergeCells(op.range);
+      else if (op.op === 'insertRow') sheet.insertRow(op.pos, op.value || []);
+      else if (op.op === 'duplicateRow') sheet.duplicateRow(op.start, op.count ?? 1, op.insert !== false);
       else throw new Error(`unknown mutation op: ${op.op}`);
     }
   } catch (e) {
@@ -1386,4 +1390,166 @@ function xmlWellFormed(xml) {
   // consumer choke", which unescaped & or < inside text triggers.
   if (/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml)) return false;
   return true;
+}
+
+// Author list-type data validations programmatically — an inline quoted literal
+// ("Male,Female") and a cross-sheet range reference (Levels!$A$2:$A$9999) — write the
+// workbook, and report both what the reader hands back per cell and the serialized
+// `<dataValidations>` facts. Lets a case assert that BOTH the value-source forms a real
+// author uses survive a write→read round-trip and that the emitted XML is well-formed and
+// count-correct, without the case knowing how validations are shaped internally.
+export async function authorListValidations(validations = []) {
+  const workbook = new ExcelJS.Workbook();
+  const main = workbook.addWorksheet('Main');
+  const levels = workbook.addWorksheet('Levels');
+  levels.getCell('A2').value = 'X';
+  for (const v of validations) {
+    const dv = {type: 'list', allowBlank: v.allowBlank !== false, formulae: [v.formula]};
+    if (v.error !== undefined) {
+      dv.showErrorMessage = true;
+      dv.error = v.error;
+    }
+    main.getCell(v.ref).dataValidation = dv;
+  }
+  const buf = await workbook.xlsx.writeBuffer();
+
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buf);
+  const sheet = reread.getWorksheet('Main');
+  const readBack = {};
+  for (const v of validations) {
+    const dv = sheet.getCell(v.ref).dataValidation;
+    readBack[v.ref] = dv ? {type: dv.type, formulae: dv.formulae ?? null} : null;
+  }
+
+  const zip = await JSZip.loadAsync(buf);
+  const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const xml = name ? await zip.files[name].async('string') : '';
+  const block = (xml.match(/<dataValidations[\s\S]*?<\/dataValidations>/) || [])[0] || '';
+  return {
+    readBack,
+    xml: {
+      count: [...xml.matchAll(/<dataValidation[ >]/g)].length,
+      wellFormed: xmlWellFormed(block),
+      // The exact serialized formula1 texts, so a case can assert the quoting/reference
+      // survived verbatim rather than being mangled or coerced.
+      formula1: [...block.matchAll(/<formula1>([\s\S]*?)<\/formula1>/g)].map(m =>
+        m[1].replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
+      ),
+    },
+  };
+}
+
+// Author per-cell protection flags plus a protected sheet, write, and report (a) what the
+// reader hands back for each cell's protection, (b) whether the cell style record actually
+// carries the protection (applyProtection + <protection> in cellXfs), and (c) the
+// `<sheetProtection>` element the protected sheet emits. Lets a case assert the meaningful
+// case — an *unlocked* cell survives (default is locked, so only unlocked is distinguishable)
+// — and that worksheet protection, the thing that makes locked flags enforceable, is emitted.
+export async function authorCellProtection(cells = [], protect = null) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  for (const c of cells) {
+    sheet.getCell(c.ref).value = c.value ?? c.ref;
+    if (c.protection !== undefined) sheet.getCell(c.ref).protection = c.protection;
+  }
+  if (protect) await sheet.protect(protect.password ?? undefined, protect.options ?? {});
+  const buf = await workbook.xlsx.writeBuffer();
+
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buf);
+  const sheet2 = reread.getWorksheet('S');
+  const readBack = {};
+  for (const c of cells) {
+    const p = sheet2.getCell(c.ref).protection;
+    readBack[c.ref] = p ? {locked: p.locked ?? null} : null;
+  }
+
+  const zip = await JSZip.loadAsync(buf);
+  const styles = await zip.files['xl/styles.xml'].async('string');
+  const sheetName = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const sheetXml = sheetName ? await zip.files[sheetName].async('string') : '';
+  return {
+    readBack,
+    hasApplyProtection: /applyProtection="1"/.test(styles) && /<protection\b/.test(styles),
+    sheetProtection: (sheetXml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0] || null,
+  };
+}
+
+// Drive the streaming workbook writer over a CALLER-SUPPLIED writable stream (a plain
+// PassThrough or a Duplex) rather than a library-owned file stream, and report whether the
+// workbook-commit promise settles within a bounded time plus the byte total collected from
+// the sink. Streaming straight to a remote sink (object storage, an HTTP upload) is a
+// first-class use of this library; the durable requirement is that commit RESOLVES so a
+// caller can sequence upload finalization after it — never hangs waiting on a finish signal.
+export async function streamCommitReport({duplex = false, timeoutMs = 4000} = {}) {
+  const chunks = [];
+  const stream = duplex
+    ? new Duplex({read() {}, write(c, _e, cb) { chunks.push(c); cb(); }})
+    : new PassThrough();
+  if (!duplex) stream.on('data', c => chunks.push(c));
+
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream});
+  const sheet = writer.addWorksheet('S');
+  sheet.addRow(['a', 'b']).commit();
+  sheet.commit();
+
+  let settled = 'pending';
+  const commit = writer.commit().then(
+    () => (settled = 'resolved'),
+    e => (settled = 'rejected:' + ((e && e.message) || e))
+  );
+  const timedOut = await Promise.race([
+    commit.then(() => false),
+    new Promise(res => setTimeout(() => res(true), timeoutMs)),
+  ]);
+
+  let valid = false;
+  if (settled === 'resolved') {
+    try {
+      const back = new ExcelJS.Workbook();
+      await back.xlsx.load(Buffer.concat(chunks));
+      valid = back.worksheets.length === 1 && back.worksheets[0].getCell('A1').value === 'a';
+    } catch {
+      valid = false;
+    }
+  }
+  return {settled, timedOut, bytes: Buffer.concat(chunks).length, valid};
+}
+
+// Report whether the streaming writer offers image parity with the in-memory writer: can a
+// registered image be anchored onto a streamed worksheet, and does the streamed package then
+// carry the media + drawing parts? A caller reaches for the streaming writer precisely for
+// datasets too large to hold in memory, so a missing image path forces them back to the
+// in-memory path they could not afford. Reports the capability surface and, if it works, the
+// package facts — so a case can lock parity once the rewrite delivers it.
+export async function streamWriterImageSupport(range = 'B2:D6') {
+  const chunks = [];
+  const stream = new PassThrough();
+  stream.on('data', c => chunks.push(c));
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream});
+  const sheet = writer.addWorksheet('S');
+  const surface = {
+    writerAddImage: typeof writer.addImage === 'function',
+    sheetAddImage: typeof sheet.addImage === 'function',
+  };
+  let error = null;
+  try {
+    const imageId = writer.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+    sheet.addImage(imageId, range);
+    sheet.addRow(['x']).commit();
+    sheet.commit();
+    await writer.commit();
+  } catch (e) {
+    error = String((e && e.message) || e);
+  }
+
+  let mediaParts = [];
+  let drawingParts = [];
+  if (!error && chunks.length) {
+    const zip = await JSZip.loadAsync(Buffer.concat(chunks));
+    mediaParts = Object.keys(zip.files).filter(n => /xl\/media\//.test(n));
+    drawingParts = Object.keys(zip.files).filter(n => /drawing/.test(n));
+  }
+  return {...surface, error, mediaParts, drawingParts};
 }

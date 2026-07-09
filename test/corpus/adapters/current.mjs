@@ -44,6 +44,10 @@ import {
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
+  authorListValidations,
+  authorCellProtection,
+  streamCommitReport,
+  streamWriterImageSupport,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -257,4 +261,27 @@ export default {
   // Print_Area defined name's ranges → { rangeCount, ranges } — for asserting authoring two print
   // areas emits both ranges in one sheet-scoped name. See workbook-io.mjs.
   writePrintAreaDefinedName,
+
+  // Author list-type data validations (inline quoted literal + cross-sheet range reference),
+  // round-trip, and report per-cell read-back plus serialized <dataValidations> facts
+  // → { readBack, xml:{count, wellFormed, formula1} } — for asserting both value-source forms
+  // survive verbatim and emit Excel-acceptable XML. See workbook-io.mjs.
+  authorListValidations,
+
+  // Author per-cell protection + a protected sheet, round-trip, and report read-back locked
+  // flags, whether cellXfs carries applyProtection, and the emitted <sheetProtection>
+  // → { readBack, hasApplyProtection, sheetProtection } — for asserting an unlocked cell
+  // survives and worksheet protection is emitted. See workbook-io.mjs.
+  authorCellProtection,
+
+  // Drive the streaming writer over a caller-supplied PassThrough/Duplex sink and report
+  // whether the workbook-commit promise settles within a bounded time plus package validity
+  // → { settled, timedOut, bytes, valid } — for asserting streaming-to-a-remote-sink commit
+  // resolves and yields a complete package rather than hanging. See workbook-io.mjs.
+  streamCommitReport,
+
+  // Report the streaming writer's image-parity surface and, if supported, the streamed
+  // package's media/drawing parts → { writerAddImage, sheetAddImage, error, mediaParts,
+  // drawingParts } — for locking image parity with the in-memory writer once delivered.
+  streamWriterImageSupport,
 };
