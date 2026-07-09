@@ -144,8 +144,8 @@ function definedNamesOf(workbook) {
 // edits behave predictably regardless of how many rows/columns they touch. Ops:
 //   { op: 'spliceRows',    start, count, inserts?: any[][] }
 //   { op: 'spliceColumns', start, count, inserts?: any[][] }
-// Returns { rowCount, columnCount, cells: { <ref>: value|null }, error? } — never an
-// implementation object. A throwing op is reported as { error } rather than propagated,
+// Returns { rowCount, columnCount, cells: { <ref>: value|null }, merges: [ranges…], error? } —
+// never an implementation object. A throwing op is reported as { error } rather than propagated,
 // so a case can distinguish "mutation threw" from "mutation silently did nothing".
 export function mutateWorksheet({cells = [], ops = [], read = []} = {}) {
   const workbook = new ExcelJS.Workbook();
@@ -170,7 +170,11 @@ export function mutateWorksheet({cells = [], ops = [], read = []} = {}) {
     const v = sheet.getCell(ref).value;
     readCells[ref] = v ?? null;
   }
-  return {rowCount: sheet.rowCount, columnCount: sheet.columnCount, cells: readCells, error};
+  // The merged-range list (as OOXML records it) after the mutations — for asserting that a row/
+  // column splice SHIFTS a merged range to its new position and keeps it merged, rather than
+  // leaving the range stranded at its original indices while the data moves.
+  const merges = (sheet.model && sheet.model.merges) || [];
+  return {rowCount: sheet.rowCount, columnCount: sheet.columnCount, cells: readCells, merges, error};
 }
 
 const isoOrNull = d => (d instanceof Date && !Number.isNaN(+d) ? d.toISOString() : null);
