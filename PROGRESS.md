@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-09._
+_Last updated: 2026-07-09 (labeled clusters fully drained; into the unlabeled bulk)._
 
 ---
 
@@ -96,9 +96,23 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     memory-release + shared-string ordering — spec notes), **E** formulas/tables
     (shared-formula clone translation + orphan-master legible error + comment/table
     coexistence — locked; table-append-after-reload — known-open).
-  - ⏳ **Next: the rest of the queue** (~697 unlabeled + help-wanted 11 / feature 4 /
-    proposal 1 / enhancement 1 / discussion 2 / misc) via the same triage-workflow →
-    materialize loop. Prioritize the remaining labeled clusters, then the unlabeled bulk.
+  - **Labeled clusters (help-wanted / feature / proposal / enhancement / discussion /
+    question): ✅ fully drained** (93/794, ~12%). 15 records dispositioned via the triage
+    workflow: **3 corpus cases** — themed-workbook mutate/write validity (regression lock),
+    image pixel-extent → EMU independent of source DPI (regression lock, verified against a
+    pHYs-tagged image), and full-row/full-column-span defined names dropped on read+write
+    (known-open, over-strict address validation; bounded-ref control passes) — **6 spec
+    notes** (chart-part passthrough, column-key persistence, hyperlink default style,
+    duplicateRow formula translation, sheetView booleans vs showFormulas, column-range
+    accessor), and **6 not-carried** (3 support-thread misconceptions; 3 large-file
+    streaming threads already banked in existing streaming/memory spec notes). Adapter
+    gained `readFixtureDefinedNames` + a `definedNames` map in the roundtrip model and a
+    spec-level `definedNames` input. Corpus **79 green / 23 known-open / 0 regressions**;
+    38 corpus cases + 33 spec notes.
+  - ⏳ **Next: the unlabeled bulk** (~697 unlabeled + a handful of trivial labels —
+    hacktoberfest-accepted 2, Troubleshooting 1, prerelesed 1) via the same triage-workflow
+    → materialize loop. No label signal remains, so prioritize by attachment presence
+    (fixtures = credible reproductions → corpus cases) and reactions.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -139,16 +153,16 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **78/794 (~10%)**; the labeled **bug cluster is fully drained** (0 remaining).
-The full pipeline is proven: parallel triage workflow → serial materialization → green
-corpus (74 green / 20 known-open / 0 regressions). CI corpus check is committed
-(`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Drain the remaining labeled clusters** (help-wanted 11, feature 4, discussion 2,
-   proposal 1, enhancement 1, question 1, misc) via the same triage-workflow →
-   materialize loop. Most will be spec notes (proposals/enhancements) and a few corpus
-   cases; reuse the now-broad adapter vocabulary before adding surface. Set each baseline
-   by running `npm run corpus`; commit in coherent batches.
-2. **Then the ~697 unlabeled bulk** the same way: triage a slice → materialize → remove
-   records → commit. Track with `npm run harvest:status --clusters`.
-3. **Open decision #1** (merge-first vs corpus-only for the ~140 PRs) comes due before Phase 2;
-   it does not block the issue drain.
+Drain at **93/794 (~12%)**; the labeled **bug AND all other labeled clusters are fully
+drained** (only ~4 trivial labels remain among the unlabeled bulk). The full pipeline is
+proven: parallel triage workflow → serial materialization → green corpus (79 green / 23
+known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`).
+Next slices, in order:
+1. **Drain the unlabeled bulk** (~697 + hacktoberfest-accepted 2 / Troubleshooting 1 /
+   prerelesed 1) via the same triage-workflow → materialize loop, in slices of ~15–20.
+   No label signal remains: prioritize by **attachment presence** (a promoted fixture is a
+   credible reproduction → corpus case) and reaction count. Reuse the broad adapter
+   vocabulary before adding surface; set each baseline by running `npm run corpus`
+   (probe empirically — triage guesses are often wrong); commit in coherent batches.
+2. **Open decision #1** (merge-first vs corpus-only for the ~140 PRs) comes due before
+   Phase 2; it does not block the issue drain.
