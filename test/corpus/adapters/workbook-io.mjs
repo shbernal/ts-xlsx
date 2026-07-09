@@ -1571,6 +1571,134 @@ export function copyWorksheetModel({merges = ['A1:C1'], cells = [{ref: 'A1', val
   return {srcMerges: [...srcMerges].sort(), dstMerges: [...dstMerges].sort(), error};
 }
 
+// Build a workbook from a spec, write it, and report the written style table's size plus the
+// style index each requested cell resolved to → { cellXfCount, indices: { <ref>: index|null } }.
+// styles.xml is meant to be a SHARED table referenced by index: many cells carrying identical
+// visual formatting must collapse to one cellXfs entry (and one shared index), while a genuinely
+// different style stays a distinct entry — so a case can assert dedup neither fails (one entry per
+// cell, the historical write-time cliff) nor over-collapses distinct styles. A cell left at the
+// default style carries no `s` attribute and reports null.
+export async function styleDedupReport(spec, cells = []) {
+  const buffer = await buildFrom(spec).xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const styles = (await zip.file('xl/styles.xml').async('string')) || '';
+  const xfBlock = (styles.match(/<cellXfs\b[\s\S]*?<\/cellXfs>/) || [''])[0];
+  const cellXfCount = (xfBlock.match(/<xf\b/g) || []).length;
+  const sheetXml = (await zip.file('xl/worksheets/sheet1.xml').async('string')) || '';
+  const indices = {};
+  for (const ref of cells) {
+    const m = sheetXml.match(new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*\\bs="(\\d+)"`));
+    indices[ref] = m ? Number(m[1]) : null;
+  }
+  return {cellXfCount, indices};
+}
+
+// Build a workbook from a spec, write it, load it back, and report — per requested row — which
+// column indices a full (`includeEmpty`) cell iteration yields, plus the row's own cell/values
+// length and the sheet's declared column count → { rows: { <n>: { cols, cellCount, valuesLength } },
+// columnCount }. For asserting positional row reconstruction: a row that stops short of the sheet's
+// last populated column should still surface its trailing empty cells so every data row aligns
+// column-for-column with a wider header, and interior vs. trailing empties are treated consistently.
+export async function readRowCellPresence(spec, rows = []) {
+  const buffer = await buildFrom(spec).xlsx.writeBuffer();
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer);
+  const sheet = wb.worksheets[0];
+  const out = {};
+  for (const rn of rows) {
+    const row = sheet.getRow(rn);
+    const cols = [];
+    row.eachCell({includeEmpty: true}, (_cell, col) => cols.push(col));
+    out[rn] = {cols, cellCount: row.cellCount, valuesLength: row.values.length};
+  }
+  return {rows: out, columnCount: sheet.columnCount};
+}
+
+// Build a workbook from a spec, write it, and read the requested rows' `values` arrays both eagerly
+// and through the STREAMING reader → { eager: { <n>: [...] }, streamed: { <n>: [...] } }. Sparse
+// holes normalize to null so the JSON is comparable. Columns are 1-based, so a row's `values[0]` is
+// an empty leading slot and the first real cell lands at index 1; the durable invariant is that the
+// streaming reader exposes the SAME indexing convention as the full-load reader, so a caller can
+// switch read modes without re-indexing.
+export async function streamVsEagerRowValues(spec, rowNumbers = [1]) {
+  const buffer = await buildFrom(spec).xlsx.writeBuffer();
+  const holes = arr => Array.from(arr, v => (v === undefined ? null : normalizeStreamValue(v)));
+  const eagerWb = new ExcelJS.Workbook();
+  await eagerWb.xlsx.load(buffer);
+  const es = eagerWb.worksheets[0];
+  const eager = {};
+  for (const n of rowNumbers) eager[n] = holes(es.getRow(n).values);
+  const streamed = {};
+  const reader = new ExcelJS.stream.xlsx.WorkbookReader(Readable.from(Buffer.from(buffer)), {});
+  for await (const worksheet of reader) {
+    for await (const row of worksheet) {
+      if (rowNumbers.includes(row.number)) streamed[row.number] = holes(row.values);
+    }
+    break; // first worksheet only
+  }
+  return {eager, streamed};
+}
+
+// Build a workbook whose sheet carries one or more tables from a spec, write it (facts A), then load
+// it and write it again (facts B) → { write, roundtrip, loadOk, loadError }, each fact list carrying
+// per-table { ref, name, wellFormed }. For asserting a defined table survives a load→save round-trip
+// with its reference range intact and its table part not dropped — the fidelity mainstream files
+// depend on — including the degenerate empty-body and single-data-row shapes that must not error.
+export async function roundtripSpecTableFacts(spec) {
+  const tableFacts = async zip => {
+    const parts = Object.keys(zip.files).filter(f => /^xl\/tables\/table\d+\.xml$/.test(f)).sort();
+    const facts = [];
+    for (const p of parts) {
+      const xml = await zip.file(p).async('string');
+      facts.push({
+        ref: (xml.match(/<table\b[^>]*\bref="([^"]*)"/) || [])[1] ?? null,
+        name: (xml.match(/<table\b[^>]*\bname="([^"]*)"/) || [])[1] ?? null,
+        wellFormed: xmlWellFormed(xml),
+      });
+    }
+    return facts;
+  };
+  const writeBuf = await buildFrom(spec).xlsx.writeBuffer();
+  const write = await tableFacts(await JSZip.loadAsync(writeBuf));
+  let loadOk = true;
+  let loadError = null;
+  let roundtrip = [];
+  try {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(writeBuf);
+    const rewrite = await wb.xlsx.writeBuffer();
+    roundtrip = await tableFacts(await JSZip.loadAsync(rewrite));
+  } catch (e) {
+    loadOk = false;
+    loadError = String((e && e.message) || e);
+  }
+  return {write, roundtrip, loadOk, loadError};
+}
+
+// Author two cells sharing one font, write, load, then reassign ONE loaded cell's font by SPREADING
+// its existing font and overriding a member (`cell.font = {...cell.font, color}` — the idiomatic
+// "tweak one property" pattern), and read the sibling's font color → { edited, sibling, bled }. The
+// companion to loadMutateCellStyle for the font facet: even the spread-then-override path (which
+// builds a fresh object literal) must not mutate the sibling that shared the on-disk style record.
+export async function loadMutateCellFont({original = 'FF000000', mutateTo = 'FFFF0000'} = {}) {
+  const wb = new ExcelJS.Workbook();
+  const s = wb.addWorksheet('S');
+  const font = {name: 'Arial', size: 12, color: {argb: original}};
+  s.getCell('A1').value = 'a';
+  s.getCell('A1').font = font;
+  s.getCell('B1').value = 'b';
+  s.getCell('B1').font = font; // identical formatting → one shared style index on disk
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(buffer);
+  const s2 = wb2.getWorksheet('S');
+  s2.getCell('A1').font = {...s2.getCell('A1').font, color: {argb: mutateTo}};
+  const colorOf = cell => (cell.font && cell.font.color ? cell.font.color.argb : null);
+  const sibling = colorOf(s2.getCell('B1'));
+  return {edited: colorOf(s2.getCell('A1')), sibling, original, mutatedTo: mutateTo, bled: sibling === mutateTo};
+}
+
 function xmlWellFormed(xml) {
   // Cheap structural check: no raw & that isn't an entity, tags balanced enough to
   // matter. A real parser lives in the impl; here we only need "would a strict

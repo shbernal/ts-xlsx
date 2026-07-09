@@ -47,5 +47,20 @@ export default {
         assert.ok(!/_xlfn\._xlfn/.test(f), `the prefix must not be doubled; got: ${f}`);
       },
     },
+    {
+      // A separate corruption reported alongside the missing prefix: a spurious `@`
+      // implicit-intersection operator injected in front of references the author never marked,
+      // which by itself makes Excel flag the formula. Writing a modern-function formula in plain
+      // syntax must not fabricate an `@` on its range references.
+      name: 'writing a modern-function formula does not inject a spurious @ implicit-intersection operator',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const {sheets} = await api.inspectPackage({
+          sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'IFS(B1>0,"pos",B1<0,"neg")', result: 'pos'}]}],
+        });
+        const f = sheets.S.formulas.A1 || '';
+        assert.ok(!/(^|[^A-Za-z0-9_])@/.test(f), `no @ implicit-intersection operator should be injected; got: ${f}`);
+      },
+    },
   ],
 };

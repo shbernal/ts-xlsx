@@ -38,5 +38,19 @@ export default {
         assert.strictEqual(diskSibling, original, 'the sibling keeps its original fill in the written file');
       },
     },
+    {
+      // The same aliasing reached through the idiomatic "tweak one property" path — spreading the
+      // existing font onto a fresh literal and overriding one member (cell.font = {...cell.font,
+      // color}). Even building a new object must not carry the shared record's identity into the
+      // sibling.
+      name: 'spread-reassigning one loaded cell\'s font member does not bleed into a shared sibling',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {sibling, original, edited, mutatedTo, bled} = await api.loadMutateCellFont();
+        assert.strictEqual(edited, mutatedTo, 'the edited cell reflects the new font color');
+        assert.ok(!bled, `the sibling cell must keep its own font color; it changed to ${sibling}`);
+        assert.strictEqual(sibling, original, 'the sibling retains the original shared font color');
+      },
+    },
   ],
 };

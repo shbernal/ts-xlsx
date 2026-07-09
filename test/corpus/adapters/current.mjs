@@ -52,6 +52,11 @@ import {
   streamReadSpec,
   loadMutateCellStyle,
   copyWorksheetModel,
+  styleDedupReport,
+  readRowCellPresence,
+  streamVsEagerRowValues,
+  roundtripSpecTableFacts,
+  loadMutateCellFont,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -308,4 +313,26 @@ export default {
   // Copy a worksheet via the model export/import contract and report merge survival
   // → { srcMerges, dstMerges, error } — for asserting a model-cloned sheet keeps its merged ranges.
   copyWorksheetModel,
+
+  // Write a spec and report the style-table size + per-cell resolved style index
+  // → { cellXfCount, indices } — for asserting identical cell styles dedup to one shared entry
+  // while a genuinely distinct style stays separate (the OOXML shared-table expectation).
+  styleDedupReport,
+
+  // Load a written spec and report, per row, the column indices a full (includeEmpty) iteration
+  // yields → { rows, columnCount } — for asserting trailing empty cells are surfaced so every row
+  // aligns column-for-column with a wider header.
+  readRowCellPresence,
+
+  // Read a spec's rows via both the eager and streaming readers → { eager, streamed } — for
+  // asserting the streaming reader exposes the same 1-based row-values indexing as the full load.
+  streamVsEagerRowValues,
+
+  // Write a spec's table, round-trip it, and report table facts before/after → { write, roundtrip,
+  // loadOk } — for asserting a defined table's ref range and part survive a load→save cycle.
+  roundtripSpecTableFacts,
+
+  // Author cells sharing one font, load, spread-reassign one cell's font, read the sibling
+  // → { edited, sibling, bled } — the font companion to loadMutateCellStyle for aliasing.
+  loadMutateCellFont,
 };
