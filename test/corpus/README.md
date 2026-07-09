@@ -59,6 +59,7 @@ implementation is shaped. Current vocabulary:
 |---|---|
 | `decodeAddress(ref)` | Decode a single cell/row/column reference → `{col, row, …}` (absent axis = `undefined`). |
 | `decodeRange(ref)` | Decode a range reference → corners + serialized dimensions. |
+| `probeCellFonts({apply, read})` | On a fresh worksheet, assign a font to each `apply` cell, then return `{ <address>: font }` for the `read` cells — for asserting per-cell style stays local. |
 
 Add capabilities only as cases demand them, and add them to **every** adapter. When the
 rewrite lands, a `rewrite.mjs` adapter binds the same vocabulary to the new code and

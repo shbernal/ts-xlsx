@@ -27,4 +27,22 @@ export default {
   decodeRange(reference) {
     return colCache.decodeEx(reference);
   },
+
+  // Build a fresh single worksheet, assign a font to each `apply` cell, then read
+  // back the resolved font of each `read` cell. Returns { <address>: font } as
+  // plain JSON. Lets a case verify that per-cell styling stays local to the cell
+  // it was set on and does not bleed across untouched cells of the sheet.
+  probeCellFonts({apply = [], read = []}) {
+    const ExcelJS = require('../../../lib/exceljs.nodejs.js');
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('sheet');
+    for (const {cell, font} of apply) {
+      sheet.getCell(cell).font = font;
+    }
+    const fonts = {};
+    for (const address of read) {
+      fonts[address] = sheet.getCell(address).font ?? null;
+    }
+    return JSON.parse(JSON.stringify(fonts));
+  },
 };
