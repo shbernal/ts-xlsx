@@ -32,6 +32,7 @@ import {
   readFixtureTable,
   streamReadFixture,
   readFixtureCells,
+  roundtripFixtureCellXml,
   roundtripFixturePackageParts,
   roundtripFixtureStyleFacts,
 } from './workbook-io.mjs';
@@ -180,6 +181,11 @@ export default {
   // → for asserting real-file cell values/types (e.g. a Strict-mode ISO-8601 date parses to the
   // right date, not a 1900-epoch serial). See workbook-io.mjs.
   readFixtureCells,
+
+  // Read a fixture, write it back, and report requested cells' raw serialized <c> facts
+  // ({t, formula, value}) plus a package-wide hasNaNToken flag — for asserting a round-trip does
+  // not coerce a string-typed formula result into the invalid literal "NaN". See workbook-io.mjs.
+  roundtripFixtureCellXml,
 
   // Read a fixture, write it back unchanged, and report package-part facts before/after →
   // { source, rewritten } — for asserting a no-op round-trip preserves unmodeled parts

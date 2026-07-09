@@ -11,6 +11,11 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 const FIXTURE = 'streaming-read-applies-date-format/sample.xlsx';
+// A second fixture whose date cells use East-Asian built-in number-format ids whose default entry
+// is a *locale-keyed map* of format strings (not a single universal code). The streaming reader's
+// default-format lookup reads only the single-code shape, so these built-in date ids resolve to
+// nothing and degrade to raw serials — the same date-vs-number failure, via a distinct root cause.
+const LOCALE_FIXTURE = 'streaming-read-applies-date-format/locale-dates.xlsx';
 
 export default {
   id: 'streaming-read-applies-date-format',
@@ -41,6 +46,27 @@ export default {
           cells.B2.type,
           'date',
           `a date-formatted cell must stream as a date, not the raw serial; got ${JSON.stringify(cells.B2)}`
+        );
+      },
+    },
+    {
+      name: 'the full read agrees a locale-keyed built-in date id is a date (oracle)',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const cells = await api.readFixtureCells(LOCALE_FIXTURE, ['A2', 'A5']);
+        assert.strictEqual(cells.A2.type, 'date', 'the plain built-in date cell reads as a date in the full read');
+        assert.strictEqual(cells.A5.type, 'date', 'the locale-keyed built-in date cell reads as a date in the full read');
+      },
+    },
+    {
+      name: 'a cell using a locale-keyed built-in date format streams as a date, matching the full read',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const cells = await api.streamReadFixture(LOCALE_FIXTURE, ['A5']);
+        assert.strictEqual(
+          cells.A5.type,
+          'date',
+          `a built-in locale-keyed date id must stream as a date, not a raw serial; got ${JSON.stringify(cells.A5)}`
         );
       },
     },

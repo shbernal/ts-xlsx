@@ -810,6 +810,36 @@ export async function roundtripFixtureStyleFacts(rel) {
   return {source, rewritten};
 }
 
+// Read a fixture `.xlsx`, write it back unchanged, and report the raw serialized `<c>` facts of
+// requested cells on the first sheet → { cells: { <addr>: {t, formula, value} }, hasNaNToken } —
+// for asserting a load/save round-trip does not corrupt cell content. The guarded failure: a
+// string-typed formula cell (t="str") whose style carries a date/number format loses its string
+// type on write and its cached result is coerced toward a number, emitting the invalid token
+// `NaN` as the cell value — which makes Excel prompt to repair the file on open. `t` is the raw
+// cell-type attribute (null when absent → numeric), `formula`/`value` the `<f>`/`<v>` text.
+export async function roundtripFixtureCellXml(rel, cells = []) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const zip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+  const name = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const xml = name ? await zip.file(name).async('string') : '';
+  const out = {};
+  for (const addr of cells) {
+    const m = xml.match(new RegExp(`<c\\b[^>]*\\br="${addr}"[^>]*(?:/>|>[\\s\\S]*?</c>)`));
+    const el = m ? m[0] : null;
+    out[addr] = el
+      ? {
+          t: (el.match(/\bt="([^"]*)"/) || [])[1] ?? null,
+          formula: (el.match(/<f\b[^>]*>([\s\S]*?)<\/f>/) || [])[1] ?? null,
+          value: (el.match(/<v\b[^>]*>([\s\S]*?)<\/v>/) || [])[1] ?? null,
+        }
+      : null;
+  }
+  // A numeric cell whose text is the literal `NaN` is invalid OOXML content — scan the whole sheet.
+  const hasNaNToken = /<v[^>]*>\s*NaN\s*<\/v>/.test(xml);
+  return {cells: out, hasNaNToken};
+}
+
 // Read a fixture `.xlsx` and report only { ok, error, sheetNames } — for asserting the
 // reader neither crashes nor mis-reads a workbook produced by a *foreign* (non-Excel)
 // generator: a namespace-prefixed OOXML root (`<x:workbook>` instead of `<workbook>`),
