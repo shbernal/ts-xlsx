@@ -63,6 +63,7 @@ implementation is shaped. Current vocabulary:
 | `roundtripWorkbook(spec)` | Build a workbook from a declarative `spec`, write it to a buffer, read it back, and return a normalized JSON model (`{properties, sheets}`, including per-cell `fill`/`alignment`, per-column `width`/`hidden`/`numFmt`, per-row `height`/`hidden`, and `rowCount`/`actualRowCount`) — for asserting content survives write→read. |
 | `inspectPackage(spec)` | Build + write a `spec`, unzip the package, and return raw OOXML-part facts (worksheet-declaration consistency, `pageMargins`, `sheetViews`, table XML, per-cell formula text, well-formedness, and a `styles` fact recording whether a theme part backs any theme-color font reference) — for asserting on what is actually serialized. |
 | `tryWriteWorkbook(spec)` | Build + attempt to write a `spec`; return `{ok, error, survivingCells, …}` — for asserting pathological input neither throws nor drops sibling cells. |
+| `mutateWorksheet({cells, ops, read})` | Build a fresh sheet, apply structural mutations (`spliceRows`/`spliceColumns`), and return `{rowCount, columnCount, cells, error}` — for asserting in-memory model edits behave predictably (a throwing op is reported as `error`, not propagated). |
 
 The `spec` shape consumed by the three workbook capabilities is documented at the top of
 `adapters/workbook-io.mjs` (worksheets with cells, columns, rows, page margins, tables).
