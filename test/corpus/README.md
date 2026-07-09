@@ -60,8 +60,8 @@ implementation is shaped. Current vocabulary:
 | `decodeAddress(ref)` | Decode a single cell/row/column reference → `{col, row, …}` (absent axis = `undefined`). |
 | `decodeRange(ref)` | Decode a range reference → corners + serialized dimensions. |
 | `probeCellFonts({apply, read})` | On a fresh worksheet, assign a font to each `apply` cell, then return `{ <address>: font }` for the `read` cells — for asserting per-cell style stays local. |
-| `roundtripWorkbook(spec)` | Build a workbook from a declarative `spec`, write it to a buffer, read it back, and return a normalized JSON model (`{properties, sheets}`) — for asserting content survives write→read. |
-| `inspectPackage(spec)` | Build + write a `spec`, unzip the package, and return raw OOXML-part facts (worksheet-declaration consistency, `pageMargins`, `sheetViews`, table XML, per-cell formula text, well-formedness) — for asserting on what is actually serialized. |
+| `roundtripWorkbook(spec)` | Build a workbook from a declarative `spec`, write it to a buffer, read it back, and return a normalized JSON model (`{properties, sheets}`, including per-cell `fill`/`alignment`, per-column `width`/`hidden`/`numFmt`, per-row `height`/`hidden`, and `rowCount`/`actualRowCount`) — for asserting content survives write→read. |
+| `inspectPackage(spec)` | Build + write a `spec`, unzip the package, and return raw OOXML-part facts (worksheet-declaration consistency, `pageMargins`, `sheetViews`, table XML, per-cell formula text, well-formedness, and a `styles` fact recording whether a theme part backs any theme-color font reference) — for asserting on what is actually serialized. |
 | `tryWriteWorkbook(spec)` | Build + attempt to write a `spec`; return `{ok, error, survivingCells, …}` — for asserting pathological input neither throws nor drops sibling cells. |
 
 The `spec` shape consumed by the three workbook capabilities is documented at the top of

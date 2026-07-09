@@ -16,8 +16,8 @@
 //     properties: { creator, lastModifiedBy, created, modified },   // dates: ISO strings
 //     sheets: [{
 //       name,                                                       // required
-//       cells:   [{ ref, value|formula(+result)|text+hyperlink, numFmt, font }],
-//       columns: [{ index, width, hidden }],                        // index: 1-based
+//       cells:   [{ ref, value|formula(+result)|text+hyperlink, numFmt, font, fill, alignment }],
+//       columns: [{ index, width, hidden, numFmt, style }],         // index: 1-based
 //       rows:    [{ index, height, hidden }],
 //       pageMargins: { left, right, top, bottom, header, footer },  // any subset
 //       tables:  [{ name, ref, headers:[…], rows:[[…]], totalsRow }],
@@ -56,11 +56,15 @@ export function buildFrom(spec = {}) {
       cell.value = cellValueFrom(c);
       if (c.numFmt !== undefined) cell.numFmt = c.numFmt;
       if (c.font !== undefined) cell.font = c.font;
+      if (c.fill !== undefined) cell.fill = c.fill;
+      if (c.alignment !== undefined) cell.alignment = c.alignment;
     }
     for (const col of s.columns || []) {
       const column = sheet.getColumn(col.index);
       if (col.width !== undefined) column.width = col.width;
       if (col.hidden !== undefined) column.hidden = col.hidden;
+      if (col.numFmt !== undefined) column.numFmt = col.numFmt;
+      if (col.style !== undefined) column.style = col.style;
     }
     for (const row of s.rows || []) {
       const r = sheet.getRow(row.index);
@@ -102,6 +106,10 @@ function normalizeCell(cell) {
     out.value = v ?? null;
   }
   if (cell.numFmt) out.numFmt = cell.numFmt;
+  // Style facets are read back only when the reader materialized them, so a case can
+  // assert both survival (a set value comes back) and locality (an unset cell is bare).
+  if (cell.fill && cell.fill.type) out.fill = JSON.parse(JSON.stringify(cell.fill));
+  if (cell.alignment) out.alignment = JSON.parse(JSON.stringify(cell.alignment));
   return out;
 }
 
@@ -122,7 +130,11 @@ export async function roundtripWorkbook(spec) {
     const columns = {};
     for (const col of s.columns || []) {
       const column = sheet.getColumn(col.index);
-      columns[col.index] = {width: column.width ?? null, hidden: !!column.hidden};
+      columns[col.index] = {
+        width: column.width ?? null,
+        hidden: !!column.hidden,
+        numFmt: column.numFmt ?? null,
+      };
     }
     const rows = {};
     for (const row of s.rows || []) {
@@ -215,6 +227,21 @@ export async function inspectPackage(spec) {
     });
   }
 
+  // Style facts: a font may reference a color by *theme index* (e.g. <color theme="1"/>),
+  // which Excel can only resolve if the package ships a theme part. A theme reference
+  // with no theme part is a real corruption mode (Excel repairs the file on open).
+  const stylesXml = (await read('xl/styles.xml')) || '';
+  const defaultFontBlock = (stylesXml.match(/<font>[\s\S]*?<\/font>/) || [''])[0];
+  const defaultFontColor = attrs((defaultFontBlock.match(/<color\b[^>]*\/?>/) || [''])[0]);
+  const hasThemePart = parts.some(p => /^xl\/theme\/theme\d+\.xml$/.test(p));
+  const styles = {
+    hasThemePart,
+    defaultFontColor,
+    defaultFontUsesTheme: 'theme' in defaultFontColor,
+    // The invariant a case locks: any theme-color reference is backed by a theme part.
+    themeColorResolvable: !('theme' in defaultFontColor) || hasThemePart,
+  };
+
   // Worksheet declarations must agree across the three places OOXML requires.
   const declaredConsistent = worksheetParts.every(part => {
     const over = overrides.includes('/' + part);
@@ -230,6 +257,7 @@ export async function inspectPackage(spec) {
     rels,
     sheets,
     tables,
+    styles,
     consistency: {
       worksheetPartCount: worksheetParts.length,
       sheetEntryCount: sheetEntries.length,
