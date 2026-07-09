@@ -27,7 +27,7 @@
 
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
-import {Readable} from 'node:stream';
+import {Readable, PassThrough} from 'node:stream';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
@@ -614,6 +614,79 @@ export async function csvWrite({spec = {}, options} = {}) {
   } catch (e) {
     return {ok: false, error: String((e && e.message) || e), text: null};
   }
+}
+
+// Materialize a stream-write cell spec into a live cell value: a { richText:[{text,
+// bold?, italic?}] } spec becomes a real richText value; primitives pass through.
+const streamCellValue = c => {
+  if (c && typeof c === 'object' && Array.isArray(c.richText)) {
+    return {
+      richText: c.richText.map(run => ({
+        text: run.text,
+        font: {...(run.bold ? {bold: true} : {}), ...(run.italic ? {italic: true} : {})},
+      })),
+    };
+  }
+  return c;
+};
+
+// Read a richText (or primitive) cell value back into a plain shape a case can compare:
+// { richText:[{text, bold, italic}] } or the primitive itself.
+const readStreamCell = v => {
+  if (v && typeof v === 'object' && Array.isArray(v.richText)) {
+    return {
+      richText: v.richText.map(run => ({
+        text: run.text,
+        bold: !!(run.font && run.font.bold),
+        italic: !!(run.font && run.font.italic),
+      })),
+    };
+  }
+  return v ?? null;
+};
+
+// Drive the streaming workbook writer through a sequence of row ops, commit, then read the
+// produced package back and report the resulting cells — for asserting streaming-write
+// behavior (batch add, shared-string handling of richText) that the non-streaming path
+// can't exercise. Ops: { op:'addRow', value:[…] } | { op:'addRows', value:[[…],…] }. A row
+// op that throws (e.g. an unimplemented method) is reported as { ok:false, error }, never
+// propagated. Returns { ok, error, cells:{ <ref>: value }, rowCount } with plain values.
+export async function streamWriteSheet({useSharedStrings = false, ops = [], read = []} = {}) {
+  const chunks = [];
+  const stream = new PassThrough();
+  const drained = new Promise(res => {
+    stream.on('data', c => chunks.push(c));
+    stream.on('end', res);
+    stream.on('close', res);
+  });
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream, useSharedStrings});
+  let error = null;
+  try {
+    const sheet = writer.addWorksheet('S');
+    for (const op of ops) {
+      if (op.op === 'addRow') {
+        sheet.addRow((op.value || []).map(streamCellValue)).commit();
+      } else if (op.op === 'addRows') {
+        sheet.addRows((op.value || []).map(row => (row || []).map(streamCellValue)));
+      } else {
+        throw new Error(`unknown stream op: ${op.op}`);
+      }
+    }
+    sheet.commit();
+  } catch (e) {
+    error = String((e && e.message) || e);
+  }
+  await writer.commit();
+  await drained;
+
+  if (error) return {ok: false, error, cells: {}, rowCount: 0};
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(Buffer.concat(chunks));
+  const sheet = workbook.worksheets[0];
+  const cells = {};
+  for (const ref of read) cells[ref] = readStreamCell(sheet.getCell(ref).value);
+  return {ok: true, error: null, cells, rowCount: sheet.rowCount};
 }
 
 function xmlWellFormed(xml) {

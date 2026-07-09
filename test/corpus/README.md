@@ -72,6 +72,7 @@ implementation is shaped. Current vocabulary:
 | `readFixtureImageAnchors(rel)` | Read a fixture and return `{images:[{sheet, editAs, tl, br}], count}` with integer cell coordinates — for asserting a file whose images use (string) range anchors reads without crashing and normalizes to an object range. |
 | `csvRead({csv, options})` | Parse a CSV string with reader `options` → `{ok, error, rows}`, a 2-D array of typed cell values (a Date becomes `{date: iso}`, an error `{error}`, empties `null`) — for asserting delimiter handling, value coercion, and header-mode behavior. A broken option path is captured as `{ok:false, error}`. |
 | `csvWrite({spec, options})` | Write a `{rows:[[cell,…]]}` spec (a cell is a primitive, `{date: iso}`, `{formula, result}`, or `{error}`) to CSV with writer `options` → `{ok, error, text}` — for asserting field delimiter and date formatting on genuinely-typed cells. |
+| `streamWriteSheet({useSharedStrings, ops, read})` | Drive the streaming workbook writer through row ops (`{op:'addRow'\|'addRows', value}`), commit, read the package back → `{ok, error, cells, rowCount}` — for asserting streaming-only behavior (batch add, richText shared-string handling). A throwing op is captured as `{ok:false, error}`. |
 
 The `spec` shape consumed by the three workbook capabilities is documented at the top of
 `adapters/workbook-io.mjs` (worksheets with cells, columns, rows, page margins, tables).

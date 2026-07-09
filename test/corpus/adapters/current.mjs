@@ -22,6 +22,7 @@ import {
   readFixtureImageAnchors,
   csvRead,
   csvWrite,
+  streamWriteSheet,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -118,4 +119,9 @@ export default {
   // Write a declarative row spec to CSV with given options → { ok, error, text } — for
   // asserting field delimiter and date formatting on genuinely-typed cells. See workbook-io.mjs.
   csvWrite,
+
+  // Drive the streaming workbook writer through row ops (addRow/addRows), commit, read back
+  // → { ok, error, cells, rowCount } — for asserting streaming-only behavior like batch add
+  // and richText shared-string handling. See workbook-io.mjs.
+  streamWriteSheet,
 };
