@@ -713,6 +713,39 @@ export async function streamReadFixture(rel, cells = []) {
   return out;
 }
 
+// Read a fixture `.xlsx` both eagerly and through the STREAMING reader and report the sheet names
+// each path surfaces → { eager, streaming } — for asserting the streaming reader joins each
+// worksheet part to the workbook-level sheet declaration and exposes the real declared name
+// (e.g. "test"), not a generic positional placeholder ("Sheet2"). The eager read is the oracle.
+export async function streamVsEagerSheetNames(rel) {
+  const eagerWb = new ExcelJS.Workbook();
+  await eagerWb.xlsx.readFile(fixturePath(rel));
+  const eager = eagerWb.worksheets.map(s => s.name);
+  const streaming = [];
+  const reader = new ExcelJS.stream.xlsx.WorkbookReader(fixturePath(rel), {});
+  for await (const worksheet of reader) streaming.push(worksheet.name);
+  return {eager, streaming};
+}
+
+// Read a fixture `.xlsx` both eagerly and through the STREAMING reader and report the row numbers
+// each path yields for the first sheet → { eager, streaming } — for asserting the streaming reader
+// preserves each row's true index across interior blank rows (a sheet with data on rows 1 then
+// 6–8 must yield 1,6,7,8, not a resequenced 1,2,3,4) so `row.number` maps back to the real sheet
+// position. The eager read is the oracle.
+export async function streamVsEagerRowNumbers(rel) {
+  const eagerWb = new ExcelJS.Workbook();
+  await eagerWb.xlsx.readFile(fixturePath(rel));
+  const eager = [];
+  eagerWb.worksheets[0].eachRow({includeEmpty: false}, row => eager.push(row.number));
+  const streaming = [];
+  const reader = new ExcelJS.stream.xlsx.WorkbookReader(fixturePath(rel), {});
+  for await (const worksheet of reader) {
+    for await (const row of worksheet) streaming.push(row.number);
+    break; // first worksheet only
+  }
+  return {eager, streaming};
+}
+
 const normalizeStreamValue = v => {
   if (v instanceof Date) return {date: Number.isNaN(+v) ? null : v.toISOString()};
   if (v && typeof v === 'object') return JSON.parse(JSON.stringify(v));

@@ -31,6 +31,8 @@ import {
   roundtripFixtureTableXml,
   readFixtureTable,
   streamReadFixture,
+  streamVsEagerSheetNames,
+  streamVsEagerRowNumbers,
   readFixtureCells,
   roundtripFixtureCellXml,
   roundtripFixturePackageParts,
@@ -176,6 +178,16 @@ export default {
   // { type, value } — for asserting streaming read applies date/number formats like the full
   // read (a date-formatted cell is a Date, not a raw serial). See workbook-io.mjs.
   streamReadFixture,
+
+  // Read a fixture eagerly and via the streaming reader and report the sheet names each path
+  // surfaces → { eager, streaming } — for asserting streaming exposes the real declared names,
+  // not generic positional placeholders. See workbook-io.mjs.
+  streamVsEagerSheetNames,
+
+  // Read a fixture eagerly and via the streaming reader and report the first sheet's row numbers
+  // each path yields → { eager, streaming } — for asserting streaming preserves true row indices
+  // across interior blank rows. See workbook-io.mjs.
+  streamVsEagerRowNumbers,
 
   // Read a fixture's first sheet with the full reader and report requested cells' { type, value }
   // → for asserting real-file cell values/types (e.g. a Strict-mode ISO-8601 date parses to the
