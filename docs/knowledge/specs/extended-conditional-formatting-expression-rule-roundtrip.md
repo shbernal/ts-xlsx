@@ -1,0 +1,49 @@
+# Extended (x14) conditional-formatting rules must round-trip with their formula and extended dxf
+
+Cluster: conditional-formatting
+
+## Scenario
+
+Modern Excel stores certain conditional-formatting rules in a worksheet **extension block** rather
+than the classic conditional-formatting collection. These extended rules can be of type
+`expression`, where the trigger condition is a formula carried in a nested formula element, and their
+applied formatting is described by a **differential-formatting (dxf) child that lives inside the
+extension namespace** — an *extended* dxf, distinct from the classic dxf used by ordinary
+conditional formatting. When a workbook containing such an extended expression rule is read and
+written back, two things must survive: the rule's condition formula, and the extended dxf that
+describes the visual formatting. If the extended dxf is dropped on write, the rule is preserved
+structurally but becomes a **visual no-op** — Excel opens the file with the rule present but applying
+no formatting at all.
+
+> Spec note rather than a corpus case: faithfully exercising this needs a fixture authored by Excel
+> that carries the extension-namespace conditional-formatting block, and the harvested attachment for
+> this report is not available; the current writer has no authoring path for extended rules, so a
+> spec-built fixture cannot reproduce it either. The durable requirement is recorded here and should
+> be promoted to a corpus case under `roundtripFixturePackageParts` / an extended-CF inspection facet
+> once a real extension-namespace fixture surfaces. The unmodeled-part-passthrough principle already
+> captured for drawings/VML/pivot applies directly.
+
+## Desired behavior
+
+- An extended conditional-formatting rule of type `expression` **preserves its condition formula**
+  through a read/write round-trip.
+- The rule **preserves its extended differential-formatting (dxf) child**, so the applied formatting
+  is never silently dropped into a no-op.
+- On write, the differential-formatting node is emitted **in the extension namespace** (an extended
+  dxf) — not omitted, and not confused with or downgraded to the classic conditional-formatting dxf.
+- Classic and extended rule families should merge into a **single conceptual model on read** (the
+  formula on an extended expression rule is handled the same way as the formula on a classic rule),
+  so callers see one coherent conditional-formatting surface regardless of where a rule was stored.
+
+## Open questions
+
+- Should extended rules the library does not fully model be **passed through** verbatim on write
+  (preserving the raw extension block) until a first-class model exists, so nothing is dropped in the
+  interim?
+- Which extended rule types beyond `expression` (data bars with extended options, icon sets, color
+  scales with extension attributes) share this extension-block storage and need the same treatment?
+- How are the extension-block dxf records reconciled with the classic `dxfs` table on write —
+  separate tables, or a merged one with namespace-aware emission?
+
+Related: `conditional-format-numfmt-roundtrip`, `conditional-formatting-duplicate-values-roundtrip`,
+`pivot-table-round-trip-preservation`, `foreign-file-read-modify-write-preserves-validity`.
