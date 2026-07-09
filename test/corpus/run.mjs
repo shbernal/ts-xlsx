@@ -46,9 +46,9 @@ async function loadCases() {
   return cases;
 }
 
-function runBehavior(behavior, api) {
+async function runBehavior(behavior, api) {
   try {
-    behavior.expect(api, assert);
+    await behavior.expect(api, assert);
     return {actual: 'pass'};
   } catch (err) {
     return {actual: 'fail', detail: err.message ?? String(err)};
@@ -74,7 +74,7 @@ async function main() {
     const tag = ref ? `  [#${ref}]` : '';
     console.log(`  ${testCase.id}${tag}  ${testCase.cluster}`);
     for (const behavior of testCase.behavior) {
-      const {actual, detail} = runBehavior(behavior, api);
+      const {actual, detail} = await runBehavior(behavior, api);
       let status;
       if (behavior.baseline === 'pass' && actual === 'pass') status = 'ok';
       else if (behavior.baseline === 'fail' && actual === 'fail') status = 'bug';

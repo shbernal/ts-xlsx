@@ -60,6 +60,12 @@ implementation is shaped. Current vocabulary:
 | `decodeAddress(ref)` | Decode a single cell/row/column reference → `{col, row, …}` (absent axis = `undefined`). |
 | `decodeRange(ref)` | Decode a range reference → corners + serialized dimensions. |
 | `probeCellFonts({apply, read})` | On a fresh worksheet, assign a font to each `apply` cell, then return `{ <address>: font }` for the `read` cells — for asserting per-cell style stays local. |
+| `roundtripWorkbook(spec)` | Build a workbook from a declarative `spec`, write it to a buffer, read it back, and return a normalized JSON model (`{properties, sheets}`) — for asserting content survives write→read. |
+| `inspectPackage(spec)` | Build + write a `spec`, unzip the package, and return raw OOXML-part facts (worksheet-declaration consistency, `pageMargins`, `sheetViews`, table XML, per-cell formula text, well-formedness) — for asserting on what is actually serialized. |
+| `tryWriteWorkbook(spec)` | Build + attempt to write a `spec`; return `{ok, error, survivingCells, …}` — for asserting pathological input neither throws nor drops sibling cells. |
+
+The `spec` shape consumed by the three workbook capabilities is documented at the top of
+`adapters/workbook-io.mjs` (worksheets with cells, columns, rows, page margins, tables).
 
 Add capabilities only as cases demand them, and add them to **every** adapter. When the
 rewrite lands, a `rewrite.mjs` adapter binds the same vocabulary to the new code and

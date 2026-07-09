@@ -9,6 +9,7 @@
 // observable shape without reaching into any implementation's internals.
 
 import {createRequire} from 'node:module';
+import {roundtripWorkbook, inspectPackage, tryWriteWorkbook} from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
 const colCache = require('../../../lib/utils/col-cache.js');
@@ -45,4 +46,21 @@ export default {
     }
     return JSON.parse(JSON.stringify(fonts));
   },
+
+  // Build a workbook from a declarative spec, write it to a buffer, read it back
+  // with the same implementation, and return a normalized JSON model — for
+  // asserting that content survives a write→read round-trip. See workbook-io.mjs
+  // for the spec shape.
+  roundtripWorkbook,
+
+  // Build + write a workbook from a spec, unzip the produced package, and report
+  // raw OOXML-part facts (worksheet-declaration consistency, pageMargins, sheet
+  // views, table XML, per-cell formula text) — for asserting on what is actually
+  // serialized, independent of what the reader defaults back in.
+  inspectPackage,
+
+  // Build + attempt to write a workbook from a spec; return { ok, error, … }
+  // including which cells survived — for asserting that pathological input (an
+  // invalid date, an empty workbook) neither throws nor silently drops siblings.
+  tryWriteWorkbook,
 };
