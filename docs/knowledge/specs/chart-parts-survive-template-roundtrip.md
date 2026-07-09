@@ -18,7 +18,8 @@ Two layers, separable in scope.
 
 **1. Passthrough preservation (near-term, high value).** When reading a package, parts and
 relationships the library does not model — chart XML, chart colors/style XML, chartEx, drawings
-that anchor charts, and their `.rels` — should be retained verbatim and re-emitted on write,
+that anchor charts, their `.rels`, and the per-sheet `printerSettings` parts that chart-bearing
+report templates commonly carry — should be retained verbatim and re-emitted on write,
 with their relationships and content-type overrides intact. A load-modify-save that only touches
 cell values must produce an output whose charts still render. This needs no chart data model —
 only faithful passthrough of opaque parts plus correct rewiring of the relationship graph
