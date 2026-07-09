@@ -26,6 +26,7 @@ import {
   roundtripFormulas,
   roundtripTableAppend,
   readFixtureDefinedNames,
+  readFixtureCellStyles,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -138,7 +139,12 @@ export default {
   roundtripTableAppend,
 
   // Read a fixture and report the workbook-level defined names the reader exposes →
-  // { names, count } — for asserting a full-row/full-column-span named range a real file
-  // declares is read back rather than silently dropped. See workbook-io.mjs.
+  // { names, count, modelCount } — for asserting a full-row/full-column-span named range, or
+  // same-named names scoped to different sheets, are read back rather than silently dropped.
   readFixtureDefinedNames,
+
+  // Read a fixture and report specific cells' resolved fill + font color, keyed <sheet>!<addr>
+  // → { fill, fontColor } — for asserting a real file's cell colors (solid-fill foreground,
+  // theme+tint, a separate font color) are read faithfully and not conflated. See workbook-io.mjs.
+  readFixtureCellStyles,
 };

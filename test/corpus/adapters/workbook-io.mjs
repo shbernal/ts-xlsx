@@ -250,13 +250,35 @@ export async function roundtripWorkbook(spec) {
 
 // Read a fixture `.xlsx` and report the workbook-level defined names the reader exposes,
 // as { <name>: [ranges…] } — for asserting that a name a real file declares (including a
-// full-row/full-column span like `Sheet2!$1:$5`) is read back rather than silently dropped
-// by over-strict range-address validation.
+// full-row/full-column span like `Sheet2!$1:$5`, or two same-named names scoped to different
+// sheets) is read back rather than silently dropped by over-strict validation or scope collision.
 export async function readFixtureDefinedNames(rel) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(fixturePath(rel));
   const names = definedNamesOf(workbook);
-  return {names, count: Object.keys(names).length};
+  return {names, count: Object.keys(names).length, modelCount: (workbook.definedNames.model || []).length};
+}
+
+// Read a fixture `.xlsx` and report the resolved fill + font of specific cells, keyed
+// `<sheet>!<addr>` — for asserting that a real file's cell colors (a solid fill's visible
+// foreground color, a theme+tint color, a separate font color) are read back faithfully and
+// not conflated. `cells` is a list of `"Sheet!Addr"` strings. Returns plain JSON only.
+export async function readFixtureCellStyles(rel, cells = []) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const out = {};
+  for (const key of cells) {
+    const [sheetName, addr] = key.split('!');
+    const sheet = workbook.getWorksheet(sheetName);
+    const cell = sheet ? sheet.getCell(addr) : null;
+    out[key] = cell
+      ? {
+          fill: cell.fill && cell.fill.type ? JSON.parse(JSON.stringify(cell.fill)) : null,
+          fontColor: cell.font && cell.font.color ? JSON.parse(JSON.stringify(cell.font.color)) : null,
+        }
+      : null;
+  }
+  return out;
 }
 
 const attrs = tag => {
