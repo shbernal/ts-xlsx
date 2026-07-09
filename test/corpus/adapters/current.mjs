@@ -23,6 +23,8 @@ import {
   csvRead,
   csvWrite,
   streamWriteSheet,
+  roundtripFormulas,
+  roundtripTableAppend,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -124,4 +126,13 @@ export default {
   // → { ok, error, cells, rowCount } — for asserting streaming-only behavior like batch add
   // and richText shared-string handling. See workbook-io.mjs.
   streamWriteSheet,
+
+  // Build + round-trip formula cells → per-cell { formula, sharedFormula, result } — for
+  // asserting a shared-formula clone reads back a translated concrete formula. See workbook-io.mjs.
+  roundtripFormulas,
+
+  // Build a table, round-trip it, and try appending rows to the reloaded table →
+  // { hasTable, loadedRowCount, addError, committed, finalRowCount } — for asserting a
+  // table rehydrated from a file is mutable, not throwing on append. See workbook-io.mjs.
+  roundtripTableAppend,
 };

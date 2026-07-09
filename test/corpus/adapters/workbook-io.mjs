@@ -16,7 +16,9 @@
 //     properties: { creator, lastModifiedBy, created, modified },   // dates: ISO strings
 //     sheets: [{
 //       name,                                                       // required
-//       cells:   [{ ref, value|formula(+result)|text+hyperlink, numFmt, font, fill, alignment }],
+//       cells:   [{ ref, value|formula(+result)|sharedFormula(+result)|text+hyperlink,
+//                   numFmt, font, fill, alignment, note }],
+//       images:  [{ range }],                                       // string "B2:D6" or {tl, br?, ext?}
 //       columns: [{ index, width, hidden, numFmt, style }],         // index: 1-based
 //       rows:    [{ index, height, hidden }],
 //       pageMargins: { left, right, top, bottom, header, footer },  // any subset
@@ -49,6 +51,7 @@ const fixturePath = rel => path.join(FIXTURES_ROOT, rel);
 const toDate = v => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
 
 function cellValueFrom(c) {
+  if ('sharedFormula' in c) return {sharedFormula: c.sharedFormula, result: c.result};
   if ('formula' in c) return {formula: c.formula, result: c.result};
   if ('hyperlink' in c) return {text: c.text ?? c.hyperlink, hyperlink: c.hyperlink};
   if (c.value && typeof c.value === 'object' && c.value.invalidDate) return new Date(NaN);
@@ -73,6 +76,7 @@ export function buildFrom(spec = {}) {
       if (c.font !== undefined) cell.font = c.font;
       if (c.fill !== undefined) cell.fill = c.fill;
       if (c.alignment !== undefined) cell.alignment = c.alignment;
+      if (c.note !== undefined) cell.note = c.note;
     }
     for (const col of s.columns || []) {
       const column = sheet.getColumn(col.index);
@@ -161,6 +165,7 @@ function normalizeCell(cell) {
     out.value = v ?? null;
   }
   if (cell.numFmt) out.numFmt = cell.numFmt;
+  if (cell.note) out.note = typeof cell.note === 'string' ? cell.note : cell.note.texts?.map(t => t.text).join('') ?? null;
   // Style facets are read back only when the reader materialized them, so a case can
   // assert both survival (a set value comes back) and locality (an unset cell is bare).
   if (cell.fill && cell.fill.type) out.fill = JSON.parse(JSON.stringify(cell.fill));
@@ -233,6 +238,14 @@ export async function inspectPackage(spec) {
   const relsXml = (await read('xl/_rels/workbook.xml.rels')) || '';
 
   const worksheetParts = parts.filter(p => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
+  // First-worksheet relationships: a comment part and a table part must coexist here with
+  // unique relationship ids and distinct targets, or Excel repairs the package on open.
+  const wsRelsXml = (await read('xl/worksheets/_rels/sheet1.xml.rels')) || '';
+  const worksheetRels = [...wsRelsXml.matchAll(/<Relationship\b[^>]*?\/?>/g)].map(t => {
+    const a = attrs(t[0]);
+    return {id: a.Id, target: a.Target, type: (a.Type || '').split('/').pop()};
+  });
+  const wsRelIds = worksheetRels.map(r => r.id);
   const overrides = [...contentTypes.matchAll(/<Override[^>]*PartName="([^"]*)"[^>]*\/>/g)].map(m => m[1]);
   const sheetEntries = [...workbookXml.matchAll(/<sheet\b[^>]*?\/?>/g)].map(t => {
     const a = attrs(t[0]);
@@ -310,13 +323,20 @@ export async function inspectPackage(spec) {
     overrides,
     sheetEntries,
     rels,
+    worksheetRels,
     sheets,
     tables,
     styles,
+    packageParts: {
+      hasCommentsPart: parts.some(p => /^xl\/comments\d+\.xml$/.test(p)),
+      hasVmlDrawingPart: parts.some(p => /^xl\/drawings\/vmlDrawing\d+\.vml$/.test(p)),
+      hasTablePart: parts.some(p => /^xl\/tables\/table\d+\.xml$/.test(p)),
+    },
     consistency: {
       worksheetPartCount: worksheetParts.length,
       sheetEntryCount: sheetEntries.length,
       declaredConsistent,
+      worksheetRelIdsUnique: new Set(wsRelIds).size === wsRelIds.length,
     },
   };
 }
@@ -395,6 +415,75 @@ export async function roundtripFixtureValidationXml(rel) {
     totalExt += ext;
   }
   return {sheets, totalStandard, totalExt, totalValidations: totalStandard + totalExt};
+}
+
+// Build a workbook from a spec (cells may carry `formula` or `sharedFormula`), write it,
+// read it back, and report each requested cell's resolved formula facts — for asserting
+// that a shared-formula clone (a cell that just references a master via `sharedFormula`)
+// reads back a concrete, address-translated formula, not an empty cell. Returns per-cell
+// { formula, sharedFormula, result } from the model getters (the translated `formula` the
+// clone resolves to, distinct from the raw `sharedFormula` master reference).
+export async function roundtripFormulas(spec) {
+  const buffer = await buildFrom(spec).xlsx.writeBuffer();
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const out = {};
+  for (const s of spec.sheets || []) {
+    const sheet = workbook.getWorksheet(s.name);
+    for (const c of s.cells || []) {
+      const cell = sheet.getCell(c.ref);
+      const v = cell.value;
+      out[c.ref] = {
+        formula: cell.formula ?? null,
+        sharedFormula: v && typeof v === 'object' && 'sharedFormula' in v ? v.sharedFormula : null,
+        result: cell.result ?? null,
+      };
+    }
+  }
+  return out;
+}
+
+// Build a workbook whose sheet carries a table, write it, read it back, then fetch the
+// table by name and try to append rows to the *reloaded* table — reporting whether the
+// loaded table exposes its rows and whether the append succeeds. Lets a case assert that a
+// table rehydrated from a file is mutable, not a half-loaded model that throws on append.
+export async function roundtripTableAppend(spec, {tableName, appendRows = []} = {}) {
+  const buffer = await buildFrom(spec).xlsx.writeBuffer();
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const sheet = workbook.worksheets[0];
+  const table = sheet.getTable(tableName);
+
+  let loadedRowCount = null;
+  let loadError = null;
+  try {
+    const rows = table && table.table ? table.table.rows : table && table.rows;
+    loadedRowCount = Array.isArray(rows) ? rows.length : null;
+  } catch (e) {
+    loadError = String((e && e.message) || e);
+  }
+
+  let addError = null;
+  let committed = false;
+  try {
+    for (const r of appendRows) table.addRow(r);
+    table.commit();
+    committed = true;
+  } catch (e) {
+    addError = String((e && e.message) || e);
+  }
+
+  let finalRowCount = null;
+  if (committed) {
+    const rewrite = await workbook.xlsx.writeBuffer();
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(rewrite);
+    const t2 = reread.worksheets[0].getTable(tableName);
+    const rows2 = t2 && t2.table ? t2.table.rows : null;
+    finalRowCount = Array.isArray(rows2) ? rows2.length : null;
+  }
+
+  return {hasTable: !!table, loadedRowCount, loadError, addError, committed, finalRowCount};
 }
 
 // Read a fixture `.xlsx` and report only { ok, error, sheetNames } — for asserting the
