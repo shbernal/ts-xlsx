@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + eight unlabeled slices; 211/794; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + nine unlabeled slices; 226/794; fixture-less bulk drain underway)._
 
 ---
 
@@ -250,12 +250,32 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     TypeError (→ columns-mutable-array-ergonomics), image `{col,row}`/ext anchor (verified works,
     no defect), IE11 RegExp (dead runtime), tmp CVE dep bump (CLAUDE.md §2). Corpus **153 green /
     91 known-open / 0 regressions**; 100 corpus cases + 57 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (583 remaining, all fixture-less) in ~15-record
+  - **Ninth slice — fixture-less bulk, top-15 by comment signal — drained** (226/794, ~28%).
+    7 corpus behaviors (5 new cases + 2 augmentations) + 5 spec notes + 3 not-carried folds.
+    Probing overturned four triage guesses: **style dedup already works** (40 identical-fill cells
+    collapse to one shared style-table index, a distinct style stays separate — regression lock, not
+    the reported perf bug), and **streaming row.values is already 1-based and byte-identical to the
+    eager read** (lock). Genuine known-opens: a row/column delete-splice whose range reaches the last
+    populated row/column silently leaves the trailing entries in place (interior splice shifts fine —
+    lock); iterating a row with include-empty drops the trailing run of empty cells so positional
+    reconstruction misaligns with a wider header (interior blanks surfaced — contrast lock); writing a
+    modern function must not inject a spurious `@` implicit-intersection operator (lock, augmenting the
+    xlfn case); spread-reassigning one loaded cell's font member bleeds into a shared sibling
+    (known-open, augmenting the style-aliasing case). Table ref + part survive a load→save round-trip
+    incl. empty-body/single-row shapes (lock). Adapter grew: `styleDedupReport`, `readRowCellPresence`,
+    `streamVsEagerRowValues`, `roundtripSpecTableFacts`, `loadMutateCellFont`. Spec notes: streaming
+    read-modify-write over a template; audit-clean dependency tree (built-ins over transitive deps);
+    multiselect DV is not a native format feature; 255-char inline-list limit (warn, don't silently
+    emit an invisible dropdown); apply-style-over-a-range API. Not-carried folds: two streaming
+    multibyte-corruption reports (→ existing chunk-boundary case), a browser-bundle usage question.
+    Corpus **165 green / 96 known-open / 0 regressions**; 105 corpus cases + 62 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (568 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
     a bug that needs data to span a chunk boundary (or a large sqref) will falsely pass a tiny
-    probe.
+    probe. And **probe before trusting a triage "likely bug"** — several reported bugs (style
+    dedup, streaming row indexing) turn out already-correct locks today.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -296,12 +316,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **211/794 (~27%)**; **all labeled clusters + eight unlabeled slices are drained; the
+Drain at **226/794 (~28%)**; **all labeled clusters + nine unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (153 green / 91
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (165 green / 96
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (583 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (568 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
