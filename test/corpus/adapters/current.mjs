@@ -33,6 +33,8 @@ import {
   streamReadFixture,
   streamVsEagerSheetNames,
   streamVsEagerRowNumbers,
+  streamVsEagerRowHidden,
+  streamReadReport,
   readFixtureCells,
   roundtripFixtureCellXml,
   roundtripFixturePackageParts,
@@ -192,6 +194,17 @@ export default {
   // each path yields → { eager, streaming } — for asserting streaming preserves true row indices
   // across interior blank rows. See workbook-io.mjs.
   streamVsEagerRowNumbers,
+
+  // Read a fixture eagerly and via the streaming reader and report each first-sheet row's
+  // { number, hidden } from both paths → { eager, streaming } — for asserting the streaming reader
+  // surfaces the hidden flag (interpreting string-form "true"/"false"), agreeing with the eager
+  // read. See workbook-io.mjs.
+  streamVsEagerRowHidden,
+
+  // Read a fixture through the streaming reader end-to-end → { ok, error, sheetNames, totalRows } —
+  // for asserting it tolerates a package whose ZIP places a worksheet part before workbook.xml
+  // rather than crashing on an unbuilt workbook model. See workbook-io.mjs.
+  streamReadReport,
 
   // Read a fixture's first sheet with the full reader and report requested cells' { type, value }
   // → for asserting real-file cell values/types (e.g. a Strict-mode ISO-8601 date parses to the

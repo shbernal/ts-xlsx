@@ -755,6 +755,44 @@ export async function streamVsEagerRowNumbers(rel) {
   return {eager, streaming};
 }
 
+// Read a fixture `.xlsx` both eagerly and via the STREAMING reader and report each first-sheet
+// row's { number, hidden } from both paths → { eager, streaming } — for asserting the streaming
+// reader surfaces a row's hidden flag (interpreting the string-form "true"/"false" some generators
+// write, not only "1"/"0"), agreeing with the eager read rather than reporting every row visible.
+export async function streamVsEagerRowHidden(rel) {
+  const eagerWb = new ExcelJS.Workbook();
+  await eagerWb.xlsx.readFile(fixturePath(rel));
+  const eager = [];
+  eagerWb.worksheets[0].eachRow({includeEmpty: false}, row => eager.push({number: row.number, hidden: !!row.hidden}));
+  const streaming = [];
+  const reader = new ExcelJS.stream.xlsx.WorkbookReader(fixturePath(rel), {});
+  for await (const worksheet of reader) {
+    for await (const row of worksheet) streaming.push({number: row.number, hidden: !!row.hidden});
+    break; // first worksheet only
+  }
+  return {eager, streaming};
+}
+
+// Read a fixture `.xlsx` through the STREAMING reader end-to-end and report { ok, error, sheetNames,
+// totalRows } — the read either completes (with every worksheet's name and the total rows delivered
+// across sheets) or its error is captured as data. For asserting the streaming reader tolerates a
+// package whose ZIP places a worksheet part before xl/workbook.xml (openpyxl and others emit this;
+// OOXML does not mandate entry order) rather than crashing on an unbuilt workbook model.
+export async function streamReadReport(rel) {
+  const sheetNames = [];
+  let totalRows = 0;
+  try {
+    const reader = new ExcelJS.stream.xlsx.WorkbookReader(fixturePath(rel), {});
+    for await (const worksheet of reader) {
+      sheetNames.push(worksheet.name);
+      for await (const _row of worksheet) totalRows += 1;
+    }
+    return {ok: true, error: null, sheetNames, totalRows};
+  } catch (e) {
+    return {ok: false, error: String((e && e.message) || e), sheetNames, totalRows};
+  }
+}
+
 const normalizeStreamValue = v => {
   if (v instanceof Date) return {date: Number.isNaN(+v) ? null : v.toISOString()};
   if (v && typeof v === 'object') return JSON.parse(JSON.stringify(v));
