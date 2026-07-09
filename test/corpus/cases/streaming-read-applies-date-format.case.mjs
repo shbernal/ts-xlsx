@@ -1,0 +1,48 @@
+// Cluster: streaming
+//
+// Real-world scenario: a large file is read row-by-row with the streaming reader, and a column
+// holds dates (numeric cells whose style resolves to a date number format). The full (buffered)
+// read surfaces those cells as Date values; the streaming read surfaces the raw serial number
+// instead, because it does not apply cell styles when deciding a cell's type. A date read as a
+// bare number breaks every downstream consumer. Streaming read must resolve a date-formatted
+// numeric cell to a date, exactly as the full read does — while genuinely numeric and string
+// cells keep their types.
+
+/** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
+
+const FIXTURE = 'streaming-read-applies-date-format/sample.xlsx';
+
+export default {
+  id: 'streaming-read-applies-date-format',
+  provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 1430},
+  cluster: 'streaming',
+  description:
+    'The streaming reader applies cell number formats when typing cells, so a date-formatted ' +
+    'numeric cell is surfaced as a date (matching the full read) rather than as a raw serial ' +
+    'number — while plain numeric and string cells keep their types.',
+
+  /** @type {Behavior[]} */
+  behavior: [
+    {
+      name: 'plain numeric and string cells keep their types in streaming read (control)',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const cells = await api.streamReadFixture(FIXTURE, ['A1', 'C2']);
+        assert.strictEqual(cells.A1.type, 'string', 'the header cell is a string');
+        assert.strictEqual(cells.C2.type, 'number', 'the numeric cost cell is a number');
+      },
+    },
+    {
+      name: 'a date-formatted cell is surfaced as a date in streaming read',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const cells = await api.streamReadFixture(FIXTURE, ['B2']);
+        assert.strictEqual(
+          cells.B2.type,
+          'date',
+          `a date-formatted cell must stream as a date, not the raw serial; got ${JSON.stringify(cells.B2)}`
+        );
+      },
+    },
+  ],
+};

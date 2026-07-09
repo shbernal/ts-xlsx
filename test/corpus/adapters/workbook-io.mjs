@@ -561,6 +561,101 @@ export async function roundtripTableAppend(spec, {tableName, appendRows = []} = 
   return {hasTable: !!table, loadedRowCount, loadError, addError, committed, finalRowCount};
 }
 
+// Table-part facts extracted from raw table XML — the attributes a roundtrip must not corrupt.
+const tableXmlFacts = xml => ({
+  hasAutoFilter: /<autoFilter\b/.test(xml),
+  autoFilterRef: (xml.match(/<autoFilter\b[^>]*ref="([^"]*)"/) || [])[1] ?? null,
+  hasEmptyFilterColumn: /<filterColumn\b[^>]*\/>/.test(xml),
+  // headerRowCount defaults to 1 when the attribute is absent; totalsRowShown defaults to 0.
+  headerRowCount: (xml.match(/headerRowCount="(\d+)"/) || [])[1] ?? '1',
+  totalsRowShown: (xml.match(/totalsRowShown="(\d+)"/) || [])[1] ?? '0',
+  name: (xml.match(/<table\b[^>]*\bname="([^"]*)"/) || [])[1] ?? null,
+  columnCount: (xml.match(/<tableColumns\b[^>]*count="(\d+)"/) || [])[1] ?? null,
+});
+
+const tablesInZip = async zip => {
+  const parts = Object.keys(zip.files)
+    .filter(f => /^xl\/tables\/table\d+\.xml$/.test(f))
+    .sort();
+  const facts = [];
+  for (const p of parts) facts.push(tableXmlFacts(await zip.file(p).async('string')));
+  return facts;
+};
+
+// Read a fixture `.xlsx` that contains one or more tables, write it back unchanged, and report
+// each table's raw-XML facts before and after — keyed by table name — for asserting that a
+// no-op round-trip does not corrupt the table part: it must not inject an autoFilter that was
+// not there, flip the header-row configuration off, spuriously turn on totalsRowShown, or emit
+// an empty self-closed filterColumn. Excel repairs (and strips) a table whose part is corrupted.
+export async function roundtripFixtureTableXml(rel) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const sourceZip = await JSZip.loadAsync(require('node:fs').readFileSync(fixturePath(rel)));
+  const source = await tablesInZip(sourceZip);
+  const rewrittenZip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+  const rewritten = await tablesInZip(rewrittenZip);
+
+  // Pair by name where possible; fall back to positional order (a corrupted rewrite can drop
+  // the name, so keep the index alignment as a backstop).
+  const byName = new Map(rewritten.map(t => [t.name, t]));
+  const tables = source.map((s, i) => ({
+    name: s.name,
+    source: s,
+    rewritten: byName.get(s.name) || rewritten[i] || null,
+  }));
+  return {tables, sourceCount: source.length, rewrittenCount: rewritten.length};
+}
+
+// Read a fixture `.xlsx` and report a named table's rehydration facts → { found, columns,
+// rowCount } — for asserting that a table loaded from a real file exposes its declared column
+// names AND its data rows (populated from the on-sheet cells), not a half-loaded model whose
+// rows array is undefined.
+export async function readFixtureTable(rel, tableName) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  let table = null;
+  workbook.eachSheet(sheet => {
+    const t = sheet.getTable(tableName);
+    if (t) table = t;
+  });
+  if (!table) return {found: false, columns: null, rowCount: null};
+  const def = table.table || table;
+  const columns = Array.isArray(def.columns) ? def.columns.map(c => c.name) : null;
+  const rows = def.rows;
+  return {found: true, columns, rowCount: Array.isArray(rows) ? rows.length : null};
+}
+
+// Read the first worksheet of a fixture `.xlsx` through the STREAMING reader and report the
+// requested cells' resolved { type, value } keyed by plain address — for asserting that
+// streaming read applies cell styles (so a date-formatted numeric cell is surfaced as a Date,
+// matching the full read) rather than leaking the raw serial number. `type` is a stable label.
+export async function streamReadFixture(rel, cells = []) {
+  const wanted = new Map(cells.map(a => [a, null]));
+  const typeName = t => {
+    // Map the implementation's ValueType enum to stable labels without leaking the numbers.
+    const map = {2: 'number', 3: 'string', 4: 'date', 6: 'hyperlink', 8: 'richtext'};
+    return map[t] || `type-${t}`;
+  };
+  const reader = new ExcelJS.stream.xlsx.WorkbookReader(fixturePath(rel), {});
+  for await (const worksheet of reader) {
+    for await (const row of worksheet) {
+      row.eachCell({includeEmpty: false}, cell => {
+        if (wanted.has(cell.address)) wanted.set(cell.address, {type: typeName(cell.type), value: normalizeStreamValue(cell.value)});
+      });
+    }
+    break; // first worksheet only
+  }
+  const out = {};
+  for (const [k, v] of wanted) out[k] = v;
+  return out;
+}
+
+const normalizeStreamValue = v => {
+  if (v instanceof Date) return {date: Number.isNaN(+v) ? null : v.toISOString()};
+  if (v && typeof v === 'object') return JSON.parse(JSON.stringify(v));
+  return v ?? null;
+};
+
 // Read a fixture `.xlsx` and report only { ok, error, sheetNames } — for asserting the
 // reader neither crashes nor mis-reads a workbook produced by a *foreign* (non-Excel)
 // generator: a namespace-prefixed OOXML root (`<x:workbook>` instead of `<workbook>`),

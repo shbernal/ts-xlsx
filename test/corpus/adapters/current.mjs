@@ -27,6 +27,9 @@ import {
   roundtripTableAppend,
   readFixtureDefinedNames,
   readFixtureCellStyles,
+  roundtripFixtureTableXml,
+  readFixtureTable,
+  streamReadFixture,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -147,4 +150,19 @@ export default {
   // → { fill, fontColor } — for asserting a real file's cell colors (solid-fill foreground,
   // theme+tint, a separate font color) are read faithfully and not conflated. See workbook-io.mjs.
   readFixtureCellStyles,
+
+  // Read a table-bearing fixture, write it back unchanged, and report each table's raw-XML facts
+  // before/after → { tables:[{name, source, rewritten}] } — for asserting a no-op round-trip does
+  // not corrupt the table part (inject an autoFilter, flip the header row, spuriously set
+  // totalsRowShown, or emit an empty filterColumn). See workbook-io.mjs.
+  roundtripFixtureTableXml,
+
+  // Read a fixture and report a named table's rehydration → { found, columns, rowCount } — for
+  // asserting a table loaded from a real file exposes its columns AND its data rows. See workbook-io.mjs.
+  readFixtureTable,
+
+  // Read a fixture's first sheet through the streaming reader and report requested cells'
+  // { type, value } — for asserting streaming read applies date/number formats like the full
+  // read (a date-formatted cell is a Date, not a raw serial). See workbook-io.mjs.
+  streamReadFixture,
 };
