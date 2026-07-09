@@ -66,6 +66,9 @@ _SpecRunner.html
 
 # Ignore xlsx files generated during testing
 *.xlsx
+# …but durable corpus fixtures are the exception: they are the regression corpus's
+# sample inputs and MUST be tracked (see test/corpus/README.md).
+!test/corpus/fixtures/**
 enpm-lock.yaml
 # Harvested attachment binaries are regenerable scratch (npm run harvest:all).
 # Durable fixtures are promoted into test/corpus/fixtures/. Keep binaries out of history.

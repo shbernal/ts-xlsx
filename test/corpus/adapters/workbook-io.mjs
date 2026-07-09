@@ -26,10 +26,17 @@
 // A cell value of { invalidDate: true } materializes `new Date(NaN)`.
 
 import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
 
 const require = createRequire(import.meta.url);
 const ExcelJS = require('../../../lib/exceljs.nodejs.js');
 const JSZip = require('jszip');
+
+// Durable sample inputs live under test/corpus/fixtures/<case-slug>/. A fixture-backed
+// capability takes a path relative to that root so cases never hardcode a filesystem layout.
+const FIXTURES_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
+const fixturePath = rel => path.join(FIXTURES_ROOT, rel);
 
 const toDate = v => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
 
@@ -322,6 +329,57 @@ export async function tryWriteWorkbook(spec) {
   } catch (error) {
     return {ok: false, phase: 'write', error: String(error && error.message || error)};
   }
+}
+
+// Read a fixture `.xlsx` and report the data validations the reader exposes per cell,
+// keyed `<sheet>!<address>` → validation model — for asserting that validations a real
+// file declares (including ones applied to a multi-cell selection) are read back on
+// every cell they cover, not just some.
+export async function readFixtureValidations(rel) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const cells = {};
+  workbook.eachSheet(sheet => {
+    sheet.eachRow({includeEmpty: false}, row => {
+      row.eachCell({includeEmpty: false}, cell => {
+        if (cell.dataValidation) {
+          cells[`${sheet.name}!${cell.address}`] = JSON.parse(JSON.stringify(cell.dataValidation));
+        }
+      });
+    });
+  });
+  return {cells, count: Object.keys(cells).length};
+}
+
+// Read a fixture `.xlsx`, write it back out, and report the data-validation facts of the
+// *re-serialized* package — both standard `<dataValidation>` entries and the extended
+// `<x14:dataValidation>` form (2009 extension schema, carried in `<extLst>`, used for
+// list validations that reference other sheets or whole columns). Lets a case assert
+// that a validation a template declares survives a read→write round-trip rather than
+// being silently dropped because the writer only understood the standard form.
+export async function roundtripFixtureValidationXml(rel) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const parts = Object.keys(zip.files).filter(f => !zip.files[f].dir);
+  const sheetParts = parts.filter(p => /^xl\/worksheets\/sheet\d+\.xml$/.test(p)).sort();
+
+  const sheets = {};
+  let totalStandard = 0;
+  let totalExt = 0;
+  for (const p of sheetParts) {
+    const xml = await zip.file(p).async('string');
+    // `[ >]` after the tag name distinguishes an individual entry from the
+    // `<dataValidations>` / `<x14:dataValidations>` container (next char is `s`).
+    const standard = [...xml.matchAll(/<dataValidation[ >]/g)].length;
+    const ext = [...xml.matchAll(/<x14:dataValidation[ >]/g)].length;
+    const extSqrefs = [...xml.matchAll(/<xm:sqref>([^<]*)<\/xm:sqref>/g)].map(m => m[1]);
+    sheets[p] = {standardCount: standard, extCount: ext, extSqrefs, hasExtLst: /<extLst\b/.test(xml)};
+    totalStandard += standard;
+    totalExt += ext;
+  }
+  return {sheets, totalStandard, totalExt, totalValidations: totalStandard + totalExt};
 }
 
 function xmlWellFormed(xml) {

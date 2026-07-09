@@ -9,7 +9,14 @@
 // observable shape without reaching into any implementation's internals.
 
 import {createRequire} from 'node:module';
-import {roundtripWorkbook, inspectPackage, tryWriteWorkbook, mutateWorksheet} from './workbook-io.mjs';
+import {
+  roundtripWorkbook,
+  inspectPackage,
+  tryWriteWorkbook,
+  mutateWorksheet,
+  readFixtureValidations,
+  roundtripFixtureValidationXml,
+} from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
 const colCache = require('../../../lib/utils/col-cache.js');
@@ -68,4 +75,13 @@ export default {
   // splices), and report { rowCount, columnCount, cells, error } — for asserting
   // that in-memory model edits behave predictably. See workbook-io.mjs.
   mutateWorksheet,
+
+  // Read a corpus fixture `.xlsx` and report the per-cell data validations the reader
+  // exposes — for asserting a real file's validations are read back on every cell.
+  readFixtureValidations,
+
+  // Read a fixture, write it back, and report data-validation facts of the re-serialized
+  // package (standard + extended x14 forms) — for asserting validations survive a
+  // read→write round-trip. See workbook-io.mjs.
+  roundtripFixtureValidationXml,
 };

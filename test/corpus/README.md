@@ -64,6 +64,8 @@ implementation is shaped. Current vocabulary:
 | `inspectPackage(spec)` | Build + write a `spec`, unzip the package, and return raw OOXML-part facts (worksheet-declaration consistency, `pageMargins`, `sheetViews`, table XML, per-cell formula text, well-formedness, and a `styles` fact recording whether a theme part backs any theme-color font reference) — for asserting on what is actually serialized. |
 | `tryWriteWorkbook(spec)` | Build + attempt to write a `spec`; return `{ok, error, survivingCells, …}` — for asserting pathological input neither throws nor drops sibling cells. |
 | `mutateWorksheet({cells, ops, read})` | Build a fresh sheet, apply structural mutations (`spliceRows`/`spliceColumns`), and return `{rowCount, columnCount, cells, error}` — for asserting in-memory model edits behave predictably (a throwing op is reported as `error`, not propagated). |
+| `readFixtureValidations(rel)` | Read a fixture `.xlsx` (path relative to `fixtures/`) and return `{cells, count}` — per-cell data validations the reader exposes, keyed `<sheet>!<addr>`. |
+| `roundtripFixtureValidationXml(rel)` | Read a fixture, write it back, unzip, and return data-validation facts of the re-serialized package — standard `<dataValidation>` and extended `<x14:dataValidation>` (extLst) counts + `<xm:sqref>` targets — for asserting validations survive a round-trip. |
 
 The `spec` shape consumed by the three workbook capabilities is documented at the top of
 `adapters/workbook-io.mjs` (worksheets with cells, columns, rows, page margins, tables).
