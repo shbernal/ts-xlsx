@@ -74,17 +74,21 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
 - ✅ **Queue filled:** `npm run harvest:all` fetched all 793 remaining records (attachments
   gitignored as regenerable scratch; fixtures get promoted into `test/corpus/fixtures/`).
   `manifest.harvestComplete = true`; stage is now DRAIN.
-- 🔄 **Draining (as of last update: 38/794, ~5%).** Method: a parallel **triage workflow**
+- 🔄 **Draining (as of last update: 47/794, ~6%).** Method: a parallel **triage workflow**
   reads each record and returns a structured disposition (corpus_case / spec_note /
   not_carried) — *no writes/git*; the main loop **materializes** artifacts serially so
   baselines (set by running against `lib/`) and the shared adapter contract stay controlled.
   - **Bug cluster (74):** triaged → 48 corpus / 19 spec / 7 not-carried. Landed so far:
-    19 spec notes under `docs/knowledge/specs/`, 7 not-carried, and **batch 1 of the corpus
-    cases** (8) with the keystone adapter capabilities (`roundtripWorkbook` / `inspectPackage`
-    / `tryWriteWorkbook` in `test/corpus/adapters/workbook-io.mjs`; runner now async-aware).
-  - ⏳ **Remaining bug-cluster corpus cases (~40)** — most reuse the keystone capabilities;
-    ~31 across the cluster need a promoted fixture; a few need new capabilities (streaming,
-    csv, image anchors).
+    20 spec notes under `docs/knowledge/specs/`, 7 not-carried, and **corpus batches 1–2**
+    (14 cases) with the keystone adapter capabilities in `test/corpus/adapters/workbook-io.mjs`
+    (`roundtripWorkbook` / `inspectPackage` / `tryWriteWorkbook`; runner async-aware). Batch 2
+    extended the spec surface with cell `fill`/`alignment`, column `numFmt`/`style`, and a
+    theme-part-backing fact — locking style + row/column-dimension round-trip fidelity.
+    Corpus now **40 green / 6 known-open / 0 regressions**.
+  - ⏳ **Remaining bug-cluster corpus cases (~31)** split by capability need: core-model
+    mutation (splice/named-range/data-validation), fixture-gated xlsx-io read-of-broken-file,
+    and the genuinely new-capability clusters (streaming, csv, image anchors, table-append).
+    Each new-capability cluster is a serial adapter-extension + authoring slice like batch 2.
   - ⏳ **Then the rest of the queue** (~700 mostly-unlabeled + the type/help-wanted/etc.
     clusters) via the same triage-workflow → materialize loop.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
@@ -127,14 +131,17 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Queue is filled and the drain is underway (38/794). The full pipeline is proven:
+Queue is filled and the drain is underway (47/794). The full pipeline is proven:
 parallel triage workflow → serial materialization → green corpus. CI corpus check is
 committed (`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Finish the bug-cluster corpus cases (~40 left).** Reuse the keystone capabilities in
-   `test/corpus/adapters/workbook-io.mjs`; promote fixtures from the gitignored
-   `attachments/<n>/` into `test/corpus/fixtures/<slug>/` where a case needs a real file;
-   add new capabilities only where a case demands (streaming/csv/image-anchor). Set each
-   baseline by running `npm run corpus`; commit in coherent batches.
+1. **Finish the bug-cluster corpus cases (~31 left), grouped by capability need.** Each
+   group is a serial adapter-extension + authoring batch (like batch 2): (a) core-model
+   mutation — a `roundtripWithOps` capability for splice/append plus data-validation and
+   defined-name support; (b) fixture-gated xlsx-io — promote the attached broken files from
+   the gitignored `attachments/<n>/` into `test/corpus/fixtures/<slug>/` and add a
+   `readFixture`/`inspectFixture` capability; (c) new-capability clusters streaming / csv /
+   image-anchors / table-append. Set each baseline by running `npm run corpus`; commit in
+   coherent batches. Reuse the keystones before adding surface.
 2. **Drain the rest of the queue** the same way: triage-workflow a cluster → materialize →
    remove records → commit. Prioritize labeled clusters (help-wanted, Typescript,
    enhancement, proposal), then the ~700 unlabeled. Track with `npm run harvest:status --clusters`.
