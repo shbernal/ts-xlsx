@@ -1,10 +1,15 @@
-# ExcelJS
-
-[![Build Status](https://github.com/exceljs/exceljs/actions/workflows/tests.yml/badge.svg?branch=master&event=push)](https://github.com/exceljs/exceljs/actions/workflows/tests.yml)
+# ts-xlsx
 
 Read, manipulate and write spreadsheet data and styles to XLSX and JSON.
 
 Reverse engineered from Excel spreadsheet files as a project.
+
+> **⚠️ ts-xlsx is an independent hard fork of [ExcelJS](https://github.com/exceljs/exceljs),
+> undergoing a ground-up rebuild toward a modern, TypeScript-first library.**
+> It carries no backwards-compatibility guarantee with ExcelJS. See
+> [`CLAUDE.md`](CLAUDE.md) and [`STRATEGY.md`](STRATEGY.md) for the goals and plan.
+> The documentation below still describes the inherited ExcelJS API and will be
+> replaced as the rebuild lands.
 
 # Translations
 
