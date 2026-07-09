@@ -10,6 +10,10 @@
 
 const URL = 'http://host/ui/#/case/2007720723';
 const SPEC = {sheets: [{name: 'Sheet1', cells: [{ref: 'A1', text: 'open case', hyperlink: URL}]}]};
+// A foreign-authored file where the fragment ("#myhash") lives in the hyperlink element's location
+// attribute, separate from the relationship Target (the bare "http://localhost/") — the read path
+// must rejoin them, exercising the same fidelity from the READ direction rather than write→read.
+const FIXTURE = 'hyperlink-url-fragment-preserved-on-round-trip/foreign-fragment.xlsx';
 
 export default {
   id: 'hyperlink-url-fragment-preserved-on-round-trip',
@@ -44,6 +48,18 @@ export default {
       async expect(api, assert) {
         const {text} = (await api.roundtripWorkbook(SPEC)).sheets.Sheet1.cells.A1;
         assert.strictEqual(text, 'open case');
+      },
+    },
+    {
+      name: 'reading a foreign file rejoins the fragment from the location attribute onto the base URL',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const links = await api.readFixtureHyperlinks(FIXTURE);
+        assert.ok(links.A1, 'the hyperlink cell is read');
+        assert.ok(
+          String(links.A1.hyperlink).includes('#myhash'),
+          `the fragment carried in the location attribute must be rejoined onto the base URL, not dropped; got ${JSON.stringify(links.A1)}`
+        );
       },
     },
   ],

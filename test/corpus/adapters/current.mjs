@@ -16,6 +16,7 @@ import {
   mutateWorksheet,
   readFixtureValidations,
   readFixtureValidationRules,
+  readFixtureHyperlinks,
   roundtripFixtureValidationXml,
   readFixtureReport,
   roundtripFixture,
@@ -112,6 +113,12 @@ export default {
   // per-rule coverage count — for asserting a reference-based list source (defined name,
   // cross-sheet range) surfaces as its formula text, not "[object Object]". See workbook-io.mjs.
   readFixtureValidationRules,
+
+  // Read a fixture and report the first sheet's hyperlink cells → { <addr>: {hyperlink, text} } —
+  // for asserting a real file's hyperlink is reconstructed in full, including a `#fragment` carried
+  // in the hyperlink element's location attribute separate from the relationship target (which must
+  // not be dropped). See workbook-io.mjs.
+  readFixtureHyperlinks,
 
   // Read a fixture, write it back, and report data-validation facts of the re-serialized
   // package (standard + extended x14 forms) — for asserting validations survive a

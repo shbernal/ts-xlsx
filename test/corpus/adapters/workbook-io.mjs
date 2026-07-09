@@ -296,6 +296,30 @@ export async function readFixtureCells(rel, cells = []) {
   return out;
 }
 
+// Read a fixture `.xlsx` and report the hyperlink cells the reader exposes on the first sheet →
+// { <addr>: {hyperlink, text} } — for asserting a real file's hyperlink is reconstructed in full.
+// In OOXML the base URL is stored as the relationship target while a `#fragment` is carried
+// separately in the hyperlink element's `location`; the reader must rejoin them, not drop the
+// fragment (returning the bare base URL). `text` is the display label (rich text flattened).
+export async function readFixtureHyperlinks(rel) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const sheet = workbook.worksheets[0];
+  const flatten = t => (t == null ? null : typeof t === 'string' ? t : Array.isArray(t.richText) ? t.richText.map(r => r.text).join('') : t);
+  const out = {};
+  if (sheet) {
+    sheet.eachRow({includeEmpty: false}, row => {
+      row.eachCell({includeEmpty: false}, cell => {
+        const v = cell.value;
+        if (v && typeof v === 'object' && 'hyperlink' in v) {
+          out[cell.address] = {hyperlink: v.hyperlink ?? null, text: flatten(v.text)};
+        }
+      });
+    });
+  }
+  return out;
+}
+
 // Read a fixture `.xlsx` and report the resolved fill + font of specific cells, keyed
 // `<sheet>!<addr>` — for asserting that a real file's cell colors (a solid fill's visible
 // foreground color, a theme+tint color, a separate font color) are read back faithfully and
