@@ -14,6 +14,7 @@
 // The `spec` shape (all fields optional unless noted):
 //   {
 //     properties: { creator, lastModifiedBy, created, modified },   // dates: ISO strings
+//     definedNames: [{ name, ranges: ["Sheet1!$A$1:$C$5", …] }],     // workbook-level names
 //     sheets: [{
 //       name,                                                       // required
 //       cells:   [{ ref, value|formula(+result)|sharedFormula(+result)|text+hyperlink,
@@ -112,7 +113,20 @@ export function buildFrom(spec = {}) {
       });
     }
   }
+  // Workbook-level defined names are added after every sheet exists, since each name's
+  // reference targets a sheet by name.
+  for (const dn of spec.definedNames || []) {
+    for (const range of dn.ranges || []) workbook.definedNames.add(range, dn.name);
+  }
   return workbook;
+}
+
+// Read back the workbook's defined names as a plain { <name>: [ranges…] } map with sorted
+// ranges — for asserting a name (especially a full-row/full-column span) survives a path.
+function definedNamesOf(workbook) {
+  const out = {};
+  for (const m of workbook.definedNames.model || []) out[m.name] = [...(m.ranges || [])].sort();
+  return out;
 }
 
 // Apply a sequence of structural mutations (row/column splices) to a fresh single
@@ -217,8 +231,20 @@ export async function roundtripWorkbook(spec) {
       created: isoOrNull(workbook.created),
       modified: isoOrNull(workbook.modified),
     },
+    definedNames: definedNamesOf(workbook),
     sheets,
   };
+}
+
+// Read a fixture `.xlsx` and report the workbook-level defined names the reader exposes,
+// as { <name>: [ranges…] } — for asserting that a name a real file declares (including a
+// full-row/full-column span like `Sheet2!$1:$5`) is read back rather than silently dropped
+// by over-strict range-address validation.
+export async function readFixtureDefinedNames(rel) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const names = definedNamesOf(workbook);
+  return {names, count: Object.keys(names).length};
 }
 
 const attrs = tag => {

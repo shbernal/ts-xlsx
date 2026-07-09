@@ -25,6 +25,7 @@ import {
   streamWriteSheet,
   roundtripFormulas,
   roundtripTableAppend,
+  readFixtureDefinedNames,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -135,4 +136,9 @@ export default {
   // { hasTable, loadedRowCount, addError, committed, finalRowCount } — for asserting a
   // table rehydrated from a file is mutable, not throwing on append. See workbook-io.mjs.
   roundtripTableAppend,
+
+  // Read a fixture and report the workbook-level defined names the reader exposes →
+  // { names, count } — for asserting a full-row/full-column-span named range a real file
+  // declares is read back rather than silently dropped. See workbook-io.mjs.
+  readFixtureDefinedNames,
 };
