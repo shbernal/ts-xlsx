@@ -63,7 +63,7 @@ The infrastructure clean break is **done** (2026-07-09):
 - 🧊 **Deferred out of Phase 0:** replacing Babel/Grunt/Mocha with TS/Vitest/Biome/tsup.
   Highest-drift action in the plan → runs last (see Phase 3/4).
 
-### 🔜 Phase 1 — Harvest the backlog  *(one-time drain of the queue)*
+### 🔄 Phase 1 — Harvest the backlog  *(one-time drain of the queue — IN PROGRESS)*
 Model: `harvest:list` freezes the universe (`manifest.json`, 794 items), `harvest:all` fills
 the queue (`backlog/issues/*.json`), agents **drain** it — distill each thread into durable
 product, delete the record, commit. No per-item ledger; the commit message is the account of
@@ -71,12 +71,22 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
 - ✅ **Harvest toolchain** built (`harvest:list` / `:all` / `:status` + single-thread atom;
   shared core in `scripts/harvest/lib.mjs`). Manifest snapshot taken: 654 issues + 140 PRs.
 - ✅ **Agent skills** authored: `harvest-triage` (per-item drain) and `write-corpus-case`.
-- ⏳ **Fill the queue:** `npm run harvest:all` (resumable) — *next slice.*
-- ⏳ **Drain:** cluster by theme (tables, styles, streaming, pivot, images, conditional
-  formatting, dates, formulas, csv, types, security/deps). Credible bug/repro → corpus case
-  (+ fixture); PR → intent + repro + root cause (discard the diff); proposal → spec note;
-  dep bump/noise → not carried (commit says why). High-value PR *code* may still be pushed as
-  a `harvest/pr-<n>` branch so a patch stays cherry-pickable (branch names are transient).
+- ✅ **Queue filled:** `npm run harvest:all` fetched all 793 remaining records (attachments
+  gitignored as regenerable scratch; fixtures get promoted into `test/corpus/fixtures/`).
+  `manifest.harvestComplete = true`; stage is now DRAIN.
+- 🔄 **Draining (as of last update: 38/794, ~5%).** Method: a parallel **triage workflow**
+  reads each record and returns a structured disposition (corpus_case / spec_note /
+  not_carried) — *no writes/git*; the main loop **materializes** artifacts serially so
+  baselines (set by running against `lib/`) and the shared adapter contract stay controlled.
+  - **Bug cluster (74):** triaged → 48 corpus / 19 spec / 7 not-carried. Landed so far:
+    19 spec notes under `docs/knowledge/specs/`, 7 not-carried, and **batch 1 of the corpus
+    cases** (8) with the keystone adapter capabilities (`roundtripWorkbook` / `inspectPackage`
+    / `tryWriteWorkbook` in `test/corpus/adapters/workbook-io.mjs`; runner now async-aware).
+  - ⏳ **Remaining bug-cluster corpus cases (~40)** — most reuse the keystone capabilities;
+    ~31 across the cluster need a promoted fixture; a few need new capabilities (streaming,
+    csv, image anchors).
+  - ⏳ **Then the rest of the queue** (~700 mostly-unlabeled + the type/help-wanted/etc.
+    clusters) via the same triage-workflow → materialize loop.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -117,10 +127,16 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-The end-to-end format proof is **done**, and the harvest toolchain + agent skills are built.
-Next slice, in order:
-1. **Fill the queue**: `npm run harvest:all` (resumable one-time bulk fetch of all 794 items).
-2. **Drain it** per the `harvest-triage` skill: cluster, distill credible bugs into corpus cases
-   and proposals into spec notes, delete each record, commit. Track with `npm run harvest:status`.
-3. **CI skeleton** (final Phase 0 bullet): a workflow running `npm run test:unit` + `npm run corpus`
-   on push/PR — additive checks only, no toolchain rip-out.
+Queue is filled and the drain is underway (38/794). The full pipeline is proven:
+parallel triage workflow → serial materialization → green corpus. CI corpus check is
+committed (`.github/workflows/corpus.yml`). Next slices, in order:
+1. **Finish the bug-cluster corpus cases (~40 left).** Reuse the keystone capabilities in
+   `test/corpus/adapters/workbook-io.mjs`; promote fixtures from the gitignored
+   `attachments/<n>/` into `test/corpus/fixtures/<slug>/` where a case needs a real file;
+   add new capabilities only where a case demands (streaming/csv/image-anchor). Set each
+   baseline by running `npm run corpus`; commit in coherent batches.
+2. **Drain the rest of the queue** the same way: triage-workflow a cluster → materialize →
+   remove records → commit. Prioritize labeled clusters (help-wanted, Typescript,
+   enhancement, proposal), then the ~700 unlabeled. Track with `npm run harvest:status --clusters`.
+3. **Open decision #1** (merge-first vs corpus-only for the ~140 PRs) comes due before Phase 2;
+   it does not block the issue drain.
