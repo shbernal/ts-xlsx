@@ -15,6 +15,7 @@ import {
   tryWriteWorkbook,
   mutateWorksheet,
   readFixtureValidations,
+  readFixtureValidationRules,
   roundtripFixtureValidationXml,
   readFixtureReport,
   roundtripFixture,
@@ -96,6 +97,12 @@ export default {
   // Read a corpus fixture `.xlsx` and report the per-cell data validations the reader
   // exposes — for asserting a real file's validations are read back on every cell.
   readFixtureValidations,
+
+  // Read a fixture and report the DISTINCT validation rules each sheet declares, read from the
+  // worksheet model (so a validation over an empty range is still seen) and de-duplicated with a
+  // per-rule coverage count — for asserting a reference-based list source (defined name,
+  // cross-sheet range) surfaces as its formula text, not "[object Object]". See workbook-io.mjs.
+  readFixtureValidationRules,
 
   // Read a fixture, write it back, and report data-validation facts of the re-serialized
   // package (standard + extended x14 forms) — for asserting validations survive a

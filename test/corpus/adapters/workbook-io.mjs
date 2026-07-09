@@ -491,6 +491,32 @@ export async function readFixtureValidations(rel) {
   return {cells, count: Object.keys(cells).length};
 }
 
+// Read a fixture `.xlsx` and report the DISTINCT data-validation rules each sheet declares,
+// read from the worksheet model rather than from populated cells — so a validation applied to
+// an otherwise-empty range (a dropdown over a blank column, a COUNTIF guard over future rows)
+// is still seen. Rules are de-duplicated by content and reported with how many cells each
+// covers, keeping the result bounded even when a rule's sqref nominally spans thousands of
+// cells. Lets a case assert that a reference-based list source (a defined name, a cross-sheet
+// range) is surfaced verbatim as its formula text rather than stringified to "[object Object]".
+export async function readFixtureValidationRules(rel) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const sheets = {};
+  workbook.eachSheet(sheet => {
+    const model = (sheet.dataValidations && sheet.dataValidations.model) || {};
+    const byContent = new Map();
+    for (const addr of Object.keys(model)) {
+      const rule = model[addr];
+      const key = JSON.stringify(rule);
+      const entry = byContent.get(key) || {rule: JSON.parse(key), coverageCount: 0};
+      entry.coverageCount += 1;
+      byContent.set(key, entry);
+    }
+    sheets[sheet.name] = {rules: [...byContent.values()], ruleCount: byContent.size};
+  });
+  return {sheets};
+}
+
 // Read a fixture `.xlsx`, write it back out, and report the data-validation facts of the
 // *re-serialized* package — both standard `<dataValidation>` entries and the extended
 // `<x14:dataValidation>` form (2009 extension schema, carried in `<extLst>`, used for
@@ -515,7 +541,14 @@ export async function roundtripFixtureValidationXml(rel) {
     const standard = [...xml.matchAll(/<dataValidation[ >]/g)].length;
     const ext = [...xml.matchAll(/<x14:dataValidation[ >]/g)].length;
     const extSqrefs = [...xml.matchAll(/<xm:sqref>([^<]*)<\/xm:sqref>/g)].map(m => m[1]);
-    sheets[p] = {standardCount: standard, extCount: ext, extSqrefs, hasExtLst: /<extLst\b/.test(xml)};
+    // Per-standard-validation facts, so a case can assert the type, the list/formula source
+    // reference, the target range, and the error strings survive the re-serialization intact.
+    const standardRules = [...xml.matchAll(/<dataValidation\b([^>]*)>([\s\S]*?)<\/dataValidation>/g)].map(m => {
+      const a = attrs('<x ' + m[1] + '>');
+      const f1 = (m[2].match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
+      return {type: a.type ?? null, sqref: a.sqref ?? null, errorTitle: a.errorTitle ?? null, error: a.error ?? null, formula1: f1};
+    });
+    sheets[p] = {standardCount: standard, extCount: ext, extSqrefs, standardRules, hasExtLst: /<extLst\b/.test(xml)};
     totalStandard += standard;
     totalExt += ext;
   }
