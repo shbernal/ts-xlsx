@@ -1008,12 +1008,27 @@ export async function inspectImageAnchors(spec) {
       const toBlock = (body.match(/<xdr:to>([\s\S]*?)<\/xdr:to>/) || [])[1];
       const extTag = body.match(/<xdr:ext\b[^>]*cx="(\d+)"[^>]*cy="(\d+)"/);
       const editAs = (m[2].match(/editAs="([^"]*)"/) || [])[1] || null;
+      // The picture's own shape transform (spPr/xfrm). Excel ignores it for an anchored drawing and
+      // positions purely from the anchor, but a strict consumer (LibreOffice) honors it — so a
+      // zeroed placeholder transform (off 0,0 + ext 0,0) detaches the image from its anchor cell.
+      const sppr = (body.match(/<xdr:spPr\b[\s\S]*?<\/xdr:spPr>/) || [])[0] || '';
+      const offTag = sppr.match(/<a:off\b[^>]*x="(-?\d+)"[^>]*y="(-?\d+)"/);
+      const spExtTag = sppr.match(/<a:ext\b[^>]*cx="(-?\d+)"[^>]*cy="(-?\d+)"/);
+      const off = offTag ? {x: Number(offTag[1]), y: Number(offTag[2])} : null;
+      const spExt = spExtTag ? {cx: Number(spExtTag[1]), cy: Number(spExtTag[2])} : null;
       anchors.push({
         anchorType: m[1] === 'oneCellAnchor' ? 'oneCell' : 'twoCell',
         editAs,
         from: parseAnchorSide(fromBlock),
         to: parseAnchorSide(toBlock),
         ext: extTag ? {cx: Number(extTag[1]), cy: Number(extTag[2])} : null,
+        spPr: {
+          hasXfrm: /<a:xfrm\b/.test(sppr),
+          off,
+          ext: spExt,
+          // The interop hazard: a transform present but zeroed, which overrides the anchor.
+          zeroedTransform: !!(off && spExt && off.x === 0 && off.y === 0 && spExt.cx === 0 && spExt.cy === 0),
+        },
       });
     }
   }
