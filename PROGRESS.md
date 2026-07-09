@@ -74,22 +74,26 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
 - ✅ **Queue filled:** `npm run harvest:all` fetched all 793 remaining records (attachments
   gitignored as regenerable scratch; fixtures get promoted into `test/corpus/fixtures/`).
   `manifest.harvestComplete = true`; stage is now DRAIN.
-- 🔄 **Draining (as of last update: 50/794, ~6%).** Method: a parallel **triage workflow**
+- 🔄 **Draining (as of last update: 52/794, ~7%).** Method: a parallel **triage workflow**
   reads each record and returns a structured disposition (corpus_case / spec_note /
   not_carried) — *no writes/git*; the main loop **materializes** artifacts serially so
   baselines (set by running against `lib/`) and the shared adapter contract stay controlled.
   - **Bug cluster (74):** triaged → 48 corpus / 19 spec / 7 not-carried. Landed so far:
-    21 spec notes under `docs/knowledge/specs/`, 7 not-carried, and **corpus batches 1–3**
-    (16 cases) with the keystone adapter capabilities in `test/corpus/adapters/workbook-io.mjs`
-    (`roundtripWorkbook` / `inspectPackage` / `tryWriteWorkbook` / `mutateWorksheet`; runner
-    async-aware). Batch 2 extended the spec surface with cell `fill`/`alignment`, column
-    `numFmt`/`style`, and a theme-part-backing fact. Batch 3 added `mutateWorksheet` (row/column
-    splice fidelity) and a defined-name-scope spec note. Corpus now **43 green / 8 known-open /
+    21 spec notes under `docs/knowledge/specs/`, 7 not-carried, and **corpus batches 1–4**
+    (21 cases) with the keystone adapter capabilities in `test/corpus/adapters/workbook-io.mjs`
+    (`roundtripWorkbook` / `inspectPackage` / `tryWriteWorkbook` / `mutateWorksheet` /
+    `readFixtureValidations` / `roundtripFixtureValidationXml`; runner async-aware). Batch 2
+    extended the spec surface with cell `fill`/`alignment`, column `numFmt`/`style`, and a
+    theme-part-backing fact. Batch 3 added `mutateWorksheet` (row/column splice fidelity) and a
+    defined-name-scope spec note. Batch 4 established the **fixture-gated path** — durable sample
+    `.xlsx` under `test/corpus/fixtures/` (tracked via a `.gitignore` negation of the `*.xlsx`
+    rule) + the two validation capabilities — covering multi-cell-selection read and extended
+    (x14/extLst) validation round-trip survival. Corpus now **45 green / 10 known-open /
     0 regressions**.
-  - ⏳ **Remaining bug-cluster corpus cases (~28)** split by capability need: fixture-gated
-    xlsx-io read-of-broken-file (incl. the data-validation read/roundtrip cases, refs 317/1184),
-    and the genuinely new-capability clusters (streaming, csv, image anchors, table-append).
-    Each new-capability cluster is a serial adapter-extension + authoring slice like batch 2.
+  - ⏳ **Remaining bug-cluster corpus cases (~26)** split by capability need: more fixture-gated
+    xlsx-io read-of-broken-file cases (reuse `readFixture*`), and the genuinely new-capability
+    clusters (streaming, csv, image anchors, table-append). Each new-capability cluster is a
+    serial adapter-extension + authoring slice like batch 2.
   - ⏳ **Then the rest of the queue** (~700 mostly-unlabeled + the type/help-wanted/etc.
     clusters) via the same triage-workflow → materialize loop.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
