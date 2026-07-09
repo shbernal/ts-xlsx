@@ -30,6 +30,7 @@ import {
   roundtripFixtureTableXml,
   readFixtureTable,
   streamReadFixture,
+  readFixtureCells,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -165,4 +166,9 @@ export default {
   // { type, value } — for asserting streaming read applies date/number formats like the full
   // read (a date-formatted cell is a Date, not a raw serial). See workbook-io.mjs.
   streamReadFixture,
+
+  // Read a fixture's first sheet with the full reader and report requested cells' { type, value }
+  // → for asserting real-file cell values/types (e.g. a Strict-mode ISO-8601 date parses to the
+  // right date, not a 1900-epoch serial). See workbook-io.mjs.
+  readFixtureCells,
 };

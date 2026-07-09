@@ -259,6 +259,23 @@ export async function readFixtureDefinedNames(rel) {
   return {names, count: Object.keys(names).length, modelCount: (workbook.definedNames.model || []).length};
 }
 
+// Read the first worksheet of a fixture `.xlsx` with the full (buffered) reader and report the
+// requested cells' resolved { type, value } keyed by plain address — for asserting a real file's
+// cell values and types (e.g. a Strict-mode ISO-8601 date cell parses to the right date, not a
+// spurious 1900-epoch serial). `type` is a stable label; a Date value becomes { date: iso }.
+export async function readFixtureCells(rel, cells = []) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const typeName = t => ({2: 'number', 3: 'string', 4: 'date', 6: 'hyperlink', 8: 'richtext'})[t] || `type-${t}`;
+  const sheet = workbook.worksheets[0];
+  const out = {};
+  for (const addr of cells) {
+    const cell = sheet ? sheet.getCell(addr) : null;
+    out[addr] = cell ? {type: typeName(cell.type), value: normalizeStreamValue(cell.value)} : null;
+  }
+  return out;
+}
+
 // Read a fixture `.xlsx` and report the resolved fill + font of specific cells, keyed
 // `<sheet>!<addr>` — for asserting that a real file's cell colors (a solid fill's visible
 // foreground color, a theme+tint color, a separate font color) are read back faithfully and
