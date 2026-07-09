@@ -204,9 +204,18 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
 
 ## Immediate next actions (Phase 0 kickoff)
 
-1. Replace the Babel/Grunt/Mocha toolchain with the TS/Vitest/Biome/tsup skeleton;
-   get a trivial CI pipeline green.
-2. Write the harvest scripts; snapshot all open issues + PRs (bodies, labels,
-   reactions, attachments) into `docs/knowledge/backlog/`.
-3. Define the corpus format and adapter; land one real harvested case end-to-end.
-4. Seed `docs/knowledge/BACKLOG.md` from the snapshot and begin clustering.
+> **Sequencing guardrail (2026-07-09):** the legacy tree's *shape* is frozen until the
+> backlog is drained. High-drift moves — whole-tree reformat, `.js`→`.ts` rename,
+> module-layout changes, dependency swaps — are what make the ~139 open PRs unmergeable,
+> so they come **last**, not first. Phase 0 does only the *additive* work below (harvest
+> tooling + corpus) that does not touch the legacy shape. See `PROGRESS.md` for live
+> status.
+
+1. Write the harvest scripts; snapshot all open issues + PRs (bodies, labels,
+   reactions, attachments, attached `.xlsx`) into `docs/knowledge/backlog/`.
+2. Define the corpus format and adapter; land one real harvested case end-to-end,
+   red/green against the *current* code.
+3. Seed `docs/knowledge/BACKLOG.md` from the snapshot and begin clustering.
+4. **Deferred to the end (not now):** replace the Babel/Grunt/Mocha toolchain with the
+   TS/Vitest/Biome/tsup skeleton. This is the highest-drift action in the whole plan;
+   it runs only once the backlog is captured and the mergeable PRs are banked.
