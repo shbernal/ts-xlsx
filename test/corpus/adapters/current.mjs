@@ -18,6 +18,8 @@ import {
   roundtripFixtureValidationXml,
   readFixtureReport,
   roundtripFixture,
+  inspectImageAnchors,
+  readFixtureImageAnchors,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -96,4 +98,14 @@ export default {
   // names, column widths, and per-cell styles survive the no-op round-trip — the
   // format-preserving "open a styled template and re-save" path. See workbook-io.mjs.
   roundtripFixture,
+
+  // Build a workbook with images at given ranges, write it, and report the serialized
+  // drawing-anchor geometry (from/to/ext/editAs) — for asserting fractional and string
+  // anchors map to correct OOXML offsets against real column/row size. See workbook-io.mjs.
+  inspectImageAnchors,
+
+  // Read a fixture and report each image's normalized anchor range — for asserting a file
+  // whose anchors were authored as (string) cell ranges reads without crashing and yields
+  // an object range with integer cell coordinates. See workbook-io.mjs.
+  readFixtureImageAnchors,
 };

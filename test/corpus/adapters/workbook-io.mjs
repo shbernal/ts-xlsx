@@ -33,6 +33,13 @@ const require = createRequire(import.meta.url);
 const ExcelJS = require('../../../lib/exceljs.nodejs.js');
 const JSZip = require('jszip');
 
+// A 1×1 transparent PNG — the smallest valid image, so image-anchor cases can place a
+// picture without shipping an image fixture. Anchor geometry is independent of pixels.
+const ONE_PX_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64'
+);
+
 // Durable sample inputs live under test/corpus/fixtures/<case-slug>/. A fixture-backed
 // capability takes a path relative to that root so cases never hardcode a filesystem layout.
 const FIXTURES_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
@@ -81,6 +88,13 @@ export function buildFrom(spec = {}) {
     // Assign only the margins the spec provides — faithfully reproducing the user
     // scenario of setting a subset (do NOT pre-fill defaults; that is exactly the
     // write-side behavior under test).
+    // Images: each spec image places the built-in 1×1 PNG at a range that is either a
+    // string ("B2:D6") or an object anchor ({tl, br?, ext?}). Anchor geometry — not the
+    // image bytes — is what these cases assert on.
+    for (const img of s.images || []) {
+      const imageId = workbook.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+      sheet.addImage(imageId, img.range);
+    }
     if (s.pageMargins) sheet.pageSetup.margins = {...s.pageMargins};
     for (const t of s.tables || []) {
       sheet.addTable({
@@ -475,6 +489,76 @@ export async function roundtripFixture(rel) {
     columns: columnsWithWidth(after),
     styleSurvival: {checked, mismatches, sample},
   };
+}
+
+const intAt = (xml, tag) => {
+  const m = xml.match(new RegExp(`<${tag}>(-?\\d+)</${tag}>`));
+  return m ? Number(m[1]) : null;
+};
+
+const parseAnchorSide = block =>
+  block
+    ? {
+        col: intAt(block, 'xdr:col'),
+        colOff: intAt(block, 'xdr:colOff'),
+        row: intAt(block, 'xdr:row'),
+        rowOff: intAt(block, 'xdr:rowOff'),
+      }
+    : null;
+
+// Build a workbook whose sheets place images at given ranges (see the `images` field of
+// the sheet spec), write it, unzip, and report the drawing-anchor geometry that was
+// actually serialized — for asserting that a fractional/whole anchor coordinate maps to
+// the correct OOXML col/colOff/row/rowOff against the *real* column width and row height,
+// and that a string range becomes a valid two-cell anchor. Everything returned is plain
+// numbers, never an implementation object (the live anchor holds a back-reference to the
+// worksheet).
+export async function inspectImageAnchors(spec) {
+  const buffer = await buildFrom(spec).xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const drawingParts = Object.keys(zip.files)
+    .filter(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f))
+    .sort();
+
+  const anchors = [];
+  let xmlOk = true;
+  for (const p of drawingParts) {
+    const xml = await zip.file(p).async('string');
+    if (!xmlWellFormed(xml)) xmlOk = false;
+    for (const m of xml.matchAll(/<xdr:(oneCellAnchor|twoCellAnchor)\b([^>]*)>([\s\S]*?)<\/xdr:\1>/g)) {
+      const body = m[3];
+      const fromBlock = (body.match(/<xdr:from>([\s\S]*?)<\/xdr:from>/) || [])[1];
+      const toBlock = (body.match(/<xdr:to>([\s\S]*?)<\/xdr:to>/) || [])[1];
+      const extTag = body.match(/<xdr:ext\b[^>]*cx="(\d+)"[^>]*cy="(\d+)"/);
+      const editAs = (m[2].match(/editAs="([^"]*)"/) || [])[1] || null;
+      anchors.push({
+        anchorType: m[1] === 'oneCellAnchor' ? 'oneCell' : 'twoCell',
+        editAs,
+        from: parseAnchorSide(fromBlock),
+        to: parseAnchorSide(toBlock),
+        ext: extTag ? {cx: Number(extTag[1]), cy: Number(extTag[2])} : null,
+      });
+    }
+  }
+  return {anchors, drawingCount: drawingParts.length, xmlWellFormed: xmlOk};
+}
+
+// Read a fixture `.xlsx` and report each image's normalized anchor range — for asserting
+// that a file whose drawing anchors were authored as cell ranges (including string ranges
+// like "B198:BN198") reads without crashing and exposes an object range with integer
+// cell coordinates, never a raw string or a throw. Returns plain numbers only.
+export async function readFixtureImageAnchors(rel) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const images = [];
+  workbook.eachSheet(sheet => {
+    for (const im of sheet.getImages()) {
+      const r = im.range || {};
+      const side = a => (a ? {col: a.nativeCol ?? null, row: a.nativeRow ?? null} : null);
+      images.push({sheet: sheet.name, editAs: r.editAs ?? null, tl: side(r.tl), br: side(r.br)});
+    }
+  });
+  return {images, count: images.length};
 }
 
 function xmlWellFormed(xml) {
