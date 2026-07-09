@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-09 (labeled clusters + five unlabeled slices; 166/794; attachment queue exhausted)._
+_Last updated: 2026-07-09 (labeled clusters + six unlabeled slices; 181/794; first fixture-less bulk slice done)._
 
 ---
 
@@ -188,8 +188,29 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     no promoted fixture (design discussions, feature requests, repro-less bug reports), so the next
     slices skew toward spec notes and reasoned not-carried, with corpus cases only where a behavior
     is reproducible from a spec-built workbook.
-  - ⏳ **Next: continue the unlabeled bulk** (628 remaining, all fixture-less) in ~15-record
-    slices, same triage-workflow → materialize loop.
+  - **Sixth slice — first fixture-less bulk slice, top-15 by comment signal — drained** (181/794,
+    ~23%). 5 corpus cases + 5 spec notes + 5 not-carried. Corpus cases (all authored from
+    spec-built workbooks, no fixture): list-type data validation round-trips both value-source forms
+    — inline literal `"Male,Female"` and cross-sheet range `Levels!$A$2:$A$9999` (lock); per-cell
+    protection — an *unlocked* cell survives as `locked=false` with `applyProtection` in cellXfs and
+    `sheet.protect()` emits `<sheetProtection>` (lock; note `locked=true` collapses to the OOXML
+    default); `insertRow`/`duplicateRow` strand a merged range at its old indices (known-open,
+    distinct code path from the spliceRows case); streaming commit over a caller-supplied
+    PassThrough/Duplex resolves and yields a valid package (lock — the reported cloud-SDK hang does
+    not repro with a standard writable); streaming writer has **no image parity** (`sheet.addImage`
+    absent, known-open). Adapter grew: `authorListValidations`, `authorCellProtection`,
+    `streamCommitReport`, `streamWriterImageSupport`, plus `insertRow`/`duplicateRow` mutate ops.
+    Spec notes: nested-property column keys; declarative nested column headers; streaming writer
+    incremental HTTP delivery (latency face of backpressure); streaming reader must resolve styles
+    before cells regardless of ZIP order + not stall (date behavior already a case); foreign
+    read-modify-write must stay a valid package. Not-carried: column `eachCell`/style usage
+    question, unzipper dep bump (zip layer being replaced), Firefox polyfill symptom, browser
+    `createWriteStream` crash (→ browser-safe-io-boundary), Node-typed `.d.ts` (→
+    public-types-node-stream-portability). Corpus **140 green / 82 known-open / 0 regressions**; 92
+    corpus cases + 49 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (613 remaining, all fixture-less) in ~15-record
+    slices, same triage-workflow → materialize loop. Ranking now by comment/reaction signal;
+    always check `docs/knowledge/specs/` + existing cases first (folds/dups are the common case).
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -230,11 +251,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **166/794 (~21%)**; **all labeled clusters + five unlabeled slices are drained, and the
-entire attachment-bearing queue is now exhausted**. The full pipeline is proven: parallel triage
-workflow → serial materialization → green corpus (131 green / 78 known-open / 0 regressions). CI
-corpus check is committed (`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Continue the unlabeled bulk** (628 remaining, all fixture-less) in ~15-record slices, same
+Drain at **181/794 (~23%)**; **all labeled clusters + six unlabeled slices are drained; the
+attachment-bearing queue is exhausted and the first fixture-less bulk slice is done**. The full
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (140 green / 82
+known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
+slices, in order:
+1. **Continue the unlabeled bulk** (613 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports, so expect
    mostly spec notes and reasoned not-carried, with a corpus case only where a behavior reproduces
