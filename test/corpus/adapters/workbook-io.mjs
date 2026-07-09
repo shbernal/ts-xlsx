@@ -382,6 +382,101 @@ export async function roundtripFixtureValidationXml(rel) {
   return {sheets, totalStandard, totalExt, totalValidations: totalStandard + totalExt};
 }
 
+// Read a fixture `.xlsx` and report only { ok, error, sheetNames } — for asserting the
+// reader neither crashes nor mis-reads a workbook produced by a *foreign* (non-Excel)
+// generator: a namespace-prefixed OOXML root (`<x:workbook>` instead of `<workbook>`),
+// a leading byte-order mark before the XML declaration, a non-ASCII sheet name, or parts
+// ordered unusually within the zip. The read error is captured and returned as data
+// (never propagated) so a case can assert on a crash rather than the runner blowing up.
+export async function readFixtureReport(rel) {
+  const workbook = new ExcelJS.Workbook();
+  try {
+    await workbook.xlsx.readFile(fixturePath(rel));
+    return {ok: true, error: null, sheetNames: workbook.worksheets.map(s => s.name)};
+  } catch (e) {
+    return {ok: false, error: String((e && e.message) || e), sheetNames: null};
+  }
+}
+
+// Recursively sort object keys so two style objects with the same content but different
+// key order compare equal — the reader emits font/fill fields in load-dependent order.
+const stableSort = v => {
+  if (Array.isArray(v)) return v.map(stableSort);
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const k of Object.keys(v).sort()) out[k] = stableSort(v[k]);
+    return out;
+  }
+  return v;
+};
+
+const hasStyle = cell =>
+  !!(cell.numFmt || (cell.fill && cell.fill.type) || cell.font || cell.alignment || cell.border);
+
+const styleKey = cell =>
+  JSON.stringify(
+    stableSort({
+      numFmt: cell.numFmt || null,
+      fill: cell.fill && cell.fill.type ? cell.fill : null,
+      font: cell.font || null,
+      alignment: cell.alignment || null,
+      border: cell.border || null,
+    })
+  );
+
+const columnsWithWidth = wb => {
+  const out = {};
+  wb.eachSheet(sheet => {
+    const cols = {};
+    sheet.columns.forEach((col, i) => {
+      if (col && col.width !== undefined) cols[i + 1] = {width: col.width, customWidth: !!col.isCustomWidth};
+    });
+    out[sheet.name] = cols;
+  });
+  return out;
+};
+
+// Read a fixture, write it back unchanged, and read the result again — then report whether
+// the styling a real template declares survives that no-op read→write→read round-trip:
+// sheet names, custom column widths, and per-cell fill/font/numFmt/border/alignment. This
+// is the mainstream "open a styled template, fill it in, save it" path, which must be
+// format-preserving. Style comparison is key-order-insensitive so a case asserts on
+// content survival, not serialization incidentals.
+export async function roundtripFixture(rel) {
+  const before = new ExcelJS.Workbook();
+  await before.xlsx.readFile(fixturePath(rel));
+  const buffer = await before.xlsx.writeBuffer();
+  const after = new ExcelJS.Workbook();
+  await after.xlsx.load(buffer);
+
+  let checked = 0;
+  let mismatches = 0;
+  let sample = null;
+  before.eachSheet(sheet => {
+    const other = after.getWorksheet(sheet.name);
+    sheet.eachRow({includeEmpty: false}, row => {
+      row.eachCell({includeEmpty: false}, cell => {
+        if (!hasStyle(cell)) return;
+        checked += 1;
+        const beforeKey = styleKey(cell);
+        const afterKey = other ? styleKey(other.getCell(cell.address)) : '(sheet missing)';
+        if (beforeKey !== afterKey) {
+          mismatches += 1;
+          if (!sample) sample = {cell: `${sheet.name}!${cell.address}`, before: beforeKey, after: afterKey};
+        }
+      });
+    });
+  });
+
+  return {
+    sheetNamesBefore: before.worksheets.map(s => s.name),
+    sheetNames: after.worksheets.map(s => s.name),
+    columnsBefore: columnsWithWidth(before),
+    columns: columnsWithWidth(after),
+    styleSurvival: {checked, mismatches, sample},
+  };
+}
+
 function xmlWellFormed(xml) {
   // Cheap structural check: no raw & that isn't an entity, tags balanced enough to
   // matter. A real parser lives in the impl; here we only need "would a strict

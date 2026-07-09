@@ -66,6 +66,8 @@ implementation is shaped. Current vocabulary:
 | `mutateWorksheet({cells, ops, read})` | Build a fresh sheet, apply structural mutations (`spliceRows`/`spliceColumns`), and return `{rowCount, columnCount, cells, error}` — for asserting in-memory model edits behave predictably (a throwing op is reported as `error`, not propagated). |
 | `readFixtureValidations(rel)` | Read a fixture `.xlsx` (path relative to `fixtures/`) and return `{cells, count}` — per-cell data validations the reader exposes, keyed `<sheet>!<addr>`. |
 | `roundtripFixtureValidationXml(rel)` | Read a fixture, write it back, unzip, and return data-validation facts of the re-serialized package — standard `<dataValidation>` and extended `<x14:dataValidation>` (extLst) counts + `<xm:sqref>` targets — for asserting validations survive a round-trip. |
+| `readFixtureReport(rel)` | Read a fixture and return `{ok, error, sheetNames}` — the read either succeeds (with sheet names) or its error is captured as data — for asserting the reader tolerates foreign-generator files (namespace-prefixed roots, BOMs, non-ASCII sheet names, unusual zip ordering) without crashing. |
+| `roundtripFixture(rel)` | Read a fixture, write it back unchanged, read it again, and return `{sheetNames, columns, styleSurvival}` before/after — for asserting sheet names, custom column widths, and per-cell styles survive the format-preserving "open a template and re-save" path. Style comparison is key-order-insensitive. |
 
 The `spec` shape consumed by the three workbook capabilities is documented at the top of
 `adapters/workbook-io.mjs` (worksheets with cells, columns, rows, page margins, tables).

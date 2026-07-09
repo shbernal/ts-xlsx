@@ -16,6 +16,8 @@ import {
   mutateWorksheet,
   readFixtureValidations,
   roundtripFixtureValidationXml,
+  readFixtureReport,
+  roundtripFixture,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -84,4 +86,14 @@ export default {
   // package (standard + extended x14 forms) — for asserting validations survive a
   // read→write round-trip. See workbook-io.mjs.
   roundtripFixtureValidationXml,
+
+  // Read a fixture and report { ok, error, sheetNames } — for asserting the reader
+  // tolerates foreign-generator files (prefixed OOXML roots, BOMs, non-ASCII sheet
+  // names, unusual zip ordering) without crashing or mis-reading. See workbook-io.mjs.
+  readFixtureReport,
+
+  // Read a fixture, write it back unchanged, read it again, and report whether sheet
+  // names, column widths, and per-cell styles survive the no-op round-trip — the
+  // format-preserving "open a styled template and re-save" path. See workbook-io.mjs.
+  roundtripFixture,
 };
