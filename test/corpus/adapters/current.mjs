@@ -37,6 +37,8 @@ import {
   roundtripFixtureCellXml,
   roundtripFixturePackageParts,
   roundtripFixtureStyleFacts,
+  roundtripFixtureConditionalFormatting,
+  roundtripFixtureColorFidelity,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -210,4 +212,16 @@ export default {
   // differential number codes — for asserting a no-op round-trip preserves them (and never
   // serializes a numFmt as "[object Object]"). See workbook-io.mjs.
   roundtripFixtureStyleFacts,
+
+  // Read a fixture, write it back, and report conditional-formatting facts before/after →
+  // { source, rewritten } with each cfRule's { type, dxfId, priority } — for asserting a no-op
+  // round-trip preserves a rule (even an unmodeled type like duplicateValues) rather than dropping
+  // it or emitting an empty conditionalFormatting shell. See workbook-io.mjs.
+  roundtripFixtureConditionalFormatting,
+
+  // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
+  // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign
+  // pattern="none" the writer adds) — for asserting themed/indexed colors survive a pure
+  // open-then-save. See workbook-io.mjs.
+  roundtripFixtureColorFidelity,
 };

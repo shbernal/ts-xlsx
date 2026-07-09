@@ -873,6 +873,87 @@ export async function roundtripFixtureCellXml(rel, cells = []) {
   return {cells: out, hasNaNToken};
 }
 
+// Conditional-formatting rule facts from a worksheet's raw XML: every cfRule with its type,
+// dxfId, and priority, plus the count of conditionalFormatting blocks. A rule type the library
+// does not otherwise model (e.g. duplicateValues) must still survive a round-trip for I/O
+// fidelity — dropping it (or emptying its conditionalFormatting shell) makes Excel repair the file.
+const cfFactsFromXml = xml => ({
+  blockCount: [...xml.matchAll(/<conditionalFormatting\b/g)].length,
+  rules: [...xml.matchAll(/<cfRule\b([^>]*?)\/?>/g)].map(m => {
+    const a = attrs('<x ' + m[1] + '>');
+    return {type: a.type ?? null, dxfId: a.dxfId ?? null, priority: a.priority ?? null};
+  }),
+});
+
+// Read a fixture `.xlsx`, write it back unchanged, and report conditional-formatting facts of the
+// first sheet before/after → { source, rewritten } — for asserting a no-op round-trip preserves a
+// conditional-formatting rule (its type, dxfId, and priority) rather than dropping it or emitting
+// an empty conditionalFormatting shell with no cfRule, which corrupts the file.
+export async function roundtripFixtureConditionalFormatting(rel) {
+  const srcZip = await JSZip.loadAsync(require('node:fs').readFileSync(fixturePath(rel)));
+  const srcName = Object.keys(srcZip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const source = cfFactsFromXml(srcName ? await srcZip.file(srcName).async('string') : '');
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const outZip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+  const outName = Object.keys(outZip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const rewritten = cfFactsFromXml(outName ? await outZip.file(outName).async('string') : '');
+  return {source, rewritten};
+}
+
+// Read a fixture `.xlsx`, write it back unchanged, reload it, and report how many styled cells'
+// VISIBLE fill and border colors changed across the round-trip → { checked, fillMismatches,
+// borderMismatches, fillSample, borderSample }. A benign `patternFill pattern="none"` that the
+// writer adds to an unfilled cell is ignored (it renders identically) — only a real fill color
+// (a solid/patterned fgColor) or a border-edge color that diverges counts, so a case can lock
+// that themed/indexed fill and border colors survive a pure open-then-save.
+export async function roundtripFixtureColorFidelity(rel) {
+  const before = new ExcelJS.Workbook();
+  await before.xlsx.readFile(fixturePath(rel));
+  const after = new ExcelJS.Workbook();
+  await after.xlsx.load(await before.xlsx.writeBuffer());
+
+  const realFill = cell => (cell.fill && cell.fill.type === 'pattern' && cell.fill.pattern !== 'none' ? cell.fill : null);
+  const borderColors = cell => {
+    if (!cell.border) return null;
+    const out = {};
+    for (const edge of ['top', 'left', 'right', 'bottom']) {
+      if (cell.border[edge] && cell.border[edge].color) out[edge] = cell.border[edge].color;
+    }
+    return Object.keys(out).length ? out : null;
+  };
+  const norm = v => JSON.stringify(stableSort(v ?? null));
+
+  let checked = 0;
+  let fillMismatches = 0;
+  let borderMismatches = 0;
+  let fillSample = null;
+  let borderSample = null;
+  before.eachSheet(sheet => {
+    const other = after.getWorksheet(sheet.name);
+    sheet.eachRow({includeEmpty: false}, row => {
+      row.eachCell({includeEmpty: false}, cell => {
+        if (!realFill(cell) && !borderColors(cell)) return;
+        checked += 1;
+        const oc = other ? other.getCell(cell.address) : null;
+        const bf = norm(realFill(cell));
+        const af = oc ? norm(realFill(oc)) : '(missing)';
+        if (bf !== af) {
+          fillMismatches += 1;
+          if (!fillSample) fillSample = {cell: `${sheet.name}!${cell.address}`, before: bf, after: af};
+        }
+        const bb = norm(borderColors(cell));
+        const ab = oc ? norm(borderColors(oc)) : '(missing)';
+        if (bb !== ab) {
+          borderMismatches += 1;
+          if (!borderSample) borderSample = {cell: `${sheet.name}!${cell.address}`, before: bb, after: ab};
+        }
+      });
+    });
+  });
+  return {checked, fillMismatches, borderMismatches, fillSample, borderSample};
+}
+
 // Read a fixture `.xlsx` and report only { ok, error, sheetNames } — for asserting the
 // reader neither crashes nor mis-reads a workbook produced by a *foreign* (non-Excel)
 // generator: a namespace-prefixed OOXML root (`<x:workbook>` instead of `<workbook>`),
