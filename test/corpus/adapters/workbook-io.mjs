@@ -89,6 +89,39 @@ export function buildFrom(spec = {}) {
   return workbook;
 }
 
+// Apply a sequence of structural mutations (row/column splices) to a fresh single
+// worksheet and report the observable result — for asserting that in-memory model
+// edits behave predictably regardless of how many rows/columns they touch. Ops:
+//   { op: 'spliceRows',    start, count, inserts?: any[][] }
+//   { op: 'spliceColumns', start, count, inserts?: any[][] }
+// Returns { rowCount, columnCount, cells: { <ref>: value|null }, error? } — never an
+// implementation object. A throwing op is reported as { error } rather than propagated,
+// so a case can distinguish "mutation threw" from "mutation silently did nothing".
+export function mutateWorksheet({cells = [], ops = [], read = []} = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  for (const c of cells) sheet.getCell(c.ref).value = c.value;
+
+  let error = null;
+  try {
+    for (const op of ops) {
+      const inserts = op.inserts || [];
+      if (op.op === 'spliceRows') sheet.spliceRows(op.start, op.count, ...inserts);
+      else if (op.op === 'spliceColumns') sheet.spliceColumns(op.start, op.count, ...inserts);
+      else throw new Error(`unknown mutation op: ${op.op}`);
+    }
+  } catch (e) {
+    error = String((e && e.message) || e);
+  }
+
+  const readCells = {};
+  for (const ref of read) {
+    const v = sheet.getCell(ref).value;
+    readCells[ref] = v ?? null;
+  }
+  return {rowCount: sheet.rowCount, columnCount: sheet.columnCount, cells: readCells, error};
+}
+
 const isoOrNull = d => (d instanceof Date && !Number.isNaN(+d) ? d.toISOString() : null);
 
 function normalizeCell(cell) {

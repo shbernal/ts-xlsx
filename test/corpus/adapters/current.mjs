@@ -9,7 +9,7 @@
 // observable shape without reaching into any implementation's internals.
 
 import {createRequire} from 'node:module';
-import {roundtripWorkbook, inspectPackage, tryWriteWorkbook} from './workbook-io.mjs';
+import {roundtripWorkbook, inspectPackage, tryWriteWorkbook, mutateWorksheet} from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
 const colCache = require('../../../lib/utils/col-cache.js');
@@ -63,4 +63,9 @@ export default {
   // including which cells survived — for asserting that pathological input (an
   // invalid date, an empty workbook) neither throws nor silently drops siblings.
   tryWriteWorkbook,
+
+  // Build a fresh worksheet, apply a sequence of structural mutations (row/column
+  // splices), and report { rowCount, columnCount, cells, error } — for asserting
+  // that in-memory model edits behave predictably. See workbook-io.mjs.
+  mutateWorksheet,
 };
