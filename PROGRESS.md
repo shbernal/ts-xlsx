@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-09 (labeled clusters + three unlabeled slices; 138/794)._
+_Last updated: 2026-07-09 (labeled clusters + four unlabeled slices; 153/794)._
 
 ---
 
@@ -150,7 +150,28 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     Corpus **109 green / 59 known-open / 0 regressions**; 71 corpus cases + 43 spec notes.
     GOTCHA banked: several attachments are broken HTML downloads (check magic bytes); a
     slow/hanging read (30k merges, whole-column validation) stays a spec note, never a case.
-  - ⏳ **Next: continue the unlabeled bulk** (656 remaining) in ~15-record slices, same
+  - **Unlabeled bulk — fourth slice (15) drained** (153/794, ~19%). 12 corpus cases + 3
+    folds (no net new spec notes). Validations: reference-based list source (defined name +
+    cross-sheet range) and custom COUNTIF round-trips (locks). Types/formulas: escaped-literal-`m`
+    format misread as Date, string-formula result under a date format written as `NaN`, streaming
+    locale-keyed built-in date id degrades to a serial — folded into the streaming-date case
+    (all known-open). Streaming: real sheet names dropped for positional placeholders (known-open),
+    blank-row `row.number` gaps preserved (lock). Images: fractional-anchor sub-cell offset scales
+    with real column width / row height (lock), single-cell-anchored picture emits a zeroed spPr
+    transform that detaches it in LibreOffice (known-open). Styles: `duplicateValues` conditional
+    format dropped on round-trip (known-open), themed/indexed fill+border colors survive (lock).
+    Layout: multiple print areas per sheet lost on read AND write (known-open), row-splice/insert
+    strands a merged range at its old indices (known-open). Folds: template-chart preservation →
+    existing passthrough spec (+printerSettings); full-column-validation slow read (~7.5s) →
+    existing bounded-memory spec. Adapter grew: `readFixtureValidationRules`,
+    `roundtripFixtureValidationXml` (+per-rule facts), `roundtripFixtureCellXml`,
+    `streamVsEagerSheetNames`/`streamVsEagerRowNumbers`, `inspectImageAnchors` (+spPr transform),
+    `roundtripFixtureConditionalFormatting`, `roundtripFixtureColorFidelity`,
+    `roundtripFixturePrintAreas`/`writePrintAreaDefinedName`, mutateWorksheet (+merges report).
+    Corpus **127 green / 72 known-open / 0 regressions**; 83 corpus cases + 43 spec notes.
+    GOTCHA banked: a mangled write can still pass a weak count check (two print areas → one range +
+    a bare `A12` token) — assert range *shape* (must contain `:`), not just comma-split count.
+  - ⏳ **Next: continue the unlabeled bulk** (641 remaining) in ~15-record slices, same
     triage-workflow → materialize loop, prioritizing attachment-bearing records.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
@@ -192,11 +213,11 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **138/794 (~17%)**; **all labeled clusters + three unlabeled slices are drained**.
+Drain at **153/794 (~19%)**; **all labeled clusters + four unlabeled slices are drained**.
 The full pipeline is proven: parallel triage workflow → serial materialization → green corpus
-(109 green / 59 known-open / 0 regressions). CI corpus check is committed
+(127 green / 72 known-open / 0 regressions). CI corpus check is committed
 (`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Continue the unlabeled bulk** (686 remaining) in ~15-record slices, same triage-workflow
+1. **Continue the unlabeled bulk** (641 remaining) in ~15-record slices, same triage-workflow
    → materialize loop. Prioritize by **attachment presence** (a promoted fixture is a credible
    reproduction → corpus case). Reuse the now-broad adapter vocabulary before adding surface;
    set each baseline by running `npm run corpus` (probe empirically — triage guesses are often
