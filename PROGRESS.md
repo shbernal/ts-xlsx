@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-09 (labeled clusters fully drained; into the unlabeled bulk)._
+_Last updated: 2026-07-09 (labeled clusters drained + first unlabeled slice; 108/794)._
 
 ---
 
@@ -109,10 +109,23 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     gained `readFixtureDefinedNames` + a `definedNames` map in the roundtrip model and a
     spec-level `definedNames` input. Corpus **79 green / 23 known-open / 0 regressions**;
     38 corpus cases + 33 spec notes.
-  - ⏳ **Next: the unlabeled bulk** (~697 unlabeled + a handful of trivial labels —
-    hacktoberfest-accepted 2, Troubleshooting 1, prerelesed 1) via the same triage-workflow
-    → materialize loop. No label signal remains, so prioritize by attachment presence
-    (fixtures = credible reproductions → corpus cases) and reactions.
+  - **Unlabeled bulk — first slice (15) drained** (108/794, ~14%). Triaged the 15
+    highest-comment attachment-bearing records; all 15 became corpus cases (12) or spec
+    notes (1) with 2 folded into existing notes. Landed **12 corpus cases** across three
+    committed sub-batches: value/type/pagesetup + image/column write-validation (newline
+    round-trip, date-as-serial, rich-text hyperlink, fitToPage — locks; image-missing-
+    extension and >16384-column emission — known-open); cell-color fidelity + foreign-sheet
+    tolerance + per-sheet defined-name scope (solid-fill fg/font separation, theme+tint
+    fills, missing-sheetFormatPr read — locks; same-named per-sheet defined-name collision —
+    known-open); table-roundtrip corruption + loaded-table rows + streaming-read date typing
+    (all known-open). Adapter grew: per-image `extension` + per-sheet `pageSetup` spec inputs,
+    a pageSetup fit fact + `definedNames` map in the roundtrip model, `contentTypeDefaults`
+    and per-sheet `columnGroups`/`maxColumnIndex` on inspectPackage, and new capabilities
+    `readFixtureDefinedNames`/`readFixtureCellStyles`/`roundtripFixtureTableXml`/
+    `readFixtureTable`/`streamReadFixture`. Corpus **98 green / 33 known-open / 0
+    regressions**; 52 corpus cases + 34 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (686 remaining) in ~15-record slices, same
+    triage-workflow → materialize loop, prioritizing attachment-bearing records.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -153,16 +166,14 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **93/794 (~12%)**; the labeled **bug AND all other labeled clusters are fully
-drained** (only ~4 trivial labels remain among the unlabeled bulk). The full pipeline is
-proven: parallel triage workflow → serial materialization → green corpus (79 green / 23
-known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`).
-Next slices, in order:
-1. **Drain the unlabeled bulk** (~697 + hacktoberfest-accepted 2 / Troubleshooting 1 /
-   prerelesed 1) via the same triage-workflow → materialize loop, in slices of ~15–20.
-   No label signal remains: prioritize by **attachment presence** (a promoted fixture is a
-   credible reproduction → corpus case) and reaction count. Reuse the broad adapter
-   vocabulary before adding surface; set each baseline by running `npm run corpus`
-   (probe empirically — triage guesses are often wrong); commit in coherent batches.
+Drain at **108/794 (~14%)**; **all labeled clusters + the first unlabeled slice are drained**.
+The full pipeline is proven: parallel triage workflow → serial materialization → green corpus
+(98 green / 33 known-open / 0 regressions). CI corpus check is committed
+(`.github/workflows/corpus.yml`). Next slices, in order:
+1. **Continue the unlabeled bulk** (686 remaining) in ~15-record slices, same triage-workflow
+   → materialize loop. Prioritize by **attachment presence** (a promoted fixture is a credible
+   reproduction → corpus case). Reuse the now-broad adapter vocabulary before adding surface;
+   set each baseline by running `npm run corpus` (probe empirically — triage guesses are often
+   wrong); commit in coherent per-cluster batches.
 2. **Open decision #1** (merge-first vs corpus-only for the ~140 PRs) comes due before
    Phase 2; it does not block the issue drain.
