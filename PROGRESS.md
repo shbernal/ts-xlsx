@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-09 (labeled clusters drained + first unlabeled slice; 108/794)._
+_Last updated: 2026-07-09 (labeled clusters + two unlabeled slices; 123/794)._
 
 ---
 
@@ -124,7 +124,20 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     `readFixtureDefinedNames`/`readFixtureCellStyles`/`roundtripFixtureTableXml`/
     `readFixtureTable`/`streamReadFixture`. Corpus **98 green / 33 known-open / 0
     regressions**; 52 corpus cases + 34 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (686 remaining) in ~15-record slices, same
+  - **Unlabeled bulk — second slice (15) drained** (123/794, ~15%). 10 more corpus cases
+    + 4 spec notes + 1 not-carried across five committed sub-batches. Spec notes: ESM
+    entrypoint ergonomics, browser seekable-source streaming read, header/footer-image
+    authoring, whole-column-validation bounded memory (a hang, kept out of the suite on
+    purpose), sheet-protection hash compatibility. Corpus cases: foreign-read tolerance
+    (MiniExcel prefixed ns, absolute-path table rel, Strict-mode ISO date — all
+    known-open); unmodeled-part passthrough (header/footer image VML, vector shapes, pivot
+    tables — all known-open); style fidelity (column-width/pageSetup lock; custom
+    indexed-color palette + DXF-numFmt "[object Object]" — known-open); autoFilter
+    bounded-range (lock). Adapter grew: `readFixtureCells`, `roundtripFixturePackageParts`,
+    `roundtripFixtureStyleFacts`; spec-level `autoFilter`; inspectPackage `autoFilterRef`/
+    `dimensionRef`. Corpus **104 green / 46 known-open / 0 regressions**; 62 corpus cases
+    + 39 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (671 remaining) in ~15-record slices, same
     triage-workflow → materialize loop, prioritizing attachment-bearing records.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
@@ -166,9 +179,9 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **108/794 (~14%)**; **all labeled clusters + the first unlabeled slice are drained**.
+Drain at **123/794 (~15%)**; **all labeled clusters + two unlabeled slices are drained**.
 The full pipeline is proven: parallel triage workflow → serial materialization → green corpus
-(98 green / 33 known-open / 0 regressions). CI corpus check is committed
+(104 green / 46 known-open / 0 regressions). CI corpus check is committed
 (`.github/workflows/corpus.yml`). Next slices, in order:
 1. **Continue the unlabeled bulk** (686 remaining) in ~15-record slices, same triage-workflow
    → materialize loop. Prioritize by **attachment presence** (a promoted fixture is a credible
