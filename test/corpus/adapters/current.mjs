@@ -32,6 +32,7 @@ import {
   streamReadFixture,
   readFixtureCells,
   roundtripFixturePackageParts,
+  roundtripFixtureStyleFacts,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -178,4 +179,10 @@ export default {
   // (header/footer images + their VML, vector shapes, pivot tables + caches) rather than
   // dropping them. See workbook-io.mjs.
   roundtripFixturePackageParts,
+
+  // Read a fixture, write it back, and report style-fidelity facts before/after → { source,
+  // rewritten } — column widths, pageSetup, custom indexed-color palette, and conditional-format
+  // differential number codes — for asserting a no-op round-trip preserves them (and never
+  // serializes a numFmt as "[object Object]"). See workbook-io.mjs.
+  roundtripFixtureStyleFacts,
 };

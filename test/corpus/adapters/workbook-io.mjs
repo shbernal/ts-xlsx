@@ -713,6 +713,56 @@ export async function roundtripFixturePackageParts(rel) {
   return {source, rewritten};
 }
 
+// Style-fidelity facts a no-op round-trip must preserve: model-level column widths and pageSetup
+// (from the reader), plus raw styles.xml facts (custom indexed-color palette, and the format
+// codes of the differential formats used by conditional formatting).
+const styleFactsFromZip = async (zip, workbookForModel) => {
+  const stylesName = Object.keys(zip.files).find(f => /xl\/styles\.xml$/.test(f));
+  const styles = stylesName ? await zip.file(stylesName).async('string') : '';
+  const palette = styles.match(/<indexedColors>([\s\S]*?)<\/indexedColors>/);
+  const dxfsBlock = (styles.match(/<dxfs\b[\s\S]*?<\/dxfs>/) || [''])[0];
+  const sheet = workbookForModel ? workbookForModel.worksheets[0] : null;
+  const ps = sheet ? sheet.pageSetup || {} : {};
+  return {
+    columnWidths:
+      sheet && sheet.columns ? sheet.columns.map(c => (c && c.width !== undefined ? c.width : null)).filter(v => v !== null) : [],
+    pageSetup: {
+      scale: ps.scale ?? null,
+      fitToWidth: ps.fitToWidth ?? null,
+      fitToHeight: ps.fitToHeight ?? null,
+      pageOrder: ps.pageOrder ?? null,
+      orientation: ps.orientation ?? null,
+    },
+    hasIndexedColors: !!palette,
+    indexedColorSample: palette ? [...palette[1].matchAll(/rgb="([0-9a-fA-F]+)"/g)].slice(0, 6).map(m => m[1]) : [],
+    dxfCount: Number((dxfsBlock.match(/count="(\d+)"/) || [])[1] ?? 0),
+    dxfFormatCodes: [...dxfsBlock.matchAll(/<numFmt\b[^>]*formatCode="([^"]*)"/g)].map(m => m[1]),
+  };
+};
+
+// Read a fixture `.xlsx`, write it back unchanged, and report style-fidelity facts before/after →
+// { source, rewritten } — for asserting a no-op round-trip preserves column widths, pageSetup, a
+// custom indexed-color palette, and conditional-formatting differential-format number codes
+// (which must never serialize as the literal string "[object Object]").
+export async function roundtripFixtureStyleFacts(rel) {
+  const before = new ExcelJS.Workbook();
+  await before.xlsx.readFile(fixturePath(rel));
+  const source = await styleFactsFromZip(await JSZip.loadAsync(require('node:fs').readFileSync(fixturePath(rel))), before);
+  const buffer = await before.xlsx.writeBuffer();
+  // Reload the model for column-width/pageSetup facts, but tolerate a written package the reader
+  // chokes on (a corrupt DXF numFmt can make the reload throw) — the raw styles.xml facts still
+  // come from the buffer's zip, so a case can assert on what was serialized regardless.
+  let after = null;
+  try {
+    after = new ExcelJS.Workbook();
+    await after.xlsx.load(buffer);
+  } catch {
+    after = null;
+  }
+  const rewritten = await styleFactsFromZip(await JSZip.loadAsync(buffer), after);
+  return {source, rewritten};
+}
+
 // Read a fixture `.xlsx` and report only { ok, error, sheetNames } — for asserting the
 // reader neither crashes nor mis-reads a workbook produced by a *foreign* (non-Excel)
 // generator: a namespace-prefixed OOXML root (`<x:workbook>` instead of `<workbook>`),
