@@ -20,6 +20,8 @@ import {
   roundtripFixture,
   inspectImageAnchors,
   readFixtureImageAnchors,
+  csvRead,
+  csvWrite,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -108,4 +110,12 @@ export default {
   // whose anchors were authored as (string) cell ranges reads without crashing and yields
   // an object range with integer cell coordinates. See workbook-io.mjs.
   readFixtureImageAnchors,
+
+  // Parse a CSV string with given options → { ok, error, rows } of typed cell values — for
+  // asserting delimiter handling, value coercion, and header-mode behavior. See workbook-io.mjs.
+  csvRead,
+
+  // Write a declarative row spec to CSV with given options → { ok, error, text } — for
+  // asserting field delimiter and date formatting on genuinely-typed cells. See workbook-io.mjs.
+  csvWrite,
 };

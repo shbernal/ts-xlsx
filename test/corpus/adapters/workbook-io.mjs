@@ -27,6 +27,7 @@
 
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
+import {Readable} from 'node:stream';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
@@ -559,6 +560,60 @@ export async function readFixtureImageAnchors(rel) {
     }
   });
   return {images, count: images.length};
+}
+
+// Normalize a CSV-read cell value to plain JSON: a Date becomes { date: iso }, an Excel
+// error object stays { error }, empties are null, primitives pass through — so a case can
+// distinguish "read as a string" from "coerced to a Date/number" without holding a Date.
+const normalizeCsvValue = v => {
+  if (v instanceof Date) return {date: Number.isNaN(+v) ? null : v.toISOString()};
+  if (v && typeof v === 'object' && 'error' in v) return {error: v.error};
+  return v ?? null;
+};
+
+// Parse a CSV *string* through the reader with the given options and report
+// { ok, error, rows } where rows is a JSON-serializable 2-D array of typed cell values —
+// for asserting delimiter handling, value coercion (numbers/dates/identifiers), and that
+// a broken option path surfaces as a captured error rather than crashing the runner. The
+// legacy `map`/`parserOptions.map` is a function and cannot be expressed as JSON, so cases
+// drive behavior via `parserOptions`/`dateFormats`, not custom callbacks.
+export async function csvRead({csv, options} = {}) {
+  const workbook = new ExcelJS.Workbook();
+  try {
+    const worksheet = await workbook.csv.read(Readable.from([csv]), options);
+    const rows = [];
+    worksheet.eachRow({includeEmpty: true}, row => {
+      rows.push(row.values.slice(1).map(normalizeCsvValue));
+    });
+    return {ok: true, error: null, rows};
+  } catch (e) {
+    return {ok: false, error: String((e && e.message) || e), rows: []};
+  }
+}
+
+const csvCellValue = c => {
+  if (c && typeof c === 'object') {
+    if (c.date) return toDate(c.date);
+    if ('formula' in c) return {formula: c.formula, result: c.result};
+    if ('error' in c) return {error: c.error};
+  }
+  return c;
+};
+
+// Build a worksheet from a declarative `{ rows: [[cell,…]] }` spec (a cell is a primitive,
+// { date: iso }, { formula, result }, or { error }), write it to CSV with the given
+// options, and report { ok, error, text }. Lets a case assert on the produced CSV text —
+// field delimiter, date formatting — for genuinely-typed cells (a real Date, not a string).
+export async function csvWrite({spec = {}, options} = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('S');
+  for (const row of spec.rows || []) worksheet.addRow((row || []).map(csvCellValue));
+  try {
+    const buffer = await workbook.csv.writeBuffer(options);
+    return {ok: true, error: null, text: buffer.toString().replace(/\r?\n$/, '')};
+  } catch (e) {
+    return {ok: false, error: String((e && e.message) || e), text: null};
+  }
 }
 
 function xmlWellFormed(xml) {
