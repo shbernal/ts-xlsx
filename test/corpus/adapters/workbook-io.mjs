@@ -26,6 +26,7 @@
 //       pageSetup:   { fitToPage, fitToWidth, fitToHeight, scale, orientation, … },
 //       autoFilter:  "A1:C3" | { from, to },                        // filter range
 //       tables:  [{ name, ref, headers:[…], rows:[[…]], totalsRow }],
+//       merges:  ["A1:B1", …],                                       // merged cell ranges
 //     }],
 //   }
 // A cell value of { invalidDate: true } materializes `new Date(NaN)`.
@@ -119,6 +120,8 @@ export function buildFrom(spec = {}) {
         rows: t.rows || [],
       });
     }
+    // Merged ranges are applied after cells so a merge master keeps its assigned value.
+    for (const m of s.merges || []) sheet.mergeCells(m);
   }
   // Workbook-level defined names are added after every sheet exists, since each name's
   // reference targets a sheet by name.
@@ -155,6 +158,7 @@ export function mutateWorksheet({cells = [], ops = [], read = []} = {}) {
       const inserts = op.inserts || [];
       if (op.op === 'spliceRows') sheet.spliceRows(op.start, op.count, ...inserts);
       else if (op.op === 'spliceColumns') sheet.spliceColumns(op.start, op.count, ...inserts);
+      else if (op.op === 'mergeCells') sheet.mergeCells(op.range);
       else throw new Error(`unknown mutation op: ${op.op}`);
     }
   } catch (e) {
@@ -235,6 +239,7 @@ export async function roundtripWorkbook(spec) {
         scale: ps.scale ?? null,
       },
       autoFilter: typeof sheet.autoFilter === 'string' ? sheet.autoFilter : sheet.autoFilter ?? null,
+      merges: (sheet.model && sheet.model.merges) || [],
       rowCount: sheet.rowCount,
       actualRowCount: sheet.actualRowCount,
     };
@@ -271,10 +276,13 @@ export async function readFixtureCells(rel, cells = []) {
   await workbook.xlsx.readFile(fixturePath(rel));
   const typeName = t => ({2: 'number', 3: 'string', 4: 'date', 6: 'hyperlink', 8: 'richtext'})[t] || `type-${t}`;
   const sheet = workbook.worksheets[0];
+  const noteText = n => (n == null ? null : typeof n === 'string' ? n : n.texts?.map(t => t.text).join('') ?? '');
   const out = {};
   for (const addr of cells) {
     const cell = sheet ? sheet.getCell(addr) : null;
-    out[addr] = cell ? {type: typeName(cell.type), value: normalizeStreamValue(cell.value)} : null;
+    out[addr] = cell
+      ? {type: typeName(cell.type), value: normalizeStreamValue(cell.value), note: cell.note !== undefined ? noteText(cell.note) : undefined}
+      : null;
   }
   return out;
 }
@@ -695,6 +703,7 @@ async function packageFactsFromZip(zip) {
     media: parts.filter(p => /xl\/media\//.test(p)).length,
     pivotTables: parts.filter(p => /pivotTables\/pivotTable\d+\.xml$/.test(p)).length,
     pivotCache: parts.filter(p => /pivotCache\/.+\.xml$/.test(p)).length,
+    slicers: parts.filter(p => /slicer/i.test(p)).length,
     comments: parts.filter(p => /comments\d+\.xml$/.test(p)).length,
     hasLegacyDrawingHF: /<legacyDrawingHF\b/.test(ws1),
     hasDrawingRef: /<drawing\b/.test(ws1),
