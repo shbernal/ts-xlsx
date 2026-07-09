@@ -673,6 +673,46 @@ const normalizeStreamValue = v => {
   return v ?? null;
 };
 
+// Package-part facts a passthrough round-trip must preserve: counts of part families the reader
+// does not model (drawings, VML, media, pivot tables/cache, comments) plus worksheet/drawing
+// reference flags that wire unmodeled features into the sheet.
+async function packageFactsFromZip(zip) {
+  const parts = Object.keys(zip.files).filter(f => !zip.files[f].dir);
+  const read = async rx => {
+    const name = parts.find(p => rx.test(p));
+    return name ? await zip.file(name).async('string') : '';
+  };
+  const ws1 = await read(/worksheets\/sheet1\.xml$/);
+  const drawing1 = await read(/drawings\/drawing1\.xml$/);
+  return {
+    drawings: parts.filter(p => /xl\/drawings\/drawing\d+\.xml$/.test(p)).length,
+    vml: parts.filter(p => /vmlDrawing\d+\.vml$/.test(p)).length,
+    media: parts.filter(p => /xl\/media\//.test(p)).length,
+    pivotTables: parts.filter(p => /pivotTables\/pivotTable\d+\.xml$/.test(p)).length,
+    pivotCache: parts.filter(p => /pivotCache\/.+\.xml$/.test(p)).length,
+    comments: parts.filter(p => /comments\d+\.xml$/.test(p)).length,
+    hasLegacyDrawingHF: /<legacyDrawingHF\b/.test(ws1),
+    hasDrawingRef: /<drawing\b/.test(ws1),
+    hasHeaderFooterImageToken: /&amp;G|&G/.test(ws1),
+    drawingHasShape: /<xdr:sp\b/.test(drawing1),
+    drawingHasPicture: /<xdr:pic\b/.test(drawing1),
+  };
+}
+
+// Read a fixture `.xlsx`, write it back unchanged, and report package-part facts before/after →
+// { source, rewritten } — for asserting a no-op round-trip PRESERVES parts the reader does not
+// model (charts, header/footer images and their VML, vector shapes/text boxes, pivot tables and
+// their caches) instead of silently dropping them. Each side carries family counts + the
+// worksheet/drawing reference flags that wire those features in.
+export async function roundtripFixturePackageParts(rel) {
+  const buffer = require('node:fs').readFileSync(fixturePath(rel));
+  const source = await packageFactsFromZip(await JSZip.loadAsync(buffer));
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const rewritten = await packageFactsFromZip(await JSZip.loadAsync(await workbook.xlsx.writeBuffer()));
+  return {source, rewritten};
+}
+
 // Read a fixture `.xlsx` and report only { ok, error, sheetNames } — for asserting the
 // reader neither crashes nor mis-reads a workbook produced by a *foreign* (non-Excel)
 // generator: a namespace-prefixed OOXML root (`<x:workbook>` instead of `<workbook>`),

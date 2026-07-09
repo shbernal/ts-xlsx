@@ -31,6 +31,7 @@ import {
   readFixtureTable,
   streamReadFixture,
   readFixtureCells,
+  roundtripFixturePackageParts,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -171,4 +172,10 @@ export default {
   // → for asserting real-file cell values/types (e.g. a Strict-mode ISO-8601 date parses to the
   // right date, not a 1900-epoch serial). See workbook-io.mjs.
   readFixtureCells,
+
+  // Read a fixture, write it back unchanged, and report package-part facts before/after →
+  // { source, rewritten } — for asserting a no-op round-trip preserves unmodeled parts
+  // (header/footer images + their VML, vector shapes, pivot tables + caches) rather than
+  // dropping them. See workbook-io.mjs.
+  roundtripFixturePackageParts,
 };
