@@ -24,6 +24,7 @@
 //       rows:    [{ index, height, hidden }],
 //       pageMargins: { left, right, top, bottom, header, footer },  // any subset
 //       pageSetup:   { fitToPage, fitToWidth, fitToHeight, scale, orientation, … },
+//       autoFilter:  "A1:C3" | { from, to },                        // filter range
 //       tables:  [{ name, ref, headers:[…], rows:[[…]], totalsRow }],
 //     }],
 //   }
@@ -107,6 +108,7 @@ export function buildFrom(spec = {}) {
     }
     if (s.pageMargins) sheet.pageSetup.margins = {...s.pageMargins};
     if (s.pageSetup) Object.assign(sheet.pageSetup, s.pageSetup);
+    if (s.autoFilter) sheet.autoFilter = s.autoFilter;
     for (const t of s.tables || []) {
       sheet.addTable({
         name: t.name,
@@ -232,6 +234,7 @@ export async function roundtripWorkbook(spec) {
         fitToHeight: ps.fitToHeight ?? null,
         scale: ps.scale ?? null,
       },
+      autoFilter: typeof sheet.autoFilter === 'string' ? sheet.autoFilter : sheet.autoFilter ?? null,
       rowCount: sheet.rowCount,
       actualRowCount: sheet.actualRowCount,
     };
@@ -364,6 +367,8 @@ export async function inspectPackage(spec) {
       hasSheetViews: /<sheetViews>/.test(xml),
       sheetViewCount: sheetViewTags.length,
       hasDimension: /<dimension\b/.test(xml),
+      dimensionRef: (xml.match(/<dimension\b[^>]*ref="([^"]*)"/) || [])[1] ?? null,
+      autoFilterRef: (xml.match(/<autoFilter\b[^>]*ref="([^"]*)"/) || [])[1] ?? null,
       formulas,
       columnGroups,
       maxColumnIndex: columnGroups.reduce((m, g) => Math.max(m, g.max ?? 0), 0),
