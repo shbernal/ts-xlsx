@@ -49,6 +49,9 @@ import {
   streamCommitReport,
   streamWriterImageSupport,
   streamWritePackageReport,
+  streamReadSpec,
+  loadMutateCellStyle,
+  copyWorksheetModel,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -291,4 +294,18 @@ export default {
   // streamed output is a valid archive (no zero-byte parts, CRCs match, re-reads cleanly), not
   // merely valid XML. See workbook-io.mjs.
   streamWritePackageReport,
+
+  // Write a spec, read it back through the streaming reader over real chunk boundaries, and pair
+  // with an eager read → { streamed, eager } — for asserting multi-byte UTF-8 text survives the
+  // streaming path byte-exact (no U+FFFD from a chunk split mid-character).
+  streamReadSpec,
+
+  // Author cells sharing one on-disk style index, load, mutate one cell's style, read a sibling
+  // → { sibling, mutatedTo, bled, diskBled } — for asserting loaded cells get independent style
+  // objects rather than aliasing the shared record so one edit corrupts the rest.
+  loadMutateCellStyle,
+
+  // Copy a worksheet via the model export/import contract and report merge survival
+  // → { srcMerges, dstMerges, error } — for asserting a model-cloned sheet keeps its merged ranges.
+  copyWorksheetModel,
 };

@@ -99,10 +99,15 @@ implementation is shaped. Current vocabulary:
 | `streamCommitReport({duplex?, timeoutMs?})` | Drive the streaming writer over a caller-supplied `PassThrough` (or `Duplex`) sink and report `{settled, timedOut, bytes, valid}` — for asserting streaming-to-a-remote-sink commit resolves within bounded time and delivers a complete, re-openable package rather than hanging on a finish signal. |
 | `streamWriterImageSupport(range?)` | Report the streaming writer's image-parity surface and (if supported) the streamed package's parts → `{writerAddImage, sheetAddImage, error, mediaParts, drawingParts}` — for locking image parity with the in-memory writer (anchor a registered image on a streamed sheet; media + drawing parts appear). |
 | `streamWritePackageReport({rows?})` | Assemble a whole package via the streaming writer, then treat the bytes as an untrusted archive → `{partCount, emptyParts, crcValid, reloadOk, sheetNames, firstCol}` — for asserting the streamed output is a valid zip (no zero-byte parts, per-entry CRC matches, re-reads cleanly), not merely valid XML. |
+| `streamReadSpec(spec, cells?)` | Write a `spec`, read it back through the STREAMING reader over real chunk boundaries, and pair with an eager read → `{streamed, eager}` — for asserting multi-byte UTF-8 (CJK/emoji) survives the streaming path byte-exact rather than splitting into U+FFFD at a chunk boundary. |
+| `loadMutateCellStyle({sharedFill?, mutateTo?})` | Author cells sharing one on-disk style index, load, mutate one cell's fill, read a sibling → `{sibling, original, bled, diskSibling, diskBled}` — for asserting loaded cells get independent style objects rather than aliasing the shared record. |
+| `copyWorksheetModel({merges?, cells?})` | Copy a worksheet via the `model` export/import contract (`dst.model = {...src.model, name}`) and report merge survival → `{srcMerges, dstMerges, error}` — for asserting a model-cloned sheet keeps its merged ranges. |
 
 `inspectPackage`'s per-sheet fact also carries `elementOrder` (raw positions of `drawing` /
 `legacyDrawing` / `tableParts` plus the `legacyBeforeTableParts` etc. adjacency invariants) so a
-case can assert the CT_Worksheet child-element order, not just part presence.
+case can assert the CT_Worksheet child-element order, and a `headerFooter` fact (the odd/even/first
+header/footer child text plus the `differentOddEven`/`differentFirst` gating flags). The `spec`
+worksheet input accepts a `headerFooter` block mirroring those children.
 
 The `spec` shape consumed by the three workbook capabilities is documented at the top of
 `adapters/workbook-io.mjs` (worksheets with cells, columns, rows, page margins, tables).

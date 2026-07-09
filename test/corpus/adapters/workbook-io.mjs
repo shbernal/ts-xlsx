@@ -110,6 +110,7 @@ export function buildFrom(spec = {}) {
     if (s.pageMargins) sheet.pageSetup.margins = {...s.pageMargins};
     if (s.pageSetup) Object.assign(sheet.pageSetup, s.pageSetup);
     if (s.autoFilter) sheet.autoFilter = s.autoFilter;
+    if (s.headerFooter) sheet.headerFooter = {...s.headerFooter};
     for (const t of s.tables || []) {
       sheet.addTable({
         name: t.name,
@@ -417,6 +418,16 @@ export async function inspectPackage(spec) {
     const posLegacy = posOf('<legacyDrawing ');
     const posTable = posOf('<tableParts');
     const ordered = (a, b) => (a >= 0 && b >= 0 ? a < b : null);
+    // Header/footer: the `<headerFooter>` element gates its first-page and even-page variants on
+    // the `differentFirst`/`differentOddEven` attributes — emitting `<firstHeader>`/`<evenHeader>`
+    // without the flag set leaves consuming apps showing the odd content on every page. Report both
+    // the child text and the gating flags so a case can assert the flags, not just presence.
+    const hfBlock = (xml.match(/<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/) || [''])[0];
+    const hfChild = tag => {
+      const m = hfBlock.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`));
+      return m ? m[1] : null;
+    };
+    const hfFlag = name => new RegExp(`\\b${name}="(1|true)"`).test(hfBlock);
     sheets[s.name] = {
       pageMargins: {present: Object.keys(marginAttrs), values: marginAttrs},
       hasSheetViews: /<sheetViews>/.test(xml),
@@ -434,6 +445,17 @@ export async function inspectPackage(spec) {
         drawingBeforeLegacy: ordered(posDrawing, posLegacy),
         legacyBeforeTableParts: ordered(posLegacy, posTable),
         drawingBeforeTableParts: ordered(posDrawing, posTable),
+      },
+      headerFooter: {
+        present: hfBlock !== '',
+        oddHeader: hfChild('oddHeader'),
+        oddFooter: hfChild('oddFooter'),
+        evenHeader: hfChild('evenHeader'),
+        evenFooter: hfChild('evenFooter'),
+        firstHeader: hfChild('firstHeader'),
+        firstFooter: hfChild('firstFooter'),
+        differentOddEven: hfFlag('differentOddEven'),
+        differentFirst: hfFlag('differentFirst'),
       },
       xmlWellFormed: xmlWellFormed(xml),
     };
@@ -1459,6 +1481,94 @@ export async function streamWritePackageReport({rows = 50} = {}) {
   }
 
   return {partCount, emptyParts, crcValid, crcError, reloadOk, reloadError, sheetNames, firstCol};
+}
+
+// Write a declarative `spec` to a package, then read it back through the STREAMING reader (fed the
+// bytes as a Readable so the SAX parser sees real chunk boundaries) and return the requested cell
+// values → { <ref>: value }. Pairs with a whole-file read of the same spec to assert the streaming
+// path is byte-exact — in particular that multi-byte UTF-8 (CJK / emoji) split across a chunk
+// boundary is reassembled rather than decoded per-chunk into U+FFFD replacement characters.
+export async function streamReadSpec(spec, cells = []) {
+  const buffer = await buildFrom(spec).xlsx.writeBuffer();
+  const wanted = new Set(cells);
+  const streamed = {};
+  const reader = new ExcelJS.stream.xlsx.WorkbookReader(Readable.from(Buffer.from(buffer)), {});
+  for await (const worksheet of reader) {
+    for await (const row of worksheet) {
+      row.eachCell({includeEmpty: false}, cell => {
+        if (wanted.has(cell.address)) streamed[cell.address] = normalizeStreamValue(cell.value);
+      });
+    }
+    break; // first worksheet only
+  }
+  const eager = new ExcelJS.Workbook();
+  await eager.xlsx.load(buffer);
+  const es = eager.worksheets[0];
+  const eagerCells = {};
+  for (const ref of cells) eagerCells[ref] = normalizeStreamValue(es.getCell(ref).value);
+  return {streamed, eager: eagerCells};
+}
+
+// Author a workbook where several cells share one on-disk style index (identical formatting is
+// deduplicated to a single style record), write it, load it back, then mutate ONE loaded cell's
+// style property and read a SIBLING cell's same property. Reports whether the mutation bled across
+// cells → { sibling, mutatedTo, bled } — for asserting the reader hands each loaded cell an
+// INDEPENDENT style object rather than aliasing the shared record so one edit corrupts the rest.
+export async function loadMutateCellStyle({sharedFill = 'FFFF0000', mutateTo = 'FF00FF00'} = {}) {
+  const wb = new ExcelJS.Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'a';
+  s.getCell('B1').value = 'b';
+  const fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: sharedFill}};
+  s.getCell('A1').fill = fill;
+  s.getCell('B1').fill = fill; // identical formatting → one shared style index on disk
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(buffer);
+  const s2 = wb2.getWorksheet('S');
+  s2.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: mutateTo}};
+  const siblingFg =
+    s2.getCell('B1').fill && s2.getCell('B1').fill.fgColor ? s2.getCell('B1').fill.fgColor.argb : null;
+
+  // Write the mutated workbook back and confirm only the one cell changed on disk.
+  const rewrite = await wb2.xlsx.writeBuffer();
+  const wb3 = new ExcelJS.Workbook();
+  await wb3.xlsx.load(rewrite);
+  const s3 = wb3.getWorksheet('S');
+  const diskSiblingFg =
+    s3.getCell('B1').fill && s3.getCell('B1').fill.fgColor ? s3.getCell('B1').fill.fgColor.argb : null;
+
+  return {
+    sibling: siblingFg,
+    mutatedTo: mutateTo,
+    original: sharedFill,
+    bled: siblingFg === mutateTo,
+    diskSibling: diskSiblingFg,
+    diskBled: diskSiblingFg === mutateTo,
+  };
+}
+
+// Copy one worksheet onto another via the worksheet `model` export/import contract (the idiomatic
+// "clone a sheet" pattern) and report whether merged ranges survive → { srcMerges, dstMerges,
+// error }. Isolates the model serialize/deserialize symmetry: a source sheet's merges must reappear
+// on the destination after `dst.model = {...src.model, name}`, not silently vanish.
+export function copyWorksheetModel({merges = ['A1:C1'], cells = [{ref: 'A1', value: 'merged'}]} = {}) {
+  const wb = new ExcelJS.Workbook();
+  const src = wb.addWorksheet('Src');
+  for (const c of cells) src.getCell(c.ref).value = c.value;
+  for (const m of merges) src.mergeCells(m);
+  const dst = wb.addWorksheet('Dst');
+  let error = null;
+  let dstMerges = [];
+  const srcMerges = (src.model && src.model.merges) || [];
+  try {
+    dst.model = {...src.model, name: 'Dst'};
+    dstMerges = (dst.model && dst.model.merges) || [];
+  } catch (e) {
+    error = String((e && e.message) || e);
+  }
+  return {srcMerges: [...srcMerges].sort(), dstMerges: [...dstMerges].sort(), error};
 }
 
 function xmlWellFormed(xml) {
