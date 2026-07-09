@@ -36,7 +36,10 @@ not merely a performance nit.
 The blow-up is a whole-column `sqref` expanded into a per-cell map on read. Excel and other
 generators routinely attach validations to entire columns, so this is common, not exotic. The
 same range-based representation that fixes the memory problem also makes round-trip serialization
-compact and correct.
+compact and correct. Concretely observed: a template with only two populated rows but five
+list-type dropdown validations, each `sqref` spanning row 2 to the last sheet row, takes
+multiple seconds to read (~7.5s here) — the read cost tracks the nominal covered-cell count
+(~5 million) rather than the two rows that actually hold data.
 
 ## Open questions
 
