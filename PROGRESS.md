@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + thirty-three unlabeled slices; 586/794 = 74%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + thirty-four unlabeled slices; 601/794 = 76%; fixture-less bulk drain underway)._
 
 ---
 
@@ -656,7 +656,23 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     Six noise: non-repro getRow, UI-tool discovery, screenshot-only reports, misfiled Office Scripts
     bug, placeholder XYZ, buffer-load screenshot. Corpus **340 green / 169 known-open / 0
     regressions**; 193 corpus cases + 117 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (208 remaining, all fixture-less) in ~15-record
+  - **Thirty-fourth slice — fixture-less bulk, top-15 by signal — drained** (601/794, 76%).
+    4 corpus cases + 1 spec note + 10 not-carried (four folds + six noise) — a lock-heavy slice: all
+    four corpus cases are regression-guard LOCKS (the reported bugs do not reproduce on current
+    code). frozen top row emits <pane ySplit="1" state="frozen"/> and round-trips; a tab color given
+    as 8-digit ARGB (alpha first) round-trips verbatim with no spurious color on uncolored sheets;
+    images anchored to single cells with interleaved addRow resolve one-to-one with no off-by-one
+    drift; a 5-column table reads back all five columns (no 3-column cap). Adapter grew
+    frozenTopRowRoundtrip, tabColorRoundtrip, cellAnchoredImagePositionReport,
+    wideTableColumnReadReport. Spec note: carrying images between workbooks must copy the media +
+    rels or fail loudly (dangling drawing rel → broken image). Four folds: numeric-looking string
+    quote-prefix (→ numeric-looking-string-preserved-as-string), richText shared-string collision (→
+    streaming-write-richtext-shared-strings-distinct), CSP eval shim (→ no-unsafe-eval-csp-compatible,
+    already existed), rowCount after clearing (→ worksheet-row-count-reflects-data, by-design). Six
+    noise: multi-sheet how-to, no-repro protection, MIME user-side, TS decl packaging, no-repro
+    getCell, HTTP transport. Corpus **349 green / 169 known-open / 0 regressions**; 197 corpus cases
+    + 118 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (193 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -710,12 +726,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **586/794 (74%)**; **all labeled clusters + thirty-three unlabeled slices are drained; the
+Drain at **601/794 (76%)**; **all labeled clusters + thirty-four unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (340 green / 169
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (349 green / 169
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (208 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (193 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
