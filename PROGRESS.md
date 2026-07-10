@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + sixteen unlabeled slices; 331/794 = 42%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + seventeen unlabeled slices; 346/794 = 44%; fixture-less bulk drain underway)._
 
 ---
 
@@ -388,7 +388,21 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     (dataValidations manager + protection spinCount). Not-carried: four dependency/license reports
     (subsumed by supply-chain stance) + a streaming-flush backpressure dup. Corpus **245 green / 120
     known-open / 0 regressions**; 139 corpus cases + 88 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (463 remaining, all fixture-less) in ~15-record
+  - **Seventeenth slice — fixture-less bulk, top-15 by comment signal — drained** (346/794, 44%).
+    5 corpus cases + 1 spec note + 9 not-carried (5 folds + 4 legacy). One genuine known-open cluster:
+    a row splice does NOT re-pin a table's cell range or an anchored image (both stranded at old
+    coords) and duplicate table column names are accepted. The rest flipped to locks under probing: a
+    clean horizontal merge opens without repair (covered cells not populated); a table column numFmt
+    style applies to body cells cleanly; defaultRowHeight IS serialized (symmetric with defaultColWidth);
+    explicit image editAs (twoCell/oneCell/absolute) honored. Adapter grew: inspectPackage `sheetFormat`
+    fact; spec worksheet `properties`, table columnDefs `style`, image range `editAs`; new
+    `spliceShiftsRefs`, `mergeCleanReport`, `tableColumnStyleReport`. Spec note: preserve drawing
+    shapes (autoshapes/text boxes) on round-trip — the library has no shape model so they're dropped.
+    Not-carried folds: note-in-table ordering → comment-and-table-coexist; userShapes crash → chart-
+    drawing tolerance (loads fine here too); streaming memory → backpressure; .xls → unsupported-format;
+    browser large-write → browser-streaming. Plus four legacy build/support/deps reports. Corpus
+    **256 green / 123 known-open / 0 regressions**; 144 corpus cases + 89 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (448 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -442,12 +456,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **331/794 (42%)**; **all labeled clusters + sixteen unlabeled slices are drained; the
+Drain at **346/794 (44%)**; **all labeled clusters + seventeen unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (245 green / 120
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (256 green / 123
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (463 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (448 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
