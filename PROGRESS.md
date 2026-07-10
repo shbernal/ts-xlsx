@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + eighteen unlabeled slices; 361/794 = 45%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + nineteen unlabeled slices; 376/794 = 47%; fixture-less bulk drain underway)._
 
 ---
 
@@ -415,7 +415,18 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     x:sst namespace → miniexcel case, xlsm → macro note, pivot → pivot artifacts, streaming-http →
     incremental-http note, rowspan/colspan → html-export note. Corpus **266 green / 126 known-open /
     0 regressions**; 148 corpus cases + 91 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (433 remaining, all fixture-less) in ~15-record
+  - **Nineteenth slice — fixture-less bulk, top-15 by comment signal — drained** (376/794, 47%).
+    The most fold-heavy slice yet: 1 corpus case + 1 augment + 13 not-carried (7 folds + 6 deps/
+    support), 0 new spec notes. Two known-opens: falsy formula results (0/false/"") are dropped on
+    read by a truthiness test in the copy path; a two-cell range anchor emits a zeroed spPr extent
+    (cx=0 cy=0) so strict OOXML viewers render nothing (augmented into the sppr-transform image case).
+    Folds this slice all hit artifacts from earlier slices: databar CF → databar case, image editAs
+    (×2) → editAs case, non-consecutive image reuse → interleaved-images case, streaming addImage →
+    streaming-image note, streaming OOM → browser-streaming/memory notes, cross-sheet DV load → the
+    cross-sheet validation cases (probing showed it's preserved). Six of fifteen were pure
+    dependency/CVE/support reports. Adapter grew: `formulaFalsyResultReport`. Corpus **268 green /
+    130 known-open / 0 regressions**; 149 corpus cases + 91 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (418 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -469,12 +480,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **361/794 (45%)**; **all labeled clusters + eighteen unlabeled slices are drained; the
+Drain at **376/794 (47%)**; **all labeled clusters + nineteen unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (266 green / 126
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (268 green / 130
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (433 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (418 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
