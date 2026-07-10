@@ -58,6 +58,10 @@ import {
   mergeSlaveWrite,
   nonFiniteCellReport,
   formulaFalsyResultReport,
+  streamWriteDvHyperlinkOrder,
+  autoFilterDefinedNameReport,
+  enumerateImagesAfterRoundtrip,
+  csvWriteSheetSelection,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -357,6 +361,24 @@ export default {
   // boolFalse, emptyString, truthy } each { isFormula, hasResult, result } — for asserting a
   // round-trip preserves a formula's result regardless of truthiness. See workbook-io.mjs.
   formulaFalsyResultReport,
+
+  // Stream-write a sheet with a hyperlink + a data validation → report the order of
+  // <dataValidations> vs <hyperlinks> (dataValidations must precede) + reload. See workbook-io.mjs.
+  streamWriteDvHyperlinkOrder,
+
+  // Set an autofilter and report the sheet autoFilter ref + whether the hidden _xlnm._FilterDatabase
+  // defined name is emitted → { autoFilterRef, hasFilterDatabase, filterDatabaseHidden, formula } —
+  // for asserting LibreOffice-portable autofilter output. See workbook-io.mjs.
+  autoFilterDefinedNameReport,
+
+  // Author two-cell + one-cell anchored images, round-trip, and report getImages() enumeration →
+  // { count, images:[{tl, hasMedia}], mediaCount } — for asserting every image is enumerated across
+  // anchor variants. See workbook-io.mjs.
+  enumerateImagesAfterRoundtrip,
+
+  // Write a chosen worksheet of a multi-sheet workbook to CSV → { ok, error, text, rowCount } — for
+  // asserting a bad sheet selector does not silently yield empty output. See workbook-io.mjs.
+  csvWriteSheetSelection,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign

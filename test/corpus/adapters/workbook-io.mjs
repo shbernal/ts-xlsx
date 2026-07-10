@@ -1396,6 +1396,119 @@ export function insertRowThenStyle(styleMode = 'i') {
   return {error, numFmt};
 }
 
+// Write a sheet through the STREAMING writer carrying both a hyperlink cell and a data-validation
+// cell, and report the relative order of the `<dataValidations>` and `<hyperlinks>` blocks plus
+// reload success. OOXML's CT_Worksheet sequence requires dataValidations BEFORE hyperlinks; the
+// streaming writer emits hyperlinks too early. Companion to streamWriteCfHyperlinkOrder.
+export async function streamWriteDvHyperlinkOrder() {
+  const chunks = [];
+  const stream = new PassThrough();
+  const drained = new Promise(res => {
+    stream.on('data', c => chunks.push(c));
+    stream.on('end', res);
+    stream.on('close', res);
+  });
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream});
+  const sheet = writer.addWorksheet('S');
+  sheet.getCell('A1').value = {text: 'link', hyperlink: 'https://example.com'};
+  sheet.getCell('B1').dataValidation = {type: 'list', allowBlank: true, formulae: ['"x,y,z"']};
+  sheet.addRow(['r']).commit();
+  sheet.commit();
+  await writer.commit();
+  await drained;
+  const buffer = Buffer.concat(chunks);
+  const zip = await JSZip.loadAsync(buffer);
+  const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const xml = name ? await zip.files[name].async('string') : '';
+  const posDv = xml.indexOf('<dataValidations');
+  const posHl = xml.indexOf('<hyperlinks');
+  let reloadOk = true;
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(buffer);
+  } catch (e) {
+    reloadOk = false;
+  }
+  return {
+    posDataValidations: posDv,
+    posHyperlinks: posHl,
+    dataValidationsBeforeHyperlinks: posDv >= 0 && posHl >= 0 ? posDv < posHl : null,
+    reloadOk,
+  };
+}
+
+// Set an autofilter over a range, write, and report the sheet's autoFilter ref plus whether the
+// workbook declares the hidden `_xlnm._FilterDatabase` defined name (scoped to the sheet) that
+// portable writers and LibreOffice rely on to recognize the filter. Excel emits it; a writer that
+// only writes the worksheet `<autoFilter>` leaves the filter invisible in LibreOffice.
+export async function autoFilterDefinedNameReport(ref = 'A1:B2') {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 'H1';
+  sheet.getCell('B1').value = 'H2';
+  sheet.getCell('A2').value = 1;
+  sheet.getCell('B2').value = 2;
+  sheet.autoFilter = ref;
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetXml = (await zip.file(Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n))).async('string')) || '';
+  const wbXml = (await zip.file('xl/workbook.xml').async('string')) || '';
+  const autoFilterRef = (sheetXml.match(/<autoFilter\b[^>]*ref="([^"]*)"/) || [])[1] ?? null;
+  const filterDb = wbXml.match(/<definedName\b([^>]*)name="_xlnm._FilterDatabase"([^>]*)>([\s\S]*?)<\/definedName>/);
+  return {
+    autoFilterRef,
+    hasFilterDatabase: !!filterDb,
+    filterDatabaseHidden: filterDb ? /hidden="1"/.test(filterDb[1] + filterDb[2]) : false,
+    filterDatabaseFormula: filterDb ? filterDb[3] : null,
+  };
+}
+
+// Author one two-cell-anchored and one one-cell-anchored image, round-trip, and report what
+// `getImages()` enumerates on the reloaded worksheet: the count, each image's top-left cell anchor,
+// and whether it resolves to a media binary — for asserting the enumeration surfaces every embedded
+// image across anchor variants rather than returning an empty result.
+export async function enumerateImagesAfterRoundtrip() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  const id1 = workbook.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  sheet.addImage(id1, {tl: {col: 1, row: 1}, br: {col: 3, row: 3}}); // two-cell
+  const id2 = workbook.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  sheet.addImage(id2, {tl: {col: 5, row: 5}, ext: {width: 50, height: 50}}); // one-cell
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const media = reread.model && reread.media ? reread.media : [];
+  const images = reread.getWorksheet('S').getImages().map(im => {
+    const tl = im.range && im.range.tl;
+    return {
+      tl: tl ? {col: tl.nativeCol ?? null, row: tl.nativeRow ?? null} : null,
+      hasMedia: reread.getImage ? !!reread.getImage(im.imageId) : im.imageId != null,
+    };
+  });
+  return {count: images.length, images, mediaCount: media.length};
+}
+
+// Write a chosen worksheet of a multi-sheet workbook to CSV. Reports the CSV text for a matching
+// sheet name, the default (no selector → first sheet), and a non-matching name — for asserting a
+// bad selector does not silently yield empty output for a non-empty workbook.
+export async function csvWriteSheetSelection(sheetName) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.addWorksheet('First').addRow(['a', 1]);
+  const second = workbook.addWorksheet('Second');
+  second.addRow(['b', 2]);
+  second.addRow(['c', 3]);
+  const options = sheetName === undefined ? undefined : {sheetName};
+  let error = null;
+  let text = null;
+  try {
+    const buffer = await workbook.csv.writeBuffer(options);
+    text = buffer.toString().replace(/\r?\n$/, '');
+  } catch (e) {
+    error = String((e && e.message) || e);
+  }
+  return {ok: error === null, error, text, rowCount: text ? text.split(/\r?\n/).filter(Boolean).length : 0};
+}
+
 // Author formula cells whose cached results are falsy (numeric 0, boolean false, empty string) plus a
 // truthy control, write, reload, and report for each whether the result field is present and its
 // value — for asserting a copy/round-trip preserves a formula's result regardless of truthiness (a
