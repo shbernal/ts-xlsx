@@ -93,6 +93,9 @@ export function buildFrom(spec = {}) {
       const r = sheet.getRow(row.index);
       if (row.height !== undefined) r.height = row.height;
       if (row.hidden !== undefined) r.hidden = row.hidden;
+      // outlineLevel drives row grouping; a case asserts the collapsed flag lands on the summary
+      // row rather than on the hidden detail rows.
+      if (row.outlineLevel !== undefined) r.outlineLevel = row.outlineLevel;
     }
     // Assign only the margins the spec provides — faithfully reproducing the user
     // scenario of setting a subset (do NOT pre-fill defaults; that is exactly the
@@ -106,6 +109,12 @@ export function buildFrom(spec = {}) {
       const extension = 'extension' in img ? img.extension : 'png';
       const imageId = workbook.addImage({buffer: ONE_PX_PNG, extension});
       sheet.addImage(imageId, img.range);
+    }
+    // A sheet background image attaches a picture part + worksheet relationship, distinct from an
+    // anchored drawing — a case asserts it coexists with comment/VML parts without a rel-id clash.
+    if (s.background) {
+      const bgId = workbook.addImage({buffer: ONE_PX_PNG, extension: s.background.extension || 'png'});
+      sheet.addBackgroundImage(bgId);
     }
     if (s.pageMargins) sheet.pageSetup.margins = {...s.pageMargins};
     if (s.pageSetup) Object.assign(sheet.pageSetup, s.pageSetup);
@@ -448,6 +457,20 @@ export async function inspectPackage(spec) {
       return m ? m[1] : null;
     };
     const hfFlag = name => new RegExp(`\\b${name}="(1|true)"`).test(hfBlock);
+    // Row-level outline attributes: a grouped/collapsed outline requires the detail rows to carry
+    // outlineLevel + hidden, and the collapsed toggle to sit on the SUMMARY row that terminates the
+    // group — not on the hidden detail rows. Report each row's attributes so a case can assert
+    // where the collapsed flag lands.
+    const rowAttrs = {};
+    for (const t of xml.matchAll(/<row\b[^>]*>/g)) {
+      const a = attrs(t[0]);
+      if (a.r === undefined) continue;
+      rowAttrs[a.r] = {
+        outlineLevel: a.outlineLevel !== undefined ? Number(a.outlineLevel) : 0,
+        hidden: a.hidden === '1' || a.hidden === 'true',
+        collapsed: a.collapsed === '1' || a.collapsed === 'true',
+      };
+    }
     sheets[s.name] = {
       pageMargins: {present: Object.keys(marginAttrs), values: marginAttrs},
       hasSheetViews: /<sheetViews>/.test(xml),
@@ -477,6 +500,8 @@ export async function inspectPackage(spec) {
         differentOddEven: hfFlag('differentOddEven'),
         differentFirst: hfFlag('differentFirst'),
       },
+      rows: rowAttrs,
+      hasBackgroundPicture: /<picture\b[^>]*r:id=/.test(xml),
       xmlWellFormed: xmlWellFormed(xml),
     };
   }
@@ -1789,6 +1814,66 @@ export async function authorListValidations(validations = []) {
       ),
     },
   };
+}
+
+// Apply a single data validation over a multi-cell RANGE (e.g. a whole column `B2:B1048576`) rather
+// than cell-by-cell, then write. Reports whether serialization threw, the emitted `sqref`s and
+// dataValidation count (a range validation must emit ONE entry whose sqref is the range, not one
+// per covered cell), and whether the written file reloads — for asserting a whole-column dropdown
+// round-trips without exploding into per-cell state or throwing on write.
+export async function roundtripRangeValidation({range, type = 'list', formula = '"a,b,c"'} = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  let writeError = null;
+  let buffer;
+  try {
+    sheet.dataValidations.add(range, {type, allowBlank: true, formulae: [formula]});
+    buffer = await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeOk: false, writeError: String((e && e.message) || e), sqrefs: [], count: 0, reloadOk: null};
+  }
+  const zip = await JSZip.loadAsync(buffer);
+  const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const xml = name ? await zip.files[name].async('string') : '';
+  const sqrefs = [...xml.matchAll(/<dataValidation\b[^>]*sqref="([^"]*)"/g)].map(m => m[1]);
+  const count = [...xml.matchAll(/<dataValidation[ >]/g)].length;
+  let reloadOk = true;
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(buffer);
+  } catch (e) {
+    reloadOk = false;
+  }
+  return {writeOk: true, writeError, sqrefs, count, reloadOk};
+}
+
+// Append rows in the three interchangeable shapes a caller uses — a dense positional array, a
+// sparse 1-based array (gaps left empty), a key/value object keyed by column keys — plus a mixed
+// batch of array- and object-shaped rows. Returns each appended row's resolved cell values by
+// column letter, read back after a write/reload, so a case can assert every shape lands its data
+// (not just the object-keyed rows) and that types survive the round-trip.
+export async function appendRowShapes() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.columns = [{key: 'k1', header: 'H1'}, {key: 'k2', header: 'H2'}, {key: 'k3', header: 'H3'}];
+  sheet.addRow(['a', 'b', 'c']); // row 2: dense array
+  const sparse = [];
+  sparse[1] = 'x';
+  sparse[3] = 'z';
+  sheet.addRow(sparse); // row 3: sparse 1-based → A, C
+  sheet.addRow({k1: 'o1', k2: 'o2'}); // row 4: object
+  sheet.addRow([7, new Date(Date.UTC(2021, 0, 2))]); // row 5: typed array (number + date)
+  sheet.addRows([['m1', 'm2'], {k1: 'n1'}]); // rows 6–7: mixed batch
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const s = reread.getWorksheet('S');
+  const rowVals = {};
+  for (let r = 2; r <= 7; r++) {
+    rowVals[r] = {};
+    for (const col of ['A', 'B', 'C', 'E']) rowVals[r][col] = normalizeStreamValue(s.getCell(`${col}${r}`).value);
+  }
+  return {rows: rowVals};
 }
 
 // Author per-cell protection flags plus a protected sheet, write, and report (a) what the

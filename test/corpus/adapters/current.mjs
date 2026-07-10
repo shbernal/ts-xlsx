@@ -45,6 +45,8 @@ import {
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
   authorListValidations,
+  roundtripRangeValidation,
+  appendRowShapes,
   authorCellProtection,
   streamCommitReport,
   streamWriterImageSupport,
@@ -276,6 +278,16 @@ export default {
   // → { readBack, xml:{count, wellFormed, formula1} } — for asserting both value-source forms
   // survive verbatim and emit Excel-acceptable XML. See workbook-io.mjs.
   authorListValidations,
+
+  // Apply one data validation over a multi-cell RANGE (e.g. a whole column) and write
+  // → { writeOk, writeError, sqrefs, count, reloadOk } — for asserting a whole-column dropdown
+  // emits a single range-scoped dataValidation and neither throws on write nor fails to reload.
+  roundtripRangeValidation,
+
+  // Append rows as a dense array, a sparse 1-based array, an object, and a mixed batch; read back
+  // → { rows: { <n>: { A, B, C, E } } } — for asserting every row shape lands its data (not just
+  // the object-keyed ones) and types survive the round-trip.
+  appendRowShapes,
 
   // Author per-cell protection + a protected sheet, round-trip, and report read-back locked
   // flags, whether cellXfs carries applyProtection, and the emitted <sheetProtection>
