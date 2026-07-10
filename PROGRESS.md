@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + fifteen unlabeled slices; 316/794 = 40%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + sixteen unlabeled slices; 331/794 = 42%; fixture-less bulk drain underway)._
 
 ---
 
@@ -372,7 +372,23 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     `columnDefs` (totalsRowFunction) + `displayName`; new `authorConditionalFormatting` +
     `roundtripFixtureImageRotation`. New fixture: an image anchor with an injected rotation. Corpus
     **237 green / 111 known-open / 0 regressions**; 133 corpus cases + 87 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (478 remaining, all fixture-less) in ~15-record
+  - **Sixteenth slice — fixture-less bulk, top-15 by comment signal — drained** (331/794, 42%).
+    6 corpus cases + 2 augments + 1 combined spec note + 6 not-carried. Five genuine known-opens this
+    slice (the richest in a while): a leading-dot image extension → `image1..png` media part, image
+    lost on reload; loading a foreign file with a reserved sheet name ("History") throws; rowBreaks
+    ignored on read + dropped on round-trip; a non-coercible date-validation operand serializes
+    `<formula1>NaN</formula1>`; assigning one base style object to two cells then mutating one's font
+    bleeds to the sibling. Locks: multi-area CF sqref survives as one rule (silent-drop doesn't
+    reproduce); a real Date DV operand writes a valid serial. Augments folded two reports: numFmt
+    invariant-separator fidelity (percentage/date codes verbatim) and a hyphen table name (into the
+    illegal-name case). Adapter grew: `imageExtensionRoundtrip`, `roundtripFixtureRowBreaks`,
+    `authorDateValidation`, `sharedBaseStyleFontMutation`, + `authorConditionalFormatting` now
+    reports blockCount/sqrefs/ruleCount. New fixtures: a reserved-name sheet, an injected rowBreaks
+    section. Combined spec note: public type surface must expose every runtime accessor/option
+    (dataValidations manager + protection spinCount). Not-carried: four dependency/license reports
+    (subsumed by supply-chain stance) + a streaming-flush backpressure dup. Corpus **245 green / 120
+    known-open / 0 regressions**; 139 corpus cases + 88 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (463 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -426,12 +442,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **316/794 (40%)**; **all labeled clusters + fifteen unlabeled slices are drained; the
+Drain at **331/794 (42%)**; **all labeled clusters + sixteen unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (237 green / 111
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (245 green / 120
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (478 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (463 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
