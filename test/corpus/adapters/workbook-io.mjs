@@ -1531,6 +1531,88 @@ export async function streamingSharedStringsRead(rowCount = 20, concurrency = 8)
   };
 }
 
+// Set a cell's number format to a STRUCTURED OBJECT (not a plain format-code string) and report how
+// the writer serializes it, plus a control where a legitimate string format is set alongside other
+// style facets. A non-string numFmt must not be blindly stringified into the styles part's formatCode
+// (which yields "[object Object]", a malformed format Excel rejects as a corrupt package).
+export async function numFmtObjectCorruptionReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 5;
+  sheet.getCell('A1').numFmt = {id: 14, formatCode: 'yyyy-mmm-dd'};
+  const control = sheet.getCell('A2');
+  control.value = 6;
+  control.numFmt = 'yyyy-mmm-dd';
+  control.alignment = {horizontal: 'center'};
+  control.font = {name: 'Arial', size: 8};
+  control.protection = {locked: false};
+
+  let writeError = null;
+  let buffer;
+  try {
+    buffer = await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeError: String((e && e.message) || e)};
+  }
+  const zip = await JSZip.loadAsync(buffer);
+  const stylesXml = zip.file('xl/styles.xml') ? await zip.file('xl/styles.xml').async('string') : '';
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const rs = reread.getWorksheet('S');
+  return {
+    writeError,
+    stylesHasObjectObject: stylesXml.includes('[object Object]'),
+    objectNumFmtReload: rs.getCell('A1').numFmt ?? null,
+    controlNumFmtReload: rs.getCell('A2').numFmt ?? null,
+  };
+}
+
+// Write a CSV containing non-ASCII text (Hebrew) and report whether the output carries a UTF-8 BOM
+// (which spreadsheet apps like Excel rely on to detect UTF-8 rather than a legacy code page) and
+// whether the underlying bytes decode back to the original text.
+export async function csvNonAsciiEncodingReport(text = 'שלום') {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = text;
+  sheet.getCell('B1').value = 'world';
+  const buffer = Buffer.from(await workbook.csv.writeBuffer());
+  const hasBom = buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf;
+  const body = hasBom ? buffer.slice(3) : buffer;
+  return {
+    hasBom,
+    bytesDecodeToText: body.toString('utf8').startsWith(text),
+  };
+}
+
+// Build a workbook through the STREAMING writer with a master formula and a block of shared-formula
+// slave cells, then read it back and report whether the slaves resolved to a formula/value or came
+// back empty. The streaming writer must emit shared-formula slaves as real formula cells, not drop
+// them so they reload blank.
+export async function streamingSharedFormulaReport(rows = 10) {
+  const chunks = [];
+  const stream = new PassThrough();
+  stream.on('data', c => chunks.push(c));
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream});
+  const sheet = writer.addWorksheet('yua');
+  for (let i = 1; i <= rows; i++) sheet.getCell(`A${i}`).value = i * 10;
+  sheet.getCell('B1').value = {formula: 'A1*2', result: 20};
+  for (let j = 2; j <= rows; j++) sheet.getCell(`B${j}`).value = {sharedFormula: 'B1'};
+  await sheet.commit();
+  await writer.commit();
+
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(Buffer.concat(chunks));
+  const rs = reread.getWorksheet('yua');
+  const slave = rs.getCell('B3').value;
+  const slaveIsEmpty = slave == null || (typeof slave === 'object' && Object.keys(slave).length === 0);
+  const master = rs.getCell('B1').value;
+  return {
+    masterHasFormula: !!(master && typeof master === 'object' && 'formula' in master),
+    slaveResolved: !slaveIsEmpty,
+    slaveValue: slave ?? null,
+  };
+}
+
 // Author a table whose column name contains embedded line-break control characters (CR/LF), write,
 // and report the raw tableColumn tag plus whether it carries UNESCAPED control characters — for
 // asserting the name is XML-character-escaped (e.g. &#10;) rather than emitting raw CR/LF that

@@ -13,6 +13,7 @@
 const WRAP_ON = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x', alignment: {wrapText: true}}]}]};
 const FLAGS_OFF = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x', alignment: {wrapText: false, shrinkToFit: false}}]}]};
 const PLAIN = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x'}]}]};
+const INDENT = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x', alignment: {indent: 3}}]}]};
 
 export default {
   id: 'alignment-flags-round-trip',
@@ -49,6 +50,14 @@ export default {
         const {alignment} = (await api.roundtripWorkbook(PLAIN)).sheets.S.cells.A1;
         assert.notStrictEqual(alignment?.wrapText, true, 'wrapText must not be spuriously true');
         assert.notStrictEqual(alignment?.shrinkToFit, true, 'shrinkToFit must not be spuriously true');
+      },
+    },
+    {
+      name: 'a numeric indent level survives the round-trip',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const {alignment} = (await api.roundtripWorkbook(INDENT)).sheets.S.cells.A1;
+        assert.strictEqual(alignment?.indent, 3, 'the indent level should survive as set');
       },
     },
   ],

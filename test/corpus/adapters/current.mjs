@@ -78,6 +78,9 @@ import {
   mergeMasterBorderReport,
   streamingStyleCopyReport,
   streamingSharedStringsRead,
+  numFmtObjectCorruptionReport,
+  csvNonAsciiEncodingReport,
+  streamingSharedFormulaReport,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -461,6 +464,19 @@ export default {
   // concurrentLengths } — for asserting the streaming reader never skips the shared-strings part or
   // races under concurrency. See workbook-io.mjs.
   streamingSharedStringsRead,
+
+  // Set a cell numFmt to a structured OBJECT (plus a valid-string control with other facets) → write →
+  // { stylesHasObjectObject, objectNumFmtReload, controlNumFmtReload } — for asserting a non-string
+  // numFmt never serializes to formatCode="[object Object]". See workbook-io.mjs.
+  numFmtObjectCorruptionReport,
+
+  // Write a CSV with non-ASCII (Hebrew) text → { hasBom, bytesDecodeToText } — for asserting the CSV
+  // carries a UTF-8 BOM so spreadsheet apps detect the encoding. See workbook-io.mjs.
+  csvNonAsciiEncodingReport,
+
+  // Build via the streaming writer with a master + shared-formula slaves, reload → { masterHasFormula,
+  // slaveResolved, slaveValue } — for asserting streamed shared-formula slaves aren't dropped to empty.
+  streamingSharedFormulaReport,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign
