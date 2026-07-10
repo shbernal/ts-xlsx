@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + nine unlabeled slices; 226/794; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + ten unlabeled slices; 241/794; fixture-less bulk drain underway)._
 
 ---
 
@@ -269,13 +269,32 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     emit an invisible dropdown); apply-style-over-a-range API. Not-carried folds: two streaming
     multibyte-corruption reports (→ existing chunk-boundary case), a browser-bundle usage question.
     Corpus **165 green / 96 known-open / 0 regressions**; 105 corpus cases + 62 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (568 remaining, all fixture-less) in ~15-record
+  - **Tenth slice — fixture-less bulk, top-15 by comment signal — drained** (241/794, ~30%).
+    5 corpus cases + 8 spec notes + 2 not-carried. Probing again overturned three triage guesses:
+    **splice already carries a shifted row's font/fill/numFmt** (the reported style-loss does not
+    reproduce — regression lock), and **the reader already tolerates non-address defined names**
+    (a constant/#REF!/external ref no longer aborts the load; a valid sibling name survives — lock).
+    Genuine known-opens: a headerless table still emits an autoFilter (only valid over a header row)
+    though it correctly zeroes the header-row count; a cell note's VML textbox omits
+    `mso-fit-shape-to-text:t` so multi-line notes clip; a merge overlapping a formatted-table region
+    is silently written as Excel-invalid geometry instead of being surfaced. Adapter grew:
+    `inspectPackage.vml` (comment textbox styles + fit-to-text flag), and `mutateWorksheet` now
+    accepts styled cell inputs + a `readStyles` list. New fixture: a workbook with a mixed
+    definedNames block (valid + degenerate). Spec notes: honest write-buffer return type
+    (Uint8Array, not Buffer-extends-ArrayBuffer); early row-iteration termination via (async)
+    iterables; first-class row sort; WHATWG Web Streams I/O for edge runtimes; Node-only path reader
+    must fail clearly; usable table handle (not a `{worksheet,table}` wrapper); .xlsm VBA
+    preservation; streaming-write image embedding. Not-carried: two reports of the same transitive
+    inflight CVE (subsumed by the ZIP-toolchain rewrite + audit-green gate). Corpus **177 green /
+    99 known-open / 0 regressions**; 110 corpus cases + 70 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (553 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
     a bug that needs data to span a chunk boundary (or a large sqref) will falsely pass a tiny
-    probe. And **probe before trusting a triage "likely bug"** — several reported bugs (style
-    dedup, streaming row indexing) turn out already-correct locks today.
+    probe. And **probe before trusting a triage "likely bug"** — reported bugs (style dedup,
+    streaming row indexing, splice style-loss, non-address defined-name crash) repeatedly turn out
+    already-correct locks today.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -316,12 +335,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **226/794 (~28%)**; **all labeled clusters + nine unlabeled slices are drained; the
+Drain at **241/794 (~30%)**; **all labeled clusters + ten unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (165 green / 96
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (177 green / 99
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (568 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (553 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
