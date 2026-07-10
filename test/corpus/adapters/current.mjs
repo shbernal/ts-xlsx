@@ -30,6 +30,8 @@ import {
   streamWriteSheet,
   streamingFullCalcOnLoadReport,
   dataTableFormulaRoundtrip,
+  removeCellNoteReport,
+  crossRealmArrayRow,
   sharedFormulaRoundtripAndSplice,
   streamWriteCfHyperlinkOrder,
   roundtripFormulas,
@@ -248,6 +250,16 @@ export default {
   // readRef, readResult, reloadOk, outHasDataTable } — for asserting the reader recognizes a
   // data-table formula and the writer preserves its kind on a read-modify-write. See workbook-io.mjs.
   dataTableFormulaRoundtrip,
+
+  // Attach a note, attempt to clear it, and report what the package retains → { commentPartPresent,
+  // vmlPartPresent, readNoteAfter, neighborNoteIntact, cleanHasCommentPart } — for asserting a
+  // removed note leaves no comment/VML artifact. See workbook-io.mjs.
+  removeCellNoteReport,
+
+  // Add a row from an array built in a foreign realm (a Node vm context) → { isArrayCrossRealm, a,
+  // b, c } — for asserting row-input detection is structural, not realm-bound identity. See
+  // workbook-io.mjs.
+  crossRealmArrayRow,
 
   // Author a shared-formula master/slave group, read-then-rewrite it, and splice a column in →
   // { roundtripOk, preservedFormulas, spliceOk, spliceError } — for asserting a lossless

@@ -68,5 +68,22 @@ export default {
         assert.deepStrictEqual(rows[5].B, {date: '2021-01-02T00:00:00.000Z'}, 'the date stays a date');
       },
     },
+    {
+      // Array detection must be structural, not realm-bound: an array built in a foreign realm (a
+      // Node vm context, or a browser iframe) is still an array — Array.isArray says so — but code
+      // that checks `instanceof Array` or the constructor identity mistakes it for a plain object
+      // and populates no cells. Feeding such a row must place one value per element like any array.
+      name: 'a row from an array built in another realm still populates one cell per element',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {isArrayCrossRealm, a, b, c} = await api.crossRealmArrayRow();
+        assert.strictEqual(isArrayCrossRealm, true, 'Array.isArray recognizes the cross-realm array (oracle)');
+        assert.deepStrictEqual(
+          [a, b, c],
+          [10, 20, 30],
+          'the cross-realm array must fill columns A/B/C, not leave them null'
+        );
+      },
+    },
   ],
 };

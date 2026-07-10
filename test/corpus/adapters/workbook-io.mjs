@@ -34,6 +34,7 @@
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {Readable, PassThrough, Duplex} from 'node:stream';
+import vm from 'node:vm';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
@@ -2965,6 +2966,59 @@ export async function dataTableFormulaRoundtrip() {
     reloadOk = false;
   }
   return {readShareType, readRef, readResult, reloadOk, outHasDataTable};
+}
+
+// Attach a note to a cell, attempt to clear it, and report what the written package retains →
+// { commentPartPresent, vmlPartPresent, readNoteAfter, neighborNoteIntact, cleanHasCommentPart }.
+// There is no first-class note-removal: setting the note to null throws, and undefined / an empty
+// note object leave the comment part and its VML drawing in the package (and read back an empty
+// note), so a "removed" note still shows a comment marker. cleanHasCommentPart is the control — a
+// workbook whose cell never carried a note emits no comment part.
+export async function removeCellNoteReport() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 'x';
+  ws.getCell('A1').note = 'remove me';
+  ws.getCell('B1').value = 'y';
+  ws.getCell('B1').note = 'keep me';
+  ws.getCell('A1').note = undefined; // the removal attempt that does not throw
+  const buffer = await wb.xlsx.writeBuffer();
+  const names = Object.keys((await JSZip.loadAsync(buffer)).files);
+  const commentPartPresent = names.some(f => /comments\d*\.xml$/.test(f));
+  const vmlPartPresent = names.some(f => /vmlDrawing\d*\.vml$/.test(f));
+
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(buffer);
+  const readNoteAfter = reload.getWorksheet('S').getCell('A1').note ?? null;
+  const neighborNoteIntact = !!reload.getWorksheet('S').getCell('B1').note;
+
+  const clean = new ExcelJS.Workbook();
+  clean.addWorksheet('S').getCell('A1').value = 'x';
+  const cleanNames = Object.keys((await JSZip.loadAsync(await clean.xlsx.writeBuffer())).files);
+  const cleanHasCommentPart = cleanNames.some(f => /comments\d*\.xml$/.test(f));
+
+  return {commentPartPresent, vmlPartPresent, readNoteAfter, neighborNoteIntact, cleanHasCommentPart};
+}
+
+// Add a row from an array constructed in a FOREIGN realm (a Node vm context) → { isArrayCrossRealm,
+// a, b, c }. Node's Array.isArray is realm-safe (true for a cross-realm array), but the row builder
+// uses realm-bound array detection (instanceof / constructor identity), so a foreign array populates
+// no cells — every column reads back null — even though the same array shape from the current realm
+// works. Row input must be detected structurally, not by realm-bound identity.
+export async function crossRealmArrayRow() {
+  const foreign = vm.runInNewContext('[10, 20, 30]');
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.addRow(foreign);
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(await wb.xlsx.writeBuffer());
+  const row = reload.getWorksheet('S').getRow(1);
+  return {
+    isArrayCrossRealm: Array.isArray(foreign),
+    a: row.getCell(1).value,
+    b: row.getCell(2).value,
+    c: row.getCell(3).value,
+  };
 }
 
 // Read a richText (or primitive) cell value back into a plain shape a case can compare:
