@@ -17,7 +17,24 @@ This also affects downstream libraries that wrap the file-path API (e.g. render-
 - Common pattern: a core module with no Node built-ins plus a thin Node adapter exposing `readFile(path)` / `writeFile(path)` layered on top of the buffer API.
 - Bundlers used to auto-polyfill Node core modules (webpack 4) and now do not (webpack 5), which is why environment-dependent code that "worked" in older toolchains now surfaces as `undefined` module shims.
 
+### Bundle-time requirement: no Node builtins reachable from the browser entry
+The boundary must hold at **bundle time**, not just runtime. Bundlers (webpack 5, Vite, Rollup) no
+longer auto-polyfill Node core modules, so any code statically reachable from the browser entry that
+`import`s `fs`/`path`/Node-form `stream` makes the build fail with "dependency not found: fs" — and
+merely instantiating a workbook is enough to pull it in. The requirement:
+
+- No code reachable from the browser entry point statically imports a Node-only module. Filesystem/
+  stream conveniences that need Node live behind a **Node-only conditional export** the browser
+  condition never resolves, so `fs` never enters the browser bundle and no bundler config is needed.
+- The browser entry ships **first-class TypeScript types identical in quality to the Node entry** —
+  types exist by construction from the source, not as a separately hand-authored `.d.ts` that drifts.
+- Correct `package.json` `exports`/`browser` conditions drive the split so consumers get the right
+  surface automatically.
+
 ### Open questions
 - Should path-based methods be a separate entry point (subpath export) or a runtime-guarded no-op that throws? A separate entry point keeps `fs` out of browser bundles entirely and is the cleaner break.
 - What is the canonical browser write API name and return type (ArrayBuffer vs Uint8Array vs Blob-friendly)?
 - Should the environment guard detect the missing filesystem lazily (on call) or fail at import time in a browser build?
+
+Related: `no-global-polyfill-in-browser-bundle`, `path-reader-is-node-only-clear-error`,
+`public-types-node-stream-portability`, `write-buffer-return-type-contract`.

@@ -32,6 +32,23 @@ because the declared type hides the real backing `ArrayBuffer`.
 - A type-level test pins the exact return type so a future refactor cannot silently regress it back
   to an `ArrayBuffer`-shaped lie.
 
+## The load side and modern TypeScript targets
+
+The mirror-image contract applies to the **load-from-buffer** entry point, and both sides must hold
+across modern TS library targets. Under ES2024+ the Node `Buffer` type became generic over its
+backing storage (`Buffer<ArrayBufferLike>`), so a hand-authored `declare interface Buffer extends
+ArrayBuffer {}` not only lies about the write return but also makes a plain `Buffer` read from disk
+or the network fail to satisfy the load signature without a cast.
+
+- The load API accepts **whatever a real Node buffer read is** — `Buffer`, `Buffer<ArrayBufferLike>`,
+  `Uint8Array`, `ArrayBuffer` (and ideally `Blob`/`ArrayBufferView` where sensible) — with no
+  user-side casting, across CommonJS and ESM/NodeNext resolution.
+- The write API returns a value the caller hands directly to `fs.writeFile`, `res.send`, etc.,
+  without narrowing.
+- The fix root: do not ship a bespoke top-level `Buffer` declaration. Type against standard
+  library/`node:*` types and let `Buffer`'s own generic definition flow through, then pin both
+  directions with type-level tests across the supported target matrix.
+
 ## Open questions
 
 - Return `Uint8Array` uniformly across runtimes (portable, honest, no Node `Buffer` global leaking
