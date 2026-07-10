@@ -150,10 +150,18 @@ function definedNamesOf(workbook) {
 // Returns { rowCount, columnCount, cells: { <ref>: value|null }, merges: [ranges…], error? } —
 // never an implementation object. A throwing op is reported as { error } rather than propagated,
 // so a case can distinguish "mutation threw" from "mutation silently did nothing".
-export function mutateWorksheet({cells = [], ops = [], read = []} = {}) {
+export function mutateWorksheet({cells = [], ops = [], read = [], readStyles = []} = {}) {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('S');
-  for (const c of cells) sheet.getCell(c.ref).value = c.value;
+  for (const c of cells) {
+    const cell = sheet.getCell(c.ref);
+    cell.value = c.value;
+    // Optional per-cell style so a case can assert that a structural edit (a row/column splice)
+    // carries a cell's font/fill/numFmt to its shifted position rather than blanking it.
+    if (c.font) cell.font = c.font;
+    if (c.fill) cell.fill = c.fill;
+    if (c.numFmt) cell.numFmt = c.numFmt;
+  }
 
   let error = null;
   try {
@@ -175,11 +183,23 @@ export function mutateWorksheet({cells = [], ops = [], read = []} = {}) {
     const v = sheet.getCell(ref).value;
     readCells[ref] = v ?? null;
   }
+  // Per-cell style facets after the mutations — for asserting the style a cell carried before a
+  // splice still describes the (possibly shifted) cell afterward, rather than being lost.
+  const styles = {};
+  for (const ref of readStyles) {
+    const cell = sheet.getCell(ref);
+    styles[ref] = {
+      value: cell.value ?? null,
+      font: cell.font ? JSON.parse(JSON.stringify(cell.font)) : null,
+      fill: cell.fill && cell.fill.type ? JSON.parse(JSON.stringify(cell.fill)) : null,
+      numFmt: cell.numFmt ?? null,
+    };
+  }
   // The merged-range list (as OOXML records it) after the mutations — for asserting that a row/
   // column splice SHIFTS a merged range to its new position and keeps it merged, rather than
   // leaving the range stranded at its original indices while the data moves.
   const merges = (sheet.model && sheet.model.merges) || [];
-  return {rowCount: sheet.rowCount, columnCount: sheet.columnCount, cells: readCells, merges, error};
+  return {rowCount: sheet.rowCount, columnCount: sheet.columnCount, cells: readCells, styles, merges, error};
 }
 
 const isoOrNull = d => (d instanceof Date && !Number.isNaN(+d) ? d.toISOString() : null);
@@ -491,6 +511,21 @@ export async function inspectPackage(spec) {
     themeColorResolvable: !('theme' in defaultFontColor) || hasThemePart,
   };
 
+  // Comment VML: a note's shape is described by a `<v:textbox>` whose inline `style` controls
+  // sizing. Without the `mso-fit-shape-to-text:t` directive the host renders every note at a
+  // fixed default box that clips multiline text. Surface each textbox style string plus a
+  // fit-to-text flag so a case can assert the note box grows to its content instead of clipping.
+  const vmlTextboxStyles = [];
+  for (const p of parts.filter(f => /^xl\/drawings\/vmlDrawing\d+\.vml$/.test(f))) {
+    const vml = (await read(p)) || '';
+    for (const t of vml.matchAll(/<(?:v:)?textbox\b[^>]*\bstyle="([^"]*)"/g)) vmlTextboxStyles.push(t[1]);
+  }
+  const vml = {
+    textboxStyles: vmlTextboxStyles,
+    allTextboxesFitToText:
+      vmlTextboxStyles.length > 0 && vmlTextboxStyles.every(s => /mso-fit-shape-to-text\s*:\s*t/i.test(s)),
+  };
+
   // Worksheet declarations must agree across the three places OOXML requires.
   const declaredConsistent = worksheetParts.every(part => {
     const over = overrides.includes('/' + part);
@@ -509,6 +544,7 @@ export async function inspectPackage(spec) {
     sheets,
     tables,
     styles,
+    vml,
     packageParts: {
       hasCommentsPart: parts.some(p => /^xl\/comments\d+\.xml$/.test(p)),
       hasVmlDrawingPart: parts.some(p => /^xl\/drawings\/vmlDrawing\d+\.vml$/.test(p)),
