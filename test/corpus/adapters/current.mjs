@@ -32,6 +32,9 @@ import {
   dataTableFormulaRoundtrip,
   removeCellNoteReport,
   crossRealmArrayRow,
+  fillArgbHashPrefixReport,
+  tableStyleThemeReport,
+  fontExplicitFalseBoldReport,
   sharedFormulaRoundtripAndSplice,
   streamWriteCfHyperlinkOrder,
   roundtripFormulas,
@@ -260,6 +263,21 @@ export default {
   // b, c } — for asserting row-input detection is structural, not realm-bound identity. See
   // workbook-io.mjs.
   crossRealmArrayRow,
+
+  // Write a solid fill ARGB both clean and '#'-prefixed → { validRgb, validReRead, hashRgb,
+  // hashReRead } — for asserting a valid ARGB serializes as 8 hex digits and a '#'-prefixed value is
+  // not passed through as a malformed rgb that renders black. See workbook-io.mjs.
+  fillArgbHashPrefixReport,
+
+  // Write a table with a real theme, 'None', and null → { real, none, nullTheme } each { ok, name,
+  // hasStripes } — for asserting 'None' produces an unstyled table (no name), not name="None". See
+  // workbook-io.mjs.
+  tableStyleThemeReport,
+
+  // Read a bold flag serialized as a bare / explicit-true / explicit-false tag → { bareTag, valOne,
+  // valZero } — for asserting an explicit-false <b val="0"/> reads as false, not true. See
+  // workbook-io.mjs.
+  fontExplicitFalseBoldReport,
 
   // Author a shared-formula master/slave group, read-then-rewrite it, and splice a column in →
   // { roundtripOk, preservedFormulas, spliceOk, spliceError } — for asserting a lossless

@@ -3021,6 +3021,87 @@ export async function crossRealmArrayRow() {
   };
 }
 
+// Write a solid fill whose fgColor ARGB is supplied both as a clean 8-hex string and as a CSS-style
+// '#'-prefixed string, and report the rgb attribute the writer emits plus what it reads back →
+// { validRgb, validReRead, hashRgb, hashReRead }. A valid bare ARGB serializes as 8 uppercase hex
+// digits. A '#'-prefixed value is passed through verbatim into the fill color's rgb attribute,
+// producing an invalid 9-character value that strict consumers (Excel/LibreOffice) render as solid
+// black — the library should normalize or reject it rather than emit malformed style XML.
+export async function fillArgbHashPrefixReport() {
+  const write = async argb => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'x';
+    ws.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb}};
+    const buffer = await wb.xlsx.writeBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+    const stylesName = Object.keys(zip.files).find(f => /xl\/styles\.xml$/.test(f));
+    const styles = stylesName ? await zip.file(stylesName).async('string') : '';
+    const m = styles.match(/<fgColor rgb="([^"]*)"/);
+    const reload = new ExcelJS.Workbook();
+    await reload.xlsx.load(buffer);
+    const fill = reload.getWorksheet('S').getCell('A1').fill;
+    return {rgb: m ? m[1] : null, reRead: (fill && fill.fgColor && fill.fgColor.argb) || null};
+  };
+  const valid = await write('FFBFBFBF');
+  const hash = await write('#FFBFBFBF');
+  return {validRgb: valid.rgb, validReRead: valid.reRead, hashRgb: hash.rgb, hashReRead: hash.reRead};
+}
+
+// Write a table with a given style theme and report the emitted tableStyleInfo → { real, none,
+// nullTheme } where each is { ok, name, hasStripes }. A real built-in theme emits its name; a null/
+// absent theme correctly omits the name attribute (an unstyled table). The 'None' theme (Excel's
+// "no style" choice) should likewise produce an unstyled table with no name — but the writer emits
+// the literal name="None", a reference to a non-existent style, instead of omitting it.
+export async function tableStyleThemeReport() {
+  const write = async theme => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S');
+    const style = theme === undefined ? {showRowStripes: true} : {theme, showRowStripes: true};
+    try {
+      ws.addTable({name: 'T', ref: 'A1', headerRow: true, style, columns: [{name: 'C1'}], rows: [['a']]});
+      const zip = await JSZip.loadAsync(await wb.xlsx.writeBuffer());
+      const tableName = Object.keys(zip.files).find(f => /xl\/tables\/table\d*\.xml$/.test(f));
+      const xml = tableName ? await zip.file(tableName).async('string') : '';
+      const info = (xml.match(/<tableStyleInfo\b[^>]*>/) || [''])[0];
+      const nameMatch = info.match(/name="([^"]*)"/);
+      return {ok: true, name: nameMatch ? nameMatch[1] : null, hasStripes: /showRowStripes="1"/.test(info)};
+    } catch (e) {
+      return {ok: false, name: null, hasStripes: false, error: String((e && e.message) || e)};
+    }
+  };
+  return {real: await write('TableStyleMedium2'), none: await write('None'), nullTheme: await write(null)};
+}
+
+// Read a bold font flag serialized three ways — a bare tag, an explicit-false tag, an explicit-true
+// tag — by injecting each into a written styles part → { bareTag, valOne, valZero }. OOXML boolean
+// font flags default to true when the tag is present with no val, but `val="0"` means the flag is
+// OFF. The reader ignores the val attribute and returns true on tag presence, so an explicit-false
+// `<b val="0"/>` is read as bold — corrupting styles (notably conditional-formatting dxf fonts that
+// explicitly disable a flag) on round-trip.
+export async function fontExplicitFalseBoldReport() {
+  const readBoldWith = async tag => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'x';
+    ws.getCell('A1').font = {bold: true};
+    const zip = await JSZip.loadAsync(await wb.xlsx.writeBuffer());
+    const stylesName = Object.keys(zip.files).find(f => /xl\/styles\.xml$/.test(f));
+    let styles = await zip.file(stylesName).async('string');
+    styles = styles.replace(/<b ?\/>/, tag);
+    zip.file(stylesName, styles);
+    const reload = new ExcelJS.Workbook();
+    await reload.xlsx.load(await zip.generateAsync({type: 'nodebuffer'}));
+    const font = reload.getWorksheet('S').getCell('A1').font;
+    return !!(font && font.bold);
+  };
+  return {
+    bareTag: await readBoldWith('<b/>'),
+    valOne: await readBoldWith('<b val="1"/>'),
+    valZero: await readBoldWith('<b val="0"/>'),
+  };
+}
+
 // Read a richText (or primitive) cell value back into a plain shape a case can compare:
 // { richText:[{text, bold, italic}] } or the primitive itself.
 const readStreamCell = v => {
