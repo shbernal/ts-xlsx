@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + seventeen unlabeled slices; 346/794 = 44%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + eighteen unlabeled slices; 361/794 = 45%; fixture-less bulk drain underway)._
 
 ---
 
@@ -402,7 +402,20 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     drawing tolerance (loads fine here too); streaming memory → backpressure; .xls → unsupported-format;
     browser large-write → browser-streaming. Plus four legacy build/support/deps reports. Corpus
     **256 green / 123 known-open / 0 regressions**; 144 corpus cases + 89 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (448 remaining, all fixture-less) in ~15-record
+  - **Eighteenth slice — fixture-less bulk, top-15 by comment signal — drained** (361/794, 45%).
+    4 corpus cases + 1 augment + 2 spec notes + 8 not-carried (6 folds + 2 non-actionable). One
+    genuine known-open: NaN/Infinity/-Infinity numeric cell values serialize as bare `<v>NaN</v>`
+    tokens Excel treats as unreadable. The rest flipped to locks under probing: inserted-row cells
+    stay mutable with style inheritance (the "object is not extensible" freeze doesn't reproduce); a
+    slave-cell write resolves to the merge master (no stray value); a numeric-looking string stays a
+    string with its trailing/leading zeros; cross-sheet reference column letters stay uppercase
+    (augmented into the cross-sheet case). Spec notes: CF cellIs string-literal quoting + expression
+    per-cell translation; xlsx date-detection control + opt-out. Adapter grew: `insertRowThenStyle`,
+    `mergeSlaveWrite`, `nonFiniteCellReport`. Not-carried folds: splice-styles → existing case,
+    x:sst namespace → miniexcel case, xlsm → macro note, pivot → pivot artifacts, streaming-http →
+    incremental-http note, rowspan/colspan → html-export note. Corpus **266 green / 126 known-open /
+    0 regressions**; 148 corpus cases + 91 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (433 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -456,12 +469,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **346/794 (44%)**; **all labeled clusters + seventeen unlabeled slices are drained; the
+Drain at **361/794 (45%)**; **all labeled clusters + eighteen unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (256 green / 123
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (266 green / 126
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (448 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (433 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
