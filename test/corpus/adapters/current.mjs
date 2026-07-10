@@ -54,6 +54,9 @@ import {
   spliceShiftsRefs,
   mergeCleanReport,
   tableColumnStyleReport,
+  insertRowThenStyle,
+  mergeSlaveWrite,
+  nonFiniteCellReport,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -333,6 +336,21 @@ export default {
   // — for asserting the column style is merged into the body cells without corrupting the package.
   // See workbook-io.mjs.
   tableColumnStyleReport,
+
+  // Insert a row with a style-inheritance mode, then assign numFmt/font to an inserted cell →
+  // { error, numFmt } — for asserting inherited-style cells stay mutable (no "object is not
+  // extensible" throw). See workbook-io.mjs.
+  insertRowThenStyle,
+
+  // Merge a range and write a value to a NON-master (slave) cell → { cellsWithValue, merges,
+  // masterValue, slaveValue } — for asserting the slave write resolves to the master with no stray
+  // slave value. See workbook-io.mjs.
+  mergeSlaveWrite,
+
+  // Assign a non-finite number (NaN/Infinity) to a cell → { writeOk, token, hasNonFiniteToken,
+  // reloadOk } — for asserting the writer never emits a bare NaN/Infinity token into a numeric
+  // cell. See workbook-io.mjs.
+  nonFiniteCellReport,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign

@@ -62,5 +62,18 @@ export default {
         );
       },
     },
+    {
+      // Not just the sheet name — the COLUMN LETTERS inside the reference must stay uppercase. A
+      // reported defect lower-cased "$A$2" to "$a$2", producing a subtly wrong/invalid reference.
+      name: 'the column letters of a cross-sheet reference stay uppercase (not lower-cased)',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const {xml} = await api.authorListValidations([{ref: 'A1', formula: 'Levels!$A$2:$A$8'}]);
+        assert.ok(
+          xml.formula1.some(f => f === 'Levels!$A$2:$A$8'),
+          `the reference must keep uppercase column letters; got ${JSON.stringify(xml.formula1)}`
+        );
+      },
+    },
   ],
 };

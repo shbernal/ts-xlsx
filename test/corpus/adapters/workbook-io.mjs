@@ -1372,6 +1372,93 @@ export async function mergeCleanReport({anchor = 'B1', range = 'B1:G1', value = 
   };
 }
 
+// Insert a row using a style-inheritance mode (copy style from an adjacent row) and then assign a
+// numFmt and toggle a font property on a cell of the inserted row — for asserting inherited-style
+// cells stay mutable rather than being frozen (a `preventExtensions`-style "object is not extensible"
+// throw). Reports whether the style assignment threw and what numFmt the cell ends up with.
+export function insertRowThenStyle(styleMode = 'i') {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 'header';
+  sheet.getCell('A1').font = {bold: true};
+  sheet.getCell('A2').value = 'data';
+  let error = null;
+  let numFmt = null;
+  try {
+    sheet.insertRow(2, ['inserted'], styleMode);
+    const cell = sheet.getCell('A2');
+    cell.numFmt = '$#,##0.00;[Red]-$#,##0.00';
+    cell.font = {...cell.font, bold: true};
+    numFmt = cell.numFmt;
+  } catch (e) {
+    error = String((e && e.message) || e);
+  }
+  return {error, numFmt};
+}
+
+// Merge a rectangular range (master = top-left), set a value by addressing a NON-master (slave) cell
+// inside the merge, write, and report which cells carry an independent value in the worksheet XML,
+// the merge declaration, and the re-read master/slave values — for asserting the slave write resolves
+// to the master (no stray value on a slave cell inside a merged span, which is malformed).
+export async function mergeSlaveWrite({range = 'A1:B2', slave = 'B2', value = 'slave-write'} = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.mergeCells(range);
+  sheet.getCell(slave).value = value;
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const xml = name ? await zip.files[name].async('string') : '';
+  const cellsWithValue = [...xml.matchAll(/<c r="([A-Z]+\d+)"[^>]*>[\s\S]*?<v>/g)].map(m => m[1]);
+  const merges = [...xml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map(m => m[1]);
+  const master = range.split(':')[0];
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const s = reread.getWorksheet('S');
+  return {
+    cellsWithValue,
+    merges,
+    masterValue: s.getCell(master).value ?? null,
+    slaveValue: s.getCell(slave).value ?? null,
+  };
+}
+
+// Assign a non-finite numeric value (NaN, Infinity, -Infinity) to a cell, write, and report the raw
+// `<v>` token emitted for it plus whether the package reloads — for asserting the writer never emits
+// a bare NaN/Infinity token into a numeric cell (which Excel treats as unreadable content).
+export async function nonFiniteCellReport(kind = 'NaN') {
+  const value = kind === 'Infinity' ? Infinity : kind === '-Infinity' ? -Infinity : NaN;
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = value;
+  let writeError = null;
+  let buffer;
+  try {
+    buffer = await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeOk: false, writeError: String((e && e.message) || e), token: null, hasNonFiniteToken: null, reloadOk: null};
+  }
+  const zip = await JSZip.loadAsync(buffer);
+  const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const xml = name ? await zip.files[name].async('string') : '';
+  const cell = (xml.match(/<c r="A1"[^>]*>[\s\S]*?<\/c>|<c r="A1"[^>]*\/>/) || [''])[0];
+  const vToken = (cell.match(/<v>([\s\S]*?)<\/v>/) || [])[1] ?? null;
+  let reloadOk = true;
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(buffer);
+  } catch (e) {
+    reloadOk = false;
+  }
+  return {
+    writeOk: true,
+    writeError,
+    token: vToken,
+    hasNonFiniteToken: vToken != null && /NaN|Infinity/.test(vToken),
+    reloadOk,
+  };
+}
+
 // Author a table with a per-column style (e.g. a numFmt) on one column, write, reload, and report the
 // body cells' number formats for the styled column and an unstyled column — for asserting a table
 // column style is merged into the body cells (they carry the format) without corrupting the package
