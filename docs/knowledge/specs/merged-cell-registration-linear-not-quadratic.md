@@ -27,6 +27,12 @@ thousands of merges this dominates load time.
 - A merge only ever conflicts with a cell already part of another merge, so the collision check
   should consult a **per-cell "already merged" index** (each cell records its master), making each
   registration proportional to its own area rather than to the count of prior merges.
+- **Merge *lookup* is efficient too, not just registration.** Determining whether a given cell
+  participates in a merge — and resolving which range it belongs to (master vs. covered/slave) — is a
+  frequent operation during read, write, and cell access. It must be an amortized-constant lookup
+  against the same index, never a linear scan of all merge ranges per cell (which is the read/access
+  sibling of the O(n²) registration cost). The result must be identical to a naive scan: the master
+  cell, the covered cells, and the reported bounds are unchanged — only the time complexity improves.
 
 ## Open questions
 
@@ -38,6 +44,11 @@ thousands of merges this dominates load time.
   reading` and the other tolerance notes.)
 - What is the target: a memory-bounded per-cell index vs. an interval tree — and which wins for
   the common "one merge per row" shape.
+- Build the index lazily on first merge query, or maintain it incrementally as merges are added/
+  removed? And how does it interact with streaming read/write, where the full merge set may not be
+  known up front when a cell is first accessed?
+- A large-merge-count fixture as a performance regression guard (behind an opt-in slow tag) so the
+  quadratic behavior — in registration or lookup — cannot silently return.
 
 Related: `whole-column-data-validation-bounded-memory` (the same "don't materialize per-cell state
 for a range feature" principle).
