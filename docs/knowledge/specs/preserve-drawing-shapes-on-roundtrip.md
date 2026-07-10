@@ -27,8 +27,21 @@ Two levels of ambition:
    regenerated image anchors with preserved shape anchors, not choose one wholesale — otherwise
    regenerating the drawing from the image model alone drops the shapes (the current failure), or
    preserving verbatim drops newly-added images.
-2. **First-class modeling (stretch).** A real API to create/edit shapes (position, geometry preset,
-   text, fill, line). A large surface, likely out of scope for the initial rewrite.
+2. **First-class modeling (stretch).** A real API to create/edit shapes as siblings of images in the
+   drawing collection. The concrete authoring surface (from a second, more detailed report):
+   `addShape(shapeSpec, rangeOrAnchor, { hyperlink, tooltip })` where the spec carries a **preset
+   geometry** (`prstGeom` presets — `roundRect`, `rect`, `ellipse`, arrows, …), an **anchor** (one- or
+   two-cell), a **rotation**, a **solid fill** (RGB, later scRGB/theme), an **outline** (`ln`: weight,
+   color, dash pattern like `sysDash`), and a **text body** — an ordered list of paragraphs, each with
+   a horizontal alignment and a list of runs (plain text, or text + font: bold/italic/size/color),
+   plus the box's vertical alignment. OOXML mapping: shapes are `<xdr:sp>` in a one/two-cell anchor,
+   parallel to `<xdr:pic>`; `spPr` holds `xfrm`/`prstGeom`/`solidFill`/`ln`, `txBody` holds `bodyPr`
+   (vertical align) + `a:p` paragraphs (`a:pPr` align, `a:r` runs with `a:rPr`+`a:t`), `nvSpPr` carries
+   name/id + optional hyperlink. Reuse the existing image-anchor and color/theme vocabulary rather
+   than a shape-local one. Large surface; verbatim preservation (level 1) is the safer near-term win,
+   with typed modeling layered on where fidelity is guaranteed. Unknown geometry presets, unsupported
+   fill/line types, and unmodeled run properties must degrade predictably (prefer verbatim
+   passthrough) rather than fail the load.
 
 ## Prior art
 
