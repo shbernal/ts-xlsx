@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + fourteen unlabeled slices; 301/794; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + fifteen unlabeled slices; 316/794 = 40%; fixture-less bulk drain underway)._
 
 ---
 
@@ -359,7 +359,20 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     carried: inflight CVE, UMD-bundle Vite/Rollup, and four folds (insert/merge → existing shift
     cases, streaming addImage → existing note, browser fs → browser-safe-io, esm-class → published-
     types). Corpus **227 green / 109 known-open / 0 regressions**; 129 corpus cases + 86 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (493 remaining, all fixture-less) in ~15-record
+  - **Fifteenth slice — fixture-less bulk, top-15 by comment signal — drained** (316/794, 40%).
+    4 corpus cases + 1 spec note + 10 not-carried (6 folds + 4 legacy/env). Folds now DOMINATE:
+    six of the fifteen were duplicates of artifacts written in earlier slices (missing-app.xml,
+    xlfn IFS, chart support, streaming backpressure, whole-column-validation memory, table-name/
+    coexistence multi-report). Two genuine known-opens: the databar **gradient flag is written but
+    dropped on read**, and **image rotation is dropped on a load/save round-trip**. The rest flipped
+    to locks under probing (per-cell fill doesn't leak to column siblings; databar type/color/cfvo
+    round-trip; a totals-row-formula table column loads without the reported filter-button crash).
+    1348 (sheetPr child order) → spec note: the writer doesn't emit `<outlinePr>` from summary
+    settings, so the corruption isn't reachable yet. Adapter grew: table columns accept rich
+    `columnDefs` (totalsRowFunction) + `displayName`; new `authorConditionalFormatting` +
+    `roundtripFixtureImageRotation`. New fixture: an image anchor with an injected rotation. Corpus
+    **237 green / 111 known-open / 0 regressions**; 133 corpus cases + 87 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (478 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -413,12 +426,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **301/794 (~38%)**; **all labeled clusters + fourteen unlabeled slices are drained; the
+Drain at **316/794 (40%)**; **all labeled clusters + fifteen unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (227 green / 109
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (237 green / 111
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (493 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (478 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
