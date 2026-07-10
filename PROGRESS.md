@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + thirteen unlabeled slices; 286/794; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + fourteen unlabeled slices; 301/794; fixture-less bulk drain underway)._
 
 ---
 
@@ -343,7 +343,23 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     (dead browser), four dependency-bump/CVE reports (audit gate subsumes), streaming backpressure
     (dup of the row-commit-backpressure note). Corpus **217 green / 107 known-open / 0 regressions**;
     125 corpus cases + 81 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (508 remaining, all fixture-less) in ~15-record
+  - **Fourteenth slice — fixture-less bulk, top-15 by comment signal — drained** (301/794, ~38%).
+    4 corpus cases + 5 spec notes + 6 not-carried (2 genuine + 4 folds). Probing overturned FOUR
+    triage guesses into locks this slice: **per-cell/column alignment doesn't leak** (no shared-style
+    bleed), **a chart-graphicFrame drawing loads tolerantly** (the reported "anchors" crash doesn't
+    reproduce), **a workbook missing docProps/app.xml loads fine** (company/manager left unset), and
+    injected **out-of-range row numbers load without throwing** (→ kept as a spec note since a
+    synthetic fixture may not represent the real SpreadsheetGear trigger). Only genuine known-open:
+    **illegal table names** (spaces/apostrophe/leading digit) are written through, producing a
+    repair-prompting file. Adapter grew: buildFrom columns accept `alignment`. New fixtures: a chart-
+    graphicFrame drawing, a package with app.xml stripped. Spec notes: whole-file password encryption
+    (CFB/MS-OFFCRYPTO), lean-zip container over native CompressionStream, pivot multi-value fields,
+    foreign row-number tolerance, cell-padding-vs-indent honesty. Augment folded in: published-types
+    note gained the runtime interop dimension (class-called-as-function under SSR bundlers). Not-
+    carried: inflight CVE, UMD-bundle Vite/Rollup, and four folds (insert/merge → existing shift
+    cases, streaming addImage → existing note, browser fs → browser-safe-io, esm-class → published-
+    types). Corpus **227 green / 109 known-open / 0 regressions**; 129 corpus cases + 86 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (493 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -397,12 +413,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **286/794 (~36%)**; **all labeled clusters + thirteen unlabeled slices are drained; the
+Drain at **301/794 (~38%)**; **all labeled clusters + fourteen unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (217 green / 107
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (227 green / 109
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (508 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (493 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
