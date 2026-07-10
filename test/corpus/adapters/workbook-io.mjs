@@ -3249,6 +3249,169 @@ export async function wideTableColumnReadReport() {
   return {colCount: columns.length, colNames: columns.map(c => c.name)};
 }
 
+// Read a CSV with the default per-value transformation and with an identity map, and report the
+// resulting cell value + type for a leading-zero id and a decimal → { default: {a, aType, b, bType},
+// identity: {...} }. The default map coerces numeric-looking cells to numbers (losing the leading
+// zero); an identity map preserves the raw strings verbatim, giving the caller control over (and a
+// fast path past) the per-value coercion.
+export async function csvReadMapReport() {
+  const csv = 'id,amount\n007,32.5\n008,40';
+  const read = async map => {
+    const wb = new ExcelJS.Workbook();
+    const ws = await wb.csv.read(Readable.from([csv]), map ? {map} : undefined);
+    const row = ws.getRow(2);
+    const a = row.getCell(1).value;
+    const b = row.getCell(2).value;
+    return {a, aType: typeof a, b, bType: typeof b};
+  };
+  return {default: await read(null), identity: await read(v => v)};
+}
+
+// Attempt to add a worksheet named "History" (a name Excel reserves in its UI but which is a valid
+// document-model sheet name), and separately a genuinely-invalid name → { addThrew, addError,
+// roundtripName, invalidRejected }. The reserved-name guard over-applies an Excel UI-authoring
+// restriction to the document model, throwing when a caller constructs a "History" sheet; genuinely
+// invalid names (containing / \ ? * [ ] :) must still be rejected.
+export async function addReservedSheetNameReport() {
+  let addThrew = false;
+  let addError = null;
+  let roundtripName = null;
+  try {
+    const wb = new ExcelJS.Workbook();
+    wb.addWorksheet('History').getCell('A1').value = 1;
+    const reload = new ExcelJS.Workbook();
+    await reload.xlsx.load(await wb.xlsx.writeBuffer());
+    roundtripName = reload.worksheets[0].name;
+  } catch (e) {
+    addThrew = true;
+    addError = String((e && e.message) || e);
+  }
+  let invalidRejected = false;
+  try {
+    new ExcelJS.Workbook().addWorksheet('a/b');
+  } catch {
+    invalidRejected = true;
+  }
+  return {addThrew, addError, roundtripName, invalidRejected};
+}
+
+// Stream-write a worksheet carrying BOTH an autoFilter and sheet protection, and report the relative
+// order of the two elements plus package validity → { protectThrew, sheetProtectionBeforeAutoFilter,
+// reloadOk }. CT_Worksheet requires <sheetProtection> before <autoFilter>; the streaming writer emits
+// them reversed, which strict consumers reject as corrupt (the buffered writer orders them correctly).
+export async function streamAutoFilterProtectionOrder() {
+  const chunks = [];
+  const stream = new PassThrough();
+  const drained = new Promise(res => {
+    stream.on('data', c => chunks.push(c));
+    stream.on('end', res);
+    stream.on('close', res);
+  });
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream});
+  const ws = writer.addWorksheet('S');
+  ws.addRow(['H1', 'H2']);
+  ws.addRow(['a', 'b']);
+  ws.autoFilter = 'A1:B1';
+  let protectThrew = false;
+  try {
+    await ws.protect('pw', {});
+  } catch {
+    protectThrew = true;
+  }
+  ws.commit();
+  await writer.commit();
+  await drained;
+  const buffer = Buffer.concat(chunks);
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetName = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const xml = sheetName ? await zip.file(sheetName).async('string') : '';
+  const posProt = xml.indexOf('<sheetProtection');
+  const posAf = xml.indexOf('<autoFilter');
+  let reloadOk = true;
+  try {
+    await new ExcelJS.Workbook().xlsx.load(buffer);
+  } catch {
+    reloadOk = false;
+  }
+  return {
+    protectThrew,
+    sheetProtectionBeforeAutoFilter: posProt >= 0 && posAf >= 0 && posProt < posAf,
+    reloadOk,
+  };
+}
+
+// Read the display text of a merge master and a merged child cell → { masterText, childText,
+// childThrew }. Reading a merged child (non-master) cell's text must not throw and must mirror the
+// master's text, so a consumer iterating cells of a merged range sees consistent text everywhere.
+export async function mergedCellDisplayTextReport() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 'Group';
+  ws.mergeCells('A1:B1');
+  let masterText = null;
+  let childText = null;
+  let childThrew = false;
+  try {
+    masterText = ws.getCell('A1').text;
+  } catch {
+    masterText = null;
+  }
+  try {
+    childText = ws.getCell('B1').text;
+  } catch {
+    childThrew = true;
+  }
+  return {masterText, childText, childThrew};
+}
+
+// Author a worksheet with three columns of distinct widths (one hidden), reverse the <col> tags in
+// the written sheet XML so they appear out of ascending index order (as some foreign generators
+// emit), reload, and report each column's recovered properties → { w1, w2, w3, hidden2 }. Column
+// properties must stay associated with the correct column index regardless of <col> document order.
+export async function outOfOrderColumnsReport() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getColumn(1).width = 10;
+  ws.getColumn(2).width = 20;
+  ws.getColumn(3).width = 30;
+  ws.getColumn(2).hidden = true;
+  ws.getCell('A1').value = 'x';
+  const zip = await JSZip.loadAsync(await wb.xlsx.writeBuffer());
+  const sheetName = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  let xml = await zip.file(sheetName).async('string');
+  const colsBlock = xml.match(/<cols>([\s\S]*?)<\/cols>/);
+  if (colsBlock) {
+    const cols = [...colsBlock[1].matchAll(/<col\b[^>]*\/>/g)].map(m => m[0]);
+    xml = xml.replace(colsBlock[0], `<cols>${cols.reverse().join('')}</cols>`);
+    zip.file(sheetName, xml);
+  }
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(await zip.generateAsync({type: 'nodebuffer'}));
+  const s = reload.getWorksheet('S');
+  return {
+    w1: s.getColumn(1).width,
+    w2: s.getColumn(2).width,
+    w3: s.getColumn(3).width,
+    hidden2: !!s.getColumn(2).hidden,
+  };
+}
+
+// Set an outline (grouping) level on a row and on a column, round-trip, and report the recovered
+// levels → { rowOutline, colOutline }. Outline levels group rows/columns for fold/unfold; each must
+// survive a write/read cycle on its row and column respectively.
+export async function rowColumnOutlineLevelRoundtrip() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 1;
+  ws.getCell('A2').value = 2;
+  ws.getRow(2).outlineLevel = 1;
+  ws.getColumn(2).outlineLevel = 1;
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(await wb.xlsx.writeBuffer());
+  const s = reload.getWorksheet('S');
+  return {rowOutline: s.getRow(2).outlineLevel, colOutline: s.getColumn(2).outlineLevel};
+}
+
 // Read a richText (or primitive) cell value back into a plain shape a case can compare:
 // { richText:[{text, bold, italic}] } or the primitive itself.
 const readStreamCell = v => {

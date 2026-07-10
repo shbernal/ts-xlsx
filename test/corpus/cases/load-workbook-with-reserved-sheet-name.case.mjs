@@ -1,14 +1,17 @@
 // Cluster: xlsx-io
 //
 // Real-world scenario: an existing .xlsx contains a worksheet named "History" — a Microsoft-reserved
-// worksheet name Excel forbids users from creating manually, yet a file that already has such a sheet
-// opens fine in Excel. When the library loads this workbook it throws, because it applies its
-// reserved-name validation guard to the incoming name. The guard is meant to protect a user who is
-// creating or renaming a sheet through the API — not to reject sheets that already exist in a
-// foreign-generated file. Loading a pre-existing file must never fail on name validation.
+// worksheet name Excel blocks in its UI (a Track-Changes/shared-workbook nicety), yet a file that
+// already has such a sheet opens fine in Excel and "History" is a perfectly valid OOXML sheet name.
+// The library over-applies that UI restriction to the document model: it throws both when loading a
+// foreign file that contains a "History" sheet AND when a caller constructs one through the API.
+// Neither should fail — only genuinely-invalid names (illegal characters, over-length, empty) belong
+// in the reject set. Loading a pre-existing file must never fail on name validation, and adding a
+// "History" sheet is a legitimate document-model operation.
 //
-// The fixture is a workbook whose sheet was renamed to "History" in the stored XML, reproducing the
-// foreign file without the API's own guard blocking its authoring.
+// The load fixture is a workbook whose sheet was renamed to "History" in the stored XML, reproducing
+// the foreign file without the API's own guard blocking its authoring. The add-side behaviors
+// exercise the guard directly on construction.
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
@@ -39,6 +42,23 @@ export default {
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(sheetNames && sheetNames.includes('History'), `the History sheet must survive; got ${JSON.stringify(sheetNames)}`);
+      },
+    },
+    {
+      name: 'constructing a worksheet named "History" through the API is permitted',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {addThrew, roundtripName, addError} = await api.addReservedSheetNameReport();
+        assert.strictEqual(addThrew, false, `adding a "History" sheet must not throw; got ${JSON.stringify(addError)}`);
+        assert.strictEqual(roundtripName, 'History', 'the constructed History sheet round-trips with its name');
+      },
+    },
+    {
+      name: 'a genuinely-invalid sheet name is still rejected',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const {invalidRejected} = await api.addReservedSheetNameReport();
+        assert.strictEqual(invalidRejected, true, 'a name with an illegal character (a/b) is still rejected');
       },
     },
   ],

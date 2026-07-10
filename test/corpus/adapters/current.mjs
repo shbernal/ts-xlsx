@@ -41,6 +41,12 @@ import {
   tabColorRoundtrip,
   cellAnchoredImagePositionReport,
   wideTableColumnReadReport,
+  csvReadMapReport,
+  addReservedSheetNameReport,
+  streamAutoFilterProtectionOrder,
+  mergedCellDisplayTextReport,
+  outOfOrderColumnsReport,
+  rowColumnOutlineLevelRoundtrip,
   sharedFormulaRoundtripAndSplice,
   streamWriteCfHyperlinkOrder,
   roundtripFormulas,
@@ -310,6 +316,32 @@ export default {
   // Write a wide (5-column) table, read it back → { colCount, colNames } — for locking a loaded table
   // exposes every column, not a fixed cap. See workbook-io.mjs.
   wideTableColumnReadReport,
+
+  // Read a CSV with the default map and an identity map → { default, identity } each { a, aType, b,
+  // bType } — for asserting the map option governs per-value coercion. See workbook-io.mjs.
+  csvReadMapReport,
+
+  // Add a worksheet named "History" and a genuinely-invalid name → { addThrew, addError,
+  // roundtripName, invalidRejected } — for asserting a reserved-in-Excel name is a valid document
+  // model name while truly-invalid names are still rejected. See workbook-io.mjs.
+  addReservedSheetNameReport,
+
+  // Stream-write a worksheet with autoFilter + sheet protection → { protectThrew,
+  // sheetProtectionBeforeAutoFilter, reloadOk } — for asserting CT_Worksheet element order
+  // (sheetProtection before autoFilter). See workbook-io.mjs.
+  streamAutoFilterProtectionOrder,
+
+  // Read master + merged-child cell display text → { masterText, childText, childThrew } — for
+  // asserting a merged child's text mirrors the master and does not throw. See workbook-io.mjs.
+  mergedCellDisplayTextReport,
+
+  // Reverse the <col> tags in written sheet XML, reload → { w1, w2, w3, hidden2 } — for asserting
+  // column properties stay bound to the right index regardless of <col> document order. See workbook-io.mjs.
+  outOfOrderColumnsReport,
+
+  // Set outline levels on a row and a column, round-trip → { rowOutline, colOutline } — for
+  // asserting outline (grouping) levels survive on rows and columns. See workbook-io.mjs.
+  rowColumnOutlineLevelRoundtrip,
 
   // Author a shared-formula master/slave group, read-then-rewrite it, and splice a column in →
   // { roundtripOk, preservedFormulas, spliceOk, spliceError } — for asserting a lossless
