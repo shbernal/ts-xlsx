@@ -27,6 +27,12 @@ into `any` casts or module augmentation to use them. Two concrete instances from
    constructor" type error and had to deep-import the internal module with `@ts-ignore`. Any runtime
    value export (a class or a namespace object) must have a *value*-level declaration, not merely a
    same-named type, so `new`, `instanceof`, and static members type-check.
+6. **Streaming worksheet reader `name`** — iterating the streaming `WorkbookReader` yields a
+   per-worksheet reader whose `name` property the library populates at runtime (the sheet's name),
+   but the published `WorksheetReader` type omits it. The idiomatic loop — `for await (const ws of
+   reader) console.log(ws.name)` — then errors under TypeScript, forcing a cast on the exact property
+   the reader exists to expose. This is the streaming counterpart of the drift above: the streaming
+   reader types must expose every field the reader sets, `name` among them.
 
 > Spec note, not a corpus case: the runtime behavior largely exists — the defect is a type-surface
 > completeness gap, pinned by type-level tests (`expectTypeOf`/tsd) plus a behavioral round-trip
