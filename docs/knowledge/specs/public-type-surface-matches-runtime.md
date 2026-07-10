@@ -15,6 +15,12 @@ into `any` casts or module augmentation to use them. Two concrete instances from
    attribute (the password-hash iteration work factor), and the runtime honors it, but the
    `WorksheetProtection` options type omits it, so a caller cannot configure the hardening factor in
    a typed way.
+3. **Streaming writer `stream` accessor** — the streaming `WorkbookWriter` exposes a `stream` property
+   at runtime (the underlying writable the package is emitted to), but the published type omits it, so
+   a TypeScript caller inspecting or wiring up the stream must cast.
+4. **`Range.forEachAddress` iteration** — the `Range` model exposes an address-iteration callback at
+   runtime (walk every cell address in the range), but the published type omits it, forcing `@ts-ignore`
+   on the exact ergonomic loop it exists to serve (applying a style to each address in a block).
 
 > Spec note, not a corpus case: the runtime behavior largely exists — the defect is a type-surface
 > completeness gap, pinned by type-level tests (`expectTypeOf`/tsd) plus a behavioral round-trip

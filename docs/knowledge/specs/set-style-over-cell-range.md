@@ -39,6 +39,12 @@ cell in the block silently stays unstyled).
 - Empty-cell materialization: create styled empty cells across the whole block eagerly, or lazily via
   a column/row style so a 10,000-row block does not instantiate 10,000 cell objects?
 - Interaction with column/row-level styles and with merged ranges that partially overlap the target.
+- Address-iteration primitive: legacy exposes a `Range.forEachAddress(cb)` that walks every cell
+  address in the block, and the documented workaround for range styling is
+  `range.forEachAddress(addr => ws.getCell(addr).style = {...style})`. If `Range` becomes a first-class
+  type, is per-address iteration part of its public surface (typed, so no `@ts-ignore`), and is a bulk
+  `setRangeStyle` just sugar over it? Iterating addresses and materializing a cell object per address is
+  the eager-materialization cost this note already flags for large blocks.
 
 Related: `shared-styles-deduplicated-in-written-package`, `per-cell-fill-isolation`,
 `per-cell-font-isolation`, `column-level-value-type`, `worksheet-get-columns-range-accessor`,
