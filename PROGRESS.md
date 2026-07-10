@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + twenty-one unlabeled slices; 406/794 = 51%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twenty-two unlabeled slices; 421/794 = 53%; fixture-less bulk drain underway)._
 
 ---
 
@@ -449,7 +449,18 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     authoring API. Adapter grew: unstyledCellFontReport, loadMutateCellBorder, hiddenEmptyRowReport,
     streamAddRowAfterCommit, tableCellEditRoundtrip, columnBorderScopedReport. Corpus **285 green /
     141 known-open / 0 regressions**; 160 corpus cases + 96 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (388 remaining, all fixture-less) in ~15-record
+  - **Twenty-second slice — fixture-less bulk, top-15 by comment signal — drained** (421/794, 53%).
+    8 corpus cases + 1 spec note + 6 not-carried (4 folds + 2 non-reproducible). A big known-open
+    haul from the write-side/validation veins: table column name emits raw CR/LF (unescaped); an
+    internal '#' hyperlink gets a spurious external relationship; useSharedStrings=false has no
+    effect; a DV formula keeps its leading '='; a whole-type DV with a cell-reference operand reads
+    back null; an x14 extLst CF crashes the writer on re-write. Locks: duplicateRow copies faithfully
+    + merge-after-dup succeeds; streaming commit rejects on a bad destination (doesn't hang). Two
+    fixtures (DV reference operands, x14 extLst CF). Spec note: image accessibility (alt-text +
+    decorative). Adapter grew by 7 capabilities. Folds: comment auto-size → comment-note-box case,
+    print areas → print-areas case, append-to-loaded-table → its case. Corpus **296 green / 148
+    known-open / 0 regressions**; 168 corpus cases + 97 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (373 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -503,12 +514,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **406/794 (51%)**; **all labeled clusters + twenty-one unlabeled slices are drained; the
+Drain at **421/794 (53%)**; **all labeled clusters + twenty-two unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (285 green / 141
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (296 green / 148
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (388 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (373 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
