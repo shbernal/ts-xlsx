@@ -35,6 +35,8 @@ import {
   fillArgbHashPrefixReport,
   tableStyleThemeReport,
   fontExplicitFalseBoldReport,
+  outlinePropertiesRoundtrip,
+  rowInsertPreservesNoteAndOutline,
   sharedFormulaRoundtripAndSplice,
   streamWriteCfHyperlinkOrder,
   roundtripFormulas,
@@ -278,6 +280,16 @@ export default {
   // valZero } — for asserting an explicit-false <b val="0"/> reads as false, not true. See
   // workbook-io.mjs.
   fontExplicitFalseBoldReport,
+
+  // Set worksheet outline summary-position properties, write, and report serialization + round-trip
+  // → { outlinePrEmitted, reReadSummaryBelow, reReadSummaryRight } — for locking the outlinePr write
+  // path is faithful. See workbook-io.mjs.
+  outlinePropertiesRoundtrip,
+
+  // Insert a row above a noted, outlined row and report what followed → { dataShifted,
+  // noteFollowsRow, outlineFollowsRow } — for asserting a cell note and an outline level track their
+  // logical row through an insert. See workbook-io.mjs.
+  rowInsertPreservesNoteAndOutline,
 
   // Author a shared-formula master/slave group, read-then-rewrite it, and splice a column in →
   // { roundtripOk, preservedFormulas, spliceOk, spliceError } — for asserting a lossless

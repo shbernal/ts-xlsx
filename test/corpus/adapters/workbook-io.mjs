@@ -3102,6 +3102,55 @@ export async function fontExplicitFalseBoldReport() {
   };
 }
 
+// Set worksheet outline summary-position properties (summaryBelow/summaryRight = false), write, and
+// report the serialization and round-trip → { outlinePrEmitted, reReadSummaryBelow,
+// reReadSummaryRight }. The values serialize as <outlinePr summaryBelow="0" summaryRight="0"/> in the
+// sheet properties and read back onto worksheet.properties.outlineProperties — locking that the
+// runtime write path exists and is faithful (the public TypeScript type omitting outlineProperties
+// is a separate type-surface concern).
+export async function outlinePropertiesRoundtrip() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S', {properties: {outlineProperties: {summaryBelow: false, summaryRight: false}}});
+  ws.getCell('A1').value = 'x';
+  const buffer = await wb.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetName = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const sheetXml = sheetName ? await zip.file(sheetName).async('string') : '';
+  const outlinePr = (sheetXml.match(/<outlinePr\b[^>]*\/?>/) || [''])[0];
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(buffer);
+  const props = (reload.getWorksheet('S').properties || {}).outlineProperties || {};
+  return {
+    outlinePrEmitted: /summaryBelow="0"/.test(outlinePr) && /summaryRight="0"/.test(outlinePr),
+    reReadSummaryBelow: props.summaryBelow ?? null,
+    reReadSummaryRight: props.summaryRight ?? null,
+  };
+}
+
+// Insert a row above a row that carries a cell note and an outline level, then report what followed
+// the shift → { dataShifted, noteFollowsRow, outlineFollowsRow }. The cell values shift down
+// correctly, but the cell note is dropped entirely by the insert, and the outline level stays pinned
+// to its old absolute row index rather than following the logical row it belonged to — so after an
+// insert the outline grouping lands on the wrong row and the note is gone.
+export async function rowInsertPreservesNoteAndOutline() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 'r1';
+  ws.getCell('A2').value = 'r2';
+  ws.getCell('A2').note = 'mynote';
+  ws.getRow(2).outlineLevel = 1;
+  ws.insertRow(1, ['new']); // r1 -> row 2, r2 (noted, outlined) -> row 3
+  const buffer = await wb.xlsx.writeBuffer();
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(buffer);
+  const s = reload.getWorksheet('S');
+  return {
+    dataShifted: s.getCell('A2').value === 'r1' && s.getCell('A3').value === 'r2',
+    noteFollowsRow: !!s.getCell('A3').note,
+    outlineFollowsRow: s.getRow(3).outlineLevel === 1,
+  };
+}
+
 // Read a richText (or primitive) cell value back into a plain shape a case can compare:
 // { richText:[{text, bold, italic}] } or the primitive itself.
 const readStreamCell = v => {

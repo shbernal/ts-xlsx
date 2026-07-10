@@ -12,11 +12,13 @@ they are emitted in the wrong order the file is rejected as corrupt by Excel, wh
 recover the workbook and then drops the affected sheet. Setting either property alone produces a
 valid file; the corruption arises only from their combination — a sign of a child-ordering bug.
 
-> Spec note, not a corpus case: probing the current writer shows it does **not** emit an `<outlinePr>`
-> child from the outline-summary settings at all (only `<pageSetUpPr fitToPage="1"/>` appears), so
-> the bad ordering is not currently reachable through the authoring API and there is no failing
-> serialization to assert. The durable value is the schema-order requirement, to guard once outline
-> summary authoring emits `<outlinePr>`.
+> Spec note, not a corpus case. Update: the writer **does** now emit `<outlinePr summaryBelow="0"
+> summaryRight="0"/>` from the outline-summary settings, and those flags round-trip — this is locked
+> by the `worksheet-outline-summary-position-round-trips` case. What remains for *this* note is the
+> **child-order** guard: when `<outlinePr>` and `<pageSetUpPr>` are emitted together they must follow
+> the CT_SheetPr sequence (`tabColor`, `outlinePr`, `pageSetUpPr`); a wrong order corrupts the file.
+> That combined-emission ordering is the residual value here (the earlier assumption that `<outlinePr>`
+> was never emitted is now stale).
 
 ## Desired behavior
 
@@ -38,12 +40,12 @@ valid file; the corruption arises only from their combination — a sign of a ch
 
 ## Open questions
 
-- Authoring gap: the outline summary properties (`summaryBelow`/`summaryRight`) currently do not
-  surface as an `<outlinePr>` child — is that a missing write path, or are they carried elsewhere?
-  This must be settled before the ordering guard can be exercised.
-- Once `<outlinePr>` is emitted, a corpus case can assert the child order via the worksheet XML (the
-  same element-order technique the `comment-and-table-coexist-on-same-sheet` case uses for the
-  drawing/legacyDrawing/tableParts sequence).
+- Resolved: `summaryBelow`/`summaryRight` **do** now surface as an `<outlinePr>` child and round-trip
+  (see `worksheet-outline-summary-position-round-trips`). The remaining gap is authoring a worksheet
+  that emits `<outlinePr>` and `<pageSetUpPr>` **together** so the child-order guard can be exercised.
+- The child-order assertion uses the worksheet XML element-order technique the
+  `comment-and-table-coexist-on-same-sheet` case uses for the drawing/legacyDrawing/tableParts
+  sequence.
 
 Related: `comment-and-table-coexist-on-same-sheet`, `row-outline-collapsed-flag-belongs-on-summary-row`,
 `column-width-and-pagesetup-roundtrip-fidelity`.
