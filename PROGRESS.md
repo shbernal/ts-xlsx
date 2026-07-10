@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + thirty unlabeled slices; 541/794 = 68%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + thirty-one unlabeled slices; 556/794 = 70%; fixture-less bulk drain underway)._
 
 ---
 
@@ -603,7 +603,26 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     image-anchor-fractional-offset-respects-cell-size). Three support/noise: name-mismatch worksheet
     lookup, a thank-you post, addRow on EOL Node 6. Corpus **325 green / 162 known-open / 0
     regressions**; 185 corpus cases + 111 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (253 remaining, all fixture-less) in ~15-record
+  - **Thirty-first slice — fixture-less bulk, top-15 by signal — drained** (556/794, 70%).
+    2 corpus cases + 1 augment + 2 spec notes + 10 not-carried (eight folds + two support). New
+    known-opens: (1) no first-class note removal — note=null throws, undefined/empty-object leave the
+    comment part and VML drawing in the package so a "removed" note still shows a marker (adapter grew
+    removeCellNoteReport); (2) a row from an array built in a foreign realm (Node vm context)
+    populates no cells because array detection is realm-bound identity, not structural, though
+    Array.isArray recognizes it (augmented add-row-array-and-object-shapes-populate; adapter grew
+    crossRealmArrayRow). New lock: CSV export sizes each row by the sheet max column extent, so a wide
+    row after a narrow first row keeps all its fields (reported truncation doesn't reproduce). Two
+    reclassify-on-probe: CSV row width was already correct → lock not known-open; multi-letter
+    currency numFmt (CHF) round-trips both quoted and unquoted through the library, so no round-trip
+    bug — the corruption is Excel-side and auto-quoting is undecided → spec note not corpus. Other
+    spec note: template placeholder replacement. Eight folds: sheet-scoped defined names (→
+    same-named-defined-names-scoped-per-sheet), defaultRowHeight (→
+    worksheet-default-row-height-applied-on-write), table rows/ref on read (→ loaded-table-exposes-
+    data-rows), charts dropped (→ chart-parts-survive-template-roundtrip), chart authoring (→
+    embedded-chart-read-write), large-file memory (→ bounded-memory-large-workbook-read), table row
+    insert (→ splice-rows-updates-table-and-image-refs), image via writeFile (→ image survival
+    cases). Corpus **329 green / 164 known-open / 0 regressions**; 187 corpus cases + 113 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (238 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -657,12 +676,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **541/794 (68%)**; **all labeled clusters + thirty unlabeled slices are drained; the
+Drain at **556/794 (70%)**; **all labeled clusters + thirty-one unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (325 green / 162
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (329 green / 164
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (253 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (238 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
