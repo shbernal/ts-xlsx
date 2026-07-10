@@ -2866,6 +2866,107 @@ const streamCellValue = c => {
   return c;
 };
 
+// The <calcPr> element of a workbook.xml inside a written package buffer, or '' if none.
+async function calcPrElement(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const wbName = Object.keys(zip.files).find(f => /xl\/workbook\.xml$/.test(f));
+  const xml = wbName ? await zip.file(wbName).async('string') : '';
+  const m = xml.match(/<calcPr\b[^>]*\/?>/);
+  return m ? m[0] : '';
+}
+
+// Request recalc-on-load (fullCalcOnLoad) on the STREAMING writer and report whether it reaches the
+// output, alongside the in-memory writer as the parity oracle → { streamSetThrew, streamHasFlag,
+// streamDefaultHasFlag, memoryHasFlag }. The in-memory writer emits <calcPr … fullCalcOnLoad="1"/>
+// when the flag is set; the streaming writer drops it (the calcPr carries only calcId), so a
+// streamed workbook never tells the consuming app to recalculate on open. streamDefaultHasFlag is
+// the control: with the flag unset, neither writer emits it.
+export async function streamingFullCalcOnLoadReport() {
+  const streamCalc = async setFlag => {
+    const chunks = [];
+    const stream = new PassThrough();
+    const drained = new Promise(res => {
+      stream.on('data', c => chunks.push(c));
+      stream.on('end', res);
+      stream.on('close', res);
+    });
+    const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream});
+    let threw = false;
+    if (setFlag) {
+      try {
+        writer.calcProperties = writer.calcProperties || {};
+        writer.calcProperties.fullCalcOnLoad = true;
+      } catch {
+        threw = true;
+      }
+    }
+    const sheet = writer.addWorksheet('S');
+    sheet.getCell('A1').value = 1;
+    sheet.commit();
+    await writer.commit();
+    await drained;
+    const hasFlag = /fullCalcOnLoad="1"/.test(await calcPrElement(Buffer.concat(chunks)));
+    return {threw, hasFlag};
+  };
+
+  const set = await streamCalc(true);
+  const def = await streamCalc(false);
+
+  const wb = new ExcelJS.Workbook();
+  wb.calcProperties.fullCalcOnLoad = true;
+  wb.addWorksheet('S').getCell('A1').value = 1;
+  const memoryHasFlag = /fullCalcOnLoad="1"/.test(await calcPrElement(await wb.xlsx.writeBuffer()));
+
+  return {streamSetThrew: set.threw, streamHasFlag: set.hasFlag, streamDefaultHasFlag: def.hasFlag, memoryHasFlag};
+}
+
+// Round-trip a What-If-Analysis "Data Table" formula (the OOXML `<f t="dataTable">` kind, with row/
+// column input-cell references) → { readShareType, readRef, readResult, reloadOk, outHasDataTable }.
+// A data-table formula is authored by injecting the element into a written package (the buffered
+// authoring API has no surface for it), then loaded and written back. The reader recognizes it
+// (surfacing shareType 'dataTable' + the ref + cached result), but the writer does not re-emit
+// `t="dataTable"`, so the data-table kind is lost on a read-modify-write cycle and the cell stops
+// recalculating against its inputs.
+export async function dataTableFormulaRoundtrip() {
+  const seed = new ExcelJS.Workbook();
+  const s = seed.addWorksheet('S');
+  s.getCell('A1').value = 1;
+  s.getCell('B1').value = 2;
+  s.getCell('B2').value = 99;
+  const zip = await JSZip.loadAsync(await seed.xlsx.writeBuffer());
+  const sheetName = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  let xml = await zip.file(sheetName).async('string');
+  xml = xml.replace(
+    /<c r="B2"[^>]*>[\s\S]*?<\/c>/,
+    '<c r="B2"><f t="dataTable" ref="B2:B5" dt2D="0" dtr="1" r1="A1"/><v>99</v></c>'
+  );
+  zip.file(sheetName, xml);
+  const injected = await zip.generateAsync({type: 'nodebuffer'});
+
+  const reload = new ExcelJS.Workbook();
+  let reloadOk = false;
+  let readShareType = null;
+  let readRef = null;
+  let readResult = null;
+  let outHasDataTable = false;
+  try {
+    await reload.xlsx.load(injected);
+    const value = reload.getWorksheet('S').getCell('B2').value;
+    if (value && typeof value === 'object') {
+      readShareType = value.shareType ?? null;
+      readRef = value.ref ?? null;
+      readResult = value.result ?? null;
+    }
+    reloadOk = true;
+    const outZip = await JSZip.loadAsync(await reload.xlsx.writeBuffer());
+    const outName = Object.keys(outZip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+    outHasDataTable = /t="dataTable"/.test(await outZip.file(outName).async('string'));
+  } catch {
+    reloadOk = false;
+  }
+  return {readShareType, readRef, readResult, reloadOk, outHasDataTable};
+}
+
 // Read a richText (or primitive) cell value back into a plain shape a case can compare:
 // { richText:[{text, bold, italic}] } or the primitive itself.
 const readStreamCell = v => {

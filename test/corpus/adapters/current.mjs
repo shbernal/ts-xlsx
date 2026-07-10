@@ -28,6 +28,8 @@ import {
   csvWrite,
   csvWriteEncodingReport,
   streamWriteSheet,
+  streamingFullCalcOnLoadReport,
+  dataTableFormulaRoundtrip,
   sharedFormulaRoundtripAndSplice,
   streamWriteCfHyperlinkOrder,
   roundtripFormulas,
@@ -236,6 +238,16 @@ export default {
   // → { ok, error, cells, rowCount } — for asserting streaming-only behavior like batch add
   // and richText shared-string handling. See workbook-io.mjs.
   streamWriteSheet,
+
+  // Request fullCalcOnLoad on the streaming writer and report whether it reaches the output vs the
+  // in-memory writer → { streamSetThrew, streamHasFlag, streamDefaultHasFlag, memoryHasFlag } — for
+  // asserting recalc-on-load parity between the two writers. See workbook-io.mjs.
+  streamingFullCalcOnLoadReport,
+
+  // Round-trip a What-If-Analysis data-table formula (`<f t="dataTable">`) → { readShareType,
+  // readRef, readResult, reloadOk, outHasDataTable } — for asserting the reader recognizes a
+  // data-table formula and the writer preserves its kind on a read-modify-write. See workbook-io.mjs.
+  dataTableFormulaRoundtrip,
 
   // Author a shared-formula master/slave group, read-then-rewrite it, and splice a column in →
   // { roundtripOk, preservedFormulas, spliceOk, spliceError } — for asserting a lossless
