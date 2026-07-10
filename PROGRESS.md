@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + twenty-two unlabeled slices; 421/794 = 53%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twenty-three unlabeled slices; 436/794 = 55%; fixture-less bulk drain underway)._
 
 ---
 
@@ -460,7 +460,24 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     decorative). Adapter grew by 7 capabilities. Folds: comment auto-size → comment-note-box case,
     print areas → print-areas case, append-to-loaded-table → its case. Corpus **296 green / 148
     known-open / 0 regressions**; 168 corpus cases + 97 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (373 remaining, all fixture-less) in ~15-record
+  - **Twenty-third slice — fixture-less bulk, top-15 by signal — drained** (436/794, 55%).
+    3 corpus cases + 2 spec notes (+ 2 folds into existing type/style notes) + 8 not-carried. A
+    lock-heavy slice: all three corpus candidates probed as already-correct and became regression
+    locks — the master cell of a merged region keeps its border/numFmt/font through the merge and
+    round-trip; a streaming read→write style copy preserves font/fill/numFmt and emits a loadable
+    styles part; single and eight-concurrent streaming reads all fully resolve shared strings (no
+    dropped entries, no hang). New spec notes: serialization must be iterative not per-element
+    recursive (a large export must not throw "Maximum call stack size exceeded"); the streaming
+    reader's style-caching option governs date interpretation (numFmt lives in the style table) so
+    its default must not hand back plausible-but-wrong serial numbers. Type-surface note grew by two
+    runtime members (streaming writer `stream`, `Range.forEachAddress`); set-style-over-range grew
+    the address-iteration primitive. Adapter grew by 3 capabilities (mergeMasterBorderReport,
+    streamingStyleCopyReport, streamingSharedStringsRead). Not-carried: eval/CSP + global-polyfill +
+    es5-toolchain reports fold into their bundle-hygiene specs; table-repair and image-editAs fold
+    into existing cases; multiselect-dropdown folds into its spec; dead reports (frontend download,
+    `new Buffer` deprecation). Corpus **304 green / 148 known-open / 0 regressions**; 171 corpus
+    cases + 99 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (358 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -514,12 +531,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **421/794 (53%)**; **all labeled clusters + twenty-two unlabeled slices are drained; the
+Drain at **436/794 (55%)**; **all labeled clusters + twenty-three unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (296 green / 148
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (304 green / 148
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (373 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (358 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
