@@ -51,6 +51,9 @@ import {
   roundtripFixtureRowBreaks,
   authorDateValidation,
   sharedBaseStyleFontMutation,
+  spliceShiftsRefs,
+  mergeCleanReport,
+  tableColumnStyleReport,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -315,6 +318,21 @@ export default {
   // Assign one base style object to two cells, mutate one cell's font → { a1Color, a2Color, bled }
   // — for asserting copy-on-write style isolation (no aliasing bleed to siblings). See workbook-io.mjs.
   sharedBaseStyleFontMutation,
+
+  // Insert a row above a table + anchored image and report the shifted table ref / image anchor row +
+  // whether duplicate table column names are rejected → { tableRef, imageFromRow,
+  // dupColumnNamesRejected } — for asserting a splice re-pins table/image refs. See workbook-io.mjs.
+  spliceShiftsRefs,
+
+  // Author a horizontal merge with an anchor value+alignment → { mergeCount, populatedCoveredCells,
+  // anchorValue, anchorAlignment } — for asserting a clean merge (covered cells not populated) that
+  // opens without a repair prompt. See workbook-io.mjs.
+  mergeCleanReport,
+
+  // Author a table with a per-column numFmt style → { writeOk, reloadOk, styledBody, unstyledBody }
+  // — for asserting the column style is merged into the body cells without corrupting the package.
+  // See workbook-io.mjs.
+  tableColumnStyleReport,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign

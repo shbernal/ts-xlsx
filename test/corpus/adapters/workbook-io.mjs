@@ -72,9 +72,12 @@ export function buildFrom(spec = {}) {
   if (p.modified !== undefined) workbook.modified = toDate(p.modified);
 
   for (const s of spec.sheets || []) {
-    // A worksheet's visibility state (visible/hidden/veryHidden). Omitting it must yield a visible
-    // sheet — a case asserts the default is not accidentally hidden.
-    const sheet = workbook.addWorksheet(s.name, s.state ? {state: s.state} : undefined);
+    // A worksheet's visibility state (visible/hidden/veryHidden) and sheet-level properties
+    // (e.g. defaultRowHeight/defaultColWidth). Omitting state must yield a visible sheet.
+    const addOpts = {};
+    if (s.state) addOpts.state = s.state;
+    if (s.properties) addOpts.properties = s.properties;
+    const sheet = workbook.addWorksheet(s.name, Object.keys(addOpts).length ? addOpts : undefined);
     for (const c of s.cells || []) {
       const cell = sheet.getCell(c.ref);
       cell.value = cellValueFrom(c);
@@ -133,6 +136,9 @@ export function buildFrom(spec = {}) {
       const columns = t.columnDefs
         ? t.columnDefs.map(c => ({
             name: c.name,
+            // A per-column style (e.g. numFmt) must be merged into each body cell's style, not corrupt
+            // the package — a case asserts the body cells carry the requested format.
+            style: c.style,
             totalsRowFunction: c.totalsRowFunction,
             totalsRowLabel: c.totalsRowLabel ?? (t.totalsRow && !c.totalsRowFunction ? c.name : undefined),
           }))
@@ -521,6 +527,17 @@ export async function inspectPackage(spec) {
       },
       rows: rowAttrs,
       hasBackgroundPicture: /<picture\b[^>]*r:id=/.test(xml),
+      // Sheet-format defaults: `defaultRowHeight` and `defaultColWidth` on `<sheetFormatPr>`. A case
+      // asserts a worksheet-level default row height is actually serialized (symmetric with the
+      // column-width default), not silently dropped.
+      sheetFormat: (() => {
+        const a = attrs((xml.match(/<sheetFormatPr\b[^>]*\/?>/) || [''])[0]);
+        return {
+          defaultRowHeight: a.defaultRowHeight != null ? Number(a.defaultRowHeight) : null,
+          defaultColWidth: a.defaultColWidth != null ? Number(a.defaultColWidth) : null,
+          customHeight: a.customHeight === '1' || a.customHeight === 'true',
+        };
+      })(),
       xmlWellFormed: xmlWellFormed(xml),
     };
   }
@@ -1264,6 +1281,132 @@ export async function sharedBaseStyleFontMutation() {
   const a1 = colorOf('A1');
   const a2 = colorOf('A2');
   return {a1Color: a1, a2Color: a2, bled: a2 === 'FF00FF00'};
+}
+
+// Build a worksheet with a table and an anchored image below/right of a splice point, insert a row at
+// the top (shifting everything below down by one), write, and report the table's cell range and the
+// image's from-anchor row afterward — for asserting a row splice re-pins table ranges and image
+// anchors to the same logical cells rather than stranding them at their pre-splice coordinates. Also
+// reports whether authoring a table with duplicate column names is rejected.
+export async function spliceShiftsRefs() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  // Table occupies A3:B5 (header + 2 rows); image anchored from row 5.
+  sheet.addTable({name: 'T', ref: 'A3', columns: [{name: 'H1'}, {name: 'H2'}], rows: [['a', 1], ['b', 2]]});
+  const imageId = workbook.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  sheet.addImage(imageId, {tl: {col: 0, row: 5}, br: {col: 2, row: 8}});
+  sheet.spliceRows(1, 0, ['inserted']); // insert a row at the top → table and image should shift down 1
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const tp = Object.keys(zip.files).find(n => /xl\/tables\/table\d+\.xml/.test(n));
+  const tableRef = tp ? (((await zip.file(tp).async('string')).match(/<table\b[^>]*ref="([^"]*)"/) || [])[1] ?? null) : null;
+  const dp = Object.keys(zip.files).find(n => /xl\/drawings\/drawing\d+\.xml/.test(n));
+  const dx = dp ? await zip.file(dp).async('string') : '';
+  const imageFromRow = ((dx.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/) || [])[1]);
+
+  // Duplicate table column names authored separately.
+  let dupRejected = false;
+  try {
+    const w2 = new ExcelJS.Workbook();
+    const s2 = w2.addWorksheet('S');
+    s2.addTable({name: 'T2', ref: 'A1', columns: [{name: 'Dup'}, {name: 'Dup'}], rows: [['a', 'b']]});
+    await w2.xlsx.writeBuffer();
+  } catch (e) {
+    dupRejected = true;
+  }
+
+  return {
+    tableRef,
+    imageFromRow: imageFromRow != null ? Number(imageFromRow) : null,
+    dupColumnNamesRejected: dupRejected,
+  };
+}
+
+// Author a horizontal merge with a value + alignment on the anchor, write, and report merge-cell
+// count, which covered (non-anchor) cells were emitted with a value (they must NOT be — populated
+// covered cells are what makes Excel flag the file for repair), and the anchor's re-read value and
+// alignment — for asserting a clean merge that opens without a repair prompt.
+export async function mergeCleanReport({anchor = 'B1', range = 'B1:G1', value = 'Group Title'} = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell(anchor).value = value;
+  sheet.getCell(anchor).alignment = {horizontal: 'center'};
+  sheet.mergeCells(range);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const xml = name ? await zip.files[name].async('string') : '';
+  const merges = [...xml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map(m => m[1]);
+  // Covered cells are every cell in the range except the anchor.
+  const [tl, br] = range.split(':');
+  const col = ref => ref.match(/[A-Z]+/)[0];
+  const covered = [];
+  // Only handle a single-row horizontal range (the reported shape); enumerate columns tl..br.
+  const colToNum = c => [...c].reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0);
+  const numToCol = n => {
+    let s = '';
+    while (n > 0) {
+      const r = (n - 1) % 26;
+      s = String.fromCharCode(65 + r) + s;
+      n = (n - r - 1) / 26;
+    }
+    return s;
+  };
+  const row = tl.match(/\d+/)[0];
+  for (let c = colToNum(col(tl)); c <= colToNum(col(br)); c++) {
+    const ref = `${numToCol(c)}${row}`;
+    if (ref === anchor) continue;
+    if (new RegExp(`<c r="${ref}"[^>]*>[\\s\\S]*?<v>`).test(xml)) covered.push(ref);
+  }
+
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const a = reread.getWorksheet('S').getCell(anchor);
+  return {
+    mergeCount: merges.length,
+    merges,
+    populatedCoveredCells: covered,
+    anchorValue: a.value ?? null,
+    anchorAlignment: a.alignment ? {...a.alignment} : null,
+  };
+}
+
+// Author a table with a per-column style (e.g. a numFmt) on one column, write, reload, and report the
+// body cells' number formats for the styled column and an unstyled column — for asserting a table
+// column style is merged into the body cells (they carry the format) without corrupting the package
+// and without affecting other columns.
+export async function tableColumnStyleReport(numFmt = '#,##0.00') {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  let writeError = null;
+  try {
+    sheet.addTable({
+      name: 'T',
+      ref: 'A1',
+      columns: [{name: 'Item'}, {name: 'Amount', style: {numFmt}}],
+      rows: [['a', 1000], ['b', 2000]],
+    });
+    await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeOk: false, writeError: String((e && e.message) || e), reloadOk: null, styledBody: [], unstyledBody: []};
+  }
+  const buffer = await workbook.xlsx.writeBuffer();
+  let reloadOk = true;
+  const styledBody = [];
+  const unstyledBody = [];
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(buffer);
+    const s = reread.getWorksheet('S');
+    for (const r of [2, 3]) {
+      styledBody.push(s.getCell(`B${r}`).numFmt ?? null); // Amount column body
+      unstyledBody.push(s.getCell(`A${r}`).numFmt ?? null); // Item column body
+    }
+  } catch (e) {
+    reloadOk = false;
+  }
+  return {writeOk: true, writeError, reloadOk, styledBody, unstyledBody};
 }
 
 // Read a fixture `.xlsx`, write it back unchanged, reload it, and report how many styled cells'
