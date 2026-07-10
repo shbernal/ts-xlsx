@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + twenty-five unlabeled slices; 466/794 = 59%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twenty-six unlabeled slices; 481/794 = 61%; fixture-less bulk drain underway)._
 
 ---
 
@@ -514,7 +514,25 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     report, a zero-length-buffer zip error) and a font-aliasing report that folded into
     per-cell-font-isolation. Corpus **312 green / 153 known-open / 0 regressions**; 177 corpus cases
     + 104 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (328 remaining, all fixture-less) in ~15-record
+  - **Twenty-sixth slice — fixture-less bulk, top-15 by signal — drained** (481/794, 61%).
+    3 corpus cases + 1 augment + 1 spec-note augment + 10 not-carried — a fold-heavy slice. Two
+    locks + one known-open + an xlfn augment: workbook-level structure protection (lockStructure) is
+    dropped on a read→write round-trip (known-open; worksheet-level protection survives, workbook
+    doesn't — ExcelJS has no workbook-protection API at all); an unbordered cell reads back with no
+    border sides and a one-sided border doesn't sprout the other three (lock — reported phantom
+    borders don't reproduce); looping many sheets each with a table + DV produces a valid package
+    with unique table part ids and surviving validations (lock — the reported protected-view/erased
+    -DV failure doesn't reproduce). Augmented the xlfn case with a LET/LAMBDA/BYROW behavior (modern
+    functions written verbatim without the _xlfn./_xlpm. prefixes Excel requires — known-open, same
+    class as FILTER). Extended the merged-cell scaling spec note with the efficient-lookup
+    requirement (a PR that indexed merge membership). Adapter: normalizeCell + buildFrom now carry
+    per-cell `border`; new capabilities workbookProtectionRoundtrip, multiSheetTableReport.
+    Not-carried was dominated by folds (full-column DV → DV-single-sqref case; streaming cell-type
+    → streaming-shared-strings case; csv-write → csv-by-name case; foreign-file compat → foreign
+    -generator specs) plus dependency/env/doc noise (deprecated transitive deps, RN Promise
+    polyfill, server bundling, a Chinese-doc fix). Corpus **317 green / 156 known-open / 0
+    regressions**; 180 corpus cases + 104 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (313 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -568,12 +586,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **466/794 (59%)**; **all labeled clusters + twenty-five unlabeled slices are drained; the
+Drain at **481/794 (61%)**; **all labeled clusters + twenty-six unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (312 green / 153
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (317 green / 156
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (328 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (313 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
