@@ -126,12 +126,24 @@ export function buildFrom(spec = {}) {
     if (s.autoFilter) sheet.autoFilter = s.autoFilter;
     if (s.headerFooter) sheet.headerFooter = {...s.headerFooter};
     for (const t of s.tables || []) {
+      // A table's columns come either as simple header strings (`headers`) or as rich column
+      // definitions (`columnDefs: [{name, totalsRowFunction, totalsRowLabel}]`) so a case can drive a
+      // totals-row *formula* column, which historically produced a non-leaf tableColumn element that
+      // crashed the reader.
+      const columns = t.columnDefs
+        ? t.columnDefs.map(c => ({
+            name: c.name,
+            totalsRowFunction: c.totalsRowFunction,
+            totalsRowLabel: c.totalsRowLabel ?? (t.totalsRow && !c.totalsRowFunction ? c.name : undefined),
+          }))
+        : (t.headers || []).map(name => ({name, totalsRowLabel: t.totalsRow ? name : undefined}));
       sheet.addTable({
         name: t.name,
+        displayName: t.displayName,
         ref: t.ref,
         headerRow: t.headerRow !== false,
         totalsRow: !!t.totalsRow,
-        columns: (t.headers || []).map(name => ({name, totalsRowLabel: t.totalsRow ? name : undefined})),
+        columns,
         rows: t.rows || [],
       });
     }
@@ -1082,6 +1094,78 @@ export async function roundtripFixtureConditionalFormatting(rel) {
   const outName = Object.keys(outZip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
   const rewritten = cfFactsFromXml(outName ? await outZip.file(outName).async('string') : '');
   return {source, rewritten};
+}
+
+// Author a conditional-formatting rule declaratively, write it, and report both the emitted
+// worksheet XML facts and what the reader surfaces on reload — for asserting a rule type like a
+// dataBar round-trips (its cfvo anchors, bar color, gradient flag) and emits well-formed XML rather
+// than a truncated/empty element that makes the worksheet part corrupt. `cf` is
+// { ref, rules: [ { type:'dataBar', gradient, color:{argb}, cfvo:[{type,value}] }, … ] }.
+export async function authorConditionalFormatting(cf) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  // Populate the ref's first column so the rule has cells to bind to.
+  const rows = Number((cf.ref.match(/(\d+)\s*$/) || [])[1] || 3);
+  for (let r = 1; r <= rows; r++) sheet.getCell(`A${r}`).value = r / rows;
+  let writeError = null;
+  let buffer;
+  try {
+    sheet.addConditionalFormatting(cf);
+    buffer = await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeOk: false, writeError: String((e && e.message) || e), xml: null, reload: null};
+  }
+  const zip = await JSZip.loadAsync(buffer);
+  const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const xml = name ? await zip.files[name].async('string') : '';
+  const cfBlock = (xml.match(/<conditionalFormatting[\s\S]*?<\/conditionalFormatting>/) || [''])[0];
+  const dataBar = (cfBlock.match(/<dataBar\b[\s\S]*?<\/dataBar>|<dataBar\b[^>]*\/>/) || [''])[0];
+
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const cfs = reread.getWorksheet('S').conditionalFormattings || [];
+  const rule = cfs[0] && cfs[0].rules && cfs[0].rules[0] ? cfs[0].rules[0] : null;
+  return {
+    writeOk: true,
+    writeError,
+    xml: {
+      hasDataBar: /<dataBar\b/.test(cfBlock),
+      cfvoCount: [...dataBar.matchAll(/<cfvo\b/g)].length,
+      hasColor: /<color\b/.test(dataBar),
+      wellFormed: cfBlock ? xmlWellFormed(cfBlock) : false,
+    },
+    reload: rule
+      ? {
+          type: rule.type ?? null,
+          color: rule.color ? rule.color.argb ?? null : null,
+          gradient: rule.gradient ?? null,
+          cfvo: (rule.cfvo || []).map(v => ({type: v.type ?? null, value: v.value ?? null})),
+        }
+      : null,
+  };
+}
+
+// Read a fixture `.xlsx`, then load-and-rewrite it, and report the picture's drawing-anchor rotation
+// (`rot` on the `<a:xfrm>`) before and after — for asserting an image rotation survives a load/save
+// round-trip rather than being dropped. `rot` is in 1/60000-degree units (OOXML), or null if absent.
+export async function roundtripFixtureImageRotation(rel) {
+  const rotOf = xml => {
+    const m = xml.match(/<a:xfrm\b[^>]*\brot="(-?\d+)"/);
+    return m ? Number(m[1]) : null;
+  };
+  const drawingName = zip => Object.keys(zip.files).find(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
+
+  const srcZip = await JSZip.loadAsync(require('node:fs').readFileSync(fixturePath(rel)));
+  const srcDrawing = drawingName(srcZip);
+  const sourceRot = srcDrawing ? rotOf(await srcZip.file(srcDrawing).async('string')) : null;
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const outZip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+  const outDrawing = drawingName(outZip);
+  const rewrittenRot = outDrawing ? rotOf(await outZip.file(outDrawing).async('string')) : null;
+
+  return {sourceRot, rewrittenRot};
 }
 
 // Read a fixture `.xlsx`, write it back unchanged, reload it, and report how many styled cells'

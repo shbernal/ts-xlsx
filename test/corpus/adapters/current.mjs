@@ -45,6 +45,8 @@ import {
   roundtripFixturePackageParts,
   roundtripFixtureStyleFacts,
   roundtripFixtureConditionalFormatting,
+  authorConditionalFormatting,
+  roundtripFixtureImageRotation,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -281,6 +283,16 @@ export default {
   // round-trip preserves a rule (even an unmodeled type like duplicateValues) rather than dropping
   // it or emitting an empty conditionalFormatting shell. See workbook-io.mjs.
   roundtripFixtureConditionalFormatting,
+
+  // Author a conditional-formatting rule (e.g. a dataBar) and report the emitted CF XML facts +
+  // reader read-back → { writeOk, xml:{hasDataBar,cfvoCount,hasColor,wellFormed}, reload:{type,color,
+  // gradient,cfvo} } — for asserting a dataBar round-trips with valid XML. See workbook-io.mjs.
+  authorConditionalFormatting,
+
+  // Read a fixture and load-rewrite it, reporting the image drawing-anchor rotation before/after →
+  // { sourceRot, rewrittenRot } (1/60000-deg units) — for asserting an image rotation survives a
+  // load/save round-trip rather than being dropped. See workbook-io.mjs.
+  roundtripFixtureImageRotation,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign
