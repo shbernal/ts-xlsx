@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + twenty-four unlabeled slices; 451/794 = 57%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twenty-five unlabeled slices; 466/794 = 59%; fixture-less bulk drain underway)._
 
 ---
 
@@ -495,7 +495,26 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     case; loaded-font-mutation bleed → shared-style-aliasing case; hf-text → headerfooter case;
     plus a callbacks-as-API eachSheet (discarded by design) and an empty "Fills error" report.
     Corpus **308 green / 151 known-open / 0 regressions**; 174 corpus cases + 102 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (343 remaining, all fixture-less) in ~15-record
+  - **Twenty-fifth slice — fixture-less bulk, top-15 by signal — drained** (466/794, 59%).
+    3 corpus cases + 2 spec notes + 10 not-carried — a dependency/release-heavy slice. Two locks +
+    one known-open: writing several adjacent equivalent columns collapses them into shared <col>
+    spans without the reported "column.equivalentTo is not a function" crash (lock); a formula whose
+    cached result is a date serial under a date format reads back as a valid Date, not Invalid Date
+    (lock); a worksheet referencing a drawing part that doesn't resolve crashes the whole load with
+    an internal null-dereference on `.anchors` (known-open, fixture: an image workbook with its
+    drawing part removed but the rel/element left intact — the missing-drawing sibling of the
+    missing-VML case). Spec notes: the streaming writer emits a corrupt ZIP at very large scale (a
+    ZIP64 offset/size boundary defect — kept a note not a case because it needs millions of rows to
+    manifest), and the in-cell vs floating image distinction (Excel "Place in Cell" rich-value
+    images vs today's floating anchored drawings). Adapter grew by 2 capabilities
+    (equivalentColumnCollapseReport, formulaDateResultReport). Not-carried was dominated by
+    dependency-tree advisories (minimatch, node-tmp, inflight) and release logistics (publish
+    request, "when new version") — all superseded by the clean-break dependency policy — plus
+    support questions (column formula fill-down, HTML-into-cell, a content-free postMessage security
+    report, a zero-length-buffer zip error) and a font-aliasing report that folded into
+    per-cell-font-isolation. Corpus **312 green / 153 known-open / 0 regressions**; 177 corpus cases
+    + 104 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (328 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -549,12 +568,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **451/794 (57%)**; **all labeled clusters + twenty-four unlabeled slices are drained; the
+Drain at **466/794 (59%)**; **all labeled clusters + twenty-five unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (308 green / 151
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (312 green / 153
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (343 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (328 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
