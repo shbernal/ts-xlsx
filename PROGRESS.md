@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + thirty-five unlabeled slices; 616/794 = 78%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + thirty-six unlabeled slices; 631/794 = 79%; fixture-less bulk drain underway)._
 
 ---
 
@@ -694,7 +694,24 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     (→ cell-border-mutation-does-not-bleed-to-style-siblings), generic slow-writeBuffer report
     (no repro, Phase 3 perf). Corpus **359 green / 171 known-open / 0 regressions**; 202 corpus cases
     + 121 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (178 remaining, all fixture-less) in ~15-record
+  - **Thirty-sixth slice — fixture-less bulk, top-15 by signal — drained** (631/794, 79%).
+    0 new corpus cases + 4 spec notes + 2 augments + 9 not-carried — the most fold-dominated slice
+    yet: every one of the three triage "corpus_case" candidates collapsed on probing. Empty-table-rows
+    rejection was *rejected* — we already lock the opposite, better contract (an empty-body table
+    writes a VALID full-header-ref file, see empty-table-writes-valid-file), so the reject-at-add PR is
+    superseded, not adopted. Image editAs was an exact fold into image-range-anchor-edit-as-mode-honored
+    (the in-cell editAs-undefined case is an Excel/Numbers app limitation, not a lib bug). Falsy formula
+    results were an exact fold into formula-cell-preserves-falsy-result-values. New spec notes: table
+    AutoFilter should be an explicit toggle independent of the header row (the corruption path is
+    already a case); authoring API for workbook structure protection (the round-trip is already a
+    case); explicit comment-box sizing (auto-fit is already a case); streaming reader must surface
+    merged-cell ranges. Augments: streaming reader `name` and Row/Column `.values` array typing
+    (→ public-type-surface-matches-runtime + sheet-values-sparse-array-return-type). Not-carried also
+    folded web-native streams (→ web-streams-io-surface), the TS5 question, and three dependency/Node
+    reports (→ minimal-audit-clean-dependency-tree + a modern runtime baseline — the whole reason we
+    forked). Corpus unchanged at **359 green / 171 known-open / 0 regressions**; 202 corpus cases
+    + 125 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (163 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -748,12 +765,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **616/794 (78%)**; **all labeled clusters + thirty-five unlabeled slices are drained; the
+Drain at **631/794 (79%)**; **all labeled clusters + thirty-six unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
 pipeline is proven: parallel triage workflow → serial materialization → green corpus (359 green / 171
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (178 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (163 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
