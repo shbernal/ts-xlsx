@@ -1129,6 +1129,11 @@ export async function authorConditionalFormatting(cf) {
     writeOk: true,
     writeError,
     xml: {
+      // A multi-area ref must emit ONE conditionalFormatting whose sqref lists every area, not be
+      // dropped to zero blocks; a case reads these to assert non-contiguous ranges survive.
+      blockCount: [...xml.matchAll(/<conditionalFormatting\b/g)].length,
+      sqrefs: [...xml.matchAll(/<conditionalFormatting\b[^>]*sqref="([^"]*)"/g)].map(m => m[1]),
+      ruleCount: [...cfBlock.matchAll(/<cfRule\b/g)].length,
       hasDataBar: /<dataBar\b/.test(cfBlock),
       cfvoCount: [...dataBar.matchAll(/<cfvo\b/g)].length,
       hasColor: /<color\b/.test(dataBar),
@@ -1166,6 +1171,99 @@ export async function roundtripFixtureImageRotation(rel) {
   const rewrittenRot = outDrawing ? rotOf(await outZip.file(outDrawing).async('string')) : null;
 
   return {sourceRot, rewrittenRot};
+}
+
+// Add one image whose extension is supplied as `extension` (which may carry a leading dot like
+// ".png"), write, and report the media part filenames plus how many images the reader surfaces after
+// a round-trip. A leading-dot extension must not produce a doubled-separator media filename
+// ("image1..png") that the media-matching logic then fails to recognize, dropping the image.
+export async function imageExtensionRoundtrip(extension = 'png') {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  const id = workbook.addImage({buffer: ONE_PX_PNG, extension});
+  sheet.addImage(id, {tl: {col: 1, row: 1}, br: {col: 3, row: 3}});
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const mediaParts = Object.keys(zip.files)
+    .filter(n => /^xl\/media\/.+/.test(n))
+    .map(n => n.replace(/^xl\/media\//, ''));
+
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const images = reread.getWorksheet('S').getImages();
+  return {
+    mediaParts,
+    doubledSeparator: mediaParts.some(n => /\.\./.test(n)),
+    reloadedImageCount: images.length,
+  };
+}
+
+// Read a fixture, report its manual horizontal page breaks (rowBreaks `<brk id>` positions) as the
+// reader surfaces them, then load-rewrite it and report whether the rowBreaks section survives — for
+// asserting that manual row page breaks are read and preserved rather than silently dropped.
+export async function roundtripFixtureRowBreaks(rel) {
+  const brkIds = xml => [...xml.matchAll(/<brk\b[^>]*\bid="(\d+)"/g)].map(m => Number(m[1]));
+  const srcZip = await JSZip.loadAsync(require('node:fs').readFileSync(fixturePath(rel)));
+  const srcName = Object.keys(srcZip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const sourceBreaks = srcName ? brkIds(await srcZip.file(srcName).async('string')) : [];
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(fixturePath(rel));
+  const sheet = workbook.worksheets[0];
+  const loadedBreaks = ((sheet && sheet.rowBreaks) || []).map(b => b.id ?? b).filter(v => v != null);
+
+  const outZip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+  const outName = Object.keys(outZip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const rewrittenBreaks = outName ? brkIds(await outZip.file(outName).async('string')) : [];
+
+  return {sourceBreaks, loadedBreaks, rewrittenBreaks};
+}
+
+// Author a date-type data validation whose bound is `operand` (an ISO string parsed to a Date, or
+// the literal 'invalid' to force a non-coercible Date), write, and report the serialized formula1
+// text plus whether it contains the literal "NaN". A date validation must write a real date serial,
+// never the token NaN, which Excel treats as a broken bound.
+export async function authorDateValidation(operand) {
+  const date = operand === 'invalid' ? new Date('not-a-date') : new Date(operand);
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').dataValidation = {
+    type: 'date',
+    operator: 'greaterThan',
+    formulae: [date],
+    showErrorMessage: true,
+  };
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const xml = name ? await zip.files[name].async('string') : '';
+  const formula1 = (xml.match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
+  return {formula1, hasNaN: formula1 != null && /NaN/.test(formula1)};
+}
+
+// Assign the SAME base style object to two cells, then mutate one cell's font (spread-reassign a
+// color), write, reload, and report each cell's font color — for asserting copy-on-write isolation:
+// mutating one cell's style must not alias/bleed into a sibling that was given the same base style.
+export async function sharedBaseStyleFontMutation() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  const base = {font: {name: 'Arial', size: 11}};
+  sheet.getCell('A1').value = 'YES';
+  sheet.getCell('A2').value = 'NO';
+  sheet.getCell('A1').style = base;
+  sheet.getCell('A2').style = base;
+  sheet.getCell('A1').font = {...sheet.getCell('A1').font, color: {argb: 'FF00FF00'}};
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const s = reread.getWorksheet('S');
+  const colorOf = ref => {
+    const f = s.getCell(ref).font;
+    return f && f.color ? f.color.argb ?? null : null;
+  };
+  const a1 = colorOf('A1');
+  const a2 = colorOf('A2');
+  return {a1Color: a1, a2Color: a2, bled: a2 === 'FF00FF00'};
 }
 
 // Read a fixture `.xlsx`, write it back unchanged, reload it, and report how many styled cells'

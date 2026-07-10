@@ -48,5 +48,23 @@ export default {
         assert.ok(model.sheets.S.cells.A1.numFmt, 'the cell still carries a custom numFmt after the round-trip');
       },
     },
+    {
+      // Number-format codes are stored in an invariant form where "." is always the decimal and ","
+      // the grouping separator (and "/" the date separator); the viewer localizes at display time.
+      // The library must persist the user's separators verbatim — never swap "." <-> "," or rewrite
+      // "/" to "-" — so a comma-decimal locale renders faithfully from the invariant code.
+      name: 'invariant separators in a percentage and a date format code survive verbatim',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const model = await api.roundtripWorkbook({
+          sheets: [{name: 'S', cells: [
+            {ref: 'A1', value: 0.5, numFmt: '0.00%'},
+            {ref: 'A2', value: {date: '2020-03-04T00:00:00.000Z'}, numFmt: 'DD/MM/YYYY'},
+          ]}],
+        });
+        assert.strictEqual(model.sheets.S.cells.A1.numFmt, '0.00%', 'the percentage code keeps its "." decimal, not a "," swap');
+        assert.strictEqual(model.sheets.S.cells.A2.numFmt, 'DD/MM/YYYY', 'the date code keeps its "/" separators, not "-"');
+      },
+    },
   ],
 };

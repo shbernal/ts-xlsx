@@ -43,6 +43,16 @@ export default {
       },
     },
     {
+      // A hyphen is ambiguous with the subtraction operator, so Excel forbids it in a table name and
+      // treats a file carrying "test-name" as corrupt — it must be rejected, not written verbatim.
+      name: 'a table name containing a hyphen is rejected',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const result = await api.tryWriteWorkbook(tableSpec('test-name'));
+        assert.strictEqual(result.ok, false, 'a hyphenated name must be rejected, not emitted into corrupt XML');
+      },
+    },
+    {
       name: 'a valid identifier table name is accepted and survives into the written table part',
       baseline: 'pass',
       async expect(api, assert) {

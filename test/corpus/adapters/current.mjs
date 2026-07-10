@@ -47,6 +47,10 @@ import {
   roundtripFixtureConditionalFormatting,
   authorConditionalFormatting,
   roundtripFixtureImageRotation,
+  imageExtensionRoundtrip,
+  roundtripFixtureRowBreaks,
+  authorDateValidation,
+  sharedBaseStyleFontMutation,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -293,6 +297,24 @@ export default {
   // { sourceRot, rewrittenRot } (1/60000-deg units) — for asserting an image rotation survives a
   // load/save round-trip rather than being dropped. See workbook-io.mjs.
   roundtripFixtureImageRotation,
+
+  // Add an image whose extension may carry a leading dot (".png") → { mediaParts, doubledSeparator,
+  // reloadedImageCount } — for asserting a leading-dot extension does not produce an "image1..png"
+  // media part that the reader then fails to discover. See workbook-io.mjs.
+  imageExtensionRoundtrip,
+
+  // Read a fixture's manual row page breaks, load-rewrite it → { sourceBreaks, loadedBreaks,
+  // rewrittenBreaks } — for asserting rowBreaks are read and preserved, not silently dropped. See
+  // workbook-io.mjs.
+  roundtripFixtureRowBreaks,
+
+  // Author a date-type data validation with a Date (or 'invalid') bound → { formula1, hasNaN } —
+  // for asserting a date validation writes a real serial, never the token NaN. See workbook-io.mjs.
+  authorDateValidation,
+
+  // Assign one base style object to two cells, mutate one cell's font → { a1Color, a2Color, bled }
+  // — for asserting copy-on-write style isolation (no aliasing bleed to siblings). See workbook-io.mjs.
+  sharedBaseStyleFontMutation,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign
