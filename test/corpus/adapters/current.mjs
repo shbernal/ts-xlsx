@@ -26,6 +26,7 @@ import {
   readFixtureImageAnchors,
   csvRead,
   csvWrite,
+  csvWriteEncodingReport,
   streamWriteSheet,
   sharedFormulaRoundtripAndSplice,
   streamWriteCfHyperlinkOrder,
@@ -224,6 +225,12 @@ export default {
   // Write a declarative row spec to CSV with given options → { ok, error, text } — for
   // asserting field delimiter and date formatting on genuinely-typed cells. See workbook-io.mjs.
   csvWrite,
+
+  // Two facets of CSV write-side character handling → { emojiRoundtrips, requestedEncoding,
+  // decodesAsRequested, decodesAsUtf8 } — for asserting multibyte fidelity survives a UTF-8
+  // round-trip and that a requested non-UTF-8 output encoding is actually applied, not silently
+  // ignored. See workbook-io.mjs.
+  csvWriteEncodingReport,
 
   // Drive the streaming workbook writer through row ops (addRow/addRows), commit, read back
   // → { ok, error, cells, rowCount } — for asserting streaming-only behavior like batch add

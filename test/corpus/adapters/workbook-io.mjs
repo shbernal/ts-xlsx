@@ -2823,6 +2823,35 @@ export async function csvWrite({spec = {}, options} = {}) {
   }
 }
 
+// Two facets of CSV write-side character handling → { emojiRoundtrips, requestedEncoding,
+// decodesAsRequested, decodesAsUtf8 }. (1) Multibyte fidelity: a row of emoji (astral / surrogate
+// pairs) and CJK is written to CSV and read back; the strings must survive verbatim under the default
+// UTF-8 path. (2) Encoding option honored: a cell is written asking for a non-UTF-8 output encoding
+// (default utf16le, which is byte-distinct from UTF-8 for Latin-1 text); the produced bytes must
+// decode back to the text under the *requested* encoding. Today the option is silently ignored — the
+// bytes are always UTF-8 — so `decodesAsRequested` is false while `decodesAsUtf8` is true, which is
+// exactly the "garbled characters" a caller sees when their requested encoding never took effect.
+export async function csvWriteEncodingReport({encoding = 'utf16le', text = 'café'} = {}) {
+  const EMOJI = '😀🎉';
+  const CJK = '日本語テスト';
+
+  const fidelityWb = new ExcelJS.Workbook();
+  fidelityWb.addWorksheet('S').addRow([EMOJI, CJK]);
+  const utf8Buffer = await fidelityWb.csv.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.csv.read(Readable.from(utf8Buffer));
+  const row = reread.worksheets[0].getRow(1);
+  const emojiRoundtrips = row.getCell(1).value === EMOJI && row.getCell(2).value === CJK;
+
+  const encodedWb = new ExcelJS.Workbook();
+  encodedWb.addWorksheet('S').addRow([text]);
+  const encodedBuffer = await encodedWb.csv.writeBuffer({encoding});
+  const decodesAsRequested = encodedBuffer.toString(encoding).replace(/\r?\n$/, '') === text;
+  const decodesAsUtf8 = encodedBuffer.toString('utf8').replace(/\r?\n$/, '') === text;
+
+  return {emojiRoundtrips, requestedEncoding: encoding, decodesAsRequested, decodesAsUtf8};
+}
+
 // Materialize a stream-write cell spec into a live cell value: a { richText:[{text,
 // bold?, italic?}] } spec becomes a real richText value; primitives pass through.
 const streamCellValue = c => {
