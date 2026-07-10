@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + twenty unlabeled slices; 391/794 = 49%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twenty-one unlabeled slices; 406/794 = 51%; fixture-less bulk drain underway)._
 
 ---
 
@@ -438,7 +438,18 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     `enumerateImagesAfterRoundtrip`, `csvWriteSheetSelection`. Folds hit earlier artifacts: solid-fill
     fgColor, spurious-@ formula, merged-slave value, streaming-addImage, edge-runtime, enumerate-merges,
     esm-bundle. Corpus **276 green / 134 known-open / 0 regressions**; 153 corpus cases + 94 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (403 remaining, all fixture-less) in ~15-record
+  - **Twenty-first slice — fixture-less bulk, top-15 by comment signal — drained** (406/794, 51%).
+    7 corpus cases + 3 spec notes (2 new + 1 augment) + 5 not-carried. A rich known-open haul: an
+    unstyled cell resolves to no default font; a per-cell border mutation bleeds to style-record
+    siblings (border facet of the aliasing family); a content-less hidden row loses its hidden flag;
+    a streaming add-row after commit throws an internal null crash not a legible error; a column
+    splice strands a merge to the right. Locks: table cell edit round-trips valid, column border
+    stays scoped, hidden-row-with-height survives. Spec notes: formula-recalc contract (not a formula
+    engine), rich-text writer robustness; augmented the drawing-shapes note with the addShape
+    authoring API. Adapter grew: unstyledCellFontReport, loadMutateCellBorder, hiddenEmptyRowReport,
+    streamAddRowAfterCommit, tableCellEditRoundtrip, columnBorderScopedReport. Corpus **285 green /
+    141 known-open / 0 regressions**; 160 corpus cases + 96 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (388 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -492,12 +503,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **391/794 (49%)**; **all labeled clusters + twenty unlabeled slices are drained; the
+Drain at **406/794 (51%)**; **all labeled clusters + twenty-one unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (276 green / 134
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (285 green / 141
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (403 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (388 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
