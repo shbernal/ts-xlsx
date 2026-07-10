@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + twenty-eight unlabeled slices; 511/794 = 64%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twenty-nine unlabeled slices; 526/794 = 66%; fixture-less bulk drain underway)._
 
 ---
 
@@ -564,7 +564,26 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     csv single-added-sheet → csv-write-sheet-selection-by-name) plus four support/scope records
     (PDF/print, high-level header how-to, legacy-build packaging complaint, no-repro selectbox).
     Corpus **321 green / 159 known-open / 0 regressions**; 182 corpus cases + 108 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (283 remaining, all fixture-less) in ~15-record
+  - **Twenty-ninth slice — fixture-less bulk, top-15 by signal — drained** (526/794, 66%).
+    1 corpus case + 2 spec notes + 2 augments + 10 not-carried — fold-dominated, six of the
+    not-carried were exact folds into existing artifacts. Corpus: the CSV writer silently ignores a
+    requested output encoding and always emits UTF-8, so a caller asking for another encoding gets
+    mojibake (known-open); multibyte emoji/CJK fidelity under the default UTF-8 path is locked green
+    (adapter grew csvWriteEncodingReport). New spec notes: a first-class "time" data-validation type
+    parallel to "date" (day-fraction serial bounds, full operator set, public type union adds
+    "time"); rich-text alignment composition (alignment is cell-level, runs carry only character
+    formatting, so per-run alignment is a no-op/type-error). Augment: browser-safe-io-boundary grew a
+    "no unguarded Node-global (process/Buffer) access on a hot path" section (an env-detection helper
+    reading process.version made mere in-memory API use throw in the browser). Not-carried folds:
+    internal "#" hyperlink dropped (→ internal-location-hyperlink-not-external-rel); column-numfmt
+    reaching cells (→ column-declared-numfmt-reaches-cells, repro was boilerplate); partial column
+    definitions (→ column-definition-type-is-partial-on-write); corrupt-zip/non-atomic write (→
+    atomic-writefile-no-partial-output); workbook structure protection (→
+    workbook-structure-protection-survives-roundtrip case); read/decrypt encrypted workbook (→
+    workbook-password-encryption). Five support/scope records: IE11 unicode-RegExp, Jest/Windows
+    hang, Electron writeBuffer error, legacy-UMD Promise.finally clobber, wrap-text how-to.
+    Corpus **322 green / 160 known-open / 0 regressions**; 183 corpus cases + 110 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (268 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -618,12 +637,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **511/794 (64%)**; **all labeled clusters + twenty-eight unlabeled slices are drained; the
+Drain at **526/794 (66%)**; **all labeled clusters + twenty-nine unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (321 green / 159
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (322 green / 160
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (283 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (268 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
