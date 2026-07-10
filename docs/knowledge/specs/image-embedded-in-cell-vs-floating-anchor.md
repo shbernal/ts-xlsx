@@ -34,6 +34,19 @@ Distinguish the two ways an image can live in a sheet, and let callers choose:
   the OOXML side this is not an `xdr:drawing` two-cell anchor at all — it is a rich value in the
   rich-data / cell-metadata parts (`xl/richData/*`, cell metadata `vm` attributes, and a rels-linked
   image), a distinct feature from classic drawings.
+- **Native / intrinsic-size placement (a missing floating mode).** Even within the floating family,
+  callers routinely want "place this picture *here* at its own dimensions" — pinned to a single
+  top-left cell and rendered at the image's intrinsic pixel size, without stretching to span a range.
+  Today the range-anchor helpers force a two-corner (from + to) anchor, so supplying only a top-left
+  position is not enough and the picture is distorted to fill the spanned cells. This maps to an OOXML
+  **`oneCellAnchor`** whose `ext` (width/height in EMU) is derived from the image's decoded intrinsic
+  size — or an `absoluteAnchor` for a fully grid-independent fixed size. Intrinsic dimensions come from
+  the image bytes (PNG IHDR, JPEG SOFn, GIF header) converted to EMU via the image DPI (default 96 DPI
+  → 9525 EMU/px). The add-image call should accept just a top-left anchor plus an optional explicit
+  size, defaulting the size to the decoded intrinsic dimensions when only the anchor is given, and
+  preserving aspect ratio when only one dimension is supplied. Reading a file that already uses
+  `oneCellAnchor`/`absoluteAnchor` must preserve that anchor mode and size on write, not silently
+  rewrite it to a stretched two-cell anchor.
 
 Prior art: classic implementations support only floating drawing anchors (one-cell "over" a cell or
 two-cell "over" a range) with the `editAs` flag. Helpers that "add an image over a range" still produce
