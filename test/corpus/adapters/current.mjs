@@ -85,6 +85,7 @@ import {
   formulaDateResultReport,
   workbookProtectionRoundtrip,
   multiSheetTableReport,
+  conditionalFormattingStopIfTrue,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -499,6 +500,10 @@ export default {
   // idsUnique, reloadOk, firstSheetDvSurvives } — for asserting looped multi-sheet tables produce a
   // valid package (unique table ids) with surviving validations.
   multiSheetTableReport,
+
+  // Apply a stopIfTrue conditional-formatting rule, write, reload → { xmlHasStopIfTrue,
+  // reloadStopIfTrue } — for asserting the stopIfTrue flag is serialized and round-trips.
+  conditionalFormattingStopIfTrue,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign

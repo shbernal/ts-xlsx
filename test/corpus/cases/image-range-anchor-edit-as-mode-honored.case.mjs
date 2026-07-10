@@ -49,5 +49,16 @@ export default {
         assert.strictEqual(firstEditAs(anchors), 'absolute', 'the absolute (fixed) mode is honored');
       },
     },
+    {
+      // With no explicit mode (omitted, or passed as undefined) the anchor must resolve to a stable
+      // default — oneCell (move-but-don't-resize), in the singular OpenXML spelling — never absolute,
+      // an error, or a literal "undefined". This pins the semantics an inconsistent doc left ambiguous.
+      name: 'an image with no explicit editAs defaults to editAs="oneCell"',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const {anchors} = await api.inspectImageAnchors(imageSpec(undefined));
+        assert.strictEqual(firstEditAs(anchors), 'oneCell', 'the omitted-mode default is oneCell (singular spelling)');
+      },
+    },
   ],
 };

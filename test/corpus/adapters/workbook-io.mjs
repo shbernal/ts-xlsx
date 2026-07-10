@@ -1615,6 +1615,37 @@ export async function streamingSharedFormulaReport(rows = 10) {
   };
 }
 
+// Apply a conditional-formatting rule that sets stopIfTrue, write, and report whether the flag is
+// serialized on the <cfRule> and whether it round-trips onto the reloaded rule — for asserting a
+// stopIfTrue rule (which halts evaluation of lower-priority rules when it matches) is not dropped.
+export async function conditionalFormattingStopIfTrue() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 5;
+  sheet.addConditionalFormatting({
+    ref: 'A1:A10',
+    rules: [
+      {
+        type: 'cellIs',
+        operator: 'greaterThan',
+        formulae: [3],
+        stopIfTrue: true,
+        style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFFF0000'}}},
+      },
+    ],
+  });
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const xml = await zip.file('xl/worksheets/sheet1.xml').async('string');
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const rule = reread.getWorksheet('S').conditionalFormattings?.[0]?.rules?.[0];
+  return {
+    xmlHasStopIfTrue: /stopIfTrue="1"/.test(xml),
+    reloadStopIfTrue: rule ? rule.stopIfTrue ?? false : null,
+  };
+}
+
 // Load a workbook that declares workbook-level structure protection (<workbookProtection
 // lockStructure="1">), then write it back and report whether the protection survives the round-trip.
 // The fixture is built in-process: a normal workbook whose workbook.xml has the protection element

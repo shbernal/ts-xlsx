@@ -31,6 +31,15 @@ const TIME_SPEC = {
   sheets: [{name: 'T', cells: [{ref: 'A1', value: {date: TIME_ISO}, numFmt: '[h]:mm'}]}],
 };
 
+// The dual of the above: a date-LOOKING STRING under a date number format must stay a string. A date
+// format is a display instruction, not a coercion — applying it cannot turn text into a date. So a
+// caller who wants real, pivotable dates must supply Date values; a string like "2024/02/02" under a
+// date column stays text (and pivots/sorts as text), which the caller can detect rather than being
+// silently told it is a date.
+const STRING_UNDER_DATE_FMT = {
+  sheets: [{name: 'S', columns: [{index: 1, numFmt: 'yyyy/mm/dd'}], cells: [{ref: 'A1', value: '2024/02/02'}]}],
+};
+
 export default {
   id: 'date-value-written-as-serial-not-text',
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 1666},
@@ -70,6 +79,18 @@ export default {
         const a1 = model.sheets.T.cells.A1;
         assert.strictEqual(a1.value, TIME_ISO, 'the time value round-trips as a date, not the text "10:51"');
         assert.strictEqual(a1.numFmt, '[h]:mm', 'the duration number format is preserved');
+      },
+    },
+    {
+      name: 'a date-looking string under a date column stays a string (the format does not coerce it)',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const model = await api.roundtripWorkbook(STRING_UNDER_DATE_FMT);
+        assert.strictEqual(
+          model.sheets.S.cells.A1.value,
+          '2024/02/02',
+          'the string keeps its exact text — a date number format must not turn text into a date'
+        );
       },
     },
   ],
