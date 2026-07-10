@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + thirty-one unlabeled slices; 556/794 = 70%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + thirty-two unlabeled slices; 571/794 = 72%; fixture-less bulk drain underway)._
 
 ---
 
@@ -622,7 +622,24 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     embedded-chart-read-write), large-file memory (→ bounded-memory-large-workbook-read), table row
     insert (→ splice-rows-updates-table-and-image-refs), image via writeFile (→ image survival
     cases). Corpus **329 green / 164 known-open / 0 regressions**; 187 corpus cases + 113 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (238 remaining, all fixture-less) in ~15-record
+  - **Thirty-second slice — fixture-less bulk, top-15 by signal — drained** (571/794, 72%).
+    4 corpus cases + 2 spec notes + 9 not-carried (four folds + five noise) — an unusually
+    corpus-rich slice, all four confirmed by probing. One lock + three known-opens: default theme
+    part is emitted for a no-theme workbook (lock, regression guard against a corruption class); a
+    CSS-style "#"-prefixed fill ARGB is written verbatim as a malformed 9-char rgb that renders black
+    (known-open); table style theme "None" emits a bogus name="None" instead of an unstyled table
+    (known-open); the boolean font-flag parser ignores the val attribute so <b val="0"/> reads as
+    bold=true (known-open). Adapter grew fillArgbHashPrefixReport, tableStyleThemeReport,
+    fontExplicitFalseBoldReport (styles-injection); default-theme reused inspectPackage hasThemePart.
+    Spec notes: rich-text shared-string reader robustness (a foreign empty-string accumulator crashes
+    the reader — library reads its own fine, so a foreign fixture is needed) and block row
+    duplication (copy N contiguous rows M times). Four folds: cross-sheet list validation (→ three
+    existing validation cases), CSV headers-option crash (→ csv-read-with-header-rows, same upstream
+    ref), table roundtrip corruption (→ existing-table-roundtrip-fidelity), inline-list length cap (→
+    list-validation-inline-formula-length-limit). Five noise: Excel-not-imported, minimist dep vuln,
+    React StrictMode double-invoke, jszip release request, IF how-to. Corpus **337 green / 167
+    known-open / 0 regressions**; 191 corpus cases + 115 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (223 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -676,12 +693,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **556/794 (70%)**; **all labeled clusters + thirty-one unlabeled slices are drained; the
+Drain at **571/794 (72%)**; **all labeled clusters + thirty-two unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (329 green / 164
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (337 green / 167
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (238 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (223 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
