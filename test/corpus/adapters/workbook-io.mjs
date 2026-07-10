@@ -89,6 +89,9 @@ export function buildFrom(spec = {}) {
       if (col.width !== undefined) column.width = col.width;
       if (col.hidden !== undefined) column.hidden = col.hidden;
       if (col.numFmt !== undefined) column.numFmt = col.numFmt;
+      // Column-level alignment; a case asserts it applies to the column's own cells only and does
+      // not leak to other columns through a shared style object.
+      if (col.alignment !== undefined) column.alignment = col.alignment;
       if (col.style !== undefined) column.style = col.style;
     }
     for (const row of s.rows || []) {
