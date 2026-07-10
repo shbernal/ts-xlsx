@@ -62,6 +62,12 @@ import {
   autoFilterDefinedNameReport,
   enumerateImagesAfterRoundtrip,
   csvWriteSheetSelection,
+  unstyledCellFontReport,
+  loadMutateCellBorder,
+  hiddenEmptyRowReport,
+  streamAddRowAfterCommit,
+  tableCellEditRoundtrip,
+  columnBorderScopedReport,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -379,6 +385,30 @@ export default {
   // Write a chosen worksheet of a multi-sheet workbook to CSV → { ok, error, text, rowCount } — for
   // asserting a bad sheet selector does not silently yield empty output. See workbook-io.mjs.
   csvWriteSheetSelection,
+
+  // Write a plain unstyled value and report the read-back font → { hasFont, fontName, fontSize } —
+  // for asserting an unstyled cell resolves to the workbook default font. See workbook-io.mjs.
+  unstyledCellFontReport,
+
+  // Author cells sharing a style record, mutate one cell's border, round-trip → { a1, a2, a3, bled }
+  // — for asserting a per-cell border mutation does not bleed to style-sharing siblings. See workbook-io.mjs.
+  loadMutateCellBorder,
+
+  // Set hidden/height/outline on blank rows, round-trip → { row3Hidden, row4Hidden, row4Height,
+  // row5Hidden, row5Outline } — for asserting a blank hidden row keeps its flag. See workbook-io.mjs.
+  hiddenEmptyRowReport,
+
+  // Commit a streaming worksheet then add a row → { rejected, legibleRejection, internalCrash,
+  // reloadOk } — for asserting a post-commit add is rejected legibly, not an internal crash. See workbook-io.mjs.
+  streamAddRowAfterCommit,
+
+  // Build a table, edit a cell inside its range, round-trip → { writeOk, reloadOk, tablePresent,
+  // editedValue, relUnique, hasTablePart } — for asserting a table cell edit stays valid. See workbook-io.mjs.
+  tableCellEditRoundtrip,
+
+  // Author a column with a border style + plain columns, round-trip → { a1, b1, c1 } right-border
+  // presence — for asserting the column border is scoped to its column. See workbook-io.mjs.
+  columnBorderScopedReport,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign

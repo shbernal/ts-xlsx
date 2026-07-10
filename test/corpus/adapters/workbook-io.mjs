@@ -1396,6 +1396,185 @@ export function insertRowThenStyle(styleMode = 'i') {
   return {error, numFmt};
 }
 
+// Write a plain unstyled value, round-trip, and report the read-back cell's resolved font — for
+// asserting a cell with no explicit style still resolves to the workbook default font (from the
+// default style at index 0) rather than an undefined/unknown font.
+export async function unstyledCellFontReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 'hello';
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const cell = reread.getWorksheet('S').getCell('A1');
+  const font = cell.font || null;
+  return {
+    hasFont: !!font,
+    fontName: font ? font.name ?? null : null,
+    fontSize: font ? font.size ?? null : null,
+  };
+}
+
+// Author several cells sharing one style record (identical font → deduped xf), load, assign a border
+// to ONE of them, round-trip, and report each cell's border — for asserting a per-cell border
+// mutation is copy-on-write isolated and does not bleed into siblings that shared the style record.
+export async function loadMutateCellBorder() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  for (const r of [1, 2, 3]) {
+    const c = sheet.getCell(`A${r}`);
+    c.value = 'x';
+    c.font = {bold: true};
+  }
+  const buffer = await workbook.xlsx.writeBuffer();
+  const loaded = new ExcelJS.Workbook();
+  await loaded.xlsx.load(buffer);
+  loaded.getWorksheet('S').getCell('A1').border = {
+    top: {style: 'thin'},
+    left: {style: 'thin'},
+    bottom: {style: 'thin'},
+    right: {style: 'thin'},
+  };
+  const buffer2 = await loaded.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer2);
+  const s = reread.getWorksheet('S');
+  const hasBorder = ref => {
+    const b = s.getCell(ref).border;
+    return !!(b && b.top && b.top.style);
+  };
+  return {a1: hasBorder('A1'), a2: hasBorder('A2'), a3: hasBorder('A3'), bled: hasBorder('A2') || hasBorder('A3')};
+}
+
+// Set row-level properties (hidden, height, outlineLevel) on rows that have NO cell content, round-
+// trip, and report whether each property survives — for asserting a blank/spacer row's hidden flag
+// (and height/outline) is written even though the row carries no cells.
+export async function hiddenEmptyRowReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 'top';
+  sheet.getRow(3).hidden = true; // blank hidden row
+  sheet.getRow(4).hidden = true; // blank hidden row with a height
+  sheet.getRow(4).height = 25;
+  sheet.getRow(5).hidden = true; // blank hidden row with an outline level
+  sheet.getRow(5).outlineLevel = 1;
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const s = reread.getWorksheet('S');
+  return {
+    row3Hidden: !!s.getRow(3).hidden,
+    row4Hidden: !!s.getRow(4).hidden,
+    row4Height: s.getRow(4).height ?? null,
+    row5Hidden: !!s.getRow(5).hidden,
+    row5Outline: s.getRow(5).outlineLevel ?? 0,
+  };
+}
+
+// Drive the streaming writer, commit a worksheet, then attempt to add another row to it — and report
+// whether that raises a clear "already committed" error versus an internal null-property crash, plus
+// whether a cleanly-committed workbook reads back valid. A row added after commit must be rejected
+// legibly, not crash on an internal null.
+export async function streamAddRowAfterCommit() {
+  const chunks = [];
+  const stream = new PassThrough();
+  const drained = new Promise(res => {
+    stream.on('data', c => chunks.push(c));
+    stream.on('end', res);
+    stream.on('close', res);
+  });
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream});
+  const sheet = writer.addWorksheet('S');
+  sheet.addRow(['a']).commit();
+  sheet.commit();
+  let error = null;
+  try {
+    sheet.addRow(['b']).commit();
+  } catch (e) {
+    error = String((e && e.message) || e);
+  }
+  await writer.commit();
+  await drained;
+
+  // A legible rejection names the committed state; an internal crash reads "Cannot read properties
+  // of null/undefined" or similar.
+  const legibleRejection = error != null && /commit|committed|finaliz|closed/i.test(error);
+  const internalCrash = error != null && /Cannot read propert|of (null|undefined)/i.test(error);
+
+  const reread = new ExcelJS.Workbook();
+  let reloadOk = true;
+  try {
+    await reread.xlsx.load(Buffer.concat(chunks));
+  } catch (e) {
+    reloadOk = false;
+  }
+  return {rejected: error != null, error, legibleRejection, internalCrash, reloadOk};
+}
+
+// Build a table, round-trip it, edit a cell inside the table's range, write again, and report whether
+// the edited package stays valid: the table part survives, the worksheet→table relationship is
+// present and unique, and the edited value reads back — for asserting a direct cell edit inside a
+// table region does not corrupt the package.
+export async function tableCellEditRoundtrip() {
+  const build = new ExcelJS.Workbook();
+  const bs = build.addWorksheet('S');
+  bs.addTable({name: 'T', ref: 'A1', columns: [{name: 'H1'}, {name: 'H2'}], rows: [['a', 1], ['b', 2]]});
+  const buffer = await build.xlsx.writeBuffer();
+
+  const edited = new ExcelJS.Workbook();
+  await edited.xlsx.load(buffer);
+  edited.getWorksheet('S').getCell('B2').value = 999; // inside the table's data range
+  let writeError = null;
+  let buffer2;
+  try {
+    buffer2 = await edited.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeOk: false, writeError: String((e && e.message) || e), reloadOk: null, tablePresent: null, editedValue: null, relUnique: null};
+  }
+  const reread = new ExcelJS.Workbook();
+  let reloadOk = true;
+  try {
+    await reread.xlsx.load(buffer2);
+  } catch (e) {
+    reloadOk = false;
+  }
+  const zip = await JSZip.loadAsync(buffer2);
+  const relsXml = (await (zip.file('xl/worksheets/_rels/sheet1.xml.rels') || {async: () => ''}).async('string')) || '';
+  const relIds = [...relsXml.matchAll(/Id="([^"]*)"/g)].map(m => m[1]);
+  const s = reloadOk ? reread.getWorksheet('S') : null;
+  return {
+    writeOk: true,
+    writeError,
+    reloadOk,
+    tablePresent: s ? !!s.getTable('T') : false,
+    editedValue: s ? s.getCell('B2').value : null,
+    relUnique: new Set(relIds).size === relIds.length,
+    hasTablePart: Object.keys(zip.files).some(n => /xl\/tables\/table\d+\.xml/.test(n)),
+  };
+}
+
+// Author columns where one column declares a border style and the others do not, write, reload, and
+// report each first-row cell's right-border presence — for asserting a column-level border style
+// applies only to that column's cells and does not bleed into subsequent columns.
+export async function columnBorderScopedReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getColumn(1).border = {right: {style: 'thin', color: {argb: 'FF000000'}}};
+  sheet.getColumn(2).width = 10;
+  sheet.getCell('A1').value = 'a';
+  sheet.getCell('B1').value = 'b';
+  sheet.getCell('C1').value = 'c';
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const s = reread.getWorksheet('S');
+  const rightBorder = ref => {
+    const b = s.getCell(ref).border;
+    return !!(b && b.right && b.right.style);
+  };
+  return {a1: rightBorder('A1'), b1: rightBorder('B1'), c1: rightBorder('C1')};
+}
+
 // Write a sheet through the STREAMING writer carrying both a hyperlink cell and a data-validation
 // cell, and report the relative order of the `<dataValidations>` and `<hyperlinks>` blocks plus
 // reload success. OOXML's CT_Worksheet sequence requires dataValidations BEFORE hyperlinks; the
