@@ -75,6 +75,9 @@ import {
   duplicateRowReport,
   streamCommitBadDestination,
   roundtripFixtureWriteReport,
+  mergeMasterBorderReport,
+  streamingStyleCopyReport,
+  streamingSharedStringsRead,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -444,6 +447,20 @@ export default {
   // Load a fixture and try to write it back → { loadOk, writeOk, writeError, sheetNames } — for
   // asserting a foreign construct round-trips without the writer crashing. See workbook-io.mjs.
   roundtripFixtureWriteReport,
+
+  // Border a cell, make it a merge master, round-trip → { hasTopBorder, hasBottomBorder, numFmt,
+  // fontBold, merges } — for asserting a merge keeps the master's border + style. See workbook-io.mjs.
+  mergeMasterBorderReport,
+
+  // Stream-read a styled workbook and copy cells + styles to the streaming writer → { copyError,
+  // loadOk, fontBold, fontColor, numFmt, hasFill } — for asserting streaming style copy preserves
+  // per-cell styles. See workbook-io.mjs.
+  streamingStyleCopyReport,
+
+  // Read a shared-strings workbook once and then concurrently → { singleComplete, concurrentAllComplete,
+  // concurrentLengths } — for asserting the streaming reader never skips the shared-strings part or
+  // races under concurrency. See workbook-io.mjs.
+  streamingSharedStringsRead,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign

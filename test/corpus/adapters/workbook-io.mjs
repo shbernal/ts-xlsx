@@ -1396,6 +1396,141 @@ export function insertRowThenStyle(styleMode = 'i') {
   return {error, numFmt};
 }
 
+// Give a cell a border (and other style facets), make it the top-left/master of a merged region,
+// round-trip, and report the master cell's border and numFmt — for asserting a merge does not strip
+// the border needed to render the merged region's outline (and preserves the cell's other style).
+export async function mergeMasterBorderReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  const cell = sheet.getCell('A1');
+  cell.value = 'x';
+  cell.border = {top: {style: 'thin'}, bottom: {style: 'medium'}};
+  cell.numFmt = '0.00';
+  cell.font = {bold: true};
+  sheet.mergeCells('A1:B2');
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const m = reread.getWorksheet('S').getCell('A1');
+  const b = m.border || {};
+  return {
+    hasTopBorder: !!(b.top && b.top.style),
+    hasBottomBorder: !!(b.bottom && b.bottom.style),
+    topStyle: b.top ? b.top.style ?? null : null,
+    bottomStyle: b.bottom ? b.bottom.style ?? null : null,
+    numFmt: m.numFmt ?? null,
+    fontBold: !!(m.font && m.font.bold),
+    merges: (reread.getWorksheet('S').model && reread.getWorksheet('S').model.merges) || [],
+  };
+}
+
+// Build a styled workbook, stream-read it (caching styles), copy each cell's value + style onto a
+// streaming writer configured to emit styles, and report the copied cell's font/fill/numFmt after a
+// final reload — for asserting a streaming read→write copy preserves per-cell styles rather than
+// dropping them, and that the emitted styles part is loadable.
+export async function streamingStyleCopyReport() {
+  const src = new ExcelJS.Workbook();
+  const ss = src.addWorksheet('S');
+  const c = ss.getCell('A1');
+  c.value = 'hello';
+  c.font = {bold: true, color: {argb: 'FFFF0000'}};
+  c.numFmt = '0.00%';
+  c.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
+  const srcBuffer = await src.xlsx.writeBuffer();
+
+  const reader = new ExcelJS.stream.xlsx.WorkbookReader(Readable.from(Buffer.from(srcBuffer)), {
+    worksheets: 'emit',
+    styles: 'cache',
+    sharedStrings: 'cache',
+  });
+  const outChunks = [];
+  const os = new PassThrough();
+  const odone = new Promise(res => {
+    os.on('data', ch => outChunks.push(ch));
+    os.on('end', res);
+    os.on('close', res);
+  });
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream: os, useStyles: true});
+  let copyError = null;
+  try {
+    for await (const rws of reader) {
+      const ows = writer.addWorksheet(rws.name || 'S');
+      for await (const row of rws) {
+        const orow = ows.getRow(row.number);
+        row.eachCell({includeEmpty: false}, (cell, col) => {
+          orow.getCell(col).value = cell.value;
+          orow.getCell(col).style = cell.style;
+        });
+        orow.commit();
+      }
+      ows.commit();
+    }
+    await writer.commit();
+    await odone;
+  } catch (e) {
+    copyError = String((e && e.message) || e);
+  }
+  if (copyError) return {copyError, loadOk: false, fontBold: null, fontColor: null, numFmt: null, hasFill: null};
+
+  const outBuffer = Buffer.concat(outChunks);
+  let loadOk = true;
+  let cell = null;
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(outBuffer);
+    cell = reread.getWorksheet('S').getCell('A1');
+  } catch (e) {
+    loadOk = false;
+  }
+  return {
+    copyError,
+    loadOk,
+    fontBold: cell ? !!(cell.font && cell.font.bold) : null,
+    fontColor: cell && cell.font && cell.font.color ? cell.font.color.argb ?? null : null,
+    numFmt: cell ? cell.numFmt ?? null : null,
+    hasFill: cell ? !!(cell.fill && cell.fill.type === 'pattern' && cell.fill.fgColor) : null,
+  };
+}
+
+// Read a shared-strings workbook through the streaming reader once, and then read the SAME buffer
+// through many independent streaming readers concurrently, reporting whether every read resolved all
+// its string cells completely — for asserting the streaming reader consumes every zip entry (the
+// shared-strings part is never skipped) and does not race or drop parses under concurrency.
+export async function streamingSharedStringsRead(rowCount = 20, concurrency = 8) {
+  const build = new ExcelJS.Workbook();
+  const bs = build.addWorksheet('S');
+  for (let r = 1; r <= rowCount; r++) {
+    bs.getCell(`A${r}`).value = `str${r % 3}`;
+    bs.getCell(`B${r}`).value = r;
+  }
+  const buffer = await build.xlsx.writeBuffer({useSharedStrings: true});
+
+  const readOne = async () => {
+    const reader = new ExcelJS.stream.xlsx.WorkbookReader(Readable.from(Buffer.from(buffer)), {
+      worksheets: 'emit',
+      sharedStrings: 'cache',
+    });
+    const strings = [];
+    for await (const ws of reader) {
+      for await (const row of ws) strings.push(row.getCell(1).value);
+    }
+    return strings;
+  };
+
+  const single = await readOne();
+  const singleComplete = single.length === rowCount && single.every(v => typeof v === 'string');
+
+  const many = await Promise.all(Array.from({length: concurrency}, () => readOne()));
+  const allComplete = many.every(v => v.length === rowCount && v.every(x => typeof x === 'string'));
+
+  return {
+    singleComplete,
+    singleLength: single.length,
+    concurrentAllComplete: allComplete,
+    concurrentLengths: many.map(v => v.length),
+  };
+}
+
 // Author a table whose column name contains embedded line-break control characters (CR/LF), write,
 // and report the raw tableColumn tag plus whether it carries UNESCAPED control characters — for
 // asserting the name is XML-character-escaped (e.g. &#10;) rather than emitting raw CR/LF that
