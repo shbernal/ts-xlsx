@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + thirty-four unlabeled slices; 601/794 = 76%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + thirty-five unlabeled slices; 616/794 = 78%; fixture-less bulk drain underway)._
 
 ---
 
@@ -672,7 +672,29 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     noise: multi-sheet how-to, no-repro protection, MIME user-side, TS decl packaging, no-repro
     getCell, HTTP transport. Corpus **349 green / 169 known-open / 0 regressions**; 197 corpus cases
     + 118 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (193 remaining, all fixture-less) in ~15-record
+  - **Thirty-fifth slice — fixture-less bulk, top-15 by signal — drained** (616/794, 78%).
+    6 corpus cases/augments + 3 spec notes + 2 augments + 4 not-carried (all folds). Four locks +
+    two known-opens on the corpus side: csv `map` option controls value coercion (default coerces
+    "007"→7, an identity map preserves strings — 2 locks); a merged child cell's display text
+    mirrors the master and never throws (lock); out-of-order `<col>` tags still bind width/hidden to
+    the right column index (lock); row and column outline levels round-trip on both axes (lock);
+    streaming write emits `sheetProtection` before `autoFilter` (reload control locked, ordering
+    known-open); loading vs constructing a reserved "History" sheet split apart — the guard
+    over-applies to API construction (known-open) while genuinely-invalid names stay rejected (lock).
+    Adapter grew csvReadMapReport, mergedCellDisplayTextReport, outOfOrderColumnsReport,
+    rowColumnOutlineLevelRoundtrip, streamAutoFilterProtectionOrder, addReservedSheetNameReport.
+    Spec notes: streaming writer's worksheet is a narrowed forward-only type (random-access ops must
+    be absent, not throw); streaming and buffered I/O should be one implementation with parity as an
+    invariant; a cell should report its merge role (master/child/none). Augments: validate the image
+    definition at entry (no-payload/bad-extension/format-mismatch → add-image-source-contract); a
+    runtime value export like the range class needs a value-level declaration
+    (→ public-type-surface-matches-runtime). Four folds: inefficient merge-conflict check
+    (→ merged-cell-registration-linear-not-quadratic), multiple print areas
+    (→ multiple-print-areas-one-sheet-roundtrip), fill-after-border style bleed
+    (→ cell-border-mutation-does-not-bleed-to-style-siblings), generic slow-writeBuffer report
+    (no repro, Phase 3 perf). Corpus **359 green / 171 known-open / 0 regressions**; 202 corpus cases
+    + 121 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (178 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -726,12 +748,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **601/794 (76%)**; **all labeled clusters + thirty-four unlabeled slices are drained; the
+Drain at **616/794 (78%)**; **all labeled clusters + thirty-five unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (349 green / 169
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (359 green / 171
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (193 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (178 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
