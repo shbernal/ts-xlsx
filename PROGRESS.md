@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + nineteen unlabeled slices; 376/794 = 47%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twenty unlabeled slices; 391/794 = 49%; fixture-less bulk drain underway)._
 
 ---
 
@@ -426,7 +426,19 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     cross-sheet validation cases (probing showed it's preserved). Six of fifteen were pure
     dependency/CVE/support reports. Adapter grew: `formulaFalsyResultReport`. Corpus **268 green /
     130 known-open / 0 regressions**; 149 corpus cases + 91 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (418 remaining, all fixture-less) in ~15-record
+  - **Twentieth slice — fixture-less bulk, top-15 by comment signal — drained** (391/794, 49%).
+    4 corpus cases + 3 spec notes + 8 not-carried (5 folds + 3 spec folds). Three known-opens: the
+    streaming writer emits <hyperlinks> before <dataValidations> (same class as the CF/hyperlinks
+    order bug); an autofilter writes no `_xlnm._FilterDatabase` defined name so LibreOffice ignores
+    the filter; a CSV write with a non-matching sheetName silently emits empty output. Locks: getImages
+    enumerates both anchor variants (the Excel-specific empty-result doesn't reproduce for standard
+    anchors); CSV matching/default sheet selection works. Spec notes: centered image placement,
+    single-worksheet emit + sheet-swap, locale-dependent builtin date-format-code reporting policy.
+    Adapter grew: `streamWriteDvHyperlinkOrder`, `autoFilterDefinedNameReport`,
+    `enumerateImagesAfterRoundtrip`, `csvWriteSheetSelection`. Folds hit earlier artifacts: solid-fill
+    fgColor, spurious-@ formula, merged-slave value, streaming-addImage, edge-runtime, enumerate-merges,
+    esm-bundle. Corpus **276 green / 134 known-open / 0 regressions**; 153 corpus cases + 94 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (403 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -480,12 +492,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **376/794 (47%)**; **all labeled clusters + nineteen unlabeled slices are drained; the
+Drain at **391/794 (49%)**; **all labeled clusters + twenty unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (268 green / 130
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (276 green / 134
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (418 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (403 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
