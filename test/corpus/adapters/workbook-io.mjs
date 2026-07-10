@@ -3151,6 +3151,104 @@ export async function rowInsertPreservesNoteAndOutline() {
   };
 }
 
+// Freeze the first row (a frozen sheet view splitting after row 1, no column split), write, and
+// report the emitted pane plus the round-trip → { paneEmitted, reReadState, reReadYSplit,
+// reReadXSplit }. Freezing the header row is the canonical "keep the header visible while scrolling"
+// pattern; it serializes as <pane ySplit="1" ... state="frozen"/> and reads back with the same split.
+export async function frozenTopRowRoundtrip() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.views = [{state: 'frozen', xSplit: 0, ySplit: 1}];
+  ws.getCell('A1').value = 'header';
+  const buffer = await wb.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetName = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const sheetXml = sheetName ? await zip.file(sheetName).async('string') : '';
+  const pane = (sheetXml.match(/<pane\b[^>]*\/?>/) || [''])[0];
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(buffer);
+  const view = (reload.getWorksheet('S').views || [])[0] || {};
+  return {
+    paneEmitted: /ySplit="1"/.test(pane) && /state="frozen"/.test(pane),
+    reReadState: view.state ?? null,
+    reReadYSplit: view.ySplit ?? null,
+    reReadXSplit: view.xSplit ?? null,
+  };
+}
+
+// Set a worksheet tab color as an 8-digit ARGB (alpha first), alongside a second sheet with no tab
+// color, and report the round-trip → { tabColorArgbWritten, reReadArgb, uncoloredHasTab }. Colors are
+// ARGB (the first two hex digits are alpha), and a set tab color must survive verbatim while a sheet
+// with none does not acquire a spurious one.
+export async function tabColorRoundtrip() {
+  const wb = new ExcelJS.Workbook();
+  const colored = wb.addWorksheet('Colored', {properties: {tabColor: {argb: 'FFFF0000'}}});
+  colored.getCell('A1').value = 'x';
+  const plain = wb.addWorksheet('Plain');
+  plain.getCell('A1').value = 'y';
+  const buffer = await wb.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetName = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const sheetXml = sheetName ? await zip.file(sheetName).async('string') : '';
+  const written = (sheetXml.match(/<tabColor\b[^>]*rgb="([^"]*)"/) || [null, null])[1];
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(buffer);
+  const props = reload.getWorksheet('Colored').properties || {};
+  return {
+    tabColorArgbWritten: written,
+    reReadArgb: (props.tabColor && props.tabColor.argb) || null,
+    uncoloredHasTab: !!(reload.getWorksheet('Plain').properties || {}).tabColor,
+  };
+}
+
+// Anchor two images to single-cell ranges (C2, C3), interleaving addRow calls between them, and
+// report each image's resolved from-anchor col/row → { anchorCount, froms }. A cell-range anchor must
+// resolve to that exact cell regardless of the order rows and images were added, mapping one-to-one
+// with no off-by-one row drift or phantom row.
+export async function cellAnchoredImagePositionReport() {
+  const png = Buffer.from(
+    '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000001e221bc330000000049454e44ae426082',
+    'hex'
+  );
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.addRow(['r1']);
+  ws.addImage(wb.addImage({buffer: png, extension: 'png'}), 'C2:C2');
+  ws.addRow(['r3']);
+  ws.addImage(wb.addImage({buffer: png, extension: 'png'}), 'C3:C3');
+  const zip = await JSZip.loadAsync(await wb.xlsx.writeBuffer());
+  const drawingName = Object.keys(zip.files).find(f => /xl\/drawings\/drawing1\.xml$/.test(f));
+  const drawingXml = drawingName ? await zip.file(drawingName).async('string') : '';
+  const froms = [...drawingXml.matchAll(/<xdr:from>\s*<xdr:col>(\d+)<\/xdr:col>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/g)].map(m => ({
+    col: Number(m[1]),
+    row: Number(m[2]),
+  }));
+  return {anchorCount: froms.length, froms};
+}
+
+// Write a wide table (5 columns, multiple data rows), read it back, and report the loaded table's
+// columns → { colCount, colNames }. A table read from a file must expose every declared column, not
+// cap at a fixed number (a historical 3-column truncation).
+export async function wideTableColumnReadReport() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.addTable({
+    name: 'T',
+    ref: 'A1',
+    headerRow: true,
+    columns: [{name: 'C1'}, {name: 'C2'}, {name: 'C3'}, {name: 'C4'}, {name: 'C5'}],
+    rows: [
+      ['a1', 'b1', 'c1', 'd1', 'e1'],
+      ['a2', 'b2', 'c2', 'd2', 'e2'],
+    ],
+  });
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(await wb.xlsx.writeBuffer());
+  const table = reload.getWorksheet('S').getTable('T');
+  const columns = (table && table.table && table.table.columns) || [];
+  return {colCount: columns.length, colNames: columns.map(c => c.name)};
+}
+
 // Read a richText (or primitive) cell value back into a plain shape a case can compare:
 // { richText:[{text, bold, italic}] } or the primitive itself.
 const readStreamCell = v => {

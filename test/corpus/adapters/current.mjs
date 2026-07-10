@@ -37,6 +37,10 @@ import {
   fontExplicitFalseBoldReport,
   outlinePropertiesRoundtrip,
   rowInsertPreservesNoteAndOutline,
+  frozenTopRowRoundtrip,
+  tabColorRoundtrip,
+  cellAnchoredImagePositionReport,
+  wideTableColumnReadReport,
   sharedFormulaRoundtripAndSplice,
   streamWriteCfHyperlinkOrder,
   roundtripFormulas,
@@ -290,6 +294,22 @@ export default {
   // noteFollowsRow, outlineFollowsRow } — for asserting a cell note and an outline level track their
   // logical row through an insert. See workbook-io.mjs.
   rowInsertPreservesNoteAndOutline,
+
+  // Freeze the first row, write, and report the pane + round-trip → { paneEmitted, reReadState,
+  // reReadYSplit, reReadXSplit } — for locking a frozen-header sheet view survives. See workbook-io.mjs.
+  frozenTopRowRoundtrip,
+
+  // Set a worksheet tab color (ARGB, alpha first) alongside an uncolored sheet → { tabColorArgbWritten,
+  // reReadArgb, uncoloredHasTab } — for locking tab-color ARGB round-trip. See workbook-io.mjs.
+  tabColorRoundtrip,
+
+  // Anchor images to single cells with interleaved addRow calls → { anchorCount, froms } — for locking
+  // a cell-range image anchor resolves to its exact cell with no off-by-one drift. See workbook-io.mjs.
+  cellAnchoredImagePositionReport,
+
+  // Write a wide (5-column) table, read it back → { colCount, colNames } — for locking a loaded table
+  // exposes every column, not a fixed cap. See workbook-io.mjs.
+  wideTableColumnReadReport,
 
   // Author a shared-formula master/slave group, read-then-rewrite it, and splice a column in →
   // { roundtripOk, preservedFormulas, spliceOk, spliceError } — for asserting a lossless
