@@ -83,6 +83,8 @@ import {
   streamingSharedFormulaReport,
   equivalentColumnCollapseReport,
   formulaDateResultReport,
+  workbookProtectionRoundtrip,
+  multiSheetTableReport,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -487,6 +489,16 @@ export default {
   // A formula whose cached result is a date serial under a date format → { isValidDate, resultIso,
   // keepsFormula } — for asserting a numeric formula result under a date format reads as a valid Date.
   formulaDateResultReport,
+
+  // Load a workbook declaring workbook-level structure protection, write it back → { sourceHadProtection,
+  // rewrittenHasProtection, rewrittenLocksStructure } — for asserting workbook protection survives a
+  // read→write round-trip.
+  workbookProtectionRoundtrip,
+
+  // Build several sheets each with a table + a data validation, write, reload → { writeOk, tableCount,
+  // idsUnique, reloadOk, firstSheetDvSurvives } — for asserting looped multi-sheet tables produce a
+  // valid package (unique table ids) with surviving validations.
+  multiSheetTableReport,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign

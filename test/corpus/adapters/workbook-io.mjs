@@ -18,7 +18,7 @@
 //     sheets: [{
 //       name,                                                       // required
 //       cells:   [{ ref, value|formula(+result)|sharedFormula(+result)|text+hyperlink,
-//                   numFmt, font, fill, alignment, note }],
+//                   numFmt, font, fill, alignment, border, note }],
 //       images:  [{ range, extension? }],                           // range: "B2:D6" or {tl,br?,ext?}; extension defaults 'png'
 //       columns: [{ index, width, hidden, numFmt, style }],         // index: 1-based
 //       rows:    [{ index, height, hidden }],
@@ -85,6 +85,7 @@ export function buildFrom(spec = {}) {
       if (c.font !== undefined) cell.font = c.font;
       if (c.fill !== undefined) cell.fill = c.fill;
       if (c.alignment !== undefined) cell.alignment = c.alignment;
+      if (c.border !== undefined) cell.border = c.border;
       if (c.note !== undefined) cell.note = c.note;
     }
     for (const col of s.columns || []) {
@@ -256,6 +257,7 @@ function normalizeCell(cell) {
   // assert both survival (a set value comes back) and locality (an unset cell is bare).
   if (cell.fill && cell.fill.type) out.fill = JSON.parse(JSON.stringify(cell.fill));
   if (cell.alignment) out.alignment = JSON.parse(JSON.stringify(cell.alignment));
+  if (cell.border) out.border = JSON.parse(JSON.stringify(cell.border));
   return out;
 }
 
@@ -1610,6 +1612,66 @@ export async function streamingSharedFormulaReport(rows = 10) {
     masterHasFormula: !!(master && typeof master === 'object' && 'formula' in master),
     slaveResolved: !slaveIsEmpty,
     slaveValue: slave ?? null,
+  };
+}
+
+// Load a workbook that declares workbook-level structure protection (<workbookProtection
+// lockStructure="1">), then write it back and report whether the protection survives the round-trip.
+// The fixture is built in-process: a normal workbook whose workbook.xml has the protection element
+// injected, reproducing a protected workbook opened, read, and re-saved.
+export async function workbookProtectionRoundtrip() {
+  const base = new ExcelJS.Workbook();
+  base.addWorksheet('S').getCell('A1').value = 'x';
+  const buffer = await base.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  let wbXml = await zip.file('xl/workbook.xml').async('string');
+  wbXml = wbXml.replace(/(<sheets>)/, '<workbookProtection lockStructure="1" lockWindows="0"/>$1');
+  zip.file('xl/workbook.xml', wbXml);
+  const injected = await zip.generateAsync({type: 'nodebuffer'});
+
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(injected);
+  const rewritten = await reread.xlsx.writeBuffer();
+  const z2 = await JSZip.loadAsync(rewritten);
+  const wbXml2 = await z2.file('xl/workbook.xml').async('string');
+  return {
+    sourceHadProtection: /workbookProtection/.test(wbXml),
+    rewrittenHasProtection: /workbookProtection/.test(wbXml2),
+    rewrittenLocksStructure: /lockStructure="1"/.test(wbXml2),
+  };
+}
+
+// Build several worksheets, each carrying its own table and a data validation, then write and reload.
+// Report whether the write succeeds, the table part ids are unique across the package (a collision
+// makes Excel demand repair / open in protected view), and a per-sheet data validation survives.
+export async function multiSheetTableReport(sheetCount = 5) {
+  const workbook = new ExcelJS.Workbook();
+  for (let i = 0; i < sheetCount; i++) {
+    const sheet = workbook.addWorksheet('S' + i);
+    sheet.addTable({name: 'T' + i, ref: 'A1', columns: [{name: 'H1'}, {name: 'H2'}], rows: [['a', 1], ['b', 2]]});
+    sheet.getCell('D1').dataValidation = {type: 'list', allowBlank: true, formulae: ['"x,y,z"']};
+  }
+  let writeError = null;
+  let buffer;
+  try {
+    buffer = await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeOk: false, writeError: String((e && e.message) || e)};
+  }
+  const zip = await JSZip.loadAsync(buffer);
+  const tableParts = Object.keys(zip.files).filter(n => /xl\/tables\/table\d+\.xml$/.test(n));
+  const ids = [];
+  for (const p of tableParts) ids.push(((await zip.file(p).async('string')).match(/ id="(\d+)"/) || [])[1]);
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const dv = reread.getWorksheet('S0').getCell('D1').dataValidation;
+  return {
+    writeOk: true,
+    writeError,
+    tableCount: tableParts.length,
+    idsUnique: new Set(ids).size === ids.length,
+    reloadOk: true,
+    firstSheetDvSurvives: !!(dv && dv.type === 'list'),
   };
 }
 

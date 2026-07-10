@@ -62,5 +62,31 @@ export default {
         assert.ok(!/(^|[^A-Za-z0-9_])@/.test(f), `no @ implicit-intersection operator should be injected; got: ${f}`);
       },
     },
+    {
+      // LET and the lambda family (LAMBDA/BYROW) are modern functions too, so they need the _xlfn.
+      // prefix; additionally LET's own parameter names are stored with a _xlpm. prefix. A real-world
+      // formula combining them (LET + BYROW + LAMBDA + FILTER) that is written verbatim, with none of
+      // these prefixes, is rejected by Excel as corrupt.
+      name: 'a LET/LAMBDA formula is stored with the _xlfn. function prefix Excel requires',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {sheets} = await api.inspectPackage({
+          sheets: [
+            {
+              name: 'S',
+              cells: [
+                {
+                  ref: 'A1',
+                  formula: 'LET(a,B2:B9,b,BYROW(a,LAMBDA(r,SUM(r))),COUNTA(UNIQUE(FILTER(a,b=1))))',
+                  result: 0,
+                },
+              ],
+            },
+          ],
+        });
+        const f = sheets.S.formulas.A1 || '';
+        assert.ok(/_xlfn\.LET/.test(f), `LET must be stored as _xlfn.LET for Excel to accept it; got: ${f}`);
+      },
+    },
   ],
 };
