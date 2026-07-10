@@ -1613,6 +1613,59 @@ export async function streamingSharedFormulaReport(rows = 10) {
   };
 }
 
+// Define several adjacent columns with equivalent styling/width/outline, then write. On write the
+// serializer collapses runs of equivalent columns into shared <col min max> spans; report whether the
+// write succeeds (no crash) and how many <col> spans result — for asserting equivalent-column
+// collapse does not throw and actually coalesces.
+export async function equivalentColumnCollapseReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.columns = [
+    {header: 'A', key: 'a', width: 12},
+    {header: 'B', key: 'b', width: 12},
+    {header: 'C', key: 'c', width: 12},
+    {header: 'D', key: 'd', width: 12},
+  ];
+  for (let c = 1; c <= 4; c++) sheet.getColumn(c).outlineLevel = 1;
+  sheet.addRow({a: 1, b: 2, c: 3, d: 4});
+
+  let writeError = null;
+  let buffer;
+  try {
+    buffer = await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeOk: false, writeError: String((e && e.message) || e), colSpanCount: null};
+  }
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetXml = await zip.file('xl/worksheets/sheet1.xml').async('string');
+  const cols = (sheetXml.match(/<col\b[^>]*\/?>/g) || []);
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  return {writeOk: true, writeError, colSpanCount: cols.length, reloadOk: true};
+}
+
+// A formula cell whose cached result is a date serial number, styled with a date number format. Read
+// it back and report whether the result surfaces as a valid Date (not an Invalid Date) — for asserting
+// a numeric formula result under a date format is date-typed on read.
+export async function formulaDateResultReport(serial = 45900) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  const cell = sheet.getCell('A1');
+  cell.value = {formula: 'A2+A3', result: serial};
+  cell.numFmt = 'yyyy-mm-dd';
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const v = reread.getWorksheet('S').getCell('A1').value;
+  const result = v && typeof v === 'object' && 'result' in v ? v.result : v;
+  const isDate = result instanceof Date;
+  return {
+    isValidDate: isDate && !Number.isNaN(result.getTime()),
+    resultIso: isDate && !Number.isNaN(result.getTime()) ? result.toISOString() : null,
+    keepsFormula: !!(v && typeof v === 'object' && 'formula' in v),
+  };
+}
+
 // Author a table whose column name contains embedded line-break control characters (CR/LF), write,
 // and report the raw tableColumn tag plus whether it carries UNESCAPED control characters — for
 // asserting the name is XML-character-escaped (e.g. &#10;) rather than emitting raw CR/LF that

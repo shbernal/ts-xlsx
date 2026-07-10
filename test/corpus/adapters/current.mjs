@@ -81,6 +81,8 @@ import {
   numFmtObjectCorruptionReport,
   csvNonAsciiEncodingReport,
   streamingSharedFormulaReport,
+  equivalentColumnCollapseReport,
+  formulaDateResultReport,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -477,6 +479,14 @@ export default {
   // Build via the streaming writer with a master + shared-formula slaves, reload → { masterHasFormula,
   // slaveResolved, slaveValue } — for asserting streamed shared-formula slaves aren't dropped to empty.
   streamingSharedFormulaReport,
+
+  // Define adjacent equivalent columns and write → { writeOk, writeError, colSpanCount, reloadOk } —
+  // for asserting equivalent-column collapse does not crash and coalesces into shared <col> spans.
+  equivalentColumnCollapseReport,
+
+  // A formula whose cached result is a date serial under a date format → { isValidDate, resultIso,
+  // keepsFormula } — for asserting a numeric formula result under a date format reads as a valid Date.
+  formulaDateResultReport,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign
