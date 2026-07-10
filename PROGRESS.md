@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + twelve unlabeled slices; 271/794; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + thirteen unlabeled slices; 286/794; fixture-less bulk drain underway)._
 
 ---
 
@@ -324,7 +324,26 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     resolution, column-numFmt-reaches-cells. Not-carried: strict-CSP (dup of no-unsafe-eval note),
     async-iterable read error, Webpack+IE11 chunk-load.  Corpus **203 green / 105 known-open / 0
     regressions**; 120 corpus cases + 79 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (523 remaining, all fixture-less) in ~15-record
+  - **Thirteenth slice — fixture-less bulk, top-15 by comment signal — drained** (286/794, ~36%).
+    5 corpus cases + 1 augment + 3 spec notes (2 new + 1 augment) + 6 not-carried. Probing again
+    overturned three triage guesses into locks: **added worksheet defaults to visible** (hidden-by-
+    default doesn't reproduce), **distinct per-column numFmts stay independent** (no shared-style
+    collapse via the getColumn path), and a **table dynamicFilter loads tolerantly** (the reported
+    parse crash doesn't reproduce — the table filterColumn isn't strictly parsed on this load path,
+    so it's a tolerant-read lock). Genuine known-opens: **spliceColumns into a shared-formula sheet
+    throws** "master must exist above/left of clone" (read→rewrite round-trips fine — lock); the
+    **streaming writer emits <hyperlinks> before <conditionalFormatting>**, violating the CT_Worksheet
+    sequence Excel repairs. Augmented the list-validation case: inline lists serialize double-quote-
+    wrapped, range refs unquoted (the form Excel is strict about). Adapter grew: worksheet visibility
+    `state` in buildFrom/inspectPackage; new `sharedFormulaRoundtripAndSplice` + `streamWriteCfHyperlinkOrder`.
+    New fixture: a table with an injected column-level dynamicFilter. Spec notes: unsupported-input-
+    format typed error (.xls BIFF → UnsupportedFormatError, no zip-internals leak); cross-worksheet row
+    copy preserving styles/formulas/merges. Augment folded in: browser-safe-io-boundary gained the
+    streaming-in-browser boundary (absent-or-typed-error, not present-but-broken). Not-carried: IE10
+    (dead browser), four dependency-bump/CVE reports (audit gate subsumes), streaming backpressure
+    (dup of the row-commit-backpressure note). Corpus **217 green / 107 known-open / 0 regressions**;
+    125 corpus cases + 81 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (508 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -378,12 +397,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **271/794 (~34%)**; **all labeled clusters + twelve unlabeled slices are drained; the
+Drain at **286/794 (~36%)**; **all labeled clusters + thirteen unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (203 green / 105
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (217 green / 107
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (523 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (508 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
