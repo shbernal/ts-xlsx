@@ -72,7 +72,9 @@ export function buildFrom(spec = {}) {
   if (p.modified !== undefined) workbook.modified = toDate(p.modified);
 
   for (const s of spec.sheets || []) {
-    const sheet = workbook.addWorksheet(s.name);
+    // A worksheet's visibility state (visible/hidden/veryHidden). Omitting it must yield a visible
+    // sheet — a case asserts the default is not accidentally hidden.
+    const sheet = workbook.addWorksheet(s.name, s.state ? {state: s.state} : undefined);
     for (const c of s.cells || []) {
       const cell = sheet.getCell(c.ref);
       cell.value = cellValueFrom(c);
@@ -410,7 +412,9 @@ export async function inspectPackage(spec) {
   });
   const sheetEntries = [...workbookXml.matchAll(/<sheet\b[^>]*?\/?>/g)].map(t => {
     const a = attrs(t[0]);
-    return {name: a.name, rid: a['r:id']};
+    // `state` is the visibility marker (visible/hidden/veryHidden). Absent means visible; a case
+    // asserts a default-added sheet is not silently hidden.
+    return {name: a.name, rid: a['r:id'], state: a.state ?? null};
   });
   const rels = [...relsXml.matchAll(/<Relationship\b[^>]*?\/?>/g)].map(t => {
     const a = attrs(t[0]);
@@ -1578,6 +1582,116 @@ export async function streamWriteSheet({useSharedStrings = false, ops = [], read
   const cells = {};
   for (const ref of read) cells[ref] = readStreamCell(sheet.getCell(ref).value);
   return {ok: true, error: null, cells, rowCount: sheet.rowCount};
+}
+
+// Author a shared-formula group (a master cell plus dependent "slave" cells that reference it over a
+// range, as a spreadsheet app emits when a formula is filled across cells), then exercise the two
+// operations that historically break the master/slave bookkeeping: (1) read the written file and
+// write it back unchanged, and (2) load it and splice a column in, shifting the shared-formula cells.
+// Reports whether each path throws (the notorious "Shared Formula master must exist above and or left
+// of clone" error) and whether the round-trip preserves the dependent cells' formulas.
+export async function sharedFormulaRoundtripAndSplice() {
+  const build = () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = 1;
+    sheet.getCell('A2').value = 2;
+    sheet.getCell('A3').value = 3;
+    sheet.getCell('B1').value = {formula: 'A1*2', shareType: 'shared', ref: 'B1:B3', result: 2};
+    sheet.getCell('B2').value = {sharedFormula: 'B1', result: 4};
+    sheet.getCell('B3').value = {sharedFormula: 'B1', result: 6};
+    return workbook;
+  };
+  const buffer = await build().xlsx.writeBuffer();
+
+  // (1) read then re-write unchanged
+  let roundtripError = null;
+  let preservedFormulas = null;
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(buffer);
+    await reread.xlsx.writeBuffer();
+    const s = reread.getWorksheet('S');
+    // A dependent cell must still carry a formula (shared or expanded), not just its cached value.
+    preservedFormulas = ['B2', 'B3'].every(ref => {
+      const v = s.getCell(ref).value;
+      return !!(v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v));
+    });
+  } catch (e) {
+    roundtripError = String((e && e.message) || e);
+  }
+
+  // (2) load then splice a column in (shifting the shared-formula cells) and write
+  let spliceError = null;
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(buffer);
+    reread.getWorksheet('S').spliceColumns(1, 0, []);
+    await reread.xlsx.writeBuffer();
+  } catch (e) {
+    spliceError = String((e && e.message) || e);
+  }
+
+  return {
+    roundtripOk: roundtripError === null,
+    roundtripError,
+    preservedFormulas,
+    spliceOk: spliceError === null,
+    spliceError,
+  };
+}
+
+// Write a worksheet through the STREAMING writer carrying both a conditional-formatting rule and a
+// hyperlink cell, then report the relative order of the emitted <conditionalFormatting> and
+// <hyperlinks> blocks in the worksheet XML plus whether the package reloads. OOXML's CT_Worksheet
+// sequence requires conditionalFormatting BEFORE hyperlinks; emitting them reversed makes Excel
+// treat the file as corrupt. The buffered writer orders them correctly, so this isolates the
+// streaming path's element ordering.
+export async function streamWriteCfHyperlinkOrder() {
+  const chunks = [];
+  const stream = new PassThrough();
+  const drained = new Promise(res => {
+    stream.on('data', c => chunks.push(c));
+    stream.on('end', res);
+    stream.on('close', res);
+  });
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({stream, useStyles: true});
+  const sheet = writer.addWorksheet('S');
+  sheet.getCell('A1').value = {text: 'link', hyperlink: 'https://example.com'};
+  sheet.addConditionalFormatting({
+    ref: 'A1:A10',
+    rules: [
+      {
+        type: 'expression',
+        formulae: ['MOD(ROW(),2)=0'],
+        style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFEEEEEE'}}},
+      },
+    ],
+  });
+  sheet.addRow(['x']).commit();
+  sheet.commit();
+  await writer.commit();
+  await drained;
+
+  const buffer = Buffer.concat(chunks);
+  const zip = await JSZip.loadAsync(buffer);
+  const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+  const xml = name ? await zip.files[name].async('string') : '';
+  const posCf = xml.indexOf('<conditionalFormatting');
+  const posHl = xml.indexOf('<hyperlinks');
+  let reloadOk = true;
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(buffer);
+  } catch (e) {
+    reloadOk = false;
+  }
+  return {
+    posConditionalFormatting: posCf,
+    posHyperlinks: posHl,
+    conditionalFormattingBeforeHyperlinks: posCf >= 0 && posHl >= 0 ? posCf < posHl : null,
+    reloadOk,
+  };
 }
 
 // Drive the streaming writer to produce a whole package, then treat the emitted bytes as an

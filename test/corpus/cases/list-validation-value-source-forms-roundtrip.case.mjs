@@ -65,5 +65,24 @@ export default {
         assert.ok(xml.wellFormed, 'the emitted dataValidations block must be well-formed OOXML');
       },
     },
+    {
+      // Excel is strict about the two forms: an inline literal list MUST be double-quote wrapped
+      // ("One,Two,Three") or Excel silently strips the validation and repairs the file, while a
+      // range reference must NOT be quoted. Assert the quoting is form-appropriate, not just present.
+      name: 'inline literals are quoted and range references are unquoted in the serialized formula1',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const inline = await api.authorListValidations([{ref: 'B2', formula: '"One,Two,Three,Four"'}]);
+        assert.ok(
+          inline.xml.formula1.some(f => f.startsWith('"') && f.endsWith('"') && f.includes(',')),
+          `an inline list must serialize as a double-quote-wrapped comma-joined literal; got ${JSON.stringify(inline.xml.formula1)}`
+        );
+        const ranged = await api.authorListValidations([{ref: 'C2', formula: '$Z$1:$Z$10'}]);
+        assert.ok(
+          ranged.xml.formula1.some(f => f === '$Z$1:$Z$10'),
+          `a range reference must serialize without surrounding quotes; got ${JSON.stringify(ranged.xml.formula1)}`
+        );
+      },
+    },
   ],
 };

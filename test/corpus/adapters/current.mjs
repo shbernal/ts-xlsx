@@ -27,6 +27,8 @@ import {
   csvRead,
   csvWrite,
   streamWriteSheet,
+  sharedFormulaRoundtripAndSplice,
+  streamWriteCfHyperlinkOrder,
   roundtripFormulas,
   roundtripTableAppend,
   readFixtureDefinedNames,
@@ -185,6 +187,17 @@ export default {
   // → { ok, error, cells, rowCount } — for asserting streaming-only behavior like batch add
   // and richText shared-string handling. See workbook-io.mjs.
   streamWriteSheet,
+
+  // Author a shared-formula master/slave group, read-then-rewrite it, and splice a column in →
+  // { roundtripOk, preservedFormulas, spliceOk, spliceError } — for asserting a lossless
+  // shared-formula round-trip and surfacing the splice "master must exist above/left of clone"
+  // throw. See workbook-io.mjs.
+  sharedFormulaRoundtripAndSplice,
+
+  // Stream-write a sheet carrying both a conditional-formatting rule and a hyperlink → report the
+  // relative order of <conditionalFormatting> vs <hyperlinks> and reload success. OOXML requires
+  // conditionalFormatting first; the streaming writer emits them reversed. See workbook-io.mjs.
+  streamWriteCfHyperlinkOrder,
 
   // Build + round-trip formula cells → per-cell { formula, sharedFormula, result } — for
   // asserting a shared-formula clone reads back a translated concrete formula. See workbook-io.mjs.
