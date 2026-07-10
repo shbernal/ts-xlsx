@@ -31,6 +31,22 @@ supported and passing one produces nothing. Decide deliberately between two posi
 Either way the failure mode is explicit and the source type is honest, so "pass a URL" is never a
 silent no-op.
 
+### Validate the image definition at the point of entry
+
+Beyond the source *kind*, the image definition itself must be validated when it is added, not
+discovered as a corrupt package at write time. The add-image entry point rejects, with a typed and
+actionable error, a definition that:
+
+- **carries no payload** — neither a buffer nor a resolvable path/base64 source is present;
+- **declares an unusable or missing extension/format** — the extension drives the OOXML content type
+  and the media part name, so an empty or unrecognized one silently corrupts the package (see
+  `image-missing-extension-corrupts-package`);
+- **contradicts itself** — a declared format that disagrees with the actual payload's detectable type
+  (magic bytes), where that mismatch would produce a file Excel rejects.
+
+Validating at entry keeps the failure close to the caller's mistake and keeps the writer's invariant
+simple: by the time an image reaches serialization, it is already known-well-formed.
+
 ## Open questions
 
 - Is a URL ever accepted in core, or always via an injected fetcher in an optional helper?

@@ -1,0 +1,39 @@
+# A cell should report its role in a merge
+
+Cluster: core-model
+
+## Scenario
+
+Code that walks a worksheet's cells frequently needs to know whether a given cell participates in a
+merged range and, if so, whether it is the *master* (top-left, value-bearing) cell or a *child*
+(covered) cell. Today that knowledge lives only in the worksheet's merge map; a caller must reach
+into that map and re-derive the relationship by hand for every cell — the exact workaround people
+write when handling merged ranges (for example, deciding whether to render or skip a cell). The cell
+already knows enough to answer this; it just does not expose it.
+
+> Spec note, not a corpus case: this is a small model-surface addition (two derived accessors), a
+> design decision about what the cell exposes — not a malformed-output bug. It becomes a corpus case
+> once the accessors exist and their round-trip is asserted.
+
+## Desired behavior
+
+- **A cell exposes its merge role directly**: whether it is part of a merge at all, whether it is the
+  master, and whether it is a child — derived from the worksheet's merge map, not stored redundantly
+  on the cell.
+- The three notions are consistent by construction: a cell in no merge is neither master nor child;
+  every merged range has exactly one master; every other cell of the range is a child.
+- **A child can reach its master** (and the master its range), so a consumer can fetch the display
+  value/style once from the master while iterating children — complementing
+  `merged-child-cell-text-mirrors-master`, which locks that a child's *text* already mirrors the
+  master.
+- The accessors are cheap, side-effect-free reads, safe to call on every cell of a large sheet.
+
+## Open questions
+
+- Naming and shape: boolean pair (`isMerged` + `isMergeMaster`/`isMergeChild`) versus a single role
+  enum (`none` | `master` | `child`) — the enum is harder to misuse (no illegal both-true state).
+- Whether the master/range back-reference is eager or lazily resolved against the merge map, and how
+  it behaves if the merge is mutated mid-iteration.
+- Whether these live on the cell only, or also as worksheet-level queries (`worksheet.mergeOf(addr)`).
+
+Related: `merged-child-cell-text-mirrors-master`, `merged-cell-value-and-style-semantics`.

@@ -21,6 +21,12 @@ into `any` casts or module augmentation to use them. Two concrete instances from
 4. **`Range.forEachAddress` iteration** — the `Range` model exposes an address-iteration callback at
    runtime (walk every cell address in the range), but the published type omits it, forcing `@ts-ignore`
    on the exact ergonomic loop it exists to serve (applying a style to each address in a block).
+5. **`Range` is a value, not just a shape** — the runtime exports `Range` as a constructable class,
+   but the published types declared only an `interface Range` (a structural shape with no
+   constructor). A caller doing `new Range(...)` — the documented way to build one — got a "not a
+   constructor" type error and had to deep-import the internal module with `@ts-ignore`. Any runtime
+   value export (a class or a namespace object) must have a *value*-level declaration, not merely a
+   same-named type, so `new`, `instanceof`, and static members type-check.
 
 > Spec note, not a corpus case: the runtime behavior largely exists — the defect is a type-surface
 > completeness gap, pinned by type-level tests (`expectTypeOf`/tsd) plus a behavioral round-trip
@@ -41,6 +47,10 @@ into `any` casts or module augmentation to use them. Two concrete instances from
   emitted on `sheetProtection` (with the algorithm/hashValue/saltValue from password hashing) and on
   read it round-trips, so the configured work factor is preserved. The type includes it by
   construction.
+- **Runtime value exports are declared as values**: a class or namespace object that exists at
+  runtime is exported with a value-level declaration, so `new`, `instanceof`, and static access
+  type-check without deep-importing internals. A same-named `interface` that shadows a real class is
+  a defect.
 - **Guarded by construction**: because the types are generated from the source rather than hand-
   authored, a runtime member cannot silently be missing from the declarations — and a CI type-level
   test asserts the presence and precision of the public surface.
