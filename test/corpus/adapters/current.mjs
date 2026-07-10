@@ -57,6 +57,7 @@ import {
   insertRowThenStyle,
   mergeSlaveWrite,
   nonFiniteCellReport,
+  formulaFalsyResultReport,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -351,6 +352,11 @@ export default {
   // reloadOk } — for asserting the writer never emits a bare NaN/Infinity token into a numeric
   // cell. See workbook-io.mjs.
   nonFiniteCellReport,
+
+  // Author formula cells with falsy cached results (0/false/"") + a truthy control → { zero,
+  // boolFalse, emptyString, truthy } each { isFormula, hasResult, result } — for asserting a
+  // round-trip preserves a formula's result regardless of truthiness. See workbook-io.mjs.
+  formulaFalsyResultReport,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign

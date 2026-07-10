@@ -19,6 +19,12 @@ const oneCellImageSpec = {
   ],
 };
 
+// A range (two-cell) anchor spanning a non-degenerate region: strict OOXML viewers (macOS Quick
+// Look, mobile office apps) that honor the declared spPr extent render nothing when it is zeroed.
+const twoCellImageSpec = {
+  sheets: [{name: 'S', images: [{range: {tl: {col: 1, row: 1}, br: {col: 4, row: 6}}}]}],
+};
+
 export default {
   id: 'anchored-image-sppr-transform-detaches-in-libreoffice',
   provenance: {source: 'upstream-issue'},
@@ -51,6 +57,30 @@ export default {
           anchors[0].spPr.zeroedTransform,
           false,
           `an anchored picture must not emit a zeroed spPr transform (off 0,0 + ext 0,0); got ${JSON.stringify(anchors[0].spPr)}`
+        );
+      },
+    },
+    {
+      name: 'a two-cell range anchor spans a non-degenerate region (to strictly beyond from)',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const {anchors} = await api.inspectImageAnchors(twoCellImageSpec);
+        assert.strictEqual(anchors[0].anchorType, 'twoCell', 'it is a two-cell anchor');
+        assert.ok(
+          anchors[0].to.col > anchors[0].from.col && anchors[0].to.row > anchors[0].from.row,
+          `the to-cell must be strictly beyond the from-cell; got ${JSON.stringify({from: anchors[0].from, to: anchors[0].to})}`
+        );
+      },
+    },
+    {
+      name: 'a two-cell-anchored image carries no zeroed spPr transform that strict viewers honor',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {anchors} = await api.inspectImageAnchors(twoCellImageSpec);
+        assert.strictEqual(
+          anchors[0].spPr.zeroedTransform,
+          false,
+          `a two-cell-anchored picture must not emit a zeroed spPr extent (cx=0 cy=0), or strict OOXML viewers render nothing; got ${JSON.stringify(anchors[0].spPr)}`
         );
       },
     },

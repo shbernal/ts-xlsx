@@ -1396,6 +1396,33 @@ export function insertRowThenStyle(styleMode = 'i') {
   return {error, numFmt};
 }
 
+// Author formula cells whose cached results are falsy (numeric 0, boolean false, empty string) plus a
+// truthy control, write, reload, and report for each whether the result field is present and its
+// value — for asserting a copy/round-trip preserves a formula's result regardless of truthiness (a
+// truthiness test in copy logic silently drops 0/false/"").
+export async function formulaFalsyResultReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = {formula: '1-1', result: 0};
+  sheet.getCell('A2').value = {formula: '1>2', result: false};
+  sheet.getCell('A3').value = {formula: 'MID("x",1,0)', result: ''};
+  sheet.getCell('A4').value = {formula: '1+1', result: 2};
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const s = reread.getWorksheet('S');
+  const report = ref => {
+    const v = s.getCell(ref).value;
+    const isFormula = v && typeof v === 'object' && 'formula' in v;
+    return {
+      isFormula: !!isFormula,
+      hasResult: !!(isFormula && 'result' in v),
+      result: isFormula && 'result' in v ? v.result : undefined,
+    };
+  };
+  return {zero: report('A1'), boolFalse: report('A2'), emptyString: report('A3'), truthy: report('A4')};
+}
+
 // Merge a rectangular range (master = top-left), set a value by addressing a NON-master (slave) cell
 // inside the merge, write, and report which cells carry an independent value in the worksheet XML,
 // the merge declaration, and the re-read master/slave values — for asserting the slave write resolves
