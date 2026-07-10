@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + eleven unlabeled slices; 256/794; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twelve unlabeled slices; 271/794; fixture-less bulk drain underway)._
 
 ---
 
@@ -307,16 +307,37 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     Not-carried: streaming-addImage (dup of last slice's note), yarn-install + two more transitive
     CVEs (audit-gate subsumes), browser fs.createWriteStream (entry-split already noted). Corpus
     **191 green / 103 known-open / 0 regressions**; 115 corpus cases + 73 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (538 remaining, all fixture-less) in ~15-record
+  - **Twelfth slice — fixture-less bulk, top-15 by comment signal — drained** (271/794, ~34%).
+    5 corpus cases + 7 spec notes (6 new + 1 augment) + 3 not-carried. Probing overturned three more
+    triage guesses into locks: **append-after-last-row round-trips clean**, **sheet-protection honors
+    permissive options** (`sort:true` → `sort="0"` permitted, not the reported sort-blocked defect),
+    **a complex custom accounting numFmt round-trips byte-for-byte** (the reported comma-drop was user
+    error). Genuine known-opens: **interleaved repeated images** (B,A,A) resolve the third anchor onto
+    the wrong image via a same-as-previous heuristic (`[B,A,B]`); **CSV coerces a 20-digit number
+    through Number()** and loses precision. Routed to spec notes, not cases: a >512MB worksheet
+    `RangeError: Invalid string length` (huge fixture would OOM CI → folded into bounded-memory note)
+    and column-declared numFmt not reaching cells (probe showed it fails in BOTH streaming and
+    buffered writers, so the streaming-only framing didn't hold → note, not a fragile case). Adapter
+    grew: `authorCellProtection` now returns parsed `sheetProtectionAttrs`; new `interleavedImageAnchors`
+    (resolves each anchor's media by identity) + `appendRowsAfterReload`. Spec notes: internal-hyperlink
+    portability, embedded-chart read/write, image-source contract, worksheet→HTML export, published-types
+    resolution, column-numFmt-reaches-cells. Not-carried: strict-CSP (dup of no-unsafe-eval note),
+    async-iterable read error, Webpack+IE11 chunk-load.  Corpus **203 green / 105 known-open / 0
+    regressions**; 120 corpus cases + 79 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (523 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
     a bug that needs data to span a chunk boundary (or a large sqref) will falsely pass a tiny
-    probe. And **probe before trusting a triage "likely bug"** — reported bugs (style dedup,
+    probe, and a genuinely-huge repro (>512MB worksheet) belongs in a spec note, never a corpus
+    fixture. And **probe before trusting a triage "likely bug"** — reported bugs (style dedup,
     streaming row indexing, splice style-loss, non-address defined-name crash, empty-array addRow,
-    whole-column validation, background+note rel collision) repeatedly turn out already-correct
-    locks today. Late-slice spec notes increasingly FOLD into notes written a slice or two earlier
-    (streaming image, browser bundling, buffer types) — augment the earlier note + not-carry.
+    whole-column validation, background+note rel collision, sort-blocked protection, numFmt comma-
+    drop) repeatedly turn out already-correct locks today. Late-slice spec notes increasingly FOLD
+    into notes written a slice or two earlier (streaming image, browser bundling, buffer types, CSP,
+    large-file memory) — augment the earlier note + not-carry. When a triage's "streaming-specific"
+    framing is probed and the defect ALSO reproduces in the buffered path, prefer a spec note over a
+    mislabeled case.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -357,12 +378,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **256/794 (~32%)**; **all labeled clusters + eleven unlabeled slices are drained; the
+Drain at **271/794 (~34%)**; **all labeled clusters + twelve unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (191 green / 103
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (203 green / 105
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (538 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (523 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
