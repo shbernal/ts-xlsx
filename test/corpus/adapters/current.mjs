@@ -89,6 +89,7 @@ import {
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
+  printAreaRoundtrip,
   authorListValidations,
   roundtripRangeValidation,
   appendRowShapes,
@@ -521,6 +522,12 @@ export default {
   // Print_Area defined name's ranges → { rangeCount, ranges } — for asserting authoring two print
   // areas emits both ranges in one sheet-scoped name. See workbook-io.mjs.
   writePrintAreaDefinedName,
+
+  // Author a worksheet with a printArea string, write it, reload, and report what the reader
+  // recovers → { writtenDefinedName, reReadPrintArea, reloadOk } — for asserting a whole-column /
+  // whole-row print area survives a round-trip instead of coming back as a NaN-laced address. See
+  // workbook-io.mjs.
+  printAreaRoundtrip,
 
   // Author list-type data validations (inline quoted literal + cross-sheet range reference),
   // round-trip, and report per-cell read-back plus serialized <dataValidations> facts

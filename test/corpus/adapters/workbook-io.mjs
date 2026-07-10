@@ -2465,6 +2465,35 @@ export async function writePrintAreaDefinedName(printArea) {
   return {rangeCount: ranges.length, ranges};
 }
 
+// Author a worksheet whose print area is a `printArea` string, write it, then LOAD the written file
+// and report the print area the reader recovers → { writtenDefinedName, reReadPrintArea, reloadOk }.
+// For a whole-column (`A:D`) or whole-row (`1:10`) selection the written defined name is a valid
+// column/row reference (`$A:$D`), but the reader parses each endpoint as a cell address and, finding
+// no row (or no column) number, injects `NaN` — surfacing the print area back as a corrupt
+// `ANaN:DNaN` string. A bounded rectangular range (`A1:D10`) round-trips unmangled. Use to assert the
+// reader handles column-/row-only print-area references without leaking NaN into the recovered value.
+export async function printAreaRoundtrip(printArea) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 1;
+  sheet.pageSetup.printArea = printArea;
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const wbName = Object.keys(zip.files).find(f => /xl\/workbook\.xml$/.test(f));
+  const writtenDefinedName = printAreaRanges(wbName ? await zip.file(wbName).async('string') : '')[0] ?? null;
+  let reReadPrintArea = null;
+  let reloadOk = false;
+  try {
+    const reload = new ExcelJS.Workbook();
+    await reload.xlsx.load(buffer);
+    reReadPrintArea = reload.worksheets[0].pageSetup ? reload.worksheets[0].pageSetup.printArea ?? null : null;
+    reloadOk = true;
+  } catch {
+    reloadOk = false;
+  }
+  return {writtenDefinedName, reReadPrintArea, reloadOk};
+}
+
 // Read a fixture `.xlsx` and report only { ok, error, sheetNames } — for asserting the
 // reader neither crashes nor mis-reads a workbook produced by a *foreign* (non-Excel)
 // generator: a namespace-prefixed OOXML root (`<x:workbook>` instead of `<workbook>`),
