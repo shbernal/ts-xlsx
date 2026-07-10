@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + twenty-three unlabeled slices; 436/794 = 55%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twenty-four unlabeled slices; 451/794 = 57%; fixture-less bulk drain underway)._
 
 ---
 
@@ -477,7 +477,25 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     into existing cases; multiselect-dropdown folds into its spec; dead reports (frontend download,
     `new Buffer` deprecation). Corpus **304 green / 148 known-open / 0 regressions**; 171 corpus
     cases + 99 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (358 remaining, all fixture-less) in ~15-record
+  - **Twenty-fourth slice — fixture-less bulk, top-15 by signal — drained** (451/794, 57%).
+    3 corpus cases + 1 augment + 3 spec notes + 8 not-carried. A balanced write-side haul: three
+    new known-opens each paired with a lock — a structured-OBJECT numFmt serializes to
+    formatCode="[object Object]" and corrupts the package (a valid string numFmt survives fine);
+    a CSV with non-ASCII text is written as correct UTF-8 bytes but with NO byte-order mark, so
+    Excel mis-renders it; the streaming writer keeps a master formula but drops shared-formula
+    slave cells so they reload empty. Augmented alignment-flags with a numeric-indent lock (the
+    OS-specific indent-loss report doesn't reproduce). Spec notes: indexed-palette colors must
+    resolve to a concrete ARGB while remembering their origin; AutoFilter should support hiding the
+    dropdown button per column (additive, no current behavior — filterColumn/hiddenButton absent);
+    worksheet enumeration must tolerate foreign generators (files reading back as zero worksheets,
+    cured only by resaving in Excel — awaits a real fixture). Adapter grew by 3 capabilities
+    (numFmtObjectCorruptionReport, csvNonAsciiEncodingReport, streamingSharedFormulaReport).
+    Not-carried folds: framework-ESM-build → esm-package-entrypoint; charts → embedded-chart;
+    hf-images → header-footer-image-authoring; autofilter-sort (SheetJS sample) → filter-database
+    case; loaded-font-mutation bleed → shared-style-aliasing case; hf-text → headerfooter case;
+    plus a callbacks-as-API eachSheet (discarded by design) and an empty "Fills error" report.
+    Corpus **308 green / 151 known-open / 0 regressions**; 174 corpus cases + 102 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (343 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -531,12 +549,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **436/794 (55%)**; **all labeled clusters + twenty-three unlabeled slices are drained; the
+Drain at **451/794 (57%)**; **all labeled clusters + twenty-four unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (304 green / 148
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (308 green / 151
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (358 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (343 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
