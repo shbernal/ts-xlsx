@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + ten unlabeled slices; 241/794; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + eleven unlabeled slices; 256/794; fixture-less bulk drain underway)._
 
 ---
 
@@ -287,14 +287,36 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     preservation; streaming-write image embedding. Not-carried: two reports of the same transitive
     inflight CVE (subsumed by the ZIP-toolchain rewrite + audit-green gate). Corpus **177 green /
     99 known-open / 0 regressions**; 110 corpus cases + 70 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (553 remaining, all fixture-less) in ~15-record
+  - **Eleventh slice — fixture-less bulk, top-15 by comment signal — drained** (256/794, ~32%).
+    5 corpus cases + 1 augment + 6 spec notes (3 new + 2 augments) + 6 not-carried (3 folds + 3
+    non-actionable). Probing overturned three more triage guesses into locks: **addRow by dense/
+    sparse/object/mixed shapes all populate** (reported empty-array-rows doesn't reproduce);
+    **a whole-column-range validation writes one range-scoped `dataValidation` without throwing**;
+    **background image + cell note coexist with unique rel-ids** (reported corruption doesn't
+    reproduce). Genuine known-opens: the row-outline **collapsed flag is emitted on the hidden detail
+    rows instead of the summary row** (outlineLevel+hidden correct — lock); loading a comment
+    worksheet whose **VML drawing target is missing throws** instead of degrading (fixture authored
+    by stripping the VML part). Augmented the date-serial case: a **time-of-day under a duration
+    format stays a numeric fractional serial**, not text (lock). Adapter grew: inspectPackage now
+    reports per-sheet row outline attrs + `hasBackgroundPicture`; spec rows accept `outlineLevel`
+    and a sheet accepts a `background`; new `roundtripRangeValidation` + `appendRowShapes`. New
+    fixture: comment worksheet with a dangling VML rel. Spec notes: HTML-fragment→rich-text cell;
+    streaming-writer table support (+ honest type surface); CSV multi-sheet selection (don't silently
+    drop). Augments folded in: write-buffer return type gained the load side + ES2024 Buffer
+    genericity; browser-safe-io-boundary gained the bundle-time no-Node-builtins requirement.
+    Not-carried: streaming-addImage (dup of last slice's note), yarn-install + two more transitive
+    CVEs (audit-gate subsumes), browser fs.createWriteStream (entry-split already noted). Corpus
+    **191 green / 103 known-open / 0 regressions**; 115 corpus cases + 73 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (538 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
     a bug that needs data to span a chunk boundary (or a large sqref) will falsely pass a tiny
     probe. And **probe before trusting a triage "likely bug"** — reported bugs (style dedup,
-    streaming row indexing, splice style-loss, non-address defined-name crash) repeatedly turn out
-    already-correct locks today.
+    streaming row indexing, splice style-loss, non-address defined-name crash, empty-array addRow,
+    whole-column validation, background+note rel collision) repeatedly turn out already-correct
+    locks today. Late-slice spec notes increasingly FOLD into notes written a slice or two earlier
+    (streaming image, browser bundling, buffer types) — augment the earlier note + not-carry.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -335,12 +357,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **241/794 (~30%)**; **all labeled clusters + ten unlabeled slices are drained; the
+Drain at **256/794 (~32%)**; **all labeled clusters + eleven unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (177 green / 99
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (191 green / 103
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (553 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (538 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
