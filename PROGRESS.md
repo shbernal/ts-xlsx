@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + thirty-two unlabeled slices; 571/794 = 72%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + thirty-three unlabeled slices; 586/794 = 74%; fixture-less bulk drain underway)._
 
 ---
 
@@ -639,7 +639,24 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     list-validation-inline-formula-length-limit). Five noise: Excel-not-imported, minimist dep vuln,
     React StrictMode double-invoke, jszip release request, IF how-to. Corpus **337 green / 167
     known-open / 0 regressions**; 191 corpus cases + 115 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (223 remaining, all fixture-less) in ~15-record
+  - **Thirty-third slice — fixture-less bulk, top-15 by signal — drained** (586/794, 74%).
+    2 corpus cases + 2 spec notes + 1 augment + 10 not-carried (four folds + six noise). One lock +
+    two known-opens: worksheet outline summary-position (summaryBelow/summaryRight) serializes into
+    <outlinePr> and round-trips (lock — probing resolved a stale assumption in
+    sheetpr-child-order-outline-before-pagesetup that outlinePr was never emitted; corrected that
+    note); inserting a row above a noted/outlined row drops the cell note entirely and leaves the
+    outline level pinned to the old absolute row index (two known-opens). Adapter grew
+    outlinePropertiesRoundtrip and rowInsertPreservesNoteAndOutline. Spec notes: streaming-reader
+    temp-file leak on early for-await abort (2147+2148 same bug — real leak, but tmpdir-counting is
+    flaky and a corpus case would pollute the CI temp dir, so a note with the .return()/finally
+    mechanism); CSV write-to-stream incremental flush + backpressure. Four folds: Vietnamese CSV
+    diacritics (→ csv-write-honors-requested-encoding multibyte fidelity), fill-mutate-after-load
+    read-only (→ loadMutateCellStyle, doesn't reproduce), stream+sharedStrings valid (→ streaming
+    valid-package cases), image merged-cell stretch (→ image-embedded-in-cell-vs-floating-anchor).
+    Six noise: non-repro getRow, UI-tool discovery, screenshot-only reports, misfiled Office Scripts
+    bug, placeholder XYZ, buffer-load screenshot. Corpus **340 green / 169 known-open / 0
+    regressions**; 193 corpus cases + 117 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (208 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -693,12 +710,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **571/794 (72%)**; **all labeled clusters + thirty-two unlabeled slices are drained; the
+Drain at **586/794 (74%)**; **all labeled clusters + thirty-three unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (337 green / 167
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (340 green / 169
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (223 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (208 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
