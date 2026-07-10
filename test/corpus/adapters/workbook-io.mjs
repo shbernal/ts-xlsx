@@ -1396,6 +1396,192 @@ export function insertRowThenStyle(styleMode = 'i') {
   return {error, numFmt};
 }
 
+// Author a table whose column name contains embedded line-break control characters (CR/LF), write,
+// and report the raw tableColumn tag plus whether it carries UNESCAPED control characters — for
+// asserting the name is XML-character-escaped (e.g. &#10;) rather than emitting raw CR/LF that
+// makes the table part malformed / normalized-away on reparse.
+export async function tableColumnNameControlChars(name = 'Test\r\nmultiple\r\nlines') {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  let writeError = null;
+  let buffer;
+  try {
+    sheet.addTable({name: 'T', ref: 'A1', columns: [{name}, {name: 'H2'}], rows: [['a', 1]]});
+    buffer = await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeOk: false, writeError: String((e && e.message) || e), rawControlChars: null, reloadOk: null};
+  }
+  const zip = await JSZip.loadAsync(buffer);
+  const tp = Object.keys(zip.files).find(n => /xl\/tables\/table\d+\.xml/.test(n));
+  const xml = tp ? await zip.file(tp).async('string') : '';
+  const firstCol = (xml.match(/<tableColumn\b[^>]*\/?>/) || [''])[0];
+  let reloadOk = true;
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(buffer);
+  } catch (e) {
+    reloadOk = false;
+  }
+  return {writeOk: true, writeError, rawControlChars: /[\r\n]/.test(firstCol), firstColumnTag: firstCol, reloadOk};
+}
+
+// Author a cell whose hyperlink target begins with '#' (an internal in-workbook location), write, and
+// report the emitted <hyperlink> attributes plus whether an EXTERNAL relationship was created — for
+// asserting an internal link is written with a `location` attribute and no external r:id relationship
+// (an external relationship for a '#'-target is the corruption that stops navigation).
+export async function internalHyperlinkReport(target = "#'Target'!A1") {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Main');
+  workbook.addWorksheet('Target');
+  sheet.getCell('A1').value = {text: 'go', hyperlink: target};
+  let writeError = null;
+  let buffer;
+  try {
+    buffer = await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    return {writeOk: false, writeError: String((e && e.message) || e)};
+  }
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetXml = (await zip.file('xl/worksheets/sheet1.xml').async('string')) || '';
+  const relsXml = (await (zip.file('xl/worksheets/_rels/sheet1.xml.rels') || {async: () => ''}).async('string')) || '';
+  const hl = (sheetXml.match(/<hyperlink\b[^>]*\/?>/) || [''])[0];
+  const a = attrs(hl);
+  let reloadOk = true;
+  try {
+    const reread = new ExcelJS.Workbook();
+    await reread.xlsx.load(buffer);
+  } catch (e) {
+    reloadOk = false;
+  }
+  return {
+    writeOk: true,
+    hasLocation: a.location != null,
+    location: a.location ?? null,
+    hasExternalRel: /TargetMode="External"/.test(relsXml),
+    hasRid: a['r:id'] != null,
+    reloadOk,
+  };
+}
+
+// Write a workbook with duplicated string values under a given useSharedStrings option, and report
+// whether a shared-strings part was emitted and whether the cell is stored as a shared-string
+// reference (t="s") vs an inline string (t="inlineStr"/t="str") — for asserting the option actually
+// controls string storage (false → inline, no shared-strings part).
+export async function sharedStringsOption(use) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 'hello';
+  sheet.getCell('A2').value = 'hello';
+  const buffer = await workbook.xlsx.writeBuffer({useSharedStrings: use});
+  const zip = await JSZip.loadAsync(buffer);
+  const hasSharedStringsPart = !!zip.file('xl/sharedStrings.xml');
+  const sheetXml = (await zip.file('xl/worksheets/sheet1.xml').async('string')) || '';
+  const a1 = (sheetXml.match(/<c r="A1"[^>]*>/) || [''])[0];
+  const t = (a1.match(/\bt="([^"]*)"/) || [])[1] ?? null;
+  return {hasSharedStringsPart, cellType: t, isSharedRef: t === 's', isInline: t === 'inlineStr' || t === 'str'};
+}
+
+// Author a data validation whose formula is supplied with a leading '=' and write it; report the
+// serialized formula1 text — for asserting the writer strips exactly one leading '=' (OOXML formula1
+// carries no '='), or a validation Excel silently ignores until reopened is produced.
+export async function dvFormulaLeadingEquals(formula = '=$AA$1:$AA$2') {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').dataValidation = {type: 'list', allowBlank: true, formulae: [formula]};
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetXml = (await zip.file('xl/worksheets/sheet1.xml').async('string')) || '';
+  const formula1 = (sheetXml.match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
+  return {formula1, hasLeadingEquals: formula1 != null && formula1.startsWith('=')};
+}
+
+// Duplicate a populated row with default arguments and then merge a range on the duplicated row —
+// reporting the resulting row count, each row's values, and whether the merge succeeded — for
+// asserting a duplicated row is a faithful copy and that merging on it does not hit a phantom
+// "already merged" state.
+export async function duplicateRowReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 'a';
+  sheet.getCell('B1').value = 'b';
+  sheet.getCell('C1').value = 'c';
+  let dupError = null;
+  try {
+    sheet.duplicateRow(1, 1, true); // one copy, inserted → new row 2
+  } catch (e) {
+    dupError = String((e && e.message) || e);
+  }
+  const rowVals = ref => sheet.getCell(ref).value ?? null;
+  // Capture the copied values BEFORE the merge, since merging clears the covered cells.
+  const row1 = [rowVals('A1'), rowVals('B1'), rowVals('C1')];
+  const row2 = [rowVals('A2'), rowVals('B2'), rowVals('C2')];
+  let mergeError = null;
+  try {
+    sheet.mergeCells('A2:C2');
+  } catch (e) {
+    mergeError = String((e && e.message) || e);
+  }
+  return {
+    dupError,
+    mergeError,
+    rowCount: sheet.rowCount,
+    row1,
+    row2,
+    merges: (sheet.model && sheet.model.merges) || [],
+  };
+}
+
+// Drive the streaming writer to a file destination that cannot be opened (an over-long/invalid path)
+// and report whether commit() rejects (with the I/O error), resolves, or hangs — plus that a valid
+// destination still resolves. A failed sink must reject, never hang forever.
+export async function streamCommitBadDestination() {
+  const badPath = `/nonexistent-ts-xlsx-dir/${'x'.repeat(300)}/out.xlsx`;
+  let outcome = 'hung';
+  let error = null;
+  try {
+    const writer = new ExcelJS.stream.xlsx.WorkbookWriter({filename: badPath});
+    const sheet = writer.addWorksheet('S');
+    sheet.addRow(['a']).commit();
+    sheet.commit();
+    await Promise.race([
+      writer
+        .commit()
+        .then(() => {
+          outcome = 'resolved';
+        })
+        .catch(e => {
+          outcome = 'rejected';
+          error = String((e && e.message) || e);
+        }),
+      new Promise(res => setTimeout(res, 5000)),
+    ]);
+  } catch (e) {
+    outcome = 'threw-sync';
+    error = String((e && e.message) || e);
+  }
+  return {outcome, rejected: outcome === 'rejected', carriesIoError: error != null && /ENOENT|ENAMETOOLONG|open|write/i.test(error), error};
+}
+
+// Load a fixture, try to write it back, and report whether each step succeeds — for asserting a
+// foreign construct (e.g. an x14 extension-list conditional-formatting rule) round-trips without the
+// writer crashing on an unmodeled/undefined field.
+export async function roundtripFixtureWriteReport(rel) {
+  const workbook = new ExcelJS.Workbook();
+  let loadError = null;
+  try {
+    await workbook.xlsx.readFile(fixturePath(rel));
+  } catch (e) {
+    return {loadOk: false, loadError: String((e && e.message) || e), writeOk: null, writeError: null};
+  }
+  let writeError = null;
+  try {
+    await workbook.xlsx.writeBuffer();
+  } catch (e) {
+    writeError = String((e && e.message) || e);
+  }
+  return {loadOk: true, loadError, writeOk: writeError === null, writeError, sheetNames: workbook.worksheets.map(s => s.name)};
+}
+
 // Write a plain unstyled value, round-trip, and report the read-back cell's resolved font — for
 // asserting a cell with no explicit style still resolves to the workbook default font (from the
 // default style at index 0) rather than an undefined/unknown font.

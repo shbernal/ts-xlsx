@@ -68,6 +68,13 @@ import {
   streamAddRowAfterCommit,
   tableCellEditRoundtrip,
   columnBorderScopedReport,
+  tableColumnNameControlChars,
+  internalHyperlinkReport,
+  sharedStringsOption,
+  dvFormulaLeadingEquals,
+  duplicateRowReport,
+  streamCommitBadDestination,
+  roundtripFixtureWriteReport,
   roundtripFixtureColorFidelity,
   roundtripFixturePrintAreas,
   writePrintAreaDefinedName,
@@ -409,6 +416,34 @@ export default {
   // Author a column with a border style + plain columns, round-trip → { a1, b1, c1 } right-border
   // presence — for asserting the column border is scoped to its column. See workbook-io.mjs.
   columnBorderScopedReport,
+
+  // Author a table column name with CR/LF → { writeOk, rawControlChars, firstColumnTag, reloadOk } —
+  // for asserting the name is XML-escaped, not raw control chars. See workbook-io.mjs.
+  tableColumnNameControlChars,
+
+  // Author a '#'-prefixed internal hyperlink → { hasLocation, location, hasExternalRel, hasRid,
+  // reloadOk } — for asserting an internal link is a location, not an external relationship. See workbook-io.mjs.
+  internalHyperlinkReport,
+
+  // Write with a useSharedStrings option → { hasSharedStringsPart, cellType, isSharedRef, isInline }
+  // — for asserting the option controls string storage (false → inline). See workbook-io.mjs.
+  sharedStringsOption,
+
+  // Author a DV formula supplied with a leading '=' → { formula1, hasLeadingEquals } — for asserting
+  // the writer strips the leading '=' from formula1. See workbook-io.mjs.
+  dvFormulaLeadingEquals,
+
+  // Duplicate a row (default args) then merge on it → { dupError, mergeError, rowCount, row1, row2,
+  // merges } — for asserting a faithful copy and that merging on it succeeds. See workbook-io.mjs.
+  duplicateRowReport,
+
+  // Stream-commit to an unwritable destination → { outcome, rejected, carriesIoError, error } — for
+  // asserting a failed sink rejects rather than hanging. See workbook-io.mjs.
+  streamCommitBadDestination,
+
+  // Load a fixture and try to write it back → { loadOk, writeOk, writeError, sheetNames } — for
+  // asserting a foreign construct round-trips without the writer crashing. See workbook-io.mjs.
+  roundtripFixtureWriteReport,
 
   // Read a fixture, write it back, reload, and report how many styled cells' VISIBLE fill/border
   // colors changed → { checked, fillMismatches, borderMismatches, … } (ignoring a benign
