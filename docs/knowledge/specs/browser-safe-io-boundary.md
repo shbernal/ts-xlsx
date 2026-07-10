@@ -31,6 +31,23 @@ merely instantiating a workbook is enough to pull it in. The requirement:
 - Correct `package.json` `exports`/`browser` conditions drive the split so consumers get the right
   surface automatically.
 
+### Runtime requirement: no unguarded Node-*global* access on a hot path
+The boundary is not only about `import`ing Node modules — it also covers touching Node-only *globals*
+(`process`, `Buffer`, `global`) in code that runs in the browser. Upstream regressed here when a
+runtime environment-detection helper read `process.version` (splitting the version string) on a hot
+path reached by ordinary in-memory API use. In a browser `process` is undefined, so *merely creating a
+workbook or setting a cell* threw a cryptic `TypeError` (e.g. "Cannot read property 'split' of
+undefined") — the library was unusable in the browser on its first ordinary call, with nothing
+pointing at the real cause. The requirement:
+
+- **Core in-memory operations touch no Node-only global.** Building a workbook, adding worksheets,
+  reading/writing cell values, and serializing to/from a buffer must not reference `process`,
+  `Buffer`, `global`, `fs`, or `path` in a way that executes on import or on first API use where those
+  are undefined. Feature/environment detection must be guarded (`typeof process !== 'undefined' && …`)
+  or removed in favor of a build-time condition.
+- If a value from a Node global is genuinely needed (a version gate, a `Buffer` fast path), it is
+  accessed behind an existence guard with a browser-safe fallback, never assumed present.
+
 The **streaming** reader/writer are the sharpest case of this boundary: they depend on Node `fs`/
 `stream`, and their CSV code paths transitively pull `fs` too, so a browser bundle that reaches them
 fails with "dependency not found: fs" and, at runtime, an undefined streaming namespace
