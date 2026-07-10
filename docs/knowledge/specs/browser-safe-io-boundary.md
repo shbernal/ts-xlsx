@@ -31,6 +31,16 @@ merely instantiating a workbook is enough to pull it in. The requirement:
 - Correct `package.json` `exports`/`browser` conditions drive the split so consumers get the right
   surface automatically.
 
+The **streaming** reader/writer are the sharpest case of this boundary: they depend on Node `fs`/
+`stream`, and their CSV code paths transitively pull `fs` too, so a browser bundle that reaches them
+fails with "dependency not found: fs" and, at runtime, an undefined streaming namespace
+(`stream.xlsx` → *"Cannot read property 'xlsx' of undefined"*). The requirement: the streaming
+symbols must be **absent from the browser entry, or throw a precise typed error** ("streaming write
+is not available in this environment; use the document writer or a Web Streams sink") — never
+present-but-broken. The forward path is either a browser-native streaming sink over Web Streams (see
+`web-streams-io-surface`, `browser-streaming-workbook-write`) or a cleanly streaming-free browser
+build; either way no Node core module leaks into the browser graph, including transitive CSV paths.
+
 ### Open questions
 - Should path-based methods be a separate entry point (subpath export) or a runtime-guarded no-op that throws? A separate entry point keeps `fs` out of browser bundles entirely and is the cleaner break.
 - What is the canonical browser write API name and return type (ArrayBuffer vs Uint8Array vs Blob-friendly)?
