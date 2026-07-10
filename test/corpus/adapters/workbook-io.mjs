@@ -1340,6 +1340,101 @@ export async function inspectImageAnchors(spec) {
   return {anchors, drawingCount: drawingParts.length, xmlWellFormed: xmlOk};
 }
 
+// Register two DISTINCT images (so they can be told apart by their bytes) and place them on a
+// worksheet in an interleaved order — by default B, A, A — then resolve, per anchor in placement
+// order, which media part it actually references (embed rId → drawing rel → media target). Lets a
+// case assert every anchor renders the image it was placed with (a reused image maps to one stable
+// relationship by identity), rather than the serializer picking the wrong image via a fragile
+// "same as the previous anchor" heuristic. `placement` is a string of 'A'/'B' letters.
+export async function interleavedImageAnchors(placement = 'BAA') {
+  // Two 1×1 PNGs with different byte lengths, so distinct media parts are unmistakable.
+  const PNG_A = Buffer.from(
+    '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da6360000002000001e5273db40000000049454e44ae426082',
+    'hex'
+  );
+  const PNG_B = Buffer.from(
+    '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6300010000050001',
+    'hex'
+  );
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  const ids = {A: workbook.addImage({buffer: PNG_A, extension: 'png'}), B: workbook.addImage({buffer: PNG_B, extension: 'png'})};
+  const placed = [...placement];
+  placed.forEach((letter, i) => {
+    const col = i * 2; // A, C, E, …
+    sheet.addImage(ids[letter], {tl: {col, row: 0}, br: {col: col + 2, row: 2}});
+  });
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const read = async f => (zip.file(f) ? zip.file(f).async('string') : null);
+
+  const relsXml = (await read('xl/drawings/_rels/drawing1.xml.rels')) || '';
+  const relTarget = {};
+  for (const t of relsXml.matchAll(/<Relationship\b[^>]*\/?>/g)) {
+    const a = attrs(t[0]);
+    relTarget[a.Id] = (a.Target || '').split('/').pop(); // e.g. image2.png
+  }
+  const drawingXml = (await read('xl/drawings/drawing1.xml')) || '';
+  const embedOrder = [...drawingXml.matchAll(/r:embed="([^"]*)"/g)].map(m => m[1]);
+  const resolvedMedia = embedOrder.map(rid => relTarget[rid] ?? null);
+
+  // The size (byte length) of each media part identifies which original image it is.
+  const mediaSizes = {};
+  for (const name of Object.keys(zip.files)) {
+    const m = name.match(/^xl\/media\/(image\d+\.png)$/);
+    if (m) mediaSizes[m[1]] = (await zip.file(name).async('nodebuffer')).length;
+  }
+  const sizeA = PNG_A.length;
+  const sizeB = PNG_B.length;
+  // Map each anchor's resolved media back to the placement letter it should be.
+  const resolvedLetter = resolvedMedia.map(media => {
+    const size = mediaSizes[media];
+    if (size === sizeA) return 'A';
+    if (size === sizeB) return 'B';
+    return '?';
+  });
+  const distinctMediaCount = Object.keys(mediaSizes).length;
+  const distinctRelsPerImage = new Set(Object.values(relTarget)).size;
+  return {
+    placed,
+    embedOrder,
+    resolvedMedia,
+    resolvedLetter,
+    distinctMediaCount,
+    // One relationship per distinct image would be `relTarget` mapping each rId to a unique media,
+    // with as many distinct targets as distinct images used (here 2).
+    distinctRelTargets: distinctRelsPerImage,
+  };
+}
+
+// Author a worksheet with an initial block of rows, write and reload it (so subsequent edits act on
+// a *loaded* model, matching the real "open an existing file and append" scenario), append more rows
+// after the last populated row, write and reload again, and report the loaded row count seen before
+// appending plus the final per-row values. Lets a case assert the appended rows land at contiguous
+// indices past the original data with no gap or overwrite, and the originals survive.
+export async function appendRowsAfterReload(initial = [], append = []) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  for (const row of initial) sheet.addRow(row);
+  const buffer = await workbook.xlsx.writeBuffer();
+
+  const loaded = new ExcelJS.Workbook();
+  await loaded.xlsx.load(buffer);
+  const s = loaded.getWorksheet('S');
+  const loadedRowCount = s.rowCount;
+  for (const row of append) s.addRow(row);
+  const buffer2 = await loaded.xlsx.writeBuffer();
+
+  const final = new ExcelJS.Workbook();
+  await final.xlsx.load(buffer2);
+  const f = final.getWorksheet('S');
+  const rows = [];
+  for (let r = 1; r <= f.rowCount; r++) {
+    rows.push(f.getRow(r).values.slice(1).map(v => normalizeStreamValue(v)));
+  }
+  return {loadedRowCount, finalRowCount: f.rowCount, rows};
+}
+
 // Read a fixture `.xlsx` and report each image's normalized anchor range — for asserting
 // that a file whose drawing anchors were authored as cell ranges (including string ranges
 // like "B198:BN198") reads without crashing and exposes an object range with integer
@@ -1905,10 +2000,15 @@ export async function authorCellProtection(cells = [], protect = null) {
   const styles = await zip.files['xl/styles.xml'].async('string');
   const sheetName = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
   const sheetXml = sheetName ? await zip.files[sheetName].async('string') : '';
+  const sheetProtection = (sheetXml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0] || null;
   return {
     readBack,
     hasApplyProtection: /applyProtection="1"/.test(styles) && /<protection\b/.test(styles),
-    sheetProtection: (sheetXml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0] || null,
+    sheetProtection,
+    // Parsed sheetProtection attributes. OOXML inverts these booleans: "1" LOCKS an operation,
+    // "0" (or omission) PERMITS it — so a caller who asked to keep sorting available must see
+    // sort="0". A case reads these to assert a permissive option was honored, not inverted/dropped.
+    sheetProtectionAttrs: sheetProtection ? attrs(sheetProtection) : null,
   };
 }
 

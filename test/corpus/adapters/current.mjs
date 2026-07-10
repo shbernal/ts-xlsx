@@ -21,6 +21,8 @@ import {
   readFixtureReport,
   roundtripFixture,
   inspectImageAnchors,
+  interleavedImageAnchors,
+  appendRowsAfterReload,
   readFixtureImageAnchors,
   csvRead,
   csvWrite,
@@ -154,6 +156,17 @@ export default {
   // drawing-anchor geometry (from/to/ext/editAs) — for asserting fractional and string
   // anchors map to correct OOXML offsets against real column/row size. See workbook-io.mjs.
   inspectImageAnchors,
+
+  // Place two DISTINCT images in an interleaved order and resolve, per anchor in placement order,
+  // which media part it references (embed rId → drawing rel → media) → { placed, resolvedLetter,
+  // distinctMediaCount, distinctRelTargets } — for asserting every anchor renders the image it was
+  // placed with and a reused image maps to one stable relationship. See workbook-io.mjs.
+  interleavedImageAnchors,
+
+  // Author initial rows, write+reload, append rows past the last populated row, write+reload again
+  // → { loadedRowCount, finalRowCount, rows } — for asserting appended rows land at contiguous
+  // indices with no gap/overwrite and the originals survive. See workbook-io.mjs.
+  appendRowsAfterReload,
 
   // Read a fixture and report each image's normalized anchor range — for asserting a file
   // whose anchors were authored as (string) cell ranges reads without crashing and yields
