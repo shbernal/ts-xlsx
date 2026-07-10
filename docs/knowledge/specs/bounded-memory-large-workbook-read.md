@@ -16,6 +16,17 @@ The eager full-workbook read path allocates memory grossly disproportionate to i
 - Shared strings are a common culprit: a large shared-strings part fully materialized as JS strings, plus a parallel index, plus the cell model referencing them, triples the footprint. Deduplication and lazy/interned strings help.
 - The **workbook-level defined-names table** is a second, independent culprit, distinct from the visible grid. A real financial workbook with a trivial sheet (~80 KB, dimensions A1:AH258) but a ~2.85 MB defined-names block — ~35,000 entries, most of them `#REF!`, thousands large array literals up to ~5 KB each, plus one external link with ~90 cached sheet names — exhausts a 900 MB heap and never resolves. The blow-up happens during *model assembly* (building objects per defined name), not sheet parsing, so its cost tracks the defined-names table, not the worksheet. The parsed model must (a) retain defined names compactly, ideally lazily, without a large object graph per entry, (b) not choke on `#REF!` values or large array-literal values, and (c) round-trip the names and the external link without loss.
 - Zip handling matters for the security posture too: decompressing all parts eagerly is both a memory and a zip-bomb concern; bounded, streamed decompression addresses both.
+- A distinct hard-failure mode of the same eager path: materializing a single worksheet's
+  decompressed XML as **one JavaScript string** throws `RangeError: Invalid string length` once the
+  concatenated string would exceed V8's maximum string length (~512 MB) — a valid multi-hundred-MB
+  worksheet (a million-plus rows) fails to open at all, not just slowly. The streaming reader must
+  decompress and parse such an entry in chunks and never build the full entry as one string, so the
+  file opens with every cell read correctly. A naive fixed-boundary chunk split is not a fix: it can
+  slice inside a multi-byte UTF-8 sequence or across an XML token and silently corrupt data — chunk
+  boundaries must be handled safely (this is the read-side analog of the write-side chunk-boundary
+  correctness locked by `stream-read-multibyte-utf8-chunk-boundary`). Because a faithful repro is
+  hundreds of MB, this stays a spec/perf-harness requirement, never a corpus fixture (it would OOM
+  or stall CI — the same rule as the whole-column-validation memory note).
 
 ### Open questions
 - What multiple-of-input-size is the target ceiling for the eager path, and should it be enforced/asserted in a perf regression harness (peak RSS or heapUsed under a fixed cap for a fixture of known size)?
