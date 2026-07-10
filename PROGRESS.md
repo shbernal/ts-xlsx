@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + twenty-six unlabeled slices; 481/794 = 61%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-10 (labeled clusters + twenty-seven unlabeled slices; 496/794 = 62%; fixture-less bulk drain underway)._
 
 ---
 
@@ -532,7 +532,20 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     -generator specs) plus dependency/env/doc noise (deprecated transitive deps, RN Promise
     polyfill, server bundling, a Chinese-doc fix). Corpus **317 green / 156 known-open / 0
     regressions**; 180 corpus cases + 104 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (313 remaining, all fixture-less) in ~15-record
+  - **Twenty-seventh slice — fixture-less bulk, top-15 by signal — drained** (496/794, 62%).
+    1 corpus case + 2 augments + 1 spec note + 11 not-carried — very fold-heavy. One known-open + two
+    locks: a conditional-formatting rule's stopIfTrue flag is silently dropped on write (known-open —
+    layered-rule precedence lost). Augments: an image with no explicit editAs defaults to
+    editAs="oneCell" in the singular spelling (lock, pinning the ambiguous-doc default); a
+    date-looking string under a date-formatted column stays a string — a number format is a display
+    instruction not a coercion, so pivotable dates need Date values (lock). Spec note: data-bar
+    colors (color/negativeFillColor) + opt-in targeted "ignored errors" write support (rejecting the
+    blanket-suppression hack). Adapter grew conditionalFormattingStopIfTrue. Not-carried was mostly
+    already-locked behaviors that didn't reproduce (indent, strict-date, INDIRECT dropdown,
+    addBackgroundImage, numeric-value-as-text) plus folds (merged-row discovery → merged-cell note,
+    DataValidationType → public-type-surface) and dep/help noise. Corpus **319 green / 158 known-open
+    / 0 regressions**; 181 corpus cases + 105 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (298 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -586,12 +599,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **481/794 (61%)**; **all labeled clusters + twenty-six unlabeled slices are drained; the
+Drain at **496/794 (62%)**; **all labeled clusters + twenty-seven unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (317 green / 156
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (319 green / 158
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (313 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (298 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
