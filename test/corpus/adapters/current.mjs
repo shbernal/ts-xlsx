@@ -142,6 +142,8 @@ import {
   streamReadManySheets,
   streamVsEagerColumnHidden,
   quotePrefixReport,
+  namedStyleFillReport,
+  listValidationSourceRangeAcrossRows,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -823,4 +825,18 @@ export default {
   // quotePrefix attribute and whether a round-trip preserves it → { writtenQuotePrefix, anyQuotePrefix,
   // reloaded }. quotePrefix forces a cell's content to literal text. See workbook-io.mjs.
   quotePrefixReport,
+
+  // Load a fixture whose cell fill is supplied through a NAMED cell style (a cellXfs xfId into
+  // cellStyleXfs where the fill lives only in the named-style layer) and report the read-side
+  // resolution plus write-side survival → { readFill, srcCellStyleXfsCount,
+  // roundtripCellStyleXfsCount, roundtripCellHasXfIdLink }. A correct reader resolves the cell's
+  // fill through the named style and a correct writer preserves the cellStyleXfs layer and the xfId
+  // link. See workbook-io.mjs.
+  namedStyleFillReport,
+
+  // Apply one cross-sheet list validation to a vertical span of cells, write, reload, and report the
+  // persisted source-range formula per cell plus the sqref-block count → { source, count, formulae,
+  // allIdentical, sqrefBlocks }. Locks that per-cell application does not relative-shift the source
+  // range (the "shrinking dropdown" trap). See workbook-io.mjs.
+  listValidationSourceRangeAcrossRows,
 };

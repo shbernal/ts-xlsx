@@ -4651,3 +4651,78 @@ export async function quotePrefixReport() {
 
   return {writtenQuotePrefix, anyQuotePrefix: /quotePrefix/.test(styles), reloaded};
 }
+
+// Load a fixture whose cell formatting is layered through a NAMED cell style — a cellXfs entry
+// carrying an xfId into cellStyleXfs, where a visual property (here a fill) is defined only in that
+// named-style layer — and report both the read-side resolution and the write-side survival. Returns
+// { readFill, srcCellStyleXfsCount, roundtripCellStyleXfsCount, roundtripCellHasXfIdLink }. A correct
+// implementation resolves the cell's effective fill through the named style on read, and preserves
+// the cellStyleXfs definitions plus the cellXfs→cellStyleXfs xfId link on write so the round-tripped
+// file renders identically. Legacy drops both: the fill reads as none and cellStyleXfs collapses.
+export async function namedStyleFillReport(rel, cellAddr = 'A1', sheetName = 'Sheet1') {
+  const sourceBuffer = fs.readFileSync(fixturePath(rel));
+  const srcStyles = (await (await JSZip.loadAsync(sourceBuffer)).file('xl/styles.xml').async('string')) || '';
+  const srcCellStyleXfsCount = Number(
+    (srcStyles.match(/<cellStyleXfs\b[^>]*\bcount="(\d+)"/) || [])[1] || 0
+  );
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(sourceBuffer);
+  const cell = wb.getWorksheet(sheetName).getCell(cellAddr);
+  const readFill = cell.fill && cell.fill.type ? JSON.parse(JSON.stringify(cell.fill)) : null;
+
+  const out = await wb.xlsx.writeBuffer();
+  const outZip = await JSZip.loadAsync(out);
+  const outStyles = (await outZip.file('xl/styles.xml').async('string')) || '';
+  const roundtripCellStyleXfsCount = Number(
+    (outStyles.match(/<cellStyleXfs\b[^>]*\bcount="(\d+)"/) || [])[1] || 0
+  );
+
+  // Does the cell's cellXfs xf still reference a named style (xfId > 0) after the write?
+  const outSheet =
+    (await outZip.file('xl/worksheets/sheet1.xml')?.async('string')) || '';
+  const sIdx = Number((outSheet.match(new RegExp(`<c\\b[^>]*\\br="${cellAddr}"[^>]*\\bs="(\\d+)"`)) || [])[1]);
+  const outXfBlock = (outStyles.match(/<cellXfs\b[\s\S]*?<\/cellXfs>/) || [''])[0];
+  const outXfs = outXfBlock.match(/<xf\b[^>]*?(?:\/>|>[\s\S]*?<\/xf>)/g) || [];
+  const targetXf = Number.isFinite(sIdx) ? outXfs[sIdx] : null;
+  const xfIdMatch = targetXf ? targetXf.match(/\bxfId="(\d+)"/) : null;
+  const roundtripCellHasXfIdLink = xfIdMatch ? Number(xfIdMatch[1]) > 0 : false;
+
+  return {readFill, srcCellStyleXfsCount, roundtripCellStyleXfsCount, roundtripCellHasXfIdLink};
+}
+
+// Apply one list-type data validation whose source is a range on ANOTHER sheet (e.g. Lookup!A1:A5)
+// to every cell of a vertical span on the target sheet, write, reload, and report the persisted
+// source-range formula for each targeted cell plus how the ranges collapsed in the XML → { source,
+// count, formulae:[…per row…], allIdentical, sqrefBlocks }. The real-world trap: applying the same
+// list validation cell-by-cell down many rows must NOT relative-shift the source range per cell
+// (which would make lower rows point past the end of the source, so their dropdowns show fewer
+// options). Every targeted cell must keep the exact source reference it was given; the writer is free
+// to collapse the identical rules into a single sqref block.
+export async function listValidationSourceRangeAcrossRows(count = 6, source = 'Lookup!A1:A5') {
+  const wb = new ExcelJS.Workbook();
+  const lookup = wb.addWorksheet('Lookup');
+  ['a', 'b', 'c', 'd', 'e'].forEach((v, i) => (lookup.getCell(i + 1, 1).value = v));
+  const ws = wb.addWorksheet('Main');
+  for (let r = 1; r <= count; r++) {
+    ws.getCell(r, 1).dataValidation = {type: 'list', allowBlank: true, formulae: [source]};
+  }
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(buffer);
+  const ws2 = wb2.getWorksheet('Main');
+  const formulae = [];
+  for (let r = 1; r <= count; r++) {
+    const dv = ws2.getCell(r, 1).dataValidation;
+    formulae.push(dv && dv.formulae ? dv.formulae[0] : null);
+  }
+  const allIdentical = formulae.every(f => f === source);
+
+  const zip = await JSZip.loadAsync(buffer);
+  const mainFile = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet2\.xml$/.test(f)) || 'xl/worksheets/sheet2.xml';
+  const xml = (await zip.file(mainFile)?.async('string')) || '';
+  const sqrefBlocks = (xml.match(/<dataValidation\b/g) || []).length;
+
+  return {source, count, formulae, allIdentical, sqrefBlocks};
+}
