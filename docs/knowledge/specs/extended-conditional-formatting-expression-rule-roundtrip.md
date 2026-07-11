@@ -42,6 +42,15 @@ no formatting at all.
   interim?
 - Which extended rule types beyond `expression` (data bars with extended options, icon sets, color
   scales with extension attributes) share this extension-block storage and need the same treatment?
+  Concretely observed for **icon sets with per-icon overrides ("mixed"/"custom" icons)**: an
+  `iconSet` rule whose individual threshold entries each draw from a *different* icon set / icon id
+  than the rule's base set (e.g. one arrow, one symbol, one "no icon") is an x14-extension form. Both
+  the buffered writer and the streaming writer emit only the classic `<iconSet>` element and drop the
+  per-icon overrides entirely — the custom icons never reach the file, so every threshold falls back
+  to the base set's uniform icon. This is one model gap surfacing through two writers, not a
+  streaming-specific regression: the extension-namespace authoring path is simply absent. The
+  first-class (or pass-through) extension model must carry each threshold's `{iconSet, iconId}`
+  override, including the "no icon" selection, and emit it identically on both write paths.
 - How are the extension-block dxf records reconciled with the classic `dxfs` table on write —
   separate tables, or a merged one with namespace-aware emission?
 - The **copy path** loses the extension too: reading a sheet's conditional formattings and replaying
