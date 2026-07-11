@@ -144,6 +144,11 @@ import {
   quotePrefixReport,
   namedStyleFillReport,
   listValidationSourceRangeAcrossRows,
+  worksheetPasswordProtectionReport,
+  removeImageReport,
+  tableDisplayNameReport,
+  columnWidthDefaultCollisionReport,
+  worksheetStateReport,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -839,4 +844,32 @@ export default {
   // allIdentical, sqrefBlocks }. Locks that per-cell application does not relative-shift the source
   // range (the "shrinking dropdown" trap). See workbook-io.mjs.
   listValidationSourceRangeAcrossRows,
+
+  // Protect a worksheet with a PASSWORD in the current runtime, serialize, and report the emitted
+  // sheetProtection facts → { threw, algorithm, hasHash, hasSalt, spinCount, selectLockedCells,
+  // selectUnlockedCells, saltsDiffer }. Guards that password hashing runs on real platform randomness
+  // (no browser-only secure-random shim throwing under Node) and emits a valid protection element.
+  // See workbook-io.mjs.
+  worksheetPasswordProtectionReport,
+
+  // Add several images to a worksheet, attempt to remove one by media id, and report whether a
+  // removal path exists and behaves → { supported, before, after, removedGone, othersSurvive }.
+  // See workbook-io.mjs.
+  removeImageReport,
+
+  // Author a table with an explicit displayName, write, and report whether it survives to the table
+  // XML and back through a reload → { writtenDisplayName, reloadedName, reloadedDisplayName }.
+  // See workbook-io.mjs.
+  tableDisplayNameReport,
+
+  // Set explicit column widths (one equal to the conventional default 9), write, reload, and report
+  // each column's read-back width plus which columns emitted an explicit <col> width → { readBack,
+  // emitted }. Guards that an explicit width equal to the magic default is not silently dropped.
+  // See workbook-io.mjs.
+  columnWidthDefaultCollisionReport,
+
+  // Add worksheets in visible/hidden/veryHidden states, write, reload, and report read-back state per
+  // sheet plus the workbook.xml sheet state attributes → { readStates, xmlStates }. Guards worksheet
+  // visibility survives a write and veryHidden does not degrade to hidden. See workbook-io.mjs.
+  worksheetStateReport,
 };

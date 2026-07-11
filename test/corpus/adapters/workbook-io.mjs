@@ -4726,3 +4726,161 @@ export async function listValidationSourceRangeAcrossRows(count = 6, source = 'L
 
   return {source, count, formulae, allIdentical, sqrefBlocks};
 }
+
+// Protect a worksheet with a PASSWORD in the current runtime (Node, no browser crypto globals),
+// serialize, and report the emitted sheetProtection facts → { threw, algorithm, hasHash, hasSalt,
+// spinCount, selectLockedCells, selectUnlockedCells, saltsDiffer }. Password protection derives a
+// hash from a random salt, which requires real platform secure-randomness — a browser-only shim with
+// no Node fallback throws "Secure random number generation is not supported by this browser". Guards
+// that the derived protection is well-formed and that the salt is actually random (two protects with
+// the same password produce different salts).
+export async function worksheetPasswordProtectionReport(password = 'secret') {
+  let threw = null;
+  const protectOnce = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'x';
+    await ws.protect(password, {selectLockedCells: false, selectUnlockedCells: false});
+    const buffer = await wb.xlsx.writeBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+    const xml = (await zip.file('xl/worksheets/sheet1.xml').async('string')) || '';
+    return (xml.match(/<sheetProtection\b[^>]*\/>/) || [''])[0];
+  };
+
+  let first = '';
+  let second = '';
+  try {
+    first = await protectOnce();
+    second = await protectOnce();
+  } catch (e) {
+    threw = String((e && e.message) || e);
+    return {threw, algorithm: null, hasHash: false, hasSalt: false, spinCount: null,
+      selectLockedCells: null, selectUnlockedCells: null, saltsDiffer: false};
+  }
+
+  const attr = (xml, name) => (xml.match(new RegExp(`\\b${name}="([^"]*)"`)) || [])[1] ?? null;
+  const saltA = attr(first, 'saltValue');
+  const saltB = attr(second, 'saltValue');
+  return {
+    threw,
+    algorithm: attr(first, 'algorithmName'),
+    hasHash: !!attr(first, 'hashValue'),
+    hasSalt: !!saltA,
+    spinCount: attr(first, 'spinCount'),
+    selectLockedCells: attr(first, 'selectLockedCells'),
+    selectUnlockedCells: attr(first, 'selectUnlockedCells'),
+    saltsDiffer: !!saltA && !!saltB && saltA !== saltB,
+  };
+}
+
+// Add several images to a worksheet, then attempt to remove one by its media id, and report whether
+// a removal path exists and behaves → { supported, before, after, removedGone, othersSurvive }. Today
+// the worksheet exposes addImage but no removal, so a caller who wants to drop one image cannot. A
+// correct surface removes exactly the targeted image, leaving the rest at their original anchors.
+export async function removeImageReport(range = 'A1:B2') {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  const pngB64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  const id1 = wb.addImage({base64: pngB64, extension: 'png'});
+  const id2 = wb.addImage({base64: pngB64, extension: 'png'});
+  ws.addImage(id1, range);
+  ws.addImage(id2, 'C1:D2');
+  const countImages = () => (typeof ws.getImages === 'function' ? ws.getImages().length : null);
+  const before = countImages();
+  const supported = typeof ws.removeImage === 'function';
+  let after = before;
+  let removedGone = false;
+  let othersSurvive = false;
+  if (supported) {
+    ws.removeImage(id1);
+    const imgs = ws.getImages();
+    after = imgs.length;
+    const ids = imgs.map(i => i.imageId ?? (i.picture && i.picture.imageId));
+    removedGone = !ids.includes(id1);
+    othersSurvive = ids.includes(id2);
+  }
+  return {supported, before, after, removedGone, othersSurvive};
+}
+
+// Author an Excel table with an explicit displayName, write, and report whether the display name
+// survives to the table XML and back through a reload → { writtenDisplayName, reloadedName,
+// reloadedDisplayName }. An Excel table carries both an internal name and a human-facing display
+// name; a serializer that mis-keys the display-name property silently drops it and the table falls
+// back to a default. Regression lock for display-name fidelity.
+export async function tableDisplayNameReport(displayName = 'My Display Name') {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.addTable({
+    name: 'MyTable', displayName, ref: 'A1', headerRow: true,
+    columns: [{name: 'C1'}, {name: 'C2'}], rows: [[1, 2], [3, 4]],
+  });
+  const buffer = await wb.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const tf = Object.keys(zip.files).find(f => /xl\/tables\/.*\.xml$/.test(f));
+  const xml = tf ? await zip.file(tf).async('string') : '';
+  const writtenDisplayName = (xml.match(/\bdisplayName="([^"]*)"/) || [])[1] ?? null;
+
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(buffer);
+  const t = wb2.getWorksheet('S').getTable('MyTable');
+  const model = t && t.table ? t.table : t || {};
+  return {writtenDisplayName, reloadedName: model.name ?? null, reloadedDisplayName: model.displayName ?? null};
+}
+
+// Set explicit widths on three columns — one of which equals the format's conventional default column
+// width (9) — write, reload, and report each column's read-back width plus which columns emitted an
+// explicit <col> width → { readBack:{c1,c2,c3}, emitted:{c1,c2,c3} }. An explicitly-set width that
+// happens to equal the magic default must not be silently dropped as "same as default"; the caller
+// set it on purpose.
+export async function columnWidthDefaultCollisionReport(widths = [8, 9, 10]) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  widths.forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(buffer);
+  const ws2 = wb2.getWorksheet('S');
+  const readBack = {};
+  widths.forEach((_, i) => (readBack[`c${i + 1}`] = ws2.getColumn(i + 1).width ?? null));
+
+  const zip = await JSZip.loadAsync(buffer);
+  const xml = (await zip.file('xl/worksheets/sheet1.xml').async('string')) || '';
+  const cols = xml.match(/<col\b[^>]*\/>/g) || [];
+  const emitted = {};
+  widths.forEach((_, i) => {
+    const idx = i + 1;
+    emitted[`c${idx}`] = cols.some(c => {
+      const min = Number((c.match(/\bmin="(\d+)"/) || [])[1]);
+      const max = Number((c.match(/\bmax="(\d+)"/) || [])[1]);
+      return min <= idx && idx <= max && /\bwidth="/.test(c);
+    });
+  });
+  return {readBack, emitted};
+}
+
+// Add worksheets in visible / hidden / veryHidden states, write, reload, and report the read-back
+// state of each plus the state attribute on each workbook.xml sheet entry → { readStates, xmlStates }.
+// A worksheet's visibility must survive a write: a hidden or very-hidden sheet that reopens visible is
+// silent data loss (and veryHidden, only settable via the file format, must not degrade to hidden).
+export async function worksheetStateReport() {
+  const wb = new ExcelJS.Workbook();
+  wb.addWorksheet('Visible');
+  wb.addWorksheet('Hid').state = 'hidden';
+  wb.addWorksheet('VeryHid').state = 'veryHidden';
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(buffer);
+  const readStates = {};
+  for (const w of wb2.worksheets) readStates[w.name] = w.state ?? null;
+
+  const zip = await JSZip.loadAsync(buffer);
+  const xml = (await zip.file('xl/workbook.xml').async('string')) || '';
+  const xmlStates = {};
+  for (const m of xml.matchAll(/<sheet\b[^>]*\bname="([^"]*)"[^>]*>/g)) {
+    xmlStates[m[1]] = (m[0].match(/\bstate="([^"]*)"/) || [])[1] ?? 'visible';
+  }
+  return {readStates, xmlStates};
+}
