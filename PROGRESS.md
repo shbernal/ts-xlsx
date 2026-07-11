@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-10 (labeled clusters + thirty-six unlabeled slices; 631/794 = 79%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + thirty-seven unlabeled slices; 646/794 = 81%; fixture-less bulk drain underway)._
 
 ---
 
@@ -711,7 +711,27 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     reports (→ minimal-audit-clean-dependency-tree + a modern runtime baseline — the whole reason we
     forked). Corpus unchanged at **359 green / 171 known-open / 0 regressions**; 202 corpus cases
     + 125 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (163 remaining, all fixture-less) in ~15-record
+  - **Thirty-seventh slice — fixture-less bulk, top-15 by signal — drained** (646/794, 81%).
+    2 new corpus cases + 2 spec notes + 11 not-carried. The two corpus cases came from *reframing*
+    a triage disposition against the real code: (1) the `skipStyles` "crash" was a red herring —
+    that option isn't consumed anywhere in the reader; the durable bug is that a worksheet `<col>`
+    carrying a styleId with **no styles part** crashes reconcile on `undefined.getStyleModel(...)`,
+    so the case is a hostile-input tolerance lock backed by a styles-stripped fixture (baseline
+    fail). (2) spliceColumns *insertion* mode actually works and round-trips cleanly, so it's locked
+    as a regression guard (baseline pass) for the previously-untested splice direction. Two triage
+    "corpus_case" candidates collapsed on probing: duplicateRow→unmerge→re-merge "already merged"
+    does **not** reproduce on current code (the phantom-merge invariant is already locked and
+    passing), and the splice-columns merged-cell PR is an exact fold into the existing
+    baseline-fail re-anchor lock. New spec notes: dynamic-array (spill) formulas must not be
+    downgraded to legacy CSE array formulas on write (a model gap — the writer wraps them in braces);
+    pivot per-field aggregation metrics (Count and the rest via `dataField/@subtotal`), answering the
+    multi-value-fields note's per-measure open question. Not-carried folded pageSetUpPr order
+    (→ sheetpr-child-order), table-name validation (exact case fold), spliceRows reorder
+    (→ splice-rows-removes-requested-count), shallow-model sheet copy (→ worksheet-clone), drawings
+    dropped (→ preserve-drawing-shapes-on-roundtrip), and two dependency reports
+    (→ minimal-audit-clean-dependency-tree). Corpus **360 green / 173 known-open / 0 regressions**;
+    204 corpus cases + 127 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (148 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -765,12 +785,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **631/794 (79%)**; **all labeled clusters + thirty-six unlabeled slices are drained; the
+Drain at **646/794 (81%)**; **all labeled clusters + thirty-seven unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (359 green / 171
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (360 green / 173
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (163 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (148 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
