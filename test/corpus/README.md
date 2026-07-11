@@ -182,6 +182,7 @@ implementation is shaped. Current vocabulary:
 | `nonCanonicalCommentsPartReport()` | Read a package whose comments part lives at a non-canonical path (`xl/sheet1_comments.xml`) referenced only by the rels → `{ok, error, note}` — for asserting the reader locates parts by relationship type, not filename glob. |
 | `streamWriterPipeContract()` | Pipe the streaming writer's own output stream into a `PassThrough` → `{pipeReturnsDestination, bytes, valid}` — for asserting the writer's stream honors Node's pipe contract (pipe returns the destination) while still delivering the full payload. |
 | `loadFixtureTableColumns(rel, tableName)` | Load a fixture whose table declares a calculated column (`<calculatedColumnFormula>`) → `{loaded, error, columnCount, columnNames}` — for asserting the table reader consumes the nested formula element and keeps every column instead of truncating and crashing. |
+| `unfreezeViewRoundtrip()` | Author a frozen view, unfreeze it (replace with a normal view), write again → `{frozenHasPane, normalHasPane, reloadedState, reloadedHasSplit}` — for asserting that removing a sheet's frozen state emits a clean normal view (no leftover `<pane>`) that opens without repair and round-trips as state `normal`. |
 
 `inspectPackage`'s per-sheet fact also carries `elementOrder` (raw positions of `drawing` /
 `legacyDrawing` / `tableParts` plus the `legacyBeforeTableParts` etc. adjacency invariants) so a

@@ -62,5 +62,33 @@ export default {
         assert.ok(/sheet="1"/.test(sheetProtection), `sheetProtection must enable sheet-level locking; got ${sheetProtection}`);
       },
     },
+    {
+      // Unlocking a whole COLUMN or ROW in one call (rather than touching each cell) must carry the
+      // unlocked flag to every cell of that band, exactly as a per-cell override would — the band is
+      // just an ergonomic shorthand for "these cells are editable once the sheet is protected".
+      name: 'setting a whole column unlocked carries locked=false to its cells; an off-band cell stays default-locked',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const {readBack} = await api.authorCellProtection(
+          [{ref: 'A1', value: 'a'}, {ref: 'B1', value: 'b'}],
+          {password: 'pw'},
+          {columns: [{index: 1, protection: {locked: false}}]}
+        );
+        assert.ok(readBack.A1 && readBack.A1.locked === false, `a cell in the unlocked column must round-trip locked=false; got ${JSON.stringify(readBack.A1)}`);
+        assert.ok(!readBack.B1 || readBack.B1.locked !== false, `a cell outside the unlocked column must not be explicitly unlocked; got ${JSON.stringify(readBack.B1)}`);
+      },
+    },
+    {
+      name: 'setting a whole row unlocked carries locked=false to its cells',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const {readBack} = await api.authorCellProtection(
+          [{ref: 'A3', value: 'c'}],
+          {password: 'pw'},
+          {rows: [{index: 3, protection: {locked: false}}]}
+        );
+        assert.ok(readBack.A3 && readBack.A3.locked === false, `a cell in the unlocked row must round-trip locked=false; got ${JSON.stringify(readBack.A3)}`);
+      },
+    },
   ],
 };

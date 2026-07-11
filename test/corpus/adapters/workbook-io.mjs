@@ -233,7 +233,14 @@ export function mutateWorksheet({cells = [], ops = [], read = [], readStyles = [
   // column splice SHIFTS a merged range to its new position and keeps it merged, rather than
   // leaving the range stranded at its original indices while the data moves.
   const merges = (sheet.model && sheet.model.merges) || [];
-  return {rowCount: sheet.rowCount, columnCount: sheet.columnCount, cells: readCells, styles, merges, error};
+  // The row the worksheet reports as its LAST row after the mutations. Splicing out the tail rows
+  // can leave trailing empty slots behind the real last populated row; a correct `lastRow` must
+  // still point at that populated row (and its value be reachable), not fall into a hole and read
+  // back undefined. Reported as {number, value} so a case can assert the tail is tracked, never as
+  // an implementation row object.
+  const lr = sheet.lastRow;
+  const lastRow = lr ? {number: lr.number, value: lr.getCell(1).value ?? null} : null;
+  return {rowCount: sheet.rowCount, columnCount: sheet.columnCount, cells: readCells, styles, merges, lastRow, error};
 }
 
 const isoOrNull = d => (d instanceof Date && !Number.isNaN(+d) ? d.toISOString() : null);
@@ -2505,7 +2512,13 @@ export async function readFixtureReport(rel) {
   const workbook = new ExcelJS.Workbook();
   try {
     await workbook.xlsx.readFile(fixturePath(rel));
-    return {ok: true, error: null, sheetNames: workbook.worksheets.map(s => s.name)};
+    return {
+      ok: true,
+      error: null,
+      sheetNames: workbook.worksheets.map(s => s.name),
+      lastModifiedBy: workbook.lastModifiedBy ?? null,
+      creator: workbook.creator ?? null,
+    };
   } catch (e) {
     return {ok: false, error: String((e && e.message) || e), sheetNames: null};
   }
@@ -3978,13 +3991,19 @@ export async function appendRowShapes() {
 // `<sheetProtection>` element the protected sheet emits. Lets a case assert the meaningful
 // case — an *unlocked* cell survives (default is locked, so only unlocked is distinguishable)
 // — and that worksheet protection, the thing that makes locked flags enforceable, is emitted.
-export async function authorCellProtection(cells = [], protect = null) {
+export async function authorCellProtection(cells = [], protect = null, {rows = [], columns = []} = {}) {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('S');
   for (const c of cells) {
     sheet.getCell(c.ref).value = c.value ?? c.ref;
     if (c.protection !== undefined) sheet.getCell(c.ref).protection = c.protection;
   }
+  // Whole-row / whole-column protection: an author marks an entire row or column editable in one
+  // call rather than touching each cell. The unlocked flag must reach every cell of that band in
+  // the written package, exactly as a per-cell override would — applied after the individual cells
+  // so the band-level setting is what the case asserts.
+  for (const col of columns) sheet.getColumn(col.index).protection = col.protection;
+  for (const r of rows) sheet.getRow(r.index).protection = r.protection;
   if (protect) await sheet.protect(protect.password ?? undefined, protect.options ?? {});
   const buf = await workbook.xlsx.writeBuffer();
 
@@ -4271,4 +4290,43 @@ export async function loadFixtureTableColumns(rel, tableName) {
     error = String((e && e.message) || e);
   }
   return {loaded, error, columnCount, columnNames};
+}
+
+// Author a frozen-pane view, then unfreeze it by replacing the view with a plain normal view and
+// writing again — the exact "remove the frozen state" edit. A normal view must emit no <pane>
+// element and no frozen-only pane attributes; leftover pane markup on a normal view is what makes a
+// spreadsheet application flag the file for repair. Reports the pane presence at each stage plus the
+// state the reloaded view reports, so a case can assert both that a frozen view still emits its pane
+// and that unfreezing produces a clean, self-consistent normal view that round-trips.
+export async function unfreezeViewRoundtrip() {
+  const paneOf = xml => (xml.match(/<pane\b[^>]*\/?>/) || [])[0] || null;
+  const sheetXmlOf = async buf => {
+    const zip = await JSZip.loadAsync(buf);
+    const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+    return name ? zip.files[name].async('string') : '';
+  };
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 'x';
+  ws.views = [{state: 'frozen', xSplit: 2, ySplit: 1, topLeftCell: 'C2'}];
+  const frozenBuf = await wb.xlsx.writeBuffer();
+  const frozenPane = paneOf(await sheetXmlOf(frozenBuf));
+
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(frozenBuf);
+  const ws2 = wb2.getWorksheet('S');
+  ws2.views = [{state: 'normal'}];
+  const normalBuf = await wb2.xlsx.writeBuffer();
+  const normalPane = paneOf(await sheetXmlOf(normalBuf));
+
+  const wb3 = new ExcelJS.Workbook();
+  await wb3.xlsx.load(normalBuf);
+  const view = (wb3.getWorksheet('S').views || [])[0] || {};
+  return {
+    frozenHasPane: !!frozenPane,
+    normalHasPane: !!normalPane,
+    reloadedState: view.state ?? null,
+    reloadedHasSplit: !!(view.xSplit || view.ySplit),
+  };
 }

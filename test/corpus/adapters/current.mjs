@@ -131,6 +131,7 @@ import {
   nonCanonicalCommentsPartReport,
   streamWriterPipeContract,
   loadFixtureTableColumns,
+  unfreezeViewRoundtrip,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -752,4 +753,10 @@ export default {
   // { loaded, error, columnCount, columnNames } — for asserting the table reader consumes the nested
   // formula element and keeps every column rather than truncating and crashing. See workbook-io.mjs.
   loadFixtureTableColumns,
+
+  // Author a frozen view, unfreeze it (replace with a normal view), write again →
+  // { frozenHasPane, normalHasPane, reloadedState, reloadedHasSplit } — for asserting that removing a
+  // sheet's frozen state emits a clean normal view (no leftover <pane>) that opens without repair and
+  // round-trips as state 'normal'. See workbook-io.mjs.
+  unfreezeViewRoundtrip,
 };

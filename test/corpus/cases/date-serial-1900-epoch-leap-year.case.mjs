@@ -40,5 +40,25 @@ export default {
         assert.strictEqual(A2.value.date, '1900-01-02T00:00:00.000Z', `serial 2 must be 1900-01-02; got ${JSON.stringify(A2.value)}`);
       },
     },
+    {
+      // The boundary case: serial 60 is the phantom 1900-02-29 that never existed. Every serial at or
+      // below 59 is therefore one day later than a naive "days since 1899-12-31" offset would place
+      // it — serial 59 is 1900-02-28, the real day just before the phantom. A reader that ignores the
+      // phantom day reads serial 59 as 1900-02-27, one day early.
+      name: 'serial 59 reads as 1900-02-28 (the real day just below the phantom 1900-02-29)',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {A59} = await api.readFixtureCells(FIXTURE, ['A59']);
+        assert.strictEqual(A59.value.date, '1900-02-28T00:00:00.000Z', `serial 59 must be 1900-02-28; got ${JSON.stringify(A59.value)}`);
+      },
+    },
+    {
+      name: 'serial 61 reads as 1900-03-01 (the day after the phantom leap day)',
+      baseline: 'pass',
+      async expect(api, assert) {
+        const {A61} = await api.readFixtureCells(FIXTURE, ['A61']);
+        assert.strictEqual(A61.value.date, '1900-03-01T00:00:00.000Z', `serial 61 must be 1900-03-01; got ${JSON.stringify(A61.value)}`);
+      },
+    },
   ],
 };
