@@ -30,6 +30,32 @@ The runtime value has always been plain numbers; the cell's own `row`/`col` acce
 - Cover this with a type-level test (`expectTypeOf`) so the descriptor's `row`/`col` can never silently regress to an object type again.
 - Ensure runtime and type agree: a decoded `"A1"` yields `row: 1, col: 1`.
 
-### Open questions
+## Decoded address descriptor: the type must match the runtime exactly
+
+### Desired behavior
+The same drift bit the general **decoded-address** descriptor — the structured form produced when a
+cell reference is decoded (row/column indices, column letter, sheet qualifier, absolute/relative
+markers). Its published type must match the runtime value *field for field*:
+
+- Every field present at runtime is declared; no field is declared that never appears at runtime.
+- Each field's primitive is correct — row/column are 1-based **numbers**, the column letter and sheet
+  name are strings.
+- **Optionality reflects real optionality.** Conditional parts — the sheet qualifier, and the
+  `$`-anchored absolute/relative markers — are typed optional because they are genuinely absent for a
+  bare `A1`; always-present parts (row index, column index, column letter) are typed required. The
+  legacy hand-maintained `Address` interface was blanket-required/blanket-optional for convenience,
+  producing either false compile errors or silent unsoundness (a field typed always-present that can
+  be absent), defeating the type system exactly where it was supposed to help.
+
+### Guidance for the rewrite
+- Derive the descriptor's type from the decoder's implementation (or type-check it against it) rather
+  than maintaining a separate ambient declaration, so this class of drift cannot recur.
+- A type-level test asserts the decoder's return type *equals* the published address type, so any
+  future mismatch fails CI rather than surviving as declaration-only debt.
+
+## Open questions
 - Naming: whether ts-xlsx keeps a single "full address" descriptor or splits sheet-scoped vs. cell-scoped location info.
 - Whether to also expose the object-typed row/column handles under a distinctly named field, so numeric coordinates and rich handles never share a field and confuse consumers.
+- The exact canonical shape of the decoded address — which fields are always present vs. conditional (sheet qualifier, absolute markers) — and whether absolute/relative is one flag per coordinate or a combined marker.
+
+Related: `public-type-surface-matches-runtime`.

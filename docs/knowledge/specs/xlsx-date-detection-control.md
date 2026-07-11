@@ -28,6 +28,16 @@ wrong path.
 - **Independence from CSV date parsing**: this xlsx read policy is separate from the CSV-only
   `dateFormats` parsing list — the two must not share an option name, so passing a moment-style format
   string to one does not silently affect the other.
+- **A literal string cell stays a string, even when it looks like a date; classification is uniform.**
+  A reported "inconsistency" — the same column returns some cells as `Date` and others as strings — is
+  expected, not a reader bug: a cell is a `Date` **iff** its stored value is a numeric serial *and* its
+  effective number format is a date format; a cell whose stored content is a literal (inline/shared)
+  string remains a string no matter how date-like the text reads. The rule must be applied so that two
+  cells with the *same* underlying representation always decode to the same value type — any observed
+  variation must be explainable purely by differences in the source cells (number-vs-string storage,
+  date-format-vs-not), never by position within the column or nondeterminism in the reader. The API
+  should also make a returned value's kind inspectable (genuine date vs string) so a caller can
+  validate a column without brittle `typeof`/`instanceof` probing.
 
 ## Open questions
 

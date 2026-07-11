@@ -48,6 +48,18 @@ Distinguish the two ways an image can live in a sheet, and let callers choose:
   `oneCellAnchor`/`absoluteAnchor` must preserve that anchor mode and size on write, not silently
   rewrite it to a stretched two-cell anchor.
 
+- **Reading floating images is a first-class, enumerable affordance — not just a write feature.**
+  Opening a file that contains a picture floating over the grid, a caller must be able to *enumerate*
+  the worksheet's drawing images and, for each, recover (a) the media payload (bytes + content
+  type/extension) and (b) the anchor — which cell(s) it is pinned to, the anchor *kind*
+  (one-cell / two-cell / absolute), and the offset. Read-back must preserve the anchor kind and size
+  so a subsequent write round-trips it faithfully rather than silently rewriting a one-cell or
+  absolute anchor into a stretched two-cell one. This read enumeration across anchor variants,
+  returning media + top-left cell coordinates, is already locked by
+  `worksheet-images-enumerated-across-anchor-variants`; the durable point here is that "how do I read
+  the floating images out of a file?" is answered by that enumeration surface, and it must work for
+  foreign-authored files, not only ones this library wrote.
+
 Prior art: classic implementations support only floating drawing anchors (one-cell "over" a cell or
 two-cell "over" a range) with the `editAs` flag. Helpers that "add an image over a range" still produce
 a floating two-cell overlay — not a true cell-embedded rich value. Genuine in-cell images require the
