@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + forty-one unlabeled slices; 706/794 = 89%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + forty-two unlabeled slices; 721/794 = 91%; fixture-less bulk drain underway)._
 
 ---
 
@@ -847,7 +847,34 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     usage question (`sheet-protection-…`), and library suggestions (sort → `sort-rows-by-column`;
     column move user-acknowledged trivial). Corpus **376 green / 192 known-open / 0 regressions**;
     216 cases + 133 specs. One adapter extension (`imageAnchorRowAppendReport`).
-  - ⏳ **Next: continue the unlabeled bulk** (88 remaining, all fixture-less) in ~15-record
+  - **Forty-second slice — fixture-less bulk, oldest-15 of the tail — drained** (721/794, 91%).
+    7 new corpus cases + 1 case augment + 3 spec-augments + 3 not-carried folds. Probing flipped
+    most triage guesses: only 3 of the batch reproduced as *open* bugs, the rest are already-correct
+    behavior locked as regression guards. Real bugs (baseline fail): (1) a rich-text run with an
+    **empty text string** serializes to an empty `<t>` element that Excel flags as corrupt — must be
+    dropped, surrounding runs kept (`rich-text-empty-substring-run`, new `richTextRoundtripReport`);
+    (2) a **whitespace-only CSV field** coerces to numeric `0` via `Number('   ')===0` instead of
+    staying a string (`csv-whitespace-only-cell-preserved-as-string`, reuses `csvRead`); (3) explicit-
+    off **font toggles** (`<i val="0"/>`, `<strike val="0"/>`, `<u val="none"/>`) read as enabled —
+    the presence-based-parsing gotcha, extending the existing bold-only case with italic/strike/
+    underline via new `fontExplicitOffFlagsReport`. Regression locks (correct today, guarding silent-
+    corruption classes): cell `col`/`row` are numeric 1-based indices at runtime; leading rich-text
+    run formatting is position-independent; a row-level fill stays scoped to its row (no whole-sheet
+    bleed — extended `buildFrom` with `row.fill`); a merge into a trailing empty final row is iterated
+    and resolves to its master; an image added to a *loaded* (not fresh) worksheet persists on
+    re-serialize. Spec augments: `xlsx-date-detection-control` — a literal string cell stays a string
+    even when it reads like a date, and date-vs-string classification is uniform (the reported
+    per-column "inconsistency" is expected, not a reader bug); `cell-full-address-descriptor-numeric-
+    row-col` — the decoded-`Address` descriptor type must match the runtime field-for-field (numeric
+    row/col, real optionality for the sheet qualifier and `$`-markers), enforced by a type-level test;
+    `image-embedded-in-cell-vs-floating-anchor` — reading floating images is a first-class enumerable
+    affordance (media + anchor kind + offset) that works for foreign files. Not-carried (3):
+    dependency-version pinning (policy tied to upstream's dep tree, already answered by the fork's
+    dependency-hygiene stance); a COUNTIF duplicate-detection support question whose repro targets
+    another library; browser `writeFile` "fs.createWriteStream is not a function" (already covered by
+    `browser-safe-io-boundary` — path methods are Node-only and must fail actionably). Corpus **392
+    green / 198 known-open / 0 regressions**; 223 cases + 133 specs. Five adapter capabilities added.
+  - ⏳ **Next: continue the unlabeled bulk** (73 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -901,11 +928,11 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **706/794 (89%)**; **all labeled clusters + forty-one unlabeled slices are drained; the
-attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (376 green / 192
-known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
-slices, in order:
+Drain at **721/794 (91%)**; **all labeled clusters + forty-two unlabeled slices are drained; the
+attachment-bearing queue is exhausted and the fixture-less bulk drain is underway** (73 remaining,
+~5 slices to empty). The full pipeline is proven: parallel triage workflow → serial materialization →
+green corpus (392 green / 198 known-open / 0 regressions). CI corpus check is committed
+(`.github/workflows/corpus.yml`). Next slices, in order:
 1. **Continue the unlabeled bulk** (88 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
