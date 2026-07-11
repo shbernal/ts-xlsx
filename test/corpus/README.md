@@ -180,6 +180,8 @@ implementation is shaped. Current vocabulary:
 | `worksheetNameLookupReport()` | Add a sheet named `Sheet`, probe a case-variant → `{foundExact, foundVariant, addVariantThrew}` — for asserting `getWorksheet` and `addWorksheet` agree on name identity (a name reported absent by lookup must be addable). |
 | `internalHyperlinkSerializationReport()` | Serialize an in-workbook `#Sheet2!A1` hyperlink → `{hasWorksheetRels, hyperlinkHasRid, hyperlinkLocation, relTargetMode, reReadHyperlink}` — for asserting an internal link is written location-only with no external relationship, so consumers don't double the target. |
 | `nonCanonicalCommentsPartReport()` | Read a package whose comments part lives at a non-canonical path (`xl/sheet1_comments.xml`) referenced only by the rels → `{ok, error, note}` — for asserting the reader locates parts by relationship type, not filename glob. |
+| `streamWriterPipeContract()` | Pipe the streaming writer's own output stream into a `PassThrough` → `{pipeReturnsDestination, bytes, valid}` — for asserting the writer's stream honors Node's pipe contract (pipe returns the destination) while still delivering the full payload. |
+| `loadFixtureTableColumns(rel, tableName)` | Load a fixture whose table declares a calculated column (`<calculatedColumnFormula>`) → `{loaded, error, columnCount, columnNames}` — for asserting the table reader consumes the nested formula element and keeps every column instead of truncating and crashing. |
 
 `inspectPackage`'s per-sheet fact also carries `elementOrder` (raw positions of `drawing` /
 `legacyDrawing` / `tableParts` plus the `legacyBeforeTableParts` etc. adjacency invariants) so a

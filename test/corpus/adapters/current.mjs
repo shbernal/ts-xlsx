@@ -129,6 +129,8 @@ import {
   worksheetNameLookupReport,
   internalHyperlinkSerializationReport,
   nonCanonicalCommentsPartReport,
+  streamWriterPipeContract,
+  loadFixtureTableColumns,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -740,4 +742,14 @@ export default {
   // { ok, error, note } — for asserting the reader locates parts by relationship type, not filename
   // glob, and tolerates OPC-legal part naming without crashing. See workbook-io.mjs.
   nonCanonicalCommentsPartReport,
+
+  // Pipe the streaming writer's own output stream into a PassThrough → { pipeReturnsDestination,
+  // bytes, valid } — for asserting the writer's stream honors Node's pipe contract (pipe returns the
+  // destination so `.pipe(out).on('finish', …)` and stream.pipeline compose). See workbook-io.mjs.
+  streamWriterPipeContract,
+
+  // Load a fixture whose table declares a calculated column (<calculatedColumnFormula>) →
+  // { loaded, error, columnCount, columnNames } — for asserting the table reader consumes the nested
+  // formula element and keeps every column rather than truncating and crashing. See workbook-io.mjs.
+  loadFixtureTableColumns,
 };

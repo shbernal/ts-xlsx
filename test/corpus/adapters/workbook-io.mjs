@@ -4211,3 +4211,64 @@ export async function nonCanonicalCommentsPartReport() {
   }
   return {ok, error, note};
 }
+
+// Drive the streaming workbook writer WITHOUT supplying a stream, so it exposes its own output
+// stream, and pipe that stream into a plain PassThrough → { pipeReturnsDestination, bytes, valid }.
+// Node's Readable.pipe(dest) is contractually required to RETURN dest so callers can chain
+// (`writer.stream.pipe(out).on('finish', …)`) and so `stream.pipeline` wires stages correctly. A
+// bespoke buffer that returns undefined breaks both idioms while — as the byte total and validity
+// show — still delivering the payload, which isolates the defect to the return-value contract.
+export async function streamWriterPipeContract() {
+  const writer = new ExcelJS.stream.xlsx.WorkbookWriter({});
+  const source = writer.stream;
+  const sink = new PassThrough();
+  const chunks = [];
+  sink.on('data', c => chunks.push(c));
+  const pipeReturn = source.pipe(sink);
+  const pipeReturnsDestination = pipeReturn === sink;
+  const ws = writer.addWorksheet('S');
+  ws.addRow(['a', 'b']).commit();
+  ws.commit();
+  await writer.commit();
+  await new Promise(res => setTimeout(res, 50));
+  const buffer = Buffer.concat(chunks);
+  let valid = false;
+  try {
+    const back = new ExcelJS.Workbook();
+    await back.xlsx.load(buffer);
+    valid = back.worksheets[0].getCell('A1').value === 'a';
+  } catch {
+    valid = false;
+  }
+  return {pipeReturnsDestination, bytes: buffer.length, valid};
+}
+
+// Load a table-bearing fixture whose table declares a CALCULATED column (a `<calculatedColumnFormula>`
+// child on a `<tableColumn>`, as Excel emits for a column whose body cells share one formula) and
+// report { loaded, error, columnCount, columnNames }. The table-column reader must consume the nested
+// formula element and continue enumerating the remaining columns; a reader that mistakes the nested
+// element's boundary for the column list's end loses columns and then crashes reconciling the
+// autoFilter against the truncated set (`Cannot set properties of undefined (setting 'filterButton')`).
+export async function loadFixtureTableColumns(rel, tableName) {
+  let loaded = false;
+  let error = null;
+  let columnCount = null;
+  let columnNames = null;
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(fixturePath(rel));
+    let table = null;
+    workbook.eachSheet(sheet => {
+      const t = sheet.getTable(tableName);
+      if (t) table = t;
+    });
+    const def = table && (table.table || table);
+    const columns = def && Array.isArray(def.columns) ? def.columns : null;
+    columnCount = columns ? columns.length : null;
+    columnNames = columns ? columns.map(c => c.name) : null;
+    loaded = true;
+  } catch (e) {
+    error = String((e && e.message) || e);
+  }
+  return {loaded, error, columnCount, columnNames};
+}
