@@ -4090,3 +4090,124 @@ export async function streamWriterImageSupport(range = 'B2:D6') {
   }
   return {...surface, error, mediaParts, drawingParts};
 }
+
+// Read a cell whose alignment element carries ONLY a false boolean flag serialized explicitly
+// (as some producers, notably Excel, emit `wrapText="0"` / `shrinkToFit="0"`) → { wrapTextZero,
+// shrinkZero } each the reloaded `cell.alignment` (or null). The raw attribute string "0" is
+// truthy in JS, so a guard that tests the raw value rather than the parsed boolean mistakes an
+// explicit-false attribute for "alignment present", handing back an { wrapText:false } object where
+// the cell has no meaningful alignment at all — it should read back as no alignment (null).
+export async function alignmentFalseBooleanReport() {
+  const readWithAlignment = async alignAttr => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'x';
+    const zip = await JSZip.loadAsync(await wb.xlsx.writeBuffer());
+    const stylesName = Object.keys(zip.files).find(f => /xl\/styles\.xml$/.test(f));
+    let styles = await zip.file(stylesName).async('string');
+    const count = Number(styles.match(/<cellXfs count="(\d+)">/)[1]);
+    styles = styles
+      .replace(/<cellXfs count="\d+">/, `<cellXfs count="${count + 1}">`)
+      .replace(
+        /<\/cellXfs>/,
+        `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">` +
+          `<alignment ${alignAttr}/></xf></cellXfs>`
+      );
+    const sheetName = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+    let sheet = await zip.file(sheetName).async('string');
+    sheet = sheet.replace(/<c r="A1"([^>]*)>/, `<c r="A1" s="${count}"$1>`);
+    zip.file(stylesName, styles);
+    zip.file(sheetName, sheet);
+    const reload = new ExcelJS.Workbook();
+    await reload.xlsx.load(await zip.generateAsync({type: 'nodebuffer'}));
+    const alignment = reload.getWorksheet('S').getCell('A1').alignment;
+    return alignment ? JSON.parse(JSON.stringify(alignment)) : null;
+  };
+  return {
+    wrapTextZero: await readWithAlignment('wrapText="0"'),
+    shrinkZero: await readWithAlignment('shrinkToFit="0"'),
+  };
+}
+
+// Add a worksheet named 'Sheet', then probe lookup and add with a case-variant name →
+// { foundExact, foundVariant, addVariantThrew }. addWorksheet enforces case-INsensitive uniqueness
+// (rejecting 'sheet' when 'Sheet' exists), but getWorksheet matches case-SENSITIVELY (missing it) —
+// a self-contradiction: a name reported absent by getWorksheet cannot in fact be added. The two
+// APIs must agree on name identity.
+export function worksheetNameLookupReport() {
+  const wb = new ExcelJS.Workbook();
+  wb.addWorksheet('Sheet');
+  const foundExact = !!wb.getWorksheet('Sheet');
+  const foundVariant = !!wb.getWorksheet('sheet');
+  let addVariantThrew = false;
+  try {
+    wb.addWorksheet('sheet');
+  } catch {
+    addVariantThrew = true;
+  }
+  return {foundExact, foundVariant, addVariantThrew};
+}
+
+// Write a cell whose hyperlink is an in-workbook target ('#Sheet2!A1') and report how it serialized →
+// { hasWorksheetRels, hyperlinkHasRid, hyperlinkLocation, relTargetMode, reReadHyperlink }. An
+// internal link must be emitted with a `location` attribute and NO external relationship; instead the
+// writer creates an `r:id` → `.rels` entry with TargetMode="External" AND a `location`, so a strict
+// consumer resolves both and shows the target doubled (e.g. `#Sheet2!A1##Sheet2!A1`).
+export async function internalHyperlinkSerializationReport() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Sheet1');
+  wb.addWorksheet('Sheet2');
+  ws.getCell('A1').value = {text: 'go', hyperlink: '#Sheet2!A1', tooltip: 'tt'};
+  const buffer = await wb.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const sheetName = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+  const sheetXml = await zip.file(sheetName).async('string');
+  const relName = Object.keys(zip.files).find(f => /xl\/worksheets\/_rels\/sheet1\.xml\.rels$/.test(f));
+  const relsXml = relName ? await zip.file(relName).async('string') : '';
+  const hyperlinkEl = (sheetXml.match(/<hyperlink\b[^>]*\/?>/) || [''])[0];
+  const relEl = (relsXml.match(/<Relationship\b[^>]*hyperlink[^>]*\/?>/) || [''])[0];
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(buffer);
+  const reReadHyperlink = reload.getWorksheet('Sheet1').getCell('A1').value.hyperlink ?? null;
+  return {
+    hasWorksheetRels: /Type="[^"]*\/hyperlink"/.test(relsXml),
+    hyperlinkHasRid: /r:id="/.test(hyperlinkEl),
+    hyperlinkLocation: (hyperlinkEl.match(/location="([^"]*)"/) || [null, null])[1],
+    relTargetMode: (relEl.match(/TargetMode="([^"]*)"/) || [null, null])[1],
+    reReadHyperlink,
+  };
+}
+
+// Read a package whose comments part lives at a non-canonical path ('xl/sheet1_comments.xml' rather
+// than the conventional 'xl/comments1.xml'), pointed at only by the worksheet's rels → { ok, error,
+// note }. Open Packaging Conventions let a part live wherever its relationship Target points; a reader
+// that locates the comments part by filename glob instead of by relationship type skips it and then
+// crashes while reconciling the rels (`Cannot read properties of undefined (reading 'comments')`).
+export async function nonCanonicalCommentsPartReport() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 'x';
+  ws.getCell('A1').note = 'hi';
+  const zip = await JSZip.loadAsync(await wb.xlsx.writeBuffer());
+  const commentPart = Object.keys(zip.files).find(n => /xl\/comments\d*\.xml$/.test(n));
+  const relName = Object.keys(zip.files).find(f => /xl\/worksheets\/_rels\/sheet1\.xml\.rels$/.test(f));
+  const content = await zip.file(commentPart).async('nodebuffer');
+  let rels = await zip.file(relName).async('string');
+  zip.remove(commentPart);
+  zip.file('xl/sheet1_comments.xml', content);
+  rels = rels.replace(/Target="[^"]*comments\d*\.xml"/i, 'Target="../sheet1_comments.xml"');
+  zip.file(relName, rels);
+  const buffer = await zip.generateAsync({type: 'nodebuffer'});
+  let ok = false;
+  let error = null;
+  let note = null;
+  try {
+    const reload = new ExcelJS.Workbook();
+    await reload.xlsx.load(buffer);
+    note = reload.getWorksheet('S').getCell('A1').note ?? null;
+    ok = true;
+  } catch (e) {
+    error = String((e && e.message) || e);
+  }
+  return {ok, error, note};
+}

@@ -125,6 +125,10 @@ import {
   streamVsEagerRowValues,
   roundtripSpecTableFacts,
   loadMutateCellFont,
+  alignmentFalseBooleanReport,
+  worksheetNameLookupReport,
+  internalHyperlinkSerializationReport,
+  nonCanonicalCommentsPartReport,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -716,4 +720,24 @@ export default {
   // Author cells sharing one font, load, spread-reassign one cell's font, read the sibling
   // → { edited, sibling, bled } — the font companion to loadMutateCellStyle for aliasing.
   loadMutateCellFont,
+
+  // Read a cell whose alignment carries only an explicit-false boolean ('wrapText="0"' /
+  // 'shrinkToFit="0"') → { wrapTextZero, shrinkZero } (reloaded alignment or null) — for asserting
+  // an explicit-false attribute yields no alignment, not an { wrapText:false } object. See workbook-io.mjs.
+  alignmentFalseBooleanReport,
+
+  // Add a sheet named 'Sheet' then probe a case-variant name → { foundExact, foundVariant,
+  // addVariantThrew } — for asserting getWorksheet and addWorksheet agree on name identity (a name
+  // reported absent by lookup must be addable). See workbook-io.mjs.
+  worksheetNameLookupReport,
+
+  // Serialize an in-workbook '#Sheet2!A1' hyperlink → { hasWorksheetRels, hyperlinkHasRid,
+  // hyperlinkLocation, relTargetMode, reReadHyperlink } — for asserting an internal link is written
+  // location-only with no external relationship (so consumers don't double the target). See workbook-io.mjs.
+  internalHyperlinkSerializationReport,
+
+  // Read a package whose comments part lives at a non-canonical path referenced only by the rels →
+  // { ok, error, note } — for asserting the reader locates parts by relationship type, not filename
+  // glob, and tolerates OPC-legal part naming without crashing. See workbook-io.mjs.
+  nonCanonicalCommentsPartReport,
 };
