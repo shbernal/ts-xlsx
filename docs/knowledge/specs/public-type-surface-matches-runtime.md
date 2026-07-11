@@ -89,6 +89,13 @@ into `any` casts or module augmentation to use them. Two concrete instances from
   emitted on `sheetProtection` (with the algorithm/hashValue/saltValue from password hashing) and on
   read it round-trips, so the configured work factor is preserved. The type includes it by
   construction.
+- **`protect()` is typed for every call shape it already accepts at runtime.** Runtime permits
+  `protect()` (no arguments — flags only, no hash), `protect(password)`, and
+  `protect(password, options)`, each returning a `Promise`. The hand-written declarations required a
+  password argument, so a caller passing none (or only options) failed to type-check against a method
+  that works. The regenerated signature makes both the password and the options optional
+  (`protect(password?: string | null, options?: WorksheetProtection): Promise<void>`) so the types
+  match the permissive runtime rather than under-reporting it.
 - **Runtime value exports are declared as values**: a class or namespace object that exists at
   runtime is exported with a value-level declaration, so `new`, `instanceof`, and static access
   type-check without deep-importing internals. A same-named `interface` that shadows a real class is

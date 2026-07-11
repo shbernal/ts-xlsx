@@ -32,6 +32,17 @@ media that was never registered — a silently broken image.
   relationship in the written package resolves to a real media part with a unique rel id (the same
   packageParts/rel-id invariant the table/comment coexistence cases assert), and re-reading the
   destination surfaces the image anchored where it was placed.
+- **The current `model`-transplant failure is an opaque crash, not the loud, actionable error above.**
+  Observed today: transplanting an image-bearing worksheet's serialized `model` into a *different*
+  workbook (`dstWorkbook.addWorksheet(...).model = JSON.parse(JSON.stringify(srcSheet.model))`, the
+  workaround users reach for absent a copy API) throws `TypeError: Cannot read properties of undefined
+  (reading 'name')` at **write time**, because the anchor references a workbook-scoped media id that
+  does not exist in the destination. Within a *single* workbook the same transplant happens to carry
+  the image (the media id still resolves) but drops merged ranges — merge loss on `model` transplant
+  is already locked by `worksheet-model-preserves-merged-cells`. So a raw `model` splice must, per the
+  contract above, either register the referenced media in the destination or fail with a message that
+  *names the missing image and the offending anchor* — never a bare `undefined` dereference that gives
+  the caller no clue the cause is unregistered cross-workbook media.
 
 ## Open questions
 
