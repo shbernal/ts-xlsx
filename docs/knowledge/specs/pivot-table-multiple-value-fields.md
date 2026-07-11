@@ -29,7 +29,9 @@ case.
 ## Open questions
 
 - Per-measure aggregation functions (sum/count/avg/min/max) and whether they are individually
-  configurable, or one function for all measures initially.
+  configurable, or one function for all measures initially. The aggregation-function axis — the
+  `dataField/@subtotal` enum and the count/countNums distinction — is captured in
+  `pivot-table-aggregation-metrics`.
 - Where the "Values" axis sits when explicit column fields ARE present (measures nested under the
   column grouping vs alongside).
 - Number-format inheritance: does each measure carry the source column's number format into the
@@ -37,5 +39,5 @@ case.
 - How much of this is authored vs round-tripped from an application-created pivot (the existing pivot
   work is passthrough-oriented — see `pivot-table-parts-survive-roundtrip`).
 
-Related: `pivot-table-parts-survive-roundtrip`, `pivot-and-slicer-parts-survive-roundtrip`,
-`embedded-chart-read-write`.
+Related: `pivot-table-aggregation-metrics`, `pivot-table-parts-survive-roundtrip`,
+`pivot-and-slicer-parts-survive-roundtrip`, `embedded-chart-read-write`.
