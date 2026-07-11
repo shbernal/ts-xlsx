@@ -41,3 +41,5 @@ export {
   type WorkbookProperties,
   type AddWorksheetOptions,
 } from './core/workbook.ts';
+
+export {writeXlsx} from './io/xlsx/write.ts';

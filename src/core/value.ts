@@ -161,8 +161,11 @@ function describe(value: unknown): string {
 
 /**
  * Normalise a raw assignment into a stored {@link CellValue}. `undefined` becomes the
- * empty cell (`null`); every other kind is validated by {@link detectValueType} and
- * passed through unchanged — the model never rewrites one value kind into another.
+ * empty cell (`null`); every other kind is validated by {@link detectValueType}. The
+ * model never rewrites one value *kind* into another (a numeric-looking string stays a
+ * string) — the single exception is formula text, which is canonicalised to the OOXML
+ * stored form (no leading `=`) so round-trips are idempotent regardless of how the
+ * caller supplied it.
  *
  * @throws {TypeError} if the value is not a recognised cell-value shape.
  */
@@ -171,5 +174,22 @@ export function coerceCellValue(value: CellValue | undefined): CellValue {
   // detectValueType throws on an unrecognised object shape, so this both validates
   // and gives a precise error at the assignment site rather than deep in serialization.
   detectValueType(value);
+  if (isFormulaValue(value)) {
+    const formula = stripLeadingEquals(value.formula);
+    return formula === value.formula ? value : {...value, formula};
+  }
+  if (isSharedFormulaValue(value)) {
+    const sharedFormula = stripLeadingEquals(value.sharedFormula);
+    return sharedFormula === value.sharedFormula ? value : {...value, sharedFormula};
+  }
   return value;
+}
+
+/**
+ * OOXML stores a formula's text in `<f>` without the UI's leading `=`. Strip a single
+ * leading `=` so the stored form is canonical and a strict consumer (Google Sheets,
+ * WPS) — which rejects a stored formula beginning with `=` — accepts the file.
+ */
+function stripLeadingEquals(formula: string): string {
+  return formula.startsWith('=') ? formula.slice(1) : formula;
 }

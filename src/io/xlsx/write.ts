@@ -1,0 +1,263 @@
+// The buffered `.xlsx` writer: a Workbook model in, an OPC zip package out.
+//
+// This is the first slice of the write path. It serialises the part of the model that
+// exists today — worksheets, and cells holding a number, string, boolean, or formula —
+// into a valid minimal package (content types, relationships, workbook, per-sheet XML,
+// the default theme and stylesheet, and core/app properties). Styles, columns, rows,
+// merges, images, tables, and the richer value kinds land as the model grows; until
+// then the writer refuses a value it cannot represent faithfully rather than emitting a
+// lossy or corrupt package.
+
+import {zipSync, strToU8} from 'fflate';
+
+import {encodeAddress} from '../../core/address.ts';
+import type {Cell} from '../../core/cell.ts';
+import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/value.ts';
+import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
+import type {Worksheet} from '../../core/worksheet.ts';
+import {STYLES_XML, THEME1_XML} from './static-parts.ts';
+import {escapeAttr, escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
+
+const NS = {
+  contentTypes: 'http://schemas.openxmlformats.org/package/2006/content-types',
+  packageRels: 'http://schemas.openxmlformats.org/package/2006/relationships',
+  main: 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
+  docRels: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+  coreProps: 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties',
+  extProps: 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties',
+  dc: 'http://purl.org/dc/elements/1.1/',
+  dcterms: 'http://purl.org/dc/terms/',
+  dcmitype: 'http://purl.org/dc/dcmitype/',
+  xsi: 'http://www.w3.org/2001/XMLSchema-instance',
+} as const;
+
+const CT = {
+  workbook: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml',
+  worksheet: 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml',
+  styles: 'application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml',
+  theme: 'application/vnd.openxmlformats-officedocument.theme+xml',
+  core: 'application/vnd.openxmlformats-package.core-properties+xml',
+  app: 'application/vnd.openxmlformats-officedocument.extended-properties+xml',
+} as const;
+
+const REL = {
+  worksheet: `${NS.docRels}/worksheet`,
+  styles: `${NS.docRels}/styles`,
+  theme: `${NS.docRels}/theme`,
+  officeDocument: `${NS.docRels}/officeDocument`,
+  coreProps: `${NS.packageRels}/metadata/core-properties`,
+  extProps: `${NS.docRels}/extended-properties`,
+} as const;
+
+/**
+ * Serialise a workbook into an `.xlsx` package.
+ *
+ * @throws {Error} if the workbook has no worksheets (a zero-sheet package is corrupt),
+ *   or holds a value the writer cannot yet represent.
+ */
+export function writeXlsx(workbook: Workbook): Uint8Array {
+  const sheets = workbook.worksheets;
+  if (sheets.length === 0) {
+    throw new Error('cannot write a workbook with no worksheets — a zero-sheet package is corrupt to Excel');
+  }
+
+  const files: Record<string, Uint8Array> = {
+    '[Content_Types].xml': strToU8(contentTypesXml(sheets.length)),
+    '_rels/.rels': strToU8(rootRelsXml()),
+    'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
+    'docProps/app.xml': strToU8(appPropsXml()),
+    'xl/workbook.xml': strToU8(workbookXml(sheets)),
+    'xl/_rels/workbook.xml.rels': strToU8(workbookRelsXml(sheets.length)),
+    'xl/styles.xml': strToU8(STYLES_XML),
+    'xl/theme/theme1.xml': strToU8(THEME1_XML),
+  };
+  sheets.forEach((sheet, i) => {
+    files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(worksheetXml(sheet));
+  });
+
+  return zipSync(files, {level: 6});
+}
+
+function contentTypesXml(sheetCount: number): string {
+  const overrides = [
+    override('/xl/workbook.xml', CT.workbook),
+    ...range(sheetCount).map(i => override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet)),
+    override('/xl/theme/theme1.xml', CT.theme),
+    override('/xl/styles.xml', CT.styles),
+    override('/docProps/core.xml', CT.core),
+    override('/docProps/app.xml', CT.app),
+  ].join('');
+  return (
+    XML_DECLARATION +
+    `<Types xmlns="${NS.contentTypes}">` +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    overrides +
+    '</Types>'
+  );
+}
+
+function override(partName: string, contentType: string): string {
+  return `<Override PartName="${partName}" ContentType="${contentType}"/>`;
+}
+
+function rootRelsXml(): string {
+  const rels = [
+    relationship('rId1', REL.officeDocument, 'xl/workbook.xml'),
+    relationship('rId2', REL.coreProps, 'docProps/core.xml'),
+    relationship('rId3', REL.extProps, 'docProps/app.xml'),
+  ].join('');
+  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
+}
+
+function workbookXml(sheets: readonly Worksheet[]): string {
+  const entries = sheets
+    .map((sheet, i) => {
+      const state = sheet.state === 'visible' ? '' : ` state="${sheet.state}"`;
+      return `<sheet name="${escapeAttr(sheet.name)}" sheetId="${sheet.id}"${state} r:id="rId${i + 1}"/>`;
+    })
+    .join('');
+  return (
+    XML_DECLARATION +
+    `<workbook xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
+    `<sheets>${entries}</sheets>` +
+    '</workbook>'
+  );
+}
+
+function workbookRelsXml(sheetCount: number): string {
+  const rels = [
+    ...range(sheetCount).map(i =>
+      relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`)
+    ),
+    relationship(`rId${sheetCount + 1}`, REL.styles, 'styles.xml'),
+    relationship(`rId${sheetCount + 2}`, REL.theme, 'theme/theme1.xml'),
+  ].join('');
+  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
+}
+
+function relationship(id: string, type: string, target: string): string {
+  return `<Relationship Id="${id}" Type="${type}" Target="${target}"/>`;
+}
+
+function corePropsXml(properties: WorkbookProperties): string {
+  const parts: string[] = [];
+  if (properties.creator !== undefined) {
+    parts.push(`<dc:creator>${escapeText(properties.creator)}</dc:creator>`);
+  }
+  if (properties.lastModifiedBy !== undefined) {
+    parts.push(`<cp:lastModifiedBy>${escapeText(properties.lastModifiedBy)}</cp:lastModifiedBy>`);
+  }
+  if (properties.created) {
+    parts.push(w3cdtf('created', properties.created));
+  }
+  if (properties.modified) {
+    parts.push(w3cdtf('modified', properties.modified));
+  }
+  return (
+    XML_DECLARATION +
+    `<cp:coreProperties xmlns:cp="${NS.coreProps}" xmlns:dc="${NS.dc}" xmlns:dcterms="${NS.dcterms}" ` +
+    `xmlns:dcmitype="${NS.dcmitype}" xmlns:xsi="${NS.xsi}">` +
+    parts.join('') +
+    '</cp:coreProperties>'
+  );
+}
+
+function w3cdtf(element: string, date: Date): string {
+  return `<dcterms:${element} xsi:type="dcterms:W3CDTF">${date.toISOString()}</dcterms:${element}>`;
+}
+
+function appPropsXml(): string {
+  return (
+    XML_DECLARATION +
+    `<Properties xmlns="${NS.extProps}"><Application>ts-xlsx</Application></Properties>`
+  );
+}
+
+function worksheetXml(sheet: Worksheet): string {
+  const rowXml: string[] = [];
+  let top = Infinity;
+  let left = Infinity;
+  let bottom = -Infinity;
+  let right = -Infinity;
+
+  for (const {number, cells} of sheet.rows()) {
+    const populated = cells.filter(cell => cell.value !== null);
+    if (populated.length === 0) continue;
+    rowXml.push(`<row r="${number}">${populated.map(cellXml).join('')}</row>`);
+    for (const cell of populated) {
+      if (number < top) top = number;
+      if (number > bottom) bottom = number;
+      if (cell.col < left) left = cell.col;
+      if (cell.col > right) right = cell.col;
+    }
+  }
+
+  const dimensionRef =
+    bottom === -Infinity ? 'A1' : `${encodeAddress(left, top)}:${encodeAddress(right, bottom)}`;
+  const sheetData = rowXml.length === 0 ? '<sheetData/>' : `<sheetData>${rowXml.join('')}</sheetData>`;
+
+  return (
+    XML_DECLARATION +
+    `<worksheet xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
+    `<dimension ref="${dimensionRef}"/>` +
+    '<sheetViews><sheetView workbookViewId="0"/></sheetViews>' +
+    '<sheetFormatPr defaultRowHeight="15"/>' +
+    sheetData +
+    '</worksheet>'
+  );
+}
+
+function cellXml(cell: Cell): string {
+  const ref = cell.address;
+  const value = cell.value;
+
+  if (isFormulaValue(value)) {
+    return formulaCellXml(ref, value.formula, value.result);
+  }
+  if (typeof value === 'number') {
+    return `<c r="${ref}"><v>${numberText(value)}</v></c>`;
+  }
+  if (typeof value === 'boolean') {
+    return `<c r="${ref}" t="b"><v>${value ? 1 : 0}</v></c>`;
+  }
+  if (typeof value === 'string') {
+    return `<c r="${ref}" t="inlineStr"><is>${textElement(value)}</is></c>`;
+  }
+  throw new Error(`writing a ${detectValueType(value)} cell value is not implemented yet`);
+}
+
+function formulaCellXml(ref: string, formula: string, result: FormulaResult | undefined): string {
+  const f = `<f>${escapeText(formula)}</f>`;
+  if (result === undefined) {
+    return `<c r="${ref}">${f}</c>`;
+  }
+  if (typeof result === 'number') {
+    return `<c r="${ref}">${f}<v>${numberText(result)}</v></c>`;
+  }
+  if (typeof result === 'boolean') {
+    return `<c r="${ref}" t="b">${f}<v>${result ? 1 : 0}</v></c>`;
+  }
+  if (typeof result === 'string') {
+    return `<c r="${ref}" t="str">${f}<v>${escapeText(result)}</v></c>`;
+  }
+  throw new Error('writing a non-primitive formula result is not implemented yet');
+}
+
+function textElement(value: string): string {
+  const space = needsSpacePreserve(value) ? ' xml:space="preserve"' : '';
+  return `<t${space}>${escapeText(value)}</t>`;
+}
+
+// A finite number serialises as its shortest round-trippable decimal; a non-finite one
+// has no OOXML numeric representation, so the writer refuses it rather than emit `NaN`.
+function numberText(value: number): string {
+  if (!Number.isFinite(value)) {
+    throw new Error(`cannot write a non-finite number (${value}) — it has no OOXML representation`);
+  }
+  return String(value);
+}
+
+function range(n: number): number[] {
+  return Array.from({length: n}, (_, i) => i);
+}

@@ -50,6 +50,18 @@ export class Worksheet {
     return this.#rows.get(row)?.has(col) ?? false;
   }
 
+  /**
+   * The occupied rows in ascending row order, each carrying its occupied cells in
+   * ascending column order. Only materialised positions are visited — this mirrors how
+   * OOXML serialises (`<row>` wrapping `<c>`) and is the writer's iteration surface.
+   */
+  *rows(): IterableIterator<{readonly number: number; readonly cells: readonly Cell[]}> {
+    for (const [number, cols] of [...this.#rows].sort(([a], [b]) => a - b)) {
+      const cells = [...cols].sort(([a], [b]) => a - b).map(([, cell]) => cell);
+      yield {number, cells};
+    }
+  }
+
   #cellAt(row: number, col: number): Cell {
     let cols = this.#rows.get(row);
     if (cols === undefined) {

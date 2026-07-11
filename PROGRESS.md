@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model foundation (`value`/`cell`/`worksheet`/`workbook`) green vs `--adapter rewrite`; independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the first buffered `.xlsx` **writer** slice (`src/io/xlsx/`, on `fflate`) green vs `--adapter rewrite` at 18 green / 0 regressions; independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1079,9 +1079,27 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   `cell-col-row-are-numeric-indices` green under `--adapter rewrite`. Rows/columns/merges/defined-names
   and the styles surface (fills/borders/alignment) are follow-up slices; the round-trip-shaped cases
   stay skipped until the writer lands.
-- **Latest corpus vs rewrite: 4 green / 0 known-open / 1 legacy known-open resolved / 0 regressions /
-  652 skipped.** Legacy oracle unchanged: **424 green / 233 known-open / 0 regressions**. Gates all
-  green: `typecheck` clean, `test:src` 34/34.
+- **Third module: the buffered `.xlsx` writer** (`src/io/xlsx/`) — the first vertical slice to the
+  write path. `write.ts` serialises a `Workbook` into a valid OPC package (content types, rels,
+  workbook, per-sheet XML with `dimension`/`sheetViews`, the default theme + stylesheet, core/app
+  props) via **`fflate`** (`zipSync`); `xml.ts` is the audited escaping surface (text + attribute,
+  `xml:space="preserve"`); `static-parts.ts` ships the default Office theme/styles. Serialises
+  number/string/boolean/formula cells; **refuses** a zero-sheet workbook, a non-finite number, or a
+  value kind it can't yet represent (rather than emitting a lossy/corrupt package). Formula `=`
+  normalisation moved into the value model (canonical OOXML stored form). Proven valid by the legacy
+  ExcelJS *reader* accepting the output. Zip/XML-write dependency decision recorded in
+  [`docs/decisions/0003-zip-and-xml-write-path.md`](docs/decisions/0003-zip-and-xml-write-path.md)
+  (`fflate`; the *parser* choice stays deferred to the reader slice). The corpus's `inspectPackage`
+  fact-extractor was factored into a shared, implementation-blind
+  [`test/corpus/adapters/ooxml-facts.mjs`](test/corpus/adapters/ooxml-facts.mjs) so both adapters
+  derive identical facts. The rewrite adapter **feature-gates** unsupported spec features → those
+  behaviors skip (`∅`), never falsely regress.
+- **Latest corpus vs rewrite: 18 green / 2 known-open / 4 legacy known-opens resolved / 0 regressions /
+  633 skipped.** Newly resolved (`↑`): no-worksheet package refused, formula `=` stripped on write,
+  every worksheet emits a default `<sheetView>` (plus the earlier address `$1:$1` fix). The 2
+  known-opens are the modern-function `_xlfn.` prefix bug (legacy fails too, baseline=fail) — a real
+  open target for the formula-knowledge slice, not a regression. Legacy oracle unchanged: **424 green
+  / 233 known-open / 0 regressions**. Gates all green: `typecheck` clean, `test:src` 46/46.
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
@@ -1126,20 +1144,23 @@ adapter → the corpus runs against it, the first module (`address.ts`) is green
 legacy known-open**, with 0 regressions on the legacy oracle. Continue module by module, in the
 `STRATEGY.md` build order (**core model → XML layer → xlsx r/w → streaming → csv**):
 
-1. **Core model — foundation landed, now grow it.** Value model + Cell + Worksheet + Workbook exist
-   and lit the first pure-model case (`cellColRowTypes` → `cell-col-row-are-numeric-indices`). The
-   remaining model surface, in dependency order: **rows & columns** (`getRow`/`getColumn`, `addRow`/
-   `addRows` with dense/sparse-array and keyed-object shapes — see `add-row-array-and-object-shapes-populate`;
-   column keys/headers/widths), **merges** (master/slave cells), **defined-name storage**, then the
-   **styles surface** (fonts exist; add fills/borders/alignment/protection + per-cell isolation, which
-   a large cluster of cases asserts). Most of these cases assert through `roundtripWorkbook`/
-   `inspectPackage`, so they only *fully* light up once the writer lands — but build and unit-test the
-   pure model pieces first so the writer has a correct model to serialize. Only wire a corpus
-   capability into `rewrite.mjs` when its module actually exists; until then it stays a skip (`∅`).
-2. **Then the XML + zip layer** (the highest-value, hardest area): pick the parser per the pending
-   ADR (`fast-xml-parser` vs a lean SAX layer) and the zip lib (`fflate`), benchmark, record the
-   decision, and wire the fixture-reading capabilities so the `readFixture*`/`roundtripFixture*`
-   cases light up.
+1. **Writer + core model — thin vertical slice landed, now widen both together.** The buffered writer
+   (`src/io/xlsx/`, on `fflate`) turns the model into a valid package and lit the `inspectPackage`
+   behaviors within its supported subset (18 green). Each new model feature now lands *with* its
+   writer emission so it produces a visible corpus win. In dependency order: **rows & columns**
+   (`getRow`/`getColumn`, `addRow`/`addRows` dense/sparse-array + keyed-object shapes — see
+   `add-row-array-and-object-shapes-populate`; column keys/headers/widths → `<cols>` + row heights/
+   `<sheetFormatPr>`), **merges** (master/slave → `<mergeCells>`), **defined-name storage** →
+   `xl/workbook.xml` `<definedNames>`, then the **styles surface** (fills/borders/alignment/protection
+   → `styles.xml` `cellXfs` + per-cell `s=`). As each lands, drop its key from the rewrite adapter's
+   feature-gate so those behaviors run. The modern-function `_xlfn.` prefix known-open is a small
+   formula-knowledge follow-up. Cases asserting through `roundtripWorkbook`/`readFixture*` stay skipped
+   until the **reader** lands.
+2. **Then the XML + zip *read* layer** (the highest-value, hardest area): the zip lib is decided
+   (`fflate`, ADR 0003); pick the *parser* per the still-open half of that decision
+   (`fast-xml-parser` vs a lean SAX layer), benchmark, record it, and wire the fixture-reading
+   capabilities so the `readFixture*`/`roundtripFixture*`/`roundtripWorkbook` cases light up. The
+   reader is where the hostile-input guards (bounded inflate, no zip-bomb naïveté) live.
 3. **Toolchain-standup slice** (do when `src/` is large enough to justify it): Vitest + Biome +
    an ESM/`.d.ts` bundler, and schedule the legacy Grunt/Babel/Mocha rip-out. Until then the gates
    are `npm run typecheck` + `npm run test:src` + `npm run corpus:rewrite`.
