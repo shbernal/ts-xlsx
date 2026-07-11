@@ -132,6 +132,7 @@ import {
   streamWriterPipeContract,
   loadFixtureTableColumns,
   unfreezeViewRoundtrip,
+  imageAnchorRowAppendReport,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -759,4 +760,10 @@ export default {
   // sheet's frozen state emits a clean normal view (no leftover <pane>) that opens without repair and
   // round-trips as state 'normal'. See workbook-io.mjs.
   unfreezeViewRoundtrip,
+
+  // Anchor a floating image over a cell range, then append rows (both call orders) →
+  // { imageFirst, rowsFirst } each { rowCount, firstDataCell } — for asserting that anchoring an
+  // image does not advance the row-append cursor, so a subsequent addRows fills from the top and the
+  // layout is identical regardless of add order. See workbook-io.mjs.
+  imageAnchorRowAppendReport,
 };

@@ -4330,3 +4330,29 @@ export async function unfreezeViewRoundtrip() {
     reloadedHasSplit: !!(view.xSplit || view.ySplit),
   };
 }
+
+// Anchoring a floating image over a cell range is metadata overlay, not row insertion: it must
+// NOT advance the worksheet's row-append cursor. A caller who anchors an image and then appends
+// rows expects those rows to fill the sheet from the top, and the final layout must be identical
+// regardless of whether the image or the rows were added first. Reports the resulting row count
+// and the first data cell for both call orders so a case can assert order-independence.
+export async function imageAnchorRowAppendReport() {
+  const PNG = Buffer.from(
+    '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da6360000002000001e221bc330000000049454e44ae426082',
+    'hex'
+  );
+  const run = order => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('S');
+    const id = workbook.addImage({buffer: PNG, extension: 'png'});
+    if (order === 'image-first') {
+      sheet.addImage(id, 'A1:B3');
+      sheet.addRows([['a'], ['b'], ['c']]);
+    } else {
+      sheet.addRows([['a'], ['b'], ['c']]);
+      sheet.addImage(id, 'A1:B3');
+    }
+    return {rowCount: sheet.rowCount, firstDataCell: sheet.getCell('A1').value ?? null};
+  };
+  return {imageFirst: run('image-first'), rowsFirst: run('rows-first')};
+}
