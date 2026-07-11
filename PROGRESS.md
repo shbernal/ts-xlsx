@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + thirty-nine unlabeled slices; 676/794 = 85%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + forty unlabeled slices; 691/794 = 87%; fixture-less bulk drain underway)._
 
 ---
 
@@ -786,7 +786,40 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     guard exists in current code (a 351-char inline list writes and round-trips cleanly), and the
     long-list→defined-name workaround is already a case. Two new adapter capabilities. Corpus
     **363 green / 183 known-open / 0 regressions**; 210 corpus cases + 131 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (118 remaining, all fixture-less) in ~15-record
+  - **Fortieth slice — fixture-less bulk, oldest-15 of the tail — drained** (691/794, 87%).
+    4 new corpus cases + 2 augmented cases + 1 new spec note + 3 spec-augments + 3 not-carried folds.
+    New cases: (1) a digit-only JS string persists as a *text* cell and a number as a *numeric* cell
+    — the library preserves the declared type and never coerces a zero-padded code (baseline pass,
+    a type-fidelity regression lock; the "number stored as text" advisory is the honest consequence,
+    not a bug). (2) Unfreezing a frozen view by replacing it with a normal view emits valid
+    sheetViews with no leftover `<pane>` and reloads as state 'normal' (baseline pass) — new adapter
+    `unfreezeViewRoundtrip`. (3) A foreign `core.xml` that binds the core-properties namespace as the
+    *default* xmlns (so `lastModifiedBy`/`lastPrinted` are unprefixed) must load and read its
+    last-modified-by — today the reader throws `Unexpected xml node in parseOpen` (baseline fail),
+    fixture authored by injecting the default-namespace core part. (4) After a row splice, `lastRow`
+    must resolve to the last *populated* row, not the trailing empty slot the delete leaves behind
+    (baseline fail; empirically the delete shifts data up but keeps the `_rows` length, so `lastRow`
+    reads an emptied slot — a no-delete control passes). Augments: whole-row/column protection carries
+    `locked=false` to its band's cells while off-band cells stay default-locked (baseline pass,
+    `authorCellProtection` extended); the 1900 phantom-leap boundary — serial 59 must read 1900-02-28
+    (lib reads it one day early, baseline fail) and serial 61 reads 1900-03-01 across the phantom day
+    (baseline pass), added onto the existing serials fixture. Spec: new
+    `data-validation-message-length-limits` (over-limit prompt/error/title corrupts the file — 255
+    body / 32 title — validate at authoring, distinct from the inline list-formula 255 limit). Spec
+    augments: `public-type-surface-matches-runtime` items 9 (`Row.dimensions` is a `{min,max}`
+    column-span, not a number — folds 2 records) and 10 (media `type` is a discriminated union, not
+    an open string); `databar-colors-and-ignored-errors-write` gains the x14 negative-color child
+    order (fill before border, or the package corrupts); `bounded-memory-large-workbook-read` gains
+    the single large-AREA defined name (filter-database over ~140M cells → OOM; must round-trip by
+    corners) and the eager `writeFile` O(document-size) buffering. Not-carried folds (3): reading
+    page breaks is already pinned by `read-manual-row-page-breaks` (probe: write emits breaks, read
+    returns `[]`); the fractional image-anchor-over-custom-width offset by
+    `image-anchor-fractional-offset-respects-cell-size`; the non-streaming writeFile OOM by the new
+    bounded-memory write-path bullet. Triage's 2621 "corpus_case" was correctly re-routed to a spec
+    (OOM repro would kill CI). Corpus **373 green / 188 known-open / 0 regressions**; 214 cases + 132
+    specs. Two adapter extensions (`mutateWorksheet.lastRow`, `readFixtureReport.lastModifiedBy`) plus
+    the new `unfreezeViewRoundtrip` capability.
+  - ⏳ **Next: continue the unlabeled bulk** (103 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -840,12 +873,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **676/794 (85%)**; **all labeled clusters + thirty-nine unlabeled slices are drained; the
+Drain at **691/794 (87%)**; **all labeled clusters + forty unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (363 green / 183
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (373 green / 188
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (118 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (103 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
