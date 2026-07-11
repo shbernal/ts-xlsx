@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + forty-five unlabeled slices; 766/794 = 96%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + forty-six unlabeled slices; 781/794 = 98%; fixture-less bulk drain nearly done — 13 remaining)._
 
 ---
 
@@ -974,7 +974,42 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     (`image-anchor-fractional-offset-respects-cell-size`). Not-carried noise: a repro-less "buffer load
     crashes with forEach of undefined". Corpus **416 green / 222 known-open / 0 regressions**; 238
     cases + 143 specs.
-  - ⏳ **Next: continue the unlabeled bulk** (28 remaining, all fixture-less) in ~15-record
+  - **Forty-sixth slice — fixture-less bulk, oldest-15 of the tail — drained** (781/794, 98%).
+    Back to a fold-dominated slice: 3 new corpus cases + 3 new spec notes + 1 spec-augment + 8
+    not-carried (7 folds + 1 noise). Two new adapter capabilities + one crafted fixture. Real bugs
+    (baseline fail): (1) **duplicate table column names are emitted verbatim** — supplying colliding
+    column names writes `name="foo"` three times, which OOXML forbids (Excel repairs on open); the
+    writer must disambiguate to a unique set (`table-duplicate-column-names-disambiguated`, new
+    `tableDuplicateColumnNamesReport`; a distinct-names control passes). NB the library's own reader
+    reloads the corrupt file fine, so the durable assertion is written-name uniqueness, not reload.
+    (2) an **invalid Date under a date numFmt serializes `<v>NaN</v>`** — the date→serial conversion
+    runs because of the format and NaN corrupts the cell; string/null under the same format are
+    unaffected (`date-numfmt-nonnumeric-value-serializes-valid-xml`, new `dateNumFmtValueReport`;
+    NaN-leak baseline fail, string/null/Invalid-Date-literal controls pass). (3) a **table autoFilter
+    filterColumn colId pointing outside the declared columns crashes the read** — `Cannot set
+    properties of undefined (setting 'filterButton')` aborts the whole load; the dangling reference
+    must be tolerated (`table-filter-column-out-of-range-tolerated`, crafted fixture, reuses
+    `readFixtureReport`). Spec notes: `first-worksheet-accessor-after-deletion` (new — deletion-safe
+    first-sheet accessor; ids are stable and not renumbered, so by-id '1' fails after deletion;
+    records the id-vs-order distinction and the empty→undefined contract); `large-workbook-write-
+    performance` (new — hundreds-of-thousands-of-rows writes must be linear-time/bounded-memory via
+    the streaming path; a perf/hang concern, so spec not a flaky corpus case); `modular-parser-
+    entrypoints-for-tree-shaking` (new — format-agnostic core + per-format tree-shakeable entry
+    points; a build/bundle concern outside the corpus); extended-CF spec **augmented** with the
+    mixed/custom icon-set x14 case. Probes flipped two guesses: the "streaming drops mixed icons" bug
+    is dropped by BOTH writers (missing x14 feature → spec-augment, not a streaming corpus case), and
+    the out-of-range filter column is a genuine distinct crash, not a fold of the dynamicFilter
+    tolerance case. Not-carried folds: streaming batch addRows (`streaming-write-add-rows-batch`);
+    fractional image column offset (`fractional-image-anchor-positioning` +
+    `image-anchor-fractional-offset-respects-cell-size`); table style 'None'/null theme
+    (`table-style-none-produces-unstyled-table`); row/cell missing `r` attribute
+    (`cells-without-r-attribute-imply-position`); table dynamicFilter node
+    (`table-dynamic-filter-tolerated-on-load`); huge validation range on read
+    (`whole-column-data-validation-bounded-memory` spec +
+    `data-validation-whole-column-range-writes-single-sqref`); sheet-protection permission flags
+    (`sheet-protection-permits-requested-operations`). Not-carried noise: an empty "[F] XYZ" feature
+    template. Corpus **420 green / 226 known-open / 0 regressions**; 241 cases + 146 specs.
+  - ⏳ **Next: continue the unlabeled bulk** (13 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -1028,12 +1063,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **766/794 (96%)**; **all labeled clusters + forty-five unlabeled slices are drained; the
-attachment-bearing queue is exhausted and the fixture-less bulk drain is underway** (28 remaining,
-~2 slices to empty). The full pipeline is proven: parallel triage workflow → serial materialization →
-green corpus (416 green / 222 known-open / 0 regressions). CI corpus check is committed
-(`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Continue the unlabeled bulk** (28 remaining, all fixture-less) in ~15-record slices, same
+Drain at **781/794 (98%)**; **all labeled clusters + forty-six unlabeled slices are drained; the
+attachment-bearing queue is exhausted and the fixture-less bulk drain is nearly done** (13 remaining,
+one final slice to empty). The full pipeline is proven: parallel triage workflow → serial
+materialization → green corpus (420 green / 226 known-open / 0 regressions). CI corpus check is
+committed (`.github/workflows/corpus.yml`). Next slices, in order:
+1. **Continue the unlabeled bulk** (13 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
