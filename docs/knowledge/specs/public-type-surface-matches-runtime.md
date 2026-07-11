@@ -27,12 +27,29 @@ into `any` casts or module augmentation to use them. Two concrete instances from
    constructor" type error and had to deep-import the internal module with `@ts-ignore`. Any runtime
    value export (a class or a namespace object) must have a *value*-level declaration, not merely a
    same-named type, so `new`, `instanceof`, and static members type-check.
-6. **Streaming worksheet reader `name`** — iterating the streaming `WorkbookReader` yields a
-   per-worksheet reader whose `name` property the library populates at runtime (the sheet's name),
-   but the published `WorksheetReader` type omits it. The idiomatic loop — `for await (const ws of
-   reader) console.log(ws.name)` — then errors under TypeScript, forcing a cast on the exact property
-   the reader exists to expose. This is the streaming counterpart of the drift above: the streaming
-   reader types must expose every field the reader sets, `name` among them.
+6. **Streaming worksheet reader `id` / `name` / `state`** — iterating the streaming `WorkbookReader`
+   yields a per-worksheet reader whose `id`, `name`, and `state` (visible/hidden/veryHidden) the
+   library populates at runtime, but the published `WorksheetReader` type omits them. The idiomatic
+   loop — `for await (const ws of reader) console.log(ws.id, ws.name, ws.state)` — then errors under
+   TypeScript, forcing casts on the exact identity fields the reader exists to expose (confirmed at
+   runtime: a hidden sheet iterated through the streaming reader reports its `id`, `name`, and
+   `state: 'hidden'`). This is the streaming counterpart of the drift above: the streaming reader
+   types must expose every field the reader sets — `id`, `name`, and `state` among them.
+
+7. **`WorkbookReader` options argument is optional** — the streaming `WorkbookReader` can be
+   constructed with no options, defaulting every setting; the runtime accepts the options argument
+   omitted. The published type declared the options argument (or the options-object type) as
+   required, so a TypeScript caller who wants the defaults is forced to pass an empty object or a
+   filler value. An options argument the runtime treats as optional must be typed optional, with each
+   field's default documented on the type.
+
+8. **CSV read/write options types match the documented shape** — the CSV reader/writer options are
+   forwarded to the underlying CSV engine, and the shape shown in the docs (delimiter, headers,
+   quote/escape, date parsing, …) is what the runtime accepts; but the published options type
+   diverged from that shape, so following the documented example produced a TypeScript error and
+   callers cast or `@ts-ignore` the exact options the docs told them to pass. The CSV options type
+   must accept the documented, runtime-honored shape without casts — the same generated-from-source
+   discipline as the rest of the surface, applied to the CSV boundary.
 
 > Spec note, not a corpus case: the runtime behavior largely exists — the defect is a type-surface
 > completeness gap, pinned by type-level tests (`expectTypeOf`/tsd) plus a behavioral round-trip

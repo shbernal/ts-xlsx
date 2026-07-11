@@ -18,11 +18,14 @@ buffer (`StreamBuf`) overrides `pipe` but returns `undefined`, so `.pipe(dest).o
 throws ("Cannot read properties of undefined") and `stream.pipeline` mis-wires — the finish handler is
 never attached and the write appears to hang or silently drop.
 
-> Spec note, not a corpus case: the defect is conformance to Node's stream contract on an internal
-> stream helper, and the corpus is implementation-blind — it does not reach into `lib/utils`. The
-> durable value is the requirement itself: every stream object the public API hands back behaves like
-> a real Node stream. It becomes a corpus case once the public streaming surface exposes a pipeable
-> stream that a case can pipe and assert the return value on.
+> The pipe-return-value defect is now pinned by the corpus case
+> `streaming-writer-stream-pipe-returns-destination`: the streaming `WorkbookWriter` exposes its own
+> output stream as a public property, so a case constructs the writer, pipes that stream into a
+> `PassThrough`, and asserts `pipe(dest) === dest` (baseline fail today — it returns `undefined`)
+> while a control confirms the bytes still flow. This spec remains the broader design requirement:
+> the durable value is that **every** stream object the public API hands back — not only the writer's
+> output stream — behaves like a real Node stream (backpressure, `finish`/`end`/`error`, and
+> `pipe` returning the destination), so the contract holds wherever the rewrite exposes a stream.
 
 ## Desired behavior
 
