@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + forty-six unlabeled slices; 781/794 = 98%; fixture-less bulk drain nearly done — 13 remaining)._
+_Last updated: 2026-07-11 (**Phase 1 harvest COMPLETE — 794/794 = 100% drained, queue empty**; 245 corpus cases + 150 spec notes)._
 
 ---
 
@@ -1009,20 +1009,42 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     `data-validation-whole-column-range-writes-single-sqref`); sheet-protection permission flags
     (`sheet-protection-permits-requested-operations`). Not-carried noise: an empty "[F] XYZ" feature
     template. Corpus **420 green / 226 known-open / 0 regressions**; 241 cases + 146 specs.
-  - ⏳ **Next: continue the unlabeled bulk** (13 remaining, all fixture-less) in ~15-record
-    slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
-    check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
-    probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
-    a bug that needs data to span a chunk boundary (or a large sqref) will falsely pass a tiny
-    probe, and a genuinely-huge repro (>512MB worksheet) belongs in a spec note, never a corpus
-    fixture. And **probe before trusting a triage "likely bug"** — reported bugs (style dedup,
-    streaming row indexing, splice style-loss, non-address defined-name crash, empty-array addRow,
-    whole-column validation, background+note rel collision, sort-blocked protection, numFmt comma-
-    drop) repeatedly turn out already-correct locks today. Late-slice spec notes increasingly FOLD
-    into notes written a slice or two earlier (streaming image, browser bundling, buffer types, CSP,
-    large-file memory) — augment the earlier note + not-carry. When a triage's "streaming-specific"
-    framing is probed and the defect ALSO reproduces in the buffered path, prefer a spec note over a
-    mislabeled case.
+  - **Forty-seventh (FINAL) slice — the last 13 records — drained; the queue is EMPTY** (794/794,
+    100%). 4 new corpus cases + 4 new spec notes + 5 not-carried (2 folds + 3 noise/policy). Two new
+    adapter capabilities. Real bugs (baseline fail): (1) a **cell formula supplied with a leading '='
+    is stored in `<f>` verbatim** (`=1+2`) and reads back with it — OOXML expects no '='; Excel
+    tolerates it but Google Sheets/WPS reject the file (`formula-stored-without-leading-equals-for-
+    portability`, reuses `inspectPackage`+`roundtripFormulas`; probe FLIPPED the triage's likely-pass
+    guess). (2) a **minimal dataBar CF rule (type+priority only) crashes the writer** on the absent
+    cfvo collection — it should default a min/max cfvo and a bar color like Excel (`databar-
+    conditional-formatting-minimal-defaults`, reuses `authorConditionalFormatting`). (3) the
+    **streaming reader drops merged cells** (returns null) that the buffered reader exposes
+    (`streaming-reader-surfaces-merged-cells`, new `streamReadMergesReport` — now backs the existing
+    `streaming-read-surfaces-merged-cells` spec with a corpus lock). (4) **pivot-cache shared-item
+    strings are written raw** (a bare `&`), corrupting the pivotCacheDefinition XML; a null source
+    value writes fine (`pivot-cache-escapes-xml-special-characters`, new `pivotCacheSpecialCharsReport`;
+    ts-xlsx's experimental pivot writer). Spec notes: `protection-allow-sort-autofilter-on-locked-sheet`
+    (granting sort/AutoFilter is insufficient — sorting rewrites locked cells, so the fix needs an
+    unlocked window or `<protectedRanges>`; the flag encoding is already locked, this is the missing
+    semantics); `multiple-pivot-tables-from-shared-source` (N pivot tables — 5 correctness constraints
+    for when authoring lands); `pivot-table-preserve-worksheet-column-widths` (OOXML
+    `applyWidthHeightFormats` as a typed boolean); `external-workbook-reference-formulas` (cross-book
+    refs need an externalLink part + `TargetMode=External` rel + indexed `<externalReferences>`, not a
+    literal `[file.xlsx]Sheet!A1` string). Not-carried folds: append-to-loaded-table →
+    `table-loaded-from-file-accepts-appended-rows` (append already known-open there); `x:`-namespace
+    prefixed XML → `miniexcel-prefixed-namespace-reads-without-crashing` + missing-props tolerance
+    cases. Not-carried noise/policy: a comment typo fix, an exceljs.org impersonation alert (branding,
+    no code), and an npm-audit/toolchain modernization (folds into the clean-break dependency stance).
+    Corpus **424 green / 233 known-open / 0 regressions**; **245 cases + 150 specs**.
+  - ✅ **Phase 1 harvest COMPLETE.** The upstream ExcelJS backlog work queue
+    (`docs/knowledge/backlog/issues/`) is fully drained: all 794 frozen manifest items (654 issues +
+    140 PRs) are now a corpus case, a spec note, or a reasoned not-carried. `manifest.json` remains as
+    proof nothing was silently dropped. The durable product: **245 implementation-blind corpus cases**
+    (regression-locking current-correct behavior and known-open bugs the rewrite must fix) + **150 spec
+    notes** (Phase-3 design targets). **Next: Phase 2/3** — begin the TypeScript-first rewrite behind
+    the corpus contract (a `rewrite.mjs` adapter binds the same vocabulary to new code; every existing
+    case runs unchanged). Reserved for the human: open decision #1 (merge-first vs corpus-only for the
+    ~140 PRs) and the final rebrand name.
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
@@ -1063,18 +1085,19 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **781/794 (98%)**; **all labeled clusters + forty-six unlabeled slices are drained; the
-attachment-bearing queue is exhausted and the fixture-less bulk drain is nearly done** (13 remaining,
-one final slice to empty). The full pipeline is proven: parallel triage workflow → serial
-materialization → green corpus (420 green / 226 known-open / 0 regressions). CI corpus check is
-committed (`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Continue the unlabeled bulk** (13 remaining, all fixture-less) in ~15-record slices, same
-   triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
-   these records are design discussions, feature requests, and repro-less bug reports. Folds now
-   dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
-   lands only where a fresh behavior reproduces from a spec-built (or small hand-built) fixture.
-   Reuse the now-broad adapter vocabulary before adding surface; set each baseline by running
-   `npm run corpus` (probe empirically); commit in coherent per-cluster batches. Always check
-   `docs/knowledge/specs/` and existing cases first.
-2. **Open decision #1** (merge-first vs corpus-only for the ~140 PRs) comes due before
-   Phase 2; it does not block the issue drain.
+**Phase 1 is COMPLETE — 794/794 (100%) drained, the backlog queue is empty.** The durable product is
+**245 implementation-blind corpus cases + 150 spec notes**, green in CI (424 green / 233 known-open /
+0 regressions; `.github/workflows/corpus.yml`). The manifest proves nothing was dropped. Next, in
+order:
+1. **Open decision #1** (merge-first vs corpus-only for the ~140 PRs) is now **due** — it gates how
+   Phase 2 begins. This is a human decision (strategically divergent options); the corpus + spec
+   notes already captured every PR's intent, so a corpus-only path loses no *knowledge*, only the
+   authors' patches/review. Not yet chosen.
+2. **Begin the Phase 2/3 rewrite** behind the corpus contract: stand up the TypeScript-first codebase,
+   add a `rewrite.mjs` adapter binding the same contract vocabulary to the new implementation, and
+   drive every existing case green (each known-open bug fixed test-first; each lock kept passing). The
+   corpus does not move — the implementation does. Prioritize by cluster; the 150 spec notes are the
+   design backlog for new capability surfaces (encryption, charts, pivot, streaming internals, HTML/
+   image export, type-surface ergonomics).
+3. **Stop tracking upstream.** Per `STRATEGY.md`, with the harvest complete we drift away from
+   `exceljs/exceljs` entirely; the universe is frozen and there is no re-harvest.
