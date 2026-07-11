@@ -122,9 +122,16 @@ Set up the machinery before doing the work at scale.
   (`npm run corpus`). Remaining Phase 0 bullet: the additive CI skeleton. Toolchain
   rip-out stays deferred (see `PROGRESS.md`).
 
-### Phase 1 — Harvest the backlog  *(preserve the knowledge)*
+### Phase 1 — Harvest the backlog  *(preserve the knowledge)*  → ✅ **COMPLETE (2026-07-11)**
 Convert the backlog from GitHub threads into durable project assets. This is the
 phase that "leaves no opportunity behind us."
+
+> ✅ **Done (2026-07-11):** all 794 frozen manifest items (654 issues + 140 PRs)
+> drained — the queue (`backlog/issues/`) is empty. Durable output: **245
+> implementation-blind corpus cases + 150 spec notes**, green in CI (424 green /
+> 233 known-open / 0 regressions). `manifest.json` remains as the proof nothing was
+> silently dropped. We now stop tracking upstream (`exceljs/exceljs`) entirely and
+> move to Phase 2/3 behind the corpus contract.
 - **Triage & cluster** all open issues and PRs into themes (tables, styles,
   streaming, pivot tables, images, conditional formatting, dates, formulas, CSV,
   types, security/deps). The snapshot above seeds the clusters.
