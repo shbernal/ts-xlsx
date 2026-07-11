@@ -14,6 +14,7 @@
 // corresponding cases light up and must go green.
 
 import {decodeAddress, decodeRange} from '../../../src/core/address.ts';
+import {Workbook} from '../../../src/core/workbook.ts';
 
 const impl = {
   name: 'rewrite',
@@ -24,6 +25,16 @@ const impl = {
 
   decodeRange(reference) {
     return decodeRange(reference);
+  },
+
+  // Pure in-memory model capability: build a workbook, set a cell, and report the
+  // runtime type and index of its position. Needs no serialization, so the core
+  // model lights this up ahead of the reader/writer.
+  cellColRowTypes(ref = 'B3') {
+    const sheet = new Workbook().addWorksheet('S');
+    const cell = sheet.getCell(ref);
+    cell.value = 'x';
+    return {col: cell.col, row: cell.row, colType: typeof cell.col, rowType: typeof cell.row};
   },
 };
 

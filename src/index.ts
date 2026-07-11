@@ -14,3 +14,30 @@ export {
   decodeRange,
   encodeAddress,
 } from './core/address.ts';
+
+export {
+  type CellValue,
+  type ErrorCode,
+  type ErrorValue,
+  type FormulaResult,
+  type FormulaValue,
+  type SharedFormulaValue,
+  type RichTextRun,
+  type RichTextValue,
+  type HyperlinkValue,
+  ERROR_CODES,
+  ValueType,
+  coerceCellValue,
+  detectValueType,
+  isErrorCode,
+} from './core/value.ts';
+
+export {type Color, type Font, type UnderlineStyle, type VerticalAlignment} from './core/style.ts';
+
+export {Cell} from './core/cell.ts';
+export {Worksheet, type WorksheetState} from './core/worksheet.ts';
+export {
+  Workbook,
+  type WorkbookProperties,
+  type AddWorksheetOptions,
+} from './core/workbook.ts';

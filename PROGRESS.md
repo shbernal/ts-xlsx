@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (**Phase 3 rebuild underway** — first module `src/core/address.ts` green vs `--adapter rewrite`; independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model foundation (`value`/`cell`/`worksheet`/`workbook`) green vs `--adapter rewrite`; independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1066,12 +1066,22 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   vocabulary to the new code; not-yet-built capabilities are **skipped (`∅`)** so the whole corpus
   runs against the partial rewrite (runner grew skip semantics + adapter-aware `↑` messaging).
 - **First module: address decoding** (`src/core/address.ts`) — the col/row primitive everything
-  else stands on. Against `--adapter rewrite` the `address-decoding` cluster is fully green **and
-  resolves the legacy known-open** (`decodeRange('$1:$1')` no longer leaks `undefined`/`NaN`;
-  legacy still fails it → the rewrite already beats legacy). 12 native `node --test` unit tests
-  cover the module surface. Corpus vs rewrite: **2 green / 0 known-open / 1 legacy known-open
-  resolved / 0 regressions / 654 skipped**. Legacy oracle unchanged: **424 green / 233 known-open /
-  0 regressions**.
+  else stands on. Resolves the legacy known-open (`decodeRange('$1:$1')` no longer leaks
+  `undefined`/`NaN`; legacy still fails it → the rewrite already beats legacy). 12 native
+  `node --test` unit tests.
+- **Second module: the core in-memory model foundation** — `src/core/value.ts` (the typed cell-value
+  model: a discriminated `CellValue` union + `detectValueType`/`coerceCellValue`, no stringly sentinels,
+  no silent kind-coercion — a numeric-looking string *stays* a string), `src/core/cell.ts` (immutable
+  numeric 1-based `row`/`col`, value routed through the model so `type` is always consistent),
+  `src/core/worksheet.ts` (sparse row-major cell grid + A1 `getCell`), `src/core/workbook.ts`
+  (worksheet ownership, Excel-faithful sheet-name validation, case-insensitive lookup + by-id). 22
+  more unit tests. Lights the first **pure in-memory** corpus capability (`cellColRowTypes`) →
+  `cell-col-row-are-numeric-indices` green under `--adapter rewrite`. Rows/columns/merges/defined-names
+  and the styles surface (fills/borders/alignment) are follow-up slices; the round-trip-shaped cases
+  stay skipped until the writer lands.
+- **Latest corpus vs rewrite: 4 green / 0 known-open / 1 legacy known-open resolved / 0 regressions /
+  652 skipped.** Legacy oracle unchanged: **424 green / 233 known-open / 0 regressions**. Gates all
+  green: `typecheck` clean, `test:src` 34/34.
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
@@ -1116,13 +1126,16 @@ adapter → the corpus runs against it, the first module (`address.ts`) is green
 legacy known-open**, with 0 regressions on the legacy oracle. Continue module by module, in the
 `STRATEGY.md` build order (**core model → XML layer → xlsx r/w → streaming → csv**):
 
-1. **Grow the core model next.** The `address-decoding` cluster still has cases riding on workbook
-   *round-trips* (`readFixtureDefinedNames`, `roundtripWorkbook`, `roundtripFormulas`, …) that the
-   rewrite skips today. Those need the in-memory model (Workbook/Worksheet/Row/Cell + styles) and,
-   for the fixture-backed ones, the XML/zip read layer. Build the pure model pieces first (cells,
-   ranges, defined-name storage, value/type coercion, shared-formula translation), each landing its
-   cluster's behaviors to `✓`/`↑` under `--adapter rewrite`. Only implement a corpus capability in
-   `rewrite.mjs` when its module actually exists — until then it stays a skip (`∅`), by design.
+1. **Core model — foundation landed, now grow it.** Value model + Cell + Worksheet + Workbook exist
+   and lit the first pure-model case (`cellColRowTypes` → `cell-col-row-are-numeric-indices`). The
+   remaining model surface, in dependency order: **rows & columns** (`getRow`/`getColumn`, `addRow`/
+   `addRows` with dense/sparse-array and keyed-object shapes — see `add-row-array-and-object-shapes-populate`;
+   column keys/headers/widths), **merges** (master/slave cells), **defined-name storage**, then the
+   **styles surface** (fonts exist; add fills/borders/alignment/protection + per-cell isolation, which
+   a large cluster of cases asserts). Most of these cases assert through `roundtripWorkbook`/
+   `inspectPackage`, so they only *fully* light up once the writer lands — but build and unit-test the
+   pure model pieces first so the writer has a correct model to serialize. Only wire a corpus
+   capability into `rewrite.mjs` when its module actually exists; until then it stays a skip (`∅`).
 2. **Then the XML + zip layer** (the highest-value, hardest area): pick the parser per the pending
    ADR (`fast-xml-parser` vs a lean SAX layer) and the zip lib (`fflate`), benchmark, record the
    decision, and wire the fixture-reading capabilities so the `readFixture*`/`roundtripFixture*`
