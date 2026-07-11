@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + forty-four unlabeled slices; 751/794 = 95%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + forty-five unlabeled slices; 766/794 = 96%; fixture-less bulk drain underway)._
 
 ---
 
@@ -936,7 +936,45 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     (third-party runtime, reporter's own scaling math a no-op); iOS Safari download UX (browser Blob
     plumbing); unzipper dup bump + two CI-matrix records (upstream toolchain the fork replaces).
     Corpus **404 green / 215 known-open / 0 regressions**; 231 cases + 140 specs.
-  - ⏳ **Next: continue the unlabeled bulk** (43 remaining, all fixture-less) in ~15-record
+  - **Forty-fifth slice — fixture-less bulk, oldest-15 of the tail — drained** (766/794, 96%).
+    A bug-HEAVY slice, breaking the recent fold-dominated pattern: 7 new corpus cases + 3 new spec
+    notes + 1 spec-augment + 4 not-carried (3 folds). Five new adapter capabilities. Probing decided
+    disposition repeatedly: 3 of the 7 corpus cases are regression LOCKS (baseline pass) where the
+    reported bug is already correct in the fork's lib, and 3 triaged "corpus_case" candidates were
+    already locked and became not-carried. Real bugs (baseline fail): (1) a **conditional-formatting
+    rule with no formula crashes serialization** — the writer indexes into an absent formula list and
+    throws `TypeError …reading '0'` (`conditional-format-rule-without-formula`, reuses
+    `authorConditionalFormatting`); (2) an **explicit column width equal to the conventional default
+    (9) is silently dropped** — no `<col>` emitted, reads back `undefined`, while every other width
+    survives; the writer treats "equals the magic default" as "skip"
+    (`explicit-column-width-equal-to-default-magic-value-survives`, new
+    `columnWidthDefaultCollisionReport`); (3) a **dirty image extension** (a URL-derived
+    `png?alt=media&token=…`) leaks straight into the content-type `Default` Extension/ContentType,
+    producing an invalid package — distinct from the missing-extension case (non-empty but malformed)
+    (`image-dirty-extension-sanitized-in-content-type`, reuses `inspectPackage`); (4) **no way to
+    remove an added image** — `ws.removeImage` is absent (`worksheet-image-removal`, new
+    `removeImageReport`, mirrors the streaming-image-parity known-open shape). Regression locks
+    (baseline pass, guarding silent-loss / environment-failure classes): (5) **password protection
+    works under Node** — `ws.protect(pw)` resolves with a valid SHA-512 hash/salt/spin protection and
+    real salt randomness (two protects differ), NOT the reported browser-only-secure-random throw
+    (`worksheet-password-protection-hashes-in-node`, new `worksheetPasswordProtectionReport`); (6) a
+    **table displayName round-trips** to the table XML and back, distinct from the internal name — the
+    reported typo bug is absent (`table-display-name-roundtrips`, new `tableDisplayNameReport`); (7)
+    **hidden/veryHidden sheet state survives a write** and veryHidden does not degrade
+    (`worksheet-hidden-state-preserved-on-write`, new `worksheetStateReport`). Spec notes:
+    `worksheet-default-style` (new — worksheet/workbook default style mapped to OOXML `<sheetFormatPr>`/
+    `<cols>` defaulting, O(deviations) not O(cells); the umbrella over the default-font and
+    default-protection notes); `indexing-convention-accessor-naming` (new — 1-based accessors must not
+    be named `index`; the type surface carries the convention); `range-to-image-render` (new — render a
+    cell range to a styled SVG/PNG, dependency-light draw-to-SVG over a headless browser);
+    `cell-value-raw-and-displayed-accessor` augmented with the numFmt-preserved-on-read invariant
+    (folds the "numFmt not reflected in output" report). Not-carried folds: streaming shared-strings/
+    sheet-names race (`streaming-read-resolves-shared-strings-without-race`); multibyte-UTF-8 chunk
+    boundary (`stream-read-multibyte-utf8-chunk-boundary`); image anchor EMU with custom col/row size
+    (`image-anchor-fractional-offset-respects-cell-size`). Not-carried noise: a repro-less "buffer load
+    crashes with forEach of undefined". Corpus **416 green / 222 known-open / 0 regressions**; 238
+    cases + 143 specs.
+  - ⏳ **Next: continue the unlabeled bulk** (28 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -990,12 +1028,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **751/794 (95%)**; **all labeled clusters + forty-four unlabeled slices are drained; the
-attachment-bearing queue is exhausted and the fixture-less bulk drain is underway** (43 remaining,
-~3 slices to empty). The full pipeline is proven: parallel triage workflow → serial materialization →
-green corpus (404 green / 215 known-open / 0 regressions). CI corpus check is committed
+Drain at **766/794 (96%)**; **all labeled clusters + forty-five unlabeled slices are drained; the
+attachment-bearing queue is exhausted and the fixture-less bulk drain is underway** (28 remaining,
+~2 slices to empty). The full pipeline is proven: parallel triage workflow → serial materialization →
+green corpus (416 green / 222 known-open / 0 regressions). CI corpus check is committed
 (`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Continue the unlabeled bulk** (43 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (28 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
