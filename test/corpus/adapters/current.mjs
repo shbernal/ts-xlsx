@@ -149,6 +149,8 @@ import {
   tableDisplayNameReport,
   columnWidthDefaultCollisionReport,
   worksheetStateReport,
+  tableDuplicateColumnNamesReport,
+  dateNumFmtValueReport,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -872,4 +874,17 @@ export default {
   // sheet plus the workbook.xml sheet state attributes → { readStates, xmlStates }. Guards worksheet
   // visibility survives a write and veryHidden does not degrade to hidden. See workbook-io.mjs.
   worksheetStateReport,
+
+  // Build a table whose column definitions carry (possibly colliding) names, write, and report the
+  // ordered tableColumn names emitted + whether they are unique + whether the package reloads →
+  // { ok, writtenNames, uniqueNames, reloadOk, reloadError }. OOXML requires unique tableColumn
+  // names; a writer must disambiguate duplicates rather than emit a corrupt file. See workbook-io.mjs.
+  tableDuplicateColumnNamesReport,
+
+  // Put a single cell carrying a date number format over a value of the requested kind
+  // ('invalidDate' | 'string' | 'null'), write, and report whether the serialized cell leaks
+  // NaN / "Invalid Date" into the sheet XML plus whether the file reloads →
+  // { ok, hasNaN, hasInvalidDate, reloadOk, cellXml }. A non-numeric value under a date numFmt must
+  // never serialize a bogus NaN serial that Excel repairs. See workbook-io.mjs.
+  dateNumFmtValueReport,
 };

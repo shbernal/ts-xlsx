@@ -4884,3 +4884,84 @@ export async function worksheetStateReport() {
   }
   return {readStates, xmlStates};
 }
+
+// Build a table whose column definitions carry the given names (which may collide), write, and
+// report the ordered tableColumn names actually emitted plus whether the written package reloads.
+// OOXML requires every tableColumn name to be unique within a table; colliding names produce a file
+// Excel flags as corrupt. A writer must disambiguate duplicates rather than emit them verbatim →
+// { ok, writtenNames, uniqueNames, reloadOk, reloadError }.
+export async function tableDuplicateColumnNamesReport(names = ['foo', 'foo', 'foo']) {
+  try {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.addTable({
+      name: 'T',
+      ref: 'A1',
+      headerRow: true,
+      columns: names.map(name => ({name})),
+      rows: [names.map((_, i) => i + 1)],
+    });
+    const buffer = await wb.xlsx.writeBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+    const tableName = Object.keys(zip.files).find(f => /xl\/tables\/table\d*\.xml$/.test(f));
+    const xml = tableName ? await zip.file(tableName).async('string') : '';
+    const writtenNames = [...xml.matchAll(/<tableColumn\b[^>]*\bname="([^"]*)"/g)].map(m => m[1]);
+    let reloadOk = true;
+    let reloadError = null;
+    try {
+      await new ExcelJS.Workbook().xlsx.load(buffer);
+    } catch (e) {
+      reloadOk = false;
+      reloadError = String((e && e.message) || e);
+    }
+    return {
+      ok: true,
+      writtenNames,
+      uniqueNames: new Set(writtenNames).size === writtenNames.length,
+      reloadOk,
+      reloadError,
+    };
+  } catch (e) {
+    return {ok: false, writtenNames: null, uniqueNames: null, reloadOk: null, error: String((e && e.message) || e)};
+  }
+}
+
+// Put a single cell carrying a date number format over a value of the requested kind
+// ('invalidDate' = a Date that failed to parse, 'string', or 'null'), write, and report whether the
+// serialized cell leaks NaN / "Invalid Date" into the sheet XML, plus whether the file reloads. A
+// non-numeric value under a date numFmt must never serialize a bogus numeric serial (NaN corrupts the
+// cell and triggers Excel's repair prompt) → { ok, hasNaN, hasInvalidDate, reloadOk, cellXml }.
+export async function dateNumFmtValueReport(kind = 'invalidDate') {
+  const value =
+    kind === 'invalidDate' ? new Date('not a date') : kind === 'string' ? 'hello' : kind === 'null' ? null : kind;
+  try {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S');
+    const cell = ws.getCell('A1');
+    cell.value = value;
+    cell.numFmt = 'yyyy-mm-dd';
+    const buffer = await wb.xlsx.writeBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+    const sheetName = Object.keys(zip.files).find(f => /xl\/worksheets\/sheet1\.xml$/.test(f));
+    const xml = sheetName ? await zip.file(sheetName).async('string') : '';
+    const cellXml = (xml.match(/<c\b[^>]*r="A1"[\s\S]*?(?:<\/c>|\/>)/) || [''])[0];
+    let reloadOk = true;
+    let reloadError = null;
+    try {
+      await new ExcelJS.Workbook().xlsx.load(buffer);
+    } catch (e) {
+      reloadOk = false;
+      reloadError = String((e && e.message) || e);
+    }
+    return {
+      ok: true,
+      hasNaN: /<v>\s*NaN\s*<\/v>|>NaN</.test(xml),
+      hasInvalidDate: /Invalid Date/.test(xml),
+      reloadOk,
+      reloadError,
+      cellXml,
+    };
+  } catch (e) {
+    return {ok: false, hasNaN: null, hasInvalidDate: null, reloadOk: null, error: String((e && e.message) || e)};
+  }
+}

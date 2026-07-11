@@ -200,6 +200,8 @@ implementation is shaped. Current vocabulary:
 | `tableDisplayNameReport(displayName?)` | Author a table with an explicit `displayName`, write, reload → `{writtenDisplayName, reloadedName, reloadedDisplayName}` — for asserting the human-facing display name survives to the table XML and back rather than being dropped to a default. |
 | `columnWidthDefaultCollisionReport(widths?)` | Set explicit column widths (one equal to the conventional default `9`), write, reload → `{readBack, emitted}` — for asserting an explicit width equal to the magic default is not silently dropped as "same as default". |
 | `worksheetStateReport()` | Add visible/hidden/veryHidden worksheets, write, reload → `{readStates, xmlStates}` — for asserting worksheet visibility survives a write and `veryHidden` does not degrade to `hidden` or `visible`. |
+| `tableDuplicateColumnNamesReport(names?)` | Build a table whose column definitions carry (possibly colliding) names, write, reload → `{writtenNames, uniqueNames, reloadOk, reloadError}` — for asserting duplicate table column names are disambiguated to a unique set rather than emitted verbatim into a corrupt package. |
+| `dateNumFmtValueReport(kind?)` | Put a single cell with a date number format over a value of kind `invalidDate`/`string`/`null`, write → `{hasNaN, hasInvalidDate, reloadOk, cellXml}` — for asserting a non-numeric value under a date numFmt never serializes `NaN`/`Invalid Date` into the sheet XML. |
 
 `inspectPackage`'s per-sheet fact also carries `elementOrder` (raw positions of `drawing` /
 `legacyDrawing` / `tableParts` plus the `legacyBeforeTableParts` etc. adjacency invariants) so a
