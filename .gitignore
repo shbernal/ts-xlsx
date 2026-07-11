@@ -73,3 +73,7 @@ enpm-lock.yaml
 # Harvested attachment binaries are regenerable scratch (npm run harvest:all).
 # Durable fixtures are promoted into test/corpus/fixtures/. Keep binaries out of history.
 docs/knowledge/backlog/attachments/
+
+# Development-only .NET OOXML validator build output
+tools/ooxml-validator/bin/
+tools/ooxml-validator/obj/

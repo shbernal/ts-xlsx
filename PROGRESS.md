@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (**Phase 3 rebuild KICKED OFF** — first module `src/core/address.ts` green vs `--adapter rewrite` and already beats a legacy known-open; Phase 1 harvest complete at 245 cases + 150 spec notes; Phase 2 satisfied by the harvest)._
+_Last updated: 2026-07-11 (**Phase 3 rebuild underway** — first module `src/core/address.ts` green vs `--adapter rewrite`; independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1078,6 +1078,11 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   Node 24 runs `.ts` directly, so **no bundler/build step** on the runtime path yet — `tsc` is the
   type gate only. Vitest/Biome/tsup + the `fflate`/XML dep swaps are a deferred toolchain-standup
   slice.
+- **Independent OOXML oracle:** `npm run test:ooxml` validates representative buffered and
+  streaming `.xlsx` output with Microsoft's `OpenXmlValidator` 3.5.1 targeting Microsoft 365. The
+  repo-owned .NET 10 wrapper emits structured JSON and runs in a separate required CI job. One
+  exact legacy default-font ordering error is baselined; any additional error or a stale baseline
+  fails. Decision and limits: `docs/decisions/0002-ooxml-validation-oracle.md`.
 - Build order from here: **core model → XML layer → xlsx r/w → streaming → csv**, each landed fully
   green before the next depends on it. Drive each cluster's known-opens to `✓`/`↑` under
   `--adapter rewrite`.

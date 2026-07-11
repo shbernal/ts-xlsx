@@ -43,6 +43,8 @@
     "harvest:status": "node scripts/harvest/status.mjs",
     "corpus": "node test/corpus/run.mjs",
     "corpus:rewrite": "node test/corpus/run.mjs --adapter rewrite",
+    "validate:ooxml": "dotnet run --project tools/ooxml-validator/OoxmlValidator.csproj --configuration Release --",
+    "test:ooxml": "dotnet restore tools/ooxml-validator/OoxmlValidator.csproj --locked-mode && node test/ooxml-validation/run.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "test:src": "node --test \"src/**/*.test.ts\"",
     "test:es5": "export EXCEL_BUILD=es5 && npm run test:full",

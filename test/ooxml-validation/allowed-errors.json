@@ -1,0 +1,18 @@
+{
+  "buffered.xlsx": [
+    {
+      "id": "Sch_UnexpectedElementContentExpectingComplex",
+      "type": "Schema",
+      "partUri": "/xl/styles.xml",
+      "xpath": "/x:styleSheet[1]/x:fonts[1]/x:font[1]"
+    }
+  ],
+  "streaming.xlsx": [
+    {
+      "id": "Sch_UnexpectedElementContentExpectingComplex",
+      "type": "Schema",
+      "partUri": "/xl/styles.xml",
+      "xpath": "/x:styleSheet[1]/x:fonts[1]/x:font[1]"
+    }
+  ]
+}
