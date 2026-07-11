@@ -133,6 +133,11 @@ import {
   loadFixtureTableColumns,
   unfreezeViewRoundtrip,
   imageAnchorRowAppendReport,
+  cellColRowTypes,
+  richTextRoundtripReport,
+  fontExplicitOffFlagsReport,
+  trailingMergedRowIterationReport,
+  addImageToLoadedWorksheetReport,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -766,4 +771,30 @@ export default {
   // image does not advance the row-append cursor, so a subsequent addRows fills from the top and the
   // layout is identical regardless of add order. See workbook-io.mjs.
   imageAnchorRowAppendReport,
+
+  // Report a populated cell's `col`/`row` accessors and their runtime types →
+  // { col, row, colType, rowType } — for locking that cell position indices are 1-based numbers at
+  // runtime (the legacy types declared them as string). See workbook-io.mjs.
+  cellColRowTypes,
+
+  // Round-trip a rich-text value and report both serialization and read-back →
+  // { emptyTextRunInXml, runCount, runs: [{text, bold, italic, underline}] } — for asserting empty
+  // runs are dropped on write (Excel rejects an empty `<t>` run) and that a leading/interior run's
+  // formatting survives the round-trip. See workbook-io.mjs.
+  richTextRoundtripReport,
+
+  // Report how explicit-off font toggles (`<i val="0"/>`, `<strike val="0"/>`, `<u val="none"/>`)
+  // read back → { italic, strike, underline } — the companion to fontExplicitFalseBoldReport for the
+  // remaining boolean/underline flags. See workbook-io.mjs.
+  fontExplicitOffFlagsReport,
+
+  // Round-trip a worksheet whose merged range extends into a trailing empty final row and enumerate
+  // its cells → { rowCount, visited, a3: {isMerged, master, visited} } — for asserting the leading
+  // cell of the trailing merged row is visited and resolves to its master. See workbook-io.mjs.
+  trailingMergedRowIterationReport,
+
+  // Load a workbook from bytes, add an image to the loaded worksheet, re-serialize, and report the
+  // output package → { hasMedia, hasDrawing, reloadImageCount } — for locking that addImage on a
+  // loaded (not freshly-created) worksheet persists the image. See workbook-io.mjs.
+  addImageToLoadedWorksheetReport,
 };

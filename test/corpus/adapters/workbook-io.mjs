@@ -103,6 +103,9 @@ export function buildFrom(spec = {}) {
       const r = sheet.getRow(row.index);
       if (row.height !== undefined) r.height = row.height;
       if (row.hidden !== undefined) r.hidden = row.hidden;
+      // Row-level fill applies to every cell in the row; a case asserts it stays scoped to that
+      // one row rather than bleeding across the whole sheet, independent of the row's index.
+      if (row.fill !== undefined) r.fill = row.fill;
       // outlineLevel drives row grouping; a case asserts the collapsed flag lands on the summary
       // row rather than on the hidden detail rows.
       if (row.outlineLevel !== undefined) r.outlineLevel = row.outlineLevel;
@@ -4355,4 +4358,135 @@ export async function imageAnchorRowAppendReport() {
     return {rowCount: sheet.rowCount, firstDataCell: sheet.getCell('A1').value ?? null};
   };
   return {imageFirst: run('image-first'), rowsFirst: run('rows-first')};
+}
+
+// Report a populated cell's `col`/`row` accessors and their runtime types → { col, row, colType,
+// rowType }. A cell's position indices are 1-based integers at runtime; the legacy published types
+// declared them as `string`, so this locks the runtime contract the type surface must match (the
+// declaration honesty itself lives in the address type-surface spec).
+export async function cellColRowTypes(ref = 'B3') {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell(ref).value = 'x';
+  const cell = sheet.getCell(ref);
+  return {col: cell.col, row: cell.row, colType: typeof cell.col, rowType: typeof cell.row};
+}
+
+// Read a rich-text value through a write→read round-trip and report both what was serialized and
+// what came back → { emptyTextRunInXml, runCount, runs: [{text, bold, italic, underline}] }. `runs`
+// is the caller-supplied array of { text, font } run descriptors. `emptyTextRunInXml` is true when
+// the writer emitted a run whose `<t>` payload is empty (`<t/>` or `<t></t>`) — the construct Excel
+// flags as corrupt. Lets a case assert both that empty runs are dropped on write and that a
+// (leading or interior) run's character formatting survives the round-trip.
+export async function richTextRoundtripReport(runs) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = {richText: runs};
+  const buffer = await workbook.xlsx.writeBuffer();
+  const zip = await JSZip.loadAsync(buffer);
+  const partName = Object.keys(zip.files).find(f => /sharedStrings\.xml$/.test(f)) ||
+    Object.keys(zip.files).find(f => /worksheets\/sheet1\.xml$/.test(f));
+  const xml = partName ? await zip.file(partName).async('string') : '';
+  const emptyTextRunInXml = /<(?:\w+:)?t\b[^>]*\/>|<(?:\w+:)?t\b[^>]*><\/(?:\w+:)?t>/.test(xml);
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(buffer);
+  const value = reload.getWorksheet('S').getCell('A1').value;
+  const readRuns = value && Array.isArray(value.richText) ? value.richText : [];
+  return {
+    emptyTextRunInXml,
+    runCount: readRuns.length,
+    runs: readRuns.map(r => ({
+      text: r.text ?? null,
+      bold: r.font ? r.font.bold ?? false : false,
+      italic: r.font ? r.font.italic ?? false : false,
+      underline: r.font ? r.font.underline ?? false : false,
+    })),
+  };
+}
+
+// Report how a font toggle serialized with an explicit-off value round-trips, for the italic,
+// strike, and underline flags → { italic, strike, underline } where each is the reloaded font
+// property. In OOXML `<i val="0"/>` / `<strike val="0"/>` mean the flag is OFF and `<u val="none"/>`
+// means no underline; a presence-based reader wrongly reports them as enabled. Companion to
+// fontExplicitFalseBoldReport, which covers the bold flag.
+export async function fontExplicitOffFlagsReport() {
+  const readWith = async (baseFont, tagRe, tag, field) => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'x';
+    ws.getCell('A1').font = baseFont;
+    const zip = await JSZip.loadAsync(await wb.xlsx.writeBuffer());
+    const stylesName = Object.keys(zip.files).find(f => /xl\/styles\.xml$/.test(f));
+    let styles = await zip.file(stylesName).async('string');
+    styles = styles.replace(tagRe, tag);
+    zip.file(stylesName, styles);
+    const reload = new ExcelJS.Workbook();
+    await reload.xlsx.load(await zip.generateAsync({type: 'nodebuffer'}));
+    const font = reload.getWorksheet('S').getCell('A1').font || {};
+    return font[field] ?? null;
+  };
+  return {
+    italic: await readWith({italic: true}, /<i ?\/>/, '<i val="0"/>', 'italic'),
+    strike: await readWith({strike: true}, /<strike ?\/>/, '<strike val="0"/>', 'strike'),
+    underline: await readWith({underline: true}, /<u ?\/>/, '<u val="none"/>', 'underline'),
+  };
+}
+
+// Round-trip a worksheet whose merged range extends into a trailing, otherwise-empty final row, then
+// enumerate its cells (including empty) → { rowCount, visited: [addresses], a3: {isMerged, master,
+// visited} }. Locks that iteration reaches the leading cell of the trailing merged row and that the
+// cell resolves to its master, rather than the row being dropped from the sheet's bounds.
+export async function trailingMergedRowIterationReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 'top';
+  sheet.getCell('A2').value = 'data';
+  sheet.mergeCells('A1:B3');
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(buffer);
+  const rs = reload.getWorksheet('S');
+  const visited = [];
+  rs.eachRow({includeEmpty: true}, row => {
+    row.eachCell({includeEmpty: true}, cell => visited.push(cell.address));
+  });
+  const a3 = rs.getCell('A3');
+  return {
+    rowCount: rs.rowCount,
+    visited,
+    a3: {isMerged: !!a3.isMerged, master: a3.master ? a3.master.address : null, visited: visited.includes('A3')},
+  };
+}
+
+// Load a workbook from bytes, register an image on it, anchor that image onto the loaded worksheet,
+// then re-serialize and report what the output package carries → { hasMedia, hasDrawing,
+// reloadImageCount }. Locks that adding an image to a worksheet that came from a loaded package (not
+// a freshly-created one) actually persists the media, the drawing part, and re-reads as one image.
+export async function addImageToLoadedWorksheetReport(range = 'B2:C4') {
+  const PNG = Buffer.from(
+    '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da6360000002000001e221bc330000000049454e44ae426082',
+    'hex'
+  );
+  const base = new ExcelJS.Workbook();
+  const baseSheet = base.addWorksheet('S');
+  baseSheet.getCell('A1').value = 'x';
+  const baseBuffer = await base.xlsx.writeBuffer();
+
+  const loaded = new ExcelJS.Workbook();
+  await loaded.xlsx.load(baseBuffer);
+  const id = loaded.addImage({buffer: PNG, extension: 'png'});
+  loaded.getWorksheet('S').addImage(id, range);
+  const outBuffer = await loaded.xlsx.writeBuffer();
+
+  const zip = await JSZip.loadAsync(outBuffer);
+  const files = Object.keys(zip.files);
+  const reload = new ExcelJS.Workbook();
+  await reload.xlsx.load(outBuffer);
+  const sheet = reload.getWorksheet('S');
+  const images = sheet.getImages ? sheet.getImages() : [];
+  return {
+    hasMedia: files.some(f => /xl\/media\//.test(f)),
+    hasDrawing: files.some(f => /xl\/drawings\/drawing/.test(f)),
+    reloadImageCount: images.length,
+  };
 }

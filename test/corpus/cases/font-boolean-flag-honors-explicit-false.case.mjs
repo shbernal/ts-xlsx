@@ -44,5 +44,29 @@ export default {
         assert.strictEqual(valZero, false, '<b val="0"/> means NOT bold — the val attribute must be honored, not ignored');
       },
     },
+    {
+      name: 'an explicit-false italic tag reads as not italic',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {italic} = await api.fontExplicitOffFlagsReport();
+        assert.ok(!italic, '<i val="0"/> means NOT italic');
+      },
+    },
+    {
+      name: 'an explicit-false strikethrough tag reads as not struck',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {strike} = await api.fontExplicitOffFlagsReport();
+        assert.ok(!strike, '<strike val="0"/> means NOT struck');
+      },
+    },
+    {
+      name: 'an underline tag with value "none" reads as not underlined',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {underline} = await api.fontExplicitOffFlagsReport();
+        assert.ok(!underline && underline !== 'none', '<u val="none"/> means NOT underlined — the string "none" is not truthy underline');
+      },
+    },
   ],
 };
