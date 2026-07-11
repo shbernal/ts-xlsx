@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + forty unlabeled slices; 691/794 = 87%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + forty-one unlabeled slices; 706/794 = 89%; fixture-less bulk drain underway)._
 
 ---
 
@@ -819,7 +819,35 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     (OOM repro would kill CI). Corpus **373 green / 188 known-open / 0 regressions**; 214 cases + 132
     specs. Two adapter extensions (`mutateWorksheet.lastRow`, `readFixtureReport.lastModifiedBy`) plus
     the new `unfreezeViewRoundtrip` capability.
-  - ⏳ **Next: continue the unlabeled bulk** (103 remaining, all fixture-less) in ~15-record
+  - **Forty-first slice — fixture-less bulk, oldest-15 of the tail — drained** (706/794, 89%).
+    2 new corpus cases + 1 new spec note + 3 spec-augments + 9 not-carried folds — the fold-heavy
+    tail continues. New cases: (1) a list dropdown whose source range lives on *another* sheet is
+    serialized by spreadsheet apps in the 2009 `x14` data-validation extension (worksheet `extLst`),
+    not the plain `<dataValidation>`; the reader understands only the standard form, so the cross-sheet
+    rule is silently dropped — the cell reports no validation and a read→write round-trip loses the
+    dropdown (baseline fail; same-sheet standard validation is the passing control; fixture built by
+    injecting the x14 extension onto `Sheet1!A1` → `Sheet2!$D$3:$D$5`). (2) Anchoring a floating image
+    over a cell range advanced the row-append cursor, so a subsequent `addRows` appended *below* the
+    anchored range instead of filling from the top and the layout depended on add order (baseline fail;
+    new `imageAnchorRowAppendReport` capability reports the first data cell for both orders). New spec
+    `xlsb-binary-format-output` (read/write binary .xlsb as a second codec over the shared model;
+    OPC/ZIP + BIFF12 records, RK/Ptg encodings, read-before-write, bounded-allocation posture). Spec
+    augments: `public-type-surface-matches-runtime` — `protect()` typed for every call shape it already
+    accepts (no-args / password-only / password+options, all returning a Promise; the hand-written
+    types wrongly required a password); `streaming-read-emits-all-worksheets` — foreign (openpyxl)
+    files lost their sheet names (bind names via the relationship graph) and a stream-end race dropped
+    trailing rows/sheets (completion must mean input truly exhausted; guard in a soak harness);
+    `image-carry-between-workbooks-requires-media-registration` — recorded today's opaque
+    `Cannot read properties of undefined (reading 'name')` crash on cross-workbook `model` transplant
+    (merge loss on the same path already cased). Not-carried folds (9): webpack `process` polyfill
+    (charter precludes the class), the x14 databar negative-color reorder (legacy emits no negative
+    colors → latent, already in `databar-colors-…`), the databar-color `.d.ts` one-liner, an empty
+    template, the JSZip `new Function` CSP patch (`no-unsafe-eval-…`), an OOM report with no repro
+    (`bounded-memory-…`), a package-rename PR (reserved human decision), a "protect one of two sheets"
+    usage question (`sheet-protection-…`), and library suggestions (sort → `sort-rows-by-column`;
+    column move user-acknowledged trivial). Corpus **376 green / 192 known-open / 0 regressions**;
+    216 cases + 133 specs. One adapter extension (`imageAnchorRowAppendReport`).
+  - ⏳ **Next: continue the unlabeled bulk** (88 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -873,12 +901,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **691/794 (87%)**; **all labeled clusters + forty unlabeled slices are drained; the
+Drain at **706/794 (89%)**; **all labeled clusters + forty-one unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (373 green / 188
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (376 green / 192
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (103 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (88 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
