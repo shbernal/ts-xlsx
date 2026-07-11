@@ -42,6 +42,9 @@
     "harvest:all": "node scripts/harvest/harvest-all.mjs",
     "harvest:status": "node scripts/harvest/status.mjs",
     "corpus": "node test/corpus/run.mjs",
+    "corpus:rewrite": "node test/corpus/run.mjs --adapter rewrite",
+    "typecheck": "tsc --noEmit -p tsconfig.build.json",
+    "test:src": "node --test \"src/**/*.test.ts\"",
     "test:es5": "export EXCEL_BUILD=es5 && npm run test:full",
     "test:full": "npm run build && npm run test:unit && npm run test:integration && npm run test:end-to-end && npm run test:jasmine",
     "test:version": "npm run build && npm run test:unit && npm run test:integration && npm run test:end-to-end && npm run test:browser && npm run test:dist",
@@ -124,7 +127,7 @@
     "@babel/preset-env": "^7.11.0",
     "@types/chai": "^4.2.12",
     "@types/mocha": "^8.0.3",
-    "@types/node": "^14.11.2",
+    "@types/node": "^22.20.1",
     "babelify": "^10.0.0",
     "browserify": "^16.5.2",
     "chai": "^4.2.0",
@@ -156,6 +159,6 @@
     "regenerator-runtime": "^0.13.7",
     "sax": "^1.2.4",
     "ts-node": "^8.10.2",
-    "typescript": "^3.9.7"
+    "typescript": "^5.9.3"
   }
 }

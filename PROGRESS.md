@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (**Phase 1 harvest COMPLETE — 794/794 = 100% drained, queue empty**; 245 corpus cases + 150 spec notes)._
+_Last updated: 2026-07-11 (**Phase 3 rebuild KICKED OFF** — first module `src/core/address.ts` green vs `--adapter rewrite` and already beats a legacy known-open; Phase 1 harvest complete at 245 cases + 150 spec notes; Phase 2 satisfied by the harvest)._
 
 ---
 
@@ -1048,20 +1048,41 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
 - **Exit:** the queue is empty; every carried item left a corpus case and/or spec note; corpus
   runs against current code (mostly red where bugs are real). Follow via `harvest:status`.
 
-### ⏳ Phase 2 — Stabilize-to-validate  *(time-boxed, on the frozen legacy tree)*
-- Bank the cheaply-capturable value: fix high-value low-risk bugs test-first, and — pending
-  the ❓ decision below — **merge the mergeable open PRs** onto `master` while the tree still
-  matches their base. Land cheap security/dep fixes only if they don't cost more than the
-  rewrite would anyway. No refactoring/typing/restyling of legacy code.
-- **Exit:** corpus expresses agreed "correct behavior" per captured case; current-code
-  pass/fail recorded as the baseline the rewrite must beat.
+### ✅ Phase 2 — Stabilize-to-validate  *(satisfied by the harvest — no legacy stabilization undertaken)*
+- **Disposition (2026-07-11):** the exit criterion — corpus expresses agreed "correct behavior"
+  per case with current-code pass/fail as the baseline — was **already met** by Phase 1. All 245
+  cases carry a run-verified `baseline` against the legacy oracle (424 green / 233 known-open). Per
+  the phase's own "it is scaffolding — don't invest in legacy" rule and `CLAUDE.md` §"we do not keep
+  legacy code", we spend **zero** further effort on `lib/` and go straight to the rebuild. We do not
+  fix bugs in a tree we are deleting.
+- Open decision #1 (merge-first vs corpus-only for the ~140 PRs) is therefore **moot for
+  correctness/knowledge** — the corpus already captured every PR's intent. It survives only as a
+  human call about whether to salvage the authors' *patches/review credit* on the legacy tree; the
+  rewrite does not depend on it. Left open below, downgraded from "gating".
 
-### ⏳ Phase 3 — The rebuild  *(discard the debt)*
-- Greenfield TypeScript, corpus-driven: **core model → XML layer → xlsx r/w → streaming → csv**,
-  each landed fully green before the next depends on it. Here is where the deferred toolchain
-  modernization (TS/Vitest/Biome/tsup, dep swaps like `fflate`) actually happens.
-- **Exit:** feature-parity-or-better on the corpus for all in-scope areas; legacy `lib/`
-  deleted; dependency tree small and audit-clean.
+### 🔄 Phase 3 — The rebuild  *(discard the debt — IN PROGRESS as of 2026-07-11)*
+- **Kickoff landed:** greenfield tree under `src/` (strict TS, ESM via `src/package.json`, legacy
+  CommonJS root untouched). Corpus adapter `test/corpus/adapters/rewrite.mjs` binds the same
+  vocabulary to the new code; not-yet-built capabilities are **skipped (`∅`)** so the whole corpus
+  runs against the partial rewrite (runner grew skip semantics + adapter-aware `↑` messaging).
+- **First module: address decoding** (`src/core/address.ts`) — the col/row primitive everything
+  else stands on. Against `--adapter rewrite` the `address-decoding` cluster is fully green **and
+  resolves the legacy known-open** (`decodeRange('$1:$1')` no longer leaks `undefined`/`NaN`;
+  legacy still fails it → the rewrite already beats legacy). 12 native `node --test` unit tests
+  cover the module surface. Corpus vs rewrite: **2 green / 0 known-open / 1 legacy known-open
+  resolved / 0 regressions / 654 skipped**. Legacy oracle unchanged: **424 green / 233 known-open /
+  0 regressions**.
+- **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
+  (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
+  [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
+  Node 24 runs `.ts` directly, so **no bundler/build step** on the runtime path yet — `tsc` is the
+  type gate only. Vitest/Biome/tsup + the `fflate`/XML dep swaps are a deferred toolchain-standup
+  slice.
+- Build order from here: **core model → XML layer → xlsx r/w → streaming → csv**, each landed fully
+  green before the next depends on it. Drive each cluster's known-opens to `✓`/`↑` under
+  `--adapter rewrite`.
+- **Exit:** feature-parity-or-better on the corpus for all in-scope areas (no `○`/`∅` left under
+  the rewrite adapter); legacy `lib/` deleted; dependency tree small and audit-clean.
 
 ### ⏳ Phase 4 — Independence & identity  *(only the remainder — hosting already done)*
 - ✅ Hosting/repo independence (done above).
@@ -1073,11 +1094,11 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
 ---
 
 ## Open decisions ❓
-1. **Merge-first vs corpus-only for open PRs** (drives Phase 2 scope). Options: (a) freeze the
-   legacy tree and actually merge every clean/light-conflict PR before modernizing — max value,
-   longer on legacy; (b) corpus-only per the original `STRATEGY.md` wording — cleaner, but
-   re-implement everything and lose the authors' patches/review; (c) hybrid by value.
-   *Recommended: (a) or (c). Not yet chosen.*
+1. **Merge-first vs corpus-only for open PRs** — **downgraded from gating to optional** (2026-07-11).
+   The corpus already captured every PR's intent, so the rewrite loses no *knowledge* either way;
+   this now only decides whether to salvage the authors' *patches/review credit* on a legacy tree
+   we are deleting. Default if unanswered: **corpus-only** (we do not invest in legacy). Still open
+   only as a courtesy call for the human.
 2. **Final brand name** — reserved for the human (Phase 4).
 
 ## Manual follow-ups (outside this tool's reach)
@@ -1085,19 +1106,26 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-**Phase 1 is COMPLETE — 794/794 (100%) drained, the backlog queue is empty.** The durable product is
-**245 implementation-blind corpus cases + 150 spec notes**, green in CI (424 green / 233 known-open /
-0 regressions; `.github/workflows/corpus.yml`). The manifest proves nothing was dropped. Next, in
-order:
-1. **Open decision #1** (merge-first vs corpus-only for the ~140 PRs) is now **due** — it gates how
-   Phase 2 begins. This is a human decision (strategically divergent options); the corpus + spec
-   notes already captured every PR's intent, so a corpus-only path loses no *knowledge*, only the
-   authors' patches/review. Not yet chosen.
-2. **Begin the Phase 2/3 rewrite** behind the corpus contract: stand up the TypeScript-first codebase,
-   add a `rewrite.mjs` adapter binding the same contract vocabulary to the new implementation, and
-   drive every existing case green (each known-open bug fixed test-first; each lock kept passing). The
-   corpus does not move — the implementation does. Prioritize by cluster; the 150 spec notes are the
-   design backlog for new capability surfaces (encryption, charts, pivot, streaming internals, HTML/
-   image export, type-surface ergonomics).
-3. **Stop tracking upstream.** Per `STRATEGY.md`, with the harvest complete we drift away from
-   `exceljs/exceljs` entirely; the universe is frozen and there is no re-harvest.
+**Phase 3 rebuild is underway.** The engine is proven end-to-end: `src/` (strict TS) → `rewrite.mjs`
+adapter → the corpus runs against it, the first module (`address.ts`) is green **and already beats a
+legacy known-open**, with 0 regressions on the legacy oracle. Continue module by module, in the
+`STRATEGY.md` build order (**core model → XML layer → xlsx r/w → streaming → csv**):
+
+1. **Grow the core model next.** The `address-decoding` cluster still has cases riding on workbook
+   *round-trips* (`readFixtureDefinedNames`, `roundtripWorkbook`, `roundtripFormulas`, …) that the
+   rewrite skips today. Those need the in-memory model (Workbook/Worksheet/Row/Cell + styles) and,
+   for the fixture-backed ones, the XML/zip read layer. Build the pure model pieces first (cells,
+   ranges, defined-name storage, value/type coercion, shared-formula translation), each landing its
+   cluster's behaviors to `✓`/`↑` under `--adapter rewrite`. Only implement a corpus capability in
+   `rewrite.mjs` when its module actually exists — until then it stays a skip (`∅`), by design.
+2. **Then the XML + zip layer** (the highest-value, hardest area): pick the parser per the pending
+   ADR (`fast-xml-parser` vs a lean SAX layer) and the zip lib (`fflate`), benchmark, record the
+   decision, and wire the fixture-reading capabilities so the `readFixture*`/`roundtripFixture*`
+   cases light up.
+3. **Toolchain-standup slice** (do when `src/` is large enough to justify it): Vitest + Biome +
+   an ESM/`.d.ts` bundler, and schedule the legacy Grunt/Babel/Mocha rip-out. Until then the gates
+   are `npm run typecheck` + `npm run test:src` + `npm run corpus:rewrite`.
+
+**Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
+and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
+`exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.

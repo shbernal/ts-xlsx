@@ -1,9 +1,13 @@
 name: Corpus
 
-# The regression corpus is the knowledge we harvest across the rewrite. It must
-# stay green (exit 0 unless a real regression appears) on every push and PR. This
-# is an additive check: it does not touch the legacy toolchain, which is frozen
-# until the backlog is drained (see PROGRESS.md / STRATEGY.md).
+# The regression corpus is the knowledge we harvest across the rewrite, and the
+# Phase 3 rewrite (src/) is validated against it. Everything here must stay green on
+# every push and PR. These are additive checks: they do not touch the legacy
+# toolchain, which is frozen (see PROGRESS.md / STRATEGY.md).
+#
+# Node 24: the rewrite runs its .ts sources directly via type-stripping (no build
+# step) — see docs/decisions/0001-rewrite-runtime-and-toolchain.md. There is no
+# lockfile in-repo yet, so `npm install` (not `npm ci`) and no npm cache.
 
 on:
   push:
@@ -13,14 +17,21 @@ on:
 
 jobs:
   corpus:
-    name: Regression corpus
+    name: Rewrite gates + regression corpus
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      # Strict type-safety gate for the rewrite tree (src/).
+      - run: npm run typecheck
+      # Rewrite unit tests (native node --test on .ts).
+      - run: npm run test:src
+      # Corpus vs the legacy oracle — must be 0 regressions.
       - run: npm run corpus
+      # Corpus vs the rewrite — must be 0 regressions (skips are expected while
+      # the rewrite is incomplete; a pass→fail here is a real rewrite regression).
+      - run: npm run corpus:rewrite

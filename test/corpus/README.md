@@ -214,17 +214,45 @@ worksheet input accepts a `headerFooter` block mirroring those children.
 The `spec` shape consumed by the three workbook capabilities is documented at the top of
 `adapters/workbook-io.mjs` (worksheets with cells, columns, rows, page margins, tables).
 
-Add capabilities only as cases demand them, and add them to **every** adapter. When the
-rewrite lands, a `rewrite.mjs` adapter binds the same vocabulary to the new code and
-every existing case runs unchanged — the corpus does not move, the implementation does.
+Add capabilities only as cases demand them, and add them to **every** adapter.
+
+## The two adapters
+
+- **`current`** binds the vocabulary to the legacy `lib/` code. It is the **baseline
+  oracle**: every behavior's `baseline` records what this adapter does today.
+- **`rewrite`** binds the same vocabulary to the new strict-TypeScript library under
+  `src/` (Phase 3). Node 24 runs the `.ts` sources directly (type-stripping), so the
+  adapter imports them with no build step; strict types are enforced separately by
+  `npm run typecheck`.
+
+Run them: `node test/corpus/run.mjs` (default `current`) or
+`node test/corpus/run.mjs --adapter rewrite` (`npm run corpus:rewrite`).
+
+The rewrite is built one module at a time, so it does **not** implement every
+capability yet. A capability it has not reached throws a `notImplemented`-tagged
+error; the runner reports that behavior as **`∅` skipped** — neither pass nor fail,
+never a regression. As each module lands, its capability moves from the adapter's
+not-implemented proxy into the real implementation and its cases light up and must go
+green. This is what lets the *whole* corpus run against a partial rewrite.
 
 ## What the runner does with baselines
+
+`baseline` always records what the **legacy** oracle does; the status compares the
+adapter under test against it:
 
 | baseline | actual | status | fails build? |
 |---|---|---|---|
 | pass | pass | `✓` green | no |
 | fail | fail | `○` known-open | no — this is the corpus's job on the frozen tree |
 | pass | fail | `✗` regression | **yes** (exit 1) |
-| fail | pass | `↑` newly-fixed | no — but flip the baseline to `pass` |
+| fail | pass | `↑` fixed | no |
+| — | not implemented | `∅` skipped | no (rewrite only) |
 
-The rewrite's finish line for an area: **every baseline in it flips to `pass`.**
+The `↑` fixed row means different things by adapter: on `current` it means legacy
+itself changed → flip the baseline to `pass`; on `rewrite` it means the rewrite
+**resolves a legacy known-open** → celebrate it and leave the baseline at `fail`
+(it still records legacy's real state).
+
+The rewrite's finish line for an area: against `--adapter rewrite`, **every behavior
+in it is `✓` or `↑`** — no `○` known-opens left unresolved, no `∅` skips, and of
+course zero `✗` regressions.

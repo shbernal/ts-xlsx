@@ -158,7 +158,18 @@ phase that "leaves no opportunity behind us."
   item left a corpus case and/or spec note behind it. The corpus is large, runs
   against current code (mostly red where bugs are real), and is implementation-blind.
 
-### Phase 2 — Stabilize-to-validate  *(prove the corpus, then let go)*
+### Phase 2 — Stabilize-to-validate  *(prove the corpus, then let go)*  → ✅ **satisfied by the harvest (2026-07-11)**
+
+> ✅ **Disposition (2026-07-11):** Phase 2's exit — "the corpus expresses a clear
+> 'correct behavior' for each captured case, with current-code pass/fail recorded as
+> the baseline the rewrite must beat" — is **already met** by the completed Phase 1
+> harvest: all 245 cases carry a run-verified `baseline` against the legacy oracle
+> (424 green / 233 known-open). Per this phase's own rule ("do **not** invest in
+> refactoring/typing/restyling the legacy code — it is scaffolding") and `CLAUDE.md`
+> §"we do not keep legacy code", we spend **no** further effort stabilizing `lib/`.
+> We proceed straight to Phase 3 and let the rewrite turn the known-opens green.
+> (We deliberately do **not** fix bugs in a tree we are deleting.)
+
 A *deliberately time-boxed* pass on the **current** code — its only purpose is to
 validate the corpus and produce a correctness baseline, not to polish code we will
 delete.
@@ -171,7 +182,26 @@ delete.
 - **Exit:** the corpus expresses a clear, agreed "correct behavior" for each captured
   case, with current-code pass/fail recorded as the baseline the rewrite must beat.
 
-### Phase 3 — The rebuild  *(discard the debt)*
+### Phase 3 — The rebuild  *(discard the debt)*  → 🔄 **IN PROGRESS (kicked off 2026-07-11)**
+
+> 🔄 **Kickoff (2026-07-11):** the greenfield tree lives under `src/` (strict
+> TypeScript, ESM, scoped as a module via `src/package.json` so the legacy CommonJS
+> root is untouched). A sibling corpus adapter, `test/corpus/adapters/rewrite.mjs`,
+> binds the same contract vocabulary to the new code; capabilities it hasn't reached
+> yet are skipped (`∅`), so the whole corpus runs against the partial rewrite. First
+> module landed: **address decoding** (`src/core/address.ts`) — the foundational
+> col/row primitive — fully green against `--adapter rewrite` **and it already
+> resolves the legacy known-open** (`decodeRange('$1:$1')` no longer leaks
+> `undefined`/`NaN`). Gates wired: `npm run typecheck` (strict `tsc --noEmit`),
+> `npm run test:src` (native `node --test` on `.ts`), `npm run corpus:rewrite`.
+>
+> **Toolchain note (supersedes the "Build: tsup" line above for now):** Node 24 runs
+> the `.ts` sources directly via type-stripping, so the rewrite needs **no bundler or
+> build step** on the runtime/test path — `tsc` is used only as the type *checker*.
+> A bundler (ESM + `.d.ts` emit) and the Vitest/Biome swap are deferred to a dedicated
+> toolchain-standup slice; until then we use `node --test` and the local strict `tsc`.
+> Rationale to be recorded as an ADR under `docs/decisions/`.
+
 Greenfield TypeScript implementation, corpus-driven, module by module.
 - Build order follows value and dependency: **core model → XML layer → xlsx
   read/write → streaming → csv**. Land each module fully green (typed, tested,

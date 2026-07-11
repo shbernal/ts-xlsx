@@ -51,11 +51,14 @@ async function runBehavior(behavior, api) {
     await behavior.expect(api, assert);
     return {actual: 'pass'};
   } catch (err) {
+    // An adapter that does not yet implement a capability (the in-progress rewrite)
+    // tags the error so the behavior is SKIPPED, not counted as a failure/regression.
+    if (err?.notImplemented) return {actual: 'skip', detail: err.message ?? String(err)};
     return {actual: 'fail', detail: err.message ?? String(err)};
   }
 }
 
-const MARK = {ok: '✓', bug: '○', regression: '✗', fixed: '↑'};
+const MARK = {ok: '✓', bug: '○', regression: '✗', fixed: '↑', skip: '∅'};
 
 async function main() {
   const {adapter: adapterName} = parseArgs(process.argv.slice(2));
@@ -63,7 +66,13 @@ async function main() {
   const api = adapterMod.default;
   const cases = await loadCases();
 
-  const tally = {ok: 0, bug: 0, regression: 0, fixed: 0};
+  // The `current` adapter IS the baseline oracle: `baseline` records what it does,
+  // so a fail→pass there means legacy itself changed → flip the baseline. For any
+  // other adapter (the rewrite), a fail→pass is the goal — the rewrite fixing a
+  // legacy known-open — and the baseline stays put, still recording legacy's state.
+  const isBaselineAdapter = adapterName === 'current';
+
+  const tally = {ok: 0, bug: 0, regression: 0, fixed: 0, skip: 0};
   const behaviorCount = cases.reduce((n, c) => n + c.behavior.length, 0);
   console.log(`corpus: ${cases.length} case(s), ${behaviorCount} behavior(s) vs adapter "${api.name}"\n`);
 
@@ -76,7 +85,8 @@ async function main() {
     for (const behavior of testCase.behavior) {
       const {actual, detail} = await runBehavior(behavior, api);
       let status;
-      if (behavior.baseline === 'pass' && actual === 'pass') status = 'ok';
+      if (actual === 'skip') status = 'skip';
+      else if (behavior.baseline === 'pass' && actual === 'pass') status = 'ok';
       else if (behavior.baseline === 'fail' && actual === 'fail') status = 'bug';
       else if (behavior.baseline === 'pass' && actual === 'fail') status = 'regression';
       else status = 'fixed';
@@ -84,13 +94,21 @@ async function main() {
       console.log(`    ${MARK[status]} ${behavior.name}`);
       if (status === 'regression') console.log(`        REGRESSION: ${detail}`);
       if (status === 'bug') console.log(`        known-open (baseline=fail): ${detail}`);
-      if (status === 'fixed') console.log(`        FIXED — flip baseline to 'pass' for this behavior`);
+      if (status === 'fixed') {
+        console.log(
+          isBaselineAdapter
+            ? `        FIXED — legacy now passes; flip baseline to 'pass' for this behavior`
+            : `        FIXED — "${api.name}" resolves a legacy known-open (baseline stays 'fail')`
+        );
+      }
     }
     console.log('');
   }
 
+  const skipNote = tally.skip > 0 ? `, ${tally.skip} skipped (capability not implemented by "${api.name}")` : '';
+  const fixedLabel = isBaselineAdapter ? 'newly-fixed' : 'legacy known-opens resolved';
   console.log(
-    `summary: ${tally.ok} green, ${tally.bug} known-open, ${tally.fixed} newly-fixed, ${tally.regression} regression(s)`
+    `summary: ${tally.ok} green, ${tally.bug} known-open, ${tally.fixed} ${fixedLabel}, ${tally.regression} regression(s)${skipNote}`
   );
   if (tally.regression > 0) {
     console.error('\nFAIL: regression(s) detected — a behavior that passed on legacy now fails.');
