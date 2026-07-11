@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + forty-two unlabeled slices; 721/794 = 91%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + forty-three unlabeled slices; 736/794 = 93%; fixture-less bulk drain underway)._
 
 ---
 
@@ -874,7 +874,37 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     another library; browser `writeFile` "fs.createWriteStream is not a function" (already covered by
     `browser-safe-io-boundary` — path methods are Node-only and must fail actionably). Corpus **392
     green / 198 known-open / 0 regressions**; 223 cases + 133 specs. Five adapter capabilities added.
-  - ⏳ **Next: continue the unlabeled bulk** (73 remaining, all fixture-less) in ~15-record
+  - **Forty-third slice — fixture-less bulk, oldest-15 of the tail — drained** (736/794, 93%).
+    5 new corpus cases + 3 new spec notes + 1 spec-augment + 5 not-carried. Four new adapter
+    capabilities. Probing was decisive again — every corpus-case guess reproduced, and it flipped
+    2777 from "bug is dropped mode" to the true schema violation. Real bugs (baseline fail): (1)
+    **editAs on a one-cell image anchor** — a top-left+extent placement makes a `oneCellAnchor`, onto
+    which legacy stamps `editAs` even though the drawing schema defines that attribute only on
+    `twoCellAnchor`; a top-left+bottom-right placement round-trips `editAs` on a two-cell anchor,
+    locked (`image-editas-only-valid-on-two-cell-anchor`, reuses `inspectImageAnchors`); (2) **cell
+    style setters mutate the shared/deduplicated style object in place**, bleeding alignment/numFmt/
+    protection into style-sharing siblings — extends the fill/font/border copy-on-write family to the
+    remaining facets via parametric `loadMutateCellFacet`
+    (`cell-style-setter-isolates-alignment-numfmt-protection`); (3) the **streaming reader loses the
+    tail of a many-sheet workbook** — at ~180 sheets a worksheet part is parsed before the workbook
+    model is built and the reader throws `this.model.sheets` undefined; a 3-sheet workbook streams
+    clean (`streaming-read-emits-all-worksheets-at-scale`, new `streamReadManySheets` reads from a
+    scratch file — only the file-path input reproduces it, `Readable.from(buffer)` crashes even at 5
+    sheets); (4) the **streaming reader drops the hidden flag on columns** (and rows), reporting all
+    visible — column companion to the existing row case (`streaming-reader-preserves-hidden-column`,
+    new `streamVsEagerColumnHidden`); (5) the **quotePrefix cell-format flag** (force literal text) is
+    neither written nor preserved (`quote-prefix-cell-flag-roundtrip`, new `quotePrefixReport`). Spec
+    notes: `worksheet-paper-size-type-and-custom-dimensions` (new — paperSize type omits A3/other OOXML
+    codes + custom paperWidth/paperHeight, folds two records); `data-validation-scope-on-row-insert`
+    (new — separates the app's UI-side inheritance from the library's own sqref-shift policy);
+    `cell-value-raw-and-displayed-accessor` (new — unified raw/displayed accessor + kind inspection);
+    `image-embedded-in-cell-vs-floating-anchor` augmented with a query-images-by-anchor-cell bullet.
+    Not-carried (5): import-a-subset/package-too-large (ESM tree-shaking + minimal dep tree already the
+    stance); unfilled `[BUG] XYZ` template (trivial A1=7 round-trip); `update-dependency-version` and a
+    transitive `async` 3.2.5→3.2.6 bump (fork sheds the legacy dep tree); a style-cache uninitialized
+    defensive patch (code-internal guard on a deleted file; style-part-absent robustness already
+    locked). Corpus **400 green / 210 known-open / 0 regressions**; 228 cases + 136 specs.
+  - ⏳ **Next: continue the unlabeled bulk** (58 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -928,12 +958,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **721/794 (91%)**; **all labeled clusters + forty-two unlabeled slices are drained; the
-attachment-bearing queue is exhausted and the fixture-less bulk drain is underway** (73 remaining,
-~5 slices to empty). The full pipeline is proven: parallel triage workflow → serial materialization →
-green corpus (392 green / 198 known-open / 0 regressions). CI corpus check is committed
+Drain at **736/794 (93%)**; **all labeled clusters + forty-three unlabeled slices are drained; the
+attachment-bearing queue is exhausted and the fixture-less bulk drain is underway** (58 remaining,
+~4 slices to empty). The full pipeline is proven: parallel triage workflow → serial materialization →
+green corpus (400 green / 210 known-open / 0 regressions). CI corpus check is committed
 (`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Continue the unlabeled bulk** (88 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (58 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
