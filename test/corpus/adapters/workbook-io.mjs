@@ -4885,6 +4885,79 @@ export async function worksheetStateReport() {
   return {readStates, xmlStates};
 }
 
+// Write a worksheet carrying merged ranges to a temp file, read it back through BOTH the streaming
+// reader and the buffered reader, and report the merge ranges each surfaces. The buffered reader
+// exposes merges from the worksheet model; the streaming reader must surface the same set so a
+// low-memory consumer can recover merge geometry without buffering the whole file →
+// { eagerMerges, streamedMerges }. (Streaming reader needs a real file path, not a Readable.)
+export async function streamReadMergesReport() {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 'm';
+  ws.mergeCells('A1:B2');
+  ws.getCell('D1').value = 'n';
+  ws.mergeCells('D1:D3');
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const eager = new ExcelJS.Workbook();
+  await eager.xlsx.load(buffer);
+  const eagerMerges = [...((eager.getWorksheet('S').model || {}).merges || [])].sort();
+
+  const file = tmpFile('merges');
+  fs.writeFileSync(file, buffer);
+  let streamedMerges = null;
+  let error = null;
+  try {
+    const reader = new ExcelJS.stream.xlsx.WorkbookReader(file, {});
+    for await (const sheet of reader) {
+      for await (const row of sheet) void row;
+      const merges = sheet.merges || (sheet.model && sheet.model.merges) || null;
+      // Normalize whatever shape the reader exposes (array of range strings, or a map) to a sorted
+      // list of range strings so the assertion compares geometry, not container shape.
+      if (Array.isArray(merges)) streamedMerges = [...merges].sort();
+      else if (merges && typeof merges === 'object') streamedMerges = Object.keys(merges).sort();
+      else streamedMerges = merges;
+    }
+  } catch (e) {
+    error = String((e && e.message) || e);
+  } finally {
+    try {
+      fs.unlinkSync(file);
+    } catch {}
+  }
+  return {eagerMerges, streamedMerges, error};
+}
+
+// Author a pivot table over source data containing XML-special characters (& < > " ') and a
+// null/missing field value, write, and report whether the emitted pivotCacheDefinition XML is
+// well-formed and free of raw unescaped ampersands. Shared-item string values must be entity-escaped
+// or the cache is invalid XML Excel refuses → { ok, writeError, cacheWellFormed, hasRawUnescapedAmp }.
+export async function pivotCacheSpecialCharsReport() {
+  try {
+    const wb = new ExcelJS.Workbook();
+    const src = wb.addWorksheet('Data');
+    src.addRow(['Name', 'Region', 'Amount']);
+    src.addRow(['Smith & Co', '<West>', 10]);
+    src.addRow([null, 'East', 20]);
+    src.addRow(["It's \"best\"", 'West', 30]);
+    const dst = wb.addWorksheet('Pivot');
+    dst.addPivotTable({sourceSheet: src, rows: ['Name'], columns: ['Region'], values: ['Amount'], metric: 'sum'});
+    const buffer = await wb.xlsx.writeBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+    const cacheKey = Object.keys(zip.files).find(n => /pivotCacheDefinition\d*\.xml$/.test(n));
+    const cacheXml = cacheKey ? await zip.file(cacheKey).async('string') : '';
+    return {
+      ok: true,
+      writeError: null,
+      cacheWellFormed: cacheXml ? xmlWellFormed(cacheXml) : false,
+      // A raw `&` not part of an entity (&amp; &lt; &gt; &quot; &apos; &#n;) is the escaping bug.
+      hasRawUnescapedAmp: /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/.test(cacheXml),
+    };
+  } catch (e) {
+    return {ok: false, writeError: String((e && e.message) || e), cacheWellFormed: null, hasRawUnescapedAmp: null};
+  }
+}
+
 // Build a table whose column definitions carry the given names (which may collide), write, and
 // report the ordered tableColumn names actually emitted plus whether the written package reloads.
 // OOXML requires every tableColumn name to be unique within a table; colliding names produce a file

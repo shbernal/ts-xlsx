@@ -202,6 +202,8 @@ implementation is shaped. Current vocabulary:
 | `worksheetStateReport()` | Add visible/hidden/veryHidden worksheets, write, reload → `{readStates, xmlStates}` — for asserting worksheet visibility survives a write and `veryHidden` does not degrade to `hidden` or `visible`. |
 | `tableDuplicateColumnNamesReport(names?)` | Build a table whose column definitions carry (possibly colliding) names, write, reload → `{writtenNames, uniqueNames, reloadOk, reloadError}` — for asserting duplicate table column names are disambiguated to a unique set rather than emitted verbatim into a corrupt package. |
 | `dateNumFmtValueReport(kind?)` | Put a single cell with a date number format over a value of kind `invalidDate`/`string`/`null`, write → `{hasNaN, hasInvalidDate, reloadOk, cellXml}` — for asserting a non-numeric value under a date numFmt never serializes `NaN`/`Invalid Date` into the sheet XML. |
+| `streamReadMergesReport()` | Write a worksheet with merged ranges, read it back through the streaming and buffered readers → `{eagerMerges, streamedMerges, error}` — for asserting the streaming reader surfaces the same merge geometry as the buffered reader rather than dropping it. |
+| `pivotCacheSpecialCharsReport()` | Author a pivot table over source data with `&<>"'` and a null field value, write → `{ok, writeError, cacheWellFormed, hasRawUnescapedAmp}` — for asserting pivot-cache shared-item strings are entity-escaped into well-formed XML. |
 
 `inspectPackage`'s per-sheet fact also carries `elementOrder` (raw positions of `drawing` /
 `legacyDrawing` / `tableParts` plus the `legacyBeforeTableParts` etc. adjacency invariants) so a

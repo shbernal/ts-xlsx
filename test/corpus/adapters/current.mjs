@@ -151,6 +151,8 @@ import {
   worksheetStateReport,
   tableDuplicateColumnNamesReport,
   dateNumFmtValueReport,
+  streamReadMergesReport,
+  pivotCacheSpecialCharsReport,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -887,4 +889,16 @@ export default {
   // { ok, hasNaN, hasInvalidDate, reloadOk, cellXml }. A non-numeric value under a date numFmt must
   // never serialize a bogus NaN serial that Excel repairs. See workbook-io.mjs.
   dateNumFmtValueReport,
+
+  // Write a worksheet with merged ranges, read it back through the streaming AND buffered readers,
+  // and report the merges each surfaces → { eagerMerges, streamedMerges, error }. The streaming
+  // reader must surface the same merge geometry as the buffered reader so a low-memory consumer can
+  // recover it without buffering the whole file. See workbook-io.mjs.
+  streamReadMergesReport,
+
+  // Author a pivot table over source data with XML-special characters + a null field value, write,
+  // and report whether the pivotCacheDefinition XML is well-formed and free of raw unescaped
+  // ampersands → { ok, writeError, cacheWellFormed, hasRawUnescapedAmp }. Shared-item string values
+  // must be entity-escaped or the cache is invalid XML. See workbook-io.mjs.
+  pivotCacheSpecialCharsReport,
 };
