@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + forty-three unlabeled slices; 736/794 = 93%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + forty-four unlabeled slices; 751/794 = 95%; fixture-less bulk drain underway)._
 
 ---
 
@@ -904,7 +904,39 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     transitive `async` 3.2.5→3.2.6 bump (fork sheds the legacy dep tree); a style-cache uninitialized
     defensive patch (code-internal guard on a deleted file; style-part-absent robustness already
     locked). Corpus **400 green / 210 known-open / 0 regressions**; 228 cases + 136 specs.
-  - ⏳ **Next: continue the unlabeled bulk** (58 remaining, all fixture-less) in ~15-record
+  - **Forty-fourth slice — fixture-less bulk, oldest-15 of the tail — drained** (751/794, 95%).
+    3 new corpus cases + 4 new spec notes + 8 not-carried (5 of them folds into existing
+    artifacts). Two new adapter capabilities. Fold pressure now dominates: 3 of the 5 triaged
+    "corpus_case" candidates were already locked and became not-carried after the mandatory
+    check-existing-first sweep. Real bugs (baseline fail): (1) **named-style (cellStyleXfs) fill
+    dropped** — a cell whose fill lives only in the named-style layer (a `cellXfs` `xfId` into
+    `cellStyleXfs`) reads back with `pattern:'none'` and the whole non-default `cellStyleXfs` layer
+    collapses to count=1 on write, so formatting supplied through named cell styles is lost on both
+    read and save (`cellstylexfs-named-style-fill-roundtrip`, new `namedStyleFillReport`; crafted
+    fixture where A1's yellow lives only in `cellStyleXfs[1]` via `xfId=1`); (2) **empty comment-rel
+    Target crashes the read** — a worksheet comments relationship with `Target=""` throws
+    `TypeError …reading 'comments'` during reconcile, a *distinct* path from the already-locked
+    missing-VML-drawing case (`worksheet-comment-rel-empty-target-tolerated`, reuses
+    `readFixtureReport`; crafted fixture). Regression lock (baseline pass): (3) a **list validation
+    with a cross-sheet source range applied per-cell down many rows does NOT drift** — every cell
+    keeps `Lookup!A1:A5` verbatim and the identical rules collapse to a single `sqref`; the reported
+    "shrinking dropdown" is a desktop-app relative-reference effect, not ours
+    (`list-validation-source-range-stable-across-rows`, new `listValidationSourceRangeAcrossRows`).
+    Spec notes: `worksheet-default-cell-protection-unlock` (express unlocked-by-default in the
+    default cell format so unlocking N cells costs zero per-cell deviations);
+    `native-iteration-protocol` (`Symbol.iterator`/`asyncIterator` on collections; sparse-vs-dense
+    stays explicit because `[Symbol.iterator]` takes no options); `streaming-csv-row-reader`
+    (bounded-memory async-iterable CSV read, the counterpart to the existing CSV write stream);
+    `style-dedup-value-based-and-cell-add-style` (value-based dedup as the single default —
+    identity caching measured ~5× slower than none — collision-free key as a correctness invariant,
+    plus merge-style-onto-cell respecting inheritance). Not-carried folds: image rotation on export
+    (already in `image-anchor-authoring-rotation-extent-offset`); streaming writer embeds images
+    (already `streaming-writer-image-parity` + `streaming-write-add-image`); boolean font `val="0"`
+    (already `font-boolean-flag-honors-explicit-false`). Not-carried noise: Android WeChat addImage
+    (third-party runtime, reporter's own scaling math a no-op); iOS Safari download UX (browser Blob
+    plumbing); unzipper dup bump + two CI-matrix records (upstream toolchain the fork replaces).
+    Corpus **404 green / 215 known-open / 0 regressions**; 231 cases + 140 specs.
+  - ⏳ **Next: continue the unlabeled bulk** (43 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -958,12 +990,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **736/794 (93%)**; **all labeled clusters + forty-three unlabeled slices are drained; the
-attachment-bearing queue is exhausted and the fixture-less bulk drain is underway** (58 remaining,
-~4 slices to empty). The full pipeline is proven: parallel triage workflow → serial materialization →
-green corpus (400 green / 210 known-open / 0 regressions). CI corpus check is committed
+Drain at **751/794 (95%)**; **all labeled clusters + forty-four unlabeled slices are drained; the
+attachment-bearing queue is exhausted and the fixture-less bulk drain is underway** (43 remaining,
+~3 slices to empty). The full pipeline is proven: parallel triage workflow → serial materialization →
+green corpus (404 green / 215 known-open / 0 regressions). CI corpus check is committed
 (`.github/workflows/corpus.yml`). Next slices, in order:
-1. **Continue the unlabeled bulk** (58 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (43 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
