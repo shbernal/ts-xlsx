@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + thirty-seven unlabeled slices; 646/794 = 81%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + thirty-eight unlabeled slices; 661/794 = 83%; fixture-less bulk drain underway)._
 
 ---
 
@@ -731,7 +731,33 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     dropped (→ preserve-drawing-shapes-on-roundtrip), and two dependency reports
     (→ minimal-audit-clean-dependency-tree). Corpus **360 green / 173 known-open / 0 regressions**;
     204 corpus cases + 127 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (148 remaining, all fixture-less) in ~15-record
+  - **Thirty-eighth slice — fixture-less bulk, top-15 by signal — drained** (661/794, 83%).
+    4 new corpus cases + 3 new spec notes + 2 fold-augments + 6 not-carried. This slice broke the
+    late-drain fold pattern: probing four triage "corpus_case" calls against the real reader/writer
+    confirmed all four as genuine, reproducing bugs (no reframes needed) — (1) an alignment element
+    carrying only an explicit-false boolean (`wrapText="0"`/`shrinkToFit="0"`) reads back as an
+    `{ wrapText:false }` object instead of no alignment, because the raw `"0"` attribute string is
+    truthy in JS; (2) `getWorksheet` matches case-sensitively while `addWorksheet` rejects duplicates
+    case-insensitively, so a name reported absent by lookup throws on add; (3) an in-workbook
+    `#Sheet2!A1` hyperlink is written as an *external*-mode relationship AND a `location`, doubling
+    the target (`#Sheet2!A1##Sheet2!A1`) in strict consumers — an assertable, serialized upgrade of
+    the `internal-hyperlink-target-portability` spec (whose defect was cross-app navigation the corpus
+    couldn't exercise); (4) a comments part at a non-canonical OPC path (reachable only via the rels)
+    crashes reconcile on `undefined.comments` because parts are located by filename glob, not
+    relationship type. Four new adapter capabilities added. New spec notes: defined names may hold
+    arbitrary formulas (INDEX/MATCH), not only ranges, wired to data-validation list sources; pivot
+    page fields (report filters, `axisPage` + `<pageFields>`); the library's streams must honor the
+    Node pipe contract (`pipe` returns the destination — `StreamBuf.pipe` returns `undefined`,
+    breaking `.pipe(dest).on('finish')` and `stream.pipeline`). Fold-augments: extended-CF copy path
+    drops x14 just like a raw round-trip; large-write XML-fragment accumulation (3 array entries per
+    cell) hits a hard array-size ceiling — must flush incrementally. Not-carried: JSZip-not-a-
+    constructor (bundler/ESM dep-resolution env issue, and JSZip is being replaced), streaming
+    addTable (already in the streaming-table spec), a vague .NET-SDK-interop meta-report (no concrete
+    construct; dups foreign-generator corpus), a "wrong defaults" fix with no diff/repro/detail in the
+    record, a foreign-file streaming regression the record says already reads on master (no fixture),
+    and streaming multibyte-UTF-8 chunk-boundary (already locked by an existing corpus case). Corpus
+    **362 green / 180 known-open / 0 regressions**; 208 corpus cases + 130 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (133 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -785,12 +811,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **646/794 (81%)**; **all labeled clusters + thirty-seven unlabeled slices are drained; the
+Drain at **661/794 (83%)**; **all labeled clusters + thirty-eight unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (360 green / 173
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (362 green / 180
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (148 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (133 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
