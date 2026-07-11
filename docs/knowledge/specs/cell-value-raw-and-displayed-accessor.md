@@ -20,6 +20,15 @@ value (the underlying scalar, formula result unwrapped, hyperlink text extracted
 
 Offer two distinct, clearly-named accessors so a caller never has to destructure the union by hand:
 
+- **numFmt preserved and exposed on read is the precondition.** A cell's number-format code must be
+  faithfully preserved and exposed alongside its raw stored value on read, independent of any display
+  rendering — a consumer who opens a file where a cell stores a number under a format that renders it
+  as `"8"` (rounded/scaled) must be able to see *both* the raw value and the numFmt that says how it is
+  meant to display. Returning the raw value is correct and lossless by default; the recurring surprise
+  ("the format was not applied to the output") is resolved not by changing the raw value but by making
+  the numFmt visible and offering the displayed accessor below. Faithful numFmt round-trip is the hard
+  invariant; rendering formatted text is the optional layer on top.
+
 - **Raw value.** The underlying scalar, with wrapper objects unwrapped: a formula cell yields its
   cached `result`, a hyperlink cell yields its display text (or a structured `{text, target}` if the
   caller wants the link), rich text collapses to its concatenated plain text, a date stays a `Date`, a
