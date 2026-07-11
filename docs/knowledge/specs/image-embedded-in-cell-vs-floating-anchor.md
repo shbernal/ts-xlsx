@@ -60,6 +60,22 @@ Distinguish the two ways an image can live in a sheet, and let callers choose:
   the floating images out of a file?" is answered by that enumeration surface, and it must work for
   foreign-authored files, not only ones this library wrote.
 
+- **Images should be queryable by the cell/row they are anchored to, not only enumerable as a flat
+  list.** A recurring real-world task — building a JSON export from a product-catalog sheet where each
+  row carries a thumbnail — is "given this row (or cell), which picture belongs to it?". Today a caller
+  can enumerate every image with its anchor extent but must hand-roll the anchor→cell matching. The
+  reading API should offer an ergonomic lookup: given a worksheet and a row or cell, return the
+  image(s) anchored there, each with its media payload (bytes + content type/extension) and anchor
+  metadata (from/to cells, anchor kind, offsets). The load-bearing decision is what "belongs to" a
+  cell means for a two-cell (movable/resizable) anchor spanning a range: match only the top-left
+  anchor cell, or any overlapped cell? Absolute (grid-independent) anchors have no owning cell, so a
+  per-cell query must define how they surface (excluded, or returned only by a whole-sheet
+  enumeration). Multiple images may overlap the same cell, so the lookup returns a collection. The
+  anchor extents themselves are already an inspectable fact (see
+  `worksheet-images-enumerated-across-anchor-variants`); the gap is the keyed query surface, not new
+  parsing — a helper such as `worksheet.imagesAnchoredAt(row, col)` or a caller-built index over the
+  enumeration.
+
 Prior art: classic implementations support only floating drawing anchors (one-cell "over" a cell or
 two-cell "over" a range) with the `editAs` flag. Helpers that "add an image over a range" still produce
 a floating two-cell overlay — not a true cell-embedded rich value. Genuine in-cell images require the
