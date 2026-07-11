@@ -138,6 +138,10 @@ import {
   fontExplicitOffFlagsReport,
   trailingMergedRowIterationReport,
   addImageToLoadedWorksheetReport,
+  loadMutateCellFacet,
+  streamReadManySheets,
+  streamVsEagerColumnHidden,
+  quotePrefixReport,
 } from './workbook-io.mjs';
 
 const require = createRequire(import.meta.url);
@@ -797,4 +801,26 @@ export default {
   // output package → { hasMedia, hasDrawing, reloadImageCount } — for locking that addImage on a
   // loaded (not freshly-created) worksheet persists the image. See workbook-io.mjs.
   addImageToLoadedWorksheetReport,
+
+  // Load a workbook whose two cells shared one style record, set ONE style facet (alignment | numFmt |
+  // protection) on one cell via its setter, and report whether the change bled into the style-sharing
+  // sibling in memory and on disk → { facet, target, sibling, original, bled, diskSibling, diskBled }.
+  // Extends the fill/font/border copy-on-write family to the remaining facets. See workbook-io.mjs.
+  loadMutateCellFacet,
+
+  // Write a workbook with `count` worksheets and stream-read it from disk, reporting how many the
+  // stream emitted → { written, emitted, error, first, last } — the streaming reader must emit every
+  // worksheet regardless of sheet count, not lose the tail at scale. See workbook-io.mjs.
+  streamReadManySheets,
+
+  // Write a workbook with a hidden column and read it eagerly and via the streaming reader, reporting
+  // each path's per-column hidden flags → { eager, stream, error } — the streaming reader must surface
+  // a column's hidden flag, agreeing with the eager oracle. Column companion to the row case. See
+  // workbook-io.mjs.
+  streamVsEagerColumnHidden,
+
+  // Request the quote-prefix cell-format flag, write, and report whether the produced xf carries the
+  // quotePrefix attribute and whether a round-trip preserves it → { writtenQuotePrefix, anyQuotePrefix,
+  // reloaded }. quotePrefix forces a cell's content to literal text. See workbook-io.mjs.
+  quotePrefixReport,
 };

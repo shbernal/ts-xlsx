@@ -36,10 +36,19 @@ import {fileURLToPath} from 'node:url';
 import {Readable, PassThrough, Duplex} from 'node:stream';
 import vm from 'node:vm';
 import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
 
 const require = createRequire(import.meta.url);
 const ExcelJS = require('../../../lib/exceljs.nodejs.js');
 const JSZip = require('jszip');
+
+// The streaming reader consumes a file path — its buffered-read path orders zip entries differently
+// from a raw stream, and only the file path faithfully reproduces "a user opened a .xlsx on disk".
+// Cases that stream-read a workbook we just wrote need a scratch file; this hands out a unique name
+// and each capability unlinks it in a finally.
+let __tmpCounter = 0;
+const tmpFile = tag => path.join(os.tmpdir(), `corpus-${tag}-${process.pid}-${__tmpCounter++}.xlsx`);
 
 // A 1×1 transparent PNG — the smallest valid image, so image-anchor cases can place a
 // picture without shipping an image fixture. Anchor geometry is independent of pixels.
@@ -4489,4 +4498,156 @@ export async function addImageToLoadedWorksheetReport(range = 'B2:C4') {
     hasDrawing: files.some(f => /xl\/drawings\/drawing/.test(f)),
     reloadImageCount: images.length,
   };
+}
+
+// Load a workbook whose two cells shared one style record on disk (identical formatting dedups to a
+// single xf index), then set ONE style facet on the first cell via its setter and report whether the
+// change bled into the style-sharing sibling — both in memory and after write-back → { facet, target,
+// sibling, original, bled, diskSibling, diskBled }. `facet` selects alignment | numFmt | protection,
+// the facets the fill/font/border isolation cases don't already cover. Copy-on-write is the correct
+// behavior: mutating one cell's style must isolate that cell, never edit the aliased shared record.
+export async function loadMutateCellFacet(facet = 'alignment') {
+  const readFacet = {
+    alignment: c => (c.alignment && c.alignment.horizontal) || null,
+    numFmt: c => c.numFmt || null,
+    protection: c => (c.protection && typeof c.protection.locked === 'boolean' ? c.protection.locked : null),
+  }[facet];
+  const apply = {
+    alignment: c => {
+      c.alignment = {horizontal: 'center'};
+    },
+    numFmt: c => {
+      c.numFmt = '#,##0';
+    },
+    protection: c => {
+      c.protection = {locked: false};
+    },
+  }[facet];
+  if (!readFacet) throw new Error(`unknown style facet: ${facet}`);
+
+  const wb = new ExcelJS.Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'a';
+  s.getCell('B1').value = 'b';
+  const base = {numFmt: '0.00'}; // one identical non-default style → both cells dedup to one xf index
+  s.getCell('A1').style = base;
+  s.getCell('B1').style = base;
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(buffer);
+  const s2 = wb2.getWorksheet('S');
+  const original = readFacet(s2.getCell('B1'));
+  apply(s2.getCell('A1'));
+  const target = readFacet(s2.getCell('A1'));
+  const sibling = readFacet(s2.getCell('B1'));
+
+  const rewrite = await wb2.xlsx.writeBuffer();
+  const wb3 = new ExcelJS.Workbook();
+  await wb3.xlsx.load(rewrite);
+  const diskSibling = readFacet(wb3.getWorksheet('S').getCell('B1'));
+
+  return {facet, target, sibling, original, bled: sibling !== original, diskSibling, diskBled: diskSibling !== original};
+}
+
+// Write a workbook with `count` worksheets, then read it back through the STREAMING reader from a
+// file on disk (the way a user opens a many-sheet file) and report how many worksheets the stream
+// actually emitted → { written, emitted, error, first, last }. The streaming reader must emit every
+// worksheet exactly once regardless of sheet count; at large counts the reader has parsed a
+// worksheet part before the workbook model is built and halts/throws, so a big workbook silently
+// loses its tail. A throw is captured as data (never crashes the corpus run).
+export async function streamReadManySheets(count = 180) {
+  const wb = new ExcelJS.Workbook();
+  for (let i = 0; i < count; i++) wb.addWorksheet(`Sheet${i + 1}`).getCell('A1').value = i;
+  const buffer = await wb.xlsx.writeBuffer();
+  const file = tmpFile('many');
+  fs.writeFileSync(file, buffer);
+  const names = [];
+  let error = null;
+  try {
+    const reader = new ExcelJS.stream.xlsx.WorkbookReader(file, {});
+    for await (const ws of reader) names.push(ws.name);
+  } catch (e) {
+    error = String((e && e.message) || e);
+  } finally {
+    try {
+      fs.unlinkSync(file);
+    } catch {}
+  }
+  return {written: count, emitted: names.length, error, first: names[0] ?? null, last: names[names.length - 1] ?? null};
+}
+
+// Write a workbook with a hidden column (and visible neighbors), read it both eagerly and through the
+// STREAMING reader from disk, and report each path's per-column hidden flags → { eager, stream, error }.
+// The streaming reader parses <col> definitions but historically dropped the `hidden` attribute, so a
+// streamed worksheet reported every column visible while the eager read (the oracle) saw the hidden
+// one. Companion to streamVsEagerRowHidden, which locks the row facet.
+export async function streamVsEagerColumnHidden() {
+  const wb = new ExcelJS.Workbook();
+  const s = wb.addWorksheet('S');
+  s.getColumn(2).hidden = true;
+  s.getCell('A1').value = 'a';
+  s.getCell('B1').value = 'b';
+  s.getCell('C1').value = 'c';
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const eagerWb = new ExcelJS.Workbook();
+  await eagerWb.xlsx.load(buffer);
+  const es = eagerWb.getWorksheet('S');
+  const eager = {col1: !!es.getColumn(1).hidden, col2: !!es.getColumn(2).hidden, col3: !!es.getColumn(3).hidden};
+
+  const file = tmpFile('hidcol');
+  fs.writeFileSync(file, buffer);
+  const stream = {};
+  let error = null;
+  try {
+    const reader = new ExcelJS.stream.xlsx.WorkbookReader(file, {});
+    for await (const ws of reader) {
+      for await (const _row of ws) {
+      }
+      stream.col1 = !!ws.getColumn(1).hidden;
+      stream.col2 = !!ws.getColumn(2).hidden;
+      stream.col3 = !!ws.getColumn(3).hidden;
+      break;
+    }
+  } catch (e) {
+    error = String((e && e.message) || e);
+  } finally {
+    try {
+      fs.unlinkSync(file);
+    } catch {}
+  }
+  return {eager, stream, error};
+}
+
+// Request the "quote prefix" cell-format flag (store the value as literal text; show a leading
+// apostrophe in the formula bar without it being part of the value) via the idiomatic style path,
+// write, and report whether the produced xf carries the quotePrefix attribute and whether a
+// read/modify/write round-trip preserves it → { writtenQuotePrefix, anyQuotePrefix, reloaded }. The
+// flag is a real OOXML xf boolean; a cell whose content begins with a formula-like character can be
+// forced to literal text by it. Legacy neither emits nor preserves it.
+export async function quotePrefixReport() {
+  const wb = new ExcelJS.Workbook();
+  const s = wb.addWorksheet('S');
+  const c = s.getCell('A1');
+  c.value = '=SUM(1,2)';
+  c.style = {...c.style, quotePrefix: true};
+  const buffer = await wb.xlsx.writeBuffer();
+
+  const zip = await JSZip.loadAsync(buffer);
+  const styles = (await zip.file('xl/styles.xml').async('string')) || '';
+  const sheetXml = (await zip.file('xl/worksheets/sheet1.xml').async('string')) || '';
+  const sMatch = sheetXml.match(/<c\b[^>]*\br="A1"[^>]*\bs="(\d+)"/);
+  const xfIndex = sMatch ? Number(sMatch[1]) : null;
+  const xfBlock = (styles.match(/<cellXfs\b[\s\S]*?<\/cellXfs>/) || [''])[0];
+  const xfs = xfBlock.match(/<xf\b[^>]*?(?:\/>|>[\s\S]*?<\/xf>)/g) || [];
+  const targetXf = xfIndex != null ? xfs[xfIndex] : null;
+  const writtenQuotePrefix = targetXf ? /quotePrefix="(?:1|true)"/.test(targetXf) : false;
+
+  const wb2 = new ExcelJS.Workbook();
+  await wb2.xlsx.load(buffer);
+  const rc = wb2.getWorksheet('S').getCell('A1');
+  const reloaded = !!(rc.style && rc.style.quotePrefix);
+
+  return {writtenQuotePrefix, anyQuotePrefix: /quotePrefix/.test(styles), reloaded};
 }
