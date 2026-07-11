@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-11 (labeled clusters + thirty-eight unlabeled slices; 661/794 = 83%; fixture-less bulk drain underway)._
+_Last updated: 2026-07-11 (labeled clusters + thirty-nine unlabeled slices; 676/794 = 85%; fixture-less bulk drain underway)._
 
 ---
 
@@ -757,7 +757,36 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
     record, a foreign-file streaming regression the record says already reads on master (no fixture),
     and streaming multibyte-UTF-8 chunk-boundary (already locked by an existing corpus case). Corpus
     **362 green / 180 known-open / 0 regressions**; 208 corpus cases + 130 spec notes.
-  - ⏳ **Next: continue the unlabeled bulk** (133 remaining, all fixture-less) in ~15-record
+  - **Thirty-ninth slice — fixture-less bulk, oldest-15 of the tail — drained** (676/794, 85%).
+    Signal has gone uniformly zero across the remaining tail, so ordering shifted to oldest-first.
+    2 new corpus cases + 1 new spec note + 1 umbrella-augment (3 records) + 9 not-carried — the fold
+    rate is now dominant. Probing reshaped triage heavily: of six "corpus_case" calls, only two held.
+    (1) The streaming writer exposes its own output stream (`writer.stream`, a public property), but
+    that stream's `pipe(dest)` returns `undefined` instead of the destination, breaking
+    `writer.stream.pipe(out).on('finish', …)` and `stream.pipeline` — a control confirms the bytes
+    still flow, isolating the defect to the return value. This is the assertable *upgrade* of last
+    slice's `stream-pipe-returns-destination` spec (a duplicate report surfaced here). (2) A table
+    declaring a *calculated column* (`<calculatedColumnFormula>` on the column definition, as Excel
+    emits) crashes the reader — it loses its place at the nested element, truncates the column list,
+    then dereferences a missing column during autoFilter reconciliation
+    (`…setting 'filterButton'`); fixture authored by injecting the element into a real table part.
+    New spec note: the image-anchor *authoring* surface should accept rotation/extent/offset (rotation
+    round-trips on read today but can't be *set* via `addImage`, so rebuilding a sheet through the
+    public API flattens placement). Umbrella-augment into `public-type-surface-matches-runtime`
+    (three type-only PRs): streaming worksheet-reader `id`/`name`/`state` (runtime populates all three
+    — confirmed a hidden sheet reports `state:'hidden'`); optional `WorkbookReader` options argument;
+    CSV read/write options types matching the documented shape. Not-carried (9): lint-only cleanup;
+    date1904-optional and Row.values type fixes (already fully captured by the formula-value and
+    sheet-values type specs); multibyte chunk-boundary (existing case); `outlineProperties`
+    summaryBelow (existing outline case already flags the type-surface gap); regenerator/CSP (existing
+    no-unsafe-eval spec); sheet-scoped whole-row defined name `'Sheet'!15:15` dropped (SAME over-strict
+    address validation already locked by `defined-name-full-row-column-span` — probe: `15:15` dropped,
+    `$A$15:$D$15` kept); Firefox `constructor` permission-denied (app/polyfill Xray, no isolable
+    library defect); and dataValidation list formula >255 chars — **does not reproduce**: no length
+    guard exists in current code (a 351-char inline list writes and round-trips cleanly), and the
+    long-list→defined-name workaround is already a case. Two new adapter capabilities. Corpus
+    **363 green / 183 known-open / 0 regressions**; 210 corpus cases + 131 spec notes.
+  - ⏳ **Next: continue the unlabeled bulk** (118 remaining, all fixture-less) in ~15-record
     slices, same triage-workflow → materialize loop. Ranking by comment/reaction signal; always
     check `docs/knowledge/specs/` + existing cases first — folds/dups now dominate a slice, so
     probe-then-fold is the default move. NB: size hostile-input/streaming repros realistically —
@@ -811,12 +840,12 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   the harvest reads upstream `exceljs/exceljs`, not the fork.
 
 ## 🔜 Immediate next action
-Drain at **661/794 (83%)**; **all labeled clusters + thirty-eight unlabeled slices are drained; the
+Drain at **676/794 (85%)**; **all labeled clusters + thirty-nine unlabeled slices are drained; the
 attachment-bearing queue is exhausted and the fixture-less bulk drain is underway**. The full
-pipeline is proven: parallel triage workflow → serial materialization → green corpus (362 green / 180
+pipeline is proven: parallel triage workflow → serial materialization → green corpus (363 green / 183
 known-open / 0 regressions). CI corpus check is committed (`.github/workflows/corpus.yml`). Next
 slices, in order:
-1. **Continue the unlabeled bulk** (133 remaining, all fixture-less) in ~15-record slices, same
+1. **Continue the unlabeled bulk** (118 remaining, all fixture-less) in ~15-record slices, same
    triage-workflow → materialize loop. Attachment prioritization no longer applies (none left);
    these records are design discussions, feature requests, and repro-less bug reports. Folds now
    dominate — a slice is increasingly probe-then-fold into an existing case/spec — so a corpus case
