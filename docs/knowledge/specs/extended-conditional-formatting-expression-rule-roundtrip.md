@@ -44,6 +44,12 @@ no formatting at all.
   scales with extension attributes) share this extension-block storage and need the same treatment?
 - How are the extension-block dxf records reconciled with the classic `dxfs` table on write —
   separate tables, or a merged one with namespace-aware emission?
+- The **copy path** loses the extension too: reading a sheet's conditional formattings and replaying
+  a rule onto another sheet (`newSheet.addConditionalFormatting(rule)`) drops the x14 extension,
+  because the read-side model exposes only the classic rule fields (`type`, `operator`, `formulae`,
+  …) and not the extended-namespace payload. Preserving x14 on a read→re-add→write copy needs the
+  same first-class (or pass-through) extension model — the copy is not a separate bug, it is the same
+  model gap surfacing through the authoring API rather than a raw round-trip.
 
 Related: `conditional-format-numfmt-roundtrip`, `conditional-formatting-duplicate-values-roundtrip`,
 `pivot-table-round-trip-preservation`, `foreign-file-read-modify-write-preserves-validity`.

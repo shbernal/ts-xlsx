@@ -27,3 +27,17 @@ Writing a large workbook must have a predictable, documented, and bounded memory
 - Should shared strings be supported at all in the streaming writer, given the inherent unbounded-cache tension, or only in the buffered writer? Consider a bounded/LRU dedup table as a middle ground.
 - What is the target peak-memory guarantee we are willing to assert (e.g. constant + O(columns) + O(bounded-string-window)) and can it be covered by a memory-ceiling test in CI rather than a corpus behavior case?
 - Repeated reads (readFile) were also reported to grow arrayBuffer memory monotonically across calls; confirm whether the reader retains buffers and whether that is the same root cause (retained references) or a separate leak worth its own investigation.
+
+## XML-fragment accumulation on very large writes
+
+A distinct symptom of the same underlying inefficiency: generating a workbook with a great deal of
+data fails outright with a JavaScript array/range error, not merely high RAM. The XML serializer
+accumulates the output as an array of fragments and pushes **three entries per cell** — open tag,
+data, close tag — so a wide, tall sheet inflates the intermediate array toward engine limits (max
+array length / string length) before it is ever flushed. Emitting each element as a single fragment
+(open+data+close combined) roughly thirds the entry count, and — more importantly for the rewrite —
+the serializer must **not build the whole document in one in-memory array at all**: it should stream
+fragments to the sink incrementally so the intermediate structure is bounded by the in-flight row
+window, never by the total cell count. The array-size failure is a hard ceiling that a bounded,
+incrementally-flushed writer never approaches. See `bounded-memory-large-workbook-read` for the read
+side and `streaming-writer-row-commit-backpressure` for the flush cadence.
