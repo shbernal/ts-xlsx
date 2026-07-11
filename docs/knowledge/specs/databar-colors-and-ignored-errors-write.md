@@ -28,6 +28,16 @@ Two write-side OOXML capabilities the library omits today:
   round-trip back onto the rule. The public type surface exposes them precisely. Model the **whole**
   data-bar color set now — `negativeBarColorSameAsPositive`, `axisColor`, border colors — to avoid a
   second breaking pass. (Ties to the databar round-trip case, whose `gradient` flag is a known-open.)
+- **The extended data-bar color children emit in schema order — negative FILL before negative
+  BORDER.** The richer color set lives in the `x14` data-bar extension (`<x14:dataBar>` under the
+  worksheet `extLst`), whose child sequence is schema-fixed. In particular `<x14:negativeFillColor>`
+  must be emitted **before** `<x14:negativeBorderColor>`; a writer that emits them in the reverse
+  order (or in caller-supplied order) produces a package that spreadsheet applications reject as
+  corrupt and refuse to open. The writer must order the extension's color children by the schema,
+  independent of the order in which the caller set the properties — the same fixed-child-order
+  discipline called out for `<ignoredErrors>` below and for the streaming writer's trailing elements.
+  (Today's legacy writer emits no `x14` data-bar extension at all, so the corruption is latent until
+  the negative-color authoring surface exists; it must land correctly-ordered by construction.)
 - **Targeted, opt-in ignored-errors.** A worksheet can carry an `<ignoredErrors>` block whose
   `<ignoredError>` entries name a range (sqref) and the error categories to ignore
   (`numberStoredAsText`, `evalError`, `formula*`, `emptyCellReference`, `listDataValidation`, …). The

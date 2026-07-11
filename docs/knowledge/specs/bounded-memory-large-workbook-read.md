@@ -27,6 +27,26 @@ The eager full-workbook read path allocates memory grossly disproportionate to i
   correctness locked by `stream-read-multibyte-utf8-chunk-boundary`). Because a faithful repro is
   hundreds of MB, this stays a spec/perf-harness requirement, never a corpus fixture (it would OOM
   or stall CI — the same rule as the whole-column-validation memory note).
+- A **single large-AREA defined name** is a distinct blow-up from the many-entries table above: one
+  name whose range spans a nearly-full-grid rectangle — e.g. an auto-filter `_xlnm._FilterDatabase`
+  over `Sheet1!$A$3:$XEJ$8752` (~16,000 columns × ~8,700 rows ≈ 140 million cells) — must be stored
+  and round-tripped as its corner bounds, NOT by enumerating every enclosed cell address. A code path
+  that materializes or iterates the cells inside such a range exhausts the heap (`Mark-Compact …
+  JavaScript heap out of memory`) even though the region is almost entirely empty and the name is
+  pure metadata. Peak memory for handling a defined name must track the populated data plus the count
+  of named ranges — independent of how many cells a range encloses. Because a faithful repro is a
+  140-million-cell expansion, this is a spec/perf-harness requirement, never a corpus fixture (it
+  would OOM CI), and it ties to `whole-column-data-validation-bounded-memory` and
+  `defined-name-scope-must-be-per-sheet`.
+- The **eager write-to-file path** mirrors the read blow-up: `writeFile`/`writeBuffer` serialize the
+  entire worksheet XML into one in-memory buffer before handing it to the zip layer, so peak memory
+  scales with total document size and a workbook of hundreds of thousands to millions of rows
+  exhausts the heap on write — even though the same data can be emitted incrementally. The convenience
+  write path must be able to stream rows into the zip entry with backpressure (await the
+  compression/output drain before pushing more) so a workbook of any size writes within a fixed memory
+  budget. The fork already has a dedicated streaming *sheet-writer* (see
+  `streaming-write-memory-and-shared-strings-tradeoff`); the gap is that the ordinary write-to-file
+  entry point should not require O(document size) peak memory to reach the same outcome.
 
 ### Open questions
 - What multiple-of-input-size is the target ceiling for the eager path, and should it be enforced/asserted in a perf regression harness (peak RSS or heapUsed under a fixed cap for a fixture of known size)?

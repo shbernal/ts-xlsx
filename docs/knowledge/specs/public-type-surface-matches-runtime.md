@@ -51,6 +51,25 @@ into `any` casts or module augmentation to use them. Two concrete instances from
    must accept the documented, runtime-honored shape without casts — the same generated-from-source
    discipline as the rest of the surface, applied to the CSV boundary.
 
+9. **`Row.dimensions` is a column-span range, not a number** — a row exposes an accessor
+   (historically spelled `dimensions`) describing the horizontal extent of its populated cells: the
+   first and last used column. At runtime it returns a range object — `{min, max}` with 1-based
+   column indices (confirmed: a row with values in columns 1..3 reports `{min: 1, max: 3}`) — but
+   the published type declared it as a bare `number`. Reading `.dimensions.min` / `.max` then fails
+   to type-check, so a caller computing a row's used range must cast. The type must be the
+   `{min, max}` (count derivable) shape the runtime returns, with a documented empty/absent value
+   for a row that holds no cells. (Distinct from the sheet-level "dimensions" bounding box, which is
+   a cell-range concept.)
+
+10. **Media `type` is a discriminated union, not an open `string`** — images and worksheet/workbook
+    background fills are attached as media entries, each carrying a `type` discriminator. At runtime
+    that field only ever takes a small closed set of kinds (an embedded picture versus a sheet
+    background), but the published type declared it as a bare `string`, erasing autocomplete,
+    exhaustiveness checking, and typo protection. The media entry must be a discriminated union keyed
+    on `type` so the compiler narrows the kind-specific fields (dimensions, anchor, the
+    buffer/base64/filename source, extension) once a consumer switches on the kind — the same
+    keyed-union discipline the data-validation descriptor uses in item 2's desired behavior.
+
 > Spec note, not a corpus case: the runtime behavior largely exists — the defect is a type-surface
 > completeness gap, pinned by type-level tests (`expectTypeOf`/tsd) plus a behavioral round-trip
 > assertion, not by a data-file corpus case. The durable value is the principle and the specific
