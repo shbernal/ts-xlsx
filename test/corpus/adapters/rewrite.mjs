@@ -19,6 +19,10 @@
 // partially-built writer never produces a false regression — it only runs the cases it
 // can faithfully serialize, and those must go green.
 
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+
 import {strFromU8, unzipSync} from 'fflate';
 
 import {decodeAddress, decodeRange} from '../../../src/core/address.ts';
@@ -26,6 +30,13 @@ import {Workbook} from '../../../src/core/workbook.ts';
 import {readXlsx} from '../../../src/io/xlsx/read.ts';
 import {writeXlsx} from '../../../src/io/xlsx/write.ts';
 import {packageFacts} from './ooxml-facts.mjs';
+
+// Durable sample inputs live under test/corpus/fixtures/<case-slug>/ — the SAME tree the
+// oracle adapter reads, so a fixture-backed case measures both implementations against one
+// real-world file. The rewrite reads them straight through readXlsx (a fixture is just a
+// foreign `.xlsx` buffer).
+const FIXTURES_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
+const readFixture = rel => readXlsx(fs.readFileSync(path.join(FIXTURES_ROOT, rel)));
 
 const notImplemented = message => {
   const err = new Error(`rewrite: ${message}`);
@@ -278,6 +289,86 @@ const impl = {
       indices[ref] = m ? Number(m[1]) : null;
     }
     return {cellXfCount, indices};
+  },
+
+  // Read a real fixture `.xlsx` and report the fill and font colour the reader surfaces for each
+  // requested `<sheet>!<address>` cell → { [key]: { fill, fontColor } | null }. Mirrors the oracle:
+  // a solid-pattern fill's visible colour lives on fgColor while bgColor is the automatic indexed
+  // placeholder, and the font colour is a wholly separate facet — the two are never conflated.
+  readFixtureCellStyles(rel, cells = []) {
+    const wb = readFixture(rel);
+    const out = {};
+    for (const key of cells) {
+      const [sheetName, addr] = key.split('!');
+      const sheet = wb.getWorksheet(sheetName);
+      const cell = sheet ? sheet.getCell(addr) : null;
+      out[key] = cell
+        ? {
+            fill: cell.fill && cell.fill.type ? JSON.parse(JSON.stringify(cell.fill)) : null,
+            fontColor: cell.font && cell.font.color ? JSON.parse(JSON.stringify(cell.font.color)) : null,
+          }
+        : null;
+    }
+    return out;
+  },
+
+  // Read a real fixture, write it straight back out, read the result, and report whether any
+  // cell's visible fill colour or border-edge colours changed across that no-op round-trip →
+  // { checked, fillMismatches, borderMismatches, fillSample, borderSample }. Theme+tint and
+  // indexed-palette references must survive verbatim so the sheet renders identically after a
+  // pure open-then-save. Colour comparison is key-order-insensitive.
+  roundtripFixtureColorFidelity(rel) {
+    const before = readFixture(rel);
+    const after = readXlsx(writeXlsx(before));
+
+    const realFill = cell => (cell.fill && cell.fill.type === 'pattern' && cell.fill.pattern !== 'none' ? cell.fill : null);
+    const borderColors = cell => {
+      if (!cell.border) return null;
+      const edges = {};
+      for (const edge of ['top', 'left', 'right', 'bottom']) {
+        if (cell.border[edge] && cell.border[edge].color) edges[edge] = cell.border[edge].color;
+      }
+      return Object.keys(edges).length ? edges : null;
+    };
+    const stableSort = v => {
+      if (Array.isArray(v)) return v.map(stableSort);
+      if (v && typeof v === 'object') {
+        const sorted = {};
+        for (const k of Object.keys(v).sort()) sorted[k] = stableSort(v[k]);
+        return sorted;
+      }
+      return v;
+    };
+    const norm = v => JSON.stringify(stableSort(v ?? null));
+
+    let checked = 0;
+    let fillMismatches = 0;
+    let borderMismatches = 0;
+    let fillSample = null;
+    let borderSample = null;
+    for (const sheet of before.worksheets) {
+      const other = after.getWorksheet(sheet.name);
+      for (const {cells} of sheet.rows()) {
+        for (const cell of cells) {
+          if (!realFill(cell) && !borderColors(cell)) continue;
+          checked += 1;
+          const oc = other ? other.getCell(cell.address) : null;
+          const bf = norm(realFill(cell));
+          const af = oc ? norm(realFill(oc)) : '(missing)';
+          if (bf !== af) {
+            fillMismatches += 1;
+            if (!fillSample) fillSample = {cell: `${sheet.name}!${cell.address}`, before: bf, after: af};
+          }
+          const bb = norm(borderColors(cell));
+          const ab = oc ? norm(borderColors(oc)) : '(missing)';
+          if (bb !== ab) {
+            borderMismatches += 1;
+            if (!borderSample) borderSample = {cell: `${sheet.name}!${cell.address}`, before: bb, after: ab};
+          }
+        }
+      }
+    }
+    return {checked, fillMismatches, borderMismatches, fillSample, borderSample};
   },
 
   // Give one column a right border and later columns only a width, then round-trip and report
