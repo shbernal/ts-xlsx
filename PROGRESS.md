@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 94 green / 0 regressions (styles now round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 106 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1156,8 +1156,22 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 94 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
-  544 skipped.** The **alignment slice** (86 → 94) round-trips a cell's alignment — horizontal/vertical
+- **Latest corpus vs rewrite: 106 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
+  532 skipped.** The **sheet-level protection slice** (94 → 106) is the first *capability family* past the
+  per-cell facet surface, and it lit three cases at once: `sheet.protect(password?, options?)` (on
+  `Worksheet`) stores a `SheetProtection` overlay, and the writer emits a self-closing `<sheetProtection>`
+  after `<sheetData>` (CT_Worksheet order). The option surface is stated in the **author's** terms — each
+  flag answers "may a user still do this while protected?" — and the writer INVERTS it to OOXML's
+  "forbidden" booleans (attr "1" locks, "0"/omission permits), writing only values that differ from each
+  attribute's per-attribute default (most editing ops default forbidden under protection; selecting cells
+  defaults permitted). A password derives an **OOXML-agile SHA-512 credential** (`src/core/protection.ts`,
+  the one module touching `node:crypto`): salt is `randomBytes(16)`, hashed `spinCount` (default 100000)
+  times with a little-endian uint32 counter — the plaintext is never retained, and two protects with one
+  password differ because the salt is real randomness. Whole-column/row unlock **bands** are realized by the
+  adapter stamping the flag onto the listed band cells (the same end-state a per-cell override yields;
+  native column-scope inheritance stays a separate family). This lit `cell-protection-locked-flag-and-sheet-protection`
+  (all 5), `sheet-protection-permits-requested-operations` (all 3), and the security case
+  `worksheet-password-protection-hashes-in-node` (all 4). The earlier **alignment slice** (86 → 94) round-trips a cell's alignment — horizontal/vertical
   placement, `textRotation`, `indent`, and the `wrapText`/`shrinkToFit` flags — through the shared style
   table: `Cell.alignment` (an `Alignment`, each cell owning its own so alignment never bleeds onto
   siblings) → because `<alignment>` is a *child of the xf* (not a shared sub-table like fills/fonts/borders),
@@ -1214,16 +1228,20 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   `collapsed` inference remains open. Legacy oracle unchanged: **424 green / 233 known-open / 0
   regressions** (an occasional flake in the *legacy* streaming-control `streamReadManySheets(3)` is a
   `lib/` temp-file/resource timing artefact — the rewrite adapter skips streaming, so it is unrelated to
-  the rewrite). Gates all green: `typecheck` clean, `test:src` **148/148** (+8 over the alignment slice:
-  protection interning as the second xf child + all-default→xf-0 + alignment+protection as two ordered xf
-  children + protection/facet independence + cell-protection round-trip of the meaningful flags +
-  default-locked→no-protection + foreign explicit-`locked="1"`→no-protection). The **protection** slice
-  completed the per-cell style-facet surface (fill, numFmt, font, border, alignment, protection). `locked`
-  defaults to TRUE in OOXML, so only an explicitly *unlocked* cell (`locked="0"`) carries information; the
-  reader never fabricates `{locked: true}` from a default or explicit-`locked="1"` cell. No new corpus
-  cases lit: the three protection corpus cases each gate on a further capability the cell facet alone
-  cannot supply — `authorCellProtection` (needs `<sheetProtection>` + column/row protection bands),
-  `loadMutateCellFacet` (copy-on-write aliasing), and password hashing — deferred to those families.
+  the rewrite). Gates all green: `typecheck` clean, `test:src` **158/158** (+10 over the sheet-protection
+  slice: 6 writer tests covering the `<sheetProtection>` element — omitted when unprotected, self-closing
+  `sheet="1"` after `<sheetData>`, agile credential attrs from a password, allow-flag→forbidden inversion
+  writing only non-defaults, default flags omitted, `unprotect()` clearing it — plus 4 `deriveCredential`
+  tests including an independent re-implementation of the OOXML-agile hash proving the digest is genuinely
+  derived from the reported salt, and real-randomness/custom-spin-count checks; +8 earlier over the alignment
+  slice: protection interning as the second xf child + all-default→xf-0 + alignment+protection as two ordered
+  xf children + protection/facet independence + cell-protection round-trip of the meaningful flags +
+  default-locked→no-protection + foreign explicit-`locked="1"`→no-protection). The per-cell **protection**
+  slice completed the per-cell style-facet surface (fill, numFmt, font, border, alignment, protection);
+  `locked` defaults to TRUE in OOXML, so only an explicitly *unlocked* cell (`locked="0"`) carries
+  information, and the reader never fabricates `{locked: true}` from a default or explicit-`locked="1"` cell.
+  The **sheet-level protection** slice then delivered `<sheetProtection>` + password hashing (see the metrics
+  narrative above), lighting the three protection cases the per-cell facet alone could not.
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
@@ -1281,11 +1299,15 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
    What remains for styles is not new *facets* but the cross-cutting *capability families* the deferred
    cases gate on — and these now recur across facets, so building each capability lights several cases at
    once:
-   - **Sheet-level protection** (`sheet.protect(password, options)` → `<sheetProtection>`, plus column/row
-     protection bands): required by `authorCellProtection`, which lights
-     `cell-protection-locked-flag-and-sheet-protection` (per-cell + column/row unlock; the per-cell
-     `<protection>` round-trip it needs is already done) and `sheet-protection-permits-requested-operations`.
-     Password hashing (`worksheet-password-protection-hashes-in-node`) is a further sub-slice.
+   - ✅ **Sheet-level protection** (`sheet.protect(password, options)` → `<sheetProtection>`, plus column/row
+     protection bands) — **DONE.** `authorCellProtection` + `worksheetPasswordProtectionReport` lit
+     `cell-protection-locked-flag-and-sheet-protection` (all 5), `sheet-protection-permits-requested-operations`
+     (all 3), and `worksheet-password-protection-hashes-in-node` (all 4). Author-facing allow-flags invert to
+     OOXML forbidden booleans; password → OOXML-agile SHA-512 credential via `src/core/protection.ts`
+     (`node:crypto`). Band unlock is currently adapter-expanded onto listed cells; native column-scope
+     inheritance of protection is folded into the column-scope family below. **Reading `<sheetProtection>`
+     back into the model is not yet done** (no case needs it — a read→re-write of a password-protected sheet
+     would today lose the credential we cannot re-derive; capture that when foreign-fixture reading lands).
    - **Copy-on-write style aliasing** (`loadMutateCellFacet`/`loadMutateCellStyle`/`loadMutateCellFont`):
      setting one loaded cell's facet must not bleed into a style-sharing sibling. Lights
      `cell-style-setter-isolates-alignment-numfmt-protection` (alignment+numFmt+protection together) and the
