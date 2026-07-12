@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 106 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 111 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`; **and copy-on-write style aliasing** — loaded cells that shared a style record expose independent facet objects, so a single-cell facet edit never bleeds into a sibling, hard-locked by `style-isolation.test.ts`); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1156,8 +1156,24 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 106 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
-  532 skipped.** The **sheet-level protection slice** (94 → 106) is the first *capability family* past the
+- **Latest corpus vs rewrite: 111 green / 3 known-open / 27 legacy known-opens resolved / 0 regressions /
+  516 skipped; test:src 163/163.** The **copy-on-write style-aliasing slice** (106 → 111) is the second
+  *capability family* past the per-cell facet surface, and it required **no source change** — the rewrite
+  already gets isolation by construction, and this slice proved it. On disk, identically-formatted cells
+  deduplicate to one shared style record, so a loaded workbook hands several cells the same style; legacy
+  then bled a single-cell facet edit into every sibling that shared the record. The rewrite cannot: each
+  `Cell` owns independent facet fields, every facet setter REPLACES the field (never edits in place), and
+  the facet types are `readonly` so a shared record is inert. Wiring five adapter methods
+  (`sharedBaseStyleFontMutation`, `loadMutateCellBorder`, `loadMutateCellStyle`, `loadMutateCellFont`,
+  `loadMutateCellFacet` — the rewrite has no `.style` aggregate, so a shared "base style" is decomposed
+  onto per-facet setters) resolved 11 legacy known-opens across `loaded-cells-shared-style-object-aliasing`,
+  `shared-base-style-font-mutation-isolated`, `cell-border-mutation-does-not-bleed-to-style-siblings`, and
+  `cell-style-setter-isolates-alignment-numfmt-protection` (all three facets: alignment, numFmt, protection).
+  Because those baselines are `fail` (the legacy bleed), a rewrite regression would silently drop them to
+  `○` known-open rather than `✗`, so the guarantee is **hard-locked in src** by a new
+  `src/io/xlsx/style-isolation.test.ts` (5 tests: fill/font/border/facet isolation through the real
+  write→read path, including the same-base-object aliasing trap and the facets-compose-not-replace case).
+  The **sheet-level protection slice** (94 → 106) is the first *capability family* past the
   per-cell facet surface, and it lit three cases at once: `sheet.protect(password?, options?)` (on
   `Worksheet`) stores a `SheetProtection` overlay, and the writer emits a self-closing `<sheetProtection>`
   after `<sheetData>` (CT_Worksheet order). The option surface is stated in the **author's** terms — each
@@ -1308,11 +1324,15 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
      inheritance of protection is folded into the column-scope family below. **Reading `<sheetProtection>`
      back into the model is not yet done** (no case needs it — a read→re-write of a password-protected sheet
      would today lose the credential we cannot re-derive; capture that when foreign-fixture reading lands).
-   - **Copy-on-write style aliasing** (`loadMutateCellFacet`/`loadMutateCellStyle`/`loadMutateCellFont`):
-     setting one loaded cell's facet must not bleed into a style-sharing sibling. Lights
-     `cell-style-setter-isolates-alignment-numfmt-protection` (alignment+numFmt+protection together) and the
-     font/border members of the same family (`shared-base-style-font-mutation-isolated`,
-     `cell-border-mutation-does-not-bleed-to-style-siblings`).
+   - ✅ **Copy-on-write style aliasing** (`loadMutateCellFacet`/`loadMutateCellStyle`/`loadMutateCellFont`/
+     `loadMutateCellBorder`/`sharedBaseStyleFontMutation`) — **DONE, no source change needed.** The rewrite
+     already isolates by construction (each cell owns independent facet fields, every setter REPLACES the
+     field, facet types are `readonly` so a shared record is inert), so wiring the five adapter methods
+     resolved 11 legacy known-opens across `loaded-cells-shared-style-object-aliasing`,
+     `shared-base-style-font-mutation-isolated`, `cell-border-mutation-does-not-bleed-to-style-siblings`, and
+     `cell-style-setter-isolates-alignment-numfmt-protection` (alignment+numFmt+protection). Because those
+     baselines are `fail`, a future regression would drop to `○` not `✗`, so the guarantee is hard-locked in
+     src by `src/io/xlsx/style-isolation.test.ts` (5 tests, real write→read path).
    - **Column-scope style inheritance** for facets beyond numFmt: the column-level behaviors of
      `alignment-does-not-leak-across-cells` and `column-border-style-scoped-to-declaring-column`.
    - **Foreign-fixture reading** capabilities (below) for `alignment-false-boolean-attrs-yield-no-alignment`
