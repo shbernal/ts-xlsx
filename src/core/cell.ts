@@ -22,6 +22,7 @@ export class Cell {
   #border: Border | undefined;
   #alignment: Alignment | undefined;
   #protection: Protection | undefined;
+  #note: string | undefined;
 
   constructor(row: number, col: number) {
     if (!Number.isInteger(row) || row < 1) {
@@ -141,5 +142,20 @@ export class Cell {
 
   set protection(protection: Protection | undefined) {
     this.#protection = protection;
+  }
+
+  /**
+   * The cell's note (comment) as plain text, or `undefined` when it carries none. A note is
+   * metadata anchored to the cell, independent of its value: a cell can hold a note while empty,
+   * and clearing the value leaves the note intact. Like the style facets, each cell owns its own
+   * note, so a note set on one cell never bleeds onto its siblings, and a structural edit that
+   * shifts the cell carries the note along to its new position.
+   */
+  get note(): string | undefined {
+    return this.#note;
+  }
+
+  set note(note: string | undefined) {
+    this.#note = note;
   }
 }

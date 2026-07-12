@@ -32,6 +32,7 @@ import type {
 import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {PageMargins, Worksheet} from '../../core/worksheet.ts';
+import {applyNotes, parseComments} from './comments.ts';
 import {localName, parseXml} from './xml-read.ts';
 
 export interface ReadXlsxOptions {
@@ -90,8 +91,72 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     const path = target === undefined ? undefined : resolveWorkbookPart(target);
     const sheetXml = path === undefined ? undefined : partText(path);
     if (sheetXml !== undefined) parseWorksheet(sheetXml, sheet, sharedStrings, xfStyles);
+    if (path !== undefined) {
+      const notes = readSheetNotes(path, partText);
+      if (notes !== undefined) applyNotes(sheet, notes);
+    }
   }
   return workbook;
+}
+
+// A sheet's notes live in a comments part reached through the sheet's own relationships: the sheet
+// declares a relationship of type `.../comments` whose target resolves (relative to the sheet's
+// directory) to the comments part. A sheet with no rels part or no such relationship simply has none.
+function readSheetNotes(
+  sheetPath: string,
+  partText: (path: string) => string | undefined
+): Map<string, string> | undefined {
+  const relsXml = partText(relsPathFor(sheetPath));
+  if (relsXml === undefined) return undefined;
+  const target = relationshipTargetByType(relsXml, 'comments');
+  if (target === undefined) return undefined;
+  const commentsXml = partText(resolveRelativePart(sheetPath, target));
+  if (commentsXml === undefined) return undefined;
+  return parseComments(commentsXml);
+}
+
+// The relationships for `dir/name.ext` live at `dir/_rels/name.ext.rels`.
+function relsPathFor(partPath: string): string {
+  const slash = partPath.lastIndexOf('/');
+  const dir = slash === -1 ? '' : partPath.slice(0, slash + 1);
+  const base = slash === -1 ? partPath : partPath.slice(slash + 1);
+  return `${dir}_rels/${base}.rels`;
+}
+
+// The Target of the first relationship whose Type ends with `/<suffix>` (local-name match, so a
+// namespaced or oddly-cased type still resolves), or undefined when none is declared.
+function relationshipTargetByType(xml: string, suffix: string): string | undefined {
+  let found: string | undefined;
+  parseXml(xml, {
+    onOpen(name, attrs) {
+      if (
+        found === undefined &&
+        localName(name) === 'Relationship' &&
+        attrs.Type !== undefined &&
+        attrs.Target !== undefined &&
+        attrs.Type.endsWith(`/${suffix}`)
+      ) {
+        found = attrs.Target;
+      }
+    },
+    onText() {},
+    onClose() {},
+  });
+  return found;
+}
+
+// Resolve a relationship target (relative to the referencing part's directory, or absolute from the
+// package root) into a package part path, collapsing `.`/`..` segments.
+function resolveRelativePart(basePart: string, target: string): string {
+  if (target.startsWith('/')) return target.slice(1);
+  const baseDir = basePart.slice(0, basePart.lastIndexOf('/') + 1);
+  const out: string[] = [];
+  for (const segment of `${baseDir}${target}`.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') out.pop();
+    else out.push(segment);
+  }
+  return out.join('/');
 }
 
 // A workbook relationship target is relative to the `xl/` directory (`worksheets/sheet1.xml`)

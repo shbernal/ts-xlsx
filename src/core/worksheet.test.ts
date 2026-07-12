@@ -291,3 +291,23 @@ test('a column-splice re-anchors a merged range lying to the right of the cut', 
   assert.ok([...sheet.merges].includes('E1:F1'), `expected E1:F1; got ${JSON.stringify([...sheet.merges])}`);
   assert.equal(sheet.getCell('G1').value, 'H', 'trailing data shifts left with the columns');
 });
+
+test('a cell note travels with its cell through a row splice', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A2').value = 'body';
+  sheet.getCell('A2').note = 'travels';
+  sheet.spliceRows(1, 0, ['header']);
+  assert.equal(sheet.getCell('A3').value, 'body');
+  assert.equal(sheet.getCell('A3').note, 'travels', 'the note follows its cell to the shifted position');
+  assert.equal(sheet.getCell('A2').note, undefined, 'the inserted row carries no note');
+});
+
+test('a cell note round-trips through model export and import', () => {
+  const src = new Worksheet('Src', 1);
+  src.getCell('B2').value = 'v';
+  src.getCell('B2').note = 'remember me';
+  const dst = new Worksheet('Dst', 2);
+  dst.model = src.model;
+  assert.equal(dst.getCell('B2').value, 'v');
+  assert.equal(dst.getCell('B2').note, 'remember me');
+});

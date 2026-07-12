@@ -863,6 +863,25 @@ const impl = {
     return {error, numFmt};
   },
 
+  // Attach a cell note and an outline level, insert a row above them, and round-trip through the real
+  // writer/reader → { dataShifted, noteFollowsRow, outlineFollowsRow }. Both the note and the outline
+  // level must follow their logical row through the insert and survive serialization.
+  rowInsertPreservesNoteAndOutline() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'r1';
+    ws.getCell('A2').value = 'r2';
+    ws.getCell('A2').note = 'mynote';
+    ws.getRow(2).outlineLevel = 1;
+    ws.insertRow(1, ['new']); // r1 -> row 2, r2 (noted, outlined) -> row 3
+    const s = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    return {
+      dataShifted: s.getCell('A2').value === 'r1' && s.getCell('A3').value === 'r2',
+      noteFollowsRow: !!s.getCell('A3').note,
+      outlineFollowsRow: s.getRow(3).outlineLevel === 1,
+    };
+  },
+
   tryWriteWorkbook(spec) {
     let workbook;
     try {

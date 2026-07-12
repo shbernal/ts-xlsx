@@ -123,6 +123,7 @@ export interface CellModel {
   border?: Border | undefined;
   alignment?: Alignment | undefined;
   protection?: Protection | undefined;
+  note?: string | undefined;
 }
 
 /**
@@ -167,6 +168,7 @@ function copyCellContent(source: Cell, target: Cell): void {
   target.border = source.border;
   target.alignment = source.alignment;
   target.protection = source.protection;
+  target.note = source.note;
 }
 
 export class Worksheet {
@@ -603,6 +605,7 @@ export class Worksheet {
           border: cell.border,
           alignment: cell.alignment,
           protection: cell.protection,
+          note: cell.note,
         });
       }
     }
@@ -639,7 +642,7 @@ export class Worksheet {
 
     for (const {index, properties} of model.columns) Object.assign(this.getColumn(index), properties);
     for (const {number, properties} of model.rows) Object.assign(this.getRow(number), properties);
-    for (const {row, col, value, fill, numFmt, font, border, alignment, protection} of model.cells) {
+    for (const {row, col, value, fill, numFmt, font, border, alignment, protection, note} of model.cells) {
       const cell = this.#cellAt(row, col);
       cell.value = value;
       cell.fill = fill;
@@ -648,6 +651,7 @@ export class Worksheet {
       cell.border = border;
       cell.alignment = alignment;
       cell.protection = protection;
+      cell.note = note;
     }
     for (const range of model.merges) this.mergeCells(range);
     for (const options of model.tables) this.addTable(options);

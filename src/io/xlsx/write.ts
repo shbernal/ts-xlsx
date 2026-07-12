@@ -24,6 +24,7 @@ import type {
   Worksheet,
   WorksheetProperties,
 } from '../../core/worksheet.ts';
+import {collectNotes, commentsXml, type NoteCell, vmlDrawingXml} from './comments.ts';
 import {THEME1_XML} from './static-parts.ts';
 import {StyleRegistry} from './styles.ts';
 import {escapeAttr, escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
@@ -49,6 +50,8 @@ const CT = {
   core: 'application/vnd.openxmlformats-package.core-properties+xml',
   app: 'application/vnd.openxmlformats-officedocument.extended-properties+xml',
   table: 'application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml',
+  comments: 'application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml',
+  vml: 'application/vnd.openxmlformats-officedocument.vmlDrawing',
 } as const;
 
 const REL = {
@@ -59,6 +62,8 @@ const REL = {
   coreProps: `${NS.packageRels}/metadata/core-properties`,
   extProps: `${NS.docRels}/extended-properties`,
   table: `${NS.docRels}/table`,
+  comments: `${NS.docRels}/comments`,
+  vmlDrawing: `${NS.docRels}/vmlDrawing`,
 } as const;
 
 /**
@@ -81,13 +86,30 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
   );
   const allTables = sheetTables.flat();
 
+  // A sheet's notes ride in a comments part plus a legacy VML drawing. Their sheet-local
+  // relationship ids follow the table ids, so a sheet with two tables anchors its VML at rId3.
+  const sheetComments: (CommentPlan | null)[] = sheets.map((sheet, i) => {
+    const notes = collectNotes(sheet);
+    if (notes.length === 0) return null;
+    const tableCount = (sheetTables[i] ?? []).length;
+    return {
+      number: i + 1,
+      notes,
+      vmlRelId: `rId${tableCount + 1}`,
+      commentsRelId: `rId${tableCount + 2}`,
+    };
+  });
+
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
   // side effect of that pass, so styles.xml can only be generated once every sheet is done.
   const styles = new StyleRegistry();
-  const sheetXml = sheets.map((sheet, i) => worksheetXml(sheet, sheetTables[i] ?? [], styles));
+  const sheetXml = sheets.map((sheet, i) =>
+    worksheetXml(sheet, sheetTables[i] ?? [], styles, sheetComments[i]?.vmlRelId ?? null)
+  );
 
+  const commentNumbers = sheetComments.filter((c): c is CommentPlan => c !== null).map(c => c.number);
   const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(contentTypesXml(sheets.length, allTables)),
+    '[Content_Types].xml': strToU8(contentTypesXml(sheets.length, allTables, commentNumbers)),
     '_rels/.rels': strToU8(rootRelsXml()),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
     'docProps/app.xml': strToU8(appPropsXml()),
@@ -98,9 +120,14 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
   };
   sheets.forEach((_sheet, i) => {
     const tables = sheetTables[i] ?? [];
+    const comments = sheetComments[i] ?? null;
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
-    if (tables.length > 0) {
-      files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(worksheetRelsXml(tables));
+    if (tables.length > 0 || comments !== null) {
+      files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(worksheetRelsXml(tables, comments));
+    }
+    if (comments !== null) {
+      files[`xl/comments${comments.number}.xml`] = strToU8(commentsXml(comments.notes));
+      files[`xl/drawings/vmlDrawing${comments.number}.vml`] = strToU8(vmlDrawingXml(comments.notes));
     }
   });
   for (const {table, number} of allTables) {
@@ -108,6 +135,15 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
   }
 
   return zipSync(files, {level: 6});
+}
+
+// A sheet's notes paired with the part number and sheet-local relationship ids that link the sheet
+// to its comments part (by type) and its VML drawing (by the `<legacyDrawing>` element).
+interface CommentPlan {
+  readonly number: number;
+  readonly notes: readonly NoteCell[];
+  readonly vmlRelId: string;
+  readonly commentsRelId: string;
 }
 
 // A table paired with the identifiers the package needs: a workbook-global part number
@@ -118,21 +154,30 @@ interface PlannedTable {
   readonly relId: string;
 }
 
-function contentTypesXml(sheetCount: number, tables: readonly PlannedTable[]): string {
+function contentTypesXml(
+  sheetCount: number,
+  tables: readonly PlannedTable[],
+  commentNumbers: readonly number[]
+): string {
   const overrides = [
     override('/xl/workbook.xml', CT.workbook),
     ...range(sheetCount).map(i => override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet)),
     ...tables.map(({number}) => override(`/xl/tables/table${number}.xml`, CT.table)),
+    ...commentNumbers.map(number => override(`/xl/comments${number}.xml`, CT.comments)),
     override('/xl/theme/theme1.xml', CT.theme),
     override('/xl/styles.xml', CT.styles),
     override('/docProps/core.xml', CT.core),
     override('/docProps/app.xml', CT.app),
   ].join('');
+  // The VML drawing parts share one extension-level default rather than a per-part override.
+  const vmlDefault =
+    commentNumbers.length > 0 ? `<Default Extension="vml" ContentType="${CT.vml}"/>` : '';
   return (
     XML_DECLARATION +
     `<Types xmlns="${NS.contentTypes}">` +
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
     '<Default Extension="xml" ContentType="application/xml"/>' +
+    vmlDefault +
     overrides +
     '</Types>'
   );
@@ -215,7 +260,12 @@ function appPropsXml(): string {
   );
 }
 
-function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles: StyleRegistry): string {
+function worksheetXml(
+  sheet: Worksheet,
+  tables: readonly PlannedTable[],
+  styles: StyleRegistry,
+  legacyDrawingRelId: string | null
+): string {
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
   // rather than emit a package a consumer repairs on open.
   validateMerges(sheet);
@@ -282,6 +332,8 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
     mergeCellsXml(sheet.merges) +
     pageMarginsXml(sheet.pageMargins) +
     headerFooterXml(sheet.headerFooter) +
+    // <legacyDrawing> (the VML holding the note boxes) precedes <tableParts> in the schema.
+    (legacyDrawingRelId !== null ? `<legacyDrawing r:id="${legacyDrawingRelId}"/>` : '') +
     tablePartsXml(tables) +
     '</worksheet>'
   );
@@ -367,10 +419,16 @@ function tablePartsXml(tables: readonly PlannedTable[]): string {
   return `<tableParts count="${tables.length}">${parts}</tableParts>`;
 }
 
-function worksheetRelsXml(tables: readonly PlannedTable[]): string {
-  const rels = tables
-    .map(({relId, number}) => relationship(relId, REL.table, `../tables/table${number}.xml`))
-    .join('');
+function worksheetRelsXml(tables: readonly PlannedTable[], comments: CommentPlan | null): string {
+  const rels = [
+    ...tables.map(({relId, number}) => relationship(relId, REL.table, `../tables/table${number}.xml`)),
+    ...(comments === null
+      ? []
+      : [
+          relationship(comments.vmlRelId, REL.vmlDrawing, `../drawings/vmlDrawing${comments.number}.vml`),
+          relationship(comments.commentsRelId, REL.comments, `../comments${comments.number}.xml`),
+        ]),
+  ].join('');
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
 
