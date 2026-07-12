@@ -16,6 +16,7 @@ import {
 } from './protection.ts';
 import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
+import type {CellValue} from './value.ts';
 
 export interface WorksheetState {
   /** Sheet visibility, as Excel models it. Defaults to `visible`. */
@@ -109,6 +110,48 @@ export interface RowProperties {
   collapsed?: boolean;
   /** Background fill applied to the row's cells that carry no fill of their own. */
   fill?: Fill;
+}
+
+/** One materialised cell in a {@link WorksheetModel}: its position, value, and per-cell style facets. */
+export interface CellModel {
+  readonly row: number;
+  readonly col: number;
+  value: CellValue;
+  fill?: Fill | undefined;
+  numFmt?: string | undefined;
+  font?: Partial<Font> | undefined;
+  border?: Border | undefined;
+  alignment?: Alignment | undefined;
+  protection?: Protection | undefined;
+}
+
+/**
+ * A serialisable snapshot of a worksheet's transferable content — everything that defines the
+ * sheet apart from its identity (`name`, `id`). {@link Worksheet.model} exports one; assigning it
+ * back reproduces the sheet. The getter and setter cover exactly the same fields, so a
+ * `dst.model = src.model` round-trip drops nothing — an export field the import ignored would
+ * silently lose data, the historical merge-loss failure this contract exists to prevent.
+ */
+export interface WorksheetModel {
+  state: WorksheetState['state'];
+  properties: WorksheetProperties;
+  pageMargins: PageMargins;
+  headerFooter: HeaderFooter;
+  columns: {index: number; properties: ColumnProperties}[];
+  rows: {number: number; properties: RowProperties}[];
+  cells: CellModel[];
+  merges: string[];
+  tables: TableOptions[];
+  protection: SheetProtection | undefined;
+}
+
+// Replace a mutable container's contents in place: a worksheet's `properties`/`pageMargins`/
+// `headerFooter` are readonly fields holding mutable objects, so importing a model must overwrite
+// them rather than reassign — and clear any stale key the incoming model does not carry.
+function overwrite<T extends object>(target: T, source: T): void {
+  const bag = target as unknown as Record<string, unknown>;
+  for (const key of Object.keys(bag)) delete bag[key];
+  Object.assign(target, source);
 }
 
 export class Worksheet {
@@ -307,6 +350,77 @@ export class Worksheet {
   /** The merged ranges on this sheet, in the order they were added. */
   get merges(): readonly string[] {
     return this.#merges;
+  }
+
+  /**
+   * A snapshot of this sheet's transferable content (see {@link WorksheetModel}). Reading it and
+   * assigning it onto another sheet — `dst.model = src.model` — clones the source: merges, cells and
+   * their styles, column/row metadata, tables, protection, and the page setup all survive, because
+   * the getter emits and the setter consumes exactly the same fields. Identity (`name`, `id`) is not
+   * part of the model and is never touched by assignment.
+   */
+  get model(): WorksheetModel {
+    const cells: CellModel[] = [];
+    for (const [row, cols] of this.#rows) {
+      for (const [col, cell] of cols) {
+        cells.push({
+          row,
+          col,
+          value: cell.value,
+          fill: cell.fill,
+          numFmt: cell.numFmt,
+          font: cell.font,
+          border: cell.border,
+          alignment: cell.alignment,
+          protection: cell.protection,
+        });
+      }
+    }
+    return {
+      state: this.state,
+      properties: {...this.properties},
+      pageMargins: {...this.pageMargins},
+      headerFooter: {...this.headerFooter},
+      columns: [...this.#columns].map(([index, properties]) => ({index, properties: {...properties}})),
+      rows: [...this.#rowProperties].map(([number, properties]) => ({number, properties: {...properties}})),
+      cells,
+      merges: [...this.#merges],
+      tables: this.#tables.map(table => table.options),
+      protection: this.#protection,
+    };
+  }
+
+  // Assigning a model replaces this sheet's content wholesale — the sheet becomes the model, with no
+  // residue from whatever it held before. Cells are placed at their exact positions (bypassing merge
+  // resolution) and merges re-applied after, so a slave's value cannot be misrouted during the load.
+  set model(model: WorksheetModel) {
+    this.state = model.state;
+    overwrite(this.properties, model.properties);
+    overwrite(this.pageMargins, model.pageMargins);
+    overwrite(this.headerFooter, model.headerFooter);
+
+    this.#rows.clear();
+    this.#columns.clear();
+    this.#rowProperties.clear();
+    this.#merges.length = 0;
+    this.#mergeRects.length = 0;
+    this.#tables.length = 0;
+    this.#protection = model.protection;
+
+    for (const {index, properties} of model.columns) Object.assign(this.getColumn(index), properties);
+    for (const {number, properties} of model.rows) Object.assign(this.getRow(number), properties);
+    for (const {row, col, value, fill, numFmt, font, border, alignment, protection} of model.cells) {
+      const cell = this.#cellAt(row, col);
+      cell.value = value;
+      cell.fill = fill;
+      cell.numFmt = numFmt;
+      cell.font = font;
+      cell.border = border;
+      cell.alignment = alignment;
+      cell.protection = protection;
+    }
+    for (const range of model.merges) this.mergeCells(range);
+    for (const options of model.tables) this.addTable(options);
   }
 
   /**

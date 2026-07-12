@@ -726,6 +726,30 @@ const impl = {
     };
   },
 
+  // Clone a worksheet through its model export/import: build a source sheet with cells and merges,
+  // read its model, and assign that model onto a fresh sheet. Reports the merges the source model
+  // exposed and the merges the destination carries afterwards → { srcMerges, dstMerges, error }.
+  // The historical bug this measures is an asymmetric model contract that dropped merges on import;
+  // the rewrite's getter and setter cover the same fields, so the round-trip is lossless.
+  copyWorksheetModel({merges = ['A1:C1'], cells = [{ref: 'A1', value: 'merged'}]} = {}) {
+    const workbook = new Workbook();
+    const src = workbook.addWorksheet('Src');
+    for (const c of cells) src.getCell(c.ref).value = c.value;
+    for (const m of merges) src.mergeCells(m);
+    const dst = workbook.addWorksheet('Dst');
+
+    let error = null;
+    let dstMerges = [];
+    const srcMerges = [...src.model.merges];
+    try {
+      dst.model = {...src.model, name: 'Dst'};
+      dstMerges = [...dst.model.merges];
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    return {srcMerges: srcMerges.sort(), dstMerges: dstMerges.sort(), error};
+  },
+
   mutateWorksheet({cells = [], ops = [], read = [], readStyles = []} = {}) {
     // This adapter binds only the structural-edit ops the rewrite implements today. Any op it
     // does not yet support — spliceRows/spliceColumns/insertRow/duplicateRow, and reading style

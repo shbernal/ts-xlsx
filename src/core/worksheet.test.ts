@@ -85,3 +85,91 @@ test('an unbounded merge is not overlap-checked against a bounded one', () => {
   sheet.mergeCells('A1:A3');
   assert.deepEqual([...sheet.merges], ['A:A', 'A1:A3']);
 });
+
+test('the exported model exposes the merged ranges, and assigning it reproduces them', () => {
+  const src = new Worksheet('Src', 1);
+  src.getCell('A1').value = 'merged';
+  src.mergeCells('A1:C1');
+  assert.deepEqual([...src.model.merges], ['A1:C1']);
+
+  const dst = new Worksheet('Dst', 2);
+  dst.model = src.model;
+  // The model round-trip is symmetric: whatever the getter exported, the setter reproduced.
+  assert.deepEqual([...dst.merges], ['A1:C1']);
+  assert.equal(dst.getCell('A1').value, 'merged');
+});
+
+test('a model round-trip carries cell values and per-cell style facets', () => {
+  const src = new Worksheet('Src', 1);
+  src.getCell('A1').value = 'title';
+  src.getCell('B2').value = 42;
+  src.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
+  src.getCell('B2').font = {bold: true};
+
+  const dst = new Worksheet('Dst', 2);
+  dst.model = src.model;
+
+  assert.equal(dst.getCell('A1').value, 'title');
+  assert.equal(dst.getCell('B2').value, 42);
+  assert.deepEqual(dst.getCell('B2').fill, {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}});
+  assert.deepEqual(dst.getCell('B2').font, {bold: true});
+});
+
+test('a model round-trip carries column, row, and page metadata', () => {
+  const src = new Worksheet('Src', 1);
+  src.getColumn(2).width = 18;
+  src.getRow(3).height = 40;
+  src.properties.defaultRowHeight = 15;
+  src.pageMargins.left = 0.5;
+  src.headerFooter.oddHeader = '&CReport';
+
+  const dst = new Worksheet('Dst', 2);
+  dst.model = src.model;
+
+  assert.equal(dst.getColumn(2).width, 18);
+  assert.equal(dst.getRow(3).height, 40);
+  assert.equal(dst.properties.defaultRowHeight, 15);
+  assert.equal(dst.pageMargins.left, 0.5);
+  assert.equal(dst.headerFooter.oddHeader, '&CReport');
+});
+
+test('a model round-trip carries tables and sheet-level protection', () => {
+  const src = new Worksheet('Src', 1);
+  src.addTable({name: 'T1', ref: 'A1', columns: [{name: 'Col'}], rowCount: 2});
+  src.protect();
+
+  const dst = new Worksheet('Dst', 2);
+  dst.model = src.model;
+
+  assert.equal(dst.tables.length, 1);
+  assert.equal(dst.tables[0]?.name, 'T1');
+  assert.equal(dst.tables[0]?.ref, 'A1:A3');
+  assert.notEqual(dst.protection, undefined);
+});
+
+test('assigning a model replaces content wholesale, leaving no residue', () => {
+  const dst = new Worksheet('Dst', 2);
+  dst.getCell('Z9').value = 'stale';
+  dst.mergeCells('Y1:Z1');
+  dst.pageMargins.top = 9;
+
+  const src = new Worksheet('Src', 1);
+  src.getCell('A1').value = 'fresh';
+
+  dst.model = src.model;
+
+  assert.equal(dst.getCell('A1').value, 'fresh');
+  assert.equal(dst.hasCell(9, 26), false);
+  assert.deepEqual([...dst.merges], []);
+  assert.equal(dst.pageMargins.top, undefined);
+});
+
+test('the exported model does not alias the source sheet through mutable containers', () => {
+  const src = new Worksheet('Src', 1);
+  src.pageMargins.left = 0.25;
+
+  const model = src.model;
+  model.pageMargins.left = 99;
+  // Mutating the snapshot must not reach back into the live sheet.
+  assert.equal(src.pageMargins.left, 0.25);
+});

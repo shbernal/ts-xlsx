@@ -102,6 +102,23 @@ export class Table {
     return this.columns.length;
   }
 
+  /**
+   * The options that reconstruct this table — the anchor as a single-cell ref (not the derived
+   * full range), the columns, and the data-row count with the header/totals flags. Feeding this
+   * back to the constructor yields an equivalent table, so a worksheet model can carry a table
+   * losslessly across an export/import round-trip.
+   */
+  get options(): TableOptions {
+    return {
+      name: this.name,
+      ref: encodeAddress(this.#anchorCol, this.#anchorRow),
+      columns: this.columns.map(column => ({...column})),
+      rowCount: this.#dataRowCount,
+      headerRow: this.headerRow,
+      totalsRow: this.totalsRow,
+    };
+  }
+
   /** The full A1 range the table occupies: header (if any) + data rows + totals (if any). */
   get ref(): string {
     return `${encodeAddress(this.#anchorCol, this.#anchorRow)}:${encodeAddress(this.#right, this.#bottom)}`;
