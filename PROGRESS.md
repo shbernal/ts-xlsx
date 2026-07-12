@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 115 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`; **and copy-on-write style aliasing** — loaded cells that shared a style record expose independent facet objects, so a single-cell facet edit never bleeds into a sibling, hard-locked by `style-isolation.test.ts`; **and column-scope inheritance of every style facet** — a column now defaults a fill/font/border/alignment/protection to its cells, not just a number format, scoped to its own column); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 140 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`; **and copy-on-write style aliasing** — loaded cells that shared a style record expose independent facet objects, so a single-cell facet edit never bleeds into a sibling, hard-locked by `style-isolation.test.ts`; **and column-scope inheritance of every style facet** — a column now defaults a fill/font/border/alignment/protection to its cells, not just a number format, scoped to its own column; **and the foreign-fixture reading family** — the reader proves itself against real non-Excel input: theme+tint/indexed fill & border colours survive a pure open-then-save, foreign explicit-off font/alignment forms are honoured (incl. the `<u val="none">` → falsy fix), and ~two dozen real fixtures with namespace-prefixed roots / BOMs / unusual part order / missing optional parts read without crashing); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1156,8 +1156,44 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 115 green / 3 known-open / 27 legacy known-opens resolved / 0 regressions /
-  512 skipped; test:src 166/166.** The **column-scope style-inheritance slice** (111 → 115) is the third
+- **Latest corpus vs rewrite: 140 green / 3 known-open / 61 legacy known-opens resolved / 0 regressions /
+  453 skipped; test:src 167/167.** The **foreign-fixture reading family** (115 → 140) is the fourth
+  *capability family*, delivered in three slices — the reader now proves itself against real, non-Excel
+  input, mostly with no source change:
+  1. **Real-fixture colour reading** (115 → 122, adapter-only): bound `readFixtureCellStyles` and
+     `roundtripFixtureColorFidelity` so three real Excel-authored fixtures measure the reader/writer.
+     A solid-pattern fill exposes its visible colour on `fgColor` with the automatic indexed `bgColor`,
+     and the font colour is a wholly separate facet; a pure open-then-save preserves every cell's fill
+     and border-edge colours, **including theme+tint and indexed-palette references**, verbatim. The
+     reader already parsed theme/tint/indexed/argb — this locks it end-to-end. Green regression locks
+     (baseline `pass`): `solid-fill-foreground-vs-font-color`, `theme-and-rgb-fill-colors-read-faithfully`,
+     `fill-border-color-survives-roundtrip`.
+  2. **Foreign explicit-off font/alignment forms** (122 → 124, one small reader fix): a package-patching
+     adapter helper (`reloadPatched`) feeds the reader the explicit-off forms real producers emit but the
+     writer never generates — `<b val="0"/>`, an alignment element carrying only `wrapText="0"`/`shrinkToFit="0"`,
+     `<u val="none"/>`. The reader already honoured `val="0"` on b/i/strike and treated an all-false alignment
+     as *no* alignment; the one **source fix**: `<u val="none"/>` (the explicit ABSENCE of an underline) now
+     reads back falsy instead of the truthy string `"none"` that a consumer's `if (font.underline)` would
+     mistake for underlined — bare `<u/>` still true, a named variant still carries through. Locked by a new
+     `read.test.ts` foreign-underline test. Fixes `font-boolean-flag-honors-explicit-false` and
+     `alignment-false-boolean-attrs-yield-no-alignment` (baselines stay `fail` — legacy still fails; these
+     are rewrite-only `↑`).
+  3. **`readFixtureReport`** (124 → 140, adapter-only): the broad reader-robustness probe over ~two dozen
+     real fixtures, capturing any crash as data (`{ok, error, sheetNames, lastModifiedBy, creator}`). The
+     lean SAX reader is robust **by construction** to every shape that crashes tag-literal / fixed-part-order
+     parsers: namespace-prefixed roots (`<x:workbook>`), a leading BOM, non-ASCII sheet names, `workbook.xml`
+     ordered after a worksheet (parts read from a map), unprefixed core.xml (`lastModifiedBy` still read),
+     cells lacking `r` (positions inferred), missing optional parts/elements (app.xml `Company`,
+     `sheetFormatPr`, styles, drawing, VML/comment targets), and foreign boolean spellings / mixed `<si>`
+     shapes. 28 legacy known-opens resolved in one bind.
+
+  **Still open in this family** (deliberately deferred, each its own increment): `unstyledCellFontReport`
+  (baseline `fail`) needs a genuine, broad-blast-radius reader change — resolving the workbook default font
+  (cellXfs[0] / font[0], currently skipped via `fontId > 0`) for *every* unstyled cell — so it earns a
+  dedicated slice with a full corpus blast-radius check. `roundtripFixture` (1 case,
+  `template-styles-survive-read-write-roundtrip`) is a small follow-up.
+
+  The **column-scope style-inheritance slice** (111 → 115) is the third
   *capability family* past the per-cell facet surface. A column carried only a number format as a default
   for its cells; every other facet a column can declare — fill, font, border, alignment, protection — was
   dropped on write and never inherited on read. Real files routinely scope a border or an alignment to a
@@ -1354,27 +1390,34 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
      `column-border-style-scoped-to-declaring-column` to green regression locks, plus three src round-trip
      tests in `read.test.ts`. (Native column-scope inheritance of protection bands — currently adapter-expanded
      onto listed cells — now has the machinery; wire it when a case demands it.)
-   - **Foreign-fixture reading** capabilities (below) for `alignment-false-boolean-attrs-yield-no-alignment`
-     (`alignmentFalseBooleanReport` — the reader path is already correct, `wrapText="0"` reads as no
-     alignment) and the fixture-backed colour cases.
+   - ✅ **Foreign-fixture reading** (fourth capability family, 115 → 140) — **DONE for the bulk.** Three slices,
+     mostly adapter-only: (1) real-fixture colour reading (`readFixtureCellStyles`/`roundtripFixtureColorFidelity`
+     → `solid-fill-foreground-vs-font-color`, `theme-and-rgb-fill-colors-read-faithfully`,
+     `fill-border-color-survives-roundtrip` — theme+tint/indexed colours survive a pure open-then-save);
+     (2) foreign explicit-off font/alignment forms (`fontExplicitFalse*`/`alignmentFalseBooleanReport` via a
+     `reloadPatched` package-patching helper → `font-boolean-flag-honors-explicit-false`,
+     `alignment-false-boolean-attrs-yield-no-alignment`; the ONE source fix was `<u val="none">` → falsy);
+     (3) `readFixtureReport` — the broad reader-robustness probe, resolving 28 legacy known-opens across ~two
+     dozen fixtures (namespace-prefixed roots, BOMs, non-ASCII names, unusual part order, missing optional
+     parts, foreign boolean spellings) with **no source change** — the lean SAX reader is robust by construction.
+     **Still open in this family:** `unstyledCellFontReport` (baseline `fail`) needs a genuine broad reader change
+     — resolving the workbook default font (cellXfs[0]/font[0], currently skipped via `fontId > 0`) for every
+     unstyled cell — so it earns its own slice with a full corpus blast-radius check; `roundtripFixture`
+     (1 case, `template-styles-survive-read-write-roundtrip`) is a small follow-up.
 
-   The remaining **border** cases need their own
-   capabilities — merge-master survival (`merged-region-master-cell-border-survives`) and foreign-fixture
-   colour fidelity (`fill-border-color-survives-roundtrip`) — the same families as the deferred font cases.
-   (Column-scope and shared-style aliasing border cases are now green — see the column-scope and
-   copy-on-write families above.) Remaining font cases need their own
-   capabilities: the **aliasing/foreign-XML font cases** (`fontExplicitFalse*` — the reader path is
-   already correct, just needs the adapter to build the foreign styles.xml; `unstyledCellFontReport` —
-   resolve `fontId` 0 to the concrete default font; `sharedBaseStyleFontMutation` — copy-on-write style
-   assignment). Also worth a small slice: ARGB validation (reject/normalize a `#`-prefixed fill colour —
-   `solid-fill-argb-rejects-hash-prefix`), and writing a filled-but-empty cell (today the row loop drops
-   a cell with a fill/font but null value — needed before `probeCellFonts` could round-trip a valueless
-   styled cell).
-2. **Foreign-fixture reading** (`readFixtureReport`, `readFixtureCellStyles`, `roundtripFixture*`): read
-   *real* third-party `.xlsx` fixtures (prefixed OOXML roots, BOMs, non-ASCII sheet names, `t="s"`
-   shared strings, theme/indexed colours) — needs `readFixture*` adapter capabilities + reader
-   robustness. This lights the fixture-backed style cases (`solid-fill-foreground-vs-font-color`,
-   `theme-and-rgb-fill-colors-read-faithfully`, `fill-border-color-survives-roundtrip`).
+   The remaining **border** case needing its own capability is merge-master survival
+   (`merged-region-master-cell-border-survives`). (Column-scope, shared-style aliasing, and foreign-fixture
+   colour-fidelity border cases — incl. `fill-border-color-survives-roundtrip` — are now green; see the
+   column-scope, copy-on-write, and foreign-fixture families.) The remaining **font** case is
+   `unstyledCellFontReport` — resolve `fontId` 0 to the concrete default font for every unstyled cell
+   (a broad reader change, its own slice; see the foreign-fixture family). (`fontExplicitFalse*` and
+   `sharedBaseStyleFontMutation` are now green.) Also worth a small slice: ARGB validation (reject/normalize
+   a `#`-prefixed fill colour — `solid-fill-argb-rejects-hash-prefix`), and writing a filled-but-empty cell
+   (today the row loop drops a cell with a fill/font but null value — needed before `probeCellFonts` could
+   round-trip a valueless styled cell).
+2. ✅ **Foreign-fixture reading** — **DONE for the bulk** (see the foreign-fixture family under §1: real-fixture
+   colour reading, foreign explicit-off forms, and `readFixtureReport`; 115 → 140). Only `unstyledCellFontReport`
+   (default-font resolution) and `roundtripFixture` (1 case) remain.
 3. **Remaining writer/core-model widening:** **`addRow`/`addRows` shapes** (dense/sparse-array +
    keyed-object — `add-row-array-and-object-shapes-populate`), **defined-name storage** →
    `<definedNames>`. Small follow-ups: modern-function `_xlfn.` prefix, outline summary-row `collapsed`
