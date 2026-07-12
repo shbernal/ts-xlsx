@@ -1156,8 +1156,20 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 140 green / 3 known-open / 61 legacy known-opens resolved / 0 regressions /
-  453 skipped; test:src 167/167.** The **foreign-fixture reading family** (115 → 140) is the fourth
+- **Latest corpus vs rewrite: 140 green / 3 known-open / 63 legacy known-opens resolved / 0 regressions /
+  451 skipped; test:src 169/169.** The **default-font resolution slice** closes the first of the two
+  deferred foreign-fixture pieces: an unstyled cell renders in the workbook default face (Calibri 11), yet
+  the reader surfaced no font for it — font id 0 was skipped as if it were an absence, the way border id 0
+  genuinely is, but font 0 is a *real* font. Reader: an xf naming font 0 now resolves to that default face,
+  and a bare cell (no style of its own nor an inherited row/column one) falls back to xf 0 rather than to
+  nothing. Writer: a cell carrying exactly the default font interns back to id 0, so a read→write round-trip
+  stays byte-stable instead of accreting a redundant `<font>` entry. Isolation is untouched — in-memory
+  cells are never stamped, and the default face carries no bold/italic/colour to bleed (the one src test
+  that used `font===undefined` as an isolation proxy now asserts true isolation *plus* the resolved default;
+  two new src tests lock the resolution and the round-trip dedup). Lights the two
+  `default-font-applies-to-unstyled-cells` behaviours (rewrite-only `↑`; baselines stay `fail`).
+
+- The **foreign-fixture reading family** (115 → 140) is the fourth
   *capability family*, delivered in three slices — the reader now proves itself against real, non-Excel
   input, mostly with no source change:
   1. **Real-fixture colour reading** (115 → 122, adapter-only): bound `readFixtureCellStyles` and
@@ -1187,11 +1199,9 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
      `sheetFormatPr`, styles, drawing, VML/comment targets), and foreign boolean spellings / mixed `<si>`
      shapes. 28 legacy known-opens resolved in one bind.
 
-  **Still open in this family** (deliberately deferred, each its own increment): `unstyledCellFontReport`
-  (baseline `fail`) needs a genuine, broad-blast-radius reader change — resolving the workbook default font
-  (cellXfs[0] / font[0], currently skipped via `fontId > 0`) for *every* unstyled cell — so it earns a
-  dedicated slice with a full corpus blast-radius check. `roundtripFixture` (1 case,
-  `template-styles-survive-read-write-roundtrip`) is a small follow-up.
+  **Still open in this family** (one deferred piece remains): `roundtripFixture` (1 case,
+  `template-styles-survive-read-write-roundtrip`) is a small follow-up. (`unstyledCellFontReport` — the
+  broad default-font resolution — is now DONE; see the default-font slice above.)
 
   The **column-scope style-inheritance slice** (111 → 115) is the third
   *capability family* past the per-cell facet surface. A column carried only a number format as a default
@@ -1400,18 +1410,16 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
      (3) `readFixtureReport` — the broad reader-robustness probe, resolving 28 legacy known-opens across ~two
      dozen fixtures (namespace-prefixed roots, BOMs, non-ASCII names, unusual part order, missing optional
      parts, foreign boolean spellings) with **no source change** — the lean SAX reader is robust by construction.
-     **Still open in this family:** `unstyledCellFontReport` (baseline `fail`) needs a genuine broad reader change
-     — resolving the workbook default font (cellXfs[0]/font[0], currently skipped via `fontId > 0`) for every
-     unstyled cell — so it earns its own slice with a full corpus blast-radius check; `roundtripFixture`
-     (1 case, `template-styles-survive-read-write-roundtrip`) is a small follow-up.
+     **Still open in this family:** `roundtripFixture` (1 case, `template-styles-survive-read-write-roundtrip`)
+     is a small follow-up. (`unstyledCellFontReport` — resolving the workbook default font for every unstyled
+     cell — is DONE, in its own default-font slice; see the checkpoint above.)
 
    The remaining **border** case needing its own capability is merge-master survival
    (`merged-region-master-cell-border-survives`). (Column-scope, shared-style aliasing, and foreign-fixture
    colour-fidelity border cases — incl. `fill-border-color-survives-roundtrip` — are now green; see the
-   column-scope, copy-on-write, and foreign-fixture families.) The remaining **font** case is
-   `unstyledCellFontReport` — resolve `fontId` 0 to the concrete default font for every unstyled cell
-   (a broad reader change, its own slice; see the foreign-fixture family). (`fontExplicitFalse*` and
-   `sharedBaseStyleFontMutation` are now green.) Also worth a small slice: ARGB validation (reject/normalize
+   column-scope, copy-on-write, and foreign-fixture families.) (All harvested **font** cases are now green or `↑`: `unstyledCellFontReport` — resolve `fontId` 0
+   to the concrete default font for every unstyled cell — landed in the default-font slice, alongside
+   `fontExplicitFalse*` and `sharedBaseStyleFontMutation`.) Also worth a small slice: ARGB validation (reject/normalize
    a `#`-prefixed fill colour — `solid-fill-argb-rejects-hash-prefix`), and writing a filled-but-empty cell
    (today the row loop drops a cell with a fill/font but null value — needed before `probeCellFonts` could
    round-trip a valueless styled cell).
