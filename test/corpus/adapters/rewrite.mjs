@@ -191,6 +191,20 @@ function normalizeRewriteCell(cell) {
   return out;
 }
 
+// Decompose an ExcelJS-shaped aggregate style object onto the rewrite's per-facet setters.
+// The rewrite has no `.style` aggregate: each cell owns independent facet fields, so "assign
+// one base style to two cells" (the shared-style aliasing setup) is just assigning each facet
+// present. Assigning the SAME base object to two cells shares the facet references — exactly the
+// aliasing a copy-on-write setter must not let bleed when one cell is later mutated.
+function applyStyle(cell, style) {
+  if (style.fill !== undefined) cell.fill = style.fill;
+  if (style.numFmt !== undefined) cell.numFmt = style.numFmt;
+  if (style.font !== undefined) cell.font = style.font;
+  if (style.border !== undefined) cell.border = style.border;
+  if (style.alignment !== undefined) cell.alignment = style.alignment;
+  if (style.protection !== undefined) cell.protection = style.protection;
+}
+
 function partMapOf(buffer) {
   const unzipped = unzipSync(buffer);
   const out = {};
@@ -412,6 +426,132 @@ const impl = {
       selectUnlockedCells: a.selectUnlockedCells ?? null,
       saltsDiffer: !!a.saltValue && !!b.saltValue && a.saltValue !== b.saltValue,
     };
+  },
+
+  // Copy-on-write style aliasing family. Each cell owns its facet fields and every setter REPLACES
+  // the field (the readonly facet types forbid in-place mutation of a shared record), so mutating
+  // one cell's facet — even a cell that shared a style with siblings on disk — cannot bleed onto a
+  // sibling. These methods prove that end-to-end through the real write→read path.
+
+  // Assign one base style object to two cells, then spread-reassign one cell's font color →
+  // { a1Color, a2Color, bled }. The sibling given the same base must keep its original font.
+  sharedBaseStyleFontMutation() {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    const base = {font: {name: 'Arial', size: 11}};
+    sheet.getCell('A1').value = 'YES';
+    sheet.getCell('A2').value = 'NO';
+    applyStyle(sheet.getCell('A1'), base);
+    applyStyle(sheet.getCell('A2'), base);
+    sheet.getCell('A1').font = {...sheet.getCell('A1').font, color: {argb: 'FF00FF00'}};
+    const s = readXlsx(writeXlsx(workbook)).getWorksheet('S');
+    const colorOf = ref => {
+      const f = s.getCell(ref).font;
+      return f && f.color ? f.color.argb ?? null : null;
+    };
+    const a1Color = colorOf('A1');
+    const a2Color = colorOf('A2');
+    return {a1Color, a2Color, bled: a2Color === 'FF00FF00'};
+  },
+
+  // Author three cells sharing one style record, load, border ONE, round-trip →
+  // { a1, a2, a3, bled }. Only the targeted cell may gain a border.
+  loadMutateCellBorder() {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    for (const r of [1, 2, 3]) {
+      const c = sheet.getCell(`A${r}`);
+      c.value = 'x';
+      c.font = {bold: true};
+    }
+    const loaded = readXlsx(writeXlsx(workbook));
+    loaded.getWorksheet('S').getCell('A1').border = {
+      top: {style: 'thin'}, left: {style: 'thin'}, bottom: {style: 'thin'}, right: {style: 'thin'},
+    };
+    const s = readXlsx(writeXlsx(loaded)).getWorksheet('S');
+    const hasBorder = ref => {
+      const b = s.getCell(ref).border;
+      return !!(b && b.top && b.top.style);
+    };
+    return {a1: hasBorder('A1'), a2: hasBorder('A2'), a3: hasBorder('A3'), bled: hasBorder('A2') || hasBorder('A3')};
+  },
+
+  // Author two cells with one shared fill, load, replace ONE cell's fill, read the sibling in
+  // memory and after write-back → { sibling, mutatedTo, original, bled, diskSibling, diskBled }.
+  loadMutateCellStyle({sharedFill = 'FFFF0000', mutateTo = 'FF00FF00'} = {}) {
+    const wb = new Workbook();
+    const s = wb.addWorksheet('S');
+    s.getCell('A1').value = 'a';
+    s.getCell('B1').value = 'b';
+    const fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: sharedFill}};
+    s.getCell('A1').fill = fill;
+    s.getCell('B1').fill = fill; // identical formatting → one shared style index on disk
+    const fgOf = cell => (cell.fill && cell.fill.fgColor ? cell.fill.fgColor.argb ?? null : null);
+
+    const wb2 = readXlsx(writeXlsx(wb));
+    const s2 = wb2.getWorksheet('S');
+    s2.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: mutateTo}};
+    const sibling = fgOf(s2.getCell('B1'));
+
+    const diskSibling = fgOf(readXlsx(writeXlsx(wb2)).getWorksheet('S').getCell('B1'));
+    return {
+      sibling, mutatedTo: mutateTo, original: sharedFill,
+      bled: sibling === mutateTo, diskSibling, diskBled: diskSibling === mutateTo,
+    };
+  },
+
+  // Author two cells with one shared font, load, spread-reassign ONE cell's font color, read the
+  // sibling → { edited, sibling, original, mutatedTo, bled }.
+  loadMutateCellFont({original = 'FF000000', mutateTo = 'FFFF0000'} = {}) {
+    const wb = new Workbook();
+    const s = wb.addWorksheet('S');
+    const font = {name: 'Arial', size: 12, color: {argb: original}};
+    s.getCell('A1').value = 'a';
+    s.getCell('A1').font = font;
+    s.getCell('B1').value = 'b';
+    s.getCell('B1').font = font; // identical formatting → one shared style index on disk
+
+    const s2 = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    s2.getCell('A1').font = {...s2.getCell('A1').font, color: {argb: mutateTo}};
+    const colorOf = cell => (cell.font && cell.font.color ? cell.font.color.argb ?? null : null);
+    const sibling = colorOf(s2.getCell('B1'));
+    return {edited: colorOf(s2.getCell('A1')), sibling, original, mutatedTo: mutateTo, bled: sibling === mutateTo};
+  },
+
+  // Load two cells sharing one style record, set ONE style facet (alignment | numFmt | protection)
+  // on one via its setter, and report whether it bled into the sibling in memory and on disk →
+  // { facet, target, sibling, original, bled, diskSibling, diskBled }. The remaining facets of the
+  // copy-on-write family, alongside fill/font/border above.
+  loadMutateCellFacet(facet = 'alignment') {
+    const readFacet = {
+      alignment: c => (c.alignment && c.alignment.horizontal) || null,
+      numFmt: c => c.numFmt || null,
+      protection: c => (c.protection && typeof c.protection.locked === 'boolean' ? c.protection.locked : null),
+    }[facet];
+    const apply = {
+      alignment: c => { c.alignment = {horizontal: 'center'}; },
+      numFmt: c => { c.numFmt = '#,##0'; },
+      protection: c => { c.protection = {locked: false}; },
+    }[facet];
+    if (!readFacet) throw new Error(`unknown style facet: ${facet}`);
+
+    const wb = new Workbook();
+    const s = wb.addWorksheet('S');
+    s.getCell('A1').value = 'a';
+    s.getCell('B1').value = 'b';
+    const base = {numFmt: '0.00'}; // one identical non-default style → both cells dedup to one xf index
+    applyStyle(s.getCell('A1'), base);
+    applyStyle(s.getCell('B1'), base);
+
+    const wb2 = readXlsx(writeXlsx(wb));
+    const s2 = wb2.getWorksheet('S');
+    const original = readFacet(s2.getCell('B1'));
+    apply(s2.getCell('A1'));
+    const target = readFacet(s2.getCell('A1'));
+    const sibling = readFacet(s2.getCell('B1'));
+
+    const diskSibling = readFacet(readXlsx(writeXlsx(wb2)).getWorksheet('S').getCell('B1'));
+    return {facet, target, sibling, original, bled: sibling !== original, diskSibling, diskBled: diskSibling !== original};
   },
 };
 
