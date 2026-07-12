@@ -162,6 +162,32 @@ export class Worksheet {
     return properties;
   }
 
+  /**
+   * The 1-based index of the last row carrying anything — data or its own formatting —
+   * or 0 for an empty sheet. Spans gaps: a value in row 5 makes this 5 even if rows 2–4
+   * are empty. This is the used-range extent, not a populated-row tally (see
+   * {@link actualRowCount}).
+   */
+  get rowCount(): number {
+    let last = 0;
+    for (const [number, cols] of this.#rows) {
+      if (number > last && [...cols.values()].some(cell => cell.value !== null)) last = number;
+    }
+    for (const number of this.#rowProperties.keys()) {
+      if (number > last) last = number;
+    }
+    return last;
+  }
+
+  /** The number of rows that hold at least one non-empty cell, ignoring gaps and formatting-only rows. */
+  get actualRowCount(): number {
+    let count = 0;
+    for (const cols of this.#rows.values()) {
+      if ([...cols.values()].some(cell => cell.value !== null)) count++;
+    }
+    return count;
+  }
+
   /** The defined columns in ascending index order, each with its format properties. */
   *columns(): IterableIterator<{readonly index: number; readonly properties: ColumnProperties}> {
     for (const [index, properties] of [...this.#columns].sort(([a], [b]) => a - b)) {

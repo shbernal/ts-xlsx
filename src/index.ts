@@ -57,3 +57,4 @@ export {
 } from './core/workbook.ts';
 
 export {writeXlsx} from './io/xlsx/write.ts';
+export {readXlsx, type ReadXlsxOptions} from './io/xlsx/read.ts';

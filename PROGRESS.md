@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** (`src/io/xlsx/`, on `fflate`) green vs `--adapter rewrite` at 35 green / 0 regressions (tables + merges slice landed); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 58 green / 0 regressions (reader slice landed — write→read round-trips assert through the rewrite's own reader); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1132,17 +1132,28 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   deferral: the cell-reference-name-collision rule (`A1`) is **not** enforced — the corpus treats
   `T1`/`T2` as valid table names, so enforcing it would regress a baseline-pass fixture; noted in
   `table.ts`. Real-consumer check: legacy ExcelJS loads our table package and finds the table by name.
-- **Latest corpus vs rewrite: 35 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
-  603 skipped.** Newly resolved (`↑`) this slice: headerless table omits its autoFilter; illegal
-  table names (spaces/apostrophe, leading digit, hyphen) rejected at write; a merge overlapping a table
-  is surfaced as a conflict. Newly green (`✓`): empty-body table refs the full header row (`A1:B1`),
-  one-row extends it (`A1:B2`), totals-row column serialises its function and keeps every column,
-  header-bearing table carries autoFilter + `headerRowCount="1"`, disjoint merge writes, valid table
-  name round-trips. Prior `↑` stand (header/footer flags, partial-`<pageMargins>`, out-of-range `<col>`
-  drop, outline `collapsed`). The remaining outline known-open (summary row `collapsed="1"`) needs
-  outline-group inference; the `_xlfn.` modern-function prefix bug is still `○` (legacy fails too).
-  Legacy oracle unchanged: **424 green / 233 known-open / 0 regressions**. Gates all green:
-  `typecheck` clean, `test:src` 72/72.
+- **Reader slice landed** (2026-07-12): the writer-only vein was exhausted, so the XML **read** path
+  opened — the biggest single unlock (~48 reader-dependent cases assert through read-back). ADR 0004
+  settles the parser choice deferred by ADR 0003: **a lean, hand-written SAX pull parser**
+  (`src/io/xlsx/xml-read.ts`), no XML dependency, single O(n) pass, entities *decoded but never
+  expanded* (only the five predefined + numeric refs; DTDs/`<!ENTITY>` skipped), so billion-laughs and
+  XXE are structurally absent, not merely mitigated. The reader (`src/io/xlsx/read.ts`, on `fflate`
+  `unzipSync` with a **declared-size inflate cap** as the naïve-zip-bomb guard) reconstructs what the
+  writer emits: sheet names/order, number/string/boolean/formula cells (inlineStr + `t="s"` shared
+  strings), per-column width/visibility, per-row height/visibility, merges, page margins, and core
+  document properties (`docProps/core.xml`). The model grew `Worksheet.rowCount`/`actualRowCount`
+  (used-range extent that spans gaps vs populated-row tally). The adapter's `roundtripWorkbook` now
+  binds write→read→normalize to this reader, mirroring `current.mjs`'s JSON model exactly.
+- **Latest corpus vs rewrite: 58 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
+  580 skipped.** The reader lit up 23 round-trip cases (35 → 58): scalar-type fidelity (a digit-string
+  `"10"`/zero-padded `"007"` stays a string, `15` stays a number), formulas with markup-significant
+  operators (`<`, `>`, `&`) round-trip verbatim, merged-range count/geometry survives, explicit row
+  heights persist, table geometry round-trips intact, workbook core properties (creator/lastModifiedBy/
+  created/modified) read back unchanged, and `rowCount` spans a row gap while `actualRowCount` excludes
+  it. The `_xlfn.` modern-function prefix bug is still `○` (legacy fails too); outline summary-row
+  `collapsed` inference remains open. Legacy oracle unchanged: **424 green / 233 known-open / 0
+  regressions**. Gates all green: `typecheck` clean, `test:src` **100/100** (+28: SAX + reader
+  round-trip units).
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):

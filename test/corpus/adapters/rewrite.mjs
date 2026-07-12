@@ -23,6 +23,7 @@ import {strFromU8, unzipSync} from 'fflate';
 
 import {decodeAddress, decodeRange} from '../../../src/core/address.ts';
 import {Workbook} from '../../../src/core/workbook.ts';
+import {readXlsx} from '../../../src/io/xlsx/read.ts';
 import {writeXlsx} from '../../../src/io/xlsx/write.ts';
 import {packageFacts} from './ooxml-facts.mjs';
 
@@ -51,6 +52,7 @@ const SUPPORTED_TABLE_KEYS = new Set([
 const SUPPORTED_TABLE_COLUMN_KEYS = new Set(['name', 'totalsRowLabel', 'totalsRowFunction']);
 
 const toDate = v => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
+const isoOrNull = d => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null);
 
 // Map a declarative spec onto the rewrite's Workbook model, throwing a `notImplemented`
 // skip the moment the spec uses a feature the writer cannot represent yet.
@@ -161,6 +163,16 @@ function buildFrom(spec = {}) {
   return workbook;
 }
 
+// Mirror current.mjs's normalizeCell for the rewrite's Cell: a plain JSON view of the
+// value that survived the round-trip. Style facets are absent until the reader reads
+// them, matching the contract that an unmaterialized facet is simply not present.
+function normalizeRewriteCell(cell) {
+  const v = cell.value;
+  if (v && typeof v === 'object' && 'formula' in v) return {formula: v.formula, result: v.result ?? null};
+  if (v instanceof Date) return {value: Number.isNaN(v.getTime()) ? null : v.toISOString()};
+  return {value: v ?? null};
+}
+
 function partMapOf(buffer) {
   const unzipped = unzipSync(buffer);
   const out = {};
@@ -188,6 +200,55 @@ const impl = {
 
   inspectPackage(spec) {
     return packageFacts(spec, partMapOf(writeXlsx(buildFrom(spec))));
+  },
+
+  // Build → write → read back through the rewrite's own reader, then normalize to the
+  // same JSON model current.mjs reports, so every write→read round-trip case runs
+  // unchanged. Facets the writer/reader do not materialize yet come back empty/null;
+  // the writer's feature-gate keeps a case whose spec needs those from ever running here.
+  roundtripWorkbook(spec) {
+    const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
+    const sheets = {};
+    for (const s of spec.sheets || []) {
+      const sheet = reloaded.getWorksheet(s.name);
+      if (!sheet) {
+        sheets[s.name] = null;
+        continue;
+      }
+      const cells = {};
+      for (const c of s.cells || []) cells[c.ref] = normalizeRewriteCell(sheet.getCell(c.ref));
+      const columns = {};
+      for (const col of s.columns || []) {
+        const p = sheet.getColumn(col.index);
+        columns[col.index] = {width: p.width ?? null, hidden: !!p.hidden, numFmt: null};
+      }
+      const rows = {};
+      for (const row of s.rows || []) {
+        const p = sheet.getRow(row.index);
+        rows[row.index] = {height: p.height ?? null, hidden: !!p.hidden};
+      }
+      const margins = Object.keys(sheet.pageMargins).length > 0 ? {...sheet.pageMargins} : null;
+      sheets[s.name] = {
+        cells,
+        columns,
+        rows,
+        margins,
+        autoFilter: null,
+        merges: [...sheet.merges],
+        rowCount: sheet.rowCount,
+        actualRowCount: sheet.actualRowCount,
+      };
+    }
+    const props = reloaded.properties;
+    return {
+      properties: {
+        creator: props.creator ?? null,
+        lastModifiedBy: props.lastModifiedBy ?? null,
+        created: isoOrNull(props.created),
+        modified: isoOrNull(props.modified),
+      },
+      sheets,
+    };
   },
 
   tryWriteWorkbook(spec) {
