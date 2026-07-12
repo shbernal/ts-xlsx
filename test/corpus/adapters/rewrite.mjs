@@ -34,12 +34,15 @@ const notImplemented = message => {
 
 const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties']);
 const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
-const SUPPORTED_SHEET_KEYS = new Set(['name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageMargins']);
+const SUPPORTED_SHEET_KEYS = new Set(['name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageMargins', 'headerFooter']);
 const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed']);
 const SUPPORTED_PAGE_MARGIN_KEYS = new Set(['left', 'right', 'top', 'bottom', 'header', 'footer']);
+const SUPPORTED_HEADER_FOOTER_KEYS = new Set([
+  'oddHeader', 'oddFooter', 'evenHeader', 'evenFooter', 'firstHeader', 'firstFooter',
+]);
 
 const toDate = v => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
 
@@ -77,6 +80,12 @@ function buildFrom(spec = {}) {
     for (const k of Object.keys(pm)) {
       if (!SUPPORTED_PAGE_MARGIN_KEYS.has(k)) throw notImplemented(`pageMargins.${k} not supported yet`);
       sheet.pageMargins[k] = pm[k];
+    }
+
+    const hf = s.headerFooter || {};
+    for (const k of Object.keys(hf)) {
+      if (!SUPPORTED_HEADER_FOOTER_KEYS.has(k)) throw notImplemented(`headerFooter.${k} not supported yet`);
+      sheet.headerFooter[k] = hf[k];
     }
 
     for (const col of s.columns || []) {

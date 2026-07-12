@@ -36,6 +36,21 @@ export interface PageMargins {
   footer?: number;
 }
 
+/**
+ * Page header/footer text, one string per page class. Excel only honours the even- and
+ * first-page variants when the writer also sets the gating flags (`differentOddEven`,
+ * `differentFirst`); the writer derives those from which variants are present. An empty
+ * object means the element is omitted entirely.
+ */
+export interface HeaderFooter {
+  oddHeader?: string;
+  oddFooter?: string;
+  evenHeader?: string;
+  evenFooter?: string;
+  firstHeader?: string;
+  firstFooter?: string;
+}
+
 /** Per-column formatting. A column may exist purely to carry these, with no cells. */
 export interface ColumnProperties {
   /** Column width in character units. */
@@ -67,6 +82,9 @@ export class Worksheet {
 
   /** Print margins. Mutate in place: `sheet.pageMargins.left = 0.5`. Empty means unset. */
   readonly pageMargins: PageMargins = {};
+
+  /** Page header/footer text. Mutate in place: `sheet.headerFooter.oddHeader = '&C&"..."'`. */
+  readonly headerFooter: HeaderFooter = {};
 
   // Row-major sparse storage: row index → (column index → cell). Keeping rows as the
   // outer key makes whole-row iteration cheap and mirrors how OOXML serializes

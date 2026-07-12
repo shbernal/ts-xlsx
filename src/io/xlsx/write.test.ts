@@ -240,6 +240,51 @@ test('<pageMargins> is placed after <sheetData>', () => {
   assert.ok(xml.indexOf('<sheetData') < xml.indexOf('<pageMargins'), 'pageMargins must follow sheetData');
 });
 
+test('header/footer variants emit their children and gate them with different* flags', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  Object.assign(s.headerFooter, {
+    oddHeader: 'ODD-H',
+    evenHeader: 'EVEN-H',
+    firstFooter: 'FIRST-F',
+  });
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<headerFooter[^>]* differentOddEven="1"/);
+  assert.match(xml, /<headerFooter[^>]* differentFirst="1"/);
+  assert.match(xml, /<oddHeader>ODD-H<\/oddHeader>/);
+  assert.match(xml, /<evenHeader>EVEN-H<\/evenHeader>/);
+  assert.match(xml, /<firstFooter>FIRST-F<\/firstFooter>/);
+});
+
+test('an odd-only header/footer sets no different* flags', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.headerFooter.oddHeader = 'H';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<headerFooter><oddHeader>H<\/oddHeader><\/headerFooter>/);
+  assert.doesNotMatch(xml, /different/);
+});
+
+test('a sheet with no header/footer emits no <headerFooter>', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /<headerFooter/);
+});
+
+test('header/footer text is XML-escaped and placed after <pageMargins>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.pageMargins.top = 1;
+  s.headerFooter.oddHeader = 'a & b < c';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<oddHeader>a &amp; b &lt; c<\/oddHeader>/);
+  assert.ok(xml.indexOf('<pageMargins') < xml.indexOf('<headerFooter'), 'headerFooter follows pageMargins');
+});
+
 test('<cols> is placed after <sheetFormatPr> and before <sheetData>', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');

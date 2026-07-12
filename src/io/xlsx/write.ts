@@ -16,6 +16,7 @@ import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/va
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import type {
   ColumnProperties,
+  HeaderFooter,
   PageMargins,
   RowProperties,
   Worksheet,
@@ -216,8 +217,33 @@ function worksheetXml(sheet: Worksheet): string {
     colsXml(sheet) +
     sheetData +
     pageMarginsXml(sheet.pageMargins) +
+    headerFooterXml(sheet.headerFooter) +
     '</worksheet>'
   );
+}
+
+// CT_HeaderFooter child order, paired with the flag their presence gates: the even- and
+// first-page variants are silently ignored by Excel unless differentOddEven / differentFirst
+// are set, so the writer derives each flag from whether any variant in its class was provided.
+const HF_CHILDREN = [
+  {tag: 'oddHeader', key: 'oddHeader'},
+  {tag: 'oddFooter', key: 'oddFooter'},
+  {tag: 'evenHeader', key: 'evenHeader'},
+  {tag: 'evenFooter', key: 'evenFooter'},
+  {tag: 'firstHeader', key: 'firstHeader'},
+  {tag: 'firstFooter', key: 'firstFooter'},
+] as const;
+
+function headerFooterXml(hf: HeaderFooter): string {
+  const children = HF_CHILDREN.filter(({key}) => hf[key] !== undefined);
+  if (children.length === 0) return '';
+  const differentOddEven = hf.evenHeader !== undefined || hf.evenFooter !== undefined;
+  const differentFirst = hf.firstHeader !== undefined || hf.firstFooter !== undefined;
+  let attrs = '';
+  if (differentOddEven) attrs += ' differentOddEven="1"';
+  if (differentFirst) attrs += ' differentFirst="1"';
+  const body = children.map(({tag, key}) => `<${tag}>${escapeText(hf[key] as string)}</${tag}>`).join('');
+  return `<headerFooter${attrs}>${body}</headerFooter>`;
 }
 
 // Excel's "Normal" margins, in inches — the defaults Excel writes for an untouched sheet.
