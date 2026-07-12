@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 86 green / 0 regressions (styles now round-trip pattern fills, number formats, fonts, **and borders** through an interned, composed style table, with dedup exposed to the corpus); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 94 green / 0 regressions (styles now round-trip pattern fills, number formats, fonts, borders, **and alignment** through an interned, composed style table, with dedup exposed to the corpus; the SAX reader now does XML §2.11 end-of-line normalization); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1156,8 +1156,23 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 86 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
-  552 skipped.** The **borders slice** (85 → 86) round-trips a cell border — the four sides plus a diagonal,
+- **Latest corpus vs rewrite: 94 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
+  544 skipped.** The **alignment slice** (86 → 94) round-trips a cell's alignment — horizontal/vertical
+  placement, `textRotation`, `indent`, and the `wrapText`/`shrinkToFit` flags — through the shared style
+  table: `Cell.alignment` (an `Alignment`, each cell owning its own so alignment never bleeds onto
+  siblings) → because `<alignment>` is a *child of the xf* (not a shared sub-table like fills/fonts/borders),
+  the `StyleRegistry` interns its serialised attribute string directly into the xf signature and emits it as
+  the xf's body (`applyAlignment="1"`), with an all-default alignment contributing nothing and collapsing to
+  xf 0 → the reader holds each `<cellXfs>` xf open from start to close so an `<alignment>` child can attach
+  before the xf commits, parsing flags by their true boolean (`wrapText="0"` is off, never a spurious
+  `{wrapText:false}`). Lit `alignment-flags-round-trip` (wrapText/shrinkToFit/indent) and the cell-level
+  behavior of `alignment-does-not-leak-across-cells`; the column-scoped and copy-on-write alignment cases
+  (`cell-style-setter-isolates-alignment-numfmt-protection`) gate on the column-scope/aliasing families for a
+  later slice. The slice also uncovered — and fixed — a latent newline gap: enabling the `alignment` cell
+  key made `cell-value-newline-line-break-roundtrip` runnable, which needs `\r\n`→`\n` normalization. The
+  fix is spec-correct XML end-of-line handling (§2.11) in the SAX reader's text path (a literal CRLF/CR
+  normalizes to LF, before entity decoding so a deliberate `&#13;` survives; CDATA stays verbatim), taking
+  that case fully green too. Before it, the **borders slice** (85 → 86) round-trips a cell border — the four sides plus a diagonal,
   each an independent edge with an optional colour — through the shared style table: `Cell.border` (a
   `Border`, each cell owning its own so a border never bleeds onto siblings) → `StyleRegistry` interns each
   distinct `<border>` in schema edge order (left, right, top, bottom, diagonal; id from 1) and composes it
@@ -1199,9 +1214,9 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   `collapsed` inference remains open. Legacy oracle unchanged: **424 green / 233 known-open / 0
   regressions** (an occasional flake in the *legacy* streaming-control `streamReadManySheets(3)` is a
   `lib/` temp-file/resource timing artefact — the rewrite adapter skips streaming, so it is unrelated to
-  the rewrite). Gates all green: `typecheck` clean, `test:src` **131/131** (+7: border interning + `<borders>`
-  emission in edge order + border/facet independence + cell-border round-trip + one-sided-no-phantom +
-  foreign diagonal-direction resolution).
+  the rewrite). Gates all green: `typecheck` clean, `test:src` **140/140** (+9: alignment interning as an
+  xf child + all-default→xf-0 + alignment/facet independence + cell-alignment round-trip + flags-off-stay-off
+  + foreign `wrapText="0"`→no-alignment + CRLF/CR→LF normalization + `&#13;` survives normalization).
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
@@ -1251,11 +1266,19 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
    columns, cell-inherits-column, `<numFmts>` + ECMA-376 built-in id table), **fonts** (bold/italic/
    underline/size/colour/typeface → `<fonts>`, boolean flags read honouring `val`), and **borders** (four
    sides + diagonal, per-edge colour + diagonal direction → `<borders>` in schema edge order, empty border
-   → id 0) through a shared `StyleRegistry` that interns numFmts/fills/fonts/borders/cellXfs and composes
-   each cell's full style; dedup is exposed to the corpus via `styleDedupReport`. The next facet, in the
-   order the corpus rewards it: **alignment** (`<alignment>` on the xf; `cell-style-setter-isolates-
-   alignment-numfmt-protection`). It extends the `StyleRegistry` xf signature + the reader's xf-resolution
-   and drops another key from the adapter feature-gate. The remaining **border** cases need their own
+   → id 0), and **alignment** (horizontal/vertical/`textRotation`/`indent`/`wrapText`/`shrinkToFit` as an
+   `<alignment>` child of the xf) through a shared `StyleRegistry` that interns numFmts/fills/fonts/borders/
+   cellXfs and composes each cell's full style; dedup is exposed to the corpus via `styleDedupReport`. The
+   next facet, in the order the corpus rewards it: **protection** (`<protection locked=.. hidden=..>` on the
+   xf, the last per-cell xf child) — it lights `cell-protection-locked-flag-and-sheet-protection` and is the
+   remaining facet of the copy-on-write aliasing family (`cell-style-setter-isolates-alignment-numfmt-
+   protection` covers alignment+numFmt+protection together, so that whole case also needs the aliasing
+   capability). It extends the `StyleRegistry` xf signature + the reader's xf-resolution and drops another
+   key from the adapter feature-gate. The remaining **alignment** cases need their own capabilities —
+   column-scope (the column-level behaviors of `alignment-does-not-leak-across-cells`) and foreign-fixture
+   reading (`alignment-false-boolean-attrs-yield-no-alignment` via `alignmentFalseBooleanReport`, whose
+   reader path is already correct — `wrapText="0"` reads as no alignment — and just needs the adapter
+   capability). The remaining **border** cases need their own
    capabilities — shared-style aliasing (`cell-border-mutation-does-not-bleed-to-style-siblings`),
    column-scope (`column-border-style-scoped-to-declaring-column`), merge-master survival
    (`merged-region-master-cell-border-survives`), and foreign-fixture colour fidelity
