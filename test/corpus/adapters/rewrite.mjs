@@ -726,6 +726,51 @@ const impl = {
     };
   },
 
+  mutateWorksheet({cells = [], ops = [], read = [], readStyles = []} = {}) {
+    // This adapter binds only the structural-edit ops the rewrite implements today. Any op it
+    // does not yet support — spliceRows/spliceColumns/insertRow/duplicateRow, and reading style
+    // facets back — tags the error as notImplemented so the runner SKIPS that behavior. A partial
+    // bind must never turn a skip into a red: the mergeCells overlap check is exercisable in
+    // isolation, so binding it here does not misreport the still-unbuilt splice/insert/duplicate
+    // cases as failures.
+    const supported = new Set(['mergeCells']);
+    const unsupported = ops.find(op => !supported.has(op.op));
+    if (unsupported || readStyles.length > 0) {
+      const detail = unsupported ? `op "${unsupported.op}"` : 'readStyles';
+      const error = new Error(`mutateWorksheet ${detail} not implemented in rewrite`);
+      error.notImplemented = true;
+      throw error;
+    }
+
+    const sheet = new Workbook().addWorksheet('S');
+    for (const c of cells) sheet.getCell(c.ref).value = c.value;
+
+    let error = null;
+    try {
+      for (const op of ops) {
+        if (op.op === 'mergeCells') sheet.mergeCells(op.range);
+      }
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+
+    const readCells = {};
+    for (const ref of read) readCells[ref] = sheet.getCell(ref).value ?? null;
+
+    // The last POPULATED row and its column-1 value, derived from the row iterator (ascending, so
+    // the final populated row wins). The tricky post-splice "trailing empty slot" behaviors carry
+    // an unsupported spliceRows op and skip; this satisfies the no-op control that shares the case.
+    let lastRow = null;
+    for (const {number, cells} of sheet.rows()) {
+      if (cells.some(c => c.value !== null && c.value !== undefined)) {
+        const first = cells.find(c => c.col === 1);
+        lastRow = {number, value: first?.value ?? null};
+      }
+    }
+
+    return {rowCount: sheet.rowCount, cells: readCells, merges: [...sheet.merges], lastRow, error};
+  },
+
   tryWriteWorkbook(spec) {
     let workbook;
     try {

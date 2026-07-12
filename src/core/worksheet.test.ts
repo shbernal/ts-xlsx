@@ -53,3 +53,35 @@ test('an unbounded whole-column merge is declared but swallows no addressing', (
   assert.equal(cell.row, 5);
   assert.equal(cell.col, 1);
 });
+
+test('merging a range that overlaps an existing merged region is rejected', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.mergeCells('A1:B2');
+  // B2:C3 shares the corner cell B2 with A1:B2.
+  assert.throws(() => sheet.mergeCells('B2:C3'), /overlaps/);
+  // The rejected range never enters the merge list — only the first merge stands.
+  assert.deepEqual([...sheet.merges], ['A1:B2']);
+});
+
+test('a range fully containing an existing merge is rejected', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.mergeCells('B2:C3');
+  assert.throws(() => sheet.mergeCells('A1:D4'), /overlaps/);
+});
+
+test('merges that only share an edge but no cell are both allowed', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.mergeCells('A1:B2');
+  // C1:D2 abuts A1:B2 on the right without sharing a cell.
+  sheet.mergeCells('C1:D2');
+  assert.deepEqual([...sheet.merges], ['A1:B2', 'C1:D2']);
+});
+
+test('an unbounded merge is not overlap-checked against a bounded one', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.mergeCells('A:A');
+  // A1:A3 geometrically sits inside column A, but the unbounded merge carries no rectangle,
+  // so it participates in no overlap check — the bounded merge is accepted.
+  sheet.mergeCells('A1:A3');
+  assert.deepEqual([...sheet.merges], ['A:A', 'A1:A3']);
+});

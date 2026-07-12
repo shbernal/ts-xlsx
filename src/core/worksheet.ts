@@ -84,6 +84,19 @@ export interface ColumnProperties {
   protection?: Protection;
 }
 
+/** A merged region as inclusive 1-based grid bounds. */
+interface MergeRect {
+  readonly top: number;
+  readonly left: number;
+  readonly bottom: number;
+  readonly right: number;
+}
+
+/** Whether two inclusive grid rectangles share at least one cell. */
+function rectsOverlap(a: MergeRect, b: MergeRect): boolean {
+  return a.left <= b.right && b.left <= a.right && a.top <= b.bottom && b.top <= a.bottom;
+}
+
 /** Per-row formatting. A row may exist purely to carry these, with no cells. */
 export interface RowProperties {
   /** Row height in points. */
@@ -125,10 +138,11 @@ export class Worksheet {
   readonly #tables: Table[] = [];
   readonly #merges: string[] = [];
   // Decoded rectangles parallel to #merges, kept so that addressing a covered cell can
-  // resolve to its region's master without re-parsing the range string on every access.
-  // Only fully-bounded merges (a real cell block) get a rect; an unbounded whole-row/column
-  // merge is still declared but participates in no slave resolution.
-  readonly #mergeRects: {top: number; left: number; bottom: number; right: number}[] = [];
+  // resolve to its region's master without re-parsing the range string on every access, and
+  // so that a new merge can be checked for overlap against the existing ones. Only fully-bounded
+  // merges (a real cell block) get a rect; an unbounded whole-row/column merge is still declared
+  // but participates in neither slave resolution nor overlap checking.
+  readonly #mergeRects: MergeRect[] = [];
   // Sheet-level protection is a single overlay switch, absent until `protect` is called.
   #protection: SheetProtection | undefined;
 
@@ -272,13 +286,22 @@ export class Worksheet {
     return this.#tables;
   }
 
-  /** Merge a range of cells (`"A1:B2"`). Overlap validation happens at write time. */
+  /**
+   * Merge a range of cells (`"A1:B2"`). A range that overlaps an already-merged region is
+   * rejected — Excel forbids overlapping merges and writes such geometry as a corrupt file.
+   * Whole-row/column ranges (`"A:A"`) are unbounded, carry no rectangle, and are not overlap-checked.
+   */
   mergeCells(range: string): void {
-    this.#merges.push(range);
     const {top, left, bottom, right} = decodeRange(range);
     if (top !== undefined && left !== undefined && bottom !== undefined && right !== undefined) {
-      this.#mergeRects.push({top, left, bottom, right});
+      const rect: MergeRect = {top, left, bottom, right};
+      const clash = this.#mergeRects.find(existing => rectsOverlap(existing, rect));
+      if (clash) {
+        throw new Error(`merged range "${range}" overlaps an existing merged region`);
+      }
+      this.#mergeRects.push(rect);
     }
+    this.#merges.push(range);
   }
 
   /** The merged ranges on this sheet, in the order they were added. */
@@ -315,8 +338,8 @@ export class Worksheet {
   }
 
   // Resolve a position to the master (top-left) of the merged region covering it, or to
-  // itself when no region does. First covering region wins; overlaps are rejected at write
-  // time, so at most one applies to a well-formed sheet.
+  // itself when no region does. First covering region wins; overlaps are rejected in
+  // `mergeCells`, so at most one region ever applies.
   #masterOf(row: number, col: number): {row: number; col: number} {
     for (const rect of this.#mergeRects) {
       if (row >= rect.top && row <= rect.bottom && col >= rect.left && col <= rect.right) {

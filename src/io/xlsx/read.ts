@@ -632,7 +632,16 @@ function parseWorksheet(
           capture = true;
           break;
         case 'mergeCell':
-          if (attrs.ref !== undefined && attrs.ref !== '') sheet.mergeCells(attrs.ref);
+          // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
+          // bad range at the model boundary, but don't let one abort the whole parse — drop it and
+          // keep reading the valid geometry.
+          if (attrs.ref !== undefined && attrs.ref !== '') {
+            try {
+              sheet.mergeCells(attrs.ref);
+            } catch {
+              // overlapping/malformed merge in the source file — skip it
+            }
+          }
           break;
         case 'pageMargins':
           applyMargins(sheet.pageMargins, attrs);
