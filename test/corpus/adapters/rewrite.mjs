@@ -34,8 +34,11 @@ const notImplemented = message => {
 
 const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties']);
 const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
-const SUPPORTED_SHEET_KEYS = new Set(['name', 'state', 'cells']);
+const SUPPORTED_SHEET_KEYS = new Set(['name', 'state', 'cells', 'columns', 'rows', 'properties']);
 const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result']);
+const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
+const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden']);
+const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed']);
 
 const toDate = v => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
 
@@ -61,6 +64,34 @@ function buildFrom(spec = {}) {
       if (!SUPPORTED_SHEET_KEYS.has(k)) throw notImplemented(`sheet.${k} not supported yet`);
     }
     const sheet = workbook.addWorksheet(s.name, s.state ? {state: s.state} : undefined);
+
+    const sp = s.properties || {};
+    for (const k of Object.keys(sp)) {
+      if (!SUPPORTED_SHEET_PROP_KEYS.has(k)) throw notImplemented(`sheet.properties.${k} not supported yet`);
+    }
+    if (sp.defaultRowHeight !== undefined) sheet.properties.defaultRowHeight = sp.defaultRowHeight;
+    if (sp.defaultColWidth !== undefined) sheet.properties.defaultColWidth = sp.defaultColWidth;
+
+    for (const col of s.columns || []) {
+      for (const k of Object.keys(col)) {
+        if (!SUPPORTED_COLUMN_KEYS.has(k)) throw notImplemented(`column.${k} not supported yet`);
+      }
+      const target = sheet.getColumn(col.index);
+      if (col.width !== undefined) target.width = col.width;
+      if (col.hidden !== undefined) target.hidden = col.hidden;
+    }
+
+    for (const row of s.rows || []) {
+      for (const k of Object.keys(row)) {
+        if (!SUPPORTED_ROW_KEYS.has(k)) throw notImplemented(`row.${k} not supported yet`);
+      }
+      const target = sheet.getRow(row.index);
+      if (row.height !== undefined) target.height = row.height;
+      if (row.hidden !== undefined) target.hidden = row.hidden;
+      if (row.outlineLevel !== undefined) target.outlineLevel = row.outlineLevel;
+      if (row.collapsed !== undefined) target.collapsed = row.collapsed;
+    }
+
     for (const c of s.cells || []) {
       for (const k of Object.keys(c)) {
         if (!SUPPORTED_CELL_KEYS.has(k)) throw notImplemented(`cell.${k} not supported yet`);

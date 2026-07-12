@@ -10,11 +10,16 @@
 
 import {zipSync, strToU8} from 'fflate';
 
-import {encodeAddress} from '../../core/address.ts';
+import {encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/value.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
-import type {Worksheet} from '../../core/worksheet.ts';
+import type {
+  ColumnProperties,
+  RowProperties,
+  Worksheet,
+  WorksheetProperties,
+} from '../../core/worksheet.ts';
 import {STYLES_XML, THEME1_XML} from './static-parts.ts';
 import {escapeAttr, escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
 
@@ -181,10 +186,12 @@ function worksheetXml(sheet: Worksheet): string {
   let bottom = -Infinity;
   let right = -Infinity;
 
-  for (const {number, cells} of sheet.rows()) {
+  for (const {number, cells, properties} of sheet.rows()) {
     const populated = cells.filter(cell => cell.value !== null);
-    if (populated.length === 0) continue;
-    rowXml.push(`<row r="${number}">${populated.map(cellXml).join('')}</row>`);
+    const attrs = rowAttrs(properties);
+    // A row with neither data nor its own formatting has nothing to serialise.
+    if (populated.length === 0 && attrs === '') continue;
+    rowXml.push(`<row r="${number}"${attrs}>${populated.map(cellXml).join('')}</row>`);
     for (const cell of populated) {
       if (number < top) top = number;
       if (number > bottom) bottom = number;
@@ -193,6 +200,8 @@ function worksheetXml(sheet: Worksheet): string {
     }
   }
 
+  // Dimension is the used *cell* range; rows/columns carrying only formatting do not
+  // extend it, matching how Excel records <dimension>.
   const dimensionRef =
     bottom === -Infinity ? 'A1' : `${encodeAddress(left, top)}:${encodeAddress(right, bottom)}`;
   const sheetData = rowXml.length === 0 ? '<sheetData/>' : `<sheetData>${rowXml.join('')}</sheetData>`;
@@ -202,10 +211,61 @@ function worksheetXml(sheet: Worksheet): string {
     `<worksheet xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
     `<dimension ref="${dimensionRef}"/>` +
     '<sheetViews><sheetView workbookViewId="0"/></sheetViews>' +
-    '<sheetFormatPr defaultRowHeight="15"/>' +
+    sheetFormatPr(sheet.properties) +
+    colsXml(sheet) +
     sheetData +
     '</worksheet>'
   );
+}
+
+function sheetFormatPr(properties: WorksheetProperties): string {
+  const rowHeight = properties.defaultRowHeight ?? 15;
+  let attrs = ` defaultRowHeight="${numberText(rowHeight)}"`;
+  if (properties.defaultColWidth !== undefined) {
+    attrs += ` defaultColWidth="${numberText(properties.defaultColWidth)}"`;
+  }
+  // A non-standard default row height is only honoured by Excel when customHeight is set.
+  if (properties.defaultRowHeight !== undefined) attrs += ' customHeight="1"';
+  return `<sheetFormatPr${attrs}/>`;
+}
+
+function colsXml(sheet: Worksheet): string {
+  const cols: string[] = [];
+  for (const {index, properties} of sheet.columns()) {
+    // OOXML has no column past XFD (16384); a definition beyond it is corrupt to Excel,
+    // so drop it rather than emit an out-of-range <col> range.
+    if (index > MAX_COLUMN) continue;
+    const col = colXml(index, properties);
+    if (col !== '') cols.push(col);
+  }
+  return cols.length === 0 ? '' : `<cols>${cols.join('')}</cols>`;
+}
+
+function colXml(index: number, properties: ColumnProperties): string {
+  let attrs = `min="${index}" max="${index}"`;
+  let meaningful = false;
+  if (properties.width !== undefined) {
+    attrs += ` width="${numberText(properties.width)}" customWidth="1"`;
+    meaningful = true;
+  }
+  if (properties.hidden) {
+    attrs += ' hidden="1"';
+    meaningful = true;
+  }
+  // A <col> with no width or visibility says nothing; omit it entirely.
+  return meaningful ? `<col ${attrs}/>` : '';
+}
+
+function rowAttrs(properties: RowProperties | undefined): string {
+  if (properties === undefined) return '';
+  let attrs = '';
+  if (properties.height !== undefined) attrs += ` ht="${numberText(properties.height)}" customHeight="1"`;
+  if (properties.hidden) attrs += ' hidden="1"';
+  if (properties.outlineLevel !== undefined && properties.outlineLevel > 0) {
+    attrs += ` outlineLevel="${properties.outlineLevel}"`;
+  }
+  if (properties.collapsed) attrs += ' collapsed="1"';
+  return attrs;
 }
 
 function cellXml(cell: Cell): string {

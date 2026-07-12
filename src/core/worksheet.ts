@@ -1,9 +1,10 @@
 // A worksheet: a sparsely-populated grid of cells addressed by A1 reference.
 //
 // Storage is sparse by construction — a spreadsheet is mostly empty, so cells
-// materialise on first access and only occupied positions cost memory. Rows,
-// columns, merges, and views layer on in later slices; this slice is the cell grid
-// and the addressing that reaches into it.
+// materialise on first access and only occupied positions cost memory. Column and
+// row metadata (widths, heights, visibility, outline grouping) are stored apart from
+// the cell grid, because a column or row can carry formatting while holding no cells.
+// Merges and views layer on in later slices.
 
 import {decodeAddress} from './address.ts';
 import {Cell} from './cell.ts';
@@ -13,16 +14,51 @@ export interface WorksheetState {
   readonly state: 'visible' | 'hidden' | 'veryHidden';
 }
 
+/** Format defaults applied to every row/column that carries no explicit override. */
+export interface WorksheetProperties {
+  /** Height, in points, for rows with no explicit height. */
+  defaultRowHeight?: number;
+  /** Width, in character units, for columns with no explicit width. */
+  defaultColWidth?: number;
+}
+
+/** Per-column formatting. A column may exist purely to carry these, with no cells. */
+export interface ColumnProperties {
+  /** Column width in character units. */
+  width?: number;
+  /** Whether the column is hidden. */
+  hidden?: boolean;
+}
+
+/** Per-row formatting. A row may exist purely to carry these, with no cells. */
+export interface RowProperties {
+  /** Row height in points. */
+  height?: number;
+  /** Whether the row is hidden. */
+  hidden?: boolean;
+  /** Outline (grouping) depth; 0 or absent means ungrouped. */
+  outlineLevel?: number;
+  /** Whether this row is the collapsed summary of an outline group. */
+  collapsed?: boolean;
+}
+
 export class Worksheet {
   readonly name: string;
   /** 1-based workbook-assigned id, stable for the sheet's lifetime. */
   readonly id: number;
   state: WorksheetState['state'];
 
+  /** Sheet-level format defaults. Mutate in place: `sheet.properties.defaultRowHeight = 20`. */
+  readonly properties: WorksheetProperties = {};
+
   // Row-major sparse storage: row index → (column index → cell). Keeping rows as the
-  // outer key makes whole-row iteration cheap once rows land, and mirrors how OOXML
-  // serializes (`<row>` wrapping `<c>`).
+  // outer key makes whole-row iteration cheap and mirrors how OOXML serializes
+  // (`<row>` wrapping `<c>`).
   readonly #rows = new Map<number, Map<number, Cell>>();
+  // Column and row metadata live apart from the grid so an empty-but-formatted line
+  // (a hidden column, a tall header row with no data yet) costs no phantom cells.
+  readonly #columns = new Map<number, ColumnProperties>();
+  readonly #rowProperties = new Map<number, RowProperties>();
 
   constructor(name: string, id: number, state: WorksheetState['state'] = 'visible') {
     this.name = name;
@@ -51,14 +87,65 @@ export class Worksheet {
   }
 
   /**
-   * The occupied rows in ascending row order, each carrying its occupied cells in
-   * ascending column order. Only materialised positions are visited — this mirrors how
-   * OOXML serialises (`<row>` wrapping `<c>`) and is the writer's iteration surface.
+   * Get the mutable format properties for a 1-based column index, creating the record
+   * on first access. Setting properties here does not materialise any cells.
+   *
+   * @throws {RangeError} if the index is not a positive integer.
    */
-  *rows(): IterableIterator<{readonly number: number; readonly cells: readonly Cell[]}> {
-    for (const [number, cols] of [...this.#rows].sort(([a], [b]) => a - b)) {
-      const cells = [...cols].sort(([a], [b]) => a - b).map(([, cell]) => cell);
-      yield {number, cells};
+  getColumn(index: number): ColumnProperties {
+    if (!Number.isInteger(index) || index < 1) {
+      throw new RangeError(`column ${index} is out of bounds — columns start at 1`);
+    }
+    let properties = this.#columns.get(index);
+    if (properties === undefined) {
+      properties = {};
+      this.#columns.set(index, properties);
+    }
+    return properties;
+  }
+
+  /**
+   * Get the mutable format properties for a 1-based row number, creating the record on
+   * first access. This is row *metadata* (height, visibility, outline) — it does not
+   * materialise any cells.
+   *
+   * @throws {RangeError} if the number is not a positive integer.
+   */
+  getRow(number: number): RowProperties {
+    if (!Number.isInteger(number) || number < 1) {
+      throw new RangeError(`row ${number} is out of bounds — rows start at 1`);
+    }
+    let properties = this.#rowProperties.get(number);
+    if (properties === undefined) {
+      properties = {};
+      this.#rowProperties.set(number, properties);
+    }
+    return properties;
+  }
+
+  /** The defined columns in ascending index order, each with its format properties. */
+  *columns(): IterableIterator<{readonly index: number; readonly properties: ColumnProperties}> {
+    for (const [index, properties] of [...this.#columns].sort(([a], [b]) => a - b)) {
+      yield {index, properties};
+    }
+  }
+
+  /**
+   * The rows to serialise, in ascending row order: the union of rows holding cells and
+   * rows holding only metadata (a hidden or grouped row need carry no data). Each yields
+   * its materialised cells in ascending column order and its format properties, if any.
+   * Mirrors how OOXML serialises (`<row>` wrapping `<c>`) and is the writer's row surface.
+   */
+  *rows(): IterableIterator<{
+    readonly number: number;
+    readonly cells: readonly Cell[];
+    readonly properties: RowProperties | undefined;
+  }> {
+    const numbers = new Set<number>([...this.#rows.keys(), ...this.#rowProperties.keys()]);
+    for (const number of [...numbers].sort((a, b) => a - b)) {
+      const cols = this.#rows.get(number);
+      const cells = cols ? [...cols].sort(([a], [b]) => a - b).map(([, cell]) => cell) : [];
+      yield {number, cells, properties: this.#rowProperties.get(number)};
     }
   }
 

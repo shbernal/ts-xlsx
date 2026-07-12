@@ -122,3 +122,99 @@ test('every written package ships a default theme part', () => {
   assert.ok(parts['xl/theme/theme1.xml'], 'theme part present');
   assert.match(parts['[Content_Types].xml'] as string, /theme\+xml/);
 });
+
+test('a column width emits a <col> with customWidth', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.getColumn(2).width = 12;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<cols><col min="2" max="2" width="12" customWidth="1"\/><\/cols>/);
+});
+
+test('a hidden column emits hidden="1" and needs no width', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.getColumn(3).hidden = true;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<col min="3" max="3" hidden="1"\/>/);
+});
+
+test('a column past the 16384 limit is dropped, never serialized', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.getColumn(16384).width = 10;
+  s.getColumn(16385).width = 10;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /min="16384" max="16384"/);
+  assert.doesNotMatch(xml, /16385/);
+});
+
+test('a sheet with no column definitions emits no <cols>', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /<cols>/);
+});
+
+test('row height and outline flags serialize onto the <row>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A2').value = 'd';
+  const r = s.getRow(2);
+  r.height = 30;
+  r.hidden = true;
+  r.outlineLevel = 1;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<row r="2" ht="30" customHeight="1" hidden="1" outlineLevel="1">/);
+});
+
+test('a row carrying only metadata is emitted with no cells', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.getRow(5).hidden = true;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<row r="5" hidden="1"><\/row>/);
+});
+
+test('a collapsed flag is emitted only where set, not on sibling rows', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getRow(2).outlineLevel = 1;
+  s.getRow(3).collapsed = true;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<row r="2" outlineLevel="1">/);
+  assert.match(xml, /<row r="3" collapsed="1">/);
+});
+
+test('sheet default row height and column width land on <sheetFormatPr>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.properties.defaultRowHeight = 30;
+  s.properties.defaultColWidth = 20;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<sheetFormatPr defaultRowHeight="30" defaultColWidth="20" customHeight="1"\/>/);
+});
+
+test('an unset default row height falls back to 15 with no customHeight', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<sheetFormatPr defaultRowHeight="15"\/>/);
+});
+
+test('<cols> is placed after <sheetFormatPr> and before <sheetData>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.getColumn(1).width = 8;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  const fmt = xml.indexOf('<sheetFormatPr');
+  const cols = xml.indexOf('<cols>');
+  const data = xml.indexOf('<sheetData>');
+  assert.ok(fmt < cols && cols < data, `expected sheetFormatPr < cols < sheetData, got ${fmt},${cols},${data}`);
+});

@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the first buffered `.xlsx` **writer** slice (`src/io/xlsx/`, on `fflate`) green vs `--adapter rewrite` at 18 green / 0 regressions; independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the first buffered `.xlsx` **writer** slice (`src/io/xlsx/`, on `fflate`) green vs `--adapter rewrite` at 21 green / 0 regressions (rows & columns slice landed); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1094,12 +1094,19 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   [`test/corpus/adapters/ooxml-facts.mjs`](test/corpus/adapters/ooxml-facts.mjs) so both adapters
   derive identical facts. The rewrite adapter **feature-gates** unsupported spec features → those
   behaviors skip (`∅`), never falsely regress.
-- **Latest corpus vs rewrite: 18 green / 2 known-open / 4 legacy known-opens resolved / 0 regressions /
-  633 skipped.** Newly resolved (`↑`): no-worksheet package refused, formula `=` stripped on write,
-  every worksheet emits a default `<sheetView>` (plus the earlier address `$1:$1` fix). The 2
-  known-opens are the modern-function `_xlfn.` prefix bug (legacy fails too, baseline=fail) — a real
-  open target for the formula-knowledge slice, not a regression. Legacy oracle unchanged: **424 green
-  / 233 known-open / 0 regressions**. Gates all green: `typecheck` clean, `test:src` 46/46.
+- **Rows & columns slice landed** (2026-07-12): the model grew `getColumn`/`getRow` (metadata stored
+  apart from the cell grid — a hidden column or grouped row costs no phantom cells) and
+  `Worksheet.properties` (default row height / column width); the writer emits `<cols>`, per-`<row>`
+  height/hidden/outline/collapsed attrs, and a real `<sheetFormatPr>`. The writer drops any column
+  past XFD (16384) rather than serialize a range Excel treats as corrupt. Adapter feature-gate
+  widened (`columns`/`rows`/sheet `properties`, gated at key granularity).
+- **Latest corpus vs rewrite: 21 green / 3 known-open / 7 legacy known-opens resolved / 0 regressions /
+  626 skipped.** Newly resolved this slice (`↑`): out-of-range `<col>` dropped at the 16384 limit, and
+  the outline `collapsed` flag no longer misplaced onto hidden detail rows. The remaining outline
+  known-open (summary row must carry `collapsed="1"`) needs outline-group inference — an honest open
+  target, not a regression. The `_xlfn.` modern-function prefix bug is still `○` (legacy fails too).
+  Legacy oracle unchanged: **424 green / 233 known-open / 0 regressions**. Gates all green:
+  `typecheck` clean, `test:src` 56/56.
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
@@ -1144,18 +1151,19 @@ adapter → the corpus runs against it, the first module (`address.ts`) is green
 legacy known-open**, with 0 regressions on the legacy oracle. Continue module by module, in the
 `STRATEGY.md` build order (**core model → XML layer → xlsx r/w → streaming → csv**):
 
-1. **Writer + core model — thin vertical slice landed, now widen both together.** The buffered writer
-   (`src/io/xlsx/`, on `fflate`) turns the model into a valid package and lit the `inspectPackage`
-   behaviors within its supported subset (18 green). Each new model feature now lands *with* its
-   writer emission so it produces a visible corpus win. In dependency order: **rows & columns**
-   (`getRow`/`getColumn`, `addRow`/`addRows` dense/sparse-array + keyed-object shapes — see
-   `add-row-array-and-object-shapes-populate`; column keys/headers/widths → `<cols>` + row heights/
-   `<sheetFormatPr>`), **merges** (master/slave → `<mergeCells>`), **defined-name storage** →
-   `xl/workbook.xml` `<definedNames>`, then the **styles surface** (fills/borders/alignment/protection
-   → `styles.xml` `cellXfs` + per-cell `s=`). As each lands, drop its key from the rewrite adapter's
-   feature-gate so those behaviors run. The modern-function `_xlfn.` prefix known-open is a small
-   formula-knowledge follow-up. Cases asserting through `roundtripWorkbook`/`readFixture*` stay skipped
-   until the **reader** lands.
+1. **Writer + core model — widening both together, one feature per corpus win.** The buffered writer
+   (`src/io/xlsx/`, on `fflate`) turns the model into a valid package and lights `inspectPackage`
+   behaviors within its supported subset. Landed so far: cells (number/string/boolean/formula),
+   worksheet visibility, core properties, and **rows & columns** (`getColumn`/`getRow` metadata,
+   `<cols>`, row height/hidden/outline attrs, `<sheetFormatPr>` defaults, XFD-limit clamp). Remaining
+   in dependency order: **`addRow`/`addRows` shapes** (dense/sparse-array + keyed-object — see
+   `add-row-array-and-object-shapes-populate`; needs keyed columns + the reader to assert), **merges**
+   (master/slave → `<mergeCells>`), **defined-name storage** → `xl/workbook.xml` `<definedNames>`,
+   then the **styles surface** (fills/borders/alignment/protection → `styles.xml` `cellXfs` + per-cell
+   `s=`). As each lands, drop its key from the rewrite adapter's feature-gate so those behaviors run.
+   Small follow-ups: the modern-function `_xlfn.` prefix and the outline summary-row `collapsed`
+   inference (both currently `○`). Cases asserting through `roundtripWorkbook`/`readFixture*` stay
+   skipped until the **reader** lands.
 2. **Then the XML + zip *read* layer** (the highest-value, hardest area): the zip lib is decided
    (`fflate`, ADR 0003); pick the *parser* per the still-open half of that decision
    (`fast-xml-parser` vs a lean SAX layer), benchmark, record it, and wire the fixture-reading

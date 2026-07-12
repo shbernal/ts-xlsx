@@ -35,7 +35,13 @@ export {
 export {type Color, type Font, type UnderlineStyle, type VerticalAlignment} from './core/style.ts';
 
 export {Cell} from './core/cell.ts';
-export {Worksheet, type WorksheetState} from './core/worksheet.ts';
+export {
+  Worksheet,
+  type WorksheetState,
+  type WorksheetProperties,
+  type ColumnProperties,
+  type RowProperties,
+} from './core/worksheet.ts';
 export {
   Workbook,
   type WorkbookProperties,
