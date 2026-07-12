@@ -212,6 +212,25 @@ const impl = {
     return packageFacts(spec, partMapOf(writeXlsx(buildFrom(spec))));
   },
 
+  // Write the spec and report the shared style table's size plus the index each requested cell
+  // resolved to → { cellXfCount, indices: { <ref>: index|null } }. styles.xml is a SHARED table
+  // referenced by index, so identically-styled cells must collapse to one <cellXfs> entry (one
+  // shared index) — dedup neither inflating to one entry per cell nor over-collapsing distinct
+  // styles. A cell left at the default style carries no `s` and reports null.
+  styleDedupReport(spec, cells = []) {
+    const parts = partMapOf(writeXlsx(buildFrom(spec)));
+    const styles = parts['xl/styles.xml'] || '';
+    const xfBlock = (styles.match(/<cellXfs\b[\s\S]*?<\/cellXfs>/) || [''])[0];
+    const cellXfCount = (xfBlock.match(/<xf\b/g) || []).length;
+    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const indices = {};
+    for (const ref of cells) {
+      const m = sheetXml.match(new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*\\bs="(\\d+)"`));
+      indices[ref] = m ? Number(m[1]) : null;
+    }
+    return {cellXfCount, indices};
+  },
+
   // Build → write → read back through the rewrite's own reader, then normalize to the
   // same JSON model current.mjs reports, so every write→read round-trip case runs
   // unchanged. Facets the writer/reader do not materialize yet come back empty/null;
