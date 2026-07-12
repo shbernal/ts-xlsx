@@ -23,7 +23,8 @@ import type {
   Worksheet,
   WorksheetProperties,
 } from '../../core/worksheet.ts';
-import {STYLES_XML, THEME1_XML} from './static-parts.ts';
+import {THEME1_XML} from './static-parts.ts';
+import {StyleRegistry} from './styles.ts';
 import {escapeAttr, escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
 
 const NS = {
@@ -79,6 +80,11 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
   );
   const allTables = sheetTables.flat();
 
+  // Serialise the worksheets first: interning each cell/row fill into the style table is a
+  // side effect of that pass, so styles.xml can only be generated once every sheet is done.
+  const styles = new StyleRegistry();
+  const sheetXml = sheets.map((sheet, i) => worksheetXml(sheet, sheetTables[i] ?? [], styles));
+
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(contentTypesXml(sheets.length, allTables)),
     '_rels/.rels': strToU8(rootRelsXml()),
@@ -86,12 +92,12 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     'docProps/app.xml': strToU8(appPropsXml()),
     'xl/workbook.xml': strToU8(workbookXml(sheets)),
     'xl/_rels/workbook.xml.rels': strToU8(workbookRelsXml(sheets.length)),
-    'xl/styles.xml': strToU8(STYLES_XML),
+    'xl/styles.xml': strToU8(styles.toXml()),
     'xl/theme/theme1.xml': strToU8(THEME1_XML),
   };
-  sheets.forEach((sheet, i) => {
+  sheets.forEach((_sheet, i) => {
     const tables = sheetTables[i] ?? [];
-    files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(worksheetXml(sheet, tables));
+    files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
     if (tables.length > 0) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(worksheetRelsXml(tables));
     }
@@ -208,7 +214,7 @@ function appPropsXml(): string {
   );
 }
 
-function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[]): string {
+function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles: StyleRegistry): string {
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
   // rather than emit a package a consumer repairs on open.
   validateMerges(sheet);
@@ -221,10 +227,10 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[]): string
 
   for (const {number, cells, properties} of sheet.rows()) {
     const populated = cells.filter(cell => cell.value !== null);
-    const attrs = rowAttrs(properties);
+    const attrs = rowAttrs(properties, styles);
     // A row with neither data nor its own formatting has nothing to serialise.
     if (populated.length === 0 && attrs === '') continue;
-    rowXml.push(`<row r="${number}"${attrs}>${populated.map(cellXml).join('')}</row>`);
+    rowXml.push(`<row r="${number}"${attrs}>${populated.map(cell => cellXml(cell, styles)).join('')}</row>`);
     for (const cell of populated) {
       if (number < top) top = number;
       if (number > bottom) bottom = number;
@@ -403,7 +409,7 @@ function colXml(index: number, properties: ColumnProperties): string {
   return meaningful ? `<col ${attrs}/>` : '';
 }
 
-function rowAttrs(properties: RowProperties | undefined): string {
+function rowAttrs(properties: RowProperties | undefined, styles: StyleRegistry): string {
   if (properties === undefined) return '';
   let attrs = '';
   if (properties.height !== undefined) attrs += ` ht="${numberText(properties.height)}" customHeight="1"`;
@@ -412,41 +418,47 @@ function rowAttrs(properties: RowProperties | undefined): string {
     attrs += ` outlineLevel="${properties.outlineLevel}"`;
   }
   if (properties.collapsed) attrs += ' collapsed="1"';
+  // A row-level fill is a default format for the row's cells; customFormat="1" is what makes
+  // Excel honour the row's `s`, and a cell without its own `s` then inherits it.
+  const style = styles.styleId(properties.fill);
+  if (style !== 0) attrs += ` s="${style}" customFormat="1"`;
   return attrs;
 }
 
-function cellXml(cell: Cell): string {
+function cellXml(cell: Cell, styles: StyleRegistry): string {
   const ref = cell.address;
   const value = cell.value;
+  const style = styles.styleId(cell.fill);
+  const s = style !== 0 ? ` s="${style}"` : '';
 
   if (isFormulaValue(value)) {
-    return formulaCellXml(ref, value.formula, value.result);
+    return formulaCellXml(ref, s, value.formula, value.result);
   }
   if (typeof value === 'number') {
-    return `<c r="${ref}"><v>${numberText(value)}</v></c>`;
+    return `<c r="${ref}"${s}><v>${numberText(value)}</v></c>`;
   }
   if (typeof value === 'boolean') {
-    return `<c r="${ref}" t="b"><v>${value ? 1 : 0}</v></c>`;
+    return `<c r="${ref}"${s} t="b"><v>${value ? 1 : 0}</v></c>`;
   }
   if (typeof value === 'string') {
-    return `<c r="${ref}" t="inlineStr"><is>${textElement(value)}</is></c>`;
+    return `<c r="${ref}"${s} t="inlineStr"><is>${textElement(value)}</is></c>`;
   }
   throw new Error(`writing a ${detectValueType(value)} cell value is not implemented yet`);
 }
 
-function formulaCellXml(ref: string, formula: string, result: FormulaResult | undefined): string {
+function formulaCellXml(ref: string, s: string, formula: string, result: FormulaResult | undefined): string {
   const f = `<f>${escapeText(formula)}</f>`;
   if (result === undefined) {
-    return `<c r="${ref}">${f}</c>`;
+    return `<c r="${ref}"${s}>${f}</c>`;
   }
   if (typeof result === 'number') {
-    return `<c r="${ref}">${f}<v>${numberText(result)}</v></c>`;
+    return `<c r="${ref}"${s}>${f}<v>${numberText(result)}</v></c>`;
   }
   if (typeof result === 'boolean') {
-    return `<c r="${ref}" t="b">${f}<v>${result ? 1 : 0}</v></c>`;
+    return `<c r="${ref}"${s} t="b">${f}<v>${result ? 1 : 0}</v></c>`;
   }
   if (typeof result === 'string') {
-    return `<c r="${ref}" t="str">${f}<v>${escapeText(result)}</v></c>`;
+    return `<c r="${ref}"${s} t="str">${f}<v>${escapeText(result)}</v></c>`;
   }
   throw new Error('writing a non-primitive formula result is not implemented yet');
 }

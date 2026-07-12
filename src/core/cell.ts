@@ -6,6 +6,7 @@
 // through the value model so the cell's `type` is always consistent with what it holds.
 
 import {encodeAddress} from './address.ts';
+import type {Fill} from './style.ts';
 import {type CellValue, type ValueType, coerceCellValue, detectValueType} from './value.ts';
 
 export class Cell {
@@ -15,6 +16,7 @@ export class Cell {
   readonly col: number;
 
   #value: CellValue = null;
+  #fill: Fill | undefined;
 
   constructor(row: number, col: number) {
     if (!Number.isInteger(row) || row < 1) {
@@ -44,5 +46,18 @@ export class Cell {
   /** The observable {@link ValueType} of the current value. */
   get type(): ValueType {
     return detectValueType(this.#value);
+  }
+
+  /**
+   * The cell's background fill, or `undefined` when it has none. Each cell owns its
+   * own fill; assigning one never aliases a neighbour's style, so a fill set on one
+   * cell cannot bleed onto its row, column, or sheet siblings.
+   */
+  get fill(): Fill | undefined {
+    return this.#fill;
+  }
+
+  set fill(fill: Fill | undefined) {
+    this.#fill = fill;
   }
 }

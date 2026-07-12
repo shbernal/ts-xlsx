@@ -32,7 +32,15 @@ export {
   isErrorCode,
 } from './core/value.ts';
 
-export {type Color, type Font, type UnderlineStyle, type VerticalAlignment} from './core/style.ts';
+export {
+  type Color,
+  type Fill,
+  type FillPatternType,
+  type Font,
+  type PatternFill,
+  type UnderlineStyle,
+  type VerticalAlignment,
+} from './core/style.ts';
 
 export {Cell} from './core/cell.ts';
 export {

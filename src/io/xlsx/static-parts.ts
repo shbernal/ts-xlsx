@@ -1,10 +1,10 @@
 // Package parts that do not (yet) vary with workbook content.
 //
-// A spreadsheet with no explicitly configured theme or styles must still ship a valid
-// theme part and stylesheet: Excel treats a workbook that declares style/theme-color
-// dependencies but omits those parts as corrupt and repairs it on open. These are the
-// standard Office defaults, emitted verbatim until the style/theme model lands and can
-// generate them.
+// A spreadsheet with no explicitly configured theme must still ship a valid theme part:
+// the stylesheet's default font references `theme="1"`, which a consumer can only resolve
+// against this part, so the two ship together. This is the standard Office theme, emitted
+// verbatim until the theme model lands and can generate it. (The stylesheet itself is no
+// longer static — it is generated per-workbook by the StyleRegistry, see styles.ts.)
 
 import {XML_DECLARATION} from './xml.ts';
 
@@ -59,18 +59,3 @@ export const THEME1_XML =
   '<a:objectDefaults/>' +
   '<a:extraClrSchemeLst/>' +
   '</a:theme>';
-
-// The minimal valid stylesheet: one default font (Calibri 11, theme-1 colour), the two
-// conventional fills (none + the gray125 Excel always emits at index 1), one empty
-// border, and the single Normal cell style every cell references (`s` omitted ⇒ xf 0).
-export const STYLES_XML =
-  XML_DECLARATION +
-  '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-  '<fonts count="1"><font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font></fonts>' +
-  '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
-  '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
-  '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-  '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>' +
-  '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
-  '<dxfs count="0"/>' +
-  '</styleSheet>';

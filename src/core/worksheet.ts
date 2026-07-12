@@ -8,6 +8,7 @@
 
 import {decodeAddress} from './address.ts';
 import {Cell} from './cell.ts';
+import type {Fill} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
 
 export interface WorksheetState {
@@ -70,6 +71,8 @@ export interface RowProperties {
   outlineLevel?: number;
   /** Whether this row is the collapsed summary of an outline group. */
   collapsed?: boolean;
+  /** Background fill applied to the row's cells that carry no fill of their own. */
+  fill?: Fill;
 }
 
 export class Worksheet {

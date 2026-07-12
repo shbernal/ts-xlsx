@@ -2,7 +2,8 @@
 //
 // It reconstructs the part of the model the writer emits today — sheet names and order,
 // cells holding a number, string, boolean, or formula, per-column width/visibility,
-// per-row height/visibility, merged ranges, and page margins. Styles, shared-formula
+// per-row height/visibility, merged ranges, page margins, and pattern-fill styles (per
+// cell, or inherited from a formatted row). Fonts/borders/number formats, shared-formula
 // slaves, and the richer value kinds land as the model grows; an unrecognised construct
 // is skipped rather than guessed, so a foreign file reads without crashing even where a
 // facet is not yet materialised.
@@ -14,6 +15,7 @@
 import {unzipSync, strFromU8, type UnzipFileInfo} from 'fflate';
 
 import {decodeAddress} from '../../core/address.ts';
+import type {Color, Fill, FillPatternType} from '../../core/style.ts';
 import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {PageMargins, Worksheet} from '../../core/worksheet.ts';
@@ -60,6 +62,9 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
 
   const rels = parseRelationships(partText('xl/_rels/workbook.xml.rels') ?? '');
   const sharedStrings = parseSharedStrings(partText('xl/sharedStrings.xml') ?? '');
+  // The style table resolves a cell/row `s` index to its fill; a package without one
+  // (a hand-rolled foreign file) yields an empty table and every `s` reads as unstyled.
+  const xfFills = parseStyleFills(partText('xl/styles.xml') ?? '');
 
   const workbook = new Workbook();
   const core = partText('docProps/core.xml');
@@ -70,7 +75,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     const sheet = workbook.addWorksheet(name);
     const path = target === undefined ? undefined : resolveWorkbookPart(target);
     const sheetXml = path === undefined ? undefined : partText(path);
-    if (sheetXml !== undefined) parseWorksheet(sheetXml, sheet, sharedStrings);
+    if (sheetXml !== undefined) parseWorksheet(sheetXml, sheet, sharedStrings, xfFills);
   }
   return workbook;
 }
@@ -143,6 +148,105 @@ function parseSharedStrings(xml: string): string[] {
   return strings;
 }
 
+// styles.xml is a shared table: <fills> lists the fills, <cellXfs> lists the cell formats,
+// each naming a fill by id. We flatten that indirection into one array — cellXfs index →
+// resolved fill — so a cell's `s` attribute maps straight to its fill. Only fills are read
+// today; other facets on an xf are ignored until their model lands. `<fills>` always
+// precedes `<cellXfs>` in the schema, so the fill list is complete before an xf references it.
+function parseStyleFills(xml: string): ReadonlyArray<Fill | undefined> {
+  if (xml === '') return [];
+  const fills: Array<Fill | undefined> = [];
+  const xfFills: Array<Fill | undefined> = [];
+  let inFills = false;
+  let inCellXfs = false;
+  let pattern = '';
+  let fgColor: Color | undefined;
+  let bgColor: Color | undefined;
+
+  parseXml(xml, {
+    onOpen(name, attrs, selfClosing) {
+      switch (localName(name)) {
+        case 'fills':
+          inFills = true;
+          break;
+        case 'cellXfs':
+          inCellXfs = true;
+          break;
+        case 'patternFill':
+          if (inFills) {
+            pattern = attrs.patternType ?? 'none';
+            fgColor = undefined;
+            bgColor = undefined;
+            // A colourless fill (none/gray125) is a self-closing element, which the SAX
+            // parser reports with no matching close — push it here so its id slot is kept.
+            if (selfClosing) fills.push(toFill(pattern, undefined, undefined));
+          }
+          break;
+        case 'fgColor':
+          if (inFills) fgColor = parseColor(attrs);
+          break;
+        case 'bgColor':
+          if (inFills) bgColor = parseColor(attrs);
+          break;
+        case 'xf':
+          // cellStyleXfs also holds <xf>; only those inside <cellXfs> are cell references.
+          if (inCellXfs) {
+            const fillId = Number(attrs.fillId);
+            xfFills.push(Number.isInteger(fillId) ? fills[fillId] : undefined);
+          }
+          break;
+        default:
+          break;
+      }
+    },
+    onText() {},
+    onClose(name) {
+      switch (localName(name)) {
+        case 'fills':
+          inFills = false;
+          break;
+        case 'cellXfs':
+          inCellXfs = false;
+          break;
+        case 'patternFill':
+          if (inFills) fills.push(toFill(pattern, fgColor, bgColor));
+          break;
+        default:
+          break;
+      }
+    },
+  });
+  return xfFills;
+}
+
+function toFill(pattern: string, fgColor: Color | undefined, bgColor: Color | undefined): Fill | undefined {
+  if (pattern === '' || pattern === 'none') return undefined;
+  return {
+    type: 'pattern',
+    pattern: pattern as FillPatternType,
+    ...(fgColor ? {fgColor} : {}),
+    ...(bgColor ? {bgColor} : {}),
+  };
+}
+
+function parseColor(attrs: {readonly [k: string]: string}): Color {
+  const color: {argb?: string; theme?: number; tint?: number; indexed?: number} = {};
+  if (attrs.rgb !== undefined) color.argb = attrs.rgb;
+  if (attrs.theme !== undefined) {
+    const theme = Number(attrs.theme);
+    if (Number.isInteger(theme)) color.theme = theme;
+  }
+  if (attrs.tint !== undefined) {
+    const tint = Number(attrs.tint);
+    if (Number.isFinite(tint)) color.tint = tint;
+  }
+  if (attrs.indexed !== undefined) {
+    const indexed = Number(attrs.indexed);
+    if (Number.isInteger(indexed)) color.indexed = indexed;
+  }
+  return color;
+}
+
 // Core document properties live in docProps/core.xml under mixed namespaces
 // (dc:creator, cp:lastModifiedBy, dcterms:created/modified); local names disambiguate.
 const CORE_PROPERTY_LOCAL_NAMES = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
@@ -175,9 +279,15 @@ function applyCoreProperties(workbook: Workbook, xml: string): void {
   });
 }
 
-function parseWorksheet(xml: string, sheet: Worksheet, sharedStrings: readonly string[]): void {
+function parseWorksheet(
+  xml: string,
+  sheet: Worksheet,
+  sharedStrings: readonly string[],
+  xfFills: ReadonlyArray<Fill | undefined>
+): void {
   let cellRef = '';
   let cellType = '';
+  let cellStyle = -1;
   let formula = '';
   let valueText = '';
   let inlineText = '';
@@ -186,6 +296,9 @@ function parseWorksheet(xml: string, sheet: Worksheet, sharedStrings: readonly s
   let inInlineString = false;
   let capture = false;
   let text = '';
+  // A row with customFormat="1" supplies a default fill for its cells that carry no `s`.
+  let rowStyle = -1;
+  let rowCustomFormat = false;
 
   parseXml(xml, {
     onOpen(name, attrs, selfClosing) {
@@ -198,10 +311,13 @@ function parseWorksheet(xml: string, sheet: Worksheet, sharedStrings: readonly s
           break;
         case 'row':
           applyRow(sheet, attrs);
+          rowStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
+          rowCustomFormat = attrs.customFormat === '1' || attrs.customFormat === 'true';
           break;
         case 'c':
           cellRef = attrs.r ?? '';
           cellType = attrs.t ?? '';
+          cellStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
           formula = '';
           valueText = '';
           inlineText = '';
@@ -248,8 +364,21 @@ function parseWorksheet(xml: string, sheet: Worksheet, sharedStrings: readonly s
         case 'is':
           inInlineString = false;
           break;
-        case 'c':
-          if (cellRef !== '') finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, sharedStrings);
+        case 'c': {
+          if (cellRef === '') break;
+          // A cell's own style wins; a cell without one inherits its row's format fill.
+          const fill =
+            cellStyle >= 0
+              ? xfFills[cellStyle]
+              : rowCustomFormat && rowStyle >= 0
+                ? xfFills[rowStyle]
+                : undefined;
+          finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, sharedStrings, fill);
+          break;
+        }
+        case 'row':
+          rowStyle = -1;
+          rowCustomFormat = false;
           break;
         default:
           break;
@@ -306,11 +435,13 @@ function finalizeCell(
   hasValue: boolean,
   valueText: string,
   inlineText: string,
-  sharedStrings: readonly string[]
+  sharedStrings: readonly string[],
+  fill: Fill | undefined
 ): void {
   const {col, row} = decodeAddress(ref);
   if (col === undefined || row === undefined) return;
   const cell = sheet.getCell(ref);
+  if (fill !== undefined) cell.fill = fill;
 
   if (hasFormula) {
     const result = hasValue ? decodeResult(type, valueText) : undefined;

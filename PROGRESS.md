@@ -1144,16 +1144,31 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   document properties (`docProps/core.xml`). The model grew `Worksheet.rowCount`/`actualRowCount`
   (used-range extent that spans gaps vs populated-row tally). The adapter's `roundtripWorkbook` now
   binds write→read→normalize to this reader, mirroring `current.mjs`'s JSON model exactly.
-- **Latest corpus vs rewrite: 58 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
-  580 skipped.** The reader lit up 23 round-trip cases (35 → 58): scalar-type fidelity (a digit-string
+- **Styles slice — pattern fills, both directions (2026-07-12):** the first cut into the largest `∅`
+  cluster (styles). The style model grew a real `Fill`/`PatternFill`/`FillPatternType` (`src/core/style.ts`),
+  `Cell.fill`, and `RowProperties.fill`; each cell owns its own fill object, so a fill set on one cell
+  *cannot alias* a neighbour's style — the classic style-bleed bug is absent by construction, not patched.
+  The writer now generates `styles.xml` per-workbook via a new **`StyleRegistry`** (`src/io/xlsx/styles.ts`)
+  that **interns** fills and cell formats: identical fills collapse to one `<fills>`/`<cellXfs>` entry
+  (bounded write cost on large lightly-formatted sheets), distinct fills stay separate. Cells emit `s="N"`;
+  a formatted row emits `s="N" customFormat="1"`. The static `STYLES_XML` was deleted (dead). The reader
+  parses `styles.xml` into an xf→fill table and resolves each cell's `s` (a cell without its own `s`
+  inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
+  emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
+  on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
+- **Latest corpus vs rewrite: 63 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
+  575 skipped.** The styles slice lit up the two pure-fill round-trips (58 → 63): a solid fill stays local
+  to its cell (no bleed onto row/column/sheet siblings), and a row-level fill is inherited only by that
+  row's cells. numFmt/font/border-dependent style cases stay gated on their still-unsupported keys. The
+  reader earlier lit up 23 round-trip cases (35 → 58): scalar-type fidelity (a digit-string
   `"10"`/zero-padded `"007"` stays a string, `15` stays a number), formulas with markup-significant
   operators (`<`, `>`, `&`) round-trip verbatim, merged-range count/geometry survives, explicit row
   heights persist, table geometry round-trips intact, workbook core properties (creator/lastModifiedBy/
   created/modified) read back unchanged, and `rowCount` spans a row gap while `actualRowCount` excludes
   it. The `_xlfn.` modern-function prefix bug is still `○` (legacy fails too); outline summary-row
   `collapsed` inference remains open. Legacy oracle unchanged: **424 green / 233 known-open / 0
-  regressions**. Gates all green: `typecheck` clean, `test:src` **100/100** (+28: SAX + reader
-  round-trip units).
+  regressions**. Gates all green: `typecheck` clean, `test:src` **109/109** (+37: SAX + reader
+  round-trip + StyleRegistry/fill units).
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
@@ -1198,25 +1213,28 @@ adapter → the corpus runs against it, the first module (`address.ts`) is green
 legacy known-open**, with 0 regressions on the legacy oracle. Continue module by module, in the
 `STRATEGY.md` build order (**core model → XML layer → xlsx r/w → streaming → csv**):
 
-1. **Writer + core model — widening both together, one feature per corpus win.** The buffered writer
-   (`src/io/xlsx/`, on `fflate`) turns the model into a valid package and lights `inspectPackage`
-   behaviors within its supported subset. Landed so far: cells (number/string/boolean/formula),
-   worksheet visibility, core properties, and **rows & columns** (`getColumn`/`getRow` metadata,
-   `<cols>`, row height/hidden/outline attrs, `<sheetFormatPr>` defaults, XFD-limit clamp). Remaining
-   in dependency order: **`addRow`/`addRows` shapes** (dense/sparse-array + keyed-object — see
-   `add-row-array-and-object-shapes-populate`; needs keyed columns + the reader to assert), **merges**
-   (master/slave → `<mergeCells>`), **defined-name storage** → `xl/workbook.xml` `<definedNames>`,
-   then the **styles surface** (fills/borders/alignment/protection → `styles.xml` `cellXfs` + per-cell
-   `s=`). As each lands, drop its key from the rewrite adapter's feature-gate so those behaviors run.
-   Small follow-ups: the modern-function `_xlfn.` prefix and the outline summary-row `collapsed`
-   inference (both currently `○`). Cases asserting through `roundtripWorkbook`/`readFixture*` stay
-   skipped until the **reader** lands.
-2. **Then the XML + zip *read* layer** (the highest-value, hardest area): the zip lib is decided
-   (`fflate`, ADR 0003); pick the *parser* per the still-open half of that decision
-   (`fast-xml-parser` vs a lean SAX layer), benchmark, record it, and wire the fixture-reading
-   capabilities so the `readFixture*`/`roundtripFixture*`/`roundtripWorkbook` cases light up. The
-   reader is where the hostile-input guards (bounded inflate, no zip-bomb naïveté) live.
-3. **Toolchain-standup slice** (do when `src/` is large enough to justify it): Vitest + Biome +
+1. **Deepen the styles surface — both directions, one facet per corpus win.** Writer and reader now
+   round-trip **pattern fills** (per-cell + row-inherited) through a shared `StyleRegistry` that interns
+   fills/cellXfs. The next facets, in the order the corpus rewards them: **number formats** (`numFmt`
+   on cells *and* columns — unlocks `per-cell-style-does-not-leak-to-column-siblings`,
+   `per-column-numfmt-stays-independent`, `custom-numfmt-string-roundtrips-verbatim`, and the
+   `styleDedupReport` capability once a differently-formatted cell can exist), then **fonts** (bold/
+   color/name → `<fonts>`; theme-color fonts unlock `themed-workbook-mutate-write-stays-valid`),
+   **borders**, and **alignment**. Each extends the `StyleRegistry` xf signature + the reader's
+   xf-resolution and drops another key from the adapter feature-gate. Also worth a small slice:
+   ARGB validation (reject/normalize a `#`-prefixed fill colour — `solid-fill-argb-rejects-hash-prefix`),
+   and writing a filled-but-empty cell (today the row loop drops a cell with a fill but null value).
+2. **Foreign-fixture reading** (`readFixtureReport`, `readFixtureCellStyles`, `roundtripFixture*`): read
+   *real* third-party `.xlsx` fixtures (prefixed OOXML roots, BOMs, non-ASCII sheet names, `t="s"`
+   shared strings, theme/indexed colours) — needs `readFixture*` adapter capabilities + reader
+   robustness. This lights the fixture-backed style cases (`solid-fill-foreground-vs-font-color`,
+   `theme-and-rgb-fill-colors-read-faithfully`, `fill-border-color-survives-roundtrip`).
+3. **Remaining writer/core-model widening:** **`addRow`/`addRows` shapes** (dense/sparse-array +
+   keyed-object — `add-row-array-and-object-shapes-populate`), **defined-name storage** →
+   `<definedNames>`. Small follow-ups: modern-function `_xlfn.` prefix, outline summary-row `collapsed`
+   inference (both `○`), and the **streaming reader** (where the *running-counter* inflate bound lands —
+   the buffered reader only has the declared-size cap; see ADR 0004).
+4. **Toolchain-standup slice** (do when `src/` is large enough to justify it): Vitest + Biome +
    an ESM/`.d.ts` bundler, and schedule the legacy Grunt/Babel/Mocha rip-out. Until then the gates
    are `npm run typecheck` + `npm run test:src` + `npm run corpus:rewrite`.
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {zipSync, strToU8} from 'fflate';
+import {zipSync, strToU8, strFromU8, unzipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
 import {isFormulaValue} from '../../core/value.ts';
@@ -135,6 +135,61 @@ test('rowCount spans a gap; actualRowCount counts only populated rows', () => {
   const back = roundtrip(wb).getWorksheet('S');
   assert.equal(back?.rowCount, 3);
   assert.equal(back?.actualRowCount, 2);
+});
+
+test('a solid pattern fill round-trips with its foreground colour on a single cell', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'painted';
+  sheet.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF0000'}};
+  sheet.getCell('B2').value = 'plain';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  const fill = back?.getCell('A1').fill;
+  assert.equal(fill?.type, 'pattern');
+  assert.equal(fill?.pattern, 'solid');
+  assert.equal(fill?.fgColor?.argb, 'FFFF0000');
+  assert.equal(fill?.bgColor?.indexed, 64, 'solid fill keeps the automatic indexed background');
+  assert.equal(back?.getCell('B2').fill, undefined, 'an unfilled cell reads back with no fill');
+});
+
+test('two cells with different fills stay distinct across the round-trip', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 1;
+  sheet.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF0000'}};
+  sheet.getCell('A2').value = 2;
+  sheet.getCell('A2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF0000FF'}};
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getCell('A1').fill?.fgColor?.argb, 'FFFF0000');
+  assert.equal(back?.getCell('A2').fill?.fgColor?.argb, 'FF0000FF');
+});
+
+test('a row-level fill is inherited by the row cells that carry no fill of their own', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  for (let r = 1; r <= 4; r++) sheet.getCell(`A${r}`).value = `r${r}`;
+  sheet.getRow(3).fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF4500'}};
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getCell('A3').fill?.fgColor?.argb, 'FFFF4500', 'the formatted row paints its cell');
+  for (const ref of ['A1', 'A2', 'A4']) {
+    assert.equal(back?.getCell(ref).fill, undefined, `${ref} does not inherit the row-3 fill`);
+  }
+});
+
+test('many identically-filled cells collapse to one shared style entry in the package', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  for (let r = 1; r <= 40; r++) {
+    sheet.getCell(`A${r}`).value = r;
+    sheet.getCell(`A${r}`).fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFDDEEFF'}};
+  }
+  const files = unzipSync(writeXlsx(wb));
+  const stylesXml = strFromU8(files['xl/styles.xml'] as Uint8Array);
+  // Default xf + the single shared fill = two entries, never ~40.
+  assert.match(stylesXml, /<cellXfs count="2">/);
 });
 
 test('the inflate bound rejects a part whose declared size is over the cap', () => {

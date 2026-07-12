@@ -38,10 +38,10 @@ const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'mo
 const SUPPORTED_SHEET_KEYS = new Set([
   'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageMargins', 'headerFooter', 'tables', 'merges',
 ]);
-const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result']);
+const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden']);
-const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed']);
+const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
 const SUPPORTED_PAGE_MARGIN_KEYS = new Set(['left', 'right', 'top', 'bottom', 'header', 'footer']);
 const SUPPORTED_HEADER_FOOTER_KEYS = new Set([
   'oddHeader', 'oddFooter', 'evenHeader', 'evenFooter', 'firstHeader', 'firstFooter',
@@ -142,6 +142,7 @@ function buildFrom(spec = {}) {
       if (row.hidden !== undefined) target.hidden = row.hidden;
       if (row.outlineLevel !== undefined) target.outlineLevel = row.outlineLevel;
       if (row.collapsed !== undefined) target.collapsed = row.collapsed;
+      if (row.fill !== undefined) target.fill = row.fill;
     }
 
     for (const c of s.cells || []) {
@@ -151,13 +152,14 @@ function buildFrom(spec = {}) {
       const cell = sheet.getCell(c.ref);
       if ('formula' in c) {
         cell.value = 'result' in c ? {formula: c.formula, result: c.result} : {formula: c.formula};
-      } else {
+      } else if ('value' in c) {
         const v = c.value;
         if (v !== null && typeof v === 'object') {
           throw notImplemented(`cell value shape ${JSON.stringify(v)} not supported yet`);
         }
         cell.value = v;
       }
+      if (c.fill !== undefined) cell.fill = c.fill;
     }
   }
   return workbook;
@@ -168,9 +170,14 @@ function buildFrom(spec = {}) {
 // them, matching the contract that an unmaterialized facet is simply not present.
 function normalizeRewriteCell(cell) {
   const v = cell.value;
-  if (v && typeof v === 'object' && 'formula' in v) return {formula: v.formula, result: v.result ?? null};
-  if (v instanceof Date) return {value: Number.isNaN(v.getTime()) ? null : v.toISOString()};
-  return {value: v ?? null};
+  let out;
+  if (v && typeof v === 'object' && 'formula' in v) out = {formula: v.formula, result: v.result ?? null};
+  else if (v instanceof Date) out = {value: Number.isNaN(v.getTime()) ? null : v.toISOString()};
+  else out = {value: v ?? null};
+  // A style facet is reported only when the round-trip materialized it, matching the
+  // contract that an unset facet is simply absent (never an empty placeholder).
+  if (cell.fill !== undefined) out.fill = cell.fill;
+  return out;
 }
 
 function partMapOf(buffer) {
