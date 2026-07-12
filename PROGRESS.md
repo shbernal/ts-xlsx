@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 94 green / 0 regressions (styles now round-trip pattern fills, number formats, fonts, borders, **and alignment** through an interned, composed style table, with dedup exposed to the corpus; the SAX reader now does XML §2.11 end-of-line normalization); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 94 green / 0 regressions (styles now round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1214,9 +1214,16 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   `collapsed` inference remains open. Legacy oracle unchanged: **424 green / 233 known-open / 0
   regressions** (an occasional flake in the *legacy* streaming-control `streamReadManySheets(3)` is a
   `lib/` temp-file/resource timing artefact — the rewrite adapter skips streaming, so it is unrelated to
-  the rewrite). Gates all green: `typecheck` clean, `test:src` **140/140** (+9: alignment interning as an
-  xf child + all-default→xf-0 + alignment/facet independence + cell-alignment round-trip + flags-off-stay-off
-  + foreign `wrapText="0"`→no-alignment + CRLF/CR→LF normalization + `&#13;` survives normalization).
+  the rewrite). Gates all green: `typecheck` clean, `test:src` **148/148** (+8 over the alignment slice:
+  protection interning as the second xf child + all-default→xf-0 + alignment+protection as two ordered xf
+  children + protection/facet independence + cell-protection round-trip of the meaningful flags +
+  default-locked→no-protection + foreign explicit-`locked="1"`→no-protection). The **protection** slice
+  completed the per-cell style-facet surface (fill, numFmt, font, border, alignment, protection). `locked`
+  defaults to TRUE in OOXML, so only an explicitly *unlocked* cell (`locked="0"`) carries information; the
+  reader never fabricates `{locked: true}` from a default or explicit-`locked="1"` cell. No new corpus
+  cases lit: the three protection corpus cases each gate on a further capability the cell facet alone
+  cannot supply — `authorCellProtection` (needs `<sheetProtection>` + column/row protection bands),
+  `loadMutateCellFacet` (copy-on-write aliasing), and password hashing — deferred to those families.
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
@@ -1264,21 +1271,33 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
 1. **Deepen the styles surface — both directions, one facet per corpus win.** Writer and reader now
    round-trip **pattern fills** (per-cell + row-inherited), **number formats** (`numFmt` on cells and
    columns, cell-inherits-column, `<numFmts>` + ECMA-376 built-in id table), **fonts** (bold/italic/
-   underline/size/colour/typeface → `<fonts>`, boolean flags read honouring `val`), and **borders** (four
+   underline/size/colour/typeface → `<fonts>`, boolean flags read honouring `val`), **borders** (four
    sides + diagonal, per-edge colour + diagonal direction → `<borders>` in schema edge order, empty border
-   → id 0), and **alignment** (horizontal/vertical/`textRotation`/`indent`/`wrapText`/`shrinkToFit` as an
-   `<alignment>` child of the xf) through a shared `StyleRegistry` that interns numFmts/fills/fonts/borders/
-   cellXfs and composes each cell's full style; dedup is exposed to the corpus via `styleDedupReport`. The
-   next facet, in the order the corpus rewards it: **protection** (`<protection locked=.. hidden=..>` on the
-   xf, the last per-cell xf child) — it lights `cell-protection-locked-flag-and-sheet-protection` and is the
-   remaining facet of the copy-on-write aliasing family (`cell-style-setter-isolates-alignment-numfmt-
-   protection` covers alignment+numFmt+protection together, so that whole case also needs the aliasing
-   capability). It extends the `StyleRegistry` xf signature + the reader's xf-resolution and drops another
-   key from the adapter feature-gate. The remaining **alignment** cases need their own capabilities —
-   column-scope (the column-level behaviors of `alignment-does-not-leak-across-cells`) and foreign-fixture
-   reading (`alignment-false-boolean-attrs-yield-no-alignment` via `alignmentFalseBooleanReport`, whose
-   reader path is already correct — `wrapText="0"` reads as no alignment — and just needs the adapter
-   capability). The remaining **border** cases need their own
+   → id 0), **alignment** (horizontal/vertical/`textRotation`/`indent`/`wrapText`/`shrinkToFit` as an
+   `<alignment>` child of the xf), and **protection** (`locked`/`hidden` as a `<protection>` child of the
+   xf, after `<alignment>`) through a shared `StyleRegistry` that interns numFmts/fills/fonts/borders/
+   cellXfs and composes each cell's full style; dedup is exposed to the corpus via `styleDedupReport`.
+   **The per-cell style-facet surface is now complete** (fill, numFmt, font, border, alignment, protection).
+   What remains for styles is not new *facets* but the cross-cutting *capability families* the deferred
+   cases gate on — and these now recur across facets, so building each capability lights several cases at
+   once:
+   - **Sheet-level protection** (`sheet.protect(password, options)` → `<sheetProtection>`, plus column/row
+     protection bands): required by `authorCellProtection`, which lights
+     `cell-protection-locked-flag-and-sheet-protection` (per-cell + column/row unlock; the per-cell
+     `<protection>` round-trip it needs is already done) and `sheet-protection-permits-requested-operations`.
+     Password hashing (`worksheet-password-protection-hashes-in-node`) is a further sub-slice.
+   - **Copy-on-write style aliasing** (`loadMutateCellFacet`/`loadMutateCellStyle`/`loadMutateCellFont`):
+     setting one loaded cell's facet must not bleed into a style-sharing sibling. Lights
+     `cell-style-setter-isolates-alignment-numfmt-protection` (alignment+numFmt+protection together) and the
+     font/border members of the same family (`shared-base-style-font-mutation-isolated`,
+     `cell-border-mutation-does-not-bleed-to-style-siblings`).
+   - **Column-scope style inheritance** for facets beyond numFmt: the column-level behaviors of
+     `alignment-does-not-leak-across-cells` and `column-border-style-scoped-to-declaring-column`.
+   - **Foreign-fixture reading** capabilities (below) for `alignment-false-boolean-attrs-yield-no-alignment`
+     (`alignmentFalseBooleanReport` — the reader path is already correct, `wrapText="0"` reads as no
+     alignment) and the fixture-backed colour cases.
+
+   The remaining **border** cases need their own
    capabilities — shared-style aliasing (`cell-border-mutation-does-not-bleed-to-style-siblings`),
    column-scope (`column-border-style-scoped-to-declaring-column`), merge-master survival
    (`merged-region-master-cell-border-survives`), and foreign-fixture colour fidelity
