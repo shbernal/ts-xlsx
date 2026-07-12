@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 155 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`; **and copy-on-write style aliasing** — loaded cells that shared a style record expose independent facet objects, so a single-cell facet edit never bleeds into a sibling, hard-locked by `style-isolation.test.ts`; **and column-scope inheritance of every style facet** — a column now defaults a fill/font/border/alignment/protection to its cells, not just a number format, scoped to its own column; **and the foreign-fixture reading family (now fully closed)** — the reader proves itself against real non-Excel input: theme+tint/indexed fill & border colours survive a pure open-then-save, the workbook default font resolves onto every unstyled cell, a real styled template survives a no-op round-trip, foreign explicit-off font/alignment forms are honoured (incl. the `<u val="none">` → falsy fix), and ~two dozen real fixtures with namespace-prefixed roots / BOMs / unusual part order / missing optional parts read without crashing); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 155 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`; **and copy-on-write style aliasing** — loaded cells that shared a style record expose independent facet objects, so a single-cell facet edit never bleeds into a sibling, hard-locked by `style-isolation.test.ts`; **and column-scope inheritance of every style facet** — a column now defaults a fill/font/border/alignment/protection to its cells, not just a number format, scoped to its own column; **and the foreign-fixture reading family (now fully closed)** — the reader proves itself against real non-Excel input: theme+tint/indexed fill & border colours survive a pure open-then-save, the workbook default font resolves onto every unstyled cell, a real styled template survives a no-op round-trip, foreign explicit-off font/alignment forms are honoured (incl. the `<u val="none">` → falsy fix), and ~two dozen real fixtures with namespace-prefixed roots / BOMs / unusual part order / missing optional parts read without crashing; **the merged-cells family is fully closed** — slave→master addressing, overlap rejection, and lossless `model` export/import; **and the structural-edit family** — `spliceRows`/`spliceColumns`/`insertRow`/`duplicateRow` shift cells with their styles, row/column metadata, and merged ranges, at 171 green / 0 regressions); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1156,8 +1156,30 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 155 green / 3 known-open / 64 legacy known-opens resolved / 0 regressions /
-  435 skipped; test:src 184/184.** The **worksheet model export/import slice** (the merged-cells family's
+- **Latest corpus vs rewrite: 171 green / 3 known-open / 75 legacy known-opens resolved / 0 regressions /
+  408 skipped; test:src 196/196.** The **structural-edit slice** (spliceRows/spliceColumns/insertRow/
+  duplicateRow on `Worksheet`) is the family that opens up bulk grid editing. A row splice removes `count`
+  rows at `start` and inserts new ones in their place; rows below shift by `inserts.length - count`, so a
+  delete pulls the tail up, an insert pushes it down, and an over-large count clears the tail rather than
+  silently no-op-ing. A shifted cell is a fresh cell at the new coordinates carrying the original's value and
+  **every style facet** (`Cell` fixes its position at construction; facet objects pass by reference, safe
+  under copy-on-write), so a splice never blanks a styled row. Row/column *metadata* (heights, widths,
+  hidden/outline) shifts the same way, and merged ranges re-anchor: a range wholly past the cut shifts by the
+  net delta, one whose covered rows/columns are entirely deleted drops, a straddling range clamps to the cut
+  as best-effort, and an unbounded whole-row/column merge passes through. `insertRow` is `spliceRows(pos, 0,
+  values)`; `duplicateRow` copies a row `count` times (inserting-and-shifting, or overwriting) and the copies
+  carry no merge of their own, so a range can be merged onto a duplicate afterward. Added a `columnCount`
+  getter (the used-range width, mirroring `rowCount`). Lights nine cases — the pass-baseline halves are green
+  regression locks (`✓`: small-count splice, interior delete, style travel on shift, column shift-left/insert,
+  trailing-data shift, faithful duplicate + merge, inheritance-inserted cells stay mutable, splice-below/
+  insert-below controls), the fail-baseline halves are `↑` FIXED (rewrite-only, baselines stay `fail`:
+  over-large count clears the tail, delete-at-end removes trailing rows/columns, splice/insert/duplicate
+  shift merges, `lastRow` tracks the tail past a delete). Covered by twelve new `src/core/worksheet.test.ts`
+  cases. The rewrite adapter now binds all four `mutateWorksheet` ops plus `duplicateRowReport` and
+  `insertRowThenStyle`, and reads style facets + `columnCount` back. Two cases in the family stay `∅` skipped
+  because they need capabilities the rewrite has not built yet: `row-insert-preserves-note-and-outline-level`
+  (cell notes) and `splice-rows-updates-table-and-image-refs` (anchored images) — both natural future slices.
+  The **worksheet model export/import slice** (the merged-cells family's
   third and final real source feature — the family is now fully closed) gives `Worksheet` a `model` getter
   that snapshots the sheet's transferable content (state, page setup, columns, rows, cells with their
   per-cell styles, merges, tables, sheet protection) and a setter that reproduces it. The getter emits and
@@ -1171,9 +1193,8 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   green lock, its import behaviour (baseline `fail`) is `↑` FIXED (rewrite-only; baseline stays `fail`).
   Covered by six new `src/core/worksheet.test.ts` cases (merge round-trip, cell values + facets, column/row/
   page metadata, tables + protection, wholesale replace leaves no residue, snapshot does not alias the
-  source). With this the splice/insert/duplicate structural-edit family (`mutateWorksheet` ops
-  spliceRows/spliceColumns/insertRow/duplicateRow) is the natural next build-out, unlocking the ~nine cases
-  those ops still skip. The **merge-overlap rejection slice** (the merged-cells family's second
+  source). This was the springboard for the structural-edit slice above, which has since landed and unlocked
+  those cases. The **merge-overlap rejection slice** (the merged-cells family's second
   real source feature) makes `Worksheet.mergeCells` reject a bounded range that overlaps an already-merged
   region — overlapping merges are Excel-invalid geometry that opens as corrupt. The check runs against the
   decoded merge rectangles already kept for slave-cell addressing (two inclusive rectangles overlap when

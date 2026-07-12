@@ -6,7 +6,7 @@
 // the cell grid, because a column or row can carry formatting while holding no cells.
 // Merges and views layer on in later slices.
 
-import {decodeAddress, decodeRange} from './address.ts';
+import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {Cell} from './cell.ts';
 import {
   deriveCredential,
@@ -154,6 +154,21 @@ function overwrite<T extends object>(target: T, source: T): void {
   Object.assign(target, source);
 }
 
+// Copy a cell's value and every style facet onto another cell. Used when a structural edit shifts a
+// cell to a new position: `Cell` fixes its `(row, col)` at construction, so a shifted cell is a fresh
+// cell at the new coordinates carrying the original's content. Facet objects are passed by reference —
+// safe under the copy-on-write style model (facet setters replace, never mutate), so the source and
+// its shifted copy never alias each other's style through a shared object.
+function copyCellContent(source: Cell, target: Cell): void {
+  target.value = source.value;
+  target.fill = source.fill;
+  target.numFmt = source.numFmt;
+  target.font = source.font;
+  target.border = source.border;
+  target.alignment = source.alignment;
+  target.protection = source.protection;
+}
+
 export class Worksheet {
   readonly name: string;
   /** 1-based workbook-assigned id, stable for the sheet's lifetime. */
@@ -285,6 +300,24 @@ export class Worksheet {
     return count;
   }
 
+  /**
+   * The 1-based index of the last column carrying anything — a non-empty cell or its own format
+   * properties — or 0 for an empty sheet. The used-range width, mirroring {@link rowCount} for the
+   * other axis: a value in column E makes this 5 even if columns B–D are empty.
+   */
+  get columnCount(): number {
+    let last = 0;
+    for (const cols of this.#rows.values()) {
+      for (const [col, cell] of cols) {
+        if (cell.value !== null && col > last) last = col;
+      }
+    }
+    for (const index of this.#columns.keys()) {
+      if (index > last) last = index;
+    }
+    return last;
+  }
+
   /** The defined columns in ascending index order, each with its format properties. */
   *columns(): IterableIterator<{readonly index: number; readonly properties: ColumnProperties}> {
     for (const [index, properties] of [...this.#columns].sort(([a], [b]) => a - b)) {
@@ -350,6 +383,203 @@ export class Worksheet {
   /** The merged ranges on this sheet, in the order they were added. */
   get merges(): readonly string[] {
     return this.#merges;
+  }
+
+  /**
+   * Remove `count` rows starting at the 1-based `start`, then insert the given rows in their place.
+   * Rows below the edit shift by `inserts.length - count`: a delete pulls the tail up, an insert
+   * pushes it down, and doing both at once is a replace. Each inserted row is an array of cell
+   * values, one per column from A. A `count` larger than the rows present simply clears the tail —
+   * it never silently becomes a no-op. Cells carry their full style to the shifted position, and
+   * merged ranges shift with the rows they cover.
+   *
+   * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
+   */
+  spliceRows(start: number, count: number, ...inserts: CellValue[][]): void {
+    if (!Number.isInteger(start) || start < 1) {
+      throw new RangeError(`splice start ${start} is out of bounds — rows start at 1`);
+    }
+    if (!Number.isInteger(count) || count < 0) {
+      throw new RangeError(`splice count ${count} is invalid — it must be a non-negative integer`);
+    }
+    const inserted = inserts.map((values, i) => {
+      const row = new Map<number, Cell>();
+      values.forEach((value, index) => {
+        const cell = new Cell(start + i, index + 1);
+        cell.value = value;
+        row.set(index + 1, cell);
+      });
+      return row;
+    });
+    this.#spliceRowRange(start, count, inserted);
+  }
+
+  /**
+   * Insert one row of `values` at the 1-based `pos`, shifting the rows at and below it down by one.
+   * Shorthand for {@link spliceRows}`(pos, 0, values)`.
+   *
+   * @throws {RangeError} if `pos` is not a positive integer.
+   */
+  insertRow(pos: number, values: CellValue[]): void {
+    this.spliceRows(pos, 0, values);
+  }
+
+  /**
+   * Copy the row at the 1-based `start`, `count` times. With `insert` (the default) the copies are
+   * inserted directly after the source, shifting the rows below — and any merged range there — down
+   * by `count`; otherwise the copies overwrite the rows immediately below without shifting. Each
+   * copy is a faithful duplicate of the source's values and per-cell styles, and carries no merge of
+   * its own, so a range can be merged onto a duplicated row afterwards.
+   *
+   * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
+   */
+  duplicateRow(start: number, count = 1, insert = true): void {
+    if (!Number.isInteger(start) || start < 1) {
+      throw new RangeError(`duplicate start ${start} is out of bounds — rows start at 1`);
+    }
+    if (!Number.isInteger(count) || count < 0) {
+      throw new RangeError(`duplicate count ${count} is invalid — it must be a non-negative integer`);
+    }
+    const source = this.#rows.get(start);
+    const snapshot = (destRow: number): Map<number, Cell> => {
+      const row = new Map<number, Cell>();
+      if (source) {
+        for (const [col, cell] of source) {
+          const copy = new Cell(destRow, col);
+          copyCellContent(cell, copy);
+          row.set(col, copy);
+        }
+      }
+      return row;
+    };
+    if (insert) {
+      const copies = Array.from({length: count}, () => snapshot(start));
+      this.#spliceRowRange(start + 1, 0, copies);
+    } else {
+      for (let i = 1; i <= count; i++) this.#rows.set(start + i, snapshot(start + i));
+    }
+  }
+
+  /**
+   * Remove `count` columns starting at the 1-based `start`, then insert the given columns in their
+   * place — the column analog of {@link spliceRows}. Columns to the right shift by
+   * `inserts.length - count`, keeping their values and styles, and a merged range lying wholly to
+   * the right of the edit re-anchors to its new columns. Each inserted column is an array of values
+   * indexed by row (index 0 → row 1); an empty array inserts a blank column.
+   *
+   * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
+   */
+  spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void {
+    if (!Number.isInteger(start) || start < 1) {
+      throw new RangeError(`splice start ${start} is out of bounds — columns start at 1`);
+    }
+    if (!Number.isInteger(count) || count < 0) {
+      throw new RangeError(`splice count ${count} is invalid — it must be a non-negative integer`);
+    }
+    const delta = inserts.length - count;
+    for (const [row, cols] of this.#rows) {
+      const shifted = new Map<number, Cell>();
+      for (const [col, cell] of cols) {
+        if (col < start) {
+          shifted.set(col, cell);
+        } else if (col >= start + count) {
+          const dest = col + delta;
+          const moved = new Cell(row, dest);
+          copyCellContent(cell, moved);
+          shifted.set(dest, moved);
+        }
+      }
+      inserts.forEach((values, i) => {
+        const value = values[row - 1];
+        if (value !== undefined) {
+          const cell = new Cell(row, start + i);
+          cell.value = value;
+          shifted.set(start + i, cell);
+        }
+      });
+      this.#rows.set(row, shifted);
+    }
+    this.#shiftLineProperties(this.#columns, start, count, delta);
+    this.#shiftMerges(start, count, inserts.length, 'col');
+  }
+
+  // Apply a delete-then-insert to the row grid: surviving rows below the edit shift by
+  // `inserts.length - count`, deleted rows drop out, and the pre-built inserted rows land at `start`.
+  // Row metadata and merged ranges shift the same way, so a formatting-only row or a covered merge
+  // stays aligned with the data it describes.
+  #spliceRowRange(start: number, count: number, inserted: Map<number, Cell>[]): void {
+    const delta = inserted.length - count;
+    const shifted = new Map<number, Map<number, Cell>>();
+    for (const [row, cols] of this.#rows) {
+      if (row < start) shifted.set(row, cols);
+      else if (row >= start + count) shifted.set(row + delta, this.#relocateRow(cols, row + delta));
+    }
+    inserted.forEach((cols, i) => shifted.set(start + i, this.#relocateRow(cols, start + i)));
+    this.#rows.clear();
+    for (const [row, cols] of shifted) this.#rows.set(row, cols);
+
+    this.#shiftLineProperties(this.#rowProperties, start, count, delta);
+    this.#shiftMerges(start, count, inserted.length, 'row');
+  }
+
+  // Rebuild a row's cells at a new row index. `Cell` fixes its position at construction, so a moved
+  // row is a fresh set of cells at `destRow` carrying the originals' content.
+  #relocateRow(cols: Map<number, Cell>, destRow: number): Map<number, Cell> {
+    const moved = new Map<number, Cell>();
+    for (const [col, cell] of cols) {
+      if (cell.row === destRow) {
+        moved.set(col, cell);
+      } else {
+        const copy = new Cell(destRow, col);
+        copyCellContent(cell, copy);
+        moved.set(col, copy);
+      }
+    }
+    return moved;
+  }
+
+  // Shift a line-metadata map (row properties keyed by row, or column properties keyed by column)
+  // through a splice: entries before the edit stay, entries within the deleted span drop, entries
+  // after shift by `delta`. Mutates the map in place.
+  #shiftLineProperties<T>(map: Map<number, T>, start: number, count: number, delta: number): void {
+    const shifted = new Map<number, T>();
+    for (const [index, value] of map) {
+      if (index < start) shifted.set(index, value);
+      else if (index >= start + count) shifted.set(index + delta, value);
+    }
+    map.clear();
+    for (const [index, value] of shifted) map.set(index, value);
+  }
+
+  // Re-anchor merged ranges through a row or column splice. A range wholly before the edit is
+  // untouched; one wholly after shifts by `nInserts - count`; one whose covered rows/columns are
+  // entirely deleted is dropped. A range straddling the cut is a genuinely ambiguous geometry — its
+  // edges are clamped to the cut line as a best effort. Unbounded whole-row/column merges carry no
+  // rectangle and pass through unchanged.
+  #shiftMerges(start: number, count: number, nInserts: number, axis: 'row' | 'col'): void {
+    const delta = nInserts - count;
+    const shift = (v: number): number => (v < start ? v : v >= start + count ? v + delta : start);
+    const merges: string[] = [];
+    const rects: MergeRect[] = [];
+    for (const range of this.#merges) {
+      const {top, left, bottom, right} = decodeRange(range);
+      if (top === undefined || left === undefined || bottom === undefined || right === undefined) {
+        merges.push(range);
+        continue;
+      }
+      const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
+      if (lo >= start && hi < start + count) continue;
+      const rect: MergeRect =
+        axis === 'row'
+          ? {top: shift(top), left, bottom: shift(bottom), right}
+          : {top, left: shift(left), bottom, right: shift(right)};
+      rects.push(rect);
+      merges.push(`${encodeAddress(rect.left, rect.top)}:${encodeAddress(rect.right, rect.bottom)}`);
+    }
+    this.#merges.length = 0;
+    this.#merges.push(...merges);
+    this.#mergeRects.length = 0;
+    this.#mergeRects.push(...rects);
   }
 
   /**

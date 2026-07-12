@@ -751,28 +751,27 @@ const impl = {
   },
 
   mutateWorksheet({cells = [], ops = [], read = [], readStyles = []} = {}) {
-    // This adapter binds only the structural-edit ops the rewrite implements today. Any op it
-    // does not yet support — spliceRows/spliceColumns/insertRow/duplicateRow, and reading style
-    // facets back — tags the error as notImplemented so the runner SKIPS that behavior. A partial
-    // bind must never turn a skip into a red: the mergeCells overlap check is exercisable in
-    // isolation, so binding it here does not misreport the still-unbuilt splice/insert/duplicate
-    // cases as failures.
-    const supported = new Set(['mergeCells']);
-    const unsupported = ops.find(op => !supported.has(op.op));
-    if (unsupported || readStyles.length > 0) {
-      const detail = unsupported ? `op "${unsupported.op}"` : 'readStyles';
-      const error = new Error(`mutateWorksheet ${detail} not implemented in rewrite`);
-      error.notImplemented = true;
-      throw error;
-    }
-
     const sheet = new Workbook().addWorksheet('S');
-    for (const c of cells) sheet.getCell(c.ref).value = c.value;
+    for (const c of cells) {
+      const cell = sheet.getCell(c.ref);
+      cell.value = c.value;
+      // Optional per-cell style so a case can assert a structural edit carries a cell's style to its
+      // shifted position rather than blanking it.
+      if (c.font) cell.font = c.font;
+      if (c.fill) cell.fill = c.fill;
+      if (c.numFmt) cell.numFmt = c.numFmt;
+    }
 
     let error = null;
     try {
       for (const op of ops) {
-        if (op.op === 'mergeCells') sheet.mergeCells(op.range);
+        const inserts = op.inserts || [];
+        if (op.op === 'spliceRows') sheet.spliceRows(op.start, op.count, ...inserts);
+        else if (op.op === 'spliceColumns') sheet.spliceColumns(op.start, op.count, ...inserts);
+        else if (op.op === 'mergeCells') sheet.mergeCells(op.range);
+        else if (op.op === 'insertRow') sheet.insertRow(op.pos, op.value || []);
+        else if (op.op === 'duplicateRow') sheet.duplicateRow(op.start, op.count ?? 1, op.insert !== false);
+        else throw new Error(`unknown mutation op: ${op.op}`);
       }
     } catch (e) {
       error = String((e && e.message) || e);
@@ -781,18 +780,87 @@ const impl = {
     const readCells = {};
     for (const ref of read) readCells[ref] = sheet.getCell(ref).value ?? null;
 
+    // Per-cell style facets after the mutations — for asserting the style a cell carried before a
+    // splice still describes the (possibly shifted) cell afterward, rather than being lost.
+    const styles = {};
+    for (const ref of readStyles) {
+      const cell = sheet.getCell(ref);
+      styles[ref] = {
+        value: cell.value ?? null,
+        font: cell.font ? JSON.parse(JSON.stringify(cell.font)) : null,
+        fill: cell.fill && cell.fill.type ? JSON.parse(JSON.stringify(cell.fill)) : null,
+        numFmt: cell.numFmt ?? null,
+      };
+    }
+
     // The last POPULATED row and its column-1 value, derived from the row iterator (ascending, so
-    // the final populated row wins). The tricky post-splice "trailing empty slot" behaviors carry
-    // an unsupported spliceRows op and skip; this satisfies the no-op control that shares the case.
+    // the final populated row wins) — a delete-splice must leave this on the true last row, never a
+    // trailing empty slot.
     let lastRow = null;
-    for (const {number, cells} of sheet.rows()) {
-      if (cells.some(c => c.value !== null && c.value !== undefined)) {
-        const first = cells.find(c => c.col === 1);
+    for (const {number, cells: rowCells} of sheet.rows()) {
+      if (rowCells.some(c => c.value !== null && c.value !== undefined)) {
+        const first = rowCells.find(c => c.col === 1);
         lastRow = {number, value: first?.value ?? null};
       }
     }
 
-    return {rowCount: sheet.rowCount, cells: readCells, merges: [...sheet.merges], lastRow, error};
+    return {
+      rowCount: sheet.rowCount,
+      columnCount: sheet.columnCount,
+      cells: readCells,
+      styles,
+      merges: [...sheet.merges],
+      lastRow,
+      error,
+    };
+  },
+
+  // Duplicate a populated row with default args, then merge a range on the copy — for asserting the
+  // copy is faithful (values, not empty/NaN) and carries no phantom merge that would reject the merge.
+  duplicateRowReport() {
+    const sheet = new Workbook().addWorksheet('S');
+    sheet.getCell('A1').value = 'a';
+    sheet.getCell('B1').value = 'b';
+    sheet.getCell('C1').value = 'c';
+    let dupError = null;
+    try {
+      sheet.duplicateRow(1, 1, true);
+    } catch (e) {
+      dupError = String((e && e.message) || e);
+    }
+    const val = ref => sheet.getCell(ref).value ?? null;
+    const row1 = [val('A1'), val('B1'), val('C1')];
+    const row2 = [val('A2'), val('B2'), val('C2')];
+    let mergeError = null;
+    try {
+      sheet.mergeCells('A2:C2');
+    } catch (e) {
+      mergeError = String((e && e.message) || e);
+    }
+    return {dupError, mergeError, rowCount: sheet.rowCount, row1, row2, merges: [...sheet.merges]};
+  },
+
+  // Insert a row then style a cell of it — for asserting the inserted cells stay mutable (no frozen,
+  // "object is not extensible" style object) regardless of the requested style-inheritance mode. The
+  // rewrite's copy-on-write style model makes every cell mutable by construction, so the mode is
+  // immaterial; it is accepted and ignored.
+  insertRowThenStyle(_styleMode = 'i') {
+    const sheet = new Workbook().addWorksheet('S');
+    sheet.getCell('A1').value = 'header';
+    sheet.getCell('A1').font = {bold: true};
+    sheet.getCell('A2').value = 'data';
+    let error = null;
+    let numFmt = null;
+    try {
+      sheet.insertRow(2, ['inserted']);
+      const cell = sheet.getCell('A2');
+      cell.numFmt = '$#,##0.00;[Red]-$#,##0.00';
+      cell.font = {...cell.font, bold: true};
+      numFmt = cell.numFmt;
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    return {error, numFmt};
   },
 
   tryWriteWorkbook(spec) {

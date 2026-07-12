@@ -173,3 +173,121 @@ test('the exported model does not alias the source sheet through mutable contain
   // Mutating the snapshot must not reach back into the live sheet.
   assert.equal(src.pageMargins.left, 0.25);
 });
+
+test('spliceRows deletes the requested count and shifts the tail up', () => {
+  const sheet = new Worksheet('S', 1);
+  for (let i = 1; i <= 10; i++) sheet.getCell(`A${i}`).value = `r${i}`;
+  sheet.spliceRows(3, 2);
+  assert.equal(sheet.rowCount, 8);
+  assert.equal(sheet.getCell('A2').value, 'r2', 'rows above the cut are untouched');
+  assert.equal(sheet.getCell('A3').value, 'r5', 'r3 and r4 removed, r5 shifts up into row 3');
+  assert.equal(sheet.getCell('A4').value, 'r6');
+});
+
+test('a splice count larger than the rows present clears the tail rather than doing nothing', () => {
+  const sheet = new Worksheet('S', 1);
+  for (let i = 1; i <= 10; i++) sheet.getCell(`A${i}`).value = `r${i}`;
+  sheet.spliceRows(3, 200);
+  assert.equal(sheet.rowCount, 2, 'an over-large count removes the whole tail, not zero rows');
+  assert.equal(sheet.getCell('A3').value, null);
+});
+
+test('a deleted row shifts the row below up carrying its full cell style', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'top';
+  const styled = sheet.getCell('A3');
+  styled.value = 'styled';
+  styled.font = {bold: true};
+  styled.numFmt = '0.00';
+  sheet.spliceRows(1, 1);
+  const moved = sheet.getCell('A2');
+  assert.equal(moved.value, 'styled', 'the styled cell shifts from A3 up to A2');
+  assert.deepEqual(moved.font, {bold: true}, 'the font travels with the shifted cell');
+  assert.equal(moved.numFmt, '0.00', 'the number format travels with the shifted cell');
+});
+
+test('inserting a row shifts the rows at and below it down', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'a';
+  sheet.getCell('A2').value = 'b';
+  sheet.insertRow(2, ['inserted']);
+  assert.equal(sheet.getCell('A1').value, 'a');
+  assert.equal(sheet.getCell('A2').value, 'inserted');
+  assert.equal(sheet.getCell('A3').value, 'b', 'the row formerly at A2 shifts down to A3');
+});
+
+test('a row-splice shifts a merged range below the cut and keeps it merged', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'header';
+  sheet.getCell('A2').value = 'banner';
+  sheet.mergeCells('A2:O2');
+  sheet.spliceRows(1, 1);
+  assert.deepEqual([...sheet.merges], ['A1:O1'], 'deleting the row above shifts the banner up and keeps it merged');
+});
+
+test('an inserted row shifts a merged range below it down', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A2').value = 'banner';
+  sheet.mergeCells('A2:C2');
+  sheet.insertRow(1, ['inserted']);
+  assert.ok([...sheet.merges].includes('A3:C3'), `expected A3:C3; got ${JSON.stringify([...sheet.merges])}`);
+});
+
+test('a splice far below a merged range leaves it untouched', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A2').value = 'banner';
+  sheet.mergeCells('A2:O2');
+  sheet.spliceRows(10, 1);
+  assert.deepEqual([...sheet.merges], ['A2:O2']);
+});
+
+test('duplicateRow makes a faithful copy that carries no merge of its own', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'a';
+  sheet.getCell('B1').value = 'b';
+  sheet.getCell('C1').value = 'c';
+  sheet.duplicateRow(1, 1, true);
+  assert.equal(sheet.getCell('A2').value, 'a', 'the duplicated row copies the values');
+  assert.equal(sheet.getCell('C2').value, 'c');
+  // No phantom merge was fabricated on the new row, so an explicit merge succeeds.
+  assert.doesNotThrow(() => sheet.mergeCells('A2:C2'));
+});
+
+test('duplicating rows above a merged range shifts the merge down by the number inserted', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'a';
+  sheet.getCell('A3').value = 'banner';
+  sheet.mergeCells('A3:C3');
+  sheet.duplicateRow(1, 2, true);
+  assert.ok([...sheet.merges].includes('A5:C5'), `expected A5:C5; got ${JSON.stringify([...sheet.merges])}`);
+});
+
+test('spliceColumns removes the requested columns and shifts the rest left', () => {
+  const sheet = new Worksheet('S', 1);
+  ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => (sheet.getCell(`${L}1`).value = `c${i + 1}`));
+  sheet.spliceColumns(2, 2);
+  assert.equal(sheet.columnCount, 3);
+  assert.equal(sheet.getCell('A1').value, 'c1', 'columns before the cut are untouched');
+  assert.equal(sheet.getCell('B1').value, 'c4', 'c2 and c3 removed, c4 shifts into column B');
+  assert.equal(sheet.getCell('C1').value, 'c5');
+});
+
+test('spliceColumns can insert blank columns, shifting existing columns right', () => {
+  const sheet = new Worksheet('S', 1);
+  ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => (sheet.getCell(`${L}1`).value = `c${i + 1}`));
+  sheet.spliceColumns(3, 0, [], []);
+  assert.equal(sheet.getCell('B1').value, 'c2', 'columns before the insertion point are untouched');
+  assert.equal(sheet.getCell('C1').value, null, 'the inserted columns are blank');
+  assert.equal(sheet.getCell('E1').value, 'c3', 'c3 shifts right by two into column E');
+  assert.equal(sheet.getCell('G1').value, 'c5');
+});
+
+test('a column-splice re-anchors a merged range lying to the right of the cut', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('F1').value = 'F';
+  sheet.getCell('H1').value = 'H';
+  sheet.mergeCells('F1:G1');
+  sheet.spliceColumns(2, 1);
+  assert.ok([...sheet.merges].includes('E1:F1'), `expected E1:F1; got ${JSON.stringify([...sheet.merges])}`);
+  assert.equal(sheet.getCell('G1').value, 'H', 'trailing data shifts left with the columns');
+});
