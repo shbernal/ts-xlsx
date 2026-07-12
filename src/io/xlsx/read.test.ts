@@ -325,7 +325,35 @@ test('a cell font round-trips through the <fonts> table, and only the styled cel
   const back = roundtrip(wb).getWorksheet('S');
   const font = back?.getCell('A1').font;
   assert.deepEqual(font, {bold: true, italic: true, size: 14, color: {argb: 'FF3A80D5'}, name: 'Arial'});
-  assert.equal(back?.getCell('B2').font, undefined, 'an unstyled sibling does not inherit the font');
+  // The unstyled sibling renders in the workbook default font, not A1's — so it must not pick up
+  // any of A1's overrides (bold/italic/Arial/the blue), though it does resolve the default face.
+  const b2 = back?.getCell('B2').font;
+  assert.equal(b2?.bold, undefined, 'an unstyled sibling does not inherit the bold');
+  assert.equal(b2?.italic, undefined, 'an unstyled sibling does not inherit the italic');
+  assert.notEqual(b2?.name, 'Arial', 'an unstyled sibling keeps the default face, not A1 Arial');
+});
+
+test('an unstyled cell resolves to the workbook default font (a concrete face), not nothing', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'plain';
+
+  const font = roundtrip(wb).getWorksheet('S')?.getCell('A1').font;
+  assert.ok(font, 'an unstyled cell must resolve the default font, not undefined');
+  assert.equal(font?.name, 'Calibri', 'the default face is Calibri');
+  assert.equal(font?.size, 11, 'the default size is 11');
+});
+
+test('a cell carrying exactly the default font interns back to font id 0 — no redundant entry', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  // Assign the default face explicitly; on write it must collapse to id 0, so the emitted <fonts>
+  // table stays a single default entry rather than gaining a duplicate.
+  sheet.getCell('A1').font = {size: 11, color: {theme: 1}, name: 'Calibri', family: 2, scheme: 'minor'};
+
+  const styles = strFromU8(unzipSync(writeXlsx(wb))['xl/styles.xml'] ?? new Uint8Array());
+  const fontsBlock = styles.match(/<fonts\b[^>]*>[\s\S]*?<\/fonts>/)?.[0] ?? '';
+  assert.equal((fontsBlock.match(/<font\b/g) ?? []).length, 1, 'only the single default font entry');
 });
 
 test('an underline font round-trips: single stays single, a named variant keeps its value', () => {

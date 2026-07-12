@@ -319,8 +319,10 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
             const fillId = Number(attrs.fillId);
             const fill = Number.isInteger(fillId) ? fills[fillId] : undefined;
             const fontId = Number(attrs.fontId);
-            // Font id 0 is the default; only a custom font (id > 0) is an explicit cell font.
-            const font = Number.isInteger(fontId) && fontId > 0 ? fonts[fontId] : undefined;
+            // Font id 0 is the workbook default font (a real Calibri-11-style face), not an
+            // absence — unlike border id 0, which is a genuinely empty border. So an xf naming
+            // font 0 resolves to that default face, giving every cell a concrete font to render.
+            const font = Number.isInteger(fontId) ? fonts[fontId] : undefined;
             const borderId = Number(attrs.borderId);
             // Border id 0 is the empty default; only a custom border (id > 0) is an explicit one.
             const border = Number.isInteger(borderId) && borderId > 0 ? borders[borderId] : undefined;
@@ -670,7 +672,10 @@ function parseWorksheet(
               : rowCustomFormat && rowStyle >= 0
                 ? rowStyle
                 : columnStyle.get(cellCol) ?? -1;
-          const style = styleIndex >= 0 ? xfStyles[styleIndex] : undefined;
+          // A cell with no style of its own (nor an inherited row/column one) still renders in
+          // the workbook default format — xf 0 — so it resolves there rather than to nothing,
+          // surfacing the default font. Absent a styles part, xfStyles is empty and it stays bare.
+          const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
           finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, sharedStrings, style);
           break;
         }

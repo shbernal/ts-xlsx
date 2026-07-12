@@ -303,6 +303,21 @@ const impl = {
     return {cellXfCount, indices};
   },
 
+  // Write one plain-valued, unformatted cell, round-trip it, and report the font it reads back →
+  // { hasFont, fontName, fontSize }. An unstyled cell renders in the workbook default font, so it
+  // must resolve a concrete name/size rather than reporting no font at all.
+  unstyledCellFontReport() {
+    const wb = new Workbook();
+    wb.addWorksheet('S').getCell('A1').value = 'hello';
+    const cell = readXlsx(writeXlsx(wb)).getWorksheet('S').getCell('A1');
+    const font = cell.font || null;
+    return {
+      hasFont: !!font,
+      fontName: font ? font.name ?? null : null,
+      fontSize: font ? font.size ?? null : null,
+    };
+  },
+
   // Author a bold cell, then rewrite the emitted <b/> flag to each explicit form and report how
   // the reader reads bold back → { bareTag, valOne, valZero }. A boolean font flag's `val` governs:
   // a bare tag or val="1" is on, val="0" is off — presence alone must not force true.

@@ -31,8 +31,13 @@ const CUSTOM_NUMFMT_BASE = 164;
 const RESERVED_BORDER_COUNT = 1;
 
 const NS_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
-const DEFAULT_FONT =
-  '<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>';
+// The default font's inner fragment, in the exact child order `fontXml` emits. The reader
+// surfaces this face on every otherwise-unstyled cell (font id 0 is a real font, not an
+// absence), so a cell carrying exactly the default must intern back to id 0 rather than a
+// redundant custom entry — keeping a read→write round-trip byte-stable.
+const DEFAULT_FONT_BODY =
+  '<sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/>';
+const DEFAULT_FONT = `<font>${DEFAULT_FONT_BODY}</font>`;
 // The empty border: all five edges present but styleless. A border that overrides no edge
 // serialises to exactly this, so it interns to the default border id 0 rather than a new one.
 const DEFAULT_BORDER = '<border><left/><right/><top/><bottom/><diagonal/></border>';
@@ -131,7 +136,7 @@ export class StyleRegistry {
   // and maps to font id 0; otherwise its serialised form is interned and dedup'd like a fill.
   #internFont(font: Partial<Font>): number {
     const xml = fontXml(font);
-    if (xml === '') return 0;
+    if (xml === '' || xml === DEFAULT_FONT_BODY) return 0;
     let id = this.#fontIdBySignature.get(xml);
     if (id === undefined) {
       id = RESERVED_FONT_COUNT + this.#fontXml.length;
