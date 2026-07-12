@@ -3,8 +3,8 @@
 // It reconstructs the part of the model the writer emits today — sheet names and order,
 // cells holding a number, string, boolean, or formula, per-column width/visibility,
 // per-row height/visibility, merged ranges, page margins, and cell styles (pattern fills,
-// number formats, fonts, and borders — per cell, or inherited from a formatted row/column).
-// Alignment/protection, shared-formula slaves, and the richer value kinds land as the model
+// number formats, fonts, borders, and alignment — per cell, or inherited from a formatted
+// row/column). Protection, shared-formula slaves, and the richer value kinds land as the model
 // grows; an unrecognised construct is skipped rather than guessed, so a foreign file reads
 // without crashing even where a facet is not yet materialised.
 //
@@ -16,12 +16,15 @@ import {unzipSync, strFromU8, type UnzipFileInfo} from 'fflate';
 
 import {decodeAddress} from '../../core/address.ts';
 import type {
+  Alignment,
   Border,
   BorderStyle,
   Color,
   Fill,
   FillPatternType,
   Font,
+  FontVerticalAlignment,
+  HorizontalAlignment,
   UnderlineStyle,
   VerticalAlignment,
 } from '../../core/style.ts';
@@ -165,7 +168,13 @@ interface XfStyle {
   readonly numFmt?: string;
   readonly font?: Partial<Font>;
   readonly border?: Border;
+  readonly alignment?: Alignment;
 }
+
+// A mutable xf accumulator while an <xf> element streams in: its facet ids resolve on open, but
+// an <alignment> child (when present) arrives before the element closes, so the xf is held here
+// and pushed on close rather than on open.
+type XfDraft = {-readonly [K in keyof XfStyle]?: XfStyle[K]};
 
 // A mutable font accumulator while a <font> element's children stream in; frozen into a
 // Partial<Font> on close.
@@ -215,6 +224,9 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
   let borderDraft: BorderDraft | null = null;
   // Which edge of the current border a nested <color> belongs to; null between edges.
   let currentEdge: BorderEdgeName | null = null;
+  // The <cellXfs> xf being read; held from open to close so an <alignment> child can attach
+  // before the xf is committed. null outside a cellXfs <xf>.
+  let pendingXf: XfDraft | null = null;
 
   parseXml(xml, {
     onOpen(name, attrs, selfClosing) {
@@ -292,6 +304,10 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
               const edge = borderDraft[currentEdge];
               if (edge !== undefined) borderDraft[currentEdge] = {style: edge.style, color: parseColor(attrs)};
             }
+          } else if (pendingXf !== null && local === 'alignment') {
+            // An xf's <alignment> child arrives before the xf closes; attach it to the pending xf.
+            const alignment = parseAlignment(attrs);
+            if (alignment !== undefined) pendingXf.alignment = alignment;
           } else if (inCellXfs && local === 'xf') {
             // cellStyleXfs also holds <xf>; only those inside <cellXfs> are cell references.
             const fillId = Number(attrs.fillId);
@@ -303,13 +319,15 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
             // Border id 0 is the empty default; only a custom border (id > 0) is an explicit one.
             const border = Number.isInteger(borderId) && borderId > 0 ? borders[borderId] : undefined;
             const numFmt = resolveNumFmt(attrs.numFmtId, numFmtCodes);
-            const style: XfStyle = {
-              ...(fill ? {fill} : {}),
-              ...(numFmt !== undefined ? {numFmt} : {}),
-              ...(font ? {font} : {}),
-              ...(border ? {border} : {}),
-            };
-            xfStyles.push(style);
+            const draft: XfDraft = {};
+            if (fill) draft.fill = fill;
+            if (numFmt !== undefined) draft.numFmt = numFmt;
+            if (font) draft.font = font;
+            if (border) draft.border = border;
+            // A self-closing <xf/> has no alignment child and commits now; otherwise it is held
+            // open until its close so an <alignment> child can attach first.
+            if (selfClosing) xfStyles.push(draft);
+            else pendingXf = draft;
           }
           break;
         }
@@ -339,6 +357,13 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
           break;
         case 'cellXfs':
           inCellXfs = false;
+          break;
+        case 'xf':
+          // A held (non-self-closing) cellXfs xf commits here, with any alignment child attached.
+          if (pendingXf !== null) {
+            xfStyles.push(pendingXf);
+            pendingXf = null;
+          }
           break;
         case 'patternFill':
           if (inFills) fills.push(toFill(pattern, fgColor, bgColor));
@@ -375,7 +400,7 @@ function applyFontChild(draft: FontDraft, local: string, attrs: {readonly [k: st
       draft.underline = attrs.val === undefined ? true : (attrs.val as UnderlineStyle);
       break;
     case 'vertAlign':
-      if (attrs.val !== undefined) draft.vertAlign = attrs.val as VerticalAlignment;
+      if (attrs.val !== undefined) draft.vertAlign = attrs.val as FontVerticalAlignment;
       break;
     case 'sz': {
       const size = Number(attrs.val);
@@ -439,6 +464,39 @@ function borderToStyle(draft: BorderDraft): Border | undefined {
   );
   if (!hasEdge && draft.diagonalUp === undefined && draft.diagonalDown === undefined) return undefined;
   return draft;
+}
+
+// Read an <alignment> element's attributes into an Alignment, keeping only facets that differ
+// from the default. Boolean flags honour their parsed value — wrapText="0" is off, so it must
+// not fabricate a { wrapText: false } alignment — and an element carrying only defaults yields
+// undefined rather than an empty alignment object.
+function parseAlignment(attrs: {readonly [k: string]: string}): Alignment | undefined {
+  const out: {-readonly [K in keyof Alignment]?: Alignment[K]} = {};
+  if (attrs.horizontal !== undefined && attrs.horizontal !== 'general') {
+    out.horizontal = attrs.horizontal as HorizontalAlignment;
+  }
+  if (attrs.vertical !== undefined) out.vertical = attrs.vertical as VerticalAlignment;
+  if (attrs.textRotation !== undefined) {
+    const rotation = Number(attrs.textRotation);
+    if (Number.isFinite(rotation) && rotation !== 0) out.textRotation = rotation;
+  }
+  if (alignmentFlag(attrs.wrapText)) out.wrapText = true;
+  if (attrs.indent !== undefined) {
+    const indent = Number(attrs.indent);
+    if (Number.isInteger(indent) && indent !== 0) out.indent = indent;
+  }
+  if (alignmentFlag(attrs.shrinkToFit)) out.shrinkToFit = true;
+  if (attrs.readingOrder !== undefined) {
+    const order = Number(attrs.readingOrder);
+    if (Number.isInteger(order) && order !== 0) out.readingOrder = order;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+// An alignment boolean attribute is on only when explicitly "1"/"true"; unlike a font flag it
+// is never a bare presence (it always carries a value), and its "0" — a truthy JS string — is off.
+function alignmentFlag(val: string | undefined): boolean {
+  return val === '1' || val === 'true';
 }
 
 function parseColor(attrs: {readonly [k: string]: string}): Color {
@@ -675,6 +733,7 @@ function finalizeCell(
   if (style?.numFmt !== undefined) cell.numFmt = style.numFmt;
   if (style?.font !== undefined) cell.font = style.font;
   if (style?.border !== undefined) cell.border = style.border;
+  if (style?.alignment !== undefined) cell.alignment = style.alignment;
 
   if (hasFormula) {
     const result = hasValue ? decodeResult(type, valueText) : undefined;

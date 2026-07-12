@@ -6,7 +6,7 @@
 // through the value model so the cell's `type` is always consistent with what it holds.
 
 import {encodeAddress} from './address.ts';
-import type {Border, Fill, Font} from './style.ts';
+import type {Alignment, Border, Fill, Font} from './style.ts';
 import {type CellValue, type ValueType, coerceCellValue, detectValueType} from './value.ts';
 
 export class Cell {
@@ -20,6 +20,7 @@ export class Cell {
   #numFmt: string | undefined;
   #font: Partial<Font> | undefined;
   #border: Border | undefined;
+  #alignment: Alignment | undefined;
 
   constructor(row: number, col: number) {
     if (!Number.isInteger(row) || row < 1) {
@@ -108,5 +109,20 @@ export class Cell {
 
   set border(border: Border | undefined) {
     this.#border = border;
+  }
+
+  /**
+   * The cell's alignment — how its content sits within the cell, plus the wrap/shrink flags —
+   * or `undefined` when it uses the defaults. The boolean flags are off unless explicitly set,
+   * so a cell that never enabled wrapping never reads back wrapped. Like {@link fill},
+   * {@link numFmt}, {@link font}, and {@link border}, each cell owns its own alignment object, so
+   * an alignment set on one cell never aliases or bleeds onto its row, column, or sheet siblings.
+   */
+  get alignment(): Alignment | undefined {
+    return this.#alignment;
+  }
+
+  set alignment(alignment: Alignment | undefined) {
+    this.#alignment = alignment;
   }
 }

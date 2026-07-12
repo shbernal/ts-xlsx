@@ -1,9 +1,9 @@
 // Cell style primitives.
 //
 // Styles are a large surface in OOXML (fonts, fills, borders, alignment, number
-// formats, protection). The rewrite grows them corpus-first; this module currently
-// defines only `Font`, which the value model needs because a rich-text run carries
-// its own font. Fills, borders, and alignment land with the styles slice.
+// formats, protection). The rewrite grows them corpus-first; this module models the
+// facets landed so far — colours, fills, borders, fonts, and alignment. Protection
+// lands with its own slice.
 
 /** Underline can be a plain flag or one of Excel's named underline styles. */
 export type UnderlineStyle = boolean | 'none' | 'single' | 'double' | 'singleAccounting' | 'doubleAccounting';
@@ -104,7 +104,7 @@ export interface Border {
 }
 
 /** Vertical alignment of a font relative to the baseline (super/subscript). */
-export type VerticalAlignment = 'superscript' | 'subscript';
+export type FontVerticalAlignment = 'superscript' | 'subscript';
 
 /** A font, as it applies to a cell or a single rich-text run. */
 export interface Font {
@@ -119,5 +119,38 @@ export interface Font {
   readonly underline: UnderlineStyle;
   readonly strike: boolean;
   readonly outline: boolean;
-  readonly vertAlign: VerticalAlignment;
+  readonly vertAlign: FontVerticalAlignment;
+}
+
+/** How a cell's content sits horizontally within its bounds, as OOXML's `ST_HorizontalAlignment`
+ *  enumerates it. `general` is the type-dependent default (text left, numbers right) and reads
+ *  back as no explicit horizontal alignment. */
+export type HorizontalAlignment =
+  | 'general'
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'fill'
+  | 'justify'
+  | 'centerContinuous'
+  | 'distributed';
+
+/** How a cell's content sits vertically within its bounds, as OOXML's `ST_VerticalAlignment`
+ *  enumerates it. */
+export type VerticalAlignment = 'top' | 'center' | 'bottom' | 'justify' | 'distributed';
+
+/**
+ * A cell's alignment. Every facet is optional and independent; an absent facet means the cell
+ * takes Excel's default for it. The boolean flags default to off — a cell that never enabled
+ * `wrapText`/`shrinkToFit` must never read back with them on. `textRotation` is in degrees
+ * (0–180, where 91–180 encodes -1° to -90°); `indent` is a non-negative indent level.
+ */
+export interface Alignment {
+  readonly horizontal?: HorizontalAlignment;
+  readonly vertical?: VerticalAlignment;
+  readonly textRotation?: number;
+  readonly wrapText?: boolean;
+  readonly indent?: number;
+  readonly shrinkToFit?: boolean;
+  readonly readingOrder?: number;
 }

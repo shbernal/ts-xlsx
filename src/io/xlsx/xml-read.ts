@@ -157,7 +157,17 @@ export function parseXml(source: string, handlers: SaxHandlers): void {
 }
 
 function emitText(chunk: string, handlers: SaxHandlers): void {
-  if (chunk.length > 0) handlers.onText(decodeEntities(chunk));
+  if (chunk.length > 0) handlers.onText(decodeEntities(normalizeLineEndings(chunk)));
+}
+
+// XML end-of-line handling (spec §2.11): a literal CRLF or lone CR in character data is
+// normalized to a single LF, so a value's in-cell line breaks read back identically whatever
+// newline convention the producer wrote. Normalization precedes entity decoding, so a
+// deliberately-encoded carriage return (&#13;) survives it — the escape hatch for a real CR.
+// CDATA is delivered verbatim (it bypasses this), matching the reader's CDATA contract.
+function normalizeLineEndings(chunk: string): string {
+  if (!chunk.includes('\r')) return chunk;
+  return chunk.replace(/\r\n?/g, '\n');
 }
 
 function firstWhitespace(source: string): number {

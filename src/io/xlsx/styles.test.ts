@@ -179,3 +179,41 @@ test('a custom border is defined in <borders> after the default and referenced b
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"\/>/);
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
 });
+
+test('an identical alignment interns to one shared xf index', () => {
+  const styles = new StyleRegistry();
+  const first = styles.styleId({alignment: {horizontal: 'center'}});
+  for (let i = 0; i < 40; i++) {
+    assert.equal(styles.styleId({alignment: {horizontal: 'center'}}), first, 'every identical alignment returns the same index');
+  }
+  assert.notEqual(first, 0, 'a real alignment gets a non-default index');
+});
+
+test('an all-default alignment resolves to the default xf 0 — no <alignment>', () => {
+  const styles = new StyleRegistry();
+  // `general` horizontal is the default, and boolean flags left off contribute nothing.
+  assert.equal(styles.styleId({alignment: {horizontal: 'general', wrapText: false, shrinkToFit: false}}), 0);
+  assert.doesNotMatch(styles.toXml(), /<alignment/);
+});
+
+test('alignment composes into the xf as a child element, not a shared sub-table', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({alignment: {horizontal: 'center', vertical: 'top', wrapText: true, indent: 2, textRotation: 45}});
+  const xml = styles.toXml();
+
+  // The aligned xf carries an <alignment> child in ECMA-376 attribute order and flags applyAlignment;
+  // it is no longer self-closing. The default xf stays self-closing with no alignment.
+  assert.match(
+    xml,
+    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="top" textRotation="45" wrapText="1" indent="2"\/><\/xf>/
+  );
+  assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
+});
+
+test('alignment is an independent facet composed alongside fill, font, and border', () => {
+  const styles = new StyleRegistry();
+  const a = styles.styleId({alignment: {wrapText: true}});
+  const aFill = styles.styleId({alignment: {wrapText: true}, fill: solid('FFFF0000')});
+  const aFillFont = styles.styleId({alignment: {wrapText: true}, fill: solid('FFFF0000'), font: {bold: true}});
+  assert.equal(new Set([a, aFill, aFillFont]).size, 3, 'each added facet is a distinct composed style');
+});

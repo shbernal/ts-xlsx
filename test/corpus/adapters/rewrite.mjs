@@ -38,7 +38,7 @@ const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'mo
 const SUPPORTED_SHEET_KEYS = new Set([
   'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageMargins', 'headerFooter', 'tables', 'merges',
 ]);
-const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill', 'numFmt', 'font', 'border']);
+const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill', 'numFmt', 'font', 'border', 'alignment']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
@@ -164,6 +164,7 @@ function buildFrom(spec = {}) {
       if (c.numFmt !== undefined) cell.numFmt = c.numFmt;
       if (c.font !== undefined) cell.font = c.font;
       if (c.border !== undefined) cell.border = c.border;
+      if (c.alignment !== undefined) cell.alignment = c.alignment;
     }
   }
   return workbook;
@@ -184,6 +185,7 @@ function normalizeRewriteCell(cell) {
   if (cell.numFmt) out.numFmt = cell.numFmt;
   if (cell.font !== undefined) out.font = cell.font;
   if (cell.border !== undefined) out.border = cell.border;
+  if (cell.alignment !== undefined) out.alignment = cell.alignment;
   return out;
 }
 

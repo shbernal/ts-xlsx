@@ -7,11 +7,12 @@
 // historical performance cliff came from re-serialising a distinct style per cell). The
 // registry interns each distinct fill, number format, and xf, handing back a stable index.
 //
-// Fills, number formats, fonts, and borders are modelled today; alignment and protection
-// extend the xf signature as those slices land. Until then every xf shares the single
-// default alignment, and an unstyled cell/row/column resolves to xf 0.
+// Fills, number formats, fonts, borders, and alignment are modelled today; protection extends
+// the xf signature as that slice lands. Fills/fonts/borders are shared sub-tables the xf names
+// by id, whereas alignment is a child *of* the xf — so it is interned into the xf signature
+// directly rather than into its own id table. An unstyled cell/row/column resolves to xf 0.
 
-import type {Border, BorderEdge, Color, Fill, Font, UnderlineStyle} from '../../core/style.ts';
+import type {Alignment, Border, BorderEdge, Color, Fill, Font, UnderlineStyle} from '../../core/style.ts';
 import {escapeAttr, XML_DECLARATION} from './xml.ts';
 
 // Excel reserves fill ids 0 and 1 for the "none" and "gray125" patterns it always emits;
@@ -41,16 +42,19 @@ export interface CellStyle {
   readonly numFmt?: string | undefined;
   readonly font?: Partial<Font> | undefined;
   readonly border?: Border | undefined;
+  readonly alignment?: Alignment | undefined;
 }
 
 // One interned cell format. `fillId` 0 is no fill; `numFmtId` 0 is the General format;
-// `fontId` 0 is the default font; `borderId` 0 is the empty border. Added facets become
-// further fields and signature terms.
+// `fontId` 0 is the default font; `borderId` 0 is the empty border. `alignment` holds the
+// serialised `<alignment>` attribute string (empty when the cell has no explicit alignment),
+// carried inline because alignment is a child of the xf rather than a shared sub-table.
 interface CellFormat {
   readonly fillId: number;
   readonly numFmtId: number;
   readonly fontId: number;
   readonly borderId: number;
+  readonly alignment: string;
 }
 
 export class StyleRegistry {
@@ -70,8 +74,8 @@ export class StyleRegistry {
   readonly #borderXml: string[] = [];
   readonly #borderIdBySignature = new Map<string, number>();
 
-  // xf 0 is the default (no fill/font/border, General format); further entries append as styles appear.
-  readonly #formats: CellFormat[] = [{fillId: 0, numFmtId: 0, fontId: 0, borderId: 0}];
+  // xf 0 is the default (no fill/font/border/alignment, General format); further entries append as styles appear.
+  readonly #formats: CellFormat[] = [{fillId: 0, numFmtId: 0, fontId: 0, borderId: 0, alignment: ''}];
   readonly #xfIndexBySignature = new Map<string, number>();
 
   /**
@@ -83,13 +87,14 @@ export class StyleRegistry {
     const numFmtId = style.numFmt !== undefined && style.numFmt !== '' ? this.#internNumFmt(style.numFmt) : 0;
     const fontId = style.font ? this.#internFont(style.font) : 0;
     const borderId = style.border ? this.#internBorder(style.border) : 0;
-    if (fillId === 0 && numFmtId === 0 && fontId === 0 && borderId === 0) return 0;
+    const alignment = style.alignment ? alignmentAttrs(style.alignment) : '';
+    if (fillId === 0 && numFmtId === 0 && fontId === 0 && borderId === 0 && alignment === '') return 0;
 
-    const signature = `fill:${fillId}|numFmt:${numFmtId}|font:${fontId}|border:${borderId}`;
+    const signature = `fill:${fillId}|numFmt:${numFmtId}|font:${fontId}|border:${borderId}|align:${alignment}`;
     let index = this.#xfIndexBySignature.get(signature);
     if (index === undefined) {
       index = this.#formats.length;
-      this.#formats.push({fillId, numFmtId, fontId, borderId});
+      this.#formats.push({fillId, numFmtId, fontId, borderId, alignment});
       this.#xfIndexBySignature.set(signature, index);
     }
     return index;
@@ -187,10 +192,37 @@ function cellXf(format: CellFormat): string {
   const applyFont = format.fontId !== 0 ? ' applyFont="1"' : '';
   const applyFill = format.fillId !== 0 ? ' applyFill="1"' : '';
   const applyBorder = format.borderId !== 0 ? ' applyBorder="1"' : '';
-  return (
+  const applyAlignment = format.alignment !== '' ? ' applyAlignment="1"' : '';
+  const open =
     `<xf numFmtId="${format.numFmtId}" fontId="${format.fontId}" fillId="${format.fillId}" ` +
-    `borderId="${format.borderId}" xfId="0"${applyNumberFormat}${applyFont}${applyFill}${applyBorder}/>`
-  );
+    `borderId="${format.borderId}" xfId="0"${applyNumberFormat}${applyFont}${applyFill}${applyBorder}${applyAlignment}`;
+  // Alignment is a child element of the xf, so an aligned xf carries an <alignment> body while a
+  // plain one stays self-closing (unchanged from before alignment landed).
+  return format.alignment === '' ? `${open}/>` : `${open}><alignment ${format.alignment}/></xf>`;
+}
+
+// Serialise a cell's alignment as `<alignment>` attributes in ECMA-376 CT_CellAlignment order.
+// A facet at its default contributes nothing; an all-default alignment yields the empty string,
+// so it forces neither an <alignment> child nor a distinct xf.
+function alignmentAttrs(alignment: Alignment): string {
+  const parts: string[] = [];
+  // `general` is the type-dependent default and is expressed by omitting the attribute.
+  if (alignment.horizontal !== undefined && alignment.horizontal !== 'general') {
+    parts.push(`horizontal="${alignment.horizontal}"`);
+  }
+  if (alignment.vertical !== undefined) parts.push(`vertical="${alignment.vertical}"`);
+  if (alignment.textRotation !== undefined && alignment.textRotation !== 0) {
+    parts.push(`textRotation="${numberAttr(alignment.textRotation)}"`);
+  }
+  if (alignment.wrapText) parts.push('wrapText="1"');
+  if (alignment.indent !== undefined && alignment.indent !== 0) {
+    parts.push(`indent="${numberAttr(alignment.indent)}"`);
+  }
+  if (alignment.shrinkToFit) parts.push('shrinkToFit="1"');
+  if (alignment.readingOrder !== undefined && alignment.readingOrder !== 0) {
+    parts.push(`readingOrder="${numberAttr(alignment.readingOrder)}"`);
+  }
+  return parts.join(' ');
 }
 
 // Serialise the facets a cell font overrides, in ECMA-376 CT_Font child order. A boolean

@@ -248,6 +248,7 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
           numFmt: cell.numFmt ?? columnNumFmt.get(cell.col),
           font: cell.font,
           border: cell.border,
+          alignment: cell.alignment,
         });
         return cellXml(cell, style);
       })

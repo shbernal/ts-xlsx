@@ -33,10 +33,16 @@ export {
 } from './core/value.ts';
 
 export {
+  type Alignment,
+  type Border,
+  type BorderEdge,
+  type BorderStyle,
   type Color,
   type Fill,
   type FillPatternType,
   type Font,
+  type FontVerticalAlignment,
+  type HorizontalAlignment,
   type PatternFill,
   type UnderlineStyle,
   type VerticalAlignment,

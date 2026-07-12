@@ -390,6 +390,63 @@ test('a foreign diagonal border reads its edge and diagonal direction', () => {
   assert.equal(border?.top, undefined, 'a styleless edge is not fabricated');
 });
 
+test('cell alignment round-trips through the xf, and only the aligned cell carries it', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  sheet.getCell('A1').alignment = {horizontal: 'center', vertical: 'top', wrapText: true, indent: 2, textRotation: 45};
+  sheet.getCell('B2').value = 'plain';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.deepEqual(back?.getCell('A1').alignment, {
+    horizontal: 'center',
+    vertical: 'top',
+    wrapText: true,
+    indent: 2,
+    textRotation: 45,
+  });
+  assert.equal(back?.getCell('B2').alignment, undefined, 'an unaligned sibling stays alignment-free');
+});
+
+test('alignment boolean flags left off do not read back spuriously enabled', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  sheet.getCell('A1').alignment = {wrapText: false, shrinkToFit: false};
+
+  // An all-default alignment serialises to nothing, so it resolves to xf 0 and reads back absent.
+  assert.equal(roundtrip(wb).getWorksheet('S')?.getCell('A1').alignment, undefined);
+});
+
+test('a foreign alignment carrying only wrapText="0" reads back with no alignment', () => {
+  // Excel writes an all-false alignment as wrapText="0"; the raw "0" is a truthy JS string, so a
+  // reader that guards on presence rather than the parsed boolean would mistake it for present.
+  const files: Record<string, Uint8Array> = {
+    '[Content_Types].xml': strToU8(
+      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="xml" ContentType="application/xml"/></Types>'
+    ),
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/styles.xml': strToU8(
+      '<?xml version="1.0"?><styleSheet>' +
+        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+        '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">' +
+        '<alignment wrapText="0"/></xf></cellXfs></styleSheet>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="0" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>'
+    ),
+  };
+  assert.equal(readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').alignment, undefined);
+});
+
 test('the inflate bound rejects a part whose declared size is over the cap', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';

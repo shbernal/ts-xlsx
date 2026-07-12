@@ -63,6 +63,24 @@ test('parseXml tolerates a literal ">" inside a quoted attribute value', () => {
   assert.equal(open?.attrs?.formula, '1 > 0');
 });
 
+test('parseXml normalizes CRLF and lone CR line endings in text to LF (XML §2.11)', () => {
+  const evs = events('<t>a\r\nb\rc\nd</t>');
+  assert.deepEqual(
+    evs.filter(e => e.kind === 'text').map(e => e.text),
+    ['a\nb\nc\nd']
+  );
+});
+
+test('parseXml preserves a carriage return supplied as a character reference', () => {
+  // EOL normalization precedes entity decoding, so &#13; survives as a genuine CR — the escape
+  // hatch distinguishing an intended carriage return from a producer's newline convention.
+  const evs = events('<t>a&#13;b</t>');
+  assert.deepEqual(
+    evs.filter(e => e.kind === 'text').map(e => e.text),
+    ['a\rb']
+  );
+});
+
 test('parseXml delivers CDATA verbatim, without entity decoding', () => {
   const evs = events('<t><![CDATA[a & b < c]]></t>');
   assert.deepEqual(
