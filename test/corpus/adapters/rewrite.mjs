@@ -382,6 +382,26 @@ const impl = {
     };
   },
 
+  // Read a real fixture `.xlsx` and report only whether it loaded, any error, its sheet names, and
+  // a couple of core properties → { ok, error, sheetNames, lastModifiedBy, creator }. The read error
+  // is captured and returned as data (never propagated) so a case asserts on a crash rather than the
+  // runner blowing up. Exercises the reader against foreign generators and schema-valid corners Excel
+  // never emits (namespace-prefixed roots, a leading BOM, unusual part order, missing optional parts).
+  readFixtureReport(rel) {
+    try {
+      const wb = readFixture(rel);
+      return {
+        ok: true,
+        error: null,
+        sheetNames: wb.worksheets.map(s => s.name),
+        lastModifiedBy: wb.properties.lastModifiedBy ?? null,
+        creator: wb.properties.creator ?? null,
+      };
+    } catch (e) {
+      return {ok: false, error: String((e && e.message) || e), sheetNames: null};
+    }
+  },
+
   // Read a real fixture `.xlsx` and report the fill and font colour the reader surfaces for each
   // requested `<sheet>!<address>` cell → { [key]: { fill, fontColor } | null }. Mirrors the oracle:
   // a solid-pattern fill's visible colour lives on fgColor while bgColor is the automatic indexed
