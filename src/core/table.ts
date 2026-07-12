@@ -11,7 +11,8 @@ import {decodeAddress, encodeAddress} from './address.ts';
 
 /** One column of a table: a header name and its optional totals-row behaviour. */
 export interface TableColumn {
-  /** The column's header/display name. Must be unique within the table (Excel disambiguates). */
+  /** The column's header/display name. Must be unique within the table (case-insensitively) —
+   * Excel writes a table with colliding column names as corrupt, so a duplicate is rejected. */
   readonly name: string;
   /** Literal label shown in the totals row (e.g. `"Total"`), mutually exclusive with a function. */
   readonly totalsRowLabel?: string;
@@ -42,6 +43,20 @@ export interface TableOptions {
 // the contract accepts.
 const IDENTIFIER = /^[\p{L}\\_][\p{L}\p{N}._]*$/u;
 
+function validateColumnNames(tableName: string, columns: readonly TableColumn[]): void {
+  const seen = new Set<string>();
+  for (const {name} of columns) {
+    const key = name.toLowerCase();
+    if (seen.has(key)) {
+      throw new Error(
+        `table "${tableName}" has a duplicate column name ${JSON.stringify(name)} — ` +
+          'a table\'s column names must be unique (Excel treats a collision as corruption)'
+      );
+    }
+    seen.add(key);
+  }
+}
+
 function validateTableName(name: string): void {
   if (name.length === 0 || name.length > 255) {
     throw new Error(`table name ${JSON.stringify(name)} must be between 1 and 255 characters`);
@@ -68,15 +83,18 @@ export class Table {
   readonly headerRow: boolean;
   readonly totalsRow: boolean;
 
-  readonly #anchorCol: number;
-  readonly #anchorRow: number;
-  readonly #dataRowCount: number;
+  // The anchor and data-row count move when a row/column splice shifts or resizes the table, so
+  // they are mutable behind the class's controlled `shiftRows`/`shiftColumns` methods.
+  #anchorCol: number;
+  #anchorRow: number;
+  #dataRowCount: number;
 
   constructor(options: TableOptions) {
     validateTableName(options.name);
     if (options.columns.length === 0) {
       throw new Error(`table "${options.name}" must declare at least one column`);
     }
+    validateColumnNames(options.name, options.columns);
     if (!Number.isInteger(options.rowCount) || options.rowCount < 0) {
       throw new RangeError(`table "${options.name}" has an invalid data-row count (${options.rowCount})`);
     }
@@ -100,6 +118,39 @@ export class Table {
 
   get columnCount(): number {
     return this.columns.length;
+  }
+
+  /**
+   * Re-pin the table through a row splice: `count` rows removed at the 1-based `start`, then rows
+   * inserted so surviving rows below shift by `delta`. A splice entirely above the table moves its
+   * whole range by `delta`; one landing inside grows or shrinks the data rows to absorb the change;
+   * one that deletes the table's every row removes it. Returns `false` when the table no longer has
+   * a row to occupy (the caller drops it), `true` when it survives.
+   */
+  shiftRows(start: number, count: number, delta: number): boolean {
+    // A table whose every row lies within the deleted span has nothing left to occupy.
+    if (this.#anchorRow >= start && this.#bottom < start + count) return false;
+    const shift = (v: number): number => (v < start ? v : v >= start + count ? v + delta : start);
+    const top = shift(this.#anchorRow);
+    const bottom = shift(this.#bottom);
+    const span = bottom - top + 1;
+    const fixedRows = (this.headerRow ? 1 : 0) + (this.totalsRow ? 1 : 0);
+    const dataRows = span - fixedRows;
+    if (span < 1 || dataRows < 0) return false;
+    this.#anchorRow = top;
+    this.#dataRowCount = dataRows;
+    return true;
+  }
+
+  /**
+   * Re-pin the table through a column splice. A splice entirely to the table's left moves its anchor
+   * by `delta`; one to its right leaves it untouched. A splice landing inside the table's columns is
+   * structural surgery on named columns with no unambiguous answer, so the table's columns are left
+   * as-is (anchor unchanged) rather than fabricated or dropped. Always returns `true`.
+   */
+  shiftColumns(start: number, count: number, delta: number): boolean {
+    if (this.#anchorCol >= start + count) this.#anchorCol += delta;
+    return true;
   }
 
   /**

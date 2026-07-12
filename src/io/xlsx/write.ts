@@ -12,6 +12,7 @@ import {zipSync, strToU8} from 'fflate';
 
 import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
+import type {WorkbookImage} from '../../core/image.ts';
 import type {Table, TableColumn} from '../../core/table.ts';
 import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/value.ts';
 import type {SheetProtection, SheetProtectionFlags} from '../../core/protection.ts';
@@ -25,6 +26,7 @@ import type {
   WorksheetProperties,
 } from '../../core/worksheet.ts';
 import {collectNotes, commentsXml, type NoteCell, vmlDrawingXml} from './comments.ts';
+import {type DrawingImage, drawingRelsXml, drawingXml, imageContentType} from './images.ts';
 import {THEME1_XML} from './static-parts.ts';
 import {StyleRegistry} from './styles.ts';
 import {escapeAttr, escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
@@ -52,6 +54,7 @@ const CT = {
   table: 'application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml',
   comments: 'application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml',
   vml: 'application/vnd.openxmlformats-officedocument.vmlDrawing',
+  drawing: 'application/vnd.openxmlformats-officedocument.drawing+xml',
 } as const;
 
 const REL = {
@@ -64,6 +67,7 @@ const REL = {
   table: `${NS.docRels}/table`,
   comments: `${NS.docRels}/comments`,
   vmlDrawing: `${NS.docRels}/vmlDrawing`,
+  drawing: `${NS.docRels}/drawing`,
 } as const;
 
 /**
@@ -86,17 +90,38 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
   );
   const allTables = sheetTables.flat();
 
+  // Anchored images share workbook-wide media: every image a sheet references becomes one media
+  // part, addressed by a global number. A sheet's images then ride in a drawing part whose
+  // sheet-local relationship id follows its table ids.
+  const media = planMedia(workbook, sheets);
+  let drawingNumber = 0;
+  const sheetDrawings: (DrawingPlan | null)[] = sheets.map((sheet, i) => {
+    if (sheet.images.length === 0) return null;
+    const tableCount = (sheetTables[i] ?? []).length;
+    const images: PlannedImage[] = sheet.images.map((image, j) => {
+      const registered = workbook.getImage(image.imageId) as WorkbookImage;
+      return {
+        anchor: image.anchor,
+        embedId: `rId${j + 1}`,
+        mediaNumber: media.numberById.get(image.imageId) as number,
+        extension: registered.extension,
+      };
+    });
+    return {number: ++drawingNumber, relId: `rId${tableCount + 1}`, images};
+  });
+
   // A sheet's notes ride in a comments part plus a legacy VML drawing. Their sheet-local
-  // relationship ids follow the table ids, so a sheet with two tables anchors its VML at rId3.
+  // relationship ids follow the table and drawing ids, so a sheet with one table and a drawing
+  // anchors its VML at rId3.
   const sheetComments: (CommentPlan | null)[] = sheets.map((sheet, i) => {
     const notes = collectNotes(sheet);
     if (notes.length === 0) return null;
-    const tableCount = (sheetTables[i] ?? []).length;
+    const base = (sheetTables[i] ?? []).length + (sheetDrawings[i] !== null ? 1 : 0);
     return {
       number: i + 1,
       notes,
-      vmlRelId: `rId${tableCount + 1}`,
-      commentsRelId: `rId${tableCount + 2}`,
+      vmlRelId: `rId${base + 1}`,
+      commentsRelId: `rId${base + 2}`,
     };
   });
 
@@ -104,12 +129,21 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
   // side effect of that pass, so styles.xml can only be generated once every sheet is done.
   const styles = new StyleRegistry();
   const sheetXml = sheets.map((sheet, i) =>
-    worksheetXml(sheet, sheetTables[i] ?? [], styles, sheetComments[i]?.vmlRelId ?? null)
+    worksheetXml(
+      sheet,
+      sheetTables[i] ?? [],
+      styles,
+      sheetDrawings[i]?.relId ?? null,
+      sheetComments[i]?.vmlRelId ?? null
+    )
   );
 
   const commentNumbers = sheetComments.filter((c): c is CommentPlan => c !== null).map(c => c.number);
+  const drawingNumbers = sheetDrawings.filter((d): d is DrawingPlan => d !== null).map(d => d.number);
   const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(contentTypesXml(sheets.length, allTables, commentNumbers)),
+    '[Content_Types].xml': strToU8(
+      contentTypesXml(sheets.length, allTables, commentNumbers, drawingNumbers, media.extensions)
+    ),
     '_rels/.rels': strToU8(rootRelsXml()),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
     'docProps/app.xml': strToU8(appPropsXml()),
@@ -118,12 +152,23 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     'xl/styles.xml': strToU8(styles.toXml()),
     'xl/theme/theme1.xml': strToU8(THEME1_XML),
   };
+  for (const part of media.parts) {
+    files[`xl/media/image${part.number}.${part.extension}`] = part.data;
+  }
   sheets.forEach((_sheet, i) => {
     const tables = sheetTables[i] ?? [];
+    const drawing = sheetDrawings[i] ?? null;
     const comments = sheetComments[i] ?? null;
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
-    if (tables.length > 0 || comments !== null) {
-      files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(worksheetRelsXml(tables, comments));
+    if (tables.length > 0 || drawing !== null || comments !== null) {
+      files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(
+        worksheetRelsXml(tables, drawing, comments)
+      );
+    }
+    if (drawing !== null) {
+      files[`xl/drawings/drawing${drawing.number}.xml`] = strToU8(drawingXml(drawing.images));
+      const targets = drawing.images.map(image => `../media/image${image.mediaNumber}.${image.extension}`);
+      files[`xl/drawings/_rels/drawing${drawing.number}.xml.rels`] = strToU8(drawingRelsXml(targets));
     }
     if (comments !== null) {
       files[`xl/comments${comments.number}.xml`] = strToU8(commentsXml(comments.notes));
@@ -154,30 +199,99 @@ interface PlannedTable {
   readonly relId: string;
 }
 
+// A sheet's drawing part: its workbook-global number, the sheet-local relationship id linking the
+// sheet's `<drawing>` element to it, and the images it lays out.
+interface DrawingPlan {
+  readonly number: number;
+  readonly relId: string;
+  readonly images: readonly PlannedImage[];
+}
+
+// An anchored image resolved for serialisation: its anchor and drawing-local embed id (via
+// DrawingImage) plus the media part number and extension its embed relationship targets.
+interface PlannedImage extends DrawingImage {
+  readonly mediaNumber: number;
+  readonly extension: string;
+}
+
+// One picture written to `xl/media/`: its global part number, extension, and bytes.
+interface MediaPart {
+  readonly number: number;
+  readonly extension: string;
+  readonly data: Uint8Array;
+}
+
+// The workbook's media, resolved for writing: the parts to emit, a map from a workbook image id to
+// its media part number (so a drawing embed can target it), and the distinct extensions in use (so
+// content types can declare an image `<Default>` per extension).
+interface MediaPlan {
+  readonly parts: readonly MediaPart[];
+  readonly numberById: ReadonlyMap<number, number>;
+  readonly extensions: readonly string[];
+}
+
+// Gather the workbook images actually anchored by some sheet (an unreferenced image is not written),
+// number them in first-use order, and record the extensions in play. A sheet anchoring an id with no
+// registered image is a programming error the writer surfaces rather than emitting a dangling embed.
+function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): MediaPlan {
+  const usedIds: number[] = [];
+  const seen = new Set<number>();
+  for (const sheet of sheets) {
+    for (const image of sheet.images) {
+      if (!seen.has(image.imageId)) {
+        seen.add(image.imageId);
+        usedIds.push(image.imageId);
+      }
+    }
+  }
+  const parts: MediaPart[] = [];
+  const numberById = new Map<number, number>();
+  const extensions = new Set<string>();
+  usedIds.forEach((id, i) => {
+    const image = workbook.getImage(id);
+    if (image === undefined) {
+      throw new Error(`a worksheet anchors image id ${id}, which is not registered on the workbook`);
+    }
+    const number = i + 1;
+    parts.push({number, extension: image.extension, data: image.data});
+    numberById.set(id, number);
+    extensions.add(image.extension);
+  });
+  return {parts, numberById, extensions: [...extensions]};
+}
+
 function contentTypesXml(
   sheetCount: number,
   tables: readonly PlannedTable[],
-  commentNumbers: readonly number[]
+  commentNumbers: readonly number[],
+  drawingNumbers: readonly number[],
+  mediaExtensions: readonly string[]
 ): string {
   const overrides = [
     override('/xl/workbook.xml', CT.workbook),
     ...range(sheetCount).map(i => override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet)),
     ...tables.map(({number}) => override(`/xl/tables/table${number}.xml`, CT.table)),
+    ...drawingNumbers.map(number => override(`/xl/drawings/drawing${number}.xml`, CT.drawing)),
     ...commentNumbers.map(number => override(`/xl/comments${number}.xml`, CT.comments)),
     override('/xl/theme/theme1.xml', CT.theme),
     override('/xl/styles.xml', CT.styles),
     override('/docProps/core.xml', CT.core),
     override('/docProps/app.xml', CT.app),
   ].join('');
-  // The VML drawing parts share one extension-level default rather than a per-part override.
+  // The VML drawings and each media kind are declared by extension-level defaults rather than a
+  // per-part override — the raw bytes carry no XML content type of their own.
   const vmlDefault =
     commentNumbers.length > 0 ? `<Default Extension="vml" ContentType="${CT.vml}"/>` : '';
+  const imageDefaults = mediaExtensions
+    .map(ext => `<Default Extension="${ext}" ContentType="${imageContentType(ext)}"/>`)
+    .join('');
   return (
     XML_DECLARATION +
     `<Types xmlns="${NS.contentTypes}">` +
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
     '<Default Extension="xml" ContentType="application/xml"/>' +
     vmlDefault +
+    imageDefaults +
     overrides +
     '</Types>'
   );
@@ -264,6 +378,7 @@ function worksheetXml(
   sheet: Worksheet,
   tables: readonly PlannedTable[],
   styles: StyleRegistry,
+  drawingRelId: string | null,
   legacyDrawingRelId: string | null
 ): string {
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
@@ -332,7 +447,9 @@ function worksheetXml(
     mergeCellsXml(sheet.merges) +
     pageMarginsXml(sheet.pageMargins) +
     headerFooterXml(sheet.headerFooter) +
-    // <legacyDrawing> (the VML holding the note boxes) precedes <tableParts> in the schema.
+    // Schema order near the tail: <drawing> (the images), then <legacyDrawing> (the VML holding the
+    // note boxes), then <tableParts>.
+    (drawingRelId !== null ? `<drawing r:id="${drawingRelId}"/>` : '') +
     (legacyDrawingRelId !== null ? `<legacyDrawing r:id="${legacyDrawingRelId}"/>` : '') +
     tablePartsXml(tables) +
     '</worksheet>'
@@ -419,9 +536,16 @@ function tablePartsXml(tables: readonly PlannedTable[]): string {
   return `<tableParts count="${tables.length}">${parts}</tableParts>`;
 }
 
-function worksheetRelsXml(tables: readonly PlannedTable[], comments: CommentPlan | null): string {
+function worksheetRelsXml(
+  tables: readonly PlannedTable[],
+  drawing: DrawingPlan | null,
+  comments: CommentPlan | null
+): string {
   const rels = [
     ...tables.map(({relId, number}) => relationship(relId, REL.table, `../tables/table${number}.xml`)),
+    ...(drawing === null
+      ? []
+      : [relationship(drawing.relId, REL.drawing, `../drawings/drawing${drawing.number}.xml`)]),
     ...(comments === null
       ? []
       : [

@@ -33,6 +33,7 @@ import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.
 import {Workbook} from '../../core/workbook.ts';
 import type {PageMargins, Worksheet} from '../../core/worksheet.ts';
 import {applyNotes, parseComments} from './comments.ts';
+import {parseDrawing} from './images.ts';
 import {localName, parseXml} from './xml-read.ts';
 
 export interface ReadXlsxOptions {
@@ -70,6 +71,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     const bytes = files[path];
     return bytes === undefined ? undefined : strFromU8(bytes);
   };
+  const partBytes = (path: string): Uint8Array | undefined => files[path];
 
   const workbookXml = partText('xl/workbook.xml');
   if (workbookXml === undefined) throw new Error('not an xlsx package: xl/workbook.xml is missing');
@@ -85,6 +87,9 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   const core = partText('docProps/core.xml');
   if (core !== undefined) applyCoreProperties(workbook, core);
 
+  // A picture used on more than one sheet is one media part; caching by media path keeps it a single
+  // workbook image so a re-write does not duplicate the bytes.
+  const imageIdByMediaPath = new Map<string, number>();
   for (const {name, relId} of parseWorkbookSheets(workbookXml)) {
     const target = rels.get(relId);
     const sheet = workbook.addWorksheet(name);
@@ -94,6 +99,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     if (path !== undefined) {
       const notes = readSheetNotes(path, partText);
       if (notes !== undefined) applyNotes(sheet, notes);
+      readSheetImages(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
     }
   }
   return workbook;
@@ -113,6 +119,48 @@ function readSheetNotes(
   const commentsXml = partText(resolveRelativePart(sheetPath, target));
   if (commentsXml === undefined) return undefined;
   return parseComments(commentsXml);
+}
+
+// A sheet's anchored images live in a drawing part reached through the sheet's own relationships: a
+// relationship of type `.../drawing` names the drawing part, whose own relationships map each
+// picture's embed id to a media part under `xl/media/`. Each anchor becomes a workbook image (deduped
+// by media path) placed back on the sheet at its two-cell anchor.
+function readSheetImages(
+  sheetPath: string,
+  partText: (path: string) => string | undefined,
+  partBytes: (path: string) => Uint8Array | undefined,
+  workbook: Workbook,
+  sheet: Worksheet,
+  imageIdByMediaPath: Map<string, number>
+): void {
+  const relsXml = partText(relsPathFor(sheetPath));
+  if (relsXml === undefined) return;
+  const drawingTarget = relationshipTargetByType(relsXml, 'drawing');
+  if (drawingTarget === undefined) return;
+  const drawingPath = resolveRelativePart(sheetPath, drawingTarget);
+  const drawingXml = partText(drawingPath);
+  if (drawingXml === undefined) return;
+  const drawingRels = parseRelationships(partText(relsPathFor(drawingPath)) ?? '');
+
+  for (const anchor of parseDrawing(drawingXml)) {
+    const target = drawingRels.get(anchor.embed);
+    if (target === undefined) continue;
+    const mediaPath = resolveRelativePart(drawingPath, target);
+    let id = imageIdByMediaPath.get(mediaPath);
+    if (id === undefined) {
+      const bytes = partBytes(mediaPath);
+      if (bytes === undefined) continue;
+      id = workbook.addImage({buffer: bytes, extension: extensionOf(mediaPath)});
+      imageIdByMediaPath.set(mediaPath, id);
+    }
+    sheet.addImage(id, {tl: anchor.from, br: anchor.to});
+  }
+}
+
+// The extension of a part path (`xl/media/image1.png` → `png`), or '' when it carries none.
+function extensionOf(partPath: string): string {
+  const dot = partPath.lastIndexOf('.');
+  return dot === -1 ? '' : partPath.slice(dot + 1);
 }
 
 // The relationships for `dir/name.ext` live at `dir/_rels/name.ext.rels`.

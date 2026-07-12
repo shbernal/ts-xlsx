@@ -8,6 +8,7 @@
 
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {Cell} from './cell.ts';
+import type {AnchoredImage, AnchorPoint} from './image.ts';
 import {
   deriveCredential,
   type SheetProtection,
@@ -194,9 +195,10 @@ export class Worksheet {
   // (a hidden column, a tall header row with no data yet) costs no phantom cells.
   readonly #columns = new Map<number, ColumnProperties>();
   readonly #rowProperties = new Map<number, RowProperties>();
-  // Tables and merged ranges are sheet-level overlays on the grid, not cell storage.
+  // Tables, merged ranges, and anchored images are sheet-level overlays on the grid, not cell storage.
   readonly #tables: Table[] = [];
   readonly #merges: string[] = [];
+  readonly #images: AnchoredImage[] = [];
   // Decoded rectangles parallel to #merges, kept so that addressing a covered cell can
   // resolve to its region's master without re-parsing the range string on every access, and
   // so that a new merge can be checked for overlap against the existing ones. Only fully-bounded
@@ -365,6 +367,21 @@ export class Worksheet {
   }
 
   /**
+   * Anchor a workbook image (the id returned by {@link Workbook.addImage}) to this sheet, spanning
+   * the rectangle from the top-left grid point `tl` to the bottom-right `br`. Both points are
+   * 0-based (`{col: 0, row: 0}` is cell A1). The anchor moves and reflows with the cells it spans, so
+   * a later row/column splice re-pins it to the same logical position.
+   */
+  addImage(imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint}): void {
+    this.#images.push({imageId, anchor: {from: anchor.tl, to: anchor.br}});
+  }
+
+  /** The images anchored to this sheet, in the order they were added. */
+  get images(): readonly AnchoredImage[] {
+    return this.#images;
+  }
+
+  /**
    * Merge a range of cells (`"A1:B2"`). A range that overlaps an already-merged region is
    * rejected — Excel forbids overlapping merges and writes such geometry as a corrupt file.
    * Whole-row/column ranges (`"A:A"`) are unbounded, carry no rectangle, and are not overlap-checked.
@@ -503,6 +520,8 @@ export class Worksheet {
     }
     this.#shiftLineProperties(this.#columns, start, count, delta);
     this.#shiftMerges(start, count, inserts.length, 'col');
+    this.#shiftTables('col', start, count, delta);
+    this.#shiftImages('col', start, count, delta);
   }
 
   // Apply a delete-then-insert to the row grid: surviving rows below the edit shift by
@@ -522,6 +541,8 @@ export class Worksheet {
 
     this.#shiftLineProperties(this.#rowProperties, start, count, delta);
     this.#shiftMerges(start, count, inserted.length, 'row');
+    this.#shiftTables('row', start, count, delta);
+    this.#shiftImages('row', start, count, delta);
   }
 
   // Rebuild a row's cells at a new row index. `Cell` fixes its position at construction, so a moved
@@ -582,6 +603,37 @@ export class Worksheet {
     this.#merges.push(...merges);
     this.#mergeRects.length = 0;
     this.#mergeRects.push(...rects);
+  }
+
+  // Re-pin the sheet's tables through a splice on the given axis, dropping any table a delete leaves
+  // with no row to occupy. `Table` owns the shift arithmetic; the sheet only prunes the casualties.
+  #shiftTables(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+    const survivors = this.#tables.filter(table =>
+      axis === 'row' ? table.shiftRows(start, count, delta) : table.shiftColumns(start, count, delta)
+    );
+    this.#tables.length = 0;
+    this.#tables.push(...survivors);
+  }
+
+  // Re-pin anchored images through a splice. An anchor point moves like a merge edge: a point before
+  // the cut stays, one at or after it shifts by `delta`, and one inside a deleted span clamps to the
+  // cut line. Grid points are 0-based, so each is converted to the 1-based coordinate the shared
+  // shift arithmetic uses and back. An anchor whose points both move keeps its size; an anchor
+  // straddling the cut grows or shrinks, matching how Excel reflows a picture across inserted rows.
+  #shiftImages(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+    const shift = (v: number): number => (v < start ? v : v >= start + count ? v + delta : start);
+    const shiftPoint = (point: AnchorPoint): AnchorPoint => {
+      const zeroBased = axis === 'row' ? point.row : point.col;
+      const shifted = shift(zeroBased + 1) - 1;
+      if (shifted === zeroBased) return point;
+      return axis === 'row' ? {...point, row: shifted} : {...point, col: shifted};
+    };
+    const moved = this.#images.map(image => ({
+      imageId: image.imageId,
+      anchor: {from: shiftPoint(image.anchor.from), to: shiftPoint(image.anchor.to)},
+    }));
+    this.#images.length = 0;
+    this.#images.push(...moved);
   }
 
   /**

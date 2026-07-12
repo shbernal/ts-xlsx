@@ -38,6 +38,14 @@ import {packageFacts} from './ooxml-facts.mjs';
 const FIXTURES_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
 const readFixture = rel => readXlsx(fs.readFileSync(path.join(FIXTURES_ROOT, rel)));
 
+// A 1×1 PNG — a minimal image payload for anchoring on a sheet.
+const ONE_PX_PNG = Uint8Array.from(
+  Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64'
+  )
+);
+
 const notImplemented = message => {
   const err = new Error(`rewrite: ${message}`);
   err.notImplemented = true;
@@ -879,6 +887,38 @@ const impl = {
       dataShifted: s.getCell('A2').value === 'r1' && s.getCell('A3').value === 'r2',
       noteFollowsRow: !!s.getCell('A3').note,
       outlineFollowsRow: s.getRow(3).outlineLevel === 1,
+    };
+  },
+
+  spliceShiftsRefs() {
+    const wb = new Workbook();
+    const s = wb.addWorksheet('S');
+    // Table occupies A3:B5 (header + 2 rows); image anchored from row 5 (0-based).
+    s.addTable({name: 'T', ref: 'A3', columns: [{name: 'H1'}, {name: 'H2'}], rowCount: 2});
+    const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+    s.addImage(id, {tl: {col: 0, row: 5}, br: {col: 2, row: 8}});
+    s.spliceRows(1, 0, ['inserted']); // insert a row at the top → table and image shift down 1
+
+    const parts = partMapOf(writeXlsx(wb));
+    const tableXml = parts['xl/tables/table1.xml'] || '';
+    const tableRef = ((tableXml.match(/<table\b[^>]*\bref="([^"]*)"/) || [])[1]) ?? null;
+    const drawingXml = parts['xl/drawings/drawing1.xml'] || '';
+    const imageFromRow = (drawingXml.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/) || [])[1];
+
+    // Duplicate table column names authored separately — construction must reject them.
+    let dupRejected = false;
+    try {
+      const w2 = new Workbook();
+      w2.addWorksheet('S').addTable({name: 'T2', ref: 'A1', columns: [{name: 'Dup'}, {name: 'Dup'}], rowCount: 1});
+      writeXlsx(w2);
+    } catch {
+      dupRejected = true;
+    }
+
+    return {
+      tableRef,
+      imageFromRow: imageFromRow != null ? Number(imageFromRow) : null,
+      dupColumnNamesRejected: dupRejected,
     };
   },
 

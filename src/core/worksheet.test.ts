@@ -262,6 +262,13 @@ test('duplicating rows above a merged range shifts the merge down by the number 
   assert.ok([...sheet.merges].includes('A5:C5'), `expected A5:C5; got ${JSON.stringify([...sheet.merges])}`);
 });
 
+test('inserting a row above a table shifts the table range down', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.addTable({name: 'T', ref: 'A3', columns: [{name: 'H1'}, {name: 'H2'}], rowCount: 2});
+  sheet.insertRow(1, ['inserted']);
+  assert.equal(sheet.tables[0]?.ref, 'A4:B6');
+});
+
 test('spliceColumns removes the requested columns and shifts the rest left', () => {
   const sheet = new Worksheet('S', 1);
   ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => (sheet.getCell(`${L}1`).value = `c${i + 1}`));
