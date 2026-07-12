@@ -325,6 +325,71 @@ test('a foreign font honours an explicit-false boolean flag rather than tag pres
   assert.equal(font?.italic, false, '<i val="0"/> is explicitly not italic — the val is honoured');
 });
 
+test('a cell border round-trips through the <borders> table, and only the styled cell carries it', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'boxed';
+  sheet.getCell('A1').border = {
+    top: {style: 'thin'},
+    bottom: {style: 'medium', color: {argb: 'FF3A80D5'}},
+  };
+  sheet.getCell('B2').value = 'plain';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.deepEqual(back?.getCell('A1').border, {
+    top: {style: 'thin'},
+    bottom: {style: 'medium', color: {argb: 'FF3A80D5'}},
+  });
+  assert.equal(back?.getCell('B2').border, undefined, 'an unbordered sibling stays borderless');
+});
+
+test('a cell bordered on one side does not fabricate the other three across a round-trip', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  sheet.getCell('A1').border = {top: {style: 'thin'}};
+
+  const border = roundtrip(wb).getWorksheet('S')?.getCell('A1').border;
+  assert.equal(border?.top?.style, 'thin', 'the declared top edge survives');
+  for (const side of ['left', 'right', 'bottom', 'diagonal'] as const) {
+    assert.equal(border?.[side], undefined, `${side} is not fabricated`);
+  }
+});
+
+test('a foreign diagonal border reads its edge and diagonal direction', () => {
+  // A foreign generator declares a diagonal border with diagonalUp; the reader must carry the
+  // edge and the direction flag rather than dropping either.
+  const files: Record<string, Uint8Array> = {
+    '[Content_Types].xml': strToU8(
+      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="xml" ContentType="application/xml"/></Types>'
+    ),
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/styles.xml': strToU8(
+      '<?xml version="1.0"?><styleSheet>' +
+        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+        '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+        '<border diagonalUp="1"><left/><right/><top/><bottom/><diagonal style="thin"/></border></borders>' +
+        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/></cellXfs></styleSheet>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>'
+    ),
+  };
+  const border = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').border;
+  assert.equal(border?.diagonal?.style, 'thin', 'the diagonal edge survives');
+  assert.equal(border?.diagonalUp, true, 'the diagonalUp direction is honoured');
+  assert.equal(border?.top, undefined, 'a styleless edge is not fabricated');
+});
+
 test('the inflate bound rejects a part whose declared size is over the cap', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';

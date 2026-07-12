@@ -83,6 +83,7 @@ test('an empty registry still emits a valid minimal stylesheet with no <numFmts>
   assert.doesNotMatch(xml, /<numFmts/); // omitted entirely when all-built-in
   assert.match(xml, /<fonts count="1">/); // just the default font
   assert.match(xml, /<fills count="2">/); // just the two reserved fills
+  assert.match(xml, /<borders count="1">/); // just the empty default border
   assert.match(xml, /<cellXfs count="1">/); // just the default xf
 });
 
@@ -136,4 +137,45 @@ test('an underline flag serialises single as a bare tag and a named variant with
   const xml = styles.toXml();
   assert.match(xml, /<font><u\/><\/font>/); // true → single → bare <u/>
   assert.match(xml, /<font><u val="double"\/><\/font>/);
+});
+
+test('an identical border interns to one shared xf index', () => {
+  const styles = new StyleRegistry();
+  const first = styles.styleId({border: {top: {style: 'thin'}}});
+  for (let i = 0; i < 40; i++) {
+    assert.equal(styles.styleId({border: {top: {style: 'thin'}}}), first, 'every identical border returns the same index');
+  }
+  assert.notEqual(first, 0, 'a real border gets a non-default index');
+});
+
+test('a border that styles no edge resolves to the default xf 0 — no border entry', () => {
+  const styles = new StyleRegistry();
+  assert.equal(styles.styleId({border: {}}), 0);
+  assert.match(styles.toXml(), /<borders count="1">/); // just the empty default border
+});
+
+test('font, fill, number format, and border are independent facets composed into one xf', () => {
+  const styles = new StyleRegistry();
+  const b = styles.styleId({border: {top: {style: 'thin'}}});
+  const bFill = styles.styleId({border: {top: {style: 'thin'}}, fill: solid('FFFF0000')});
+  const bFillFont = styles.styleId({border: {top: {style: 'thin'}}, fill: solid('FFFF0000'), font: {bold: true}});
+  assert.equal(new Set([b, bFill, bFillFont]).size, 3, 'each added facet is a distinct composed style');
+});
+
+test('a custom border is defined in <borders> after the default and referenced by its xf', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({border: {top: {style: 'thin'}, bottom: {style: 'medium', color: {argb: 'FF3A80D5'}}}});
+  const xml = styles.toXml();
+
+  // Empty default border (id 0) + one custom (id 1).
+  assert.match(xml, /<borders count="2">/);
+  // Edges serialise in schema order (left, right, top, bottom, diagonal); a styleless edge is
+  // a bare self-closing tag, a styled one carries its style and any colour child.
+  assert.match(
+    xml,
+    /<border><left\/><right\/><top style="thin"\/><bottom style="medium"><color rgb="FF3A80D5"\/><\/bottom><diagonal\/><\/border>/
+  );
+  // The referencing xf names border id 1 and flags applyBorder; the default xf keeps border id 0.
+  assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"\/>/);
+  assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
 });

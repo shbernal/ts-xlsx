@@ -6,7 +6,7 @@
 // through the value model so the cell's `type` is always consistent with what it holds.
 
 import {encodeAddress} from './address.ts';
-import type {Fill, Font} from './style.ts';
+import type {Border, Fill, Font} from './style.ts';
 import {type CellValue, type ValueType, coerceCellValue, detectValueType} from './value.ts';
 
 export class Cell {
@@ -19,6 +19,7 @@ export class Cell {
   #fill: Fill | undefined;
   #numFmt: string | undefined;
   #font: Partial<Font> | undefined;
+  #border: Border | undefined;
 
   constructor(row: number, col: number) {
     if (!Number.isInteger(row) || row < 1) {
@@ -92,5 +93,20 @@ export class Cell {
 
   set font(font: Partial<Font> | undefined) {
     this.#font = font;
+  }
+
+  /**
+   * The cell's border — the line style and colour of each side — or `undefined` when the
+   * cell has none. An absent edge within a border means that side is unbordered, so reading
+   * a cell never fabricates a border it does not have. Like {@link fill}, {@link numFmt}, and
+   * {@link font}, each cell owns its own border object, so a border set on one cell never
+   * aliases or bleeds onto its row, column, or sheet siblings.
+   */
+  get border(): Border | undefined {
+    return this.#border;
+  }
+
+  set border(border: Border | undefined) {
+    this.#border = border;
   }
 }

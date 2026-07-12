@@ -62,6 +62,47 @@ export interface PatternFill {
 /** A cell/row background fill. Only pattern fills exist today; gradients extend this union later. */
 export type Fill = PatternFill;
 
+/**
+ * Line styles a cell border edge can take, as OOXML's `ST_BorderStyle` enumerates them.
+ * `none` is the absence of an edge and is expressed by omitting the edge, not by this value.
+ */
+export type BorderStyle =
+  | 'thin'
+  | 'medium'
+  | 'thick'
+  | 'dashed'
+  | 'dotted'
+  | 'double'
+  | 'hair'
+  | 'mediumDashed'
+  | 'dashDot'
+  | 'mediumDashDot'
+  | 'dashDotDot'
+  | 'mediumDashDotDot'
+  | 'slantDashDot';
+
+/** One edge of a cell border: its line style, and optionally the line colour. */
+export interface BorderEdge {
+  readonly style: BorderStyle;
+  readonly color?: Color;
+}
+
+/**
+ * A cell's border. Each of the four sides plus the diagonal is an independent edge; an
+ * absent edge means that side has no border (it is not rendered), so a cell bordered on
+ * one side never implies the other three. `diagonalUp`/`diagonalDown` select which way a
+ * present diagonal edge runs.
+ */
+export interface Border {
+  readonly left?: BorderEdge;
+  readonly right?: BorderEdge;
+  readonly top?: BorderEdge;
+  readonly bottom?: BorderEdge;
+  readonly diagonal?: BorderEdge;
+  readonly diagonalUp?: boolean;
+  readonly diagonalDown?: boolean;
+}
+
 /** Vertical alignment of a font relative to the baseline (super/subscript). */
 export type VerticalAlignment = 'superscript' | 'subscript';
 

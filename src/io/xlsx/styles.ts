@@ -7,11 +7,11 @@
 // historical performance cliff came from re-serialising a distinct style per cell). The
 // registry interns each distinct fill, number format, and xf, handing back a stable index.
 //
-// Only fills and number formats are modelled today; fonts, borders, alignment, and
-// protection extend the xf signature as those slices land. Until then every xf shares the
-// single default font/border, and an unstyled cell/row/column resolves to xf 0.
+// Fills, number formats, fonts, and borders are modelled today; alignment and protection
+// extend the xf signature as those slices land. Until then every xf shares the single
+// default alignment, and an unstyled cell/row/column resolves to xf 0.
 
-import type {Color, Fill, Font, UnderlineStyle} from '../../core/style.ts';
+import type {Border, BorderEdge, Color, Fill, Font, UnderlineStyle} from '../../core/style.ts';
 import {escapeAttr, XML_DECLARATION} from './xml.ts';
 
 // Excel reserves fill ids 0 and 1 for the "none" and "gray125" patterns it always emits;
@@ -25,9 +25,14 @@ const RESERVED_FONT_COUNT = 1;
 // knows implicitly; custom format codes are numbered from 164 up. Id 0 is General (no code).
 const CUSTOM_NUMFMT_BASE = 164;
 
+// Border id 0 is the always-present empty border (every edge absent); custom borders from 1.
+const RESERVED_BORDER_COUNT = 1;
+
 const NS_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const DEFAULT_FONT =
   '<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>';
+// The empty border: all five edges present but styleless. A border that overrides no edge
+// serialises to exactly this, so it interns to the default border id 0 rather than a new one.
 const DEFAULT_BORDER = '<border><left/><right/><top/><bottom/><diagonal/></border>';
 
 /** A cell's style facets as the writer composes them: cell overrides atop row/column defaults. */
@@ -35,14 +40,17 @@ export interface CellStyle {
   readonly fill?: Fill | undefined;
   readonly numFmt?: string | undefined;
   readonly font?: Partial<Font> | undefined;
+  readonly border?: Border | undefined;
 }
 
 // One interned cell format. `fillId` 0 is no fill; `numFmtId` 0 is the General format;
-// `fontId` 0 is the default font. Added facets (borderId, …) become further fields and terms.
+// `fontId` 0 is the default font; `borderId` 0 is the empty border. Added facets become
+// further fields and signature terms.
 interface CellFormat {
   readonly fillId: number;
   readonly numFmtId: number;
   readonly fontId: number;
+  readonly borderId: number;
 }
 
 export class StyleRegistry {
@@ -58,8 +66,12 @@ export class StyleRegistry {
   readonly #fontXml: string[] = [];
   readonly #fontIdBySignature = new Map<string, number>();
 
-  // xf 0 is the default (no fill/font, General format); further entries append as styles appear.
-  readonly #formats: CellFormat[] = [{fillId: 0, numFmtId: 0, fontId: 0}];
+  // Custom border xml fragments, in id order; the emitted id is RESERVED_BORDER_COUNT + index.
+  readonly #borderXml: string[] = [];
+  readonly #borderIdBySignature = new Map<string, number>();
+
+  // xf 0 is the default (no fill/font/border, General format); further entries append as styles appear.
+  readonly #formats: CellFormat[] = [{fillId: 0, numFmtId: 0, fontId: 0, borderId: 0}];
   readonly #xfIndexBySignature = new Map<string, number>();
 
   /**
@@ -70,13 +82,14 @@ export class StyleRegistry {
     const fillId = style.fill && style.fill.pattern !== 'none' ? this.#internFill(style.fill) : 0;
     const numFmtId = style.numFmt !== undefined && style.numFmt !== '' ? this.#internNumFmt(style.numFmt) : 0;
     const fontId = style.font ? this.#internFont(style.font) : 0;
-    if (fillId === 0 && numFmtId === 0 && fontId === 0) return 0;
+    const borderId = style.border ? this.#internBorder(style.border) : 0;
+    if (fillId === 0 && numFmtId === 0 && fontId === 0 && borderId === 0) return 0;
 
-    const signature = `fill:${fillId}|numFmt:${numFmtId}|font:${fontId}`;
+    const signature = `fill:${fillId}|numFmt:${numFmtId}|font:${fontId}|border:${borderId}`;
     let index = this.#xfIndexBySignature.get(signature);
     if (index === undefined) {
       index = this.#formats.length;
-      this.#formats.push({fillId, numFmtId, fontId});
+      this.#formats.push({fillId, numFmtId, fontId, borderId});
       this.#xfIndexBySignature.set(signature, index);
     }
     return index;
@@ -117,6 +130,20 @@ export class StyleRegistry {
     return id;
   }
 
+  // A border that overrides no edge serialises to the empty default border and maps to id 0;
+  // otherwise its serialised form is interned and dedup'd like a fill or font.
+  #internBorder(border: Border): number {
+    const xml = borderXml(border);
+    if (xml === DEFAULT_BORDER) return 0;
+    let id = this.#borderIdBySignature.get(xml);
+    if (id === undefined) {
+      id = RESERVED_BORDER_COUNT + this.#borderXml.length;
+      this.#borderXml.push(xml);
+      this.#borderIdBySignature.set(xml, id);
+    }
+    return id;
+  }
+
   /** Serialise the accumulated table into a complete, valid styles.xml part. */
   toXml(): string {
     const fillCount = RESERVED_FILL_COUNT + this.#fillXml.length;
@@ -127,13 +154,15 @@ export class StyleRegistry {
     const cellXfs = this.#formats.map(cellXf).join('');
     const fontCount = RESERVED_FONT_COUNT + this.#fontXml.length;
     const fonts = DEFAULT_FONT + this.#fontXml.join('');
+    const borderCount = RESERVED_BORDER_COUNT + this.#borderXml.length;
+    const borders = DEFAULT_BORDER + this.#borderXml.join('');
     return (
       XML_DECLARATION +
       `<styleSheet xmlns="${NS_MAIN}">` +
       this.#numFmtsXml() +
       `<fonts count="${fontCount}">${fonts}</fonts>` +
       `<fills count="${fillCount}">${fills}</fills>` +
-      `<borders count="1">${DEFAULT_BORDER}</borders>` +
+      `<borders count="${borderCount}">${borders}</borders>` +
       '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
       `<cellXfs count="${this.#formats.length}">${cellXfs}</cellXfs>` +
       '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
@@ -154,12 +183,13 @@ export class StyleRegistry {
 }
 
 function cellXf(format: CellFormat): string {
-  const applyFill = format.fillId !== 0 ? ' applyFill="1"' : '';
   const applyNumberFormat = format.numFmtId !== 0 ? ' applyNumberFormat="1"' : '';
   const applyFont = format.fontId !== 0 ? ' applyFont="1"' : '';
+  const applyFill = format.fillId !== 0 ? ' applyFill="1"' : '';
+  const applyBorder = format.borderId !== 0 ? ' applyBorder="1"' : '';
   return (
-    `<xf numFmtId="${format.numFmtId}" fontId="${format.fontId}" fillId="${format.fillId}" borderId="0" xfId="0"` +
-    `${applyNumberFormat}${applyFont}${applyFill}/>`
+    `<xf numFmtId="${format.numFmtId}" fontId="${format.fontId}" fillId="${format.fillId}" ` +
+    `borderId="${format.borderId}" xfId="0"${applyNumberFormat}${applyFont}${applyFill}${applyBorder}/>`
   );
 }
 
@@ -197,6 +227,30 @@ function numberAttr(value: number): string {
     throw new Error(`cannot serialise a non-finite font metric (${value})`);
   }
   return String(value);
+}
+
+// Serialise a border in ECMA-376 CT_Border child order (left, right, top, bottom, diagonal).
+// Every edge element is always present — a styleless `<left/>` is how OOXML says "no left
+// border" — so an all-absent border round-trips to the empty default rather than a new id.
+function borderXml(border: Border): string {
+  const attrs = (border.diagonalUp ? ' diagonalUp="1"' : '') + (border.diagonalDown ? ' diagonalDown="1"' : '');
+  return (
+    `<border${attrs}>` +
+    edgeXml('left', border.left) +
+    edgeXml('right', border.right) +
+    edgeXml('top', border.top) +
+    edgeXml('bottom', border.bottom) +
+    edgeXml('diagonal', border.diagonal) +
+    '</border>'
+  );
+}
+
+// One border edge: a styleless self-closing tag when absent, else the style attribute plus an
+// optional colour child.
+function edgeXml(tag: string, edge: BorderEdge | undefined): string {
+  if (edge === undefined) return `<${tag}/>`;
+  if (edge.color === undefined) return `<${tag} style="${edge.style}"/>`;
+  return `<${tag} style="${edge.style}"><color ${colorAttrs(edge.color)}/></${tag}>`;
 }
 
 // A format code sits in the `formatCode` attribute; only the markup-significant characters

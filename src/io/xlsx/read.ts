@@ -2,11 +2,11 @@
 //
 // It reconstructs the part of the model the writer emits today — sheet names and order,
 // cells holding a number, string, boolean, or formula, per-column width/visibility,
-// per-row height/visibility, merged ranges, page margins, and pattern-fill styles (per
-// cell, or inherited from a formatted row). Fonts/borders/number formats, shared-formula
-// slaves, and the richer value kinds land as the model grows; an unrecognised construct
-// is skipped rather than guessed, so a foreign file reads without crashing even where a
-// facet is not yet materialised.
+// per-row height/visibility, merged ranges, page margins, and cell styles (pattern fills,
+// number formats, fonts, and borders — per cell, or inherited from a formatted row/column).
+// Alignment/protection, shared-formula slaves, and the richer value kinds land as the model
+// grows; an unrecognised construct is skipped rather than guessed, so a foreign file reads
+// without crashing even where a facet is not yet materialised.
 //
 // Untrusted input: inflate is bounded here (a declared-size cap rejects the naïve zip
 // bomb), and the parser (ADR 0004) never expands entities. See ADR 0004 for the honest
@@ -15,7 +15,16 @@
 import {unzipSync, strFromU8, type UnzipFileInfo} from 'fflate';
 
 import {decodeAddress} from '../../core/address.ts';
-import type {Color, Fill, FillPatternType, Font, UnderlineStyle, VerticalAlignment} from '../../core/style.ts';
+import type {
+  Border,
+  BorderStyle,
+  Color,
+  Fill,
+  FillPatternType,
+  Font,
+  UnderlineStyle,
+  VerticalAlignment,
+} from '../../core/style.ts';
 import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {PageMargins, Worksheet} from '../../core/worksheet.ts';
@@ -155,11 +164,21 @@ interface XfStyle {
   readonly fill?: Fill;
   readonly numFmt?: string;
   readonly font?: Partial<Font>;
+  readonly border?: Border;
 }
 
 // A mutable font accumulator while a <font> element's children stream in; frozen into a
 // Partial<Font> on close.
 type FontDraft = {-readonly [K in keyof Font]?: Font[K]};
+
+// A mutable border accumulator while a <border> element's edges stream in; frozen into a
+// Border on close. The five edges match Border's; a bare styleless edge is simply never set.
+type BorderDraft = {-readonly [K in keyof Border]?: Border[K]};
+
+// The four sides plus the diagonal — the edge elements a <border> can hold, in the order the
+// schema lists them. Membership drives edge parsing without a per-name branch.
+type BorderEdgeName = 'left' | 'right' | 'top' | 'bottom' | 'diagonal';
+const BORDER_EDGES = new Set<string>(['left', 'right', 'top', 'bottom', 'diagonal']);
 
 // ECMA-376 reserves numFmt ids below 164 for formats every consumer knows implicitly, so a
 // foreign file may name one with no <numFmt> entry. This maps the standard ids to their
@@ -183,6 +202,7 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
   if (xml === '') return [];
   const fills: Array<Fill | undefined> = [];
   const fonts: Array<Partial<Font> | undefined> = [];
+  const borders: Array<Border | undefined> = [];
   const numFmtCodes = new Map<number, string>();
   const xfStyles: XfStyle[] = [];
   let inFills = false;
@@ -192,6 +212,9 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
   let fgColor: Color | undefined;
   let bgColor: Color | undefined;
   let fontDraft: FontDraft | null = null;
+  let borderDraft: BorderDraft | null = null;
+  // Which edge of the current border a nested <color> belongs to; null between edges.
+  let currentEdge: BorderEdgeName | null = null;
 
   parseXml(xml, {
     onOpen(name, attrs, selfClosing) {
@@ -221,6 +244,19 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
             }
           }
           break;
+        case 'borders':
+          break;
+        case 'border':
+          borderDraft = {};
+          currentEdge = null;
+          if (attrs.diagonalUp === '1' || attrs.diagonalUp === 'true') borderDraft.diagonalUp = true;
+          if (attrs.diagonalDown === '1' || attrs.diagonalDown === 'true') borderDraft.diagonalDown = true;
+          // A bare <border/> holds no edges; keep its id slot as the empty border.
+          if (selfClosing) {
+            borders.push(borderToStyle(borderDraft));
+            borderDraft = null;
+          }
+          break;
         case 'cellXfs':
           inCellXfs = true;
           break;
@@ -240,25 +276,43 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
         case 'bgColor':
           if (inFills) bgColor = parseColor(attrs);
           break;
-        default:
+        default: {
+          const local = localName(name);
           // A <font>'s children are self-closing, so they are read here on open.
-          if (fontDraft !== null) applyFontChild(fontDraft, localName(name), attrs);
-          else if (inCellXfs && localName(name) === 'xf') {
+          if (fontDraft !== null) {
+            applyFontChild(fontDraft, local, attrs);
+          } else if (borderDraft !== null) {
+            // A border's edges and their <color> children are all read on open (each is
+            // self-closing bar a coloured edge, whose colour child is itself self-closing).
+            if (BORDER_EDGES.has(local)) {
+              currentEdge = attrs.style !== undefined ? (local as BorderEdgeName) : null;
+              if (currentEdge !== null) borderDraft[currentEdge] = {style: attrs.style as BorderStyle};
+              if (selfClosing) currentEdge = null;
+            } else if (local === 'color' && currentEdge !== null) {
+              const edge = borderDraft[currentEdge];
+              if (edge !== undefined) borderDraft[currentEdge] = {style: edge.style, color: parseColor(attrs)};
+            }
+          } else if (inCellXfs && local === 'xf') {
             // cellStyleXfs also holds <xf>; only those inside <cellXfs> are cell references.
             const fillId = Number(attrs.fillId);
             const fill = Number.isInteger(fillId) ? fills[fillId] : undefined;
             const fontId = Number(attrs.fontId);
             // Font id 0 is the default; only a custom font (id > 0) is an explicit cell font.
             const font = Number.isInteger(fontId) && fontId > 0 ? fonts[fontId] : undefined;
+            const borderId = Number(attrs.borderId);
+            // Border id 0 is the empty default; only a custom border (id > 0) is an explicit one.
+            const border = Number.isInteger(borderId) && borderId > 0 ? borders[borderId] : undefined;
             const numFmt = resolveNumFmt(attrs.numFmtId, numFmtCodes);
             const style: XfStyle = {
               ...(fill ? {fill} : {}),
               ...(numFmt !== undefined ? {numFmt} : {}),
               ...(font ? {font} : {}),
+              ...(border ? {border} : {}),
             };
             xfStyles.push(style);
           }
           break;
+        }
       }
     },
     onText() {},
@@ -276,6 +330,13 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
             fontDraft = null;
           }
           break;
+        case 'border':
+          if (borderDraft !== null) {
+            borders.push(borderToStyle(borderDraft));
+            borderDraft = null;
+            currentEdge = null;
+          }
+          break;
         case 'cellXfs':
           inCellXfs = false;
           break;
@@ -283,6 +344,9 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
           if (inFills) fills.push(toFill(pattern, fgColor, bgColor));
           break;
         default:
+          // A coloured edge closes after its <color> child; drop the edge context so a stray
+          // later <color> cannot attach to it.
+          if (borderDraft !== null && BORDER_EDGES.has(localName(name))) currentEdge = null;
           break;
       }
     },
@@ -365,6 +429,16 @@ function toFill(pattern: string, fgColor: Color | undefined, bgColor: Color | un
     ...(fgColor ? {fgColor} : {}),
     ...(bgColor ? {bgColor} : {}),
   };
+}
+
+// An accumulated border with no styled edge and no diagonal direction is the empty default:
+// it carries nothing, so it resolves to undefined rather than an all-empty Border object.
+function borderToStyle(draft: BorderDraft): Border | undefined {
+  const hasEdge = (['left', 'right', 'top', 'bottom', 'diagonal'] as const).some(
+    (edge: BorderEdgeName): boolean => draft[edge] !== undefined
+  );
+  if (!hasEdge && draft.diagonalUp === undefined && draft.diagonalDown === undefined) return undefined;
+  return draft;
 }
 
 function parseColor(attrs: {readonly [k: string]: string}): Color {
@@ -600,6 +674,7 @@ function finalizeCell(
   if (style?.fill !== undefined) cell.fill = style.fill;
   if (style?.numFmt !== undefined) cell.numFmt = style.numFmt;
   if (style?.font !== undefined) cell.font = style.font;
+  if (style?.border !== undefined) cell.border = style.border;
 
   if (hasFormula) {
     const result = hasValue ? decodeResult(type, valueText) : undefined;
