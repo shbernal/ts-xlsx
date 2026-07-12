@@ -1026,6 +1026,30 @@ const impl = {
     };
   },
 
+  // Protect a worksheet, write it, read it back, then write the reloaded workbook again, reporting
+  // the <sheetProtection> attributes from BOTH writes → { first, second }. Proves the reader carries
+  // sheet-level protection back into the model rather than silently dropping it on a passthrough
+  // save — the second write must still emit protection, with the agile credential preserved verbatim
+  // (no plaintext password survives to re-hash) and the permissive flags intact.
+  sheetProtectionRoundtrip(
+    password = 'secret',
+    options = {sort: true, autoFilter: true, selectLockedCells: false}
+  ) {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'x';
+    ws.protect(password ?? undefined, options ?? {});
+
+    const buf1 = writeXlsx(wb);
+    const buf2 = writeXlsx(readXlsx(buf1));
+    const protAttrs = buf => {
+      const xml = partMapOf(buf)['xl/worksheets/sheet1.xml'] || '';
+      const el = (xml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0];
+      return el ? attrsOf(el) : null;
+    };
+    return {first: protAttrs(buf1), second: protAttrs(buf2)};
+  },
+
   // Copy-on-write style aliasing family. Each cell owns its facet fields and every setter REPLACES
   // the field (the readonly facet types forbid in-place mutation of a shared record), so mutating
   // one cell's facet — even a cell that shared a style with siblings on disk — cannot bleed onto a

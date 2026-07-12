@@ -15,6 +15,12 @@
 import {unzipSync, strFromU8, type UnzipFileInfo} from 'fflate';
 
 import {decodeAddress} from '../../core/address.ts';
+import {
+  type SheetProtection,
+  type SheetProtectionCredential,
+  type SheetProtectionFlags,
+  SHEET_PROTECTION_FLAGS,
+} from '../../core/protection.ts';
 import type {
   Alignment,
   Border,
@@ -634,6 +640,30 @@ function parseProtection(attrs: {readonly [k: string]: string}): Protection | un
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+// Read a <sheetProtection> element back into a SheetProtection — the deserialization mirror of the
+// writer. `sheet="0"` (or "false") means the element records an *un*protected sheet, so nothing is
+// restored. Each flag attribute is the INVERSE of the author's allow-flag ("1" forbids, "0" permits),
+// and only attributes actually present are carried, so an omitted (default-valued) flag stays absent —
+// exactly what the writer emitted. A password credential is preserved verbatim in its agile form
+// (algorithm, hash, salt, spin count); there is no plaintext password to recover, so it is not re-hashed.
+function parseSheetProtection(attrs: {readonly [k: string]: string}): SheetProtection | undefined {
+  if (attrs.sheet === '0' || attrs.sheet === 'false') return undefined;
+  const flags: {-readonly [K in keyof SheetProtectionFlags]?: boolean} = {};
+  for (const {key} of SHEET_PROTECTION_FLAGS) {
+    const raw = attrs[key];
+    if (raw !== undefined) flags[key] = !(raw === '1' || raw === 'true');
+  }
+  const {algorithmName, hashValue, saltValue, spinCount} = attrs;
+  if (algorithmName !== undefined && hashValue !== undefined && saltValue !== undefined && spinCount !== undefined) {
+    const spin = Number(spinCount);
+    if (Number.isFinite(spin)) {
+      const credential: SheetProtectionCredential = {algorithmName, hashValue, saltValue, spinCount: spin};
+      return {flags, credential};
+    }
+  }
+  return {flags};
+}
+
 function parseColor(attrs: {readonly [k: string]: string}): Color {
   const color: {argb?: string; theme?: number; tint?: number; indexed?: number} = {};
   if (attrs.rgb !== undefined) color.argb = attrs.rgb;
@@ -759,6 +789,11 @@ function parseWorksheet(
         case 'pageMargins':
           applyMargins(sheet.pageMargins, attrs);
           break;
+        case 'sheetProtection': {
+          const protection = parseSheetProtection(attrs);
+          if (protection !== undefined) sheet.restoreProtection(protection);
+          break;
+        }
         default:
           break;
       }

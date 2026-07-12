@@ -638,3 +638,56 @@ test('a t="s" shared-string cell resolves against the shared table', () => {
   const back = readXlsx(zipSync(files)).getWorksheet('S');
   assert.equal(back?.getCell('A1').value, 'shared');
 });
+
+test('a password-protected sheet round-trips its credential and permissive flags', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 'x';
+  ws.protect('secret', {sort: true, autoFilter: true, selectLockedCells: false});
+
+  const back = roundtrip(wb).getWorksheet('S');
+  const protection = back?.protection;
+  assert.ok(protection, 'the reloaded sheet reports protection');
+
+  // The permissive flags the author set survive; a default-valued flag stays absent.
+  assert.equal(protection.flags.sort, true);
+  assert.equal(protection.flags.autoFilter, true);
+  assert.equal(protection.flags.selectLockedCells, false);
+  assert.equal(protection.flags.deleteRows, undefined);
+
+  // The agile credential is preserved verbatim — the reader cannot (and must not) re-hash it.
+  const original = ws.protection?.credential;
+  assert.deepEqual(protection.credential, original);
+  assert.equal(protection.credential?.algorithmName, 'SHA-512');
+});
+
+test('a passwordless protected sheet round-trips as protected with no credential', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 'x';
+  ws.protect();
+
+  const protection = roundtrip(wb).getWorksheet('S')?.protection;
+  assert.ok(protection, 'a soft (passwordless) lock still round-trips as protection');
+  assert.equal(protection.credential, undefined);
+});
+
+test('an unprotected sheet reports no protection after a round-trip', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  assert.equal(roundtrip(wb).getWorksheet('S')?.protection, undefined);
+});
+
+test('a re-written loaded protection preserves the credential byte-for-byte', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('A1').value = 'x';
+  ws.protect('pw', {formatCells: true});
+
+  const firstXml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  const secondXml = strFromU8(unzipSync(writeXlsx(roundtrip(wb)))['xl/worksheets/sheet1.xml']!);
+  const prot = (xml: string): string => (xml.match(/<sheetProtection\b[^>]*\/>/) ?? [''])[0];
+
+  assert.ok(prot(firstXml), 'the first write emits a sheetProtection element');
+  assert.equal(prot(secondXml), prot(firstXml), 'a passthrough save re-emits the identical protection');
+});

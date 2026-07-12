@@ -114,6 +114,7 @@ import {
   roundtripRangeValidation,
   appendRowShapes,
   authorCellProtection,
+  sheetProtectionRoundtrip,
   streamCommitReport,
   streamWriterImageSupport,
   streamWritePackageReport,
@@ -691,6 +692,11 @@ export default {
   // → { readBack, hasApplyProtection, sheetProtection } — for asserting an unlocked cell
   // survives and worksheet protection is emitted. See workbook-io.mjs.
   authorCellProtection,
+
+  // Protect a sheet, write→read→write, and report the <sheetProtection> attributes from both writes
+  // → { first, second } — for asserting a passthrough save carries sheet-level protection (and its
+  // agile credential + permissive flags) back out rather than silently dropping it. See workbook-io.mjs.
+  sheetProtectionRoundtrip,
 
   // Drive the streaming writer over a caller-supplied PassThrough/Duplex sink and report
   // whether the workbook-commit promise settles within a bounded time plus package validity

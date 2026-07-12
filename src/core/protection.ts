@@ -6,8 +6,8 @@
 // The option surface is stated in the AUTHOR's terms — each flag answers "may a user do
 // this while the sheet is protected?" (`sort: true` = sorting stays available). OOXML
 // encodes the inverse ("1" LOCKS an operation, "0"/omission PERMITS it) and its per-
-// attribute defaults differ, so the translation from these allow-flags to the serialized
-// attributes lives in the writer, not here.
+// attribute defaults differ; that encoding table is {@link SHEET_PROTECTION_FLAGS} below,
+// shared by the writer and reader, while the translation that consumes it lives in the io layer.
 
 import {createHash, randomBytes} from 'node:crypto';
 
@@ -63,6 +63,35 @@ export interface SheetProtection {
   readonly flags: SheetProtectionFlags;
   readonly credential?: SheetProtectionCredential;
 }
+
+/**
+ * The OOXML encoding table for the protection flags: each `<sheetProtection>` attribute paired
+ * with whether that operation is *forbidden by default* once a sheet is protected. Both directions
+ * key off this one list — the writer turns an author allow-flag into an attribute (omitting values
+ * equal to the default), the reader turns an attribute back into an allow-flag — so serialization
+ * and deserialization can never fall out of step. Most editing operations default to forbidden
+ * under protection; selecting cells and the object/scenario operations default to permitted.
+ */
+export const SHEET_PROTECTION_FLAGS: readonly {
+  readonly key: keyof SheetProtectionFlags;
+  readonly defaultForbidden: boolean;
+}[] = [
+  {key: 'formatCells', defaultForbidden: true},
+  {key: 'formatColumns', defaultForbidden: true},
+  {key: 'formatRows', defaultForbidden: true},
+  {key: 'insertColumns', defaultForbidden: true},
+  {key: 'insertRows', defaultForbidden: true},
+  {key: 'insertHyperlinks', defaultForbidden: true},
+  {key: 'deleteColumns', defaultForbidden: true},
+  {key: 'deleteRows', defaultForbidden: true},
+  {key: 'sort', defaultForbidden: true},
+  {key: 'autoFilter', defaultForbidden: true},
+  {key: 'pivotTables', defaultForbidden: true},
+  {key: 'objects', defaultForbidden: false},
+  {key: 'scenarios', defaultForbidden: false},
+  {key: 'selectLockedCells', defaultForbidden: false},
+  {key: 'selectUnlockedCells', defaultForbidden: false},
+];
 
 // OOXML's agile hashing (ECMA-376 / MS-OFFCRYPTO): the password is UTF-16LE, prefixed with
 // the salt for the first hash, then re-hashed `spinCount` times with a little-endian uint32

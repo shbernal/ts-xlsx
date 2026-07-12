@@ -3843,6 +3843,38 @@ export async function authorCellProtection(cells = [], protect = null, {rows = [
   };
 }
 
+// Protect a worksheet, write it, load it back, then write the reloaded workbook again, reporting the
+// <sheetProtection> attributes from BOTH writes → { first, second }. A read→write passthrough must
+// not silently unlock a protected sheet: the second write must still carry protection, preserve the
+// agile password credential verbatim (no plaintext survives to re-hash), and keep the permissive
+// flags an author opted into.
+export async function sheetProtectionRoundtrip(
+  password = 'secret',
+  options = {sort: true, autoFilter: true, selectLockedCells: false}
+) {
+  const build = async source => {
+    const wb = new ExcelJS.Workbook();
+    if (source) {
+      await wb.xlsx.load(source);
+    } else {
+      const ws = wb.addWorksheet('S');
+      ws.getCell('A1').value = 'x';
+      await ws.protect(password ?? undefined, options ?? {});
+    }
+    return wb.xlsx.writeBuffer();
+  };
+  const buf1 = await build(null);
+  const buf2 = await build(buf1);
+  const protAttrs = async buf => {
+    const zip = await JSZip.loadAsync(buf);
+    const name = Object.keys(zip.files).find(n => /sheet1\.xml$/.test(n));
+    const xml = name ? await zip.files[name].async('string') : '';
+    const el = (xml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0];
+    return el ? attrs(el) : null;
+  };
+  return {first: await protAttrs(buf1), second: await protAttrs(buf2)};
+}
+
 // Drive the streaming workbook writer over a CALLER-SUPPLIED writable stream (a plain
 // PassThrough or a Duplex) rather than a library-owned file stream, and report whether the
 // workbook-commit promise settles within a bounded time plus the byte total collected from

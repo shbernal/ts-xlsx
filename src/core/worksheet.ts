@@ -732,6 +732,17 @@ export class Worksheet {
     this.#protection = undefined;
   }
 
+  /**
+   * Reinstate an already-derived protection state — the deserialization counterpart to
+   * {@link protect}. A loaded `<sheetProtection>` carries its credential in finished agile form
+   * (algorithm, hash, salt, spin count) with no recoverable plaintext password, so the reader
+   * restores that credential verbatim rather than re-hashing. Use {@link protect} to protect from
+   * a plaintext password; use this only to carry a parsed protection back into the model.
+   */
+  restoreProtection(protection: SheetProtection): void {
+    this.#protection = protection;
+  }
+
   /** The sheet's protection, or `undefined` if the sheet is unprotected. */
   get protection(): SheetProtection | undefined {
     return this.#protection;
