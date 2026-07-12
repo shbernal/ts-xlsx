@@ -6,7 +6,7 @@
 // through the value model so the cell's `type` is always consistent with what it holds.
 
 import {encodeAddress} from './address.ts';
-import type {Alignment, Border, Fill, Font} from './style.ts';
+import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
 import {type CellValue, type ValueType, coerceCellValue, detectValueType} from './value.ts';
 
 export class Cell {
@@ -21,6 +21,7 @@ export class Cell {
   #font: Partial<Font> | undefined;
   #border: Border | undefined;
   #alignment: Alignment | undefined;
+  #protection: Protection | undefined;
 
   constructor(row: number, col: number) {
     if (!Number.isInteger(row) || row < 1) {
@@ -124,5 +125,21 @@ export class Cell {
 
   set alignment(alignment: Alignment | undefined) {
     this.#alignment = alignment;
+  }
+
+  /**
+   * The cell's protection — its locked/hidden flags, enforced only once the sheet is protected —
+   * or `undefined` when the cell carries neither. `locked` defaults to on in OOXML, so a cell
+   * that never touched protection is implicitly locked and reads back as `undefined`, not as
+   * `{locked: true}`; the flag only becomes explicit when a cell is unlocked. Like {@link fill},
+   * {@link numFmt}, {@link font}, {@link border}, and {@link alignment}, each cell owns its own
+   * protection object, so protection set on one cell never aliases or bleeds onto its siblings.
+   */
+  get protection(): Protection | undefined {
+    return this.#protection;
+  }
+
+  set protection(protection: Protection | undefined) {
+    this.#protection = protection;
   }
 }

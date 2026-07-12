@@ -447,6 +447,57 @@ test('a foreign alignment carrying only wrapText="0" reads back with no alignmen
   assert.equal(readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').alignment, undefined);
 });
 
+test('cell protection round-trips the meaningful flags, and only the protected cell carries them', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  sheet.getCell('A1').protection = {locked: false, hidden: true};
+  sheet.getCell('B2').value = 'plain';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.deepEqual(back?.getCell('A1').protection, {locked: false, hidden: true});
+  assert.equal(back?.getCell('B2').protection, undefined, 'a default-protection sibling stays protection-free');
+});
+
+test('a default-locked cell does not read back as explicitly protected', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  // locked defaults to on, hidden to off, so this restates the default and serialises to nothing.
+  sheet.getCell('A1').protection = {locked: true, hidden: false};
+
+  assert.equal(roundtrip(wb).getWorksheet('S')?.getCell('A1').protection, undefined);
+});
+
+test('a foreign <protection locked="1"> — an explicit default — reads back with no protection', () => {
+  // A foreign generator states the default explicitly (locked on). Since locked defaults true,
+  // that carries no information; the reader must not fabricate a { locked: true } protection.
+  const files: Record<string, Uint8Array> = {
+    '[Content_Types].xml': strToU8(
+      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="xml" ContentType="application/xml"/></Types>'
+    ),
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/styles.xml': strToU8(
+      '<?xml version="1.0"?><styleSheet>' +
+        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+        '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1">' +
+        '<protection locked="1"/></xf></cellXfs></styleSheet>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="0" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>'
+    ),
+  };
+  assert.equal(readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').protection, undefined);
+});
+
 test('the inflate bound rejects a part whose declared size is over the cap', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';

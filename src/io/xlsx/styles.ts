@@ -7,12 +7,13 @@
 // historical performance cliff came from re-serialising a distinct style per cell). The
 // registry interns each distinct fill, number format, and xf, handing back a stable index.
 //
-// Fills, number formats, fonts, borders, and alignment are modelled today; protection extends
-// the xf signature as that slice lands. Fills/fonts/borders are shared sub-tables the xf names
-// by id, whereas alignment is a child *of* the xf — so it is interned into the xf signature
-// directly rather than into its own id table. An unstyled cell/row/column resolves to xf 0.
+// Fills, number formats, fonts, borders, alignment, and protection are modelled today.
+// Fills/fonts/borders are shared sub-tables the xf names by id, whereas alignment and protection
+// are child elements *of* the xf — so each is interned into the xf signature directly rather than
+// into its own id table, and an aligned/protected xf carries them as body children in that order.
+// An unstyled cell/row/column resolves to xf 0.
 
-import type {Alignment, Border, BorderEdge, Color, Fill, Font, UnderlineStyle} from '../../core/style.ts';
+import type {Alignment, Border, BorderEdge, Color, Fill, Font, Protection, UnderlineStyle} from '../../core/style.ts';
 import {escapeAttr, XML_DECLARATION} from './xml.ts';
 
 // Excel reserves fill ids 0 and 1 for the "none" and "gray125" patterns it always emits;
@@ -43,18 +44,20 @@ export interface CellStyle {
   readonly font?: Partial<Font> | undefined;
   readonly border?: Border | undefined;
   readonly alignment?: Alignment | undefined;
+  readonly protection?: Protection | undefined;
 }
 
 // One interned cell format. `fillId` 0 is no fill; `numFmtId` 0 is the General format;
-// `fontId` 0 is the default font; `borderId` 0 is the empty border. `alignment` holds the
-// serialised `<alignment>` attribute string (empty when the cell has no explicit alignment),
-// carried inline because alignment is a child of the xf rather than a shared sub-table.
+// `fontId` 0 is the default font; `borderId` 0 is the empty border. `alignment` and `protection`
+// hold the serialised `<alignment>`/`<protection>` attribute strings (empty when the cell has no
+// explicit facet), carried inline because both are children of the xf rather than shared sub-tables.
 interface CellFormat {
   readonly fillId: number;
   readonly numFmtId: number;
   readonly fontId: number;
   readonly borderId: number;
   readonly alignment: string;
+  readonly protection: string;
 }
 
 export class StyleRegistry {
@@ -74,8 +77,8 @@ export class StyleRegistry {
   readonly #borderXml: string[] = [];
   readonly #borderIdBySignature = new Map<string, number>();
 
-  // xf 0 is the default (no fill/font/border/alignment, General format); further entries append as styles appear.
-  readonly #formats: CellFormat[] = [{fillId: 0, numFmtId: 0, fontId: 0, borderId: 0, alignment: ''}];
+  // xf 0 is the default (no fill/font/border/alignment/protection, General format); further entries append as styles appear.
+  readonly #formats: CellFormat[] = [{fillId: 0, numFmtId: 0, fontId: 0, borderId: 0, alignment: '', protection: ''}];
   readonly #xfIndexBySignature = new Map<string, number>();
 
   /**
@@ -88,13 +91,16 @@ export class StyleRegistry {
     const fontId = style.font ? this.#internFont(style.font) : 0;
     const borderId = style.border ? this.#internBorder(style.border) : 0;
     const alignment = style.alignment ? alignmentAttrs(style.alignment) : '';
-    if (fillId === 0 && numFmtId === 0 && fontId === 0 && borderId === 0 && alignment === '') return 0;
+    const protection = style.protection ? protectionAttrs(style.protection) : '';
+    if (fillId === 0 && numFmtId === 0 && fontId === 0 && borderId === 0 && alignment === '' && protection === '') {
+      return 0;
+    }
 
-    const signature = `fill:${fillId}|numFmt:${numFmtId}|font:${fontId}|border:${borderId}|align:${alignment}`;
+    const signature = `fill:${fillId}|numFmt:${numFmtId}|font:${fontId}|border:${borderId}|align:${alignment}|protect:${protection}`;
     let index = this.#xfIndexBySignature.get(signature);
     if (index === undefined) {
       index = this.#formats.length;
-      this.#formats.push({fillId, numFmtId, fontId, borderId, alignment});
+      this.#formats.push({fillId, numFmtId, fontId, borderId, alignment, protection});
       this.#xfIndexBySignature.set(signature, index);
     }
     return index;
@@ -193,12 +199,17 @@ function cellXf(format: CellFormat): string {
   const applyFill = format.fillId !== 0 ? ' applyFill="1"' : '';
   const applyBorder = format.borderId !== 0 ? ' applyBorder="1"' : '';
   const applyAlignment = format.alignment !== '' ? ' applyAlignment="1"' : '';
+  const applyProtection = format.protection !== '' ? ' applyProtection="1"' : '';
   const open =
     `<xf numFmtId="${format.numFmtId}" fontId="${format.fontId}" fillId="${format.fillId}" ` +
-    `borderId="${format.borderId}" xfId="0"${applyNumberFormat}${applyFont}${applyFill}${applyBorder}${applyAlignment}`;
-  // Alignment is a child element of the xf, so an aligned xf carries an <alignment> body while a
-  // plain one stays self-closing (unchanged from before alignment landed).
-  return format.alignment === '' ? `${open}/>` : `${open}><alignment ${format.alignment}/></xf>`;
+    `borderId="${format.borderId}" xfId="0"` +
+    `${applyNumberFormat}${applyFont}${applyFill}${applyBorder}${applyAlignment}${applyProtection}`;
+  // Alignment and protection are child elements of the xf, in that schema order; an xf carrying
+  // either (or both) is not self-closing, while a plain one stays self-closing as before.
+  const body =
+    (format.alignment === '' ? '' : `<alignment ${format.alignment}/>`) +
+    (format.protection === '' ? '' : `<protection ${format.protection}/>`);
+  return body === '' ? `${open}/>` : `${open}>${body}</xf>`;
 }
 
 // Serialise a cell's alignment as `<alignment>` attributes in ECMA-376 CT_CellAlignment order.
@@ -222,6 +233,17 @@ function alignmentAttrs(alignment: Alignment): string {
   if (alignment.readingOrder !== undefined && alignment.readingOrder !== 0) {
     parts.push(`readingOrder="${numberAttr(alignment.readingOrder)}"`);
   }
+  return parts.join(' ');
+}
+
+// Serialise a cell's protection as `<protection>` attributes. `locked` defaults to true in OOXML,
+// so only an explicitly unlocked cell writes `locked="0"`; `hidden` defaults to false, so only a
+// hidden cell writes `hidden="1"`. An all-default protection yields the empty string, forcing
+// neither a <protection> child nor a distinct xf.
+function protectionAttrs(protection: Protection): string {
+  const parts: string[] = [];
+  if (protection.locked === false) parts.push('locked="0"');
+  if (protection.hidden === true) parts.push('hidden="1"');
   return parts.join(' ');
 }
 

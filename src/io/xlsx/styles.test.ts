@@ -217,3 +217,53 @@ test('alignment is an independent facet composed alongside fill, font, and borde
   const aFillFont = styles.styleId({alignment: {wrapText: true}, fill: solid('FFFF0000'), font: {bold: true}});
   assert.equal(new Set([a, aFill, aFillFont]).size, 3, 'each added facet is a distinct composed style');
 });
+
+test('an identical protection interns to one shared xf index', () => {
+  const styles = new StyleRegistry();
+  const first = styles.styleId({protection: {locked: false}});
+  for (let i = 0; i < 40; i++) {
+    assert.equal(styles.styleId({protection: {locked: false}}), first, 'every identical protection returns the same index');
+  }
+  assert.notEqual(first, 0, 'a real protection gets a non-default index');
+});
+
+test('an all-default protection resolves to the default xf 0 — no <protection>', () => {
+  const styles = new StyleRegistry();
+  // locked defaults to TRUE and hidden to false in OOXML, so a locked, non-hidden cell restates
+  // the default and carries no information — it must not spend an xf entry.
+  assert.equal(styles.styleId({protection: {locked: true, hidden: false}}), 0);
+  assert.doesNotMatch(styles.toXml(), /<protection/);
+});
+
+test('protection composes into the xf as a child element, flagging applyProtection', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({protection: {locked: false, hidden: true}});
+  const xml = styles.toXml();
+
+  // Only the meaningful flags serialise: the unlocked cell writes locked="0", the hidden one hidden="1".
+  assert.match(
+    xml,
+    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0" hidden="1"\/><\/xf>/
+  );
+  assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
+});
+
+test('alignment and protection compose as two xf children in schema order', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({alignment: {horizontal: 'center'}, protection: {locked: false}});
+  const xml = styles.toXml();
+
+  // <alignment> precedes <protection> in the xf body, and both apply flags are set.
+  assert.match(
+    xml,
+    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1" applyProtection="1"><alignment horizontal="center"\/><protection locked="0"\/><\/xf>/
+  );
+});
+
+test('protection is an independent facet composed alongside fill, font, and border', () => {
+  const styles = new StyleRegistry();
+  const p = styles.styleId({protection: {locked: false}});
+  const pFill = styles.styleId({protection: {locked: false}, fill: solid('FFFF0000')});
+  const pFillFont = styles.styleId({protection: {locked: false}, fill: solid('FFFF0000'), font: {bold: true}});
+  assert.equal(new Set([p, pFill, pFillFont]).size, 3, 'each added facet is a distinct composed style');
+});

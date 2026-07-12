@@ -2,8 +2,7 @@
 //
 // Styles are a large surface in OOXML (fonts, fills, borders, alignment, number
 // formats, protection). The rewrite grows them corpus-first; this module models the
-// facets landed so far — colours, fills, borders, fonts, and alignment. Protection
-// lands with its own slice.
+// facets landed so far — colours, fills, borders, fonts, alignment, and protection.
 
 /** Underline can be a plain flag or one of Excel's named underline styles. */
 export type UnderlineStyle = boolean | 'none' | 'single' | 'double' | 'singleAccounting' | 'doubleAccounting';
@@ -153,4 +152,17 @@ export interface Alignment {
   readonly indent?: number;
   readonly shrinkToFit?: boolean;
   readonly readingOrder?: number;
+}
+
+/**
+ * A cell's protection state, enforced only when the worksheet itself is protected — the flags
+ * do nothing on an unprotected sheet. `locked` defaults to TRUE in OOXML (every cell is locked
+ * unless told otherwise), so the meaningful, information-carrying state is an explicitly
+ * *unlocked* cell (`locked: false`); marking a cell locked merely restates the default and
+ * records nothing. `hidden` (defaults false) hides the cell's formula from the formula bar of a
+ * protected sheet. A cell that never set either flag reads back with neither.
+ */
+export interface Protection {
+  readonly locked?: boolean;
+  readonly hidden?: boolean;
 }

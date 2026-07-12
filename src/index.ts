@@ -44,6 +44,7 @@ export {
   type FontVerticalAlignment,
   type HorizontalAlignment,
   type PatternFill,
+  type Protection,
   type UnderlineStyle,
   type VerticalAlignment,
 } from './core/style.ts';

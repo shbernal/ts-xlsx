@@ -3,8 +3,8 @@
 // It reconstructs the part of the model the writer emits today — sheet names and order,
 // cells holding a number, string, boolean, or formula, per-column width/visibility,
 // per-row height/visibility, merged ranges, page margins, and cell styles (pattern fills,
-// number formats, fonts, borders, and alignment — per cell, or inherited from a formatted
-// row/column). Protection, shared-formula slaves, and the richer value kinds land as the model
+// number formats, fonts, borders, alignment, and protection — per cell, or inherited from a
+// formatted row/column). Shared-formula slaves and the richer value kinds land as the model
 // grows; an unrecognised construct is skipped rather than guessed, so a foreign file reads
 // without crashing even where a facet is not yet materialised.
 //
@@ -25,6 +25,7 @@ import type {
   Font,
   FontVerticalAlignment,
   HorizontalAlignment,
+  Protection,
   UnderlineStyle,
   VerticalAlignment,
 } from '../../core/style.ts';
@@ -169,11 +170,12 @@ interface XfStyle {
   readonly font?: Partial<Font>;
   readonly border?: Border;
   readonly alignment?: Alignment;
+  readonly protection?: Protection;
 }
 
 // A mutable xf accumulator while an <xf> element streams in: its facet ids resolve on open, but
-// an <alignment> child (when present) arrives before the element closes, so the xf is held here
-// and pushed on close rather than on open.
+// the <alignment>/<protection> children (when present) arrive before the element closes, so the
+// xf is held here and pushed on close rather than on open.
 type XfDraft = {-readonly [K in keyof XfStyle]?: XfStyle[K]};
 
 // A mutable font accumulator while a <font> element's children stream in; frozen into a
@@ -224,8 +226,8 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
   let borderDraft: BorderDraft | null = null;
   // Which edge of the current border a nested <color> belongs to; null between edges.
   let currentEdge: BorderEdgeName | null = null;
-  // The <cellXfs> xf being read; held from open to close so an <alignment> child can attach
-  // before the xf is committed. null outside a cellXfs <xf>.
+  // The <cellXfs> xf being read; held from open to close so its <alignment>/<protection> children
+  // can attach before the xf is committed. null outside a cellXfs <xf>.
   let pendingXf: XfDraft | null = null;
 
   parseXml(xml, {
@@ -308,6 +310,10 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
             // An xf's <alignment> child arrives before the xf closes; attach it to the pending xf.
             const alignment = parseAlignment(attrs);
             if (alignment !== undefined) pendingXf.alignment = alignment;
+          } else if (pendingXf !== null && local === 'protection') {
+            // An xf's <protection> child likewise arrives before the xf closes.
+            const protection = parseProtection(attrs);
+            if (protection !== undefined) pendingXf.protection = protection;
           } else if (inCellXfs && local === 'xf') {
             // cellStyleXfs also holds <xf>; only those inside <cellXfs> are cell references.
             const fillId = Number(attrs.fillId);
@@ -497,6 +503,17 @@ function parseAlignment(attrs: {readonly [k: string]: string}): Alignment | unde
 // is never a bare presence (it always carries a value), and its "0" — a truthy JS string — is off.
 function alignmentFlag(val: string | undefined): boolean {
   return val === '1' || val === 'true';
+}
+
+// Read a <protection> element into a Protection, keeping only facets that differ from the OOXML
+// default. `locked` defaults to TRUE, so only an explicit `locked="0"` carries information (an
+// unlocked cell) — a default or explicit-true cell must not read back as { locked: true }; `hidden`
+// defaults to false, so only `hidden="1"` is carried. An element with only defaults yields undefined.
+function parseProtection(attrs: {readonly [k: string]: string}): Protection | undefined {
+  const out: {-readonly [K in keyof Protection]?: Protection[K]} = {};
+  if (attrs.locked === '0' || attrs.locked === 'false') out.locked = false;
+  if (attrs.hidden === '1' || attrs.hidden === 'true') out.hidden = true;
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 function parseColor(attrs: {readonly [k: string]: string}): Color {
@@ -734,6 +751,7 @@ function finalizeCell(
   if (style?.font !== undefined) cell.font = style.font;
   if (style?.border !== undefined) cell.border = style.border;
   if (style?.alignment !== undefined) cell.alignment = style.alignment;
+  if (style?.protection !== undefined) cell.protection = style.protection;
 
   if (hasFormula) {
     const result = hasValue ? decodeResult(type, valueText) : undefined;

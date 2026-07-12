@@ -249,6 +249,7 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
           font: cell.font,
           border: cell.border,
           alignment: cell.alignment,
+          protection: cell.protection,
         });
         return cellXml(cell, style);
       })
