@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 149 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`; **and copy-on-write style aliasing** — loaded cells that shared a style record expose independent facet objects, so a single-cell facet edit never bleeds into a sibling, hard-locked by `style-isolation.test.ts`; **and column-scope inheritance of every style facet** — a column now defaults a fill/font/border/alignment/protection to its cells, not just a number format, scoped to its own column; **and the foreign-fixture reading family (now fully closed)** — the reader proves itself against real non-Excel input: theme+tint/indexed fill & border colours survive a pure open-then-save, the workbook default font resolves onto every unstyled cell, a real styled template survives a no-op round-trip, foreign explicit-off font/alignment forms are honoured (incl. the `<u val="none">` → falsy fix), and ~two dozen real fixtures with namespace-prefixed roots / BOMs / unusual part order / missing optional parts read without crashing); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 152 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`; **and copy-on-write style aliasing** — loaded cells that shared a style record expose independent facet objects, so a single-cell facet edit never bleeds into a sibling, hard-locked by `style-isolation.test.ts`; **and column-scope inheritance of every style facet** — a column now defaults a fill/font/border/alignment/protection to its cells, not just a number format, scoped to its own column; **and the foreign-fixture reading family (now fully closed)** — the reader proves itself against real non-Excel input: theme+tint/indexed fill & border colours survive a pure open-then-save, the workbook default font resolves onto every unstyled cell, a real styled template survives a no-op round-trip, foreign explicit-off font/alignment forms are honoured (incl. the `<u val="none">` → falsy fix), and ~two dozen real fixtures with namespace-prefixed roots / BOMs / unusual part order / missing optional parts read without crashing); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1156,8 +1156,23 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 149 green / 3 known-open / 63 legacy known-opens resolved / 0 regressions /
-  442 skipped; test:src 169/169.** The **merge write-cleanliness slice** (adapter-only, no source change)
+- **Latest corpus vs rewrite: 152 green / 3 known-open / 63 legacy known-opens resolved / 0 regressions /
+  439 skipped; test:src 174/174.** The **merge-aware cell addressing slice** (the first real source feature of
+  the merged-cells family) makes `getCell` resolve a covered address to its region's master (top-left) cell:
+  the worksheet keeps a decoded rectangle beside each merge, and addressing any cell inside a merged block
+  returns the one master cell. So a value written by addressing a non-master (slave) cell — e.g. the
+  bottom-right of `A1:B2` — lands on the master, only the master ever materialises, the serialized sheet
+  carries a value on exactly one cell (no stray value on a covered cell, which spreadsheets treat as
+  malformed), and reading either address returns the region's value
+  (`merged-range-slave-cell-write-resolves-to-master`, three green regression locks). Resolution is consulted
+  at access time, so it applies to merges declared after cells already exist; an unbounded whole-row/column
+  merge is still declared but redirects nothing (no bounded rect). Covered by `src/core/worksheet.test.ts`
+  (5 model-level tests) plus the corpus round-trip. Two merged-cell cases remain skipped, each needing more
+  source work: merge-vs-merge overlap rejection (needs the broad `mutateWorksheet` structural-edit contract),
+  and the worksheet model export/import copy (needs a `.model` contract; its second behaviour has a `fail`
+  baseline).
+
+- **The merge write-cleanliness slice** (adapter-only, no source change)
   binds two merged-cell reports proving the writer emits clean merges and the master cell keeps its style:
   a merged horizontal span emits the range exactly once with a value only on the anchor, so no covered cell
   carries conflicting content — the clean shape that opens without Excel's "recover?" repair prompt — and the
@@ -1166,10 +1181,11 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   round-trip, so the region renders its intended outline (`merged-region-master-cell-border-survives`). The
   writer already emits only populated cells (from `sheet.rows()`) and the reader round-trips per-cell styles,
   so binding `mergeCleanReport` + `mergeMasterBorderReport` lights both cases green with no source change —
-  six green regression locks (all baselines `pass`). The remaining merged-cell cases each need a real source
-  feature and stay skipped: slave-cell writes resolving to the master (merge-aware cell addressing),
-  merge-vs-merge overlap rejection (needs the broad `mutateWorksheet` structural-edit contract), and the
-  worksheet model export/import copy (needs a `.model` contract; its second behaviour has a `fail` baseline).
+  six green regression locks (all baselines `pass`). Slave-cell writes resolving to the master (merge-aware
+  cell addressing) followed as the family's first real source feature (see above); the two still-skipped
+  merged-cell cases are merge-vs-merge overlap rejection (needs the broad `mutateWorksheet` structural-edit
+  contract) and the worksheet model export/import copy (needs a `.model` contract; its second behaviour has a
+  `fail` baseline).
 
 - The **`roundtripFixture` slice** closes the last deferred piece of the
   foreign-fixture reading family (adapter-only, no source change): a real Excel-authored styled template

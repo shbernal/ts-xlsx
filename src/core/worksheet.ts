@@ -6,7 +6,7 @@
 // the cell grid, because a column or row can carry formatting while holding no cells.
 // Merges and views layer on in later slices.
 
-import {decodeAddress} from './address.ts';
+import {decodeAddress, decodeRange} from './address.ts';
 import {Cell} from './cell.ts';
 import {
   deriveCredential,
@@ -124,6 +124,11 @@ export class Worksheet {
   // Tables and merged ranges are sheet-level overlays on the grid, not cell storage.
   readonly #tables: Table[] = [];
   readonly #merges: string[] = [];
+  // Decoded rectangles parallel to #merges, kept so that addressing a covered cell can
+  // resolve to its region's master without re-parsing the range string on every access.
+  // Only fully-bounded merges (a real cell block) get a rect; an unbounded whole-row/column
+  // merge is still declared but participates in no slave resolution.
+  readonly #mergeRects: {top: number; left: number; bottom: number; right: number}[] = [];
   // Sheet-level protection is a single overlay switch, absent until `protect` is called.
   #protection: SheetProtection | undefined;
 
@@ -138,6 +143,12 @@ export class Worksheet {
    * name both a column and a row (`"B3"`); a whole-row or whole-column reference is
    * not a cell and is rejected.
    *
+   * Addressing a cell covered by a merged region resolves to that region's master
+   * (top-left) cell, mirroring how a spreadsheet treats the merge as one cell: a value
+   * or style written through a covered address lands on the master, and reading a
+   * covered address returns the master's. Only the master ever holds an independent
+   * value, so the serialized sheet stays well-formed (no stray value on a covered cell).
+   *
    * @throws {SyntaxError} if the reference does not resolve to a single cell.
    */
   getCell(reference: string): Cell {
@@ -145,7 +156,8 @@ export class Worksheet {
     if (col === undefined || row === undefined) {
       throw new SyntaxError(`"${reference}" is not a single-cell reference — it omits a column or row`);
     }
-    return this.#cellAt(row, col);
+    const master = this.#masterOf(row, col);
+    return this.#cellAt(master.row, master.col);
   }
 
   /** Whether a cell has been materialised at the given 1-based position. */
@@ -263,6 +275,10 @@ export class Worksheet {
   /** Merge a range of cells (`"A1:B2"`). Overlap validation happens at write time. */
   mergeCells(range: string): void {
     this.#merges.push(range);
+    const {top, left, bottom, right} = decodeRange(range);
+    if (top !== undefined && left !== undefined && bottom !== undefined && right !== undefined) {
+      this.#mergeRects.push({top, left, bottom, right});
+    }
   }
 
   /** The merged ranges on this sheet, in the order they were added. */
@@ -296,6 +312,18 @@ export class Worksheet {
   /** The sheet's protection, or `undefined` if the sheet is unprotected. */
   get protection(): SheetProtection | undefined {
     return this.#protection;
+  }
+
+  // Resolve a position to the master (top-left) of the merged region covering it, or to
+  // itself when no region does. First covering region wins; overlaps are rejected at write
+  // time, so at most one applies to a well-formed sheet.
+  #masterOf(row: number, col: number): {row: number; col: number} {
+    for (const rect of this.#mergeRects) {
+      if (row >= rect.top && row <= rect.bottom && col >= rect.left && col <= rect.right) {
+        return {row: rect.top, col: rect.left};
+      }
+    }
+    return {row, col};
   }
 
   #cellAt(row: number, col: number): Cell {

@@ -698,6 +698,34 @@ const impl = {
     };
   },
 
+  // Merge a rectangular region (master = top-left), set a value by addressing a NON-master
+  // (slave) cell inside it, write, and report which cells carry an independent <v> in the sheet
+  // XML, the declared merges, and the re-read master/slave values → for asserting the slave write
+  // resolves to the master (only the master carries a value; reading either address returns it).
+  mergeSlaveWrite({range = 'A1:B2', slave = 'B2', value = 'slave-write'} = {}) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.mergeCells(range);
+    sheet.getCell(slave).value = value;
+    const buffer = writeXlsx(workbook);
+    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    // A cell "carries a value" if its element has value content — a number/bool/formula (<v>),
+    // an inline string (<is>), or a formula (<f>). The writer serialises strings as inlineStr,
+    // so keying on <v> alone would miss them; an empty covered cell is never emitted at all.
+    const cellsWithValue = [...sheetXml.matchAll(/<c\b[^>]*\br="([A-Z]+\d+)"[^>]*>([\s\S]*?)<\/c>/g)]
+      .filter(m => /<(?:v|is|f)\b/.test(m[2]))
+      .map(m => m[1]);
+    const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map(m => m[1]);
+    const master = range.split(':')[0];
+    const s = readXlsx(buffer).getWorksheet('S');
+    return {
+      cellsWithValue,
+      merges,
+      masterValue: s.getCell(master).value ?? null,
+      slaveValue: s.getCell(slave).value ?? null,
+    };
+  },
+
   tryWriteWorkbook(spec) {
     let workbook;
     try {
