@@ -41,6 +41,7 @@ export {
   type WorksheetProperties,
   type ColumnProperties,
   type RowProperties,
+  type PageMargins,
 } from './core/worksheet.ts';
 export {
   Workbook,

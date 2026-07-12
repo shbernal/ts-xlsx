@@ -207,6 +207,39 @@ test('an unset default row height falls back to 15 with no customHeight', () => 
   assert.match(xml, /<sheetFormatPr defaultRowHeight="15"\/>/);
 });
 
+test('setting a subset of margins emits all six pageMargins attributes', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.pageMargins.left = 0.1;
+  s.pageMargins.right = 0.1;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  const tag = /<pageMargins ([^/]*)\/>/.exec(xml)?.[1] ?? '';
+  for (const side of ['left', 'right', 'top', 'bottom', 'header', 'footer']) {
+    assert.match(tag, new RegExp(`\\b${side}="[0-9.]+"`), `missing ${side}`);
+  }
+  // The explicitly-set sides keep their values; the untouched ones fall back to defaults.
+  assert.match(tag, /left="0.1"/);
+  assert.match(tag, /right="0.1"/);
+  assert.match(tag, /top="0.75"/);
+});
+
+test('a sheet with no margins set emits no <pageMargins>', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /<pageMargins/);
+});
+
+test('<pageMargins> is placed after <sheetData>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.pageMargins.top = 1;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.ok(xml.indexOf('<sheetData') < xml.indexOf('<pageMargins'), 'pageMargins must follow sheetData');
+});
+
 test('<cols> is placed after <sheetFormatPr> and before <sheetData>', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');

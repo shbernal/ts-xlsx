@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the first buffered `.xlsx` **writer** slice (`src/io/xlsx/`, on `fflate`) green vs `--adapter rewrite` at 21 green / 0 regressions (rows & columns slice landed); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the first buffered `.xlsx` **writer** slice (`src/io/xlsx/`, on `fflate`) green vs `--adapter rewrite` at 22 green / 0 regressions (page-margins slice landed); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1100,13 +1100,26 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   height/hidden/outline/collapsed attrs, and a real `<sheetFormatPr>`. The writer drops any column
   past XFD (16384) rather than serialize a range Excel treats as corrupt. Adapter feature-gate
   widened (`columns`/`rows`/sheet `properties`, gated at key granularity).
-- **Latest corpus vs rewrite: 21 green / 3 known-open / 7 legacy known-opens resolved / 0 regressions /
-  626 skipped.** Newly resolved this slice (`↑`): out-of-range `<col>` dropped at the 16384 limit, and
-  the outline `collapsed` flag no longer misplaced onto hidden detail rows. The remaining outline
-  known-open (summary row must carry `collapsed="1"`) needs outline-group inference — an honest open
-  target, not a regression. The `_xlfn.` modern-function prefix bug is still `○` (legacy fails too).
-  Legacy oracle unchanged: **424 green / 233 known-open / 0 regressions**. Gates all green:
-  `typecheck` clean, `test:src` 56/56.
+- **Page-margins slice landed** (2026-07-12): the model grew `Worksheet.pageMargins` (a `PageMargins`
+  bag stored like `properties`); the writer emits `<pageMargins>` after `<sheetData>`, all-or-nothing —
+  when any margin is set it writes all six (untouched sides fall back to Excel's Normal-preset
+  defaults), and omits the element entirely when none is set. Adapter feature-gate widened with the
+  `pageMargins` sheet key + per-side allowlist.
+- **Corpus vs rewrite reprioritization:** merges was next in the nominal writer order, but a survey of
+  the merge cases showed *every* one needs the reader (`roundtripWorkbook`, `mergeCleanReport`,
+  `mutateWorksheet`, model reports) or also needs `tables` — so merges lights up **zero** corpus cases
+  today. The writer-only cases whose `inspectPackage` fact-extractors are already pre-wired
+  (`pageMargins`, `headerFooter`, `tables`) turn known-opens green *now*, so the writer order is
+  page-margins → header/footer → tables; merges/defined-names land alongside the reader that lets their
+  cases assert.
+- **Latest corpus vs rewrite: 22 green / 3 known-open / 9 legacy known-opens resolved / 0 regressions /
+  623 skipped.** Newly resolved this slice (`↑`): a partial `<pageMargins>` now emits all six
+  attributes with finite defaults (legacy wrote a partial, Excel-invalid element). Prior `↑` stand:
+  out-of-range `<col>` dropped at 16384, outline `collapsed` no longer misplaced on hidden detail rows.
+  The remaining outline known-open (summary row must carry `collapsed="1"`) needs outline-group
+  inference; the `_xlfn.` modern-function prefix bug is still `○` (legacy fails too). Legacy oracle
+  unchanged: **424 green / 233 known-open / 0 regressions**. Gates all green: `typecheck` clean,
+  `test:src` 59/59.
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):

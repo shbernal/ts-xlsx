@@ -22,6 +22,20 @@ export interface WorksheetProperties {
   defaultColWidth?: number;
 }
 
+/**
+ * Print margins, in inches. OOXML's `<pageMargins>` requires all six to be present, but
+ * the model stores only what the caller set; the writer fills the untouched ones with
+ * valid defaults. An empty object means the element is omitted entirely.
+ */
+export interface PageMargins {
+  left?: number;
+  right?: number;
+  top?: number;
+  bottom?: number;
+  header?: number;
+  footer?: number;
+}
+
 /** Per-column formatting. A column may exist purely to carry these, with no cells. */
 export interface ColumnProperties {
   /** Column width in character units. */
@@ -50,6 +64,9 @@ export class Worksheet {
 
   /** Sheet-level format defaults. Mutate in place: `sheet.properties.defaultRowHeight = 20`. */
   readonly properties: WorksheetProperties = {};
+
+  /** Print margins. Mutate in place: `sheet.pageMargins.left = 0.5`. Empty means unset. */
+  readonly pageMargins: PageMargins = {};
 
   // Row-major sparse storage: row index → (column index → cell). Keeping rows as the
   // outer key makes whole-row iteration cheap and mirrors how OOXML serializes

@@ -16,6 +16,7 @@ import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/va
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import type {
   ColumnProperties,
+  PageMargins,
   RowProperties,
   Worksheet,
   WorksheetProperties,
@@ -214,8 +215,24 @@ function worksheetXml(sheet: Worksheet): string {
     sheetFormatPr(sheet.properties) +
     colsXml(sheet) +
     sheetData +
+    pageMarginsXml(sheet.pageMargins) +
     '</worksheet>'
   );
+}
+
+// Excel's "Normal" margins, in inches — the defaults Excel writes for an untouched sheet.
+const DEFAULT_MARGINS = {left: 0.7, right: 0.7, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3} as const;
+const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
+
+// OOXML's <pageMargins> is all-or-nothing: setting any one margin requires all six, or Excel
+// repairs the file. So the element is emitted only when the caller set at least one, and the
+// untouched sides fall back to the Normal-preset defaults.
+function pageMarginsXml(margins: PageMargins): string {
+  if (MARGIN_SIDES.every(side => margins[side] === undefined)) return '';
+  const attrs = MARGIN_SIDES.map(
+    side => `${side}="${numberText(margins[side] ?? DEFAULT_MARGINS[side])}"`
+  ).join(' ');
+  return `<pageMargins ${attrs}/>`;
 }
 
 function sheetFormatPr(properties: WorksheetProperties): string {
