@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 111 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`; **and copy-on-write style aliasing** — loaded cells that shared a style record expose independent facet objects, so a single-cell facet edit never bleeds into a sibling, hard-locked by `style-isolation.test.ts`); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 115 green / 0 regressions (styles round-trip pattern fills, number formats, fonts, borders, **alignment, and per-cell protection** through an interned, composed style table, with dedup exposed to the corpus — alignment and protection are xf *children*, interned into the xf signature and emitted as body elements in schema order; the SAX reader now does XML §2.11 end-of-line normalization; **now also sheet-level protection** — `sheet.protect(password, options)` emits `<sheetProtection>` with author-facing allow-flags inverted to OOXML "forbidden" booleans, guarded by an OOXML-agile SHA-512 password credential derived via `node:crypto`; **and copy-on-write style aliasing** — loaded cells that shared a style record expose independent facet objects, so a single-cell facet edit never bleeds into a sibling, hard-locked by `style-isolation.test.ts`; **and column-scope inheritance of every style facet** — a column now defaults a fill/font/border/alignment/protection to its cells, not just a number format, scoped to its own column); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1156,9 +1156,22 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 111 green / 3 known-open / 27 legacy known-opens resolved / 0 regressions /
-  516 skipped; test:src 163/163.** The **copy-on-write style-aliasing slice** (106 → 111) is the second
-  *capability family* past the per-cell facet surface, and it required **no source change** — the rewrite
+- **Latest corpus vs rewrite: 115 green / 3 known-open / 27 legacy known-opens resolved / 0 regressions /
+  512 skipped; test:src 166/166.** The **column-scope style-inheritance slice** (111 → 115) is the third
+  *capability family* past the per-cell facet surface. A column carried only a number format as a default
+  for its cells; every other facet a column can declare — fill, font, border, alignment, protection — was
+  dropped on write and never inherited on read. Real files routinely scope a border or an alignment to a
+  whole column, so `ColumnProperties` now carries the full facet bundle (documented as per-cell defaults
+  with cell-over-row-over-column precedence, symmetric with a row's fill), the writer composes each cell's
+  style inheriting every column facet (not just numFmt) and interns the full bundle into the column's own
+  `<col>` style so Excel applies it to the column's empty cells too, and the reader mirrors a `<col style>`'s
+  full facet bundle onto the column model (a bare cell already inherited the full column xf). This flips the
+  two column-scope behaviours to green **regression locks** (baseline `pass`): `alignment-does-not-leak-across-cells`
+  (a column alignment stays scoped to its own cells) and `column-border-style-scoped-to-declaring-column`
+  (a column border does not bleed into later width-only columns). Locked in src by three new
+  `read.test.ts` round-trip tests (column alignment inheritance/isolation, column border scoping, and a
+  one-facet override that preserves the column's other default). The **copy-on-write style-aliasing slice**
+  (106 → 111) is the second *capability family* past the per-cell facet surface, and it required **no source change** — the rewrite
   already gets isolation by construction, and this slice proved it. On disk, identically-formatted cells
   deduplicate to one shared style record, so a loaded workbook hands several cells the same style; legacy
   then bled a single-cell facet edit into every sibling that shared the record. The rewrite cannot: each
@@ -1333,17 +1346,23 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
      `cell-style-setter-isolates-alignment-numfmt-protection` (alignment+numFmt+protection). Because those
      baselines are `fail`, a future regression would drop to `○` not `✗`, so the guarantee is hard-locked in
      src by `src/io/xlsx/style-isolation.test.ts` (5 tests, real write→read path).
-   - **Column-scope style inheritance** for facets beyond numFmt: the column-level behaviors of
-     `alignment-does-not-leak-across-cells` and `column-border-style-scoped-to-declaring-column`.
+   - ✅ **Column-scope style inheritance** for facets beyond numFmt — **DONE.** `ColumnProperties` now carries
+     the full facet bundle (fill/font/border/alignment/protection, not just numFmt); the writer composes each
+     cell's style inheriting every column facet (cell ?? row ?? column) and interns the full bundle into the
+     `<col>` style; the reader mirrors a `<col style>`'s full bundle onto the column model (a bare cell already
+     inherited the full column xf). Flipped `alignment-does-not-leak-across-cells` (column behaviors) and
+     `column-border-style-scoped-to-declaring-column` to green regression locks, plus three src round-trip
+     tests in `read.test.ts`. (Native column-scope inheritance of protection bands — currently adapter-expanded
+     onto listed cells — now has the machinery; wire it when a case demands it.)
    - **Foreign-fixture reading** capabilities (below) for `alignment-false-boolean-attrs-yield-no-alignment`
      (`alignmentFalseBooleanReport` — the reader path is already correct, `wrapText="0"` reads as no
      alignment) and the fixture-backed colour cases.
 
    The remaining **border** cases need their own
-   capabilities — shared-style aliasing (`cell-border-mutation-does-not-bleed-to-style-siblings`),
-   column-scope (`column-border-style-scoped-to-declaring-column`), merge-master survival
-   (`merged-region-master-cell-border-survives`), and foreign-fixture colour fidelity
-   (`fill-border-color-survives-roundtrip`) — the same families as the deferred font cases. Remaining font cases need their own
+   capabilities — merge-master survival (`merged-region-master-cell-border-survives`) and foreign-fixture
+   colour fidelity (`fill-border-color-survives-roundtrip`) — the same families as the deferred font cases.
+   (Column-scope and shared-style aliasing border cases are now green — see the column-scope and
+   copy-on-write families above.) Remaining font cases need their own
    capabilities: the **aliasing/foreign-XML font cases** (`fontExplicitFalse*` — the reader path is
    already correct, just needs the adapter to build the foreign styles.xml; `unstyledCellFontReport` —
    resolve `fontId` 0 to the concrete default font; `sharedBaseStyleFontMutation` — copy-on-write style
