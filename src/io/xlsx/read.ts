@@ -695,13 +695,20 @@ function applyColumn(
   const width = attrs.width !== undefined ? Number(attrs.width) : undefined;
   const hidden = attrs.hidden === '1' || attrs.hidden === 'true';
   const styleIndex = attrs.style !== undefined ? Number(attrs.style) : -1;
-  const numFmt = styleIndex >= 0 ? xfStyles[styleIndex]?.numFmt : undefined;
+  // The column's style resolves to the same facet bundle a cell's does; mirror all of it onto the
+  // column model so `getColumn(i)` reflects the declared default, not just its number format.
+  const style = styleIndex >= 0 ? xfStyles[styleIndex] : undefined;
   for (let index = min; index <= max; index++) {
     const properties = sheet.getColumn(index);
     if (width !== undefined && Number.isFinite(width) && attrs.customWidth !== '0') properties.width = width;
     if (hidden) properties.hidden = true;
-    if (numFmt !== undefined) properties.numFmt = numFmt;
-    // Record the column's style so a bare cell in it can inherit the column format on read.
+    if (style?.numFmt !== undefined) properties.numFmt = style.numFmt;
+    if (style?.fill !== undefined) properties.fill = style.fill;
+    if (style?.font !== undefined) properties.font = style.font;
+    if (style?.border !== undefined) properties.border = style.border;
+    if (style?.alignment !== undefined) properties.alignment = style.alignment;
+    if (style?.protection !== undefined) properties.protection = style.protection;
+    // Record the column's style so a bare cell in it can inherit the full column format on read.
     if (styleIndex >= 0) columnStyle.set(index, styleIndex);
   }
 }

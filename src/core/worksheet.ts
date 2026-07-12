@@ -14,7 +14,7 @@ import {
   type SheetProtectionCredential,
   type SheetProtectionOptions,
 } from './protection.ts';
-import type {Fill} from './style.ts';
+import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
 
 export interface WorksheetState {
@@ -59,7 +59,12 @@ export interface HeaderFooter {
   firstFooter?: string;
 }
 
-/** Per-column formatting. A column may exist purely to carry these, with no cells. */
+/**
+ * Per-column formatting. A column may exist purely to carry these, with no cells. The style
+ * facets are *defaults* for the column's cells: a cell that sets a facet of its own wins, but
+ * one that leaves a facet unset inherits the column's — the same precedence Excel applies, and
+ * symmetric with how a {@link RowProperties} fill defaults a row's cells.
+ */
 export interface ColumnProperties {
   /** Column width in character units. */
   width?: number;
@@ -67,6 +72,16 @@ export interface ColumnProperties {
   hidden?: boolean;
   /** Number-format code applied to the column's cells that carry no format of their own. */
   numFmt?: string;
+  /** Background fill applied to the column's cells that carry no fill of their own. */
+  fill?: Fill;
+  /** Font applied to the column's cells that carry no font of their own. */
+  font?: Partial<Font>;
+  /** Border applied to the column's cells that carry no border of their own. */
+  border?: Border;
+  /** Alignment applied to the column's cells that carry no alignment of their own. */
+  alignment?: Alignment;
+  /** Protection applied to the column's cells that carry no protection of their own. */
+  protection?: Protection;
 }
 
 /** Per-row formatting. A row may exist purely to carry these, with no cells. */

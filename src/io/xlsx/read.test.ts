@@ -238,6 +238,54 @@ test('a cell fill and its column number format both survive — overriding one f
   assert.equal(back?.getCell('A3').fill, undefined, 'a sibling does not pick up the fill');
 });
 
+test('a column alignment round-trips and is inherited by its own cells only', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getColumn(1).alignment = {textRotation: 45};
+  sheet.getCell('A1').value = 'a';
+  sheet.getCell('A2').value = 'c';
+  sheet.getCell('B1').value = 'b';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getColumn(1).alignment?.textRotation, 45, 'the column keeps its own alignment');
+  assert.equal(back?.getCell('A1').alignment?.textRotation, 45, 'a bare cell inherits its column alignment');
+  assert.equal(back?.getCell('A2').alignment?.textRotation, 45, 'a second cell in the column inherits it too');
+  assert.equal(back?.getCell('B1').alignment, undefined, 'a cell in another column does not inherit it');
+});
+
+test('a column border applies only to its declaring column, not to later width-only columns', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getColumn(1).border = {right: {style: 'thin', color: {argb: 'FF000000'}}};
+  sheet.getColumn(2).width = 10;
+  sheet.getCell('A1').value = 'a';
+  sheet.getCell('B1').value = 'b';
+  sheet.getCell('C1').value = 'c';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getCell('A1').border?.right?.style, 'thin', 'the declaring column’s cell has the border');
+  assert.equal(back?.getCell('B1').border, undefined, 'a width-only column’s cell gets no border');
+  assert.equal(back?.getCell('C1').border, undefined, 'an undeclared column’s cell gets no border');
+});
+
+test('a cell overriding one facet keeps the column’s other facet default', () => {
+  // The column defaults both an alignment and a number format; a cell that overrides only its
+  // alignment must still carry the column's number format — the generalized column composition
+  // must not drop a non-overridden facet.
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getColumn(1).alignment = {horizontal: 'center'};
+  sheet.getColumn(1).numFmt = '0.00';
+  sheet.getCell('A1').value = 1;
+  sheet.getCell('A2').value = 2;
+  sheet.getCell('A2').alignment = {horizontal: 'right'};
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getCell('A1').alignment?.horizontal, 'center', 'a bare cell inherits the column alignment');
+  assert.equal(back?.getCell('A2').alignment?.horizontal, 'right', 'the overriding cell keeps its own alignment');
+  assert.equal(back?.getCell('A2').numFmt, '0.00', 'the overriding cell still carries the column number format');
+});
+
 test('a built-in numFmt id on a foreign cell resolves to its standard format code', () => {
   // A foreign generator names a built-in format by id with no <numFmt> entry; the reader
   // resolves it from the standard table (id 10 = "0.00%").

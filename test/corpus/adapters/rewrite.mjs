@@ -40,7 +40,7 @@ const SUPPORTED_SHEET_KEYS = new Set([
 ]);
 const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
-const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt']);
+const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt', 'fill', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
 const SUPPORTED_PAGE_MARGIN_KEYS = new Set(['left', 'right', 'top', 'bottom', 'header', 'footer']);
 const SUPPORTED_HEADER_FOOTER_KEYS = new Set([
@@ -132,6 +132,11 @@ function buildFrom(spec = {}) {
       if (col.width !== undefined) target.width = col.width;
       if (col.hidden !== undefined) target.hidden = col.hidden;
       if (col.numFmt !== undefined) target.numFmt = col.numFmt;
+      if (col.fill !== undefined) target.fill = col.fill;
+      if (col.font !== undefined) target.font = col.font;
+      if (col.border !== undefined) target.border = col.border;
+      if (col.alignment !== undefined) target.alignment = col.alignment;
+      if (col.protection !== undefined) target.protection = col.protection;
     }
 
     for (const row of s.rows || []) {
@@ -273,6 +278,26 @@ const impl = {
       indices[ref] = m ? Number(m[1]) : null;
     }
     return {cellXfCount, indices};
+  },
+
+  // Give one column a right border and later columns only a width, then round-trip and report
+  // each cell's right border → { a1, b1, c1 }. A column's border is a default for its own cells,
+  // so the declaring column's cell carries it while columns without a style of their own get
+  // nothing — column styles are independent, not bled into subsequent columns.
+  columnBorderScopedReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getColumn(1).border = {right: {style: 'thin', color: {argb: 'FF000000'}}};
+    sheet.getColumn(2).width = 10;
+    sheet.getCell('A1').value = 'a';
+    sheet.getCell('B1').value = 'b';
+    sheet.getCell('C1').value = 'c';
+    const s = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    const rightBorder = ref => {
+      const b = s.getCell(ref).border;
+      return !!(b && b.right && b.right.style);
+    };
+    return {a1: rightBorder('A1'), b1: rightBorder('B1'), c1: rightBorder('C1')};
   },
 
   // Build → write → read back through the rewrite's own reader, then normalize to the

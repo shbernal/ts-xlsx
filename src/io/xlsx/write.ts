@@ -220,13 +220,11 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
   // rather than emit a package a consumer repairs on open.
   validateMerges(sheet);
 
-  // Column number formats are defaults a cell inherits unless it overrides them; the writer
-  // composes each cell's full style up front so a cell that overrides one facet (say a fill)
-  // still carries the column's format, rather than silently dropping it.
-  const columnNumFmt = new Map<number, string>();
-  for (const {index, properties} of sheet.columns()) {
-    if (properties.numFmt !== undefined) columnNumFmt.set(index, properties.numFmt);
-  }
+  // A column's style facets are defaults its cells inherit unless they override them; the writer
+  // composes each cell's full style up front (cell over row over column, per facet) so a cell that
+  // overrides one facet still carries the column's others, rather than silently dropping them.
+  const columnDefaults = new Map<number, ColumnProperties>();
+  for (const {index, properties} of sheet.columns()) columnDefaults.set(index, properties);
 
   const rowXml: string[] = [];
   let top = Infinity;
@@ -243,14 +241,16 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
     const cellsXml = populated
       .map(cell => {
         // Cell overrides win over row/column defaults; a cell with any facet gets its own,
-        // fully-composed style entry so no default facet is lost to the override.
+        // fully-composed style entry so no default facet is lost to the override. Precedence is
+        // cell over row over column per facet — the row contributes only a fill today.
+        const colDef = columnDefaults.get(cell.col);
         const style = styles.styleId({
-          fill: cell.fill ?? rowFill,
-          numFmt: cell.numFmt ?? columnNumFmt.get(cell.col),
-          font: cell.font,
-          border: cell.border,
-          alignment: cell.alignment,
-          protection: cell.protection,
+          fill: cell.fill ?? rowFill ?? colDef?.fill,
+          numFmt: cell.numFmt ?? colDef?.numFmt,
+          font: cell.font ?? colDef?.font,
+          border: cell.border ?? colDef?.border,
+          alignment: cell.alignment ?? colDef?.alignment,
+          protection: cell.protection ?? colDef?.protection,
         });
         return cellXml(cell, style);
       })
@@ -479,9 +479,17 @@ function colXml(index: number, properties: ColumnProperties, styles: StyleRegist
     attrs += ' hidden="1"';
     meaningful = true;
   }
-  // A column-level number format is carried as the column's own style; its cells inherit it
-  // via the composition above, and Excel applies it to the column's empty cells too.
-  const style = styles.styleId({numFmt: properties.numFmt});
+  // The column's style facets are carried as its own `<col>` style; its populated cells inherit
+  // them via the composition above, and this `style` makes Excel apply them to the column's empty
+  // cells too.
+  const style = styles.styleId({
+    fill: properties.fill,
+    numFmt: properties.numFmt,
+    font: properties.font,
+    border: properties.border,
+    alignment: properties.alignment,
+    protection: properties.protection,
+  });
   if (style !== 0) {
     attrs += ` style="${style}"`;
     meaningful = true;
