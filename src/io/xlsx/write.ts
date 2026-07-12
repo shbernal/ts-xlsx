@@ -12,6 +12,7 @@ import {zipSync, strToU8} from 'fflate';
 
 import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
+import {dateToSerial, DEFAULT_DATE_NUMFMT} from '../../core/date.ts';
 import type {WorkbookImage} from '../../core/image.ts';
 import type {Table, TableColumn} from '../../core/table.ts';
 import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/value.ts';
@@ -411,7 +412,9 @@ function worksheetXml(
         const colDef = columnDefaults.get(cell.col);
         const style = styles.styleId({
           fill: cell.fill ?? rowFill ?? colDef?.fill,
-          numFmt: cell.numFmt ?? colDef?.numFmt,
+          // A bare Date carries no format of its own, so it renders as a raw serial and reads
+          // back as a number unless we apply a date format. An explicit cell/column format wins.
+          numFmt: cell.numFmt ?? colDef?.numFmt ?? dateDefaultNumFmt(cell.value),
           font: cell.font ?? colDef?.font,
           border: cell.border ?? colDef?.border,
           alignment: cell.alignment ?? colDef?.alignment,
@@ -679,6 +682,12 @@ function rowAttrs(properties: RowProperties | undefined, styles: StyleRegistry):
   return attrs;
 }
 
+// A valid Date with no format of its own gets the default date format so it renders and reads
+// back as a date; an Invalid Date and every non-date value contribute nothing here.
+function dateDefaultNumFmt(value: Cell['value']): string | undefined {
+  return value instanceof Date && !Number.isNaN(value.getTime()) ? DEFAULT_DATE_NUMFMT : undefined;
+}
+
 function cellXml(cell: Cell, style: number): string {
   const ref = cell.address;
   const value = cell.value;
@@ -686,6 +695,12 @@ function cellXml(cell: Cell, style: number): string {
 
   if (isFormulaValue(value)) {
     return formulaCellXml(ref, s, value.formula, value.result);
+  }
+  if (value instanceof Date) {
+    // An Invalid Date (new Date(NaN)) has no serial; keep the cell (and its style) but emit no
+    // value rather than throwing, so one bad date never takes down the whole sheet's export.
+    if (Number.isNaN(value.getTime())) return `<c r="${ref}"${s}/>`;
+    return `<c r="${ref}"${s}><v>${numberText(dateToSerial(value))}</v></c>`;
   }
   if (typeof value === 'number') {
     return `<c r="${ref}"${s}><v>${numberText(value)}</v></c>`;

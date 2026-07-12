@@ -315,6 +315,49 @@ test('a built-in numFmt id on a foreign cell resolves to its standard format cod
   assert.equal(back?.getCell('A1').numFmt, '0.00%');
 });
 
+test('a Strict-mode t="d" cell parses to the ISO date it states, not a 1900 serial', () => {
+  const files: Record<string, Uint8Array> = {
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" t="d"><v>2024-02-09</v></c></row></sheetData></worksheet>'
+    ),
+  };
+  const cell = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1');
+  assert.equal(cell?.type, 'date');
+  assert.equal((cell?.value as Date).toISOString(), '2024-02-09T00:00:00.000Z');
+});
+
+test('a serial under a built-in locale date id (57) reads as a date, not a bare number', () => {
+  const files: Record<string, Uint8Array> = {
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    // Built-in id 57 carries no <numFmt> entry — it is resolved from the built-in table.
+    'xl/styles.xml': strToU8(
+      '<?xml version="1.0"?><styleSheet><cellXfs count="2"><xf numFmtId="0"/>' +
+        '<xf numFmtId="57" applyNumberFormat="1"/></cellXfs></styleSheet>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1"><v>45809</v></c></row></sheetData></worksheet>'
+    ),
+  };
+  const cell = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1');
+  assert.equal(cell?.type, 'date', 'a serial under a built-in date id reads as a date');
+  assert.ok(cell?.numFmt, 'the built-in id resolves to a non-empty format code');
+});
+
 test('a cell font round-trips through the <fonts> table, and only the styled cell carries it', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
@@ -690,4 +733,57 @@ test('a re-written loaded protection preserves the credential byte-for-byte', ()
 
   assert.ok(prot(firstXml), 'the first write emits a sheetProtection element');
   assert.equal(prot(secondXml), prot(firstXml), 'a passthrough save re-emits the identical protection');
+});
+
+test('a Date value round-trips as a Date on the calendar day it was written', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = new Date('2020-03-04T00:00:00.000Z');
+
+  const back = roundtrip(wb).getWorksheet('S')?.getCell('A1');
+  assert.equal(back?.type, 'date');
+  assert.ok(back?.value instanceof Date);
+  assert.equal((back?.value as Date).toISOString(), '2020-03-04T00:00:00.000Z');
+});
+
+test('a bare Date is written under a date number format so it reads back as a date', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = new Date('2020-03-04T00:00:00.000Z');
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  assert.ok(!/t="/.test(xml.match(/<c r="A1"[^>]*>/)?.[0] ?? ''), 'a date serial is a plain number cell, no t=');
+});
+
+test('an explicit date numFmt on a Date cell survives verbatim, not swapped for the default', () => {
+  const wb = new Workbook();
+  const cell = wb.addWorksheet('S').getCell('A1');
+  cell.value = new Date('2020-03-04T00:00:00.000Z');
+  cell.numFmt = 'DD/MM/YYYY';
+
+  const back = roundtrip(wb).getWorksheet('S')?.getCell('A1');
+  assert.equal(back?.numFmt, 'DD/MM/YYYY');
+  assert.equal(back?.type, 'date');
+});
+
+test('a serial under a non-date format reads back as a plain number, not a date', () => {
+  const wb = new Workbook();
+  const cell = wb.addWorksheet('S').getCell('A1');
+  cell.value = 43_894; // the serial for 2020-03-04
+  cell.numFmt = '0.00';
+
+  const back = roundtrip(wb).getWorksheet('S')?.getCell('A1');
+  assert.equal(back?.type, 'number');
+  assert.equal(back?.value, 43_894);
+});
+
+test('an Invalid Date does not throw on write and does not drop sibling cells', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = new Date(NaN);
+  sheet.getCell('B1').value = 'still here';
+  sheet.getCell('C1').value = 42;
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getCell('B1').value, 'still here');
+  assert.equal(back?.getCell('C1').value, 42);
+  assert.equal(back?.getCell('A1').value, null, 'the invalid date carries no serial');
 });

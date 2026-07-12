@@ -15,6 +15,7 @@
 import {unzipSync, strFromU8, type UnzipFileInfo} from 'fflate';
 
 import {decodeAddress} from '../../core/address.ts';
+import {isDateFormat, serialToDate} from '../../core/date.ts';
 import {
   type SheetProtection,
   type SheetProtectionCredential,
@@ -321,6 +322,17 @@ const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
   [18, 'h:mm AM/PM'], [19, 'h:mm:ss AM/PM'], [20, 'h:mm'], [21, 'h:mm:ss'], [22, 'm/d/yy h:mm'],
   [37, '#,##0 ;(#,##0)'], [38, '#,##0 ;[Red](#,##0)'], [39, '#,##0.00;(#,##0.00)'], [40, '#,##0.00;[Red](#,##0.00)'],
   [45, 'mm:ss'], [46, '[h]:mm:ss'], [47, 'mmss.0'], [48, '##0.0E+0'], [49, '@'],
+  // Ids 27..36 and 50..58 are reserved for locale-specific built-in East Asian date/time formats;
+  // a file authored in a CJK locale styles date cells with them and, being built-ins, emits no
+  // <numFmt>. The exact code is locale-defined — these are the representative Excel forms — but what
+  // matters for reading is that each resolves to a non-empty date/time code so the serial reads as a
+  // date rather than a bare number.
+  [27, '[$-404]e/m/d'], [28, '[$-404]e"年"m"月"d"日"'], [29, '[$-404]e"年"m"月"d"日"'], [30, '[$-404]m/d/yy'],
+  [31, '[$-404]yyyy"年"m"月"d"日"'], [32, '[$-404]h"時"mm"分"'], [33, '[$-404]h"時"mm"分"ss"秒"'],
+  [34, '上午/下午h"時"mm"分"'], [35, '上午/下午h"時"mm"分"ss"秒"'], [36, '[$-404]e/m/d'],
+  [50, '[$-404]e/m/d'], [51, '[$-404]e"年"m"月"d"日"'], [52, '[$-404]yyyy"年"m"月"'], [53, '[$-404]m"月"d"日"'],
+  [54, '[$-404]e"年"m"月"d"日"'], [55, '上午/下午h"時"mm"分"'], [56, '上午/下午h"時"mm"分"ss"秒"'],
+  [57, '[$-404]yyyy"年"m"月"'], [58, '[$-404]m"月"d"日"'],
 ]);
 
 // styles.xml is a shared table: <numFmts> defines custom format codes by id, <fills> lists
@@ -930,7 +942,14 @@ function finalizeCell(
     cell.value = result === undefined ? {formula} : {formula, result};
     return;
   }
-  cell.value = decodeValue(type, valueText, inlineText, hasValue, sharedStrings);
+  const value = decodeValue(type, valueText, inlineText, hasValue, sharedStrings);
+  // A number stored under a date format is a date serial — surface it as a Date so a written
+  // date round-trips as a date, not a bare number. Only plain numeric cells qualify; a string,
+  // boolean, or formula result under a date format keeps its own kind.
+  cell.value =
+    typeof value === 'number' && style?.numFmt !== undefined && isDateFormat(style.numFmt)
+      ? serialToDate(value)
+      : value;
 }
 
 function decodeValue(
@@ -945,6 +964,11 @@ function decodeValue(
       return inlineText;
     case 'str':
       return valueText;
+    case 'd':
+      // A Strict-mode (ISO/IEC 29500 Strict) date cell stores an ISO 8601 value directly, not a
+      // serial. Parse it literally — an ISO date is UTC — so it reads as the date it states rather
+      // than a 1900-epoch serial the transitional decoder would fabricate from the text.
+      return valueText === '' ? null : new Date(valueText);
     case 's': {
       const index = Number(valueText);
       return Number.isInteger(index) ? sharedStrings[index] ?? '' : '';

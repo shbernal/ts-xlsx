@@ -73,6 +73,14 @@ const SUPPORTED_TABLE_COLUMN_KEYS = new Set(['name', 'totalsRowLabel', 'totalsRo
 const toDate = v => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
 const isoOrNull = d => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null);
 
+// A JSON-serializable view of a read-back cell value: a Date becomes { date: iso } (null when
+// invalid), every other object is deep-cloned, and a scalar passes through. Mirrors the oracle.
+const normalizeStreamValue = v => {
+  if (v instanceof Date) return {date: Number.isNaN(v.getTime()) ? null : v.toISOString()};
+  if (v && typeof v === 'object') return JSON.parse(JSON.stringify(v));
+  return v ?? null;
+};
+
 // Map a declarative spec onto the rewrite's Workbook model, throwing a `notImplemented`
 // skip the moment the spec uses a feature the writer cannot represent yet.
 function buildFrom(spec = {}) {
@@ -180,9 +188,14 @@ function buildFrom(spec = {}) {
       } else if ('value' in c) {
         const v = c.value;
         if (v !== null && typeof v === 'object') {
-          throw notImplemented(`cell value shape ${JSON.stringify(v)} not supported yet`);
+          // A structured date value materializes a Date; every other object shape is a value
+          // kind the writer does not model yet, so skip the behavior rather than mis-serialize.
+          if (v.invalidDate) cell.value = new Date(NaN);
+          else if (v.date) cell.value = toDate(v.date);
+          else throw notImplemented(`cell value shape ${JSON.stringify(v)} not supported yet`);
+        } else {
+          cell.value = v;
         }
-        cell.value = v;
       }
       if (c.fill !== undefined) cell.fill = c.fill;
       if (c.numFmt !== undefined) cell.numFmt = c.numFmt;
@@ -429,6 +442,28 @@ const impl = {
   // requested `<sheet>!<address>` cell → { [key]: { fill, fontColor } | null }. Mirrors the oracle:
   // a solid-pattern fill's visible colour lives on fgColor while bgColor is the automatic indexed
   // placeholder, and the font colour is a wholly separate facet — the two are never conflated.
+  // Read a real fixture `.xlsx` and report each requested cell's observable type, value, number
+  // format, and note → { <addr>: {type, value, numFmt, note} | null }, on the first sheet. Mirrors
+  // the oracle: a date-formatted numeric serial surfaces as a Date (value { date: iso }), not a raw
+  // number, honouring the 1900 date-system leap-year quirk. `type` is a stable label.
+  readFixtureCells(rel, cells = []) {
+    const wb = readFixture(rel);
+    const sheet = wb.worksheets[0];
+    const out = {};
+    for (const addr of cells) {
+      const cell = sheet ? sheet.getCell(addr) : null;
+      out[addr] = cell
+        ? {
+            type: cell.type,
+            value: normalizeStreamValue(cell.value),
+            numFmt: cell.numFmt ?? null,
+            note: cell.note !== undefined ? cell.note : undefined,
+          }
+        : null;
+    }
+    return out;
+  },
+
   readFixtureCellStyles(rel, cells = []) {
     const wb = readFixture(rel);
     const out = {};
@@ -930,15 +965,24 @@ const impl = {
       if (error.notImplemented) throw error;
       return {ok: false, phase: 'build', error: String((error && error.message) || error)};
     }
+    let buffer;
     try {
-      writeXlsx(workbook);
+      buffer = writeXlsx(workbook);
     } catch (error) {
       if (error.notImplemented) throw error;
       return {ok: false, phase: 'write', error: String((error && error.message) || error)};
     }
-    // Whether the write succeeded or failed legibly is fully answerable without the reader;
-    // reporting which cells survived a round-trip is the reader's job (a separate capability).
-    return {ok: true};
+    // Report which cells survived the round-trip, so a case can prove a bad cell (e.g. an Invalid
+    // Date, written value-less) did not drop its siblings.
+    const reread = readXlsx(buffer);
+    const survivingCells = {};
+    for (const s of spec.sheets || []) {
+      const sheet = reread.getWorksheet(s.name);
+      survivingCells[s.name] = (s.cells || [])
+        .filter(c => sheet && sheet.getCell(c.ref).value !== null)
+        .map(c => c.ref);
+    }
+    return {ok: true, byteLength: buffer.byteLength ?? buffer.length, survivingCells};
   },
 
   // Author per-cell protection (and optionally protect the sheet), write, then read back →
