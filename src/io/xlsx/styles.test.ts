@@ -81,6 +81,59 @@ test('a custom number format is defined in <numFmts> from id 164 and referenced 
 test('an empty registry still emits a valid minimal stylesheet with no <numFmts>', () => {
   const xml = new StyleRegistry().toXml();
   assert.doesNotMatch(xml, /<numFmts/); // omitted entirely when all-built-in
+  assert.match(xml, /<fonts count="1">/); // just the default font
   assert.match(xml, /<fills count="2">/); // just the two reserved fills
   assert.match(xml, /<cellXfs count="1">/); // just the default xf
+});
+
+test('an identical font interns to one shared xf index', () => {
+  const styles = new StyleRegistry();
+  const first = styles.styleId({font: {bold: true}});
+  for (let i = 0; i < 40; i++) {
+    assert.equal(styles.styleId({font: {bold: true}}), first, 'every identical font returns the same index');
+  }
+  assert.notEqual(first, 0, 'a real font gets a non-default index');
+});
+
+test('a font that overrides nothing resolves to the default xf 0 — no font entry', () => {
+  const styles = new StyleRegistry();
+  assert.equal(styles.styleId({font: {}}), 0);
+  // A boolean flag that is explicitly false is the default and adds no <font>.
+  assert.equal(styles.styleId({font: {bold: false, italic: false}}), 0);
+  assert.doesNotMatch(styles.toXml(), /<b\/>/);
+  assert.match(styles.toXml(), /<fonts count="1">/);
+});
+
+test('font, fill, and number format are independent facets composed into one xf', () => {
+  const styles = new StyleRegistry();
+  const bold = styles.styleId({font: {bold: true}});
+  const boldRed = styles.styleId({font: {bold: true}, fill: solid('FFFF0000')});
+  const boldRedPct = styles.styleId({font: {bold: true}, fill: solid('FFFF0000'), numFmt: '0.00%'});
+  assert.equal(new Set([bold, boldRed, boldRedPct]).size, 3, 'each added facet is a distinct composed style');
+});
+
+test('a custom font is defined in <fonts> after the default and referenced by its xf', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({font: {bold: true, italic: true, size: 14, color: {argb: 'FF3A80D5'}, name: 'Arial'}});
+  const xml = styles.toXml();
+
+  // Default font (id 0) + one custom (id 1).
+  assert.match(xml, /<fonts count="2">/);
+  // The facets serialise in ECMA-376 child order, with the typeface attribute-escaped.
+  assert.match(
+    xml,
+    /<font><b\/><i\/><sz val="14"\/><color rgb="FF3A80D5"\/><name val="Arial"\/><\/font>/
+  );
+  // The referencing xf names font id 1 and flags applyFont; the default xf keeps font id 0.
+  assert.match(xml, /<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"\/>/);
+  assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
+});
+
+test('an underline flag serialises single as a bare tag and a named variant with its val', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({font: {underline: true}});
+  styles.styleId({font: {underline: 'double'}});
+  const xml = styles.toXml();
+  assert.match(xml, /<font><u\/><\/font>/); // true → single → bare <u/>
+  assert.match(xml, /<font><u val="double"\/><\/font>/);
 });

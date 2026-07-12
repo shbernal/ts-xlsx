@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 76 green / 0 regressions (styles now round-trip pattern fills **and** number formats through an interned, composed style table); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 85 green / 0 regressions (styles now round-trip pattern fills, number formats, **and fonts** through an interned, composed style table, with dedup exposed to the corpus); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1156,8 +1156,20 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 76 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
-  562 skipped.** The **number-format slice** lit up the numFmt cluster (63 → 76): a custom accounting
+- **Latest corpus vs rewrite: 85 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
+  553 skipped.** The **fonts slice** (79 → 85) round-trips a cell font — bold/italic/underline, size,
+  colour, typeface — through the shared style table: `Cell.font` (a `Partial<Font>`, each cell owning its
+  own so a font never bleeds onto siblings) → `StyleRegistry` interns each distinct `<font>` (id from 1,
+  after the default) and composes it into the cell's one xf alongside fill+numFmt → the reader parses
+  `<fonts>` and resolves an xf's `fontId` (id 0 = default = no explicit font). Boolean flags are read
+  honouring their `val` (`<b/>`/`<b val="1"/>` on, `<b val="0"/>` off — presence alone is not truth), so
+  the explicit-false reader path is already correct for a later foreign-XML slice. `per-cell-font-isolation`
+  is green; the aliasing/foreign-XML font cases (`fontExplicitFalse*`, `unstyledCellFontReport`,
+  `sharedBaseStyleFontMutation`) stay for a later slice. Before it, the **style-dedup slice** (76 → 79)
+  bound the corpus's `styleDedupReport` to the rewrite by reading the written package (count `<cellXfs>`
+  entries + each cell's resolved index), lighting `shared-styles-deduplicated-in-written-package`: 40
+  identically-styled cells collapse to one index, the table never inflates to one entry per cell, and a
+  distinct style keeps its own index. The **number-format slice** lit up the numFmt cluster (63 → 76): a custom accounting
   format round-trips byte-for-byte (no comma-drop, quoted literals/escapes intact), distinct per-column
   numFmts stay independent, and — the shared-style-bleed fix — assigning a fill to one cell in a
   formatted column keeps the column's number format on that cell and every sibling. The writer composes
@@ -1174,8 +1186,10 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   created/modified) read back unchanged, and `rowCount` spans a row gap while `actualRowCount` excludes
   it. The `_xlfn.` modern-function prefix bug is still `○` (legacy fails too); outline summary-row
   `collapsed` inference remains open. Legacy oracle unchanged: **424 green / 233 known-open / 0
-  regressions**. Gates all green: `typecheck` clean, `test:src` **116/116** (+7: numFmt interning +
-  cell/column round-trip + foreign built-in-id resolution).
+  regressions** (an occasional flake in the *legacy* streaming-control `streamReadManySheets(3)` is a
+  `lib/` temp-file/resource timing artefact — the rewrite adapter skips streaming, so it is unrelated to
+  the rewrite). Gates all green: `typecheck` clean, `test:src` **124/124** (+8: font interning + `<fonts>`
+  emission + underline single/named + cell-font round-trip + foreign explicit-false-flag resolution).
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
@@ -1221,17 +1235,22 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
 `STRATEGY.md` build order (**core model → XML layer → xlsx r/w → streaming → csv**):
 
 1. **Deepen the styles surface — both directions, one facet per corpus win.** Writer and reader now
-   round-trip **pattern fills** (per-cell + row-inherited) *and* **number formats** (`numFmt` on cells
-   and columns, cell-inherits-column, `<numFmts>` + ECMA-376 built-in id table) through a shared
-   `StyleRegistry` that interns numFmts/fills/cellXfs and composes each cell's full style. The next
-   facets, in the order the corpus rewards them: the **`styleDedupReport` adapter capability**
-   (dedup already works — this just needs the adapter to expose xf indices + `cellXfs` count from the
-   written package; lights `shared-styles-deduplicated-in-written-package`), then **fonts** (bold/
-   color/name → `<fonts>`; theme-color fonts unlock `themed-workbook-mutate-write-stays-valid`),
-   **borders**, and **alignment**. Each extends the `StyleRegistry` xf signature + the reader's
-   xf-resolution and drops another key from the adapter feature-gate. Also worth a small slice:
-   ARGB validation (reject/normalize a `#`-prefixed fill colour — `solid-fill-argb-rejects-hash-prefix`),
-   and writing a filled-but-empty cell (today the row loop drops a cell with a fill but null value).
+   round-trip **pattern fills** (per-cell + row-inherited), **number formats** (`numFmt` on cells and
+   columns, cell-inherits-column, `<numFmts>` + ECMA-376 built-in id table), and **fonts** (bold/italic/
+   underline/size/colour/typeface → `<fonts>`, boolean flags read honouring `val`) through a shared
+   `StyleRegistry` that interns numFmts/fills/fonts/cellXfs and composes each cell's full style; dedup is
+   exposed to the corpus via `styleDedupReport`. The next facets, in the order the corpus rewards them:
+   **borders** (`<borders>`; unlocks `merged-region-master-cell-border-survives`, `cell-border-mutation-
+   does-not-bleed-to-style-siblings`), then **alignment** (`<alignment>` on the xf; `cell-style-setter-
+   isolates-alignment-numfmt-protection`). Each extends the `StyleRegistry` xf signature + the reader's
+   xf-resolution and drops another key from the adapter feature-gate. Remaining font cases need their own
+   capabilities: the **aliasing/foreign-XML font cases** (`fontExplicitFalse*` — the reader path is
+   already correct, just needs the adapter to build the foreign styles.xml; `unstyledCellFontReport` —
+   resolve `fontId` 0 to the concrete default font; `sharedBaseStyleFontMutation` — copy-on-write style
+   assignment). Also worth a small slice: ARGB validation (reject/normalize a `#`-prefixed fill colour —
+   `solid-fill-argb-rejects-hash-prefix`), and writing a filled-but-empty cell (today the row loop drops
+   a cell with a fill/font but null value — needed before `probeCellFonts` could round-trip a valueless
+   styled cell).
 2. **Foreign-fixture reading** (`readFixtureReport`, `readFixtureCellStyles`, `roundtripFixture*`): read
    *real* third-party `.xlsx` fixtures (prefixed OOXML roots, BOMs, non-ASCII sheet names, `t="s"`
    shared strings, theme/indexed colours) — needs `readFixture*` adapter capabilities + reader

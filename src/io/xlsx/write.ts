@@ -243,7 +243,11 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
       .map(cell => {
         // Cell overrides win over row/column defaults; a cell with any facet gets its own,
         // fully-composed style entry so no default facet is lost to the override.
-        const style = styles.styleId({fill: cell.fill ?? rowFill, numFmt: cell.numFmt ?? columnNumFmt.get(cell.col)});
+        const style = styles.styleId({
+          fill: cell.fill ?? rowFill,
+          numFmt: cell.numFmt ?? columnNumFmt.get(cell.col),
+          font: cell.font,
+        });
         return cellXml(cell, style);
       })
       .join('');

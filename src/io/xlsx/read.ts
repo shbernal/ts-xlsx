@@ -15,7 +15,7 @@
 import {unzipSync, strFromU8, type UnzipFileInfo} from 'fflate';
 
 import {decodeAddress} from '../../core/address.ts';
-import type {Color, Fill, FillPatternType} from '../../core/style.ts';
+import type {Color, Fill, FillPatternType, Font, UnderlineStyle, VerticalAlignment} from '../../core/style.ts';
 import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {PageMargins, Worksheet} from '../../core/worksheet.ts';
@@ -154,7 +154,12 @@ function parseSharedStrings(xml: string): string[] {
 interface XfStyle {
   readonly fill?: Fill;
   readonly numFmt?: string;
+  readonly font?: Partial<Font>;
 }
+
+// A mutable font accumulator while a <font> element's children stream in; frozen into a
+// Partial<Font> on close.
+type FontDraft = {-readonly [K in keyof Font]?: Font[K]};
 
 // ECMA-376 reserves numFmt ids below 164 for formats every consumer knows implicitly, so a
 // foreign file may name one with no <numFmt> entry. This maps the standard ids to their
@@ -177,13 +182,16 @@ const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
 function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
   if (xml === '') return [];
   const fills: Array<Fill | undefined> = [];
+  const fonts: Array<Partial<Font> | undefined> = [];
   const numFmtCodes = new Map<number, string>();
   const xfStyles: XfStyle[] = [];
   let inFills = false;
+  let inFonts = false;
   let inCellXfs = false;
   let pattern = '';
   let fgColor: Color | undefined;
   let bgColor: Color | undefined;
+  let fontDraft: FontDraft | null = null;
 
   parseXml(xml, {
     onOpen(name, attrs, selfClosing) {
@@ -199,6 +207,19 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
         }
         case 'fills':
           inFills = true;
+          break;
+        case 'fonts':
+          inFonts = true;
+          break;
+        case 'font':
+          if (inFonts) {
+            fontDraft = {};
+            // A bare <font/> would be a font that overrides nothing; keep its id slot.
+            if (selfClosing) {
+              fonts.push(undefined);
+              fontDraft = null;
+            }
+          }
           break;
         case 'cellXfs':
           inCellXfs = true;
@@ -219,17 +240,24 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
         case 'bgColor':
           if (inFills) bgColor = parseColor(attrs);
           break;
-        case 'xf':
-          // cellStyleXfs also holds <xf>; only those inside <cellXfs> are cell references.
-          if (inCellXfs) {
+        default:
+          // A <font>'s children are self-closing, so they are read here on open.
+          if (fontDraft !== null) applyFontChild(fontDraft, localName(name), attrs);
+          else if (inCellXfs && localName(name) === 'xf') {
+            // cellStyleXfs also holds <xf>; only those inside <cellXfs> are cell references.
             const fillId = Number(attrs.fillId);
             const fill = Number.isInteger(fillId) ? fills[fillId] : undefined;
+            const fontId = Number(attrs.fontId);
+            // Font id 0 is the default; only a custom font (id > 0) is an explicit cell font.
+            const font = Number.isInteger(fontId) && fontId > 0 ? fonts[fontId] : undefined;
             const numFmt = resolveNumFmt(attrs.numFmtId, numFmtCodes);
-            const style: XfStyle = {...(fill ? {fill} : {}), ...(numFmt !== undefined ? {numFmt} : {})};
+            const style: XfStyle = {
+              ...(fill ? {fill} : {}),
+              ...(numFmt !== undefined ? {numFmt} : {}),
+              ...(font ? {font} : {}),
+            };
             xfStyles.push(style);
           }
-          break;
-        default:
           break;
       }
     },
@@ -238,6 +266,15 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
       switch (localName(name)) {
         case 'fills':
           inFills = false;
+          break;
+        case 'fonts':
+          inFonts = false;
+          break;
+        case 'font':
+          if (fontDraft !== null) {
+            fonts.push(Object.keys(fontDraft).length > 0 ? fontDraft : undefined);
+            fontDraft = null;
+          }
           break;
         case 'cellXfs':
           inCellXfs = false;
@@ -251,6 +288,64 @@ function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
     },
   });
   return xfStyles;
+}
+
+// A <font> child element sets one facet on the draft. Boolean flags honour their `val`: a
+// bare tag or val="1"/"true" is on, val="0"/"false" is off (an explicit-false flag is not
+// truthy merely because the tag is present). An unrecognised child is ignored.
+function applyFontChild(draft: FontDraft, local: string, attrs: {readonly [k: string]: string}): void {
+  switch (local) {
+    case 'b':
+      draft.bold = flagValue(attrs.val);
+      break;
+    case 'i':
+      draft.italic = flagValue(attrs.val);
+      break;
+    case 'strike':
+      draft.strike = flagValue(attrs.val);
+      break;
+    case 'outline':
+      draft.outline = flagValue(attrs.val);
+      break;
+    case 'u':
+      draft.underline = attrs.val === undefined ? true : (attrs.val as UnderlineStyle);
+      break;
+    case 'vertAlign':
+      if (attrs.val !== undefined) draft.vertAlign = attrs.val as VerticalAlignment;
+      break;
+    case 'sz': {
+      const size = Number(attrs.val);
+      if (Number.isFinite(size)) draft.size = size;
+      break;
+    }
+    case 'color':
+      draft.color = parseColor(attrs);
+      break;
+    case 'name':
+      if (attrs.val !== undefined) draft.name = attrs.val;
+      break;
+    case 'family': {
+      const family = Number(attrs.val);
+      if (Number.isInteger(family)) draft.family = family;
+      break;
+    }
+    case 'charset': {
+      const charset = Number(attrs.val);
+      if (Number.isInteger(charset)) draft.charset = charset;
+      break;
+    }
+    case 'scheme':
+      if (attrs.val !== undefined) draft.scheme = attrs.val as Font['scheme'];
+      break;
+    default:
+      break;
+  }
+}
+
+// An OOXML boolean font flag defaults to on when present with no value (`<b/>` is bold); an
+// explicit val turns it on ("1"/"true") or off ("0"/"false").
+function flagValue(val: string | undefined): boolean {
+  return val === undefined || (val !== '0' && val !== 'false');
 }
 
 // An xf's numFmtId resolves against the custom codes first, then the built-in table; the
@@ -504,6 +599,7 @@ function finalizeCell(
   const cell = sheet.getCell(ref);
   if (style?.fill !== undefined) cell.fill = style.fill;
   if (style?.numFmt !== undefined) cell.numFmt = style.numFmt;
+  if (style?.font !== undefined) cell.font = style.font;
 
   if (hasFormula) {
     const result = hasValue ? decodeResult(type, valueText) : undefined;

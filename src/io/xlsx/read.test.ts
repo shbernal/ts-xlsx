@@ -267,6 +267,64 @@ test('a built-in numFmt id on a foreign cell resolves to its standard format cod
   assert.equal(back?.getCell('A1').numFmt, '0.00%');
 });
 
+test('a cell font round-trips through the <fonts> table, and only the styled cell carries it', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'heading';
+  sheet.getCell('A1').font = {bold: true, italic: true, size: 14, name: 'Arial', color: {argb: 'FF3A80D5'}};
+  sheet.getCell('B2').value = 'plain';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  const font = back?.getCell('A1').font;
+  assert.deepEqual(font, {bold: true, italic: true, size: 14, color: {argb: 'FF3A80D5'}, name: 'Arial'});
+  assert.equal(back?.getCell('B2').font, undefined, 'an unstyled sibling does not inherit the font');
+});
+
+test('an underline font round-trips: single stays single, a named variant keeps its value', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  sheet.getCell('A1').font = {underline: true};
+  sheet.getCell('A2').value = 'y';
+  sheet.getCell('A2').font = {underline: 'double'};
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getCell('A1').font?.underline, true, 'a bare underline reads back as true');
+  assert.equal(back?.getCell('A2').font?.underline, 'double', 'a named underline keeps its variant');
+});
+
+test('a foreign font honours an explicit-false boolean flag rather than tag presence', () => {
+  // A foreign generator writes <b/> (bold on) but <i val="0"/> (italic explicitly off). The
+  // reader must honour the val — a present tag is not truthy on its own.
+  const files: Record<string, Uint8Array> = {
+    '[Content_Types].xml': strToU8(
+      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="xml" ContentType="application/xml"/></Types>'
+    ),
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/styles.xml': strToU8(
+      '<?xml version="1.0"?><styleSheet>' +
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><i val="0"/></font></fonts>' +
+        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+        '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>'
+    ),
+  };
+  const font = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').font;
+  assert.equal(font?.bold, true, 'a bare <b/> is bold');
+  assert.equal(font?.italic, false, '<i val="0"/> is explicitly not italic — the val is honoured');
+});
+
 test('the inflate bound rejects a part whose declared size is over the cap', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';

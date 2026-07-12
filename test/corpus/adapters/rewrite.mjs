@@ -38,7 +38,7 @@ const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'mo
 const SUPPORTED_SHEET_KEYS = new Set([
   'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageMargins', 'headerFooter', 'tables', 'merges',
 ]);
-const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill', 'numFmt']);
+const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill', 'numFmt', 'font']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
@@ -162,6 +162,7 @@ function buildFrom(spec = {}) {
       }
       if (c.fill !== undefined) cell.fill = c.fill;
       if (c.numFmt !== undefined) cell.numFmt = c.numFmt;
+      if (c.font !== undefined) cell.font = c.font;
     }
   }
   return workbook;
@@ -180,6 +181,7 @@ function normalizeRewriteCell(cell) {
   // contract that an unset facet is simply absent (never an empty placeholder).
   if (cell.fill !== undefined) out.fill = cell.fill;
   if (cell.numFmt) out.numFmt = cell.numFmt;
+  if (cell.font !== undefined) out.font = cell.font;
   return out;
 }
 
@@ -210,6 +212,18 @@ const impl = {
 
   inspectPackage(spec) {
     return packageFacts(spec, partMapOf(writeXlsx(buildFrom(spec))));
+  },
+
+  // Apply a font to each named cell, then read each requested cell's font back → { <ref>:
+  // font|null }. Each cell owns its own font, so a font set on one cell is observable there
+  // and nowhere else — the isolation this reports. In-memory, matching the contract: the
+  // <fonts>-table write/read path is exercised by the io/xlsx unit tests.
+  probeCellFonts({apply = [], read = []}) {
+    const sheet = new Workbook().addWorksheet('sheet');
+    for (const {cell, font} of apply) sheet.getCell(cell).font = font;
+    const fonts = {};
+    for (const address of read) fonts[address] = sheet.getCell(address).font ?? null;
+    return JSON.parse(JSON.stringify(fonts));
   },
 
   // Write the spec and report the shared style table's size plus the index each requested cell

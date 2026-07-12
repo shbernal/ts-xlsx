@@ -6,7 +6,7 @@
 // through the value model so the cell's `type` is always consistent with what it holds.
 
 import {encodeAddress} from './address.ts';
-import type {Fill} from './style.ts';
+import type {Fill, Font} from './style.ts';
 import {type CellValue, type ValueType, coerceCellValue, detectValueType} from './value.ts';
 
 export class Cell {
@@ -18,6 +18,7 @@ export class Cell {
   #value: CellValue = null;
   #fill: Fill | undefined;
   #numFmt: string | undefined;
+  #font: Partial<Font> | undefined;
 
   constructor(row: number, col: number) {
     if (!Number.isInteger(row) || row < 1) {
@@ -76,5 +77,20 @@ export class Cell {
 
   set numFmt(numFmt: string | undefined) {
     this.#numFmt = numFmt;
+  }
+
+  /**
+   * The cell's font — bold/italic/underline, size, colour, typeface — as a partial set
+   * of the facets that differ from the default (only the facets actually set are carried,
+   * exactly as OOXML stores them). `undefined` means the cell uses the workbook default
+   * font. Like {@link fill} and {@link numFmt}, each cell owns its own font object, so a
+   * font set on one cell never aliases or bleeds onto its row, column, or sheet siblings.
+   */
+  get font(): Partial<Font> | undefined {
+    return this.#font;
+  }
+
+  set font(font: Partial<Font> | undefined) {
+    this.#font = font;
   }
 }
