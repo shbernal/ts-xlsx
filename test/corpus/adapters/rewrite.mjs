@@ -25,7 +25,7 @@ import {fileURLToPath} from 'node:url';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
-import {decodeAddress, decodeRange} from '../../../src/core/address.ts';
+import {decodeAddress, decodeRange, encodeAddress} from '../../../src/core/address.ts';
 import {Workbook} from '../../../src/core/workbook.ts';
 import {readXlsx} from '../../../src/io/xlsx/read.ts';
 import {writeXlsx} from '../../../src/io/xlsx/write.ts';
@@ -635,6 +635,66 @@ const impl = {
         modified: isoOrNull(props.modified),
       },
       sheets,
+    };
+  },
+
+  // Merge a horizontal span with a value + alignment on the anchor, write, then read back →
+  // { mergeCount, merges, populatedCoveredCells, anchorValue, anchorAlignment }. A clean merge
+  // declares the range exactly once and emits a value only on the anchor, so the covered cells
+  // carry no conflicting <v> — the shape that opens without Excel's repair prompt — and the
+  // anchor's value and alignment survive the round-trip.
+  mergeCleanReport({anchor = 'B1', range = 'B1:G1', value = 'Group Title'} = {}) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    const cell = sheet.getCell(anchor);
+    cell.value = value;
+    cell.alignment = {horizontal: 'center'};
+    sheet.mergeCells(range);
+    const buffer = writeXlsx(workbook);
+    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map(m => m[1]);
+    const {left, right, top, bottom} = decodeRange(range);
+    const populatedCoveredCells = [];
+    for (let r = top; r <= bottom; r++) {
+      for (let c = left; c <= right; c++) {
+        const ref = encodeAddress(c, r);
+        if (ref === anchor) continue;
+        if (new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*>[\\s\\S]*?<v>`).test(sheetXml)) populatedCoveredCells.push(ref);
+      }
+    }
+    const a = readXlsx(buffer).getWorksheet('S').getCell(anchor);
+    return {
+      mergeCount: merges.length,
+      merges,
+      populatedCoveredCells,
+      anchorValue: a.value ?? null,
+      anchorAlignment: a.alignment ? {...a.alignment} : null,
+    };
+  },
+
+  // Give the top-left/master cell a border (+ numFmt + font), merge it into a region, round-trip,
+  // then report the master's border/numFmt/font and the declared merges → for asserting a merge
+  // does not strip the style the master needs to render the merged region's outline.
+  mergeMasterBorderReport() {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    const cell = sheet.getCell('A1');
+    cell.value = 'x';
+    cell.border = {top: {style: 'thin'}, bottom: {style: 'medium'}};
+    cell.numFmt = '0.00';
+    cell.font = {bold: true};
+    sheet.mergeCells('A1:B2');
+    const reread = readXlsx(writeXlsx(workbook)).getWorksheet('S');
+    const m = reread.getCell('A1');
+    const b = m.border || {};
+    return {
+      hasTopBorder: !!(b.top && b.top.style),
+      hasBottomBorder: !!(b.bottom && b.bottom.style),
+      topStyle: b.top ? b.top.style ?? null : null,
+      bottomStyle: b.bottom ? b.bottom.style ?? null : null,
+      numFmt: m.numFmt ?? null,
+      fontBold: !!(m.font && m.font.bold),
+      merges: [...reread.merges],
     };
   },
 
