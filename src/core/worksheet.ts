@@ -8,6 +8,12 @@
 
 import {decodeAddress} from './address.ts';
 import {Cell} from './cell.ts';
+import {
+  deriveCredential,
+  type SheetProtection,
+  type SheetProtectionCredential,
+  type SheetProtectionOptions,
+} from './protection.ts';
 import type {Fill} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
 
@@ -103,6 +109,8 @@ export class Worksheet {
   // Tables and merged ranges are sheet-level overlays on the grid, not cell storage.
   readonly #tables: Table[] = [];
   readonly #merges: string[] = [];
+  // Sheet-level protection is a single overlay switch, absent until `protect` is called.
+  #protection: SheetProtection | undefined;
 
   constructor(name: string, id: number, state: WorksheetState['state'] = 'visible') {
     this.name = name;
@@ -245,6 +253,34 @@ export class Worksheet {
   /** The merged ranges on this sheet, in the order they were added. */
   get merges(): readonly string[] {
     return this.#merges;
+  }
+
+  /**
+   * Protect the sheet, making the per-cell `locked`/`hidden` flags enforceable. Without a
+   * password the protection is a soft lock any consumer can lift; with one, the password is
+   * salted and hashed on the spot (the plaintext is never retained) so lifting the protection
+   * requires re-supplying it. `options` names which operations stay available to a user while
+   * the sheet is protected; anything unspecified falls to Excel's default for that operation.
+   *
+   * Re-protecting replaces any prior protection; {@link unprotect} clears it.
+   */
+  protect(password?: string, options: SheetProtectionOptions = {}): void {
+    const {spinCount, ...flags} = options;
+    const protection: {flags: SheetProtection['flags']; credential?: SheetProtectionCredential} = {flags};
+    if (password !== undefined && password !== '') {
+      protection.credential = deriveCredential(password, spinCount);
+    }
+    this.#protection = protection;
+  }
+
+  /** Remove any protection previously set by {@link protect}. */
+  unprotect(): void {
+    this.#protection = undefined;
+  }
+
+  /** The sheet's protection, or `undefined` if the sheet is unprotected. */
+  get protection(): SheetProtection | undefined {
+    return this.#protection;
   }
 
   #cellAt(row: number, col: number): Cell {

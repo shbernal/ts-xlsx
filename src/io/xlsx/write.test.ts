@@ -404,3 +404,72 @@ test('<tableParts> follows <headerFooter> in the worksheet element order', () =>
     'tableParts must follow headerFooter per CT_Worksheet'
   );
 });
+
+test('an unprotected sheet emits no <sheetProtection> element', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /<sheetProtection/);
+});
+
+test('protecting a sheet emits a self-closing <sheetProtection sheet="1"> after <sheetData>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.protect();
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<sheetProtection sheet="1"\/>/);
+  assert.ok(
+    xml.indexOf('</sheetData>') < xml.indexOf('<sheetProtection'),
+    'sheetProtection must follow sheetData per CT_Worksheet'
+  );
+});
+
+test('an unprotected password derives an OOXML-agile credential onto <sheetProtection>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.protect('secret');
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /algorithmName="SHA-512"/);
+  assert.match(xml, /hashValue="[^"]+"/);
+  assert.match(xml, /saltValue="[^"]+"/);
+  assert.match(xml, /spinCount="100000"/);
+  assert.match(xml, /sheet="1"/);
+});
+
+test('protection flags invert to OOXML "forbidden" booleans, writing only non-default values', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  // sort defaults to forbidden under protection, so allowing it must emit sort="0".
+  // selectLockedCells defaults to permitted, so forbidding it must emit selectLockedCells="1".
+  s.protect(undefined, {sort: true, autoFilter: true, selectLockedCells: false});
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /sort="0"/);
+  assert.match(xml, /autoFilter="0"/);
+  assert.match(xml, /selectLockedCells="1"/);
+});
+
+test('a flag left at its OOXML default is omitted from <sheetProtection>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  // Allowing selection (its default) and forbidding sort (its default) are both no-ops.
+  s.protect(undefined, {selectLockedCells: true, sort: false});
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  const tag = (xml.match(/<sheetProtection[^>]*\/>/) as RegExpMatchArray)[0];
+  assert.doesNotMatch(tag, /selectLockedCells=/);
+  assert.doesNotMatch(tag, /sort=/);
+  assert.match(tag, /sheet="1"/);
+});
+
+test('unprotect() removes a sheet-protection element previously set', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.protect('pw');
+  s.unprotect();
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /<sheetProtection/);
+});

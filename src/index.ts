@@ -60,6 +60,12 @@ export {
   type HeaderFooter,
 } from './core/worksheet.ts';
 export {
+  type SheetProtection,
+  type SheetProtectionOptions,
+  type SheetProtectionFlags,
+  type SheetProtectionCredential,
+} from './core/protection.ts';
+export {
   Table,
   type TableColumn,
   type TableOptions,

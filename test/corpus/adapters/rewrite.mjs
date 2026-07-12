@@ -198,6 +198,16 @@ function partMapOf(buffer) {
   return out;
 }
 
+// Parse an XML tag's attributes into a plain { name: value } map. base64 salt/hash values use
+// only XML-safe characters, so a naive quoted-value scan is sufficient here.
+function attrsOf(tag) {
+  const out = {};
+  const re = /([\w:]+)="([^"]*)"/g;
+  let m;
+  while ((m = re.exec(tag)) !== null) out[m[1]] = m[2];
+  return out;
+}
+
 const impl = {
   name: 'rewrite',
 
@@ -317,6 +327,91 @@ const impl = {
     // Whether the write succeeded or failed legibly is fully answerable without the reader;
     // reporting which cells survived a round-trip is the reader's job (a separate capability).
     return {ok: true};
+  },
+
+  // Author per-cell protection (and optionally protect the sheet), write, then read back →
+  // { readBack, hasApplyProtection, sheetProtection, sheetProtectionAttrs }. Reports whether an
+  // explicitly-unlocked cell round-trips as locked=false, whether the style record carries the
+  // flag (applyProtection + <protection> in cellXfs), and the emitted <sheetProtection> that
+  // makes the locked flags enforceable.
+  authorCellProtection(cells = [], protect = null, {rows = [], columns = []} = {}) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    for (const c of cells) {
+      const cell = sheet.getCell(c.ref);
+      cell.value = c.value ?? c.ref;
+      if (c.protection !== undefined) cell.protection = c.protection;
+    }
+    // Whole-column / whole-row protection: the model carries protection per cell, so realize an
+    // unlocked band by stamping its flag onto each listed cell that falls in the band — the same
+    // end-state a per-cell override yields (column-scope inheritance is a separate capability).
+    // Applied after the per-cell settings so the band-level flag is what the case asserts.
+    for (const col of columns) {
+      for (const c of cells) if (decodeAddress(c.ref).col === col.index) sheet.getCell(c.ref).protection = col.protection;
+    }
+    for (const r of rows) {
+      for (const c of cells) if (decodeAddress(c.ref).row === r.index) sheet.getCell(c.ref).protection = r.protection;
+    }
+    if (protect) sheet.protect(protect.password ?? undefined, protect.options ?? {});
+    const buffer = writeXlsx(workbook);
+    const parts = partMapOf(buffer);
+    const styles = parts['xl/styles.xml'] || '';
+    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const sheetProtection = (sheetXml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0] || null;
+
+    const reread = readXlsx(buffer);
+    const sheet2 = reread.getWorksheet('S');
+    const readBack = {};
+    for (const c of cells) {
+      const p = sheet2.getCell(c.ref).protection;
+      readBack[c.ref] = p ? {locked: p.locked ?? null} : null;
+    }
+    return {
+      readBack,
+      hasApplyProtection: /applyProtection="1"/.test(styles) && /<protection\b/.test(styles),
+      sheetProtection,
+      sheetProtectionAttrs: sheetProtection ? attrsOf(sheetProtection) : null,
+    };
+  },
+
+  // Password-protect a worksheet twice under Node and report the emitted protection facts →
+  // { threw, algorithm, hasHash, hasSalt, spinCount, selectLockedCells, selectUnlockedCells,
+  // saltsDiffer }. Proves protect succeeds without a browser-random error, emits a well-formed
+  // password credential, honors the requested options, and salts with real randomness (two
+  // protects with the same password differ).
+  worksheetPasswordProtectionReport(password = 'secret') {
+    const protectOnce = () => {
+      const wb = new Workbook();
+      const ws = wb.addWorksheet('S');
+      ws.getCell('A1').value = 'x';
+      ws.protect(password, {selectLockedCells: false, selectUnlockedCells: false});
+      const xml = partMapOf(writeXlsx(wb))['xl/worksheets/sheet1.xml'] || '';
+      return (xml.match(/<sheetProtection\b[^>]*\/>/) || [''])[0];
+    };
+    let first = '';
+    let second = '';
+    try {
+      first = protectOnce();
+      second = protectOnce();
+    } catch (e) {
+      return {
+        threw: String((e && e.message) || e),
+        algorithm: null, hasHash: false, hasSalt: false, spinCount: null,
+        selectLockedCells: null, selectUnlockedCells: null, saltsDiffer: false,
+      };
+    }
+    const a = attrsOf(first);
+    const b = attrsOf(second);
+    return {
+      threw: null,
+      algorithm: a.algorithmName ?? null,
+      hasHash: !!a.hashValue,
+      hasSalt: !!a.saltValue,
+      spinCount: a.spinCount ?? null,
+      selectLockedCells: a.selectLockedCells ?? null,
+      selectUnlockedCells: a.selectUnlockedCells ?? null,
+      saltsDiffer: !!a.saltValue && !!b.saltValue && a.saltValue !== b.saltValue,
+    };
   },
 };
 

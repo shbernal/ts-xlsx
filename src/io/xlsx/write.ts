@@ -14,6 +14,7 @@ import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import type {Table, TableColumn} from '../../core/table.ts';
 import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/value.ts';
+import type {SheetProtection, SheetProtectionFlags} from '../../core/protection.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import type {
   ColumnProperties,
@@ -277,6 +278,7 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
     sheetFormatPr(sheet.properties) +
     colsXml(sheet, styles) +
     sheetData +
+    sheetProtectionXml(sheet.protection) +
     mergeCellsXml(sheet.merges) +
     pageMarginsXml(sheet.pageMargins) +
     headerFooterXml(sheet.headerFooter) +
@@ -309,6 +311,54 @@ function mergeCellsXml(merges: readonly string[]): string {
   if (merges.length === 0) return '';
   const cells = merges.map(range => `<mergeCell ref="${escapeAttr(decodeRange(range).dimensions)}"/>`).join('');
   return `<mergeCells count="${merges.length}">${cells}</mergeCells>`;
+}
+
+// Each sheet-protection flag maps to a `<sheetProtection>` attribute whose value is INVERTED
+// from the author-facing allow-flag: the attribute records that an operation is *forbidden*
+// ("1"), so `allow: true` serialises as "0". Only a value that differs from OOXML's per-
+// attribute default is written — most editing operations default to forbidden under
+// protection (`defaultForbidden: true`), while selecting cells defaults to permitted.
+const PROTECTION_FLAGS: readonly {readonly key: keyof SheetProtectionFlags; readonly defaultForbidden: boolean}[] = [
+  {key: 'formatCells', defaultForbidden: true},
+  {key: 'formatColumns', defaultForbidden: true},
+  {key: 'formatRows', defaultForbidden: true},
+  {key: 'insertColumns', defaultForbidden: true},
+  {key: 'insertRows', defaultForbidden: true},
+  {key: 'insertHyperlinks', defaultForbidden: true},
+  {key: 'deleteColumns', defaultForbidden: true},
+  {key: 'deleteRows', defaultForbidden: true},
+  {key: 'sort', defaultForbidden: true},
+  {key: 'autoFilter', defaultForbidden: true},
+  {key: 'pivotTables', defaultForbidden: true},
+  {key: 'objects', defaultForbidden: false},
+  {key: 'scenarios', defaultForbidden: false},
+  {key: 'selectLockedCells', defaultForbidden: false},
+  {key: 'selectUnlockedCells', defaultForbidden: false},
+];
+
+// <sheetProtection> is what makes the per-cell locked/hidden flags bite. `sheet="1"` marks the
+// sheet protected; the password credential (when present) guards lifting it; the flag attributes
+// carve out the operations that stay available. base64 salt/hash use only XML-safe characters.
+function sheetProtectionXml(protection: SheetProtection | undefined): string {
+  if (protection === undefined) return '';
+  const {flags, credential} = protection;
+  let attrs = '';
+  if (credential !== undefined) {
+    attrs +=
+      ` algorithmName="${credential.algorithmName}"` +
+      ` hashValue="${credential.hashValue}"` +
+      ` saltValue="${credential.saltValue}"` +
+      ` spinCount="${credential.spinCount}"`;
+  }
+  attrs += ' sheet="1"';
+  for (const {key, defaultForbidden} of PROTECTION_FLAGS) {
+    const allow = flags[key];
+    if (allow === undefined) continue;
+    const forbidden = !allow;
+    if (forbidden === defaultForbidden) continue;
+    attrs += ` ${key}="${forbidden ? 1 : 0}"`;
+  }
+  return `<sheetProtection${attrs}/>`;
 }
 
 function tablePartsXml(tables: readonly PlannedTable[]): string {
