@@ -497,6 +497,78 @@ const impl = {
     return {checked, fillMismatches, borderMismatches, fillSample, borderSample};
   },
 
+  // Read a real styled template, write it straight back out, read the result, and report whether
+  // its sheet names, custom column widths, and per-cell fill/font/numFmt/alignment/border survived
+  // that no-op read→write→read → { sheetNames(Before), columns(Before), styleSurvival }. This is the
+  // mainstream "open a styled template, fill it in, save it" path, which must be format-preserving.
+  // Style comparison is key-order-insensitive so a case asserts on content survival, not
+  // serialization incidentals. In the rewrite's model a column stores a width only when it is a
+  // custom width, so "has a width" is exactly "is a custom width".
+  roundtripFixture(rel) {
+    const before = readFixture(rel);
+    const after = readXlsx(writeXlsx(before));
+
+    const stableSort = v => {
+      if (Array.isArray(v)) return v.map(stableSort);
+      if (v && typeof v === 'object') {
+        const sorted = {};
+        for (const k of Object.keys(v).sort()) sorted[k] = stableSort(v[k]);
+        return sorted;
+      }
+      return v;
+    };
+    const hasStyle = cell =>
+      !!(cell.numFmt || (cell.fill && cell.fill.type) || cell.font || cell.alignment || cell.border);
+    const styleKey = cell =>
+      JSON.stringify(
+        stableSort({
+          numFmt: cell.numFmt || null,
+          fill: cell.fill && cell.fill.type ? cell.fill : null,
+          font: cell.font || null,
+          alignment: cell.alignment || null,
+          border: cell.border || null,
+        })
+      );
+    const columnsWithWidth = wb => {
+      const out = {};
+      for (const sheet of wb.worksheets) {
+        const cols = {};
+        for (const {index, properties} of sheet.columns()) {
+          if (properties.width !== undefined) cols[index] = {width: properties.width, customWidth: true};
+        }
+        out[sheet.name] = cols;
+      }
+      return out;
+    };
+
+    let checked = 0;
+    let mismatches = 0;
+    let sample = null;
+    for (const sheet of before.worksheets) {
+      const other = after.getWorksheet(sheet.name);
+      for (const {cells} of sheet.rows()) {
+        for (const cell of cells) {
+          if (!hasStyle(cell)) continue;
+          checked += 1;
+          const beforeKey = styleKey(cell);
+          const afterKey = other ? styleKey(other.getCell(cell.address)) : '(sheet missing)';
+          if (beforeKey !== afterKey) {
+            mismatches += 1;
+            if (!sample) sample = {cell: `${sheet.name}!${cell.address}`, before: beforeKey, after: afterKey};
+          }
+        }
+      }
+    }
+
+    return {
+      sheetNamesBefore: before.worksheets.map(s => s.name),
+      sheetNames: after.worksheets.map(s => s.name),
+      columnsBefore: columnsWithWidth(before),
+      columns: columnsWithWidth(after),
+      styleSurvival: {checked, mismatches, sample},
+    };
+  },
+
   // Give one column a right border and later columns only a width, then round-trip and report
   // each cell's right border → { a1, b1, c1 }. A column's border is a default for its own cells,
   // so the declaring column's cell carries it while columns without a style of their own get
