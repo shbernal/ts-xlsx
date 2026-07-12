@@ -1,17 +1,18 @@
 // The buffered `.xlsx` writer: a Workbook model in, an OPC zip package out.
 //
-// This is the first slice of the write path. It serialises the part of the model that
-// exists today — worksheets, and cells holding a number, string, boolean, or formula —
-// into a valid minimal package (content types, relationships, workbook, per-sheet XML,
-// the default theme and stylesheet, and core/app properties). Styles, columns, rows,
-// merges, images, tables, and the richer value kinds land as the model grows; until
-// then the writer refuses a value it cannot represent faithfully rather than emitting a
-// lossy or corrupt package.
+// It serialises the part of the model that exists today — worksheets; cells holding a
+// number, string, boolean, or formula; column/row formatting; page margins and
+// header/footer; merged ranges; and worksheet tables — into a valid package (content
+// types, relationships, workbook, per-sheet XML, table parts, the default theme and
+// stylesheet, and core/app properties). Styles, images, and the richer value kinds land
+// as the model grows; until then the writer refuses a value it cannot represent
+// faithfully rather than emitting a lossy or corrupt package.
 
 import {zipSync, strToU8} from 'fflate';
 
-import {encodeAddress, MAX_COLUMN} from '../../core/address.ts';
+import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
+import type {Table, TableColumn} from '../../core/table.ts';
 import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/value.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import type {
@@ -45,6 +46,7 @@ const CT = {
   theme: 'application/vnd.openxmlformats-officedocument.theme+xml',
   core: 'application/vnd.openxmlformats-package.core-properties+xml',
   app: 'application/vnd.openxmlformats-officedocument.extended-properties+xml',
+  table: 'application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml',
 } as const;
 
 const REL = {
@@ -54,6 +56,7 @@ const REL = {
   officeDocument: `${NS.docRels}/officeDocument`,
   coreProps: `${NS.packageRels}/metadata/core-properties`,
   extProps: `${NS.docRels}/extended-properties`,
+  table: `${NS.docRels}/table`,
 } as const;
 
 /**
@@ -68,8 +71,16 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     throw new Error('cannot write a workbook with no worksheets — a zero-sheet package is corrupt to Excel');
   }
 
+  // Tables are numbered globally across the workbook (their part names and ids must be
+  // unique), but relationship ids are local to each sheet's rels part.
+  let tableNumber = 0;
+  const sheetTables: PlannedTable[][] = sheets.map(sheet =>
+    sheet.tables.map((table, i) => ({table, number: ++tableNumber, relId: `rId${i + 1}`}))
+  );
+  const allTables = sheetTables.flat();
+
   const files: Record<string, Uint8Array> = {
-    '[Content_Types].xml': strToU8(contentTypesXml(sheets.length)),
+    '[Content_Types].xml': strToU8(contentTypesXml(sheets.length, allTables)),
     '_rels/.rels': strToU8(rootRelsXml()),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
     'docProps/app.xml': strToU8(appPropsXml()),
@@ -79,16 +90,32 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     'xl/theme/theme1.xml': strToU8(THEME1_XML),
   };
   sheets.forEach((sheet, i) => {
-    files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(worksheetXml(sheet));
+    const tables = sheetTables[i] ?? [];
+    files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(worksheetXml(sheet, tables));
+    if (tables.length > 0) {
+      files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(worksheetRelsXml(tables));
+    }
   });
+  for (const {table, number} of allTables) {
+    files[`xl/tables/table${number}.xml`] = strToU8(tableXml(table, number));
+  }
 
   return zipSync(files, {level: 6});
 }
 
-function contentTypesXml(sheetCount: number): string {
+// A table paired with the identifiers the package needs: a workbook-global part number
+// and the sheet-local relationship id that links its worksheet to the table part.
+interface PlannedTable {
+  readonly table: Table;
+  readonly number: number;
+  readonly relId: string;
+}
+
+function contentTypesXml(sheetCount: number, tables: readonly PlannedTable[]): string {
   const overrides = [
     override('/xl/workbook.xml', CT.workbook),
     ...range(sheetCount).map(i => override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet)),
+    ...tables.map(({number}) => override(`/xl/tables/table${number}.xml`, CT.table)),
     override('/xl/theme/theme1.xml', CT.theme),
     override('/xl/styles.xml', CT.styles),
     override('/docProps/core.xml', CT.core),
@@ -181,7 +208,11 @@ function appPropsXml(): string {
   );
 }
 
-function worksheetXml(sheet: Worksheet): string {
+function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[]): string {
+  // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
+  // rather than emit a package a consumer repairs on open.
+  validateMerges(sheet);
+
   const rowXml: string[] = [];
   let top = Infinity;
   let left = Infinity;
@@ -216,10 +247,83 @@ function worksheetXml(sheet: Worksheet): string {
     sheetFormatPr(sheet.properties) +
     colsXml(sheet) +
     sheetData +
+    mergeCellsXml(sheet.merges) +
     pageMarginsXml(sheet.pageMargins) +
     headerFooterXml(sheet.headerFooter) +
+    tablePartsXml(tables) +
     '</worksheet>'
   );
+}
+
+// Excel forbids a merged range from intersecting a formatted table; such a file opens as
+// corrupt. The writer is the OOXML gatekeeper for this cross-feature geometry conflict.
+function validateMerges(sheet: Worksheet): void {
+  if (sheet.merges.length === 0 || sheet.tables.length === 0) return;
+  for (const merge of sheet.merges) {
+    const {left, right, top, bottom} = decodeRange(merge);
+    if (left === undefined || right === undefined || top === undefined || bottom === undefined) continue;
+    for (const table of sheet.tables) {
+      const region = table.region;
+      const overlaps =
+        left <= region.right && right >= region.left && top <= region.bottom && bottom >= region.top;
+      if (overlaps) {
+        throw new Error(
+          `merged range ${merge} overlaps table "${table.name}" (${table.ref}) — Excel forbids a merge inside a table`
+        );
+      }
+    }
+  }
+}
+
+function mergeCellsXml(merges: readonly string[]): string {
+  if (merges.length === 0) return '';
+  const cells = merges.map(range => `<mergeCell ref="${escapeAttr(decodeRange(range).dimensions)}"/>`).join('');
+  return `<mergeCells count="${merges.length}">${cells}</mergeCells>`;
+}
+
+function tablePartsXml(tables: readonly PlannedTable[]): string {
+  if (tables.length === 0) return '';
+  const parts = tables.map(({relId}) => `<tablePart r:id="${relId}"/>`).join('');
+  return `<tableParts count="${tables.length}">${parts}</tableParts>`;
+}
+
+function worksheetRelsXml(tables: readonly PlannedTable[]): string {
+  const rels = tables
+    .map(({relId, number}) => relationship(relId, REL.table, `../tables/table${number}.xml`))
+    .join('');
+  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
+}
+
+function tableXml(table: Table, id: number): string {
+  const name = escapeAttr(table.name);
+  // headerRowCount defaults to 1 in OOXML, so only a headerless table needs it stated.
+  const headerRowCount = table.headerRow ? '' : ' headerRowCount="0"';
+  // totalsRowShown defaults to true; a table without a totals row must say so explicitly.
+  const totals = table.totalsRow ? ' totalsRowCount="1"' : ' totalsRowShown="0"';
+  const autoFilter =
+    table.autoFilterRef !== null ? `<autoFilter ref="${table.autoFilterRef}"/>` : '';
+  const columns = table.columns.map((column, i) => tableColumnXml(column, i + 1)).join('');
+  return (
+    XML_DECLARATION +
+    `<table xmlns="${NS.main}" id="${id}" name="${name}" displayName="${name}" ` +
+    `ref="${table.ref}"${headerRowCount}${totals}>` +
+    autoFilter +
+    `<tableColumns count="${table.columns.length}">${columns}</tableColumns>` +
+    '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" ' +
+    'showRowStripes="1" showColumnStripes="0"/>' +
+    '</table>'
+  );
+}
+
+function tableColumnXml(column: TableColumn, id: number): string {
+  let attrs = `id="${id}" name="${escapeAttr(column.name)}"`;
+  if (column.totalsRowLabel !== undefined) {
+    attrs += ` totalsRowLabel="${escapeAttr(column.totalsRowLabel)}"`;
+  }
+  if (column.totalsRowFunction !== undefined) {
+    attrs += ` totalsRowFunction="${escapeAttr(column.totalsRowFunction)}"`;
+  }
+  return `<tableColumn ${attrs}/>`;
 }
 
 // CT_HeaderFooter child order, paired with the flag their presence gates: the even- and

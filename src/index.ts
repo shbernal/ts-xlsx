@@ -45,6 +45,12 @@ export {
   type HeaderFooter,
 } from './core/worksheet.ts';
 export {
+  Table,
+  type TableColumn,
+  type TableOptions,
+  type TableRegion,
+} from './core/table.ts';
+export {
   Workbook,
   type WorkbookProperties,
   type AddWorksheetOptions,

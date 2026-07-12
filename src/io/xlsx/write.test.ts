@@ -296,3 +296,111 @@ test('<cols> is placed after <sheetFormatPr> and before <sheetData>', () => {
   const data = xml.indexOf('<sheetData>');
   assert.ok(fmt < cols && cols < data, `expected sheetFormatPr < cols < sheetData, got ${fmt},${cols},${data}`);
 });
+
+test('an empty-body table refs the full header row and writes a table part', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addTable({
+    name: 'T1',
+    ref: 'A1',
+    columns: [{name: 'Alpha'}, {name: 'Beta'}],
+    rowCount: 0,
+  });
+  const parts = partsOf(wb);
+  const table = parts['xl/tables/table1.xml'] as string;
+  assert.match(table, /ref="A1:B1"/);
+  assert.match(table, /<tableColumns count="2">/);
+  assert.match(table, /<autoFilter ref="A1:B1"\/>/);
+  assert.match(parts['[Content_Types].xml'] as string, /\/xl\/tables\/table1\.xml/);
+  assert.match(parts['xl/worksheets/_rels/sheet1.xml.rels'] as string, /Target="\.\.\/tables\/table1\.xml"/);
+  assert.match(parts['xl/worksheets/sheet1.xml'] as string, /<tableParts count="1"><tablePart r:id="rId1"\/><\/tableParts>/);
+});
+
+test('a data row extends the table ref by one row', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}, {name: 'B'}], rowCount: 1});
+  const table = partsOf(wb)['xl/tables/table1.xml'] as string;
+  assert.match(table, /ref="A1:B2"/);
+});
+
+test('a headerless table sets headerRowCount="0" and emits no autoFilter', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addTable({
+    name: 'H',
+    ref: 'A1',
+    columns: [{name: 'A'}, {name: 'B'}],
+    rowCount: 2,
+    headerRow: false,
+  });
+  const table = partsOf(wb)['xl/tables/table1.xml'] as string;
+  assert.match(table, /headerRowCount="0"/);
+  assert.doesNotMatch(table, /<autoFilter/);
+});
+
+test('a totals-row column serialises its function and keeps every column', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'Item', totalsRowLabel: 'Total'}, {name: 'Amount', totalsRowFunction: 'sum'}],
+    rowCount: 2,
+    totalsRow: true,
+  });
+  const table = partsOf(wb)['xl/tables/table1.xml'] as string;
+  assert.match(table, /ref="A1:B4"/);
+  assert.match(table, /totalsRowCount="1"/);
+  assert.match(table, /<tableColumn id="1" name="Item" totalsRowLabel="Total"\/>/);
+  assert.match(table, /<tableColumn id="2" name="Amount" totalsRowFunction="sum"\/>/);
+});
+
+test('an illegal table name is rejected at definition time', () => {
+  const s = new Workbook().addWorksheet('S');
+  assert.throws(() => s.addTable({name: "Bob's Accounts", ref: 'A1', columns: [{name: 'A'}], rowCount: 1}), /identifier/);
+  assert.throws(() => s.addTable({name: '1Digit', ref: 'A1', columns: [{name: 'A'}], rowCount: 1}), /identifier/);
+  assert.throws(() => s.addTable({name: 'test-name', ref: 'A1', columns: [{name: 'A'}], rowCount: 1}), /identifier/);
+});
+
+test('a valid identifier table name is written verbatim', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addTable({name: 'Valid_Name', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
+  const table = partsOf(wb)['xl/tables/table1.xml'] as string;
+  assert.match(table, /name="Valid_Name"/);
+  assert.match(table, /displayName="Valid_Name"/);
+});
+
+test('tables are numbered globally across sheets with sheet-local rel ids', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('One').addTable({name: 'Ta', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
+  wb.addWorksheet('Two').addTable({name: 'Tb', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
+  const parts = partsOf(wb);
+  assert.ok(parts['xl/tables/table1.xml'], 'first table part');
+  assert.ok(parts['xl/tables/table2.xml'], 'second table part (globally numbered)');
+  assert.match(parts['xl/worksheets/_rels/sheet2.xml.rels'] as string, /Target="\.\.\/tables\/table2\.xml"/);
+});
+
+test('a merge overlapping a table is rejected; a disjoint merge is written', () => {
+  const overlap = new Workbook();
+  const s1 = overlap.addWorksheet('S');
+  s1.addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}, {name: 'B'}], rowCount: 2});
+  s1.mergeCells('A2:B2');
+  assert.throws(() => writeXlsx(overlap), /overlaps table/);
+
+  const disjoint = new Workbook();
+  const s2 = disjoint.addWorksheet('S');
+  s2.addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}, {name: 'B'}], rowCount: 2});
+  s2.mergeCells('D5:E5');
+  const xml = partsOf(disjoint)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<mergeCells count="1"><mergeCell ref="D5:E5"\/><\/mergeCells>/);
+});
+
+test('<tableParts> follows <headerFooter> in the worksheet element order', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.headerFooter.oddHeader = 'H';
+  s.addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.ok(
+    xml.indexOf('<headerFooter') < xml.indexOf('<tableParts'),
+    'tableParts must follow headerFooter per CT_Worksheet'
+  );
+});

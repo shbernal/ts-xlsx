@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the first buffered `.xlsx` **writer** slice (`src/io/xlsx/`, on `fflate`) green vs `--adapter rewrite` at 23 green / 0 regressions (header/footer slice landed); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** (`src/io/xlsx/`, on `fflate`) green vs `--adapter rewrite` at 35 green / 0 regressions (tables + merges slice landed); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1118,15 +1118,31 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   (`pageMargins`, `headerFooter`, `tables`) turn known-opens green *now*, so the writer order is
   page-margins → header/footer → tables; merges/defined-names land alongside the reader that lets their
   cases assert.
-- **Latest corpus vs rewrite: 23 green / 3 known-open / 11 legacy known-opens resolved / 0 regressions /
-  620 skipped.** Newly resolved (`↑`): the `<headerFooter>` gating flags `differentOddEven` /
-  `differentFirst` are now set when the even/first variants are provided (legacy emitted the variant
-  elements but not the flags, so Excel ignored them). Prior slice resolved the partial-`<pageMargins>`
-  corruption. Further `↑` stand: out-of-range `<col>` dropped at 16384, outline `collapsed` no longer
-  misplaced on hidden detail rows. The remaining outline known-open (summary row must carry
-  `collapsed="1"`) needs outline-group inference; the `_xlfn.` modern-function prefix bug is still `○`
-  (legacy fails too). Legacy oracle unchanged: **424 green / 233 known-open / 0 regressions**. Gates
-  all green: `typecheck` clean, `test:src` 63/63.
+- **Tables slice landed** (2026-07-12): a new `src/core/table.ts` (`Table` model — validated Excel
+  identifier name, ≥1 column, derived geometry: `ref`/`autoFilterRef`/`region` computed from an anchor
+  + column/row counts, not a stored range string, so an empty/headerless/totals-bearing table each
+  refs correctly); `Worksheet` grew `addTable`/`tables` + minimal `mergeCells`/`merges`. The writer
+  now emits a full table sub-package: a global-numbered `xl/tables/tableN.xml` part (child order
+  autoFilter → tableColumns → tableStyleInfo), a per-sheet `xl/worksheets/_rels/sheetN.xml.rels`,
+  `<tableParts>` (after `<headerFooter>` per CT_Worksheet), and a content-type override; it derives
+  `headerRowCount="0"` + **no** autoFilter for a headerless table, drops autoFilter over the totals
+  row, and — as OOXML gatekeeper — **rejects a merge that overlaps a table** (Excel-invalid geometry).
+  Also emits `<mergeCells>` after `<sheetData>`. `tryWriteWorkbook` now reports `{ok:true}` on a
+  successful write (no case reads cell-survival from it — that stays the reader's job). Deliberate
+  deferral: the cell-reference-name-collision rule (`A1`) is **not** enforced — the corpus treats
+  `T1`/`T2` as valid table names, so enforcing it would regress a baseline-pass fixture; noted in
+  `table.ts`. Real-consumer check: legacy ExcelJS loads our table package and finds the table by name.
+- **Latest corpus vs rewrite: 35 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
+  603 skipped.** Newly resolved (`↑`) this slice: headerless table omits its autoFilter; illegal
+  table names (spaces/apostrophe, leading digit, hyphen) rejected at write; a merge overlapping a table
+  is surfaced as a conflict. Newly green (`✓`): empty-body table refs the full header row (`A1:B1`),
+  one-row extends it (`A1:B2`), totals-row column serialises its function and keeps every column,
+  header-bearing table carries autoFilter + `headerRowCount="1"`, disjoint merge writes, valid table
+  name round-trips. Prior `↑` stand (header/footer flags, partial-`<pageMargins>`, out-of-range `<col>`
+  drop, outline `collapsed`). The remaining outline known-open (summary row `collapsed="1"`) needs
+  outline-group inference; the `_xlfn.` modern-function prefix bug is still `○` (legacy fails too).
+  Legacy oracle unchanged: **424 green / 233 known-open / 0 regressions**. Gates all green:
+  `typecheck` clean, `test:src` 72/72.
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):

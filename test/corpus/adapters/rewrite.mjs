@@ -34,7 +34,9 @@ const notImplemented = message => {
 
 const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties']);
 const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
-const SUPPORTED_SHEET_KEYS = new Set(['name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageMargins', 'headerFooter']);
+const SUPPORTED_SHEET_KEYS = new Set([
+  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageMargins', 'headerFooter', 'tables', 'merges',
+]);
 const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden']);
@@ -43,6 +45,10 @@ const SUPPORTED_PAGE_MARGIN_KEYS = new Set(['left', 'right', 'top', 'bottom', 'h
 const SUPPORTED_HEADER_FOOTER_KEYS = new Set([
   'oddHeader', 'oddFooter', 'evenHeader', 'evenFooter', 'firstHeader', 'firstFooter',
 ]);
+const SUPPORTED_TABLE_KEYS = new Set([
+  'name', 'ref', 'headers', 'columnDefs', 'rows', 'headerRow', 'totalsRow',
+]);
+const SUPPORTED_TABLE_COLUMN_KEYS = new Set(['name', 'totalsRowLabel', 'totalsRowFunction']);
 
 const toDate = v => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
 
@@ -87,6 +93,34 @@ function buildFrom(spec = {}) {
       if (!SUPPORTED_HEADER_FOOTER_KEYS.has(k)) throw notImplemented(`headerFooter.${k} not supported yet`);
       sheet.headerFooter[k] = hf[k];
     }
+
+    for (const t of s.tables || []) {
+      for (const k of Object.keys(t)) {
+        if (!SUPPORTED_TABLE_KEYS.has(k)) throw notImplemented(`table.${k} not supported yet`);
+      }
+      let columns;
+      if (t.columnDefs) {
+        for (const cd of t.columnDefs) {
+          for (const k of Object.keys(cd)) {
+            if (!SUPPORTED_TABLE_COLUMN_KEYS.has(k)) throw notImplemented(`table.columnDefs.${k} not supported yet`);
+          }
+        }
+        columns = t.columnDefs.map(cd => {
+          const col = {name: cd.name};
+          if (cd.totalsRowLabel !== undefined) col.totalsRowLabel = cd.totalsRowLabel;
+          if (cd.totalsRowFunction !== undefined) col.totalsRowFunction = cd.totalsRowFunction;
+          return col;
+        });
+      } else {
+        columns = (t.headers || []).map(name => ({name}));
+      }
+      const options = {name: t.name, ref: t.ref, columns, rowCount: (t.rows || []).length};
+      if (t.headerRow !== undefined) options.headerRow = t.headerRow;
+      if (t.totalsRow !== undefined) options.totalsRow = t.totalsRow;
+      sheet.addTable(options);
+    }
+
+    for (const range of s.merges || []) sheet.mergeCells(range);
 
     for (const col of s.columns || []) {
       for (const k of Object.keys(col)) {
@@ -170,9 +204,9 @@ const impl = {
       if (error.notImplemented) throw error;
       return {ok: false, phase: 'write', error: String((error && error.message) || error)};
     }
-    // The write succeeded, but reporting which cells survived requires reading the
-    // package back — the reader slice will provide that, so skip until then.
-    throw notImplemented('tryWriteWorkbook read-back needs the reader');
+    // Whether the write succeeded or failed legibly is fully answerable without the reader;
+    // reporting which cells survived a round-trip is the reader's job (a separate capability).
+    return {ok: true};
   },
 };
 

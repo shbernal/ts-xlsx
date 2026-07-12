@@ -8,6 +8,7 @@
 
 import {decodeAddress} from './address.ts';
 import {Cell} from './cell.ts';
+import {Table, type TableOptions} from './table.ts';
 
 export interface WorksheetState {
   /** Sheet visibility, as Excel models it. Defaults to `visible`. */
@@ -94,6 +95,9 @@ export class Worksheet {
   // (a hidden column, a tall header row with no data yet) costs no phantom cells.
   readonly #columns = new Map<number, ColumnProperties>();
   readonly #rowProperties = new Map<number, RowProperties>();
+  // Tables and merged ranges are sheet-level overlays on the grid, not cell storage.
+  readonly #tables: Table[] = [];
+  readonly #merges: string[] = [];
 
   constructor(name: string, id: number, state: WorksheetState['state'] = 'visible') {
     this.name = name;
@@ -182,6 +186,34 @@ export class Worksheet {
       const cells = cols ? [...cols].sort(([a], [b]) => a - b).map(([, cell]) => cell) : [];
       yield {number, cells, properties: this.#rowProperties.get(number)};
     }
+  }
+
+  /**
+   * Define a table over a range of this sheet. The table's shape invariants (a legal
+   * name, at least one column, at least one row) are enforced here; conflicts with the
+   * rest of the sheet (e.g. an overlapping merge) are the writer's concern.
+   *
+   * @throws {Error} if the name, columns, or geometry are invalid.
+   */
+  addTable(options: TableOptions): Table {
+    const table = new Table(options);
+    this.#tables.push(table);
+    return table;
+  }
+
+  /** The tables defined on this sheet, in definition order. */
+  get tables(): readonly Table[] {
+    return this.#tables;
+  }
+
+  /** Merge a range of cells (`"A1:B2"`). Overlap validation happens at write time. */
+  mergeCells(range: string): void {
+    this.#merges.push(range);
+  }
+
+  /** The merged ranges on this sheet, in the order they were added. */
+  get merges(): readonly string[] {
+    return this.#merges;
   }
 
   #cellAt(row: number, col: number): Cell {
