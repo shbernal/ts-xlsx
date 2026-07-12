@@ -23,7 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-import {strFromU8, unzipSync} from 'fflate';
+import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {decodeAddress, decodeRange} from '../../../src/core/address.ts';
 import {Workbook} from '../../../src/core/workbook.ts';
@@ -228,6 +228,18 @@ function partMapOf(buffer) {
   return out;
 }
 
+// Rewrite named parts of a written package and read the result back — the way to feed the
+// reader the hand-edited OOXML forms real producers emit but the writer itself never generates
+// (an explicit-false boolean flag `<b val="0"/>`, an alignment element carrying only `wrapText="0"`,
+// an injected xf). `edits` maps a part path to a (xml) => xml transform; unlisted parts pass through.
+function reloadPatched(buffer, edits) {
+  const files = unzipSync(buffer);
+  for (const [name, transform] of Object.entries(edits)) {
+    files[name] = strToU8(transform(strFromU8(files[name])));
+  }
+  return readXlsx(zipSync(files));
+}
+
 // Parse an XML tag's attributes into a plain { name: value } map. base64 salt/hash values use
 // only XML-safe characters, so a naive quoted-value scan is sufficient here.
 function attrsOf(tag) {
@@ -289,6 +301,85 @@ const impl = {
       indices[ref] = m ? Number(m[1]) : null;
     }
     return {cellXfCount, indices};
+  },
+
+  // Author a bold cell, then rewrite the emitted <b/> flag to each explicit form and report how
+  // the reader reads bold back → { bareTag, valOne, valZero }. A boolean font flag's `val` governs:
+  // a bare tag or val="1" is on, val="0" is off — presence alone must not force true.
+  fontExplicitFalseBoldReport() {
+    const readBoldWith = tag => {
+      const wb = new Workbook();
+      const ws = wb.addWorksheet('S');
+      ws.getCell('A1').value = 'x';
+      ws.getCell('A1').font = {bold: true};
+      const reloaded = reloadPatched(writeXlsx(wb), {
+        'xl/styles.xml': xml => xml.replace(/<b ?\/>/, tag),
+      });
+      const font = reloaded.getWorksheet('S').getCell('A1').font;
+      return !!(font && font.bold);
+    };
+    return {
+      bareTag: readBoldWith('<b/>'),
+      valOne: readBoldWith('<b val="1"/>'),
+      valZero: readBoldWith('<b val="0"/>'),
+    };
+  },
+
+  // Author cells with italic/strike/underline on, rewrite each flag to its explicit-off form, and
+  // report what the reader reads back → { italic, strike, underline }. val="0" turns a boolean flag
+  // off; <u val="none"/> is the ABSENCE of an underline, so it must read back falsy — never the
+  // truthy string "none".
+  fontExplicitOffFlagsReport() {
+    const readWith = (baseFont, tagRe, tag, field) => {
+      const wb = new Workbook();
+      const ws = wb.addWorksheet('S');
+      ws.getCell('A1').value = 'x';
+      ws.getCell('A1').font = baseFont;
+      const reloaded = reloadPatched(writeXlsx(wb), {
+        'xl/styles.xml': xml => xml.replace(tagRe, tag),
+      });
+      const font = reloaded.getWorksheet('S').getCell('A1').font || {};
+      return font[field] ?? null;
+    };
+    return {
+      italic: readWith({italic: true}, /<i ?\/>/, '<i val="0"/>', 'italic'),
+      strike: readWith({strike: true}, /<strike ?\/>/, '<strike val="0"/>', 'strike'),
+      underline: readWith({underline: true}, /<u ?\/>/, '<u val="none"/>', 'underline'),
+    };
+  },
+
+  // Inject an xf whose alignment element carries only an explicit-false boolean (wrapText="0" /
+  // shrinkToFit="0"), point A1 at it, and report the alignment the reader surfaces → { wrapTextZero,
+  // shrinkZero }. An all-false alignment carries no information and must read back as no alignment
+  // at all — the raw "0" is a truthy JS string, so a reader guarding on the raw value rather than the
+  // parsed boolean would wrongly report a present alignment.
+  alignmentFalseBooleanReport() {
+    const readWithAlignment = alignAttr => {
+      const wb = new Workbook();
+      const ws = wb.addWorksheet('S');
+      ws.getCell('A1').value = 'x';
+      let injectedIndex = -1;
+      const reloaded = reloadPatched(writeXlsx(wb), {
+        'xl/styles.xml': xml => {
+          const count = Number(xml.match(/<cellXfs count="(\d+)">/)[1]);
+          injectedIndex = count;
+          return xml
+            .replace(/<cellXfs count="\d+">/, `<cellXfs count="${count + 1}">`)
+            .replace(
+              /<\/cellXfs>/,
+              `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">` +
+                `<alignment ${alignAttr}/></xf></cellXfs>`
+            );
+        },
+        'xl/worksheets/sheet1.xml': xml => xml.replace(/<c r="A1"([^>]*)>/, `<c r="A1" s="${injectedIndex}"$1>`),
+      });
+      const alignment = reloaded.getWorksheet('S').getCell('A1').alignment;
+      return alignment ? JSON.parse(JSON.stringify(alignment)) : null;
+    };
+    return {
+      wrapTextZero: readWithAlignment('wrapText="0"'),
+      shrinkZero: readWithAlignment('shrinkToFit="0"'),
+    };
   },
 
   // Read a real fixture `.xlsx` and report the fill and font colour the reader surfaces for each

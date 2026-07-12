@@ -403,7 +403,10 @@ function applyFontChild(draft: FontDraft, local: string, attrs: {readonly [k: st
       draft.outline = flagValue(attrs.val);
       break;
     case 'u':
-      draft.underline = attrs.val === undefined ? true : (attrs.val as UnderlineStyle);
+      // A bare <u/> is a single underline; a named style (single/double/…) carries through; but
+      // val="none" is the explicit ABSENCE of an underline, so it must read back falsy — not the
+      // truthy string "none" that a consumer's `if (font.underline)` would mistake for underlined.
+      draft.underline = attrs.val === undefined ? true : attrs.val === 'none' ? false : (attrs.val as UnderlineStyle);
       break;
     case 'vertAlign':
       if (attrs.val !== undefined) draft.vertAlign = attrs.val as FontVerticalAlignment;

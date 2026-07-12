@@ -341,6 +341,34 @@ test('an underline font round-trips: single stays single, a named variant keeps 
   assert.equal(back?.getCell('A2').font?.underline, 'double', 'a named underline keeps its variant');
 });
 
+test('a foreign font’s <u val="none"/> reads back as not underlined, not the truthy string "none"', () => {
+  // Real producers write <u val="none"/> for the explicit ABSENCE of an underline. Surfacing the
+  // literal "none" would be truthy — a consumer’s `if (font.underline)` would mistake it for an
+  // underline — so the reader must read it back falsy.
+  const files: Record<string, Uint8Array> = {
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/styles.xml': strToU8(
+      '<?xml version="1.0"?><styleSheet>' +
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><u val="none"/></font></fonts>' +
+        '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+        '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>'
+    ),
+  };
+  const underline = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').font?.underline;
+  assert.ok(!underline, `<u val="none"/> must read back falsy, not the truthy string "none"; got ${JSON.stringify(underline)}`);
+});
+
 test('a foreign font honours an explicit-false boolean flag rather than tag presence', () => {
   // A foreign generator writes <b/> (bold on) but <i val="0"/> (italic explicitly off). The
   // reader must honour the val — a present tag is not truthy on its own.
