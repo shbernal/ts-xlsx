@@ -192,6 +192,81 @@ test('many identically-filled cells collapse to one shared style entry in the pa
   assert.match(stylesXml, /<cellXfs count="2">/);
 });
 
+test('a custom cell number format round-trips byte-for-byte', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  const fmt = '_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)';
+  sheet.getCell('A1').value = 1234.5;
+  sheet.getCell('A1').numFmt = fmt;
+  sheet.getCell('B1').value = 'plain';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getCell('A1').numFmt, fmt, 'the custom format survives character-for-character');
+  assert.equal(back?.getCell('B1').numFmt, undefined, 'an unformatted cell reads back with no numFmt');
+});
+
+test('a column number format round-trips and is inherited by the column cells that carry no format', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getColumn(1).numFmt = '0.00%';
+  sheet.getColumn(2).numFmt = '"$"#,##0.00';
+  sheet.getCell('A1').value = 0.1;
+  sheet.getCell('B1').value = 3;
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getColumn(1).numFmt, '0.00%', 'column 1 keeps its own format');
+  assert.equal(back?.getColumn(2).numFmt, '"$"#,##0.00', 'column 2 keeps its own format, not the last-assigned one');
+  assert.equal(back?.getCell('A1').numFmt, '0.00%', 'a bare cell inherits its column format');
+  assert.equal(back?.getCell('B1').numFmt, '"$"#,##0.00', 'a bare cell inherits its own column, not a sibling’s');
+});
+
+test('a cell fill and its column number format both survive — overriding one facet keeps the other', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getColumn(1).numFmt = '0.00';
+  sheet.getCell('A1').value = 1;
+  sheet.getCell('A2').value = 2;
+  sheet.getCell('A2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFFFF00'}};
+  sheet.getCell('A3').value = 3;
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getCell('A2').fill?.fgColor?.argb, 'FFFFFF00', 'the filled cell keeps its fill');
+  for (const ref of ['A1', 'A2', 'A3']) {
+    assert.equal(back?.getCell(ref).numFmt, '0.00', `${ref} keeps the column number format`);
+  }
+  assert.equal(back?.getCell('A1').fill, undefined, 'a sibling does not pick up the fill');
+  assert.equal(back?.getCell('A3').fill, undefined, 'a sibling does not pick up the fill');
+});
+
+test('a built-in numFmt id on a foreign cell resolves to its standard format code', () => {
+  // A foreign generator names a built-in format by id with no <numFmt> entry; the reader
+  // resolves it from the standard table (id 10 = "0.00%").
+  const files: Record<string, Uint8Array> = {
+    '[Content_Types].xml': strToU8(
+      '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="xml" ContentType="application/xml"/></Types>'
+    ),
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/styles.xml': strToU8(
+      '<?xml version="1.0"?><styleSheet><fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+        '<xf numFmtId="10" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1" s="1"><v>0.5</v></c></row></sheetData></worksheet>'
+    ),
+  };
+  const back = readXlsx(zipSync(files)).getWorksheet('S');
+  assert.equal(back?.getCell('A1').numFmt, '0.00%');
+});
+
 test('the inflate bound rejects a part whose declared size is over the cap', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';

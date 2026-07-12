@@ -17,6 +17,7 @@ export class Cell {
 
   #value: CellValue = null;
   #fill: Fill | undefined;
+  #numFmt: string | undefined;
 
   constructor(row: number, col: number) {
     if (!Number.isInteger(row) || row < 1) {
@@ -59,5 +60,21 @@ export class Cell {
 
   set fill(fill: Fill | undefined) {
     this.#fill = fill;
+  }
+
+  /**
+   * The cell's number-format code (`"0.00%"`, a custom accounting format, …), or
+   * `undefined` for the General format. Stored verbatim: the invariant form Excel
+   * persists — `.` decimal, `,` grouping, `/` date separator — is neither localized
+   * nor rewritten, so the code round-trips character-for-character. Like {@link fill},
+   * each cell owns its own code; a cell that also carries a column-level format keeps
+   * both, so overriding one facet never drops the other.
+   */
+  get numFmt(): string | undefined {
+    return this.#numFmt;
+  }
+
+  set numFmt(numFmt: string | undefined) {
+    this.#numFmt = numFmt;
   }
 }

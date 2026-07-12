@@ -38,9 +38,9 @@ const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'mo
 const SUPPORTED_SHEET_KEYS = new Set([
   'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageMargins', 'headerFooter', 'tables', 'merges',
 ]);
-const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill']);
+const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill', 'numFmt']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
-const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden']);
+const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
 const SUPPORTED_PAGE_MARGIN_KEYS = new Set(['left', 'right', 'top', 'bottom', 'header', 'footer']);
 const SUPPORTED_HEADER_FOOTER_KEYS = new Set([
@@ -131,6 +131,7 @@ function buildFrom(spec = {}) {
       const target = sheet.getColumn(col.index);
       if (col.width !== undefined) target.width = col.width;
       if (col.hidden !== undefined) target.hidden = col.hidden;
+      if (col.numFmt !== undefined) target.numFmt = col.numFmt;
     }
 
     for (const row of s.rows || []) {
@@ -160,6 +161,7 @@ function buildFrom(spec = {}) {
         cell.value = v;
       }
       if (c.fill !== undefined) cell.fill = c.fill;
+      if (c.numFmt !== undefined) cell.numFmt = c.numFmt;
     }
   }
   return workbook;
@@ -177,6 +179,7 @@ function normalizeRewriteCell(cell) {
   // A style facet is reported only when the round-trip materialized it, matching the
   // contract that an unset facet is simply absent (never an empty placeholder).
   if (cell.fill !== undefined) out.fill = cell.fill;
+  if (cell.numFmt) out.numFmt = cell.numFmt;
   return out;
 }
 
@@ -227,7 +230,7 @@ const impl = {
       const columns = {};
       for (const col of s.columns || []) {
         const p = sheet.getColumn(col.index);
-        columns[col.index] = {width: p.width ?? null, hidden: !!p.hidden, numFmt: null};
+        columns[col.index] = {width: p.width ?? null, hidden: !!p.hidden, numFmt: p.numFmt ?? null};
       }
       const rows = {};
       for (const row of s.rows || []) {

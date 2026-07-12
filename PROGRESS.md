@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 58 green / 0 regressions (reader slice landed — write→read round-trips assert through the rewrite's own reader); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
+_Last updated: 2026-07-12 (**Phase 3 rebuild underway** — `src/core/address.ts` + the core in-memory model (`value`/`cell`/`worksheet`/`workbook`) + the buffered `.xlsx` **writer** and now a buffered **reader** (`src/io/xlsx/`, on `fflate`; XML read via a hand-written SAX parser, ADR 0004) green vs `--adapter rewrite` at 76 green / 0 regressions (styles now round-trip pattern fills **and** number formats through an interned, composed style table); independent Microsoft 365 OOXML validation added as a required CI oracle; Phase 1 harvest complete at 245 cases + 150 spec notes)._
 
 ---
 
@@ -1156,10 +1156,17 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   inherits its `customFormat` row's fill). A hostile-input note surfaced during the slice: the SAX parser
   emits no close event for self-closing tags, so the colourless `patternFill` (none/gray125) must be pushed
   on *open* to keep fill-id slots aligned — otherwise every foreign styles.xml mis-indexes.
-- **Latest corpus vs rewrite: 63 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
-  575 skipped.** The styles slice lit up the two pure-fill round-trips (58 → 63): a solid fill stays local
-  to its cell (no bleed onto row/column/sheet siblings), and a row-level fill is inherited only by that
-  row's cells. numFmt/font/border-dependent style cases stay gated on their still-unsupported keys. The
+- **Latest corpus vs rewrite: 76 green / 3 known-open / 16 legacy known-opens resolved / 0 regressions /
+  562 skipped.** The **number-format slice** lit up the numFmt cluster (63 → 76): a custom accounting
+  format round-trips byte-for-byte (no comma-drop, quoted literals/escapes intact), distinct per-column
+  numFmts stay independent, and — the shared-style-bleed fix — assigning a fill to one cell in a
+  formatted column keeps the column's number format on that cell and every sibling. The writer composes
+  each cell's *full* style (cell overrides atop row/column defaults) into one interned xf, so overriding
+  one facet never drops another; the reader parses `<numFmts>` (+ the ECMA-376 built-in id table for
+  foreign files) and resolves cell/column/row style precedence. Only the date-value numFmt behavior stays
+  `∅` (gated on structured date values). The earlier styles slice lit up the two pure-fill round-trips
+  (58 → 63): a solid fill stays local to its cell (no bleed onto row/column/sheet siblings), and a
+  row-level fill is inherited only by that row's cells. The
   reader earlier lit up 23 round-trip cases (35 → 58): scalar-type fidelity (a digit-string
   `"10"`/zero-padded `"007"` stays a string, `15` stays a number), formulas with markup-significant
   operators (`<`, `>`, `&`) round-trip verbatim, merged-range count/geometry survives, explicit row
@@ -1167,8 +1174,8 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
   created/modified) read back unchanged, and `rowCount` spans a row gap while `actualRowCount` excludes
   it. The `_xlfn.` modern-function prefix bug is still `○` (legacy fails too); outline summary-row
   `collapsed` inference remains open. Legacy oracle unchanged: **424 green / 233 known-open / 0
-  regressions**. Gates all green: `typecheck` clean, `test:src` **109/109** (+37: SAX + reader
-  round-trip + StyleRegistry/fill units).
+  regressions**. Gates all green: `typecheck` clean, `test:src` **116/116** (+7: numFmt interning +
+  cell/column round-trip + foreign built-in-id resolution).
 - **Gates wired:** `npm run typecheck` (strict `tsc --noEmit`, TypeScript 5.x), `npm run test:src`
   (native `node --test` on `.ts`), `npm run corpus:rewrite`. Toolchain rationale in
   [`docs/decisions/0001-rewrite-runtime-and-toolchain.md`](docs/decisions/0001-rewrite-runtime-and-toolchain.md):
@@ -1214,11 +1221,12 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
 `STRATEGY.md` build order (**core model → XML layer → xlsx r/w → streaming → csv**):
 
 1. **Deepen the styles surface — both directions, one facet per corpus win.** Writer and reader now
-   round-trip **pattern fills** (per-cell + row-inherited) through a shared `StyleRegistry` that interns
-   fills/cellXfs. The next facets, in the order the corpus rewards them: **number formats** (`numFmt`
-   on cells *and* columns — unlocks `per-cell-style-does-not-leak-to-column-siblings`,
-   `per-column-numfmt-stays-independent`, `custom-numfmt-string-roundtrips-verbatim`, and the
-   `styleDedupReport` capability once a differently-formatted cell can exist), then **fonts** (bold/
+   round-trip **pattern fills** (per-cell + row-inherited) *and* **number formats** (`numFmt` on cells
+   and columns, cell-inherits-column, `<numFmts>` + ECMA-376 built-in id table) through a shared
+   `StyleRegistry` that interns numFmts/fills/cellXfs and composes each cell's full style. The next
+   facets, in the order the corpus rewards them: the **`styleDedupReport` adapter capability**
+   (dedup already works — this just needs the adapter to expose xf indices + `cellXfs` count from the
+   written package; lights `shared-styles-deduplicated-in-written-package`), then **fonts** (bold/
    color/name → `<fonts>`; theme-color fonts unlock `themed-workbook-mutate-write-stays-valid`),
    **borders**, and **alignment**. Each extends the `StyleRegistry` xf signature + the reader's
    xf-resolution and drops another key from the adapter feature-gate. Also worth a small slice:

@@ -219,6 +219,14 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
   // rather than emit a package a consumer repairs on open.
   validateMerges(sheet);
 
+  // Column number formats are defaults a cell inherits unless it overrides them; the writer
+  // composes each cell's full style up front so a cell that overrides one facet (say a fill)
+  // still carries the column's format, rather than silently dropping it.
+  const columnNumFmt = new Map<number, string>();
+  for (const {index, properties} of sheet.columns()) {
+    if (properties.numFmt !== undefined) columnNumFmt.set(index, properties.numFmt);
+  }
+
   const rowXml: string[] = [];
   let top = Infinity;
   let left = Infinity;
@@ -230,7 +238,16 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
     const attrs = rowAttrs(properties, styles);
     // A row with neither data nor its own formatting has nothing to serialise.
     if (populated.length === 0 && attrs === '') continue;
-    rowXml.push(`<row r="${number}"${attrs}>${populated.map(cell => cellXml(cell, styles)).join('')}</row>`);
+    const rowFill = properties?.fill;
+    const cellsXml = populated
+      .map(cell => {
+        // Cell overrides win over row/column defaults; a cell with any facet gets its own,
+        // fully-composed style entry so no default facet is lost to the override.
+        const style = styles.styleId({fill: cell.fill ?? rowFill, numFmt: cell.numFmt ?? columnNumFmt.get(cell.col)});
+        return cellXml(cell, style);
+      })
+      .join('');
+    rowXml.push(`<row r="${number}"${attrs}>${cellsXml}</row>`);
     for (const cell of populated) {
       if (number < top) top = number;
       if (number > bottom) bottom = number;
@@ -251,7 +268,7 @@ function worksheetXml(sheet: Worksheet, tables: readonly PlannedTable[], styles:
     `<dimension ref="${dimensionRef}"/>` +
     '<sheetViews><sheetView workbookViewId="0"/></sheetViews>' +
     sheetFormatPr(sheet.properties) +
-    colsXml(sheet) +
+    colsXml(sheet, styles) +
     sheetData +
     mergeCellsXml(sheet.merges) +
     pageMarginsXml(sheet.pageMargins) +
@@ -382,19 +399,19 @@ function sheetFormatPr(properties: WorksheetProperties): string {
   return `<sheetFormatPr${attrs}/>`;
 }
 
-function colsXml(sheet: Worksheet): string {
+function colsXml(sheet: Worksheet, styles: StyleRegistry): string {
   const cols: string[] = [];
   for (const {index, properties} of sheet.columns()) {
     // OOXML has no column past XFD (16384); a definition beyond it is corrupt to Excel,
     // so drop it rather than emit an out-of-range <col> range.
     if (index > MAX_COLUMN) continue;
-    const col = colXml(index, properties);
+    const col = colXml(index, properties, styles);
     if (col !== '') cols.push(col);
   }
   return cols.length === 0 ? '' : `<cols>${cols.join('')}</cols>`;
 }
 
-function colXml(index: number, properties: ColumnProperties): string {
+function colXml(index: number, properties: ColumnProperties, styles: StyleRegistry): string {
   let attrs = `min="${index}" max="${index}"`;
   let meaningful = false;
   if (properties.width !== undefined) {
@@ -405,7 +422,14 @@ function colXml(index: number, properties: ColumnProperties): string {
     attrs += ' hidden="1"';
     meaningful = true;
   }
-  // A <col> with no width or visibility says nothing; omit it entirely.
+  // A column-level number format is carried as the column's own style; its cells inherit it
+  // via the composition above, and Excel applies it to the column's empty cells too.
+  const style = styles.styleId({numFmt: properties.numFmt});
+  if (style !== 0) {
+    attrs += ` style="${style}"`;
+    meaningful = true;
+  }
+  // A <col> with no width, visibility, or style says nothing; omit it entirely.
   return meaningful ? `<col ${attrs}/>` : '';
 }
 
@@ -420,15 +444,14 @@ function rowAttrs(properties: RowProperties | undefined, styles: StyleRegistry):
   if (properties.collapsed) attrs += ' collapsed="1"';
   // A row-level fill is a default format for the row's cells; customFormat="1" is what makes
   // Excel honour the row's `s`, and a cell without its own `s` then inherits it.
-  const style = styles.styleId(properties.fill);
+  const style = styles.styleId({fill: properties.fill});
   if (style !== 0) attrs += ` s="${style}" customFormat="1"`;
   return attrs;
 }
 
-function cellXml(cell: Cell, styles: StyleRegistry): string {
+function cellXml(cell: Cell, style: number): string {
   const ref = cell.address;
   const value = cell.value;
-  const style = styles.styleId(cell.fill);
   const s = style !== 0 ? ` s="${style}"` : '';
 
   if (isFormulaValue(value)) {

@@ -59,6 +59,8 @@ export interface ColumnProperties {
   width?: number;
   /** Whether the column is hidden. */
   hidden?: boolean;
+  /** Number-format code applied to the column's cells that carry no format of their own. */
+  numFmt?: string;
 }
 
 /** Per-row formatting. A row may exist purely to carry these, with no cells. */

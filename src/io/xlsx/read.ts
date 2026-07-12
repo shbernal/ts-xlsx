@@ -62,9 +62,10 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
 
   const rels = parseRelationships(partText('xl/_rels/workbook.xml.rels') ?? '');
   const sharedStrings = parseSharedStrings(partText('xl/sharedStrings.xml') ?? '');
-  // The style table resolves a cell/row `s` index to its fill; a package without one
-  // (a hand-rolled foreign file) yields an empty table and every `s` reads as unstyled.
-  const xfFills = parseStyleFills(partText('xl/styles.xml') ?? '');
+  // The style table resolves a cell/row/column style index to its facets (fill, number
+  // format); a package without one (a hand-rolled foreign file) yields an empty table and
+  // every index reads as unstyled.
+  const xfStyles = parseStyleTable(partText('xl/styles.xml') ?? '');
 
   const workbook = new Workbook();
   const core = partText('docProps/core.xml');
@@ -75,7 +76,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     const sheet = workbook.addWorksheet(name);
     const path = target === undefined ? undefined : resolveWorkbookPart(target);
     const sheetXml = path === undefined ? undefined : partText(path);
-    if (sheetXml !== undefined) parseWorksheet(sheetXml, sheet, sharedStrings, xfFills);
+    if (sheetXml !== undefined) parseWorksheet(sheetXml, sheet, sharedStrings, xfStyles);
   }
   return workbook;
 }
@@ -148,15 +149,36 @@ function parseSharedStrings(xml: string): string[] {
   return strings;
 }
 
-// styles.xml is a shared table: <fills> lists the fills, <cellXfs> lists the cell formats,
-// each naming a fill by id. We flatten that indirection into one array — cellXfs index →
-// resolved fill — so a cell's `s` attribute maps straight to its fill. Only fills are read
-// today; other facets on an xf are ignored until their model lands. `<fills>` always
-// precedes `<cellXfs>` in the schema, so the fill list is complete before an xf references it.
-function parseStyleFills(xml: string): ReadonlyArray<Fill | undefined> {
+// The style facets an xf resolves to. Absent facets stay undefined, matching the contract
+// that an unset facet is simply not present on the reconstructed cell.
+interface XfStyle {
+  readonly fill?: Fill;
+  readonly numFmt?: string;
+}
+
+// ECMA-376 reserves numFmt ids below 164 for formats every consumer knows implicitly, so a
+// foreign file may name one with no <numFmt> entry. This maps the standard ids to their
+// codes; id 0 (General) and any unknown id resolve to no format. The writer never emits
+// these — it always defines a custom id — but reading them keeps foreign files faithful.
+const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
+  [1, '0'], [2, '0.00'], [3, '#,##0'], [4, '#,##0.00'],
+  [9, '0%'], [10, '0.00%'], [11, '0.00E+00'], [12, '# ?/?'], [13, '# ??/??'],
+  [14, 'mm-dd-yy'], [15, 'd-mmm-yy'], [16, 'd-mmm'], [17, 'mmm-yy'],
+  [18, 'h:mm AM/PM'], [19, 'h:mm:ss AM/PM'], [20, 'h:mm'], [21, 'h:mm:ss'], [22, 'm/d/yy h:mm'],
+  [37, '#,##0 ;(#,##0)'], [38, '#,##0 ;[Red](#,##0)'], [39, '#,##0.00;(#,##0.00)'], [40, '#,##0.00;[Red](#,##0.00)'],
+  [45, 'mm:ss'], [46, '[h]:mm:ss'], [47, 'mmss.0'], [48, '##0.0E+0'], [49, '@'],
+]);
+
+// styles.xml is a shared table: <numFmts> defines custom format codes by id, <fills> lists
+// the fills, and <cellXfs> lists the cell formats, each naming a fill and a number format by
+// id. We flatten that indirection into one array — cellXfs index → resolved {fill, numFmt} —
+// so a cell/row/column style index maps straight to its facets. The schema orders <numFmts>
+// and <fills> before <cellXfs>, so both lookups are complete before an xf references them.
+function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
   if (xml === '') return [];
   const fills: Array<Fill | undefined> = [];
-  const xfFills: Array<Fill | undefined> = [];
+  const numFmtCodes = new Map<number, string>();
+  const xfStyles: XfStyle[] = [];
   let inFills = false;
   let inCellXfs = false;
   let pattern = '';
@@ -166,6 +188,15 @@ function parseStyleFills(xml: string): ReadonlyArray<Fill | undefined> {
   parseXml(xml, {
     onOpen(name, attrs, selfClosing) {
       switch (localName(name)) {
+        case 'numFmt': {
+          // <numFmts> entries are self-closing, so they are read here on open. A code with
+          // no id, or the General id 0, contributes nothing.
+          const id = Number(attrs.numFmtId);
+          if (Number.isInteger(id) && id > 0 && attrs.formatCode !== undefined) {
+            numFmtCodes.set(id, attrs.formatCode);
+          }
+          break;
+        }
         case 'fills':
           inFills = true;
           break;
@@ -192,7 +223,10 @@ function parseStyleFills(xml: string): ReadonlyArray<Fill | undefined> {
           // cellStyleXfs also holds <xf>; only those inside <cellXfs> are cell references.
           if (inCellXfs) {
             const fillId = Number(attrs.fillId);
-            xfFills.push(Number.isInteger(fillId) ? fills[fillId] : undefined);
+            const fill = Number.isInteger(fillId) ? fills[fillId] : undefined;
+            const numFmt = resolveNumFmt(attrs.numFmtId, numFmtCodes);
+            const style: XfStyle = {...(fill ? {fill} : {}), ...(numFmt !== undefined ? {numFmt} : {})};
+            xfStyles.push(style);
           }
           break;
         default:
@@ -216,7 +250,16 @@ function parseStyleFills(xml: string): ReadonlyArray<Fill | undefined> {
       }
     },
   });
-  return xfFills;
+  return xfStyles;
+}
+
+// An xf's numFmtId resolves against the custom codes first, then the built-in table; the
+// General format (id 0) and any unrecognised id mean the cell carries no explicit format.
+function resolveNumFmt(raw: string | undefined, custom: ReadonlyMap<number, string>): string | undefined {
+  if (raw === undefined) return undefined;
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id === 0) return undefined;
+  return custom.get(id) ?? BUILTIN_NUMFMTS.get(id);
 }
 
 function toFill(pattern: string, fgColor: Color | undefined, bgColor: Color | undefined): Fill | undefined {
@@ -283,11 +326,12 @@ function parseWorksheet(
   xml: string,
   sheet: Worksheet,
   sharedStrings: readonly string[],
-  xfFills: ReadonlyArray<Fill | undefined>
+  xfStyles: ReadonlyArray<XfStyle>
 ): void {
   let cellRef = '';
   let cellType = '';
   let cellStyle = -1;
+  let cellCol = -1;
   let formula = '';
   let valueText = '';
   let inlineText = '';
@@ -296,9 +340,13 @@ function parseWorksheet(
   let inInlineString = false;
   let capture = false;
   let text = '';
-  // A row with customFormat="1" supplies a default fill for its cells that carry no `s`.
+  // A row with customFormat="1" supplies a default style for its cells that carry no `s`.
   let rowStyle = -1;
   let rowCustomFormat = false;
+  // A column's `style` is the default for its cells that carry no style of their own; this
+  // maps a column index to that style index so a bare cell can inherit it (as Excel does,
+  // without stamping every cell). Columns are parsed before any cell references them.
+  const columnStyle = new Map<number, number>();
 
   parseXml(xml, {
     onOpen(name, attrs, selfClosing) {
@@ -307,7 +355,7 @@ function parseWorksheet(
       capture = false;
       switch (local) {
         case 'col':
-          applyColumn(sheet, attrs);
+          applyColumn(sheet, attrs, xfStyles, columnStyle);
           break;
         case 'row':
           applyRow(sheet, attrs);
@@ -318,6 +366,7 @@ function parseWorksheet(
           cellRef = attrs.r ?? '';
           cellType = attrs.t ?? '';
           cellStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
+          cellCol = cellRef === '' ? -1 : decodeAddress(cellRef).col ?? -1;
           formula = '';
           valueText = '';
           inlineText = '';
@@ -366,14 +415,16 @@ function parseWorksheet(
           break;
         case 'c': {
           if (cellRef === '') break;
-          // A cell's own style wins; a cell without one inherits its row's format fill.
-          const fill =
+          // A cell's own style wins; without one it inherits its row's format (when the row
+          // is customFormat), else its column's style — the order Excel resolves defaults in.
+          const styleIndex =
             cellStyle >= 0
-              ? xfFills[cellStyle]
+              ? cellStyle
               : rowCustomFormat && rowStyle >= 0
-                ? xfFills[rowStyle]
-                : undefined;
-          finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, sharedStrings, fill);
+                ? rowStyle
+                : columnStyle.get(cellCol) ?? -1;
+          const style = styleIndex >= 0 ? xfStyles[styleIndex] : undefined;
+          finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, sharedStrings, style);
           break;
         }
         case 'row':
@@ -388,16 +439,26 @@ function parseWorksheet(
   });
 }
 
-function applyColumn(sheet: Worksheet, attrs: {readonly [k: string]: string}): void {
+function applyColumn(
+  sheet: Worksheet,
+  attrs: {readonly [k: string]: string},
+  xfStyles: ReadonlyArray<XfStyle>,
+  columnStyle: Map<number, number>
+): void {
   const min = Number(attrs.min);
   const max = Number(attrs.max);
   if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1) return;
   const width = attrs.width !== undefined ? Number(attrs.width) : undefined;
   const hidden = attrs.hidden === '1' || attrs.hidden === 'true';
+  const styleIndex = attrs.style !== undefined ? Number(attrs.style) : -1;
+  const numFmt = styleIndex >= 0 ? xfStyles[styleIndex]?.numFmt : undefined;
   for (let index = min; index <= max; index++) {
     const properties = sheet.getColumn(index);
     if (width !== undefined && Number.isFinite(width) && attrs.customWidth !== '0') properties.width = width;
     if (hidden) properties.hidden = true;
+    if (numFmt !== undefined) properties.numFmt = numFmt;
+    // Record the column's style so a bare cell in it can inherit the column format on read.
+    if (styleIndex >= 0) columnStyle.set(index, styleIndex);
   }
 }
 
@@ -436,12 +497,13 @@ function finalizeCell(
   valueText: string,
   inlineText: string,
   sharedStrings: readonly string[],
-  fill: Fill | undefined
+  style: XfStyle | undefined
 ): void {
   const {col, row} = decodeAddress(ref);
   if (col === undefined || row === undefined) return;
   const cell = sheet.getCell(ref);
-  if (fill !== undefined) cell.fill = fill;
+  if (style?.fill !== undefined) cell.fill = style.fill;
+  if (style?.numFmt !== undefined) cell.numFmt = style.numFmt;
 
   if (hasFormula) {
     const result = hasValue ? decodeResult(type, valueText) : undefined;
