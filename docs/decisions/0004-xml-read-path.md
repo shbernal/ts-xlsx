@@ -47,10 +47,18 @@ same primitive that path will extend, not throwaway work.
   in code we own and test; the SAX primitive is what the streaming reader will extend;
   escaping (write) and entity-decoding (read) are each one small audited surface.
 - **Negative / deferred:** we own XML edge cases (attribute quoting, CDATA, comments,
-  processing instructions, `xml:space`) — covered by unit tests. The inflate bound uses
-  the zip's *declared* uncompressed size; a header-lying bomb (declares small, inflates
-  large) needs the streaming inflate with a running byte counter, which lands with the
-  streaming reader slice. This is documented, not silently assumed.
+  processing instructions, `xml:space`) — covered by unit tests.
 - **Revisit when:** a real-world file exercises an XML construct the lean parser does
-  not cover (record it as a corpus fixture first), or the streaming reader needs the
-  hard, running-counter inflate bound.
+  not cover (record it as a corpus fixture first).
+
+## Update (2026-07-13) — the inflate bound no longer trusts declared sizes
+
+The original slice bounded inflation by the zip's *declared* uncompressed size, and flagged
+the gap: a header-lying bomb (declares small, inflates large) slips past, and — worse —
+trusting the declared size to preallocate lets an attacker force a large allocation from a
+few compressed bytes. Both are now closed by `src/io/xlsx/inflate.ts`: the package is fed to
+fflate's streaming unzip in bounded slices, the decompressor grows its output from the bytes
+it *actually* produces, and a running counter aborts the moment real output crosses the cap.
+Declared sizes are consulted for nothing. `maxUncompressedBytes` now bounds produced output,
+not header claims. This is the first slice of the streaming reader; the same streaming-inflate
+primitive is what an eventual row-streaming (`.eachRow`) read path extends.

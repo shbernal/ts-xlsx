@@ -8,11 +8,11 @@
 // grows; an unrecognised construct is skipped rather than guessed, so a foreign file reads
 // without crashing even where a facet is not yet materialised.
 //
-// Untrusted input: inflate is bounded here (a declared-size cap rejects the naïve zip
-// bomb), and the parser (ADR 0004) never expands entities. See ADR 0004 for the honest
-// limits of the declared-size bound.
+// Untrusted input: inflate is bounded by a running byte counter (`./inflate.ts`) that caps
+// actual decompressed output rather than trusting the archive's forgeable size headers, and
+// the parser (ADR 0004) never expands entities.
 
-import {unzipSync, strFromU8, type UnzipFileInfo} from 'fflate';
+import {strFromU8} from 'fflate';
 
 import {decodeAddress} from '../../core/address.ts';
 import {isDateFormat, serialToDate} from '../../core/date.ts';
@@ -42,13 +42,15 @@ import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {parseDrawing} from './images.ts';
+import {inflatePackage} from './inflate.ts';
 import {localName, parseXml} from './xml-read.ts';
 
 export interface ReadXlsxOptions {
   /**
-   * Maximum total *declared* uncompressed bytes across all package parts. A zip that
-   * claims to inflate past this is rejected as a probable bomb before the parser runs.
-   * Defaults to 512 MiB.
+   * Maximum total uncompressed output, in bytes, produced while inflating the package.
+   * The bound is enforced by a running counter as bytes are decompressed — never read from
+   * the archive's (untrusted, forgeable) size headers — so a zip bomb that lies about its
+   * uncompressed size is rejected all the same. Defaults to 512 MiB.
    */
   readonly maxUncompressedBytes?: number;
 }
@@ -64,16 +66,7 @@ const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as c
  */
 export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
   const cap = options.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  let declared = 0;
-  const files = unzipSync(data, {
-    filter(file: UnzipFileInfo): boolean {
-      declared += file.originalSize;
-      if (declared > cap) {
-        throw new Error(`refusing to inflate: declared uncompressed size exceeds ${cap} bytes (possible zip bomb)`);
-      }
-      return true;
-    },
-  });
+  const files = inflatePackage(data, cap);
 
   const partText = (path: string): string | undefined => {
     const bytes = files[path];
