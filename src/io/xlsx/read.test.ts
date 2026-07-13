@@ -894,3 +894,101 @@ test('outline flags survive a worksheet model export/import', () => {
   dst.model = src.model;
   assert.equal(dst.outline.summaryBelow, false);
 });
+
+test('a fit-to-page setup round-trips its flag, counts, and scale', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.pageSetup.fitToPage = true;
+  sheet.pageSetup.fitToWidth = 1;
+  sheet.pageSetup.fitToHeight = 0;
+  sheet.pageSetup.scale = 80;
+  sheet.getCell('A1').value = 'x';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.pageSetup.fitToPage, true);
+  assert.equal(back?.pageSetup.fitToWidth, 1);
+  assert.equal(back?.pageSetup.fitToHeight, 0);
+  assert.equal(back?.pageSetup.scale, 80);
+});
+
+test('the fit-to-page flag rides <pageSetUpPr> under <sheetPr>, the counts ride <pageSetup>', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.pageSetup.fitToPage = true;
+  sheet.pageSetup.fitToWidth = 1;
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.match(xml, /<sheetPr><pageSetUpPr fitToPage="1"\/><\/sheetPr>/);
+  assert.match(xml, /<pageSetup fitToWidth="1"\/>/);
+});
+
+test('<pageSetUpPr> follows <outlinePr> under <sheetPr> in CT_SheetPr order', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.outline.summaryBelow = false;
+  sheet.pageSetup.fitToPage = true;
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.match(xml, /<sheetPr><outlinePr summaryBelow="0"\/><pageSetUpPr fitToPage="1"\/><\/sheetPr>/);
+});
+
+test('<pageSetup> sits between <pageMargins> and <headerFooter>', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.pageMargins.top = 1;
+  sheet.pageSetup.scale = 90;
+  sheet.headerFooter.oddHeader = 'H';
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.ok(xml.indexOf('<pageMargins') < xml.indexOf('<pageSetup'), 'pageSetup follows pageMargins');
+  assert.ok(xml.indexOf('<pageSetup') < xml.indexOf('<headerFooter'), 'pageSetup precedes headerFooter');
+});
+
+test('orientation and pageOrder round-trip and emit only when set', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.pageSetup.orientation = 'landscape';
+  sheet.pageSetup.pageOrder = 'overThenDown';
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.match(xml, /<pageSetup pageOrder="overThenDown" orientation="landscape"\/>/);
+  assert.doesNotMatch(xml, /scale=|fitToWidth=|fitToHeight=/);
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.pageSetup.orientation, 'landscape');
+  assert.equal(back?.pageSetup.pageOrder, 'overThenDown');
+});
+
+test('a sheet with no page setup emits neither <pageSetUpPr> nor <pageSetup>', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'y';
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.doesNotMatch(xml, /<pageSetUpPr/);
+  assert.doesNotMatch(xml, /<pageSetup/);
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.pageSetup.fitToPage, undefined);
+  assert.equal(back?.pageSetup.scale, undefined);
+});
+
+test('a <pageSetUpPr> present only for other reasons leaves fitToPage unset', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'y';
+  const files = unzipSync(writeXlsx(wb));
+  files['xl/worksheets/sheet1.xml'] = strToU8(
+    strFromU8(files['xl/worksheets/sheet1.xml']!).replace('<dimension', '<sheetPr><pageSetUpPr autoPageBreaks="0"/></sheetPr><dimension')
+  );
+  const back = readXlsx(zipSync(files)).getWorksheet('S');
+  assert.equal(back?.pageSetup.fitToPage, undefined);
+});
+
+test('page setup survives a worksheet model export/import', () => {
+  const wb = new Workbook();
+  const src = wb.addWorksheet('Src');
+  src.pageSetup.fitToPage = true;
+  src.pageSetup.scale = 75;
+  const dst = wb.addWorksheet('Dst');
+  dst.model = src.model;
+  assert.equal(dst.pageSetup.fitToPage, true);
+  assert.equal(dst.pageSetup.scale, 75);
+});

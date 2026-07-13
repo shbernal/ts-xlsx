@@ -38,7 +38,7 @@ import type {
 } from '../../core/style.ts';
 import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import type {PageMargins, Worksheet} from '../../core/worksheet.ts';
+import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {parseDrawing} from './images.ts';
 import {localName, parseXml} from './xml-read.ts';
@@ -808,8 +808,17 @@ function parseWorksheet(
           if (attrs.summaryBelow !== undefined) sheet.outline.summaryBelow = flagValue(attrs.summaryBelow);
           if (attrs.summaryRight !== undefined) sheet.outline.summaryRight = flagValue(attrs.summaryRight);
           break;
+        case 'pageSetUpPr':
+          // The fit-to-page flag, a self-closing `<sheetPr>` child. Recorded only when the source
+          // carried the attribute, so a `<pageSetUpPr>` present for other reasons (e.g.
+          // `autoPageBreaks`) leaves `pageSetup.fitToPage` unset.
+          if (attrs.fitToPage !== undefined) sheet.pageSetup.fitToPage = flagValue(attrs.fitToPage);
+          break;
         case 'pageMargins':
           applyMargins(sheet.pageMargins, attrs);
+          break;
+        case 'pageSetup':
+          applyPageSetup(sheet.pageSetup, attrs);
           break;
         case 'sheetProtection': {
           const protection = parseSheetProtection(attrs);
@@ -922,6 +931,30 @@ function applyMargins(margins: PageMargins, attrs: {readonly [k: string]: string
     if (raw === undefined) continue;
     const value = Number(raw);
     if (Number.isFinite(value)) margins[side] = value;
+  }
+}
+
+// Read the `<pageSetup>` print-scaling attributes back onto the model, setting only those the
+// source carried so a re-write stays byte-clean. Numeric attributes that fail to parse are
+// dropped rather than stored as NaN; the enumerated ones are trusted verbatim (an unexpected token
+// round-trips harmlessly as an unknown string).
+function applyPageSetup(pageSetup: PageSetup, attrs: {readonly [k: string]: string}): void {
+  const num = (raw: string | undefined): number | undefined => {
+    if (raw === undefined) return undefined;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : undefined;
+  };
+  const scale = num(attrs.scale);
+  if (scale !== undefined) pageSetup.scale = scale;
+  const fitToWidth = num(attrs.fitToWidth);
+  if (fitToWidth !== undefined) pageSetup.fitToWidth = fitToWidth;
+  const fitToHeight = num(attrs.fitToHeight);
+  if (fitToHeight !== undefined) pageSetup.fitToHeight = fitToHeight;
+  if (attrs.pageOrder === 'downThenOver' || attrs.pageOrder === 'overThenDown') {
+    pageSetup.pageOrder = attrs.pageOrder;
+  }
+  if (attrs.orientation === 'portrait' || attrs.orientation === 'landscape') {
+    pageSetup.orientation = attrs.orientation;
   }
 }
 

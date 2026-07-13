@@ -55,13 +55,14 @@ const notImplemented = message => {
 const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties']);
 const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
 const SUPPORTED_SHEET_KEYS = new Set([
-  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageMargins', 'headerFooter', 'tables', 'merges',
+  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges',
 ]);
 const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt', 'fill', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
 const SUPPORTED_PAGE_MARGIN_KEYS = new Set(['left', 'right', 'top', 'bottom', 'header', 'footer']);
+const SUPPORTED_PAGE_SETUP_KEYS = new Set(['fitToPage', 'fitToWidth', 'fitToHeight', 'scale', 'orientation', 'pageOrder']);
 const SUPPORTED_HEADER_FOOTER_KEYS = new Set([
   'oddHeader', 'oddFooter', 'evenHeader', 'evenFooter', 'firstHeader', 'firstFooter',
 ]);
@@ -115,6 +116,12 @@ function buildFrom(spec = {}) {
     for (const k of Object.keys(pm)) {
       if (!SUPPORTED_PAGE_MARGIN_KEYS.has(k)) throw notImplemented(`pageMargins.${k} not supported yet`);
       sheet.pageMargins[k] = pm[k];
+    }
+
+    const psu = s.pageSetup || {};
+    for (const k of Object.keys(psu)) {
+      if (!SUPPORTED_PAGE_SETUP_KEYS.has(k)) throw notImplemented(`pageSetup.${k} not supported yet`);
+      sheet.pageSetup[k] = psu[k];
     }
 
     const hf = s.headerFooter || {};
@@ -698,11 +705,18 @@ const impl = {
         rows[row.index] = {height: p.height ?? null, hidden: !!p.hidden};
       }
       const margins = Object.keys(sheet.pageMargins).length > 0 ? {...sheet.pageMargins} : null;
+      const ps = sheet.pageSetup;
       sheets[s.name] = {
         cells,
         columns,
         rows,
         margins,
+        pageSetup: {
+          fitToPage: !!ps.fitToPage,
+          fitToWidth: ps.fitToWidth ?? null,
+          fitToHeight: ps.fitToHeight ?? null,
+          scale: ps.scale ?? null,
+        },
         autoFilter: null,
         merges: [...sheet.merges],
         rowCount: sheet.rowCount,
@@ -719,6 +733,32 @@ const impl = {
       },
       sheets,
     };
+  },
+
+  // Read a fixture, extract its column widths and pageSetup, write it straight back, re-read, and
+  // report the same facts → { source, rewritten }. A faithful no-op round-trip must reproduce every
+  // fractional column width and the print-scaling attributes the real file carries.
+  roundtripFixtureStyleFacts(rel) {
+    const facts = workbook => {
+      const sheet = workbook.worksheets[0];
+      const ps = sheet ? sheet.pageSetup : {};
+      return {
+        columnWidths: sheet
+          ? [...sheet.columns()].map(c => c.properties.width).filter(w => w !== undefined)
+          : [],
+        pageSetup: {
+          scale: ps.scale ?? null,
+          fitToWidth: ps.fitToWidth ?? null,
+          fitToHeight: ps.fitToHeight ?? null,
+          pageOrder: ps.pageOrder ?? null,
+          orientation: ps.orientation ?? null,
+        },
+      };
+    };
+    const before = readFixture(rel);
+    const source = facts(before);
+    const after = readXlsx(writeXlsx(before));
+    return {source, rewritten: facts(after)};
   },
 
   // Merge a horizontal span with a value + alignment on the anchor, write, then read back →

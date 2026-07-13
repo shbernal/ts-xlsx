@@ -44,6 +44,29 @@ export interface OutlineProperties {
 }
 
 /**
+ * Print-scaling and orientation settings. These map onto two OOXML elements: `fitToPage` is the
+ * `<pageSetUpPr>` flag (a `<sheetPr>` child) that switches Excel from fixed-zoom to fit-to-page
+ * scaling, while the rest are `<pageSetup>` attributes. Excel honours `scale` only when `fitToPage`
+ * is off and the `fitToWidth`/`fitToHeight` page counts only when it is on, but the model carries
+ * whatever the author set — an unset field is omitted so a round-trip never fabricates one. An
+ * empty object emits neither element.
+ */
+export interface PageSetup {
+  /** Switch to fit-to-page scaling. Emitted as `<pageSetUpPr fitToPage="1">`. */
+  fitToPage?: boolean;
+  /** Pages wide to fit onto; `0` means "unbounded" (fit only by height). */
+  fitToWidth?: number;
+  /** Pages tall to fit onto; `0` means "unbounded" (fit only by width). */
+  fitToHeight?: number;
+  /** Fixed print zoom as a percentage; Excel honours it only when `fitToPage` is off. */
+  scale?: number;
+  /** Paper orientation. */
+  orientation?: 'portrait' | 'landscape';
+  /** Order pages are numbered/printed in across a multi-page sheet. */
+  pageOrder?: 'downThenOver' | 'overThenDown';
+}
+
+/**
  * Print margins, in inches. OOXML's `<pageMargins>` requires all six to be present, but
  * the model stores only what the caller set; the writer fills the untouched ones with
  * valid defaults. An empty object means the element is omitted entirely.
@@ -150,6 +173,7 @@ export interface WorksheetModel {
   tabColor: Color | undefined;
   properties: WorksheetProperties;
   outline: OutlineProperties;
+  pageSetup: PageSetup;
   pageMargins: PageMargins;
   headerFooter: HeaderFooter;
   columns: {index: number; properties: ColumnProperties}[];
@@ -160,8 +184,8 @@ export interface WorksheetModel {
   protection: SheetProtection | undefined;
 }
 
-// Replace a mutable container's contents in place: a worksheet's `properties`/`pageMargins`/
-// `headerFooter` are readonly fields holding mutable objects, so importing a model must overwrite
+// Replace a mutable container's contents in place: a worksheet's `properties`/`pageSetup`/
+// `pageMargins`/`headerFooter` are readonly fields holding mutable objects, so importing a model must overwrite
 // them rather than reassign — and clear any stale key the incoming model does not carry.
 function overwrite<T extends object>(target: T, source: T): void {
   const bag = target as unknown as Record<string, unknown>;
@@ -206,6 +230,13 @@ export class Worksheet {
    * means unset — the writer emits no `<outlinePr>` and a round-trip never fabricates one.
    */
   readonly outline: OutlineProperties = {};
+
+  /**
+   * Print-scaling and orientation. Mutate in place: `sheet.pageSetup.fitToPage = true`. Empty means
+   * unset — the writer emits neither `<pageSetUpPr>` nor `<pageSetup>` and a round-trip never
+   * fabricates them.
+   */
+  readonly pageSetup: PageSetup = {};
 
   /** Print margins. Mutate in place: `sheet.pageMargins.left = 0.5`. Empty means unset. */
   readonly pageMargins: PageMargins = {};
@@ -692,6 +723,7 @@ export class Worksheet {
       tabColor: this.tabColor,
       properties: {...this.properties},
       outline: {...this.outline},
+      pageSetup: {...this.pageSetup},
       pageMargins: {...this.pageMargins},
       headerFooter: {...this.headerFooter},
       columns: [...this.#columns].map(([index, properties]) => ({index, properties: {...properties}})),
@@ -711,6 +743,7 @@ export class Worksheet {
     this.tabColor = model.tabColor;
     overwrite(this.properties, model.properties);
     overwrite(this.outline, model.outline);
+    overwrite(this.pageSetup, model.pageSetup);
     overwrite(this.pageMargins, model.pageMargins);
     overwrite(this.headerFooter, model.headerFooter);
 
