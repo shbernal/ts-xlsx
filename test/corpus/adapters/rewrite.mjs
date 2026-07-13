@@ -527,6 +527,29 @@ const impl = {
     return out;
   },
 
+  // Give one cell a fill and another a border but NO value, leave a third cell entirely untouched,
+  // round-trip, and report each → { filledArgb, filledValue, borderedStyle, borderedValue, untouched }.
+  // A formatted-but-empty cell is a real cell Excel keeps: its style must survive the write and the
+  // cell must stay value-less, while a cell with neither value nor style must not be fabricated.
+  styledEmptyCellReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getCell('A1').value = 'anchor';
+    sheet.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
+    sheet.getCell('C3').border = {top: {style: 'thin', color: {argb: 'FF000000'}}};
+    sheet.getCell('D4'); // materialised but never given a value or style
+    const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    const filled = back.getCell('B2');
+    const bordered = back.getCell('C3');
+    return {
+      filledArgb: filled.fill && filled.fill.fgColor ? filled.fill.fgColor.argb : null,
+      filledValue: filled.value,
+      borderedStyle: bordered.border && bordered.border.top ? bordered.border.top.style : null,
+      borderedValue: bordered.value,
+      untouched: !!(back.getCell('D4').fill || back.getCell('D4').value),
+    };
+  },
+
   readFixtureCellStyles(rel, cells = []) {
     const wb = readFixture(rel);
     const out = {};
@@ -654,9 +677,13 @@ const impl = {
       const other = after.getWorksheet(sheet.name);
       for (const {cells} of sheet.rows()) {
         for (const cell of cells) {
-          if (!hasStyle(cell)) continue;
+          // Resolve both sides through getCell so a merged-range slave redirects to its master on
+          // each — comparing the row-iterated slave (its own style) against getCell (the master) would
+          // report a phantom drift that is only an access asymmetry, not a lost style.
+          const beforeCell = sheet.getCell(cell.address);
+          if (!hasStyle(beforeCell)) continue;
           checked += 1;
-          const beforeKey = styleKey(cell);
+          const beforeKey = styleKey(beforeCell);
           const afterKey = other ? styleKey(other.getCell(cell.address)) : '(sheet missing)';
           if (beforeKey !== afterKey) {
             mismatches += 1;

@@ -1839,6 +1839,32 @@ export async function hiddenEmptyRowReport() {
   };
 }
 
+// Give one cell a fill and another a border but NO value, leave a third cell untouched, round-trip,
+// and report each — for asserting a formatted-but-empty cell keeps its style and stays value-less,
+// while a cell with neither value nor style is not fabricated.
+export async function styledEmptyCellReport() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 'anchor';
+  sheet.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
+  sheet.getCell('C3').border = {top: {style: 'thin', color: {argb: 'FF000000'}}};
+  sheet.getCell('D4'); // materialised but never given a value or style
+  const buffer = await workbook.xlsx.writeBuffer();
+  const reread = new ExcelJS.Workbook();
+  await reread.xlsx.load(buffer);
+  const s = reread.getWorksheet('S');
+  const filled = s.getCell('B2');
+  const bordered = s.getCell('C3');
+  const emptyValue = v => v === null || v === undefined || v === '';
+  return {
+    filledArgb: filled.fill && filled.fill.fgColor ? filled.fill.fgColor.argb : null,
+    filledValue: emptyValue(filled.value) ? null : filled.value,
+    borderedStyle: bordered.border && bordered.border.top ? bordered.border.top.style : null,
+    borderedValue: emptyValue(bordered.value) ? null : bordered.value,
+    untouched: !!(s.getCell('D4').fill || !emptyValue(s.getCell('D4').value)),
+  };
+}
+
 // Drive the streaming writer, commit a worksheet, then attempt to add another row to it — and report
 // whether that raises a clear "already committed" error versus an internal null-property crash, plus
 // whether a cleanly-committed workbook reads back valid. A row added after commit must be rejected

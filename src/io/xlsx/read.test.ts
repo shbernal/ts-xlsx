@@ -153,6 +153,18 @@ test('a solid pattern fill round-trips with its foreground colour on a single ce
   assert.equal(back?.getCell('B2').fill, undefined, 'an unfilled cell reads back with no fill');
 });
 
+test('a formatted-but-empty cell round-trips with its fill and a null value', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'anchor';
+  // B2 is styled but never given a value — the fill must survive without a value being invented.
+  sheet.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getCell('B2').value, null, 'the empty cell stays empty, not fabricated a value');
+  assert.equal(back?.getCell('B2').fill?.fgColor?.argb, 'FF00FF00', 'the fill survives on the empty cell');
+});
+
 test('two cells with different fills stay distinct across the round-trip', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');

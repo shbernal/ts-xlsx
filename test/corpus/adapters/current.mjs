@@ -85,6 +85,7 @@ import {
   unstyledCellFontReport,
   loadMutateCellBorder,
   hiddenEmptyRowReport,
+  styledEmptyCellReport,
   streamAddRowAfterCommit,
   tableCellEditRoundtrip,
   columnBorderScopedReport,
@@ -558,6 +559,11 @@ export default {
   // Set hidden/height/outline on blank rows, round-trip → { row3Hidden, row4Hidden, row4Height,
   // row5Hidden, row5Outline } — for asserting a blank hidden row keeps its flag. See workbook-io.mjs.
   hiddenEmptyRowReport,
+
+  // Fill/border a value-less cell, leave a third untouched, round-trip → { filledArgb, filledValue,
+  // borderedStyle, borderedValue, untouched } — for asserting a formatted-but-empty cell keeps its
+  // style and stays empty, and a bare cell is not fabricated. See workbook-io.mjs.
+  styledEmptyCellReport,
 
   // Commit a streaming worksheet then add a row → { rejected, legibleRejection, internalCrash,
   // reloadOk } — for asserting a post-commit add is rejected legibly, not an internal crash. See workbook-io.mjs.

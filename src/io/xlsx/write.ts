@@ -401,12 +401,15 @@ function worksheetXml(
   let right = -Infinity;
 
   for (const {number, cells, properties} of sheet.rows()) {
-    const populated = cells.filter(cell => cell.value !== null);
+    // A cell earns a <c> element if it holds a value OR carries its own style: a formatted-but-empty
+    // cell (a fill/border on a null value) is a real cell to Excel, and dropping it would lose the
+    // formatting. A cell with neither is inherited from its row/column and needs no element of its own.
+    const rendered = cells.filter(cell => cell.value !== null || hasOwnStyle(cell));
     const attrs = rowAttrs(properties, styles);
     // A row with neither data nor its own formatting has nothing to serialise.
-    if (populated.length === 0 && attrs === '') continue;
+    if (rendered.length === 0 && attrs === '') continue;
     const rowFill = properties?.fill;
-    const cellsXml = populated
+    const cellsXml = rendered
       .map(cell => {
         // Cell overrides win over row/column defaults; a cell with any facet gets its own,
         // fully-composed style entry so no default facet is lost to the override. Precedence is
@@ -426,7 +429,7 @@ function worksheetXml(
       })
       .join('');
     rowXml.push(`<row r="${number}"${attrs}>${cellsXml}</row>`);
-    for (const cell of populated) {
+    for (const cell of rendered) {
       if (number < top) top = number;
       if (number > bottom) bottom = number;
       if (cell.col < left) left = cell.col;
@@ -760,7 +763,24 @@ function cellXml(cell: Cell, style: number): string {
   if (typeof value === 'string') {
     return `<c r="${ref}"${s} t="inlineStr"><is>${textElement(value)}</is></c>`;
   }
+  // A null value only reaches here for a formatted-but-empty cell (the row loop keeps it for its
+  // style); emit the styled cell with no <v>, exactly how Excel stores a formatted blank.
+  if (value === null) return `<c r="${ref}"${s}/>`;
   throw new Error(`writing a ${detectValueType(value)} cell value is not implemented yet`);
+}
+
+// Whether a cell carries any style facet of its own — the reason to serialise it even when empty.
+// A note is not a style: it lives in the comments part, not the cell's <c> element, so it does not
+// count here. Row/column-inherited formatting is likewise excluded; only the cell's own facets do.
+function hasOwnStyle(cell: Cell): boolean {
+  return (
+    cell.fill !== undefined ||
+    cell.numFmt !== undefined ||
+    cell.font !== undefined ||
+    cell.border !== undefined ||
+    cell.alignment !== undefined ||
+    cell.protection !== undefined
+  );
 }
 
 function formulaCellXml(ref: string, s: string, formula: string, result: FormulaResult | undefined): string {

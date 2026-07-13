@@ -180,6 +180,27 @@ test('a row carrying only metadata is emitted with no cells', () => {
   assert.match(xml, /<row r="5" hidden="1"><\/row>/);
 });
 
+test('a formatted-but-empty cell is emitted as a styled <c> with no value, not dropped', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  // B2 carries a fill but no value — a real formatted blank Excel keeps, not a cell to discard.
+  s.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<c r="B2" s="\d+"\/>/, 'the styled empty cell is written with its style and no <v>');
+  assert.doesNotMatch(xml, /<c r="B2"[^>]*>.*<\/c>/, 'a valueless styled cell carries no child content');
+});
+
+test('an empty cell with no style of its own is not serialised', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  // Touching a cell without giving it a value or style must not fabricate a <c> for it.
+  s.getCell('C3');
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /r="C3"/, 'a value-less, style-less cell contributes nothing');
+});
+
 test('a collapsed flag is emitted only where set, not on sibling rows', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');

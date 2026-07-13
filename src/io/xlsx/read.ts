@@ -752,6 +752,21 @@ function parseWorksheet(
   // without stamping every cell). Columns are parsed before any cell references them.
   const columnStyle = new Map<number, number>();
 
+  // Commit the cell held in the parser state to the sheet, resolving its style from its own `s`,
+  // then its row's (when customFormat), then its column's default — the order Excel applies. Shared
+  // by the normal `</c>` close and the self-closing `<c/>` open of a formatted-but-empty cell.
+  const finalizeCellFromState = (): void => {
+    if (cellRef === '') return;
+    const styleIndex =
+      cellStyle >= 0
+        ? cellStyle
+        : rowCustomFormat && rowStyle >= 0
+          ? rowStyle
+          : columnStyle.get(cellCol) ?? -1;
+    const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
+    finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, sharedStrings, style);
+  };
+
   parseXml(xml, {
     onOpen(name, attrs, selfClosing) {
       const local = localName(name);
@@ -776,6 +791,10 @@ function parseWorksheet(
           inlineText = '';
           hasFormula = false;
           hasValue = false;
+          // A self-closing `<c r=".." s=".."/>` is a formatted-but-empty cell: it carries a style but
+          // no value, so no `close` fires to finalise it. Commit it here from its style alone, else
+          // the formatting on a blank cell is silently lost on read.
+          if (selfClosing) finalizeCellFromState();
           break;
         case 'is':
           inInlineString = true;
@@ -850,23 +869,9 @@ function parseWorksheet(
         case 'is':
           inInlineString = false;
           break;
-        case 'c': {
-          if (cellRef === '') break;
-          // A cell's own style wins; without one it inherits its row's format (when the row
-          // is customFormat), else its column's style — the order Excel resolves defaults in.
-          const styleIndex =
-            cellStyle >= 0
-              ? cellStyle
-              : rowCustomFormat && rowStyle >= 0
-                ? rowStyle
-                : columnStyle.get(cellCol) ?? -1;
-          // A cell with no style of its own (nor an inherited row/column one) still renders in
-          // the workbook default format — xf 0 — so it resolves there rather than to nothing,
-          // surfacing the default font. Absent a styles part, xfStyles is empty and it stays bare.
-          const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
-          finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, sharedStrings, style);
+        case 'c':
+          finalizeCellFromState();
           break;
-        }
         case 'row':
           rowStyle = -1;
           rowCustomFormat = false;
