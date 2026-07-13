@@ -29,7 +29,7 @@ import type {
 import {collectNotes, commentsXml, type NoteCell, vmlDrawingXml} from './comments.ts';
 import {type DrawingImage, drawingRelsXml, drawingXml, imageContentType} from './images.ts';
 import {THEME1_XML} from './static-parts.ts';
-import {StyleRegistry} from './styles.ts';
+import {colorAttrs, StyleRegistry} from './styles.ts';
 import {escapeAttr, escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
 
 const NS = {
@@ -441,6 +441,7 @@ function worksheetXml(
   return (
     XML_DECLARATION +
     `<worksheet xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
+    sheetPrXml(sheet) +
     `<dimension ref="${dimensionRef}"/>` +
     '<sheetViews><sheetView workbookViewId="0"/></sheetViews>' +
     sheetFormatPr(sheet.properties) +
@@ -477,6 +478,14 @@ function validateMerges(sheet: Worksheet): void {
       }
     }
   }
+}
+
+// `<sheetPr>` carries the sheet's appearance properties; today only the tab colour. It is the
+// first child of `<worksheet>` in CT_Worksheet order, and `<tabColor>` its first child. Omitted
+// entirely when the sheet has no tab colour, so an uncoloured sheet stays byte-clean.
+function sheetPrXml(sheet: Worksheet): string {
+  if (sheet.tabColor === undefined) return '';
+  return `<sheetPr><tabColor ${colorAttrs(sheet.tabColor)}/></sheetPr>`;
 }
 
 function mergeCellsXml(merges: readonly string[]): string {

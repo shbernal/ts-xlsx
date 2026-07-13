@@ -798,6 +798,10 @@ function parseWorksheet(
             }
           }
           break;
+        case 'tabColor':
+          // The lone child of `<sheetPr>` we read today; a self-closing element, so it arrives here.
+          sheet.tabColor = parseColor(attrs);
+          break;
         case 'pageMargins':
           applyMargins(sheet.pageMargins, attrs);
           break;

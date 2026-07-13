@@ -15,7 +15,7 @@ import {
   type SheetProtectionCredential,
   type SheetProtectionOptions,
 } from './protection.ts';
-import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
+import type {Alignment, Border, Color, Fill, Font, Protection} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
 import type {CellValue} from './value.ts';
 
@@ -136,6 +136,7 @@ export interface CellModel {
  */
 export interface WorksheetModel {
   state: WorksheetState['state'];
+  tabColor: Color | undefined;
   properties: WorksheetProperties;
   pageMargins: PageMargins;
   headerFooter: HeaderFooter;
@@ -177,6 +178,13 @@ export class Worksheet {
   /** 1-based workbook-assigned id, stable for the sheet's lifetime. */
   readonly id: number;
   state: WorksheetState['state'];
+
+  /**
+   * Colour of the sheet's tab, as an ARGB/theme {@link Color}. `undefined` leaves the tab its
+   * default colour; the writer emits no `<tabColor>` for an uncoloured sheet, so a round-trip
+   * never fabricates one.
+   */
+  tabColor: Color | undefined;
 
   /** Sheet-level format defaults. Mutate in place: `sheet.properties.defaultRowHeight = 20`. */
   readonly properties: WorksheetProperties = {};
@@ -663,6 +671,7 @@ export class Worksheet {
     }
     return {
       state: this.state,
+      tabColor: this.tabColor,
       properties: {...this.properties},
       pageMargins: {...this.pageMargins},
       headerFooter: {...this.headerFooter},
@@ -680,6 +689,7 @@ export class Worksheet {
   // resolution) and merges re-applied after, so a slave's value cannot be misrouted during the load.
   set model(model: WorksheetModel) {
     this.state = model.state;
+    this.tabColor = model.tabColor;
     overwrite(this.properties, model.properties);
     overwrite(this.pageMargins, model.pageMargins);
     overwrite(this.headerFooter, model.headerFooter);

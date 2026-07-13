@@ -344,7 +344,7 @@ function fillXml(fill: Fill): string {
   return `<fill><patternFill patternType="${fill.pattern}">${fg}${bg}</patternFill></fill>`;
 }
 
-function colorAttrs(color: Color): string {
+export function colorAttrs(color: Color): string {
   const parts: string[] = [];
   if (color.argb !== undefined) parts.push(`rgb="${color.argb}"`);
   if (color.theme !== undefined) parts.push(`theme="${color.theme}"`);

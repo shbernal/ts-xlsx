@@ -339,6 +339,28 @@ const impl = {
     };
   },
 
+  // Colour a sheet's tab with an 8-digit ARGB (alpha first) alongside an uncoloured sheet, then
+  // report the round-trip → { tabColorArgbWritten, reReadArgb, uncoloredHasTab }. A set tab colour
+  // must survive verbatim while a sheet with none must not gain a spurious one.
+  tabColorRoundtrip() {
+    const wb = new Workbook();
+    const colored = wb.addWorksheet('Colored');
+    colored.tabColor = {argb: 'FFFF0000'};
+    colored.getCell('A1').value = 'x';
+    const plain = wb.addWorksheet('Plain');
+    plain.getCell('A1').value = 'y';
+    const buffer = writeXlsx(wb);
+    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const written = (sheetXml.match(/<tabColor\b[^>]*rgb="([^"]*)"/) || [null, null])[1];
+    const reload = readXlsx(buffer);
+    const coloredTab = reload.getWorksheet('Colored').tabColor;
+    return {
+      tabColorArgbWritten: written,
+      reReadArgb: (coloredTab && coloredTab.argb) || null,
+      uncoloredHasTab: !!reload.getWorksheet('Plain').tabColor,
+    };
+  },
+
   // Author a bold cell, then rewrite the emitted <b/> flag to each explicit form and report how
   // the reader reads bold back → { bareTag, valOne, valZero }. A boolean font flag's `val` governs:
   // a bare tag or val="1" is on, val="0" is off — presence alone must not force true.

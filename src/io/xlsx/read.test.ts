@@ -787,3 +787,49 @@ test('an Invalid Date does not throw on write and does not drop sibling cells', 
   assert.equal(back?.getCell('C1').value, 42);
   assert.equal(back?.getCell('A1').value, null, 'the invalid date carries no serial');
 });
+
+test('a worksheet tab colour round-trips as the exact 8-digit ARGB', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.tabColor = {argb: 'FFFF0000'};
+  sheet.getCell('A1').value = 'x';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.deepEqual(back?.tabColor, {argb: 'FFFF0000'});
+});
+
+test('the written package carries the tab colour under <sheetPr>', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').tabColor = {argb: 'FF00FF00'};
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.match(xml, /<sheetPr><tabColor rgb="FF00FF00"\/><\/sheetPr>/);
+  // <sheetPr> must lead the worksheet, before <dimension>.
+  assert.ok(xml.indexOf('<sheetPr>') < xml.indexOf('<dimension'), 'sheetPr precedes dimension');
+});
+
+test('a sheet with no tab colour acquires none and emits no <sheetPr>', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'y';
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.doesNotMatch(xml, /<sheetPr>/);
+  assert.equal(roundtrip(wb).getWorksheet('S')?.tabColor, undefined);
+});
+
+test('a theme-based tab colour with a tint round-trips', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').tabColor = {theme: 4, tint: -0.25};
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.deepEqual(back?.tabColor, {theme: 4, tint: -0.25});
+});
+
+test('a tab colour survives a worksheet model export/import', () => {
+  const wb = new Workbook();
+  const src = wb.addWorksheet('Src');
+  src.tabColor = {argb: 'FF0000FF'};
+  const dst = wb.addWorksheet('Dst');
+  dst.model = src.model;
+  assert.deepEqual(dst.tabColor, {argb: 'FF0000FF'});
+});
