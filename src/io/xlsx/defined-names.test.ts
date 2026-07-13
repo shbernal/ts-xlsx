@@ -72,6 +72,35 @@ test('special characters in the name and formula are escaped and round-trip verb
   assert.equal(back.definedNames[0]?.refersTo, "'O''Brien & Co'!$A$1");
 });
 
+test('a name defined as a modern function is stored under _xlfn. but modelled plain', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 1;
+  wb.defineName({name: 'Double', refersTo: 'LAMBDA(x,x*2)'});
+  const xml = workbookXmlOf(wb);
+  assert.match(xml, /<definedName name="Double">_xlfn\.LAMBDA\(x,x\*2\)<\/definedName>/);
+  const back = readXlsx(writeXlsx(wb));
+  assert.deepEqual([...back.definedNames], [{name: 'Double', refersTo: 'LAMBDA(x,x*2)'}]);
+});
+
+test('a plain reference carries no _xlfn. prefix and reads back verbatim', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 1;
+  wb.defineName({name: 'Region', refersTo: 'S!$A$1:$B$2'});
+  assert.doesNotMatch(workbookXmlOf(wb), /_xlfn\./);
+  const back = readXlsx(writeXlsx(wb));
+  assert.equal(back.definedNames[0]?.refersTo, 'S!$A$1:$B$2');
+});
+
+test('a foreign name stored with _xlfn. reads back to its plain function name', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 1;
+  wb.defineName({name: 'Pick', refersTo: 'XLOOKUP(1,S!$A:$A,S!$B:$B)'});
+  const files = unzipSync(writeXlsx(wb));
+  assert.match(strFromU8(files['xl/workbook.xml'] as Uint8Array), /_xlfn\.XLOOKUP/);
+  const back = readXlsx(zipSync(files));
+  assert.equal(back.definedNames[0]?.refersTo, 'XLOOKUP(1,S!$A:$A,S!$B:$B)');
+});
+
 test('defineName rejects an empty name and an unknown scope', () => {
   const wb = new Workbook();
   wb.addWorksheet('S');

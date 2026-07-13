@@ -284,7 +284,9 @@ function parseWorkbookDefinedNames(xml: string, sheetOrder: readonly string[]): 
     },
     onClose(name) {
       if (localName(name) !== 'definedName' || pending === undefined) return;
-      names.push({...pending, refersTo});
+      // Strip the `_xlfn.`/`_xlpm.` prefixes back to the readable name, the same normalisation the
+      // reader applies to a cell formula, so the model never holds the on-disk mangling.
+      names.push({...pending, refersTo: unmangleFunctions(refersTo)});
       capture = false;
       pending = undefined;
     },

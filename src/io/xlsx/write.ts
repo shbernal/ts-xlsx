@@ -334,7 +334,10 @@ function workbookXml(workbook: Workbook): string {
 // The `<definedNames>` block follows `<sheets>` in the schema. A sheet-scoped name carries a
 // `localSheetId` — the 0-based position of its sheet among the `<sheet>` entries, NOT the sheet's
 // own id — so the index is resolved against the worksheet order here. The refersTo formula is the
-// element's text content; only names that are actually set emit anything.
+// element's text content, run through the same `_xlfn.` function mangling the writer applies to a
+// cell formula so a name defined as a modern function (a LAMBDA, an XLOOKUP-based name) is stored
+// under the prefix Excel requires; a plain reference has no function call and passes through
+// untouched. Only names that are actually set emit anything.
 function definedNamesXml(workbook: Workbook): string {
   const names = workbook.definedNames;
   if (names.length === 0) return '';
@@ -349,7 +352,7 @@ function definedNamesXml(workbook: Workbook): string {
       const hiddenAttr = name.hidden ? ' hidden="1"' : '';
       return (
         `<definedName name="${escapeAttr(name.name)}"${scopeAttr}${commentAttr}${hiddenAttr}>` +
-        `${escapeText(name.refersTo)}</definedName>`
+        `${escapeText(mangleFunctions(name.refersTo))}</definedName>`
       );
     })
     .join('');
