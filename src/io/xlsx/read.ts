@@ -948,6 +948,11 @@ function applyColumn(
     const properties = sheet.getColumn(index);
     if (width !== undefined && Number.isFinite(width) && attrs.customWidth !== '0') properties.width = width;
     if (hidden) properties.hidden = true;
+    if (attrs.outlineLevel !== undefined) {
+      const level = Number(attrs.outlineLevel);
+      if (Number.isInteger(level) && level > 0) properties.outlineLevel = level;
+    }
+    if (attrs.collapsed === '1' || attrs.collapsed === 'true') properties.collapsed = true;
     if (style?.numFmt !== undefined) properties.numFmt = style.numFmt;
     if (style?.fill !== undefined) properties.fill = style.fill;
     if (style?.font !== undefined) properties.font = style.font;

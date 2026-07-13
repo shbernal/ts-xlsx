@@ -730,6 +730,14 @@ function colXml(index: number, properties: ColumnProperties, styles: StyleRegist
     attrs += ' hidden="1"';
     meaningful = true;
   }
+  if (properties.outlineLevel !== undefined && properties.outlineLevel > 0) {
+    attrs += ` outlineLevel="${properties.outlineLevel}"`;
+    meaningful = true;
+  }
+  if (properties.collapsed) {
+    attrs += ' collapsed="1"';
+    meaningful = true;
+  }
   // The column's style facets are carried as its own `<col>` style; its populated cells inherit
   // them via the composition above, and this `style` makes Excel apply them to the column's empty
   // cells too.

@@ -124,6 +124,10 @@ export interface ColumnProperties {
   alignment?: Alignment;
   /** Protection applied to the column's cells that carry no protection of their own. */
   protection?: Protection;
+  /** Outline (grouping) depth; 0 or absent means ungrouped. */
+  outlineLevel?: number;
+  /** Whether this column is the collapsed summary of an outline group. */
+  collapsed?: boolean;
 }
 
 /** A merged region as inclusive 1-based grid bounds. */

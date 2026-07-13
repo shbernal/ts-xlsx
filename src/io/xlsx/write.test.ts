@@ -141,6 +141,26 @@ test('a hidden column emits hidden="1" and needs no width', () => {
   assert.match(xml, /<col min="3" max="3" hidden="1"\/>/);
 });
 
+test('column outline grouping serializes onto the <col>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  const c = s.getColumn(2);
+  c.outlineLevel = 1;
+  c.collapsed = true;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<col min="2" max="2" outlineLevel="1" collapsed="1"\/>/);
+});
+
+test('an ungrouped column emits no outline attributes', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.getColumn(2).width = 10;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /outlineLevel|collapsed/);
+});
+
 test('a column past the 16384 limit is dropped, never serialized', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');

@@ -101,6 +101,16 @@ test('column width and visibility round-trip', () => {
   assert.equal(back?.getColumn(4).hidden, true);
 });
 
+test('column outline grouping round-trips', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getColumn(2).outlineLevel = 2;
+  sheet.getColumn(3).collapsed = true;
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.getColumn(2).outlineLevel, 2);
+  assert.equal(back?.getColumn(3).collapsed, true);
+});
+
 test('row height and visibility round-trip', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
