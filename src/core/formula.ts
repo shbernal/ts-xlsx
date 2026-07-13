@@ -23,6 +23,18 @@ const MODERN_FUNCTIONS: ReadonlySet<string> = new Set([
   // Logical and conditional aggregation (Excel 2016 / 2019)
   'IFS', 'SWITCH', 'MAXIFS', 'MINIFS',
 
+  // Other bare-name functions added after the frozen grammar (Excel 2010 / 2013) — trigonometric,
+  // bitwise, engineering, information, and math/financial additions. Their names carry no '.', so
+  // they need no tokenizer work; they simply have to be recognised as modern to earn the prefix.
+  'AGGREGATE',
+  'ACOT', 'ACOTH', 'COT', 'COTH', 'CSC', 'CSCH', 'SEC', 'SECH',
+  'ARABIC', 'BASE', 'DECIMAL', 'COMBINA', 'PERMUTATIONA', 'GAMMA', 'GAUSS', 'PHI', 'MUNIT',
+  'BITAND', 'BITOR', 'BITXOR', 'BITLSHIFT', 'BITRSHIFT',
+  'IMCOSH', 'IMCOT', 'IMCSC', 'IMCSCH', 'IMSEC', 'IMSECH', 'IMSINH', 'IMTAN',
+  'DAYS', 'ISOWEEKNUM', 'IFNA', 'NUMBERVALUE', 'SHEET', 'SHEETS',
+  'FORMULATEXT', 'ISFORMULA', 'ENCODEURL', 'WEBSERVICE', 'FILTERXML',
+  'UNICHAR', 'UNICODE', 'XOR', 'PDURATION', 'RRI',
+
   // The Excel 2010 statistical-consistency rename family and the handful of other post-2007
   // functions whose canonical names contain a '.'. They carry the same `_xlfn.` prefix; the whole
   // dotted name is stored, e.g. `_xlfn.NORM.DIST`, `_xlfn.T.DIST.2T`.

@@ -103,5 +103,21 @@ export default {
         assert.ok(!/_xlfn\.DIST/.test(f), `the tail segment must not be prefixed on its own; got: ${f}`);
       },
     },
+    {
+      // Not every post-2007 function is dotted or a dynamic array: the 2010/2013 releases also added
+      // plain-named trigonometric, bitwise and engineering functions (SEC, BITAND, AGGREGATE, XOR, …)
+      // that carry the same `_xlfn.` requirement. A pre-2007 cousin of the same shape (SIN) must be
+      // left bare, so this pins that the prefix follows the function's vintage, not its spelling.
+      name: 'a bare-name post-2007 function is prefixed while its pre-2007 cousin is left bare',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {sheets} = await api.inspectPackage({
+          sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'SEC(A2)+SIN(A2)', result: 0}]}],
+        });
+        const f = sheets.S.formulas.A1 || '';
+        assert.ok(/_xlfn\.SEC/.test(f), `SEC must be stored as _xlfn.SEC; got: ${f}`);
+        assert.ok(!/_xlfn\.SIN/.test(f), `the pre-2007 SIN must not be prefixed; got: ${f}`);
+      },
+    },
   ],
 };

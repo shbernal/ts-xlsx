@@ -56,6 +56,24 @@ test('a LET/LAMBDA formula gets the _xlfn. prefix on every modern function', () 
   assert.ok(out.includes('COUNTA('));
 });
 
+test('a bare-name post-2007 function (trig / bitwise / engineering) gains the prefix', () => {
+  assert.equal(mangleFunctions('SEC(A1)'), '_xlfn.SEC(A1)');
+  assert.equal(mangleFunctions('BITAND(5,3)'), '_xlfn.BITAND(5,3)');
+  assert.equal(mangleFunctions('IMCOSH("2+i")'), '_xlfn.IMCOSH("2+i")');
+  assert.equal(mangleFunctions('AGGREGATE(9,4,A1:A9)'), '_xlfn.AGGREGATE(9,4,A1:A9)');
+  assert.equal(mangleFunctions('XOR(A1,B1)'), '_xlfn.XOR(A1,B1)');
+  assert.equal(mangleFunctions('ISOWEEKNUM(A1)'), '_xlfn.ISOWEEKNUM(A1)');
+});
+
+test('a pre-2007 function whose name resembles a modern one is left untouched', () => {
+  // SIN/COS/TAN and GAMMALN predate the frozen grammar and must NOT be prefixed, even though
+  // SEC/CSC/COT and GAMMA (their newer cousins) are.
+  assert.equal(mangleFunctions('SIN(A1)'), 'SIN(A1)');
+  assert.equal(mangleFunctions('COS(A1)'), 'COS(A1)');
+  assert.equal(mangleFunctions('GAMMALN(A1)'), 'GAMMALN(A1)');
+  assert.equal(mangleFunctions('WEEKNUM(A1)'), 'WEEKNUM(A1)');
+});
+
 test('a dotted 2010 statistical function is matched whole and prefixed', () => {
   assert.equal(mangleFunctions('NORM.DIST(A1,0,1,TRUE)'), '_xlfn.NORM.DIST(A1,0,1,TRUE)');
   assert.equal(mangleFunctions('BETA.INV(0.5,2,3)'), '_xlfn.BETA.INV(0.5,2,3)');
