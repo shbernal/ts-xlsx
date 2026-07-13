@@ -151,7 +151,7 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     '_rels/.rels': strToU8(rootRelsXml()),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
     'docProps/app.xml': strToU8(appPropsXml()),
-    'xl/workbook.xml': strToU8(workbookXml(sheets)),
+    'xl/workbook.xml': strToU8(workbookXml(workbook)),
     'xl/_rels/workbook.xml.rels': strToU8(workbookRelsXml(sheets.length)),
     'xl/styles.xml': strToU8(styles.toXml()),
     'xl/theme/theme1.xml': strToU8(THEME1_XML),
@@ -314,7 +314,8 @@ function rootRelsXml(): string {
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
 
-function workbookXml(sheets: readonly Worksheet[]): string {
+function workbookXml(workbook: Workbook): string {
+  const sheets = workbook.worksheets;
   const entries = sheets
     .map((sheet, i) => {
       const state = sheet.state === 'visible' ? '' : ` state="${sheet.state}"`;
@@ -325,8 +326,34 @@ function workbookXml(sheets: readonly Worksheet[]): string {
     XML_DECLARATION +
     `<workbook xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
     `<sheets>${entries}</sheets>` +
+    definedNamesXml(workbook) +
     '</workbook>'
   );
+}
+
+// The `<definedNames>` block follows `<sheets>` in the schema. A sheet-scoped name carries a
+// `localSheetId` — the 0-based position of its sheet among the `<sheet>` entries, NOT the sheet's
+// own id — so the index is resolved against the worksheet order here. The refersTo formula is the
+// element's text content; only names that are actually set emit anything.
+function definedNamesXml(workbook: Workbook): string {
+  const names = workbook.definedNames;
+  if (names.length === 0) return '';
+  const sheets = workbook.worksheets;
+  const entries = names
+    .map(name => {
+      const scopeAttr =
+        name.scope === undefined
+          ? ''
+          : ` localSheetId="${sheets.findIndex(sheet => sheet.name === name.scope)}"`;
+      const commentAttr = name.comment === undefined ? '' : ` comment="${escapeAttr(name.comment)}"`;
+      const hiddenAttr = name.hidden ? ' hidden="1"' : '';
+      return (
+        `<definedName name="${escapeAttr(name.name)}"${scopeAttr}${commentAttr}${hiddenAttr}>` +
+        `${escapeText(name.refersTo)}</definedName>`
+      );
+    })
+    .join('');
+  return `<definedNames>${entries}</definedNames>`;
 }
 
 function workbookRelsXml(sheetCount: number): string {

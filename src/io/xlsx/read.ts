@@ -38,7 +38,7 @@ import type {
 } from '../../core/style.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.ts';
-import {Workbook} from '../../core/workbook.ts';
+import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {parseDrawing} from './images.ts';
@@ -98,9 +98,11 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // A picture used on more than one sheet is one media part; caching by media path keeps it a single
   // workbook image so a re-write does not duplicate the bytes.
   const imageIdByMediaPath = new Map<string, number>();
+  const sheetOrder: string[] = [];
   for (const {name, relId} of parseWorkbookSheets(workbookXml)) {
     const target = rels.get(relId);
     const sheet = workbook.addWorksheet(name);
+    sheetOrder.push(name);
     const path = target === undefined ? undefined : resolveWorkbookPart(target);
     const sheetXml = path === undefined ? undefined : partText(path);
     if (sheetXml !== undefined) parseWorksheet(sheetXml, sheet, sharedStrings, xfStyles);
@@ -109,6 +111,12 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
       if (notes !== undefined) applyNotes(sheet, notes);
       readSheetImages(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
     }
+  }
+
+  // Defined names follow the sheets: a scoped name's `localSheetId` indexes the sheet order, which
+  // is why the names are read only once every sheet is registered.
+  for (const name of parseWorkbookDefinedNames(workbookXml, sheetOrder)) {
+    workbook.defineName(name);
   }
   return workbook;
 }
@@ -248,6 +256,40 @@ function parseWorkbookSheets(xml: string): Array<{name: string; relId: string}> 
     onClose() {},
   });
   return sheets;
+}
+
+// Reconstruct the workbook's defined names. Each `<definedName>` carries its name (and optional
+// comment/hidden flag) as attributes and its refersTo formula as text content; a `localSheetId`
+// maps back through the sheet order to the scope sheet's name. A name whose localSheetId is out of
+// range (a foreign file referencing a sheet we did not load) is left global rather than dropped.
+function parseWorkbookDefinedNames(xml: string, sheetOrder: readonly string[]): DefinedName[] {
+  const names: DefinedName[] = [];
+  let capture = false;
+  let refersTo = '';
+  let pending: {name: string; scope?: string; comment?: string; hidden?: boolean} | undefined;
+  parseXml(xml, {
+    onOpen(name, attrs) {
+      if (localName(name) !== 'definedName' || attrs.name === undefined) return;
+      capture = true;
+      refersTo = '';
+      const scopeIndex = attrs.localSheetId === undefined ? -1 : Number(attrs.localSheetId);
+      const scope = sheetOrder[scopeIndex];
+      pending = {name: attrs.name};
+      if (scope !== undefined) pending.scope = scope;
+      if (attrs.comment !== undefined) pending.comment = attrs.comment;
+      if (attrs.hidden === '1' || attrs.hidden === 'true') pending.hidden = true;
+    },
+    onText(chunk) {
+      if (capture) refersTo += chunk;
+    },
+    onClose(name) {
+      if (localName(name) !== 'definedName' || pending === undefined) return;
+      names.push({...pending, refersTo});
+      capture = false;
+      pending = undefined;
+    },
+  });
+  return names;
 }
 
 // Shared strings resolve `t="s"` cells: each <si> is one entry, its text the concatenation

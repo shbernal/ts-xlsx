@@ -47,6 +47,19 @@ export function packageFacts(spec, partMap) {
     const a = attrs(t[0]);
     return {name: a.name, rid: a['r:id'], state: a.state ?? null};
   });
+  // Workbook-level defined names: the element's attributes plus its refersTo text content, sorted by
+  // name so a case compares a stable set regardless of emission order.
+  const definedNames = [...workbookXml.matchAll(/<definedName\b([^>]*)>([\s\S]*?)<\/definedName>/g)]
+    .map(m => {
+      const a = attrs('<x ' + m[1] + '>');
+      return {
+        name: a.name ?? null,
+        localSheetId: a.localSheetId !== undefined ? Number(a.localSheetId) : null,
+        hidden: a.hidden === '1' || a.hidden === 'true',
+        refersTo: m[2],
+      };
+    })
+    .sort((x, y) => String(x.name).localeCompare(String(y.name)));
   const rels = [...relsXml.matchAll(/<Relationship\b[^>]*?\/?>/g)].map(t => {
     const a = attrs(t[0]);
     return {id: a.Id, target: a.Target, type: (a.Type || '').split('/').pop()};
@@ -183,6 +196,7 @@ export function packageFacts(spec, partMap) {
     overrides,
     contentTypeDefaults,
     sheetEntries,
+    definedNames,
     rels,
     worksheetRels,
     sheets,

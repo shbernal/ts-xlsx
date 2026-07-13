@@ -52,7 +52,7 @@ const notImplemented = message => {
   return err;
 };
 
-const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties']);
+const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties', 'definedNames']);
 const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
 const SUPPORTED_SHEET_KEYS = new Set([
   'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges',
@@ -211,6 +211,17 @@ function buildFrom(spec = {}) {
       if (c.alignment !== undefined) cell.alignment = c.alignment;
       if (c.protection !== undefined) cell.protection = c.protection;
     }
+  }
+
+  // Workbook-level defined names are added after every sheet exists, since a scoped name targets a
+  // sheet by name. The corpus spec expresses a name as one-or-more ranges; the model stores a single
+  // refersTo formula, so the ranges join into the comma-separated union OOXML persists in one element.
+  for (const dn of spec.definedNames || []) {
+    workbook.defineName({
+      name: dn.name,
+      refersTo: (dn.ranges || []).join(','),
+      ...(dn.scope !== undefined ? {scope: dn.scope} : {}),
+    });
   }
   return workbook;
 }
@@ -524,6 +535,18 @@ const impl = {
     }
   },
 
+  // Read a fixture and report its defined names as { <name>: [refersTo…] }, mirroring the oracle.
+  // The model retains every name as its own entry rather than keying by name, so two same-named
+  // names scoped to different sheets both survive — the scope collision that drops one on the
+  // oracle's name-keyed reader.
+  readFixtureDefinedNames(rel) {
+    const wb = readFixture(rel);
+    const names = {};
+    for (const dn of wb.definedNames) (names[dn.name] ||= []).push(dn.refersTo);
+    for (const k of Object.keys(names)) names[k].sort();
+    return {names, count: Object.keys(names).length, modelCount: wb.definedNames.length};
+  },
+
   // Read a real fixture `.xlsx` and report the fill and font colour the reader surfaces for each
   // requested `<sheet>!<address>` cell → { [key]: { fill, fontColor } | null }. Mirrors the oracle:
   // a solid-pattern fill's visible colour lives on fgColor while bgColor is the automatic indexed
@@ -791,6 +814,9 @@ const impl = {
       };
     }
     const props = reloaded.properties;
+    const definedNames = {};
+    for (const dn of reloaded.definedNames) (definedNames[dn.name] ||= []).push(dn.refersTo);
+    for (const k of Object.keys(definedNames)) definedNames[k].sort();
     return {
       properties: {
         creator: props.creator ?? null,
@@ -799,6 +825,7 @@ const impl = {
         modified: isoOrNull(props.modified),
       },
       sheets,
+      definedNames,
     };
   },
 

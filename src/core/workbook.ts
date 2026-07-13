@@ -16,6 +16,25 @@ export interface WorkbookProperties {
   modified?: Date;
 }
 
+/**
+ * A named reference in the workbook — the entries Excel surfaces in its Name Manager. A name maps
+ * an identifier to a formula (`refersTo`), most often a cell range like `Sheet1!$A$1:$B$2` but
+ * possibly any formula. A name is global to the workbook unless it names a sheet in {@link scope},
+ * which restricts it to that sheet and lets another sheet reuse the same name independently.
+ */
+export interface DefinedName {
+  /** The name as typed in a formula, e.g. `"TaxRate"`. Built-in names carry an `_xlnm.` prefix. */
+  readonly name: string;
+  /** The formula the name resolves to, e.g. `"Sheet1!$A$1:$B$2"`. */
+  readonly refersTo: string;
+  /** The sheet the name is scoped to; omit for a workbook-global name. */
+  readonly scope?: string;
+  /** A human note shown beside the name in Excel's Name Manager. */
+  readonly comment?: string;
+  /** Hide the name from the Name Manager UI without removing it. */
+  readonly hidden?: boolean;
+}
+
 export interface AddWorksheetOptions {
   readonly state?: WorksheetState['state'];
 }
@@ -42,6 +61,8 @@ export class Workbook {
   // picture used on several sheets is stored once.
   readonly #media: WorkbookImage[] = [];
 
+  readonly #definedNames: DefinedName[] = [];
+
   /** The worksheets in insertion order. */
   get worksheets(): readonly Worksheet[] {
     return this.#worksheets;
@@ -65,6 +86,27 @@ export class Workbook {
   /** Look up a registered image by its id, or `undefined` if no image carries that id. */
   getImage(id: number): WorkbookImage | undefined {
     return this.#media[id];
+  }
+
+  /** The workbook's defined names, in the order they were registered. */
+  get definedNames(): readonly DefinedName[] {
+    return this.#definedNames;
+  }
+
+  /**
+   * Register a defined name on the workbook.
+   *
+   * @throws {Error} if the name is empty, or if a {@link DefinedName.scope} is given that names no
+   *   existing worksheet — a scoped name must target a sheet that is already part of the workbook.
+   */
+  defineName(definedName: DefinedName): void {
+    if (definedName.name.length === 0) {
+      throw new Error('a defined name cannot be empty');
+    }
+    if (definedName.scope !== undefined && this.getWorksheet(definedName.scope) === undefined) {
+      throw new Error(`defined name "${definedName.name}" is scoped to unknown worksheet "${definedName.scope}"`);
+    }
+    this.#definedNames.push(definedName);
   }
 
   /**
