@@ -64,6 +64,22 @@ test('the emitted stylesheet reflects the interned fills and cell formats', () =
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"\/>/);
 });
 
+test('a "#"-prefixed fill colour is normalized to a bare 8-hex ARGB, never emitted as a 9-char value', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({fill: solid('#FFBFBFBF')});
+  const xml = styles.toXml();
+
+  assert.match(xml, /<fgColor rgb="FFBFBFBF"\/>/, 'the leading "#" is stripped so the value is a valid 8 hex digits');
+  assert.doesNotMatch(xml, /rgb="#/, 'no colour is ever written with a leading "#"');
+});
+
+test('a bare 8-hex fill colour is preserved verbatim, including its original casing', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({fill: solid('ff00ff00')});
+  // Foreign files store rgb in lowercase; round-tripping must not silently re-case it.
+  assert.match(styles.toXml(), /<fgColor rgb="ff00ff00"\/>/);
+});
+
 test('a custom number format is defined in <numFmts> from id 164 and referenced by its xf', () => {
   const styles = new StyleRegistry();
   styles.styleId({numFmt: '0.00%'});

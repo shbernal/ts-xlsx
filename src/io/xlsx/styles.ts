@@ -344,9 +344,16 @@ function fillXml(fill: Fill): string {
   return `<fill><patternFill patternType="${fill.pattern}">${fg}${bg}</patternFill></fill>`;
 }
 
+// A leading '#' is a CSS habit; OOXML wants a bare 8-hex ARGB. Passing '#FFBFBFBF' through verbatim
+// yields a 9-character rgb value that strict consumers cannot parse and render as flat black, so the
+// '#' is stripped here — the single choke point through which every fill/font/border/tab colour flows.
+function normalizeArgb(argb: string): string {
+  return argb.startsWith('#') ? argb.slice(1) : argb;
+}
+
 export function colorAttrs(color: Color): string {
   const parts: string[] = [];
-  if (color.argb !== undefined) parts.push(`rgb="${color.argb}"`);
+  if (color.argb !== undefined) parts.push(`rgb="${normalizeArgb(color.argb)}"`);
   if (color.theme !== undefined) parts.push(`theme="${color.theme}"`);
   if (color.tint !== undefined) parts.push(`tint="${color.tint}"`);
   if (color.indexed !== undefined) parts.push(`indexed="${color.indexed}"`);

@@ -368,6 +368,22 @@ const impl = {
     };
   },
 
+  // Write a solid fill twice — once with a clean bare ARGB, once with a CSS-habit '#'-prefixed one —
+  // and report the emitted <fgColor rgb="..."> for each → { validRgb, hashRgb }. Both must serialize
+  // as valid 8-hex-digit values; a '#'-prefixed input must be normalized, never passed through as a
+  // malformed 9-character colour.
+  fillArgbHashPrefixReport() {
+    const emittedFgColor = argb => {
+      const wb = new Workbook();
+      const ws = wb.addWorksheet('S');
+      ws.getCell('A1').value = 'x';
+      ws.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb}};
+      const stylesXml = partMapOf(writeXlsx(wb))['xl/styles.xml'] || '';
+      return (stylesXml.match(/<fgColor rgb="([^"]*)"/) || [null, null])[1];
+    };
+    return {validRgb: emittedFgColor('FFBFBFBF'), hashRgb: emittedFgColor('#FFBFBFBF')};
+  },
+
   outlinePropertiesRoundtrip() {
     const wb = new Workbook();
     const ws = wb.addWorksheet('S');
