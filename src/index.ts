@@ -79,3 +79,9 @@ export {
 
 export {writeXlsx} from './io/xlsx/write.ts';
 export {readXlsx, type ReadXlsxOptions} from './io/xlsx/read.ts';
+export {
+  readSheetRows,
+  type ReadSheetRowsOptions,
+  type StreamedCell,
+  type StreamedRow,
+} from './io/xlsx/read-rows.ts';

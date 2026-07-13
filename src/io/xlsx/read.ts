@@ -15,7 +15,6 @@
 import {strFromU8} from 'fflate';
 
 import {decodeAddress} from '../../core/address.ts';
-import {isDateFormat, serialToDate} from '../../core/date.ts';
 import {
   type SheetProtection,
   type SheetProtectionCredential,
@@ -37,9 +36,9 @@ import type {
   VerticalAlignment,
 } from '../../core/style.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
-import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
+import {decodeCellContent} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {parseDrawing} from './images.ts';
 import {inflatePackage} from './inflate.ts';
@@ -55,7 +54,7 @@ export interface ReadXlsxOptions {
   readonly maxUncompressedBytes?: number;
 }
 
-const DEFAULT_MAX_UNCOMPRESSED = 512 * 1024 * 1024;
+export const DEFAULT_MAX_UNCOMPRESSED = 512 * 1024 * 1024;
 const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
 
 /**
@@ -237,12 +236,12 @@ function resolveRelativePart(basePart: string, target: string): string {
 
 // A workbook relationship target is relative to the `xl/` directory (`worksheets/sheet1.xml`)
 // or absolute from the package root (`/xl/worksheets/sheet1.xml`); normalise both to a part path.
-function resolveWorkbookPart(target: string): string {
+export function resolveWorkbookPart(target: string): string {
   if (target.startsWith('/')) return target.slice(1);
   return `xl/${target.replace(/^\.\//, '')}`;
 }
 
-function parseRelationships(xml: string): Map<string, string> {
+export function parseRelationships(xml: string): Map<string, string> {
   const rels = new Map<string, string>();
   parseXml(xml, {
     onOpen(name, attrs) {
@@ -256,7 +255,7 @@ function parseRelationships(xml: string): Map<string, string> {
   return rels;
 }
 
-function parseWorkbookSheets(xml: string): Array<{name: string; relId: string}> {
+export function parseWorkbookSheets(xml: string): Array<{name: string; relId: string}> {
   const sheets: Array<{name: string; relId: string}> = [];
   parseXml(xml, {
     onOpen(name, attrs) {
@@ -308,7 +307,7 @@ function parseWorkbookDefinedNames(xml: string, sheetOrder: readonly string[]): 
 
 // Shared strings resolve `t="s"` cells: each <si> is one entry, its text the concatenation
 // of its <t> runs (a plain <si><t>…</t> or a rich <si><r><t>…</t></r>…).
-function parseSharedStrings(xml: string): string[] {
+export function parseSharedStrings(xml: string): string[] {
   if (xml === '') return [];
   const strings: string[] = [];
   let current = '';
@@ -341,7 +340,7 @@ function parseSharedStrings(xml: string): string[] {
 
 // The style facets an xf resolves to. Absent facets stay undefined, matching the contract
 // that an unset facet is simply not present on the reconstructed cell.
-interface XfStyle {
+export interface XfStyle {
   readonly fill?: Fill;
   readonly numFmt?: string;
   readonly font?: Partial<Font>;
@@ -397,7 +396,7 @@ const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
 // id. We flatten that indirection into one array — cellXfs index → resolved {fill, numFmt} —
 // so a cell/row/column style index maps straight to its facets. The schema orders <numFmts>
 // and <fills> before <cellXfs>, so both lookups are complete before an xf references them.
-function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
+export function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
   if (xml === '') return [];
   const fills: Array<Fill | undefined> = [];
   const fonts: Array<Partial<Font> | undefined> = [];
@@ -1049,61 +1048,9 @@ function finalizeCell(
   if (style?.alignment !== undefined) cell.alignment = style.alignment;
   if (style?.protection !== undefined) cell.protection = style.protection;
 
-  if (hasFormula) {
-    const stored = unmangleFunctions(formula);
-    const result = hasValue ? decodeResult(type, valueText) : undefined;
-    cell.value = result === undefined ? {formula: stored} : {formula: stored, result};
-    return;
-  }
-  const value = decodeValue(type, valueText, inlineText, hasValue, sharedStrings);
-  // A number stored under a date format is a date serial — surface it as a Date so a written
-  // date round-trips as a date, not a bare number. Only plain numeric cells qualify; a string,
-  // boolean, or formula result under a date format keeps its own kind.
-  cell.value =
-    typeof value === 'number' && style?.numFmt !== undefined && isDateFormat(style.numFmt)
-      ? serialToDate(value)
-      : value;
-}
-
-function decodeValue(
-  type: string,
-  valueText: string,
-  inlineText: string,
-  hasValue: boolean,
-  sharedStrings: readonly string[]
-): CellValue {
-  switch (type) {
-    case 'inlineStr':
-      return inlineText;
-    case 'str':
-      return valueText;
-    case 'd':
-      // A Strict-mode (ISO/IEC 29500 Strict) date cell stores an ISO 8601 value directly, not a
-      // serial. Parse it literally — an ISO date is UTC — so it reads as the date it states rather
-      // than a 1900-epoch serial the transitional decoder would fabricate from the text.
-      return valueText === '' ? null : new Date(valueText);
-    case 's': {
-      const index = Number(valueText);
-      return Number.isInteger(index) ? sharedStrings[index] ?? '' : '';
-    }
-    case 'b':
-      return valueText === '1' || valueText === 'true';
-    case 'e':
-      return isErrorCode(valueText) ? {error: valueText} : valueText;
-    default:
-      return hasValue ? Number(valueText) : null;
-  }
-}
-
-function decodeResult(type: string, valueText: string): FormulaResult {
-  switch (type) {
-    case 'str':
-      return valueText;
-    case 'b':
-      return valueText === '1' || valueText === 'true';
-    case 'e':
-      return isErrorCode(valueText) ? {error: valueText} : valueText;
-    default:
-      return Number(valueText);
-  }
+  cell.value = decodeCellContent(
+    {type, hasFormula, formula, hasValue, valueText, inlineText},
+    sharedStrings,
+    style?.numFmt
+  );
 }

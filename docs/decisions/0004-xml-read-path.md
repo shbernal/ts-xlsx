@@ -62,3 +62,21 @@ it *actually* produces, and a running counter aborts the moment real output cros
 Declared sizes are consulted for nothing. `maxUncompressedBytes` now bounds produced output,
 not header claims. This is the first slice of the streaming reader; the same streaming-inflate
 primitive is what an eventual row-streaming (`.eachRow`) read path extends.
+
+## Update (2026-07-13) — the pull parser and the streaming row reader
+
+The SAX parser was push-only: `parseXml(source, handlers)` drove callbacks over the whole string
+in one loop. A callback cannot `yield`, so a reader that must *emit* incrementally could not sit on
+top of it. The scan loop is now extracted into a generator, `xmlEvents(source)`, that yields
+`open`/`text`/`close` events; `parseXml` is a thin push adapter over it, so every existing call site
+is byte-for-byte unchanged (the corpus proves it) while a pull consumer can now drive the parse.
+
+On that primitive sits the first streaming *read* API: `readSheetRows(data, options)`
+(`src/io/xlsx/read-rows.ts`), a generator that yields one worksheet's rows in order as plain
+`{number, cells}` records, retaining only the row in hand rather than materialising the whole
+`Workbook`. Value decoding is shared with the buffered reader through one module
+(`src/io/xlsx/cell-value.ts`), so a cell streamed one row at a time decodes identically to the same
+cell read as part of a full workbook — the divergence such a split would otherwise invite is closed
+by construction. This slice still inflates the package whole (bounded as above) and reads shared
+strings / styles as whole parts — both legitimately document-sized; a later slice can make the
+inflate itself per-part lazy on the same pull primitive.

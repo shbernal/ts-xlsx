@@ -24,6 +24,17 @@ export interface SaxHandlers {
   onClose(name: string): void;
 }
 
+/**
+ * One parse event from {@link xmlEvents}. The payloads match {@link SaxHandlers} exactly: `text`
+ * is already entity-decoded (or verbatim CDATA), and a `<x/>` yields one `open` with
+ * `selfClosing: true` and no matching `close`. The discriminated `kind` lets a *pull* consumer
+ * drive the parse — the shape the streaming reader needs, where a push callback cannot `yield`.
+ */
+export type XmlEvent =
+  | {readonly kind: 'open'; readonly name: string; readonly attrs: XmlAttributes; readonly selfClosing: boolean}
+  | {readonly kind: 'text'; readonly text: string}
+  | {readonly kind: 'close'; readonly name: string};
+
 const PREDEFINED_ENTITIES: Readonly<Record<string, string>> = {
   amp: '&',
   lt: '<',
@@ -103,18 +114,29 @@ function skipDeclaration(source: string, start: number): number {
   throw new SyntaxError('unterminated markup declaration: missing ">"');
 }
 
-/** Parse an XML document, dispatching SAX events. Throws {@link SyntaxError} on malformed markup. */
-export function parseXml(source: string, handlers: SaxHandlers): void {
+/**
+ * Scan an XML document as a *pull* stream of {@link XmlEvent}s in a single O(n) pass with no
+ * recursion. This is the parser's core; {@link parseXml} is a thin push adapter over it. A
+ * consumer that must produce output incrementally (the streaming row reader) pulls events and
+ * yields as it goes, holding only its own running state — a push callback cannot.
+ *
+ * Throws {@link SyntaxError} on malformed markup.
+ */
+export function* xmlEvents(source: string): Generator<XmlEvent> {
   const length = source.length;
   let i = 0;
 
   while (i < length) {
     const lt = source.indexOf('<', i);
     if (lt === -1) {
-      emitText(source.slice(i), handlers);
+      const chunk = source.slice(i);
+      if (chunk.length > 0) yield {kind: 'text', text: decodeEntities(normalizeLineEndings(chunk))};
       return;
     }
-    if (lt > i) emitText(source.slice(i, lt), handlers);
+    if (lt > i) {
+      const chunk = source.slice(i, lt);
+      if (chunk.length > 0) yield {kind: 'text', text: decodeEntities(normalizeLineEndings(chunk))};
+    }
 
     if (source.startsWith('<!--', lt)) {
       const end = source.indexOf('-->', lt + 4);
@@ -125,7 +147,7 @@ export function parseXml(source: string, handlers: SaxHandlers): void {
     if (source.startsWith('<![CDATA[', lt)) {
       const end = source.indexOf(']]>', lt + 9);
       if (end === -1) throw new SyntaxError('unterminated CDATA section');
-      handlers.onText(source.slice(lt + 9, end));
+      yield {kind: 'text', text: source.slice(lt + 9, end)};
       i = end + 3;
       continue;
     }
@@ -143,21 +165,38 @@ export function parseXml(source: string, handlers: SaxHandlers): void {
     const gt = findTagEnd(source, lt);
     const raw = source.slice(lt + 1, gt);
     if (raw.charCodeAt(0) === 0x2f /* / */) {
-      handlers.onClose(raw.slice(1).trim());
+      yield {kind: 'close', name: raw.slice(1).trim()};
     } else {
       const selfClosing = raw.charCodeAt(raw.length - 1) === 0x2f;
       const body = selfClosing ? raw.slice(0, -1) : raw;
       const nameEnd = firstWhitespace(body);
       const name = nameEnd === -1 ? body : body.slice(0, nameEnd);
       const attrs = nameEnd === -1 ? {} : parseAttributes(body.slice(nameEnd));
-      handlers.onOpen(name, attrs, selfClosing);
+      yield {kind: 'open', name, attrs, selfClosing};
     }
     i = gt + 1;
   }
 }
 
-function emitText(chunk: string, handlers: SaxHandlers): void {
-  if (chunk.length > 0) handlers.onText(decodeEntities(normalizeLineEndings(chunk)));
+/**
+ * Parse an XML document, dispatching SAX events to `handlers`. A thin push adapter over
+ * {@link xmlEvents} — one scanning core serves both the callback and the pull consumers.
+ * Throws {@link SyntaxError} on malformed markup.
+ */
+export function parseXml(source: string, handlers: SaxHandlers): void {
+  for (const event of xmlEvents(source)) {
+    switch (event.kind) {
+      case 'open':
+        handlers.onOpen(event.name, event.attrs, event.selfClosing);
+        break;
+      case 'text':
+        handlers.onText(event.text);
+        break;
+      case 'close':
+        handlers.onClose(event.name);
+        break;
+    }
+  }
 }
 
 // XML end-of-line handling (spec §2.11): a literal CRLF or lone CR in character data is
