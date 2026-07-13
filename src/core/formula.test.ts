@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {mangleFunctions, unmangleFunctions} from './formula.ts';
+import {mangleFormula, mangleFunctions, mangleParams, unmangleFunctions} from './formula.ts';
 
 test('a modern function called by its plain name gains the _xlfn. prefix', () => {
   assert.equal(mangleFunctions('FILTER(B1:D1,B2:D2=1)'), '_xlfn.FILTER(B1:D1,B2:D2=1)');
@@ -112,5 +112,59 @@ test('unmangle strips _xlfn. and _xlpm. back to the plain names', () => {
 test('mangle then unmangle round-trips a plain formula', () => {
   for (const f of ['FILTER(A:A,B:B=1)', 'SUM(A1:A9)', 'IFS(B1>0,"pos")', 'XLOOKUP(1,B:B,C:C)', 'NORM.DIST(A1,0,1,TRUE)', 'T.DIST.2T(2,10)']) {
     assert.equal(unmangleFunctions(mangleFunctions(f)), f);
+  }
+});
+
+test('a LET parameter is _xlpm.-prefixed at its declaration and every reference', () => {
+  assert.equal(mangleParams('LET(x,1,x+1)'), 'LET(_xlpm.x,1,_xlpm.x+1)');
+  assert.equal(mangleParams('LET(a,B2:B9,b,2,a+b)'), 'LET(_xlpm.a,B2:B9,_xlpm.b,2,_xlpm.a+_xlpm.b)');
+});
+
+test('a LAMBDA prefixes every parameter but leaves its body cells and legacy calls alone', () => {
+  assert.equal(mangleParams('LAMBDA(a,b,a+b)'), 'LAMBDA(_xlpm.a,_xlpm.b,_xlpm.a+_xlpm.b)');
+  assert.equal(mangleParams('LAMBDA(r,SUM(r)+A1)'), 'LAMBDA(_xlpm.r,SUM(_xlpm.r)+A1)');
+});
+
+test('the _xlpm. prefix is scoped: a same-named reference outside the binding is untouched', () => {
+  // The leading `x` is a defined-name reference, not the LET parameter — it must survive verbatim.
+  assert.equal(mangleParams('x+LET(x,1,x)'), 'x+LET(_xlpm.x,1,_xlpm.x)');
+  assert.equal(mangleParams('LET(x,1,x)+x'), 'LET(_xlpm.x,1,_xlpm.x)+x');
+});
+
+test('a parameter name inside a string literal is never mistaken for a reference', () => {
+  assert.equal(mangleParams('LET(x,1,"x is one"&x)'), 'LET(_xlpm.x,1,"x is one"&_xlpm.x)');
+});
+
+test('a lambda-valued parameter called as a function is prefixed', () => {
+  assert.equal(
+    mangleParams('LET(f,LAMBDA(v,v+1),f(5))'),
+    'LET(_xlpm.f,LAMBDA(_xlpm.v,_xlpm.v+1),_xlpm.f(5))',
+  );
+});
+
+test('nested LET/LAMBDA scopes each bind their own parameters', () => {
+  assert.equal(
+    mangleParams('LET(a,B2:B9,BYROW(a,LAMBDA(r,SUM(r))))'),
+    'LET(_xlpm.a,B2:B9,BYROW(_xlpm.a,LAMBDA(_xlpm.r,SUM(_xlpm.r))))',
+  );
+});
+
+test('a formula with no LET/LAMBDA passes through parameter mangling unchanged', () => {
+  for (const f of ['SUM(A1:A9)', 'IF(A1>0,"y","n")', 'NORM.DIST(A1,0,1,TRUE)', 'Table1[[#Data],[Col]]']) {
+    assert.equal(mangleParams(f), f);
+  }
+});
+
+test('mangleFormula applies both prefixes in the correct order', () => {
+  assert.equal(mangleFormula('LET(x,1,x+1)'), '_xlfn.LET(_xlpm.x,1,_xlpm.x+1)');
+  assert.equal(
+    mangleFormula('LET(a,B2:B9,b,BYROW(a,LAMBDA(r,SUM(r))),COUNTA(UNIQUE(FILTER(a,b=1))))'),
+    '_xlfn.LET(_xlpm.a,B2:B9,_xlpm.b,_xlfn.BYROW(_xlpm.a,_xlfn.LAMBDA(_xlpm.r,SUM(_xlpm.r))),COUNTA(_xlfn.UNIQUE(_xlfn.FILTER(_xlpm.a,_xlpm.b=1))))',
+  );
+});
+
+test('mangleFormula then unmangle round-trips a LET/LAMBDA formula', () => {
+  for (const f of ['LET(x,1,x+1)', 'LAMBDA(a,b,a+b)', 'LET(f,LAMBDA(v,v+1),f(5))', 'SUM(A1:A9)']) {
+    assert.equal(unmangleFunctions(mangleFormula(f)), f);
   }
 });

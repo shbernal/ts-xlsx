@@ -71,6 +71,17 @@ test('a modern function is stored with _xlfn. on disk but round-trips as its pla
   assert.equal(value.formula, 'FILTER(B1:D1,B2:D2=1)');
 });
 
+test('a LET formula stores its parameters with _xlpm. on disk but round-trips as plain names', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = {formula: 'LET(x,B1,x+1)', result: 0};
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  assert.match(xml, /<f>_xlfn\.LET\(_xlpm\.x,B1,_xlpm\.x\+1\)<\/f>/);
+
+  const value = roundtrip(wb).getWorksheet('S')?.getCell('A1').value;
+  assert.ok(value && isFormulaValue(value));
+  assert.equal(value.formula, 'LET(x,B1,x+1)');
+});
+
 test('a formula that already carries _xlfn. is not double-prefixed on write', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {formula: '_xlfn.XLOOKUP(1,B:B,C:C)', result: 0};

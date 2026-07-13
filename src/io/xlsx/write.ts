@@ -14,7 +14,7 @@ import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import {dateToSerial, DEFAULT_DATE_NUMFMT} from '../../core/date.ts';
 import type {WorkbookImage} from '../../core/image.ts';
-import {mangleFunctions} from '../../core/formula.ts';
+import {mangleFormula} from '../../core/formula.ts';
 import type {Table, TableColumn} from '../../core/table.ts';
 import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/value.ts';
 import {type SheetProtection, SHEET_PROTECTION_FLAGS} from '../../core/protection.ts';
@@ -394,7 +394,7 @@ function definedNamesXml(workbook: Workbook): string {
       const hiddenAttr = name.hidden ? ' hidden="1"' : '';
       return (
         `<definedName name="${escapeAttr(name.name)}"${scopeAttr}${commentAttr}${hiddenAttr}>` +
-        `${escapeText(mangleFunctions(name.refersTo))}</definedName>`
+        `${escapeText(mangleFormula(name.refersTo))}</definedName>`
       );
     })
     .join('');
@@ -879,7 +879,7 @@ function hasOwnStyle(cell: Cell): boolean {
 }
 
 function formulaCellXml(ref: string, s: string, formula: string, result: FormulaResult | undefined): string {
-  const f = `<f>${escapeText(mangleFunctions(formula))}</f>`;
+  const f = `<f>${escapeText(mangleFormula(formula))}</f>`;
   if (result === undefined) {
     return `<c r="${ref}"${s}>${f}</c>`;
   }

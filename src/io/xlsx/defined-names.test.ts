@@ -72,12 +72,12 @@ test('special characters in the name and formula are escaped and round-trip verb
   assert.equal(back.definedNames[0]?.refersTo, "'O''Brien & Co'!$A$1");
 });
 
-test('a name defined as a modern function is stored under _xlfn. but modelled plain', () => {
+test('a name defined as a LAMBDA stores _xlfn. and _xlpm. but is modelled plain', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 1;
   wb.defineName({name: 'Double', refersTo: 'LAMBDA(x,x*2)'});
   const xml = workbookXmlOf(wb);
-  assert.match(xml, /<definedName name="Double">_xlfn\.LAMBDA\(x,x\*2\)<\/definedName>/);
+  assert.match(xml, /<definedName name="Double">_xlfn\.LAMBDA\(_xlpm\.x,_xlpm\.x\*2\)<\/definedName>/);
   const back = readXlsx(writeXlsx(wb));
   assert.deepEqual([...back.definedNames], [{name: 'Double', refersTo: 'LAMBDA(x,x*2)'}]);
 });
