@@ -833,3 +833,64 @@ test('a tab colour survives a worksheet model export/import', () => {
   dst.model = src.model;
   assert.deepEqual(dst.tabColor, {argb: 'FF0000FF'});
 });
+
+test('inverted outline summary positions round-trip as false', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.outline.summaryBelow = false;
+  sheet.outline.summaryRight = false;
+  sheet.getCell('A1').value = 'x';
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.outline.summaryBelow, false);
+  assert.equal(back?.outline.summaryRight, false);
+});
+
+test('the written package carries the outline flags under <sheetPr>', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.outline.summaryBelow = false;
+  sheet.outline.summaryRight = false;
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.match(xml, /<sheetPr><outlinePr summaryBelow="0" summaryRight="0"\/><\/sheetPr>/);
+});
+
+test('the tab colour and outline flags share one <sheetPr> in CT_SheetPr order', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.tabColor = {argb: 'FFFF0000'};
+  sheet.outline.summaryBelow = false;
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.match(xml, /<sheetPr><tabColor rgb="FFFF0000"\/><outlinePr summaryBelow="0"\/><\/sheetPr>/);
+});
+
+test('only the set outline flag serializes; the untouched one stays absent', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').outline.summaryRight = false;
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.match(xml, /<outlinePr summaryRight="0"\/>/);
+  assert.doesNotMatch(xml, /summaryBelow/);
+});
+
+test('a sheet with default outline positions emits no <outlinePr>', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'y';
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.doesNotMatch(xml, /<outlinePr/);
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.outline.summaryBelow, undefined);
+  assert.equal(back?.outline.summaryRight, undefined);
+});
+
+test('outline flags survive a worksheet model export/import', () => {
+  const wb = new Workbook();
+  const src = wb.addWorksheet('Src');
+  src.outline.summaryBelow = false;
+  const dst = wb.addWorksheet('Dst');
+  dst.model = src.model;
+  assert.equal(dst.outline.summaryBelow, false);
+});

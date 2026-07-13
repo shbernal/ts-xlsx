@@ -799,8 +799,14 @@ function parseWorksheet(
           }
           break;
         case 'tabColor':
-          // The lone child of `<sheetPr>` we read today; a self-closing element, so it arrives here.
+          // A self-closing `<sheetPr>` child, so it arrives here rather than as text.
           sheet.tabColor = parseColor(attrs);
+          break;
+        case 'outlinePr':
+          // Another self-closing `<sheetPr>` child; only set flags the source actually carried, so
+          // a file without them leaves `outline` empty and a re-write stays byte-clean.
+          if (attrs.summaryBelow !== undefined) sheet.outline.summaryBelow = flagValue(attrs.summaryBelow);
+          if (attrs.summaryRight !== undefined) sheet.outline.summaryRight = flagValue(attrs.summaryRight);
           break;
         case 'pageMargins':
           applyMargins(sheet.pageMargins, attrs);

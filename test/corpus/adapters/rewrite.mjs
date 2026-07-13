@@ -361,6 +361,24 @@ const impl = {
     };
   },
 
+  outlinePropertiesRoundtrip() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.outline.summaryBelow = false;
+    ws.outline.summaryRight = false;
+    ws.getCell('A1').value = 'x';
+    const buffer = writeXlsx(wb);
+    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const outlinePr = (sheetXml.match(/<outlinePr\b[^>]*\/?>/) || [''])[0];
+    const reload = readXlsx(buffer);
+    const outline = reload.getWorksheet('S').outline;
+    return {
+      outlinePrEmitted: /summaryBelow="0"/.test(outlinePr) && /summaryRight="0"/.test(outlinePr),
+      reReadSummaryBelow: outline.summaryBelow ?? null,
+      reReadSummaryRight: outline.summaryRight ?? null,
+    };
+  },
+
   // Author a bold cell, then rewrite the emitted <b/> flag to each explicit form and report how
   // the reader reads bold back → { bareTag, valOne, valZero }. A boolean font flag's `val` governs:
   // a bare tag or val="1" is on, val="0" is off — presence alone must not force true.

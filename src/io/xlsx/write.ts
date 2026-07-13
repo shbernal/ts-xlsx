@@ -21,6 +21,7 @@ import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import type {
   ColumnProperties,
   HeaderFooter,
+  OutlineProperties,
   PageMargins,
   RowProperties,
   Worksheet,
@@ -480,12 +481,25 @@ function validateMerges(sheet: Worksheet): void {
   }
 }
 
-// `<sheetPr>` carries the sheet's appearance properties; today only the tab colour. It is the
-// first child of `<worksheet>` in CT_Worksheet order, and `<tabColor>` its first child. Omitted
-// entirely when the sheet has no tab colour, so an uncoloured sheet stays byte-clean.
+// `<sheetPr>` carries the sheet's appearance properties: the tab colour and the outline
+// summary-position flags. It is the first child of `<worksheet>` in CT_Worksheet order; its own
+// children follow CT_SheetPr order — `<tabColor>` then `<outlinePr>`. Omitted entirely when the
+// sheet carries neither, so an unadorned sheet stays byte-clean.
 function sheetPrXml(sheet: Worksheet): string {
-  if (sheet.tabColor === undefined) return '';
-  return `<sheetPr><tabColor ${colorAttrs(sheet.tabColor)}/></sheetPr>`;
+  const children =
+    (sheet.tabColor !== undefined ? `<tabColor ${colorAttrs(sheet.tabColor)}/>` : '') +
+    outlinePrXml(sheet.outline);
+  return children === '' ? '' : `<sheetPr>${children}</sheetPr>`;
+}
+
+// `<outlinePr>` carries only the summary-position flags today. Each is emitted solely when the
+// caller set it, so an inverted placement (`summaryBelow="0"`) is honoured while an untouched sheet
+// keeps the element out of the file entirely.
+function outlinePrXml(outline: OutlineProperties): string {
+  const attrs: string[] = [];
+  if (outline.summaryBelow !== undefined) attrs.push(`summaryBelow="${outline.summaryBelow ? 1 : 0}"`);
+  if (outline.summaryRight !== undefined) attrs.push(`summaryRight="${outline.summaryRight ? 1 : 0}"`);
+  return attrs.length === 0 ? '' : `<outlinePr ${attrs.join(' ')}/>`;
 }
 
 function mergeCellsXml(merges: readonly string[]): string {

@@ -33,6 +33,17 @@ export interface WorksheetProperties {
 }
 
 /**
+ * Placement of an outline's summary rows/columns. Excel's defaults are summary *below* the detail
+ * rows and *right* of the detail columns; setting either to `false` inverts that placement so an
+ * author who groups upward gets a file that honours it. An unset flag is omitted from the written
+ * `<outlinePr>`, and an empty object emits no `<outlinePr>` at all.
+ */
+export interface OutlineProperties {
+  summaryBelow?: boolean;
+  summaryRight?: boolean;
+}
+
+/**
  * Print margins, in inches. OOXML's `<pageMargins>` requires all six to be present, but
  * the model stores only what the caller set; the writer fills the untouched ones with
  * valid defaults. An empty object means the element is omitted entirely.
@@ -138,6 +149,7 @@ export interface WorksheetModel {
   state: WorksheetState['state'];
   tabColor: Color | undefined;
   properties: WorksheetProperties;
+  outline: OutlineProperties;
   pageMargins: PageMargins;
   headerFooter: HeaderFooter;
   columns: {index: number; properties: ColumnProperties}[];
@@ -188,6 +200,12 @@ export class Worksheet {
 
   /** Sheet-level format defaults. Mutate in place: `sheet.properties.defaultRowHeight = 20`. */
   readonly properties: WorksheetProperties = {};
+
+  /**
+   * Outline summary-position flags. Mutate in place: `sheet.outline.summaryBelow = false`. Empty
+   * means unset — the writer emits no `<outlinePr>` and a round-trip never fabricates one.
+   */
+  readonly outline: OutlineProperties = {};
 
   /** Print margins. Mutate in place: `sheet.pageMargins.left = 0.5`. Empty means unset. */
   readonly pageMargins: PageMargins = {};
@@ -673,6 +691,7 @@ export class Worksheet {
       state: this.state,
       tabColor: this.tabColor,
       properties: {...this.properties},
+      outline: {...this.outline},
       pageMargins: {...this.pageMargins},
       headerFooter: {...this.headerFooter},
       columns: [...this.#columns].map(([index, properties]) => ({index, properties: {...properties}})),
@@ -691,6 +710,7 @@ export class Worksheet {
     this.state = model.state;
     this.tabColor = model.tabColor;
     overwrite(this.properties, model.properties);
+    overwrite(this.outline, model.outline);
     overwrite(this.pageMargins, model.pageMargins);
     overwrite(this.headerFooter, model.headerFooter);
 
