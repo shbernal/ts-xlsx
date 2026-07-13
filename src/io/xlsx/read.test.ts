@@ -60,6 +60,25 @@ test('a formula with no cached result round-trips without inventing one', () => 
   assert.equal(value.result, undefined);
 });
 
+test('a modern function is stored with _xlfn. on disk but round-trips as its plain name', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = {formula: 'FILTER(B1:D1,B2:D2=1)', result: 0};
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  assert.match(xml, /<f>_xlfn\.FILTER\(B1:D1,B2:D2=1\)<\/f>/);
+
+  const value = roundtrip(wb).getWorksheet('S')?.getCell('A1').value;
+  assert.ok(value && isFormulaValue(value));
+  assert.equal(value.formula, 'FILTER(B1:D1,B2:D2=1)');
+});
+
+test('a formula that already carries _xlfn. is not double-prefixed on write', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = {formula: '_xlfn.XLOOKUP(1,B:B,C:C)', result: 0};
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  assert.match(xml, /_xlfn\.XLOOKUP/);
+  assert.doesNotMatch(xml, /_xlfn\._xlfn/);
+});
+
 test('column width and visibility round-trip', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');

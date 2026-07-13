@@ -36,6 +36,7 @@ import type {
   UnderlineStyle,
   VerticalAlignment,
 } from '../../core/style.ts';
+import {unmangleFunctions} from '../../core/formula.ts';
 import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
@@ -988,8 +989,9 @@ function finalizeCell(
   if (style?.protection !== undefined) cell.protection = style.protection;
 
   if (hasFormula) {
+    const stored = unmangleFunctions(formula);
     const result = hasValue ? decodeResult(type, valueText) : undefined;
-    cell.value = result === undefined ? {formula} : {formula, result};
+    cell.value = result === undefined ? {formula: stored} : {formula: stored, result};
     return;
   }
   const value = decodeValue(type, valueText, inlineText, hasValue, sharedStrings);
