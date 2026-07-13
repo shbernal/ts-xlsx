@@ -88,5 +88,20 @@ export default {
         assert.ok(/_xlfn\.LET/.test(f), `LET must be stored as _xlfn.LET for Excel to accept it; got: ${f}`);
       },
     },
+    {
+      // The 2010 statistical-consistency rename family (NORM.DIST, T.DIST.2T, …) also post-dates the
+      // frozen grammar and needs the `_xlfn.` prefix, but its names carry an internal '.'. The whole
+      // dotted name must be prefixed once — `_xlfn.NORM.DIST` — not its trailing segment.
+      name: 'a dotted statistical function is stored whole with the _xlfn. prefix, not on its tail segment',
+      baseline: 'fail',
+      async expect(api, assert) {
+        const {sheets} = await api.inspectPackage({
+          sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'NORM.DIST(A2,0,1,TRUE)', result: 0.5}]}],
+        });
+        const f = sheets.S.formulas.A1 || '';
+        assert.ok(/_xlfn\.NORM\.DIST/.test(f), `NORM.DIST must be stored as _xlfn.NORM.DIST; got: ${f}`);
+        assert.ok(!/_xlfn\.DIST/.test(f), `the tail segment must not be prefixed on its own; got: ${f}`);
+      },
+    },
   ],
 };

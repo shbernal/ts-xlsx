@@ -56,13 +56,43 @@ test('a LET/LAMBDA formula gets the _xlfn. prefix on every modern function', () 
   assert.ok(out.includes('COUNTA('));
 });
 
+test('a dotted 2010 statistical function is matched whole and prefixed', () => {
+  assert.equal(mangleFunctions('NORM.DIST(A1,0,1,TRUE)'), '_xlfn.NORM.DIST(A1,0,1,TRUE)');
+  assert.equal(mangleFunctions('BETA.INV(0.5,2,3)'), '_xlfn.BETA.INV(0.5,2,3)');
+  assert.equal(mangleFunctions('T.DIST.2T(2,10)'), '_xlfn.T.DIST.2T(2,10)');
+  assert.equal(mangleFunctions('NORM.S.INV(0.9)'), '_xlfn.NORM.S.INV(0.9)');
+});
+
+test('a dotted function only gets one prefix, on the whole name, not per segment', () => {
+  const out = mangleFunctions('CHISQ.DIST.RT(3,2)');
+  assert.equal(out, '_xlfn.CHISQ.DIST.RT(3,2)');
+  assert.ok(!out.includes('_xlfn.DIST'), 'the tail segment must not be prefixed on its own');
+});
+
+test('an already-prefixed dotted function is not double-prefixed', () => {
+  assert.equal(mangleFunctions('_xlfn.NORM.DIST(A1,0,1,TRUE)'), '_xlfn.NORM.DIST(A1,0,1,TRUE)');
+  assert.ok(!mangleFunctions('_xlfn.NORM.DIST(A1,0,1,TRUE)').includes('_xlfn._xlfn'));
+});
+
+test('a dotted function nested beside plain and legacy functions is prefixed correctly', () => {
+  assert.equal(
+    mangleFunctions('SUM(NORM.DIST(A1,0,1,TRUE),STDEV.S(B:B),AVERAGE(C:C))'),
+    'SUM(_xlfn.NORM.DIST(A1,0,1,TRUE),_xlfn.STDEV.S(B:B),AVERAGE(C:C))',
+  );
+});
+
+test('a decimal literal adjacent to a dotted call is not mistaken for a function', () => {
+  assert.equal(mangleFunctions('NORM.DIST(A1,0,1,TRUE)*1.5'), '_xlfn.NORM.DIST(A1,0,1,TRUE)*1.5');
+});
+
 test('unmangle strips _xlfn. and _xlpm. back to the plain names', () => {
   assert.equal(unmangleFunctions('_xlfn.XLOOKUP(1,B:B,C:C)'), 'XLOOKUP(1,B:B,C:C)');
   assert.equal(unmangleFunctions('_xlfn.LET(_xlpm.a,B2:B9,_xlpm.a)'), 'LET(a,B2:B9,a)');
+  assert.equal(unmangleFunctions('_xlfn.NORM.DIST(A1,0,1,TRUE)'), 'NORM.DIST(A1,0,1,TRUE)');
 });
 
 test('mangle then unmangle round-trips a plain formula', () => {
-  for (const f of ['FILTER(A:A,B:B=1)', 'SUM(A1:A9)', 'IFS(B1>0,"pos")', 'XLOOKUP(1,B:B,C:C)']) {
+  for (const f of ['FILTER(A:A,B:B=1)', 'SUM(A1:A9)', 'IFS(B1>0,"pos")', 'XLOOKUP(1,B:B,C:C)', 'NORM.DIST(A1,0,1,TRUE)', 'T.DIST.2T(2,10)']) {
     assert.equal(unmangleFunctions(mangleFunctions(f)), f);
   }
 });

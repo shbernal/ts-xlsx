@@ -79,6 +79,18 @@ test('a formula that already carries _xlfn. is not double-prefixed on write', ()
   assert.doesNotMatch(xml, /_xlfn\._xlfn/);
 });
 
+test('a dotted statistical function is stored whole with _xlfn. and round-trips as its plain name', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = {formula: 'NORM.DIST(A2,0,1,TRUE)', result: 0.5};
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  assert.match(xml, /<f>_xlfn\.NORM\.DIST\(A2,0,1,TRUE\)<\/f>/);
+  assert.doesNotMatch(xml, /_xlfn\.DIST/);
+
+  const value = roundtrip(wb).getWorksheet('S')?.getCell('A1').value;
+  assert.ok(value && isFormulaValue(value));
+  assert.equal(value.formula, 'NORM.DIST(A2,0,1,TRUE)');
+});
+
 test('column width and visibility round-trip', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
