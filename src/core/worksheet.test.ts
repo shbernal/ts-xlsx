@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import type {CellValue} from './value.ts';
 import {Worksheet} from './worksheet.ts';
 
 test('addressing a covered cell resolves to the merged region master', () => {
@@ -214,6 +215,51 @@ test('inserting a row shifts the rows at and below it down', () => {
   assert.equal(sheet.getCell('A1').value, 'a');
   assert.equal(sheet.getCell('A2').value, 'inserted');
   assert.equal(sheet.getCell('A3').value, 'b', 'the row formerly at A2 shifts down to A3');
+});
+
+test('addRow appends after the last used row and returns its cells', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'header';
+  const cells = sheet.addRow(['a', 'b']);
+  assert.equal(sheet.getCell('A2').value, 'a', 'appended below the header, not over it');
+  assert.equal(sheet.getCell('B2').value, 'b');
+  assert.deepEqual(
+    cells.map(cell => cell.value),
+    ['a', 'b'],
+    'returns the materialised cells for styling',
+  );
+});
+
+test('addRow lands below a formatting-only row, not over it', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getRow(3).height = 40;
+  sheet.addRow(['tail']);
+  assert.equal(sheet.getCell('A4').value, 'tail', 'the used range spans the formatting-only row at 3');
+});
+
+test('addRows stacks each row in order, even when value-less', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'header';
+  const created = sheet.addRows([[null], ['x'], [null]]);
+  assert.equal(created.length, 3);
+  assert.equal(sheet.getCell('A2').value, null, 'a value-less appended row still consumes its slot');
+  assert.equal(sheet.getCell('A3').value, 'x', 'the next row does not collide with the value-less one above');
+  assert.equal(sheet.getCell('A4').value, null);
+});
+
+test('addRow skips a hole in a sparse array', () => {
+  const sheet = new Worksheet('S', 1);
+  const sparse: CellValue[] = [];
+  sparse[0] = 'a';
+  sparse[2] = 'c'; // index 1 stays a genuine array hole
+  const cells = sheet.addRow(sparse);
+  assert.equal(sheet.hasCell(1, 2), false, 'the hole leaves column B unmaterialised');
+  assert.equal(sheet.getCell('C1').value, 'c');
+  assert.deepEqual(
+    cells.map(cell => cell.value),
+    ['a', 'c'],
+    'only the visited elements become cells',
+  );
 });
 
 test('a row-splice shifts a merged range below the cut and keeps it merged', () => {

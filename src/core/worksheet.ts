@@ -511,6 +511,38 @@ export class Worksheet {
   }
 
   /**
+   * Append a row of `values` after the last used row, returning the cells it materialised.
+   * The append point is {@link rowCount}` + 1`, so the row lands below every row that holds
+   * data or its own formatting — never overwriting existing content, unlike {@link insertRow},
+   * which shifts and needs a position. Values map to columns from A; a hole in a sparse array
+   * (`['a', , 'c']`) leaves that column untouched. Unlike {@link spliceRows}, appending shifts
+   * nothing, so it never disturbs merges or the rows above.
+   */
+  addRow(values: CellValue[]): Cell[] {
+    return this.addRows([values])[0] ?? [];
+  }
+
+  /**
+   * Append several rows after the last used row in one call, returning the cells materialised
+   * for each. The rows stack in order — the first lands at {@link rowCount}` + 1`, the next
+   * directly below it — so a later row never collides with an earlier one even when both are
+   * value-less. The bulk form of {@link addRow}.
+   */
+  addRows(rows: CellValue[][]): Cell[][] {
+    let number = this.rowCount;
+    return rows.map(values => {
+      number += 1;
+      const cells: Cell[] = [];
+      values.forEach((value, index) => {
+        const cell = this.#cellAt(number, index + 1);
+        cell.value = value;
+        cells.push(cell);
+      });
+      return cells;
+    });
+  }
+
+  /**
    * Copy the row at the 1-based `start`, `count` times. With `insert` (the default) the copies are
    * inserted directly after the source, shifting the rows below — and any merged range there — down
    * by `count`; otherwise the copies overwrite the rows immediately below without shifting. Each
