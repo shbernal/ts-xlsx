@@ -110,6 +110,8 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
       const notes = readSheetNotes(path, partText);
       if (notes !== undefined) applyNotes(sheet, notes);
       readSheetImages(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
+      const printerSettings = readSheetPrinterSettings(path, partText, partBytes);
+      if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
     }
   }
 
@@ -135,6 +137,23 @@ function readSheetNotes(
   const commentsXml = partText(resolveRelativePart(sheetPath, target));
   if (commentsXml === undefined) return undefined;
   return parseComments(commentsXml);
+}
+
+// A sheet's printer-settings blob is an opaque binary part linked from `<pageSetup r:id>`: the sheet
+// declares a relationship of type `.../printerSettings` whose target resolves to a `.bin` part. We
+// keep the raw bytes verbatim — the DEVMODE inside is platform-specific and the model never
+// interprets it, only round-trips it so re-writing the file preserves the user's print configuration.
+// A sheet with no rels part or no such relationship simply has none.
+function readSheetPrinterSettings(
+  sheetPath: string,
+  partText: (path: string) => string | undefined,
+  partBytes: (path: string) => Uint8Array | undefined
+): Uint8Array | undefined {
+  const relsXml = partText(relsPathFor(sheetPath));
+  if (relsXml === undefined) return undefined;
+  const target = relationshipTargetByType(relsXml, 'printerSettings');
+  if (target === undefined) return undefined;
+  return partBytes(resolveRelativePart(sheetPath, target));
 }
 
 // A sheet's anchored images live in a drawing part reached through the sheet's own relationships: a

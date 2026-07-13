@@ -1025,6 +1025,62 @@ test('paperSize round-trips and leads the <pageSetup> attributes', () => {
   assert.equal(back?.pageSetup.paperSize, 9);
 });
 
+test('an opaque printer-settings blob round-trips its exact bytes', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  const blob = new Uint8Array([0x00, 0x01, 0xff, 0x7f, 0x80, 0x42]);
+  sheet.pageSetup.printerSettings = blob;
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.deepEqual(back?.pageSetup.printerSettings, blob, 'the DEVMODE bytes survive verbatim');
+});
+
+test('a printer-settings blob wires up the r:id, the .bin part, its rel, and a content type', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').pageSetup.printerSettings = new Uint8Array([1, 2, 3]);
+
+  const files = unzipSync(writeXlsx(wb));
+  const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml']!);
+  // The blob is the only reason the element exists, so <pageSetup> emits carrying just the r:id.
+  assert.match(sheetXml, /<pageSetup r:id="rId1"\/>/);
+
+  assert.ok(files['xl/printerSettings/printerSettings1.bin'], 'the binary part is written');
+  assert.deepEqual(files['xl/printerSettings/printerSettings1.bin'], new Uint8Array([1, 2, 3]));
+
+  const rels = strFromU8(files['xl/worksheets/_rels/sheet1.xml.rels']!);
+  assert.match(rels, /Id="rId1"[^>]*Target="\.\.\/printerSettings\/printerSettings1\.bin"/);
+  assert.match(rels, /Type="[^"]*\/printerSettings"/);
+
+  const contentTypes = strFromU8(files['[Content_Types].xml']!);
+  assert.match(contentTypes, /<Default Extension="bin" ContentType="[^"]*printerSettings"\/>/);
+});
+
+test('a printer-settings blob rides alongside a table without stealing its rel id', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'h';
+  sheet.getCell('A2').value = 'v';
+  sheet.addTable({name: 'T', ref: 'A1', columns: [{name: 'h'}], rowCount: 1});
+  sheet.pageSetup.printerSettings = new Uint8Array([9]);
+
+  const files = unzipSync(writeXlsx(wb));
+  const rels = strFromU8(files['xl/worksheets/_rels/sheet1.xml.rels']!);
+  // The table keeps rId1; the printer-settings blob follows it at rId2, so neither reference collides.
+  assert.match(rels, /Id="rId1"[^>]*Target="\.\.\/tables\/table1\.xml"/);
+  assert.match(rels, /Id="rId2"[^>]*Target="\.\.\/printerSettings\/printerSettings1\.bin"/);
+  assert.match(strFromU8(files['xl/worksheets/sheet1.xml']!), /<pageSetup r:id="rId2"\/>/);
+});
+
+test('a sheet with no printer settings writes no .bin part and no r:id', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').pageSetup.scale = 90;
+
+  const files = unzipSync(writeXlsx(wb));
+  assert.doesNotMatch(strFromU8(files['xl/worksheets/sheet1.xml']!), /r:id=/);
+  assert.equal(files['xl/printerSettings/printerSettings1.bin'], undefined);
+  assert.doesNotMatch(strFromU8(files['[Content_Types].xml']!), /Extension="bin"/);
+});
+
 test('a non-numeric paperSize is dropped on read, not stored as NaN', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').pageSetup.scale = 96;

@@ -59,6 +59,7 @@ const CT = {
   comments: 'application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml',
   vml: 'application/vnd.openxmlformats-officedocument.vmlDrawing',
   drawing: 'application/vnd.openxmlformats-officedocument.drawing+xml',
+  printerSettings: 'application/vnd.openxmlformats-officedocument.spreadsheetml.printerSettings',
 } as const;
 
 const REL = {
@@ -72,6 +73,7 @@ const REL = {
   comments: `${NS.docRels}/comments`,
   vmlDrawing: `${NS.docRels}/vmlDrawing`,
   drawing: `${NS.docRels}/drawing`,
+  printerSettings: `${NS.docRels}/printerSettings`,
 } as const;
 
 /**
@@ -129,6 +131,19 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     };
   });
 
+  // A sheet's opaque printer-settings blob rides in its own binary part, linked from `<pageSetup>`
+  // by a sheet-local relationship id that follows every other sheet-local id (tables, drawing,
+  // comments) so adding one never renumbers the ids already threaded into the sheet XML.
+  const sheetPrinterSettings: (PrinterSettingsPlan | null)[] = sheets.map((sheet, i) => {
+    const data = sheet.pageSetup.printerSettings;
+    if (data === undefined) return null;
+    const base =
+      (sheetTables[i] ?? []).length +
+      (sheetDrawings[i] !== null ? 1 : 0) +
+      (sheetComments[i] !== null ? 2 : 0);
+    return {number: i + 1, data, relId: `rId${base + 1}`};
+  });
+
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
   // side effect of that pass, so styles.xml can only be generated once every sheet is done.
   const styles = new StyleRegistry();
@@ -138,15 +153,26 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
       sheetTables[i] ?? [],
       styles,
       sheetDrawings[i]?.relId ?? null,
-      sheetComments[i]?.vmlRelId ?? null
+      sheetComments[i]?.vmlRelId ?? null,
+      sheetPrinterSettings[i]?.relId ?? null
     )
   );
 
   const commentNumbers = sheetComments.filter((c): c is CommentPlan => c !== null).map(c => c.number);
   const drawingNumbers = sheetDrawings.filter((d): d is DrawingPlan => d !== null).map(d => d.number);
+  const printerSettingsNumbers = sheetPrinterSettings
+    .filter((p): p is PrinterSettingsPlan => p !== null)
+    .map(p => p.number);
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(
-      contentTypesXml(sheets.length, allTables, commentNumbers, drawingNumbers, media.extensions)
+      contentTypesXml(
+        sheets.length,
+        allTables,
+        commentNumbers,
+        drawingNumbers,
+        printerSettingsNumbers,
+        media.extensions
+      )
     ),
     '_rels/.rels': strToU8(rootRelsXml()),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
@@ -163,11 +189,15 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     const tables = sheetTables[i] ?? [];
     const drawing = sheetDrawings[i] ?? null;
     const comments = sheetComments[i] ?? null;
+    const printerSettings = sheetPrinterSettings[i] ?? null;
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
-    if (tables.length > 0 || drawing !== null || comments !== null) {
+    if (tables.length > 0 || drawing !== null || comments !== null || printerSettings !== null) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(
-        worksheetRelsXml(tables, drawing, comments)
+        worksheetRelsXml(tables, drawing, comments, printerSettings)
       );
+    }
+    if (printerSettings !== null) {
+      files[`xl/printerSettings/printerSettings${printerSettings.number}.bin`] = printerSettings.data;
     }
     if (drawing !== null) {
       files[`xl/drawings/drawing${drawing.number}.xml`] = strToU8(drawingXml(drawing.images));
@@ -193,6 +223,14 @@ interface CommentPlan {
   readonly notes: readonly NoteCell[];
   readonly vmlRelId: string;
   readonly commentsRelId: string;
+}
+
+// A sheet's opaque printer-settings blob paired with the part number naming its `.bin` part and the
+// sheet-local relationship id that links the sheet's `<pageSetup r:id>` to it.
+interface PrinterSettingsPlan {
+  readonly number: number;
+  readonly data: Uint8Array;
+  readonly relId: string;
 }
 
 // A table paired with the identifiers the package needs: a workbook-global part number
@@ -269,6 +307,7 @@ function contentTypesXml(
   tables: readonly PlannedTable[],
   commentNumbers: readonly number[],
   drawingNumbers: readonly number[],
+  printerSettingsNumbers: readonly number[],
   mediaExtensions: readonly string[]
 ): string {
   const overrides = [
@@ -282,10 +321,12 @@ function contentTypesXml(
     override('/docProps/core.xml', CT.core),
     override('/docProps/app.xml', CT.app),
   ].join('');
-  // The VML drawings and each media kind are declared by extension-level defaults rather than a
-  // per-part override — the raw bytes carry no XML content type of their own.
+  // The VML drawings, printer-settings blobs, and each media kind are declared by extension-level
+  // defaults rather than a per-part override — the raw bytes carry no XML content type of their own.
   const vmlDefault =
     commentNumbers.length > 0 ? `<Default Extension="vml" ContentType="${CT.vml}"/>` : '';
+  const binDefault =
+    printerSettingsNumbers.length > 0 ? `<Default Extension="bin" ContentType="${CT.printerSettings}"/>` : '';
   const imageDefaults = mediaExtensions
     .map(ext => `<Default Extension="${ext}" ContentType="${imageContentType(ext)}"/>`)
     .join('');
@@ -295,6 +336,7 @@ function contentTypesXml(
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
     '<Default Extension="xml" ContentType="application/xml"/>' +
     vmlDefault +
+    binDefault +
     imageDefaults +
     overrides +
     '</Types>'
@@ -413,7 +455,8 @@ function worksheetXml(
   tables: readonly PlannedTable[],
   styles: StyleRegistry,
   drawingRelId: string | null,
-  legacyDrawingRelId: string | null
+  legacyDrawingRelId: string | null,
+  printerSettingsRelId: string | null
 ): string {
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
   // rather than emit a package a consumer repairs on open.
@@ -486,7 +529,7 @@ function worksheetXml(
     sheetProtectionXml(sheet.protection) +
     mergeCellsXml(sheet.merges) +
     pageMarginsXml(sheet.pageMargins) +
-    pageSetupXml(sheet.pageSetup) +
+    pageSetupXml(sheet.pageSetup, printerSettingsRelId) +
     headerFooterXml(sheet.headerFooter) +
     // Schema order near the tail: <drawing> (the images), then <legacyDrawing> (the VML holding the
     // note boxes), then <tableParts>.
@@ -593,7 +636,8 @@ function tablePartsXml(tables: readonly PlannedTable[]): string {
 function worksheetRelsXml(
   tables: readonly PlannedTable[],
   drawing: DrawingPlan | null,
-  comments: CommentPlan | null
+  comments: CommentPlan | null,
+  printerSettings: PrinterSettingsPlan | null
 ): string {
   const rels = [
     ...tables.map(({relId, number}) => relationship(relId, REL.table, `../tables/table${number}.xml`)),
@@ -605,6 +649,15 @@ function worksheetRelsXml(
       : [
           relationship(comments.vmlRelId, REL.vmlDrawing, `../drawings/vmlDrawing${comments.number}.vml`),
           relationship(comments.commentsRelId, REL.comments, `../comments${comments.number}.xml`),
+        ]),
+    ...(printerSettings === null
+      ? []
+      : [
+          relationship(
+            printerSettings.relId,
+            REL.printerSettings,
+            `../printerSettings/printerSettings${printerSettings.number}.bin`
+          ),
         ]),
   ].join('');
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
@@ -684,8 +737,10 @@ function pageMarginsXml(margins: PageMargins): string {
 // `<pageSetup>` carries the print-scaling attributes (all but `fitToPage`, which is a `<sheetPr>`
 // flag). It sits between `<pageMargins>` and `<headerFooter>` in CT_Worksheet order. Each attribute
 // is emitted only when the author set it, so an untouched sheet keeps the element out of the file
-// and a partially-set one never fabricates the counts Excel would otherwise default.
-function pageSetupXml(pageSetup: PageSetup): string {
+// and a partially-set one never fabricates the counts Excel would otherwise default. A non-null
+// `printerSettingsRelId` links the sheet's opaque printer-settings blob and forces the element out
+// even when no scaling attribute is set — the reference is the only thing the model has to carry.
+function pageSetupXml(pageSetup: PageSetup, printerSettingsRelId: string | null): string {
   const attrs: string[] = [];
   if (pageSetup.paperSize !== undefined) attrs.push(`paperSize="${pageSetup.paperSize}"`);
   if (pageSetup.scale !== undefined) attrs.push(`scale="${pageSetup.scale}"`);
@@ -693,6 +748,7 @@ function pageSetupXml(pageSetup: PageSetup): string {
   if (pageSetup.fitToHeight !== undefined) attrs.push(`fitToHeight="${pageSetup.fitToHeight}"`);
   if (pageSetup.pageOrder !== undefined) attrs.push(`pageOrder="${pageSetup.pageOrder}"`);
   if (pageSetup.orientation !== undefined) attrs.push(`orientation="${pageSetup.orientation}"`);
+  if (printerSettingsRelId !== null) attrs.push(`r:id="${printerSettingsRelId}"`);
   return attrs.length === 0 ? '' : `<pageSetup ${attrs.join(' ')}/>`;
 }
 

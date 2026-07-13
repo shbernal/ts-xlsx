@@ -70,6 +70,13 @@ export interface PageSetup {
    * author or source file set.
    */
   paperSize?: number;
+  /**
+   * The printer-settings blob a source file bound to this sheet's `<pageSetup>` via an `r:id`
+   * relationship, held verbatim. Excel stores the platform-specific `DEVMODE` (paper tray, duplex,
+   * DPI, …) in this opaque binary part; the model does not interpret it, only round-trips the exact
+   * bytes so re-writing a file that carried one does not silently drop the user's print configuration.
+   */
+  printerSettings?: Uint8Array;
 }
 
 /**
