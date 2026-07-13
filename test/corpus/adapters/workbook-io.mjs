@@ -2898,6 +2898,28 @@ export async function fillArgbHashPrefixReport() {
   return {validRgb: valid.rgb, validReRead: valid.reRead, hashRgb: hash.rgb, hashReRead: hash.reRead};
 }
 
+export async function argbNormalizationReport() {
+  const emittedFgColor = async argb => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'x';
+    ws.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb}};
+    const buffer = await wb.xlsx.writeBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+    const stylesName = Object.keys(zip.files).find(f => /xl\/styles\.xml$/.test(f));
+    const styles = stylesName ? await zip.file(stylesName).async('string') : '';
+    const m = styles.match(/<fgColor rgb="([^"]*)"/);
+    return m ? m[1] : null;
+  };
+  let rejectsMalformed = false;
+  try {
+    await emittedFgColor('12345');
+  } catch {
+    rejectsMalformed = true;
+  }
+  return {sixHexRgb: await emittedFgColor('00FF00'), rejectsMalformed};
+}
+
 // Write a table with a given style theme and report the emitted tableStyleInfo → { real, none,
 // nullTheme } where each is { ok, name, hasStripes }. A real built-in theme emits its name; a null/
 // absent theme correctly omits the name attribute (an unstyled table). The 'None' theme (Excel's

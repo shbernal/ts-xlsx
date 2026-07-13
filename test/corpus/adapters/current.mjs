@@ -33,6 +33,7 @@ import {
   removeCellNoteReport,
   crossRealmArrayRow,
   fillArgbHashPrefixReport,
+  argbNormalizationReport,
   tableStyleThemeReport,
   fontExplicitFalseBoldReport,
   outlinePropertiesRoundtrip,
@@ -310,6 +311,12 @@ export default {
   // hashReRead } — for asserting a valid ARGB serializes as 8 hex digits and a '#'-prefixed value is
   // not passed through as a malformed rgb that renders black. See workbook-io.mjs.
   fillArgbHashPrefixReport,
+
+  // Write a solid fill with a 6-hex RGB (no alpha) and a malformed value → { sixHexRgb,
+  // rejectsMalformed } — for asserting a 6-hex RGB is promoted to opaque 8-hex ARGB and a value that
+  // is neither 6 nor 8 hex digits is rejected, not written as a colour Excel renders black. See
+  // workbook-io.mjs.
+  argbNormalizationReport,
 
   // Write a table with a real theme, 'None', and null → { real, none, nullTheme } each { ok, name,
   // hasStripes } — for asserting 'None' produces an unstyled table (no name), not name="None". See

@@ -384,6 +384,29 @@ const impl = {
     return {validRgb: emittedFgColor('FFBFBFBF'), hashRgb: emittedFgColor('#FFBFBFBF')};
   },
 
+  // Author a solid fill with a 6-hex RGB (no alpha) and with a malformed value, and report how the
+  // writer treats each → { sixHexRgb, rejectsMalformed }. A 6-hex RGB is the common "colour without
+  // its alpha channel" case: it must be promoted to a valid opaque 8-hex ARGB, not emitted as a
+  // 6-char rgb that Excel renders black. A value that is neither 6 nor 8 hex digits is a programming
+  // error and must be rejected, never written as a colour Excel silently renders black.
+  argbNormalizationReport() {
+    const emittedFgColor = argb => {
+      const wb = new Workbook();
+      const ws = wb.addWorksheet('S');
+      ws.getCell('A1').value = 'x';
+      ws.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb}};
+      const stylesXml = partMapOf(writeXlsx(wb))['xl/styles.xml'] || '';
+      return (stylesXml.match(/<fgColor rgb="([^"]*)"/) || [null, null])[1];
+    };
+    let rejectsMalformed = false;
+    try {
+      emittedFgColor('12345');
+    } catch {
+      rejectsMalformed = true;
+    }
+    return {sixHexRgb: emittedFgColor('00FF00'), rejectsMalformed};
+  },
+
   outlinePropertiesRoundtrip() {
     const wb = new Workbook();
     const ws = wb.addWorksheet('S');

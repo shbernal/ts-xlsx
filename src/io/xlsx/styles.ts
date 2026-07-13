@@ -344,11 +344,21 @@ function fillXml(fill: Fill): string {
   return `<fill><patternFill patternType="${fill.pattern}">${fg}${bg}</patternFill></fill>`;
 }
 
-// A leading '#' is a CSS habit; OOXML wants a bare 8-hex ARGB. Passing '#FFBFBFBF' through verbatim
-// yields a 9-character rgb value that strict consumers cannot parse and render as flat black, so the
-// '#' is stripped here — the single choke point through which every fill/font/border/tab colour flows.
+// OOXML wants a bare 8-hex ARGB (alpha + RGB). This single choke point — through which every
+// fill/font/border/tab colour flows — accepts two developer conveniences and rejects the rest loudly,
+// because a malformed rgb value does not error in Excel: it silently renders as flat black.
+//   - A leading '#' is a CSS habit and is stripped ('#FFBFBFBF' → 'FFBFBFBF').
+//   - A 6-hex RGB is promoted to ARGB with a fully-opaque alpha ('00FF00' → 'FF00FF00'), the common
+//     case of a colour written without its alpha channel.
+// Anything not then exactly 8 hex digits is a programming error at the API surface, so it throws with
+// the offending value rather than writing corrupt XML. Casing is preserved so foreign files round-trip.
 function normalizeArgb(argb: string): string {
-  return argb.startsWith('#') ? argb.slice(1) : argb;
+  const hex = argb.startsWith('#') ? argb.slice(1) : argb;
+  const rgb = hex.length === 6 ? `FF${hex}` : hex;
+  if (!/^[0-9a-fA-F]{8}$/.test(rgb)) {
+    throw new Error(`Invalid ARGB colour ${JSON.stringify(argb)}: expected 6 or 8 hexadecimal digits`);
+  }
+  return rgb;
 }
 
 export function colorAttrs(color: Color): string {

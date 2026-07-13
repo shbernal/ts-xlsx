@@ -80,6 +80,28 @@ test('a bare 8-hex fill colour is preserved verbatim, including its original cas
   assert.match(styles.toXml(), /<fgColor rgb="ff00ff00"\/>/);
 });
 
+test('a 6-hex RGB fill colour is promoted to ARGB with a fully-opaque alpha', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({fill: solid('00FF00')});
+  // A colour written without its alpha channel is the common case; it must not reach Excel as a
+  // 6-char rgb (which renders black), but as a valid opaque 8-hex ARGB.
+  assert.match(styles.toXml(), /<fgColor rgb="FF00FF00"\/>/);
+});
+
+test('a "#"-prefixed 6-hex RGB is both stripped and promoted to opaque ARGB', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({fill: solid('#00FF00')});
+  assert.match(styles.toXml(), /<fgColor rgb="FF00FF00"\/>/);
+});
+
+test('an ARGB that is neither 6 nor 8 hex digits is rejected at the API surface', () => {
+  const styles = new StyleRegistry();
+  // A malformed colour silently renders as flat black in Excel; fail loud instead of writing it.
+  assert.throws(() => styles.styleId({fill: solid('12345')}), /Invalid ARGB colour "12345"/);
+  assert.throws(() => styles.styleId({fill: solid('GGGGGGGG')}), /Invalid ARGB colour/);
+  assert.throws(() => styles.styleId({fill: solid('red')}), /Invalid ARGB colour/);
+});
+
 test('a custom number format is defined in <numFmts> from id 164 and referenced by its xf', () => {
   const styles = new StyleRegistry();
   styles.styleId({numFmt: '0.00%'});
