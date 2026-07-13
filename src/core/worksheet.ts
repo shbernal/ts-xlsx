@@ -64,6 +64,12 @@ export interface PageSetup {
   orientation?: 'portrait' | 'landscape';
   /** Order pages are numbered/printed in across a multi-page sheet. */
   pageOrder?: 'downThenOver' | 'overThenDown';
+  /**
+   * Paper size as Excel's 1-based enumeration index (e.g. `9` = A4, `1` = US Letter). Carried as an
+   * opaque integer — the model does not map it to physical dimensions, only preserves whatever the
+   * author or source file set.
+   */
+  paperSize?: number;
 }
 
 /**

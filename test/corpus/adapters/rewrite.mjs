@@ -62,7 +62,7 @@ const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth'
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt', 'fill', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
 const SUPPORTED_PAGE_MARGIN_KEYS = new Set(['left', 'right', 'top', 'bottom', 'header', 'footer']);
-const SUPPORTED_PAGE_SETUP_KEYS = new Set(['fitToPage', 'fitToWidth', 'fitToHeight', 'scale', 'orientation', 'pageOrder']);
+const SUPPORTED_PAGE_SETUP_KEYS = new Set(['fitToPage', 'fitToWidth', 'fitToHeight', 'scale', 'orientation', 'pageOrder', 'paperSize']);
 const SUPPORTED_HEADER_FOOTER_KEYS = new Set([
   'oddHeader', 'oddFooter', 'evenHeader', 'evenFooter', 'firstHeader', 'firstFooter',
 ]);
@@ -716,6 +716,7 @@ const impl = {
           fitToWidth: ps.fitToWidth ?? null,
           fitToHeight: ps.fitToHeight ?? null,
           scale: ps.scale ?? null,
+          paperSize: ps.paperSize ?? null,
         },
         autoFilter: null,
         merges: [...sheet.merges],
@@ -752,6 +753,7 @@ const impl = {
           fitToHeight: ps.fitToHeight ?? null,
           pageOrder: ps.pageOrder ?? null,
           orientation: ps.orientation ?? null,
+          paperSize: ps.paperSize ?? null,
         },
       };
     };

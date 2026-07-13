@@ -653,6 +653,7 @@ function pageMarginsXml(margins: PageMargins): string {
 // and a partially-set one never fabricates the counts Excel would otherwise default.
 function pageSetupXml(pageSetup: PageSetup): string {
   const attrs: string[] = [];
+  if (pageSetup.paperSize !== undefined) attrs.push(`paperSize="${pageSetup.paperSize}"`);
   if (pageSetup.scale !== undefined) attrs.push(`scale="${pageSetup.scale}"`);
   if (pageSetup.fitToWidth !== undefined) attrs.push(`fitToWidth="${pageSetup.fitToWidth}"`);
   if (pageSetup.fitToHeight !== undefined) attrs.push(`fitToHeight="${pageSetup.fitToHeight}"`);

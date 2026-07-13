@@ -959,6 +959,31 @@ test('orientation and pageOrder round-trip and emit only when set', () => {
   assert.equal(back?.pageSetup.pageOrder, 'overThenDown');
 });
 
+test('paperSize round-trips and leads the <pageSetup> attributes', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.pageSetup.paperSize = 9;
+  sheet.pageSetup.scale = 96;
+
+  const xml = strFromU8(unzipSync(writeXlsx(wb))['xl/worksheets/sheet1.xml']!);
+  assert.match(xml, /<pageSetup paperSize="9" scale="96"\/>/);
+
+  const back = roundtrip(wb).getWorksheet('S');
+  assert.equal(back?.pageSetup.paperSize, 9);
+});
+
+test('a non-numeric paperSize is dropped on read, not stored as NaN', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').pageSetup.scale = 96;
+  const files = unzipSync(writeXlsx(wb));
+  files['xl/worksheets/sheet1.xml'] = strToU8(
+    strFromU8(files['xl/worksheets/sheet1.xml']!).replace('<pageSetup ', '<pageSetup paperSize="A4" ')
+  );
+  const back = readXlsx(zipSync(files)).getWorksheet('S');
+  assert.equal(back?.pageSetup.paperSize, undefined);
+  assert.equal(back?.pageSetup.scale, 96);
+});
+
 test('a sheet with no page setup emits neither <pageSetUpPr> nor <pageSetup>', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'y';

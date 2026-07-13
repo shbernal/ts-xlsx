@@ -944,6 +944,8 @@ function applyPageSetup(pageSetup: PageSetup, attrs: {readonly [k: string]: stri
     const value = Number(raw);
     return Number.isFinite(value) ? value : undefined;
   };
+  const paperSize = num(attrs.paperSize);
+  if (paperSize !== undefined) pageSetup.paperSize = paperSize;
   const scale = num(attrs.scale);
   if (scale !== undefined) pageSetup.scale = scale;
   const fitToWidth = num(attrs.fitToWidth);
