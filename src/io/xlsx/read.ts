@@ -838,6 +838,13 @@ function parseWorksheet(
   // by the normal `</c>` close and the self-closing `<c/>` open of a formatted-but-empty cell.
   const finalizeCellFromState = (): void => {
     if (cellRef === '') return;
+    const styleIndex =
+      cellStyle >= 0
+        ? cellStyle
+        : rowCustomFormat && rowStyle >= 0
+          ? rowStyle
+          : columnStyle.get(cellCol) ?? -1;
+    const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
     // A shared-formula master seeds the group for its clones before it is finalised as an ordinary
     // formula cell; a clone resolves to the master's formula translated to its own position and is
     // committed here directly, since its value is not a plain `<c>` payload decodeCellContent knows.
@@ -850,19 +857,13 @@ function parseWorksheet(
         const value: SharedFormulaValue = {
           sharedFormula: encodeAddress(master.col, master.row),
           formula: unmangleFunctions(translated),
-          ...(hasValue ? {result: decodeFormulaResult(cellType, valueText)} : {}),
+          // A clone's cached result honours the cell's date format the same way a plain formula's does.
+          ...(hasValue ? {result: decodeFormulaResult(cellType, valueText, style?.numFmt)} : {}),
         };
         sheet.getCell(cellRef).value = value;
         return;
       }
     }
-    const styleIndex =
-      cellStyle >= 0
-        ? cellStyle
-        : rowCustomFormat && rowStyle >= 0
-          ? rowStyle
-          : columnStyle.get(cellCol) ?? -1;
-    const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
     finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, inlineRuns, sharedStrings, style);
   };
 

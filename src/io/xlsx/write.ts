@@ -887,10 +887,17 @@ function rowAttrs(properties: RowProperties | undefined, styles: StyleRegistry):
   return attrs;
 }
 
-// A valid Date with no format of its own gets the default date format so it renders and reads
-// back as a date; an Invalid Date and every non-date value contribute nothing here.
+// A valid Date — whether the cell's own value or a formula's cached result — with no format of its
+// own gets the default date format so it renders and reads back as a date rather than a bare serial.
+// An Invalid Date and every non-date value contribute nothing here.
 function dateDefaultNumFmt(value: Cell['value']): string | undefined {
-  return value instanceof Date && !Number.isNaN(value.getTime()) ? DEFAULT_DATE_NUMFMT : undefined;
+  const date =
+    value instanceof Date
+      ? value
+      : (isFormulaValue(value) || isSharedFormulaValue(value)) && value.result instanceof Date
+        ? value.result
+        : undefined;
+  return date !== undefined && !Number.isNaN(date.getTime()) ? DEFAULT_DATE_NUMFMT : undefined;
 }
 
 function cellXml(cell: Cell, style: number, shared?: SharedFormulaRole): string {
@@ -988,6 +995,14 @@ function formulaBodyXml(ref: string, s: string, f: string, result: FormulaResult
     // cell does — the reader's decodeResult mirrors decodeValue for this case.
     return `<c r="${ref}"${s} t="e">${f}<v>${result.error}</v></c>`;
   }
+  if (result instanceof Date) {
+    // A date-valued result caches its serial exactly as a bare date cell stores its value; the
+    // cell's date number format (applied when its style is composed) is what makes both read back as
+    // a Date. An Invalid Date has no serial, so cache no result rather than emit NaN.
+    if (Number.isNaN(result.getTime())) return `<c r="${ref}"${s}>${f}</c>`;
+    return `<c r="${ref}"${s}>${f}<v>${numberText(dateToSerial(result))}</v></c>`;
+  }
+  // Every FormulaResult kind is handled above; this guards a value that reached here past the model.
   throw new Error('writing a non-primitive formula result is not implemented yet');
 }
 

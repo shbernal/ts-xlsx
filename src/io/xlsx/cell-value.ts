@@ -36,7 +36,7 @@ export function decodeCellContent(
 ): CellValue {
   if (raw.hasFormula) {
     const stored = unmangleFunctions(raw.formula);
-    const result = raw.hasValue ? decodeResult(raw.type, raw.valueText) : undefined;
+    const result = raw.hasValue ? decodeFormulaResult(raw.type, raw.valueText, numFmt) : undefined;
     return result === undefined ? {formula: stored} : {formula: stored, result};
   }
   // An inline string built from `<r>` runs is rich text — surface its runs rather than flattening
@@ -83,10 +83,15 @@ function decodeValue(
   }
 }
 
-/** Decode a formula's cached `<v>` result by its `t` type — shared by the buffered reader's shared-
- * formula clone resolution, which caches a result the same way a plain formula cell does. */
-export function decodeFormulaResult(type: string, valueText: string): FormulaResult {
-  return decodeResult(type, valueText);
+/** Decode a formula's cached `<v>` result by its `t` type, coercing a numeric result under a date
+ * `numFmt` to a {@link Date} exactly as a bare numeric cell is — so a date-valued formula result
+ * (e.g. `TODAY()`) reads back as a Date, not a serial. Shared by the buffered reader's shared-formula
+ * clone resolution, which caches a result the same way a plain formula cell does. */
+export function decodeFormulaResult(type: string, valueText: string, numFmt?: string): FormulaResult {
+  const result = decodeResult(type, valueText);
+  return typeof result === 'number' && numFmt !== undefined && isDateFormat(numFmt)
+    ? serialToDate(result)
+    : result;
 }
 
 function decodeResult(type: string, valueText: string): FormulaResult {

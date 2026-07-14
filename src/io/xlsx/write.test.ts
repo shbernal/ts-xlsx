@@ -102,10 +102,10 @@ test('a non-finite number is refused, not written as NaN', () => {
   assert.throws(() => writeXlsx(wb), /non-finite/);
 });
 
-test('a value kind the writer cannot represent yet is refused', () => {
+test("a formula whose cached result is non-finite is refused, not written as NaN", () => {
   const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = {formula: 'TODAY()', result: new Date(2020, 0, 1)};
-  assert.throws(() => writeXlsx(wb), /not implemented yet/);
+  wb.addWorksheet('S').getCell('A1').value = {formula: '1/0', result: Number.POSITIVE_INFINITY};
+  assert.throws(() => writeXlsx(wb), /non-finite/);
 });
 
 test('a formula cell with a string result is typed t="str"', () => {
