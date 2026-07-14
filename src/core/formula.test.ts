@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {mangleFormula, mangleFunctions, mangleParams, unmangleFunctions} from './formula.ts';
+import {mangleFormula, mangleFunctions, mangleParams, translateFormula, unmangleFunctions} from './formula.ts';
 
 test('a modern function called by its plain name gains the _xlfn. prefix', () => {
   assert.equal(mangleFunctions('FILTER(B1:D1,B2:D2=1)'), '_xlfn.FILTER(B1:D1,B2:D2=1)');
@@ -167,4 +167,43 @@ test('mangleFormula then unmangle round-trips a LET/LAMBDA formula', () => {
   for (const f of ['LET(x,1,x+1)', 'LAMBDA(a,b,a+b)', 'LET(f,LAMBDA(v,v+1),f(5))', 'SUM(A1:A9)']) {
     assert.equal(unmangleFunctions(mangleFormula(f)), f);
   }
+});
+
+test('translateFormula shifts a relative reference by the row and column delta', () => {
+  assert.equal(translateFormula('A1*2', 0, 1), 'A2*2', 'one row down');
+  assert.equal(translateFormula('A1*2', 0, 2), 'A3*2', 'two rows down');
+  assert.equal(translateFormula('A1', 1, 0), 'B1', 'one column across');
+  assert.equal(translateFormula('B2+C3', 2, 3), 'D5+E6', 'both axes, several references');
+});
+
+test('translateFormula leaves an absolute axis fixed and shifts only the relative one', () => {
+  assert.equal(translateFormula('$A$1', 3, 4), '$A$1', 'fully absolute never moves');
+  assert.equal(translateFormula('$A1', 5, 1), '$A2', 'absolute column, relative row');
+  assert.equal(translateFormula('A$1', 1, 5), 'B$1', 'relative column, absolute row');
+  assert.equal(translateFormula('$A$1+B1', 1, 1), '$A$1+C2', 'mixed within one formula');
+});
+
+test('translateFormula is the identity for a zero delta', () => {
+  assert.equal(translateFormula('SUM($A$1:B7)*C8', 0, 0), 'SUM($A$1:B7)*C8');
+});
+
+test('translateFormula shifts both endpoints of a range independently', () => {
+  assert.equal(translateFormula('SUM(A1:B2)', 1, 10), 'SUM(B11:C12)');
+  assert.equal(translateFormula('A1:$B$2', 0, 5), 'A6:$B$2', 'the absolute endpoint stays');
+});
+
+test('translateFormula never touches a function name or a defined name', () => {
+  assert.equal(translateFormula('SUM(A1:A3)', 0, 1), 'SUM(A2:A4)', 'SUM has no row digits');
+  assert.equal(translateFormula('TaxRate*A1', 2, 2), 'TaxRate*C3', 'a defined name is left alone');
+  assert.equal(translateFormula('LOG10(A1)', 0, 1), 'LOG10(A2)', 'a call ending in digits is not a reference');
+});
+
+test('translateFormula shifts a sheet-qualified cell but not the sheet name', () => {
+  assert.equal(translateFormula('Sheet1!A1', 0, 1), 'Sheet1!A2', 'the cell after ! moves');
+  assert.equal(translateFormula('Q1!A1', 0, 1), 'Q1!A2', 'a sheet name that looks like a reference is untouched');
+  assert.equal(translateFormula("'My Sheet'!A1+B2", 1, 1), "'My Sheet'!B2+C3", 'a quoted sheet name is copied verbatim');
+});
+
+test('translateFormula copies a string literal verbatim, references outside it still move', () => {
+  assert.equal(translateFormula('IF(A1>0,"A1 is B2",B2)', 0, 1), 'IF(A2>0,"A1 is B2",B3)');
 });

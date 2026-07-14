@@ -6,6 +6,13 @@
 // a formula current Excel silently drops, because the function is unknown under its bare name. This
 // module is the single place that knows the mangling — shared by the xlsx writer and reader like
 // address.ts and date.ts own their domains.
+//
+// It also owns formula *translation*: a spreadsheet fills a formula down or across a range by storing
+// it once on a master cell and marking the rest as shared clones. Reading a clone means recovering the
+// master's formula shifted to the clone's position — relative references move by the row/column
+// offset, absolute (`$`-anchored) parts stay put. That relative-reference arithmetic lives here too.
+
+import {columnToNumber, numberToColumn} from './address.ts';
 
 // The post-2007 functions Excel persists with an `_xlfn.` prefix, keyed by their uppercased name.
 // The tokenizer below treats '.' as part of a function name, so both the plain modern functions and
@@ -316,4 +323,102 @@ export function mangleParams(formula: string): string {
  */
 export function mangleFormula(formula: string): string {
   return mangleFunctions(mangleParams(formula));
+}
+
+// A cell reference at the start of a slice: an optional `$` then 1–3 uppercase column letters, an
+// optional `$`, then the row digits. The column is uppercase-only because Excel stores it that way and
+// so that a lowercase identifier (a defined name) is never mistaken for a reference. The row is capped
+// at seven digits (Excel's last row is 1048576).
+const CELL_REFERENCE = /^(\$?)([A-Z]{1,3})(\$?)([0-9]{1,7})/;
+
+// A reference token must sit at an identifier boundary: not glued to a preceding name character (so
+// the `A1` inside `_xlfn.A1` or a defined name `FOO_A1` is left alone) and not continued by one, nor
+// opening a call `(` nor separating a sheet name `!` — a token followed by `!` is the sheet name, not
+// a cell, and its reference sits after the `!`.
+const NAME_CHAR_OR_DOT = /[A-Za-z0-9_.]/;
+const REFERENCE_TAIL = /[A-Za-z0-9_.!(]/;
+
+// Advance past a single-quoted sheet name (opening quote at `i`), honouring the doubled-quote escape,
+// so a token inside `'My Sheet'` is never read as a cell reference.
+function skipSingleQuoted(formula: string, i: number): number {
+  let j = i + 1;
+  const n = formula.length;
+  while (j < n) {
+    if (formula[j] === "'") {
+      if (formula[j + 1] === "'") {
+        j += 2;
+        continue;
+      }
+      return j + 1;
+    }
+    j += 1;
+  }
+  return n;
+}
+
+/**
+ * Shift every relative cell reference in a formula by `colDelta` columns and `rowDelta` rows, leaving
+ * absolute (`$`-anchored) axes fixed. This is how a shared-formula clone recovers its own formula from
+ * the master's: a master `A1*2` shared one row down reads back as `A2*2`, and `$A$1*B1` shared one row
+ * and one column across as `$A$1*C2`. String literals, single-quoted sheet names, and bracketed
+ * structured references are copied verbatim, and a sheet-qualified reference shifts the cell while its
+ * sheet name is untouched. Function names and defined names carry no row digits, so they pass through.
+ */
+export function translateFormula(formula: string, colDelta: number, rowDelta: number): string {
+  if (colDelta === 0 && rowDelta === 0) return formula;
+  let out = '';
+  let i = 0;
+  const n = formula.length;
+  while (i < n) {
+    const ch = formula[i] as string;
+    if (ch === '"') {
+      const j = skipString(formula, i);
+      out += formula.slice(i, j);
+      i = j;
+      continue;
+    }
+    if (ch === "'") {
+      const j = skipSingleQuoted(formula, i);
+      out += formula.slice(i, j);
+      i = j;
+      continue;
+    }
+    if (ch === '[') {
+      const j = skipBrackets(formula, i);
+      out += formula.slice(i, j);
+      i = j;
+      continue;
+    }
+
+    const prev = formula[i - 1];
+    const atBoundary = prev === undefined || !NAME_CHAR_OR_DOT.test(prev);
+    if (atBoundary && (ch === '$' || (ch >= 'A' && ch <= 'Z'))) {
+      const match = CELL_REFERENCE.exec(formula.slice(i));
+      if (match !== null) {
+        const after = formula[i + match[0].length];
+        if (after === undefined || !REFERENCE_TAIL.test(after)) {
+          const [, colAbs, colLetters, rowAbs, rowDigits] = match as unknown as [
+            string, string, string, string, string,
+          ];
+          const col = colAbs === '$' ? colLetters : numberToColumn(columnToNumber(colLetters) + colDelta);
+          const row = rowAbs === '$' ? rowDigits : String(Number(rowDigits) + rowDelta);
+          out += `${colAbs}${col}${rowAbs}${row}`;
+          i += match[0].length;
+          continue;
+        }
+      }
+    }
+
+    // Not a reference: consume a whole identifier at once (so its interior is never re-examined) or
+    // copy a single non-name character.
+    const nameEnd = readName(formula, i);
+    if (nameEnd > i) {
+      out += formula.slice(i, nameEnd);
+      i = nameEnd;
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
 }
