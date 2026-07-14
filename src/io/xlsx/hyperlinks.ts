@@ -10,7 +10,7 @@
 // external relationship makes a strict consumer resolve both the rel and the location and render the
 // destination doubled.
 
-import {type HyperlinkValue, isHyperlinkValue} from '../../core/value.ts';
+import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {localName, parseXml} from './xml-read.ts';
 import {escapeAttr} from './xml.ts';
@@ -128,7 +128,11 @@ export function applyHyperlinks(
     const target = resolveTarget(link, rels);
     if (target === undefined) continue;
     const cell = sheet.getCell(link.ref);
-    const text = typeof cell.value === 'string' ? cell.value : '';
+    // The visible label is the cell's own value: a plain string, or rich text when the label
+    // carried per-run formatting. Any other value kind has no textual label, so it reads as empty.
+    const cellValue = cell.value;
+    const text =
+      typeof cellValue === 'string' ? cellValue : isRichTextValue(cellValue) ? cellValue : '';
     const value: HyperlinkValue = {
       hyperlink: target,
       text,

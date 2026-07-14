@@ -7,7 +7,7 @@
 
 import {isDateFormat, serialToDate} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
-import {type CellValue, type FormulaResult, isErrorCode} from '../../core/value.ts';
+import {type CellValue, type FormulaResult, isErrorCode, type RichTextRun} from '../../core/value.ts';
 
 /** The raw, still-textual pieces of a `<c>` element the SAX pass has gathered. */
 export interface RawCell {
@@ -18,6 +18,9 @@ export interface RawCell {
   readonly hasValue: boolean;
   readonly valueText: string;
   readonly inlineText: string;
+  /** The formatted runs of a rich inline string, when the `<is>` held `<r>` elements rather than a
+   * bare `<t>`. Absent (or empty) for a plain inline string, which decodes to `inlineText`. */
+  readonly richTextRuns?: readonly RichTextRun[];
 }
 
 /**
@@ -35,6 +38,11 @@ export function decodeCellContent(
     const stored = unmangleFunctions(raw.formula);
     const result = raw.hasValue ? decodeResult(raw.type, raw.valueText) : undefined;
     return result === undefined ? {formula: stored} : {formula: stored, result};
+  }
+  // An inline string built from `<r>` runs is rich text — surface its runs rather than flattening
+  // them to the concatenated `inlineText` a plain string would decode to.
+  if (raw.type === 'inlineStr' && raw.richTextRuns !== undefined && raw.richTextRuns.length > 0) {
+    return {richText: raw.richTextRuns};
   }
   const value = decodeValue(raw.type, raw.valueText, raw.inlineText, raw.hasValue, sharedStrings);
   // A number stored under a date format is a date serial — surface it as a Date so a written

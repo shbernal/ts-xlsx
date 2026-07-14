@@ -36,6 +36,7 @@ import type {
   VerticalAlignment,
 } from '../../core/style.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
+import type {RichTextRun} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
 import {decodeCellContent} from './cell-value.ts';
@@ -613,7 +614,9 @@ function applyFontChild(draft: FontDraft, local: string, attrs: {readonly [k: st
     case 'color':
       draft.color = parseColor(attrs);
       break;
+    // `<name>` in a styles `<font>`, `<rFont>` in a rich-text run's `<rPr>` — the same font face.
     case 'name':
+    case 'rFont':
       if (attrs.val !== undefined) draft.name = attrs.val;
       break;
     case 'family': {
@@ -805,6 +808,14 @@ function parseWorksheet(
   let inInlineString = false;
   let capture = false;
   let text = '';
+  // Rich-text run accumulation while inside an `<is>` built from `<r>` runs: the runs gathered so
+  // far, the current run's font draft (null until an `<rPr>` opens) and its text, and whether we are
+  // inside an `<r>`. A `<t>` inside a run appends to the run text; a bare `<t>` in the `<is>` appends
+  // to `inlineText`, keeping a plain inline string on its existing path.
+  let inlineRuns: RichTextRun[] = [];
+  let runFont: {-readonly [K in keyof Font]?: Font[K]} | null = null;
+  let runText = '';
+  let inRun = false;
   // A row with customFormat="1" supplies a default style for its cells that carry no `s`.
   let rowStyle = -1;
   let rowCustomFormat = false;
@@ -825,7 +836,7 @@ function parseWorksheet(
           ? rowStyle
           : columnStyle.get(cellCol) ?? -1;
     const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
-    finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, sharedStrings, style);
+    finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, inlineRuns, sharedStrings, style);
   };
 
   parseXml(xml, {
@@ -850,6 +861,9 @@ function parseWorksheet(
           formula = '';
           valueText = '';
           inlineText = '';
+          inlineRuns = [];
+          inRun = false;
+          runFont = null;
           hasFormula = false;
           hasValue = false;
           // A self-closing `<c r=".." s=".."/>` is a formatted-but-empty cell: it carries a style but
@@ -860,6 +874,20 @@ function parseWorksheet(
         case 'is':
           inInlineString = true;
           inlineText = '';
+          inlineRuns = [];
+          break;
+        case 'r':
+          // A run inside a rich inline string. Its `<rPr>` (if any) and `<t>` follow; reset the
+          // per-run accumulators so an unformatted run inherits nothing from the previous one.
+          if (inInlineString) {
+            inRun = true;
+            runFont = null;
+            runText = '';
+          }
+          break;
+        case 'rPr':
+          // The run's formatting bundle; its self-closing children stream into the default branch.
+          if (inRun) runFont = {};
           break;
         case 'f':
         case 'v':
@@ -906,6 +934,9 @@ function parseWorksheet(
           break;
         }
         default:
+          // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) sets one font facet; it
+          // is self-closing, so it is read here on open. Nothing else uses the default branch.
+          if (runFont !== null) applyFontChild(runFont, local, attrs);
           break;
       }
       if (selfClosing && (local === 'f' || local === 'v')) capture = false;
@@ -925,7 +956,18 @@ function parseWorksheet(
           hasValue = true;
           break;
         case 't':
-          if (inInlineString) inlineText += text;
+          // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<is>` is a plain
+          // inline string. `inRun` must be checked first — a run is also inside the inline string.
+          if (inRun) runText += text;
+          else if (inInlineString) inlineText += text;
+          break;
+        case 'r':
+          if (inRun) {
+            const run: {text: string; font?: Partial<Font>} = {text: runText};
+            if (runFont !== null && Object.keys(runFont).length > 0) run.font = runFont;
+            inlineRuns.push(run);
+            inRun = false;
+          }
           break;
         case 'is':
           inInlineString = false;
@@ -1040,6 +1082,7 @@ function finalizeCell(
   hasValue: boolean,
   valueText: string,
   inlineText: string,
+  richTextRuns: readonly RichTextRun[],
   sharedStrings: readonly string[],
   style: XfStyle | undefined
 ): void {
@@ -1054,7 +1097,7 @@ function finalizeCell(
   if (style?.protection !== undefined) cell.protection = style.protection;
 
   cell.value = decodeCellContent(
-    {type, hasFormula, formula, hasValue, valueText, inlineText},
+    {type, hasFormula, formula, hasValue, valueText, inlineText, richTextRuns},
     sharedStrings,
     style?.numFmt
   );

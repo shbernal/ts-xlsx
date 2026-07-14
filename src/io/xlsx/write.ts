@@ -16,7 +16,13 @@ import {dateToSerial, DEFAULT_DATE_NUMFMT} from '../../core/date.ts';
 import type {WorkbookImage} from '../../core/image.ts';
 import {mangleFormula} from '../../core/formula.ts';
 import type {Table, TableColumn} from '../../core/table.ts';
-import {detectValueType, type FormulaResult, isFormulaValue, isHyperlinkValue} from '../../core/value.ts';
+import {
+  detectValueType,
+  type FormulaResult,
+  isFormulaValue,
+  isHyperlinkValue,
+  isRichTextValue,
+} from '../../core/value.ts';
 import {type SheetProtection, SHEET_PROTECTION_FLAGS} from '../../core/protection.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import type {
@@ -37,9 +43,10 @@ import {
   type PlannedHyperlink,
 } from './hyperlinks.ts';
 import {type DrawingImage, drawingRelsXml, drawingXml, imageContentType} from './images.ts';
+import {richTextRunsXml} from './rich-text.ts';
 import {THEME1_XML} from './static-parts.ts';
 import {colorAttrs, StyleRegistry} from './styles.ts';
-import {escapeAttr, escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
+import {escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
 
 const NS = {
   contentTypes: 'http://schemas.openxmlformats.org/package/2006/content-types',
@@ -901,13 +908,15 @@ function cellXml(cell: Cell, style: number): string {
   if (typeof value === 'string') {
     return `<c r="${ref}"${s} t="inlineStr"><is>${textElement(value)}</is></c>`;
   }
+  if (isRichTextValue(value)) {
+    return `<c r="${ref}"${s} t="inlineStr"><is>${richTextRunsXml(value.richText)}</is></c>`;
+  }
   if (isHyperlinkValue(value)) {
     // The cell holds only the visible label; the link itself rides in the sheet's <hyperlinks>.
-    // Rich-text labels belong to the rich-text-runs capability, not yet serialised on write.
-    if (typeof value.text !== 'string') {
-      throw new Error('writing a rich-text hyperlink label is not implemented yet');
-    }
-    return `<c r="${ref}"${s} t="inlineStr"><is>${textElement(value.text)}</is></c>`;
+    // The label is either a plain string or rich text, serialised the same way a cell value of
+    // that kind would be.
+    const label = typeof value.text === 'string' ? textElement(value.text) : richTextRunsXml(value.text.richText);
+    return `<c r="${ref}"${s} t="inlineStr"><is>${label}</is></c>`;
   }
   // A null value only reaches here for a formatted-but-empty cell (the row loop keeps it for its
   // style); emit the styled cell with no <v>, exactly how Excel stores a formatted blank.
@@ -944,11 +953,6 @@ function formulaCellXml(ref: string, s: string, formula: string, result: Formula
     return `<c r="${ref}"${s} t="str">${f}<v>${escapeText(result)}</v></c>`;
   }
   throw new Error('writing a non-primitive formula result is not implemented yet');
-}
-
-function textElement(value: string): string {
-  const space = needsSpacePreserve(value) ? ' xml:space="preserve"' : '';
-  return `<t${space}>${escapeText(value)}</t>`;
 }
 
 // A finite number serialises as its shortest round-trippable decimal; a non-finite one

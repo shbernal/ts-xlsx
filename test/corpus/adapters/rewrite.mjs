@@ -191,11 +191,7 @@ function buildFrom(spec = {}) {
       }
       const cell = sheet.getCell(c.ref);
       if ('hyperlink' in c) {
-        // A rich-text display label is part of the rich-text-runs capability, not the hyperlink one;
-        // defer any such behavior rather than mis-serialize its label as a flat string.
-        if (c.text !== null && typeof c.text === 'object') {
-          throw notImplemented('rich-text hyperlink label not supported yet');
-        }
+        // The display label is a plain string or a rich-text value; both serialise faithfully.
         cell.value = {
           hyperlink: c.hyperlink,
           text: c.text ?? '',
@@ -210,6 +206,7 @@ function buildFrom(spec = {}) {
           // kind the writer does not model yet, so skip the behavior rather than mis-serialize.
           if (v.invalidDate) cell.value = new Date(NaN);
           else if (v.date) cell.value = toDate(v.date);
+          else if (Array.isArray(v.richText)) cell.value = {richText: v.richText};
           else throw notImplemented(`cell value shape ${JSON.stringify(v)} not supported yet`);
         } else {
           cell.value = v;
@@ -839,6 +836,32 @@ const impl = {
       },
       sheets,
       definedNames,
+    };
+  },
+
+  // Write a rich-text cell, then read it back, and report how its runs serialized and survived →
+  // { emptyTextRunInXml, runCount, runs: [{text, bold, italic, underline}] }. Mirrors the oracle. A
+  // zero-length run must never emit an empty <t> (Excel flags it corrupt); the surviving runs keep
+  // their text and per-run formatting. The rewrite writes rich text inline, so both the empty-<t>
+  // scan and the read-back target the worksheet XML (there is no shared-strings part).
+  async richTextRoundtripReport(runs) {
+    const wb = new Workbook();
+    wb.addWorksheet('S').getCell('A1').value = {richText: runs};
+    const buffer = writeXlsx(wb);
+    const parts = partMapOf(buffer);
+    const xml = parts['xl/sharedStrings.xml'] || parts['xl/worksheets/sheet1.xml'] || '';
+    const emptyTextRunInXml = /<(?:\w+:)?t\b[^>]*\/>|<(?:\w+:)?t\b[^>]*><\/(?:\w+:)?t>/.test(xml);
+    const value = readXlsx(buffer).getWorksheet('S').getCell('A1').value;
+    const readRuns = value && Array.isArray(value.richText) ? value.richText : [];
+    return {
+      emptyTextRunInXml,
+      runCount: readRuns.length,
+      runs: readRuns.map(r => ({
+        text: r.text ?? null,
+        bold: r.font ? r.font.bold ?? false : false,
+        italic: r.font ? r.font.italic ?? false : false,
+        underline: r.font ? r.font.underline ?? false : false,
+      })),
     };
   },
 

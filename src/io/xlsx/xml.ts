@@ -42,4 +42,14 @@ export function needsSpacePreserve(value: string): boolean {
   return value.length > 0 && (value !== value.trim() || /[\n\r\t]/.test(value));
 }
 
+/**
+ * A `<t>` text element carrying an escaped string, marked `xml:space="preserve"` when its
+ * whitespace would otherwise be collapsed. Shared by every string-bearing element — a plain
+ * inline string cell, a rich-text run — so all decode identically on the way back.
+ */
+export function textElement(value: string): string {
+  const space = needsSpacePreserve(value) ? ' xml:space="preserve"' : '';
+  return `<t${space}>${escapeText(value)}</t>`;
+}
+
 export const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';

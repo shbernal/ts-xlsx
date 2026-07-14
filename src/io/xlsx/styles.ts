@@ -252,10 +252,12 @@ function protectionAttrs(protection: Protection): string {
   return parts.join(' ');
 }
 
-// Serialise the facets a cell font overrides, in ECMA-376 CT_Font child order. A boolean
-// flag is emitted only when true (its absence is the default false); an empty result means
-// the font differs from the default in nothing and needs no <fonts> entry at all.
-function fontXml(font: Partial<Font>): string {
+// Serialise the facets a font overrides, in ECMA-376 child order. A boolean flag is emitted only
+// when true (its absence is the default false); an empty result means the font differs from the
+// default in nothing and needs no entry at all. The face element differs by context: a styles
+// `<font>` names it `<name>` (CT_Font), a rich-text run's `<rPr>` names it `<rFont>` (CT_RPrElt) —
+// otherwise the two share every child, so `nameTag` selects the face element and the rest is common.
+export function fontXml(font: Partial<Font>, nameTag: 'name' | 'rFont' = 'name'): string {
   const parts: string[] = [];
   if (font.bold) parts.push('<b/>');
   if (font.italic) parts.push('<i/>');
@@ -266,7 +268,7 @@ function fontXml(font: Partial<Font>): string {
   if (font.vertAlign !== undefined) parts.push(`<vertAlign val="${font.vertAlign}"/>`);
   if (font.size !== undefined) parts.push(`<sz val="${numberAttr(font.size)}"/>`);
   if (font.color !== undefined) parts.push(`<color ${colorAttrs(font.color)}/>`);
-  if (font.name !== undefined) parts.push(`<name val="${escapeAttr(font.name)}"/>`);
+  if (font.name !== undefined) parts.push(`<${nameTag} val="${escapeAttr(font.name)}"/>`);
   if (font.family !== undefined) parts.push(`<family val="${numberAttr(font.family)}"/>`);
   if (font.charset !== undefined) parts.push(`<charset val="${numberAttr(font.charset)}"/>`);
   if (font.scheme !== undefined && font.scheme !== 'none') parts.push(`<scheme val="${font.scheme}"/>`);
