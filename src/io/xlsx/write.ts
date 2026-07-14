@@ -19,6 +19,7 @@ import type {Table, TableColumn} from '../../core/table.ts';
 import {
   detectValueType,
   type FormulaResult,
+  isErrorValue,
   isFormulaValue,
   isHyperlinkValue,
   isRichTextValue,
@@ -918,6 +919,11 @@ function cellXml(cell: Cell, style: number): string {
     const label = typeof value.text === 'string' ? textElement(value.text) : richTextRunsXml(value.text.richText);
     return `<c r="${ref}"${s} t="inlineStr"><is>${label}</is></c>`;
   }
+  if (isErrorValue(value)) {
+    // An error literal serialises under t="e" with its code as the value. The codes are a closed
+    // set of canonical spellings (see ERROR_CODES) with no XML-special characters, so no escaping.
+    return `<c r="${ref}"${s} t="e"><v>${value.error}</v></c>`;
+  }
   // A null value only reaches here for a formatted-but-empty cell (the row loop keeps it for its
   // style); emit the styled cell with no <v>, exactly how Excel stores a formatted blank.
   if (value === null) return `<c r="${ref}"${s}/>`;
@@ -951,6 +957,11 @@ function formulaCellXml(ref: string, s: string, formula: string, result: Formula
   }
   if (typeof result === 'string') {
     return `<c r="${ref}"${s} t="str">${f}<v>${escapeText(result)}</v></c>`;
+  }
+  if (isErrorValue(result)) {
+    // A formula that evaluated to an error caches its code under t="e", exactly as a bare error
+    // cell does — the reader's decodeResult mirrors decodeValue for this case.
+    return `<c r="${ref}"${s} t="e">${f}<v>${result.error}</v></c>`;
   }
   throw new Error('writing a non-primitive formula result is not implemented yet');
 }

@@ -104,7 +104,7 @@ test('a non-finite number is refused, not written as NaN', () => {
 
 test('a value kind the writer cannot represent yet is refused', () => {
   const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = {error: '#REF!'};
+  wb.addWorksheet('S').getCell('A1').value = {sharedFormula: 'A1'};
   assert.throws(() => writeXlsx(wb), /not implemented yet/);
 });
 
