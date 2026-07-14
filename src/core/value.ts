@@ -74,13 +74,17 @@ export interface FormulaValue {
 }
 
 /**
- * A cell that participates in a shared formula. The master cell carries the source
- * `sharedFormula` text plus the `ref` range it spans; slave cells reference the same
- * text with their own translated `result`.
+ * A cell that participates in a shared formula — a clone of a master formula cell filled across a
+ * range. `sharedFormula` is the master cell's address (e.g. `'B1'`); the master itself is a plain
+ * {@link FormulaValue}. On read, the clone's own formula is the master's translated to the clone's
+ * position and `result` is the clone's cached value; on write, the clones of a master collapse into
+ * OOXML's shared-formula grouping.
  */
 export interface SharedFormulaValue {
   readonly sharedFormula: string;
-  readonly ref?: string;
+  /** The master's formula translated to this cell's position. Filled in on read; a clone assigned by
+   * a caller carries only `sharedFormula`, and the writer recovers the formula from the master. */
+  readonly formula?: string;
   readonly result?: FormulaResult;
 }
 
@@ -104,7 +108,11 @@ export function isErrorValue(value: CellValue): value is ErrorValue {
 }
 
 export function isFormulaValue(value: CellValue): value is FormulaValue {
-  return typeof value === 'object' && value !== null && 'formula' in value;
+  // A shared-formula clone resolved on read carries both its master address (`sharedFormula`) and the
+  // translated `formula`; it is a SharedFormulaValue, so exclude it here to keep the two kinds distinct.
+  return (
+    typeof value === 'object' && value !== null && 'formula' in value && !('sharedFormula' in value)
+  );
 }
 
 export function isSharedFormulaValue(value: CellValue): value is SharedFormulaValue {
@@ -178,10 +186,8 @@ export function coerceCellValue(value: CellValue | undefined): CellValue {
     const formula = stripLeadingEquals(value.formula);
     return formula === value.formula ? value : {...value, formula};
   }
-  if (isSharedFormulaValue(value)) {
-    const sharedFormula = stripLeadingEquals(value.sharedFormula);
-    return sharedFormula === value.sharedFormula ? value : {...value, sharedFormula};
-  }
+  // A shared formula's `sharedFormula` is a master cell address, not formula text, so there is no
+  // leading `=` to canonicalise — it passes through as given.
   return value;
 }
 

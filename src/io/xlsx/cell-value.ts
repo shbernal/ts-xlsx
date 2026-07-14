@@ -83,6 +83,12 @@ function decodeValue(
   }
 }
 
+/** Decode a formula's cached `<v>` result by its `t` type — shared by the buffered reader's shared-
+ * formula clone resolution, which caches a result the same way a plain formula cell does. */
+export function decodeFormulaResult(type: string, valueText: string): FormulaResult {
+  return decodeResult(type, valueText);
+}
+
 function decodeResult(type: string, valueText: string): FormulaResult {
   switch (type) {
     case 'str':

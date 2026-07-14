@@ -34,7 +34,7 @@ test('detectValueType classifies structural values', () => {
   assert.equal(detectValueType({error: '#REF!'}), ValueType.Error);
   assert.equal(detectValueType({formula: 'A1+B1'}), ValueType.Formula);
   assert.equal(detectValueType({formula: 'A1', result: 3}), ValueType.Formula);
-  assert.equal(detectValueType({sharedFormula: 'A1', ref: 'A1:A3'}), ValueType.Formula);
+  assert.equal(detectValueType({sharedFormula: 'A1', result: 3}), ValueType.Formula);
   assert.equal(detectValueType({richText: [{text: 'a'}]}), ValueType.RichText);
   assert.equal(detectValueType({hyperlink: 'https://x', text: 'x'}), ValueType.Hyperlink);
 });

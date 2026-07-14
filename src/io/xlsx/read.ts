@@ -14,7 +14,7 @@
 
 import {strFromU8} from 'fflate';
 
-import {decodeAddress} from '../../core/address.ts';
+import {decodeAddress, encodeAddress} from '../../core/address.ts';
 import {
   type SheetProtection,
   type SheetProtectionCredential,
@@ -35,11 +35,11 @@ import type {
   UnderlineStyle,
   VerticalAlignment,
 } from '../../core/style.ts';
-import {unmangleFunctions} from '../../core/formula.ts';
-import type {RichTextRun} from '../../core/value.ts';
+import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
+import type {RichTextRun, SharedFormulaValue} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
-import {decodeCellContent} from './cell-value.ts';
+import {decodeCellContent, decodeFormulaResult} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {parseDrawing} from './images.ts';
@@ -800,7 +800,16 @@ function parseWorksheet(
   let cellType = '';
   let cellStyle = -1;
   let cellCol = -1;
+  let cellRow = -1;
   let formula = '';
+  // Shared-formula bookkeeping. A master `<f t="shared" ref si>TEXT</f>` seeds the group; every clone
+  // `<f t="shared" si/>` in the sheet references it by `si` and carries no text of its own. Masters
+  // always precede their clones (Excel keeps the master top-left), so a clone resolves against a map
+  // filled as the sheet streams: the master's formula translated to the clone's position.
+  const sharedMasters = new Map<number, {formula: string; col: number; row: number}>();
+  let formulaShared = false;
+  let formulaSi = -1;
+  let sharedClone = false;
   let valueText = '';
   let inlineText = '';
   let hasFormula = false;
@@ -829,6 +838,24 @@ function parseWorksheet(
   // by the normal `</c>` close and the self-closing `<c/>` open of a formatted-but-empty cell.
   const finalizeCellFromState = (): void => {
     if (cellRef === '') return;
+    // A shared-formula master seeds the group for its clones before it is finalised as an ordinary
+    // formula cell; a clone resolves to the master's formula translated to its own position and is
+    // committed here directly, since its value is not a plain `<c>` payload decodeCellContent knows.
+    if (hasFormula && formulaShared && formulaSi >= 0) {
+      sharedMasters.set(formulaSi, {formula, col: cellCol, row: cellRow});
+    } else if (sharedClone && formulaSi >= 0) {
+      const master = sharedMasters.get(formulaSi);
+      if (master !== undefined) {
+        const translated = translateFormula(master.formula, cellCol - master.col, cellRow - master.row);
+        const value: SharedFormulaValue = {
+          sharedFormula: encodeAddress(master.col, master.row),
+          formula: unmangleFunctions(translated),
+          ...(hasValue ? {result: decodeFormulaResult(cellType, valueText)} : {}),
+        };
+        sheet.getCell(cellRef).value = value;
+        return;
+      }
+    }
     const styleIndex =
       cellStyle >= 0
         ? cellStyle
@@ -858,6 +885,7 @@ function parseWorksheet(
           cellType = attrs.t ?? '';
           cellStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
           cellCol = cellRef === '' ? -1 : decodeAddress(cellRef).col ?? -1;
+          cellRow = cellRef === '' ? -1 : decodeAddress(cellRef).row ?? -1;
           formula = '';
           valueText = '';
           inlineText = '';
@@ -866,6 +894,9 @@ function parseWorksheet(
           runFont = null;
           hasFormula = false;
           hasValue = false;
+          formulaShared = false;
+          formulaSi = -1;
+          sharedClone = false;
           // A self-closing `<c r=".." s=".."/>` is a formatted-but-empty cell: it carries a style but
           // no value, so no `close` fires to finalise it. Commit it here from its style alone, else
           // the formatting on a blank cell is silently lost on read.
@@ -890,6 +921,13 @@ function parseWorksheet(
           if (inRun) runFont = {};
           break;
         case 'f':
+          capture = true;
+          formulaShared = attrs.t === 'shared';
+          formulaSi = attrs.si !== undefined ? Number(attrs.si) : -1;
+          // A self-closing `<f t="shared" si/>` is a clone: it fires no close event and carries no
+          // text, so mark it here to resolve against its master when the cell finalises.
+          if (selfClosing && formulaShared) sharedClone = true;
+          break;
         case 'v':
         case 't':
           capture = true;

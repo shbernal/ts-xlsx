@@ -23,6 +23,7 @@ import {
   isFormulaValue,
   isHyperlinkValue,
   isRichTextValue,
+  isSharedFormulaValue,
 } from '../../core/value.ts';
 import {type SheetProtection, SHEET_PROTECTION_FLAGS} from '../../core/protection.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
@@ -505,6 +506,12 @@ function worksheetXml(
   const columnDefaults = new Map<number, ColumnProperties>();
   for (const {index, properties} of sheet.columns()) columnDefaults.set(index, properties);
 
+  // A cell filled from a shared formula is written as a master (seeding the group) or a clone
+  // (referencing it by shared index); resolve every such role before the row loop so each cell knows
+  // how to serialise its `<f>`. This also validates the master/clone geometry, throwing if a clone
+  // precedes its master or its master carries no formula.
+  const sharedRoles = planSharedFormulas(sheet);
+
   const rowXml: string[] = [];
   let top = Infinity;
   let left = Infinity;
@@ -536,7 +543,7 @@ function worksheetXml(
           alignment: cell.alignment ?? colDef?.alignment,
           protection: cell.protection ?? colDef?.protection,
         });
-        return cellXml(cell, style);
+        return cellXml(cell, style, sharedRoles.get(cell.address));
       })
       .join('');
     rowXml.push(`<row r="${number}"${attrs}>${cellsXml}</row>`);
@@ -886,10 +893,22 @@ function dateDefaultNumFmt(value: Cell['value']): string | undefined {
   return value instanceof Date && !Number.isNaN(value.getTime()) ? DEFAULT_DATE_NUMFMT : undefined;
 }
 
-function cellXml(cell: Cell, style: number): string {
+function cellXml(cell: Cell, style: number, shared?: SharedFormulaRole): string {
   const ref = cell.address;
   const value = cell.value;
   const s = style !== 0 ? ` s="${style}"` : '';
+
+  // A shared-formula master seeds the group with its formula text under `t="shared" ref si`; a clone
+  // carries no text of its own, only a back-reference to the master's `si`. Its cached result still
+  // travels with the cell.
+  if (shared !== undefined) {
+    if (shared.ref !== undefined && isFormulaValue(value)) {
+      const f = `<f t="shared" ref="${shared.ref}" si="${shared.si}">${escapeText(mangleFormula(value.formula))}</f>`;
+      return formulaBodyXml(ref, s, f, value.result);
+    }
+    const result = isSharedFormulaValue(value) ? value.result : undefined;
+    return formulaBodyXml(ref, s, `<f t="shared" si="${shared.si}"/>`, result);
+  }
 
   if (isFormulaValue(value)) {
     return formulaCellXml(ref, s, value.formula, value.result);
@@ -945,7 +964,13 @@ function hasOwnStyle(cell: Cell): boolean {
 }
 
 function formulaCellXml(ref: string, s: string, formula: string, result: FormulaResult | undefined): string {
-  const f = `<f>${escapeText(mangleFormula(formula))}</f>`;
+  return formulaBodyXml(ref, s, `<f>${escapeText(mangleFormula(formula))}</f>`, result);
+}
+
+// Wrap a prepared `<f>` element (a plain formula, or a shared master/slave `<f>`) with the cell
+// element and its cached result, typing the cell by the result's kind exactly as a bare value of that
+// kind would be.
+function formulaBodyXml(ref: string, s: string, f: string, result: FormulaResult | undefined): string {
   if (result === undefined) {
     return `<c r="${ref}"${s}>${f}</c>`;
   }
@@ -964,6 +989,61 @@ function formulaCellXml(ref: string, s: string, formula: string, result: Formula
     return `<c r="${ref}"${s} t="e">${f}<v>${result.error}</v></c>`;
   }
   throw new Error('writing a non-primitive formula result is not implemented yet');
+}
+
+// A cell's role in an OOXML shared-formula group. A master carries the source formula plus the `ref`
+// range the group spans; a clone (no `ref`) references the master's formula by the shared index `si`.
+interface SharedFormulaRole {
+  readonly si: number;
+  readonly ref?: string;
+}
+
+// Plan a sheet's shared-formula groups: every clone cell (a {@link SharedFormulaValue}) names its
+// master by address, so group the clones by master, assign each group a sheet-unique `si`, and record
+// the `ref` range (master through the furthest clone) on the master. Excel requires the master to sit
+// at the top-left of that range, so a clone above or left of its master — or a master with no formula
+// (an orphan) — is rejected here, named, rather than emitted as a package Excel repairs on open.
+function planSharedFormulas(sheet: Worksheet): Map<string, SharedFormulaRole> {
+  const groups = new Map<string, Cell[]>();
+  for (const {cells} of sheet.rows()) {
+    for (const cell of cells) {
+      if (isSharedFormulaValue(cell.value)) {
+        const clones = groups.get(cell.value.sharedFormula);
+        if (clones !== undefined) clones.push(cell);
+        else groups.set(cell.value.sharedFormula, [cell]);
+      }
+    }
+  }
+
+  const roles = new Map<string, SharedFormulaRole>();
+  let si = 0;
+  for (const [masterAddress, clones] of groups) {
+    const master = sheet.getCell(masterAddress);
+    if (!isFormulaValue(master.value)) {
+      const offender = clones[0] as Cell;
+      throw new Error(
+        `shared-formula clone ${offender.address} names master ${masterAddress}, which holds no formula`
+      );
+    }
+    let maxCol = master.col;
+    let maxRow = master.row;
+    for (const clone of clones) {
+      if (clone.col < master.col || clone.row < master.row) {
+        throw new Error(
+          `shared-formula master ${masterAddress} must sit above and/or left of clone ${clone.address}`
+        );
+      }
+      if (clone.col > maxCol) maxCol = clone.col;
+      if (clone.row > maxRow) maxRow = clone.row;
+    }
+    roles.set(masterAddress, {
+      si,
+      ref: `${encodeAddress(master.col, master.row)}:${encodeAddress(maxCol, maxRow)}`,
+    });
+    for (const clone of clones) roles.set(clone.address, {si});
+    si += 1;
+  }
+  return roles;
 }
 
 // A finite number serialises as its shortest round-trippable decimal; a non-finite one

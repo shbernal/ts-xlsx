@@ -57,7 +57,7 @@ const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'mo
 const SUPPORTED_SHEET_KEYS = new Set([
   'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges',
 ]);
-const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'hyperlink', 'text', 'tooltip', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection']);
+const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'sharedFormula', 'result', 'hyperlink', 'text', 'tooltip', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt', 'fill', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
@@ -199,6 +199,10 @@ function buildFrom(spec = {}) {
         };
       } else if ('formula' in c) {
         cell.value = 'result' in c ? {formula: c.formula, result: c.result} : {formula: c.formula};
+      } else if ('sharedFormula' in c) {
+        // A shared-formula clone names its master by address; the master is a plain formula cell.
+        cell.value =
+          'result' in c ? {sharedFormula: c.sharedFormula, result: c.result} : {sharedFormula: c.sharedFormula};
       } else if ('value' in c) {
         const v = c.value;
         if (v !== null && typeof v === 'object') {
@@ -242,6 +246,8 @@ function normalizeRewriteCell(cell) {
   let out;
   if (v && typeof v === 'object' && 'hyperlink' in v) {
     out = {hyperlink: v.hyperlink, text: v.text, ...(v.tooltip !== undefined ? {tooltip: v.tooltip} : {})};
+  } else if (v && typeof v === 'object' && 'sharedFormula' in v) {
+    out = {sharedFormula: v.sharedFormula, formula: v.formula ?? null, result: v.result ?? null};
   } else if (v && typeof v === 'object' && 'formula' in v) out = {formula: v.formula, result: v.result ?? null};
   else if (v instanceof Date) out = {value: Number.isNaN(v.getTime()) ? null : v.toISOString()};
   else out = {value: v ?? null};
@@ -1246,6 +1252,78 @@ const impl = {
       tableRef,
       imageFromRow: imageFromRow != null ? Number(imageFromRow) : null,
       dupColumnNamesRejected: dupRejected,
+    };
+  },
+
+  // Build a formula-bearing spec, write it, read it back, and report each cell as
+  // { formula, sharedFormula, result } — mirroring the oracle. A shared-formula clone reads back a
+  // concrete formula (the master's, translated to the clone's address) while retaining its master
+  // reference under `sharedFormula`; a plain formula master carries no `sharedFormula`.
+  roundtripFormulas(spec) {
+    const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
+    const out = {};
+    for (const s of spec.sheets || []) {
+      const sheet = reloaded.getWorksheet(s.name);
+      for (const c of s.cells || []) {
+        const v = sheet ? sheet.getCell(c.ref).value : null;
+        const obj = v && typeof v === 'object';
+        out[c.ref] = {
+          formula: obj && 'formula' in v ? v.formula : null,
+          sharedFormula: obj && 'sharedFormula' in v ? v.sharedFormula : null,
+          result: obj && 'result' in v ? v.result ?? null : null,
+        };
+      }
+    }
+    return out;
+  },
+
+  // Build a shared-formula sheet (master B1 filled down to B2/B3), then report two things: whether a
+  // read → write round-trip preserves the dependents as formula cells, and whether splicing a column
+  // into the loaded sheet writes without throwing. The clone's master reference is an address the
+  // rewrite does not yet re-anchor on a structural edit, so the splice is the known-open here.
+  sharedFormulaRoundtripAndSplice() {
+    const build = () => {
+      const wb = new Workbook();
+      const sheet = wb.addWorksheet('S');
+      sheet.getCell('A1').value = 1;
+      sheet.getCell('A2').value = 2;
+      sheet.getCell('A3').value = 3;
+      sheet.getCell('B1').value = {formula: 'A1*2', result: 2};
+      sheet.getCell('B2').value = {sharedFormula: 'B1', result: 4};
+      sheet.getCell('B3').value = {sharedFormula: 'B1', result: 6};
+      return wb;
+    };
+    const buffer = writeXlsx(build());
+
+    let roundtripError = null;
+    let preservedFormulas = null;
+    try {
+      const reread = readXlsx(buffer);
+      writeXlsx(reread);
+      const s = reread.getWorksheet('S');
+      preservedFormulas = ['B2', 'B3'].every(ref => {
+        const v = s.getCell(ref).value;
+        return !!(v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v));
+      });
+    } catch (e) {
+      roundtripError = String((e && e.message) || e);
+    }
+
+    let spliceError = null;
+    try {
+      const reread = readXlsx(buffer);
+      reread.getWorksheet('S').spliceColumns(1, 0, []);
+      writeXlsx(reread);
+    } catch (e) {
+      spliceError = String((e && e.message) || e);
+    }
+
+    return {
+      roundtripOk: roundtripError === null,
+      roundtripError,
+      preservedFormulas,
+      spliceOk: spliceError === null,
+      spliceError,
     };
   },
 

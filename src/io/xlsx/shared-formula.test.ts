@@ -1,0 +1,106 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+
+import {strFromU8, unzipSync} from 'fflate';
+
+import {isSharedFormulaValue, type SharedFormulaValue} from '../../core/value.ts';
+import {Workbook} from '../../core/workbook.ts';
+import {readXlsx} from './read.ts';
+import {writeXlsx} from './write.ts';
+
+function sheetXmlOf(data: Uint8Array): string {
+  return strFromU8(unzipSync(data)['xl/worksheets/sheet1.xml'] as Uint8Array);
+}
+
+// A master formula filled down a column: B1 is the master, B2/B3 are clones referencing it.
+function filledColumn(): Workbook {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 1;
+  sheet.getCell('A2').value = 2;
+  sheet.getCell('A3').value = 3;
+  sheet.getCell('B1').value = {formula: 'A1*2', result: 2};
+  sheet.getCell('B2').value = {sharedFormula: 'B1', result: 4};
+  sheet.getCell('B3').value = {sharedFormula: 'B1', result: 6};
+  return wb;
+}
+
+function sharedOf(wb: Workbook, ref: string): SharedFormulaValue {
+  const value = wb.getWorksheet('S')?.getCell(ref).value;
+  assert.ok(value !== undefined && value !== null && isSharedFormulaValue(value), `${ref} is a shared formula`);
+  return value;
+}
+
+test('a shared-formula clone reads back its master formula translated to its own address', () => {
+  const back = readXlsx(writeXlsx(filledColumn()));
+
+  const master = back.getWorksheet('S')?.getCell('B1').value as {formula: string; result: number};
+  assert.equal(master.formula, 'A1*2', 'the master keeps its own formula');
+  assert.equal(master.result, 2);
+
+  const b2 = sharedOf(back, 'B2');
+  assert.equal(b2.formula, 'A2*2', 'a clone one row down resolves to A2*2, not empty');
+  assert.equal(b2.sharedFormula, 'B1', 'the clone records its master reference');
+  assert.equal(b2.result, 4, 'the clone keeps its cached result');
+  assert.equal(sharedOf(back, 'B3').formula, 'A3*2', 'two rows down is A3*2');
+});
+
+test('the master seeds the group with t="shared" ref/si and clones reference it by si', () => {
+  const sheetXml = sheetXmlOf(writeXlsx(filledColumn()));
+  assert.match(sheetXml, /<c r="B1"><f t="shared" ref="B1:B3" si="0">A1\*2<\/f><v>2<\/v><\/c>/);
+  assert.match(sheetXml, /<c r="B2"><f t="shared" si="0"\/><v>4<\/v><\/c>/);
+  assert.match(sheetXml, /<c r="B3"><f t="shared" si="0"\/><v>6<\/v><\/c>/);
+});
+
+test('a shared formula filled across a row translates the column, not the row', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = {formula: 'A2+1', result: 0};
+  sheet.getCell('B1').value = {sharedFormula: 'A1', result: 0};
+  sheet.getCell('C1').value = {sharedFormula: 'A1', result: 0};
+
+  const back = readXlsx(writeXlsx(wb));
+  assert.equal(sharedOf(back, 'B1').formula, 'B2+1', 'one column across');
+  assert.equal(sharedOf(back, 'C1').formula, 'C2+1', 'two columns across');
+});
+
+test('an absolute reference in the master is not shifted in a clone', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('B1').value = {formula: '$A$1+A1', result: 0};
+  sheet.getCell('B2').value = {sharedFormula: 'B1', result: 0};
+
+  assert.equal(sharedOf(readXlsx(writeXlsx(wb)), 'B2').formula, '$A$1+A2', 'the anchored term stays put');
+});
+
+test('a shared formula survives a read → write → read round-trip', () => {
+  const once = readXlsx(writeXlsx(filledColumn()));
+  const twice = readXlsx(writeXlsx(once));
+
+  const b2 = sharedOf(twice, 'B2');
+  assert.equal(b2.formula, 'A2*2', 'the clone still resolves after a second round-trip');
+  assert.equal(b2.sharedFormula, 'B1');
+  assert.equal(b2.result, 4);
+  // The re-write reconstructed the shared grouping rather than expanding to concrete formulas.
+  assert.match(sheetXmlOf(writeXlsx(once)), /<f t="shared" si="0"\/>/);
+});
+
+test('a clone whose master has no formula is refused, naming the offending cell', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('B2').value = {sharedFormula: 'A1', result: 0};
+
+  assert.throws(() => writeXlsx(wb), (error: Error) => {
+    assert.match(error.message, /master/i, 'the error explains the missing master');
+    assert.match(error.message, /B2/, 'the error names the offending clone');
+    return true;
+  });
+});
+
+test('a clone above or left of its master is rejected', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('B2').value = {formula: 'A1', result: 0};
+  sheet.getCell('B1').value = {sharedFormula: 'B2', result: 0}; // above the master
+
+  assert.throws(() => writeXlsx(wb), /above and\/or left/);
+});
