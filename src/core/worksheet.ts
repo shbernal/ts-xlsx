@@ -17,7 +17,7 @@ import {
 } from './protection.ts';
 import type {Alignment, Border, Color, Fill, Font, Protection} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
-import type {CellValue} from './value.ts';
+import {type CellValue, isSharedFormulaValue, type SharedFormulaValue} from './value.ts';
 
 export interface WorksheetState {
   /** Sheet visibility, as Excel models it. Defaults to `visible`. */
@@ -628,6 +628,7 @@ export class Worksheet {
     this.#shiftMerges(start, count, inserts.length, 'col');
     this.#shiftTables('col', start, count, delta);
     this.#shiftImages('col', start, count, delta);
+    this.#reanchorSharedFormulas('col', start, count, delta);
   }
 
   // Apply a delete-then-insert to the row grid: surviving rows below the edit shift by
@@ -649,6 +650,7 @@ export class Worksheet {
     this.#shiftMerges(start, count, inserted.length, 'row');
     this.#shiftTables('row', start, count, delta);
     this.#shiftImages('row', start, count, delta);
+    this.#reanchorSharedFormulas('row', start, count, delta);
   }
 
   // Rebuild a row's cells at a new row index. `Cell` fixes its position at construction, so a moved
@@ -665,6 +667,30 @@ export class Worksheet {
       }
     }
     return moved;
+  }
+
+  // Re-anchor shared-formula clones through a splice on the given axis. A clone stores its master's
+  // absolute address; when the splice shifts the master, that stored address goes stale and the writer
+  // would reject the clone as orphaned. Applying the same shift the grid used keeps each clone pointed
+  // at its master's new cell. A master whose axis coordinate falls in the deleted span clamps to the
+  // cut line like a merge edge — a genuinely orphaned clone the writer then reports legibly.
+  #reanchorSharedFormulas(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+    const shift = (v: number): number => (v < start ? v : v >= start + count ? v + delta : start);
+    for (const cols of this.#rows.values()) {
+      for (const cell of cols.values()) {
+        const value = cell.value;
+        if (!isSharedFormulaValue(value)) continue;
+        const master = decodeAddress(value.sharedFormula);
+        if (master.col === undefined || master.row === undefined) continue;
+        const anchored =
+          axis === 'row'
+            ? encodeAddress(master.col, shift(master.row))
+            : encodeAddress(shift(master.col), master.row);
+        if (anchored === value.sharedFormula) continue;
+        const reanchored: SharedFormulaValue = {...value, sharedFormula: anchored};
+        cell.value = reanchored;
+      }
+    }
   }
 
   // Shift a line-metadata map (row properties keyed by row, or column properties keyed by column)

@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import type {CellValue} from './value.ts';
+import {type CellValue, isSharedFormulaValue} from './value.ts';
 import {Worksheet} from './worksheet.ts';
+
+// The master address a shared-formula clone at `ref` currently points at.
+function masterOf(sheet: Worksheet, ref: string): string {
+  const value = sheet.getCell(ref).value;
+  assert.ok(isSharedFormulaValue(value), `${ref} is a shared-formula clone`);
+  return value.sharedFormula;
+}
 
 test('addressing a covered cell resolves to the merged region master', () => {
   const sheet = new Worksheet('S', 1);
@@ -363,4 +370,38 @@ test('a cell note round-trips through model export and import', () => {
   dst.model = src.model;
   assert.equal(dst.getCell('B2').value, 'v');
   assert.equal(dst.getCell('B2').note, 'remember me');
+});
+
+test('inserting a column re-anchors a shared-formula clone to its master’s new address', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('B1').value = {formula: 'A1*2', result: 2};
+  sheet.getCell('B2').value = {sharedFormula: 'B1', result: 4};
+  sheet.getCell('B3').value = {sharedFormula: 'B1', result: 6};
+
+  // A column inserted at 1 shifts the whole group right by one: master B1 → C1, clones B2/B3 → C2/C3.
+  sheet.spliceColumns(1, 0, []);
+  assert.equal(masterOf(sheet, 'C2'), 'C1', 'the clone follows its master to the new column');
+  assert.equal(masterOf(sheet, 'C3'), 'C1');
+});
+
+test('inserting a row re-anchors a shared-formula clone to its master’s new address', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = {formula: 'Z1', result: 0};
+  sheet.getCell('B1').value = {sharedFormula: 'A1', result: 0};
+  sheet.getCell('C1').value = {sharedFormula: 'A1', result: 0};
+
+  // A row inserted at 1 shifts the group down by one: master A1 → A2, clones B1/C1 → B2/C2.
+  sheet.spliceRows(1, 0, []);
+  assert.equal(masterOf(sheet, 'B2'), 'A2', 'the clone follows its master to the new row');
+  assert.equal(masterOf(sheet, 'C2'), 'A2');
+});
+
+test('a splice below a shared-formula group leaves the clone’s master address untouched', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('B1').value = {formula: 'A1*2', result: 2};
+  sheet.getCell('B2').value = {sharedFormula: 'B1', result: 4};
+
+  // The master B1 sits above the edit at row 5, so nothing moves and no address is rewritten.
+  sheet.spliceRows(5, 0, []);
+  assert.equal(masterOf(sheet, 'B2'), 'B1', 'an untouched master keeps its original address');
 });

@@ -104,3 +104,21 @@ test('a clone above or left of its master is rejected', () => {
 
   assert.throws(() => writeXlsx(wb), /above and\/or left/);
 });
+
+test('inserting a column into a shared-formula sheet re-anchors the master so the write succeeds', () => {
+  const wb = readXlsx(writeXlsx(filledColumn()));
+  const sheet = wb.getWorksheet('S');
+  assert.ok(sheet !== undefined);
+
+  // The whole group shifts one column right; without re-anchoring the clones would still point at the
+  // now-empty B1 and the writer would reject them as orphaned masters.
+  sheet.spliceColumns(1, 0, []);
+  assert.equal(sharedOf(wb, 'C2').sharedFormula, 'C1', 'the clone tracks its master to column C');
+  assert.doesNotThrow(() => writeXlsx(wb));
+
+  // The grouping survives the write and re-reads intact at its new position.
+  const back = readXlsx(writeXlsx(wb));
+  const c2 = sharedOf(back, 'C2');
+  assert.equal(c2.sharedFormula, 'C1');
+  assert.match(sheetXmlOf(writeXlsx(wb)), /<f t="shared" ref="C1:C3" si="0">/);
+});
