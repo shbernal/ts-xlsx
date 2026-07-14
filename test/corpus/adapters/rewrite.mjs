@@ -57,7 +57,7 @@ const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'mo
 const SUPPORTED_SHEET_KEYS = new Set([
   'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges',
 ]);
-const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection']);
+const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'result', 'hyperlink', 'text', 'tooltip', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt', 'fill', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
@@ -190,7 +190,18 @@ function buildFrom(spec = {}) {
         if (!SUPPORTED_CELL_KEYS.has(k)) throw notImplemented(`cell.${k} not supported yet`);
       }
       const cell = sheet.getCell(c.ref);
-      if ('formula' in c) {
+      if ('hyperlink' in c) {
+        // A rich-text display label is part of the rich-text-runs capability, not the hyperlink one;
+        // defer any such behavior rather than mis-serialize its label as a flat string.
+        if (c.text !== null && typeof c.text === 'object') {
+          throw notImplemented('rich-text hyperlink label not supported yet');
+        }
+        cell.value = {
+          hyperlink: c.hyperlink,
+          text: c.text ?? '',
+          ...(c.tooltip !== undefined ? {tooltip: c.tooltip} : {}),
+        };
+      } else if ('formula' in c) {
         cell.value = 'result' in c ? {formula: c.formula, result: c.result} : {formula: c.formula};
       } else if ('value' in c) {
         const v = c.value;
@@ -232,7 +243,9 @@ function buildFrom(spec = {}) {
 function normalizeRewriteCell(cell) {
   const v = cell.value;
   let out;
-  if (v && typeof v === 'object' && 'formula' in v) out = {formula: v.formula, result: v.result ?? null};
+  if (v && typeof v === 'object' && 'hyperlink' in v) {
+    out = {hyperlink: v.hyperlink, text: v.text, ...(v.tooltip !== undefined ? {tooltip: v.tooltip} : {})};
+  } else if (v && typeof v === 'object' && 'formula' in v) out = {formula: v.formula, result: v.result ?? null};
   else if (v instanceof Date) out = {value: Number.isNaN(v.getTime()) ? null : v.toISOString()};
   else out = {value: v ?? null};
   // A style facet is reported only when the round-trip materialized it, matching the
@@ -826,6 +839,87 @@ const impl = {
       },
       sheets,
       definedNames,
+    };
+  },
+
+  // Read a fixture and report every hyperlink cell as { <addr>: { hyperlink, text } }, with a rich
+  // display label flattened to its concatenated text — for asserting a foreign file's links (and the
+  // rejoining of an external URL's fragment carried in the location attribute) are read faithfully.
+  async readFixtureHyperlinks(rel) {
+    const flatten = t =>
+      t == null ? null : typeof t === 'string' ? t : Array.isArray(t.richText) ? t.richText.map(r => r.text).join('') : t;
+    const sheet = readFixture(rel).worksheets[0];
+    const out = {};
+    if (sheet) {
+      for (const {cells} of sheet.rows()) {
+        for (const cell of cells) {
+          const v = cell.value;
+          if (v && typeof v === 'object' && 'hyperlink' in v) {
+            out[cell.address] = {hyperlink: v.hyperlink ?? null, text: flatten(v.text)};
+          }
+        }
+      }
+    }
+    return out;
+  },
+
+  // Build a workbook with one internal ('#'-prefixed) hyperlink, write it, and report how the link
+  // serialized → { writeOk, hasLocation, location, hasExternalRel, hasRid, reloadOk }. An internal
+  // target must ride in a `location` attribute with no external-mode relationship, and the package
+  // must reload.
+  async internalHyperlinkReport(target = "#'Target'!A1") {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('Main');
+    wb.addWorksheet('Target');
+    sheet.getCell('A1').value = {text: 'go', hyperlink: target};
+    let buffer;
+    try {
+      buffer = writeXlsx(wb);
+    } catch (e) {
+      return {writeOk: false, writeError: String((e && e.message) || e)};
+    }
+    const parts = partMapOf(buffer);
+    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const relsXml = parts['xl/worksheets/_rels/sheet1.xml.rels'] || '';
+    const a = attrsOf((sheetXml.match(/<hyperlink\b[^>]*\/?>/) || [''])[0]);
+    let reloadOk = true;
+    try {
+      readXlsx(buffer);
+    } catch {
+      reloadOk = false;
+    }
+    return {
+      writeOk: true,
+      hasLocation: a.location != null,
+      location: a.location ?? null,
+      hasExternalRel: /TargetMode="External"/.test(relsXml),
+      hasRid: a['r:id'] != null,
+      reloadOk,
+    };
+  },
+
+  // Build a workbook with an internal '#Sheet2!A1' hyperlink (plus a tooltip), write it, and report
+  // the serialized distinctions → { hasWorksheetRels, hyperlinkHasRid, hyperlinkLocation,
+  // relTargetMode, reReadHyperlink }. The internal form must carry a location and NO external
+  // relationship, and the target must survive a reload.
+  async internalHyperlinkSerializationReport() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('Sheet1');
+    wb.addWorksheet('Sheet2');
+    ws.getCell('A1').value = {text: 'go', hyperlink: '#Sheet2!A1', tooltip: 'tt'};
+    const buffer = writeXlsx(wb);
+    const parts = partMapOf(buffer);
+    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const relsXml = parts['xl/worksheets/_rels/sheet1.xml.rels'] || '';
+    const hyperlinkEl = (sheetXml.match(/<hyperlink\b[^>]*\/?>/) || [''])[0];
+    const relEl = (relsXml.match(/<Relationship\b[^>]*hyperlink[^>]*\/?>/) || [''])[0];
+    const reReadHyperlink = readXlsx(buffer).getWorksheet('Sheet1').getCell('A1').value.hyperlink ?? null;
+    return {
+      hasWorksheetRels: /Type="[^"]*\/hyperlink"/.test(relsXml),
+      hyperlinkHasRid: /r:id="/.test(hyperlinkEl),
+      hyperlinkLocation: (hyperlinkEl.match(/location="([^"]*)"/) || [null, null])[1],
+      relTargetMode: (relEl.match(/TargetMode="([^"]*)"/) || [null, null])[1],
+      reReadHyperlink,
     };
   },
 

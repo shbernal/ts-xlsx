@@ -40,6 +40,7 @@ import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
 import {decodeCellContent} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
+import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {parseDrawing} from './images.ts';
 import {inflatePackage} from './inflate.ts';
 import {localName, parseXml} from './xml-read.ts';
@@ -99,6 +100,10 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     const sheetXml = path === undefined ? undefined : partText(path);
     if (sheetXml !== undefined) parseWorksheet(sheetXml, sheet, sharedStrings, xfStyles);
     if (path !== undefined) {
+      if (sheetXml !== undefined) {
+        const sheetRels = parseRelationships(partText(relsPathFor(path)) ?? '');
+        applyHyperlinks(sheet, parseSheetHyperlinks(sheetXml), sheetRels);
+      }
       const notes = readSheetNotes(path, partText);
       if (notes !== undefined) applyNotes(sheet, notes);
       readSheetImages(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);

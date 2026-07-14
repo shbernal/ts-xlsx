@@ -16,7 +16,7 @@ import {dateToSerial, DEFAULT_DATE_NUMFMT} from '../../core/date.ts';
 import type {WorkbookImage} from '../../core/image.ts';
 import {mangleFormula} from '../../core/formula.ts';
 import type {Table, TableColumn} from '../../core/table.ts';
-import {detectValueType, type FormulaResult, isFormulaValue} from '../../core/value.ts';
+import {detectValueType, type FormulaResult, isFormulaValue, isHyperlinkValue} from '../../core/value.ts';
 import {type SheetProtection, SHEET_PROTECTION_FLAGS} from '../../core/protection.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import type {
@@ -30,6 +30,12 @@ import type {
   WorksheetProperties,
 } from '../../core/worksheet.ts';
 import {collectNotes, commentsXml, type NoteCell, vmlDrawingXml} from './comments.ts';
+import {
+  collectHyperlinks,
+  hyperlinksXml,
+  planHyperlinks,
+  type PlannedHyperlink,
+} from './hyperlinks.ts';
 import {type DrawingImage, drawingRelsXml, drawingXml, imageContentType} from './images.ts';
 import {THEME1_XML} from './static-parts.ts';
 import {colorAttrs, StyleRegistry} from './styles.ts';
@@ -74,6 +80,7 @@ const REL = {
   vmlDrawing: `${NS.docRels}/vmlDrawing`,
   drawing: `${NS.docRels}/drawing`,
   printerSettings: `${NS.docRels}/printerSettings`,
+  hyperlink: `${NS.docRels}/hyperlink`,
 } as const;
 
 /**
@@ -144,6 +151,18 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     return {number: i + 1, data, relId: `rId${base + 1}`};
   });
 
+  // A sheet's hyperlinks add external relationships whose ids follow every other sheet-local id
+  // (tables, drawing, comments, printer-settings), so introducing a link never renumbers an id
+  // already threaded into the sheet XML. Internal ('#'-prefixed) links need no relationship at all.
+  const sheetHyperlinks: PlannedHyperlink[][] = sheets.map((sheet, i) => {
+    const base =
+      (sheetTables[i] ?? []).length +
+      (sheetDrawings[i] !== null ? 1 : 0) +
+      (sheetComments[i] !== null ? 2 : 0) +
+      (sheetPrinterSettings[i] !== null ? 1 : 0);
+    return planHyperlinks(collectHyperlinks(sheet), base);
+  });
+
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
   // side effect of that pass, so styles.xml can only be generated once every sheet is done.
   const styles = new StyleRegistry();
@@ -154,7 +173,8 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
       styles,
       sheetDrawings[i]?.relId ?? null,
       sheetComments[i]?.vmlRelId ?? null,
-      sheetPrinterSettings[i]?.relId ?? null
+      sheetPrinterSettings[i]?.relId ?? null,
+      sheetHyperlinks[i] ?? []
     )
   );
 
@@ -190,10 +210,18 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     const drawing = sheetDrawings[i] ?? null;
     const comments = sheetComments[i] ?? null;
     const printerSettings = sheetPrinterSettings[i] ?? null;
+    const hyperlinks = sheetHyperlinks[i] ?? [];
+    const hasExternalHyperlink = hyperlinks.some((link) => link.relId !== undefined);
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
-    if (tables.length > 0 || drawing !== null || comments !== null || printerSettings !== null) {
+    if (
+      tables.length > 0 ||
+      drawing !== null ||
+      comments !== null ||
+      printerSettings !== null ||
+      hasExternalHyperlink
+    ) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(
-        worksheetRelsXml(tables, drawing, comments, printerSettings)
+        worksheetRelsXml(tables, drawing, comments, printerSettings, hyperlinks)
       );
     }
     if (printerSettings !== null) {
@@ -456,7 +484,8 @@ function worksheetXml(
   styles: StyleRegistry,
   drawingRelId: string | null,
   legacyDrawingRelId: string | null,
-  printerSettingsRelId: string | null
+  printerSettingsRelId: string | null,
+  hyperlinks: readonly PlannedHyperlink[]
 ): string {
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
   // rather than emit a package a consumer repairs on open.
@@ -528,6 +557,9 @@ function worksheetXml(
     sheetData +
     sheetProtectionXml(sheet.protection) +
     mergeCellsXml(sheet.merges) +
+    // CT_Worksheet order: <hyperlinks> follows <mergeCells> (and would follow any conditional
+    // formatting / data validations) and precedes the print settings.
+    hyperlinksXml(hyperlinks) +
     pageMarginsXml(sheet.pageMargins) +
     pageSetupXml(sheet.pageSetup, printerSettingsRelId) +
     headerFooterXml(sheet.headerFooter) +
@@ -637,7 +669,8 @@ function worksheetRelsXml(
   tables: readonly PlannedTable[],
   drawing: DrawingPlan | null,
   comments: CommentPlan | null,
-  printerSettings: PrinterSettingsPlan | null
+  printerSettings: PrinterSettingsPlan | null,
+  hyperlinks: readonly PlannedHyperlink[]
 ): string {
   const rels = [
     ...tables.map(({relId, number}) => relationship(relId, REL.table, `../tables/table${number}.xml`)),
@@ -659,6 +692,16 @@ function worksheetRelsXml(
             `../printerSettings/printerSettings${printerSettings.number}.bin`
           ),
         ]),
+    // An external hyperlink's target is a URL outside the package, so its relationship carries
+    // TargetMode="External" and the plain `relationship()` helper (a package-internal target) will
+    // not do. Internal links have no relId and contribute nothing here.
+    ...hyperlinks
+      .filter((link) => link.relId !== undefined && link.target !== undefined)
+      .map(
+        (link) =>
+          `<Relationship Id="${link.relId}" Type="${REL.hyperlink}" ` +
+          `Target="${escapeAttr(link.target as string)}" TargetMode="External"/>`
+      ),
   ].join('');
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
@@ -857,6 +900,14 @@ function cellXml(cell: Cell, style: number): string {
   }
   if (typeof value === 'string') {
     return `<c r="${ref}"${s} t="inlineStr"><is>${textElement(value)}</is></c>`;
+  }
+  if (isHyperlinkValue(value)) {
+    // The cell holds only the visible label; the link itself rides in the sheet's <hyperlinks>.
+    // Rich-text labels belong to the rich-text-runs capability, not yet serialised on write.
+    if (typeof value.text !== 'string') {
+      throw new Error('writing a rich-text hyperlink label is not implemented yet');
+    }
+    return `<c r="${ref}"${s} t="inlineStr"><is>${textElement(value.text)}</is></c>`;
   }
   // A null value only reaches here for a formatted-but-empty cell (the row loop keeps it for its
   // style); emit the styled cell with no <v>, exactly how Excel stores a formatted blank.
