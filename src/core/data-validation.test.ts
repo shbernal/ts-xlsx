@@ -56,3 +56,18 @@ test('data validations survive a model round-trip', () => {
   assert.deepEqual(dest.dataValidationAt('A2')?.formulae, [0, 9]);
   assert.equal(dest.dataValidationAt('B2')?.type, 'list');
 });
+
+test('the extended flag rides on the entry and survives a model round-trip', () => {
+  const source = new Workbook().addWorksheet('src');
+  source.addDataValidation('A1', {type: 'list', formulae: ['Sheet2!$A:$A']}, {extended: true});
+  source.addDataValidation('B1', {type: 'list', formulae: ['"x,y"']});
+
+  const [ext, std] = source.dataValidations;
+  assert.equal(ext?.extended, true, 'the extended entry is tagged');
+  assert.equal(std?.extended, undefined, 'a standard entry carries no flag');
+
+  const dest = new Workbook().addWorksheet('dst');
+  dest.model = source.model;
+  assert.equal(dest.dataValidations[0]?.extended, true, 'the flag survives the round-trip');
+  assert.equal(dest.dataValidations[1]?.extended, undefined);
+});

@@ -1230,6 +1230,68 @@ const impl = {
     return {cells, count: Object.keys(cells).length};
   },
 
+  // Read a fixture and report each sheet's data-validation rules, de-duplicated by content with a
+  // per-rule coverage count → { sheets: { name: { rules: [{rule, coverageCount}], ruleCount } } }.
+  // Reads the worksheet overlay (not populated cells), so a rule over an empty range is still seen,
+  // and surfaces a reference source (a defined name, a cross-sheet range) as its verbatim formula
+  // text rather than "[object Object]".
+  readFixtureValidationRules(rel) {
+    const wb = readFixture(rel);
+    const sheets = {};
+    for (const sheet of wb.worksheets) {
+      const byContent = new Map();
+      for (const {sqref, rule} of sheet.dataValidations) {
+        const key = JSON.stringify(rule);
+        const entry = byContent.get(key) || {rule: JSON.parse(key), coverageCount: 0};
+        entry.coverageCount += expandSqref(sqref).length;
+        byContent.set(key, entry);
+      }
+      sheets[sheet.name] = {rules: [...byContent.values()], ruleCount: byContent.size};
+    }
+    return {sheets};
+  },
+
+  // Read a fixture, write it back, and report the data-validation facts of the *re-serialized*
+  // package — both the standard `<dataValidation>` entries and the extended `<x14:dataValidation>`
+  // form (2009 extension schema, carried in `<extLst>`, used for cross-sheet / whole-column list
+  // sources). Lets a case assert a template's validation survives a read→write round-trip rather than
+  // being silently dropped because only the standard form was understood.
+  roundtripFixtureValidationXml(rel) {
+    const parts = partMapOf(writeXlsx(readFixture(rel)));
+    const sheetParts = Object.keys(parts)
+      .filter(p => /^xl\/worksheets\/sheet\d+\.xml$/.test(p))
+      .sort();
+
+    const sheets = {};
+    let totalStandard = 0;
+    let totalExt = 0;
+    for (const p of sheetParts) {
+      const xml = parts[p] || '';
+      // `[ >]` after the tag name separates an individual entry from its `<dataValidations>` /
+      // `<x14:dataValidations>` container (whose next char is `s`).
+      const standardCount = [...xml.matchAll(/<dataValidation[ >]/g)].length;
+      const extCount = [...xml.matchAll(/<x14:dataValidation[ >]/g)].length;
+      const extSqrefs = [...xml.matchAll(/<xm:sqref>([^<]*)<\/xm:sqref>/g)].map(m => m[1]);
+      const standardRules = [
+        ...xml.matchAll(/<dataValidation\b([^>]*)>([\s\S]*?)<\/dataValidation>/g),
+      ].map(m => {
+        const a = attrsOf('<x ' + m[1] + '>');
+        const f1 = (m[2].match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
+        return {
+          type: a.type ?? null,
+          sqref: a.sqref ?? null,
+          errorTitle: a.errorTitle ?? null,
+          error: a.error ?? null,
+          formula1: f1 == null ? null : f1.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'),
+        };
+      });
+      sheets[p] = {standardCount, extCount, extSqrefs, standardRules, hasExtLst: /<extLst\b/.test(xml)};
+      totalStandard += standardCount;
+      totalExt += extCount;
+    }
+    return {sheets, totalStandard, totalExt, totalValidations: totalStandard + totalExt};
+  },
+
   // Attach a list validation whose source formula is supplied (possibly with a leading '='), write,
   // and report the serialized formula1 text → { formula1, hasLeadingEquals }. OOXML formula1 carries
   // no leading '='; the writer must strip exactly one so the app applies the validation immediately.
@@ -1264,6 +1326,49 @@ const impl = {
       reloadOk = false;
     }
     return {writeOk: true, writeError: null, sqrefs, count, reloadOk};
+  },
+
+  // Author list validations on a 'Main' sheet from the two source forms an author uses — an inline
+  // quoted literal ("Male,Female") and a cross-sheet range reference (Levels!$A$2:$A$9999) — write,
+  // read back, and report both the per-cell rule the reader hands back and the serialized
+  // `<dataValidations>` facts (count, well-formedness, the verbatim formula1 texts). Lets a case
+  // assert BOTH forms survive a write→read round-trip and that inline lists stay quoted while range
+  // references stay unquoted, without the case knowing how validations are shaped internally.
+  authorListValidations(validations = []) {
+    const wb = new Workbook();
+    const main = wb.addWorksheet('Main');
+    const levels = wb.addWorksheet('Levels');
+    levels.getCell('A2').value = 'X';
+    for (const v of validations) {
+      const rule = {type: 'list', allowBlank: v.allowBlank !== false, formulae: [v.formula]};
+      if (v.error !== undefined) {
+        rule.showErrorMessage = true;
+        rule.error = v.error;
+      }
+      main.addDataValidation(v.ref, rule);
+    }
+    const buffer = writeXlsx(wb);
+
+    const reread = readXlsx(buffer).getWorksheet('Main');
+    const readBack = {};
+    for (const v of validations) {
+      const dv = reread?.dataValidationAt(v.ref);
+      readBack[v.ref] = dv ? {type: dv.type, formulae: dv.formulae ?? null} : null;
+    }
+
+    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const block = (xml.match(/<dataValidations[\s\S]*?<\/dataValidations>/) || [])[0] || '';
+    return {
+      readBack,
+      xml: {
+        count: [...xml.matchAll(/<dataValidation[ >]/g)].length,
+        // Cheap structural check: a strict consumer chokes on a raw & that is not an entity.
+        wellFormed: !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(block),
+        formula1: [...block.matchAll(/<formula1>([\s\S]*?)<\/formula1>/g)].map(m =>
+          m[1].replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+        ),
+      },
+    };
   },
 
   // Build a workbook with one internal ('#'-prefixed) hyperlink, write it, and report how the link

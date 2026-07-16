@@ -48,10 +48,15 @@ export interface DataValidation {
 }
 
 /** A validation bound to the range(s) it covers. `sqref` is an OOXML `sqref` — one or more
- * space-separated ranges. */
+ * space-separated ranges. `extended` marks a rule stored in the 2009 extension form
+ * (`<x14:dataValidation>` inside the worksheet `<extLst>`) — Excel's carrier for validations a
+ * legacy `<dataValidation>` cannot express, such as a list source on another sheet. The flag is how
+ * a rule read from that form remembers to be written back to it, rather than downgraded to the
+ * standard element (which would corrupt a cross-sheet reference). */
 export interface DataValidationEntry {
   sqref: string;
   rule: DataValidation;
+  extended?: boolean;
 }
 
 /** A defensive copy of a rule, so a stored validation never aliases the caller's object (nor its

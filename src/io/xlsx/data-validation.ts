@@ -7,9 +7,12 @@
 // numeric-typed rule's literal operand parses to a number; a cell reference, defined name, or list
 // source keeps its string, so a reference is never coerced to NaN and lost.
 //
-// The extended `<x14:dataValidation>` form (2009 extension schema, used for cross-sheet and some
-// whole-column list validations) is a separate, larger concern: this reader only handles the standard
-// unprefixed element and safely ignores the x14 block rather than mis-parsing it.
+// The extended `<x14:dataValidation>` form (2009 extension schema) carries the validations a legacy
+// element cannot express — chiefly a list whose source lives on another sheet. It lives in the
+// worksheet `<extLst>`, keeps its target in a `<xm:sqref>` child rather than a `sqref` attribute, and
+// wraps each operand in an `<xm:f>` under `<x14:formula1>`/`<x14:formula2>`. A rule read from that
+// form is tagged `extended` so it is written back there; the two forms are parsed and serialised by
+// prefix so neither reader mistakes one for the other.
 
 import {
   type DataValidation,
@@ -25,18 +28,42 @@ import {escapeAttr, escapeText} from './xml.ts';
 // The typed validations whose literal operands are numbers; `list`/`custom` operands stay strings.
 const TYPED = new Set<string>(['whole', 'decimal', 'date', 'time', 'textLength']);
 
-/** The `<dataValidations>` element, or '' when the sheet declares none — so a validation-free sheet
- * stays byte-clean. */
+// The 2009 extension namespaces and the `<ext>` uri that scopes a worksheet's extended validations —
+// declared inline on the elements that need them, exactly as Excel writes them, so the block is
+// self-contained and the worksheet root needs no extra namespace declaration.
+const X14_NS = 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main';
+const XM_NS = 'http://schemas.microsoft.com/office/excel/2006/main';
+const DATA_VALIDATION_EXT_URI = '{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF}';
+
+/** The standard `<dataValidations>` element for the rules stored in the legacy form, or '' when the
+ * sheet has none of them — so a sheet with only extended (or no) validations stays byte-clean here.
+ * The extended rules are emitted separately by {@link extendedDataValidationsXml}. */
 export function dataValidationsXml(entries: readonly DataValidationEntry[]): string {
-  if (entries.length === 0) return '';
-  const items = entries.map(({sqref, rule}) => dataValidationXml(sqref, rule)).join('');
-  return `<dataValidations count="${entries.length}">${items}</dataValidations>`;
+  const standard = entries.filter(entry => !entry.extended);
+  if (standard.length === 0) return '';
+  const items = standard.map(({sqref, rule}) => dataValidationXml(sqref, rule)).join('');
+  return `<dataValidations count="${standard.length}">${items}</dataValidations>`;
 }
 
-// Attribute order follows CT_DataValidation: type, errorStyle, operator, allowBlank,
-// showInputMessage, showErrorMessage, errorTitle, error, promptTitle, prompt, sqref (last).
-function dataValidationXml(sqref: string, rule: DataValidation): string {
-  const attrs =
+/** The worksheet `<extLst>` carrying the extended (`<x14:dataValidation>`) rules, or '' when the
+ * sheet declares none — so a sheet with only standard validations never fabricates an empty block. */
+export function extendedDataValidationsXml(entries: readonly DataValidationEntry[]): string {
+  const extended = entries.filter(entry => entry.extended);
+  if (extended.length === 0) return '';
+  const items = extended.map(({sqref, rule}) => extendedDataValidationXml(sqref, rule)).join('');
+  return (
+    `<extLst><ext uri="${DATA_VALIDATION_EXT_URI}" xmlns:x14="${X14_NS}">` +
+    `<x14:dataValidations count="${extended.length}" xmlns:xm="${XM_NS}">${items}</x14:dataValidations>` +
+    '</ext></extLst>'
+  );
+}
+
+// The shared attributes of a validation, in CT_DataValidation order: type, errorStyle, operator,
+// allowBlank, showInputMessage, showErrorMessage, errorTitle, error, promptTitle, prompt. The target
+// range differs between the two forms (a `sqref` attribute vs an `<xm:sqref>` child), so it is not
+// part of this shared prefix.
+function ruleAttrs(rule: DataValidation): string {
+  return (
     ` type="${rule.type}"` +
     (rule.errorStyle !== undefined ? ` errorStyle="${rule.errorStyle}"` : '') +
     (rule.operator !== undefined ? ` operator="${rule.operator}"` : '') +
@@ -46,15 +73,29 @@ function dataValidationXml(sqref: string, rule: DataValidation): string {
     (rule.errorTitle !== undefined ? ` errorTitle="${escapeAttr(rule.errorTitle)}"` : '') +
     (rule.error !== undefined ? ` error="${escapeAttr(rule.error)}"` : '') +
     (rule.promptTitle !== undefined ? ` promptTitle="${escapeAttr(rule.promptTitle)}"` : '') +
-    (rule.prompt !== undefined ? ` prompt="${escapeAttr(rule.prompt)}"` : '') +
-    ` sqref="${escapeAttr(sqref)}"`;
+    (rule.prompt !== undefined ? ` prompt="${escapeAttr(rule.prompt)}"` : '')
+  );
+}
 
-  const formulae = rule.formulae ?? [];
-  const [f1, f2] = formulae;
+// The standard element: shared attributes, then `sqref` last, then `<formula1>`/`<formula2>` bodies.
+function dataValidationXml(sqref: string, rule: DataValidation): string {
+  const [f1, f2] = rule.formulae ?? [];
   const body =
     (f1 !== undefined ? `<formula1>${formulaText(f1)}</formula1>` : '') +
     (f2 !== undefined ? `<formula2>${formulaText(f2)}</formula2>` : '');
-  return `<dataValidation${attrs}>${body}</dataValidation>`;
+  return `<dataValidation${ruleAttrs(rule)} sqref="${escapeAttr(sqref)}">${body}</dataValidation>`;
+}
+
+// The extended element: same shared attributes, but each operand wraps in `<x14:formula1><xm:f>…` and
+// the target range is an `<xm:sqref>` child that follows the formulae. The `xr:uid` Excel adds is
+// revision metadata it regenerates freely, so it is not modelled or re-emitted.
+function extendedDataValidationXml(sqref: string, rule: DataValidation): string {
+  const [f1, f2] = rule.formulae ?? [];
+  const body =
+    (f1 !== undefined ? `<x14:formula1><xm:f>${formulaText(f1)}</xm:f></x14:formula1>` : '') +
+    (f2 !== undefined ? `<x14:formula2><xm:f>${formulaText(f2)}</xm:f></x14:formula2>` : '') +
+    `<xm:sqref>${escapeText(sqref)}</xm:sqref>`;
+  return `<x14:dataValidation${ruleAttrs(rule)}>${body}</x14:dataValidation>`;
 }
 
 // A number serialises as its literal; a string is stripped of exactly one leading '=' (the authoring
@@ -110,8 +151,21 @@ function buildEntry(
   attrs: Record<string, string>,
   formulae: readonly string[]
 ): DataValidationEntry | undefined {
-  const {sqref, type} = attrs;
-  if (sqref === undefined || type === undefined) return undefined;
+  const {sqref} = attrs;
+  if (sqref === undefined) return undefined;
+  const rule = buildRule(attrs, formulae);
+  return rule === undefined ? undefined : {sqref, rule};
+}
+
+// The rule carried by a validation element of either form: its attributes decide the type, operator,
+// flags, and messages; its `<formula1>`/`<formula2>` operands become `formulae`. The target range is
+// supplied separately by each form's caller, so it is not read here.
+function buildRule(
+  attrs: Record<string, string>,
+  formulae: readonly string[]
+): DataValidation | undefined {
+  const {type} = attrs;
+  if (type === undefined) return undefined;
 
   const rule: DataValidation = {type: type as DataValidationType};
   if (attrs.operator !== undefined) {
@@ -135,7 +189,72 @@ function buildEntry(
     .map((f) => parseFormula(type, f));
   if (parsed.length > 0) rule.formulae = parsed;
 
-  return {sqref, rule};
+  return rule;
+}
+
+/** Parse every extended `<x14:dataValidation>` out of a worksheet's `<extLst>` into range-bound
+ * rules tagged `extended`, so a cross-sheet or whole-column list validation Excel stored only in the
+ * 2009 extension form is read back rather than dropped. The standard parser ignores these (they are
+ * prefixed); this one, symmetrically, handles only the prefixed elements. */
+export function parseExtendedDataValidations(xml: string): DataValidationEntry[] {
+  const entries: DataValidationEntry[] = [];
+  let current: {attrs: Record<string, string>; formulae: string[]; sqref: string} | undefined;
+  // Which operand an `<xm:f>` feeds (set by the enclosing `<x14:formula1>`/`<x14:formula2>`), and
+  // which child element's text is currently being gathered.
+  let slot: number | undefined;
+  let capture: 'formula' | 'sqref' | undefined;
+  let text = '';
+
+  parseXml(xml, {
+    onOpen(name, attrs) {
+      const ln = localName(name);
+      const prefixed = name.includes(':');
+      // A `<x14:dataValidation>`; its attributes (type, flags, messages) build the rule.
+      if (ln === 'dataValidation' && prefixed) {
+        current = {attrs, formulae: [], sqref: ''};
+      } else if (current !== undefined && prefixed && ln === 'formula1') {
+        slot = 0;
+      } else if (current !== undefined && prefixed && ln === 'formula2') {
+        slot = 1;
+      } else if (current !== undefined && ln === 'f') {
+        capture = 'formula';
+        text = '';
+      } else if (current !== undefined && ln === 'sqref') {
+        capture = 'sqref';
+        text = '';
+      }
+    },
+    onText(chunk) {
+      if (capture !== undefined) text += chunk;
+    },
+    onClose(name) {
+      const ln = localName(name);
+      if (ln === 'f' && capture === 'formula') {
+        if (current !== undefined && slot !== undefined) current.formulae[slot] = text;
+        capture = undefined;
+      } else if (ln === 'sqref' && capture === 'sqref') {
+        if (current !== undefined) current.sqref = text;
+        capture = undefined;
+      } else if ((ln === 'formula1' || ln === 'formula2') && name.includes(':')) {
+        slot = undefined;
+      } else if (ln === 'dataValidation' && name.includes(':') && current !== undefined) {
+        const built = buildExtendedEntry(current.attrs, current.formulae, current.sqref);
+        if (built !== undefined) entries.push(built);
+        current = undefined;
+      }
+    },
+  });
+  return entries;
+}
+
+function buildExtendedEntry(
+  attrs: Record<string, string>,
+  formulae: readonly string[],
+  sqref: string
+): DataValidationEntry | undefined {
+  if (sqref === '') return undefined;
+  const rule = buildRule(attrs, formulae);
+  return rule === undefined ? undefined : {sqref, rule, extended: true};
 }
 
 // A list/custom operand is always a string. A typed rule's operand is a number when it is a plain
@@ -147,10 +266,13 @@ function parseFormula(type: string, text: string): string | number {
   return text.trim() !== '' && Number.isFinite(n) ? n : text;
 }
 
-/** Fold parsed validations onto a sheet, each bound to its original range. */
+/** Fold parsed validations onto a sheet, each bound to its original range and carrying its form: an
+ * `extended` entry is re-attached as extended so a round-trip writes it back to the x14 block. */
 export function applyDataValidations(
   sheet: Worksheet,
   entries: readonly DataValidationEntry[]
 ): void {
-  for (const {sqref, rule} of entries) sheet.addDataValidation(sqref, rule);
+  for (const {sqref, rule, extended} of entries) {
+    sheet.addDataValidation(sqref, rule, extended ? {extended: true} : {});
+  }
 }

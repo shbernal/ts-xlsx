@@ -38,7 +38,7 @@ import type {
   WorksheetProperties,
 } from '../../core/worksheet.ts';
 import {collectNotes, commentsXml, type NoteCell, vmlDrawingXml} from './comments.ts';
-import {dataValidationsXml} from './data-validation.ts';
+import {dataValidationsXml, extendedDataValidationsXml} from './data-validation.ts';
 import {
   collectHyperlinks,
   hyperlinksXml,
@@ -644,6 +644,9 @@ function worksheetXml(
     (drawingRelId !== null ? `<drawing r:id="${drawingRelId}"/>` : '') +
     (legacyDrawingRelId !== null ? `<legacyDrawing r:id="${legacyDrawingRelId}"/>` : '') +
     tablePartsXml(tables) +
+    // `<extLst>` is the final child of CT_Worksheet; the extended (x14) data validations ride here,
+    // the standard ones already emitted above in `<dataValidations>`.
+    extendedDataValidationsXml(sheet.dataValidations) +
     '</worksheet>'
   );
 }

@@ -41,7 +41,11 @@ import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
 import {decodeCellContent, decodeFormulaResult} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
-import {applyDataValidations, parseDataValidations} from './data-validation.ts';
+import {
+  applyDataValidations,
+  parseDataValidations,
+  parseExtendedDataValidations,
+} from './data-validation.ts';
 import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {parseDrawing} from './images.ts';
 import {inflatePackage} from './inflate.ts';
@@ -105,7 +109,10 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
       if (sheetXml !== undefined) {
         const sheetRels = parseRelationships(partText(relsPathFor(path)) ?? '');
         applyHyperlinks(sheet, parseSheetHyperlinks(sheetXml), sheetRels);
-        applyDataValidations(sheet, parseDataValidations(sheetXml));
+        applyDataValidations(sheet, [
+          ...parseDataValidations(sheetXml),
+          ...parseExtendedDataValidations(sheetXml),
+        ]);
       }
       const notes = readSheetNotes(path, partText);
       if (notes !== undefined) applyNotes(sheet, notes);

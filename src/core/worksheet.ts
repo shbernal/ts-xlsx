@@ -511,12 +511,19 @@ export class Worksheet {
    * space-separated `sqref` of several ranges). The rule is stored once against the range, not copied
    * per covered cell, so a whole-column dropdown stays a single entry. A cell inside the range reports
    * the rule through {@link dataValidationAt}.
+   *
+   * Pass `{extended: true}` to mark a rule that belongs in the 2009 extension form
+   * (`<x14:dataValidation>`) — the carrier Excel uses for a list source on another sheet and other
+   * shapes the standard element cannot express. The reader sets it for a rule found in that form so a
+   * round-trip writes it back there instead of silently corrupting the cross-sheet reference.
    */
-  addDataValidation(sqref: string, rule: DataValidation): void {
+  addDataValidation(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void {
     // One defensive copy, shared by the serialisable entry and the lookup index, so the getter never
     // hands back a reference into the caller's object.
     const stored = cloneDataValidation(rule);
-    this.#dataValidations.push({sqref, rule: stored});
+    const entry: DataValidationEntry = {sqref, rule: stored};
+    if (options.extended) entry.extended = true;
+    this.#dataValidations.push(entry);
     this.#dataValidationRects.push({rects: decodeSqrefRects(sqref), rule: stored});
   }
 
@@ -869,9 +876,10 @@ export class Worksheet {
       rows: [...this.#rowProperties].map(([number, properties]) => ({number, properties: {...properties}})),
       cells,
       merges: [...this.#merges],
-      dataValidations: this.#dataValidations.map(({sqref, rule}) => ({
+      dataValidations: this.#dataValidations.map(({sqref, rule, extended}) => ({
         sqref,
         rule: cloneDataValidation(rule),
+        ...(extended ? {extended: true} : {}),
       })),
       tables: this.#tables.map(table => table.options),
       protection: this.#protection,
@@ -914,7 +922,9 @@ export class Worksheet {
       cell.note = note;
     }
     for (const range of model.merges) this.mergeCells(range);
-    for (const {sqref, rule} of model.dataValidations) this.addDataValidation(sqref, rule);
+    for (const {sqref, rule, extended} of model.dataValidations) {
+      this.addDataValidation(sqref, rule, extended ? {extended: true} : {});
+    }
     for (const options of model.tables) this.addTable(options);
   }
 
