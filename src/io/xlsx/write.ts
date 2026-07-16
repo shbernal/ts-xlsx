@@ -99,6 +99,19 @@ const REL = {
  *   or holds a value the writer cannot yet represent.
  */
 export function writeXlsx(workbook: Workbook): Uint8Array {
+  return zipSync(buildPackageParts(workbook), {level: 6});
+}
+
+/**
+ * Assemble a workbook into the map of OPC package parts (part name → bytes) that make up an `.xlsx`,
+ * short of zipping them. This is the whole serialisation — content types, relationships, workbook,
+ * per-sheet XML, styles, theme, media, tables, and props — factored out of {@link writeXlsx} so the
+ * streaming writer can drive the identical parts through a streamed zip container rather than
+ * `zipSync`. Neither writer duplicates a byte of serialisation.
+ *
+ * @throws {Error} if the workbook has no worksheets, or holds a value the writer cannot represent.
+ */
+export function buildPackageParts(workbook: Workbook): Record<string, Uint8Array> {
   const sheets = workbook.worksheets;
   if (sheets.length === 0) {
     throw new Error('cannot write a workbook with no worksheets — a zero-sheet package is corrupt to Excel');
@@ -250,7 +263,7 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
     files[`xl/tables/table${number}.xml`] = strToU8(tableXml(table, number));
   }
 
-  return zipSync(files, {level: 6});
+  return files;
 }
 
 // A sheet's notes paired with the part number and sheet-local relationship ids that link the sheet
@@ -406,8 +419,17 @@ function workbookXml(workbook: Workbook): string {
     `<workbook xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
     `<sheets>${entries}</sheets>` +
     definedNamesXml(workbook) +
+    calcPrXml(workbook) +
     '</workbook>'
   );
+}
+
+// `<calcPr>` follows `<definedNames>` in CT_Workbook order and carries the calculation settings.
+// Today the model exposes a single one: `fullCalcOnLoad`, which tells the consumer to recalculate
+// every formula on open instead of trusting the cached results. Emitted only when set, so an
+// unmarked workbook keeps the element (and its `calcId`) out of the file entirely.
+function calcPrXml(workbook: Workbook): string {
+  return workbook.fullCalcOnLoad ? '<calcPr calcId="171027" fullCalcOnLoad="1"/>' : '';
 }
 
 // The `<definedNames>` block follows `<sheets>` in the schema. A sheet-scoped name carries a

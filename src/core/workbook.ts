@@ -54,6 +54,14 @@ const INVALID_SHEET_NAME_CHARS = /[*?:\\/[\]]/;
 export class Workbook {
   readonly properties: WorkbookProperties = {};
 
+  /**
+   * Ask consuming spreadsheet apps to recalculate every formula when the file is opened, rather than
+   * trusting the cached results stored with each formula cell. Set this when the producer cannot
+   * compute formula results itself — the OOXML `fullCalcOnLoad` flag. Off by default, so a workbook
+   * whose cached results are authoritative stays unmarked.
+   */
+  fullCalcOnLoad = false;
+
   readonly #worksheets: Worksheet[] = [];
   #nextSheetId = 1;
 

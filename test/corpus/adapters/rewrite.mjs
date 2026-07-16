@@ -19,8 +19,10 @@
 // partially-built writer never produces a false regression — it only runs the cases it
 // can faithfully serialize, and those must go green.
 
+import {createRequire} from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
+import {PassThrough} from 'node:stream';
 import {fileURLToPath} from 'node:url';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
@@ -29,7 +31,13 @@ import {decodeAddress, decodeRange, encodeAddress} from '../../../src/core/addre
 import {Workbook} from '../../../src/core/workbook.ts';
 import {readXlsx} from '../../../src/io/xlsx/read.ts';
 import {writeXlsx} from '../../../src/io/xlsx/write.ts';
+import {WorkbookStreamWriter} from '../../../src/io/xlsx/write-stream.ts';
 import {packageFacts} from './ooxml-facts.mjs';
+
+// JSZip is an independent zip implementation used only to VERIFY the streaming writer's output (CRC
+// integrity), a hostile-input posture toward our own archive — never in the production src path.
+const require = createRequire(import.meta.url);
+const JSZip = require('jszip');
 
 // Durable sample inputs live under test/corpus/fixtures/<case-slug>/ — the SAME tree the
 // oracle adapter reads, so a fixture-backed case measures both implementations against one
@@ -325,6 +333,205 @@ const impl = {
 
   inspectPackage(spec) {
     return packageFacts(spec, partMapOf(writeXlsx(buildFrom(spec))));
+  },
+
+  // Drive the streaming writer to produce a package, then treat the bytes as an UNTRUSTED archive:
+  // JSZip (an independent zip impl) extracts with CRC checking on, so a mismatched entry throws. Also
+  // report part count, empty parts, and a whole-file re-read → { partCount, emptyParts, crcValid,
+  // crcError, reloadOk, reloadError, sheetNames, firstCol }. The streamed container must be valid with
+  // no repair step.
+  async streamWritePackageReport({rows = 50} = {}) {
+    const writer = new WorkbookStreamWriter();
+    const sheet = writer.addWorksheet('S');
+    for (let i = 1; i <= rows; i++) sheet.addRow([`r${i}`, i]).commit();
+    sheet.commit();
+    const buffer = Buffer.from(await writer.commit());
+
+    let crcValid = true;
+    let crcError = null;
+    const emptyParts = [];
+    let partCount = 0;
+    try {
+      const zip = await JSZip.loadAsync(buffer, {checkCRC32: true});
+      const names = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+      partCount = names.length;
+      for (const n of names) {
+        const bytes = await zip.files[n].async('nodebuffer');
+        if (bytes.length === 0) emptyParts.push(n);
+      }
+    } catch (e) {
+      crcValid = false;
+      crcError = String((e && e.message) || e);
+    }
+
+    let reloadOk = true;
+    let reloadError = null;
+    let sheetNames = [];
+    let firstCol = [];
+    try {
+      const wb = readXlsx(buffer);
+      sheetNames = wb.worksheets.map(s => s.name);
+      const s = wb.worksheets[0];
+      for (let i = 1; i <= Math.min(rows, 3); i++) firstCol.push(normalizeStreamValue(s.getCell(`A${i}`).value));
+    } catch (e) {
+      reloadOk = false;
+      reloadError = String((e && e.message) || e);
+    }
+    return {partCount, emptyParts, crcValid, crcError, reloadOk, reloadError, sheetNames, firstCol};
+  },
+
+  // Drive the streaming worksheet writer through row ops (addRow/addRows), commit, and read the
+  // requested cells back → { ok, error, cells, rowCount }. Exercises the batch-add convenience and the
+  // single-row control on the same path.
+  async streamWriteSheet({ops = [], read = [], useSharedStrings = false} = {}) {
+    // A shared-strings table is a deferred slice of the streaming writer, and the rewrite models a
+    // rich-text run as { text, font } — not the inline { text, bold, italic } run shape some specs
+    // use. A spec reaching for either is skipped rather than written lossily.
+    if (useSharedStrings) throw notImplemented('streaming useSharedStrings not supported yet');
+    for (const op of ops) {
+      const rows = op.op === 'addRows' ? op.value || [] : [op.value || []];
+      for (const row of rows) {
+        for (const value of row || []) {
+          if (value && typeof value === 'object' && Array.isArray(value.richText)) {
+            const modelled = value.richText.every(run =>
+              Object.keys(run).every(k => k === 'text' || k === 'font')
+            );
+            if (!modelled) throw notImplemented('inline rich-text run formatting not supported yet');
+          }
+        }
+      }
+    }
+    const writer = new WorkbookStreamWriter();
+    let error = null;
+    try {
+      const sheet = writer.addWorksheet('S');
+      for (const op of ops) {
+        if (op.op === 'addRow') sheet.addRow(op.value || []).commit();
+        else if (op.op === 'addRows') sheet.addRows(op.value || []);
+        else throw new Error(`unknown stream op: ${op.op}`);
+      }
+      sheet.commit();
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    const buffer = Buffer.from(await writer.commit());
+    if (error) return {ok: false, error, cells: {}, rowCount: 0};
+
+    const s = readXlsx(buffer).worksheets[0];
+    const cells = {};
+    for (const ref of read) cells[ref] = normalizeStreamValue(s.getCell(ref).value);
+    return {ok: true, error: null, cells, rowCount: s.rowCount};
+  },
+
+  // Commit a streaming worksheet, then add a row → { rejected, error, legibleRejection, internalCrash,
+  // reloadOk }. A post-commit add must be rejected with a legible "already committed" error, not an
+  // internal null-property crash, and a cleanly-committed workbook still reads back.
+  async streamAddRowAfterCommit() {
+    const writer = new WorkbookStreamWriter();
+    const sheet = writer.addWorksheet('S');
+    sheet.addRow(['a']).commit();
+    sheet.commit();
+    let error = null;
+    try {
+      sheet.addRow(['b']).commit();
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    const buffer = Buffer.from(await writer.commit());
+    const legibleRejection = error != null && /commit|committed|finaliz|closed/i.test(error);
+    const internalCrash = error != null && /Cannot read propert|of (null|undefined)/i.test(error);
+    let reloadOk = true;
+    try {
+      readXlsx(buffer);
+    } catch {
+      reloadOk = false;
+    }
+    return {rejected: error != null, error, legibleRejection, internalCrash, reloadOk};
+  },
+
+  // Pipe the streaming writer's output stream to a sink and report { pipeReturnsDestination, bytes,
+  // valid }. Node's Readable.pipe(dest) must RETURN dest so `.pipe(out).on('finish', …)` composes,
+  // while the piped payload still reconstitutes a valid workbook.
+  async streamWriterPipeContract() {
+    const writer = new WorkbookStreamWriter();
+    const source = writer.stream;
+    const sink = new PassThrough();
+    const chunks = [];
+    sink.on('data', c => chunks.push(c));
+    const pipeReturn = source.pipe(sink);
+    const pipeReturnsDestination = pipeReturn === sink;
+    const ws = writer.addWorksheet('S');
+    ws.addRow(['a', 'b']).commit();
+    ws.commit();
+    await writer.commit();
+    await new Promise(res => setTimeout(res, 20));
+    const buffer = Buffer.concat(chunks);
+    let valid = false;
+    try {
+      valid = readXlsx(buffer).worksheets[0].getCell('A1').value === 'a';
+    } catch {
+      valid = false;
+    }
+    return {pipeReturnsDestination, bytes: buffer.length, valid};
+  },
+
+  // Request fullCalcOnLoad on the streaming writer (via calcProperties) and report whether it reaches
+  // the output, versus the in-memory writer → { streamSetThrew, streamHasFlag, streamDefaultHasFlag,
+  // memoryHasFlag }. Recalc-on-load must work identically on both writers.
+  async streamingFullCalcOnLoadReport() {
+    const streamCalc = async setFlag => {
+      const writer = new WorkbookStreamWriter();
+      let threw = false;
+      if (setFlag) {
+        try {
+          writer.calcProperties.fullCalcOnLoad = true;
+        } catch {
+          threw = true;
+        }
+      }
+      const sheet = writer.addWorksheet('S');
+      sheet.getCell('A1').value = 1;
+      sheet.commit();
+      const buffer = Buffer.from(await writer.commit());
+      const wbXml = strFromU8(unzipSync(buffer)['xl/workbook.xml']);
+      return {threw, hasFlag: /fullCalcOnLoad="1"/.test(wbXml)};
+    };
+    const set = await streamCalc(true);
+    const def = await streamCalc(false);
+
+    const wb = new Workbook();
+    wb.fullCalcOnLoad = true;
+    wb.addWorksheet('S').getCell('A1').value = 1;
+    const memXml = strFromU8(unzipSync(writeXlsx(wb))['xl/workbook.xml']);
+
+    return {
+      streamSetThrew: set.threw,
+      streamHasFlag: set.hasFlag,
+      streamDefaultHasFlag: def.hasFlag,
+      memoryHasFlag: /fullCalcOnLoad="1"/.test(memXml),
+    };
+  },
+
+  // Build via the streaming writer with a master formula + shared-formula slaves, reload →
+  // { masterHasFormula, slaveResolved, slaveValue }. Streamed slaves must not be dropped to empty.
+  async streamingSharedFormulaReport(rows = 10) {
+    const writer = new WorkbookStreamWriter();
+    const sheet = writer.addWorksheet('yua');
+    for (let i = 1; i <= rows; i++) sheet.getCell(`A${i}`).value = i * 10;
+    sheet.getCell('B1').value = {formula: 'A1*2', result: 20};
+    for (let j = 2; j <= rows; j++) sheet.getCell(`B${j}`).value = {sharedFormula: 'B1'};
+    sheet.commit();
+    const buffer = Buffer.from(await writer.commit());
+
+    const rs = readXlsx(buffer).getWorksheet('yua');
+    const slave = rs.getCell('B3').value;
+    const slaveIsEmpty = slave == null || (typeof slave === 'object' && Object.keys(slave).length === 0);
+    const master = rs.getCell('B1').value;
+    return {
+      masterHasFormula: !!(master && typeof master === 'object' && 'formula' in master),
+      slaveResolved: !slaveIsEmpty,
+      slaveValue: normalizeStreamValue(slave ?? null),
+    };
   },
 
   // Apply a font to each named cell, then read each requested cell's font back → { <ref>:
