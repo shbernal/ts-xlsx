@@ -41,6 +41,7 @@ import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
 import {decodeCellContent, decodeFormulaResult} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
+import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
 import {
   applyDataValidations,
   parseDataValidations,
@@ -88,9 +89,13 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // The style table resolves a cell/row/column style index to its facets (fill, number
   // format); a package without one (a hand-rolled foreign file) yields an empty table and
   // every index reads as unstyled.
-  const xfStyles = parseStyleTable(partText('xl/styles.xml') ?? '');
+  const stylesXml = partText('xl/styles.xml') ?? '';
+  const xfStyles = parseStyleTable(stylesXml);
 
   const workbook = new Workbook();
+  // Preserve the differential-style table verbatim so conditional formatting's dxfId references stay
+  // valid — and a foreign dxf's number format stays a real format code — across a re-write.
+  workbook.restoreDifferentialStyles(parseDxfs(stylesXml));
   const core = partText('docProps/core.xml');
   if (core !== undefined) applyCoreProperties(workbook, core);
 
@@ -113,6 +118,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
           ...parseDataValidations(sheetXml),
           ...parseExtendedDataValidations(sheetXml),
         ]);
+        for (const cf of parseConditionalFormattings(sheetXml)) sheet.addConditionalFormatting(cf);
       }
       const notes = readSheetNotes(path, partText);
       if (notes !== undefined) applyNotes(sheet, notes);

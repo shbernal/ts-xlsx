@@ -1438,6 +1438,12 @@ const impl = {
     const facts = workbook => {
       const sheet = workbook.worksheets[0];
       const ps = sheet ? sheet.pageSetup : {};
+      // Differential styles are preserved as verbatim `<dxf>` fragments; a rule's number format is
+      // whatever formatCode the fragment carries, so a coerced "[object Object]" can never appear.
+      const dxfs = workbook.differentialStyles;
+      const dxfFormatCodes = dxfs.flatMap(f =>
+        [...f.matchAll(/formatCode="([^"]*)"/g)].map(m => m[1])
+      );
       return {
         columnWidths: sheet
           ? [...sheet.columns()].map(c => c.properties.width).filter(w => w !== undefined)
@@ -1450,12 +1456,120 @@ const impl = {
           orientation: ps.orientation ?? null,
           paperSize: ps.paperSize ?? null,
         },
+        dxfCount: dxfs.length,
+        dxfFormatCodes,
       };
     };
     const before = readFixture(rel);
     const source = facts(before);
     const after = readXlsx(writeXlsx(before));
     return {source, rewritten: facts(after)};
+  },
+
+  // Author a conditional-formatting rule, write it, and report the emitted CF XML facts plus what the
+  // reader surfaces on reload → { writeOk, writeError, xml:{blockCount, sqrefs, ruleCount, hasDataBar,
+  // cfvoCount, hasColor, wellFormed}, reload:{type, color, gradient, cfvo} }.
+  authorConditionalFormatting(cf) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    // Populate the ref's first column so the rule binds to real cells.
+    const rows = Number((cf.ref.match(/(\d+)\s*$/) || [])[1] || 3);
+    for (let r = 1; r <= rows; r++) sheet.getCell(`A${r}`).value = r / rows;
+    let buffer;
+    try {
+      sheet.addConditionalFormatting(cf);
+      buffer = writeXlsx(workbook);
+    } catch (e) {
+      return {writeOk: false, writeError: String((e && e.message) || e), xml: null, reload: null};
+    }
+    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const cfBlock = (xml.match(/<conditionalFormatting[\s\S]*?<\/conditionalFormatting>/) || [''])[0];
+    const dataBar = (cfBlock.match(/<dataBar\b[\s\S]*?<\/dataBar>|<dataBar\b[^>]*\/>/) || [''])[0];
+    const rule = readXlsx(buffer).getWorksheet('S')?.conditionalFormattings?.[0]?.rules?.[0] ?? null;
+    return {
+      writeOk: true,
+      writeError: null,
+      xml: {
+        blockCount: [...xml.matchAll(/<conditionalFormatting\b/g)].length,
+        sqrefs: [...xml.matchAll(/<conditionalFormatting\b[^>]*sqref="([^"]*)"/g)].map(m => m[1]),
+        ruleCount: [...cfBlock.matchAll(/<cfRule\b/g)].length,
+        hasDataBar: /<dataBar\b/.test(cfBlock),
+        cfvoCount: [...dataBar.matchAll(/<cfvo\b/g)].length,
+        hasColor: /<color\b/.test(dataBar),
+        wellFormed: cfBlock ? !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(cfBlock) : false,
+      },
+      reload: rule
+        ? {
+            type: rule.type ?? null,
+            color: rule.color ? rule.color.argb ?? null : null,
+            gradient: rule.gradient ?? null,
+            cfvo: (rule.cfvo || []).map(v => ({type: v.type ?? null, value: v.value ?? null})),
+          }
+        : null,
+    };
+  },
+
+  // Apply a stopIfTrue rule, write, reload → { xmlHasStopIfTrue, reloadStopIfTrue }.
+  conditionalFormattingStopIfTrue() {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = 5;
+    sheet.addConditionalFormatting({
+      ref: 'A1:A10',
+      rules: [
+        {
+          type: 'cellIs',
+          operator: 'greaterThan',
+          formulae: [3],
+          stopIfTrue: true,
+          style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFFF0000'}}},
+        },
+      ],
+    });
+    const buffer = writeXlsx(workbook);
+    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const rule = readXlsx(buffer).getWorksheet('S')?.conditionalFormattings?.[0]?.rules?.[0];
+    return {
+      xmlHasStopIfTrue: /stopIfTrue="1"/.test(xml),
+      reloadStopIfTrue: rule ? rule.stopIfTrue ?? false : null,
+    };
+  },
+
+  // Read a fixture's first-sheet conditional-formatting facts, write it back, and report the same
+  // before/after → { source, rewritten } each { blockCount, rules:[{type, dxfId, priority}] }.
+  roundtripFixtureConditionalFormatting(rel) {
+    const cfFacts = xml => ({
+      blockCount: [...xml.matchAll(/<conditionalFormatting\b/g)].length,
+      rules: [...xml.matchAll(/<cfRule\b([^>]*?)\/?>/g)].map(m => {
+        const a = attrsOf('<x ' + m[1] + '>');
+        return {type: a.type ?? null, dxfId: a.dxfId ?? null, priority: a.priority ?? null};
+      }),
+    });
+    const srcParts = partMapOf(fs.readFileSync(path.join(FIXTURES_ROOT, rel)));
+    const srcName = Object.keys(srcParts).find(n => /sheet1\.xml$/.test(n));
+    const source = cfFacts(srcName ? srcParts[srcName] : '');
+    const outXml = partMapOf(writeXlsx(readFixture(rel)))['xl/worksheets/sheet1.xml'] || '';
+    return {source, rewritten: cfFacts(outXml)};
+  },
+
+  // Load a fixture and try to write it back → { loadOk, loadError, writeOk, writeError, sheetNames } —
+  // for asserting a foreign construct round-trips without the writer crashing.
+  roundtripFixtureWriteReport(rel) {
+    let workbook;
+    try {
+      workbook = readFixture(rel);
+    } catch (e) {
+      return {loadOk: false, loadError: String((e && e.message) || e), writeOk: false, writeError: null, sheetNames: []};
+    }
+    let writeOk = false;
+    let writeError = null;
+    try {
+      writeXlsx(workbook);
+      writeOk = true;
+    } catch (e) {
+      writeError = String((e && e.message) || e);
+    }
+    return {loadOk: true, loadError: null, writeOk, writeError, sheetNames: workbook.worksheets.map(w => w.name)};
   },
 
   // Merge a horizontal span with a value + alignment on the anchor, write, then read back →

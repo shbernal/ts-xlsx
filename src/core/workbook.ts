@@ -71,9 +71,31 @@ export class Workbook {
 
   readonly #definedNames: DefinedName[] = [];
 
+  // Differential styles (`<dxfs>`) are a workbook-level table in styles.xml that conditional
+  // formatting references by index. The library models the classic scale rules directly but preserves
+  // the dxf table as opaque XML fragments, so a rule that references a dxfId (a highlight fill, a
+  // custom number format) keeps a valid target across a read/write cycle instead of dangling.
+  readonly #dxfs: string[] = [];
+
   /** The worksheets in insertion order. */
   get worksheets(): readonly Worksheet[] {
     return this.#worksheets;
+  }
+
+  /**
+   * Reinstate the differential-style (`<dxfs>`) table read from a file — the deserialization
+   * counterpart the writer re-emits verbatim. Each entry is one `<dxf>…</dxf>` fragment, preserved as
+   * opaque XML so a conditional-formatting rule's `dxfId` (an index into this table) stays valid on
+   * re-write. Replaces any table already held.
+   */
+  restoreDifferentialStyles(fragments: readonly string[]): void {
+    this.#dxfs.length = 0;
+    this.#dxfs.push(...fragments);
+  }
+
+  /** The preserved differential-style (`<dxfs>`) fragments, in index order. */
+  get differentialStyles(): readonly string[] {
+    return this.#dxfs;
   }
 
   /**

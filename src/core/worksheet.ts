@@ -9,6 +9,10 @@
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {Cell} from './cell.ts';
 import {
+  cloneConditionalFormatting,
+  type ConditionalFormatting,
+} from './conditional-formatting.ts';
+import {
   cloneDataValidation,
   type DataValidation,
   type DataValidationEntry,
@@ -221,6 +225,7 @@ export interface WorksheetModel {
   cells: CellModel[];
   merges: string[];
   dataValidations: DataValidationEntry[];
+  conditionalFormattings: ConditionalFormatting[];
   tables: TableOptions[];
   protection: SheetProtection | undefined;
 }
@@ -307,6 +312,9 @@ export class Worksheet {
   // the serialisable form, the rects the decoded ranges a cell lookup tests for containment.
   readonly #dataValidations: DataValidationEntry[] = [];
   readonly #dataValidationRects: {rects: readonly MergeRect[]; rule: DataValidation}[] = [];
+  // Conditional formattings are a sheet-level overlay keyed by range, like data validations: each
+  // block binds a set of rules to the area(s) it covers, layered by the rules' evaluation precedence.
+  readonly #conditionalFormattings: ConditionalFormatting[] = [];
   // Sheet-level protection is a single overlay switch, absent until `protect` is called.
   #protection: SheetProtection | undefined;
 
@@ -530,6 +538,21 @@ export class Worksheet {
   /** The data validations on this sheet, each bound to its target range, in insertion order. */
   get dataValidations(): readonly DataValidationEntry[] {
     return this.#dataValidations;
+  }
+
+  /**
+   * Attach a conditional formatting to a target range. `formatting.ref` is an OOXML `sqref` — one
+   * range (`"A1:A10"`), a whole column, or several space-separated areas (`"A1:C1 A3:C3"`) sharing one
+   * rule set. The block is stored once against the range, defensively copied so the getter never hands
+   * back a reference into the caller's object.
+   */
+  addConditionalFormatting(formatting: ConditionalFormatting): void {
+    this.#conditionalFormattings.push(cloneConditionalFormatting(formatting));
+  }
+
+  /** The conditional formattings on this sheet, each bound to its target range, in insertion order. */
+  get conditionalFormattings(): readonly ConditionalFormatting[] {
+    return this.#conditionalFormattings;
   }
 
   /**
@@ -881,6 +904,7 @@ export class Worksheet {
         rule: cloneDataValidation(rule),
         ...(extended ? {extended: true} : {}),
       })),
+      conditionalFormattings: this.#conditionalFormattings.map(cloneConditionalFormatting),
       tables: this.#tables.map(table => table.options),
       protection: this.#protection,
     };
@@ -905,6 +929,7 @@ export class Worksheet {
     this.#mergeRects.length = 0;
     this.#dataValidations.length = 0;
     this.#dataValidationRects.length = 0;
+    this.#conditionalFormattings.length = 0;
     this.#tables.length = 0;
     this.#protection = model.protection;
 
@@ -925,6 +950,7 @@ export class Worksheet {
     for (const {sqref, rule, extended} of model.dataValidations) {
       this.addDataValidation(sqref, rule, extended ? {extended: true} : {});
     }
+    for (const formatting of model.conditionalFormattings) this.addConditionalFormatting(formatting);
     for (const options of model.tables) this.addTable(options);
   }
 

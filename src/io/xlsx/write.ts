@@ -38,6 +38,7 @@ import type {
   WorksheetProperties,
 } from '../../core/worksheet.ts';
 import {collectNotes, commentsXml, type NoteCell, vmlDrawingXml} from './comments.ts';
+import {conditionalFormattingsXml} from './conditional-formatting.ts';
 import {dataValidationsXml, extendedDataValidationsXml} from './data-validation.ts';
 import {
   collectHyperlinks,
@@ -210,6 +211,9 @@ export function buildPackageParts(
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
   // side effect of that pass, so styles.xml can only be generated once every sheet is done.
   const styles = new StyleRegistry();
+  // Seed the differential-style table with the fragments read from a source file so conditional
+  // formatting's dxfId references stay valid; styles authored on rules append after them.
+  styles.seedDifferentialStyles(workbook.differentialStyles);
   const sheetXml = sheets.map((sheet, i) =>
     worksheetXml(
       sheet,
@@ -632,8 +636,9 @@ function worksheetXml(
     sheetData +
     sheetProtectionXml(sheet.protection) +
     mergeCellsXml(sheet.merges) +
-    // CT_Worksheet order: <dataValidations> follows <mergeCells> (and any conditional formatting),
-    // and <hyperlinks> follows it — both precede the print settings.
+    // CT_Worksheet order: <conditionalFormatting> blocks follow <mergeCells>, then <dataValidations>,
+    // then <hyperlinks> — all precede the print settings.
+    conditionalFormattingsXml(sheet.conditionalFormattings, styles) +
     dataValidationsXml(sheet.dataValidations) +
     hyperlinksXml(hyperlinks) +
     pageMarginsXml(sheet.pageMargins) +

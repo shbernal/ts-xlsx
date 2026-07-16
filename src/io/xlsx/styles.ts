@@ -13,6 +13,7 @@
 // into its own id table, and an aligned/protected xf carries them as body children in that order.
 // An unstyled cell/row/column resolves to xf 0.
 
+import type {DifferentialStyle} from '../../core/conditional-formatting.ts';
 import type {Alignment, Border, BorderEdge, Color, Fill, Font, Protection, UnderlineStyle} from '../../core/style.ts';
 import {escapeAttr, XML_DECLARATION} from './xml.ts';
 
@@ -86,6 +87,12 @@ export class StyleRegistry {
   readonly #formats: CellFormat[] = [{fillId: 0, numFmtId: 0, fontId: 0, borderId: 0, alignment: '', protection: ''}];
   readonly #xfIndexBySignature = new Map<string, number>();
 
+  // Differential styles (`<dxfs>`) that conditional formatting references by index. Fragments read
+  // from a file are seeded first and kept verbatim so a foreign rule's dxfId stays valid; a style
+  // authored on a rule is serialised and appended after them, dedup'd by its fragment.
+  readonly #dxfXml: string[] = [];
+  readonly #dxfIndexByFragment = new Map<string, number>();
+
   /**
    * The `<cellXfs>` index for a composed cell/row/column style. A style with no facet needs
    * no entry and resolves to the default xf 0, so its owner emits no `s` attribute at all.
@@ -107,6 +114,33 @@ export class StyleRegistry {
       index = this.#formats.length;
       this.#formats.push({fillId, numFmtId, fontId, borderId, alignment, protection});
       this.#xfIndexBySignature.set(signature, index);
+    }
+    return index;
+  }
+
+  /**
+   * Seed the differential-style table with fragments read from a file, keeping each `<dxf>…</dxf>`
+   * verbatim and at its original index so a conditional-formatting rule's `dxfId` still resolves. Call
+   * once before any {@link differentialStyleId}; authored styles append after these.
+   */
+  seedDifferentialStyles(fragments: readonly string[]): void {
+    for (const fragment of fragments) {
+      const index = this.#dxfXml.length;
+      this.#dxfXml.push(fragment);
+      // A seeded fragment can still be reused by an authored style identical to it, so index it too.
+      if (!this.#dxfIndexByFragment.has(fragment)) this.#dxfIndexByFragment.set(fragment, index);
+    }
+  }
+
+  /** Intern a differential style authored on a rule, returning its `<dxfs>` index for the cfRule's
+   * `dxfId`. Identical styles collapse to one entry. */
+  differentialStyleId(style: DifferentialStyle): number {
+    const fragment = dxfXml(style);
+    let index = this.#dxfIndexByFragment.get(fragment);
+    if (index === undefined) {
+      index = this.#dxfXml.length;
+      this.#dxfXml.push(fragment);
+      this.#dxfIndexByFragment.set(fragment, index);
     }
     return index;
   }
@@ -182,9 +216,17 @@ export class StyleRegistry {
       '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
       `<cellXfs count="${this.#formats.length}">${cellXfs}</cellXfs>` +
       '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
-      '<dxfs count="0"/>' +
+      this.#dxfsXml() +
       '</styleSheet>'
     );
+  }
+
+  // <dxfs> holds the differential styles conditional formatting references by index. An empty table
+  // is still emitted as a self-closing count="0" element, the shape Excel writes; a populated one
+  // lists the seeded (foreign) fragments first, then any authored styles, preserving every index.
+  #dxfsXml(): string {
+    if (this.#dxfXml.length === 0) return '<dxfs count="0"/>';
+    return `<dxfs count="${this.#dxfXml.length}">${this.#dxfXml.join('')}</dxfs>`;
   }
 
   // <numFmts> is the first child of <styleSheet> and is omitted entirely when no custom
@@ -273,6 +315,34 @@ export function fontXml(font: Partial<Font>, nameTag: 'name' | 'rFont' = 'name')
   if (font.charset !== undefined) parts.push(`<charset val="${numberAttr(font.charset)}"/>`);
   if (font.scheme !== undefined && font.scheme !== 'none') parts.push(`<scheme val="${font.scheme}"/>`);
   return parts.join('');
+}
+
+// Serialise a differential style (CT_Dxf) in schema child order: font, numFmt, fill, border. Only the
+// facets present are emitted — a dxf overrides exactly what it names and lets the cell's own style show
+// through the rest. A dxf's pattern fill states the highlight through `bgColor`, matching how Excel
+// writes a "fill with colour" conditional format.
+export function dxfXml(style: DifferentialStyle): string {
+  const parts: string[] = [];
+  if (style.font !== undefined) {
+    const font = fontXml(style.font);
+    if (font !== '') parts.push(`<font>${font}</font>`);
+  }
+  // A dxf numFmt still needs an id; the code is what matters (dxf formats are not shared by id like
+  // cell formats), so a fixed custom id carries it without a <numFmts> entry.
+  if (style.numFmt !== undefined && style.numFmt !== '') {
+    parts.push(`<numFmt numFmtId="${CUSTOM_NUMFMT_BASE}" formatCode="${escapeFormatCode(style.numFmt)}"/>`);
+  }
+  if (style.fill !== undefined) parts.push(dxfFillXml(style.fill));
+  if (style.border !== undefined) parts.push(borderXml(style.border));
+  return `<dxf>${parts.join('')}</dxf>`;
+}
+
+// A differential fill: the pattern with whatever colours it names. Unlike a cell fill, a dxf does not
+// force a placeholder background on a solid pattern — a dxf states only the overrides it carries.
+function dxfFillXml(fill: Fill): string {
+  const fg = fill.fgColor ? `<fgColor ${colorAttrs(fill.fgColor)}/>` : '';
+  const bg = fill.bgColor ? `<bgColor ${colorAttrs(fill.bgColor)}/>` : '';
+  return `<fill><patternFill patternType="${fill.pattern}">${fg}${bg}</patternFill></fill>`;
 }
 
 // `<u/>` is single underline (the same as an explicit "single"); the named variants carry a
