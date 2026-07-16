@@ -2,7 +2,12 @@
 // stream, rather than holding the finished bytes in one buffer as {@link writeXlsx} does.
 //
 // A producer adds worksheets, appends rows as it generates them, commits each sheet, then commits the
-// workbook — at which point the package is assembled and streamed out. The output rides a genuinely
+// workbook — at which point the package is assembled and streamed out. The output goes to whichever
+// destination the caller chose at construction: its own pull-based `stream` to pipe, a caller-owned
+// `Writable` sink (an outbound upload), or a `filename` the writer opens. In every case `commit()`
+// settles — it resolves once a supplied sink has flushed the whole package and rejects if that sink
+// errors (an unopenable file), never hanging on a finish signal that will not come. The output rides a
+// genuinely
 // streamed zip container (fflate's `Zip`/`ZipDeflate`), which computes each entry's CRC-32
 // incrementally, so the archive is well-formed by construction — the defect the upstream "streaming
 // writer emits a corrupt zip" reports describe is structurally absent here. The bytes reload
@@ -15,7 +20,8 @@
 // sheet's `<sheetData>` row-by-row into its zip entry to bound memory; the streamed-container
 // primitive it needs is already the one used here.
 
-import {PassThrough, type Readable} from 'node:stream';
+import {createWriteStream} from 'node:fs';
+import {PassThrough, type Readable, type Writable} from 'node:stream';
 
 import {Zip, ZipDeflate} from 'fflate';
 
@@ -38,6 +44,21 @@ export interface WorkbookStreamWriterOptions {
    * same {@link WriteOptions.useSharedStrings} the buffered writer exposes. Off by default.
    */
   readonly useSharedStrings?: boolean;
+
+  /**
+   * Write the package to a caller-owned {@link Writable} sink — an outbound upload, a cloud-SDK
+   * stream, any destination the caller controls. {@link commit} pushes every chunk into it and
+   * settles only once the sink has finished (or rejects if it errors), so a caller can deterministically
+   * sequence work after the upload completes. Mutually exclusive with {@link filename}.
+   */
+  readonly stream?: Writable;
+
+  /**
+   * Write the package to a file at this path. The writer opens a `fs.createWriteStream` for it; if the
+   * destination cannot be opened (bad path, name too long) the stream errors and {@link commit} rejects
+   * with that I/O error rather than hanging. Mutually exclusive with {@link stream}.
+   */
+  readonly filename?: string;
 }
 
 /**
@@ -137,6 +158,7 @@ export class WorkbookStreamWriter {
   readonly #workbook = new Workbook();
   readonly #sheets: WorksheetStreamWriter[] = [];
   readonly #writeOptions: WriteOptions;
+  readonly #sink: Writable | undefined;
   #stream: PassThrough | undefined;
   #committed = false;
 
@@ -145,6 +167,10 @@ export class WorkbookStreamWriter {
 
   constructor(options: WorkbookStreamWriterOptions = {}) {
     this.#writeOptions = {useSharedStrings: options.useSharedStrings ?? false};
+    if (options.stream && options.filename) {
+      throw new Error('provide either a stream or a filename to the streaming writer, not both');
+    }
+    this.#sink = options.stream ?? (options.filename ? createWriteStream(options.filename) : undefined);
   }
 
   /** Document-level metadata written to the package's core properties. */
@@ -186,11 +212,33 @@ export class WorkbookStreamWriter {
     if (this.calcProperties.fullCalcOnLoad) this.#workbook.fullCalcOnLoad = true;
 
     const parts = buildPackageParts(this.#workbook, this.#writeOptions);
-    const sink = this.#stream;
-    const bytes = await streamZipPackage(parts, chunk => sink?.write(chunk));
+    const owned = this.#stream;
+    const sink = this.#sink;
+    // Track the caller sink's terminal state before writing a byte, so an open failure that errors on a
+    // later tick (a bad filename) is caught rather than lost — the whole point of the reject-not-hang
+    // contract.
+    const sinkSettled = sink ? settleOnFinish(sink) : undefined;
+
+    const bytes = await streamZipPackage(parts, chunk => {
+      owned?.write(chunk);
+      sink?.write(chunk);
+    });
+    owned?.end();
     sink?.end();
+
+    await sinkSettled;
     return bytes;
   }
+}
+
+// Resolve when a caller-supplied sink has flushed the whole package (`finish`), or reject if it errors
+// (`error`) — the commit promise must settle either way, never hang. Whichever fires first wins; the
+// other is ignored.
+function settleOnFinish(sink: Writable): Promise<void> {
+  return new Promise((resolve, reject) => {
+    sink.once('finish', resolve);
+    sink.once('error', reject);
+  });
 }
 
 // Zip the package parts through fflate's streaming container, forwarding each output chunk to `onChunk`

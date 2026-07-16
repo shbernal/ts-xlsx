@@ -22,7 +22,8 @@
 import {createRequire} from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
-import {PassThrough} from 'node:stream';
+import {Duplex, PassThrough} from 'node:stream';
+import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
@@ -555,6 +556,80 @@ const impl = {
       masterHasFormula: !!(master && typeof master === 'object' && 'formula' in master),
       slaveResolved: !slaveIsEmpty,
       slaveValue: normalizeStreamValue(slave ?? null),
+    };
+  },
+
+  // Commit a streaming workbook over a caller-supplied writable (a plain PassThrough or a Duplex) and
+  // report { settled, timedOut, bytes, valid }. The commit must settle within bounded time and the
+  // sink must receive a complete, re-openable package — the library owes this even when it does not own
+  // the stream.
+  async streamCommitReport({duplex = false, timeoutMs = 4000} = {}) {
+    const chunks = [];
+    const stream = duplex
+      ? new Duplex({read() {}, write(c, _e, cb) { chunks.push(c); cb(); }})
+      : new PassThrough();
+    if (!duplex) stream.on('data', c => chunks.push(c));
+
+    const writer = new WorkbookStreamWriter({stream});
+    const sheet = writer.addWorksheet('S');
+    sheet.addRow(['a', 'b']).commit();
+    sheet.commit();
+
+    let settled = 'pending';
+    const commit = writer.commit().then(
+      () => (settled = 'resolved'),
+      e => (settled = 'rejected:' + ((e && e.message) || e))
+    );
+    const timedOut = await Promise.race([
+      commit.then(() => false),
+      new Promise(res => setTimeout(() => res(true), timeoutMs)),
+    ]);
+
+    let valid = false;
+    if (settled === 'resolved') {
+      try {
+        const back = readXlsx(Buffer.concat(chunks));
+        valid = back.worksheets.length === 1 && back.worksheets[0].getCell('A1').value === 'a';
+      } catch {
+        valid = false;
+      }
+    }
+    return {settled, timedOut, bytes: Buffer.concat(chunks).length, valid};
+  },
+
+  // Commit a streaming workbook to a destination that cannot be opened for writing and report
+  // { outcome, rejected, carriesIoError, error }. The write stream errors on a later tick; commit must
+  // reject with that I/O error rather than hanging forever.
+  async streamCommitBadDestination() {
+    const badPath = `${tmpdir()}/ts-xlsx-no-such-dir-${process.pid}/${'x'.repeat(300)}/out.xlsx`;
+    let outcome = 'hung';
+    let error = null;
+    try {
+      const writer = new WorkbookStreamWriter({filename: badPath});
+      const sheet = writer.addWorksheet('S');
+      sheet.addRow(['a']).commit();
+      sheet.commit();
+      await Promise.race([
+        writer
+          .commit()
+          .then(() => {
+            outcome = 'resolved';
+          })
+          .catch(e => {
+            outcome = 'rejected';
+            error = String((e && (e.code || e.message)) || e);
+          }),
+        new Promise(res => setTimeout(res, 5000)),
+      ]);
+    } catch (e) {
+      outcome = 'threw-sync';
+      error = String((e && (e.code || e.message)) || e);
+    }
+    return {
+      outcome,
+      rejected: outcome === 'rejected',
+      carriesIoError: error != null && /ENOENT|ENAMETOOLONG|ENOTDIR|open|write/i.test(error),
+      error,
     };
   },
 

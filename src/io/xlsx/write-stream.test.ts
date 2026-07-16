@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import {PassThrough} from 'node:stream';
+import {readFileSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {Duplex, PassThrough} from 'node:stream';
 import {test} from 'node:test';
 
 import {strFromU8, unzipSync} from 'fflate';
@@ -130,6 +133,77 @@ test('a streamed workbook without the option keeps strings inline and writes no 
 
   assert.throws(() => partText(bytes, 'xl/sharedStrings.xml'), /expected part/);
   assert.match(partText(bytes, 'xl/worksheets/sheet1.xml'), /t="inlineStr"/);
+});
+
+test('commit over a caller-supplied PassThrough sink resolves and delivers a valid package', async () => {
+  const sink = new PassThrough();
+  const chunks: Buffer[] = [];
+  sink.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+  const writer = new WorkbookStreamWriter({stream: sink});
+  writer.addWorksheet('S').addRow(['a', 'b']).commit();
+  const bytes = await writer.commit();
+
+  const delivered = Buffer.concat(chunks);
+  assert.ok(delivered.length > 0, 'the sink received bytes');
+  assert.deepEqual(Uint8Array.from(delivered), bytes, 'the sink got exactly the committed package');
+  const reread = readXlsx(delivered).getWorksheet('S');
+  assert.ok(reread);
+  assert.equal(reread.getCell('A1').value, 'a');
+});
+
+test('commit over a Duplex sink resolves — completion does not depend on the writer owning the stream', async () => {
+  const chunks: Buffer[] = [];
+  const sink = new Duplex({
+    read() {},
+    write(chunk: Buffer, _enc, cb) {
+      chunks.push(chunk);
+      cb();
+    },
+  });
+
+  const writer = new WorkbookStreamWriter({stream: sink});
+  writer.addWorksheet('S').addRow(['a']).commit();
+  await writer.commit();
+
+  const reread = readXlsx(Buffer.concat(chunks)).getWorksheet('S');
+  assert.ok(reread);
+  assert.equal(reread.getCell('A1').value, 'a');
+});
+
+test('commit to a valid filename writes a re-openable package to disk', async () => {
+  const target = join(tmpdir(), `ts-xlsx-stream-${process.pid}.xlsx`);
+  try {
+    const writer = new WorkbookStreamWriter({filename: target});
+    writer.addWorksheet('S').addRow(['a']).commit();
+    await writer.commit();
+
+    const reread = readXlsx(readFileSync(target)).getWorksheet('S');
+    assert.ok(reread);
+    assert.equal(reread.getCell('A1').value, 'a');
+  } finally {
+    rmSync(target, {force: true});
+  }
+});
+
+test('commit to an unopenable filename rejects with the underlying I/O error rather than hanging', async () => {
+  // A path whose parent directory does not exist cannot be opened for writing; the write stream errors
+  // on a later tick and commit must surface it.
+  const badPath = join(tmpdir(), 'ts-xlsx-no-such-dir', `${'x'.repeat(300)}.xlsx`);
+  const writer = new WorkbookStreamWriter({filename: badPath});
+  writer.addWorksheet('S').addRow(['a']).commit();
+
+  await assert.rejects(writer.commit(), (err: NodeJS.ErrnoException) => {
+    assert.match(String(err.code ?? err.message), /ENOENT|ENAMETOOLONG/);
+    return true;
+  });
+});
+
+test('supplying both a stream and a filename is rejected at construction', () => {
+  assert.throws(
+    () => new WorkbookStreamWriter({stream: new PassThrough(), filename: 'out.xlsx'}),
+    /either a stream or a filename/i
+  );
 });
 
 test('shared-formula slave cells authored on the stream reload populated, not empty', async () => {
