@@ -104,6 +104,34 @@ test('fullCalcOnLoad set through calcProperties is emitted; unset it is absent',
   assert.doesNotMatch(partText(plain, 'xl/workbook.xml'), /fullCalcOnLoad/);
 });
 
+test('useSharedStrings pools streamed string cells into a shared table that reads back intact', async () => {
+  const writer = new WorkbookStreamWriter({useSharedStrings: true});
+  const sheet = writer.addWorksheet('S');
+  sheet.addRow(['dup']).commit();
+  sheet.addRow(['dup']).commit();
+  sheet.addRow(['other']).commit();
+  sheet.commit();
+  const bytes = await writer.commit();
+
+  const sst = partText(bytes, 'xl/sharedStrings.xml');
+  assert.match(sst, /uniqueCount="2"/);
+  assert.match(partText(bytes, 'xl/worksheets/sheet1.xml'), /t="s"><v>0<\/v>/);
+
+  const reread = readXlsx(bytes).getWorksheet('S');
+  assert.ok(reread);
+  assert.equal(reread.getCell('A1').value, 'dup');
+  assert.equal(reread.getCell('A3').value, 'other');
+});
+
+test('a streamed workbook without the option keeps strings inline and writes no shared table', async () => {
+  const writer = new WorkbookStreamWriter();
+  writer.addWorksheet('S').addRow(['inline']).commit();
+  const bytes = await writer.commit();
+
+  assert.throws(() => partText(bytes, 'xl/sharedStrings.xml'), /expected part/);
+  assert.match(partText(bytes, 'xl/worksheets/sheet1.xml'), /t="inlineStr"/);
+});
+
 test('shared-formula slave cells authored on the stream reload populated, not empty', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('yua');

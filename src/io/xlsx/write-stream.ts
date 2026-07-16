@@ -23,12 +23,21 @@ import type {Cell} from '../../core/cell.ts';
 import type {CellValue} from '../../core/value.ts';
 import {Workbook, type AddWorksheetOptions} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {buildPackageParts} from './write.ts';
+import {buildPackageParts, type WriteOptions} from './write.ts';
 
 /** Calculation settings applied to the streamed workbook. Mirrors the {@link Workbook} flags. */
 export interface CalcProperties {
   /** Ask the consumer to recalculate every formula on open — the OOXML `fullCalcOnLoad` flag. */
   fullCalcOnLoad?: boolean;
+}
+
+/** Options fixed at construction that shape the whole streamed package. */
+export interface WorkbookStreamWriterOptions {
+  /**
+   * Pool plain string cell values into a shared-strings table rather than storing each inline — the
+   * same {@link WriteOptions.useSharedStrings} the buffered writer exposes. Off by default.
+   */
+  readonly useSharedStrings?: boolean;
 }
 
 /**
@@ -127,11 +136,16 @@ export class WorksheetStreamWriter {
 export class WorkbookStreamWriter {
   readonly #workbook = new Workbook();
   readonly #sheets: WorksheetStreamWriter[] = [];
+  readonly #writeOptions: WriteOptions;
   #stream: PassThrough | undefined;
   #committed = false;
 
   /** Calculation settings for the workbook; set `fullCalcOnLoad` before committing to emit it. */
   readonly calcProperties: CalcProperties = {};
+
+  constructor(options: WorkbookStreamWriterOptions = {}) {
+    this.#writeOptions = {useSharedStrings: options.useSharedStrings ?? false};
+  }
 
   /** Document-level metadata written to the package's core properties. */
   get properties(): Workbook['properties'] {
@@ -171,7 +185,7 @@ export class WorkbookStreamWriter {
     for (const sheet of this.#sheets) sheet.commit();
     if (this.calcProperties.fullCalcOnLoad) this.#workbook.fullCalcOnLoad = true;
 
-    const parts = buildPackageParts(this.#workbook);
+    const parts = buildPackageParts(this.#workbook, this.#writeOptions);
     const sink = this.#stream;
     const bytes = await streamZipPackage(parts, chunk => sink?.write(chunk));
     sink?.end();

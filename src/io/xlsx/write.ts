@@ -46,6 +46,7 @@ import {
 } from './hyperlinks.ts';
 import {type DrawingImage, drawingRelsXml, drawingXml, imageContentType} from './images.ts';
 import {richTextRunsXml} from './rich-text.ts';
+import {SharedStringTable} from './shared-strings.ts';
 import {THEME1_XML} from './static-parts.ts';
 import {colorAttrs, StyleRegistry} from './styles.ts';
 import {escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
@@ -75,6 +76,7 @@ const CT = {
   vml: 'application/vnd.openxmlformats-officedocument.vmlDrawing',
   drawing: 'application/vnd.openxmlformats-officedocument.drawing+xml',
   printerSettings: 'application/vnd.openxmlformats-officedocument.spreadsheetml.printerSettings',
+  sharedStrings: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml',
 } as const;
 
 const REL = {
@@ -90,7 +92,19 @@ const REL = {
   drawing: `${NS.docRels}/drawing`,
   printerSettings: `${NS.docRels}/printerSettings`,
   hyperlink: `${NS.docRels}/hyperlink`,
+  sharedStrings: `${NS.docRels}/sharedStrings`,
 } as const;
+
+/** Options controlling how {@link writeXlsx} serialises a workbook. */
+export interface WriteOptions {
+  /**
+   * Pool plain string cell values into a shared-strings table (`xl/sharedStrings.xml`) that cells
+   * reference by index, rather than storing each string inline in its cell. Deduplicates repeated
+   * text and matches Excel's own storage; off by default, which keeps strings inline and omits the
+   * part. Rich-text values stay inline regardless, so their run formatting is unaffected.
+   */
+  readonly useSharedStrings?: boolean;
+}
 
 /**
  * Serialise a workbook into an `.xlsx` package.
@@ -98,8 +112,8 @@ const REL = {
  * @throws {Error} if the workbook has no worksheets (a zero-sheet package is corrupt),
  *   or holds a value the writer cannot yet represent.
  */
-export function writeXlsx(workbook: Workbook): Uint8Array {
-  return zipSync(buildPackageParts(workbook), {level: 6});
+export function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array {
+  return zipSync(buildPackageParts(workbook, options), {level: 6});
 }
 
 /**
@@ -111,11 +125,18 @@ export function writeXlsx(workbook: Workbook): Uint8Array {
  *
  * @throws {Error} if the workbook has no worksheets, or holds a value the writer cannot represent.
  */
-export function buildPackageParts(workbook: Workbook): Record<string, Uint8Array> {
+export function buildPackageParts(
+  workbook: Workbook,
+  options: WriteOptions = {}
+): Record<string, Uint8Array> {
   const sheets = workbook.worksheets;
   if (sheets.length === 0) {
     throw new Error('cannot write a workbook with no worksheets — a zero-sheet package is corrupt to Excel');
   }
+
+  // With the option on, plain string cell values are pooled into a shared-strings table interned
+  // during the sheet pass (like the style registry); a null table keeps every string inline.
+  const sharedStrings = options.useSharedStrings ? new SharedStringTable() : null;
 
   // Tables are numbered globally across the workbook (their part names and ids must be
   // unique), but relationship ids are local to each sheet's rels part.
@@ -196,9 +217,15 @@ export function buildPackageParts(workbook: Workbook): Record<string, Uint8Array
       sheetDrawings[i]?.relId ?? null,
       sheetComments[i]?.vmlRelId ?? null,
       sheetPrinterSettings[i]?.relId ?? null,
-      sheetHyperlinks[i] ?? []
+      sheetHyperlinks[i] ?? [],
+      sharedStrings
     )
   );
+
+  // The pool is filled only once every sheet is serialised. Emit the part (and its rel + content
+  // type) solely when the option is on and at least one string was interned, so a workbook with no
+  // string cells never fabricates an empty table.
+  const hasSharedStrings = sharedStrings !== null && !sharedStrings.isEmpty;
 
   const commentNumbers = sheetComments.filter((c): c is CommentPlan => c !== null).map(c => c.number);
   const drawingNumbers = sheetDrawings.filter((d): d is DrawingPlan => d !== null).map(d => d.number);
@@ -213,17 +240,21 @@ export function buildPackageParts(workbook: Workbook): Record<string, Uint8Array
         commentNumbers,
         drawingNumbers,
         printerSettingsNumbers,
-        media.extensions
+        media.extensions,
+        hasSharedStrings
       )
     ),
     '_rels/.rels': strToU8(rootRelsXml()),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
     'docProps/app.xml': strToU8(appPropsXml()),
     'xl/workbook.xml': strToU8(workbookXml(workbook)),
-    'xl/_rels/workbook.xml.rels': strToU8(workbookRelsXml(sheets.length)),
+    'xl/_rels/workbook.xml.rels': strToU8(workbookRelsXml(sheets.length, hasSharedStrings)),
     'xl/styles.xml': strToU8(styles.toXml()),
     'xl/theme/theme1.xml': strToU8(THEME1_XML),
   };
+  if (hasSharedStrings) {
+    files['xl/sharedStrings.xml'] = strToU8((sharedStrings as SharedStringTable).toXml());
+  }
   for (const part of media.parts) {
     files[`xl/media/image${part.number}.${part.extension}`] = part.data;
   }
@@ -358,7 +389,8 @@ function contentTypesXml(
   commentNumbers: readonly number[],
   drawingNumbers: readonly number[],
   printerSettingsNumbers: readonly number[],
-  mediaExtensions: readonly string[]
+  mediaExtensions: readonly string[],
+  hasSharedStrings: boolean
 ): string {
   const overrides = [
     override('/xl/workbook.xml', CT.workbook),
@@ -368,6 +400,7 @@ function contentTypesXml(
     ...commentNumbers.map(number => override(`/xl/comments${number}.xml`, CT.comments)),
     override('/xl/theme/theme1.xml', CT.theme),
     override('/xl/styles.xml', CT.styles),
+    ...(hasSharedStrings ? [override('/xl/sharedStrings.xml', CT.sharedStrings)] : []),
     override('/docProps/core.xml', CT.core),
     override('/docProps/app.xml', CT.app),
   ].join('');
@@ -460,13 +493,16 @@ function definedNamesXml(workbook: Workbook): string {
   return `<definedNames>${entries}</definedNames>`;
 }
 
-function workbookRelsXml(sheetCount: number): string {
+function workbookRelsXml(sheetCount: number, hasSharedStrings: boolean): string {
   const rels = [
     ...range(sheetCount).map(i =>
       relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`)
     ),
     relationship(`rId${sheetCount + 1}`, REL.styles, 'styles.xml'),
     relationship(`rId${sheetCount + 2}`, REL.theme, 'theme/theme1.xml'),
+    ...(hasSharedStrings
+      ? [relationship(`rId${sheetCount + 3}`, REL.sharedStrings, 'sharedStrings.xml')]
+      : []),
   ].join('');
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
@@ -516,7 +552,8 @@ function worksheetXml(
   drawingRelId: string | null,
   legacyDrawingRelId: string | null,
   printerSettingsRelId: string | null,
-  hyperlinks: readonly PlannedHyperlink[]
+  hyperlinks: readonly PlannedHyperlink[],
+  sharedStrings: SharedStringTable | null
 ): string {
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
   // rather than emit a package a consumer repairs on open.
@@ -565,7 +602,7 @@ function worksheetXml(
           alignment: cell.alignment ?? colDef?.alignment,
           protection: cell.protection ?? colDef?.protection,
         });
-        return cellXml(cell, style, sharedRoles.get(cell.address));
+        return cellXml(cell, style, sharedRoles.get(cell.address), sharedStrings);
       })
       .join('');
     rowXml.push(`<row r="${number}"${attrs}>${cellsXml}</row>`);
@@ -922,7 +959,12 @@ function dateDefaultNumFmt(value: Cell['value']): string | undefined {
   return date !== undefined && !Number.isNaN(date.getTime()) ? DEFAULT_DATE_NUMFMT : undefined;
 }
 
-function cellXml(cell: Cell, style: number, shared?: SharedFormulaRole): string {
+function cellXml(
+  cell: Cell,
+  style: number,
+  shared: SharedFormulaRole | undefined,
+  sharedStrings: SharedStringTable | null
+): string {
   const ref = cell.address;
   const value = cell.value;
   const s = style !== 0 ? ` s="${style}"` : '';
@@ -955,6 +997,11 @@ function cellXml(cell: Cell, style: number, shared?: SharedFormulaRole): string 
     return `<c r="${ref}"${s} t="b"><v>${value ? 1 : 0}</v></c>`;
   }
   if (typeof value === 'string') {
+    // With shared strings on, the cell holds only the pool index (`t="s"`); otherwise the text
+    // lives inline in the cell. Both decode to the same string on read.
+    if (sharedStrings !== null) {
+      return `<c r="${ref}"${s} t="s"><v>${sharedStrings.intern(value)}</v></c>`;
+    }
     return `<c r="${ref}"${s} t="inlineStr"><is>${textElement(value)}</is></c>`;
   }
   if (isRichTextValue(value)) {

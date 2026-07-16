@@ -90,6 +90,30 @@ const normalizeStreamValue = v => {
   return v ?? null;
 };
 
+// Some specs express a rich-text run in the flat inline shape `{ text, bold, italic, … }`, while the
+// rewrite models a run as `{ text, font: { … } }`. Translate a spec value into the model shape on the
+// way in…
+const specValueToModel = value => {
+  if (value && typeof value === 'object' && Array.isArray(value.richText)) {
+    return {
+      richText: value.richText.map(run => {
+        const {text, ...font} = run;
+        return Object.keys(font).length ? {text, font} : {text};
+      }),
+    };
+  }
+  return value;
+};
+
+// …and flatten a read-back run's `font` facets back onto the run on the way out, so a spec asserting
+// on `run.bold` sees the shape it wrote.
+const modelValueToSpec = value => {
+  if (value && typeof value === 'object' && Array.isArray(value.richText)) {
+    return {richText: value.richText.map(({text, font}) => ({text, ...(font || {})}))};
+  }
+  return value;
+};
+
 // Map a declarative spec onto the rewrite's Workbook model, throwing a `notImplemented`
 // skip the moment the spec uses a feature the writer cannot represent yet.
 function buildFrom(spec = {}) {
@@ -384,30 +408,14 @@ const impl = {
   // requested cells back → { ok, error, cells, rowCount }. Exercises the batch-add convenience and the
   // single-row control on the same path.
   async streamWriteSheet({ops = [], read = [], useSharedStrings = false} = {}) {
-    // A shared-strings table is a deferred slice of the streaming writer, and the rewrite models a
-    // rich-text run as { text, font } — not the inline { text, bold, italic } run shape some specs
-    // use. A spec reaching for either is skipped rather than written lossily.
-    if (useSharedStrings) throw notImplemented('streaming useSharedStrings not supported yet');
-    for (const op of ops) {
-      const rows = op.op === 'addRows' ? op.value || [] : [op.value || []];
-      for (const row of rows) {
-        for (const value of row || []) {
-          if (value && typeof value === 'object' && Array.isArray(value.richText)) {
-            const modelled = value.richText.every(run =>
-              Object.keys(run).every(k => k === 'text' || k === 'font')
-            );
-            if (!modelled) throw notImplemented('inline rich-text run formatting not supported yet');
-          }
-        }
-      }
-    }
-    const writer = new WorkbookStreamWriter();
+    const toRow = values => (values || []).map(specValueToModel);
+    const writer = new WorkbookStreamWriter({useSharedStrings});
     let error = null;
     try {
       const sheet = writer.addWorksheet('S');
       for (const op of ops) {
-        if (op.op === 'addRow') sheet.addRow(op.value || []).commit();
-        else if (op.op === 'addRows') sheet.addRows(op.value || []);
+        if (op.op === 'addRow') sheet.addRow(toRow(op.value)).commit();
+        else if (op.op === 'addRows') sheet.addRows((op.value || []).map(toRow));
         else throw new Error(`unknown stream op: ${op.op}`);
       }
       sheet.commit();
@@ -419,8 +427,24 @@ const impl = {
 
     const s = readXlsx(buffer).worksheets[0];
     const cells = {};
-    for (const ref of read) cells[ref] = normalizeStreamValue(s.getCell(ref).value);
+    for (const ref of read) cells[ref] = modelValueToSpec(normalizeStreamValue(s.getCell(ref).value));
     return {ok: true, error: null, cells, rowCount: s.rowCount};
+  },
+
+  // Write one string cell with the buffered writer's useSharedStrings option and report how it was
+  // stored → { hasSharedStringsPart, isSharedRef, isInline }. The option must actually control
+  // storage: enabled emits a sharedStrings part and a t="s" cell reference; disabled keeps the string
+  // inline with no such part.
+  sharedStringsOption(useSharedStrings) {
+    const wb = new Workbook();
+    wb.addWorksheet('S').getCell('A1').value = 'shared-me';
+    const parts = partMapOf(writeXlsx(wb, {useSharedStrings}));
+    const sheet = parts['xl/worksheets/sheet1.xml'] || '';
+    return {
+      hasSharedStringsPart: 'xl/sharedStrings.xml' in parts,
+      isSharedRef: /t="s"><v>\d+<\/v>/.test(sheet),
+      isInline: /t="inlineStr"><is><t>shared-me<\/t>/.test(sheet),
+    };
   },
 
   // Commit a streaming worksheet, then add a row → { rejected, error, legibleRejection, internalCrash,
