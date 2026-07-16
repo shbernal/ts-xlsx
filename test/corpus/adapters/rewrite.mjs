@@ -574,6 +574,76 @@ const impl = {
     };
   },
 
+  // Stream-write a sheet carrying both a conditional-formatting rule and a hyperlink cell, then report
+  // the relative order of the emitted <conditionalFormatting> and <hyperlinks> blocks plus reload
+  // success. Both writers share one worksheet serializer, so the streamed sheet emits the blocks in
+  // CT_Worksheet order (conditionalFormatting before hyperlinks) rather than the reversed order the
+  // upstream streaming writer produced.
+  async streamWriteCfHyperlinkOrder() {
+    const writer = new WorkbookStreamWriter();
+    const sheet = writer.addWorksheet('S');
+    sheet.getCell('A1').value = {text: 'link', hyperlink: 'https://example.com'};
+    sheet.addConditionalFormatting({
+      ref: 'A1:A10',
+      rules: [
+        {
+          type: 'expression',
+          formulae: ['MOD(ROW(),2)=0'],
+          style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFEEEEEE'}}},
+        },
+      ],
+    });
+    sheet.addRow(['x']).commit();
+    sheet.commit();
+
+    const buffer = Buffer.from(await writer.commit());
+    const xml = strFromU8(unzipSync(buffer)['xl/worksheets/sheet1.xml']);
+    const posCf = xml.indexOf('<conditionalFormatting');
+    const posHl = xml.indexOf('<hyperlinks');
+    let reloadOk = true;
+    try {
+      readXlsx(buffer);
+    } catch {
+      reloadOk = false;
+    }
+    return {
+      posConditionalFormatting: posCf,
+      posHyperlinks: posHl,
+      conditionalFormattingBeforeHyperlinks: posCf >= 0 && posHl >= 0 ? posCf < posHl : null,
+      reloadOk,
+    };
+  },
+
+  // Stream-write a sheet carrying both a data validation and a hyperlink cell, then report the relative
+  // order of the emitted <dataValidations> and <hyperlinks> blocks plus reload success. CT_Worksheet
+  // requires dataValidations before hyperlinks; the shared serializer emits them in that order on the
+  // streaming path too. Companion to streamWriteCfHyperlinkOrder.
+  async streamWriteDvHyperlinkOrder() {
+    const writer = new WorkbookStreamWriter();
+    const sheet = writer.addWorksheet('S');
+    sheet.getCell('A1').value = {text: 'link', hyperlink: 'https://example.com'};
+    sheet.addDataValidation('B1', {type: 'list', allowBlank: true, formulae: ['"x,y,z"']});
+    sheet.addRow(['r']).commit();
+    sheet.commit();
+
+    const buffer = Buffer.from(await writer.commit());
+    const xml = strFromU8(unzipSync(buffer)['xl/worksheets/sheet1.xml']);
+    const posDv = xml.indexOf('<dataValidations');
+    const posHl = xml.indexOf('<hyperlinks');
+    let reloadOk = true;
+    try {
+      readXlsx(buffer);
+    } catch {
+      reloadOk = false;
+    }
+    return {
+      posDataValidations: posDv,
+      posHyperlinks: posHl,
+      dataValidationsBeforeHyperlinks: posDv >= 0 && posHl >= 0 ? posDv < posHl : null,
+      reloadOk,
+    };
+  },
+
   // Commit a streaming workbook over a caller-supplied writable (a plain PassThrough or a Duplex) and
   // report { settled, timedOut, bytes, valid }. The commit must settle within bounded time and the
   // sink must receive a complete, re-openable package — the library owes this even when it does not own

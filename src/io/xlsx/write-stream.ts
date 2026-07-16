@@ -26,6 +26,8 @@ import {PassThrough, type Readable, type Writable} from 'node:stream';
 import {Zip, ZipDeflate} from 'fflate';
 
 import type {Cell} from '../../core/cell.ts';
+import type {ConditionalFormatting} from '../../core/conditional-formatting.ts';
+import type {DataValidation} from '../../core/data-validation.ts';
 import type {CellValue} from '../../core/value.ts';
 import {Workbook, type AddWorksheetOptions} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
@@ -122,6 +124,26 @@ export class WorksheetStreamWriter {
   getCell(reference: string): Cell {
     this.#assertOpen();
     return this.#sheet.getCell(reference);
+  }
+
+  /**
+   * Attach a data validation to a range before the sheet is committed. Delegates to the model, so the
+   * streamed package emits the `<dataValidations>` block in its CT_Worksheet position — before
+   * `<hyperlinks>` — because both writers share one worksheet serializer.
+   */
+  addDataValidation(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void {
+    this.#assertOpen();
+    this.#sheet.addDataValidation(sqref, rule, options);
+  }
+
+  /**
+   * Attach a conditional formatting to a range before the sheet is committed. Like every other block,
+   * it lands in its schema-mandated slot — after `<mergeCells>`, before `<dataValidations>` and
+   * `<hyperlinks>` — since the streamed sheet is serialized through the same path as a buffered write.
+   */
+  addConditionalFormatting(formatting: ConditionalFormatting): void {
+    this.#assertOpen();
+    this.#sheet.addConditionalFormatting(formatting);
   }
 
   /** Freeze the sheet: no more rows or edits may be added after this. */

@@ -222,3 +222,61 @@ test('shared-formula slave cells authored on the stream reload populated, not em
   assert.ok(slave && typeof slave === 'object', 'slave reloads as a value object, not empty');
   assert.ok('sharedFormula' in slave || 'formula' in slave, 'slave carries a (shared) formula');
 });
+
+test('a streamed sheet emits <conditionalFormatting> before <hyperlinks>, per the CT_Worksheet sequence', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.getCell('A1').value = {text: 'link', hyperlink: 'https://example.com'};
+  sheet.addConditionalFormatting({
+    ref: 'A1:A10',
+    rules: [{type: 'expression', formulae: ['MOD(ROW(),2)=0'], style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFEEEEEE'}}}}],
+  });
+  sheet.addRow(['x']).commit();
+  sheet.commit();
+
+  const xml = partText(await writer.commit(), 'xl/worksheets/sheet1.xml');
+  const posCf = xml.indexOf('<conditionalFormatting');
+  const posHl = xml.indexOf('<hyperlinks');
+  assert.ok(posCf >= 0 && posHl >= 0, 'both blocks are present');
+  assert.ok(posCf < posHl, 'conditionalFormatting precedes hyperlinks');
+});
+
+test('a streamed sheet emits <dataValidations> before <hyperlinks>, per the CT_Worksheet sequence', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.getCell('A1').value = {text: 'link', hyperlink: 'https://example.com'};
+  sheet.addDataValidation('B1', {type: 'list', allowBlank: true, formulae: ['"x,y,z"']});
+  sheet.addRow(['r']).commit();
+  sheet.commit();
+
+  const xml = partText(await writer.commit(), 'xl/worksheets/sheet1.xml');
+  const posDv = xml.indexOf('<dataValidations');
+  const posHl = xml.indexOf('<hyperlinks');
+  assert.ok(posDv >= 0 && posHl >= 0, 'both blocks are present');
+  assert.ok(posDv < posHl, 'dataValidations precedes hyperlinks');
+});
+
+test('streamed conditional formatting and data validations reload through the tolerant reader', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.getCell('A1').value = {text: 'link', hyperlink: 'https://example.com'};
+  sheet.addDataValidation('B1', {type: 'list', allowBlank: true, formulae: ['"x,y,z"']});
+  sheet.addConditionalFormatting({ref: 'A1:A10', rules: [{type: 'cellIs', operator: 'greaterThan', formulae: [3], priority: 1}]});
+  sheet.addRow(['r']).commit();
+  sheet.commit();
+
+  const reread = readXlsx(await writer.commit()).getWorksheet('S');
+  assert.ok(reread);
+  assert.equal(reread.dataValidations.length, 1, 'the data validation survives');
+  assert.equal(reread.conditionalFormattings.length, 1, 'the conditional formatting survives');
+  assert.equal(reread.conditionalFormattings[0]?.rules[0]?.type, 'cellIs');
+});
+
+test('authoring conditional formatting or a data validation on a committed streamed sheet is rejected legibly', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.commit();
+  assert.throws(() => sheet.addConditionalFormatting({ref: 'A1', rules: []}), /already committed/);
+  assert.throws(() => sheet.addDataValidation('A1', {type: 'list', formulae: ['"a"']}), /already committed/);
+  await writer.commit();
+});
