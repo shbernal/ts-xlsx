@@ -8,6 +8,11 @@
 
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {Cell} from './cell.ts';
+import {
+  cloneDataValidation,
+  type DataValidation,
+  type DataValidationEntry,
+} from './data-validation.ts';
 import type {AnchoredImage, AnchorPoint} from './image.ts';
 import {
   deriveCredential,
@@ -150,6 +155,24 @@ function rectsOverlap(a: MergeRect, b: MergeRect): boolean {
   return a.left <= b.right && b.left <= a.right && a.top <= b.bottom && b.top <= a.bottom;
 }
 
+/** Decode an OOXML `sqref` (one or more space-separated ranges) into containment rectangles. A whole
+ * column or row leaves one axis unbounded, so its missing edges open to `Infinity` rather than
+ * clamping — a cell anywhere down the column still resolves inside it. */
+function decodeSqrefRects(sqref: string): MergeRect[] {
+  const rects: MergeRect[] = [];
+  for (const part of sqref.split(/\s+/)) {
+    if (part === '') continue;
+    const {top, left, bottom, right} = decodeRange(part);
+    rects.push({
+      top: top ?? 1,
+      left: left ?? 1,
+      bottom: bottom ?? Infinity,
+      right: right ?? Infinity,
+    });
+  }
+  return rects;
+}
+
 /** Per-row formatting. A row may exist purely to carry these, with no cells. */
 export interface RowProperties {
   /** Row height in points. */
@@ -197,6 +220,7 @@ export interface WorksheetModel {
   rows: {number: number; properties: RowProperties}[];
   cells: CellModel[];
   merges: string[];
+  dataValidations: DataValidationEntry[];
   tables: TableOptions[];
   protection: SheetProtection | undefined;
 }
@@ -279,6 +303,10 @@ export class Worksheet {
   // merges (a real cell block) get a rect; an unbounded whole-row/column merge is still declared
   // but participates in neither slave resolution nor overlap checking.
   readonly #mergeRects: MergeRect[] = [];
+  // Data validations are a sheet-level overlay keyed by range, parallel to merges: the entries carry
+  // the serialisable form, the rects the decoded ranges a cell lookup tests for containment.
+  readonly #dataValidations: DataValidationEntry[] = [];
+  readonly #dataValidationRects: {rects: readonly MergeRect[]; rule: DataValidation}[] = [];
   // Sheet-level protection is a single overlay switch, absent until `protect` is called.
   #protection: SheetProtection | undefined;
 
@@ -476,6 +504,42 @@ export class Worksheet {
   /** The merged ranges on this sheet, in the order they were added. */
   get merges(): readonly string[] {
     return this.#merges;
+  }
+
+  /**
+   * Attach a data validation to a target range (`"B2:B20"`, a whole column `"B2:B1048576"`, or a
+   * space-separated `sqref` of several ranges). The rule is stored once against the range, not copied
+   * per covered cell, so a whole-column dropdown stays a single entry. A cell inside the range reports
+   * the rule through {@link dataValidationAt}.
+   */
+  addDataValidation(sqref: string, rule: DataValidation): void {
+    // One defensive copy, shared by the serialisable entry and the lookup index, so the getter never
+    // hands back a reference into the caller's object.
+    const stored = cloneDataValidation(rule);
+    this.#dataValidations.push({sqref, rule: stored});
+    this.#dataValidationRects.push({rects: decodeSqrefRects(sqref), rule: stored});
+  }
+
+  /** The data validations on this sheet, each bound to its target range, in insertion order. */
+  get dataValidations(): readonly DataValidationEntry[] {
+    return this.#dataValidations;
+  }
+
+  /**
+   * The validation covering a cell, or `undefined` when none does. The first added rule whose range
+   * contains the cell wins, mirroring how a spreadsheet resolves overlapping validations.
+   */
+  dataValidationAt(reference: string): DataValidation | undefined {
+    const {col, row} = decodeAddress(reference);
+    if (col === undefined || row === undefined) return undefined;
+    for (const {rects, rule} of this.#dataValidationRects) {
+      for (const rect of rects) {
+        if (col >= rect.left && col <= rect.right && row >= rect.top && row <= rect.bottom) {
+          return rule;
+        }
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -805,6 +869,10 @@ export class Worksheet {
       rows: [...this.#rowProperties].map(([number, properties]) => ({number, properties: {...properties}})),
       cells,
       merges: [...this.#merges],
+      dataValidations: this.#dataValidations.map(({sqref, rule}) => ({
+        sqref,
+        rule: cloneDataValidation(rule),
+      })),
       tables: this.#tables.map(table => table.options),
       protection: this.#protection,
     };
@@ -827,6 +895,8 @@ export class Worksheet {
     this.#rowProperties.clear();
     this.#merges.length = 0;
     this.#mergeRects.length = 0;
+    this.#dataValidations.length = 0;
+    this.#dataValidationRects.length = 0;
     this.#tables.length = 0;
     this.#protection = model.protection;
 
@@ -844,6 +914,7 @@ export class Worksheet {
       cell.note = note;
     }
     for (const range of model.merges) this.mergeCells(range);
+    for (const {sqref, rule} of model.dataValidations) this.addDataValidation(sqref, rule);
     for (const options of model.tables) this.addTable(options);
   }
 

@@ -316,6 +316,21 @@ function partMapOf(buffer) {
   return out;
 }
 
+// Expand an OOXML sqref (space-separated ranges) into its covered cell references, bounded by a cap so
+// a whole-column range never balloons — used to check that a range-form validation is reported on
+// every covered cell. An unbounded whole-row/column part is skipped rather than expanded.
+function expandSqref(sqref, cap = 4096) {
+  const refs = [];
+  for (const part of String(sqref).split(/\s+/).filter(Boolean)) {
+    const {left, right, top, bottom} = decodeRange(part);
+    if (left == null || right == null || top == null || bottom == null) continue;
+    for (let c = left; c <= right && refs.length < cap; c++) {
+      for (let r = top; r <= bottom && refs.length < cap; r++) refs.push(encodeAddress(c, r));
+    }
+  }
+  return refs;
+}
+
 // Rewrite named parts of a written package and read the result back — the way to feed the
 // reader the hand-edited OOXML forms real producers emit but the writer itself never generates
 // (an explicit-false boolean flag `<b val="0"/>`, an alignment element carrying only `wrapText="0"`,
@@ -1196,6 +1211,59 @@ const impl = {
       }
     }
     return out;
+  },
+
+  // Read a fixture and report each covered cell's data validation → { cells: { 'Sheet!Ref': rule },
+  // count }. A rule authored over a multi-cell range must be reported on EVERY covered cell (the
+  // range form is resolved per cell), and a reference/name operand must survive as its string.
+  readFixtureValidations(rel) {
+    const wb = readFixture(rel);
+    const cells = {};
+    for (const sheet of wb.worksheets) {
+      for (const {sqref} of sheet.dataValidations) {
+        for (const ref of expandSqref(sqref)) {
+          const dv = sheet.dataValidationAt(ref);
+          if (dv) cells[`${sheet.name}!${ref}`] = JSON.parse(JSON.stringify(dv));
+        }
+      }
+    }
+    return {cells, count: Object.keys(cells).length};
+  },
+
+  // Attach a list validation whose source formula is supplied (possibly with a leading '='), write,
+  // and report the serialized formula1 text → { formula1, hasLeadingEquals }. OOXML formula1 carries
+  // no leading '='; the writer must strip exactly one so the app applies the validation immediately.
+  dvFormulaLeadingEquals(formula = '=$AA$1:$AA$2') {
+    const wb = new Workbook();
+    wb.addWorksheet('S').addDataValidation('A1', {type: 'list', allowBlank: true, formulae: [formula]});
+    const sheetXml = partMapOf(writeXlsx(wb))['xl/worksheets/sheet1.xml'] || '';
+    const formula1 = (sheetXml.match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
+    return {formula1, hasLeadingEquals: formula1 != null && formula1.startsWith('=')};
+  },
+
+  // Attach one validation over a whole range, write, and report the serialized facts → { writeOk,
+  // writeError, sqrefs, count, reloadOk }. A range-form validation must emit exactly ONE
+  // dataValidation whose sqref is the requested range, not one entry per covered cell.
+  roundtripRangeValidation({range, type = 'list', formula = '"a,b,c"'} = {}) {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    let buffer;
+    try {
+      sheet.addDataValidation(range, {type, allowBlank: true, formulae: [formula]});
+      buffer = writeXlsx(wb);
+    } catch (e) {
+      return {writeOk: false, writeError: String((e && e.message) || e), sqrefs: [], count: 0, reloadOk: null};
+    }
+    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const sqrefs = [...xml.matchAll(/<dataValidation\b[^>]*sqref="([^"]*)"/g)].map(m => m[1]);
+    const count = [...xml.matchAll(/<dataValidation[ >]/g)].length;
+    let reloadOk = true;
+    try {
+      readXlsx(buffer);
+    } catch {
+      reloadOk = false;
+    }
+    return {writeOk: true, writeError: null, sqrefs, count, reloadOk};
   },
 
   // Build a workbook with one internal ('#'-prefixed) hyperlink, write it, and report how the link

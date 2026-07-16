@@ -38,6 +38,7 @@ import type {
   WorksheetProperties,
 } from '../../core/worksheet.ts';
 import {collectNotes, commentsXml, type NoteCell, vmlDrawingXml} from './comments.ts';
+import {dataValidationsXml} from './data-validation.ts';
 import {
   collectHyperlinks,
   hyperlinksXml,
@@ -631,8 +632,9 @@ function worksheetXml(
     sheetData +
     sheetProtectionXml(sheet.protection) +
     mergeCellsXml(sheet.merges) +
-    // CT_Worksheet order: <hyperlinks> follows <mergeCells> (and would follow any conditional
-    // formatting / data validations) and precedes the print settings.
+    // CT_Worksheet order: <dataValidations> follows <mergeCells> (and any conditional formatting),
+    // and <hyperlinks> follows it — both precede the print settings.
+    dataValidationsXml(sheet.dataValidations) +
     hyperlinksXml(hyperlinks) +
     pageMarginsXml(sheet.pageMargins) +
     pageSetupXml(sheet.pageSetup, printerSettingsRelId) +
