@@ -7,7 +7,20 @@
 
 import {isDateFormat, serialToDate} from '../../core/date.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
-import {type CellValue, type FormulaResult, isErrorCode, type RichTextRun} from '../../core/value.ts';
+import {
+  type CellValue,
+  type FormulaResult,
+  isErrorCode,
+  type RichTextRun,
+  type RichTextValue,
+} from '../../core/value.ts';
+
+/**
+ * One entry of the shared-strings pool. A `<si>` built from a bare `<t>` is a plain string; a `<si>`
+ * built from `<r>` runs is rich text — so a `t="s"` cell can resolve to either kind, and rich text
+ * that Excel pooled reads back with its per-run formatting intact rather than flattened to text.
+ */
+export type SharedString = string | RichTextValue;
 
 /** The raw, still-textual pieces of a `<c>` element the SAX pass has gathered. */
 export interface RawCell {
@@ -31,7 +44,7 @@ export interface RawCell {
  */
 export function decodeCellContent(
   raw: RawCell,
-  sharedStrings: readonly string[],
+  sharedStrings: readonly SharedString[],
   numFmt: string | undefined
 ): CellValue {
   if (raw.hasFormula) {
@@ -58,7 +71,7 @@ function decodeValue(
   valueText: string,
   inlineText: string,
   hasValue: boolean,
-  sharedStrings: readonly string[]
+  sharedStrings: readonly SharedString[]
 ): CellValue {
   switch (type) {
     case 'inlineStr':
@@ -71,6 +84,8 @@ function decodeValue(
       // than a 1900-epoch serial the transitional decoder would fabricate from the text.
       return valueText === '' ? null : new Date(valueText);
     case 's': {
+      // A `t="s"` cell indexes the shared pool; the entry is a plain string or, when Excel pooled a
+      // rich value, a {@link RichTextValue} whose runs surface here rather than being flattened.
       const index = Number(valueText);
       return Number.isInteger(index) ? sharedStrings[index] ?? '' : '';
     }

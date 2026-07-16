@@ -1015,6 +1015,11 @@ function cellXml(
     return `<c r="${ref}"${s} t="inlineStr"><is>${textElement(value)}</is></c>`;
   }
   if (isRichTextValue(value)) {
+    // With shared strings on, rich text is pooled as a rich `<si>` (the cell holds only its index);
+    // otherwise the runs live inline. Both decode back to the same runs on read.
+    if (sharedStrings !== null) {
+      return `<c r="${ref}"${s} t="s"><v>${sharedStrings.intern(value)}</v></c>`;
+    }
     return `<c r="${ref}"${s} t="inlineStr"><is>${richTextRunsXml(value.richText)}</is></c>`;
   }
   if (isHyperlinkValue(value)) {

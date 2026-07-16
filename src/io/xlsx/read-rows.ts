@@ -17,7 +17,7 @@ import {strFromU8} from 'fflate';
 
 import {decodeAddress} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
-import {decodeCellContent} from './cell-value.ts';
+import {decodeCellContent, type SharedString} from './cell-value.ts';
 import {inflatePackage} from './inflate.ts';
 import {
   DEFAULT_MAX_UNCOMPRESSED,
@@ -117,7 +117,7 @@ function pickSheet(
 // than into a persistent Worksheet — that hand-off is what bounds retained memory to one row.
 function* streamRows(
   xml: string,
-  sharedStrings: readonly string[],
+  sharedStrings: readonly SharedString[],
   xfStyles: ReadonlyArray<XfStyle>
 ): Generator<StreamedRow> {
   let rowNumber = 0;

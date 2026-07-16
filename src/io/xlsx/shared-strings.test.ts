@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync} from 'fflate';
+import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
-import {readXlsx} from './read.ts';
+import {parseSharedStrings, readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
 // Decode one package part back to its XML text; absent parts return undefined so a test can assert
@@ -72,16 +72,85 @@ test('shared and inline storage both read back to the same values', () => {
   }
 });
 
-test('rich-text values stay inline even under the option, preserving run formatting', () => {
+test('under the option a rich-text cell is pooled as a rich <si> of runs and reads back formatted', () => {
   const workbook = new Workbook();
   workbook.addWorksheet('S').getCell('A1').value = {
     richText: [{text: 'bold', font: {bold: true}}, {text: 'plain'}],
   };
   const pkg = writeXlsx(workbook, {useSharedStrings: true});
 
-  // A rich cell is never pooled, so with no plain strings the part is absent entirely.
-  assert.equal(partText(pkg, 'xl/sharedStrings.xml'), undefined);
+  // The runs become a rich <si> entry the cell references by index — the shape Excel itself writes.
+  assert.match(partText(pkg, 'xl/sharedStrings.xml') ?? '', /<si><r><rPr><b\/><\/rPr><t>bold<\/t><\/r><r><t>plain<\/t><\/r><\/si>/);
+  const sheet = partText(pkg, 'xl/worksheets/sheet1.xml') ?? '';
+  assert.match(sheet, /r="A1"[^>]* t="s"><v>0<\/v>/);
+  assert.doesNotMatch(sheet, /inlineStr/);
+
   const value = readXlsx(pkg).getWorksheet('S')?.getCell('A1').value;
   assert.ok(value && typeof value === 'object' && 'richText' in value);
   assert.deepEqual(value.richText, [{text: 'bold', font: {bold: true}}, {text: 'plain'}]);
+});
+
+test('a plain string and rich runs of the same text stay distinct entries in the pool', () => {
+  const workbook = new Workbook();
+  const sheet = workbook.addWorksheet('S');
+  sheet.getCell('A1').value = 'text';
+  sheet.getCell('A2').value = {richText: [{text: 'text', font: {italic: true}}]};
+  const pkg = writeXlsx(workbook, {useSharedStrings: true});
+  const sst = partText(pkg, 'xl/sharedStrings.xml') ?? '';
+
+  // The plain <t> entry and the <r>-run entry render to different markup, so neither collapses
+  // into the other — two references, two distinct entries.
+  assert.match(sst, /uniqueCount="2"/);
+  const cells = partText(pkg, 'xl/worksheets/sheet1.xml') ?? '';
+  assert.match(cells, /r="A1"[^>]* t="s"><v>0<\/v>/);
+  assert.match(cells, /r="A2"[^>]* t="s"><v>1<\/v>/);
+});
+
+test('identical rich runs are pooled once, like plain strings', () => {
+  const workbook = new Workbook();
+  const sheet = workbook.addWorksheet('S');
+  const runs = {richText: [{text: 'x', font: {bold: true}}]};
+  sheet.getCell('A1').value = runs;
+  sheet.getCell('A2').value = {richText: [{text: 'x', font: {bold: true}}]};
+  const sst = partText(writeXlsx(workbook, {useSharedStrings: true}), 'xl/sharedStrings.xml') ?? '';
+
+  assert.match(sst, /count="2"/);
+  assert.match(sst, /uniqueCount="1"/);
+});
+
+test('parseSharedStrings reconstructs a foreign rich <si> into runs, not flattened text', () => {
+  const sst =
+    '<?xml version="1.0"?>' +
+    '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="2" uniqueCount="2">' +
+    '<si><t>plain</t></si>' +
+    '<si><r><rPr><b/><color rgb="FFFF0000"/></rPr><t>red</t></r><r><t> tail</t></r></si>' +
+    '</sst>';
+  const entries = parseSharedStrings(sst);
+
+  assert.equal(entries[0], 'plain');
+  assert.deepEqual(entries[1], {
+    richText: [{text: 'red', font: {bold: true, color: {argb: 'FFFF0000'}}}, {text: ' tail'}],
+  });
+});
+
+test('a t="s" cell pointing at a foreign rich <si> reads back as rich text', () => {
+  // Author a plain package, then graft a rich shared-strings pool and a t="s" cell onto it — the
+  // markup Excel writes but our writer only produces on round-trip.
+  const base = new Workbook();
+  base.addWorksheet('S');
+  const files = unzipSync(writeXlsx(base));
+  files['xl/sharedStrings.xml'] = strToU8(
+    '<?xml version="1.0"?>' +
+      '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1">' +
+      '<si><r><rPr><i/></rPr><t>emph</t></r><r><t>rest</t></r></si></sst>'
+  );
+  const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml'] ?? new Uint8Array()).replace(
+    '<sheetData/>',
+    '<sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row></sheetData>'
+  );
+  files['xl/worksheets/sheet1.xml'] = strToU8(sheetXml);
+
+  const value = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').value;
+  assert.ok(value && typeof value === 'object' && 'richText' in value);
+  assert.deepEqual(value.richText, [{text: 'emph', font: {italic: true}}, {text: 'rest'}]);
 });

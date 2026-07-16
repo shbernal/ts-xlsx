@@ -39,7 +39,7 @@ import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {RichTextRun, SharedFormulaValue} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
-import {decodeCellContent, decodeFormulaResult} from './cell-value.ts';
+import {decodeCellContent, decodeFormulaResult, type SharedString} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
 import {
@@ -326,21 +326,51 @@ function parseWorkbookDefinedNames(xml: string, sheetOrder: readonly string[]): 
   return names;
 }
 
-// Shared strings resolve `t="s"` cells: each <si> is one entry, its text the concatenation
-// of its <t> runs (a plain <si><t>…</t> or a rich <si><r><t>…</t></r>…).
-export function parseSharedStrings(xml: string): string[] {
+// Shared strings resolve `t="s"` cells. Each `<si>` is one entry: a plain `<si><t>…</t>` decodes to a
+// string, while a rich `<si><r><rPr>…</rPr><t>…</t></r>…` decodes to a {@link RichTextValue} whose runs
+// carry their per-run fonts — so rich text Excel pooled reads back formatted, not flattened to text.
+// The run structure inside an `<si>` is identical to an inline string's `<is>`, so it is parsed the
+// same way (see the inline-run accumulation in `parseWorksheet`).
+export function parseSharedStrings(xml: string): SharedString[] {
   if (xml === '') return [];
-  const strings: string[] = [];
-  let current = '';
+  const strings: SharedString[] = [];
+  // Per-`<si>` accumulation: `plain` gathers a bare `<t>`; `runs` gathers `<r>` runs. An `<si>` is
+  // rich the moment it holds one `<r>`, at which point its runs — not `plain` — become the entry.
+  let plain = '';
+  let runs: RichTextRun[] = [];
+  let isRich = false;
+  let inRun = false;
+  let runFont: FontDraft | null = null;
+  let runText = '';
   let capture = false;
   let text = '';
   parseXml(xml, {
-    onOpen(name) {
+    onOpen(name, attrs) {
       const local = localName(name);
-      if (local === 'si') current = '';
-      else if (local === 't') {
-        capture = true;
-        text = '';
+      switch (local) {
+        case 'si':
+          plain = '';
+          runs = [];
+          isRich = false;
+          break;
+        case 'r':
+          isRich = true;
+          inRun = true;
+          runFont = null;
+          runText = '';
+          break;
+        case 'rPr':
+          if (inRun) runFont = {};
+          break;
+        case 't':
+          capture = true;
+          text = '';
+          break;
+        default:
+          // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) is self-closing, read here
+          // on open; it sets one font facet. Nothing else uses the default branch.
+          if (runFont !== null) applyFontChild(runFont, local, attrs);
+          break;
       }
     },
     onText(chunk) {
@@ -348,11 +378,24 @@ export function parseSharedStrings(xml: string): string[] {
     },
     onClose(name) {
       const local = localName(name);
-      if (local === 't') {
-        current += text;
-        capture = false;
-      } else if (local === 'si') {
-        strings.push(current);
+      switch (local) {
+        case 't':
+          // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<si>` is plain.
+          if (inRun) runText += text;
+          else plain += text;
+          capture = false;
+          break;
+        case 'r':
+          if (inRun) {
+            const run: {text: string; font?: Partial<Font>} = {text: runText};
+            if (runFont !== null && Object.keys(runFont).length > 0) run.font = runFont;
+            runs.push(run);
+            inRun = false;
+          }
+          break;
+        case 'si':
+          strings.push(isRich ? {richText: runs} : plain);
+          break;
       }
     },
   });
@@ -808,7 +851,7 @@ function applyCoreProperties(workbook: Workbook, xml: string): void {
 function parseWorksheet(
   xml: string,
   sheet: Worksheet,
-  sharedStrings: readonly string[],
+  sharedStrings: readonly SharedString[],
   xfStyles: ReadonlyArray<XfStyle>
 ): void {
   let cellRef = '';
@@ -1137,7 +1180,7 @@ function finalizeCell(
   valueText: string,
   inlineText: string,
   richTextRuns: readonly RichTextRun[],
-  sharedStrings: readonly string[],
+  sharedStrings: readonly SharedString[],
   style: XfStyle | undefined
 ): void {
   const {col, row} = decodeAddress(ref);
