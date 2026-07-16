@@ -162,3 +162,71 @@ test('an x14 extLst conditional formatting is left untouched and writing the she
   assert.equal(workbook.getWorksheet('S')?.conditionalFormattings.length, 0, 'no classic rule was fabricated');
   assert.doesNotThrow(() => writeXlsx(workbook), 'writing a sheet whose CF lived only in x14 does not crash');
 });
+
+function dataBarBook(rule: Record<string, unknown>): Workbook {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').addConditionalFormatting({
+    ref: 'A1:A3',
+    rules: [{type: 'dataBar', color: {argb: 'FF638EC6'}, cfvo: [{type: 'num', value: 0}, {type: 'num', value: 1}], ...rule}],
+  });
+  return workbook;
+}
+
+test('a gradient dataBar writes the classic element plus a linked x14 extension carrying the flag', () => {
+  const xml = sheetXml(writeXlsx(dataBarBook({gradient: true})));
+
+  // The classic element is unchanged — every consumer still understands the bar's anchors and colour.
+  assert.match(xml, /<dataBar><cfvo type="num" val="0"\/><cfvo type="num" val="1"\/><color rgb="FF638EC6"\/><\/dataBar>/);
+  // The cfRule links its extension by a shared id, which the worksheet x14 block echoes on its cfRule.
+  const id = xml.match(/<x14:id>(\{[^}]+\})<\/x14:id>/)?.[1];
+  assert.ok(id, 'the classic cfRule carries an x14:id link');
+  assert.match(xml, new RegExp(`<x14:cfRule type="dataBar" id="${id.replace(/[{}]/g, '\\$&')}">`), 'the extension echoes the same id');
+  assert.match(xml, /<x14:dataBar gradient="1"><x14:cfvo type="num"><xm:f>0<\/xm:f><\/x14:cfvo><x14:cfvo type="num"><xm:f>1<\/xm:f><\/x14:cfvo><\/x14:dataBar>/);
+  assert.match(xml, /<xm:sqref>A1:A3<\/xm:sqref>/);
+});
+
+test('the gradient flag survives a write→read round-trip through the x14 extension', () => {
+  for (const gradient of [true, false]) {
+    const rule = readXlsx(writeXlsx(dataBarBook({gradient}))).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+    assert.equal(rule?.type, 'dataBar');
+    assert.equal(rule?.gradient, gradient, `gradient=${gradient} reads back`);
+    // The classic facets still survive alongside the enriched ones.
+    assert.equal(rule?.color?.argb, 'FF638EC6');
+    assert.deepEqual(rule?.cfvo?.map(v => v.value), [0, 1]);
+  }
+});
+
+test('a dataBar negative-fill and axis colour round-trip through the x14 extension', () => {
+  const book = dataBarBook({negativeFillColor: {argb: 'FFFF0000'}, axisColor: {argb: 'FF000000'}});
+  const xml = sheetXml(writeXlsx(book));
+  assert.match(xml, /<x14:negativeFillColor rgb="FFFF0000"\/>/);
+  assert.match(xml, /<x14:axisColor rgb="FF000000"\/>/);
+
+  const rule = readXlsx(writeXlsx(book)).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+  assert.equal(rule?.negativeFillColor?.argb, 'FFFF0000');
+  assert.equal(rule?.axisColor?.argb, 'FF000000');
+});
+
+test('a plain dataBar carrying no x14 facet stays classic-only, fabricating no extension', () => {
+  const xml = sheetXml(writeXlsx(dataBarBook({})));
+  assert.match(xml, /<dataBar>/, 'the classic element is present');
+  assert.doesNotMatch(xml, /x14:dataBar/, 'no x14 data-bar extension is written');
+  assert.doesNotMatch(xml, /<extLst>/, 'no extLst is fabricated for a plain data bar');
+});
+
+test('a sheet with both an extended validation and a gradient dataBar emits one worksheet extLst', () => {
+  const workbook = dataBarBook({gradient: true});
+  workbook
+    .getWorksheet('S')
+    ?.addDataValidation('B1', {type: 'list', formulae: ['Other!$A$1:$A$3']}, {extended: true});
+  const xml = sheetXml(writeXlsx(workbook));
+
+  // Both extensions ride as sibling <ext> blocks inside a single worksheet <extLst> — never two.
+  assert.match(xml, /uri="\{78C0D931-6437-407d-A8EE-F0AAD7539E65\}"/, 'the CF extension is present');
+  assert.match(xml, /uri="\{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF\}"/, 'the DV extension is present');
+  assert.doesNotMatch(xml, /<\/extLst><extLst>/, 'the two extensions are not split across two worksheet extLst');
+
+  const sheet = readXlsx(writeXlsx(workbook)).getWorksheet('S');
+  assert.equal(sheet?.conditionalFormattings[0]?.rules[0]?.gradient, true, 'the gradient survives');
+  assert.equal(sheet?.dataValidations.length, 1, 'the extended validation survives');
+});

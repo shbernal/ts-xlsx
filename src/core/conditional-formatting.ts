@@ -59,8 +59,12 @@ export interface ConditionalFormattingRule {
   color?: Color;
   /** A colorScale's colours, one per {@link cfvo}. */
   colors?: Color[];
-  /** A dataBar's gradient-fill flag. */
+  /** A dataBar's gradient-fill flag. Lives only in the x14 extension, not the classic element. */
   gradient?: boolean;
+  /** A dataBar's fill colour for negative values. An x14 extension property. */
+  negativeFillColor?: Color;
+  /** A dataBar's axis colour (the zero line between positive and negative bars). An x14 property. */
+  axisColor?: Color;
   /** An iconSet's named icon family (e.g. `3TrafficLights1`). */
   iconSet?: string;
   /** top10 rank cutoff. */
@@ -99,6 +103,8 @@ function cloneRule(rule: ConditionalFormattingRule): ConditionalFormattingRule {
     ...(rule.formulae !== undefined ? {formulae: [...rule.formulae]} : {}),
     ...(rule.cfvo !== undefined ? {cfvo: rule.cfvo.map(v => ({...v}))} : {}),
     ...(rule.color !== undefined ? {color: {...rule.color}} : {}),
+    ...(rule.negativeFillColor !== undefined ? {negativeFillColor: {...rule.negativeFillColor}} : {}),
+    ...(rule.axisColor !== undefined ? {axisColor: {...rule.axisColor}} : {}),
     ...(rule.colors !== undefined ? {colors: rule.colors.map(c => ({...c}))} : {}),
     ...(rule.style !== undefined ? {style: cloneStyle(rule.style)} : {}),
   };

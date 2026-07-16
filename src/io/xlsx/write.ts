@@ -38,8 +38,8 @@ import type {
   WorksheetProperties,
 } from '../../core/worksheet.ts';
 import {collectNotes, commentsXml, type NoteCell, vmlDrawingXml} from './comments.ts';
-import {conditionalFormattingsXml} from './conditional-formatting.ts';
-import {dataValidationsXml, extendedDataValidationsXml} from './data-validation.ts';
+import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
+import {dataValidationsExtXml, dataValidationsXml} from './data-validation.ts';
 import {
   collectHyperlinks,
   hyperlinksXml,
@@ -649,11 +649,23 @@ function worksheetXml(
     (drawingRelId !== null ? `<drawing r:id="${drawingRelId}"/>` : '') +
     (legacyDrawingRelId !== null ? `<legacyDrawing r:id="${legacyDrawingRelId}"/>` : '') +
     tablePartsXml(tables) +
-    // `<extLst>` is the final child of CT_Worksheet; the extended (x14) data validations ride here,
-    // the standard ones already emitted above in `<dataValidations>`.
-    extendedDataValidationsXml(sheet.dataValidations) +
+    // `<extLst>` is the final child of CT_Worksheet and a worksheet may carry at most one. Both the
+    // x14 conditional-formatting extensions (data-bar gradient/negative-fill/axis) and the extended
+    // (x14) data validations ride inside it as sibling `<ext>` blocks — so they are gathered here into
+    // a single `<extLst>` rather than each emitting its own.
+    worksheetExtLstXml(sheet) +
     '</worksheet>'
   );
+}
+
+// Assemble the worksheet's single `<extLst>` from every x14 extension the sheet carries, or '' when it
+// carries none. Each producer returns a bare `<ext>` so they compose without nesting an `<extLst>`.
+function worksheetExtLstXml(sheet: Worksheet): string {
+  const exts = [
+    conditionalFormattingsExtXml(sheet.conditionalFormattings),
+    dataValidationsExtXml(sheet.dataValidations),
+  ].filter(ext => ext !== '');
+  return exts.length === 0 ? '' : `<extLst>${exts.join('')}</extLst>`;
 }
 
 // Excel forbids a merged range from intersecting a formatted table; such a file opens as

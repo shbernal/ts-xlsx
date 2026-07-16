@@ -37,7 +37,7 @@ const DATA_VALIDATION_EXT_URI = '{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF}';
 
 /** The standard `<dataValidations>` element for the rules stored in the legacy form, or '' when the
  * sheet has none of them — so a sheet with only extended (or no) validations stays byte-clean here.
- * The extended rules are emitted separately by {@link extendedDataValidationsXml}. */
+ * The extended rules are emitted separately by {@link dataValidationsExtXml}. */
 export function dataValidationsXml(entries: readonly DataValidationEntry[]): string {
   const standard = entries.filter(entry => !entry.extended);
   if (standard.length === 0) return '';
@@ -45,16 +45,17 @@ export function dataValidationsXml(entries: readonly DataValidationEntry[]): str
   return `<dataValidations count="${standard.length}">${items}</dataValidations>`;
 }
 
-/** The worksheet `<extLst>` carrying the extended (`<x14:dataValidation>`) rules, or '' when the
- * sheet declares none — so a sheet with only standard validations never fabricates an empty block. */
-export function extendedDataValidationsXml(entries: readonly DataValidationEntry[]): string {
+/** The `<ext>` carrying the extended (`<x14:dataValidation>`) rules, or '' when the sheet declares
+ * none. Emitted bare (no `<extLst>` wrapper) so the worksheet serialiser can gather it into a single
+ * `<extLst>` beside the conditional-formatting extension — a worksheet may carry at most one. */
+export function dataValidationsExtXml(entries: readonly DataValidationEntry[]): string {
   const extended = entries.filter(entry => entry.extended);
   if (extended.length === 0) return '';
   const items = extended.map(({sqref, rule}) => extendedDataValidationXml(sqref, rule)).join('');
   return (
-    `<extLst><ext uri="${DATA_VALIDATION_EXT_URI}" xmlns:x14="${X14_NS}">` +
+    `<ext uri="${DATA_VALIDATION_EXT_URI}" xmlns:x14="${X14_NS}">` +
     `<x14:dataValidations count="${extended.length}" xmlns:xm="${XM_NS}">${items}</x14:dataValidations>` +
-    '</ext></extLst>'
+    '</ext>'
   );
 }
 
