@@ -7,6 +7,7 @@ import {test} from 'node:test';
 
 import {strFromU8, unzipSync} from 'fflate';
 
+import {isOneCellAnchor} from '../../core/image.ts';
 import {readXlsx} from './read.ts';
 import {WorkbookStreamWriter} from './write-stream.ts';
 
@@ -299,8 +300,10 @@ test('an image anchored on the stream reloads with its anchor and bytes intact',
   const bytes = await writer.commit();
   const reloaded = readXlsx(bytes);
   const [image] = reloaded.getWorksheet('S')?.images ?? [];
-  assert.deepStrictEqual(image?.anchor.from, {col: 0, row: 5, colOff: 0, rowOff: 0});
-  assert.deepStrictEqual(image?.anchor.to, {col: 2, row: 8, colOff: 0, rowOff: 0});
+  const anchor = image?.anchor;
+  assert.ok(anchor && !isOneCellAnchor(anchor));
+  assert.deepStrictEqual(anchor.from, {col: 0, row: 5, colOff: 0, rowOff: 0});
+  assert.deepStrictEqual(anchor.to, {col: 2, row: 8, colOff: 0, rowOff: 0});
   const media = reloaded.getImage(image?.imageId ?? -1);
   assert.strictEqual(media?.extension, 'png');
   assert.deepStrictEqual(media?.data, ONE_PX_PNG, 'the streamed media bytes survive verbatim');

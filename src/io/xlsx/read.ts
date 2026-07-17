@@ -210,7 +210,13 @@ function readSheetImages(
       id = workbook.addImage({buffer: bytes, extension: extensionOf(mediaPath)});
       imageIdByMediaPath.set(mediaPath, id);
     }
-    sheet.addImage(id, {tl: anchor.from, br: anchor.to});
+    if (anchor.to !== undefined) {
+      sheet.addImageAnchor(id, anchor.editAs !== undefined
+        ? {from: anchor.from, to: anchor.to, editAs: anchor.editAs}
+        : {from: anchor.from, to: anchor.to});
+    } else if (anchor.ext !== undefined) {
+      sheet.addImageAnchor(id, {from: anchor.from, ext: anchor.ext});
+    }
   }
 }
 

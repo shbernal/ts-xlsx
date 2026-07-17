@@ -18,7 +18,16 @@ import {
   type DataValidation,
   type DataValidationEntry,
 } from './data-validation.ts';
-import type {AnchoredImage, AnchorPoint} from './image.ts';
+import {
+  type AnchoredImage,
+  type AnchorPoint,
+  type Extent,
+  type ImageAnchor,
+  type ImageEditAs,
+  type TwoCellAnchor,
+  isOneCellAnchor,
+  PX_TO_EMU,
+} from './image.ts';
 import {
   deriveCredential,
   type SheetProtection,
@@ -482,13 +491,52 @@ export class Worksheet {
   }
 
   /**
-   * Anchor a workbook image (the id returned by {@link Workbook.addImage}) to this sheet, spanning
-   * the rectangle from the top-left grid point `tl` to the bottom-right `br`. Both points are
-   * 0-based (`{col: 0, row: 0}` is cell A1). The anchor moves and reflows with the cells it spans, so
-   * a later row/column splice re-pins it to the same logical position.
+   * Anchor a workbook image (the id returned by {@link Workbook.addImage}) to this sheet. Two shapes:
+   *
+   * - **Two-cell**: `{tl, br}` spans the rectangle from the top-left grid point to the bottom-right,
+   *   reflowing as the spanned cells resize. `editAs` (`oneCell` by default) tunes how it follows.
+   * - **One-cell**: `{tl, ext}` pins the image at `tl` at a fixed pixel size that the grid never
+   *   resizes. `ext` is in pixels and converts to EMUs internally.
+   *
+   * Grid points are 0-based (`{col: 0, row: 0}` is cell A1). A later row/column splice re-pins the
+   * anchor to the same logical position.
    */
-  addImage(imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint}): void {
-    this.#images.push({imageId, anchor: {from: anchor.tl, to: anchor.br}});
+  addImage(
+    imageId: number,
+    anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs}
+  ): void;
+  addImage(
+    imageId: number,
+    anchor: {readonly tl: AnchorPoint; readonly ext: {readonly width: number; readonly height: number}}
+  ): void;
+  addImage(
+    imageId: number,
+    anchor:
+      | {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs}
+      | {readonly tl: AnchorPoint; readonly ext: {readonly width: number; readonly height: number}}
+  ): void {
+    if ('ext' in anchor) {
+      const ext: Extent = {
+        cx: Math.round(anchor.ext.width * PX_TO_EMU),
+        cy: Math.round(anchor.ext.height * PX_TO_EMU),
+      };
+      this.#images.push({imageId, anchor: {from: anchor.tl, ext}});
+      return;
+    }
+    const twoCell: TwoCellAnchor =
+      anchor.editAs !== undefined
+        ? {from: anchor.tl, to: anchor.br, editAs: anchor.editAs}
+        : {from: anchor.tl, to: anchor.br};
+    this.#images.push({imageId, anchor: twoCell});
+  }
+
+  /**
+   * Anchor an image with a pre-built model anchor in the model's own units (EMUs). This is the
+   * low-level primitive {@link addImage} builds on and the reader uses to re-pin an image parsed from
+   * a drawing part without a lossy pixel round-trip.
+   */
+  addImageAnchor(imageId: number, anchor: ImageAnchor): void {
+    this.#images.push({imageId, anchor});
   }
 
   /** The images anchored to this sheet, in the order they were added. */
@@ -898,10 +946,13 @@ export class Worksheet {
       if (shifted === zeroBased) return point;
       return axis === 'row' ? {...point, row: shifted} : {...point, col: shifted};
     };
-    const moved = this.#images.map(image => ({
-      imageId: image.imageId,
-      anchor: {from: shiftPoint(image.anchor.from), to: shiftPoint(image.anchor.to)},
-    }));
+    const moved: AnchoredImage[] = this.#images.map(image => {
+      const from = shiftPoint(image.anchor.from);
+      const anchor: ImageAnchor = isOneCellAnchor(image.anchor)
+        ? {from, ext: image.anchor.ext}
+        : {...image.anchor, from, to: shiftPoint(image.anchor.to)};
+      return {imageId: image.imageId, anchor};
+    });
     this.#images.length = 0;
     this.#images.push(...moved);
   }

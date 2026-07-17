@@ -3,7 +3,13 @@
 // drawing back into anchors. The image bytes themselves are opaque here — the writer copies them
 // verbatim into a media part and the reader hands them back untouched.
 
-import type {AnchorPoint, ImageAnchor} from '../../core/image.ts';
+import {
+  type AnchorPoint,
+  type Extent,
+  type ImageAnchor,
+  type ImageEditAs,
+  isOneCellAnchor,
+} from '../../core/image.ts';
 import {localName, parseXml} from './xml-read.ts';
 import {XML_DECLARATION} from './xml.ts';
 
@@ -42,9 +48,9 @@ export interface DrawingImage {
   readonly embedId: string;
 }
 
-/** The `xl/drawings/drawing{n}.xml` part: one two-cell anchor per image. */
+/** The `xl/drawings/drawing{n}.xml` part: one anchor per image, two-cell or one-cell by its shape. */
 export function drawingXml(images: readonly DrawingImage[]): string {
-  const anchors = images.map((image, i) => twoCellAnchorXml(image, i + 1)).join('');
+  const anchors = images.map((image, i) => anchorXml(image, i + 1)).join('');
   return (
     XML_DECLARATION +
     `<xdr:wsDr xmlns:xdr="${XDR_NS}" xmlns:a="${A_NS}" xmlns:r="${R_NS}">` +
@@ -53,24 +59,55 @@ export function drawingXml(images: readonly DrawingImage[]): string {
   );
 }
 
-// A picture anchored between two grid points. The geometry lives entirely in <xdr:from>/<xdr:to>;
-// the <a:xfrm> offset/extent are placeholders Excel recomputes from the anchor, so they stay zero.
-function twoCellAnchorXml(image: DrawingImage, id: number): string {
-  const {from, to} = image.anchor;
+function anchorXml(image: DrawingImage, id: number): string {
+  const {anchor} = image;
+  return isOneCellAnchor(anchor)
+    ? oneCellAnchorXml(anchor.from, anchor.ext, image.embedId, id)
+    : twoCellAnchorXml(anchor.from, anchor.to, anchor.editAs ?? 'oneCell', image.embedId, id);
+}
+
+// A picture anchored between two grid points. The geometry lives entirely in <xdr:from>/<xdr:to>, so
+// the picture carries no absolute <a:xfrm> — a zeroed one would override the anchor and collapse the
+// image to nothing in strict viewers (LibreOffice), while a non-zero one would fight the anchor.
+function twoCellAnchorXml(
+  from: AnchorPoint,
+  to: AnchorPoint,
+  editAs: ImageEditAs,
+  embedId: string,
+  id: number
+): string {
   return (
-    '<xdr:twoCellAnchor editAs="oneCell">' +
+    `<xdr:twoCellAnchor editAs="${editAs}">` +
     `<xdr:from>${anchorPointXml(from)}</xdr:from>` +
     `<xdr:to>${anchorPointXml(to)}</xdr:to>` +
+    picXml(embedId, id) +
+    '<xdr:clientData/>' +
+    '</xdr:twoCellAnchor>'
+  );
+}
+
+// A picture pinned at one grid point with a fixed EMU extent. editAs is a two-cell-only attribute and
+// the schema forbids it here, so a one-cell anchor never carries one.
+function oneCellAnchorXml(from: AnchorPoint, ext: Extent, embedId: string, id: number): string {
+  return (
+    '<xdr:oneCellAnchor>' +
+    `<xdr:from>${anchorPointXml(from)}</xdr:from>` +
+    `<xdr:ext cx="${ext.cx}" cy="${ext.cy}"/>` +
+    picXml(embedId, id) +
+    '<xdr:clientData/>' +
+    '</xdr:oneCellAnchor>'
+  );
+}
+
+function picXml(embedId: string, id: number): string {
+  return (
     '<xdr:pic>' +
     `<xdr:nvPicPr><xdr:cNvPr id="${id}" name="Picture ${id}"/>` +
     '<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>' +
-    `<xdr:blipFill><a:blip r:embed="${image.embedId}"/>` +
+    `<xdr:blipFill><a:blip r:embed="${embedId}"/>` +
     '<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>' +
-    '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></a:xfrm>' +
-    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>' +
-    '</xdr:pic>' +
-    '<xdr:clientData/>' +
-    '</xdr:twoCellAnchor>'
+    '<xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>' +
+    '</xdr:pic>'
   );
 }
 
@@ -90,10 +127,13 @@ export function drawingRelsXml(mediaTargets: readonly string[]): string {
   return XML_DECLARATION + `<Relationships xmlns="${PKG_RELS_NS}">${rels}</Relationships>`;
 }
 
-/** A two-cell anchor parsed from a drawing part, with the `r:embed` id that names its media. */
+/** An image anchor parsed from a drawing part, with the `r:embed` id that names its media. A two-cell
+ * anchor carries `to` (and may carry `editAs`); a one-cell anchor carries `ext` instead. */
 export interface ParsedImageAnchor {
   readonly from: AnchorPoint;
-  readonly to: AnchorPoint;
+  readonly to?: AnchorPoint;
+  readonly ext?: Extent;
+  readonly editAs?: ImageEditAs;
   readonly embed: string;
 }
 
@@ -103,15 +143,23 @@ function blankPoint(): PointDraft {
   return {col: 0, row: 0, colOff: 0, rowOff: 0};
 }
 
-/** Parse a drawing part into its two-cell image anchors. Anchors that are not pictures (a chart, a
- * shape) carry no `<a:blip r:embed>` and are skipped, so a mixed drawing yields only its images. */
+const EDIT_AS = new Set<string>(['oneCell', 'twoCell', 'absolute']);
+
+/** Parse a drawing part into its image anchors (both `<xdr:twoCellAnchor>` and `<xdr:oneCellAnchor>`).
+ * Anchors that are not pictures (a chart, a shape) carry no `<a:blip r:embed>` and are skipped, so a
+ * mixed drawing yields only its images. */
 export function parseDrawing(xml: string): ParsedImageAnchor[] {
   const anchors: ParsedImageAnchor[] = [];
   let from: PointDraft | null = null;
   let to: PointDraft | null = null;
+  let ext: Extent | undefined;
+  let editAs: ImageEditAs | undefined;
   let embed: string | undefined;
   // The point (<xdr:from> or <xdr:to>) whose coordinate children are currently streaming in.
   let target: PointDraft | null = null;
+  // Depth inside <xdr:pic>, so the anchor-level <xdr:ext> is not confused with the <a:ext> nested in
+  // a picture's spPr transform (both have local name "ext").
+  let picDepth = 0;
   // Which coordinate child is open, so its text lands on the right field; '' between children.
   let coord = '';
   let text = '';
@@ -119,14 +167,23 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
   parseXml(xml, {
     onOpen(name, attrs) {
       const local = localName(name);
-      if (local === 'twoCellAnchor') {
+      if (local === 'twoCellAnchor' || local === 'oneCellAnchor') {
         from = blankPoint();
-        to = blankPoint();
+        to = local === 'twoCellAnchor' ? blankPoint() : null;
+        ext = undefined;
         embed = undefined;
+        const mode = attrs.editAs;
+        editAs = mode !== undefined && EDIT_AS.has(mode) ? (mode as ImageEditAs) : undefined;
+      } else if (local === 'pic') {
+        picDepth++;
       } else if (local === 'from') {
         target = from;
       } else if (local === 'to') {
         target = to;
+      } else if (local === 'ext' && picDepth === 0) {
+        const cx = Number(attrs.cx);
+        const cy = Number(attrs.cy);
+        if (Number.isFinite(cx) && Number.isFinite(cy)) ext = {cx, cy};
       } else if (local === 'blip') {
         const value = attrs['r:embed'] ?? attrs.embed;
         if (value !== undefined) embed = value;
@@ -146,12 +203,19 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
         coord = '';
       } else if (local === 'from' || local === 'to') {
         target = null;
-      } else if (local === 'twoCellAnchor') {
-        if (from !== null && to !== null && embed !== undefined) {
-          anchors.push({from: {...from}, to: {...to}, embed});
+      } else if (local === 'pic') {
+        picDepth--;
+      } else if (local === 'twoCellAnchor' || local === 'oneCellAnchor') {
+        if (from !== null && embed !== undefined) {
+          if (to !== null) {
+            anchors.push(editAs !== undefined ? {from: {...from}, to: {...to}, editAs, embed} : {from: {...from}, to: {...to}, embed});
+          } else if (ext !== undefined) {
+            anchors.push({from: {...from}, ext, embed});
+          }
         }
         from = null;
         to = null;
+        ext = undefined;
       }
     },
   });

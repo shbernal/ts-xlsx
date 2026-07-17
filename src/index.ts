@@ -49,6 +49,19 @@ export {
   type VerticalAlignment,
 } from './core/style.ts';
 
+export {
+  type AnchoredImage,
+  type AnchorPoint,
+  type Extent,
+  type ImageAnchor,
+  type ImageEditAs,
+  type OneCellAnchor,
+  type TwoCellAnchor,
+  type WorkbookImage,
+  isOneCellAnchor,
+  PX_TO_EMU,
+} from './core/image.ts';
+
 export {Cell} from './core/cell.ts';
 export {
   Worksheet,

@@ -79,7 +79,7 @@ const notImplemented = message => {
 const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties', 'definedNames']);
 const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
 const SUPPORTED_SHEET_KEYS = new Set([
-  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges', 'autoFilter',
+  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges', 'autoFilter', 'images',
 ]);
 const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'sharedFormula', 'result', 'hyperlink', 'text', 'tooltip', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
@@ -213,6 +213,18 @@ function buildFrom(spec = {}) {
     // model's setter accepts both, so pass it through verbatim.
     if (s.autoFilter !== undefined) sheet.autoFilter = s.autoFilter;
 
+    for (const img of s.images || []) {
+      // A spec omits `extension` to mean the default 'png'; it sets the key (to a dirty or missing
+      // value) on purpose to exercise write-side validation. Extension hygiene is a distinct,
+      // not-yet-implemented capability, so a deliberately dirty extension is deferred rather than
+      // mis-serialized into a media name and content type.
+      const extension = 'extension' in img ? img.extension : 'png';
+      if (extension === undefined || !/^[A-Za-z0-9]+$/.test(extension)) {
+        throw notImplemented('image extension hygiene not supported yet');
+      }
+      anchorSpecImage(sheet, workbook.addImage({buffer: ONE_PX_PNG, extension}), img.range);
+    }
+
     for (const col of s.columns || []) {
       for (const k of Object.keys(col)) {
         if (!SUPPORTED_COLUMN_KEYS.has(k)) throw notImplemented(`column.${k} not supported yet`);
@@ -337,6 +349,40 @@ function partMapOf(buffer) {
   for (const name of Object.keys(unzipped)) out[name] = strFromU8(unzipped[name]);
   return out;
 }
+
+const hexBytes = hex => Uint8Array.from(hex.match(/../g).map(h => parseInt(h, 16)));
+
+// Translate a corpus image range — a string like "B2:D6", or a {tl, br?/ext?, editAs?} object — into
+// the model's typed addImage call. A one-cell anchor is a point plus a fixed pixel extent (editAs is a
+// two-cell-only attribute the model drops by construction); a two-cell anchor spans tl..br. Fractional
+// grid coordinates are a not-yet-implemented capability, deferred rather than emitted as invalid XML.
+function anchorSpecImage(sheet, imageId, range) {
+  if (typeof range === 'string') {
+    const {left, top, right, bottom} = decodeRange(range);
+    sheet.addImage(imageId, {tl: {col: left - 1, row: top - 1}, br: {col: right, row: bottom}});
+    return;
+  }
+  const {tl, br, ext, editAs} = range;
+  const fractional = p => p && (!Number.isInteger(p.col) || !Number.isInteger(p.row));
+  if (fractional(tl) || fractional(br)) throw notImplemented('fractional image anchors not supported yet');
+  if (ext !== undefined) {
+    sheet.addImage(imageId, {tl, ext: {width: ext.width, height: ext.height}});
+  } else {
+    sheet.addImage(imageId, editAs !== undefined ? {tl, br, editAs} : {tl, br});
+  }
+}
+
+// Parse the integer children of an <xdr:from>/<xdr:to> block, mirroring the oracle so a drawing anchor
+// reports the same plain-number geometry from either adapter.
+const intAt = (xml, tag) => {
+  const m = xml.match(new RegExp(`<${tag}>(-?\\d+)</${tag}>`));
+  return m ? Number(m[1]) : null;
+};
+const parseAnchorSide = block =>
+  block
+    ? {col: intAt(block, 'xdr:col'), colOff: intAt(block, 'xdr:colOff'), row: intAt(block, 'xdr:row'), rowOff: intAt(block, 'xdr:rowOff')}
+    : null;
+const imageXmlWellFormed = xml => !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
 
 // Expand an OOXML sqref (space-separated ranges) into its covered cell references, bounded by a cap so
 // a whole-column range never balloons — used to check that a range-form validation is reported on
@@ -596,6 +642,168 @@ const impl = {
       drawingParts = parts.filter(n => /drawing/.test(n));
     }
     return {...surface, error, mediaParts, drawingParts};
+  },
+
+  // Build a workbook whose sheets place images at the spec's ranges, write it, and report the
+  // serialized drawing-anchor geometry (type, editAs, from/to, one-cell extent, spPr transform) as
+  // plain numbers — the surface a case asserts against for anchor correctness.
+  inspectImageAnchors(spec) {
+    const parts = partMapOf(writeXlsx(buildFrom(spec)));
+    const drawingParts = Object.keys(parts).filter(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f)).sort();
+    const anchors = [];
+    let xmlOk = true;
+    for (const p of drawingParts) {
+      const xml = parts[p];
+      if (!imageXmlWellFormed(xml)) xmlOk = false;
+      for (const m of xml.matchAll(/<xdr:(oneCellAnchor|twoCellAnchor)\b([^>]*)>([\s\S]*?)<\/xdr:\1>/g)) {
+        const body = m[3];
+        const fromBlock = (body.match(/<xdr:from>([\s\S]*?)<\/xdr:from>/) || [])[1];
+        const toBlock = (body.match(/<xdr:to>([\s\S]*?)<\/xdr:to>/) || [])[1];
+        const extTag = body.match(/<xdr:ext\b[^>]*cx="(\d+)"[^>]*cy="(\d+)"/);
+        const editAs = (m[2].match(/editAs="([^"]*)"/) || [])[1] || null;
+        const sppr = (body.match(/<xdr:spPr\b[\s\S]*?<\/xdr:spPr>/) || [])[0] || '';
+        const offTag = sppr.match(/<a:off\b[^>]*x="(-?\d+)"[^>]*y="(-?\d+)"/);
+        const spExtTag = sppr.match(/<a:ext\b[^>]*cx="(-?\d+)"[^>]*cy="(-?\d+)"/);
+        const off = offTag ? {x: Number(offTag[1]), y: Number(offTag[2])} : null;
+        const spExt = spExtTag ? {cx: Number(spExtTag[1]), cy: Number(spExtTag[2])} : null;
+        anchors.push({
+          anchorType: m[1] === 'oneCellAnchor' ? 'oneCell' : 'twoCell',
+          editAs,
+          from: parseAnchorSide(fromBlock),
+          to: parseAnchorSide(toBlock),
+          ext: extTag ? {cx: Number(extTag[1]), cy: Number(extTag[2])} : null,
+          spPr: {
+            hasXfrm: /<a:xfrm\b/.test(sppr),
+            off,
+            ext: spExt,
+            zeroedTransform: !!(off && spExt && off.x === 0 && off.y === 0 && spExt.cx === 0 && spExt.cy === 0),
+          },
+        });
+      }
+    }
+    return {anchors, drawingCount: drawingParts.length, xmlWellFormed: xmlOk};
+  },
+
+  // Anchor two images to single-cell ranges (C2, C3), interleaving cell writes, and report each
+  // anchor's serialized from col/row → { anchorCount, froms }. A cell-range anchor must resolve to
+  // that exact cell with no off-by-one row drift.
+  cellAnchoredImagePositionReport() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'r1';
+    anchorSpecImage(ws, wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), 'C2:C2');
+    ws.getCell('A2').value = 'r3';
+    anchorSpecImage(ws, wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), 'C3:C3');
+    const drawingXml = partMapOf(writeXlsx(wb))['xl/drawings/drawing1.xml'] || '';
+    const froms = [...drawingXml.matchAll(/<xdr:from>\s*<xdr:col>(\d+)<\/xdr:col>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/g)].map(m => ({
+      col: Number(m[1]),
+      row: Number(m[2]),
+    }));
+    return {anchorCount: froms.length, froms};
+  },
+
+  // Anchor a two-cell and a one-cell image, round-trip, and report each read-back image's top-left
+  // cell and whether its media survived → { count, images, mediaCount }.
+  enumerateImagesAfterRoundtrip() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.addImage(wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), {tl: {col: 1, row: 1}, br: {col: 3, row: 3}});
+    ws.addImage(wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), {tl: {col: 5, row: 5}, ext: {width: 50, height: 50}});
+    const reread = readXlsx(writeXlsx(wb));
+    const images = (reread.getWorksheet('S')?.images || []).map(im => {
+      const from = im.anchor.from;
+      return {tl: from ? {col: from.col, row: from.row} : null, hasMedia: !!reread.getImage(im.imageId)};
+    });
+    return {count: images.length, images, mediaCount: reread.media.length};
+  },
+
+  // Register two DISTINCT images (told apart by byte length) and place them interleaved (default
+  // B, A, A). Resolve, per anchor, which media part its embed actually references → so a case can
+  // assert every anchor renders the image it was placed with, including a reused image.
+  interleavedImageAnchors(placement = 'BAA') {
+    const PNG_A = hexBytes(
+      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da6360000002000001e5273db40000000049454e44ae426082'
+    );
+    const PNG_B = hexBytes(
+      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6300010000050001'
+    );
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    const ids = {A: wb.addImage({buffer: PNG_A, extension: 'png'}), B: wb.addImage({buffer: PNG_B, extension: 'png'})};
+    const placed = [...placement];
+    placed.forEach((letter, i) => {
+      const col = i * 2;
+      sheet.addImage(ids[letter], {tl: {col, row: 0}, br: {col: col + 2, row: 2}});
+    });
+    const buffer = writeXlsx(wb);
+    const raw = unzipSync(buffer);
+    const relsXml = strFromU8(raw['xl/drawings/_rels/drawing1.xml.rels'] || new Uint8Array());
+    const relTarget = {};
+    for (const t of relsXml.matchAll(/<Relationship\b[^>]*\/?>/g)) {
+      const a = attrsOf(t[0]);
+      relTarget[a.Id] = (a.Target || '').split('/').pop();
+    }
+    const drawingXml = strFromU8(raw['xl/drawings/drawing1.xml'] || new Uint8Array());
+    const embedOrder = [...drawingXml.matchAll(/r:embed="([^"]*)"/g)].map(m => m[1]);
+    const resolvedMedia = embedOrder.map(rid => relTarget[rid] ?? null);
+    const mediaSizes = {};
+    for (const name of Object.keys(raw)) {
+      const m = name.match(/^xl\/media\/(image\d+\.png)$/);
+      if (m) mediaSizes[m[1]] = raw[name].length;
+    }
+    const resolvedLetter = resolvedMedia.map(media => {
+      const size = mediaSizes[media];
+      if (size === PNG_A.length) return 'A';
+      if (size === PNG_B.length) return 'B';
+      return '?';
+    });
+    return {
+      placed,
+      embedOrder,
+      resolvedMedia,
+      resolvedLetter,
+      distinctMediaCount: Object.keys(mediaSizes).length,
+      distinctRelTargets: new Set(Object.values(relTarget)).size,
+    };
+  },
+
+  // Load a workbook from bytes, register and anchor an image on the loaded worksheet, re-serialize,
+  // and report the media/drawing presence and re-read image count → locks that adding an image to a
+  // *loaded* (not freshly created) worksheet persists.
+  addImageToLoadedWorksheetReport(range = 'B2:C4') {
+    const base = new Workbook();
+    base.addWorksheet('S').getCell('A1').value = 'x';
+    const loaded = readXlsx(writeXlsx(base));
+    anchorSpecImage(loaded.getWorksheet('S'), loaded.addImage({buffer: ONE_PX_PNG, extension: 'png'}), range);
+    const out = writeXlsx(loaded);
+    const files = Object.keys(partMapOf(out));
+    const reloadImages = readXlsx(out).getWorksheet('S')?.images || [];
+    return {
+      hasMedia: files.some(f => /xl\/media\//.test(f)),
+      hasDrawing: files.some(f => /xl\/drawings\/drawing/.test(f)),
+      reloadImageCount: reloadImages.length,
+    };
+  },
+
+  // Read a fixture and report each image's normalized anchor range → for asserting a file whose
+  // drawing anchors were authored as cell ranges reads without throwing and exposes integer cell
+  // coordinates, never a raw string.
+  readFixtureImageAnchors(rel) {
+    const workbook = readFixture(rel);
+    const images = [];
+    for (const sheet of workbook.worksheets) {
+      for (const im of sheet.images) {
+        const from = im.anchor.from;
+        const to = im.anchor.to;
+        images.push({
+          sheet: sheet.name,
+          editAs: im.anchor.editAs ?? null,
+          tl: from ? {col: from.col, row: from.row} : null,
+          br: to ? {col: to.col, row: to.row} : null,
+        });
+      }
+    }
+    return {images, count: images.length};
   },
 
   // Author a sheet, round-trip, load, append more rows after the last populated row, round-trip again →
