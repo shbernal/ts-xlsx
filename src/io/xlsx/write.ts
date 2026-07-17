@@ -234,25 +234,45 @@ export function buildPackageParts(
     };
   });
 
+  // Content the model does not interpret — a vector-shape drawing, a header/footer image — captured
+  // on read and re-emitted verbatim. Numbered after the backgrounds so their sheet-local rel ids sit
+  // at the tail of the sequence.
+  const preserved = planPreservedParts(
+    sheets,
+    sheetTables,
+    sheetDrawings,
+    sheetComments,
+    sheetPrinterSettings,
+    sheetHyperlinks,
+    sheetBackgrounds,
+    media.parts.length
+  );
+
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
   // side effect of that pass, so styles.xml can only be generated once every sheet is done.
   const styles = new StyleRegistry();
   // Seed the differential-style table with the fragments read from a source file so conditional
   // formatting's dxfId references stay valid; styles authored on rules append after them.
   styles.seedDifferentialStyles(workbook.differentialStyles);
-  const sheetXml = sheets.map((sheet, i) =>
-    worksheetXml(
+  const sheetXml = sheets.map((sheet, i) => {
+    const refs = preserved.perSheet[i] ?? [];
+    // A preserved `<drawing>` and a modeled one are mutually exclusive (a drawing is only preserved
+    // when the sheet modeled no image from it), so the `<drawing>` slot takes whichever exists.
+    const preservedDrawingRelId = refs.find(ref => ref.element === 'drawing')?.relId ?? null;
+    const legacyDrawingHFRelId = refs.find(ref => ref.element === 'legacyDrawingHF')?.relId ?? null;
+    return worksheetXml(
       sheet,
       sheetTables[i] ?? [],
       styles,
-      sheetDrawings[i]?.relId ?? null,
+      sheetDrawings[i]?.relId ?? preservedDrawingRelId,
       sheetComments[i]?.vmlRelId ?? null,
       sheetPrinterSettings[i]?.relId ?? null,
       sheetBackgrounds[i]?.relId ?? null,
+      legacyDrawingHFRelId,
       sheetHyperlinks[i] ?? [],
       sharedStrings
-    )
-  );
+    );
+  });
 
   // The pool is filled only once every sheet is serialised. Emit the part (and its rel + content
   // type) solely when the option is on and at least one string was interned, so a workbook with no
@@ -273,7 +293,8 @@ export function buildPackageParts(
         drawingNumbers,
         printerSettingsNumbers,
         media.extensions,
-        hasSharedStrings
+        hasSharedStrings,
+        preserved.parts
       )
     ),
     '_rels/.rels': strToU8(rootRelsXml()),
@@ -297,6 +318,7 @@ export function buildPackageParts(
     const printerSettings = sheetPrinterSettings[i] ?? null;
     const background = sheetBackgrounds[i] ?? null;
     const hyperlinks = sheetHyperlinks[i] ?? [];
+    const preservedRefs = preserved.perSheet[i] ?? [];
     const hasExternalHyperlink = hyperlinks.some((link) => link.relId !== undefined);
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
     if (
@@ -305,10 +327,11 @@ export function buildPackageParts(
       comments !== null ||
       printerSettings !== null ||
       background !== null ||
-      hasExternalHyperlink
+      hasExternalHyperlink ||
+      preservedRefs.length > 0
     ) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(
-        worksheetRelsXml(tables, drawing, comments, printerSettings, background, hyperlinks)
+        worksheetRelsXml(tables, drawing, comments, printerSettings, background, hyperlinks, preservedRefs)
       );
     }
     if (printerSettings !== null) {
@@ -326,6 +349,14 @@ export function buildPackageParts(
   });
   for (const {table, number} of allTables) {
     files[`xl/tables/table${number}.xml`] = strToU8(tableXml(table, number));
+  }
+  // Emit the verbatim-preserved parts (and their rewired rels) last: their paths are collision-proof,
+  // so ordering against the generated parts does not matter.
+  for (const part of preserved.parts) {
+    files[part.path] = part.bytes;
+    if (part.relsPath !== null && part.relsXml !== null) {
+      files[part.relsPath] = strToU8(part.relsXml);
+    }
   }
 
   return files;
@@ -362,6 +393,35 @@ interface BackgroundPlan {
   readonly relId: string;
   readonly mediaNumber: number;
   readonly extension: string;
+}
+
+// A verbatim-preserved package part resolved for serialisation: the collision-proof path it is
+// emitted at, its bytes and content type, and — when it references other parts — the rels part
+// linking it to their new paths.
+interface PreservedPartPlan {
+  readonly path: string;
+  readonly bytes: Uint8Array;
+  readonly contentType: string;
+  readonly relsPath: string | null;
+  readonly relsXml: string | null;
+}
+
+// A preserved worksheet reference resolved for serialisation: the worksheet element that carries it,
+// the sheet-local relationship id wiring that element, the relationship Type, and the new path of the
+// entry part the relationship targets.
+interface PreservedReferencePlan {
+  readonly element: 'drawing' | 'legacyDrawingHF';
+  readonly relId: string;
+  readonly relType: string;
+  readonly entryPath: string;
+}
+
+// The whole workbook's preserved content resolved for serialisation: per-sheet reference plans
+// (parallel to the sheets) that wire the worksheet elements and rels, and the flat list of parts to
+// emit. Kept together because the parts are numbered globally while the references are sheet-local.
+interface PreservedPlan {
+  readonly perSheet: readonly (readonly PreservedReferencePlan[])[];
+  readonly parts: readonly PreservedPartPlan[];
 }
 
 // A sheet's drawing part: its workbook-global number, the sheet-local relationship id linking the
@@ -428,6 +488,133 @@ function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): MediaPlan 
   return {parts, numberById, extensions: [...extensions]};
 }
 
+// Resolve every sheet's verbatim-preserved worksheet references (a vector-shape drawing, a
+// header/footer image) into the parts to emit and the sheet-local wiring to inject. Each reference's
+// captured part closure is re-numbered onto collision-proof `preservedP{n}` paths — so preserved
+// content never clobbers a generated drawing/VML/media part — with the closure's internal
+// relationships rewritten to the new sibling paths. The worksheet element's relationship id follows
+// every other sheet-local id (tables, drawing, comments, printer-settings, hyperlinks, background) so
+// adding it never renumbers an id already threaded into the sheet XML.
+function planPreservedParts(
+  sheets: readonly Worksheet[],
+  sheetTables: readonly (readonly PlannedTable[])[],
+  sheetDrawings: readonly (DrawingPlan | null)[],
+  sheetComments: readonly (CommentPlan | null)[],
+  sheetPrinterSettings: readonly (PrinterSettingsPlan | null)[],
+  sheetHyperlinks: readonly (readonly PlannedHyperlink[])[],
+  sheetBackgrounds: readonly (BackgroundPlan | null)[],
+  generatedMediaCount: number
+): PreservedPlan {
+  // A preserved part re-uses Excel's standard part naming (drawingN.xml, vmlDrawingN.vml,
+  // imageN.ext) so the output looks like a hand-authored package — with a per-kind counter that
+  // starts past the generated parts of that kind, so a preserved drawing never clobbers an anchored
+  // drawing, a preserved VML never clobbers a comment's VML, and preserved media never clobbers an
+  // anchored image. Comment VML is numbered by sheet index, so `sheets.length` bounds its numbers.
+  const numbering: PreservedNumbering = {
+    drawing: sheetDrawings.filter((d): d is DrawingPlan => d !== null).length,
+    vml: sheets.length,
+    media: generatedMediaCount,
+    generic: 0,
+  };
+  const parts: PreservedPartPlan[] = [];
+  const perSheet = sheets.map((sheet, i): PreservedReferencePlan[] => {
+    const references = sheet.preservedReferences;
+    if (references.length === 0) return [];
+    const externalHyperlinks = (sheetHyperlinks[i] ?? []).filter(link => link.relId !== undefined).length;
+    const base =
+      (sheetTables[i] ?? []).length +
+      (sheetDrawings[i] ? 1 : 0) +
+      (sheetComments[i] ? 2 : 0) +
+      (sheetPrinterSettings[i] ? 1 : 0) +
+      externalHyperlinks +
+      (sheetBackgrounds[i] ? 1 : 0);
+    let next = base + 1;
+    return references.map((reference): PreservedReferencePlan => {
+      // Number the whole closure first so a part's relationships can target its siblings' new paths.
+      const remap = new Map<string, string>();
+      for (const part of reference.parts) remap.set(part.path, preservedPartPath(part.path, numbering));
+      for (const part of reference.parts) {
+        const newPath = remap.get(part.path) as string;
+        const rels = part.rels.flatMap(rel => {
+          const target = remap.get(rel.targetPath);
+          return target === undefined ? [] : [{id: rel.id, type: rel.type, target: relativePartPath(newPath, target)}];
+        });
+        parts.push({
+          path: newPath,
+          bytes: part.bytes,
+          contentType: part.contentType,
+          relsPath: rels.length === 0 ? null : relsPathForPart(newPath),
+          relsXml: rels.length === 0 ? null : preservedRelsXml(rels),
+        });
+      }
+      return {
+        element: reference.element,
+        relId: `rId${next++}`,
+        relType: reference.element === 'drawing' ? REL.drawing : REL.vmlDrawing,
+        entryPath: remap.get(reference.entryPath) as string,
+      };
+    });
+  });
+  return {perSheet, parts};
+}
+
+// Per-kind counters for numbering preserved parts, each seeded past the generated parts of its kind.
+interface PreservedNumbering {
+  drawing: number;
+  vml: number;
+  media: number;
+  generic: number;
+}
+
+// The path a preserved part is emitted at, re-using Excel's standard naming for the kind it is (a
+// drawing, a VML, a media image) so the package reads like a normal one, with a per-kind number past
+// the generated parts of that kind (see {@link planPreservedParts}). A part of no recognised kind
+// keeps its original directory under a `preserved{n}` name the writer never generates.
+function preservedPartPath(originalPath: string, numbering: PreservedNumbering): string {
+  const ext = extensionOf(originalPath);
+  const lower = ext.toLowerCase();
+  if (lower === 'vml') return `xl/drawings/vmlDrawing${++numbering.vml}.vml`;
+  if (originalPath.startsWith('xl/media/')) return `xl/media/image${++numbering.media}.${ext}`;
+  if (originalPath.startsWith('xl/drawings/') && lower === 'xml') return `xl/drawings/drawing${++numbering.drawing}.xml`;
+  const slash = originalPath.lastIndexOf('/');
+  const dir = slash === -1 ? '' : originalPath.slice(0, slash + 1);
+  return `${dir}preserved${++numbering.generic}.${ext}`;
+}
+
+// The extension of a part path (`xl/media/image1.jpeg` → `jpeg`), or '' when it carries none.
+function extensionOf(partPath: string): string {
+  const dot = partPath.lastIndexOf('.');
+  const slash = partPath.lastIndexOf('/');
+  return dot > slash ? partPath.slice(dot + 1) : '';
+}
+
+// The relationships part path for `dir/name.ext` → `dir/_rels/name.ext.rels`.
+function relsPathForPart(partPath: string): string {
+  const slash = partPath.lastIndexOf('/');
+  const dir = slash === -1 ? '' : partPath.slice(0, slash + 1);
+  const base = slash === -1 ? partPath : partPath.slice(slash + 1);
+  return `${dir}_rels/${base}.rels`;
+}
+
+// A relationship target expressed relative to the part that carries it: the `..` hops out of the
+// referencing part's directory up to the common ancestor, then down to the target. Both paths are
+// package-absolute (`xl/drawings/preservedP1.vml` → `xl/media/preservedP2.jpeg` → `../media/preservedP2.jpeg`).
+function relativePartPath(fromPath: string, toPath: string): string {
+  const fromDir = fromPath.split('/').slice(0, -1);
+  const toSegments = toPath.split('/');
+  let common = 0;
+  while (common < fromDir.length && common < toSegments.length - 1 && fromDir[common] === toSegments[common]) {
+    common++;
+  }
+  const up = fromDir.length - common;
+  return [...Array<string>(up).fill('..'), ...toSegments.slice(common)].join('/');
+}
+
+function preservedRelsXml(rels: readonly {id: string; type: string; target: string}[]): string {
+  const body = rels.map(rel => relationship(rel.id, rel.type, escapeAttr(rel.target))).join('');
+  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${body}</Relationships>`;
+}
+
 function contentTypesXml(
   sheetCount: number,
   tables: readonly PlannedTable[],
@@ -435,8 +622,28 @@ function contentTypesXml(
   drawingNumbers: readonly number[],
   printerSettingsNumbers: readonly number[],
   mediaExtensions: readonly string[],
-  hasSharedStrings: boolean
+  hasSharedStrings: boolean,
+  preservedParts: readonly PreservedPartPlan[]
 ): string {
+  // A preserved part with its own XML content type (a drawing) needs an <Override>; a binary one (a
+  // VML, an image) is declared by a <Default> for its extension, deduped against the defaults already
+  // emitted (rels, xml, vml, bin, the media kinds) and against each other.
+  const declaredExtensions = new Set<string>(['rels', 'xml']);
+  if (commentNumbers.length > 0) declaredExtensions.add('vml');
+  if (printerSettingsNumbers.length > 0) declaredExtensions.add('bin');
+  for (const ext of mediaExtensions) declaredExtensions.add(ext.toLowerCase());
+  const preservedOverrides: string[] = [];
+  const preservedDefaults: string[] = [];
+  for (const part of preservedParts) {
+    const ext = part.path.slice(part.path.lastIndexOf('.') + 1);
+    if (ext.toLowerCase() === 'xml') {
+      preservedOverrides.push(override(`/${part.path}`, part.contentType));
+    } else if (!declaredExtensions.has(ext.toLowerCase())) {
+      declaredExtensions.add(ext.toLowerCase());
+      preservedDefaults.push(`<Default Extension="${ext}" ContentType="${part.contentType}"/>`);
+    }
+  }
+
   const overrides = [
     override('/xl/workbook.xml', CT.workbook),
     ...range(sheetCount).map(i => override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet)),
@@ -448,6 +655,7 @@ function contentTypesXml(
     ...(hasSharedStrings ? [override('/xl/sharedStrings.xml', CT.sharedStrings)] : []),
     override('/docProps/core.xml', CT.core),
     override('/docProps/app.xml', CT.app),
+    ...preservedOverrides,
   ].join('');
   // The VML drawings, printer-settings blobs, and each media kind are declared by extension-level
   // defaults rather than a per-part override — the raw bytes carry no XML content type of their own.
@@ -466,6 +674,7 @@ function contentTypesXml(
     vmlDefault +
     binDefault +
     imageDefaults +
+    preservedDefaults.join('') +
     overrides +
     '</Types>'
   );
@@ -624,6 +833,7 @@ function worksheetXml(
   legacyDrawingRelId: string | null,
   printerSettingsRelId: string | null,
   backgroundRelId: string | null,
+  legacyDrawingHFRelId: string | null,
   hyperlinks: readonly PlannedHyperlink[],
   sharedStrings: SharedStringTable | null
 ): string {
@@ -715,9 +925,11 @@ function worksheetXml(
     pageSetupXml(sheet.pageSetup, printerSettingsRelId) +
     headerFooterXml(sheet.headerFooter) +
     // Schema order near the tail: <drawing> (the images), then <legacyDrawing> (the VML holding the
-    // note boxes), then <picture> (the sheet background), then <tableParts>.
+    // note boxes), then <legacyDrawingHF> (a preserved header/footer image's VML), then <picture>
+    // (the sheet background), then <tableParts>.
     (drawingRelId !== null ? `<drawing r:id="${drawingRelId}"/>` : '') +
     (legacyDrawingRelId !== null ? `<legacyDrawing r:id="${legacyDrawingRelId}"/>` : '') +
+    (legacyDrawingHFRelId !== null ? `<legacyDrawingHF r:id="${legacyDrawingHFRelId}"/>` : '') +
     (backgroundRelId !== null ? `<picture r:id="${backgroundRelId}"/>` : '') +
     tablePartsXml(tables) +
     // `<extLst>` is the final child of CT_Worksheet and a worksheet may carry at most one. Both the
@@ -869,7 +1081,8 @@ function worksheetRelsXml(
   comments: CommentPlan | null,
   printerSettings: PrinterSettingsPlan | null,
   background: BackgroundPlan | null,
-  hyperlinks: readonly PlannedHyperlink[]
+  hyperlinks: readonly PlannedHyperlink[],
+  preservedReferences: readonly PreservedReferencePlan[]
 ): string {
   const rels = [
     ...tables.map(({relId, number}) => relationship(relId, REL.table, `../tables/table${number}.xml`)),
@@ -900,6 +1113,18 @@ function worksheetRelsXml(
             `../media/image${background.mediaNumber}.${background.extension}`
           ),
         ]),
+    // An external hyperlink's target is a URL outside the package, so its relationship carries
+    // TargetMode="External" and the plain `relationship()` helper (a package-internal target) will
+    // not do. Internal links have no relId and contribute nothing here.
+    // A preserved reference targets its entry part's new (package-absolute) path; a worksheet always
+    // lives under `xl/worksheets/`, so the target is that path made relative to that directory.
+    ...preservedReferences.map(reference =>
+      relationship(
+        reference.relId,
+        reference.relType,
+        escapeAttr(relativePartPath('xl/worksheets/sheet1.xml', reference.entryPath))
+      )
+    ),
     // An external hyperlink's target is a URL outside the package, so its relationship carries
     // TargetMode="External" and the plain `relationship()` helper (a package-internal target) will
     // not do. Internal links have no relId and contribute nothing here.

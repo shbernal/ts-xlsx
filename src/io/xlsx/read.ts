@@ -45,7 +45,14 @@ import type {
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {RichTextRun, SharedFormulaValue} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
-import type {PageMargins, PageSetup, Worksheet} from '../../core/worksheet.ts';
+import type {
+  PageMargins,
+  PageSetup,
+  PreservedPart,
+  PreservedRelationship,
+  PreservedWorksheetReference,
+  Worksheet,
+} from '../../core/worksheet.ts';
 import {decodeCellContent, decodeFormulaResult, type SharedString} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
@@ -92,6 +99,11 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   const workbookXml = partText('xl/workbook.xml');
   if (workbookXml === undefined) throw new Error('not an xlsx package: xl/workbook.xml is missing');
 
+  // A part's content type is needed to faithfully re-declare any part preserved verbatim for
+  // round-tripping (a vector-shape drawing, a header/footer image and its VML). Resolve it the way
+  // OPC does: an explicit `<Override>` for the exact part, else the `<Default>` for its extension.
+  const contentTypeOf = contentTypeResolver(partText('[Content_Types].xml') ?? '');
+
   const rels = parseRelationships(partText('xl/_rels/workbook.xml.rels') ?? '');
   const sharedStrings = parseSharedStrings(partText('xl/sharedStrings.xml') ?? '');
   // The style table resolves a cell/row/column style index to its facets (fill, number
@@ -132,6 +144,9 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
       if (notes !== undefined) applyNotes(sheet, notes);
       readSheetImages(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
       readSheetBackground(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
+      if (sheetXml !== undefined) {
+        readSheetPreservedReferences(path, sheetXml, partText, partBytes, contentTypeOf, sheet);
+      }
       readSheetTables(path, partText, sheet);
       const printerSettings = readSheetPrinterSettings(path, partText, partBytes);
       if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
@@ -247,6 +262,143 @@ function readSheetBackground(
     imageIdByMediaPath.set(mediaPath, id);
   }
   sheet.addBackgroundImage(id);
+}
+
+// Capture the worksheet-level references to package content the model does not interpret, so a
+// round-trip re-emits them verbatim instead of dropping them:
+//   • `<drawing>` — but only when the reader modeled no anchored image from it, i.e. a drawing that
+//     holds only vector shapes / text boxes. A drawing whose pictures were modeled is owned by the
+//     model and re-serialised from it; capturing it here too would double-emit those pictures.
+//   • `<legacyDrawingHF>` — a header/footer image's VML, which the model never interprets.
+// Each reference's target part and the transitive closure of parts it reaches (a VML's image, a
+// drawing's media) are captured with their bytes, content types, and relationships.
+function readSheetPreservedReferences(
+  sheetPath: string,
+  sheetXml: string,
+  partText: (path: string) => string | undefined,
+  partBytes: (path: string) => Uint8Array | undefined,
+  contentTypeOf: (path: string) => string,
+  sheet: Worksheet
+): void {
+  const relsXml = partText(relsPathFor(sheetPath));
+  if (relsXml === undefined) return;
+  const relTargets = parseRelationships(relsXml);
+  const referenceElements: Array<PreservedWorksheetReference['element']> =
+    sheet.images.length === 0 ? ['drawing', 'legacyDrawingHF'] : ['legacyDrawingHF'];
+  for (const element of referenceElements) {
+    const relId = worksheetReferenceRelId(sheetXml, element);
+    if (relId === undefined) continue;
+    const target = relTargets.get(relId);
+    if (target === undefined) continue;
+    const entryPath = resolveRelativePart(sheetPath, target);
+    const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
+    if (parts !== undefined) sheet.addPreservedReference({element, entryPath, parts});
+  }
+}
+
+// The `r:id` of the first `<drawing>` / `<legacyDrawingHF>` element in a worksheet, or undefined when
+// the sheet declares none. The reference lives in the worksheet XML (not distinguishable by
+// relationship Type — a header/footer VML and a comment VML share the `vmlDrawing` type), so the
+// specific relationship is found by reading the element's `r:id` here.
+function worksheetReferenceRelId(sheetXml: string, element: string): string | undefined {
+  let relId: string | undefined;
+  parseXml(sheetXml, {
+    onOpen(name, attrs) {
+      if (relId === undefined && localName(name) === element && attrs['r:id'] !== undefined) {
+        relId = attrs['r:id'];
+      }
+    },
+    onText() {},
+    onClose() {},
+  });
+  return relId;
+}
+
+// Gather the transitive closure of package parts reachable from an entry part — the part itself, then
+// every internal part its relationships target, breadth-first — each with its raw bytes, content type,
+// and (internal) relationships. Returns undefined when the entry part is absent (a dangling reference
+// preserves nothing). A `visited` set dedupes shared parts and bounds the walk to the (finite,
+// inflate-capped) package, so a maliciously self-referential rels graph cannot loop.
+function capturePartClosure(
+  entryPath: string,
+  partText: (path: string) => string | undefined,
+  partBytes: (path: string) => Uint8Array | undefined,
+  contentTypeOf: (path: string) => string
+): readonly PreservedPart[] | undefined {
+  const parts: PreservedPart[] = [];
+  const visited = new Set<string>();
+  const queue: string[] = [entryPath];
+  while (queue.length > 0) {
+    const path = queue.shift();
+    if (path === undefined || visited.has(path)) continue;
+    visited.add(path);
+    const bytes = partBytes(path);
+    if (bytes === undefined) continue;
+    const relsXml = partText(relsPathFor(path));
+    const rels: PreservedRelationship[] = [];
+    if (relsXml !== undefined) {
+      for (const rel of parseRelationshipRecords(relsXml)) {
+        if (rel.external) continue;
+        const targetPath = resolveRelativePart(path, rel.target);
+        rels.push({id: rel.id, type: rel.type, targetPath});
+        queue.push(targetPath);
+      }
+    }
+    parts.push({path, contentType: contentTypeOf(path), bytes, rels});
+  }
+  return parts.some(part => part.path === entryPath) ? parts : undefined;
+}
+
+// Resolve a package part path to its declared content type the way OPC does: an `<Override>` naming
+// the exact part wins, else the `<Default>` registered for the part's extension. An unknown part
+// falls back to the generic binary type so re-declaring it never emits an empty content type.
+function contentTypeResolver(contentTypesXml: string): (path: string) => string {
+  const overrides = new Map<string, string>();
+  const defaults = new Map<string, string>();
+  parseXml(contentTypesXml, {
+    onOpen(name, attrs) {
+      const local = localName(name);
+      if (local === 'Override' && attrs.PartName !== undefined && attrs.ContentType !== undefined) {
+        overrides.set(attrs.PartName, attrs.ContentType);
+      } else if (local === 'Default' && attrs.Extension !== undefined && attrs.ContentType !== undefined) {
+        defaults.set(attrs.Extension.toLowerCase(), attrs.ContentType);
+      }
+    },
+    onText() {},
+    onClose() {},
+  });
+  return (path: string): string =>
+    overrides.get(`/${path}`) ?? defaults.get(extensionOf(path).toLowerCase()) ?? 'application/octet-stream';
+}
+
+// A relationship as declared, with the fields a preserved-part closure needs: its id, Type URI,
+// Target, and whether the target lies outside the package (`TargetMode="External"`). A fuller record
+// than {@link parseRelationships}'s id→target map, which the closure walk uses to skip external
+// targets and carry each relationship's type through a re-write.
+function parseRelationshipRecords(
+  xml: string
+): Array<{id: string; type: string; target: string; external: boolean}> {
+  const records: Array<{id: string; type: string; target: string; external: boolean}> = [];
+  parseXml(xml, {
+    onOpen(name, attrs) {
+      if (
+        localName(name) === 'Relationship' &&
+        attrs.Id !== undefined &&
+        attrs.Type !== undefined &&
+        attrs.Target !== undefined
+      ) {
+        records.push({
+          id: attrs.Id,
+          type: attrs.Type,
+          target: attrs.Target,
+          external: attrs.TargetMode === 'External',
+        });
+      }
+    },
+    onText() {},
+    onClose() {},
+  });
+  return records;
 }
 
 // A sheet's tables live in `xl/tables/table{n}.xml` parts, each reached through a relationship of
@@ -1144,6 +1296,17 @@ function parseWorksheet(
         case 't':
           capture = true;
           break;
+        case 'oddHeader':
+        case 'oddFooter':
+        case 'evenHeader':
+        case 'evenFooter':
+        case 'firstHeader':
+        case 'firstFooter':
+          // A `<headerFooter>` child carries its header/footer definition as text (the `&`-prefixed
+          // section/format tokens, e.g. `&C&"Arial"&G`). Capture it verbatim so a round-trip preserves
+          // a header image's `&G` picture token and every other formatting directive.
+          capture = true;
+          break;
         case 'mergeCell':
           // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
           // bad range at the model boundary, but don't let one abort the whole parse — drop it and
@@ -1260,6 +1423,14 @@ function parseWorksheet(
           break;
         case 'is':
           inInlineString = false;
+          break;
+        case 'oddHeader':
+        case 'oddFooter':
+        case 'evenHeader':
+        case 'evenFooter':
+        case 'firstHeader':
+        case 'firstFooter':
+          sheet.headerFooter[local] = text;
           break;
         case 'c':
           finalizeCellFromState();

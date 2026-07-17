@@ -359,6 +359,31 @@ function partMapOf(buffer) {
   return out;
 }
 
+// Package-part facts a passthrough round-trip must preserve — the mirror of the oracle's
+// `packageFactsFromZip`: counts of part families the reader does not fully model (drawings, VML,
+// media, pivot tables/caches, comments) plus the worksheet/drawing reference flags that wire
+// unmodeled features (a vector-shape drawing, a header/footer image) into the sheet.
+const packagePartFacts = parts => {
+  const names = Object.keys(parts);
+  const at = rx => parts[names.find(p => rx.test(p))] ?? '';
+  const ws1 = at(/worksheets\/sheet1\.xml$/);
+  const drawing1 = at(/drawings\/drawing1\.xml$/);
+  return {
+    drawings: names.filter(p => /xl\/drawings\/drawing\d+\.xml$/.test(p)).length,
+    vml: names.filter(p => /vmlDrawing\d+\.vml$/.test(p)).length,
+    media: names.filter(p => /xl\/media\//.test(p)).length,
+    pivotTables: names.filter(p => /pivotTables\/pivotTable\d+\.xml$/.test(p)).length,
+    pivotCache: names.filter(p => /pivotCache\/.+\.xml$/.test(p)).length,
+    slicers: names.filter(p => /slicer/i.test(p)).length,
+    comments: names.filter(p => /comments\d+\.xml$/.test(p)).length,
+    hasLegacyDrawingHF: /<legacyDrawingHF\b/.test(ws1),
+    hasDrawingRef: /<drawing\b/.test(ws1),
+    hasHeaderFooterImageToken: /&amp;G|&G/.test(ws1),
+    drawingHasShape: /<xdr:sp\b/.test(drawing1),
+    drawingHasPicture: /<xdr:pic\b/.test(drawing1),
+  };
+};
+
 const hexBytes = hex => Uint8Array.from(hex.match(/../g).map(h => parseInt(h, 16)));
 
 // Translate a corpus image range — a string like "B2:D6", or a {tl, br?/ext?, editAs?} object — into
@@ -893,6 +918,15 @@ const impl = {
     const outDrawing = drawingName(outParts);
     const rewrittenRot = outDrawing ? rotOf(outParts[outDrawing]) : null;
     return {sourceRot, rewrittenRot};
+  },
+
+  // Read a fixture, write it back unchanged, and report package-part facts before/after →
+  // { source, rewritten } — for asserting a no-op round-trip PRESERVES parts the reader does not
+  // model (a vector-shape drawing, a header/footer image and its VML) instead of dropping them.
+  roundtripFixturePackageParts(rel) {
+    const source = packagePartFacts(partMapOf(fixtureBytes(rel)));
+    const rewritten = packagePartFacts(partMapOf(writeXlsx(readXlsx(fixtureBytes(rel)))));
+    return {source, rewritten};
   },
 
   // Author a sheet, round-trip, load, append more rows after the last populated row, round-trip again →

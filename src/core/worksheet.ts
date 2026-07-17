@@ -137,6 +137,44 @@ export interface HeaderFooter {
 }
 
 /**
+ * One outbound relationship of a {@link PreservedPart}: the id it carries inside its own rels part,
+ * the relationship Type URI, and the resolved package path of the (internal) target part. Only
+ * package-internal relationships are preserved — an external target (a URL) is not part of the
+ * closure and is dropped.
+ */
+export interface PreservedRelationship {
+  readonly id: string;
+  readonly type: string;
+  readonly targetPath: string;
+}
+
+/**
+ * A package part the model does not interpret, captured verbatim so a round-trip re-emits it intact.
+ * `bytes` are the raw part contents, `contentType` how the source package declared it, and `rels` its
+ * outbound relationships (empty when the part references nothing). The writer re-numbers the part to a
+ * fresh, collision-proof path and rewires `rels` accordingly, but never touches `bytes`.
+ */
+export interface PreservedPart {
+  readonly path: string;
+  readonly contentType: string;
+  readonly bytes: Uint8Array;
+  readonly rels: readonly PreservedRelationship[];
+}
+
+/**
+ * A worksheet-level reference to package content the model does not model — an `<drawing>` holding
+ * only vector shapes, or a `<legacyDrawingHF>` header/footer image — preserved verbatim across a
+ * round-trip instead of being silently dropped. `element` is the worksheet child that carries the
+ * reference; `entryPath` is the part it points at; `parts` is the transitive closure of parts that
+ * reference reaches (the entry included), each re-emitted with its relationships rewired.
+ */
+export interface PreservedWorksheetReference {
+  readonly element: 'drawing' | 'legacyDrawingHF';
+  readonly entryPath: string;
+  readonly parts: readonly PreservedPart[];
+}
+
+/**
  * Per-column formatting. A column may exist purely to carry these, with no cells. The style
  * facets are *defaults* for the column's cells: a cell that sets a facet of its own wins, but
  * one that leaves a facet unset inherits the column's — the same precedence Excel applies, and
@@ -324,6 +362,10 @@ export class Worksheet {
   // A sheet background is a single workbook image tiled behind the grid — distinct from an anchored
   // drawing (it has no anchor and rides its own worksheet relationship, not a drawing part).
   #backgroundImageId: number | undefined;
+  // Worksheet-level references to package content the model does not interpret (a vector-shape
+  // drawing, a header/footer image), captured verbatim on read so a round-trip re-emits them rather
+  // than dropping them. Empty for a sheet authored from scratch.
+  readonly #preservedReferences: PreservedWorksheetReference[] = [];
   // Decoded rectangles parallel to #merges, kept so that addressing a covered cell can
   // resolve to its region's master without re-parsing the range string on every access, and
   // so that a new merge can be checked for overlap against the existing ones. Only fully-bounded
@@ -603,6 +645,20 @@ export class Worksheet {
   /** The workbook image id set as this sheet's background, or `undefined` when it has none. */
   get backgroundImageId(): number | undefined {
     return this.#backgroundImageId;
+  }
+
+  /**
+   * Record a worksheet-level reference to package content the model does not interpret, so the writer
+   * re-emits it verbatim. Called by the reader when it meets a `<drawing>` holding only vector shapes
+   * or a `<legacyDrawingHF>` header/footer image; not part of the authoring surface.
+   */
+  addPreservedReference(reference: PreservedWorksheetReference): void {
+    this.#preservedReferences.push(reference);
+  }
+
+  /** The worksheet-level references to unmodeled package content preserved for round-tripping. */
+  get preservedReferences(): readonly PreservedWorksheetReference[] {
+    return this.#preservedReferences;
   }
 
   /**
