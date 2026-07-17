@@ -21,8 +21,12 @@ export interface TableColumn {
 }
 
 export interface TableOptions {
-  /** Table name — a valid Excel identifier, unique across the workbook. */
+  /** Table name — a valid Excel identifier, unique across the workbook. This is the name used in
+   * structured formula references (`Table1[Column]`). */
   name: string;
+  /** Human-facing display name shown in the UI. A free-form label (spaces allowed) that need not
+   * be a valid identifier. Defaults to {@link name} when omitted. */
+  displayName?: string;
   /** A1 reference of the table's top-left cell (an anchor, e.g. `"A1"` — not the full range). */
   ref: string;
   /** The table's columns, left to right. At least one is required. */
@@ -33,6 +37,10 @@ export interface TableOptions {
   headerRow?: boolean;
   /** Whether the table has a totals row. Defaults to `false`. */
   totalsRow?: boolean;
+  /** Whether the header row carries an autoFilter. Defaults to {@link headerRow}: a header table
+   * gains an autoFilter, a headerless one never can. Set `false` to keep a header table's rows
+   * unfiltered — a file read without an autoFilter must round-trip without one being injected. */
+  autoFilter?: boolean;
 }
 
 // Excel's table-name grammar: start with a letter, underscore, or backslash; every later
@@ -79,9 +87,11 @@ export interface TableRegion {
 
 export class Table {
   readonly name: string;
+  readonly displayName: string;
   readonly columns: readonly TableColumn[];
   readonly headerRow: boolean;
   readonly totalsRow: boolean;
+  readonly autoFilter: boolean;
 
   // The anchor and data-row count move when a row/column splice shifts or resizes the table, so
   // they are mutable behind the class's controlled `shiftRows`/`shiftColumns` methods.
@@ -104,9 +114,13 @@ export class Table {
     }
 
     this.name = options.name;
+    this.displayName = options.displayName ?? options.name;
     this.columns = options.columns.map(c => ({...c}));
     this.headerRow = options.headerRow ?? true;
     this.totalsRow = options.totalsRow ?? false;
+    // A header table gains an autoFilter by default (Excel's behaviour when a table is inserted);
+    // a headerless table can never carry one — an autoFilter has no header row to anchor to.
+    this.autoFilter = this.headerRow && (options.autoFilter ?? true);
     this.#anchorCol = col;
     this.#anchorRow = row;
     this.#dataRowCount = options.rowCount;
@@ -162,11 +176,13 @@ export class Table {
   get options(): TableOptions {
     return {
       name: this.name,
+      displayName: this.displayName,
       ref: encodeAddress(this.#anchorCol, this.#anchorRow),
       columns: this.columns.map(column => ({...column})),
       rowCount: this.#dataRowCount,
       headerRow: this.headerRow,
       totalsRow: this.totalsRow,
+      autoFilter: this.autoFilter,
     };
   }
 
@@ -177,11 +193,12 @@ export class Table {
 
   /**
    * The autoFilter range — the header row plus the data rows, never the totals row — or
-   * `null` for a headerless table, where an autoFilter has nothing to anchor to and Excel
-   * treats its presence as corruption.
+   * `null` when the table has no autoFilter: either it is headerless (an autoFilter has nothing
+   * to anchor to and Excel treats its presence as corruption) or its {@link autoFilter} flag is
+   * off (a table read without one must not gain one on round-trip).
    */
   get autoFilterRef(): string | null {
-    if (!this.headerRow) return null;
+    if (!this.autoFilter) return null;
     const bottom = this.#anchorRow + this.#dataRowCount;
     return `${encodeAddress(this.#anchorCol, this.#anchorRow)}:${encodeAddress(this.#right, bottom)}`;
   }

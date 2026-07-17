@@ -77,6 +77,24 @@ test('a range fully containing an existing merge is rejected', () => {
   assert.throws(() => sheet.mergeCells('A1:D4'), /overlaps/);
 });
 
+test('unmergeCells removes a merge and frees its rectangle for a new one', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.mergeCells('A1:B2');
+  assert.equal(sheet.unmergeCells('A1:B2'), true, 'the existing merge is removed');
+  assert.deepEqual([...sheet.merges], [], 'the merge list is empty again');
+  // A cell the merge had masked addresses independently, and the freed region re-merges.
+  assert.equal(sheet.getCell('B2').row, 2);
+  sheet.mergeCells('B2:C3');
+  assert.deepEqual([...sheet.merges], ['B2:C3']);
+});
+
+test('unmergeCells returns false for a range that was never merged', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.mergeCells('A1:B2');
+  assert.equal(sheet.unmergeCells('D4:E5'), false);
+  assert.deepEqual([...sheet.merges], ['A1:B2'], 'no merge is removed');
+});
+
 test('merges that only share an edge but no cell are both allowed', () => {
   const sheet = new Worksheet('S', 1);
   sheet.mergeCells('A1:B2');

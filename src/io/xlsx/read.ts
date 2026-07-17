@@ -14,7 +14,7 @@
 
 import {strFromU8} from 'fflate';
 
-import {decodeAddress, encodeAddress} from '../../core/address.ts';
+import {decodeAddress, decodeRange, encodeAddress} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import {
   type SheetProtection,
@@ -224,6 +224,24 @@ function readSheetTables(
     if (tableXml === undefined) continue;
     const options = parseTable(tableXml);
     if (options !== undefined) sheet.addTable(options);
+  }
+  dropMergesInsideTables(sheet);
+}
+
+// Excel forbids a merged range inside a formatted table and repairs such a file on load by dropping
+// the merge. A worksheet's merges are read before its tables, so a real file carrying that invalid
+// geometry lands in the model intact; this applies the same repair once the tables are known, so a
+// re-write does not surface the Excel-invalid geometry the writer (correctly) rejects.
+function dropMergesInsideTables(sheet: Worksheet): void {
+  const regions = sheet.tables.map(table => table.region);
+  if (regions.length === 0) return;
+  for (const range of [...sheet.merges]) {
+    const {top, left, bottom, right} = decodeRange(range);
+    if (top === undefined || left === undefined || bottom === undefined || right === undefined) continue;
+    const overlaps = regions.some(
+      region => left <= region.right && right >= region.left && top <= region.bottom && bottom >= region.top
+    );
+    if (overlaps) sheet.unmergeCells(range);
   }
 }
 

@@ -2034,6 +2034,58 @@ const impl = {
     return {writeOk, writeError, reloadOk, tableCount, idsUnique, firstSheetDvSurvives};
   },
 
+  // Read every table part of a fixture, then load→save it and read the re-emitted parts, reporting
+  // each table's autoFilter / header-row / totals-row / column-count facts before and after. A no-op
+  // round-trip of a table that has no autoFilter must not inject one, flip the header row off, or turn
+  // totalsRowShown on; a table that does have one must keep its ref and column count.
+  roundtripFixtureTableXml(rel) {
+    const facts = xml => ({
+      hasAutoFilter: /<(?:\w+:)?autoFilter\b/.test(xml),
+      autoFilterRef: (xml.match(/<(?:\w+:)?autoFilter\b[^>]*\bref="([^"]*)"/) || [])[1] ?? null,
+      headerRowCount: (xml.match(/\bheaderRowCount="([^"]*)"/) || [])[1] ?? null,
+      totalsRowShown: (xml.match(/\btotalsRowShown="([^"]*)"/) || [])[1] ?? null,
+      columnCount: (xml.match(/<tableColumns\b[^>]*\bcount="([^"]*)"/) || [])[1] ?? null,
+    });
+    const tablePartsInOrder = parts =>
+      Object.keys(parts)
+        .filter(n => /^xl\/tables\/table\d+\.xml$/.test(n))
+        .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
+        .map(n => parts[n]);
+    const buffer = fs.readFileSync(path.join(FIXTURES_ROOT, rel));
+    const source = tablePartsInOrder(partMapOf(buffer));
+    const rewritten = tablePartsInOrder(partMapOf(writeXlsx(readXlsx(buffer))));
+    return {
+      tables: source.map((xml, i) => ({
+        name: (xml.match(/<table\b[^>]*\bname="([^"]*)"/) || [])[1] ?? null,
+        source: facts(xml),
+        rewritten: rewritten[i] ? facts(rewritten[i]) : null,
+      })),
+    };
+  },
+
+  // Author a table whose display name differs from its internal name, then report the displayName
+  // written into the table part and the internal/display names read back from the reloaded model —
+  // a serializer that mis-keys the property drops the display name to the internal default.
+  tableDisplayNameReport(display) {
+    const wb = new Workbook();
+    wb.addWorksheet('S').addTable({
+      name: 'MyTable',
+      displayName: display,
+      ref: 'A1',
+      columns: [{name: 'C'}],
+      rowCount: 1,
+    });
+    const buffer = writeXlsx(wb);
+    const part = partMapOf(buffer)['xl/tables/table1.xml'] || '';
+    const writtenDisplayName = (part.match(/\bdisplayName="([^"]*)"/) || [])[1] ?? null;
+    const table = readXlsx(buffer).getWorksheet('S').tables[0];
+    return {
+      writtenDisplayName,
+      reloadedDisplayName: table ? table.displayName : null,
+      reloadedName: table ? table.name : null,
+    };
+  },
+
   // Build a formula-bearing spec, write it, read it back, and report each cell as
   // { formula, sharedFormula, result } — mirroring the oracle. A shared-formula clone reads back a
   // concrete formula (the master's, translated to the clone's address) while retaining its master

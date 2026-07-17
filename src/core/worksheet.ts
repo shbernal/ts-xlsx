@@ -515,6 +515,25 @@ export class Worksheet {
   }
 
   /**
+   * Remove a merged range previously added with {@link mergeCells}, returning whether a merge with
+   * that exact range string existed. The covering rectangle is dropped alongside it, so a cell the
+   * merge had masked addresses independently again. The inverse of {@link mergeCells}.
+   */
+  unmergeCells(range: string): boolean {
+    const index = this.#merges.indexOf(range);
+    if (index === -1) return false;
+    this.#merges.splice(index, 1);
+    const {top, left, bottom, right} = decodeRange(range);
+    if (top !== undefined && left !== undefined && bottom !== undefined && right !== undefined) {
+      const rectIndex = this.#mergeRects.findIndex(
+        r => r.top === top && r.left === left && r.bottom === bottom && r.right === right
+      );
+      if (rectIndex !== -1) this.#mergeRects.splice(rectIndex, 1);
+    }
+    return true;
+  }
+
+  /**
    * Attach a data validation to a target range (`"B2:B20"`, a whole column `"B2:B1048576"`, or a
    * space-separated `sqref` of several ranges). The rule is stored once against the range, not copied
    * per covered cell, so a whole-column dropdown stays a single entry. A cell inside the range reports

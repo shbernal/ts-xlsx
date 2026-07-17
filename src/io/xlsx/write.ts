@@ -804,6 +804,7 @@ function worksheetRelsXml(
 
 function tableXml(table: Table, id: number): string {
   const name = escapeAttr(table.name);
+  const displayName = escapeAttr(table.displayName);
   // headerRowCount defaults to 1 in OOXML, so only a headerless table needs it stated.
   const headerRowCount = table.headerRow ? '' : ' headerRowCount="0"';
   // totalsRowShown defaults to true; a table without a totals row must say so explicitly.
@@ -813,7 +814,7 @@ function tableXml(table: Table, id: number): string {
   const columns = table.columns.map((column, i) => tableColumnXml(column, i + 1)).join('');
   return (
     XML_DECLARATION +
-    `<table xmlns="${NS.main}" id="${id}" name="${name}" displayName="${name}" ` +
+    `<table xmlns="${NS.main}" id="${id}" name="${name}" displayName="${displayName}" ` +
     `ref="${table.ref}"${headerRowCount}${totals}>` +
     autoFilter +
     `<tableColumns count="${table.columns.length}">${columns}</tableColumns>` +

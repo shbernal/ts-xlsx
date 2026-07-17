@@ -16,21 +16,47 @@ import {localName, parseXml} from './xml-read.ts';
  * usable table (no name, no ref, or no columns — Excel treats such a part as corrupt, so we drop it
  * rather than fabricate a degenerate table).
  */
+/**
+ * Rename any column whose name collides (case-insensitively) with an earlier one, in place, by
+ * appending the smallest numeric suffix that makes it unique — the same disambiguation Excel applies
+ * when loading a table with duplicate column names.
+ */
+function disambiguateColumnNames(columns: TableColumn[]): void {
+  const seen = new Set<string>();
+  for (let i = 0; i < columns.length; i++) {
+    const column = columns[i];
+    if (column === undefined) continue;
+    let candidate = column.name;
+    for (let n = 2; seen.has(candidate.toLowerCase()); n++) candidate = `${column.name}${n}`;
+    seen.add(candidate.toLowerCase());
+    if (candidate !== column.name) columns[i] = {...column, name: candidate};
+  }
+}
+
 export function parseTable(xml: string): TableOptions | undefined {
   let name: string | undefined;
+  let displayName: string | undefined;
   let ref: string | undefined;
   let headerRowCount = 1; // OOXML default: a table carries a header row unless it says otherwise.
   let totalsRowCount = 0; // OOXML default: no totals row.
+  let hasAutoFilter = false; // Only present when the part carries an `<autoFilter>` element.
   const columns: TableColumn[] = [];
 
   parseXml(xml, {
     onOpen(elementName, attrs) {
       switch (localName(elementName)) {
         case 'table':
-          name = attrs.name;
+          // OOXML makes `displayName` the required identifier and `name` an optional alias; the
+          // model inverts the roles (`name` is the formula identifier, `displayName` the label),
+          // so read each from its own attribute and fall back across the pair when one is absent.
+          name = attrs.name ?? attrs.displayName;
+          displayName = attrs.displayName ?? attrs.name;
           ref = attrs.ref;
           if (attrs.headerRowCount !== undefined) headerRowCount = Number(attrs.headerRowCount);
           if (attrs.totalsRowCount !== undefined) totalsRowCount = Number(attrs.totalsRowCount);
+          break;
+        case 'autoFilter':
+          hasAutoFilter = true;
           break;
         case 'tableColumn': {
           if (attrs.name === undefined) break;
@@ -50,6 +76,11 @@ export function parseTable(xml: string): TableOptions | undefined {
 
   if (name === undefined || ref === undefined || columns.length === 0) return undefined;
 
+  // Real workbooks exist with duplicate table-column names (Excel writes the file, then disambiguates
+  // on load by suffixing the clashes). The model's authoring guard rejects duplicates outright, so the
+  // reader must resolve them here — matching Excel's suffixing — rather than reject a file Excel opens.
+  disambiguateColumnNames(columns);
+
   const {top, left, bottom} = decodeRange(ref);
   if (top === undefined || left === undefined || bottom === undefined) return undefined;
 
@@ -59,10 +90,14 @@ export function parseTable(xml: string): TableOptions | undefined {
 
   return {
     name,
+    displayName: displayName ?? name,
     ref: encodeAddress(left, top),
     columns,
     rowCount: Math.max(0, dataRows),
     headerRow,
     totalsRow,
+    // Reconstruct the autoFilter state explicitly from the part: a header table read without an
+    // `<autoFilter>` must not have one fabricated on the next write.
+    autoFilter: hasAutoFilter,
   };
 }

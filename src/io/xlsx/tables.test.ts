@@ -9,11 +9,13 @@ import {writeXlsx} from './write.ts';
 // reconstructed table for assertions.
 function roundtripTable(options: {
   name: string;
+  displayName?: string;
   ref: string;
   columns: {name: string; totalsRowLabel?: string; totalsRowFunction?: string}[];
   rowCount: number;
   headerRow?: boolean;
   totalsRow?: boolean;
+  autoFilter?: boolean;
 }) {
   const wb = new Workbook();
   wb.addWorksheet('S').addTable(options);
@@ -92,6 +94,48 @@ test('a totals-row table round-trips its totals flag and per-column totals behav
   assert.equal(table.ref, 'A1:B4', 'header + 2 data + totals spans four rows');
   assert.equal(table.columns[0]?.totalsRowLabel, 'Total');
   assert.equal(table.columns[1]?.totalsRowFunction, 'sum');
+});
+
+test('a distinct display name round-trips independently of the internal name', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addTable({
+    name: 'MyTable',
+    displayName: 'My Display Name',
+    ref: 'A1',
+    columns: [{name: 'C'}],
+    rowCount: 1,
+  });
+  const table = readXlsx(writeXlsx(wb)).getWorksheet('S')?.tables[0];
+  assert.ok(table !== undefined);
+  assert.equal(table.name, 'MyTable', 'the internal identifier is unaffected');
+  assert.equal(table.displayName, 'My Display Name', 'the display label survives the round-trip');
+});
+
+test('a display name defaults to the table name when unset', () => {
+  const [table] = roundtripTable({name: 'Plain', ref: 'A1', columns: [{name: 'C'}], rowCount: 1});
+  assert.ok(table !== undefined);
+  assert.equal(table.displayName, 'Plain');
+});
+
+test('a header table read without an autoFilter does not gain one on round-trip', () => {
+  const [table] = roundtripTable({
+    name: 'Unfiltered',
+    ref: 'A1',
+    columns: [{name: 'C'}],
+    rowCount: 2,
+    autoFilter: false,
+  });
+  assert.ok(table !== undefined);
+  assert.equal(table.headerRow, true, 'it keeps its header row');
+  assert.equal(table.autoFilterRef, null, 'but exposes no autoFilter range');
+  assert.equal(table.options.autoFilter, false, 'and the flag survives the round-trip');
+});
+
+test('a header table gains an autoFilter by default', () => {
+  const [table] = roundtripTable({name: 'Filtered', ref: 'A1', columns: [{name: 'C'}], rowCount: 2});
+  assert.ok(table !== undefined);
+  assert.equal(table.autoFilterRef, 'A1:A3', 'the default autoFilter spans header + data rows');
+  assert.equal(table.options.autoFilter, true);
 });
 
 test('several tables on one sheet all read back in definition order', () => {
