@@ -340,3 +340,39 @@ test('registering an image on a committed streamed workbook is rejected legibly'
   await writer.commit();
   assert.throws(() => writer.addImage({buffer: ONE_PX_PNG, extension: 'png'}), /already committed/);
 });
+
+test('a streamed sheet carrying both protection and an autofilter emits them in CT_Worksheet order', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.addRow(['H1', 'H2']).commit();
+  sheet.addRow(['a', 'b']).commit();
+  sheet.autoFilter = 'A1:B1';
+  sheet.protect('pw', {});
+  sheet.commit();
+
+  const bytes = await writer.commit();
+  const xml = partText(bytes, 'xl/worksheets/sheet1.xml');
+  const posProtection = xml.indexOf('<sheetProtection');
+  const posAutoFilter = xml.indexOf('<autoFilter');
+  assert.ok(posProtection >= 0, 'the streamed sheet carries sheetProtection');
+  assert.ok(posAutoFilter >= 0, 'the streamed sheet carries autoFilter');
+  assert.ok(posProtection < posAutoFilter, '<sheetProtection> precedes <autoFilter> per the schema');
+  // The whole package still reloads, and the autofilter survives.
+  assert.deepEqual(readXlsx(bytes).getWorksheet('S')?.autoFilter, {ref: 'A1:B1', columns: []});
+});
+
+test('the streamed sheet autoFilter getter reflects what was set', () => {
+  const sheet = new WorkbookStreamWriter().addWorksheet('S');
+  assert.strictEqual(sheet.autoFilter, undefined);
+  sheet.autoFilter = 'A1:C3';
+  assert.deepEqual(sheet.autoFilter, {ref: 'A1:C3', columns: []});
+});
+
+test('setting protection or an autofilter on a committed streamed sheet is rejected legibly', () => {
+  const sheet = new WorkbookStreamWriter().addWorksheet('S');
+  sheet.commit();
+  assert.throws(() => sheet.protect('pw', {}), /already committed/);
+  assert.throws(() => {
+    sheet.autoFilter = 'A1:B2';
+  }, /already committed/);
+});

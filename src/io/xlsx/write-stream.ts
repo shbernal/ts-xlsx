@@ -25,10 +25,12 @@ import {PassThrough, type Readable, type Writable} from 'node:stream';
 
 import {Zip, ZipDeflate} from 'fflate';
 
+import type {AutoFilter} from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
 import type {ConditionalFormatting} from '../../core/conditional-formatting.ts';
 import type {DataValidation} from '../../core/data-validation.ts';
 import type {AnchorPoint} from '../../core/image.ts';
+import type {SheetProtectionOptions} from '../../core/protection.ts';
 import type {CellValue} from '../../core/value.ts';
 import {Workbook, type AddImageOptions, type AddWorksheetOptions} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
@@ -156,6 +158,30 @@ export class WorksheetStreamWriter {
   addImage(imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint}): void {
     this.#assertOpen();
     this.#sheet.addImage(imageId, anchor);
+  }
+
+  /**
+   * Apply the sheet's autofilter before it is committed; mirrors {@link Worksheet.autoFilter}. The
+   * streamed package emits `<autoFilter>` in its CT_Worksheet slot — after `<sheetProtection>` — and
+   * contributes the hidden `_FilterDatabase` defined name, exactly as a buffered write does.
+   */
+  set autoFilter(filter: string | AutoFilter | undefined) {
+    this.#assertOpen();
+    this.#sheet.autoFilter = filter;
+  }
+
+  get autoFilter(): AutoFilter | undefined {
+    return this.#sheet.autoFilter;
+  }
+
+  /**
+   * Apply sheet-level protection before the sheet is committed; mirrors {@link Worksheet.protect}. The
+   * shared serializer places `<sheetProtection>` ahead of `<autoFilter>` per CT_Worksheet, so a
+   * streamed sheet carrying both stays valid rather than corrupt.
+   */
+  protect(password?: string, options: SheetProtectionOptions = {}): void {
+    this.#assertOpen();
+    this.#sheet.protect(password, options);
   }
 
   /** Freeze the sheet: no more rows or edits may be added after this. */

@@ -536,6 +536,95 @@ const impl = {
     return {rejected: error != null, error, legibleRejection, internalCrash, reloadOk};
   },
 
+  // Stream-write a sheet carrying both an autofilter and sheet protection, then inspect the emitted
+  // worksheet XML for CT_Worksheet ordering → { protectThrew, sheetProtectionBeforeAutoFilter,
+  // reloadOk }. <sheetProtection> must precede <autoFilter>; the shared serializer guarantees it.
+  async streamAutoFilterProtectionOrder() {
+    const writer = new WorkbookStreamWriter();
+    const sheet = writer.addWorksheet('S');
+    sheet.addRow(['H1', 'H2']).commit();
+    sheet.addRow(['a', 'b']).commit();
+    sheet.autoFilter = 'A1:B1';
+    let protectThrew = false;
+    try {
+      sheet.protect('pw', {});
+    } catch {
+      protectThrew = true;
+    }
+    sheet.commit();
+    const buffer = Buffer.from(await writer.commit());
+    const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const posProt = xml.indexOf('<sheetProtection');
+    const posAf = xml.indexOf('<autoFilter');
+    let reloadOk = true;
+    try {
+      readXlsx(buffer);
+    } catch {
+      reloadOk = false;
+    }
+    return {protectThrew, sheetProtectionBeforeAutoFilter: posProt >= 0 && posAf >= 0 && posProt < posAf, reloadOk};
+  },
+
+  // Probe the streaming writer's image parity → { writerAddImage, sheetAddImage, error, mediaParts,
+  // drawingParts }. A registered image anchored on a streamed sheet must embed a media binary and a
+  // drawing part, exactly like the in-memory writer. The oracle anchors by range string; the model's
+  // addImage takes grid points, so decode the range into a tl/br rectangle here.
+  async streamWriterImageSupport(range = 'B2:D6') {
+    const writer = new WorkbookStreamWriter();
+    const sheet = writer.addWorksheet('S');
+    const surface = {
+      writerAddImage: typeof writer.addImage === 'function',
+      sheetAddImage: typeof sheet.addImage === 'function',
+    };
+    let error = null;
+    let buffer = null;
+    try {
+      const imageId = writer.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+      const {left, top, right, bottom} = decodeRange(range);
+      sheet.addImage(imageId, {tl: {col: left - 1, row: top - 1}, br: {col: right, row: bottom}});
+      sheet.addRow(['x']).commit();
+      sheet.commit();
+      buffer = Buffer.from(await writer.commit());
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    let mediaParts = [];
+    let drawingParts = [];
+    if (!error && buffer) {
+      const parts = Object.keys(partMapOf(buffer));
+      mediaParts = parts.filter(n => /xl\/media\//.test(n));
+      drawingParts = parts.filter(n => /drawing/.test(n));
+    }
+    return {...surface, error, mediaParts, drawingParts};
+  },
+
+  // Author a sheet, round-trip, load, append more rows after the last populated row, round-trip again →
+  // { loadedRowCount, finalRowCount, rows }. The load-bearing fact: a reloaded sheet reports its last
+  // populated row so addRow lands new content at N+1 with no gap or overwrite.
+  appendRowsAfterReload(initial = [], append = []) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    for (const row of initial) sheet.addRow(row);
+
+    const loaded = readXlsx(writeXlsx(workbook));
+    const s = loaded.getWorksheet('S');
+    const loadedRowCount = s.rowCount;
+    for (const row of append) s.addRow(row);
+
+    const final = readXlsx(writeXlsx(loaded));
+    const f = final.getWorksheet('S');
+    // Mirror the oracle's `row.values.slice(1)` per-row array: each row is sized to its own populated
+    // extent, holes are null, and an empty row is an empty array — indexed by row number so a gap shows.
+    const rows = Array.from({length: f.rowCount}, () => []);
+    for (const {number, cells} of f.rows()) {
+      const maxCol = cells.reduce((m, c) => Math.max(m, c.col), 0);
+      const arr = new Array(maxCol).fill(null);
+      for (const cell of cells) arr[cell.col - 1] = normalizeStreamValue(cell.value);
+      rows[number - 1] = arr;
+    }
+    return {loadedRowCount, finalRowCount: f.rowCount, rows};
+  },
+
   // Pipe the streaming writer's output stream to a sink and report { pipeReturnsDestination, bytes,
   // valid }. Node's Readable.pipe(dest) must RETURN dest so `.pipe(out).on('finish', …)` composes,
   // while the piped payload still reconstitutes a valid workbook.
