@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import {strFromU8, unzipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
+import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
 function partsOf(workbook: Workbook): Record<string, string> {
@@ -552,4 +553,73 @@ test('unprotect() removes a sheet-protection element previously set', () => {
   s.unprotect();
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.doesNotMatch(xml, /<sheetProtection/);
+});
+
+test('a sheet autofilter emits an <autoFilter> element after <sheetProtection>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.protect('pw');
+  s.autoFilter = 'A1:C10';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<autoFilter ref="A1:C10"\/>/);
+  assert.ok(
+    xml.indexOf('<sheetProtection') < xml.indexOf('<autoFilter'),
+    'autoFilter follows sheetProtection in CT_Worksheet order'
+  );
+});
+
+test('a sheet with no autofilter emits no <autoFilter> and no _FilterDatabase', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const parts = partsOf(wb);
+  assert.doesNotMatch(parts['xl/worksheets/sheet1.xml'] as string, /<autoFilter/);
+  assert.doesNotMatch(parts['xl/workbook.xml'] as string, /_FilterDatabase/);
+});
+
+test('a sheet autofilter generates a hidden, sheet-scoped _FilterDatabase built-in', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.autoFilter = 'A1:C10';
+  const xml = partsOf(wb)['xl/workbook.xml'] as string;
+  assert.match(
+    xml,
+    /<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">S!\$A\$1:\$C\$10<\/definedName>/
+  );
+});
+
+test('a _FilterDatabase quotes a sheet name that needs it and uses the sheet 0-based index', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('First').getCell('A1').value = 'x';
+  const second = wb.addWorksheet('Sales 2024');
+  second.getCell('A1').value = 'y';
+  second.autoFilter = 'A1:B5';
+  const xml = partsOf(wb)['xl/workbook.xml'] as string;
+  assert.match(
+    xml,
+    /<definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">'Sales 2024'!\$A\$1:\$B\$5<\/definedName>/
+  );
+});
+
+test('a sheet autofilter round-trips through write then read, and drops no user defined name', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.autoFilter = 'A1:C10';
+  wb.defineName({name: 'TaxRate', refersTo: 'S!$A$1'});
+
+  const back = readXlsx(writeXlsx(wb));
+  const sheet = back.getWorksheet('S');
+  assert.ok(sheet !== undefined);
+  assert.equal(sheet.autoFilter, 'A1:C10', 'the filter range survives the round-trip');
+  // The system-generated _FilterDatabase is reconstructed from the sheet, never surfaced as a name…
+  assert.deepEqual(
+    back.definedNames.map(n => n.name),
+    ['TaxRate'],
+    'only the user name is exposed; _FilterDatabase is filtered out'
+  );
+  // …and re-writing does not accumulate a duplicate.
+  const rewritten = partsOf(back)['xl/workbook.xml'] as string;
+  assert.equal((rewritten.match(/_FilterDatabase/g) ?? []).length, 1, 'exactly one _FilterDatabase after a re-write');
 });

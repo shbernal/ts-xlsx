@@ -364,6 +364,10 @@ function parseWorkbookDefinedNames(xml: string, sheetOrder: readonly string[]): 
   parseXml(xml, {
     onOpen(name, attrs) {
       if (localName(name) !== 'definedName' || attrs.name === undefined) return;
+      // `_xlnm._FilterDatabase` is the built-in Excel derives from a sheet's autofilter, not a
+      // user-defined name: it is reconstructed from the sheet's `<autoFilter>` element, so skip it
+      // here to keep it off `Workbook.definedNames` and out of a duplicating round-trip.
+      if (attrs.name === '_xlnm._FilterDatabase') return;
       capture = true;
       refersTo = '';
       const scopeIndex = attrs.localSheetId === undefined ? -1 : Number(attrs.localSheetId);
@@ -1094,6 +1098,18 @@ function parseWorksheet(
           if (protection !== undefined) sheet.restoreProtection(protection);
           break;
         }
+        case 'autoFilter':
+          // The sheet's autofilter range is authoritative; its `_FilterDatabase` defined name is a
+          // derived artifact the workbook reader drops. A malformed ref in a hostile file must not
+          // abort the parse — skip it and keep reading, mirroring the merge-range guard above.
+          if (attrs.ref !== undefined && attrs.ref !== '') {
+            try {
+              sheet.autoFilter = attrs.ref;
+            } catch {
+              // unbounded or malformed autofilter range in the source file — ignore it
+            }
+          }
+          break;
         default:
           // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) sets one font facet; it
           // is self-closing, so it is read here on open. Nothing else uses the default branch.

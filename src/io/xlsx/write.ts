@@ -478,24 +478,50 @@ function calcPrXml(workbook: Workbook): string {
 // under the prefix Excel requires; a plain reference has no function call and passes through
 // untouched. Only names that are actually set emit anything.
 function definedNamesXml(workbook: Workbook): string {
-  const names = workbook.definedNames;
-  if (names.length === 0) return '';
   const sheets = workbook.worksheets;
-  const entries = names
-    .map(name => {
-      const scopeAttr =
-        name.scope === undefined
-          ? ''
-          : ` localSheetId="${sheets.findIndex(sheet => sheet.name === name.scope)}"`;
-      const commentAttr = name.comment === undefined ? '' : ` comment="${escapeAttr(name.comment)}"`;
-      const hiddenAttr = name.hidden ? ' hidden="1"' : '';
-      return (
-        `<definedName name="${escapeAttr(name.name)}"${scopeAttr}${commentAttr}${hiddenAttr}>` +
-        `${escapeText(mangleFormula(name.refersTo))}</definedName>`
-      );
-    })
-    .join('');
-  return `<definedNames>${entries}</definedNames>`;
+  const userEntries = workbook.definedNames.map(name => {
+    const scopeAttr =
+      name.scope === undefined
+        ? ''
+        : ` localSheetId="${sheets.findIndex(sheet => sheet.name === name.scope)}"`;
+    const commentAttr = name.comment === undefined ? '' : ` comment="${escapeAttr(name.comment)}"`;
+    const hiddenAttr = name.hidden ? ' hidden="1"' : '';
+    return (
+      `<definedName name="${escapeAttr(name.name)}"${scopeAttr}${commentAttr}${hiddenAttr}>` +
+      `${escapeText(mangleFormula(name.refersTo))}</definedName>`
+    );
+  });
+  // Every sheet-level autofilter contributes the hidden, sheet-scoped `_FilterDatabase` built-in that
+  // Excel derives from its range. The reader drops these on load and rebuilds them from the sheet's
+  // `<autoFilter>`, so `Worksheet.autoFilter` stays the single source of truth and a round-trip never
+  // duplicates them.
+  const filterEntries = sheets.flatMap((sheet, index) =>
+    sheet.autoFilter === undefined
+      ? []
+      : [
+          `<definedName name="_xlnm._FilterDatabase" localSheetId="${index}" hidden="1">` +
+            `${escapeText(filterDatabaseRefersTo(sheet.name, sheet.autoFilter))}</definedName>`,
+        ]
+  );
+
+  const entries = [...userEntries, ...filterEntries];
+  if (entries.length === 0) return '';
+  return `<definedNames>${entries.join('')}</definedNames>`;
+}
+
+// Build the sheet-qualified, fully-absolute reference a `_FilterDatabase` name carries
+// (`'Sheet 1'!$A$1:$C$10`) from a sheet name and its already-canonical `A1:C10` autofilter range.
+function filterDatabaseRefersTo(sheetName: string, range: string): string {
+  const absolute = range.replace(/([A-Z]+)(\d+)/g, '$$$1$$$2');
+  return `${quoteSheetName(sheetName)}!${absolute}`;
+}
+
+// Quote a sheet name for use in a reference exactly when Excel would: a name that is not a plain
+// identifier (or that looks like a cell address) is wrapped in single quotes with internal quotes
+// doubled; a simple name is left bare so the output matches what Excel writes.
+function quoteSheetName(name: string): string {
+  const bare = /^[A-Za-z_][A-Za-z0-9_.]*$/.test(name) && !/^[A-Za-z]{1,3}\d+$/.test(name);
+  return bare ? name : `'${name.replace(/'/g, "''")}'`;
 }
 
 function workbookRelsXml(sheetCount: number, hasSharedStrings: boolean): string {
@@ -635,6 +661,9 @@ function worksheetXml(
     colsXml(sheet, styles) +
     sheetData +
     sheetProtectionXml(sheet.protection) +
+    // CT_Worksheet order: <autoFilter> follows <sheetProtection> (and the scenarios block) and
+    // precedes <mergeCells>. Its `_FilterDatabase` companion is emitted in the workbook part.
+    autoFilterXml(sheet.autoFilter) +
     mergeCellsXml(sheet.merges) +
     // CT_Worksheet order: <conditionalFormatting> blocks follow <mergeCells>, then <dataValidations>,
     // then <hyperlinks> — all precede the print settings.
@@ -722,6 +751,13 @@ function mergeCellsXml(merges: readonly string[]): string {
   if (merges.length === 0) return '';
   const cells = merges.map(range => `<mergeCell ref="${escapeAttr(decodeRange(range).dimensions)}"/>`).join('');
   return `<mergeCells count="${merges.length}">${cells}</mergeCells>`;
+}
+
+// The sheet's autofilter is a single `<autoFilter ref="A1:C10"/>`; its companion `_FilterDatabase`
+// defined name (the range Excel derives filtering from) is written in the workbook part, so a sheet
+// with no filter emits nothing here and nothing there.
+function autoFilterXml(range: string | undefined): string {
+  return range === undefined ? '' : `<autoFilter ref="${escapeAttr(range)}"/>`;
 }
 
 // Each sheet-protection flag maps to a `<sheetProtection>` attribute whose value is INVERTED

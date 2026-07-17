@@ -317,6 +317,10 @@ export class Worksheet {
   readonly #conditionalFormattings: ConditionalFormatting[] = [];
   // Sheet-level protection is a single overlay switch, absent until `protect` is called.
   #protection: SheetProtection | undefined;
+  // The sheet's autofilter range (`"A1:C10"`), absent until one is set. A single sheet-level overlay,
+  // distinct from a table's own autofilter; stored canonically so the `<autoFilter>` element and the
+  // derived `_FilterDatabase` defined name the writer generates from it always agree.
+  #autoFilter: string | undefined;
 
   constructor(name: string, id: number, state: WorksheetState['state'] = 'visible') {
     this.name = name;
@@ -512,6 +516,31 @@ export class Worksheet {
   /** The merged ranges on this sheet, in the order they were added. */
   get merges(): readonly string[] {
     return this.#merges;
+  }
+
+  /**
+   * The sheet's autofilter range (`"A1:C10"`), or `undefined` when the sheet carries none. Setting a
+   * range turns on the header-row filter dropdowns Excel draws over it; the writer emits both the
+   * sheet's `<autoFilter>` element and the hidden `_FilterDatabase` defined name Excel derives from
+   * it. Setting `undefined` clears the filter.
+   *
+   * The range is normalised to its canonical `A1:C10` form on assignment and must be a bounded
+   * rectangle — a whole-row/column reference is not a filterable region and is rejected.
+   */
+  get autoFilter(): string | undefined {
+    return this.#autoFilter;
+  }
+
+  set autoFilter(range: string | undefined) {
+    if (range === undefined) {
+      this.#autoFilter = undefined;
+      return;
+    }
+    const {top, left, bottom, right, dimensions} = decodeRange(range);
+    if (top === undefined || left === undefined || bottom === undefined || right === undefined) {
+      throw new Error(`autofilter range "${range}" must be a bounded rectangle`);
+    }
+    this.#autoFilter = dimensions;
   }
 
   /**

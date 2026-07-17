@@ -95,6 +95,30 @@ test('unmergeCells returns false for a range that was never merged', () => {
   assert.deepEqual([...sheet.merges], ['A1:B2'], 'no merge is removed');
 });
 
+test('a sheet carries no autofilter until one is set', () => {
+  const sheet = new Worksheet('S', 1);
+  assert.equal(sheet.autoFilter, undefined);
+});
+
+test('setting an autofilter normalises the range to its canonical corner order', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.autoFilter = 'C10:A1';
+  assert.equal(sheet.autoFilter, 'A1:C10');
+});
+
+test('clearing an autofilter with undefined removes it', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.autoFilter = 'A1:C10';
+  sheet.autoFilter = undefined;
+  assert.equal(sheet.autoFilter, undefined);
+});
+
+test('an unbounded autofilter range is rejected — a filter needs a bounded rectangle', () => {
+  const sheet = new Worksheet('S', 1);
+  assert.throws(() => (sheet.autoFilter = 'A:C'), /bounded rectangle/);
+  assert.equal(sheet.autoFilter, undefined, 'the rejected range never takes hold');
+});
+
 test('merges that only share an edge but no cell are both allowed', () => {
   const sheet = new Worksheet('S', 1);
   sheet.mergeCells('A1:B2');
