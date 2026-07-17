@@ -79,9 +79,9 @@ const notImplemented = message => {
 const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties', 'definedNames']);
 const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
 const SUPPORTED_SHEET_KEYS = new Set([
-  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges', 'autoFilter', 'images',
+  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges', 'autoFilter', 'images', 'background',
 ]);
-const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'sharedFormula', 'result', 'hyperlink', 'text', 'tooltip', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection']);
+const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'sharedFormula', 'result', 'hyperlink', 'text', 'tooltip', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection', 'note']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
 const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt', 'fill', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
@@ -249,6 +249,11 @@ function buildFrom(spec = {}) {
       const options = 'extension' in img ? {buffer: ONE_PX_PNG, extension: img.extension} : {buffer: ONE_PX_PNG};
       anchorSpecImage(sheet, workbook.addImage(options), img.range);
     }
+    // A sheet background is a workbook image tiled behind the grid, not anchored — it rides its own
+    // worksheet `<picture>` relationship, so a case can assert it coexists with comment/VML parts.
+    if (s.background) {
+      sheet.addBackgroundImage(workbook.addImage({buffer: ONE_PX_PNG, extension: s.background.extension || 'png'}));
+    }
 
     for (const c of s.cells || []) {
       for (const k of Object.keys(c)) {
@@ -287,6 +292,9 @@ function buildFrom(spec = {}) {
       if (c.border !== undefined) cell.border = c.border;
       if (c.alignment !== undefined) cell.alignment = c.alignment;
       if (c.protection !== undefined) cell.protection = c.protection;
+      // A note attaches a comments part + legacy VML drawing; a case pairs it with a background image
+      // to assert the two features' worksheet relationships never collide.
+      if (c.note !== undefined) cell.note = c.note;
     }
   }
 
@@ -324,6 +332,9 @@ function normalizeRewriteCell(cell) {
   if (cell.border !== undefined) out.border = cell.border;
   if (cell.alignment !== undefined) out.alignment = cell.alignment;
   if (cell.protection !== undefined) out.protection = cell.protection;
+  // A note is cell metadata, reported only when the round-trip preserved one — mirrors the oracle so a
+  // case can assert a comment survives alongside a table/background rather than reading undefined.
+  if (cell.note !== undefined) out.note = cell.note;
   return out;
 }
 

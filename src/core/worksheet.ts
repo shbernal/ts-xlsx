@@ -321,6 +321,9 @@ export class Worksheet {
   readonly #tables: Table[] = [];
   readonly #merges: string[] = [];
   readonly #images: AnchoredImage[] = [];
+  // A sheet background is a single workbook image tiled behind the grid — distinct from an anchored
+  // drawing (it has no anchor and rides its own worksheet relationship, not a drawing part).
+  #backgroundImageId: number | undefined;
   // Decoded rectangles parallel to #merges, kept so that addressing a covered cell can
   // resolve to its region's master without re-parsing the range string on every access, and
   // so that a new merge can be checked for overlap against the existing ones. Only fully-bounded
@@ -583,6 +586,23 @@ export class Worksheet {
   /** The images anchored to this sheet, in the order they were added. */
   get images(): readonly AnchoredImage[] {
     return this.#images;
+  }
+
+  /** Set this sheet's background image to a workbook image (the id {@link Workbook.addImage} returned).
+   * The picture tiles behind the whole grid; it is not anchored to any cell. Passing a new id replaces
+   * the previous background. */
+  addBackgroundImage(imageId: number): void {
+    this.#backgroundImageId = imageId;
+  }
+
+  /** Remove this sheet's background image, if any. The image stays registered on the workbook. */
+  removeBackgroundImage(): void {
+    this.#backgroundImageId = undefined;
+  }
+
+  /** The workbook image id set as this sheet's background, or `undefined` when it has none. */
+  get backgroundImageId(): number | undefined {
+    return this.#backgroundImageId;
   }
 
   /**

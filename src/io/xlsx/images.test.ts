@@ -166,6 +166,57 @@ test('a picture rotation survives the write/read round-trip on a rot-only transf
   assert.strictEqual(readXlsx(writeXlsx(wb)).getWorksheet('S')?.images[0]?.anchor.rotation, 2700000);
 });
 
+test('a sheet background image writes a <picture>, an image relationship, and its media, and round-trips', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  ws.addBackgroundImage(id);
+  const files = unzipSync(writeXlsx(wb));
+  const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml'] as Uint8Array);
+  const picture = sheetXml.match(/<picture r:id="([^"]+)"\/>/);
+  assert.ok(picture, 'the sheet references a background picture');
+  const relsXml = strFromU8(files['xl/worksheets/_rels/sheet1.xml.rels'] as Uint8Array);
+  assert.match(
+    relsXml,
+    new RegExp(`<Relationship Id="${picture![1]}"[^>]*Type="[^"]*/image"[^>]*Target="\\.\\./media/image1\\.png"`)
+  );
+  assert.ok(files['xl/media/image1.png'], 'the background bytes are written once');
+  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  assert.strictEqual(back?.backgroundImageId !== undefined, true, 'the background survives the round-trip');
+  assert.deepStrictEqual(back && readXlsx(writeXlsx(wb)).getImage(back.backgroundImageId ?? -1)?.data, ONE_PX_PNG);
+});
+
+test('a background image, a note, and an anchored image on one sheet keep unique relationship ids', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('B2').note = 'a note';
+  const anchoredId = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  ws.addImage(anchoredId, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
+  const bgId = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  ws.addBackgroundImage(bgId);
+  const files = unzipSync(writeXlsx(wb));
+  const relsXml = strFromU8(files['xl/worksheets/_rels/sheet1.xml.rels'] as Uint8Array);
+  const ids = [...relsXml.matchAll(/<Relationship Id="([^"]+)"/g)].map(m => m[1]);
+  assert.strictEqual(new Set(ids).size, ids.length, 'no two worksheet relationships share an id');
+  // The note (comments + VML), the drawing, and the background all resolve to distinct part classes.
+  const types = [...relsXml.matchAll(/Type="[^"]*\/(\w+)"/g)].map(m => m[1]);
+  assert.ok(types.includes('image'), 'the background rides an image relationship');
+  assert.ok(types.includes('drawing'), 'the anchored image rides a drawing relationship');
+  assert.ok(types.includes('comments') && types.includes('vmlDrawing'), 'the note rides comments + VML');
+});
+
+test('removeBackgroundImage clears the background and omits its now-orphaned media', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  ws.addBackgroundImage(id);
+  ws.removeBackgroundImage();
+  assert.strictEqual(ws.backgroundImageId, undefined);
+  const files = unzipSync(writeXlsx(wb));
+  assert.ok(!Object.keys(files).some(n => n.startsWith('xl/media/')), 'the orphaned background is not written');
+  assert.doesNotMatch(strFromU8(files['xl/worksheets/sheet1.xml'] as Uint8Array), /<picture\b/);
+});
+
 test('one image anchored on two sheets is stored as a single media part', () => {
   const wb = new Workbook();
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});

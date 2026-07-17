@@ -131,6 +131,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
       const notes = readSheetNotes(path, partText);
       if (notes !== undefined) applyNotes(sheet, notes);
       readSheetImages(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
+      readSheetBackground(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
       readSheetTables(path, partText, sheet);
       const printerSettings = readSheetPrinterSettings(path, partText, partBytes);
       if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
@@ -218,6 +219,34 @@ function readSheetImages(
       sheet.addImageAnchor(id, {from: anchor.from, ext: anchor.ext, ...rot});
     }
   }
+}
+
+// A sheet background is a workbook image referenced by the worksheet's `<picture>` element through a
+// sheet-local relationship of type `.../image`. Unlike an anchored image (whose image relationships
+// live in the drawing part's own rels), the background's relationship sits directly on the sheet, so
+// it is the sheet rels' sole image relationship. The bytes are deduped against images shared with a
+// drawing, keeping one media part per picture across a re-write.
+function readSheetBackground(
+  sheetPath: string,
+  partText: (path: string) => string | undefined,
+  partBytes: (path: string) => Uint8Array | undefined,
+  workbook: Workbook,
+  sheet: Worksheet,
+  imageIdByMediaPath: Map<string, number>
+): void {
+  const relsXml = partText(relsPathFor(sheetPath));
+  if (relsXml === undefined) return;
+  const target = relationshipTargetByType(relsXml, 'image');
+  if (target === undefined) return;
+  const mediaPath = resolveRelativePart(sheetPath, target);
+  let id = imageIdByMediaPath.get(mediaPath);
+  if (id === undefined) {
+    const bytes = partBytes(mediaPath);
+    if (bytes === undefined) return;
+    id = workbook.addImage({buffer: bytes, extension: extensionOf(mediaPath)});
+    imageIdByMediaPath.set(mediaPath, id);
+  }
+  sheet.addBackgroundImage(id);
 }
 
 // A sheet's tables live in `xl/tables/table{n}.xml` parts, each reached through a relationship of

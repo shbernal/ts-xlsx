@@ -94,6 +94,7 @@ const REL = {
   vmlDrawing: `${NS.docRels}/vmlDrawing`,
   drawing: `${NS.docRels}/drawing`,
   printerSettings: `${NS.docRels}/printerSettings`,
+  image: `${NS.docRels}/image`,
   hyperlink: `${NS.docRels}/hyperlink`,
   sharedStrings: `${NS.docRels}/sharedStrings`,
 } as const;
@@ -209,6 +210,30 @@ export function buildPackageParts(
     return planHyperlinks(collectHyperlinks(sheet), base);
   });
 
+  // A sheet background is a workbook image referenced by a `<picture>` element through a sheet-local
+  // image relationship. Its id follows every other sheet-local id (tables, drawing, comments,
+  // printer-settings, external hyperlinks) so adding a background never renumbers an existing id.
+  const sheetBackgrounds: (BackgroundPlan | null)[] = sheets.map((sheet, i) => {
+    if (sheet.backgroundImageId === undefined) return null;
+    const registered = workbook.getImage(sheet.backgroundImageId);
+    if (registered === undefined) {
+      throw new Error(
+        `sheet "${sheet.name}" sets background image id ${sheet.backgroundImageId}, which is not registered on the workbook`
+      );
+    }
+    const base =
+      (sheetTables[i] ?? []).length +
+      (sheetDrawings[i] !== null ? 1 : 0) +
+      (sheetComments[i] !== null ? 2 : 0) +
+      (sheetPrinterSettings[i] !== null ? 1 : 0) +
+      (sheetHyperlinks[i] ?? []).filter(link => link.relId !== undefined).length;
+    return {
+      relId: `rId${base + 1}`,
+      mediaNumber: media.numberById.get(sheet.backgroundImageId) as number,
+      extension: registered.extension,
+    };
+  });
+
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
   // side effect of that pass, so styles.xml can only be generated once every sheet is done.
   const styles = new StyleRegistry();
@@ -223,6 +248,7 @@ export function buildPackageParts(
       sheetDrawings[i]?.relId ?? null,
       sheetComments[i]?.vmlRelId ?? null,
       sheetPrinterSettings[i]?.relId ?? null,
+      sheetBackgrounds[i]?.relId ?? null,
       sheetHyperlinks[i] ?? [],
       sharedStrings
     )
@@ -269,6 +295,7 @@ export function buildPackageParts(
     const drawing = sheetDrawings[i] ?? null;
     const comments = sheetComments[i] ?? null;
     const printerSettings = sheetPrinterSettings[i] ?? null;
+    const background = sheetBackgrounds[i] ?? null;
     const hyperlinks = sheetHyperlinks[i] ?? [];
     const hasExternalHyperlink = hyperlinks.some((link) => link.relId !== undefined);
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
@@ -277,10 +304,11 @@ export function buildPackageParts(
       drawing !== null ||
       comments !== null ||
       printerSettings !== null ||
+      background !== null ||
       hasExternalHyperlink
     ) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(
-        worksheetRelsXml(tables, drawing, comments, printerSettings, hyperlinks)
+        worksheetRelsXml(tables, drawing, comments, printerSettings, background, hyperlinks)
       );
     }
     if (printerSettings !== null) {
@@ -328,6 +356,14 @@ interface PlannedTable {
   readonly relId: string;
 }
 
+// A sheet background image resolved for serialisation: the sheet-local relationship id its
+// `<picture>` element references, and the media part (global number + extension) that holds the bytes.
+interface BackgroundPlan {
+  readonly relId: string;
+  readonly mediaNumber: number;
+  readonly extension: string;
+}
+
 // A sheet's drawing part: its workbook-global number, the sheet-local relationship id linking the
 // sheet's `<drawing>` element to it, and the images it lays out.
 interface DrawingPlan {
@@ -359,19 +395,22 @@ interface MediaPlan {
   readonly extensions: readonly string[];
 }
 
-// Gather the workbook images actually anchored by some sheet (an unreferenced image is not written),
-// number them in first-use order, and record the extensions in play. A sheet anchoring an id with no
-// registered image is a programming error the writer surfaces rather than emitting a dangling embed.
+// Gather the workbook images actually referenced by some sheet — either anchored in a drawing or set
+// as a sheet background (an unreferenced image is not written) — number them in first-use order, and
+// record the extensions in play. A sheet referencing an id with no registered image is a programming
+// error the writer surfaces rather than emitting a dangling relationship.
 function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): MediaPlan {
   const usedIds: number[] = [];
   const seen = new Set<number>();
-  for (const sheet of sheets) {
-    for (const image of sheet.images) {
-      if (!seen.has(image.imageId)) {
-        seen.add(image.imageId);
-        usedIds.push(image.imageId);
-      }
+  const use = (id: number): void => {
+    if (!seen.has(id)) {
+      seen.add(id);
+      usedIds.push(id);
     }
+  };
+  for (const sheet of sheets) {
+    for (const image of sheet.images) use(image.imageId);
+    if (sheet.backgroundImageId !== undefined) use(sheet.backgroundImageId);
   }
   const parts: MediaPart[] = [];
   const numberById = new Map<number, number>();
@@ -584,6 +623,7 @@ function worksheetXml(
   drawingRelId: string | null,
   legacyDrawingRelId: string | null,
   printerSettingsRelId: string | null,
+  backgroundRelId: string | null,
   hyperlinks: readonly PlannedHyperlink[],
   sharedStrings: SharedStringTable | null
 ): string {
@@ -675,9 +715,10 @@ function worksheetXml(
     pageSetupXml(sheet.pageSetup, printerSettingsRelId) +
     headerFooterXml(sheet.headerFooter) +
     // Schema order near the tail: <drawing> (the images), then <legacyDrawing> (the VML holding the
-    // note boxes), then <tableParts>.
+    // note boxes), then <picture> (the sheet background), then <tableParts>.
     (drawingRelId !== null ? `<drawing r:id="${drawingRelId}"/>` : '') +
     (legacyDrawingRelId !== null ? `<legacyDrawing r:id="${legacyDrawingRelId}"/>` : '') +
+    (backgroundRelId !== null ? `<picture r:id="${backgroundRelId}"/>` : '') +
     tablePartsXml(tables) +
     // `<extLst>` is the final child of CT_Worksheet and a worksheet may carry at most one. Both the
     // x14 conditional-formatting extensions (data-bar gradient/negative-fill/axis) and the extended
@@ -827,6 +868,7 @@ function worksheetRelsXml(
   drawing: DrawingPlan | null,
   comments: CommentPlan | null,
   printerSettings: PrinterSettingsPlan | null,
+  background: BackgroundPlan | null,
   hyperlinks: readonly PlannedHyperlink[]
 ): string {
   const rels = [
@@ -847,6 +889,15 @@ function worksheetRelsXml(
             printerSettings.relId,
             REL.printerSettings,
             `../printerSettings/printerSettings${printerSettings.number}.bin`
+          ),
+        ]),
+    ...(background === null
+      ? []
+      : [
+          relationship(
+            background.relId,
+            REL.image,
+            `../media/image${background.mediaNumber}.${background.extension}`
           ),
         ]),
     // An external hyperlink's target is a URL outside the package, so its relationship carries
