@@ -72,3 +72,36 @@ export interface WorkbookImage {
   readonly extension: string;
   readonly data: Uint8Array;
 }
+
+// Leading magic bytes for the raster formats a spreadsheet embeds, most-specific first. Used to infer
+// an extension when the caller supplies none, so a package never declares an `image/undefined` type.
+const IMAGE_MAGIC: ReadonlyArray<{readonly ext: string; readonly sig: readonly number[]}> = [
+  {ext: 'png', sig: [0x89, 0x50, 0x4e, 0x47]},
+  {ext: 'jpeg', sig: [0xff, 0xd8, 0xff]},
+  {ext: 'gif', sig: [0x47, 0x49, 0x46]},
+  {ext: 'bmp', sig: [0x42, 0x4d]},
+  {ext: 'tiff', sig: [0x49, 0x49, 0x2a, 0x00]},
+  {ext: 'tiff', sig: [0x4d, 0x4d, 0x00, 0x2a]},
+];
+
+function sniffImageExtension(data: Uint8Array): string {
+  for (const {ext, sig} of IMAGE_MAGIC) {
+    if (sig.every((b, i) => data[i] === b)) return ext;
+  }
+  // An unrecognised blob still needs a valid media name and content type; png keeps the package
+  // well-formed rather than emitting a `<Default>` with no or a bogus extension.
+  return 'png';
+}
+
+/** Reduce a caller-supplied extension to the bare, lower-case alphanumeric token OOXML expects for a
+ * media part's name and `<Default Extension>`. A leading dot (`".png"`), a URL query string
+ * (`"png?alt=media"`), or any other separator a real-world filename/URL drags in is stripped to the
+ * leading run of alphanumerics; a missing or all-punctuation hint falls back to sniffing the bytes'
+ * magic number, so the package is always well-formed. */
+export function normalizeImageExtension(extension: string | undefined, data: Uint8Array): string {
+  if (typeof extension === 'string') {
+    const token = extension.toLowerCase().match(/[a-z0-9]+/)?.[0];
+    if (token !== undefined) return token;
+  }
+  return sniffImageExtension(data);
+}

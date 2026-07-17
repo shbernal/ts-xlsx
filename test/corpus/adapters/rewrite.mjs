@@ -215,14 +215,10 @@ function buildFrom(spec = {}) {
 
     for (const img of s.images || []) {
       // A spec omits `extension` to mean the default 'png'; it sets the key (to a dirty or missing
-      // value) on purpose to exercise write-side validation. Extension hygiene is a distinct,
-      // not-yet-implemented capability, so a deliberately dirty extension is deferred rather than
-      // mis-serialized into a media name and content type.
-      const extension = 'extension' in img ? img.extension : 'png';
-      if (extension === undefined || !/^[A-Za-z0-9]+$/.test(extension)) {
-        throw notImplemented('image extension hygiene not supported yet');
-      }
-      anchorSpecImage(sheet, workbook.addImage({buffer: ONE_PX_PNG, extension}), img.range);
+      // value) on purpose to exercise the library's write-side extension sanitisation. Pass the raw
+      // value through — `workbook.addImage` normalises a leading dot / query string / missing hint.
+      const options = 'extension' in img ? {buffer: ONE_PX_PNG, extension: img.extension} : {buffer: ONE_PX_PNG};
+      anchorSpecImage(sheet, workbook.addImage(options), img.range);
     }
 
     for (const col of s.columns || []) {
@@ -804,6 +800,26 @@ const impl = {
       }
     }
     return {images, count: images.length};
+  },
+
+  // Add one image whose extension may carry a leading dot or a query string, write, and report the
+  // media filenames and re-read image count → a dirty extension must sanitise to a well-formed media
+  // name the reader still recognises, not a doubled-separator name that drops the image.
+  imageExtensionRoundtrip(extension = 'png') {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    const id = wb.addImage({buffer: ONE_PX_PNG, extension});
+    ws.addImage(id, {tl: {col: 1, row: 1}, br: {col: 3, row: 3}});
+    const buffer = writeXlsx(wb);
+    const mediaParts = Object.keys(partMapOf(buffer))
+      .filter(n => /^xl\/media\/.+/.test(n))
+      .map(n => n.replace(/^xl\/media\//, ''));
+    const images = readXlsx(buffer).getWorksheet('S')?.images || [];
+    return {
+      mediaParts,
+      doubledSeparator: mediaParts.some(n => /\.\./.test(n)),
+      reloadedImageCount: images.length,
+    };
   },
 
   // Author a sheet, round-trip, load, append more rows after the last populated row, round-trip again →

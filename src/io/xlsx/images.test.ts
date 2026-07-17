@@ -108,6 +108,23 @@ test('a one-cell anchor round-trips through the reader as an extent, not a to-po
   assert.deepStrictEqual(anchor.ext, {cx: 191 * 9525, cy: 47 * 9525});
 });
 
+test('a dirty or missing image extension is sanitised to a well-formed media name', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  const dirty = wb.addImage({buffer: ONE_PX_PNG, extension: '.png?alt=media&token=abc'});
+  const missing = wb.addImage({buffer: ONE_PX_PNG});
+  ws.addImage(dirty, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
+  ws.addImage(missing, {tl: {col: 2, row: 2}, br: {col: 3, row: 3}});
+  const files = unzipSync(writeXlsx(wb));
+  const media = Object.keys(files).filter(n => n.startsWith('xl/media/'));
+  assert.deepStrictEqual(media.sort(), ['xl/media/image1.png', 'xl/media/image2.png']);
+  const contentTypes = strFromU8(files['[Content_Types].xml'] as Uint8Array);
+  const defaults = [...contentTypes.matchAll(/<Default Extension="([^"]*)"/g)].map(m => m[1]);
+  assert.ok(defaults.every(e => /^[A-Za-z0-9]+$/.test(e as string)), 'every Default extension is a bare token');
+  assert.doesNotMatch(contentTypes, /image\/undefined/, 'no bogus media type');
+  assert.strictEqual(readXlsx(writeXlsx(wb)).getWorksheet('S')?.images.length, 2);
+});
+
 test('one image anchored on two sheets is stored as a single media part', () => {
   const wb = new Workbook();
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});

@@ -5,7 +5,7 @@
 // of the characters Excel forbids — so an invalid book cannot be constructed in the
 // first place, rather than failing only at write time.
 
-import type {WorkbookImage} from './image.ts';
+import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
 
 /** Document-level metadata written to the package's core properties. */
@@ -43,8 +43,9 @@ export interface AddWorksheetOptions {
 export interface AddImageOptions {
   /** The image bytes. */
   readonly buffer: Uint8Array;
-  /** The file kind — `"png"`, `"jpeg"`/`"jpg"`, `"gif"`, … — without a leading dot. */
-  readonly extension: string;
+  /** The file kind — `"png"`, `"jpeg"`/`"jpg"`, `"gif"`, … A leading dot or a URL query string is
+   * tolerated and stripped; omit it entirely to infer the kind from the bytes' magic number. */
+  readonly extension?: string;
 }
 
 const MAX_SHEET_NAME_LENGTH = 31;
@@ -104,7 +105,10 @@ export class Workbook {
    * number of sheets and positions, and the bytes are still stored only once.
    */
   addImage(options: AddImageOptions): number {
-    this.#media.push({extension: options.extension.toLowerCase(), data: options.buffer});
+    this.#media.push({
+      extension: normalizeImageExtension(options.extension, options.buffer),
+      data: options.buffer,
+    });
     return this.#media.length - 1;
   }
 
