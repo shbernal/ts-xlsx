@@ -35,6 +35,7 @@ import {
   type SheetProtectionOptions,
 } from './protection.ts';
 import type {Alignment, Border, Color, Fill, Font, Protection} from './style.ts';
+import {PivotTable, type PivotTableOptions} from './pivot-table.ts';
 import {Table, type TableOptions} from './table.ts';
 import {type CellValue, isSharedFormulaValue, type SharedFormulaValue} from './value.ts';
 
@@ -360,6 +361,7 @@ export class Worksheet {
   readonly #rowProperties = new Map<number, RowProperties>();
   // Tables, merged ranges, and anchored images are sheet-level overlays on the grid, not cell storage.
   readonly #tables: Table[] = [];
+  readonly #pivotTables: PivotTable[] = [];
   readonly #merges: string[] = [];
   readonly #images: AnchoredImage[] = [];
   // A sheet background is a single workbook image tiled behind the grid — distinct from an anchored
@@ -545,6 +547,24 @@ export class Worksheet {
   /** The tables defined on this sheet, in definition order. */
   get tables(): readonly Table[] {
     return this.#tables;
+  }
+
+  /**
+   * Add a pivot table to this (destination) sheet, summarising a source sheet's data. The source is
+   * read once, now, so the pivot is a snapshot: later edits to the source do not change it. The
+   * supported shape (one summed value field, at least one row and column field) is enforced here.
+   *
+   * @throws {Error} if the metric, fields, or source shape are unsupported.
+   */
+  addPivotTable(options: PivotTableOptions): PivotTable {
+    const pivot = new PivotTable(options);
+    this.#pivotTables.push(pivot);
+    return pivot;
+  }
+
+  /** The pivot tables hosted on this sheet, in definition order. */
+  get pivotTables(): readonly PivotTable[] {
+    return this.#pivotTables;
   }
 
   /**

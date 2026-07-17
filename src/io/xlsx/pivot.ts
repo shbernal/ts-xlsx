@@ -1,0 +1,135 @@
+// OOXML rendering for a modeled pivot table: the three parts a pivot needs — the cache definition
+// (field catalogue), the cache records (a copy of the source rows), and the pivot table definition
+// (the layout). The semantic computation lives in `core/pivot-table.ts`; this file only serialises.
+//
+// Every value that reaches an attribute is run through `escapeAttr`, so source strings carrying XML
+// specials (`Smith & Co`, `<West>`, `It's "best"`) become well-formed markup rather than corrupting
+// the package — the whole point of the shared-item escaping this module guarantees.
+
+import {encodeAddress} from '../../core/address.ts';
+import type {PivotItem, PivotRecordCell, PivotTable} from '../../core/pivot-table.ts';
+import {escapeAttr} from './xml.ts';
+
+const MAIN_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+
+/** The `pivotCacheDefinition` part: the source reference and the field catalogue. `r:id="rId1"`
+ * names the cache-records part through this cache's own rels part. `refreshOnLoad="1"` tells Excel to
+ * rebuild the pivot body from the cache on open, so the layout stays correct without us computing it
+ * to the pixel. `recordCount` is the number of source data rows. */
+export function pivotCacheDefinitionXml(table: PivotTable): string {
+  const fields = table.cacheFields
+    .map(field => {
+      const shared = field.sharedItems;
+      if (shared !== null) {
+        const items = shared.map(sharedItemXml).join('');
+        const blank = field.containsBlank ? ' containsBlank="1"' : '';
+        return (
+          `<cacheField name="${escapeAttr(field.name)}" numFmtId="0">` +
+          `<sharedItems${blank} count="${shared.length}">${items}</sharedItems>` +
+          `</cacheField>`
+        );
+      }
+      const blank = field.containsBlank ? ' containsBlank="1"' : '';
+      const numeric = field.numeric;
+      const descriptor =
+        numeric === null
+          ? `<sharedItems${blank}/>`
+          : `<sharedItems containsSemiMixedTypes="0" containsString="0" containsNumber="1" ` +
+            `containsInteger="${numeric.allInteger ? 1 : 0}"${blank} ` +
+            `minValue="${numeric.min}" maxValue="${numeric.max}"/>`;
+      return `<cacheField name="${escapeAttr(field.name)}" numFmtId="0">${descriptor}</cacheField>`;
+    })
+    .join('');
+  return (
+    XML_DECLARATION +
+    `<pivotCacheDefinition xmlns="${MAIN_NS}" xmlns:r="${REL_NS}" r:id="rId1" refreshOnLoad="1" ` +
+    `refreshedBy="ts-xlsx" createdVersion="8" refreshedVersion="8" minRefreshableVersion="3" ` +
+    `recordCount="${table.records.length}">` +
+    `<cacheSource type="worksheet">` +
+    `<worksheetSource ref="${escapeAttr(table.sourceRef)}" sheet="${escapeAttr(table.sourceSheetName)}"/>` +
+    `</cacheSource>` +
+    `<cacheFields count="${table.cacheFields.length}">${fields}</cacheFields>` +
+    `</pivotCacheDefinition>`
+  );
+}
+
+/** The `pivotCacheRecords` part: one `<r>` per source data row, each cell either an index into an
+ * axis field's shared-items catalogue (`<x>`) or an inline value (`<n>`/`<s>`/`<m>`). */
+export function pivotCacheRecordsXml(table: PivotTable): string {
+  const rows = table.records.map(record => `<r>${record.map(recordCellXml).join('')}</r>`).join('');
+  return (
+    XML_DECLARATION +
+    `<pivotCacheRecords xmlns="${MAIN_NS}" xmlns:r="${REL_NS}" count="${table.records.length}">` +
+    rows +
+    `</pivotCacheRecords>`
+  );
+}
+
+/** The `pivotTableDefinition` part placed on the destination sheet: the field layout that binds the
+ * cache (by `cacheId`) to the row/column axes and the summed value field. */
+export function pivotTableXml(table: PivotTable, name: string, cacheId: string): string {
+  const rowField = table.rowFields[0] as number;
+  const columnField = table.columnFields[0] as number;
+  const rowGroups = table.cacheFields[rowField]?.sharedItems?.length ?? 1;
+  const columnGroups = table.cacheFields[columnField]?.sharedItems?.length ?? 1;
+  // A generous bounding box on the destination sheet: a row-label column plus one column per column
+  // group plus a grand-total column; two header rows plus one row per row group plus a grand total.
+  // Excel recomputes the exact extent from the cache on refresh, so this only has to be valid.
+  const location = `A1:${encodeAddress(2 + columnGroups, 3 + rowGroups)}`;
+
+  const pivotFields = table.cacheFields
+    .map((field, index) => {
+      if (table.rowFields.includes(index) || table.columnFields.includes(index)) {
+        const axis = table.rowFields.includes(index) ? 'axisRow' : 'axisCol';
+        const items = field.sharedItems ?? [];
+        const entries = items.map((_item, i) => `<item x="${i}"/>`).join('') + '<item t="default"/>';
+        return `<pivotField axis="${axis}" showAll="0"><items count="${items.length + 1}">${entries}</items></pivotField>`;
+      }
+      if (index === table.valueField) return '<pivotField dataField="1" showAll="0"/>';
+      return '<pivotField showAll="0"/>';
+    })
+    .join('');
+
+  const rowFields = table.rowFields.map(index => `<field x="${index}"/>`).join('');
+  const columnFields = table.columnFields.map(index => `<field x="${index}"/>`).join('');
+
+  return (
+    XML_DECLARATION +
+    `<pivotTableDefinition xmlns="${MAIN_NS}" xmlns:r="${REL_NS}" name="${escapeAttr(name)}" ` +
+    `cacheId="${escapeAttr(cacheId)}" applyNumberFormats="0" applyBorderFormats="0" ` +
+    `applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" ` +
+    `applyWidthHeightFormats="1" dataCaption="Values" updatedVersion="8" minRefreshableVersion="3" ` +
+    `useAutoFormatting="1" itemPrintTitles="1" createdVersion="8" indent="0" outline="1" ` +
+    `outlineData="1" multipleFieldFilters="0">` +
+    `<location ref="${location}" firstHeaderRow="1" firstDataRow="2" firstDataCol="1"/>` +
+    `<pivotFields count="${table.cacheFields.length}">${pivotFields}</pivotFields>` +
+    `<rowFields count="${table.rowFields.length}">${rowFields}</rowFields>` +
+    `<rowItems count="1"><i t="grand"><x/></i></rowItems>` +
+    `<colFields count="${table.columnFields.length}">${columnFields}</colFields>` +
+    `<colItems count="1"><i t="grand"><x/></i></colItems>` +
+    `<dataFields count="1">` +
+    `<dataField name="Sum of ${escapeAttr(table.valueFieldName)}" fld="${table.valueField}" baseField="0" baseItem="0"/>` +
+    `</dataFields>` +
+    `<pivotTableStyleInfo name="PivotStyleLight16" showRowHeaders="1" showColHeaders="1" ` +
+    `showRowStripes="0" showColStripes="0" showLastColumn="1"/>` +
+    `</pivotTableDefinition>`
+  );
+}
+
+function sharedItemXml(item: PivotItem): string {
+  switch (item.kind) {
+    case 'string':
+      return `<s v="${escapeAttr(item.value)}"/>`;
+    case 'number':
+      return `<n v="${item.value}"/>`;
+    case 'blank':
+      return '<m/>';
+  }
+}
+
+function recordCellXml(cell: PivotRecordCell): string {
+  if (cell.kind === 'index') return `<x v="${cell.index}"/>`;
+  return sharedItemXml(cell);
+}

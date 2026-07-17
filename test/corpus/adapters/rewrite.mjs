@@ -476,6 +476,42 @@ const impl = {
     return packageFacts(spec, partMapOf(writeXlsx(buildFrom(spec))));
   },
 
+  // Author a pivot table over source data containing XML-special characters (& < > " ') and a
+  // missing field value, write, and report whether the emitted pivotCacheDefinition is well-formed
+  // and free of raw unescaped ampersands. Mirrors the oracle's shape → { ok, writeError,
+  // cacheWellFormed, hasRawUnescapedAmp }.
+  pivotCacheSpecialCharsReport() {
+    try {
+      const wb = new Workbook();
+      const src = wb.addWorksheet('Data');
+      src.getCell('A1').value = 'Name';
+      src.getCell('B1').value = 'Region';
+      src.getCell('C1').value = 'Amount';
+      src.getCell('A2').value = 'Smith & Co';
+      src.getCell('B2').value = '<West>';
+      src.getCell('C2').value = 10;
+      src.getCell('B3').value = 'East';
+      src.getCell('C3').value = 20;
+      src.getCell('A4').value = 'It\'s "best"';
+      src.getCell('B4').value = 'West';
+      src.getCell('C4').value = 30;
+      wb.addWorksheet('Pivot').addPivotTable({
+        source: src,
+        rows: ['Name'],
+        columns: ['Region'],
+        values: ['Amount'],
+        metric: 'sum',
+      });
+      const parts = partMapOf(writeXlsx(wb));
+      const key = Object.keys(parts).find(n => /pivotCacheDefinition\d*\.xml$/.test(n));
+      const cacheXml = key ? parts[key] : '';
+      const hasRawUnescapedAmp = /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/.test(cacheXml);
+      return {ok: true, writeError: null, cacheWellFormed: cacheXml ? !hasRawUnescapedAmp : false, hasRawUnescapedAmp};
+    } catch (e) {
+      return {ok: false, writeError: String((e && e.message) || e), cacheWellFormed: null, hasRawUnescapedAmp: null};
+    }
+  },
+
   // Set an autofilter over a range, write, and report the sheet's autoFilter ref plus whether the
   // workbook declares the hidden, sheet-scoped `_xlnm._FilterDatabase` defined name portable consumers
   // (LibreOffice) rely on → { autoFilterRef, hasFilterDatabase, filterDatabaseHidden,

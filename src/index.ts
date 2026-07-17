@@ -79,6 +79,11 @@ export {
   type SheetProtectionCredential,
 } from './core/protection.ts';
 export {
+  PivotTable,
+  type PivotMetric,
+  type PivotTableOptions,
+} from './core/pivot-table.ts';
+export {
   Table,
   type TableColumn,
   type TableOptions,

@@ -16,6 +16,7 @@ import type {Cell} from '../../core/cell.ts';
 import {dateToSerial, DEFAULT_DATE_NUMFMT} from '../../core/date.ts';
 import type {WorkbookImage} from '../../core/image.ts';
 import {mangleFormula} from '../../core/formula.ts';
+import type {PivotTable} from '../../core/pivot-table.ts';
 import type {Table, TableColumn, TableStyleInfo} from '../../core/table.ts';
 import {
   detectValueType,
@@ -48,6 +49,7 @@ import {
   type PlannedHyperlink,
 } from './hyperlinks.ts';
 import {type DrawingImage, drawingRelsXml, drawingXml, imageContentType} from './images.ts';
+import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {richTextRunsXml} from './rich-text.ts';
 import {SharedStringTable} from './shared-strings.ts';
 import {THEME1_XML} from './static-parts.ts';
@@ -80,6 +82,11 @@ const CT = {
   drawing: 'application/vnd.openxmlformats-officedocument.drawing+xml',
   printerSettings: 'application/vnd.openxmlformats-officedocument.spreadsheetml.printerSettings',
   sharedStrings: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml',
+  pivotTable: 'application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml',
+  pivotCacheDefinition:
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheDefinition+xml',
+  pivotCacheRecords:
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheRecords+xml',
 } as const;
 
 const REL = {
@@ -97,6 +104,9 @@ const REL = {
   image: `${NS.docRels}/image`,
   hyperlink: `${NS.docRels}/hyperlink`,
   sharedStrings: `${NS.docRels}/sharedStrings`,
+  pivotTable: `${NS.docRels}/pivotTable`,
+  pivotCacheDefinition: `${NS.docRels}/pivotCacheDefinition`,
+  pivotCacheRecords: `${NS.docRels}/pivotCacheRecords`,
 } as const;
 
 /** Options controlling how {@link writeXlsx} serialises a workbook. */
@@ -248,6 +258,29 @@ export function buildPackageParts(
     media.parts.length
   );
 
+  // A pivot table hosted on a sheet adds one sheet-local relationship (to its pivot-table part),
+  // numbered after every other sheet-local id — including the preserved refs at the tail — so
+  // introducing a pivot never renumbers an id already threaded into the sheet or its rels. Each
+  // pivot is numbered globally (its parts and its `cacheId` must be workbook-unique); the workbook
+  // relationship reaching its cache is assigned once the modeled workbook rels are known (below).
+  let pivotNumber = 0;
+  const sheetPivots: PivotPlan[][] = sheets.map((sheet, i) => {
+    if (sheet.pivotTables.length === 0) return [];
+    const base =
+      (sheetTables[i] ?? []).length +
+      (sheetDrawings[i] !== null ? 1 : 0) +
+      (sheetComments[i] !== null ? 2 : 0) +
+      (sheetPrinterSettings[i] !== null ? 1 : 0) +
+      (sheetHyperlinks[i] ?? []).filter(link => link.relId !== undefined).length +
+      (sheetBackgrounds[i] !== null ? 1 : 0) +
+      (preserved.perSheet[i]?.length ?? 0);
+    return sheet.pivotTables.map((table, j) => {
+      const number = ++pivotNumber;
+      return {number, cacheId: String(number), table, sheetRelId: `rId${base + j + 1}`, workbookRelId: ''};
+    });
+  });
+  const allPivots = sheetPivots.flat();
+
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
   // side effect of that pass, so styles.xml can only be generated once every sheet is done.
   const styles = new StyleRegistry();
@@ -299,6 +332,12 @@ export function buildPackageParts(
     ...ref,
     relId: `rId${workbookRelBase + 1 + i}`,
   }));
+  // A generated pivot cache's workbook relationship follows the preserved ones; the assignment
+  // mutates the shared plan so the `<pivotCaches>` body and the rels part read the same id.
+  const pivotWorkbookRelBase = workbookRelBase + preserved.workbook.length;
+  allPivots.forEach((pivot, i) => {
+    pivot.workbookRelId = `rId${pivotWorkbookRelBase + 1 + i}`;
+  });
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(
       contentTypesXml(
@@ -309,15 +348,16 @@ export function buildPackageParts(
         printerSettingsNumbers,
         media.extensions,
         hasSharedStrings,
-        preserved.parts
+        preserved.parts,
+        allPivots
       )
     ),
     '_rels/.rels': strToU8(rootRelsXml()),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
     'docProps/app.xml': strToU8(appPropsXml()),
-    'xl/workbook.xml': strToU8(workbookXml(workbook, preservedWorkbookRels)),
+    'xl/workbook.xml': strToU8(workbookXml(workbook, preservedWorkbookRels, allPivots)),
     'xl/_rels/workbook.xml.rels': strToU8(
-      workbookRelsXml(sheets.length, hasSharedStrings, preservedWorkbookRels)
+      workbookRelsXml(sheets.length, hasSharedStrings, preservedWorkbookRels, allPivots)
     ),
     'xl/styles.xml': strToU8(styles.toXml()),
     'xl/theme/theme1.xml': strToU8(THEME1_XML),
@@ -336,6 +376,7 @@ export function buildPackageParts(
     const background = sheetBackgrounds[i] ?? null;
     const hyperlinks = sheetHyperlinks[i] ?? [];
     const preservedRefs = preserved.perSheet[i] ?? [];
+    const pivots = sheetPivots[i] ?? [];
     const hasExternalHyperlink = hyperlinks.some((link) => link.relId !== undefined);
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
     if (
@@ -345,10 +386,11 @@ export function buildPackageParts(
       printerSettings !== null ||
       background !== null ||
       hasExternalHyperlink ||
-      preservedRefs.length > 0
+      preservedRefs.length > 0 ||
+      pivots.length > 0
     ) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(
-        worksheetRelsXml(tables, drawing, comments, printerSettings, background, hyperlinks, preservedRefs)
+        worksheetRelsXml(tables, drawing, comments, printerSettings, background, hyperlinks, preservedRefs, pivots)
       );
     }
     if (printerSettings !== null) {
@@ -367,6 +409,25 @@ export function buildPackageParts(
   for (const {table, number} of allTables) {
     files[`xl/tables/table${number}.xml`] = strToU8(tableXml(table, number));
   }
+  // A pivot spans three parts wired in a chain: the pivot-table part (linked from its host sheet)
+  // references the cache definition, which references the cache records. Each cache carries a rels
+  // part naming the next link by `rId1` — the id the definition/table XML resolves against.
+  for (const pivot of allPivots) {
+    const {number, cacheId, table} = pivot;
+    files[`xl/pivotTables/pivotTable${number}.xml`] = strToU8(
+      pivotTableXml(table, `PivotTable${number}`, cacheId)
+    );
+    files[`xl/pivotTables/_rels/pivotTable${number}.xml.rels`] = strToU8(
+      relsPartXml([
+        {id: 'rId1', type: REL.pivotCacheDefinition, target: `../pivotCache/pivotCacheDefinition${number}.xml`},
+      ])
+    );
+    files[`xl/pivotCache/pivotCacheDefinition${number}.xml`] = strToU8(pivotCacheDefinitionXml(table));
+    files[`xl/pivotCache/_rels/pivotCacheDefinition${number}.xml.rels`] = strToU8(
+      relsPartXml([{id: 'rId1', type: REL.pivotCacheRecords, target: `pivotCacheRecords${number}.xml`}])
+    );
+    files[`xl/pivotCache/pivotCacheRecords${number}.xml`] = strToU8(pivotCacheRecordsXml(table));
+  }
   // Emit the verbatim-preserved parts (and their rewired rels) last: their paths are collision-proof,
   // so ordering against the generated parts does not matter.
   for (const part of preserved.parts) {
@@ -377,6 +438,18 @@ export function buildPackageParts(
   }
 
   return files;
+}
+
+// A pivot table planned for emission: its global part number, the workbook-unique `cacheId` its
+// `<pivotCaches>` registration and `pivotTableDefinition` agree on, the sheet-local relationship
+// linking its host sheet to the pivot-table part, and the workbook relationship reaching its cache
+// definition (assigned once the modeled workbook rels are counted).
+interface PivotPlan {
+  readonly number: number;
+  readonly cacheId: string;
+  readonly table: PivotTable;
+  readonly sheetRelId: string;
+  workbookRelId: string;
 }
 
 // A sheet's notes paired with the part number and sheet-local relationship ids that link the sheet
@@ -663,6 +736,13 @@ function preservedRelsXml(rels: readonly {id: string; type: string; target: stri
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${body}</Relationships>`;
 }
 
+// A `.rels` part for a generated part chain (pivot table → cache definition → cache records). Targets
+// are writer-controlled package paths, so no attribute escaping is needed.
+function relsPartXml(rels: readonly {id: string; type: string; target: string}[]): string {
+  const body = rels.map(rel => relationship(rel.id, rel.type, rel.target)).join('');
+  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${body}</Relationships>`;
+}
+
 function contentTypesXml(
   sheetCount: number,
   tables: readonly PlannedTable[],
@@ -671,7 +751,8 @@ function contentTypesXml(
   printerSettingsNumbers: readonly number[],
   mediaExtensions: readonly string[],
   hasSharedStrings: boolean,
-  preservedParts: readonly PreservedPartPlan[]
+  preservedParts: readonly PreservedPartPlan[],
+  pivots: readonly PivotPlan[]
 ): string {
   // A preserved part with its own XML content type (a drawing) needs an <Override>; a binary one (a
   // VML, an image) is declared by a <Default> for its extension, deduped against the defaults already
@@ -698,6 +779,13 @@ function contentTypesXml(
     ...tables.map(({number}) => override(`/xl/tables/table${number}.xml`, CT.table)),
     ...drawingNumbers.map(number => override(`/xl/drawings/drawing${number}.xml`, CT.drawing)),
     ...commentNumbers.map(number => override(`/xl/comments${number}.xml`, CT.comments)),
+    ...pivots.map(({number}) => override(`/xl/pivotTables/pivotTable${number}.xml`, CT.pivotTable)),
+    ...pivots.map(({number}) =>
+      override(`/xl/pivotCache/pivotCacheDefinition${number}.xml`, CT.pivotCacheDefinition)
+    ),
+    ...pivots.map(({number}) =>
+      override(`/xl/pivotCache/pivotCacheRecords${number}.xml`, CT.pivotCacheRecords)
+    ),
     override('/xl/theme/theme1.xml', CT.theme),
     override('/xl/styles.xml', CT.styles),
     ...(hasSharedStrings ? [override('/xl/sharedStrings.xml', CT.sharedStrings)] : []),
@@ -741,7 +829,11 @@ function rootRelsXml(): string {
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
 
-function workbookXml(workbook: Workbook, preservedRels: readonly PreservedWorkbookRel[]): string {
+function workbookXml(
+  workbook: Workbook,
+  preservedRels: readonly PreservedWorkbookRel[],
+  pivots: readonly PivotPlan[]
+): string {
   const sheets = workbook.worksheets;
   const entries = sheets
     .map((sheet, i) => {
@@ -755,7 +847,7 @@ function workbookXml(workbook: Workbook, preservedRels: readonly PreservedWorkbo
     `<sheets>${entries}</sheets>` +
     definedNamesXml(workbook) +
     calcPrXml(workbook) +
-    pivotCachesXml(preservedRels) +
+    pivotCachesXml(preservedRels, pivots) +
     workbookExtLstXml(preservedRels) +
     '</workbook>'
   );
@@ -775,17 +867,24 @@ function workbookExtLstXml(preservedRels: readonly PreservedWorkbookRel[]): stri
   );
 }
 
-// The `<pivotCaches>` element registers each preserved pivot cache under the `cacheId` a pivot table
-// resolves its cache through, wired to the relationship that reaches the cache definition. It follows
-// `<calcPr>` in CT_Workbook order. Emitted only when a preserved cache carries a `cacheId`; a slicer
-// cache (no `cacheId`) is registered in a workbook extension block, not here, so it is skipped.
-function pivotCachesXml(preservedRels: readonly PreservedWorkbookRel[]): string {
-  const caches = preservedRels.filter(ref => ref.pivotCacheId !== undefined);
-  if (caches.length === 0) return '';
-  const entries = caches
-    .map(ref => `<pivotCache cacheId="${escapeAttr(ref.pivotCacheId as string)}" r:id="${ref.relId}"/>`)
-    .join('');
-  return `<pivotCaches>${entries}</pivotCaches>`;
+// The `<pivotCaches>` element registers each pivot cache under the `cacheId` a pivot table resolves
+// its cache through, wired to the relationship that reaches the cache definition. It follows
+// `<calcPr>` in CT_Workbook order and carries both preserved caches (passed through from a read file)
+// and caches the writer generated for modeled pivot tables. A slicer cache (no `cacheId`) is
+// registered in a workbook extension block, not here, so it is skipped.
+function pivotCachesXml(
+  preservedRels: readonly PreservedWorkbookRel[],
+  pivots: readonly PivotPlan[]
+): string {
+  const preserved = preservedRels
+    .filter(ref => ref.pivotCacheId !== undefined)
+    .map(ref => `<pivotCache cacheId="${escapeAttr(ref.pivotCacheId as string)}" r:id="${ref.relId}"/>`);
+  const generated = pivots.map(
+    pivot => `<pivotCache cacheId="${escapeAttr(pivot.cacheId)}" r:id="${pivot.workbookRelId}"/>`
+  );
+  const entries = [...preserved, ...generated];
+  if (entries.length === 0) return '';
+  return `<pivotCaches>${entries.join('')}</pivotCaches>`;
 }
 
 // `<calcPr>` follows `<definedNames>` in CT_Workbook order and carries the calculation settings.
@@ -853,7 +952,8 @@ function quoteSheetName(name: string): string {
 function workbookRelsXml(
   sheetCount: number,
   hasSharedStrings: boolean,
-  preservedRels: readonly PreservedWorkbookRel[]
+  preservedRels: readonly PreservedWorkbookRel[],
+  pivots: readonly PivotPlan[]
 ): string {
   const rels = [
     ...range(sheetCount).map(i =>
@@ -867,6 +967,14 @@ function workbookRelsXml(
     // A preserved cache's target is package-absolute; express it relative to the workbook part.
     ...preservedRels.map(ref =>
       relationship(ref.relId, ref.relType, escapeAttr(relativePartPath('xl/workbook.xml', ref.entryPath)))
+    ),
+    // A generated pivot cache's workbook relationship reaches its cache definition part.
+    ...pivots.map(pivot =>
+      relationship(
+        pivot.workbookRelId,
+        REL.pivotCacheDefinition,
+        `pivotCache/pivotCacheDefinition${pivot.number}.xml`
+      )
     ),
   ].join('');
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
@@ -1192,10 +1300,16 @@ function worksheetRelsXml(
   printerSettings: PrinterSettingsPlan | null,
   background: BackgroundPlan | null,
   hyperlinks: readonly PlannedHyperlink[],
-  preservedReferences: readonly PreservedReferencePlan[]
+  preservedReferences: readonly PreservedReferencePlan[],
+  pivots: readonly PivotPlan[]
 ): string {
   const rels = [
     ...tables.map(({relId, number}) => relationship(relId, REL.table, `../tables/table${number}.xml`)),
+    // A pivot table hosted on this sheet is reached by a relationship of type pivotTable; Excel
+    // discovers the pivot from the rels part, so the sheet body itself carries no reference to it.
+    ...pivots.map(pivot =>
+      relationship(pivot.sheetRelId, REL.pivotTable, `../pivotTables/pivotTable${pivot.number}.xml`)
+    ),
     ...(drawing === null
       ? []
       : [relationship(drawing.relId, REL.drawing, `../drawings/drawing${drawing.number}.xml`)]),
