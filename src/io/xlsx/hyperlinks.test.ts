@@ -162,4 +162,22 @@ test('a hyperlink spanning a range anchors on its top-left cell instead of crash
   const back = hyperlinkOf(readXlsx(archive), 'S', 'D1');
   assert.equal(back.hyperlink, '#Sheet1!A1');
   assert.equal(back.text, 'go');
+  // The extent is not just anchored — it is recorded, so the clickable area is not silently shrunk.
+  assert.equal(back.range, 'D1:H1');
+});
+
+test('a range hyperlink keeps its extent through a write→read round-trip', () => {
+  // A single-cell link must stay plain; only a genuine multi-cell link carries `range`, and that
+  // extent has to survive serialisation rather than collapsing back to the top-left cell.
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('D1').value = {hyperlink: 'https://example.com', text: 'go', range: 'D1:H1'};
+  sheet.getCell('A1').value = {hyperlink: 'https://example.com/plain', text: 'one'};
+
+  const back = readXlsx(writeXlsx(wb));
+  const ranged = hyperlinkOf(back, 'S', 'D1');
+  assert.equal(ranged.range, 'D1:H1');
+  assert.equal(ranged.hyperlink, 'https://example.com');
+  const single = hyperlinkOf(back, 'S', 'A1');
+  assert.equal(single.range, undefined);
 });

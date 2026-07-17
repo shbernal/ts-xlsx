@@ -10,7 +10,7 @@
 // external relationship makes a strict consumer resolve both the rel and the location and render the
 // destination doubled.
 
-import {decodeRange} from '../../core/address.ts';
+import {decodeRange, type RangeAddress} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {localName, parseXml} from './xml-read.ts';
@@ -42,8 +42,11 @@ export function collectHyperlinks(sheet: Worksheet): CollectedHyperlink[] {
     for (const cell of cells) {
       const value = cell.value;
       if (isHyperlinkValue(value)) {
+        // A link that spans a range carries its extent in `range`; the anchor cell (this one) is the
+        // range's top-left. Emit that extent as `ref` so the clickable area survives, falling back to
+        // the single cell for an ordinary link.
         links.push({
-          ref: cell.address,
+          ref: value.range ?? cell.address,
           target: value.hyperlink,
           ...(value.tooltip !== undefined ? {tooltip: value.tooltip} : {}),
         });
@@ -129,31 +132,36 @@ export function applyHyperlinks(
     const target = resolveTarget(link, rels);
     if (target === undefined) continue;
     // A hyperlink may span a range (`ref="D1:H1"`); Excel anchors the link at the range's top-left
-    // cell. Decode to that anchor so a multi-cell link folds onto one cell instead of asking the
-    // sheet for a range address it cannot resolve. A ref that does not decode is skipped, not fatal.
-    const anchor = hyperlinkAnchor(link.ref);
-    if (anchor === undefined) continue;
-    const cell = sheet.getCell(anchor);
+    // cell. Decode once so a multi-cell link folds onto that anchor rather than asking the sheet for
+    // a range address it cannot resolve. A ref that does not decode is skipped, not fatal.
+    const decoded = decodeRefSafe(link.ref);
+    if (decoded === undefined) continue;
+    const cell = sheet.getCell(decoded.tl.address);
     // The visible label is the cell's own value: a plain string, or rich text when the label
     // carried per-run formatting. Any other value kind has no textual label, so it reads as empty.
     const cellValue = cell.value;
     const text =
       typeof cellValue === 'string' ? cellValue : isRichTextValue(cellValue) ? cellValue : '';
+    // Record the extent only when the link genuinely spans more than the anchor, so an ordinary
+    // single-cell link stays a plain value and the range survives verbatim for a multi-cell one.
+    const spansRange = decoded.tl.address !== decoded.br.address;
     const value: HyperlinkValue = {
       hyperlink: target,
       text,
       ...(link.tooltip !== undefined ? {tooltip: link.tooltip} : {}),
+      ...(spansRange ? {range: link.ref} : {}),
     };
     cell.value = value;
   }
 }
 
-// The single cell a hyperlink is anchored at: its `ref` verbatim when it names one cell, or the
-// top-left corner when it spans a range (`D1:H1` → `D1`). Returns undefined for a ref that does not
-// decode, so a malformed hyperlink is dropped rather than crashing the load.
-function hyperlinkAnchor(ref: string): string | undefined {
+// A hyperlink's `ref` decoded to a range (a single-cell ref decodes to a range whose corners
+// coincide), so the caller can both anchor on the top-left and tell whether the link spans further.
+// Returns undefined for a ref that does not decode, so a malformed hyperlink is dropped rather than
+// crashing the load.
+function decodeRefSafe(ref: string): RangeAddress | undefined {
   try {
-    return decodeRange(ref).tl.address;
+    return decodeRange(ref);
   } catch {
     return undefined;
   }

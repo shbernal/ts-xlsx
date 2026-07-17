@@ -62,6 +62,10 @@ export interface HyperlinkValue {
   readonly hyperlink: string;
   readonly text: string | RichTextValue;
   readonly tooltip?: string;
+  /** The clickable extent (`'D1:H1'`) when the link spans a range whose top-left corner is this
+   * cell. Absent for an ordinary single-cell link. The destination and label live on the top-left
+   * cell; `range` records how far Excel highlights the clickable area so it survives a round-trip. */
+  readonly range?: string;
 }
 
 /** The cached result a formula carries — any scalar, a date, or an error. */
