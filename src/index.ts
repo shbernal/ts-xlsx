@@ -83,7 +83,9 @@ export {writeCsv, writeCsvText, type CsvWriteOptions} from './io/csv/write.ts';
 export {readCsv, type CsvReadOptions} from './io/csv/read.ts';
 export {
   readSheetRows,
+  readWorkbookStream,
   type ReadSheetRowsOptions,
   type StreamedCell,
   type StreamedRow,
+  type StreamedSheet,
 } from './io/xlsx/read-rows.ts';

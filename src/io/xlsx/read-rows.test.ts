@@ -5,7 +5,7 @@ import {strToU8, zipSync} from 'fflate';
 
 import {isFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {readSheetRows, type StreamedRow} from './read-rows.ts';
+import {readSheetRows, readWorkbookStream, type StreamedRow} from './read-rows.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -177,6 +177,102 @@ test('streamed values agree with readXlsx cell-for-cell', () => {
       assert.deepEqual(cell.value, model?.getCell(cell.address).value, cell.address);
     }
   }
+});
+
+test('readWorkbookStream yields every worksheet in order, by declared name', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Alpha').getCell('A1').value = 1;
+  wb.addWorksheet('Beta').getCell('A1').value = 2;
+  wb.addWorksheet('Gamma').getCell('A1').value = 3;
+
+  const sheets = [...readWorkbookStream(writeXlsx(wb))];
+  assert.deepEqual(
+    sheets.map((sheet) => sheet.name),
+    ['Alpha', 'Beta', 'Gamma']
+  );
+  // Each sheet streams its own rows independently.
+  assert.equal([...sheets[1]!.rows()][0]?.cells[0]?.value, 2);
+});
+
+test('a streamed sheet surfaces its hidden columns after the rows are consumed', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getColumn(2).hidden = true;
+  sheet.getColumn(4).hidden = true;
+  sheet.getCell('A1').value = 'a';
+
+  const [streamed] = [...readWorkbookStream(writeXlsx(wb))];
+  assert.ok(streamed !== undefined);
+  for (const _row of streamed.rows()) void _row;
+  assert.deepEqual(streamed.hiddenColumns, [2, 4]);
+});
+
+test('hidden columns and merges resolve lazily even without iterating rows', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getColumn(3).hidden = true;
+  sheet.getCell('A1').value = 'm';
+  sheet.mergeCells('A1:B2');
+
+  const [streamed] = [...readWorkbookStream(writeXlsx(wb))];
+  assert.ok(streamed !== undefined);
+  // Reading a summary before touching rows() drives a scan of its own.
+  assert.deepEqual(streamed.hiddenColumns, [3]);
+  assert.deepEqual(streamed.merges, ['A1:B2']);
+});
+
+test('a streamed row carries its hidden flag; visible rows report false', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'top';
+  sheet.getCell('A2').value = 'mid';
+  sheet.getRow(2).hidden = true;
+
+  const [streamed] = [...readWorkbookStream(writeXlsx(wb))];
+  assert.deepEqual(
+    [...streamed!.rows()].map((row) => [row.number, row.hidden]),
+    [
+      [1, false],
+      [2, true],
+    ]
+  );
+});
+
+test('readWorkbookStream agrees with readXlsx across every sheet and cell', () => {
+  const wb = new Workbook();
+  const a = wb.addWorksheet('A');
+  a.getCell('A1').value = 'text';
+  a.getCell('B2').value = {formula: 'A1&"!"', result: 'text!'};
+  const b = wb.addWorksheet('B');
+  b.getCell('A1').value = 42;
+  b.getCell('C3').value = new Date(Date.UTC(2005, 2, 4));
+  const data = writeXlsx(wb);
+
+  const model = readXlsx(data);
+  for (const sheet of readWorkbookStream(data)) {
+    const worksheet = model.getWorksheet(sheet.name);
+    for (const row of sheet.rows()) {
+      for (const cell of row.cells) {
+        assert.deepEqual(cell.value, worksheet?.getCell(cell.address).value, `${sheet.name}!${cell.address}`);
+      }
+    }
+  }
+});
+
+test('rows() is re-iterable: a second pass yields the same rows and summaries', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getColumn(2).hidden = true;
+  sheet.getCell('A1').value = 'x';
+  sheet.mergeCells('A1:B1');
+
+  const [streamed] = [...readWorkbookStream(writeXlsx(wb))];
+  assert.ok(streamed !== undefined);
+  const first = [...streamed.rows()].map((row) => row.number);
+  const second = [...streamed.rows()].map((row) => row.number);
+  assert.deepEqual(first, second);
+  assert.deepEqual(streamed.hiddenColumns, [2]);
+  assert.deepEqual(streamed.merges, ['A1:B1']);
 });
 
 test('the generator is lazy: the first row is available before the rest are pulled', () => {

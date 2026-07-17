@@ -29,8 +29,10 @@ import {fileURLToPath} from 'node:url';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {decodeAddress, decodeRange, encodeAddress} from '../../../src/core/address.ts';
+import {detectValueType} from '../../../src/core/value.ts';
 import {Workbook} from '../../../src/core/workbook.ts';
 import {readXlsx} from '../../../src/io/xlsx/read.ts';
+import {readWorkbookStream} from '../../../src/io/xlsx/read-rows.ts';
 import {writeXlsx} from '../../../src/io/xlsx/write.ts';
 import {readCsv} from '../../../src/io/csv/read.ts';
 import {writeCsv, writeCsvText} from '../../../src/io/csv/write.ts';
@@ -47,7 +49,18 @@ const JSZip = require('jszip');
 // real-world file. The rewrite reads them straight through readXlsx (a fixture is just a
 // foreign `.xlsx` buffer).
 const FIXTURES_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
-const readFixture = rel => readXlsx(fs.readFileSync(path.join(FIXTURES_ROOT, rel)));
+const fixtureBytes = rel => fs.readFileSync(path.join(FIXTURES_ROOT, rel));
+const readFixture = rel => readXlsx(fixtureBytes(rel));
+
+// The 1-based `row.values` array a full-load reader exposes, rebuilt from a streamed row's cells:
+// index 0 is an empty leading slot and column A lands at index 1, so streaming and buffered reads
+// index identically. Gaps (and the leading slot) are null, every present value normalized.
+const streamedRowValues = cells => {
+  const width = cells.reduce((max, cell) => Math.max(max, cell.col), 0);
+  const values = new Array(width + 1).fill(null);
+  for (const cell of cells) values[cell.col] = normalizeStreamValue(cell.value);
+  return values;
+};
 
 // A 1×1 PNG — a minimal image payload for anchoring on a sheet.
 const ONE_PX_PNG = Uint8Array.from(
@@ -983,6 +996,241 @@ const impl = {
         : null;
     }
     return out;
+  },
+
+  // ── Streaming reader (readWorkbookStream) ──────────────────────────────────────────────────────
+  // The corpus's streaming-read contract, bound to the rewrite's generator-based reader. Each method
+  // mirrors its oracle sibling in workbook-io.mjs; where a case compares the streaming path to the
+  // eager one, BOTH come from the rewrite, so the assertion checks that streaming and buffered reads
+  // agree cell-for-cell. The rewrite's reader is a synchronous generator, so the "without race" and
+  // "chunk boundary" hazards the ExcelJS stream reader faces are structurally absent.
+
+  // Read a fixture both eagerly and through the streaming reader, reporting the sheet names each
+  // surfaces → { eager, streaming }. The streaming reader joins each worksheet part to the
+  // workbook-level declaration, so it exposes the real names, not positional placeholders.
+  streamVsEagerSheetNames(rel) {
+    const eager = readFixture(rel).worksheets.map(s => s.name);
+    const streaming = [...readWorkbookStream(fixtureBytes(rel))].map(s => s.name);
+    return {eager, streaming};
+  },
+
+  // Report the first sheet's populated row numbers from both paths → { eager, streaming }. Both skip
+  // fully-empty rows (the eager `includeEmpty:false` intent) so a gap between data rows is preserved
+  // as a jump in the numbers, never resequenced.
+  streamVsEagerRowNumbers(rel) {
+    const es = readFixture(rel).worksheets[0];
+    const eager = [];
+    if (es) for (const row of es.rows()) if (row.cells.length) eager.push(row.number);
+    const streaming = [];
+    for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
+      for (const row of sheet.rows()) if (row.cells.length) streaming.push(row.number);
+      break; // first worksheet only
+    }
+    return {eager, streaming};
+  },
+
+  // Report each populated first-sheet row's { number, hidden } from both paths → { eager, streaming }.
+  // The streaming reader must surface a row's hidden flag (in the string form "true"/"false" some
+  // generators write), agreeing with the eager read rather than reporting every row visible.
+  streamVsEagerRowHidden(rel) {
+    const es = readFixture(rel).worksheets[0];
+    const eager = [];
+    if (es) for (const row of es.rows()) if (row.cells.length) eager.push({number: row.number, hidden: !!row.properties?.hidden});
+    const streaming = [];
+    for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
+      for (const row of sheet.rows()) if (row.cells.length) streaming.push({number: row.number, hidden: !!row.hidden});
+      break; // first worksheet only
+    }
+    return {eager, streaming};
+  },
+
+  // Write a sheet with a hidden column, then read it eagerly and through the streaming reader,
+  // reporting each path's per-column hidden flags → { eager, stream, error }. The streaming reader
+  // parses <col hidden> and surfaces it after the rows are drained, matching the eager oracle.
+  streamVsEagerColumnHidden() {
+    const wb = new Workbook();
+    const s = wb.addWorksheet('S');
+    s.getColumn(2).hidden = true;
+    s.getCell('A1').value = 'a';
+    s.getCell('B1').value = 'b';
+    s.getCell('C1').value = 'c';
+    const buffer = writeXlsx(wb);
+
+    const es = readXlsx(buffer).getWorksheet('S');
+    const eager = {col1: !!es.getColumn(1).hidden, col2: !!es.getColumn(2).hidden, col3: !!es.getColumn(3).hidden};
+
+    const stream = {};
+    let error = null;
+    try {
+      for (const sheet of readWorkbookStream(buffer)) {
+        for (const _row of sheet.rows()) void _row;
+        const hidden = new Set(sheet.hiddenColumns);
+        stream.col1 = hidden.has(1);
+        stream.col2 = hidden.has(2);
+        stream.col3 = hidden.has(3);
+        break; // first worksheet only
+      }
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    return {eager, stream, error};
+  },
+
+  // Build a sheet with two merged ranges, then report the merge geometry from both the eager and the
+  // streaming path → { eagerMerges, streamedMerges, error }. The streaming reader collects
+  // <mergeCells> (which follows <sheetData>) during the same pass and exposes it after the rows.
+  streamReadMergesReport() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'm';
+    ws.mergeCells('A1:B2');
+    ws.getCell('D1').value = 'n';
+    ws.mergeCells('D1:D3');
+    const buffer = writeXlsx(wb);
+
+    const eagerMerges = [...readXlsx(buffer).getWorksheet('S').merges].sort();
+
+    let streamedMerges = null;
+    let error = null;
+    try {
+      for (const sheet of readWorkbookStream(buffer)) {
+        for (const _row of sheet.rows()) void _row;
+        streamedMerges = [...sheet.merges].sort();
+        break; // first worksheet only
+      }
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    return {eagerMerges, streamedMerges, error};
+  },
+
+  // Report the 1-based row-values array for the requested rows from both paths → { eager, streamed }.
+  // A streamed row indexes exactly as a full-load row does (empty slot at 0, column A at 1), so a
+  // caller can switch readers without re-indexing.
+  streamVsEagerRowValues(spec, rowNumbers = [1]) {
+    const buffer = writeXlsx(buildFrom(spec));
+    const wanted = new Set(rowNumbers);
+
+    const es = readXlsx(buffer).worksheets[0];
+    const eager = {};
+    if (es) for (const row of es.rows()) if (wanted.has(row.number)) eager[row.number] = streamedRowValues(row.cells);
+    for (const n of rowNumbers) eager[n] ??= [null];
+
+    const streamed = {};
+    for (const sheet of readWorkbookStream(buffer)) {
+      for (const row of sheet.rows()) if (wanted.has(row.number)) streamed[row.number] = streamedRowValues(row.cells);
+      break; // first worksheet only
+    }
+    for (const n of rowNumbers) streamed[n] ??= [null];
+    return {eager, streamed};
+  },
+
+  // Write `count` single-cell worksheets, then stream them back, reporting { written, emitted, error,
+  // first, last }. Exercises the reader across far more than 100 sheets and a package whose worksheet
+  // parts may precede the workbook part — every sheet must be emitted exactly once.
+  streamReadManySheets(count = 180) {
+    const wb = new Workbook();
+    for (let i = 0; i < count; i++) wb.addWorksheet(`Sheet${i + 1}`).getCell('A1').value = i;
+    const buffer = writeXlsx(wb);
+    const names = [];
+    let error = null;
+    try {
+      for (const sheet of readWorkbookStream(buffer)) names.push(sheet.name);
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    return {written: count, emitted: names.length, error, first: names[0] ?? null, last: names[names.length - 1] ?? null};
+  },
+
+  // Write a shared-strings workbook, then read it through the streaming reader once and again
+  // concurrently, reporting whether every shared-string cell resolved → { singleComplete, singleLength,
+  // concurrentAllComplete, concurrentLengths }. The rewrite's reader is a pure synchronous generator,
+  // so concurrent reads cannot race over a shared shared-strings table.
+  async streamingSharedStringsRead(rowCount = 20, concurrency = 8) {
+    const build = new Workbook();
+    const bs = build.addWorksheet('S');
+    for (let r = 1; r <= rowCount; r++) {
+      bs.getCell(`A${r}`).value = `str${r % 3}`;
+      bs.getCell(`B${r}`).value = r;
+    }
+    const buffer = writeXlsx(build, {useSharedStrings: true});
+
+    const readOne = () => {
+      const strings = [];
+      for (const sheet of readWorkbookStream(buffer)) {
+        for (const row of sheet.rows()) {
+          const first = row.cells.find(cell => cell.col === 1);
+          strings.push(first ? first.value : undefined);
+        }
+      }
+      return strings;
+    };
+
+    const single = readOne();
+    const singleComplete = single.length === rowCount && single.every(v => typeof v === 'string');
+    const many = await Promise.all(Array.from({length: concurrency}, async () => readOne()));
+    const allComplete = many.every(v => v.length === rowCount && v.every(x => typeof x === 'string'));
+    return {
+      singleComplete,
+      singleLength: single.length,
+      concurrentAllComplete: allComplete,
+      concurrentLengths: many.map(v => v.length),
+    };
+  },
+
+  // Stream-read a fixture end-to-end, reporting { ok, error, sheetNames, totalRows } — the read either
+  // completes (with every sheet name and the total rows delivered) or its error is captured as data.
+  // Locks that the reader tolerates a package whose ZIP places a worksheet part before xl/workbook.xml
+  // (the inflate builds a path→bytes map, so entry order is irrelevant).
+  streamReadReport(rel) {
+    const sheetNames = [];
+    let totalRows = 0;
+    try {
+      for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
+        sheetNames.push(sheet.name);
+        for (const _row of sheet.rows()) totalRows += 1;
+      }
+      return {ok: true, error: null, sheetNames, totalRows};
+    } catch (e) {
+      return {ok: false, error: String((e && e.message) || e), sheetNames, totalRows};
+    }
+  },
+
+  // Stream-read a fixture's first sheet, reporting each requested cell's { type, value } | null. The
+  // type is the model's stable label; a date-formatted numeric cell surfaces as a Date because the
+  // streaming reader applies the cell's number format when decoding, exactly as the eager read does.
+  streamReadFixture(rel, cells = []) {
+    const wanted = new Map(cells.map(a => [a, null]));
+    for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
+      for (const row of sheet.rows()) {
+        for (const cell of row.cells) {
+          if (wanted.has(cell.address)) wanted.set(cell.address, {type: detectValueType(cell.value), value: normalizeStreamValue(cell.value)});
+        }
+      }
+      break; // first worksheet only
+    }
+    const out = {};
+    for (const [k, v] of wanted) out[k] = v;
+    return out;
+  },
+
+  // Write a spec, then read the requested cells through both paths → { streamed, eager }. Proves the
+  // streaming reader returns multi-byte UTF-8 text (CJK, emoji) byte-exact and identical to the eager
+  // read — the whole-package inflate decodes UTF-8 as one unit, so no character is split.
+  streamReadSpec(spec, cells = []) {
+    const buffer = writeXlsx(buildFrom(spec));
+    const wanted = new Set(cells);
+    const streamed = {};
+    for (const sheet of readWorkbookStream(buffer)) {
+      for (const row of sheet.rows()) {
+        for (const cell of row.cells) if (wanted.has(cell.address)) streamed[cell.address] = normalizeStreamValue(cell.value);
+      }
+      break; // first worksheet only
+    }
+    const es = readXlsx(buffer).worksheets[0];
+    const eager = {};
+    for (const ref of cells) eager[ref] = normalizeStreamValue(es ? es.getCell(ref).value : null);
+    return {streamed, eager};
   },
 
   // Give one cell a fill and another a border but NO value, leave a third cell entirely untouched,
