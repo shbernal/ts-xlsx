@@ -807,8 +807,18 @@ function tableXml(table: Table, id: number): string {
   const displayName = escapeAttr(table.displayName);
   // headerRowCount defaults to 1 in OOXML, so only a headerless table needs it stated.
   const headerRowCount = table.headerRow ? '' : ' headerRowCount="0"';
-  // totalsRowShown defaults to true; a table without a totals row must say so explicitly.
-  const totals = table.totalsRow ? ' totalsRowCount="1"' : ' totalsRowShown="0"';
+  // A present totals row implies it is shown, so it only needs the count. Without a totals row the
+  // model's tri-state totalsRowShown decides: emit the flag Excel recorded, or nothing when the
+  // source omitted it — injecting `totalsRowShown="0"` onto a table that lacked the attribute is
+  // exactly the spurious change that makes Excel treat an otherwise-valid table as corrupt.
+  let totals: string;
+  if (table.totalsRow) {
+    totals = ' totalsRowCount="1"';
+  } else if (table.totalsRowShown !== undefined) {
+    totals = ` totalsRowShown="${table.totalsRowShown ? '1' : '0'}"`;
+  } else {
+    totals = '';
+  }
   const autoFilter =
     table.autoFilterRef !== null ? `<autoFilter ref="${table.autoFilterRef}"/>` : '';
   const columns = table.columns.map((column, i) => tableColumnXml(column, i + 1)).join('');

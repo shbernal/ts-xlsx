@@ -15,6 +15,7 @@ function roundtripTable(options: {
   rowCount: number;
   headerRow?: boolean;
   totalsRow?: boolean;
+  totalsRowShown?: boolean;
   autoFilter?: boolean;
 }) {
   const wb = new Workbook();
@@ -94,6 +95,21 @@ test('a totals-row table round-trips its totals flag and per-column totals behav
   assert.equal(table.ref, 'A1:B4', 'header + 2 data + totals spans four rows');
   assert.equal(table.columns[0]?.totalsRowLabel, 'Total');
   assert.equal(table.columns[1]?.totalsRowFunction, 'sum');
+});
+
+test('a table with no totalsRowShown flag stays without one across a round-trip', () => {
+  const [table] = roundtripTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 2});
+  assert.ok(table !== undefined);
+  assert.equal(table.options.totalsRowShown, undefined, 'an absent flag must not be fabricated on read-back');
+  assert.equal('totalsRowShown' in table.options, false, 'the key is omitted, not set to undefined');
+});
+
+test('an explicit totalsRowShown flag survives a round-trip in both states', () => {
+  const [off] = roundtripTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 2, totalsRowShown: false});
+  assert.equal(off?.options.totalsRowShown, false);
+
+  const [on] = roundtripTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 2, totalsRowShown: true});
+  assert.equal(on?.options.totalsRowShown, true);
 });
 
 test('a distinct display name round-trips independently of the internal name', () => {

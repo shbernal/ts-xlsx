@@ -39,6 +39,7 @@ export function parseTable(xml: string): TableOptions | undefined {
   let ref: string | undefined;
   let headerRowCount = 1; // OOXML default: a table carries a header row unless it says otherwise.
   let totalsRowCount = 0; // OOXML default: no totals row.
+  let totalsRowShown: boolean | undefined; // Absent unless the part states the attribute.
   let hasAutoFilter = false; // Only present when the part carries an `<autoFilter>` element.
   const columns: TableColumn[] = [];
 
@@ -54,6 +55,11 @@ export function parseTable(xml: string): TableOptions | undefined {
           ref = attrs.ref;
           if (attrs.headerRowCount !== undefined) headerRowCount = Number(attrs.headerRowCount);
           if (attrs.totalsRowCount !== undefined) totalsRowCount = Number(attrs.totalsRowCount);
+          // OOXML boolean: only "0"/"false" are false; capture the flag verbatim so it re-emits
+          // exactly (or, absent, stays absent) rather than being normalised.
+          if (attrs.totalsRowShown !== undefined) {
+            totalsRowShown = attrs.totalsRowShown !== '0' && attrs.totalsRowShown !== 'false';
+          }
           break;
         case 'autoFilter':
           hasAutoFilter = true;
@@ -88,7 +94,7 @@ export function parseTable(xml: string): TableOptions | undefined {
   const totalsRow = totalsRowCount > 0;
   const dataRows = bottom - top + 1 - (headerRow ? 1 : 0) - (totalsRow ? 1 : 0);
 
-  return {
+  const options: TableOptions = {
     name,
     displayName: displayName ?? name,
     ref: encodeAddress(left, top),
@@ -100,4 +106,8 @@ export function parseTable(xml: string): TableOptions | undefined {
     // `<autoFilter>` must not have one fabricated on the next write.
     autoFilter: hasAutoFilter,
   };
+  // Kept off the literal so an absent attribute stays absent (not `totalsRowShown: undefined`),
+  // preserving the round-trip: a table that never stated the flag must not gain one.
+  if (totalsRowShown !== undefined) options.totalsRowShown = totalsRowShown;
+  return options;
 }

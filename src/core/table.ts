@@ -37,6 +37,12 @@ export interface TableOptions {
   headerRow?: boolean;
   /** Whether the table has a totals row. Defaults to `false`. */
   totalsRow?: boolean;
+  /** The `totalsRowShown` flag on a table *without* a totals row — Excel's record of whether a
+   * totals row has ever been toggled on. Tri-state so a round-trip is faithful: `false` re-emits
+   * `totalsRowShown="0"`, `true` re-emits `totalsRowShown="1"`, and `undefined` (the authoring
+   * default) emits nothing — a file read without the attribute must not have one injected. Ignored
+   * when {@link totalsRow} is set, since a present totals row already implies it is shown. */
+  totalsRowShown?: boolean;
   /** Whether the header row carries an autoFilter. Defaults to {@link headerRow}: a header table
    * gains an autoFilter, a headerless one never can. Set `false` to keep a header table's rows
    * unfiltered — a file read without an autoFilter must round-trip without one being injected. */
@@ -91,6 +97,7 @@ export class Table {
   readonly columns: readonly TableColumn[];
   readonly headerRow: boolean;
   readonly totalsRow: boolean;
+  readonly totalsRowShown: boolean | undefined;
   readonly autoFilter: boolean;
 
   // The anchor and data-row count move when a row/column splice shifts or resizes the table, so
@@ -118,6 +125,7 @@ export class Table {
     this.columns = options.columns.map(c => ({...c}));
     this.headerRow = options.headerRow ?? true;
     this.totalsRow = options.totalsRow ?? false;
+    this.totalsRowShown = options.totalsRowShown;
     // A header table gains an autoFilter by default (Excel's behaviour when a table is inserted);
     // a headerless table can never carry one — an autoFilter has no header row to anchor to.
     this.autoFilter = this.headerRow && (options.autoFilter ?? true);
@@ -174,7 +182,7 @@ export class Table {
    * losslessly across an export/import round-trip.
    */
   get options(): TableOptions {
-    return {
+    const options: TableOptions = {
       name: this.name,
       displayName: this.displayName,
       ref: encodeAddress(this.#anchorCol, this.#anchorRow),
@@ -184,6 +192,10 @@ export class Table {
       totalsRow: this.totalsRow,
       autoFilter: this.autoFilter,
     };
+    // Kept off the literal so `undefined` (attribute absent) stays absent, not an explicit
+    // `totalsRowShown: undefined` — the round-trip must not fabricate the flag.
+    if (this.totalsRowShown !== undefined) options.totalsRowShown = this.totalsRowShown;
+    return options;
   }
 
   /** The full A1 range the table occupies: header (if any) + data rows + totals (if any). */

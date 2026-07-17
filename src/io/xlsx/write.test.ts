@@ -393,6 +393,23 @@ test('a totals-row column serialises its function and keeps every column', () =>
   assert.match(table, /<tableColumn id="2" name="Amount" totalsRowFunction="sum"\/>/);
 });
 
+test('a no-totals table omits totalsRowShown unless the flag is set explicitly', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
+  const table = partsOf(wb)['xl/tables/table1.xml'] as string;
+  assert.doesNotMatch(table, /totalsRowShown/, 'an unset flag emits no attribute — Excel must not see a spurious one');
+});
+
+test('an explicit totalsRowShown flag round-trips as "0" or "1"', () => {
+  const off = new Workbook();
+  off.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1, totalsRowShown: false});
+  assert.match(partsOf(off)['xl/tables/table1.xml'] as string, /totalsRowShown="0"/);
+
+  const on = new Workbook();
+  on.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1, totalsRowShown: true});
+  assert.match(partsOf(on)['xl/tables/table1.xml'] as string, /totalsRowShown="1"/);
+});
+
 test('an illegal table name is rejected at definition time', () => {
   const s = new Workbook().addWorksheet('S');
   assert.throws(() => s.addTable({name: "Bob's Accounts", ref: 'A1', columns: [{name: 'A'}], rowCount: 1}), /identifier/);
