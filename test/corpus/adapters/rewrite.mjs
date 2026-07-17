@@ -79,7 +79,7 @@ const notImplemented = message => {
 const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties', 'definedNames']);
 const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
 const SUPPORTED_SHEET_KEYS = new Set([
-  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges',
+  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges', 'autoFilter',
 ]);
 const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'sharedFormula', 'result', 'hyperlink', 'text', 'tooltip', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection']);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
@@ -208,6 +208,10 @@ function buildFrom(spec = {}) {
     }
 
     for (const range of s.merges || []) sheet.mergeCells(range);
+
+    // A spec autoFilter is either a bare range string or the structured {ref, columns} shape; the
+    // model's setter accepts both, so pass it through verbatim.
+    if (s.autoFilter !== undefined) sheet.autoFilter = s.autoFilter;
 
     for (const col of s.columns || []) {
       for (const k of Object.keys(col)) {
@@ -391,6 +395,31 @@ const impl = {
 
   inspectPackage(spec) {
     return packageFacts(spec, partMapOf(writeXlsx(buildFrom(spec))));
+  },
+
+  // Set an autofilter over a range, write, and report the sheet's autoFilter ref plus whether the
+  // workbook declares the hidden, sheet-scoped `_xlnm._FilterDatabase` defined name portable consumers
+  // (LibreOffice) rely on → { autoFilterRef, hasFilterDatabase, filterDatabaseHidden,
+  // filterDatabaseFormula }. Mirrors the oracle's shape.
+  autoFilterDefinedNameReport(ref = 'A1:B2') {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = 'H1';
+    sheet.getCell('B1').value = 'H2';
+    sheet.getCell('A2').value = 1;
+    sheet.getCell('B2').value = 2;
+    sheet.autoFilter = ref;
+    const parts = partMapOf(writeXlsx(workbook));
+    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const wbXml = parts['xl/workbook.xml'] || '';
+    const autoFilterRef = (sheetXml.match(/<autoFilter\b[^>]*ref="([^"]*)"/) || [])[1] ?? null;
+    const filterDb = wbXml.match(/<definedName\b([^>]*)name="_xlnm._FilterDatabase"([^>]*)>([\s\S]*?)<\/definedName>/);
+    return {
+      autoFilterRef,
+      hasFilterDatabase: !!filterDb,
+      filterDatabaseHidden: filterDb ? /hidden="1"/.test(filterDb[1] + filterDb[2]) : false,
+      filterDatabaseFormula: filterDb ? filterDb[3] : null,
+    };
   },
 
   // Drive the streaming writer to produce a package, then treat the bytes as an UNTRUSTED archive:
@@ -1467,7 +1496,7 @@ const impl = {
           scale: ps.scale ?? null,
           paperSize: ps.paperSize ?? null,
         },
-        autoFilter: null,
+        autoFilter: sheet.autoFilter?.ref ?? null,
         merges: [...sheet.merges],
         rowCount: sheet.rowCount,
         actualRowCount: sheet.actualRowCount,
