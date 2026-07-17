@@ -28,8 +28,9 @@ import {Zip, ZipDeflate} from 'fflate';
 import type {Cell} from '../../core/cell.ts';
 import type {ConditionalFormatting} from '../../core/conditional-formatting.ts';
 import type {DataValidation} from '../../core/data-validation.ts';
+import type {AnchorPoint} from '../../core/image.ts';
 import type {CellValue} from '../../core/value.ts';
-import {Workbook, type AddWorksheetOptions} from '../../core/workbook.ts';
+import {Workbook, type AddImageOptions, type AddWorksheetOptions} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {buildPackageParts, type WriteOptions} from './write.ts';
 
@@ -146,6 +147,17 @@ export class WorksheetStreamWriter {
     this.#sheet.addConditionalFormatting(formatting);
   }
 
+  /**
+   * Anchor a workbook image (the id from {@link WorkbookStreamWriter.addImage}) to this sheet,
+   * spanning the rectangle from the top-left grid point `tl` to the bottom-right `br`. The streamed
+   * package emits the drawing part, its media relationship, and the sheet's `<drawing>` reference
+   * exactly as a buffered write does — both writers share `buildPackageParts`.
+   */
+  addImage(imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint}): void {
+    this.#assertOpen();
+    this.#sheet.addImage(imageId, anchor);
+  }
+
   /** Freeze the sheet: no more rows or edits may be added after this. */
   commit(): void {
     this.#committed = true;
@@ -208,6 +220,18 @@ export class WorkbookStreamWriter {
    */
   get stream(): Readable {
     return (this.#stream ??= new PassThrough());
+  }
+
+  /**
+   * Register a picture's bytes on the workbook's shared media registry and return its id, to anchor
+   * on any sheet with {@link WorksheetStreamWriter.addImage}. Mirrors {@link Workbook.addImage}: one
+   * media part backs an image anchored on several sheets. Rejected once the workbook is committed.
+   */
+  addImage(options: AddImageOptions): number {
+    if (this.#committed) {
+      throw new Error('the workbook is already committed — no more images can be registered');
+    }
+    return this.#workbook.addImage(options);
   }
 
   /** Create a worksheet and append it to the workbook. */

@@ -18,6 +18,14 @@ function partText(pkg: Uint8Array, name: string): string {
   return strFromU8(bytes);
 }
 
+// A 1×1 transparent PNG — enough bytes to prove the streamed media round-trips verbatim.
+const ONE_PX_PNG = Uint8Array.from(
+  atob(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+  ),
+  c => c.charCodeAt(0)
+);
+
 // Drain a Node readable into one buffer, resolving once it ends.
 function drain(stream: NodeJS.ReadableStream): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
@@ -279,4 +287,56 @@ test('authoring conditional formatting or a data validation on a committed strea
   assert.throws(() => sheet.addConditionalFormatting({ref: 'A1', rules: []}), /already committed/);
   assert.throws(() => sheet.addDataValidation('A1', {type: 'list', formulae: ['"a"']}), /already committed/);
   await writer.commit();
+});
+
+test('an image anchored on the stream reloads with its anchor and bytes intact', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  const id = writer.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  sheet.addImage(id, {tl: {col: 0, row: 5}, br: {col: 2, row: 8}});
+  sheet.commit();
+
+  const bytes = await writer.commit();
+  const reloaded = readXlsx(bytes);
+  const [image] = reloaded.getWorksheet('S')?.images ?? [];
+  assert.deepStrictEqual(image?.anchor.from, {col: 0, row: 5, colOff: 0, rowOff: 0});
+  assert.deepStrictEqual(image?.anchor.to, {col: 2, row: 8, colOff: 0, rowOff: 0});
+  const media = reloaded.getImage(image?.imageId ?? -1);
+  assert.strictEqual(media?.extension, 'png');
+  assert.deepStrictEqual(media?.data, ONE_PX_PNG, 'the streamed media bytes survive verbatim');
+});
+
+test('a streamed image emits the drawing, media, and <drawing> reference like a buffered write', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  const id = writer.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  sheet.addImage(id, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
+  sheet.commit();
+
+  const bytes = await writer.commit();
+  const files = unzipSync(bytes);
+  assert.ok(files['xl/drawings/drawing1.xml'], 'a drawing part is streamed');
+  assert.ok(files['xl/media/image1.png'], 'the media bytes are streamed');
+  assert.match(partText(bytes, 'xl/worksheets/sheet1.xml'), /<drawing r:id="[^"]+"\/>/);
+  const contentTypes = partText(bytes, '[Content_Types].xml');
+  assert.match(contentTypes, /Extension="png" ContentType="image\/png"/);
+  assert.match(contentTypes, /PartName="\/xl\/drawings\/drawing1\.xml"/);
+});
+
+test('one streamed image anchored on two sheets is stored as a single media part', async () => {
+  const writer = new WorkbookStreamWriter();
+  const id = writer.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  writer.addWorksheet('A').addImage(id, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
+  writer.addWorksheet('B').addImage(id, {tl: {col: 3, row: 3}, br: {col: 4, row: 4}});
+
+  const files = unzipSync(await writer.commit());
+  const mediaParts = Object.keys(files).filter(n => n.startsWith('xl/media/'));
+  assert.strictEqual(mediaParts.length, 1, 'the shared image is streamed once');
+});
+
+test('registering an image on a committed streamed workbook is rejected legibly', async () => {
+  const writer = new WorkbookStreamWriter();
+  writer.addWorksheet('S').commit();
+  await writer.commit();
+  assert.throws(() => writer.addImage({buffer: ONE_PX_PNG, extension: 'png'}), /already committed/);
 });
