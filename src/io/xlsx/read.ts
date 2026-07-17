@@ -15,6 +15,7 @@
 import {strFromU8} from 'fflate';
 
 import {decodeAddress, encodeAddress} from '../../core/address.ts';
+import type {Cell} from '../../core/cell.ts';
 import {
   type SheetProtection,
   type SheetProtectionCredential,
@@ -918,7 +919,9 @@ function parseWorksheet(
           // A clone's cached result honours the cell's date format the same way a plain formula's does.
           ...(hasValue ? {result: decodeFormulaResult(cellType, valueText, style?.numFmt)} : {}),
         };
-        sheet.getCell(cellRef).value = value;
+        const cloneCell = sheet.getCell(cellRef);
+        applyCellStyle(cloneCell, style);
+        cloneCell.value = value;
         return;
       }
     }
@@ -1186,16 +1189,23 @@ function finalizeCell(
   const {col, row} = decodeAddress(ref);
   if (col === undefined || row === undefined) return;
   const cell = sheet.getCell(ref);
-  if (style?.fill !== undefined) cell.fill = style.fill;
-  if (style?.numFmt !== undefined) cell.numFmt = style.numFmt;
-  if (style?.font !== undefined) cell.font = style.font;
-  if (style?.border !== undefined) cell.border = style.border;
-  if (style?.alignment !== undefined) cell.alignment = style.alignment;
-  if (style?.protection !== undefined) cell.protection = style.protection;
+  applyCellStyle(cell, style);
 
   cell.value = decodeCellContent(
     {type, hasFormula, formula, hasValue, valueText, inlineText, richTextRuns},
     sharedStrings,
     style?.numFmt
   );
+}
+
+// Applies a resolved xf's non-value facets to a cell. Shared by the ordinary cell path and the
+// shared-formula clone path, so a styled clone (fill/font/border/alignment/protection) keeps its
+// look on read rather than surviving as value-only.
+function applyCellStyle(cell: Cell, style: XfStyle | undefined): void {
+  if (style?.fill !== undefined) cell.fill = style.fill;
+  if (style?.numFmt !== undefined) cell.numFmt = style.numFmt;
+  if (style?.font !== undefined) cell.font = style.font;
+  if (style?.border !== undefined) cell.border = style.border;
+  if (style?.alignment !== undefined) cell.alignment = style.alignment;
+  if (style?.protection !== undefined) cell.protection = style.protection;
 }

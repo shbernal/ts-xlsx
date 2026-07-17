@@ -3,6 +3,7 @@ import {test} from 'node:test';
 
 import {strFromU8, unzipSync} from 'fflate';
 
+import type {Fill} from '../../core/style.ts';
 import {isSharedFormulaValue, type SharedFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
@@ -121,4 +122,23 @@ test('inserting a column into a shared-formula sheet re-anchors the master so th
   const c2 = sharedOf(back, 'C2');
   assert.equal(c2.sharedFormula, 'C1');
   assert.match(sheetXmlOf(writeXlsx(wb)), /<f t="shared" ref="C1:C3" si="0">/);
+});
+
+test('a styled shared-formula clone keeps its fill and font on read, not just its value', () => {
+  const red: Fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF0000'}};
+  const wb = filledColumn();
+  const sheet = wb.getWorksheet('S');
+  assert.ok(sheet !== undefined);
+  // The clone B2 carries style facets the classic reader dropped: it committed the clone's value
+  // directly and never re-applied the resolved xf, so the fill/font vanished on round-trip.
+  sheet.getCell('B2').fill = red;
+  sheet.getCell('B2').font = {bold: true};
+
+  const back = readXlsx(writeXlsx(wb));
+  const b2 = back.getWorksheet('S')?.getCell('B2');
+  assert.ok(b2 !== undefined);
+  assert.equal(sharedOf(back, 'B2').sharedFormula, 'B1', 'the clone is still a shared-formula clone');
+  // A solid fill reads back with the default indexed bgColor the writer emits alongside it.
+  assert.deepEqual(b2.fill, {...red, bgColor: {indexed: 64}}, 'the clone keeps its fill');
+  assert.deepEqual(b2.font, {bold: true}, 'the clone keeps its font');
 });
