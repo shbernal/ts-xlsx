@@ -8,8 +8,13 @@
 // only when `totalsRowCount` is positive), so reconstructing one from the other is lossless.
 
 import {decodeRange, encodeAddress} from '../../core/address.ts';
-import type {TableColumn, TableOptions} from '../../core/table.ts';
+import type {TableColumn, TableOptions, TableStyleInfo} from '../../core/table.ts';
 import {localName, parseXml} from './xml-read.ts';
+
+// OOXML booleans spell false as "0" or "false"; every other spelling (including "1"/"true") is true.
+function parseOoxmlBool(value: string): boolean {
+  return value !== '0' && value !== 'false';
+}
 
 /**
  * Parse a `<table>` part into the options that reconstruct it, or `undefined` when the XML is not a
@@ -40,6 +45,7 @@ export function parseTable(xml: string): TableOptions | undefined {
   let headerRowCount = 1; // OOXML default: a table carries a header row unless it says otherwise.
   let totalsRowCount = 0; // OOXML default: no totals row.
   let totalsRowShown: boolean | undefined; // Absent unless the part states the attribute.
+  let style: TableStyleInfo | undefined; // Absent unless the part carries a `<tableStyleInfo>`.
   let hasAutoFilter = false; // Only present when the part carries an `<autoFilter>` element.
   const columns: TableColumn[] = [];
 
@@ -55,15 +61,27 @@ export function parseTable(xml: string): TableOptions | undefined {
           ref = attrs.ref;
           if (attrs.headerRowCount !== undefined) headerRowCount = Number(attrs.headerRowCount);
           if (attrs.totalsRowCount !== undefined) totalsRowCount = Number(attrs.totalsRowCount);
-          // OOXML boolean: only "0"/"false" are false; capture the flag verbatim so it re-emits
-          // exactly (or, absent, stays absent) rather than being normalised.
-          if (attrs.totalsRowShown !== undefined) {
-            totalsRowShown = attrs.totalsRowShown !== '0' && attrs.totalsRowShown !== 'false';
-          }
+          // Capture the flag verbatim so it re-emits exactly (or, absent, stays absent) rather
+          // than being normalised.
+          if (attrs.totalsRowShown !== undefined) totalsRowShown = parseOoxmlBool(attrs.totalsRowShown);
           break;
         case 'autoFilter':
           hasAutoFilter = true;
           break;
+        case 'tableStyleInfo': {
+          // Keep each attribute off the literal so an absent one stays absent (not `key: undefined`),
+          // preserving the round-trip — the writer re-emits only the attributes we actually saw.
+          const captured: {-readonly [K in keyof TableStyleInfo]: TableStyleInfo[K]} = {};
+          if (attrs.name !== undefined) captured.name = attrs.name;
+          if (attrs.showFirstColumn !== undefined) captured.showFirstColumn = parseOoxmlBool(attrs.showFirstColumn);
+          if (attrs.showLastColumn !== undefined) captured.showLastColumn = parseOoxmlBool(attrs.showLastColumn);
+          if (attrs.showRowStripes !== undefined) captured.showRowStripes = parseOoxmlBool(attrs.showRowStripes);
+          if (attrs.showColumnStripes !== undefined) {
+            captured.showColumnStripes = parseOoxmlBool(attrs.showColumnStripes);
+          }
+          style = captured;
+          break;
+        }
         case 'tableColumn': {
           if (attrs.name === undefined) break;
           const column: {name: string; totalsRowLabel?: string; totalsRowFunction?: string} = {
@@ -109,5 +127,6 @@ export function parseTable(xml: string): TableOptions | undefined {
   // Kept off the literal so an absent attribute stays absent (not `totalsRowShown: undefined`),
   // preserving the round-trip: a table that never stated the flag must not gain one.
   if (totalsRowShown !== undefined) options.totalsRowShown = totalsRowShown;
+  if (style !== undefined) options.style = style;
   return options;
 }

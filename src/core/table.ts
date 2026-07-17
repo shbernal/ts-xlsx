@@ -9,6 +9,37 @@
 
 import {decodeAddress, encodeAddress} from './address.ts';
 
+/**
+ * A table's visual style (`<tableStyleInfo>`): the named style to apply plus the banding/highlight
+ * toggles. Every field is a tri-state so a round-trip stays faithful — a value present in the source
+ * re-emits, one the source omitted stays omitted rather than being defaulted to `"0"`. A workbook
+ * whose part carries no `<tableStyleInfo>` at all leaves {@link TableOptions.style} undefined.
+ */
+export interface TableStyleInfo {
+  /** Named table style to apply (e.g. `"TableStyleMedium2"`, or a workbook-defined custom name). */
+  readonly name?: string;
+  /** Emphasise the first column. */
+  readonly showFirstColumn?: boolean;
+  /** Emphasise the last column. */
+  readonly showLastColumn?: boolean;
+  /** Band the rows (alternating fill). */
+  readonly showRowStripes?: boolean;
+  /** Band the columns (alternating fill). */
+  readonly showColumnStripes?: boolean;
+}
+
+/** Copy a style, keeping only its defined fields off the literal so `exactOptionalPropertyTypes`
+ * never sees a fabricated `key: undefined` — an absent attribute must stay absent across a copy. */
+function cloneStyleInfo(style: TableStyleInfo): TableStyleInfo {
+  const clone: {-readonly [K in keyof TableStyleInfo]: TableStyleInfo[K]} = {};
+  if (style.name !== undefined) clone.name = style.name;
+  if (style.showFirstColumn !== undefined) clone.showFirstColumn = style.showFirstColumn;
+  if (style.showLastColumn !== undefined) clone.showLastColumn = style.showLastColumn;
+  if (style.showRowStripes !== undefined) clone.showRowStripes = style.showRowStripes;
+  if (style.showColumnStripes !== undefined) clone.showColumnStripes = style.showColumnStripes;
+  return clone;
+}
+
 /** One column of a table: a header name and its optional totals-row behaviour. */
 export interface TableColumn {
   /** The column's header/display name. Must be unique within the table (case-insensitively) —
@@ -47,6 +78,10 @@ export interface TableOptions {
    * gains an autoFilter, a headerless one never can. Set `false` to keep a header table's rows
    * unfiltered — a file read without an autoFilter must round-trip without one being injected. */
   autoFilter?: boolean;
+  /** The table's visual style. Preserved verbatim across a round-trip; when omitted, a freshly
+   * authored table is written with Excel's default (`TableStyleMedium2`, banded rows). A part read
+   * with no `<tableStyleInfo>` sets this to `undefined`. See {@link TableStyleInfo}. */
+  style?: TableStyleInfo;
 }
 
 // Excel's table-name grammar: start with a letter, underscore, or backslash; every later
@@ -99,6 +134,7 @@ export class Table {
   readonly totalsRow: boolean;
   readonly totalsRowShown: boolean | undefined;
   readonly autoFilter: boolean;
+  readonly style: TableStyleInfo | undefined;
 
   // The anchor and data-row count move when a row/column splice shifts or resizes the table, so
   // they are mutable behind the class's controlled `shiftRows`/`shiftColumns` methods.
@@ -126,6 +162,7 @@ export class Table {
     this.headerRow = options.headerRow ?? true;
     this.totalsRow = options.totalsRow ?? false;
     this.totalsRowShown = options.totalsRowShown;
+    this.style = options.style === undefined ? undefined : cloneStyleInfo(options.style);
     // A header table gains an autoFilter by default (Excel's behaviour when a table is inserted);
     // a headerless table can never carry one — an autoFilter has no header row to anchor to.
     this.autoFilter = this.headerRow && (options.autoFilter ?? true);
@@ -195,6 +232,7 @@ export class Table {
     // Kept off the literal so `undefined` (attribute absent) stays absent, not an explicit
     // `totalsRowShown: undefined` — the round-trip must not fabricate the flag.
     if (this.totalsRowShown !== undefined) options.totalsRowShown = this.totalsRowShown;
+    if (this.style !== undefined) options.style = cloneStyleInfo(this.style);
     return options;
   }
 

@@ -410,6 +410,28 @@ test('an explicit totalsRowShown flag round-trips as "0" or "1"', () => {
   assert.match(partsOf(on)['xl/tables/table1.xml'] as string, /totalsRowShown="1"/);
 });
 
+test('a table with no explicit style is written with Excel\'s default TableStyleMedium2', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
+  const table = partsOf(wb)['xl/tables/table1.xml'] as string;
+  assert.match(table, /<tableStyleInfo name="TableStyleMedium2"[^>]*showRowStripes="1"[^>]*\/>/);
+});
+
+test('an explicit table style is emitted verbatim, omitting the attributes it leaves unset', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'A'}],
+    rowCount: 1,
+    style: {name: 'Assignment schedule', showRowStripes: false},
+  });
+  const table = partsOf(wb)['xl/tables/table1.xml'] as string;
+  assert.match(table, /name="Assignment schedule"/, 'a custom style name survives instead of being rewritten');
+  assert.match(table, /showRowStripes="0"/, 'the source\'s stripe choice is preserved, not forced to "1"');
+  assert.doesNotMatch(table, /showFirstColumn/, 'an unset banding flag emits no attribute');
+});
+
 test('an illegal table name is rejected at definition time', () => {
   const s = new Workbook().addWorksheet('S');
   assert.throws(() => s.addTable({name: "Bob's Accounts", ref: 'A1', columns: [{name: 'A'}], rowCount: 1}), /identifier/);

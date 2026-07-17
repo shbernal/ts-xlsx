@@ -17,6 +17,13 @@ function roundtripTable(options: {
   totalsRow?: boolean;
   totalsRowShown?: boolean;
   autoFilter?: boolean;
+  style?: {
+    name?: string;
+    showFirstColumn?: boolean;
+    showLastColumn?: boolean;
+    showRowStripes?: boolean;
+    showColumnStripes?: boolean;
+  };
 }) {
   const wb = new Workbook();
   wb.addWorksheet('S').addTable(options);
@@ -110,6 +117,44 @@ test('an explicit totalsRowShown flag survives a round-trip in both states', () 
 
   const [on] = roundtripTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 2, totalsRowShown: true});
   assert.equal(on?.options.totalsRowShown, true);
+});
+
+test('a custom table style name and banding flags survive a round-trip verbatim', () => {
+  const [table] = roundtripTable({
+    name: 'Styled',
+    ref: 'A1',
+    columns: [{name: 'A'}],
+    rowCount: 2,
+    style: {name: 'TableStyleLight9', showFirstColumn: true, showLastColumn: false, showRowStripes: false, showColumnStripes: true},
+  });
+  assert.ok(table !== undefined);
+  assert.deepEqual(table.options.style, {
+    name: 'TableStyleLight9',
+    showFirstColumn: true,
+    showLastColumn: false,
+    showRowStripes: false,
+    showColumnStripes: true,
+  });
+});
+
+test('a style that omits its name round-trips still nameless, not defaulted', () => {
+  const [table] = roundtripTable({
+    name: 'NoName',
+    ref: 'A1',
+    columns: [{name: 'A'}],
+    rowCount: 1,
+    style: {showRowStripes: true},
+  });
+  assert.ok(table !== undefined);
+  assert.equal('name' in (table.options.style ?? {}), false, 'an absent style name is not fabricated');
+  assert.equal(table.options.style?.showRowStripes, true);
+});
+
+test('a table authored without a style reads back with Excel\'s default style', () => {
+  const [table] = roundtripTable({name: 'Plain', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
+  assert.ok(table !== undefined);
+  assert.equal(table.options.style?.name, 'TableStyleMedium2');
+  assert.equal(table.options.style?.showRowStripes, true);
 });
 
 test('a distinct display name round-trips independently of the internal name', () => {

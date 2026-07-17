@@ -15,7 +15,7 @@ import type {Cell} from '../../core/cell.ts';
 import {dateToSerial, DEFAULT_DATE_NUMFMT} from '../../core/date.ts';
 import type {WorkbookImage} from '../../core/image.ts';
 import {mangleFormula} from '../../core/formula.ts';
-import type {Table, TableColumn} from '../../core/table.ts';
+import type {Table, TableColumn, TableStyleInfo} from '../../core/table.ts';
 import {
   detectValueType,
   type FormulaResult,
@@ -828,10 +828,30 @@ function tableXml(table: Table, id: number): string {
     `ref="${table.ref}"${headerRowCount}${totals}>` +
     autoFilter +
     `<tableColumns count="${table.columns.length}">${columns}</tableColumns>` +
-    '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" ' +
-    'showRowStripes="1" showColumnStripes="0"/>' +
+    tableStyleInfoXml(table.style) +
     '</table>'
   );
+}
+
+// Excel's default table appearance, written for a table that carries no style of its own.
+const DEFAULT_TABLE_STYLE =
+  '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" ' +
+  'showRowStripes="1" showColumnStripes="0"/>';
+
+// Emit `<tableStyleInfo>` from the model's style, or the default when none was captured. Each
+// attribute is written only when the model holds it, so a style read without (say) a `name` — or a
+// part that omitted a banding flag — re-emits exactly as it arrived rather than gaining an attribute.
+function tableStyleInfoXml(style: TableStyleInfo | undefined): string {
+  if (style === undefined) return DEFAULT_TABLE_STYLE;
+  let attrs = '';
+  if (style.name !== undefined) attrs += ` name="${escapeAttr(style.name)}"`;
+  if (style.showFirstColumn !== undefined) attrs += ` showFirstColumn="${style.showFirstColumn ? '1' : '0'}"`;
+  if (style.showLastColumn !== undefined) attrs += ` showLastColumn="${style.showLastColumn ? '1' : '0'}"`;
+  if (style.showRowStripes !== undefined) attrs += ` showRowStripes="${style.showRowStripes ? '1' : '0'}"`;
+  if (style.showColumnStripes !== undefined) {
+    attrs += ` showColumnStripes="${style.showColumnStripes ? '1' : '0'}"`;
+  }
+  return `<tableStyleInfo${attrs}/>`;
 }
 
 function tableColumnXml(column: TableColumn, id: number): string {
