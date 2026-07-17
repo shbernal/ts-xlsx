@@ -183,7 +183,10 @@ function buildFrom(spec = {}) {
       } else {
         columns = (t.headers || []).map(name => ({name}));
       }
-      const options = {name: t.name, ref: t.ref, columns, rowCount: (t.rows || []).length};
+      // A spec may express a table ref as the full occupied range (`A1:B3`), the shape the oracle
+      // accepts, while the model anchors at the single top-left cell and derives the range from the
+      // row count. Take the anchor; the declared row count reconstructs the same range.
+      const options = {name: t.name, ref: t.ref.split(':')[0], columns, rowCount: (t.rows || []).length};
       if (t.headerRow !== undefined) options.headerRow = t.headerRow;
       if (t.totalsRow !== undefined) options.totalsRow = t.totalsRow;
       sheet.addTable(options);
@@ -1916,6 +1919,119 @@ const impl = {
       imageFromRow: imageFromRow != null ? Number(imageFromRow) : null,
       dupColumnNamesRejected: dupRejected,
     };
+  },
+
+  // Find a table by name across a loaded fixture's sheets and report its column names and data-row
+  // count. The reader reconstructs the table from its part, deriving the data-row count from the
+  // stored range (height minus the header and totals rows), so a loaded table exposes its rows.
+  readFixtureTable(rel, tableName) {
+    const wb = readFixture(rel);
+    for (const s of wb.worksheets) {
+      const table = s.tables.find(t => t.name === tableName);
+      if (table) return {found: true, columns: table.columns.map(c => c.name), rowCount: table.options.rowCount};
+    }
+    return {found: false, columns: null, rowCount: null};
+  },
+
+  // Load a fixture and report a named table's column count and names — used to prove a table with a
+  // calculated column (a <calculatedColumnFormula> child the reader ignores) does not truncate the
+  // column list or crash the read.
+  loadFixtureTableColumns(rel, tableName) {
+    try {
+      const wb = readFixture(rel);
+      for (const s of wb.worksheets) {
+        const table = s.tables.find(t => t.name === tableName);
+        if (table) {
+          return {loaded: true, error: null, columnCount: table.columns.length, columnNames: table.columns.map(c => c.name)};
+        }
+      }
+      return {loaded: true, error: null, columnCount: 0, columnNames: []};
+    } catch (e) {
+      return {loaded: false, error: String((e && e.message) || e), columnCount: null, columnNames: null};
+    }
+  },
+
+  // Build a table-bearing spec, report the full ref written into each table part, then read the
+  // package back and re-write it, reporting the ref and well-formedness of each re-emitted part — so
+  // a degenerate (empty-body or single-row) table is proven to survive a load→save round-trip.
+  roundtripSpecTableFacts(spec) {
+    const tableFacts = parts =>
+      Object.keys(parts)
+        .filter(n => /^xl\/tables\/table\d+\.xml$/.test(n))
+        .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
+        .map(n => {
+          const xml = parts[n];
+          return {
+            ref: (xml.match(/<table\b[^>]*\bref="([^"]*)"/) || [])[1] ?? null,
+            wellFormed: !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml),
+          };
+        });
+    const write = tableFacts(partMapOf(writeXlsx(buildFrom(spec))));
+    let loadOk = true;
+    let loadError = null;
+    let roundtrip = [];
+    try {
+      const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
+      roundtrip = tableFacts(partMapOf(writeXlsx(reloaded)));
+    } catch (e) {
+      loadOk = false;
+      loadError = String((e && e.message) || e);
+    }
+    return {write, roundtrip, loadOk, loadError};
+  },
+
+  // Author a five-column table, round-trip it, and report the loaded column count and names — the
+  // reader must expose every column in order, not truncate to a fixed cap.
+  wideTableColumnReadReport() {
+    const wb = new Workbook();
+    wb.addWorksheet('S').addTable({
+      name: 'Wide',
+      ref: 'A1',
+      columns: [{name: 'C1'}, {name: 'C2'}, {name: 'C3'}, {name: 'C4'}, {name: 'C5'}],
+      rowCount: 2,
+    });
+    const table = readXlsx(writeXlsx(wb)).getWorksheet('S').tables[0];
+    return {colCount: table.columns.length, colNames: table.columns.map(c => c.name)};
+  },
+
+  // Add a table and a list validation to each of five sheets, then report that the package writes
+  // with unique table part ids, reloads with every table present, and keeps the first sheet's
+  // validation — the loop over many sheets must not collide table ids or strip validations.
+  multiSheetTableReport() {
+    const wb = new Workbook();
+    for (let i = 1; i <= 5; i++) {
+      const s = wb.addWorksheet(`Sheet${i}`);
+      s.addTable({name: `Tbl${i}`, ref: 'A1', columns: [{name: 'Col'}], rowCount: 1});
+      s.addDataValidation('C1', {type: 'list', allowBlank: true, formulae: ['"a,b,c"']});
+    }
+    let writeOk = true;
+    let writeError = null;
+    let buffer = null;
+    try {
+      buffer = writeXlsx(wb);
+    } catch (e) {
+      writeOk = false;
+      writeError = String((e && e.message) || e);
+    }
+    if (!writeOk) return {writeOk, writeError, reloadOk: false, tableCount: null, idsUnique: false, firstSheetDvSurvives: false};
+
+    const parts = partMapOf(buffer);
+    const ids = Object.keys(parts)
+      .filter(n => /^xl\/tables\/table\d+\.xml$/.test(n))
+      .map(n => (parts[n].match(/<table\b[^>]*\bid="([^"]*)"/) || [])[1]);
+    const idsUnique = ids.length > 0 && ids.every(x => x != null) && new Set(ids).size === ids.length;
+
+    let reloadOk = true;
+    let tableCount = 0;
+    let firstSheetDvSurvives = false;
+    try {
+      const back = readXlsx(buffer);
+      tableCount = back.worksheets.reduce((n, s) => n + s.tables.length, 0);
+      firstSheetDvSurvives = !!back.getWorksheet('Sheet1')?.dataValidationAt('C1');
+    } catch {
+      reloadOk = false;
+    }
+    return {writeOk, writeError, reloadOk, tableCount, idsUnique, firstSheetDvSurvives};
   },
 
   // Build a formula-bearing spec, write it, read it back, and report each cell as

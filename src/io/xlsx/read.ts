@@ -51,6 +51,7 @@ import {
 import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {parseDrawing} from './images.ts';
 import {inflatePackage} from './inflate.ts';
+import {parseTable} from './tables.ts';
 import {localName, parseXml} from './xml-read.ts';
 
 export interface ReadXlsxOptions {
@@ -124,6 +125,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
       const notes = readSheetNotes(path, partText);
       if (notes !== undefined) applyNotes(sheet, notes);
       readSheetImages(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
+      readSheetTables(path, partText, sheet);
       const printerSettings = readSheetPrinterSettings(path, partText, partBytes);
       if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
     }
@@ -206,6 +208,25 @@ function readSheetImages(
   }
 }
 
+// A sheet's tables live in `xl/tables/table{n}.xml` parts, each reached through a relationship of
+// type `.../table` on the sheet's own rels. The writer emits one relationship per table; each part
+// is parsed back into the model and re-registered in definition order. A part that fails to parse
+// (missing name/ref/columns — Excel corruption) is skipped rather than crashing the whole read.
+function readSheetTables(
+  sheetPath: string,
+  partText: (path: string) => string | undefined,
+  sheet: Worksheet
+): void {
+  const relsXml = partText(relsPathFor(sheetPath));
+  if (relsXml === undefined) return;
+  for (const target of relationshipTargetsByType(relsXml, 'table')) {
+    const tableXml = partText(resolveRelativePart(sheetPath, target));
+    if (tableXml === undefined) continue;
+    const options = parseTable(tableXml);
+    if (options !== undefined) sheet.addTable(options);
+  }
+}
+
 // The extension of a part path (`xl/media/image1.png` → `png`), or '' when it carries none.
 function extensionOf(partPath: string): string {
   const dot = partPath.lastIndexOf('.');
@@ -240,6 +261,28 @@ function relationshipTargetByType(xml: string, suffix: string): string | undefin
     onClose() {},
   });
   return found;
+}
+
+// Every Target whose Type ends with `/<suffix>`, in declaration order — for a part class a sheet may
+// reference more than once (a sheet can own several tables), where the singular helper's first-match
+// would miss all but one.
+function relationshipTargetsByType(xml: string, suffix: string): string[] {
+  const targets: string[] = [];
+  parseXml(xml, {
+    onOpen(name, attrs) {
+      if (
+        localName(name) === 'Relationship' &&
+        attrs.Type !== undefined &&
+        attrs.Target !== undefined &&
+        attrs.Type.endsWith(`/${suffix}`)
+      ) {
+        targets.push(attrs.Target);
+      }
+    },
+    onText() {},
+    onClose() {},
+  });
+  return targets;
 }
 
 // Resolve a relationship target (relative to the referencing part's directory, or absolute from the
