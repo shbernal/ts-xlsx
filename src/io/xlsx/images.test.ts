@@ -125,6 +125,19 @@ test('a dirty or missing image extension is sanitised to a well-formed media nam
   assert.strictEqual(readXlsx(writeXlsx(wb)).getWorksheet('S')?.images.length, 2);
 });
 
+test('removeImage drops exactly the targeted anchor and omits its now-orphaned media', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  const id1 = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  const id2 = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  ws.addImage(id1, {tl: {col: 0, row: 0}, br: {col: 1, row: 1}});
+  ws.addImage(id2, {tl: {col: 2, row: 0}, br: {col: 3, row: 1}});
+  ws.removeImage(id1);
+  assert.deepStrictEqual(ws.images.map(i => i.imageId), [id2]);
+  const media = Object.keys(unzipSync(writeXlsx(wb))).filter(n => n.startsWith('xl/media/'));
+  assert.strictEqual(media.length, 1, 'the orphaned image is not written');
+});
+
 test('one image anchored on two sheets is stored as a single media part', () => {
   const wb = new Workbook();
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});

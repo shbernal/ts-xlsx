@@ -822,6 +822,50 @@ const impl = {
     };
   },
 
+  // Anchor two images, then remove one by its media id → { supported, before, after, removedGone,
+  // othersSurvive }. Removal must drop exactly the targeted image and leave the rest anchored.
+  removeImageReport(range = 'A1:B2') {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    const id1 = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+    const id2 = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+    anchorSpecImage(ws, id1, range);
+    anchorSpecImage(ws, id2, 'C1:D2');
+    const supported = typeof ws.removeImage === 'function';
+    const before = ws.images.length;
+    let after = before;
+    let removedGone = false;
+    let othersSurvive = false;
+    if (supported) {
+      ws.removeImage(id1);
+      const ids = ws.images.map(i => i.imageId);
+      after = ws.images.length;
+      removedGone = !ids.includes(id1);
+      othersSurvive = ids.includes(id2);
+    }
+    return {supported, before, after, removedGone, othersSurvive};
+  },
+
+  // Anchor an image and append rows in both orders → { imageFirst, rowsFirst }, each { rowCount,
+  // firstDataCell }. Anchoring a floating image is metadata overlay, not row insertion: it must not
+  // advance the row-append cursor, so the layout is identical regardless of add order.
+  imageAnchorRowAppendReport() {
+    const run = order => {
+      const wb = new Workbook();
+      const sheet = wb.addWorksheet('S');
+      const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+      if (order === 'image-first') {
+        anchorSpecImage(sheet, id, 'A1:B3');
+        sheet.addRows([['a'], ['b'], ['c']]);
+      } else {
+        sheet.addRows([['a'], ['b'], ['c']]);
+        anchorSpecImage(sheet, id, 'A1:B3');
+      }
+      return {rowCount: sheet.rowCount, firstDataCell: sheet.getCell('A1').value ?? null};
+    };
+    return {imageFirst: run('image-first'), rowsFirst: run('rows-first')};
+  },
+
   // Author a sheet, round-trip, load, append more rows after the last populated row, round-trip again →
   // { loadedRowCount, finalRowCount, rows }. The load-bearing fact: a reloaded sheet reports its last
   // populated row so addRow lands new content at N+1 with no gap or overwrite.

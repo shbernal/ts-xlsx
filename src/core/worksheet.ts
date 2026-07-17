@@ -539,6 +539,15 @@ export class Worksheet {
     this.#images.push({imageId, anchor});
   }
 
+  /** Drop every anchor of the given workbook image from this sheet. The image stays registered on the
+   * workbook — another sheet may still show it — so only this sheet's anchors are removed; the writer
+   * then omits any media no sheet anchors any longer. */
+  removeImage(imageId: number): void {
+    const kept = this.#images.filter(image => image.imageId !== imageId);
+    this.#images.length = 0;
+    this.#images.push(...kept);
+  }
+
   /** The images anchored to this sheet, in the order they were added. */
   get images(): readonly AnchoredImage[] {
     return this.#images;
