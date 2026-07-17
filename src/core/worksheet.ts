@@ -990,7 +990,7 @@ export class Worksheet {
     const moved: AnchoredImage[] = this.#images.map(image => {
       const from = shiftPoint(image.anchor.from);
       const anchor: ImageAnchor = isOneCellAnchor(image.anchor)
-        ? {from, ext: image.anchor.ext}
+        ? {...image.anchor, from}
         : {...image.anchor, from, to: shiftPoint(image.anchor.to)};
       return {imageId: image.imageId, anchor};
     });

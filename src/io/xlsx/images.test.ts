@@ -155,6 +155,17 @@ test('a fractional anchor floors to its cell with a sub-cell offset scaled by co
   assert.ok(narrow.colOff > 0 && wide.colOff > narrow.colOff, 'a wider column yields a larger offset');
 });
 
+test('a picture rotation survives the write/read round-trip on a rot-only transform', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+  ws.addImageAnchor(id, {from: {col: 1, row: 1}, to: {col: 3, row: 3}, rotation: 2700000});
+  const drawing = strFromU8(unzipSync(writeXlsx(wb))['xl/drawings/drawing1.xml'] as Uint8Array);
+  assert.match(drawing, /<a:xfrm rot="2700000"\/>/);
+  assert.doesNotMatch(drawing, /<a:off|<a:ext/, 'the rot rides alone, no zeroed offset/extent');
+  assert.strictEqual(readXlsx(writeXlsx(wb)).getWorksheet('S')?.images[0]?.anchor.rotation, 2700000);
+});
+
 test('one image anchored on two sheets is stored as a single media part', () => {
   const wb = new Workbook();
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});

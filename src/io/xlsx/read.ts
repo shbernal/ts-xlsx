@@ -210,12 +210,12 @@ function readSheetImages(
       id = workbook.addImage({buffer: bytes, extension: extensionOf(mediaPath)});
       imageIdByMediaPath.set(mediaPath, id);
     }
+    const rot = anchor.rotation !== undefined ? {rotation: anchor.rotation} : {};
     if (anchor.to !== undefined) {
-      sheet.addImageAnchor(id, anchor.editAs !== undefined
-        ? {from: anchor.from, to: anchor.to, editAs: anchor.editAs}
-        : {from: anchor.from, to: anchor.to});
+      const mode = anchor.editAs !== undefined ? {editAs: anchor.editAs} : {};
+      sheet.addImageAnchor(id, {from: anchor.from, to: anchor.to, ...mode, ...rot});
     } else if (anchor.ext !== undefined) {
-      sheet.addImageAnchor(id, {from: anchor.from, ext: anchor.ext});
+      sheet.addImageAnchor(id, {from: anchor.from, ext: anchor.ext, ...rot});
     }
   }
 }

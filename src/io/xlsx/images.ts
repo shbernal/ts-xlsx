@@ -62,17 +62,19 @@ export function drawingXml(images: readonly DrawingImage[]): string {
 function anchorXml(image: DrawingImage, id: number): string {
   const {anchor} = image;
   return isOneCellAnchor(anchor)
-    ? oneCellAnchorXml(anchor.from, anchor.ext, image.embedId, id)
-    : twoCellAnchorXml(anchor.from, anchor.to, anchor.editAs ?? 'oneCell', image.embedId, id);
+    ? oneCellAnchorXml(anchor.from, anchor.ext, anchor.rotation, image.embedId, id)
+    : twoCellAnchorXml(anchor.from, anchor.to, anchor.editAs ?? 'oneCell', anchor.rotation, image.embedId, id);
 }
 
 // A picture anchored between two grid points. The geometry lives entirely in <xdr:from>/<xdr:to>, so
 // the picture carries no absolute <a:xfrm> — a zeroed one would override the anchor and collapse the
-// image to nothing in strict viewers (LibreOffice), while a non-zero one would fight the anchor.
+// image to nothing in strict viewers (LibreOffice), while a non-zero one would fight the anchor. A
+// rotation is the one transform kept: it can't be derived from the anchor, so it rides a rot-only xfrm.
 function twoCellAnchorXml(
   from: AnchorPoint,
   to: AnchorPoint,
   editAs: ImageEditAs,
+  rotation: number | undefined,
   embedId: string,
   id: number
 ): string {
@@ -80,7 +82,7 @@ function twoCellAnchorXml(
     `<xdr:twoCellAnchor editAs="${editAs}">` +
     `<xdr:from>${anchorPointXml(from)}</xdr:from>` +
     `<xdr:to>${anchorPointXml(to)}</xdr:to>` +
-    picXml(embedId, id) +
+    picXml(embedId, id, rotation) +
     '<xdr:clientData/>' +
     '</xdr:twoCellAnchor>'
   );
@@ -88,25 +90,32 @@ function twoCellAnchorXml(
 
 // A picture pinned at one grid point with a fixed EMU extent. editAs is a two-cell-only attribute and
 // the schema forbids it here, so a one-cell anchor never carries one.
-function oneCellAnchorXml(from: AnchorPoint, ext: Extent, embedId: string, id: number): string {
+function oneCellAnchorXml(
+  from: AnchorPoint,
+  ext: Extent,
+  rotation: number | undefined,
+  embedId: string,
+  id: number
+): string {
   return (
     '<xdr:oneCellAnchor>' +
     `<xdr:from>${anchorPointXml(from)}</xdr:from>` +
     `<xdr:ext cx="${ext.cx}" cy="${ext.cy}"/>` +
-    picXml(embedId, id) +
+    picXml(embedId, id, rotation) +
     '<xdr:clientData/>' +
     '</xdr:oneCellAnchor>'
   );
 }
 
-function picXml(embedId: string, id: number): string {
+function picXml(embedId: string, id: number, rotation: number | undefined): string {
+  const xfrm = rotation !== undefined ? `<a:xfrm rot="${rotation}"/>` : '';
   return (
     '<xdr:pic>' +
     `<xdr:nvPicPr><xdr:cNvPr id="${id}" name="Picture ${id}"/>` +
     '<xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>' +
     `<xdr:blipFill><a:blip r:embed="${embedId}"/>` +
     '<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>' +
-    '<xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>' +
+    `<xdr:spPr>${xfrm}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>` +
     '</xdr:pic>'
   );
 }
@@ -134,6 +143,7 @@ export interface ParsedImageAnchor {
   readonly to?: AnchorPoint;
   readonly ext?: Extent;
   readonly editAs?: ImageEditAs;
+  readonly rotation?: number;
   readonly embed: string;
 }
 
@@ -154,6 +164,7 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
   let to: PointDraft | null = null;
   let ext: Extent | undefined;
   let editAs: ImageEditAs | undefined;
+  let rotation: number | undefined;
   let embed: string | undefined;
   // The point (<xdr:from> or <xdr:to>) whose coordinate children are currently streaming in.
   let target: PointDraft | null = null;
@@ -171,11 +182,16 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
         from = blankPoint();
         to = local === 'twoCellAnchor' ? blankPoint() : null;
         ext = undefined;
+        rotation = undefined;
         embed = undefined;
         const mode = attrs.editAs;
         editAs = mode !== undefined && EDIT_AS.has(mode) ? (mode as ImageEditAs) : undefined;
       } else if (local === 'pic') {
         picDepth++;
+      } else if (local === 'xfrm' && picDepth > 0) {
+        // The picture's own rotation — the one spPr transform that can't be derived from the anchor.
+        const rot = Number(attrs.rot);
+        if (Number.isFinite(rot) && rot !== 0) rotation = rot;
       } else if (local === 'from') {
         target = from;
       } else if (local === 'to') {
@@ -207,10 +223,12 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
         picDepth--;
       } else if (local === 'twoCellAnchor' || local === 'oneCellAnchor') {
         if (from !== null && embed !== undefined) {
+          const rot = rotation !== undefined ? {rotation} : {};
           if (to !== null) {
-            anchors.push(editAs !== undefined ? {from: {...from}, to: {...to}, editAs, embed} : {from: {...from}, to: {...to}, embed});
+            const mode = editAs !== undefined ? {editAs} : {};
+            anchors.push({from: {...from}, to: {...to}, ...mode, ...rot, embed});
           } else if (ext !== undefined) {
-            anchors.push({from: {...from}, ext, embed});
+            anchors.push({from: {...from}, ext, ...rot, embed});
           }
         }
         from = null;

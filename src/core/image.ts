@@ -40,6 +40,8 @@ export interface TwoCellAnchor {
   readonly from: AnchorPoint;
   readonly to: AnchorPoint;
   readonly editAs?: ImageEditAs;
+  /** Clockwise rotation in 1/60000 of a degree (`2700000` = 45°), preserved from a loaded file. */
+  readonly rotation?: number;
 }
 
 /** A one-cell anchor: a single top-left grid point plus a fixed extent. The image keeps its size as
@@ -48,6 +50,8 @@ export interface TwoCellAnchor {
 export interface OneCellAnchor {
   readonly from: AnchorPoint;
   readonly ext: Extent;
+  /** Clockwise rotation in 1/60000 of a degree (`2700000` = 45°), preserved from a loaded file. */
+  readonly rotation?: number;
 }
 
 /** Where an image sits on the grid: a rectangle between two cells, or a point plus a fixed extent. */

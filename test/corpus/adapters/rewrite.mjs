@@ -867,6 +867,23 @@ const impl = {
     return {imageFirst: run('image-first'), rowsFirst: run('rows-first')};
   },
 
+  // Read a fixture, load-and-rewrite it, and report the picture's drawing-anchor rotation before and
+  // after → { sourceRot, rewrittenRot }. An image rotation (rot on <a:xfrm>) must survive the round-trip.
+  roundtripFixtureImageRotation(rel) {
+    const rotOf = xml => {
+      const m = xml.match(/<a:xfrm\b[^>]*\brot="(-?\d+)"/);
+      return m ? Number(m[1]) : null;
+    };
+    const drawingName = parts => Object.keys(parts).find(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
+    const srcParts = partMapOf(fixtureBytes(rel));
+    const srcDrawing = drawingName(srcParts);
+    const sourceRot = srcDrawing ? rotOf(srcParts[srcDrawing]) : null;
+    const outParts = partMapOf(writeXlsx(readXlsx(fixtureBytes(rel))));
+    const outDrawing = drawingName(outParts);
+    const rewrittenRot = outDrawing ? rotOf(outParts[outDrawing]) : null;
+    return {sourceRot, rewrittenRot};
+  },
+
   // Author a sheet, round-trip, load, append more rows after the last populated row, round-trip again →
   // { loadedRowCount, finalRowCount, rows }. The load-bearing fact: a reloaded sheet reports its last
   // populated row so addRow lands new content at N+1 with no gap or overwrite.
