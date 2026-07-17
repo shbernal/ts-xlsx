@@ -7,8 +7,24 @@
 // the package — the whole point of the shared-item escaping this module guarantees.
 
 import {encodeAddress} from '../../core/address.ts';
-import type {PivotItem, PivotRecordCell, PivotTable} from '../../core/pivot-table.ts';
+import type {PivotItem, PivotMetric, PivotRecordCell, PivotTable} from '../../core/pivot-table.ts';
 import {escapeAttr} from './xml.ts';
+
+// Excel's default caption prefix for each aggregation ("Sum of Amount", "Average of Amount"). A
+// metric's name is also its `subtotal` value, which is why the record key equals the enum member.
+const METRIC_CAPTIONS: Record<PivotMetric, string> = {
+  sum: 'Sum',
+  count: 'Count',
+  countNums: 'Count',
+  average: 'Average',
+  max: 'Max',
+  min: 'Min',
+  product: 'Product',
+  stdDev: 'StdDev',
+  stdDevp: 'StdDevp',
+  var: 'Var',
+  varp: 'Varp',
+};
 
 const MAIN_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -110,11 +126,22 @@ export function pivotTableXml(table: PivotTable, name: string, cacheId: string):
     `<colFields count="${table.columnFields.length}">${columnFields}</colFields>` +
     `<colItems count="1"><i t="grand"><x/></i></colItems>` +
     `<dataFields count="1">` +
-    `<dataField name="Sum of ${escapeAttr(table.valueFieldName)}" fld="${table.valueField}" baseField="0" baseItem="0"/>` +
+    dataFieldXml(table) +
     `</dataFields>` +
     `<pivotTableStyleInfo name="PivotStyleLight16" showRowHeaders="1" showColHeaders="1" ` +
     `showRowStripes="0" showColStripes="0" showLastColumn="1"/>` +
     `</pivotTableDefinition>`
+  );
+}
+
+/** The `<dataField>` that names the aggregated column and selects its function. `sum` is Excel's
+ * implicit default, so its `subtotal` attribute is omitted; every other metric names itself. */
+function dataFieldXml(table: PivotTable): string {
+  const caption = `${METRIC_CAPTIONS[table.metric]} of ${table.valueFieldName}`;
+  const subtotal = table.metric === 'sum' ? '' : ` subtotal="${table.metric}"`;
+  return (
+    `<dataField name="${escapeAttr(caption)}" fld="${table.valueField}"${subtotal} ` +
+    `baseField="0" baseItem="0"/>`
   );
 }
 

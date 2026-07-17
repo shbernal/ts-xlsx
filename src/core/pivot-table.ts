@@ -22,8 +22,35 @@ import {
 } from './value.ts';
 import type {Worksheet} from './worksheet.ts';
 
-/** The aggregation a pivot's value field applies. Only summation is supported today. */
-export type PivotMetric = 'sum';
+/** The aggregation a pivot's value field applies. These are OOXML's `ST_DataConsolidateFunction`
+ * names verbatim, so a metric doubles as its `<dataField subtotal="…">` value. Excel performs the
+ * aggregation itself on refresh; the writer only records which function to apply. */
+export type PivotMetric =
+  | 'sum'
+  | 'count'
+  | 'countNums'
+  | 'average'
+  | 'max'
+  | 'min'
+  | 'product'
+  | 'stdDev'
+  | 'stdDevp'
+  | 'var'
+  | 'varp';
+
+const PIVOT_METRICS: ReadonlySet<PivotMetric> = new Set<PivotMetric>([
+  'sum',
+  'count',
+  'countNums',
+  'average',
+  'max',
+  'min',
+  'product',
+  'stdDev',
+  'stdDevp',
+  'var',
+  'varp',
+]);
 
 /** How a pivot table is authored: a source sheet and the header names that drive each axis.
  * `rows`/`columns`/`values` name columns by their header text in the source's first row. */
@@ -86,8 +113,8 @@ export class PivotTable {
 
   constructor(options: PivotTableOptions) {
     const metric = options.metric ?? 'sum';
-    if (metric !== 'sum') {
-      throw new Error(`unsupported pivot metric "${metric}" — only "sum" is supported`);
+    if (!PIVOT_METRICS.has(metric)) {
+      throw new Error(`unsupported pivot metric "${metric}" — expected one of ${[...PIVOT_METRICS].join(', ')}`);
     }
     this.metric = metric;
 

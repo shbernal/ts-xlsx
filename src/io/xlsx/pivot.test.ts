@@ -134,6 +134,59 @@ test('the pivot table binds the cache and sums the value field', () => {
   assert.match(table, /<dataField name="Sum of Amount" fld="2"/);
 });
 
+test('a non-sum metric carries its subtotal function and an Excel-style caption', () => {
+  const wb = new Workbook();
+  const src = wb.addWorksheet('Data');
+  src.getCell('A1').value = 'Name';
+  src.getCell('B1').value = 'Region';
+  src.getCell('C1').value = 'Amount';
+  src.getCell('A2').value = 'a';
+  src.getCell('B2').value = 'x';
+  src.getCell('C2').value = 5;
+  wb.addWorksheet('P').addPivotTable({
+    source: src,
+    rows: ['Name'],
+    columns: ['Region'],
+    values: ['Amount'],
+    metric: 'average',
+  });
+
+  const table = partsOf(writeXlsx(wb))['xl/pivotTables/pivotTable1.xml'] ?? '';
+  assert.match(table, /<dataField name="Average of Amount" fld="2" subtotal="average"/);
+});
+
+test('sum omits the subtotal attribute — it is Excel\'s implicit default', () => {
+  const table = partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotTables/pivotTable1.xml'] ?? '';
+  assert.doesNotMatch(table, /subtotal=/, 'the default sum aggregation writes no subtotal attribute');
+});
+
+test('a count aggregates a non-numeric value field, describing it as a plain shared-items field', () => {
+  const wb = new Workbook();
+  const src = wb.addWorksheet('Data');
+  src.getCell('A1').value = 'Name';
+  src.getCell('B1').value = 'Region';
+  src.getCell('C1').value = 'Status';
+  src.getCell('A2').value = 'a';
+  src.getCell('B2').value = 'x';
+  src.getCell('C2').value = 'open';
+  wb.addWorksheet('P').addPivotTable({
+    source: src,
+    rows: ['Name'],
+    columns: ['Region'],
+    values: ['Status'],
+    metric: 'count',
+  });
+
+  const parts = partsOf(writeXlsx(wb));
+  const table = parts['xl/pivotTables/pivotTable1.xml'] ?? '';
+  assert.match(table, /<dataField name="Count of Status" fld="2" subtotal="count"/);
+  // A text value field is not summarised as numeric — it carries a bare <sharedItems/> and rides
+  // inline in the records, where the count aggregation tallies its non-blank cells.
+  const cache = parts['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
+  assert.match(cache, /name="Status" numFmtId="0"><sharedItems\/>/);
+  assert.match(parts['xl/pivotCache/pivotCacheRecords1.xml'] ?? '', /<s v="open"\/>/);
+});
+
 test('a package carrying a pivot still reads back its sheets', () => {
   const back = readXlsx(writeXlsx(specialCharsWorkbook()));
   assert.deepEqual(
@@ -176,7 +229,7 @@ test('authoring rejects unsupported shapes at add time', () => {
 
   assert.throws(
     () => dst.addPivotTable({source: src, rows: ['Name'], columns: ['Region'], values: ['Amount'], metric: 'avg' as never}),
-    /only "sum"/
+    /unsupported pivot metric "avg"/
   );
   assert.throws(
     () => dst.addPivotTable({source: src, rows: ['Nope'], columns: ['Region'], values: ['Amount']}),
