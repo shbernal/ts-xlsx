@@ -32,6 +32,8 @@ import {decodeAddress, decodeRange, encodeAddress} from '../../../src/core/addre
 import {Workbook} from '../../../src/core/workbook.ts';
 import {readXlsx} from '../../../src/io/xlsx/read.ts';
 import {writeXlsx} from '../../../src/io/xlsx/write.ts';
+import {readCsv} from '../../../src/io/csv/read.ts';
+import {writeCsv, writeCsvText} from '../../../src/io/csv/write.ts';
 import {WorkbookStreamWriter} from '../../../src/io/xlsx/write-stream.ts';
 import {packageFacts} from './ooxml-facts.mjs';
 
@@ -2420,6 +2422,140 @@ const impl = {
     const diskSibling = readFacet(readXlsx(writeXlsx(wb2)).getWorksheet('S').getCell('B1'));
     return {facet, target, sibling, original, bled: sibling !== original, diskSibling, diskBled: diskSibling !== original};
   },
+
+  // --- CSV (src/io/csv) -------------------------------------------------------------------------
+  // The contract mirrors the oracle's ExcelJS-shaped options; here they translate onto the rewrite's
+  // cleaner CsvReadOptions/CsvWriteOptions. A read yields a JSON-serializable 2-D array of typed
+  // values (Date → { date: iso }, error → { error }, else the scalar or null), matching the oracle so
+  // the same cases assert unchanged.
+
+  csvRead({csv, options} = {}) {
+    try {
+      const wb = readCsv(csv, translateCsvReadOptions(options));
+      const sheet = wb.worksheets[0];
+      const rows = [];
+      if (sheet) {
+        for (const {cells} of sheet.rows()) {
+          let width = 0;
+          for (const cell of cells) if (cell.col > width) width = cell.col;
+          const fields = new Array(width).fill(null);
+          for (const cell of cells) fields[cell.col - 1] = normalizeCsvValue(cell.value);
+          rows.push(fields);
+        }
+      }
+      return {ok: true, error: null, rows};
+    } catch (e) {
+      return {ok: false, error: String((e && e.message) || e), rows: []};
+    }
+  },
+
+  csvWrite({spec = {}, options} = {}) {
+    try {
+      const wb = new Workbook();
+      const sheet = wb.addWorksheet('S');
+      for (const row of spec.rows || []) sheet.addRow((row || []).map(specCsvValue));
+      const text = writeCsvText(wb, translateCsvWriteOptions(options));
+      return {ok: true, error: null, text};
+    } catch (e) {
+      return {ok: false, error: String((e && e.message) || e), text: null};
+    }
+  },
+
+  csvWriteSheetSelection(sheetName) {
+    const wb = new Workbook();
+    wb.addWorksheet('First').addRow(['a', 1]);
+    const second = wb.addWorksheet('Second');
+    second.addRow(['b', 2]);
+    second.addRow(['c', 3]);
+    let error = null;
+    let text = null;
+    try {
+      text = writeCsvText(wb, sheetName === undefined ? {} : {sheetName});
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    return {ok: error === null, error, text, rowCount: text ? text.split(/\r?\n/).filter(Boolean).length : 0};
+  },
+
+  csvReadMapReport() {
+    const csv = 'id,amount\n007,32.5\n008,40';
+    const read = map => {
+      const wb = readCsv(csv, map ? {map} : {});
+      const sheet = wb.worksheets[0];
+      const a = sheet ? sheet.getCell('A2').value : null;
+      const b = sheet ? sheet.getCell('B2').value : null;
+      return {a, aType: typeof a, b, bType: typeof b};
+    };
+    return {default: read(null), identity: read(v => v)};
+  },
+
+  csvWriteEncodingReport({encoding = 'utf16le', text = 'café'} = {}) {
+    const EMOJI = '😀🎉';
+    const CJK = '日本語テスト';
+
+    const fidelityWb = new Workbook();
+    fidelityWb.addWorksheet('S').addRow([EMOJI, CJK]);
+    const reread = readCsv(writeCsv(fidelityWb)).worksheets[0];
+    const emojiRoundtrips =
+      !!reread && reread.getCell('A1').value === EMOJI && reread.getCell('B1').value === CJK;
+
+    const encodedWb = new Workbook();
+    encodedWb.addWorksheet('S').addRow([text]);
+    const encodedBuffer = Buffer.from(writeCsv(encodedWb, {encoding}));
+    const decodesAsRequested = encodedBuffer.toString(encoding).replace(/\r?\n$/, '') === text;
+    const decodesAsUtf8 = encodedBuffer.toString('utf8').replace(/\r?\n$/, '') === text;
+
+    return {emojiRoundtrips, requestedEncoding: encoding, decodesAsRequested, decodesAsUtf8};
+  },
+
+  csvNonAsciiEncodingReport(text = 'שלום') {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getCell('A1').value = text;
+    sheet.getCell('B1').value = 'world';
+    const buffer = Buffer.from(writeCsv(wb));
+    const hasBom = buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf;
+    const body = hasBom ? buffer.subarray(3) : buffer;
+    return {hasBom, bytesDecodeToText: body.toString('utf8').startsWith(text)};
+  },
+};
+
+// A JSON-serializable view of a read-back CSV cell value, mirroring the oracle's normalizeCsvValue.
+const normalizeCsvValue = v => {
+  if (v instanceof Date) return {date: Number.isNaN(v.getTime()) ? null : v.toISOString()};
+  if (v && typeof v === 'object' && 'error' in v) return {error: v.error};
+  return v ?? null;
+};
+
+// A declarative CSV write-spec cell → a live model value: { date } → Date, { formula, result } →
+// formula value, { error } → error value, primitive passes through.
+const specCsvValue = c => {
+  if (c && typeof c === 'object') {
+    if (c.date) return new Date(c.date);
+    if ('formula' in c) return {formula: c.formula, result: c.result};
+    if ('error' in c) return {error: c.error};
+  }
+  return c;
+};
+
+// The oracle's ExcelJS-shaped read options → the rewrite's CsvReadOptions.
+const translateCsvReadOptions = (options = {}) => {
+  const parser = options.parserOptions || {};
+  const translated = {};
+  if (parser.delimiter !== undefined) translated.delimiter = parser.delimiter;
+  if (parser.headers) translated.headers = true;
+  if (typeof options.map === 'function') translated.map = options.map;
+  return translated;
+};
+
+// The oracle's ExcelJS-shaped write options → the rewrite's CsvWriteOptions.
+const translateCsvWriteOptions = (options = {}) => {
+  const formatter = options.formatterOptions || {};
+  const translated = {};
+  if (formatter.delimiter !== undefined) translated.delimiter = formatter.delimiter;
+  if (options.dateFormat !== undefined) translated.dateFormat = options.dateFormat;
+  if (options.dateUTC !== undefined) translated.dateUTC = options.dateUTC;
+  return translated;
 };
 
 export default new Proxy(impl, {

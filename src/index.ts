@@ -79,6 +79,8 @@ export {
 
 export {writeXlsx} from './io/xlsx/write.ts';
 export {readXlsx, type ReadXlsxOptions} from './io/xlsx/read.ts';
+export {writeCsv, writeCsvText, type CsvWriteOptions} from './io/csv/write.ts';
+export {readCsv, type CsvReadOptions} from './io/csv/read.ts';
 export {
   readSheetRows,
   type ReadSheetRowsOptions,
