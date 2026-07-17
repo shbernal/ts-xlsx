@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {strFromU8, unzipSync} from 'fflate';
+import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
@@ -612,7 +612,11 @@ test('a sheet autofilter round-trips through write then read, and drops no user 
   const back = readXlsx(writeXlsx(wb));
   const sheet = back.getWorksheet('S');
   assert.ok(sheet !== undefined);
-  assert.equal(sheet.autoFilter, 'A1:C10', 'the filter range survives the round-trip');
+  assert.deepEqual(
+    sheet.autoFilter,
+    {ref: 'A1:C10', columns: []},
+    'the filter range survives the round-trip'
+  );
   // The system-generated _FilterDatabase is reconstructed from the sheet, never surfaced as a name…
   assert.deepEqual(
     back.definedNames.map(n => n.name),
@@ -622,4 +626,88 @@ test('a sheet autofilter round-trips through write then read, and drops no user 
   // …and re-writing does not accumulate a duplicate.
   const rewritten = partsOf(back)['xl/workbook.xml'] as string;
   assert.equal((rewritten.match(/_FilterDatabase/g) ?? []).length, 1, 'exactly one _FilterDatabase after a re-write');
+});
+
+test('a criteria-bearing autofilter nests <filterColumn> children under the <autoFilter>', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.autoFilter = {
+    ref: 'A1:B4',
+    columns: [
+      {colId: 0, criteria: {kind: 'values', values: ['apple', 'pear'], blank: false}},
+      {
+        colId: 1,
+        criteria: {kind: 'custom', and: false, predicates: [{operator: 'greaterThan', val: '6'}]},
+      },
+    ],
+  };
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(
+    xml,
+    /<autoFilter ref="A1:B4"><filterColumn colId="0"><filters><filter val="apple"\/><filter val="pear"\/><\/filters><\/filterColumn><filterColumn colId="1"><customFilters><customFilter operator="greaterThan" val="6"\/><\/customFilters><\/filterColumn><\/autoFilter>/
+  );
+});
+
+test('a values filter and a custom filter both survive a write→read round-trip', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.autoFilter = {
+    ref: 'A1:C10',
+    columns: [
+      {colId: 0, criteria: {kind: 'values', values: ['red', 'blue'], blank: true}},
+      {
+        colId: 2,
+        criteria: {
+          kind: 'custom',
+          and: true,
+          predicates: [
+            {operator: 'greaterThanOrEqual', val: '1'},
+            {operator: 'lessThan', val: '9'},
+          ],
+        },
+      },
+    ],
+  };
+
+  const sheet = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  assert.ok(sheet !== undefined);
+  assert.deepEqual(sheet.autoFilter, {
+    ref: 'A1:C10',
+    columns: [
+      {colId: 0, criteria: {kind: 'values', values: ['red', 'blue'], blank: true}},
+      {
+        colId: 2,
+        criteria: {
+          kind: 'custom',
+          and: true,
+          predicates: [
+            {operator: 'greaterThanOrEqual', val: '1'},
+            {operator: 'lessThan', val: '9'},
+          ],
+        },
+      },
+    ],
+  });
+});
+
+test('a filter column addressing a column outside the range is dropped on read, not thrown', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.autoFilter = 'A1:B4';
+
+  // Hand-forge an out-of-range <filterColumn colId="5"> onto the worksheet part — the kind of thing
+  // a corrupt producer emits — and re-zip. Load-repair must keep the range and drop the bad column,
+  // never throwing (the strict setter that authors go through would reject the same colId).
+  const parts = unzipSync(writeXlsx(wb));
+  parts['xl/worksheets/sheet1.xml'] = strToU8(
+    strFromU8(parts['xl/worksheets/sheet1.xml'] as Uint8Array).replace(
+      '<autoFilter ref="A1:B4"/>',
+      '<autoFilter ref="A1:B4"><filterColumn colId="5"><filters><filter val="z"/></filters></filterColumn></autoFilter>'
+    )
+  );
+
+  const sheet = readXlsx(zipSync(parts)).getWorksheet('S');
+  assert.ok(sheet !== undefined);
+  assert.deepEqual(sheet.autoFilter, {ref: 'A1:B4', columns: []}, 'the range survives, the bad column drops');
 });

@@ -11,6 +11,7 @@
 import {zipSync, strToU8} from 'fflate';
 
 import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
+import type {AutoFilter, FilterColumn, FilterCriteria} from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
 import {dateToSerial, DEFAULT_DATE_NUMFMT} from '../../core/date.ts';
 import type {WorkbookImage} from '../../core/image.ts';
@@ -500,7 +501,7 @@ function definedNamesXml(workbook: Workbook): string {
       ? []
       : [
           `<definedName name="_xlnm._FilterDatabase" localSheetId="${index}" hidden="1">` +
-            `${escapeText(filterDatabaseRefersTo(sheet.name, sheet.autoFilter))}</definedName>`,
+            `${escapeText(filterDatabaseRefersTo(sheet.name, sheet.autoFilter.ref))}</definedName>`,
         ]
   );
 
@@ -753,11 +754,35 @@ function mergeCellsXml(merges: readonly string[]): string {
   return `<mergeCells count="${merges.length}">${cells}</mergeCells>`;
 }
 
-// The sheet's autofilter is a single `<autoFilter ref="A1:C10"/>`; its companion `_FilterDatabase`
-// defined name (the range Excel derives filtering from) is written in the workbook part, so a sheet
-// with no filter emits nothing here and nothing there.
-function autoFilterXml(range: string | undefined): string {
-  return range === undefined ? '' : `<autoFilter ref="${escapeAttr(range)}"/>`;
+// The sheet's autofilter: `<autoFilter ref="A1:C10"/>` when it only draws dropdowns, or with nested
+// `<filterColumn>` children when columns carry criteria. Its companion `_FilterDatabase` defined name
+// (the range Excel derives filtering from) is written in the workbook part, so a sheet with no filter
+// emits nothing here and nothing there.
+function autoFilterXml(filter: AutoFilter | undefined): string {
+  if (filter === undefined) return '';
+  const ref = escapeAttr(filter.ref);
+  if (filter.columns.length === 0) return `<autoFilter ref="${ref}"/>`;
+  return `<autoFilter ref="${ref}">${filter.columns.map(filterColumnXml).join('')}</autoFilter>`;
+}
+
+function filterColumnXml(column: FilterColumn): string {
+  return `<filterColumn colId="${column.colId}">${filterCriteriaXml(column.criteria)}</filterColumn>`;
+}
+
+// A values filter is `<filters>` with a `<filter val>` per allowed value (and `blank="1"` to admit
+// empty cells); a custom filter is `<customFilters>` with one or two `<customFilter operator val>`
+// predicates, `and="1"` when they are AND-combined rather than OR.
+function filterCriteriaXml(criteria: FilterCriteria): string {
+  if (criteria.kind === 'values') {
+    const blankAttr = criteria.blank ? ' blank="1"' : '';
+    const filters = criteria.values.map(value => `<filter val="${escapeAttr(value)}"/>`).join('');
+    return `<filters${blankAttr}>${filters}</filters>`;
+  }
+  const andAttr = criteria.and ? ' and="1"' : '';
+  const predicates = criteria.predicates
+    .map(p => `<customFilter operator="${p.operator}" val="${escapeAttr(p.val)}"/>`)
+    .join('');
+  return `<customFilters${andAttr}>${predicates}</customFilters>`;
 }
 
 // Each sheet-protection flag maps to a `<sheetProtection>` attribute whose value is INVERTED

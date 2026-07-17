@@ -15,6 +15,12 @@
 import {strFromU8} from 'fflate';
 
 import {decodeAddress, decodeRange, encodeAddress} from '../../core/address.ts';
+import {
+  type CustomFilterPredicate,
+  type FilterColumn,
+  type FilterCriteria,
+  isCustomFilterOperator,
+} from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
 import {
   type SheetProtection,
@@ -767,6 +773,24 @@ function flagValue(val: string | undefined): boolean {
   return val === undefined || (val !== '0' && val !== 'false');
 }
 
+// Fold a filter column's accumulated `<filters>` or `<customFilters>` state into one criteria value,
+// or null when it carried nothing filterable. A `<filters>` block with no values and no blank flag,
+// or a `<customFilters>` with no predicates, is a no-op that would round-trip as noise, so it drops.
+function pendingFilterCriteria(
+  values: string[] | null,
+  blank: boolean,
+  predicates: CustomFilterPredicate[] | null,
+  and: boolean
+): FilterCriteria | null {
+  if (values !== null && (values.length > 0 || blank)) {
+    return {kind: 'values', values, blank};
+  }
+  if (predicates !== null && predicates.length > 0) {
+    return {kind: 'custom', and, predicates: predicates.slice(0, 2)};
+  }
+  return null;
+}
+
 // An xf's numFmtId resolves against the custom codes first, then the built-in table; the
 // General format (id 0) and any unrecognised id mean the cell carries no explicit format.
 function resolveNumFmt(raw: string | undefined, custom: ReadonlyMap<number, string>): string | undefined {
@@ -952,10 +976,36 @@ function parseWorksheet(
   // A row with customFormat="1" supplies a default style for its cells that carry no `s`.
   let rowStyle = -1;
   let rowCustomFormat = false;
+  // Autofilter accumulation. The sheet `<autoFilter ref>` seeds a draft; each `<filterColumn colId>`
+  // opens a column whose criteria (`<filters>` values or `<customFilters>` predicates) stream into
+  // the draft until `</filterColumn>`, and `</autoFilter>` commits the whole thing to the sheet.
+  let filterRef: string | null = null;
+  let filterColumns: FilterColumn[] = [];
+  let filterColId = -1;
+  let filterValues: string[] | null = null;
+  let filterBlank = false;
+  let customPredicates: CustomFilterPredicate[] | null = null;
+  let customAnd = false;
   // A column's `style` is the default for its cells that carry no style of their own; this
   // maps a column index to that style index so a bare cell can inherit it (as Excel does,
   // without stamping every cell). Columns are parsed before any cell references them.
   const columnStyle = new Map<number, number>();
+
+  // Commit the accumulated autofilter to the sheet. Shared by the `</autoFilter>` close and the
+  // self-closing `<autoFilter/>` open (a criteria-free filter fires no close). Columns whose colId
+  // falls outside the range are dropped here so the strict setter never trips on hostile input.
+  const commitAutoFilter = (): void => {
+    if (filterRef === null) return;
+    try {
+      const {left, right} = decodeRange(filterRef);
+      const width = left !== undefined && right !== undefined ? right - left + 1 : 0;
+      sheet.autoFilter = {ref: filterRef, columns: filterColumns.filter(c => c.colId < width)};
+    } catch {
+      // unbounded or malformed autofilter range in the source file — ignore it
+    }
+    filterRef = null;
+    filterColumns = [];
+  };
 
   // Commit the cell held in the parser state to the sheet, resolving its style from its own `s`,
   // then its row's (when customFormat), then its column's default — the order Excel applies. Shared
@@ -1099,17 +1149,44 @@ function parseWorksheet(
           break;
         }
         case 'autoFilter':
-          // The sheet's autofilter range is authoritative; its `_FilterDatabase` defined name is a
-          // derived artifact the workbook reader drops. A malformed ref in a hostile file must not
-          // abort the parse — skip it and keep reading, mirroring the merge-range guard above.
-          if (attrs.ref !== undefined && attrs.ref !== '') {
-            try {
-              sheet.autoFilter = attrs.ref;
-            } catch {
-              // unbounded or malformed autofilter range in the source file — ignore it
-            }
+          // Seed a draft from the range; its `<filterColumn>` children (if any) stream in below and
+          // `</autoFilter>` commits it. A criteria-free filter is self-closing and fires no close, so
+          // commit it here. (A table's own `<autoFilter>` also matches, but table sheets route
+          // through parseTable, so this only ever sees the sheet-level one.)
+          filterRef = attrs.ref !== undefined && attrs.ref !== '' ? attrs.ref : null;
+          filterColumns = [];
+          if (selfClosing) commitAutoFilter();
+          break;
+        case 'filterColumn':
+          // A criteria block for one column, offset `colId` from the range's left edge. Reset the
+          // per-column accumulators; whichever child (`<filters>`/`<customFilters>`) opens fills one.
+          filterColId = attrs.colId !== undefined ? Number(attrs.colId) : -1;
+          filterValues = null;
+          filterBlank = false;
+          customPredicates = null;
+          customAnd = false;
+          break;
+        case 'filters':
+          filterValues = [];
+          filterBlank = flagValue(attrs.blank) && attrs.blank !== undefined;
+          break;
+        case 'filter':
+          if (filterValues !== null && attrs.val !== undefined) filterValues.push(attrs.val);
+          break;
+        case 'customFilters':
+          customPredicates = [];
+          customAnd = attrs.and !== undefined && flagValue(attrs.and);
+          break;
+        case 'customFilter': {
+          // The operator attribute defaults to `equal` when absent (per CT_CustomFilter); an operand
+          // is likewise optional. An unrecognised operator drops the predicate rather than guessing.
+          if (customPredicates === null) break;
+          const operator = attrs.operator ?? 'equal';
+          if (isCustomFilterOperator(operator)) {
+            customPredicates.push({operator, val: attrs.val ?? ''});
           }
           break;
+        }
         default:
           // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) sets one font facet; it
           // is self-closing, so it is read here on open. Nothing else uses the default branch.
@@ -1155,6 +1232,24 @@ function parseWorksheet(
         case 'row':
           rowStyle = -1;
           rowCustomFormat = false;
+          break;
+        case 'filterColumn': {
+          // Assemble this column's criteria from whichever accumulator filled. A column whose colId
+          // is negative, or whose criteria are empty (no values, no blank, no predicates), carries
+          // nothing filterable and is dropped so a re-write stays clean — load-repair, not authoring.
+          const criteria = pendingFilterCriteria(
+            filterValues,
+            filterBlank,
+            customPredicates,
+            customAnd
+          );
+          if (filterColId >= 0 && criteria !== null) {
+            filterColumns.push({colId: filterColId, criteria});
+          }
+          break;
+        }
+        case 'autoFilter':
+          commitAutoFilter();
           break;
         default:
           break;

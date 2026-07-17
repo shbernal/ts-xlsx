@@ -100,10 +100,67 @@ test('a sheet carries no autofilter until one is set', () => {
   assert.equal(sheet.autoFilter, undefined);
 });
 
-test('setting an autofilter normalises the range to its canonical corner order', () => {
+test('a bare range string sets a criteria-free filter, normalised to canonical corner order', () => {
   const sheet = new Worksheet('S', 1);
   sheet.autoFilter = 'C10:A1';
-  assert.equal(sheet.autoFilter, 'A1:C10');
+  assert.deepEqual(sheet.autoFilter, {ref: 'A1:C10', columns: []});
+});
+
+test('a values filter and a custom filter both round-trip through the setter, colIds validated', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.autoFilter = {
+    ref: 'A1:C10',
+    columns: [
+      {colId: 0, criteria: {kind: 'values', values: ['apple', 'pear'], blank: false}},
+      {
+        colId: 2,
+        criteria: {kind: 'custom', and: false, predicates: [{operator: 'greaterThan', val: '6'}]},
+      },
+    ],
+  };
+  assert.deepEqual(sheet.autoFilter?.columns[0], {
+    colId: 0,
+    criteria: {kind: 'values', values: ['apple', 'pear'], blank: false},
+  });
+  assert.equal(sheet.autoFilter?.columns[1]?.colId, 2);
+});
+
+test('a colId outside the filter range is rejected — a column must lie within it', () => {
+  const sheet = new Worksheet('S', 1);
+  assert.throws(
+    () =>
+      (sheet.autoFilter = {
+        ref: 'A1:C10',
+        columns: [{colId: 3, criteria: {kind: 'values', values: ['x'], blank: false}}],
+      }),
+    /colId 3 is outside/
+  );
+  assert.equal(sheet.autoFilter, undefined, 'the rejected filter never takes hold');
+});
+
+test('a custom filter with three predicates is rejected — Excel allows at most two', () => {
+  const sheet = new Worksheet('S', 1);
+  assert.throws(
+    () =>
+      (sheet.autoFilter = {
+        ref: 'A1:A9',
+        columns: [
+          {
+            colId: 0,
+            criteria: {
+              kind: 'custom',
+              and: true,
+              predicates: [
+                {operator: 'greaterThan', val: '1'},
+                {operator: 'lessThan', val: '9'},
+                {operator: 'notEqual', val: '5'},
+              ],
+            },
+          },
+        ],
+      }),
+    /one or two predicates/
+  );
 });
 
 test('clearing an autofilter with undefined removes it', () => {
