@@ -625,6 +625,62 @@ const impl = {
     return {loadedRowCount, finalRowCount: f.rowCount, rows};
   },
 
+  // Stream-read a styled workbook and rebuild it through the streaming writer, copying each cell's
+  // value AND resolved style onto the new sheet → { copyError, loadOk, fontBold, fontColor, numFmt,
+  // hasFill }. The streaming reader surfaces each cell's style facets, so the per-cell font, fill, and
+  // number format survive the streaming read→write copy and the emitted styles part loads cleanly.
+  async streamingStyleCopyReport() {
+    const src = new Workbook();
+    const c = src.addWorksheet('S').getCell('A1');
+    c.value = 'hello';
+    c.font = {bold: true, color: {argb: 'FFFF0000'}};
+    c.numFmt = '0.00%';
+    c.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
+    const srcBuffer = writeXlsx(src);
+
+    const writer = new WorkbookStreamWriter();
+    let copyError = null;
+    try {
+      for (const sheet of readWorkbookStream(srcBuffer)) {
+        const ows = writer.addWorksheet(sheet.name);
+        for (const row of sheet.rows()) {
+          for (const cell of row.cells) {
+            const target = ows.getCell(cell.address);
+            target.value = cell.value;
+            if (cell.style) {
+              if (cell.style.font !== undefined) target.font = cell.style.font;
+              if (cell.style.fill !== undefined) target.fill = cell.style.fill;
+              if (cell.style.numFmt !== undefined) target.numFmt = cell.style.numFmt;
+              if (cell.style.border !== undefined) target.border = cell.style.border;
+              if (cell.style.alignment !== undefined) target.alignment = cell.style.alignment;
+            }
+          }
+        }
+        ows.commit();
+      }
+    } catch (e) {
+      copyError = String((e && e.message) || e);
+    }
+    const buffer = Buffer.from(await writer.commit());
+    if (copyError) return {copyError, loadOk: false, fontBold: null, fontColor: null, numFmt: null, hasFill: null};
+
+    let loadOk = true;
+    let cell = null;
+    try {
+      cell = readXlsx(buffer).getWorksheet('S').getCell('A1');
+    } catch {
+      loadOk = false;
+    }
+    return {
+      copyError,
+      loadOk,
+      fontBold: cell ? !!(cell.font && cell.font.bold) : null,
+      fontColor: cell && cell.font && cell.font.color ? cell.font.color.argb ?? null : null,
+      numFmt: cell ? cell.numFmt ?? null : null,
+      hasFill: cell ? !!(cell.fill && cell.fill.type === 'pattern' && cell.fill.fgColor) : null,
+    };
+  },
+
   // Pipe the streaming writer's output stream to a sink and report { pipeReturnsDestination, bytes,
   // valid }. Node's Readable.pipe(dest) must RETURN dest so `.pipe(out).on('finish', …)` composes,
   // while the piped payload still reconstitutes a valid workbook.

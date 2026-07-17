@@ -275,6 +275,32 @@ test('rows() is re-iterable: a second pass yields the same rows and summaries', 
   assert.deepEqual(streamed.merges, ['A1:B1']);
 });
 
+test('a streamed cell surfaces its resolved style facets for a read→write copy', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  const cell = sheet.getCell('A1');
+  cell.value = 'hello';
+  cell.font = {bold: true, color: {argb: 'FFFF0000'}};
+  cell.numFmt = '0.00%';
+  cell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
+
+  const [streamed] = [...readWorkbookStream(writeXlsx(wb))];
+  const style = [...streamed!.rows()][0]?.cells[0]?.style;
+  assert.ok(style, 'the styled cell carries a resolved style');
+  assert.equal(style.numFmt, '0.00%');
+  assert.equal(style.font?.bold, true);
+  assert.equal(style.font?.color?.argb, 'FFFF0000');
+  assert.equal(style.fill?.type, 'pattern');
+});
+
+test('an unstyled streamed cell carries no style facet', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'plain';
+
+  const [streamed] = [...readWorkbookStream(writeXlsx(wb))];
+  assert.equal([...streamed!.rows()][0]?.cells[0]?.style, undefined);
+});
+
 test('the generator is lazy: the first row is available before the rest are pulled', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');

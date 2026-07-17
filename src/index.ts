@@ -86,6 +86,7 @@ export {
   readWorkbookStream,
   type ReadSheetRowsOptions,
   type StreamedCell,
+  type StreamedCellStyle,
   type StreamedRow,
   type StreamedSheet,
 } from './io/xlsx/read-rows.ts';

@@ -44,6 +44,13 @@ export interface ReadSheetRowsOptions extends ReadXlsxOptions {
   readonly sheet?: string | number;
 }
 
+/**
+ * The resolved style facets of a streamed cell — its own `<c s>` cell format, flattened exactly as
+ * the buffered reader resolves it. Present only when the cell carries a format; a consumer can copy
+ * these straight onto a writer cell to preserve its look through a streaming read→write.
+ */
+export type StreamedCellStyle = XfStyle;
+
 /** One non-empty cell in a {@link StreamedRow}. */
 export interface StreamedCell {
   /** 1-based column index. */
@@ -52,6 +59,8 @@ export interface StreamedCell {
   readonly address: string;
   /** The decoded value — identical to what `readXlsx` would produce for the same cell. */
   readonly value: CellValue;
+  /** The cell's resolved style facets, or absent when the cell carries no format of its own. */
+  readonly style?: StreamedCellStyle;
 }
 
 /** One worksheet row, as yielded by {@link readSheetRows} / {@link StreamedSheet.rows}. */
@@ -273,15 +282,17 @@ function* scanSheet(
     if (cellRef === '') return;
     const {col} = decodeAddress(cellRef);
     if (col === undefined) return;
-    const numFmt = cellStyle >= 0 ? xfStyles[cellStyle]?.numFmt : undefined;
+    const style = cellStyle >= 0 ? xfStyles[cellStyle] : undefined;
     const value = decodeCellContent(
       {type: cellType, hasFormula, formula, hasValue, valueText, inlineText},
       sharedStrings,
-      numFmt
+      style?.numFmt
     );
     // A blank or purely style-only cell decodes to null; a data read wants only cells that carry
     // something (a formula object, an empty string, a false, and a 0 all count — only null drops).
-    if (value !== null) cells.push({col, address: cellRef, value});
+    if (value !== null) {
+      cells.push(style ? {col, address: cellRef, value, style} : {col, address: cellRef, value});
+    }
   };
 
   for (const event of xmlEvents(xml)) {
