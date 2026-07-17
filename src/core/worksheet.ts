@@ -51,6 +51,15 @@ export interface WorksheetProperties {
   defaultColWidth?: number;
 }
 
+// Sub-cell anchor geometry: a fractional grid coordinate resolves to the cell it floors to plus an
+// EMU offset scaled by that cell's real size. Excel measures a column in characters of the default
+// font (~7 px each at 96 DPI) and a row in points (1/72 inch); an unset size falls back to Excel's
+// own defaults.
+const CHAR_WIDTH_PX = 7;
+const EMU_PER_POINT = 12700;
+const DEFAULT_COL_WIDTH_CHARS = 8.43;
+const DEFAULT_ROW_HEIGHT_POINTS = 15;
+
 /**
  * Placement of an outline's summary rows/columns. Excel's defaults are summary *below* the detail
  * rows and *right* of the detail columns; setting either to `false` inverts that placement so an
@@ -520,14 +529,37 @@ export class Worksheet {
         cx: Math.round(anchor.ext.width * PX_TO_EMU),
         cy: Math.round(anchor.ext.height * PX_TO_EMU),
       };
-      this.#images.push({imageId, anchor: {from: anchor.tl, ext}});
+      this.#images.push({imageId, anchor: {from: this.#resolveAnchorPoint(anchor.tl), ext}});
       return;
     }
+    const from = this.#resolveAnchorPoint(anchor.tl);
+    const to = this.#resolveAnchorPoint(anchor.br);
     const twoCell: TwoCellAnchor =
-      anchor.editAs !== undefined
-        ? {from: anchor.tl, to: anchor.br, editAs: anchor.editAs}
-        : {from: anchor.tl, to: anchor.br};
+      anchor.editAs !== undefined ? {from, to, editAs: anchor.editAs} : {from, to};
     this.#images.push({imageId, anchor: twoCell});
+  }
+
+  // Resolve a possibly-fractional anchor point to the cell it floors to plus a sub-cell EMU offset
+  // scaled by that cell's real width/height, so `col: 3.5` lands halfway across column 3 regardless
+  // of the column's size. An already-integer point keeps a zero offset (unless one was given).
+  #resolveAnchorPoint(point: AnchorPoint): AnchorPoint {
+    const col = Math.floor(point.col);
+    const row = Math.floor(point.row);
+    const colOff = (point.colOff ?? 0) + Math.round((point.col - col) * this.#columnWidthEmu(col));
+    const rowOff = (point.rowOff ?? 0) + Math.round((point.row - row) * this.#rowHeightEmu(row));
+    return {col, row, colOff, rowOff};
+  }
+
+  #columnWidthEmu(col: number): number {
+    const width =
+      this.#columns.get(col + 1)?.width ?? this.properties.defaultColWidth ?? DEFAULT_COL_WIDTH_CHARS;
+    return Math.round(width * CHAR_WIDTH_PX * PX_TO_EMU);
+  }
+
+  #rowHeightEmu(row: number): number {
+    const height =
+      this.#rowProperties.get(row + 1)?.height ?? this.properties.defaultRowHeight ?? DEFAULT_ROW_HEIGHT_POINTS;
+    return Math.round(height * EMU_PER_POINT);
   }
 
   /**

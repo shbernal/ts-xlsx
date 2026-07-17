@@ -213,14 +213,6 @@ function buildFrom(spec = {}) {
     // model's setter accepts both, so pass it through verbatim.
     if (s.autoFilter !== undefined) sheet.autoFilter = s.autoFilter;
 
-    for (const img of s.images || []) {
-      // A spec omits `extension` to mean the default 'png'; it sets the key (to a dirty or missing
-      // value) on purpose to exercise the library's write-side extension sanitisation. Pass the raw
-      // value through — `workbook.addImage` normalises a leading dot / query string / missing hint.
-      const options = 'extension' in img ? {buffer: ONE_PX_PNG, extension: img.extension} : {buffer: ONE_PX_PNG};
-      anchorSpecImage(sheet, workbook.addImage(options), img.range);
-    }
-
     for (const col of s.columns || []) {
       for (const k of Object.keys(col)) {
         if (!SUPPORTED_COLUMN_KEYS.has(k)) throw notImplemented(`column.${k} not supported yet`);
@@ -246,6 +238,16 @@ function buildFrom(spec = {}) {
       if (row.outlineLevel !== undefined) target.outlineLevel = row.outlineLevel;
       if (row.collapsed !== undefined) target.collapsed = row.collapsed;
       if (row.fill !== undefined) target.fill = row.fill;
+    }
+
+    // Images build after columns and rows so a fractional anchor resolves against the sheet's real
+    // column widths and row heights (the model floors + offsets at addImage time).
+    for (const img of s.images || []) {
+      // A spec omits `extension` to mean the default 'png'; it sets the key (to a dirty or missing
+      // value) on purpose to exercise the library's write-side extension sanitisation. Pass the raw
+      // value through — `workbook.addImage` normalises a leading dot / query string / missing hint.
+      const options = 'extension' in img ? {buffer: ONE_PX_PNG, extension: img.extension} : {buffer: ONE_PX_PNG};
+      anchorSpecImage(sheet, workbook.addImage(options), img.range);
     }
 
     for (const c of s.cells || []) {
@@ -350,8 +352,9 @@ const hexBytes = hex => Uint8Array.from(hex.match(/../g).map(h => parseInt(h, 16
 
 // Translate a corpus image range — a string like "B2:D6", or a {tl, br?/ext?, editAs?} object — into
 // the model's typed addImage call. A one-cell anchor is a point plus a fixed pixel extent (editAs is a
-// two-cell-only attribute the model drops by construction); a two-cell anchor spans tl..br. Fractional
-// grid coordinates are a not-yet-implemented capability, deferred rather than emitted as invalid XML.
+// two-cell-only attribute the model drops by construction); a two-cell anchor spans tl..br. A
+// fractional grid coordinate (col 3.5) is passed through — the model floors it to the cell and derives
+// the sub-cell EMU offset from that cell's real width/height.
 function anchorSpecImage(sheet, imageId, range) {
   if (typeof range === 'string') {
     const {left, top, right, bottom} = decodeRange(range);
@@ -359,8 +362,6 @@ function anchorSpecImage(sheet, imageId, range) {
     return;
   }
   const {tl, br, ext, editAs} = range;
-  const fractional = p => p && (!Number.isInteger(p.col) || !Number.isInteger(p.row));
-  if (fractional(tl) || fractional(br)) throw notImplemented('fractional image anchors not supported yet');
   if (ext !== undefined) {
     sheet.addImage(imageId, {tl, ext: {width: ext.width, height: ext.height}});
   } else {

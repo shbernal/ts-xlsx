@@ -138,6 +138,23 @@ test('removeImage drops exactly the targeted anchor and omits its now-orphaned m
   assert.strictEqual(media.length, 1, 'the orphaned image is not written');
 });
 
+test('a fractional anchor floors to its cell with a sub-cell offset scaled by column width', () => {
+  const fromCol = (width: number): {col: number; colOff: number} => {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getColumn(4).width = width;
+    const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+    ws.addImage(id, {tl: {col: 3.5, row: 0}, br: {col: 5, row: 2}});
+    const anchor = ws.images[0]?.anchor;
+    assert.ok(anchor && !isOneCellAnchor(anchor));
+    return {col: anchor.from.col, colOff: anchor.from.colOff ?? 0};
+  };
+  const narrow = fromCol(5);
+  const wide = fromCol(50);
+  assert.strictEqual(narrow.col, 3, 'col 3.5 floors to cell column 3');
+  assert.ok(narrow.colOff > 0 && wide.colOff > narrow.colOff, 'a wider column yields a larger offset');
+});
+
 test('one image anchored on two sheets is stored as a single media part', () => {
   const wb = new Workbook();
   const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
