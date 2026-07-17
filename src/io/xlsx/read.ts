@@ -153,6 +153,8 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     }
   }
 
+  readWorkbookPreservedReferences(workbookXml, partText, partBytes, contentTypeOf, workbook);
+
   // Defined names follow the sheets: a scoped name's `localSheetId` indexes the sheet order, which
   // is why the names are read only once every sheet is registered.
   for (const name of parseWorkbookDefinedNames(workbookXml, sheetOrder)) {
@@ -282,18 +284,96 @@ function readSheetPreservedReferences(
 ): void {
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return;
-  const relTargets = parseRelationships(relsXml);
-  const referenceElements: Array<PreservedWorksheetReference['element']> =
+  const records = parseRelationshipRecords(relsXml);
+  const recordById = new Map(records.map(record => [record.id, record]));
+
+  const capture = (
+    element: PreservedWorksheetReference['element'],
+    relType: string,
+    target: string
+  ): void => {
+    const entryPath = resolveRelativePart(sheetPath, target);
+    const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
+    if (parts !== undefined) sheet.addPreservedReference({element, relType, entryPath, parts});
+  };
+
+  // Element-wired references: a `<drawing>`/`<legacyDrawingHF>` names its part by an `r:id` in the
+  // sheet body. A `<drawing>` is preserved only when the reader modeled no picture from it (a
+  // chart/shape-only drawing) — one whose pictures are modeled is re-serialised from the model.
+  const referenceElements: Array<'drawing' | 'legacyDrawingHF'> =
     sheet.images.length === 0 ? ['drawing', 'legacyDrawingHF'] : ['legacyDrawingHF'];
   for (const element of referenceElements) {
     const relId = worksheetReferenceRelId(sheetXml, element);
-    if (relId === undefined) continue;
-    const target = relTargets.get(relId);
-    if (target === undefined) continue;
-    const entryPath = resolveRelativePart(sheetPath, target);
-    const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
-    if (parts !== undefined) sheet.addPreservedReference({element, entryPath, parts});
+    const record = relId === undefined ? undefined : recordById.get(relId);
+    if (record !== undefined && !record.external) capture(element, record.type, record.target);
   }
+
+  // Relationship-wired references: a pivot table or slicer is reached through a sheet relationship
+  // with no worksheet child pointing at it — Excel discovers it by scanning the sheet's rels. Preserve
+  // each so the pivots/slicers a fill-and-save workflow does not touch are not dropped.
+  for (const record of records) {
+    if (record.external) continue;
+    if (isPreservedSheetRelType(record.type)) capture(null, record.type, record.target);
+  }
+}
+
+// A sheet relationship the model does not consume but must round-trip: a pivot table or a slicer.
+// The other sheet rel kinds (drawing, printerSettings, table, comments, hyperlinks, background image,
+// the comment VML) are modeled and re-serialised from the model, so they are not preserved here.
+function isPreservedSheetRelType(type: string): boolean {
+  return type.endsWith('/pivotTable') || type.endsWith('/slicer');
+}
+
+// Capture the workbook-level references to package content the model does not interpret — pivot
+// caches (`pivotCacheDefinition`) and slicer caches (`slicerCache`) — so a round-trip re-emits them
+// instead of dropping the pivots and slicers they back. A pivot cache's `<pivotCaches>` registration
+// (its `cacheId`) is captured alongside so the wiring a pivot table resolves its cache through
+// survives too.
+function readWorkbookPreservedReferences(
+  workbookXml: string,
+  partText: (path: string) => string | undefined,
+  partBytes: (path: string) => Uint8Array | undefined,
+  contentTypeOf: (path: string) => string,
+  workbook: Workbook
+): void {
+  const relsXml = partText('xl/_rels/workbook.xml.rels');
+  if (relsXml === undefined) return;
+  const cacheIdByRelId = parsePivotCacheRegistrations(workbookXml);
+  for (const record of parseRelationshipRecords(relsXml)) {
+    if (record.external || !isPreservedWorkbookRelType(record.type)) continue;
+    const entryPath = resolveWorkbookPart(record.target);
+    const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
+    if (parts === undefined) continue;
+    const cacheId = cacheIdByRelId.get(record.id);
+    workbook.addPreservedReference({
+      relType: record.type,
+      entryPath,
+      parts,
+      ...(cacheId !== undefined ? {pivotCacheId: cacheId} : {}),
+    });
+  }
+}
+
+// A workbook relationship the model does not consume but must round-trip: a pivot cache or a slicer
+// cache. Worksheets, styles, theme, and shared strings are modeled and re-serialised from the model.
+function isPreservedWorkbookRelType(type: string): boolean {
+  return type.endsWith('/pivotCacheDefinition') || type.endsWith('/slicerCache');
+}
+
+// Map each `<pivotCache>` registration in the workbook's `<pivotCaches>` to the relationship id that
+// reaches its cache definition, so a preserved cache carries the `cacheId` a pivot table refers to.
+function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> {
+  const byRelId = new Map<string, string>();
+  parseXml(workbookXml, {
+    onOpen(name, attrs) {
+      if (localName(name) === 'pivotCache' && attrs['r:id'] !== undefined && attrs.cacheId !== undefined) {
+        byRelId.set(attrs['r:id'], attrs.cacheId);
+      }
+    },
+    onText() {},
+    onClose() {},
+  });
+  return byRelId;
 }
 
 // The `r:id` of the first `<drawing>` / `<legacyDrawingHF>` element in a worksheet, or undefined when

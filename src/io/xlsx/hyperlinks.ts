@@ -10,6 +10,7 @@
 // external relationship makes a strict consumer resolve both the rel and the location and render the
 // destination doubled.
 
+import {decodeRange} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {localName, parseXml} from './xml-read.ts';
@@ -127,7 +128,12 @@ export function applyHyperlinks(
   for (const link of links) {
     const target = resolveTarget(link, rels);
     if (target === undefined) continue;
-    const cell = sheet.getCell(link.ref);
+    // A hyperlink may span a range (`ref="D1:H1"`); Excel anchors the link at the range's top-left
+    // cell. Decode to that anchor so a multi-cell link folds onto one cell instead of asking the
+    // sheet for a range address it cannot resolve. A ref that does not decode is skipped, not fatal.
+    const anchor = hyperlinkAnchor(link.ref);
+    if (anchor === undefined) continue;
+    const cell = sheet.getCell(anchor);
     // The visible label is the cell's own value: a plain string, or rich text when the label
     // carried per-run formatting. Any other value kind has no textual label, so it reads as empty.
     const cellValue = cell.value;
@@ -139,6 +145,17 @@ export function applyHyperlinks(
       ...(link.tooltip !== undefined ? {tooltip: link.tooltip} : {}),
     };
     cell.value = value;
+  }
+}
+
+// The single cell a hyperlink is anchored at: its `ref` verbatim when it names one cell, or the
+// top-left corner when it spans a range (`D1:H1` → `D1`). Returns undefined for a ref that does not
+// decode, so a malformed hyperlink is dropped rather than crashing the load.
+function hyperlinkAnchor(ref: string): string | undefined {
+  try {
+    return decodeRange(ref).tl.address;
+  } catch {
+    return undefined;
   }
 }
 

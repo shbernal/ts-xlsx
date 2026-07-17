@@ -68,6 +68,11 @@ const rels = (entries: string): string =>
 const relationship = (id: string, type: string, target: string): string =>
   `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${type}" Target="${target}"/>`;
 
+// A slicer / slicer-cache relationship carries a Microsoft-namespaced Type; only its suffix
+// (`/slicer`, `/slicerCache`) is what marks it for preservation.
+const msRelationship = (id: string, type: string, target: string): string =>
+  `<Relationship Id="${id}" Type="http://schemas.microsoft.com/office/2007/relationships/${type}" Target="${target}"/>`;
+
 function partNames(bytes: Uint8Array): string[] {
   return Object.keys(unzipSync(bytes));
 }
@@ -168,4 +173,98 @@ test('a preserved header/footer VML is numbered clear of a modeled anchored imag
   assert.ok(media.some(n => /\.png$/.test(n)) && media.some(n => /\.jpeg$/.test(n)), 'both the modeled png and the preserved jpeg survive');
   assert.ok(names.some(n => /vmlDrawing\d+\.vml$/.test(n)), 'the header/footer VML survives');
   assert.match(partText(out, /worksheets\/sheet1\.xml$/), /<legacyDrawingHF r:id="[^"]+"\/>/, 'the legacyDrawingHF reference survives');
+});
+
+// A workbook overlay that adds a `<pivotCaches>` registration and a workbook relationship reaching a
+// pivot cache — the wiring a real pivot-bearing workbook carries, which the base package omits.
+const workbookWithPivotCache =
+  '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+  'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+  '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets>' +
+  '<pivotCaches><pivotCache cacheId="42" r:id="rId2"/></pivotCaches></workbook>';
+
+test('a pivot table and its pivot cache survive read→write, cacheId wiring intact', () => {
+  const src = zipSync(
+    packageParts({
+      '[Content_Types].xml': contentTypes(
+        '<Override PartName="/xl/pivotTables/pivotTable1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"/>' +
+          '<Override PartName="/xl/pivotCache/pivotCacheDefinition1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheDefinition+xml"/>' +
+          '<Override PartName="/xl/pivotCache/pivotCacheRecords1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheRecords+xml"/>'
+      ),
+      'xl/workbook.xml': workbookWithPivotCache,
+      'xl/_rels/workbook.xml.rels':
+        '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        relationship('rId1', 'worksheet', 'worksheets/sheet1.xml') +
+        relationship('rId2', 'pivotCacheDefinition', 'pivotCache/pivotCacheDefinition1.xml') +
+        '</Relationships>',
+      // The pivot table is discovered through a sheet relationship — there is no worksheet child.
+      'xl/worksheets/sheet1.xml': worksheet(''),
+      'xl/worksheets/_rels/sheet1.xml.rels': rels(relationship('rId1', 'pivotTable', '../pivotTables/pivotTable1.xml')),
+      'xl/pivotTables/pivotTable1.xml': '<pivotTableDefinition cacheId="42"/>',
+      'xl/pivotTables/_rels/pivotTable1.xml.rels': rels(
+        relationship('rId1', 'pivotCacheDefinition', '../pivotCache/pivotCacheDefinition1.xml')
+      ),
+      'xl/pivotCache/pivotCacheDefinition1.xml': '<pivotCacheDefinition/>',
+      'xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels': rels(
+        relationship('rId1', 'pivotCacheRecords', 'pivotCacheRecords1.xml')
+      ),
+      'xl/pivotCache/pivotCacheRecords1.xml': '<pivotCacheRecords/>',
+    })
+  );
+
+  const out = writeXlsx(readXlsx(src));
+  const names = partNames(out);
+
+  assert.ok(names.includes('xl/pivotTables/pivotTable1.xml'), 'the pivot table part survives');
+  assert.equal(
+    names.filter(n => /xl\/pivotCache\/.+\.xml$/.test(n)).length,
+    2,
+    'both the pivot cache definition and its records survive'
+  );
+  assert.match(partText(out, /worksheets\/_rels\/sheet1\.xml\.rels$/), /pivotTable/, 'the sheet still references the pivot table');
+
+  // The <pivotCaches> registration is re-emitted with its cacheId, wired to the workbook relationship
+  // that reaches the (surviving) cache definition — so a pivot table can resolve its cache on reopen.
+  const wb = partText(out, /xl\/workbook\.xml$/);
+  const cache = /<pivotCache cacheId="42" r:id="(rId\d+)"\/>/.exec(wb);
+  assert.ok(cache, `workbook registers the pivot cache with its cacheId; got ${wb}`);
+  const wbRels = partText(out, /_rels\/workbook\.xml\.rels$/);
+  assert.match(
+    wbRels,
+    new RegExp(`Id="${cache?.[1]}"[^>]*Target="pivotCache/pivotCacheDefinition1\\.xml"`),
+    'the pivotCaches relationship id resolves to the cache definition'
+  );
+
+  // Re-reading and re-writing the output keeps everything, so the passthrough is idempotent.
+  const again = partNames(writeXlsx(readXlsx(out)));
+  assert.ok(again.includes('xl/pivotTables/pivotTable1.xml'), 'idempotent across a second round-trip');
+  assert.equal(again.filter(n => /xl\/pivotCache\/.+\.xml$/.test(n)).length, 2, 'the cache survives a second round-trip');
+});
+
+test('slicer and slicer-cache parts survive read→write', () => {
+  const src = zipSync(
+    packageParts({
+      '[Content_Types].xml': contentTypes(
+        '<Override PartName="/xl/slicers/slicer1.xml" ContentType="application/vnd.ms-excel.slicer+xml"/>' +
+          '<Override PartName="/xl/slicerCaches/slicerCache1.xml" ContentType="application/vnd.ms-excel.slicerCache+xml"/>'
+      ),
+      'xl/_rels/workbook.xml.rels':
+        '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        relationship('rId1', 'worksheet', 'worksheets/sheet1.xml') +
+        msRelationship('rId2', 'slicerCache', 'slicerCaches/slicerCache1.xml') +
+        '</Relationships>',
+      'xl/worksheets/sheet1.xml': worksheet(''),
+      'xl/worksheets/_rels/sheet1.xml.rels': rels(msRelationship('rId1', 'slicer', '../slicers/slicer1.xml')),
+      'xl/slicers/slicer1.xml': '<slicers/>',
+      'xl/slicerCaches/slicerCache1.xml': '<slicerCacheDefinition/>',
+    })
+  );
+
+  const out = writeXlsx(readXlsx(src));
+  const names = partNames(out);
+
+  assert.ok(names.includes('xl/slicers/slicer1.xml'), 'the slicer part survives');
+  assert.ok(names.includes('xl/slicerCaches/slicerCache1.xml'), 'the slicer cache part survives');
+  assert.match(partText(out, /worksheets\/_rels\/sheet1\.xml\.rels$/), /\/slicer"/, 'the sheet still references the slicer');
+  assert.match(partText(out, /_rels\/workbook\.xml\.rels$/), /slicerCaches\/slicerCache1\.xml/, 'the workbook still references the slicer cache');
 });

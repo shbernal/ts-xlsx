@@ -6,7 +6,23 @@
 // first place, rather than failing only at write time.
 
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
-import {Worksheet, type WorksheetState} from './worksheet.ts';
+import {type PreservedPart, Worksheet, type WorksheetState} from './worksheet.ts';
+
+/**
+ * A workbook-level reference to package content the model does not model — a pivot cache
+ * (`pivotCacheDefinition`) or a slicer cache (`slicerCache`) — preserved verbatim across a round-trip
+ * instead of being dropped. `relType` is the workbook relationship Type URI to re-emit; `entryPath`
+ * is the part it points at; `parts` is the transitive closure that reference reaches (the entry
+ * included). `pivotCacheId` carries the `<pivotCache cacheId>` a pivot cache is registered under in
+ * the workbook's `<pivotCaches>`, so the wiring a pivot table resolves its cache through is re-emitted
+ * too; it is absent for a slicer cache, which the workbook lists in an extension block instead.
+ */
+export interface PreservedWorkbookReference {
+  readonly relType: string;
+  readonly entryPath: string;
+  readonly parts: readonly PreservedPart[];
+  readonly pivotCacheId?: string;
+}
 
 /** Document-level metadata written to the package's core properties. */
 export interface WorkbookProperties {
@@ -78,9 +94,24 @@ export class Workbook {
   // custom number format) keeps a valid target across a read/write cycle instead of dangling.
   readonly #dxfs: string[] = [];
 
+  // Workbook-level references to package content the model does not interpret (pivot caches, slicer
+  // caches), captured verbatim on read so a round-trip re-emits them rather than dropping the pivots
+  // and slicers they back. Empty for a workbook authored from scratch.
+  readonly #preservedReferences: PreservedWorkbookReference[] = [];
+
   /** The worksheets in insertion order. */
   get worksheets(): readonly Worksheet[] {
     return this.#worksheets;
+  }
+
+  /** Record a workbook-level preserved reference (a pivot or slicer cache) read from a file. */
+  addPreservedReference(reference: PreservedWorkbookReference): void {
+    this.#preservedReferences.push(reference);
+  }
+
+  /** The workbook-level preserved references, in the order they were read. */
+  get preservedReferences(): readonly PreservedWorkbookReference[] {
+    return this.#preservedReferences;
   }
 
   /**

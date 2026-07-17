@@ -142,3 +142,24 @@ test('a hyperlink relationship id does not collide with a table on the same shee
   const back = hyperlinkOf(readXlsx(writeXlsx(wb)), 'S', 'A1');
   assert.equal(back.hyperlink, 'https://example.com');
 });
+
+test('a hyperlink spanning a range anchors on its top-left cell instead of crashing', () => {
+  // Excel writes a multi-cell hyperlink as `ref="D1:H1"`; the reader must fold it onto the range's
+  // top-left cell (D1) rather than asking the sheet for a range address it cannot resolve.
+  const sheetXml =
+    '<?xml version="1.0"?><worksheet xmlns:r="x"><sheetData>' +
+    '<row r="1"><c r="D1" t="inlineStr"><is><t>go</t></is></c></row>' +
+    '</sheetData><hyperlinks><hyperlink ref="D1:H1" location="Sheet1!A1"/></hyperlinks></worksheet>';
+  const archive = zipSync({
+    '[Content_Types].xml': strToU8('<Types/>'),
+    'xl/workbook.xml': strToU8('<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>'),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<Relationships><Relationship Id="rId1" Type="x/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(sheetXml),
+  });
+
+  const back = hyperlinkOf(readXlsx(archive), 'S', 'D1');
+  assert.equal(back.hyperlink, '#Sheet1!A1');
+  assert.equal(back.text, 'go');
+});

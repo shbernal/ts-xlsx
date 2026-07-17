@@ -234,11 +234,11 @@ export function buildPackageParts(
     };
   });
 
-  // Content the model does not interpret — a vector-shape drawing, a header/footer image — captured
-  // on read and re-emitted verbatim. Numbered after the backgrounds so their sheet-local rel ids sit
-  // at the tail of the sequence.
+  // Content the model does not interpret — a vector-shape drawing, a header/footer image, a pivot
+  // table and its caches, a slicer — captured on read and re-emitted verbatim. Sheet references are
+  // numbered after the backgrounds so their sheet-local rel ids sit at the tail of the sequence.
   const preserved = planPreservedParts(
-    sheets,
+    workbook,
     sheetTables,
     sheetDrawings,
     sheetComments,
@@ -284,6 +284,16 @@ export function buildPackageParts(
   const printerSettingsNumbers = sheetPrinterSettings
     .filter((p): p is PrinterSettingsPlan => p !== null)
     .map(p => p.number);
+
+  // A preserved workbook reference's relationship id follows the modeled workbook rels — the sheets,
+  // styles, theme, and (when emitted) shared strings — so adding one never renumbers an id already
+  // used. The workbook body and its rels part are wired from the same assignment, so a pivot cache's
+  // `<pivotCaches>` registration and its relationship agree on the id.
+  const workbookRelBase = sheets.length + 2 + (hasSharedStrings ? 1 : 0);
+  const preservedWorkbookRels = preserved.workbook.map((ref, i) => ({
+    ...ref,
+    relId: `rId${workbookRelBase + 1 + i}`,
+  }));
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(
       contentTypesXml(
@@ -300,8 +310,10 @@ export function buildPackageParts(
     '_rels/.rels': strToU8(rootRelsXml()),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
     'docProps/app.xml': strToU8(appPropsXml()),
-    'xl/workbook.xml': strToU8(workbookXml(workbook)),
-    'xl/_rels/workbook.xml.rels': strToU8(workbookRelsXml(sheets.length, hasSharedStrings)),
+    'xl/workbook.xml': strToU8(workbookXml(workbook, preservedWorkbookRels)),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      workbookRelsXml(sheets.length, hasSharedStrings, preservedWorkbookRels)
+    ),
     'xl/styles.xml': strToU8(styles.toXml()),
     'xl/theme/theme1.xml': strToU8(THEME1_XML),
   };
@@ -406,21 +418,33 @@ interface PreservedPartPlan {
   readonly relsXml: string | null;
 }
 
-// A preserved worksheet reference resolved for serialisation: the worksheet element that carries it,
-// the sheet-local relationship id wiring that element, the relationship Type, and the new path of the
-// entry part the relationship targets.
+// A preserved worksheet reference resolved for serialisation: the worksheet element that wires it
+// (`null` for a pivot-table/slicer reference the sheet carries by relationship alone), the sheet-local
+// relationship id, the relationship Type, and the new path of the entry part it targets.
 interface PreservedReferencePlan {
-  readonly element: 'drawing' | 'legacyDrawingHF';
+  readonly element: 'drawing' | 'legacyDrawingHF' | null;
   readonly relId: string;
   readonly relType: string;
   readonly entryPath: string;
 }
 
+// A preserved workbook reference resolved for serialisation: its relationship Type, the new path of
+// the entry part, and — for a pivot cache — the `cacheId` its `<pivotCaches>` registration carries.
+// The workbook relationship id is assigned at emit time (it follows the modeled workbook rels, whose
+// count depends on whether a shared-strings part is emitted), so it is not fixed here.
+interface PreservedWorkbookReferencePlan {
+  readonly relType: string;
+  readonly entryPath: string;
+  readonly pivotCacheId: string | undefined;
+}
+
 // The whole workbook's preserved content resolved for serialisation: per-sheet reference plans
-// (parallel to the sheets) that wire the worksheet elements and rels, and the flat list of parts to
-// emit. Kept together because the parts are numbered globally while the references are sheet-local.
+// (parallel to the sheets) that wire the worksheet elements and rels, the workbook-level reference
+// plans, and the flat, de-duplicated list of parts to emit. Kept together because the parts are
+// numbered globally while the references are sheet- or workbook-local.
 interface PreservedPlan {
   readonly perSheet: readonly (readonly PreservedReferencePlan[])[];
+  readonly workbook: readonly PreservedWorkbookReferencePlan[];
   readonly parts: readonly PreservedPartPlan[];
 }
 
@@ -496,7 +520,7 @@ function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): MediaPlan 
 // every other sheet-local id (tables, drawing, comments, printer-settings, hyperlinks, background) so
 // adding it never renumbers an id already threaded into the sheet XML.
 function planPreservedParts(
-  sheets: readonly Worksheet[],
+  workbook: Workbook,
   sheetTables: readonly (readonly PlannedTable[])[],
   sheetDrawings: readonly (DrawingPlan | null)[],
   sheetComments: readonly (CommentPlan | null)[],
@@ -505,21 +529,53 @@ function planPreservedParts(
   sheetBackgrounds: readonly (BackgroundPlan | null)[],
   generatedMediaCount: number
 ): PreservedPlan {
-  // A preserved part re-uses Excel's standard part naming (drawingN.xml, vmlDrawingN.vml,
-  // imageN.ext) so the output looks like a hand-authored package — with a per-kind counter that
-  // starts past the generated parts of that kind, so a preserved drawing never clobbers an anchored
-  // drawing, a preserved VML never clobbers a comment's VML, and preserved media never clobbers an
-  // anchored image. Comment VML is numbered by sheet index, so `sheets.length` bounds its numbers.
+  const sheets = workbook.worksheets;
+  // The writer generates drawings, VML, and media of its own, so a preserved part of one of those
+  // kinds is re-numbered past the generated ones (a preserved drawing never clobbers an anchored
+  // drawing, a preserved VML never clobbers a comment's VML). Comment VML is numbered by sheet index,
+  // so `sheets.length` bounds it. Every other kind (pivot tables, caches, slicers, charts) the writer
+  // never generates, so those keep their original path — see {@link preservedPartPath}.
   const numbering: PreservedNumbering = {
     drawing: sheetDrawings.filter((d): d is DrawingPlan => d !== null).length,
     vml: sheets.length,
     media: generatedMediaCount,
-    generic: 0,
   };
-  const parts: PreservedPartPlan[] = [];
+
+  // One package-wide remap and one emitted-parts map: a part reached through more than one reference
+  // (a pivot cache reached both from its pivot table and from the workbook) is numbered once and
+  // emitted once, so overlapping closures collapse instead of duplicating parts.
+  const remap = new Map<string, string>();
+  const allReferences = [...sheets.flatMap(sheet => sheet.preservedReferences), ...workbook.preservedReferences];
+  for (const reference of allReferences) {
+    for (const part of reference.parts) {
+      if (!remap.has(part.path)) remap.set(part.path, preservedPartPath(part.path, numbering));
+    }
+  }
+  const emitted = new Map<string, PreservedPartPlan>();
+  for (const reference of allReferences) {
+    for (const part of reference.parts) {
+      const newPath = remap.get(part.path) as string;
+      if (emitted.has(newPath)) continue;
+      const rels = part.rels.flatMap(rel => {
+        const target = remap.get(rel.targetPath);
+        return target === undefined ? [] : [{id: rel.id, type: rel.type, target: relativePartPath(newPath, target)}];
+      });
+      emitted.set(newPath, {
+        path: newPath,
+        bytes: part.bytes,
+        contentType: part.contentType,
+        relsPath: rels.length === 0 ? null : relsPathForPart(newPath),
+        relsXml: rels.length === 0 ? null : preservedRelsXml(rels),
+      });
+    }
+  }
+
   const perSheet = sheets.map((sheet, i): PreservedReferencePlan[] => {
     const references = sheet.preservedReferences;
     if (references.length === 0) return [];
+    // A preserved reference's sheet-local relationship id follows every modeled sheet-local id
+    // (tables, drawing, comments, printer-settings, external hyperlinks, background) so adding it never
+    // renumbers an id already threaded into the sheet XML.
     const externalHyperlinks = (sheetHyperlinks[i] ?? []).filter(link => link.relId !== undefined).length;
     const base =
       (sheetTables[i] ?? []).length +
@@ -529,33 +585,21 @@ function planPreservedParts(
       externalHyperlinks +
       (sheetBackgrounds[i] ? 1 : 0);
     let next = base + 1;
-    return references.map((reference): PreservedReferencePlan => {
-      // Number the whole closure first so a part's relationships can target its siblings' new paths.
-      const remap = new Map<string, string>();
-      for (const part of reference.parts) remap.set(part.path, preservedPartPath(part.path, numbering));
-      for (const part of reference.parts) {
-        const newPath = remap.get(part.path) as string;
-        const rels = part.rels.flatMap(rel => {
-          const target = remap.get(rel.targetPath);
-          return target === undefined ? [] : [{id: rel.id, type: rel.type, target: relativePartPath(newPath, target)}];
-        });
-        parts.push({
-          path: newPath,
-          bytes: part.bytes,
-          contentType: part.contentType,
-          relsPath: rels.length === 0 ? null : relsPathForPart(newPath),
-          relsXml: rels.length === 0 ? null : preservedRelsXml(rels),
-        });
-      }
-      return {
-        element: reference.element,
-        relId: `rId${next++}`,
-        relType: reference.element === 'drawing' ? REL.drawing : REL.vmlDrawing,
-        entryPath: remap.get(reference.entryPath) as string,
-      };
-    });
+    return references.map((reference): PreservedReferencePlan => ({
+      element: reference.element,
+      relId: `rId${next++}`,
+      relType: reference.relType,
+      entryPath: remap.get(reference.entryPath) as string,
+    }));
   });
-  return {perSheet, parts};
+
+  const workbookRefs = workbook.preservedReferences.map((reference): PreservedWorkbookReferencePlan => ({
+    relType: reference.relType,
+    entryPath: remap.get(reference.entryPath) as string,
+    pivotCacheId: reference.pivotCacheId,
+  }));
+
+  return {perSheet, workbook: workbookRefs, parts: [...emitted.values()]};
 }
 
 // Per-kind counters for numbering preserved parts, each seeded past the generated parts of its kind.
@@ -563,22 +607,21 @@ interface PreservedNumbering {
   drawing: number;
   vml: number;
   media: number;
-  generic: number;
 }
 
-// The path a preserved part is emitted at, re-using Excel's standard naming for the kind it is (a
-// drawing, a VML, a media image) so the package reads like a normal one, with a per-kind number past
-// the generated parts of that kind (see {@link planPreservedParts}). A part of no recognised kind
-// keeps its original directory under a `preserved{n}` name the writer never generates.
+// The path a preserved part is emitted at. A kind the writer generates of its own — a drawing, a VML,
+// a media image — is re-numbered past the generated parts of that kind (see {@link planPreservedParts})
+// so it never clobbers one. Every other kind (a pivot table, a pivot/slicer cache, a slicer, a chart)
+// the writer never generates, so it keeps its original path — leaving the package's standard part
+// names intact and letting overlapping closures agree on a single path for a shared part.
 function preservedPartPath(originalPath: string, numbering: PreservedNumbering): string {
   const ext = extensionOf(originalPath);
-  const lower = ext.toLowerCase();
-  if (lower === 'vml') return `xl/drawings/vmlDrawing${++numbering.vml}.vml`;
+  if (ext.toLowerCase() === 'vml') return `xl/drawings/vmlDrawing${++numbering.vml}.vml`;
   if (originalPath.startsWith('xl/media/')) return `xl/media/image${++numbering.media}.${ext}`;
-  if (originalPath.startsWith('xl/drawings/') && lower === 'xml') return `xl/drawings/drawing${++numbering.drawing}.xml`;
-  const slash = originalPath.lastIndexOf('/');
-  const dir = slash === -1 ? '' : originalPath.slice(0, slash + 1);
-  return `${dir}preserved${++numbering.generic}.${ext}`;
+  if (originalPath.startsWith('xl/drawings/') && ext.toLowerCase() === 'xml') {
+    return `xl/drawings/drawing${++numbering.drawing}.xml`;
+  }
+  return originalPath;
 }
 
 // The extension of a part path (`xl/media/image1.jpeg` → `jpeg`), or '' when it carries none.
@@ -693,7 +736,7 @@ function rootRelsXml(): string {
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
 
-function workbookXml(workbook: Workbook): string {
+function workbookXml(workbook: Workbook, preservedRels: readonly PreservedWorkbookRel[]): string {
   const sheets = workbook.worksheets;
   const entries = sheets
     .map((sheet, i) => {
@@ -707,8 +750,22 @@ function workbookXml(workbook: Workbook): string {
     `<sheets>${entries}</sheets>` +
     definedNamesXml(workbook) +
     calcPrXml(workbook) +
+    pivotCachesXml(preservedRels) +
     '</workbook>'
   );
+}
+
+// The `<pivotCaches>` element registers each preserved pivot cache under the `cacheId` a pivot table
+// resolves its cache through, wired to the relationship that reaches the cache definition. It follows
+// `<calcPr>` in CT_Workbook order. Emitted only when a preserved cache carries a `cacheId`; a slicer
+// cache (no `cacheId`) is registered in a workbook extension block, not here, so it is skipped.
+function pivotCachesXml(preservedRels: readonly PreservedWorkbookRel[]): string {
+  const caches = preservedRels.filter(ref => ref.pivotCacheId !== undefined);
+  if (caches.length === 0) return '';
+  const entries = caches
+    .map(ref => `<pivotCache cacheId="${escapeAttr(ref.pivotCacheId as string)}" r:id="${ref.relId}"/>`)
+    .join('');
+  return `<pivotCaches>${entries}</pivotCaches>`;
 }
 
 // `<calcPr>` follows `<definedNames>` in CT_Workbook order and carries the calculation settings.
@@ -773,7 +830,11 @@ function quoteSheetName(name: string): string {
   return bare ? name : `'${name.replace(/'/g, "''")}'`;
 }
 
-function workbookRelsXml(sheetCount: number, hasSharedStrings: boolean): string {
+function workbookRelsXml(
+  sheetCount: number,
+  hasSharedStrings: boolean,
+  preservedRels: readonly PreservedWorkbookRel[]
+): string {
   const rels = [
     ...range(sheetCount).map(i =>
       relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`)
@@ -783,9 +844,17 @@ function workbookRelsXml(sheetCount: number, hasSharedStrings: boolean): string 
     ...(hasSharedStrings
       ? [relationship(`rId${sheetCount + 3}`, REL.sharedStrings, 'sharedStrings.xml')]
       : []),
+    // A preserved cache's target is package-absolute; express it relative to the workbook part.
+    ...preservedRels.map(ref =>
+      relationship(ref.relId, ref.relType, escapeAttr(relativePartPath('xl/workbook.xml', ref.entryPath)))
+    ),
   ].join('');
   return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
+
+// A preserved workbook reference with the relationship id assigned for emission (see the body and
+// rels-part wiring in {@link buildPackageParts}).
+type PreservedWorkbookRel = PreservedWorkbookReferencePlan & {readonly relId: string};
 
 function relationship(id: string, type: string, target: string): string {
   return `<Relationship Id="${id}" Type="${type}" Target="${target}"/>`;
@@ -1113,9 +1182,6 @@ function worksheetRelsXml(
             `../media/image${background.mediaNumber}.${background.extension}`
           ),
         ]),
-    // An external hyperlink's target is a URL outside the package, so its relationship carries
-    // TargetMode="External" and the plain `relationship()` helper (a package-internal target) will
-    // not do. Internal links have no relId and contribute nothing here.
     // A preserved reference targets its entry part's new (package-absolute) path; a worksheet always
     // lives under `xl/worksheets/`, so the target is that path made relative to that directory.
     ...preservedReferences.map(reference =>
