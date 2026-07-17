@@ -267,4 +267,21 @@ test('slicer and slicer-cache parts survive read→write', () => {
   assert.ok(names.includes('xl/slicerCaches/slicerCache1.xml'), 'the slicer cache part survives');
   assert.match(partText(out, /worksheets\/_rels\/sheet1\.xml\.rels$/), /\/slicer"/, 'the sheet still references the slicer');
   assert.match(partText(out, /_rels\/workbook\.xml\.rels$/), /slicerCaches\/slicerCache1\.xml/, 'the workbook still references the slicer cache');
+
+  // Parts surviving is not enough — Excel only rediscovers a slicer through its x14 wiring, which
+  // references the relationship ids the writer reassigns, so the ext blocks must name the *new* ids.
+  const slicerRelId = partText(out, /worksheets\/_rels\/sheet1\.xml\.rels$/).match(/Id="(rId\d+)"[^>]*\/slicer"/)?.[1];
+  assert.ok(slicerRelId, 'the re-emitted slicer rel has an id');
+  assert.match(
+    partText(out, /worksheets\/sheet1\.xml$/),
+    new RegExp(`<x14:slicerList><x14:slicer r:id="${slicerRelId}"/></x14:slicerList>`),
+    'the sheet body reactivates the slicer through a slicerList extension wired to its rel'
+  );
+  const cacheRelId = partText(out, /_rels\/workbook\.xml\.rels$/).match(/Id="(rId\d+)"[^>]*\/slicerCache"/)?.[1];
+  assert.ok(cacheRelId, 'the re-emitted slicer-cache rel has an id');
+  assert.match(
+    partText(out, /xl\/workbook\.xml$/),
+    new RegExp(`<x14:slicerCaches><x14:slicerCache r:id="${cacheRelId}"/></x14:slicerCaches>`),
+    'the workbook registers the slicer cache in its x14 slicerCaches extension'
+  );
 });

@@ -260,6 +260,10 @@ export function buildPackageParts(
     // when the sheet modeled no image from it), so the `<drawing>` slot takes whichever exists.
     const preservedDrawingRelId = refs.find(ref => ref.element === 'drawing')?.relId ?? null;
     const legacyDrawingHFRelId = refs.find(ref => ref.element === 'legacyDrawingHF')?.relId ?? null;
+    // A slicer is wired into the sheet body by an `<x14:slicerList>` extension that names the same
+    // relationship id the sheet's slicer rel carries — re-emitting it reactivates the widget rather
+    // than leaving the preserved slicer part orphaned.
+    const slicerRelIds = refs.filter(ref => ref.relType.endsWith('/slicer')).map(ref => ref.relId);
     return worksheetXml(
       sheet,
       sheetTables[i] ?? [],
@@ -269,6 +273,7 @@ export function buildPackageParts(
       sheetPrinterSettings[i]?.relId ?? null,
       sheetBackgrounds[i]?.relId ?? null,
       legacyDrawingHFRelId,
+      slicerRelIds,
       sheetHyperlinks[i] ?? [],
       sharedStrings
     );
@@ -751,7 +756,22 @@ function workbookXml(workbook: Workbook, preservedRels: readonly PreservedWorkbo
     definedNamesXml(workbook) +
     calcPrXml(workbook) +
     pivotCachesXml(preservedRels) +
+    workbookExtLstXml(preservedRels) +
     '</workbook>'
+  );
+}
+
+// The workbook-body `<x14:slicerCaches>` extension that registers each preserved slicer cache, wired
+// to the relationship reaching its cache part. Slicer caches (unlike pivot caches, which register in
+// `<pivotCaches>`) live only in this extension block, so re-emitting it is what lets Excel rediscover
+// the slicers. `<extLst>` is the final child of CT_Workbook. '' when no slicer cache was preserved.
+function workbookExtLstXml(preservedRels: readonly PreservedWorkbookRel[]): string {
+  const caches = preservedRels.filter(ref => ref.relType.endsWith('/slicerCache'));
+  if (caches.length === 0) return '';
+  const entries = caches.map(ref => `<x14:slicerCache r:id="${ref.relId}"/>`).join('');
+  return (
+    `<extLst><ext uri="${SLICER_CACHES_EXT_URI}" xmlns:x14="${X14_NS}">` +
+    `<x14:slicerCaches>${entries}</x14:slicerCaches></ext></extLst>`
   );
 }
 
@@ -903,6 +923,7 @@ function worksheetXml(
   printerSettingsRelId: string | null,
   backgroundRelId: string | null,
   legacyDrawingHFRelId: string | null,
+  preservedSlicerRelIds: readonly string[],
   hyperlinks: readonly PlannedHyperlink[],
   sharedStrings: SharedStringTable | null
 ): string {
@@ -1005,19 +1026,39 @@ function worksheetXml(
     // x14 conditional-formatting extensions (data-bar gradient/negative-fill/axis) and the extended
     // (x14) data validations ride inside it as sibling `<ext>` blocks — so they are gathered here into
     // a single `<extLst>` rather than each emitting its own.
-    worksheetExtLstXml(sheet) +
+    worksheetExtLstXml(sheet, preservedSlicerRelIds) +
     '</worksheet>'
   );
 }
 
 // Assemble the worksheet's single `<extLst>` from every x14 extension the sheet carries, or '' when it
 // carries none. Each producer returns a bare `<ext>` so they compose without nesting an `<extLst>`.
-function worksheetExtLstXml(sheet: Worksheet): string {
+function worksheetExtLstXml(sheet: Worksheet, slicerRelIds: readonly string[]): string {
   const exts = [
     conditionalFormattingsExtXml(sheet.conditionalFormattings),
     dataValidationsExtXml(sheet.dataValidations),
+    slicerListExtXml(slicerRelIds),
   ].filter(ext => ext !== '');
   return exts.length === 0 ? '' : `<extLst>${exts.join('')}</extLst>`;
+}
+
+// The x14 namespace and the well-known extension URIs Excel keys the slicer wiring off. The `<ext>`
+// blocks are opaque to any consumer that does not understand them, so a producer must reproduce these
+// exact GUIDs for Excel to rediscover the slicer widget and its caches.
+const X14_NS = 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main';
+const SLICER_LIST_EXT_URI = '{A8765BA9-456A-4dab-B4F3-ACF838C121DE}';
+const SLICER_CACHES_EXT_URI = '{BBE1A952-AA13-448e-AADC-164F8A28A991}';
+
+// The worksheet-body `<x14:slicerList>` extension that reconnects a sheet to its preserved slicer
+// parts. Each `<x14:slicer>` names the sheet-local relationship id its slicer rel was re-emitted under,
+// so the wiring stays consistent even though the id is reassigned on write. '' when the sheet has none.
+function slicerListExtXml(slicerRelIds: readonly string[]): string {
+  if (slicerRelIds.length === 0) return '';
+  const slicers = slicerRelIds.map(relId => `<x14:slicer r:id="${relId}"/>`).join('');
+  return (
+    `<ext uri="${SLICER_LIST_EXT_URI}" xmlns:x14="${X14_NS}">` +
+    `<x14:slicerList>${slicers}</x14:slicerList></ext>`
+  );
 }
 
 // Excel forbids a merged range from intersecting a formatted table; such a file opens as
