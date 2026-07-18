@@ -1129,6 +1129,40 @@ const impl = {
     return {readShareType, readRef, readResult, reloadOk, outHasDataTable};
   },
 
+  // Author a date-type validation whose operand coerces to a serial (or fails to), write, and report
+  // the emitted first bound → { formula1, hasNaN }. A real date writes a numeric serial; a
+  // non-coercible operand must drop the bound, never serialize the literal "NaN".
+  authorDateValidation(operand) {
+    const serial = (() => {
+      const ms = Date.parse(operand);
+      return Number.isNaN(ms) ? Number.NaN : ms / 86_400_000 + 25_569; // Unix epoch → 1900 serial
+    })();
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.addDataValidation('A1', {type: 'date', operator: 'greaterThan', formulae: [serial]});
+    const sheetXml = partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '';
+    const formula1 = (sheetXml.match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
+    return {formula1, hasNaN: /NaN/.test(sheetXml)};
+  },
+
+  // Apply one list validation with a cross-sheet source over a vertical span, round-trip, and report
+  // the per-row source references plus how many dataValidation blocks were emitted → { source,
+  // formulae, allIdentical, sqrefBlocks }. Every row must keep the exact source (no relative drift),
+  // and the identical rules collapse into one spanning sqref.
+  listValidationSourceRangeAcrossRows(rows, source) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.addDataValidation(`A1:A${rows}`, {type: 'list', formulae: [source]}, {extended: true});
+    const buffer = writeXlsx(workbook);
+    const reloaded = readXlsx(buffer).getWorksheet('S');
+    const formulae = [];
+    for (let r = 1; r <= rows; r++) formulae.push(reloaded.dataValidationAt(`A${r}`)?.formulae?.[0] ?? null);
+    const allIdentical = formulae.every(f => f === source);
+    const dvXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const sqrefBlocks = (dvXml.match(/<(?:x14:)?dataValidation[\s>]/g) || []).length;
+    return {source, formulae, allIdentical, sqrefBlocks};
+  },
+
   // Write a non-finite numeric cell (NaN / Infinity / -Infinity) and report whether the sheet XML
   // carries a bare token in a <v> → { hasNonFiniteToken, token }. A non-finite value has no OOXML
   // representation, so it must serialize as a valueless cell, never a literal "NaN"/"Infinity".
