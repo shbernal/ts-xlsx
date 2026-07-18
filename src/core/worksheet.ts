@@ -126,6 +126,21 @@ export interface PageSetup {
 }
 
 /**
+ * A manual page break (`<brk>`). For a row break, `id` is the row the layout splits *before*; for a
+ * column break it is the column. `max` bounds the break's extent across the other axis (Excel writes
+ * the last row/column index) and `man` marks it author-set rather than automatic — the model preserves
+ * whatever the source carried so a round-trip reproduces the break's span exactly.
+ */
+export interface PageBreak {
+  /** The row (or column) the break precedes. */
+  readonly id: number;
+  /** The break's far extent across the other axis, if the source declared one. */
+  readonly max?: number;
+  /** `true` when the break is manual (author-set); Excel-authored breaks always are. */
+  readonly man?: boolean;
+}
+
+/**
  * Print margins, in inches. OOXML's `<pageMargins>` requires all six to be present, but
  * the model stores only what the caller set; the writer fills the untouched ones with
  * valid defaults. An empty object means the element is omitted entirely.
@@ -313,6 +328,7 @@ export interface WorksheetModel {
   pageSetup: PageSetup;
   pageMargins: PageMargins;
   headerFooter: HeaderFooter;
+  rowBreaks: PageBreak[];
   columns: {index: number; properties: ColumnProperties}[];
   rows: {number: number; properties: RowProperties}[];
   cells: CellModel[];
@@ -389,6 +405,13 @@ export class Worksheet {
 
   /** Page header/footer text. Mutate in place: `sheet.headerFooter.oddHeader = '&C&"..."'`. */
   readonly headerFooter: HeaderFooter = {};
+
+  /**
+   * Manual horizontal page breaks (`<rowBreaks>`): each break's `id` is a row the print layout splits
+   * before. Mutate in place: `sheet.rowBreaks.push({id: 3})`. Empty means no manual row breaks and the
+   * writer emits no `<rowBreaks>` element.
+   */
+  readonly rowBreaks: PageBreak[] = [];
 
   // Row-major sparse storage: row index → (column index → cell). Keeping rows as the
   // outer key makes whole-row iteration cheap and mirrors how OOXML serializes
@@ -1264,6 +1287,7 @@ export class Worksheet {
       pageSetup: {...this.pageSetup},
       pageMargins: {...this.pageMargins},
       headerFooter: {...this.headerFooter},
+      rowBreaks: this.rowBreaks.map(brk => ({...brk})),
       columns: [...this.#columns].map(([index, properties]) => ({index, properties: {...properties}})),
       rows: [...this.#rowProperties].map(([number, properties]) => ({number, properties: {...properties}})),
       cells,
@@ -1291,6 +1315,8 @@ export class Worksheet {
     overwrite(this.pageSetup, model.pageSetup);
     overwrite(this.pageMargins, model.pageMargins);
     overwrite(this.headerFooter, model.headerFooter);
+    this.rowBreaks.length = 0;
+    this.rowBreaks.push(...model.rowBreaks.map(brk => ({...brk})));
 
     this.#rows.clear();
     this.#columns.clear();

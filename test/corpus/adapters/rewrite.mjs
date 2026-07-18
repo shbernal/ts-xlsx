@@ -1998,6 +1998,26 @@ const impl = {
     };
   },
 
+  // Prove manual horizontal page breaks survive load and a load→save round-trip → { sourceBreaks,
+  // loadedBreaks, rewrittenBreaks }, each the ascending list of break row ids. sourceBreaks reads the
+  // raw fixture XML (the precondition); loadedBreaks/rewrittenBreaks come off the model after read and
+  // after write→re-read, so a dropped-on-read or dropped-on-write regression shows as an empty list.
+  roundtripFixtureRowBreaks(rel) {
+    const rowBreakIds = xml => {
+      const section = xml.match(/<rowBreaks[\s\S]*?<\/rowBreaks>/);
+      if (section === null) return [];
+      return [...section[0].matchAll(/<brk\b[^>]*\bid="(\d+)"/g)].map(m => Number(m[1])).sort((a, b) => a - b);
+    };
+    const sheet1 = parts => parts['xl/worksheets/sheet1.xml'] ?? '';
+    const modelBreaks = wb => wb.worksheets[0].rowBreaks.map(brk => brk.id).sort((a, b) => a - b);
+
+    const sourceBreaks = rowBreakIds(sheet1(partMapOf(fixtureBytes(rel))));
+    const loaded = readFixture(rel);
+    const loadedBreaks = modelBreaks(loaded);
+    const rewrittenBreaks = modelBreaks(readXlsx(writeXlsx(loaded)));
+    return {sourceBreaks, loadedBreaks, rewrittenBreaks};
+  },
+
   // Read a fixture and report its defined names as { <name>: [refersTo…] }, mirroring the oracle.
   // The model retains every name as its own entry rather than keying by name, so two same-named
   // names scoped to different sheets both survive — the scope collision that drops one on the

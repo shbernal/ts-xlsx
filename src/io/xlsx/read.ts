@@ -1378,6 +1378,9 @@ function parseWorksheet(
   let filterBlank = false;
   let customPredicates: CustomFilterPredicate[] | null = null;
   let customAnd = false;
+  // `<brk>` elements appear under both `<rowBreaks>` and `<colBreaks>`; this flag routes only the
+  // row-break children onto the model (column breaks are not modelled yet).
+  let inRowBreaks = false;
   // A column's `style` is the default for its cells that carry no style of their own; this
   // maps a column index to that style index so a bare cell can inherit it (as Excel does,
   // without stamping every cell). Columns are parsed before any cell references them.
@@ -1579,6 +1582,27 @@ function parseWorksheet(
         case 'pageSetup':
           applyPageSetup(sheet.pageSetup, attrs);
           break;
+        case 'rowBreaks':
+          inRowBreaks = true;
+          break;
+        case 'colBreaks':
+          // A `<brk>` under column breaks must not land on the row-break model; a self-closing
+          // `<colBreaks/>` fires no close, so the flag is simply left false here.
+          inRowBreaks = false;
+          break;
+        case 'brk': {
+          // Only manual row breaks are surfaced. `id` is the row the layout splits before; a
+          // non-positive or non-integer id is hostile input and dropped rather than trusted.
+          if (!inRowBreaks) break;
+          const id = Number(attrs.id);
+          if (!Number.isInteger(id) || id < 1) break;
+          const brk: {id: number; max?: number; man?: boolean} = {id};
+          const max = Number(attrs.max);
+          if (Number.isInteger(max) && max >= 0) brk.max = max;
+          if (attrs.man === '1' || attrs.man === 'true') brk.man = true;
+          sheet.rowBreaks.push(brk);
+          break;
+        }
         case 'sheetProtection': {
           const protection = parseSheetProtection(attrs);
           if (protection !== undefined) sheet.restoreProtection(protection);
@@ -1694,6 +1718,9 @@ function parseWorksheet(
         }
         case 'autoFilter':
           commitAutoFilter();
+          break;
+        case 'rowBreaks':
+          inRowBreaks = false;
           break;
         default:
           break;

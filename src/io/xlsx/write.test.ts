@@ -786,3 +786,43 @@ test('a cell linking to a named cell style keeps its fill and xfId link across a
   assert.equal(a1?.fill?.fgColor?.argb, 'FFFFFF00', 'the resolved fill is the named-style yellow');
   assert.equal(a1?.namedStyleId, 1, 'the cell keeps its link to the named style');
 })
+
+test('manual row breaks are emitted as <rowBreaks> and round-trip', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  sheet.rowBreaks.push({id: 3, max: 16383, man: true}, {id: 6, max: 16383, man: true});
+
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
+  assert.match(xml, /<rowBreaks count="2" manualBreakCount="2">/, 'both breaks are counted as manual');
+  assert.match(xml, /<brk id="3" max="16383" man="1"\/>/, 'the first break carries its column span');
+
+  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  assert.deepEqual(
+    back?.rowBreaks.map(brk => brk.id),
+    [3, 6],
+    'the break rows survive a write→read round-trip'
+  );
+})
+
+test('a sheet with no manual row breaks emits no <rowBreaks> element', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
+  assert.doesNotMatch(xml, /<rowBreaks/, 'an empty break list fabricates nothing');
+})
+
+test('column-break <brk> elements are not read as row breaks', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  const patched = writeXlsx(wb);
+  const files = unzipSync(patched);
+  const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml']!).replace(
+    '</worksheet>',
+    '<colBreaks count="1" manualBreakCount="1"><brk id="2" max="1048575" man="1"/></colBreaks></worksheet>'
+  );
+  files['xl/worksheets/sheet1.xml'] = strToU8(sheetXml);
+  const back = readXlsx(zipSync(files)).getWorksheet('S');
+  assert.deepEqual(back?.rowBreaks, [], 'a column break must not land on the row-break model');
+})
