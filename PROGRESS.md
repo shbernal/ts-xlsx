@@ -1663,6 +1663,34 @@ named-style fill, outline levels, magic default-width), plus scattered **xlsx-io
 name/manual-page-break reading), **comments** (note removal), **merges** (trailing-empty-row iteration),
 and **worksheet-decl** (hidden-state write). Continue in the same one-case-per-commit rhythm.
 
+### 2026-07-18 batch 2 — tables cluster drained (399→413 green, 60→41 skipped, 0 regressions)
+The seven remaining **tables** cases closed, each landed fully green and committed on its own:
+- **Table style "None"** *(source)* — the sentinel gallery name is normalised to an absent `name`
+  attribute (OOXML expresses unstyled as a nameless `<tableStyleInfo>`); banding flags survive.
+- **CR/LF column name** — `escapeAttr` already emits `&#13;&#10;`, so raw control chars never reach the
+  part; adapter-only.
+- **Table cell edit round-trip** — editing a body cell keeps the table part and its unique rels;
+  adapter-only.
+- **Loaded table accepts appends** *(source)* — new `Table.rowCount`/`Table.addRow(values)` +
+  `Worksheet.getTable(name)`; the table holds a worksheet cell-writer so an appended row materialises in
+  the grid. A loaded table is fully hydrated (geometry-derived count), never half-built.
+- **Column style bakes into body cells** *(source)* — new `TableColumnStyle` + `TableColumn.style`; the
+  per-column format is applied to the body cells `addRow` writes (Excel bakes it into cells, not table
+  metadata), so it round-trips as the cells' own style.
+- **Equivalent-column collapse** *(source)* — the writer coalesces adjacent columns with identical
+  definitions into shared `<col min max>` spans (reader already expands ranges); no per-column blowup.
+- **Duplicate column names** *(source, policy change)* — `addTable` now **disambiguates** collisions
+  (`foo`, `foo2`, `foo3…`) instead of throwing, sharing one implementation with the reader. This
+  reversed the `splice-rows-updates-table-and-image-refs` reject-assertion (two corpus contracts
+  disagreed); the human confirmed disambiguation as the consistent direction.
+
+**Still skipped (41 assertions, ~13 cases)** — no **tables** left. Remaining clusters: **styles**
+(quote-prefix flag, out-of-order `<col>` tags, cellStyleXfs named-style fill, row/column outline levels,
+magic default-width), **xlsx-io** (empty-row hidden flag, reserved sheet name, manual row page breaks),
+**comments** (note removal), **merges** (trailing-empty merged-row iteration), **core-model** (merged
+child mirrors master), **types** (trailing-empty-cell iteration), **security** (workbook structure
+protection), **worksheet-decl** (hidden-state write), **address-decoding** (non-canonical comments path).
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
