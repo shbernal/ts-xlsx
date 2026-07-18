@@ -56,6 +56,33 @@ const SHAPE_DRAWING =
   '<xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>' +
   '<xdr:txBody><a:bodyPr/><a:p/></xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor></xdr:wsDr>';
 
+// A single drawing part holding BOTH a modeled picture (an <xdr:pic> with a blip embed) AND a chart
+// (an <xdr:graphicFrame> naming a chart part by r:id) — the shape Excel produces for a sheet that
+// carries an image and a chart together. Modeling only the picture and re-serialising the drawing
+// from it would drop the chart; the whole part must ride through preservation instead.
+const MIXED_DRAWING =
+  '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" ' +
+  'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+  'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+  '<xdr:oneCellAnchor>' +
+  '<xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>' +
+  '<xdr:ext cx="100" cy="100"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="1" name="p"/><xdr:cNvPicPr/></xdr:nvPicPr>' +
+  '<xdr:blipFill><a:blip r:embed="rId1"/></xdr:blipFill><xdr:spPr/></xdr:pic><xdr:clientData/>' +
+  '</xdr:oneCellAnchor>' +
+  '<xdr:twoCellAnchor>' +
+  '<xdr:from><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>4</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>' +
+  '<xdr:to><xdr:col>10</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>20</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>' +
+  '<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="2" name="Chart 1"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>' +
+  '<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>' +
+  '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">' +
+  '<c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="rId2"/>' +
+  '</a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/>' +
+  '</xdr:twoCellAnchor></xdr:wsDr>';
+
+const CHART =
+  '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" ' +
+  'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><c:chart><c:plotArea><c:barChart/></c:plotArea></c:chart></c:chartSpace>';
+
 const HF_VML =
   '<xml xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">' +
   '<v:shape id="RH" type="#_x0000_t75"><v:imagedata o:relid="rId1" o:title="pic"/></v:shape></xml>';
@@ -102,6 +129,42 @@ test('a worksheet drawing holding only a vector shape survives read→write', ()
   assert.match(partText(out, /drawings\/drawing1\.xml$/), /<xdr:sp\b/, 'the vector shape survives inside');
   // The rewritten package must re-read without error, and re-writing it must keep preserving the shape.
   assert.match(partText(writeXlsx(readXlsx(out)), /drawings\/drawing1\.xml$/), /<xdr:sp\b/, 'idempotent across a second round-trip');
+});
+
+test('a drawing holding both a picture and a chart preserves the chart across read→write', () => {
+  const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+  const src = zipSync(
+    packageParts({
+      '[Content_Types].xml': contentTypes(
+        '<Default Extension="png" ContentType="image/png"/>' +
+          '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' +
+          '<Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>'
+      ),
+      'xl/worksheets/sheet1.xml': worksheet('<drawing r:id="rId1"/>'),
+      'xl/worksheets/_rels/sheet1.xml.rels': rels(relationship('rId1', 'drawing', '../drawings/drawing1.xml')),
+      'xl/drawings/drawing1.xml': MIXED_DRAWING,
+      'xl/drawings/_rels/drawing1.xml.rels': rels(
+        relationship('rId1', 'image', '../media/image1.png') + relationship('rId2', 'chart', '../charts/chart1.xml')
+      ),
+      'xl/media/image1.png': png,
+      'xl/charts/chart1.xml': CHART,
+    })
+  );
+
+  const out = writeXlsx(readXlsx(src));
+  const names = partNames(out);
+
+  assert.match(partText(out, /worksheets\/sheet1\.xml$/), /<drawing r:id="[^"]+"\/>/, 'the worksheet still references the drawing');
+  const drawing = partText(out, /drawings\/drawing\d+\.xml$/);
+  assert.match(drawing, /<xdr:graphicFrame\b/, 'the chart anchor survives inside the drawing');
+  assert.match(drawing, /<xdr:pic\b/, 'the picture anchor survives alongside it, not dropped');
+  assert.ok(names.some(n => /xl\/charts\/chart\d+\.xml$/.test(n)), 'the chart part survives');
+  assert.ok(names.some(n => /xl\/media\/.+\.png$/.test(n)), 'the picture media survives');
+  // The whole mixed drawing rides through preservation, so a second round-trip keeps the chart too.
+  assert.ok(
+    partNames(writeXlsx(readXlsx(out))).some(n => /xl\/charts\/chart\d+\.xml$/.test(n)),
+    'idempotent across a second round-trip'
+  );
 });
 
 test('a header/footer image (legacyDrawingHF VML + media) and its &G token survive read→write', () => {

@@ -62,7 +62,7 @@ import {
   parseExtendedDataValidations,
 } from './data-validation.ts';
 import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
-import {parseDrawing} from './images.ts';
+import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {inflatePackage} from './inflate.ts';
 import {parsePivotTable} from './pivot-read.ts';
 import {parseTable} from './tables.ts';
@@ -217,6 +217,11 @@ function readSheetImages(
   const drawingPath = resolveRelativePart(sheetPath, drawingTarget);
   const drawingXml = partText(drawingPath);
   if (drawingXml === undefined) return;
+  // A drawing that also holds a chart or shape is preserved whole (see readSheetPreservedReferences),
+  // so its pictures must not be modeled here: modeling them would leave the sheet with images, which
+  // suppresses that preservation and drops the chart. Leaving `sheet.images` empty routes the entire
+  // drawing — pictures included — through byte-preservation, keeping every anchor faithful.
+  if (drawingHasUnmodeledContent(drawingXml)) return;
   const drawingRels = parseRelationships(partText(relsPathFor(drawingPath)) ?? '');
 
   for (const anchor of parseDrawing(drawingXml)) {
@@ -270,9 +275,11 @@ function readSheetBackground(
 
 // Capture the worksheet-level references to package content the model does not interpret, so a
 // round-trip re-emits them verbatim instead of dropping them:
-//   • `<drawing>` — but only when the reader modeled no anchored image from it, i.e. a drawing that
-//     holds only vector shapes / text boxes. A drawing whose pictures were modeled is owned by the
-//     model and re-serialised from it; capturing it here too would double-emit those pictures.
+//   • `<drawing>` — but only when the reader modeled no anchored image from it: either a drawing that
+//     holds no pictures at all (a chart or shape), or a mixed drawing whose pictures the reader
+//     declined to model precisely so the whole part (chart included) rides here verbatim. A drawing
+//     whose pictures were modeled is owned by the model and re-serialised from it; capturing it here
+//     too would double-emit those pictures.
 //   • `<legacyDrawingHF>` — a header/footer image's VML, which the model never interprets.
 // Each reference's target part and the transitive closure of parts it reaches (a VML's image, a
 // drawing's media) are captured with their bytes, content types, and relationships.
@@ -300,8 +307,9 @@ function readSheetPreservedReferences(
   };
 
   // Element-wired references: a `<drawing>`/`<legacyDrawingHF>` names its part by an `r:id` in the
-  // sheet body. A `<drawing>` is preserved only when the reader modeled no picture from it (a
-  // chart/shape-only drawing) — one whose pictures are modeled is re-serialised from the model.
+  // sheet body. A `<drawing>` is preserved only when the reader modeled no picture from it — a
+  // chart/shape-only drawing, or a mixed one the reader left unmodeled — since one whose pictures are
+  // modeled is re-serialised from the model.
   const referenceElements: Array<'drawing' | 'legacyDrawingHF'> =
     sheet.images.length === 0 ? ['drawing', 'legacyDrawingHF'] : ['legacyDrawingHF'];
   for (const element of referenceElements) {

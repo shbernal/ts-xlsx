@@ -240,6 +240,28 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
   return anchors;
 }
 
+// Anchor content a drawing can hold that the image model does not interpret: a chart
+// (`<xdr:graphicFrame>`), a shape or text box (`<xdr:sp>`), a connector (`<xdr:cxnSp>`), or a group
+// (`<xdr:grpSp>`). A drawing carrying any of these is preserved whole rather than modeled, so it is
+// not re-serialised from its pictures alone (which would silently drop the chart/shape).
+const UNMODELED_DRAWING_CONTENT = new Set<string>(['graphicFrame', 'sp', 'cxnSp', 'grpSp']);
+
+/** Whether a drawing part holds anchor content beyond plain pictures — a chart, shape, connector, or
+ * group. Excel packs every one of a sheet's anchors into a single drawing part, so a sheet with both a
+ * picture and a chart yields a mixed drawing; modeling only its pictures and re-serialising from them
+ * would drop the chart. The reader uses this to fall back to whole-drawing byte-preservation instead. */
+export function drawingHasUnmodeledContent(xml: string): boolean {
+  let found = false;
+  parseXml(xml, {
+    onOpen(name) {
+      if (!found && UNMODELED_DRAWING_CONTENT.has(localName(name))) found = true;
+    },
+    onText() {},
+    onClose() {},
+  });
+  return found;
+}
+
 const COORDINATES = new Set<string>(['col', 'colOff', 'row', 'rowOff']);
 
 function setCoordinate(point: PointDraft, coord: string, value: number): void {
