@@ -1047,6 +1047,24 @@ const impl = {
     return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
 
+  // Add a sheet, then probe name lookup and uniqueness for case-consistency → { foundExact,
+  // foundVariant, addVariantThrew }. Lookup and add must agree on identity: a case-variant name is
+  // found by getWorksheet AND rejected by addWorksheet (both case-insensitive), so no absent-yet-
+  // unaddable surprise exists.
+  worksheetNameLookupReport() {
+    const workbook = new Workbook();
+    workbook.addWorksheet('Sheet');
+    const foundExact = workbook.getWorksheet('Sheet') !== undefined;
+    const foundVariant = workbook.getWorksheet('sheet') !== undefined;
+    let addVariantThrew = false;
+    try {
+      workbook.addWorksheet('sheet');
+    } catch {
+      addVariantThrew = true;
+    }
+    return {foundExact, foundVariant, addVariantThrew};
+  },
+
   // Append rows in every shape (dense array, sparse array, keyed object, mixed batch), round-trip, and
   // read them back letter-keyed by row number → { rows }. Column keys bind object values to columns;
   // dense/sparse arrays map positionally with holes left empty; a numeric/date value survives typed.
