@@ -13,18 +13,20 @@ function table(overrides: Partial<TableOptions> = {}): Table {
   });
 }
 
-test('a table with duplicate column names is rejected', () => {
-  assert.throws(
-    () => new Table({name: 'T', ref: 'A1', columns: [{name: 'Dup'}, {name: 'Dup'}], rowCount: 1}),
-    /duplicate column name/
+test('duplicate column names are disambiguated with a numeric suffix', () => {
+  const t = new Table({name: 'T', ref: 'A1', columns: [{name: 'Dup'}, {name: 'Dup'}, {name: 'Dup'}], rowCount: 1});
+  assert.deepStrictEqual(
+    t.columns.map(c => c.name),
+    ['Dup', 'Dup2', 'Dup3'],
+    'the first name is kept; later clashes gain the smallest resolving suffix'
   );
 });
 
-test('duplicate column names are rejected case-insensitively', () => {
-  assert.throws(
-    () => new Table({name: 'T', ref: 'A1', columns: [{name: 'Name'}, {name: 'name'}], rowCount: 1}),
-    /duplicate column name/
-  );
+test('duplicate column names are disambiguated case-insensitively', () => {
+  const t = new Table({name: 'T', ref: 'A1', columns: [{name: 'Name'}, {name: 'name'}], rowCount: 1});
+  const [first, second] = t.columns.map(c => c.name);
+  assert.strictEqual(first, 'Name');
+  assert.notStrictEqual(second?.toLowerCase(), 'name', 'a case-insensitive clash is still resolved');
 });
 
 test('distinct column names are accepted', () => {

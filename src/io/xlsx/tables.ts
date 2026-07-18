@@ -19,25 +19,9 @@ function parseOoxmlBool(value: string): boolean {
 /**
  * Parse a `<table>` part into the options that reconstruct it, or `undefined` when the XML is not a
  * usable table (no name, no ref, or no columns — Excel treats such a part as corrupt, so we drop it
- * rather than fabricate a degenerate table).
+ * rather than fabricate a degenerate table). Duplicate column names are not resolved here — the
+ * {@link Table} constructor disambiguates them, so authoring and loading share one implementation.
  */
-/**
- * Rename any column whose name collides (case-insensitively) with an earlier one, in place, by
- * appending the smallest numeric suffix that makes it unique — the same disambiguation Excel applies
- * when loading a table with duplicate column names.
- */
-function disambiguateColumnNames(columns: TableColumn[]): void {
-  const seen = new Set<string>();
-  for (let i = 0; i < columns.length; i++) {
-    const column = columns[i];
-    if (column === undefined) continue;
-    let candidate = column.name;
-    for (let n = 2; seen.has(candidate.toLowerCase()); n++) candidate = `${column.name}${n}`;
-    seen.add(candidate.toLowerCase());
-    if (candidate !== column.name) columns[i] = {...column, name: candidate};
-  }
-}
-
 export function parseTable(xml: string): TableOptions | undefined {
   let name: string | undefined;
   let displayName: string | undefined;
@@ -99,11 +83,6 @@ export function parseTable(xml: string): TableOptions | undefined {
   });
 
   if (name === undefined || ref === undefined || columns.length === 0) return undefined;
-
-  // Real workbooks exist with duplicate table-column names (Excel writes the file, then disambiguates
-  // on load by suffixing the clashes). The model's authoring guard rejects duplicates outright, so the
-  // reader must resolve them here — matching Excel's suffixing — rather than reject a file Excel opens.
-  disambiguateColumnNames(columns);
 
   const {top, left, bottom} = decodeRange(ref);
   if (top === undefined || left === undefined || bottom === undefined) return undefined;

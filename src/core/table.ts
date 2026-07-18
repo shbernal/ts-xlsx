@@ -68,7 +68,9 @@ function cloneStyleInfo(style: TableStyleInfo): TableStyleInfo {
 /** One column of a table: a header name and its optional totals-row behaviour. */
 export interface TableColumn {
   /** The column's header/display name. Must be unique within the table (case-insensitively) —
-   * Excel writes a table with colliding column names as corrupt, so a duplicate is rejected. */
+   * Excel writes a table with colliding column names as corrupt. A collision supplied at construction
+   * is disambiguated deterministically (the first keeps its name, later clashes gain a numeric
+   * suffix), the same repair the reader applies to a loaded file, rather than being rejected. */
   readonly name: string;
   /** Literal label shown in the totals row (e.g. `"Total"`), mutually exclusive with a function. */
   readonly totalsRowLabel?: string;
@@ -121,18 +123,21 @@ export interface TableOptions {
 // the contract accepts.
 const IDENTIFIER = /^[\p{L}\\_][\p{L}\p{N}._]*$/u;
 
-function validateColumnNames(tableName: string, columns: readonly TableColumn[]): void {
+/**
+ * Return copies of `columns` with every name made unique (case-insensitively): the first occurrence
+ * keeps its name; a later clash gains the smallest numeric suffix that resolves it (`foo`, `foo2`,
+ * `foo3`, …). OOXML requires unique column names within a table — Excel treats a collision as
+ * corruption — so this is applied both when a table is authored and when one is read from a file,
+ * keeping the two paths identical rather than rejecting a name list the reader would accept.
+ */
+export function disambiguateColumnNames(columns: readonly TableColumn[]): TableColumn[] {
   const seen = new Set<string>();
-  for (const {name} of columns) {
-    const key = name.toLowerCase();
-    if (seen.has(key)) {
-      throw new Error(
-        `table "${tableName}" has a duplicate column name ${JSON.stringify(name)} — ` +
-          'a table\'s column names must be unique (Excel treats a collision as corruption)'
-      );
-    }
-    seen.add(key);
-  }
+  return columns.map(column => {
+    let candidate = column.name;
+    for (let n = 2; seen.has(candidate.toLowerCase()); n++) candidate = `${column.name}${n}`;
+    seen.add(candidate.toLowerCase());
+    return candidate === column.name ? {...column} : {...column, name: candidate};
+  });
 }
 
 function validateTableName(name: string): void {
@@ -181,7 +186,6 @@ export class Table {
     if (options.columns.length === 0) {
       throw new Error(`table "${options.name}" must declare at least one column`);
     }
-    validateColumnNames(options.name, options.columns);
     if (!Number.isInteger(options.rowCount) || options.rowCount < 0) {
       throw new RangeError(`table "${options.name}" has an invalid data-row count (${options.rowCount})`);
     }
@@ -192,7 +196,7 @@ export class Table {
 
     this.name = options.name;
     this.displayName = options.displayName ?? options.name;
-    this.columns = options.columns.map(c => ({...c}));
+    this.columns = disambiguateColumnNames(options.columns);
     this.headerRow = options.headerRow ?? true;
     this.totalsRow = options.totalsRow ?? false;
     this.totalsRowShown = options.totalsRowShown;

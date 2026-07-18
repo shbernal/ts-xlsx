@@ -3020,20 +3020,22 @@ const impl = {
     const drawingXml = parts['xl/drawings/drawing1.xml'] || '';
     const imageFromRow = (drawingXml.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/) || [])[1];
 
-    // Duplicate table column names authored separately — construction must reject them.
-    let dupRejected = false;
-    try {
-      const w2 = new Workbook();
-      w2.addWorksheet('S').addTable({name: 'T2', ref: 'A1', columns: [{name: 'Dup'}, {name: 'Dup'}], rowCount: 1});
-      writeXlsx(w2);
-    } catch {
-      dupRejected = true;
-    }
+    // Duplicate table column names authored separately — construction disambiguates them into a
+    // unique set rather than emitting a corrupt table (the same repair the reader applies on load).
+    const w2 = new Workbook();
+    const dupTable = w2
+      .addWorksheet('S')
+      .addTable({name: 'T2', ref: 'A1', columns: [{name: 'Dup'}, {name: 'Dup'}], rowCount: 1});
+    writeXlsx(w2);
+    const dupColumnNames = dupTable.columns.map(c => c.name);
+    const dupColumnNamesUnique =
+      new Set(dupColumnNames.map(n => n.toLowerCase())).size === dupColumnNames.length;
 
     return {
       tableRef,
       imageFromRow: imageFromRow != null ? Number(imageFromRow) : null,
-      dupColumnNamesRejected: dupRejected,
+      dupColumnNames,
+      dupColumnNamesUnique,
     };
   },
 
@@ -3179,6 +3181,34 @@ const impl = {
       nullTheme: styleInfoOf({}),
       none: styleInfoOf({name: 'None', showRowStripes: true}),
     };
+  },
+
+  // Author a table from a header-name list (which may contain collisions), write it, and report the
+  // column names emitted into the table part plus whether they are unique. OOXML requires unique
+  // tableColumn names; colliding inputs must be disambiguated deterministically, not written verbatim
+  // into a corrupt file → { ok, writtenNames, uniqueNames }.
+  tableDuplicateColumnNamesReport(headers) {
+    const wb = new Workbook();
+    let ok = true;
+    let writtenNames = null;
+    try {
+      wb.addWorksheet('S').addTable({
+        name: 'T',
+        ref: 'A1',
+        columns: headers.map(name => ({name})),
+        rowCount: 1,
+      });
+      const parts = partMapOf(writeXlsx(wb));
+      const part = Object.keys(parts).find(n => /^xl\/tables\/table\d+\.xml$/.test(n));
+      writtenNames = [...parts[part].matchAll(/<tableColumn\b[^>]*\bname="([^"]*)"/g)].map(m => m[1]);
+    } catch (e) {
+      ok = false;
+      writtenNames = String((e && e.message) || e);
+    }
+    const uniqueNames =
+      Array.isArray(writtenNames) &&
+      new Set(writtenNames.map(n => n.toLowerCase())).size === writtenNames.length;
+    return {ok, writtenNames, uniqueNames};
   },
 
   // Define four adjacent columns with identical width and outline level, write, and report whether
