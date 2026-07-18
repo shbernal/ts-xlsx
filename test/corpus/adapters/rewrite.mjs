@@ -1977,6 +1977,27 @@ const impl = {
     return {addThrew, addError, roundtripName, invalidRejected};
   },
 
+  // Set row-level properties on rows that carry NO cell value and report what survives a round-trip
+  // → { row3Hidden, row4Hidden, row4Height, row5Hidden }. A content-less row bearing a hidden flag,
+  // a height, or an outline level must still be written (its <row> element materialised) so the
+  // property is not lost — the failure mode is a blank hidden/grouped spacer row coming back visible.
+  hiddenEmptyRowReport() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getRow(3).hidden = true;
+    ws.getRow(4).hidden = true;
+    ws.getRow(4).height = 25;
+    ws.getRow(5).hidden = true;
+    ws.getRow(5).outlineLevel = 1;
+    const rt = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    return {
+      row3Hidden: rt.getRow(3).hidden ?? false,
+      row4Hidden: rt.getRow(4).hidden ?? false,
+      row4Height: rt.getRow(4).height ?? null,
+      row5Hidden: rt.getRow(5).hidden ?? false,
+    };
+  },
+
   // Read a fixture and report its defined names as { <name>: [refersTo…] }, mirroring the oracle.
   // The model retains every name as its own entry rather than keying by name, so two same-named
   // names scoped to different sheets both survive — the scope collision that drops one on the
