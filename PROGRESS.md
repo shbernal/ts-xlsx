@@ -1832,6 +1832,22 @@ resolves (234) or a handful still genuinely open (e.g. the outline `collapsed` s
   typecheck clean. Every `baseline:'fail'` case the corpus carries is now resolved by the rewrite adapter
   (`↑`); the full `corpus` run still shows those as `○` because the frozen legacy oracle carries the bugs.
 
+### 2026-07-19 — beyond the corpus finish line: gradient cell fills *(styles, source)*
+
+With the corpus drained, the next real work was a capability the code itself named as deferred, not a
+corpus `○`. `core/style.ts` carried the `Fill` union as pattern-only with a "gradient fills land with a
+later slice" note. That gap hid a genuine **correctness bug on foreign input**: `parseStyleTable` pushed a
+fill-id slot only for `<patternFill>`, so a `<fill><gradientFill/></fill>` in the `<fills>` list consumed
+no id — every fill after it shifted down one index and cells mis-resolved their fill (a later solid read
+back as the gradient, or as nothing). The reader now keeps **exactly one slot per `<fill>`** (with a
+backstop for any body that is neither pattern nor gradient), and models `GradientFill` (linear `degree` /
+path insets + colour `stops`) as the second `Fill` variant: `<gradientFill>`/`<stop>`/`<color>` parse on
+read, and the `StyleRegistry` emits it (cell fills and dxf fills) in `CT_GradientFill` order, interning and
+deduping like any other fill. Locked test-first (`read.test.ts`, `styles.test.ts`): a gradient between two
+pattern fills keeps the later fill's index; linear and path gradients survive a model→write→read
+round-trip; the writer emits the expected markup and omits a zero `degree`. `GradientFill`/`GradientStop`
+are exported from `index.ts`. `test:src`: **629 pass**; `corpus`/`corpus:rewrite`: **0 regressions**.
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
