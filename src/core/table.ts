@@ -29,10 +29,15 @@ export interface TableStyleInfo {
 }
 
 /** Copy a style, keeping only its defined fields off the literal so `exactOptionalPropertyTypes`
- * never sees a fabricated `key: undefined` — an absent attribute must stay absent across a copy. */
+ * never sees a fabricated `key: undefined` — an absent attribute must stay absent across a copy.
+ *
+ * The sentinel name `"None"` (Excel's table-style gallery entry for *no* style) is normalised to an
+ * absent name: OOXML expresses "unstyled" as a `<tableStyleInfo>` with no `name` attribute, so a
+ * literal `name="None"` would reference a style that does not exist and make the file suspect. The
+ * banding flags set alongside it are untouched. */
 function cloneStyleInfo(style: TableStyleInfo): TableStyleInfo {
   const clone: {-readonly [K in keyof TableStyleInfo]: TableStyleInfo[K]} = {};
-  if (style.name !== undefined) clone.name = style.name;
+  if (style.name !== undefined && style.name !== 'None') clone.name = style.name;
   if (style.showFirstColumn !== undefined) clone.showFirstColumn = style.showFirstColumn;
   if (style.showLastColumn !== undefined) clone.showLastColumn = style.showLastColumn;
   if (style.showRowStripes !== undefined) clone.showRowStripes = style.showRowStripes;

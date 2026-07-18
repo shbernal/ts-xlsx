@@ -62,3 +62,14 @@ test('a column splice to the left shifts the table anchor', () => {
   t.shiftColumns(1, 0, 2); // insert two columns before it
   assert.strictEqual(t.ref, 'C3:D5');
 });
+
+test('the sentinel style name "None" is normalised to an absent name', () => {
+  const t = table({style: {name: 'None', showRowStripes: true}});
+  assert.strictEqual(t.style?.name, undefined, '"None" means unstyled, not a literal style reference');
+  assert.strictEqual(t.style?.showRowStripes, true, 'flags set alongside the theme survive');
+});
+
+test('a real style name is preserved', () => {
+  const t = table({style: {name: 'TableStyleMedium2'}});
+  assert.strictEqual(t.style?.name, 'TableStyleMedium2');
+});

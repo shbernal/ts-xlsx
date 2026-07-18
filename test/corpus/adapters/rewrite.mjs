@@ -3150,6 +3150,37 @@ const impl = {
     return {writeOk, writeError, reloadOk, tableCount, idsUnique, firstSheetDvSurvives};
   },
 
+  // Write three tables — one with a real built-in style name, one with no style, one with the
+  // sentinel theme "None" — and report the tableStyleInfo name attribute (or null when absent) each
+  // emits, plus whether the "None" table kept its showRowStripes flag. Theme "None" must mean an
+  // unstyled table (no name attribute), not a bogus name="None" referencing a non-existent style.
+  tableStyleThemeReport() {
+    const styleInfoOf = (style) => {
+      const wb = new Workbook();
+      wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1, style});
+      let ok = true;
+      let tag = null;
+      try {
+        const parts = partMapOf(writeXlsx(wb));
+        const part = Object.keys(parts).find(n => /^xl\/tables\/table\d+\.xml$/.test(n));
+        tag = (parts[part].match(/<tableStyleInfo[^>]*\/?>/) || [])[0] ?? null;
+      } catch (e) {
+        ok = false;
+        tag = String((e && e.message) || e);
+      }
+      const name = tag && ok ? ((tag.match(/\bname="([^"]*)"/) || [])[1] ?? null) : null;
+      const hasStripes = !!(tag && ok && /\bshowRowStripes="1"/.test(tag));
+      return {ok, name, hasStripes, tag};
+    };
+    return {
+      real: styleInfoOf({name: 'TableStyleMedium2'}),
+      // An explicit style object with no name is OOXML's "unstyled" — distinct from omitting the
+      // style entirely, which a freshly-authored table fills with Excel's default (TableStyleMedium2).
+      nullTheme: styleInfoOf({}),
+      none: styleInfoOf({name: 'None', showRowStripes: true}),
+    };
+  },
+
   // Read every table part of a fixture, then load→save it and read the re-emitted parts, reporting
   // each table's autoFilter / header-row / totals-row / column-count facts before and after. A no-op
   // round-trip of a table that has no autoFilter must not inject one, flip the header row off, or turn
