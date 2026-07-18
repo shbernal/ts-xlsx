@@ -164,7 +164,7 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
   const sheets = parseWorkbookSheets(workbookXml);
   const rels = parseRelationships(text('xl/_rels/workbook.xml.rels') ?? '');
   const sharedStrings = parseSharedStrings(text('xl/sharedStrings.xml') ?? '');
-  const xfStyles = parseStyleTable(text('xl/styles.xml') ?? '');
+  const {cellXfs: xfStyles} = parseStyleTable(text('xl/styles.xml') ?? '');
 
   return {
     sheets,

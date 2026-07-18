@@ -6,6 +6,7 @@
 // first place, rather than failing only at write time.
 
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
+import type {NamedCellStyle} from './style.ts';
 import {type PreservedPart, Worksheet, type WorksheetState} from './worksheet.ts';
 
 /**
@@ -94,6 +95,12 @@ export class Workbook {
   // custom number format) keeps a valid target across a read/write cycle instead of dangling.
   readonly #dxfs: string[] = [];
 
+  // Named cell styles (`cellStyleXfs`/`cellStyles` in styles.xml) — the shared, named formatting layer
+  // a cell links to by index. Preserved so a cell whose fill/font/… lives only in a named style keeps
+  // that style, and the link, across a round-trip. Empty when a file declares nothing beyond the
+  // default Normal style, in which case the writer emits just that default.
+  readonly #namedStyles: NamedCellStyle[] = [];
+
   // Workbook-level references to package content the model does not interpret (pivot caches, slicer
   // caches), captured verbatim on read so a round-trip re-emits them rather than dropping the pivots
   // and slicers they back. Empty for a workbook authored from scratch.
@@ -128,6 +135,21 @@ export class Workbook {
   /** The preserved differential-style (`<dxfs>`) fragments, in index order. */
   get differentialStyles(): readonly string[] {
     return this.#dxfs;
+  }
+
+  /**
+   * Reinstate the named cell styles (`cellStyleXfs`/`cellStyles`) read from a file, index for index,
+   * so a cell's link to a named style (its `xfId`) stays valid on re-write. Index 0 is the Normal
+   * default. Replaces any table already held.
+   */
+  restoreNamedStyles(styles: readonly NamedCellStyle[]): void {
+    this.#namedStyles.length = 0;
+    this.#namedStyles.push(...styles);
+  }
+
+  /** The named cell styles, in index order (index 0 is Normal); empty when only the default exists. */
+  get namedStyles(): readonly NamedCellStyle[] {
+    return this.#namedStyles;
   }
 
   /**

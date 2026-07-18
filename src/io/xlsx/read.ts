@@ -38,6 +38,7 @@ import type {
   Font,
   FontVerticalAlignment,
   HorizontalAlignment,
+  NamedCellStyle,
   Protection,
   UnderlineStyle,
   VerticalAlignment,
@@ -111,12 +112,15 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // format); a package without one (a hand-rolled foreign file) yields an empty table and
   // every index reads as unstyled.
   const stylesXml = partText('xl/styles.xml') ?? '';
-  const xfStyles = parseStyleTable(stylesXml);
+  const {cellXfs: xfStyles, namedStyles} = parseStyleTable(stylesXml);
 
   const workbook = new Workbook();
   // Preserve the differential-style table verbatim so conditional formatting's dxfId references stay
   // valid — and a foreign dxf's number format stays a real format code — across a re-write.
   workbook.restoreDifferentialStyles(parseDxfs(stylesXml));
+  // Preserve the named cell-style layer only when a file declares one beyond the Normal default, so an
+  // ordinary workbook keeps an empty named-style table and emits just the default on write.
+  if (namedStyles.length > 1) workbook.restoreNamedStyles(namedStyles);
   const core = partText('docProps/core.xml');
   if (core !== undefined) applyCoreProperties(workbook, core);
 
@@ -785,6 +789,8 @@ export interface XfStyle {
   readonly alignment?: Alignment;
   readonly protection?: Protection;
   readonly quotePrefix?: boolean;
+  /** The `xfId` link into the named-style layer (`cellStyleXfs`); absent for the Normal default (0). */
+  readonly xfId?: number;
 }
 
 // A mutable xf accumulator while an <xf> element streams in: its facet ids resolve on open, but
@@ -834,16 +840,29 @@ const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
 // id. We flatten that indirection into one array — cellXfs index → resolved {fill, numFmt} —
 // so a cell/row/column style index maps straight to its facets. The schema orders <numFmts>
 // and <fills> before <cellXfs>, so both lookups are complete before an xf references them.
-export function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
-  if (xml === '') return [];
+/** The parsed style table: the cell formats a cell/row/column `s` indexes, plus the named cell-style
+ * layer a cell's `xfId` links into. Each cellXfs entry is already merged with its named style, so a
+ * cell reading its `s` sees the effective facets; the `xfId` link is carried through for re-write. */
+export interface StyleTable {
+  readonly cellXfs: ReadonlyArray<XfStyle>;
+  readonly namedStyles: ReadonlyArray<NamedCellStyle>;
+}
+
+export function parseStyleTable(xml: string): StyleTable {
+  if (xml === '') return {cellXfs: [], namedStyles: []};
   const fills: Array<Fill | undefined> = [];
   const fonts: Array<Partial<Font> | undefined> = [];
   const borders: Array<Border | undefined> = [];
   const numFmtCodes = new Map<number, string>();
   const xfStyles: XfStyle[] = [];
+  // The named-style layer: <cellStyleXfs> holds the base formats a cell's xfId links to; <cellStyles>
+  // labels them by name/builtinId. Parsed in parallel with cellXfs, then zipped and merged below.
+  const namedXfs: XfStyle[] = [];
+  const cellStyleNames: {xfId: number; name?: string; builtinId?: number}[] = [];
   let inFills = false;
   let inFonts = false;
   let inCellXfs = false;
+  let inCellStyleXfs = false;
   let pattern = '';
   let fgColor: Color | undefined;
   let bgColor: Color | undefined;
@@ -851,9 +870,11 @@ export function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
   let borderDraft: BorderDraft | null = null;
   // Which edge of the current border a nested <color> belongs to; null between edges.
   let currentEdge: BorderEdgeName | null = null;
-  // The <cellXfs> xf being read; held from open to close so its <alignment>/<protection> children
-  // can attach before the xf is committed. null outside a cellXfs <xf>.
+  // The <cellXfs>/<cellStyleXfs> xf being read; held from open to close so its <alignment>/
+  // <protection> children can attach before the xf is committed. null outside an <xf>. `pendingXfTarget`
+  // records which table the held xf belongs to.
   let pendingXf: XfDraft | null = null;
+  let pendingXfTarget: 'cell' | 'named' | null = null;
 
   parseXml(xml, {
     onOpen(name, attrs, selfClosing) {
@@ -899,6 +920,24 @@ export function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
         case 'cellXfs':
           inCellXfs = true;
           break;
+        case 'cellStyleXfs':
+          inCellStyleXfs = true;
+          break;
+        case 'cellStyle': {
+          // A <cellStyle> (inside <cellStyles>) names a cellStyleXfs entry by xfId; it is self-closing,
+          // so it is read here on open.
+          const xfId = Number(attrs.xfId);
+          if (Number.isInteger(xfId)) {
+            const entry: {xfId: number; name?: string; builtinId?: number} = {xfId};
+            if (attrs.name !== undefined) entry.name = attrs.name;
+            if (attrs.builtinId !== undefined) {
+              const builtinId = Number(attrs.builtinId);
+              if (Number.isInteger(builtinId)) entry.builtinId = builtinId;
+            }
+            cellStyleNames.push(entry);
+          }
+          break;
+        }
         case 'patternFill':
           if (inFills) {
             pattern = attrs.patternType ?? 'none';
@@ -939,8 +978,10 @@ export function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
             // An xf's <protection> child likewise arrives before the xf closes.
             const protection = parseProtection(attrs);
             if (protection !== undefined) pendingXf.protection = protection;
-          } else if (inCellXfs && local === 'xf') {
-            // cellStyleXfs also holds <xf>; only those inside <cellXfs> are cell references.
+          } else if ((inCellXfs || inCellStyleXfs) && local === 'xf') {
+            // Both <cellXfs> and <cellStyleXfs> hold <xf> with identical structure; they differ only
+            // in which table the result lands in and whether an xfId link is meaningful (only cellXfs
+            // entries link to a named style).
             const fillId = Number(attrs.fillId);
             const fill = Number.isInteger(fillId) ? fills[fillId] : undefined;
             const fontId = Number(attrs.fontId);
@@ -960,10 +1001,20 @@ export function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
             // The quote-prefix flag is an attribute on the xf itself (no shared sub-table); carry it
             // only when set so an ordinary cell does not gain a spurious `quotePrefix: false`.
             if (attrs.quotePrefix === '1' || attrs.quotePrefix === 'true') draft.quotePrefix = true;
+            // A cellXfs entry's xfId links it to a named style; capture it only when it points beyond
+            // the Normal default (0), so an ordinary cell carries no spurious named-style link.
+            if (inCellXfs && attrs.xfId !== undefined) {
+              const xfId = Number(attrs.xfId);
+              if (Number.isInteger(xfId) && xfId > 0) draft.xfId = xfId;
+            }
+            const target = inCellXfs ? xfStyles : namedXfs;
             // A self-closing <xf/> has no alignment child and commits now; otherwise it is held
             // open until its close so an <alignment> child can attach first.
-            if (selfClosing) xfStyles.push(draft);
-            else pendingXf = draft;
+            if (selfClosing) target.push(draft);
+            else {
+              pendingXf = draft;
+              pendingXfTarget = inCellXfs ? 'cell' : 'named';
+            }
           }
           break;
         }
@@ -994,11 +1045,16 @@ export function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
         case 'cellXfs':
           inCellXfs = false;
           break;
+        case 'cellStyleXfs':
+          inCellStyleXfs = false;
+          break;
         case 'xf':
-          // A held (non-self-closing) cellXfs xf commits here, with any alignment child attached.
+          // A held (non-self-closing) xf commits here, with any alignment child attached, into
+          // whichever table it was opened in.
           if (pendingXf !== null) {
-            xfStyles.push(pendingXf);
+            (pendingXfTarget === 'named' ? namedXfs : xfStyles).push(pendingXf);
             pendingXf = null;
+            pendingXfTarget = null;
           }
           break;
         case 'patternFill':
@@ -1012,7 +1068,34 @@ export function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
       }
     },
   });
-  return xfStyles;
+
+  // Layer each cellXfs entry over the named style its xfId links to: a facet the direct format sets
+  // wins; one it leaves unset falls through to the named style. The xfId is carried through so the
+  // link survives a re-write. A draft only holds keys for facets it actually set, so the spread merge
+  // takes the named base and lets the direct entry override exactly what it names.
+  const cellXfs: XfStyle[] = xfStyles.map(xf => {
+    if (xf.xfId === undefined) return xf;
+    const named = namedXfs[xf.xfId];
+    return named === undefined ? xf : {...named, ...xf};
+  });
+
+  // Zip the resolved cellStyleXfs facets with their cellStyles name/builtinId into the model's named
+  // styles, index for index (a cellStyle's xfId is its cellStyleXfs index).
+  const namedStyles: NamedCellStyle[] = namedXfs.map((xf, index) => {
+    const label = cellStyleNames.find(entry => entry.xfId === index);
+    const style: {-readonly [K in keyof NamedCellStyle]?: NamedCellStyle[K]} = {};
+    if (xf.fill !== undefined) style.fill = xf.fill;
+    if (xf.numFmt !== undefined) style.numFmt = xf.numFmt;
+    if (xf.font !== undefined) style.font = xf.font;
+    if (xf.border !== undefined) style.border = xf.border;
+    if (xf.alignment !== undefined) style.alignment = xf.alignment;
+    if (xf.protection !== undefined) style.protection = xf.protection;
+    if (label?.name !== undefined) style.name = label.name;
+    if (label?.builtinId !== undefined) style.builtinId = label.builtinId;
+    return style;
+  });
+
+  return {cellXfs, namedStyles};
 }
 
 // A <font> child element sets one facet on the draft. Boolean flags honour their `val`: a
@@ -1742,4 +1825,5 @@ function applyCellStyle(cell: Cell, style: XfStyle | undefined): void {
   if (style?.alignment !== undefined) cell.alignment = style.alignment;
   if (style?.protection !== undefined) cell.protection = style.protection;
   if (style?.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
+  if (style?.xfId !== undefined) cell.namedStyleId = style.xfId;
 }

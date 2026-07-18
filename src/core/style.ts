@@ -166,3 +166,21 @@ export interface Protection {
   readonly locked?: boolean;
   readonly hidden?: boolean;
 }
+
+/**
+ * A named cell style — the OOXML `cellStyleXfs`/`cellStyles` layer. A spreadsheet applies a built-in
+ * or custom style (e.g. "Normal", "Accent1") whose visual facets live in this shared, named layer
+ * rather than on each cell's direct format; a cell links to it and inherits any facet the direct
+ * format leaves unset. The facets mirror {@link Cell}'s own; `name` is the style's display name and
+ * `builtinId` its Excel gallery index when it is a built-in style.
+ */
+export interface NamedCellStyle {
+  readonly name?: string;
+  readonly builtinId?: number;
+  readonly fill?: Fill;
+  readonly numFmt?: string;
+  readonly font?: Partial<Font>;
+  readonly border?: Border;
+  readonly alignment?: Alignment;
+  readonly protection?: Protection;
+}

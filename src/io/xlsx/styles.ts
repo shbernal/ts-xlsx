@@ -14,7 +14,17 @@
 // An unstyled cell/row/column resolves to xf 0.
 
 import type {DifferentialStyle} from '../../core/conditional-formatting.ts';
-import type {Alignment, Border, BorderEdge, Color, Fill, Font, Protection, UnderlineStyle} from '../../core/style.ts';
+import type {
+  Alignment,
+  Border,
+  BorderEdge,
+  Color,
+  Fill,
+  Font,
+  NamedCellStyle,
+  Protection,
+  UnderlineStyle,
+} from '../../core/style.ts';
 import {escapeAttr, XML_DECLARATION} from './xml.ts';
 
 // Excel reserves fill ids 0 and 1 for the "none" and "gray125" patterns it always emits;
@@ -53,6 +63,8 @@ export interface CellStyle {
   readonly protection?: Protection | undefined;
   /** The quote-prefix flag — an attribute on the xf, not a shared sub-table entry. */
   readonly quotePrefix?: boolean | undefined;
+  /** The `xfId` link into `cellStyleXfs` — the named cell style this format inherits from (0 = Normal). */
+  readonly xfId?: number | undefined;
 }
 
 // One interned cell format. `fillId` 0 is no fill; `numFmtId` 0 is the General format;
@@ -67,7 +79,23 @@ interface CellFormat {
   readonly alignment: string;
   readonly protection: string;
   readonly quotePrefix: boolean;
+  // The named-style link (`xfId`) a cellXfs entry carries; 0 = Normal. A cellStyleXfs entry does not
+  // itself nest, so it is serialised with this omitted.
+  readonly xfId: number;
 }
+
+// The default xf: no facet, General format, linked to the Normal named style (xfId 0). Shared as the
+// first entry of both the cell-format and named-style tables; never mutated (formats only append).
+const DEFAULT_FORMAT: CellFormat = {
+  fillId: 0,
+  numFmtId: 0,
+  fontId: 0,
+  borderId: 0,
+  alignment: '',
+  protection: '',
+  quotePrefix: false,
+  xfId: 0,
+};
 
 export class StyleRegistry {
   // Custom fill xml fragments, in id order; the emitted id is RESERVED_FILL_COUNT + index.
@@ -87,10 +115,16 @@ export class StyleRegistry {
   readonly #borderIdBySignature = new Map<string, number>();
 
   // xf 0 is the default (no fill/font/border/alignment/protection, General format); further entries append as styles appear.
-  readonly #formats: CellFormat[] = [
-    {fillId: 0, numFmtId: 0, fontId: 0, borderId: 0, alignment: '', protection: '', quotePrefix: false},
-  ];
+  readonly #formats: CellFormat[] = [DEFAULT_FORMAT];
   readonly #xfIndexBySignature = new Map<string, number>();
+
+  // The named-style layer (`<cellStyleXfs>` / `<cellStyles>`): the base formats a cell's `xfId` links
+  // into, and the names that label them. Index 0 is always Normal. A file with named styles seeds this
+  // in place of the default via {@link seedNamedStyles}; otherwise the default alone is emitted.
+  readonly #cellStyleXfs: CellFormat[] = [DEFAULT_FORMAT];
+  readonly #cellStyleNames: {name: string; builtinId?: number; xfId: number}[] = [
+    {name: 'Normal', builtinId: 0, xfId: 0},
+  ];
 
   // Differential styles (`<dxfs>`) that conditional formatting references by index. Fragments read
   // from a file are seeded first and kept verbatim so a foreign rule's dxfId stays valid; a style
@@ -103,6 +137,26 @@ export class StyleRegistry {
    * no entry and resolves to the default xf 0, so its owner emits no `s` attribute at all.
    */
   styleId(style: CellStyle): number {
+    const format = this.#composeFormat(style, style.xfId ?? 0);
+    // An all-default format that links to no named style needs no entry and resolves to xf 0, so its
+    // owner emits no `s` attribute. A non-zero xfId is itself information — the cell inherits a named
+    // style — so it forces a real entry even when the direct facets are empty.
+    if (isDefaultFormat(format)) return 0;
+
+    const signature = formatSignature(format);
+    let index = this.#xfIndexBySignature.get(signature);
+    if (index === undefined) {
+      index = this.#formats.length;
+      this.#formats.push(format);
+      this.#xfIndexBySignature.set(signature, index);
+    }
+    return index;
+  }
+
+  // Compose a style's facets into an interned {@link CellFormat}, interning each fill/font/border/
+  // number-format into its shared sub-table. Shared by the cell-format path ({@link styleId}) and the
+  // named-style path ({@link seedNamedStyles}), which differ only in which table the result lands in.
+  #composeFormat(style: CellStyle, xfId: number): CellFormat {
     const fillId = style.fill && style.fill.pattern !== 'none' ? this.#internFill(style.fill) : 0;
     // A number format is a format-code *string*; a caller that assigns a structured object (e.g. a
     // parsed `{id, formatCode}` copied from another cell) must not have it stringified into the styles
@@ -115,26 +169,28 @@ export class StyleRegistry {
     const alignment = style.alignment ? alignmentAttrs(style.alignment) : '';
     const protection = style.protection ? protectionAttrs(style.protection) : '';
     const quotePrefix = style.quotePrefix === true;
-    if (
-      fillId === 0 &&
-      numFmtId === 0 &&
-      fontId === 0 &&
-      borderId === 0 &&
-      alignment === '' &&
-      protection === '' &&
-      !quotePrefix
-    ) {
-      return 0;
-    }
+    return {fillId, numFmtId, fontId, borderId, alignment, protection, quotePrefix, xfId};
+  }
 
-    const signature = `fill:${fillId}|numFmt:${numFmtId}|font:${fontId}|border:${borderId}|align:${alignment}|protect:${protection}|quote:${quotePrefix}`;
-    let index = this.#xfIndexBySignature.get(signature);
-    if (index === undefined) {
-      index = this.#formats.length;
-      this.#formats.push({fillId, numFmtId, fontId, borderId, alignment, protection, quotePrefix});
-      this.#xfIndexBySignature.set(signature, index);
-    }
-    return index;
+  /**
+   * Seed the named cell styles (`<cellStyleXfs>`/`<cellStyles>`) read from a file, in place of the
+   * lone default, interning each style's facets into the shared sub-tables so its `fillId`/`fontId`/…
+   * references stay valid against the rebuilt tables. Index 0 stays Normal. A cell's `xfId` indexes
+   * this table, so it must be seeded before any {@link styleId} that carries an `xfId`.
+   */
+  seedNamedStyles(styles: readonly NamedCellStyle[]): void {
+    if (styles.length === 0) return;
+    this.#cellStyleXfs.length = 0;
+    this.#cellStyleNames.length = 0;
+    styles.forEach((style, index) => {
+      this.#cellStyleXfs.push(this.#composeFormat(style, 0));
+      const entry: {name: string; builtinId?: number; xfId: number} = {
+        name: style.name ?? `Style ${index}`,
+        xfId: index,
+      };
+      if (style.builtinId !== undefined) entry.builtinId = style.builtinId;
+      this.#cellStyleNames.push(entry);
+    });
   }
 
   /**
@@ -220,7 +276,9 @@ export class StyleRegistry {
       '<fill><patternFill patternType="none"/></fill>' +
       '<fill><patternFill patternType="gray125"/></fill>' +
       this.#fillXml.join('');
-    const cellXfs = this.#formats.map(cellXf).join('');
+    const cellXfs = this.#formats.map(format => xfXml(format, format.xfId)).join('');
+    const cellStyleXfs = this.#cellStyleXfs.map(format => xfXml(format, null)).join('');
+    const cellStyles = this.#cellStyleNames.map(cellStyleTag).join('');
     const fontCount = RESERVED_FONT_COUNT + this.#fontXml.length;
     const fonts = DEFAULT_FONT + this.#fontXml.join('');
     const borderCount = RESERVED_BORDER_COUNT + this.#borderXml.length;
@@ -232,9 +290,9 @@ export class StyleRegistry {
       `<fonts count="${fontCount}">${fonts}</fonts>` +
       `<fills count="${fillCount}">${fills}</fills>` +
       `<borders count="${borderCount}">${borders}</borders>` +
-      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      `<cellStyleXfs count="${this.#cellStyleXfs.length}">${cellStyleXfs}</cellStyleXfs>` +
       `<cellXfs count="${this.#formats.length}">${cellXfs}</cellXfs>` +
-      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+      `<cellStyles count="${this.#cellStyleNames.length}">${cellStyles}</cellStyles>` +
       this.#dxfsXml() +
       '</styleSheet>'
     );
@@ -259,7 +317,32 @@ export class StyleRegistry {
   }
 }
 
-function cellXf(format: CellFormat): string {
+// Whether a format is the do-nothing default: no facet, General number format, no quote prefix, and
+// linked to the Normal named style. Such a cellXfs entry adds nothing, so its owner needs no `s`.
+function isDefaultFormat(format: CellFormat): boolean {
+  return (
+    format.fillId === 0 &&
+    format.numFmtId === 0 &&
+    format.fontId === 0 &&
+    format.borderId === 0 &&
+    format.alignment === '' &&
+    format.protection === '' &&
+    !format.quotePrefix &&
+    format.xfId === 0
+  );
+}
+
+// A stable, collision-free key for a composed format so identical formats intern to one cellXfs entry.
+function formatSignature(format: CellFormat): string {
+  return (
+    `fill:${format.fillId}|numFmt:${format.numFmtId}|font:${format.fontId}|border:${format.borderId}|` +
+    `align:${format.alignment}|protect:${format.protection}|quote:${format.quotePrefix}|xfId:${format.xfId}`
+  );
+}
+
+// Serialise one `<xf>`. A cellXfs entry passes its named-style link as `xfId`; a cellStyleXfs entry
+// (the base a cell links *to*) passes `null` so the attribute is omitted, since it nests no further.
+function xfXml(format: CellFormat, xfId: number | null): string {
   const applyNumberFormat = format.numFmtId !== 0 ? ' applyNumberFormat="1"' : '';
   const applyFont = format.fontId !== 0 ? ' applyFont="1"' : '';
   const applyFill = format.fillId !== 0 ? ' applyFill="1"' : '';
@@ -269,9 +352,10 @@ function cellXf(format: CellFormat): string {
   // `quotePrefix` is a CT_Xf attribute (after xfId, before the apply flags in schema order); it is
   // its own switch — there is no `applyQuotePrefix` flag — so it is emitted only when set.
   const quotePrefix = format.quotePrefix ? ' quotePrefix="1"' : '';
+  const xfIdAttr = xfId === null ? '' : ` xfId="${xfId}"`;
   const open =
     `<xf numFmtId="${format.numFmtId}" fontId="${format.fontId}" fillId="${format.fillId}" ` +
-    `borderId="${format.borderId}" xfId="0"${quotePrefix}` +
+    `borderId="${format.borderId}"${xfIdAttr}${quotePrefix}` +
     `${applyNumberFormat}${applyFont}${applyFill}${applyBorder}${applyAlignment}${applyProtection}`;
   // Alignment and protection are child elements of the xf, in that schema order; an xf carrying
   // either (or both) is not self-closing, while a plain one stays self-closing as before.
@@ -279,6 +363,12 @@ function cellXf(format: CellFormat): string {
     (format.alignment === '' ? '' : `<alignment ${format.alignment}/>`) +
     (format.protection === '' ? '' : `<protection ${format.protection}/>`);
   return body === '' ? `${open}/>` : `${open}>${body}</xf>`;
+}
+
+// One `<cellStyle>` entry mapping a name (and, for a built-in, its gallery id) to a cellStyleXfs index.
+function cellStyleTag(entry: {name: string; builtinId?: number; xfId: number}): string {
+  const builtin = entry.builtinId === undefined ? '' : ` builtinId="${entry.builtinId}"`;
+  return `<cellStyle name="${escapeAttr(entry.name)}" xfId="${entry.xfId}"${builtin}/>`;
 }
 
 // Serialise a cell's alignment as `<alignment>` attributes in ECMA-376 CT_CellAlignment order.

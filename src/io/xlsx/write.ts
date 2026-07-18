@@ -289,6 +289,9 @@ export function buildPackageParts(
   // Seed the differential-style table with the fragments read from a source file so conditional
   // formatting's dxfId references stay valid; styles authored on rules append after them.
   styles.seedDifferentialStyles(workbook.differentialStyles);
+  // Seed the named cell-style layer (cellStyleXfs/cellStyles) so each style's facets re-intern into the
+  // rebuilt sub-tables and a cell's xfId link stays valid; without any, the default Normal alone emits.
+  styles.seedNamedStyles(workbook.namedStyles);
   const sheetXml = sheets.map((sheet, i) => {
     const refs = preserved.perSheet[i] ?? [];
     // A preserved `<drawing>` and a modeled one are mutually exclusive (a drawing is only preserved
@@ -1085,6 +1088,9 @@ function worksheetXml(
           protection: cell.protection ?? colDef?.protection,
           // Quote-prefix is a cell-only flag; a column carries no such default to inherit.
           quotePrefix: cell.quotePrefix,
+          // The cell's link into the named cell-style layer, preserved so a round-trip keeps it tied
+          // to that style rather than flattening it into a purely-direct format.
+          xfId: cell.namedStyleId,
         });
         return cellXml(cell, style, sharedRoles.get(cell.address), sharedStrings);
       })
@@ -1709,7 +1715,8 @@ function hasOwnStyle(cell: Cell): boolean {
     cell.border !== undefined ||
     cell.alignment !== undefined ||
     cell.protection !== undefined ||
-    cell.quotePrefix === true
+    cell.quotePrefix === true ||
+    cell.namedStyleId !== undefined
   );
 }
 

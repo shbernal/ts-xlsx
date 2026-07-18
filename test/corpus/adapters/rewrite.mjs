@@ -1188,6 +1188,32 @@ const impl = {
     return {writtenQuotePrefix, reloaded};
   },
 
+  // Load a fixture whose A1 fill lives only in a named cell style (cellXfs xfId → cellStyleXfs), and
+  // report: the source's cellStyleXfs count, A1's resolved fill, and — after a load→save round-trip —
+  // the re-emitted cellStyleXfs count and whether A1's cellXfs entry still links via xfId → so a case
+  // asserts the named-style layer is honoured on read and preserved (with its link) on write.
+  namedStyleFillReport(rel) {
+    const countCellStyleXfs = xml => Number((xml.match(/<cellStyleXfs count="(\d+)"/) || [])[1] || 0);
+    const srcCellStyleXfsCount = countCellStyleXfs(partMapOf(fixtureBytes(rel))['xl/styles.xml'] || '');
+
+    const workbook = readXlsx(fixtureBytes(rel));
+    const readFill = workbook.worksheets[0]?.getCell('A1').fill ?? null;
+
+    const out = writeXlsx(workbook);
+    const outParts = partMapOf(out);
+    const outStyles = outParts['xl/styles.xml'] || '';
+    const roundtripCellStyleXfsCount = countCellStyleXfs(outStyles);
+    // Resolve A1's cellXfs entry via its `s` index and check it retains a non-zero xfId link.
+    const sIndex = Number((outParts['xl/worksheets/sheet1.xml']?.match(/<c r="A1"[^>]*\bs="(\d+)"/) || [])[1] || 0);
+    const cellXfsBlock = (outStyles.match(/<cellXfs count="\d+">([\s\S]*?)<\/cellXfs>/) || [])[1] || '';
+    const cellXfEntries = cellXfsBlock.match(/<xf\b[^>]*(?:\/>|>[\s\S]*?<\/xf>)/g) || [];
+    const a1Xf = cellXfEntries[sIndex] || '';
+    const xfIdMatch = a1Xf.match(/\bxfId="(\d+)"/);
+    const roundtripCellHasXfIdLink = xfIdMatch !== null && Number(xfIdMatch[1]) > 0;
+
+    return {srcCellStyleXfsCount, readFill, roundtripCellStyleXfsCount, roundtripCellHasXfIdLink};
+  },
+
   // Inject a `<f t="dataTable">` into a written sheet, read it back, and re-write → { reloadOk,
   // readShareType, readRef, readResult, outHasDataTable }. The reader must surface the data-table
   // kind/range/result, and a read-modify-write must re-emit t="dataTable" rather than dropping it.

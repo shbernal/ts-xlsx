@@ -23,6 +23,7 @@ export class Cell {
   #alignment: Alignment | undefined;
   #protection: Protection | undefined;
   #quotePrefix: boolean | undefined;
+  #namedStyleId: number | undefined;
   #note: string | undefined;
 
   constructor(row: number, col: number) {
@@ -158,6 +159,21 @@ export class Cell {
 
   set quotePrefix(quotePrefix: boolean | undefined) {
     this.#quotePrefix = quotePrefix;
+  }
+
+  /**
+   * The index of the {@link Workbook.namedStyles named cell style} this cell links to (its OOXML
+   * `xfId`), or `undefined` when the cell references no named style beyond the default. The cell
+   * inherits any facet its own direct format leaves unset from that named style; the reader resolves
+   * the effective look onto the cell's own facets, and this link is preserved so a round-trip keeps
+   * the cell tied to its named style rather than flattening it away.
+   */
+  get namedStyleId(): number | undefined {
+    return this.#namedStyleId;
+  }
+
+  set namedStyleId(namedStyleId: number | undefined) {
+    this.#namedStyleId = namedStyleId;
   }
 
   /**

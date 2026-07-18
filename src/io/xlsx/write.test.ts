@@ -764,3 +764,25 @@ test('a cell with no quote-prefix flag does not gain one on read', () => {
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
   assert.equal(back?.getCell('A1').quotePrefix, undefined, 'an ordinary cell reports no quote-prefix flag');
 })
+
+test('a cell linking to a named cell style keeps its fill and xfId link across a round-trip', () => {
+  const wb = new Workbook();
+  // A yellow fill supplied only through the "Accent" named style; the cell's direct format is empty.
+  wb.restoreNamedStyles([
+    {name: 'Normal', builtinId: 0},
+    {name: 'Accent', fill: {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFFFF00'}}},
+  ]);
+  const sheet = wb.addWorksheet('S');
+  const cell = sheet.getCell('A1');
+  cell.value = 'x';
+  cell.namedStyleId = 1;
+
+  const styles = partsOf(wb)['xl/styles.xml'] ?? '';
+  assert.match(styles, /<cellStyleXfs count="2"/, 'the named-style layer is emitted');
+
+  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  const a1 = back?.getCell('A1');
+  assert.equal(a1?.fill?.pattern, 'solid', 'the named-style fill resolves onto the cell on read');
+  assert.equal(a1?.fill?.fgColor?.argb, 'FFFFFF00', 'the resolved fill is the named-style yellow');
+  assert.equal(a1?.namedStyleId, 1, 'the cell keeps its link to the named style');
+})

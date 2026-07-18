@@ -331,3 +331,24 @@ test('the quote-prefix flag emits quotePrefix="1" on the xf and forms a distinct
   assert.equal(styles.styleId({quotePrefix: true}), q, 'identical quote-prefixed styles intern to one entry');
   assert.match(styles.toXml(), /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" quotePrefix="1"\/>/);
 })
+
+test('seeded named cell styles emit a cellStyleXfs/cellStyles layer and cells link to it via xfId', () => {
+  const styles = new StyleRegistry();
+  styles.seedNamedStyles([
+    {name: 'Normal', builtinId: 0},
+    {name: 'Accent', fill: solid('FFFFFF00')},
+  ]);
+  // A cell that links to the Accent named style carries its xfId even with no direct facet of its own.
+  const linked = styles.styleId({xfId: 1});
+  assert.notEqual(linked, 0, 'a cell linking to a named style needs a real cellXfs entry');
+  const xml = styles.toXml();
+  assert.match(xml, /<cellStyleXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"\/><xf numFmtId="0" fontId="0" fillId="2" borderId="0" applyFill="1"\/><\/cellStyleXfs>/);
+  assert.match(xml, /<cellStyles count="2"><cellStyle name="Normal" xfId="0" builtinId="0"\/><cellStyle name="Accent" xfId="1"\/><\/cellStyles>/);
+  assert.match(xml, /<cellXfs count="2">.*<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="1"\/><\/cellXfs>/);
+});
+
+test('with no named styles the default cellStyleXfs and cellStyles layer is emitted unchanged', () => {
+  const xml = new StyleRegistry().toXml();
+  assert.match(xml, /<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"\/><\/cellStyleXfs>/);
+  assert.match(xml, /<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"\/><\/cellStyles>/);
+})
