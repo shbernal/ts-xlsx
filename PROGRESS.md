@@ -1628,14 +1628,40 @@ legacy known-open**, with 0 regressions on the legacy oracle. Continue module by
 2. ✅ **Foreign-fixture reading** — **FULLY CLOSED** (see the foreign-fixture family under §1: real-fixture
    colour reading, foreign explicit-off forms, `readFixtureReport`, plus `unstyledCellFontReport` default-font
    resolution and `roundtripFixture`; 115 → 143).
-3. **Remaining writer/core-model widening:** **`addRow`/`addRows` shapes** (dense/sparse-array +
-   keyed-object — `add-row-array-and-object-shapes-populate`), **defined-name storage** →
-   `<definedNames>`. Small follow-ups: modern-function `_xlfn.` prefix, outline summary-row `collapsed`
-   inference (both `○`), and the **streaming reader** (where the *running-counter* inflate bound lands —
-   the buffered reader only has the declared-size cap; see ADR 0004).
+3. **Remaining writer/core-model widening:** ✅ **`addRow`/`addRows` shapes** — **DONE** (array/sparse/
+   keyed-object row inputs via `ColumnProperties.key`, structural `Array.isArray` detection). Small
+   follow-ups still open: modern-function `_xlfn.` prefix, outline summary-row `collapsed` inference
+   (both `○`), and the **streaming reader** (where the *running-counter* inflate bound lands — the
+   buffered reader only has the declared-size cap; see ADR 0004). (Defined-name storage → `<definedNames>`
+   was already landed; print areas now ride it, see the 2026-07-18 batch below.)
 4. **Toolchain-standup slice** (do when `src/` is large enough to justify it): Vitest + Biome +
    an ESM/`.d.ts` bundler, and schedule the legacy Grunt/Babel/Mocha rip-out. Until then the gates
    are `npm run typecheck` + `npm run test:src` + `npm run corpus:rewrite`.
+
+### 2026-07-18 batch — queue drain (395→399 green, 102→60 skipped, 0 regressions)
+Thirteen deferred cases closed, each landed fully green and committed on its own:
+- **`addRow` row shapes** — `RowInput = (CellValue|undefined)[] | Record<string,CellValue>`; column
+  `key` binds keyed-object rows; `Array.isArray` makes cross-realm arrays populate.
+- **Print areas** — `_xlnm.Print_Area` defined names round-trip (multiple disjoint ranges; whole-column
+  `$A:$D` recovers without a NaN-mangled address). Adapter-only: the reader stores `refersTo` verbatim.
+- **Worksheet name lookup** — `getWorksheet`/`addWorksheet` already agree on case-insensitive identity.
+- **Formula results** — falsy (0/false/'') and Date results survive; a string result under a date
+  format keeps `t="str"`; adapter-only.
+- **Data-table formulas** *(source)* — new `DataTableFormulaValue` (`shareType:'dataTable'`), read from
+  and re-emitted as `<f t="dataTable">` so a read-modify-write no longer drops the What-If kind.
+- **Frozen panes** *(source)* — new `SheetView` model + `freeze()`/`unfreeze()`; writes `<pane state=
+  "frozen">` with the active pane/selection, unfreeze leaves no leftover pane; reader recovers it.
+- **Non-finite serialization** *(source)* — NaN/±Infinity cell values, formula results, and validation
+  operands degrade to valueless/omitted rather than throwing or emitting a bare `NaN` token.
+- **List validation over a span** — one rule covers every row with no relative source drift, collapsing
+  to a single spanning sqref.
+
+**Still skipped (60 assertions, ~20 cases)** — biggest remaining clusters: **tables** (table cell edits,
+duplicate/line-break column names, column-style numFmt on body cells, style="None", appended rows,
+equivalent-column collapse), **styles** (quote-prefix flag, out-of-order `<col>` tags, cellStyleXfs
+named-style fill, outline levels, magic default-width), plus scattered **xlsx-io** (hidden-row/reserved-
+name/manual-page-break reading), **comments** (note removal), **merges** (trailing-empty-row iteration),
+and **worksheet-decl** (hidden-state write). Continue in the same one-case-per-commit rhythm.
 
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
