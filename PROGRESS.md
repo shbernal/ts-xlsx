@@ -1691,6 +1691,35 @@ magic default-width), **xlsx-io** (empty-row hidden flag, reserved sheet name, m
 child mirrors master), **types** (trailing-empty-cell iteration), **security** (workbook structure
 protection), **worksheet-decl** (hidden-state write), **address-decoding** (non-canonical comments path).
 
+### 2026-07-18 batch 3 — styles cluster drained (413→420 green, 41→26 skipped, 0 regressions)
+The six remaining **styles** cases closed, each landed fully green and committed on its own:
+- **Out-of-order `<col>` tags** — the reader already binds each `<col>` by its own `min`/`max` span, so
+  reversed document order (excelize/jxls-poi) still lands every width/hidden flag on the right column;
+  adapter-only.
+- **Row & column outline levels** — `outlineLevel` on both axes already round-trips through write/read;
+  adapter-only.
+- **Magic default width (9)** — the writer already emits an explicit `<col width customWidth>` for any
+  set width, and the reader keeps it (`customWidth != "0"`), so a width equal to the default survives;
+  adapter-only.
+- **Object-valued numFmt** *(source)* — the style choke point now drops any non-string number format
+  (`typeof === 'string'`) rather than stringifying it to `formatCode="[object Object]"`; a valid string
+  format still composes alongside every other facet.
+- **Quote-prefix flag** *(source)* — new `Cell.quotePrefix`; the writer emits `quotePrefix="1"` on the
+  cell's `xf` (a CT_Xf attribute, its own switch), the reader reads it back, and the flag forms a
+  distinct interned style.
+- **Named cell styles (cellStyleXfs)** *(source, new capability)* — a cell whose fill/font/border lives
+  only in a named cell style (its `cellXfs` `xfId` → `cellStyleXfs`) now resolves that style's facets on
+  read, and a load→save round-trip preserves the `cellStyleXfs` layer, the `cellStyles` names, and each
+  cell's `xfId` link. New model surface: `Workbook.namedStyles` + `Cell.namedStyleId`; the reader merges
+  each `cellXfs` entry over its named style (direct facet wins), the writer seeds the layer into the
+  `StyleRegistry` so the named styles' facets re-intern and their ids stay valid against rebuilt tables.
+
+**Still skipped (26 assertions, 10 cases)** — no **styles** or **tables** left. Remaining clusters:
+**xlsx-io** (empty-row hidden flag, reserved sheet name, manual row page breaks), **comments** (note
+removal artifact), **merges** (trailing-empty merged-row iteration), **core-model** (merged child mirrors
+master), **types** (trailing-empty-cell iteration), **security** (workbook structure protection),
+**worksheet-decl** (hidden-state write), **address-decoding** (non-canonical comments path).
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
