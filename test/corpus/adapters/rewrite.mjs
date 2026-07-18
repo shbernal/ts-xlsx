@@ -1115,6 +1115,19 @@ const impl = {
     };
   },
 
+  // Assign an outline (grouping) level to a row and a column, write, and read back → { rowOutline,
+  // colOutline }. The OOXML outlineLevel attribute on <row>/<col> must survive the round-trip on both
+  // axes so a collapsible grouping is preserved on reopen.
+  rowColumnOutlineLevelRoundtrip() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getCell('A1').value = 'x';
+    sheet.getRow(2).outlineLevel = 1;
+    sheet.getColumn(3).outlineLevel = 1;
+    const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    return {rowOutline: back.getRow(2).outlineLevel ?? 0, colOutline: back.getColumn(3).outlineLevel ?? 0};
+  },
+
   // Inject a `<f t="dataTable">` into a written sheet, read it back, and re-write → { reloadOk,
   // readShareType, readRef, readResult, outHasDataTable }. The reader must surface the data-table
   // kind/range/result, and a read-modify-write must re-emit t="dataTable" rather than dropping it.
