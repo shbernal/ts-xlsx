@@ -1128,6 +1128,26 @@ const impl = {
     return {rowOutline: back.getRow(2).outlineLevel ?? 0, colOutline: back.getColumn(3).outlineLevel ?? 0};
   },
 
+  // Set explicit widths on three columns (one of which coincides with the format's conventional
+  // default width, 9), write, and report per-column whether a `<col>` with a customWidth flag was
+  // emitted and what width each reads back → { emitted: {c1,c2,c3}, readBack: {c1,c2,c3} }. An
+  // explicitly-set width must survive even when its value equals the magic default.
+  columnWidthDefaultCollisionReport(widths = [8, 9, 10]) {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    widths.forEach((w, i) => (sheet.getColumn(i + 1).width = w));
+    const buffer = writeXlsx(wb);
+    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    // A column emits an explicit width when its `<col>` carries a customWidth flag over its index.
+    const emittedAt = index =>
+      new RegExp(`<col\\b[^>]*\\bmin="${index}"[^>]*\\bmax="${index}"[^>]*\\bcustomWidth="1"`).test(sheetXml);
+    const back = readXlsx(buffer).getWorksheet('S');
+    return {
+      emitted: {c1: emittedAt(1), c2: emittedAt(2), c3: emittedAt(3)},
+      readBack: {c1: back.getColumn(1).width, c2: back.getColumn(2).width, c3: back.getColumn(3).width},
+    };
+  },
+
   // Inject a `<f t="dataTable">` into a written sheet, read it back, and re-write → { reloadOk,
   // readShareType, readRef, readResult, outHasDataTable }. The reader must surface the data-table
   // kind/range/result, and a read-modify-write must re-emit t="dataTable" rather than dropping it.
