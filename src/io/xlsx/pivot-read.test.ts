@@ -59,6 +59,7 @@ test('a written pivot round-trips its field roles, source, and value field back 
 test('the worksheet source reference and sheet name survive the round-trip', () => {
   const {table, cache} = renderedPivot({rows: ['Name'], columns: ['Region'], values: ['Amount']}, SALES);
   const parsed = parsePivotTable(table, cache);
+  assert.equal(parsed.source.kind, 'worksheet');
   assert.equal(parsed.source.sheet, 'Data');
   assert.equal(parsed.source.ref, 'A1:C4');
 });
@@ -127,12 +128,52 @@ test('an unrecognised subtotal is read leniently as sum, not rejected', () => {
   assert.equal(parsed.valueField, 2);
 });
 
-test('a cache with no worksheet source yields an empty source rather than throwing', () => {
+test('a cache with no cacheSource at all defaults to a worksheet source with empty coordinates', () => {
   const table = `<pivotTableDefinition name="P" cacheId="1"><dataFields count="1"><dataField fld="0"/></dataFields></pivotTableDefinition>`;
   const cache = `<pivotCacheDefinition><cacheFields count="1"><cacheField name="Amount"/></cacheFields></pivotCacheDefinition>`;
   const parsed = parsePivotTable(table, cache);
-  assert.deepEqual(parsed.source, {sheet: '', ref: ''});
+  assert.deepEqual(parsed.source, {kind: 'worksheet', sheet: '', ref: ''});
   assert.equal(parsed.valueFieldName, 'Amount');
+});
+
+test('an external cache source reports its kind and carries no worksheet coordinates', () => {
+  const table = `<pivotTableDefinition name="P" cacheId="1"><dataFields count="1"><dataField fld="0"/></dataFields></pivotTableDefinition>`;
+  const cache =
+    `<pivotCacheDefinition><cacheSource type="external"><connection id="1"/></cacheSource>` +
+    `<cacheFields count="1"><cacheField name="Amount"/></cacheFields></pivotCacheDefinition>`;
+  const parsed = parsePivotTable(table, cache);
+  assert.equal(parsed.source.kind, 'external');
+  assert.equal(parsed.source.sheet, '');
+  assert.equal(parsed.source.ref, '');
+});
+
+test('a consolidation cache source is recognised by kind', () => {
+  const cache =
+    `<pivotCacheDefinition><cacheSource type="consolidation"><rangeSets/></cacheSource>` +
+    `<cacheFields count="1"><cacheField name="Amount"/></cacheFields></pivotCacheDefinition>`;
+  const parsed = parsePivotTable(`<pivotTableDefinition name="P" cacheId="1"/>`, cache);
+  assert.equal(parsed.source.kind, 'consolidation');
+});
+
+test('an unrecognised cache source type degrades to unknown, not a throw', () => {
+  const cache =
+    `<pivotCacheDefinition><cacheSource type="wormhole"><worksheetSource ref="A1:B2" sheet="Data"/></cacheSource>` +
+    `<cacheFields count="1"><cacheField name="Amount"/></cacheFields></pivotCacheDefinition>`;
+  const parsed = parsePivotTable(`<pivotTableDefinition name="P" cacheId="1"/>`, cache);
+  // The declared type is not one we model, so the kind reports `unknown` — but a `<worksheetSource>`
+  // that rides along is still read, since a foreign producer may pair either with the other.
+  assert.equal(parsed.source.kind, 'unknown');
+  assert.equal(parsed.source.sheet, 'Data');
+  assert.equal(parsed.source.ref, 'A1:B2');
+});
+
+test('a cacheSource with no type attribute defaults to worksheet', () => {
+  const cache =
+    `<pivotCacheDefinition><cacheSource><worksheetSource ref="A1:B2" sheet="Data"/></cacheSource>` +
+    `<cacheFields count="1"><cacheField name="Amount"/></cacheFields></pivotCacheDefinition>`;
+  const parsed = parsePivotTable(`<pivotTableDefinition name="P" cacheId="1"/>`, cache);
+  assert.equal(parsed.source.kind, 'worksheet');
+  assert.equal(parsed.source.sheet, 'Data');
 });
 
 test('a table with no dataField reports no value field instead of a wild index', () => {

@@ -66,9 +66,18 @@ export interface ParsedPivotField {
   readonly name: string;
 }
 
-/** Where a worksheet-backed pivot cache draws its rows from. Empty strings stand in for a cache whose
- * source is not a worksheet (an external or consolidation source), which the reader does not model. */
+/** The kind of data a pivot cache draws from, mirroring OOXML's `ST_SourceType`. Only `worksheet`
+ * carries a {@link ParsedPivotSource.sheet}/{@link ParsedPivotSource.ref}; every other kind draws from
+ * data the reader does not model (an external connection, a range consolidation, or a scenario), and
+ * `unknown` covers a `type` the file declares that is none of these. */
+export type PivotSourceKind = 'worksheet' | 'external' | 'consolidation' | 'scenario' | 'unknown';
+
+/** Where a pivot cache draws its rows from. {@link kind} names the source type; {@link sheet} and
+ * {@link ref} locate the range only when it is `worksheet` and are empty strings otherwise, so a
+ * consumer can tell a genuinely non-worksheet source apart from a worksheet source that failed to
+ * parse (the former reports its {@link kind}, the latter stays `worksheet` with empty coordinates). */
 export interface ParsedPivotSource {
+  readonly kind: PivotSourceKind;
   readonly sheet: string;
   readonly ref: string;
 }

@@ -211,6 +211,7 @@ test('a loaded pivot is reconstructed as an inspectable model on its host sheet'
   assert.equal(pivot.valueField, 2);
   assert.equal(pivot.valueFieldName, 'Amount');
   assert.equal(pivot.metric, 'sum');
+  assert.equal(pivot.source.kind, 'worksheet');
   assert.equal(pivot.source.sheet, 'Data');
   assert.equal(pivot.source.ref, 'A1:C4');
 });

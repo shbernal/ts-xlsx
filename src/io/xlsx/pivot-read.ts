@@ -18,6 +18,7 @@ import {
   type ParsedPivotTable,
   type PivotMetric,
   pivotMetricFromSubtotal,
+  type PivotSourceKind,
 } from '../../core/pivot-table.ts';
 import {localName, parseXml} from './xml-read.ts';
 
@@ -48,14 +49,19 @@ function parsePivotCacheDefinition(cacheXml: string): {
   source: ParsedPivotSource;
 } {
   const fields: ParsedPivotField[] = [];
-  let source: ParsedPivotSource = {sheet: '', ref: ''};
+  // A worksheet source is the assumed default until proven otherwise: it is what our writer emits and
+  // the overwhelmingly common shape, and its `<worksheetSource>` child fills in the coordinates. A
+  // `<cacheSource type>` we recognise overrides the kind; an unrecognised one degrades to `unknown`.
+  let source: ParsedPivotSource = {kind: 'worksheet', sheet: '', ref: ''};
   parseXml(cacheXml, {
     onOpen(name, attrs) {
       const local = localName(name);
       if (local === 'cacheField' && attrs.name !== undefined) {
         fields.push({name: attrs.name});
+      } else if (local === 'cacheSource') {
+        source = {...source, kind: sourceKind(attrs.type)};
       } else if (local === 'worksheetSource') {
-        source = {sheet: attrs.sheet ?? '', ref: attrs.ref ?? ''};
+        source = {...source, sheet: attrs.sheet ?? '', ref: attrs.ref ?? ''};
       }
     },
     onText() {},
@@ -124,6 +130,21 @@ function parsePivotTableDefinition(tableXml: string): {
   });
 
   return {name, cacheId, rowFields, columnFields, valueField, valueCaption, metric};
+}
+
+const SOURCE_KINDS: ReadonlySet<PivotSourceKind> = new Set<PivotSourceKind>([
+  'worksheet',
+  'external',
+  'consolidation',
+  'scenario',
+]);
+
+/** Map a `<cacheSource type>` to a known kind. Absent reads as `worksheet` (the spec default and what
+ * our writer emits); an unrecognised value reads as `unknown` rather than throwing, keeping the read
+ * lenient while still telling a consumer the declared source is not one we model. */
+function sourceKind(type: string | undefined): PivotSourceKind {
+  if (type === undefined) return 'worksheet';
+  return SOURCE_KINDS.has(type as PivotSourceKind) ? (type as PivotSourceKind) : 'unknown';
 }
 
 /** Parse a non-negative field index attribute, or -1 when it is absent or not a whole number — a
