@@ -95,6 +95,16 @@ const SUPPORTED_TABLE_KEYS = new Set([
 ]);
 const SUPPORTED_TABLE_COLUMN_KEYS = new Set(['name', 'totalsRowLabel', 'totalsRowFunction']);
 
+// Build an _xlnm.Print_Area refersTo from a comma-separated area (e.g. 'A1:F10,A12:F21' or 'A:D'):
+// each range is made absolute ($-prefixed on every column and row bound) and sheet-qualified, exactly
+// how Excel records a print area. A whole-column range keeps its column-only shape ($A:$D).
+const absolutizeRef = ref => ref.replace(/([A-Z]+)/g, '$$$1').replace(/(\d+)/g, '$$$1');
+const printAreaRefersTo = (sheetName, area) =>
+  area
+    .split(',')
+    .map(range => `${sheetName}!${absolutizeRef(range)}`)
+    .join(',');
+
 const toDate = v => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
 const isoOrNull = d => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null);
 
@@ -990,6 +1000,51 @@ const impl = {
       rows[number - 1] = arr;
     }
     return {loadedRowCount, finalRowCount: f.rowCount, rows};
+  },
+
+  // Read a fixture's single _xlnm.Print_Area name (a comma-separated range list), re-write it, and read
+  // it again → { sourceRangeCount, readPrintArea, rewrittenRangeCount }. Both disjoint ranges must
+  // survive read and re-serialization, never truncated to the first.
+  roundtripFixturePrintAreas(rel) {
+    const printAreaOf = wb => wb.definedNames.find(n => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+    const source = readXlsx(fixtureBytes(rel));
+    const readPrintArea = printAreaOf(source);
+    const sourceRangeCount = readPrintArea.split(',').filter(Boolean).length;
+    const rewritten = readXlsx(writeXlsx(source));
+    const rewrittenRangeCount = printAreaOf(rewritten).split(',').filter(Boolean).length;
+    return {sourceRangeCount, readPrintArea, rewrittenRangeCount};
+  },
+
+  // Author a sheet-scoped _xlnm.Print_Area over a comma-separated area, round-trip, and report the
+  // emitted ranges (sheet prefix stripped) → { ranges }. Two disjoint areas must emit two proper
+  // rectangular ranges in one name, not a truncated single range.
+  writePrintAreaDefinedName(area) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    workbook.defineName({name: '_xlnm.Print_Area', scope: sheet.name, refersTo: printAreaRefersTo(sheet.name, area)});
+    const back = readXlsx(writeXlsx(workbook));
+    const refersTo = back.definedNames.find(n => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+    const ranges = refersTo.split(',').map(r => r.split('!').pop());
+    return {ranges};
+  },
+
+  // Author a sheet-scoped _xlnm.Print_Area over one area (whole-column or bounded), round-trip, and
+  // report the written and recovered forms → { writtenDefinedName, reReadPrintArea, reloadOk }. A
+  // column-only reference ($A:$D) must recover intact, never decoded to a NaN-mangled address.
+  printAreaRoundtrip(area) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    workbook.defineName({name: '_xlnm.Print_Area', scope: sheet.name, refersTo: printAreaRefersTo(sheet.name, area)});
+    let reloadOk = true;
+    let back;
+    try {
+      back = readXlsx(writeXlsx(workbook));
+    } catch {
+      reloadOk = false;
+    }
+    const refersTo = back?.definedNames.find(n => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+    const reReadPrintArea = refersTo.split('!').pop()?.replace(/\$/g, '') ?? '';
+    return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
 
   // Append rows in every shape (dense array, sparse array, keyed object, mixed batch), round-trip, and
