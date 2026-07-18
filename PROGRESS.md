@@ -1810,6 +1810,28 @@ resolves (234) or a handful still genuinely open (e.g. the outline `collapsed` s
   Rewrite corpus: **434 green, 235 legacy known-opens resolved, 0 regressions**; 2 genuine known-opens
   remain (custom `<indexedColors>` palette round-trip; the outline `collapsed` summary-row flag).
 
+### 2026-07-19 — last two genuine known-opens drained: outline collapse toggle + indexed-color palette *(rewrite corpus now 0 known-open)*
+
+- **A collapsed row-outline group carries its collapse toggle on the summary row** *(rows, **source**)* —
+  an author builds a collapsed outline by setting `outlineLevel` + `hidden` on the detail rows; OOXML also
+  requires the summary row that terminates the group to carry `collapsed="1"`, or the expand/collapse
+  control is out of sync (the rows show hidden but take two clicks to expand). `write.ts` now derives that
+  flag: a row is a collapsed summary iff its adjacent detail run — the contiguous higher-`outlineLevel`
+  rows on the `summaryBelow`/`-above` side — is non-empty and entirely hidden. The flag lands on the
+  summary row, never on the detail rows. Rewrite resolves both baseline-fail behaviors (`↑`).
+- **A custom indexed-color palette survives a round-trip** *(styles, **source**)* — a workbook can override
+  the legacy palette with a `<colors><indexedColors>` block; a no-op round-trip dropped it, so every
+  `indexed="…"` reference silently resolved to a different default-palette RGB (colours changed on save).
+  The reader now captures the palette verbatim (`<rgbColor>` fragments) onto the `Workbook`
+  (`restoreIndexedColors`/`indexedColors`), the `StyleRegistry` re-emits it as the `<colors>` child of
+  `<styleSheet>` (after `<dxfs>`), and the rewrite adapter's `roundtripFixtureStyleFacts` now reads the
+  palette from the raw `styles.xml` on both sides (matching the legacy oracle). A workbook that never
+  overrode the palette carries none and writes no `<colors>`. Rewrite resolves both behaviors (`↑`).
+- **Milestone: the rewrite corpus has no genuine known-opens left.** `corpus:rewrite`: **434 green,
+  0 known-open, 237 legacy known-opens resolved, 0 regressions**; `test:src`: **624 pass, 0 fail**;
+  typecheck clean. Every `baseline:'fail'` case the corpus carries is now resolved by the rewrite adapter
+  (`↑`); the full `corpus` run still shows those as `○` because the frozen legacy oracle carries the bugs.
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
