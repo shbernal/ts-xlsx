@@ -3181,6 +3181,34 @@ const impl = {
     };
   },
 
+  // Write a table whose first column name embeds CR/LF line breaks, then report the first
+  // <tableColumn> tag and whether it carries a raw (unescaped) CR or LF. A raw control char in an
+  // attribute value is not preserved by XML normalisation (a CR reparses as a space) and makes the
+  // package suspect, so the name must be emitted XML-escaped (&#13;&#10;), not raw.
+  tableColumnNameControlChars() {
+    const wb = new Workbook();
+    wb.addWorksheet('S').addTable({
+      name: 'T',
+      ref: 'A1',
+      columns: [{name: 'Test\r\nmultiple\r\nlines'}, {name: 'Plain'}],
+      rowCount: 1,
+    });
+    let writeOk = true;
+    let writeError = null;
+    let firstColumnTag = null;
+    let rawControlChars = null;
+    try {
+      const parts = partMapOf(writeXlsx(wb));
+      const part = Object.keys(parts).find(n => /^xl\/tables\/table\d+\.xml$/.test(n));
+      firstColumnTag = (parts[part].match(/<tableColumn\b[^>]*\/?>/) || [])[0] ?? null;
+      rawControlChars = firstColumnTag === null ? null : /[\r\n]/.test(firstColumnTag);
+    } catch (e) {
+      writeOk = false;
+      writeError = String((e && e.message) || e);
+    }
+    return {writeOk, writeError, firstColumnTag, rawControlChars};
+  },
+
   // Read every table part of a fixture, then load→save it and read the re-emitted parts, reporting
   // each table's autoFilter / header-row / totals-row / column-count facts before and after. A no-op
   // round-trip of a table that has no autoFilter must not inject one, flip the header row off, or turn
