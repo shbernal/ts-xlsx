@@ -2152,6 +2152,43 @@ const impl = {
     return {eager, streaming};
   },
 
+  // Attach then clear a cell note and report whether the written package still carries a comment/VML
+  // artifact → { commentPartPresent, vmlPartPresent, readNoteAfter, neighborNoteIntact,
+  // cleanHasCommentPart }. Clearing a note (note = undefined) is a genuine removal: the sole-noted
+  // cell's comment part disappears and reads back null, while a neighbor that kept its note is intact,
+  // and a workbook that never had a note emits no comment part at all.
+  removeCellNoteReport() {
+    const partNames = wb => Object.keys(partMapOf(writeXlsx(wb)));
+    // The note being cleared is the only one, so a lingering comment part would prove the removal
+    // merely emptied the note rather than dropping it.
+    const solo = new Workbook();
+    const soloSheet = solo.addWorksheet('S');
+    soloSheet.getCell('A1').value = 'x';
+    soloSheet.getCell('A1').note = 'remove me';
+    soloSheet.getCell('A1').note = undefined;
+    const soloParts = partNames(solo);
+    const commentPartPresent = soloParts.some(f => /comments\d*\.xml$/.test(f));
+    const vmlPartPresent = soloParts.some(f => /vmlDrawing\d*\.vml$/.test(f));
+    const readNoteAfter = readXlsx(writeXlsx(solo)).worksheets[0].getCell('A1').note ?? null;
+
+    // Clearing one note must not disturb another cell's note.
+    const pair = new Workbook();
+    const pairSheet = pair.addWorksheet('S');
+    pairSheet.getCell('A1').value = 'x';
+    pairSheet.getCell('A1').note = 'remove me';
+    pairSheet.getCell('B1').value = 'y';
+    pairSheet.getCell('B1').note = 'keep me';
+    pairSheet.getCell('A1').note = undefined;
+    const reloaded = readXlsx(writeXlsx(pair)).worksheets[0];
+    const neighborNoteIntact = !!reloaded.getCell('B1').note;
+
+    const clean = new Workbook();
+    clean.addWorksheet('S').getCell('A1').value = 'x';
+    const cleanHasCommentPart = partNames(clean).some(f => /comments\d*\.xml$/.test(f));
+
+    return {commentPartPresent, vmlPartPresent, readNoteAfter, neighborNoteIntact, cleanHasCommentPart};
+  },
+
   // Merge A1:B3 with values only in A1/A2, round-trip, then iterate every used-range position
   // (include-empty) and report → { rowCount, visited, a3: { visited, isMerged, master } }. A merge
   // reaching into an otherwise-empty trailing row keeps that row within the bounds, so A3 is visited
