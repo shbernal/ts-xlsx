@@ -1951,6 +1951,32 @@ const impl = {
     }
   },
 
+  // Author a sheet named "History" (a name Excel blocks in its UI but that is a valid OOXML name)
+  // through the public API, round-trip it, and separately confirm a genuinely-illegal name is still
+  // rejected → { addThrew, addError, roundtripName, invalidRejected }. The reserved-name UI nicety
+  // is not a document-model rule, so construction must not throw; the character-legality guard is a
+  // real rule and must stay.
+  addReservedSheetNameReport() {
+    const wb = new Workbook();
+    let addThrew = false;
+    let addError = null;
+    try {
+      wb.addWorksheet('History');
+    } catch (e) {
+      addThrew = true;
+      addError = String((e && e.message) || e);
+    }
+    const roundtrip = readXlsx(writeXlsx(wb));
+    const roundtripName = roundtrip.worksheets.map(s => s.name).find(n => n === 'History') ?? null;
+    let invalidRejected = false;
+    try {
+      wb.addWorksheet('a/b');
+    } catch {
+      invalidRejected = true;
+    }
+    return {addThrew, addError, roundtripName, invalidRejected};
+  },
+
   // Read a fixture and report its defined names as { <name>: [refersTo…] }, mirroring the oracle.
   // The model retains every name as its own entry rather than keying by name, so two same-named
   // names scoped to different sheets both survive — the scope collision that drops one on the
