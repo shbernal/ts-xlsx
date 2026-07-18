@@ -22,6 +22,7 @@ export class Cell {
   #border: Border | undefined;
   #alignment: Alignment | undefined;
   #protection: Protection | undefined;
+  #quotePrefix: boolean | undefined;
   #note: string | undefined;
 
   constructor(row: number, col: number) {
@@ -142,6 +143,21 @@ export class Cell {
 
   set protection(protection: Protection | undefined) {
     this.#protection = protection;
+  }
+
+  /**
+   * The quote-prefix flag: when set, a spreadsheet stores the cell's content as literal text even
+   * when it looks like a formula or number, and shows a leading apostrophe in the formula bar without
+   * that apostrophe being part of the stored value. `undefined` (or `false`) when unset. It is a
+   * cell-format flag — an attribute on the cell's `xf` record — so it composes independently of the
+   * value and, like the other style facets, never bleeds onto sibling cells.
+   */
+  get quotePrefix(): boolean | undefined {
+    return this.#quotePrefix;
+  }
+
+  set quotePrefix(quotePrefix: boolean | undefined) {
+    this.#quotePrefix = quotePrefix;
   }
 
   /**

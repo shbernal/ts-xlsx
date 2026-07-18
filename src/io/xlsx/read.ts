@@ -784,6 +784,7 @@ export interface XfStyle {
   readonly border?: Border;
   readonly alignment?: Alignment;
   readonly protection?: Protection;
+  readonly quotePrefix?: boolean;
 }
 
 // A mutable xf accumulator while an <xf> element streams in: its facet ids resolve on open, but
@@ -956,6 +957,9 @@ export function parseStyleTable(xml: string): ReadonlyArray<XfStyle> {
             if (numFmt !== undefined) draft.numFmt = numFmt;
             if (font) draft.font = font;
             if (border) draft.border = border;
+            // The quote-prefix flag is an attribute on the xf itself (no shared sub-table); carry it
+            // only when set so an ordinary cell does not gain a spurious `quotePrefix: false`.
+            if (attrs.quotePrefix === '1' || attrs.quotePrefix === 'true') draft.quotePrefix = true;
             // A self-closing <xf/> has no alignment child and commits now; otherwise it is held
             // open until its close so an <alignment> child can attach first.
             if (selfClosing) xfStyles.push(draft);
@@ -1737,4 +1741,5 @@ function applyCellStyle(cell: Cell, style: XfStyle | undefined): void {
   if (style?.border !== undefined) cell.border = style.border;
   if (style?.alignment !== undefined) cell.alignment = style.alignment;
   if (style?.protection !== undefined) cell.protection = style.protection;
+  if (style?.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
 }

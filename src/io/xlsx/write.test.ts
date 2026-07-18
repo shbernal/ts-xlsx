@@ -741,3 +741,26 @@ test('a filter column addressing a column outside the range is dropped on read, 
   assert.ok(sheet !== undefined);
   assert.deepEqual(sheet.autoFilter, {ref: 'A1:B4', columns: []}, 'the range survives, the bad column drops');
 });
+
+test('a quote-prefixed cell emits quotePrefix on its xf and survives a round-trip', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  const cell = sheet.getCell('A1');
+  cell.value = '=not-a-formula';
+  cell.quotePrefix = true;
+
+  const parts = partsOf(wb);
+  assert.match(parts['xl/styles.xml'] ?? '', /<xf [^>]*quotePrefix="1"/, 'the cell-format record carries quotePrefix="1"');
+
+  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  assert.equal(back?.getCell('A1').quotePrefix, true, 'the quote-prefix flag survives read/modify/write');
+  assert.equal(back?.getCell('A1').value, '=not-a-formula', 'the literal content is preserved');
+});
+
+test('a cell with no quote-prefix flag does not gain one on read', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'plain';
+  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  assert.equal(back?.getCell('A1').quotePrefix, undefined, 'an ordinary cell reports no quote-prefix flag');
+})

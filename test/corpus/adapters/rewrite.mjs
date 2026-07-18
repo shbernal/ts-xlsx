@@ -1173,6 +1173,21 @@ const impl = {
     };
   },
 
+  // Mark a cell whose content looks like a formula with the quote-prefix flag, write, and report
+  // whether its cell-format record carries quotePrefix and whether the flag survives a round-trip →
+  // { writtenQuotePrefix, reloaded }. The flag forces formula-like content to be stored as literal text.
+  quotePrefixReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    const cell = sheet.getCell('A1');
+    cell.value = '=1+1';
+    cell.quotePrefix = true;
+    const buffer = writeXlsx(wb);
+    const writtenQuotePrefix = /<xf\b[^>]*quotePrefix="1"/.test(partMapOf(buffer)['xl/styles.xml'] || '');
+    const reloaded = readXlsx(buffer).getWorksheet('S').getCell('A1').quotePrefix === true;
+    return {writtenQuotePrefix, reloaded};
+  },
+
   // Inject a `<f t="dataTable">` into a written sheet, read it back, and re-write → { reloadOk,
   // readShareType, readRef, readResult, outHasDataTable }. The reader must surface the data-table
   // kind/range/result, and a read-modify-write must re-emit t="dataTable" rather than dropping it.

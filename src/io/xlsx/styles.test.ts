@@ -322,3 +322,12 @@ test('a valid format-code string still interns alongside other facets', () => {
   assert.notEqual(id, 0, 'the string format composes into a real style');
   assert.match(styles.toXml(), /formatCode="yyyy-mmm-dd"/);
 });
+
+test('the quote-prefix flag emits quotePrefix="1" on the xf and forms a distinct style', () => {
+  const styles = new StyleRegistry();
+  assert.equal(styles.styleId({quotePrefix: false}), 0, 'an unset quote-prefix contributes no style');
+  const q = styles.styleId({quotePrefix: true});
+  assert.notEqual(q, 0, 'a quote-prefixed style is a real entry, not the default xf 0');
+  assert.equal(styles.styleId({quotePrefix: true}), q, 'identical quote-prefixed styles intern to one entry');
+  assert.match(styles.toXml(), /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" quotePrefix="1"\/>/);
+})

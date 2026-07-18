@@ -51,6 +51,8 @@ export interface CellStyle {
   readonly border?: Border | undefined;
   readonly alignment?: Alignment | undefined;
   readonly protection?: Protection | undefined;
+  /** The quote-prefix flag — an attribute on the xf, not a shared sub-table entry. */
+  readonly quotePrefix?: boolean | undefined;
 }
 
 // One interned cell format. `fillId` 0 is no fill; `numFmtId` 0 is the General format;
@@ -64,6 +66,7 @@ interface CellFormat {
   readonly borderId: number;
   readonly alignment: string;
   readonly protection: string;
+  readonly quotePrefix: boolean;
 }
 
 export class StyleRegistry {
@@ -84,7 +87,9 @@ export class StyleRegistry {
   readonly #borderIdBySignature = new Map<string, number>();
 
   // xf 0 is the default (no fill/font/border/alignment/protection, General format); further entries append as styles appear.
-  readonly #formats: CellFormat[] = [{fillId: 0, numFmtId: 0, fontId: 0, borderId: 0, alignment: '', protection: ''}];
+  readonly #formats: CellFormat[] = [
+    {fillId: 0, numFmtId: 0, fontId: 0, borderId: 0, alignment: '', protection: '', quotePrefix: false},
+  ];
   readonly #xfIndexBySignature = new Map<string, number>();
 
   // Differential styles (`<dxfs>`) that conditional formatting references by index. Fragments read
@@ -109,15 +114,24 @@ export class StyleRegistry {
     const borderId = style.border ? this.#internBorder(style.border) : 0;
     const alignment = style.alignment ? alignmentAttrs(style.alignment) : '';
     const protection = style.protection ? protectionAttrs(style.protection) : '';
-    if (fillId === 0 && numFmtId === 0 && fontId === 0 && borderId === 0 && alignment === '' && protection === '') {
+    const quotePrefix = style.quotePrefix === true;
+    if (
+      fillId === 0 &&
+      numFmtId === 0 &&
+      fontId === 0 &&
+      borderId === 0 &&
+      alignment === '' &&
+      protection === '' &&
+      !quotePrefix
+    ) {
       return 0;
     }
 
-    const signature = `fill:${fillId}|numFmt:${numFmtId}|font:${fontId}|border:${borderId}|align:${alignment}|protect:${protection}`;
+    const signature = `fill:${fillId}|numFmt:${numFmtId}|font:${fontId}|border:${borderId}|align:${alignment}|protect:${protection}|quote:${quotePrefix}`;
     let index = this.#xfIndexBySignature.get(signature);
     if (index === undefined) {
       index = this.#formats.length;
-      this.#formats.push({fillId, numFmtId, fontId, borderId, alignment, protection});
+      this.#formats.push({fillId, numFmtId, fontId, borderId, alignment, protection, quotePrefix});
       this.#xfIndexBySignature.set(signature, index);
     }
     return index;
@@ -252,9 +266,12 @@ function cellXf(format: CellFormat): string {
   const applyBorder = format.borderId !== 0 ? ' applyBorder="1"' : '';
   const applyAlignment = format.alignment !== '' ? ' applyAlignment="1"' : '';
   const applyProtection = format.protection !== '' ? ' applyProtection="1"' : '';
+  // `quotePrefix` is a CT_Xf attribute (after xfId, before the apply flags in schema order); it is
+  // its own switch — there is no `applyQuotePrefix` flag — so it is emitted only when set.
+  const quotePrefix = format.quotePrefix ? ' quotePrefix="1"' : '';
   const open =
     `<xf numFmtId="${format.numFmtId}" fontId="${format.fontId}" fillId="${format.fillId}" ` +
-    `borderId="${format.borderId}" xfId="0"` +
+    `borderId="${format.borderId}" xfId="0"${quotePrefix}` +
     `${applyNumberFormat}${applyFont}${applyFill}${applyBorder}${applyAlignment}${applyProtection}`;
   // Alignment and protection are child elements of the xf, in that schema order; an xf carrying
   // either (or both) is not self-closing, while a plain one stays self-closing as before.

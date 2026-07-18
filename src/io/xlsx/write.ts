@@ -1083,6 +1083,8 @@ function worksheetXml(
           border: cell.border ?? colDef?.border,
           alignment: cell.alignment ?? colDef?.alignment,
           protection: cell.protection ?? colDef?.protection,
+          // Quote-prefix is a cell-only flag; a column carries no such default to inherit.
+          quotePrefix: cell.quotePrefix,
         });
         return cellXml(cell, style, sharedRoles.get(cell.address), sharedStrings);
       })
@@ -1706,7 +1708,8 @@ function hasOwnStyle(cell: Cell): boolean {
     cell.font !== undefined ||
     cell.border !== undefined ||
     cell.alignment !== undefined ||
-    cell.protection !== undefined
+    cell.protection !== undefined ||
+    cell.quotePrefix === true
   );
 }
 
