@@ -2152,6 +2152,34 @@ const impl = {
     return {eager, streaming};
   },
 
+  // Merge A1:B1 with the value in the master (A1), then read the display text of the master and of a
+  // merged child (B1) → { masterText, childText, childThrew }. Addressing a covered cell resolves to
+  // its region's master, so a merged child's text mirrors the master and never throws.
+  mergedCellDisplayTextReport() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'Group';
+    ws.mergeCells('A1:B1');
+    const textOf = ref => {
+      const v = ws.getCell(ref).value;
+      return v === null || v === undefined ? '' : String(v);
+    };
+    let masterText = null;
+    let childText = null;
+    let childThrew = false;
+    try {
+      masterText = textOf('A1');
+    } catch {
+      masterText = null;
+    }
+    try {
+      childText = textOf('B1');
+    } catch {
+      childThrew = true;
+    }
+    return {masterText, childText, childThrew};
+  },
+
   // Write a sheet with a hidden column, then read it eagerly and through the streaming reader,
   // reporting each path's per-column hidden flags → { eager, stream, error }. The streaming reader
   // parses <col hidden> and surfaces it after the rows are drained, matching the eager oracle.
