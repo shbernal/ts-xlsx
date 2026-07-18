@@ -75,6 +75,16 @@ test('a noted workbook emits a comments part, a VML drawing, and a legacyDrawing
   assert.match(contentTypes, /PartName="\/xl\/comments1\.xml"/);
 });
 
+test('a note textbox auto-fits its text so a multi-line note is not clipped', () => {
+  const wb = new Workbook();
+  const ws = wb.addWorksheet('S');
+  ws.getCell('B2').note = 'line one\nline two\nline three';
+  const files = unzipSync(writeXlsx(wb));
+  const vml = strFromU8(files['xl/drawings/vmlDrawing1.vml'] as Uint8Array);
+  const style = (vml.match(/<v:textbox\b[^>]*\bstyle="([^"]*)"/) ?? [])[1] ?? '';
+  assert.match(style, /mso-fit-shape-to-text:t/, 'the textbox grows to fit its content');
+});
+
 test('a note-free workbook writes no comment or VML parts', () => {
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');

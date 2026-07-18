@@ -82,7 +82,7 @@ export function vmlDrawingXml(notes: readonly NoteCell[]): string {
         `z-index:${i + 1};visibility:hidden" fillcolor="#ffffe1" o:insetmode="auto">` +
         '<v:fill color2="#ffffe1"/><v:shadow on="t" color="black" obscured="t"/>' +
         '<v:path o:connecttype="none"/>' +
-        '<v:textbox style="mso-direction-alt:auto"><div style="text-align:left"></div></v:textbox>' +
+        '<v:textbox style="mso-direction-alt:auto;mso-fit-shape-to-text:t"><div style="text-align:left"></div></v:textbox>' +
         '<x:ClientData ObjectType="Note"><x:MoveWithCells/><x:SizeWithCells/>' +
         `<x:Anchor>${anchor}</x:Anchor><x:AutoFill>False</x:AutoFill>` +
         `<x:Row>${row0}</x:Row><x:Column>${col0}</x:Column></x:ClientData></v:shape>`
