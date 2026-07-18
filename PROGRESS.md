@@ -1754,6 +1754,26 @@ left. Remaining clusters: **comments** (note removal artifact), **merges** (trai
 iteration), **core-model** (merged child mirrors master), **types** (trailing-empty-cell iteration),
 **security** (workbook structure protection), **address-decoding** (non-canonical comments path).
 
+### 2026-07-18 batch 6 — security cluster drained (426 green, 15→13 skipped, 227→229 known-opens resolved, 0 regressions)
+The lone remaining **security** case closed (both behaviours `baseline: 'fail'`, so they resolve as
+FIXED `↑` rather than adding to the green count):
+- **Workbook structure protection survives a round-trip** *(source, new capability)* — the writer
+  dropped `<workbookProtection>` entirely, silently unlocking a file whose structure the author had
+  locked (`lockStructure="1"`), even though worksheet-level `<sheetProtection>` was already preserved. A
+  new `Workbook.protection` model (`src/core/workbook-protection.ts`: the three boolean lock flags
+  `lockStructure`/`lockWindows`/`lockRevision` plus a whitelisted, verbatim-preserved
+  password/agile-hash `credentials` bag) is now read from and written to `xl/workbook.xml` in
+  CT_Workbook order (**before `<sheets>`**). The reader accepts only the three known lock flags and the
+  whitelisted credential attributes (`workbookPassword`/`workbookAlgorithmName`/`workbookHashValue`/… and
+  the `revisions*` counterparts), so a hostile or unknown attribute is dropped rather than echoed back
+  into the output; the element is emitted only when the workbook actually declares protection, so an
+  unprotected workbook stays byte-clean.
+
+**Still skipped (13 assertions, 5 cases)** — no **styles**, **tables**, **xlsx-io**, **worksheet-decl**,
+or **security** left. Remaining clusters: **comments** (note removal artifact), **merges**
+(trailing-empty merged-row iteration), **core-model** (merged child mirrors master), **types**
+(trailing-empty-cell iteration), **address-decoding** (non-canonical comments path).
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
