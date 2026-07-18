@@ -1740,6 +1740,20 @@ clusters: **comments** (note removal artifact), **merges** (trailing-empty merge
 (workbook structure protection), **worksheet-decl** (hidden-state write), **address-decoding**
 (non-canonical comments path).
 
+### 2026-07-18 batch 5 — worksheet-decl cluster drained (423→426 green, 18→15 skipped, 0 regressions)
+The lone **worksheet-decl** case closed:
+- **Hidden / veryHidden state read back** *(source)* — the writer already emitted
+  `state="hidden"`/`state="veryHidden"` on the `<sheet>` entry, but the reader
+  (`parseWorkbookSheets`) silently discarded the attribute, so every sheet round-tripped visible. The
+  reader now captures `state`, accepting only the two legal non-default values (`hidden`/`veryHidden`);
+  any other string (hostile/unknown) falls through to the model default `visible`. `readXlsx` threads the
+  captured state into `addWorksheet(name, {state})`.
+
+**Still skipped (15 assertions, 6 cases)** — no **styles**, **tables**, **xlsx-io**, or **worksheet-decl**
+left. Remaining clusters: **comments** (note removal artifact), **merges** (trailing-empty merged-row
+iteration), **core-model** (merged child mirrors master), **types** (trailing-empty-cell iteration),
+**security** (workbook structure protection), **address-decoding** (non-canonical comments path).
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
