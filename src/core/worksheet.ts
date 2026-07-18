@@ -185,6 +185,9 @@ export interface PreservedWorksheetReference {
  * symmetric with how a {@link RowProperties} fill defaults a row's cells.
  */
 export interface ColumnProperties {
+  /** Stable key naming the column so a keyed-object row (see {@link Worksheet.addRow}) can place a
+   * value under it by name rather than position. In-memory only — it is not serialized to OOXML. */
+  key?: string;
   /** Column width in character units. */
   width?: number;
   /** Whether the column is hidden. */
@@ -206,6 +209,10 @@ export interface ColumnProperties {
   /** Whether this column is the collapsed summary of an outline group. */
   collapsed?: boolean;
 }
+
+/** A row handed to {@link Worksheet.addRow}: a positional array of cell values, or an object keyed by
+ * column {@link ColumnProperties.key} whose values land under the matching columns. */
+export type RowInput = CellValue[] | Record<string, CellValue>;
 
 /** A merged region as inclusive 1-based grid bounds. */
 interface MergeRect {
@@ -881,11 +888,14 @@ export class Worksheet {
    * Append a row of `values` after the last used row, returning the cells it materialised.
    * The append point is {@link rowCount}` + 1`, so the row lands below every row that holds
    * data or its own formatting — never overwriting existing content, unlike {@link insertRow},
-   * which shifts and needs a position. Values map to columns from A; a hole in a sparse array
-   * (`['a', , 'c']`) leaves that column untouched. Unlike {@link spliceRows}, appending shifts
-   * nothing, so it never disturbs merges or the rows above.
+   * which shifts and needs a position. Unlike {@link spliceRows}, appending shifts nothing, so
+   * it never disturbs merges or the rows above.
+   *
+   * A row takes either shape: a positional array whose values map to columns from A — a hole in a
+   * sparse array (`['a', , 'c']`) leaves that column untouched — or a keyed object whose values
+   * land under the columns carrying the matching {@link ColumnProperties.key}.
    */
-  addRow(values: CellValue[]): Cell[] {
+  addRow(values: RowInput): Cell[] {
     return this.addRows([values])[0] ?? [];
   }
 
@@ -893,20 +903,37 @@ export class Worksheet {
    * Append several rows after the last used row in one call, returning the cells materialised
    * for each. The rows stack in order — the first lands at {@link rowCount}` + 1`, the next
    * directly below it — so a later row never collides with an earlier one even when both are
-   * value-less. The bulk form of {@link addRow}.
+   * value-less. Each row is an array or a keyed object independently, so a mixed batch is fine.
+   * The bulk form of {@link addRow}.
    */
-  addRows(rows: CellValue[][]): Cell[][] {
+  addRows(rows: RowInput[]): Cell[][] {
     let number = this.rowCount;
     return rows.map(values => {
       number += 1;
       const cells: Cell[] = [];
-      values.forEach((value, index) => {
-        const cell = this.#cellAt(number, index + 1);
+      const place = (col: number, value: CellValue): void => {
+        const cell = this.#cellAt(number, col);
         cell.value = value;
         cells.push(cell);
-      });
+      };
+      // Array.isArray, not `instanceof Array`: a row built in another realm (a vm context, a browser
+      // iframe) is still an array but fails the identity check, and would then be walked as a keyed
+      // object — placing nothing.
+      if (Array.isArray(values)) {
+        values.forEach((value, index) => place(index + 1, value));
+      } else {
+        for (const [key, value] of Object.entries(values)) place(this.#columnIndexByKey(key), value);
+      }
       return cells;
     });
+  }
+
+  /** The 1-based index of the column carrying `key` (see {@link ColumnProperties.key}). */
+  #columnIndexByKey(key: string): number {
+    for (const [index, properties] of this.#columns) {
+      if (properties.key === key) return index;
+    }
+    throw new Error(`no column is keyed ${JSON.stringify(key)} — set getColumn(n).key first`);
   }
 
   /**

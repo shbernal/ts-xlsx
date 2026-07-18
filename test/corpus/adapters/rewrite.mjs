@@ -992,6 +992,52 @@ const impl = {
     return {loadedRowCount, finalRowCount: f.rowCount, rows};
   },
 
+  // Append rows in every shape (dense array, sparse array, keyed object, mixed batch), round-trip, and
+  // read them back letter-keyed by row number → { rows }. Column keys bind object values to columns;
+  // dense/sparse arrays map positionally with holes left empty; a numeric/date value survives typed.
+  appendRowShapes() {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getColumn(1).key = 'k1';
+    sheet.getColumn(2).key = 'k2';
+    sheet.addRow(['header']); // row 1 — keeps the checked rows at their stated numbers
+    sheet.addRow(['a', 'b', 'c']); // row 2 — dense positional array
+    // eslint-disable-next-line no-sparse-arrays
+    sheet.addRow(['x', , 'z']); // row 3 — sparse array, gap at column B
+    sheet.addRow({k1: 'o1', k2: 'o2'}); // row 4 — keyed object
+    sheet.addRow([7, new Date(Date.UTC(2021, 0, 2))]); // row 5 — number + date
+    sheet.addRows([['m1', 'm2'], {k1: 'n1'}]); // rows 6, 7 — mixed batch
+
+    const loaded = readXlsx(writeXlsx(workbook));
+    const s = loaded.getWorksheet('S');
+    const rows = {};
+    for (const {number, cells} of s.rows()) {
+      const row = {};
+      for (const cell of cells) row[encodeAddress(cell.col, number).match(/^[A-Z]+/)[0]] = normalizeStreamValue(cell.value);
+      rows[number] = row;
+    }
+    // Every checked column reads as null when the round-trip left it empty, so a gap is visible.
+    for (const n of Object.keys(rows)) for (const col of ['A', 'B', 'C']) rows[n][col] ??= null;
+    return {rows};
+  },
+
+  // Feed addRow an array built in another realm (a vm context): Array.isArray must recognize it so its
+  // elements fill columns → { isArrayCrossRealm, a, b, c }. `instanceof Array` would miss it and place
+  // nothing, walking it as a keyed object instead.
+  async crossRealmArrayRow() {
+    const vm = await import('node:vm');
+    const arr = vm.runInNewContext('[10, 20, 30]');
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.addRow(arr);
+    return {
+      isArrayCrossRealm: Array.isArray(arr),
+      a: sheet.getCell('A1').value ?? null,
+      b: sheet.getCell('B1').value ?? null,
+      c: sheet.getCell('C1').value ?? null,
+    };
+  },
+
   // Stream-read a styled workbook and rebuild it through the streaming writer, copying each cell's
   // value AND resolved style onto the new sheet → { copyError, loadOk, fontBold, fontColor, numFmt,
   // hasFill }. The streaming reader surfaces each cell's style facets, so the per-cell font, fill, and

@@ -526,3 +526,47 @@ test('a splice below a shared-formula group leaves the clone’s master address 
   sheet.spliceRows(5, 0, []);
   assert.equal(masterOf(sheet, 'B2'), 'B1', 'an untouched master keeps its original address');
 });
+
+test('addRow places a dense array left-to-right and skips holes in a sparse array', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.addRow(['a', 'b', 'c']);
+  // eslint-disable-next-line no-sparse-arrays
+  sheet.addRow(['x', , 'z']);
+  assert.deepEqual(
+    ['A1', 'B1', 'C1'].map(r => sheet.getCell(r).value),
+    ['a', 'b', 'c']
+  );
+  assert.strictEqual(sheet.getCell('A2').value, 'x');
+  assert.strictEqual(sheet.getCell('B2').value, null, 'the hole leaves its column untouched');
+  assert.strictEqual(sheet.getCell('C2').value, 'z');
+});
+
+test('addRow places a keyed object under the columns carrying the matching key', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getColumn(1).key = 'k1';
+  sheet.getColumn(2).key = 'k2';
+  sheet.addRow({k1: 'o1', k2: 'o2'});
+  assert.strictEqual(sheet.getCell('A1').value, 'o1');
+  assert.strictEqual(sheet.getCell('B1').value, 'o2');
+});
+
+test('addRow rejects a keyed object naming a column that has no key', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getColumn(1).key = 'k1';
+  assert.throws(() => sheet.addRow({missing: 1}), /no column is keyed/);
+});
+
+test('addRows populates a mixed batch of array- and object-shaped rows', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getColumn(1).key = 'k1';
+  sheet.getColumn(2).key = 'k2';
+  sheet.addRows([
+    ['m1', 'm2'],
+    {k1: 'n1'},
+  ]);
+  assert.deepEqual(
+    ['A1', 'B1'].map(r => sheet.getCell(r).value),
+    ['m1', 'm2']
+  );
+  assert.strictEqual(sheet.getCell('A2').value, 'n1', 'the object-shaped batch row is populated too');
+});
