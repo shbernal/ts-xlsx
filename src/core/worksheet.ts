@@ -542,6 +542,11 @@ export class Worksheet {
     for (const number of this.#rowProperties.keys()) {
       if (number > last) last = number;
     }
+    // A merged region occupies its whole rectangle even where the covered cells are empty, so a merge
+    // extending past the last populated row still belongs to the used range.
+    for (const rect of this.#mergeRects) {
+      if (rect.bottom > last) last = rect.bottom;
+    }
     return last;
   }
 
@@ -568,6 +573,9 @@ export class Worksheet {
     }
     for (const index of this.#columns.keys()) {
       if (index > last) last = index;
+    }
+    for (const rect of this.#mergeRects) {
+      if (rect.right > last) last = rect.right;
     }
     return last;
   }

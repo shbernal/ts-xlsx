@@ -2152,6 +2152,34 @@ const impl = {
     return {eager, streaming};
   },
 
+  // Merge A1:B3 with values only in A1/A2, round-trip, then iterate every used-range position
+  // (include-empty) and report → { rowCount, visited, a3: { visited, isMerged, master } }. A merge
+  // reaching into an otherwise-empty trailing row keeps that row within the bounds, so A3 is visited
+  // and resolves to its master A1 rather than being skipped.
+  trailingMergedRowIterationReport() {
+    const wb = new Workbook();
+    const s = wb.addWorksheet('S');
+    s.getCell('A1').value = 'top';
+    s.getCell('A2').value = 'data';
+    s.mergeCells('A1:B3');
+    const rs = readXlsx(writeXlsx(wb)).worksheets[0];
+    const rects = rs.merges.map(range => {
+      const {top, left, bottom, right} = decodeRange(range);
+      return {top, left, bottom, right, masterRef: encodeAddress(left, top)};
+    });
+    const masterOf = (row, col) => rects.find(r => row >= r.top && row <= r.bottom && col >= r.left && col <= r.right);
+    const visited = [];
+    for (let row = 1; row <= rs.rowCount; row++) {
+      for (let col = 1; col <= rs.columnCount; col++) visited.push(encodeAddress(col, row));
+    }
+    const a3Rect = masterOf(3, 1);
+    return {
+      rowCount: rs.rowCount,
+      visited,
+      a3: {visited: visited.includes('A3'), isMerged: a3Rect !== undefined, master: a3Rect ? a3Rect.masterRef : null},
+    };
+  },
+
   // Build a workbook from a spec, round-trip it, and for each requested row report the column indices
   // an include-empty iteration yields → { rows: { <n>: { cols } }, columnCount }. Positional iteration
   // walks 1..columnCount (the sheet's declared width), so interior *and* trailing empties are surfaced

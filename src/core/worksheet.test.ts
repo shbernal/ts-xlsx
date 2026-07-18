@@ -476,6 +476,15 @@ test('a table column style bakes into the body cells addRow writes', () => {
   assert.equal(sheet.getCell('B3').numFmt, undefined);
 });
 
+test('a merged range extends the used-range bounds past the last populated cell', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'top';
+  sheet.getCell('A2').value = 'data';
+  sheet.mergeCells('A1:B3');
+  assert.equal(sheet.rowCount, 3, 'the merge reaches row 3, so row 3 is within the bounds');
+  assert.equal(sheet.columnCount, 2, 'the merge reaches column B, so column 2 is within the bounds');
+});
+
 test('spliceColumns removes the requested columns and shifts the rest left', () => {
   const sheet = new Worksheet('S', 1);
   ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => (sheet.getCell(`${L}1`).value = `c${i + 1}`));
