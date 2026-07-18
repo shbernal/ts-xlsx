@@ -1800,6 +1800,16 @@ source fix:
 regressions, 0 skipped.** Remaining `↑`/`○` entries are legacy `baseline: 'fail'` known-opens the rewrite
 resolves (234) or a handful still genuinely open (e.g. the outline `collapsed` summary-row flag).
 
+### 2026-07-19 — genuine known-open drained: comment note auto-fit *(styles, source)*
+
+- **A cell note textbox auto-fits its text so a multi-line note is not clipped** *(styles, **source**)* —
+  the comment VML `<v:textbox>` declared only `mso-direction-alt:auto`, so the host renders the note popup
+  at a fixed default size and clips multi-line text (upstream users post-processed the zip to inject the
+  directive). `vmlDrawingXml` now emits `mso-fit-shape-to-text:t` on the textbox style, so the note grows
+  to its content. Rewrite adapter resolves it (`↑`); the legacy adapter still carries the bug (`○`).
+  Rewrite corpus: **434 green, 235 legacy known-opens resolved, 0 regressions**; 2 genuine known-opens
+  remain (custom `<indexedColors>` palette round-trip; the outline `collapsed` summary-row flag).
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
