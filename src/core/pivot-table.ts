@@ -52,6 +52,15 @@ const PIVOT_METRICS: ReadonlySet<PivotMetric> = new Set<PivotMetric>([
   'varp',
 ]);
 
+/** Map an OOXML `<dataField subtotal="…">` value back to its metric. The attribute is absent for
+ * `sum` (Excel's implicit default), so `undefined` reads as `sum`; an unrecognised value also reads
+ * as `sum` rather than throwing, because reconstructing an existing file is a lenient operation —
+ * the strict rejection of unknown metrics belongs on the authoring path, not the read path. */
+export function pivotMetricFromSubtotal(subtotal: string | undefined): PivotMetric {
+  if (subtotal === undefined) return 'sum';
+  return PIVOT_METRICS.has(subtotal as PivotMetric) ? (subtotal as PivotMetric) : 'sum';
+}
+
 /** How a pivot table is authored: a source sheet and the header names that drive each axis.
  * `rows`/`columns`/`values` name columns by their header text in the source's first row. */
 export interface PivotTableOptions {

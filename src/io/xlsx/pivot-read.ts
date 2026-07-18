@@ -1,0 +1,160 @@
+// Reading a pivot table back from its OOXML parts — the inverse of `pivot.ts`.
+//
+// A written pivot round-trips today by byte-preservation: the reader keeps the pivot parts verbatim
+// and re-emits them. That keeps the file faithful, but leaves the pivot opaque to the model — a
+// `.model` copy cannot carry a pivot it cannot see. This module reconstructs the *semantic* shape of
+// a pivot (its source, field roles, value field, and aggregation) from the `pivotTableDefinition`
+// and its `pivotCacheDefinition`, so a loaded pivot becomes inspectable data rather than an opaque
+// blob.
+//
+// Read leniently: these parts describe a file that already exists, so a missing or unrecognised
+// attribute yields a sensible default rather than a throw — the strict invariants belong on the
+// authoring path (`core/pivot-table.ts`), not here. A hostile part therefore degrades to an
+// incomplete model; it never crashes the reader.
+
+import {type PivotMetric, pivotMetricFromSubtotal} from '../../core/pivot-table.ts';
+import {localName, parseXml} from './xml-read.ts';
+
+/** One field in the pivot cache's catalogue, in declared order; a pivot table refers to it by index. */
+export interface ParsedPivotField {
+  readonly name: string;
+}
+
+/** Where a worksheet-backed pivot cache draws its rows from. Empty strings stand in for a cache whose
+ * source is not a worksheet (an external or consolidation source), which this reader does not model. */
+export interface ParsedPivotSource {
+  readonly sheet: string;
+  readonly ref: string;
+}
+
+/** The semantic model reconstructed from a pivot's `pivotTableDefinition` and `pivotCacheDefinition`.
+ * Field roles are indices into {@link fields}; {@link metric} is the aggregation the value field
+ * applies. This mirrors the authoring model's shape without requiring the source sheet it was built
+ * from, so a loaded pivot is inspectable — and, in a later slice, carryable through a `.model` copy. */
+export interface ParsedPivotTable {
+  readonly name: string;
+  readonly cacheId: string;
+  readonly source: ParsedPivotSource;
+  readonly fields: readonly ParsedPivotField[];
+  readonly rowFields: readonly number[];
+  readonly columnFields: readonly number[];
+  /** Index into {@link fields} of the aggregated field, or -1 when no `<dataField>` was declared. */
+  readonly valueField: number;
+  readonly valueFieldName: string;
+  /** The `<dataField>`'s own caption ("Average of Amount"), which Excel shows on the data column. */
+  readonly valueCaption: string;
+  readonly metric: PivotMetric;
+}
+
+/** Reconstruct a pivot's semantic model from its two definition parts. The records part is not
+ * consulted: the cache's field catalogue and the table's field roles fully describe the pivot's
+ * shape, and the aggregated values are Excel's to compute on refresh. */
+export function parsePivotTable(tableXml: string, cacheXml: string): ParsedPivotTable {
+  const {fields, source} = parsePivotCacheDefinition(cacheXml);
+  const def = parsePivotTableDefinition(tableXml);
+  return {
+    name: def.name,
+    cacheId: def.cacheId,
+    source,
+    fields,
+    rowFields: def.rowFields,
+    columnFields: def.columnFields,
+    valueField: def.valueField,
+    valueFieldName: fields[def.valueField]?.name ?? '',
+    valueCaption: def.valueCaption,
+    metric: def.metric,
+  };
+}
+
+/** The field catalogue and worksheet source from a `pivotCacheDefinition`. Fields are collected in
+ * document order — the order a table's `fld`/`x` indices address them by. */
+function parsePivotCacheDefinition(cacheXml: string): {
+  fields: ParsedPivotField[];
+  source: ParsedPivotSource;
+} {
+  const fields: ParsedPivotField[] = [];
+  let source: ParsedPivotSource = {sheet: '', ref: ''};
+  parseXml(cacheXml, {
+    onOpen(name, attrs) {
+      const local = localName(name);
+      if (local === 'cacheField' && attrs.name !== undefined) {
+        fields.push({name: attrs.name});
+      } else if (local === 'worksheetSource') {
+        source = {sheet: attrs.sheet ?? '', ref: attrs.ref ?? ''};
+      }
+    },
+    onText() {},
+    onClose() {},
+  });
+  return {fields, source};
+}
+
+/** The layout half of a pivot: its name, cache id, axis field roles, and the single value field.
+ * `<field x>` appears identically inside `<rowFields>` and `<colFields>`, so the current container is
+ * tracked to route each into the right axis. Only the first `<dataField>` is modeled — the authoring
+ * model supports one value field — and any further ones are ignored rather than rejected. */
+function parsePivotTableDefinition(tableXml: string): {
+  name: string;
+  cacheId: string;
+  rowFields: number[];
+  columnFields: number[];
+  valueField: number;
+  valueCaption: string;
+  metric: PivotMetric;
+} {
+  let name = '';
+  let cacheId = '';
+  const rowFields: number[] = [];
+  const columnFields: number[] = [];
+  let valueField = -1;
+  let valueCaption = '';
+  let metric: PivotMetric = 'sum';
+  let seenDataField = false;
+  let axis: 'row' | 'col' | null = null;
+
+  parseXml(tableXml, {
+    onOpen(elementName, attrs) {
+      switch (localName(elementName)) {
+        case 'pivotTableDefinition':
+          name = attrs.name ?? '';
+          cacheId = attrs.cacheId ?? '';
+          break;
+        case 'rowFields':
+          axis = 'row';
+          break;
+        case 'colFields':
+          axis = 'col';
+          break;
+        case 'field': {
+          if (axis === null) break;
+          const index = toIndex(attrs.x);
+          if (index >= 0) (axis === 'row' ? rowFields : columnFields).push(index);
+          break;
+        }
+        case 'dataField': {
+          if (seenDataField) break;
+          seenDataField = true;
+          valueField = toIndex(attrs.fld);
+          valueCaption = attrs.name ?? '';
+          metric = pivotMetricFromSubtotal(attrs.subtotal);
+          break;
+        }
+      }
+    },
+    onText() {},
+    onClose(elementName) {
+      const local = localName(elementName);
+      if (local === 'rowFields' || local === 'colFields') axis = null;
+    },
+  });
+
+  return {name, cacheId, rowFields, columnFields, valueField, valueCaption, metric};
+}
+
+/** Parse a non-negative field index attribute, or -1 when it is absent or not a whole number — a
+ * hostile `x="../etc"` can never become a wild array index this way. */
+function toIndex(value: string | undefined): number {
+  if (value === undefined) return -1;
+  const index = Number(value);
+  return Number.isInteger(index) && index >= 0 ? index : -1;
+}
