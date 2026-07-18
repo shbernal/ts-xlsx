@@ -99,7 +99,12 @@ export class StyleRegistry {
    */
   styleId(style: CellStyle): number {
     const fillId = style.fill && style.fill.pattern !== 'none' ? this.#internFill(style.fill) : 0;
-    const numFmtId = style.numFmt !== undefined && style.numFmt !== '' ? this.#internNumFmt(style.numFmt) : 0;
+    // A number format is a format-code *string*; a caller that assigns a structured object (e.g. a
+    // parsed `{id, formatCode}` copied from another cell) must not have it stringified into the styles
+    // part as `formatCode="[object Object]"`, which Excel reports as a corrupt package. A non-string
+    // format is dropped to the General format rather than corrupting the file.
+    const numFmtId =
+      typeof style.numFmt === 'string' && style.numFmt !== '' ? this.#internNumFmt(style.numFmt) : 0;
     const fontId = style.font ? this.#internFont(style.font) : 0;
     const borderId = style.border ? this.#internBorder(style.border) : 0;
     const alignment = style.alignment ? alignmentAttrs(style.alignment) : '';
@@ -329,7 +334,7 @@ export function dxfXml(style: DifferentialStyle): string {
   }
   // A dxf numFmt still needs an id; the code is what matters (dxf formats are not shared by id like
   // cell formats), so a fixed custom id carries it without a <numFmts> entry.
-  if (style.numFmt !== undefined && style.numFmt !== '') {
+  if (typeof style.numFmt === 'string' && style.numFmt !== '') {
     parts.push(`<numFmt numFmtId="${CUSTOM_NUMFMT_BASE}" formatCode="${escapeFormatCode(style.numFmt)}"/>`);
   }
   if (style.fill !== undefined) parts.push(dxfFillXml(style.fill));

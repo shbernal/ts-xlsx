@@ -1148,6 +1148,31 @@ const impl = {
     };
   },
 
+  // Assign a valid format-code string (alongside font/alignment/protection) to one cell and a
+  // structured OBJECT (a parsed `{id, formatCode}` shape) to another, write, and report the string's
+  // survival plus whether the styles part was corrupted → { controlNumFmtReload, stylesHasObjectObject }.
+  // The object must never serialize as `formatCode="[object Object]"`.
+  numFmtObjectCorruptionReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    const control = sheet.getCell('A1');
+    control.value = 45000;
+    control.numFmt = 'yyyy-mmm-dd';
+    control.font = {bold: true};
+    control.alignment = {horizontal: 'center'};
+    control.protection = {locked: false};
+    const bad = sheet.getCell('A2');
+    bad.value = 42;
+    // A caller wrongly assigns the structured numFmt object Excel parses a cell's format into.
+    bad.numFmt = {id: 164, formatCode: '0.00'};
+    const stylesXml = partMapOf(writeXlsx(wb))['xl/styles.xml'] || '';
+    const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    return {
+      controlNumFmtReload: back.getCell('A1').numFmt ?? null,
+      stylesHasObjectObject: stylesXml.includes('[object Object]'),
+    };
+  },
+
   // Inject a `<f t="dataTable">` into a written sheet, read it back, and re-write → { reloadOk,
   // readShareType, readRef, readResult, outHasDataTable }. The reader must surface the data-table
   // kind/range/result, and a read-modify-write must re-emit t="dataTable" rather than dropping it.

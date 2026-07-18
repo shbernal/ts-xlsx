@@ -305,3 +305,20 @@ test('protection is an independent facet composed alongside fill, font, and bord
   const pFillFont = styles.styleId({protection: {locked: false}, fill: solid('FFFF0000'), font: {bold: true}});
   assert.equal(new Set([p, pFill, pFillFont]).size, 3, 'each added facet is a distinct composed style');
 });
+
+test('a non-string number format is dropped rather than corrupting the styles part', () => {
+  const styles = new StyleRegistry();
+  // A caller wrongly assigns a structured `{id, formatCode}` object where a format-code string belongs.
+  const id = styles.styleId({numFmt: {id: 164, formatCode: '0.00'} as unknown as string});
+  assert.equal(id, 0, 'a non-string numFmt contributes no style — it resolves to the default xf 0');
+  const xml = styles.toXml();
+  assert.doesNotMatch(xml, /\[object Object\]/, 'the styles part must never carry a stringified object');
+  assert.doesNotMatch(xml, /<numFmts/, 'no custom numFmt entry is emitted for the dropped object');
+});
+
+test('a valid format-code string still interns alongside other facets', () => {
+  const styles = new StyleRegistry();
+  const id = styles.styleId({numFmt: 'yyyy-mmm-dd', font: {bold: true}, protection: {locked: false}});
+  assert.notEqual(id, 0, 'the string format composes into a real style');
+  assert.match(styles.toXml(), /formatCode="yyyy-mmm-dd"/);
+});
