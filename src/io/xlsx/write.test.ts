@@ -262,6 +262,53 @@ test('a collapsed flag is emitted only where set, not on sibling rows', () => {
   assert.match(xml, /<row r="3" collapsed="1">/);
 });
 
+test('a fully-hidden outline group derives the collapsed toggle onto its summary row', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'top';
+  for (const r of [2, 3, 4]) {
+    s.getCell(`A${r}`).value = `d${r}`;
+    s.getRow(r).outlineLevel = 1;
+    s.getRow(r).hidden = true;
+  }
+  s.getCell('A5').value = 'summary';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  // Summary-below is Excel's default: the summary row terminates the group from beneath and carries
+  // the collapse toggle, so the outline expands in a single click.
+  assert.match(xml, /<row r="5"[^>]*\bcollapsed="1"/, 'the summary row carries the collapse toggle');
+  // The hidden detail rows themselves never carry it.
+  assert.doesNotMatch(xml, /<row r="2"[^>]*collapsed/);
+  assert.doesNotMatch(xml, /<row r="4"[^>]*collapsed/);
+});
+
+test('a partially-visible outline group derives no collapsed summary', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A2').value = 'd2';
+  s.getCell('A3').value = 'd3';
+  s.getCell('A4').value = 'summary';
+  s.getRow(2).outlineLevel = 1;
+  s.getRow(2).hidden = true;
+  // Row 3 is grouped but visible — the group is expanded, so nothing is collapsed.
+  s.getRow(3).outlineLevel = 1;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /collapsed/);
+});
+
+test('with summary-above outlines, the collapse toggle derives onto the row above the group', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.outline.summaryBelow = false;
+  s.getCell('A1').value = 'summary';
+  for (const r of [2, 3, 4]) {
+    s.getCell(`A${r}`).value = `d${r}`;
+    s.getRow(r).outlineLevel = 1;
+    s.getRow(r).hidden = true;
+  }
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<row r="1"[^>]*\bcollapsed="1"/, 'the summary sits above its detail group');
+});
+
 test('sheet default row height and column width land on <sheetFormatPr>', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');

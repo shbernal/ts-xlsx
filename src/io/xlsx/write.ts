@@ -1078,6 +1078,10 @@ function worksheetXml(
   // precedes its master or its master carries no formula.
   const sharedRoles = planSharedFormulas(sheet);
 
+  // A fully-hidden outline group's collapse toggle belongs on its summary row; derive that set once
+  // so the row loop can stamp it even onto a summary row that carries no properties of its own.
+  const collapsedSummaries = collapsedSummaryRows(sheet);
+
   const rowXml: string[] = [];
   let top = Infinity;
   let left = Infinity;
@@ -1089,7 +1093,7 @@ function worksheetXml(
     // cell (a fill/border on a null value) is a real cell to Excel, and dropping it would lose the
     // formatting. A cell with neither is inherited from its row/column and needs no element of its own.
     const rendered = cells.filter(cell => cell.value !== null || hasOwnStyle(cell));
-    const attrs = rowAttrs(properties, styles);
+    const attrs = rowAttrs(properties, styles, collapsedSummaries.has(number));
     // A row with neither data nor its own formatting has nothing to serialise.
     if (rendered.length === 0 && attrs === '') continue;
     const rowFill = properties?.fill;
@@ -1627,20 +1631,58 @@ function rowBreaksXml(breaks: readonly PageBreak[]): string {
   return `<rowBreaks count="${breaks.length}" manualBreakCount="${breaks.length}">${brks}</rowBreaks>`;
 }
 
-function rowAttrs(properties: RowProperties | undefined, styles: StyleRegistry): string {
-  if (properties === undefined) return '';
+function rowAttrs(
+  properties: RowProperties | undefined,
+  styles: StyleRegistry,
+  collapsedSummary: boolean
+): string {
+  if (properties === undefined) return collapsedSummary ? ' collapsed="1"' : '';
   let attrs = '';
   if (properties.height !== undefined) attrs += ` ht="${numberText(properties.height)}" customHeight="1"`;
   if (properties.hidden) attrs += ' hidden="1"';
   if (properties.outlineLevel !== undefined && properties.outlineLevel > 0) {
     attrs += ` outlineLevel="${properties.outlineLevel}"`;
   }
-  if (properties.collapsed) attrs += ' collapsed="1"';
+  // The collapse toggle is set explicitly by the author, or derived onto a summary row whose whole
+  // detail group is hidden (see {@link collapsedSummaryRows}). It rides the summary row, never the
+  // detail rows.
+  if (properties.collapsed || collapsedSummary) attrs += ' collapsed="1"';
   // A row-level fill is a default format for the row's cells; customFormat="1" is what makes
   // Excel honour the row's `s`, and a cell without its own `s` then inherits it.
   const style = styles.styleId({fill: properties.fill});
   if (style !== 0) attrs += ` s="${style}" customFormat="1"`;
   return attrs;
+}
+
+// A collapsed outline group is two coordinated facts: its detail rows carry outlineLevel and are
+// hidden, AND the summary row that terminates the group carries `collapsed`. Authors typically set
+// only outlineLevel + hidden on the detail rows, so the summary flag is derived here rather than
+// demanded of the caller: a row is a collapsed summary iff its adjacent detail run — the contiguous
+// higher-outline-level rows on the summary side — is non-empty and every row in it is hidden.
+// Placement follows the sheet's summaryBelow flag (Excel's default is summary below the detail); the
+// walk stops at the first row of level <= the summary's own, so a gap or a boundary ends the group.
+function collapsedSummaryRows(sheet: Worksheet): Set<number> {
+  const level = new Map<number, number>();
+  const hidden = new Map<number, boolean>();
+  for (const {number, properties} of sheet.rows()) {
+    level.set(number, properties?.outlineLevel ?? 0);
+    hidden.set(number, properties?.hidden ?? false);
+  }
+  const levelOf = (row: number): number => level.get(row) ?? 0;
+  const step = sheet.outline.summaryBelow === false ? 1 : -1;
+  const summaries = new Set<number>();
+  for (const [summary, summaryLevel] of level) {
+    let detail = summary + step;
+    let sawDetail = false;
+    let allHidden = true;
+    while (levelOf(detail) > summaryLevel) {
+      sawDetail = true;
+      if (!hidden.get(detail)) allHidden = false;
+      detail += step;
+    }
+    if (sawDetail && allHidden) summaries.add(summary);
+  }
+  return summaries;
 }
 
 // A valid Date — whether the cell's own value or a formula's cached result — with no format of its
