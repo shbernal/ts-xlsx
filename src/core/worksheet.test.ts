@@ -254,6 +254,28 @@ test('a model round-trip carries tables and sheet-level protection', () => {
   assert.notEqual(dst.protection, undefined);
 });
 
+test('a model round-trip carries the autofilter, criteria and all', () => {
+  const src = new Worksheet('Src', 1);
+  src.autoFilter = {
+    ref: 'A1:C10',
+    columns: [{colId: 1, criteria: {kind: 'values', values: ['West'], blank: false}}],
+  };
+
+  const dst = new Worksheet('Dst', 2);
+  dst.model = src.model;
+
+  assert.deepEqual(dst.autoFilter, src.autoFilter);
+});
+
+test('assigning a model clears an autofilter the destination held, leaving no residue', () => {
+  const dst = new Worksheet('Dst', 2);
+  dst.autoFilter = 'Y1:Z9';
+
+  dst.model = new Worksheet('Src', 1).model;
+
+  assert.equal(dst.autoFilter, undefined);
+});
+
 test('assigning a model replaces content wholesale, leaving no residue', () => {
   const dst = new Worksheet('Dst', 2);
   dst.getCell('Z9').value = 'stale';

@@ -267,11 +267,18 @@ export interface CellModel {
 }
 
 /**
- * A serialisable snapshot of a worksheet's transferable content — everything that defines the
- * sheet apart from its identity (`name`, `id`). {@link Worksheet.model} exports one; assigning it
- * back reproduces the sheet. The getter and setter cover exactly the same fields, so a
- * `dst.model = src.model` round-trip drops nothing — an export field the import ignored would
+ * A serialisable snapshot of a worksheet's value and overlay content — its cells and their styles,
+ * the column/row/page metadata, and the sheet-level overlays (merges, data validations, conditional
+ * formattings, tables, the autofilter, protection). {@link Worksheet.model} exports one; assigning
+ * it back reproduces that content. The getter and setter cover exactly the same fields, so a
+ * `dst.model = src.model` round-trip drops none of it — an export field the import ignored would
  * silently lose data, the historical merge-loss failure this contract exists to prevent.
+ *
+ * Out of scope by design: content that carries workbook-level identity rather than pure sheet
+ * state — anchored and background images (their bytes live on the {@link Workbook}), pivot tables
+ * (their source references a live worksheet), and byte-preserved parts (charts, vector drawings,
+ * slicers) kept verbatim for round-tripping. These stay with their source sheet; a model assignment
+ * neither copies nor clears them.
  */
 export interface WorksheetModel {
   state: WorksheetState['state'];
@@ -288,6 +295,7 @@ export interface WorksheetModel {
   dataValidations: DataValidationEntry[];
   conditionalFormattings: ConditionalFormatting[];
   tables: TableOptions[];
+  autoFilter: AutoFilter | undefined;
   protection: SheetProtection | undefined;
 }
 
@@ -1124,11 +1132,13 @@ export class Worksheet {
   }
 
   /**
-   * A snapshot of this sheet's transferable content (see {@link WorksheetModel}). Reading it and
-   * assigning it onto another sheet — `dst.model = src.model` — clones the source: merges, cells and
-   * their styles, column/row metadata, tables, protection, and the page setup all survive, because
-   * the getter emits and the setter consumes exactly the same fields. Identity (`name`, `id`) is not
-   * part of the model and is never touched by assignment.
+   * A snapshot of this sheet's value and overlay content (see {@link WorksheetModel}). Reading it and
+   * assigning it onto another sheet — `dst.model = src.model` — reproduces the source: merges, cells
+   * and their styles, column/row metadata, tables, the autofilter, protection, and the page setup all
+   * survive, because the getter emits and the setter consumes exactly the same fields. Identity
+   * (`name`, `id`) is not part of the model and is never touched by assignment; nor are attached parts
+   * that carry workbook-level identity (images, pivots, byte-preserved charts/drawings) — see
+   * {@link WorksheetModel} for that boundary.
    */
   get model(): WorksheetModel {
     const cells: CellModel[] = [];
@@ -1167,6 +1177,7 @@ export class Worksheet {
       })),
       conditionalFormattings: this.#conditionalFormattings.map(cloneConditionalFormatting),
       tables: this.#tables.map(table => table.options),
+      autoFilter: this.#autoFilter,
       protection: this.#protection,
     };
   }
@@ -1213,6 +1224,9 @@ export class Worksheet {
     }
     for (const formatting of model.conditionalFormattings) this.addConditionalFormatting(formatting);
     for (const options of model.tables) this.addTable(options);
+    // Assigning through the setter (rather than the private field) re-canonicalises and, on undefined,
+    // clears any autofilter the destination held — the wholesale-replace contract, no residue.
+    this.autoFilter = model.autoFilter;
   }
 
   /**
