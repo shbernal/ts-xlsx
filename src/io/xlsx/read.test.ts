@@ -1137,3 +1137,31 @@ test('page setup survives a worksheet model export/import', () => {
   assert.equal(dst.pageSetup.fitToPage, true);
   assert.equal(dst.pageSetup.scale, 75);
 });
+
+test('a sheet-list entry\'s state attribute is read back as the worksheet visibility state', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Visible').getCell('A1').value = 'v';
+  wb.addWorksheet('Hid', {state: 'hidden'}).getCell('A1').value = 'h';
+  wb.addWorksheet('VeryHid', {state: 'veryHidden'}).getCell('A1').value = 'y';
+  const back = roundtrip(wb);
+  assert.equal(back.getWorksheet('Visible')?.state, 'visible');
+  assert.equal(back.getWorksheet('Hid')?.state, 'hidden');
+  assert.equal(back.getWorksheet('VeryHid')?.state, 'veryHidden');
+});
+
+test('an unknown state attribute on a sheet-list entry falls back to visible, not the raw string', () => {
+  const files: Record<string, Uint8Array> = {
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" state="bogus" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData/></worksheet>'
+    ),
+  };
+  assert.equal(readXlsx(zipSync(files)).getWorksheet('S')?.state, 'visible');
+});

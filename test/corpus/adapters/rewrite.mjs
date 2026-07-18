@@ -2018,6 +2018,30 @@ const impl = {
     return {sourceBreaks, loadedBreaks, rewrittenBreaks};
   },
 
+  // Author a workbook whose sheets carry each visibility state (a valid workbook keeps one visible),
+  // then report the state read back after a round-trip and the state attribute the workbook.xml
+  // sheet-list entry carries → { readStates, xmlStates }, each keyed by sheet name. veryHidden — a
+  // format-only state — must survive both as the model state and as the sheet-list attribute, never
+  // degrading to hidden or visible.
+  worksheetStateReport() {
+    const wb = new Workbook();
+    wb.addWorksheet('Visible');
+    wb.addWorksheet('Hid', {state: 'hidden'});
+    wb.addWorksheet('VeryHid', {state: 'veryHidden'});
+    const buffer = writeXlsx(wb);
+    const readStates = {};
+    for (const sheet of readXlsx(buffer).worksheets) readStates[sheet.name] = sheet.state;
+    const workbookXml = partMapOf(buffer)['xl/workbook.xml'] ?? '';
+    const xmlStates = {};
+    for (const m of workbookXml.matchAll(/<sheet\b([^>]*)\/?>/g)) {
+      const attrs = m[1];
+      const name = attrs.match(/\bname="([^"]*)"/)?.[1];
+      if (name === undefined) continue;
+      xmlStates[name] = attrs.match(/\bstate="([^"]*)"/)?.[1] ?? 'visible';
+    }
+    return {readStates, xmlStates};
+  },
+
   // Read a fixture and report its defined names as { <name>: [refersTo…] }, mirroring the oracle.
   // The model retains every name as its own entry rather than keying by name, so two same-named
   // names scoped to different sheets both survive — the scope collision that drops one on the

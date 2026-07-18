@@ -53,6 +53,7 @@ import type {
   PreservedRelationship,
   PreservedWorksheetReference,
   Worksheet,
+  WorksheetState,
 } from '../../core/worksheet.ts';
 import {decodeCellContent, decodeFormulaResult, type SharedString} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
@@ -128,9 +129,9 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // workbook image so a re-write does not duplicate the bytes.
   const imageIdByMediaPath = new Map<string, number>();
   const sheetOrder: string[] = [];
-  for (const {name, relId} of parseWorkbookSheets(workbookXml)) {
+  for (const {name, relId, state} of parseWorkbookSheets(workbookXml)) {
     const target = rels.get(relId);
-    const sheet = workbook.addWorksheet(name);
+    const sheet = workbook.addWorksheet(name, state === undefined ? undefined : {state});
     sheetOrder.push(name);
     const path = target === undefined ? undefined : resolveWorkbookPart(target);
     const sheetXml = path === undefined ? undefined : partText(path);
@@ -649,12 +650,19 @@ export function parseRelationships(xml: string): Map<string, string> {
   return rels;
 }
 
-export function parseWorkbookSheets(xml: string): Array<{name: string; relId: string}> {
-  const sheets: Array<{name: string; relId: string}> = [];
+export function parseWorkbookSheets(
+  xml: string,
+): Array<{name: string; relId: string; state?: WorksheetState['state']}> {
+  const sheets: Array<{name: string; relId: string; state?: WorksheetState['state']}> = [];
   parseXml(xml, {
     onOpen(name, attrs) {
       if (localName(name) === 'sheet') {
-        sheets.push({name: attrs.name ?? '', relId: attrs['r:id'] ?? ''});
+        const entry: {name: string; relId: string; state?: WorksheetState['state']} = {
+          name: attrs.name ?? '',
+          relId: attrs['r:id'] ?? '',
+        };
+        if (attrs.state === 'hidden' || attrs.state === 'veryHidden') entry.state = attrs.state;
+        sheets.push(entry);
       }
     },
     onText() {},
