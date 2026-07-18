@@ -140,6 +140,29 @@ test('a column width emits a <col> with customWidth', () => {
   assert.match(xml, /<cols><col min="2" max="2" width="12" customWidth="1"\/><\/cols>/);
 });
 
+test('adjacent equivalent columns coalesce into a single <col> span', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  for (let i = 1; i <= 4; i++) {
+    const c = s.getColumn(i);
+    c.width = 12;
+    c.outlineLevel = 1;
+  }
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<col min="1" max="4" width="12" customWidth="1" outlineLevel="1"\/>/);
+  assert.equal((xml.match(/<col\b/g) ?? []).length, 1, 'four equivalent columns collapse to one span');
+});
+
+test('columns that differ are not coalesced', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getColumn(1).width = 12;
+  s.getColumn(2).width = 20;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<col min="1" max="1" width="12"/);
+  assert.match(xml, /<col min="2" max="2" width="20"/);
+});
+
 test('a hidden column emits hidden="1" and needs no width', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');

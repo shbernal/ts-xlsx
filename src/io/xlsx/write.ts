@@ -1516,19 +1516,35 @@ function sheetFormatPr(properties: WorksheetProperties): string {
 }
 
 function colsXml(sheet: Worksheet, styles: StyleRegistry): string {
-  const cols: string[] = [];
+  // Runs of adjacent columns that carry identical definitions are coalesced into a single
+  // `<col min max>` span — Excel writes columns this way, and it keeps the part compact for a
+  // sheet whose columns share a width or outline level. A gap in the indices or any difference
+  // in the emitted attributes breaks the run.
+  const runs: {min: number; max: number; body: string}[] = [];
   for (const {index, properties} of sheet.columns()) {
     // OOXML has no column past XFD (16384); a definition beyond it is corrupt to Excel,
     // so drop it rather than emit an out-of-range <col> range.
     if (index > MAX_COLUMN) continue;
-    const col = colXml(index, properties, styles);
-    if (col !== '') cols.push(col);
+    const body = colBody(properties, styles);
+    // A <col> with no width, visibility, or style says nothing; omit it entirely.
+    if (body === null) continue;
+    const last = runs[runs.length - 1];
+    if (last !== undefined && last.max === index - 1 && last.body === body) {
+      last.max = index;
+    } else {
+      runs.push({min: index, max: index, body});
+    }
   }
-  return cols.length === 0 ? '' : `<cols>${cols.join('')}</cols>`;
+  if (runs.length === 0) return '';
+  const cols = runs.map(run => `<col min="${run.min}" max="${run.max}"${run.body}/>`).join('');
+  return `<cols>${cols}</cols>`;
 }
 
-function colXml(index: number, properties: ColumnProperties, styles: StyleRegistry): string {
-  let attrs = `min="${index}" max="${index}"`;
+// The attributes of a `<col>` sans its `min`/`max` span (each with a leading space), or `null` when
+// the column declares nothing worth emitting. Two columns with the same body are interchangeable, so
+// the body doubles as the equivalence key that {@link colsXml} coalesces adjacent runs by.
+function colBody(properties: ColumnProperties, styles: StyleRegistry): string | null {
+  let attrs = '';
   let meaningful = false;
   if (properties.width !== undefined) {
     attrs += ` width="${numberText(properties.width)}" customWidth="1"`;
@@ -1561,8 +1577,7 @@ function colXml(index: number, properties: ColumnProperties, styles: StyleRegist
     attrs += ` style="${style}"`;
     meaningful = true;
   }
-  // A <col> with no width, visibility, or style says nothing; omit it entirely.
-  return meaningful ? `<col ${attrs}/>` : '';
+  return meaningful ? attrs : null;
 }
 
 function rowAttrs(properties: RowProperties | undefined, styles: StyleRegistry): string {

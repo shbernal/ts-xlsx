@@ -3181,6 +3181,42 @@ const impl = {
     };
   },
 
+  // Define four adjacent columns with identical width and outline level, write, and report whether
+  // the write and reload succeed and how many <col> spans the part carries. Equivalent adjacent
+  // columns must coalesce into fewer <col> spans than columns, without the collapse pass throwing.
+  equivalentColumnCollapseReport() {
+    const wb = new Workbook();
+    const s = wb.addWorksheet('S');
+    for (let i = 1; i <= 4; i++) {
+      const col = s.getColumn(i);
+      col.width = 12;
+      col.outlineLevel = 1;
+    }
+    let writeOk = true;
+    let writeError = null;
+    let buffer = null;
+    try {
+      buffer = writeXlsx(wb);
+    } catch (e) {
+      writeOk = false;
+      writeError = String((e && e.message) || e);
+    }
+    if (!writeOk) return {writeOk, writeError, reloadOk: false, colSpanCount: null};
+
+    const parts = partMapOf(buffer);
+    const sheetPart = Object.keys(parts).find(n => /xl\/worksheets\/sheet\d+\.xml$/.test(n));
+    const colsBlock = (parts[sheetPart].match(/<cols>[\s\S]*?<\/cols>/) || [])[0] ?? '';
+    const colSpanCount = (colsBlock.match(/<col\b/g) || []).length;
+
+    let reloadOk = true;
+    try {
+      readXlsx(buffer);
+    } catch {
+      reloadOk = false;
+    }
+    return {writeOk, writeError, reloadOk, colSpanCount};
+  },
+
   // Author a two-column table whose first column carries a numFmt style, append two data rows, then
   // round-trip and report the numFmt read back on each column's body cells → { writeOk, reloadOk,
   // writeError, styledBody, unstyledBody }. The per-column style must bake into the styled column's
