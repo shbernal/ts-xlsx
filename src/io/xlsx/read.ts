@@ -1470,6 +1470,16 @@ function parseWorksheet(
           if (attrs.summaryBelow !== undefined) sheet.outline.summaryBelow = flagValue(attrs.summaryBelow);
           if (attrs.summaryRight !== undefined) sheet.outline.summaryRight = flagValue(attrs.summaryRight);
           break;
+        case 'pane':
+          // A `<sheetView>` child recording a frozen (or split) pane. Only a frozen pane maps onto
+          // the model's view; a source without one leaves `view` empty, so a re-write emits no pane.
+          if (attrs.state === 'frozen' || attrs.state === 'frozenSplit') {
+            sheet.view.state = 'frozen';
+            if (attrs.xSplit !== undefined) sheet.view.xSplit = Number(attrs.xSplit);
+            if (attrs.ySplit !== undefined) sheet.view.ySplit = Number(attrs.ySplit);
+            if (attrs.topLeftCell !== undefined) sheet.view.topLeftCell = attrs.topLeftCell;
+          }
+          break;
         case 'pageSetUpPr':
           // The fit-to-page flag, a self-closing `<sheetPr>` child. Recorded only when the source
           // carried the attribute, so a `<pageSetUpPr>` present for other reasons (e.g.

@@ -1047,6 +1047,48 @@ const impl = {
     return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
 
+  // Freeze the first row, write, and report the emitted pane plus a round-trip → { paneEmitted,
+  // reReadState, reReadYSplit, reReadXSplit }. A frozen-header view serializes a <pane> and reloads
+  // as a frozen split of one row and no columns.
+  frozenTopRowRoundtrip() {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = 'header';
+    sheet.freeze(1);
+    const buffer = writeXlsx(workbook);
+    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const paneEmitted = /<pane\b[^>]*ySplit="1"[^>]*state="frozen"/.test(sheetXml);
+    const view = readXlsx(buffer).getWorksheet('S').view;
+    return {
+      paneEmitted,
+      reReadState: view.state ?? 'normal',
+      reReadYSplit: view.ySplit ?? 0,
+      reReadXSplit: view.xSplit ?? 0,
+    };
+  },
+
+  // Freeze a view, then unfreeze it, and report the pane presence in each written form plus a reload
+  // → { frozenHasPane, normalHasPane, reloadedState, reloadedHasSplit }. Unfreezing must leave no
+  // leftover <pane> (which triggers Excel's repair prompt) and reload as a normal, unsplit view.
+  unfreezeViewRoundtrip() {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = 'header';
+    sheet.freeze(1);
+    const frozenHasPane = /<pane\b/.test(partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '');
+
+    sheet.unfreeze();
+    const normalBuffer = writeXlsx(workbook);
+    const normalHasPane = /<pane\b/.test(partMapOf(normalBuffer)['xl/worksheets/sheet1.xml'] || '');
+    const view = readXlsx(normalBuffer).getWorksheet('S').view;
+    return {
+      frozenHasPane,
+      normalHasPane,
+      reloadedState: view.state ?? 'normal',
+      reloadedHasSplit: (view.xSplit ?? 0) > 0 || (view.ySplit ?? 0) > 0,
+    };
+  },
+
   // Inject a `<f t="dataTable">` into a written sheet, read it back, and re-write → { reloadOk,
   // readShareType, readRef, readResult, outHasDataTable }. The reader must surface the data-table
   // kind/range/result, and a read-modify-write must re-emit t="dataTable" rather than dropping it.

@@ -73,6 +73,23 @@ export interface OutlineProperties {
 }
 
 /**
+ * A worksheet's frozen-pane view. `state` `'frozen'` locks the top `ySplit` rows and left `xSplit`
+ * columns in place while the rest scrolls; `'normal'` (the default) has no split and emits no
+ * `<pane>` — writing a normal view leaves no leftover pane markup that would trip Excel's repair
+ * prompt. An empty object is a normal view.
+ */
+export interface SheetView {
+  /** Freeze state. Absent or `'normal'` means no split. */
+  state?: 'normal' | 'frozen';
+  /** Number of columns frozen at the left; `0`/absent freezes no columns. */
+  xSplit?: number;
+  /** Number of rows frozen at the top; `0`/absent freezes no rows. */
+  ySplit?: number;
+  /** The cell anchoring the bottom-right scrolling pane; defaults to the first unfrozen cell. */
+  topLeftCell?: string;
+}
+
+/**
  * Print-scaling and orientation settings. These map onto two OOXML elements: `fitToPage` is the
  * `<pageSetUpPr>` flag (a `<sheetPr>` child) that switches Excel from fixed-zoom to fit-to-page
  * scaling, while the rest are `<pageSetup>` attributes. Excel honours `scale` only when `fitToPage`
@@ -353,6 +370,12 @@ export class Worksheet {
    * means unset — the writer emits no `<outlinePr>` and a round-trip never fabricates one.
    */
   readonly outline: OutlineProperties = {};
+
+  /**
+   * The sheet's frozen-pane view. Empty (a normal view) emits no `<pane>`. Use {@link freeze} and
+   * {@link unfreeze} for the common cases, or mutate in place for finer control.
+   */
+  readonly view: SheetView = {};
 
   /**
    * Print-scaling and orientation. Mutate in place: `sheet.pageSetup.fitToPage = true`. Empty means
@@ -929,6 +952,35 @@ export class Worksheet {
       }
       return cells;
     });
+  }
+
+  /**
+   * Freeze the top `ySplit` rows and left `xSplit` columns in place; the rest of the sheet scrolls
+   * beneath them. `freeze(1)` pins a header row; `freeze(0, 1)` pins the first column. Passing both
+   * zero clears the freeze (equivalent to {@link unfreeze}).
+   *
+   * @throws {RangeError} if either split is a negative or non-integer count.
+   */
+  freeze(ySplit = 1, xSplit = 0): void {
+    if (!Number.isInteger(ySplit) || ySplit < 0 || !Number.isInteger(xSplit) || xSplit < 0) {
+      throw new RangeError(`freeze splits must be non-negative integers; got ySplit=${ySplit}, xSplit=${xSplit}`);
+    }
+    if (ySplit === 0 && xSplit === 0) {
+      this.unfreeze();
+      return;
+    }
+    this.view.state = 'frozen';
+    this.view.xSplit = xSplit;
+    this.view.ySplit = ySplit;
+    this.view.topLeftCell = encodeAddress(xSplit + 1, ySplit + 1);
+  }
+
+  /** Clear any frozen split, returning the sheet to a normal (fully scrolling) view. */
+  unfreeze(): void {
+    this.view.state = 'normal';
+    delete this.view.xSplit;
+    delete this.view.ySplit;
+    delete this.view.topLeftCell;
   }
 
   /** The 1-based index of the column carrying `key` (see {@link ColumnProperties.key}). */

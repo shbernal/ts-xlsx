@@ -37,6 +37,7 @@ import type {
   PageMargins,
   PageSetup,
   RowProperties,
+  SheetView,
   Worksheet,
   WorksheetProperties,
 } from '../../core/worksheet.ts';
@@ -1106,7 +1107,7 @@ function worksheetXml(
     `<worksheet xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
     sheetPrXml(sheet) +
     `<dimension ref="${dimensionRef}"/>` +
-    '<sheetViews><sheetView workbookViewId="0"/></sheetViews>' +
+    sheetViewsXml(sheet.view) +
     sheetFormatPr(sheet.properties) +
     colsXml(sheet, styles) +
     sheetData +
@@ -1188,6 +1189,28 @@ function validateMerges(sheet: Worksheet): void {
       }
     }
   }
+}
+
+// `<sheetViews>` holds the sheet's single view. A frozen view adds a `<pane>` recording the split
+// and a `<selection>` naming the pane the split activates, exactly as Excel writes it — a normal
+// view carries neither, so unfreezing leaves no leftover `<pane>` that would trip a repair prompt.
+// The active pane is whichever scrolling region the freeze creates: bottom-right when both axes are
+// frozen, else top-right (columns only) or bottom-left (rows only).
+function sheetViewsXml(view: SheetView): string {
+  const xSplit = view.xSplit ?? 0;
+  const ySplit = view.ySplit ?? 0;
+  if (view.state !== 'frozen' || (xSplit === 0 && ySplit === 0)) {
+    return '<sheetViews><sheetView workbookViewId="0"/></sheetViews>';
+  }
+  const topLeftCell = view.topLeftCell ?? encodeAddress(xSplit + 1, ySplit + 1);
+  const activePane = xSplit > 0 && ySplit > 0 ? 'bottomRight' : xSplit > 0 ? 'topRight' : 'bottomLeft';
+  const pane =
+    '<pane' +
+    (xSplit > 0 ? ` xSplit="${xSplit}"` : '') +
+    (ySplit > 0 ? ` ySplit="${ySplit}"` : '') +
+    ` topLeftCell="${escapeAttr(topLeftCell)}" activePane="${activePane}" state="frozen"/>`;
+  const selection = `<selection pane="${activePane}" activeCell="${escapeAttr(topLeftCell)}" sqref="${escapeAttr(topLeftCell)}"/>`;
+  return `<sheetViews><sheetView workbookViewId="0">${pane}${selection}</sheetView></sheetViews>`;
 }
 
 // `<sheetPr>` carries the sheet's appearance properties: the tab colour, the outline
