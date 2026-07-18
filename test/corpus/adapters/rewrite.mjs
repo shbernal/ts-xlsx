@@ -1129,6 +1129,40 @@ const impl = {
     return {readShareType, readRef, readResult, reloadOk, outHasDataTable};
   },
 
+  // Write a non-finite numeric cell (NaN / Infinity / -Infinity) and report whether the sheet XML
+  // carries a bare token in a <v> → { hasNonFiniteToken, token }. A non-finite value has no OOXML
+  // representation, so it must serialize as a valueless cell, never a literal "NaN"/"Infinity".
+  nonFiniteCellReport(kind) {
+    const value = kind === 'NaN' ? Number.NaN : kind === '-Infinity' ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+    const workbook = new Workbook();
+    workbook.addWorksheet('S').getCell('A1').value = value;
+    const sheetXml = partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '';
+    const token = (sheetXml.match(/<c r="A1"[^>]*>\s*<v>([\s\S]*?)<\/v>/) || [])[1] ?? null;
+    return {hasNonFiniteToken: /<v>[^<]*(NaN|Infinity)[^<]*<\/v>/.test(sheetXml), token};
+  },
+
+  // Write a value under a date number format and report the sheet XML's health → { ok, hasNaN,
+  // hasInvalidDate, cellXml }. A string, a null (empty cell), or an Invalid Date under a date format
+  // must never leak a bare "NaN" or "Invalid Date" into the cell value.
+  dateNumFmtValueReport(kind) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    const cell = sheet.getCell('A1');
+    if (kind === 'string') cell.value = 'not a date';
+    else if (kind === 'null') cell.value = null;
+    else if (kind === 'invalidDate') cell.value = new Date(NaN);
+    cell.numFmt = 'yyyy-mm-dd';
+    let ok = true;
+    let sheetXml = '';
+    try {
+      sheetXml = partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '';
+    } catch {
+      ok = false;
+    }
+    const cellXml = (sheetXml.match(/<c r="A1"[\s\S]*?(?:\/>|<\/c>)/) || [])[0] ?? '';
+    return {ok, hasNaN: /NaN/.test(sheetXml), hasInvalidDate: /Invalid Date/.test(sheetXml), cellXml};
+  },
+
   // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet
   // XML → { hasNaNToken, cells }. Each cell is { t, formula, value } read off the raw `<c>`. Guards
   // that a string-typed formula result under a date format is not coerced to a numeric/NaN cell.

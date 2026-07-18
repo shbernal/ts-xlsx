@@ -97,16 +97,23 @@ test('a string with edge whitespace carries xml:space="preserve"', () => {
   assert.match(xml, /<t xml:space="preserve">  padded  <\/t>/);
 });
 
-test('a non-finite number is refused, not written as NaN', () => {
+test('a non-finite number is written as a valueless cell, never a bare NaN/Infinity token', () => {
   const wb = new Workbook();
-  wb.addWorksheet('S').getCell('A1').value = Number.POSITIVE_INFINITY;
-  assert.throws(() => writeXlsx(wb), /non-finite/);
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = Number.POSITIVE_INFINITY;
+  sheet.getCell('A2').value = Number.NaN;
+  sheet.getCell('A3').value = 5; // a sibling finite cell must survive
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /<v>[^<]*(NaN|Infinity)[^<]*<\/v>/, 'no bare non-finite token is emitted');
+  assert.match(xml, /<c r="A3"><v>5<\/v><\/c>/, 'a finite sibling cell is unaffected');
 });
 
-test("a formula whose cached result is non-finite is refused, not written as NaN", () => {
+test('a formula whose cached result is non-finite keeps its formula but caches no value', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = {formula: '1/0', result: Number.POSITIVE_INFINITY};
-  assert.throws(() => writeXlsx(wb), /non-finite/);
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<c r="A1"><f>1\/0<\/f><\/c>/, 'the formula survives with no cached <v>');
+  assert.doesNotMatch(xml, /Infinity/, 'no Infinity token leaks into the sheet');
 });
 
 test('a formula cell with a string result is typed t="str"', () => {

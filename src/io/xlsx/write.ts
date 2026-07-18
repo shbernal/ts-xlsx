@@ -1638,6 +1638,10 @@ function cellXml(
     return `<c r="${ref}"${s}><v>${numberText(dateToSerial(value))}</v></c>`;
   }
   if (typeof value === 'number') {
+    // A non-finite number (NaN, ±Infinity) has no OOXML representation; keep the cell and its style
+    // but emit no value rather than a bare "NaN"/"Infinity" token — the same graceful degradation an
+    // Invalid Date gets, so one bad value never corrupts the sheet or takes down the whole export.
+    if (!Number.isFinite(value)) return `<c r="${ref}"${s}/>`;
     return `<c r="${ref}"${s}><v>${numberText(value)}</v></c>`;
   }
   if (typeof value === 'boolean') {
@@ -1699,7 +1703,10 @@ function formulaCellXml(ref: string, s: string, formula: string, result: Formula
 // element and its cached result, typing the cell by the result's kind exactly as a bare value of that
 // kind would be.
 function formulaBodyXml(ref: string, s: string, f: string, result: FormulaResult | undefined): string {
-  if (result === undefined) {
+  // A non-finite cached result (a `1/0` that reached the model as Infinity/NaN) has no OOXML
+  // representation; keep the formula but cache no value rather than emit a bare "NaN" — the same
+  // graceful degradation a bare non-finite cell and an Invalid Date result get.
+  if (result === undefined || (typeof result === 'number' && !Number.isFinite(result))) {
     return `<c r="${ref}"${s}>${f}</c>`;
   }
   if (typeof result === 'number') {
