@@ -1047,6 +1047,42 @@ const impl = {
     return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
 
+  // Round-trip formula cells whose cached results are truthy and falsy (2, 0, false, '') and report
+  // each recovered result → { truthy, zero, boolFalse, emptyString } of { hasResult, result }. A falsy
+  // result (0, false, empty string) must survive, not be dropped as if the formula had no cached value.
+  formulaFalsyResultReport() {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = {formula: '1+1', result: 2};
+    sheet.getCell('A2').value = {formula: 'B1-B1', result: 0};
+    sheet.getCell('A3').value = {formula: 'FALSE()', result: false};
+    sheet.getCell('A4').value = {formula: 'T("")', result: ''};
+    const back = readXlsx(writeXlsx(workbook)).getWorksheet('S');
+    const probe = ref => {
+      const value = back.getCell(ref).value;
+      const hasResult = !!value && typeof value === 'object' && 'result' in value;
+      return {hasResult, result: hasResult ? value.result : undefined};
+    };
+    return {truthy: probe('A1'), zero: probe('A2'), boolFalse: probe('A3'), emptyString: probe('A4')};
+  },
+
+  // Round-trip a formula whose cached result is a Date → { isValidDate, resultIso, keepsFormula }. The
+  // date result reads back as a valid Date (the default date format survives), and the cell stays a
+  // formula cell rather than collapsing to a bare value.
+  formulaDateResultReport() {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = {formula: 'TODAY()', result: new Date(Date.UTC(2021, 0, 2))};
+    const value = readXlsx(writeXlsx(workbook)).getWorksheet('S').getCell('A1').value;
+    const result = value && typeof value === 'object' ? value.result : undefined;
+    const isValidDate = result instanceof Date && !Number.isNaN(result.getTime());
+    return {
+      isValidDate,
+      resultIso: result instanceof Date ? isoOrNull(result) : String(result),
+      keepsFormula: !!value && typeof value === 'object' && typeof value.formula === 'string',
+    };
+  },
+
   // Add a sheet, then probe name lookup and uniqueness for case-consistency → { foundExact,
   // foundVariant, addVariantThrew }. Lookup and add must agree on identity: a case-variant name is
   // found by getWorksheet AND rejected by addWorksheet (both case-insensitive), so no absent-yet-
