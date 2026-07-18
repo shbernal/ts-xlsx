@@ -2152,6 +2152,36 @@ const impl = {
     return {eager, streaming};
   },
 
+  // Write a noted cell, relocate its comments part to a non-canonical path (xl/sheet1_comments.xml)
+  // reachable only through the worksheet rels, and reload → { ok, error, note }. The reader locates the
+  // comments part by relationship *type*, not by filename glob, so the moved part still loads and its
+  // note reads back.
+  nonCanonicalCommentsPartReport() {
+    const wb = new Workbook();
+    const ws = wb.addWorksheet('S');
+    ws.getCell('A1').value = 'x';
+    ws.getCell('A1').note = 'hi';
+    const files = unzipSync(new Uint8Array(writeXlsx(wb)));
+    const commentPart = Object.keys(files).find(n => /^xl\/comments\d*\.xml$/.test(n));
+    const relName = 'xl/worksheets/_rels/sheet1.xml.rels';
+    files['xl/sheet1_comments.xml'] = files[commentPart];
+    delete files[commentPart];
+    files[relName] = strToU8(
+      strFromU8(files[relName]).replace(/Target="[^"]*comments\d*\.xml"/i, 'Target="../sheet1_comments.xml"')
+    );
+    const buffer = zipSync(files);
+    let ok = false;
+    let error = null;
+    let note = null;
+    try {
+      note = readXlsx(buffer).worksheets[0].getCell('A1').note ?? null;
+      ok = true;
+    } catch (e) {
+      error = String((e && e.message) || e);
+    }
+    return {ok, error, note};
+  },
+
   // Attach then clear a cell note and report whether the written package still carries a comment/VML
   // artifact → { commentPartPresent, vmlPartPresent, readNoteAfter, neighborNoteIntact,
   // cleanHasCommentPart }. Clearing a note (note = undefined) is a genuine removal: the sole-noted
