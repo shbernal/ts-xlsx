@@ -8,12 +8,26 @@
 // on the *shape* itself: a legal name, at least one column, and at least one row.
 
 import {decodeAddress, encodeAddress} from './address.ts';
+import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
 import type {CellValue} from './value.ts';
 
-/** Writes a value into the owning worksheet's grid at a 1-based row/column — the hook a {@link Table}
- * uses to materialise the cells of a row appended through {@link Table.addRow}. A worksheet supplies
- * it when it registers the table; a table built standalone has none and cannot write cell values. */
-export type TableCellWriter = (row: number, col: number, value: CellValue) => void;
+/** A per-column cell format applied to a table's body cells — the facets Excel's table-column style
+ * bakes into the cells rather than storing as table metadata. Every facet is optional; only the ones
+ * set are applied, leaving the rest of each cell's style untouched. */
+export interface TableColumnStyle {
+  readonly numFmt?: string;
+  readonly font?: Partial<Font>;
+  readonly fill?: Fill;
+  readonly border?: Border;
+  readonly alignment?: Alignment;
+  readonly protection?: Protection;
+}
+
+/** Writes a value into the owning worksheet's grid at a 1-based row/column, applying the column's
+ * style (if any) to the cell — the hook a {@link Table} uses to materialise the cells of a row
+ * appended through {@link Table.addRow}. A worksheet supplies it when it registers the table; a table
+ * built standalone has none and cannot write cell values. */
+export type TableCellWriter = (row: number, col: number, value: CellValue, style?: TableColumnStyle) => void;
 
 /**
  * A table's visual style (`<tableStyleInfo>`): the named style to apply plus the banding/highlight
@@ -60,6 +74,10 @@ export interface TableColumn {
   readonly totalsRowLabel?: string;
   /** Built-in totals-row aggregate (`"sum"`, `"average"`, `"count"`, …). */
   readonly totalsRowFunction?: string;
+  /** A format applied to this column's body cells as they are written (see {@link TableColumnStyle}).
+   * Excel bakes a table-column style into the cells rather than storing it as table metadata, so this
+   * is an authoring convenience: it round-trips as the affected cells' own styles, not as the table. */
+  readonly style?: TableColumnStyle;
 }
 
 export interface TableOptions {
@@ -230,7 +248,9 @@ export class Table {
           `table "${this.name}" is not attached to a worksheet — cannot write appended row values`
         );
       }
-      values.forEach((value, index) => this.#writeCell?.(target, this.#anchorCol + index, value));
+      values.forEach((value, index) =>
+        this.#writeCell?.(target, this.#anchorCol + index, value, this.columns[index]?.style)
+      );
     }
     this.#dataRowCount += 1;
   }

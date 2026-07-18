@@ -460,6 +460,22 @@ test('getTable returns undefined for an unknown table name', () => {
   assert.equal(new Worksheet('S', 1).getTable('missing'), undefined);
 });
 
+test('a table column style bakes into the body cells addRow writes', () => {
+  const sheet = new Worksheet('S', 1);
+  const table = sheet.addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'Amount', style: {numFmt: '#,##0.00'}}, {name: 'Label'}],
+    rowCount: 0,
+  });
+  table.addRow([1234.5, 'x']);
+  table.addRow([6789, 'y']);
+  assert.equal(sheet.getCell('A2').numFmt, '#,##0.00', 'the styled column carries the numFmt');
+  assert.equal(sheet.getCell('A3').numFmt, '#,##0.00');
+  assert.equal(sheet.getCell('B2').numFmt, undefined, 'the unstyled column is unaffected');
+  assert.equal(sheet.getCell('B3').numFmt, undefined);
+});
+
 test('spliceColumns removes the requested columns and shifts the rest left', () => {
   const sheet = new Worksheet('S', 1);
   ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => (sheet.getCell(`${L}1`).value = `c${i + 1}`));

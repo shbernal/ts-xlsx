@@ -583,8 +583,16 @@ export class Worksheet {
    * @throws {Error} if the name, columns, or geometry are invalid.
    */
   addTable(options: TableOptions): Table {
-    const table = new Table(options, (row, col, value) => {
-      this.#cellAt(row, col).value = value;
+    const table = new Table(options, (row, col, value, style) => {
+      const cell = this.#cellAt(row, col);
+      cell.value = value;
+      if (style === undefined) return;
+      if (style.numFmt !== undefined) cell.numFmt = style.numFmt;
+      if (style.font !== undefined) cell.font = style.font;
+      if (style.fill !== undefined) cell.fill = style.fill;
+      if (style.border !== undefined) cell.border = style.border;
+      if (style.alignment !== undefined) cell.alignment = style.alignment;
+      if (style.protection !== undefined) cell.protection = style.protection;
     });
     this.#tables.push(table);
     return table;

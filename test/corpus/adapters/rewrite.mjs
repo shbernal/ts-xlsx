@@ -3181,6 +3181,49 @@ const impl = {
     };
   },
 
+  // Author a two-column table whose first column carries a numFmt style, append two data rows, then
+  // round-trip and report the numFmt read back on each column's body cells → { writeOk, reloadOk,
+  // writeError, styledBody, unstyledBody }. The per-column style must bake into the styled column's
+  // body cells and leave the unstyled column untouched.
+  tableColumnStyleReport(numFmt) {
+    const wb = new Workbook();
+    const s = wb.addWorksheet('S');
+    const table = s.addTable({
+      name: 'T',
+      ref: 'A1',
+      columns: [{name: 'Amount', style: {numFmt}}, {name: 'Label'}],
+      rowCount: 0,
+    });
+    s.getCell('A1').value = 'Amount';
+    s.getCell('B1').value = 'Label';
+    table.addRow([1234.5, 'x']);
+    table.addRow([6789, 'y']);
+
+    let writeOk = true;
+    let writeError = null;
+    let buffer = null;
+    try {
+      buffer = writeXlsx(wb);
+    } catch (e) {
+      writeOk = false;
+      writeError = String((e && e.message) || e);
+    }
+    if (!writeOk) return {writeOk, writeError, reloadOk: false, styledBody: null, unstyledBody: null};
+
+    let reloadOk = true;
+    let styledBody = null;
+    let unstyledBody = null;
+    try {
+      const back = readXlsx(buffer).getWorksheet('S');
+      styledBody = [back.getCell('A2').numFmt ?? null, back.getCell('A3').numFmt ?? null];
+      unstyledBody = [back.getCell('B2').numFmt ?? null, back.getCell('B3').numFmt ?? null];
+    } catch (e) {
+      reloadOk = false;
+      writeError = String((e && e.message) || e);
+    }
+    return {writeOk, writeError, reloadOk, styledBody, unstyledBody};
+  },
+
   // Build a table-bearing spec, round-trip it through a write→read, fetch the named table on the
   // reloaded model, append the requested rows, then re-write and re-read to report the final row
   // count. A table read from a file must expose its data rows and accept appends exactly like a
