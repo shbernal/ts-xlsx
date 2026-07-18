@@ -1089,6 +1089,32 @@ const impl = {
     };
   },
 
+  // Author three columns with distinct widths (one hidden), write, then REVERSE the order of the
+  // emitted `<col>` tags — the shape foreign generators (excelize, jxls-poi) produce — and read the
+  // patched package back → { w1, w2, w3, hidden2 }. Each column's width and hidden flag must bind to
+  // the column its min/max names, regardless of document order.
+  outOfOrderColumnsReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getColumn(1).width = 10;
+    sheet.getColumn(2).width = 20;
+    sheet.getColumn(2).hidden = true;
+    sheet.getColumn(3).width = 30;
+    const back = reloadPatched(writeXlsx(wb), {
+      'xl/worksheets/sheet1.xml': xml =>
+        xml.replace(/<cols>([\s\S]*?)<\/cols>/, (_, inner) => {
+          const tags = inner.match(/<col\b[^>]*\/>/g) || [];
+          return `<cols>${tags.reverse().join('')}</cols>`;
+        }),
+    }).getWorksheet('S');
+    return {
+      w1: back.getColumn(1).width,
+      w2: back.getColumn(2).width,
+      w3: back.getColumn(3).width,
+      hidden2: back.getColumn(2).hidden ?? false,
+    };
+  },
+
   // Inject a `<f t="dataTable">` into a written sheet, read it back, and re-write → { reloadOk,
   // readShareType, readRef, readResult, outHasDataTable }. The reader must surface the data-table
   // kind/range/result, and a read-modify-write must re-emit t="dataTable" rather than dropping it.
