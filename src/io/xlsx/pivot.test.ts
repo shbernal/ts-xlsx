@@ -196,6 +196,59 @@ test('a package carrying a pivot still reads back its sheets', () => {
   assert.equal(back.getWorksheet('Data')?.getCell('A2').value, 'Smith & Co');
 });
 
+test('a loaded pivot is reconstructed as an inspectable model on its host sheet', () => {
+  const back = readXlsx(writeXlsx(specialCharsWorkbook()));
+  const loaded = back.getWorksheet('Pivot')?.loadedPivotTables ?? [];
+  assert.equal(loaded.length, 1);
+  const pivot = loaded[0];
+  assert.ok(pivot);
+  assert.deepEqual(
+    pivot.fields.map(field => field.name),
+    ['Name', 'Region', 'Amount']
+  );
+  assert.deepEqual(pivot.rowFields, [0]);
+  assert.deepEqual(pivot.columnFields, [1]);
+  assert.equal(pivot.valueField, 2);
+  assert.equal(pivot.valueFieldName, 'Amount');
+  assert.equal(pivot.metric, 'sum');
+  assert.equal(pivot.source.sheet, 'Data');
+  assert.equal(pivot.source.ref, 'A1:C4');
+});
+
+test('the pivot model is exposed only on its host sheet, not the source sheet', () => {
+  const back = readXlsx(writeXlsx(specialCharsWorkbook()));
+  assert.equal(back.getWorksheet('Data')?.loadedPivotTables.length, 0);
+  assert.equal(back.getWorksheet('Pivot')?.loadedPivotTables.length, 1);
+});
+
+test('a loaded pivot decodes XML-special field names back to their original text', () => {
+  const wb = new Workbook();
+  const src = wb.addWorksheet('Data');
+  src.getCell('A1').value = 'Smith & Co';
+  src.getCell('B1').value = '<Region>';
+  src.getCell('C1').value = 'Am"t';
+  src.getCell('A2').value = 'a';
+  src.getCell('B2').value = 'x';
+  src.getCell('C2').value = 1;
+  wb.addWorksheet('Pivot').addPivotTable({
+    source: src,
+    rows: ['Smith & Co'],
+    columns: ['<Region>'],
+    values: ['Am"t'],
+  });
+  const pivot = readXlsx(writeXlsx(wb)).getWorksheet('Pivot')?.loadedPivotTables[0];
+  assert.ok(pivot);
+  assert.deepEqual(
+    pivot.fields.map(field => field.name),
+    ['Smith & Co', '<Region>', 'Am"t']
+  );
+  assert.equal(pivot.valueFieldName, 'Am"t');
+});
+
+test('an authored pivot is not surfaced as a loaded one before a round-trip', () => {
+  assert.equal(specialCharsWorkbook().getWorksheet('Pivot')?.loadedPivotTables.length, 0);
+});
+
 test('two pivot tables number their parts and caches independently', () => {
   const wb = new Workbook();
   const src = wb.addWorksheet('Data');

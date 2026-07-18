@@ -61,6 +61,39 @@ export function pivotMetricFromSubtotal(subtotal: string | undefined): PivotMetr
   return PIVOT_METRICS.has(subtotal as PivotMetric) ? (subtotal as PivotMetric) : 'sum';
 }
 
+/** One field in a loaded pivot's cache catalogue, in declared order; the pivot refers to it by index. */
+export interface ParsedPivotField {
+  readonly name: string;
+}
+
+/** Where a worksheet-backed pivot cache draws its rows from. Empty strings stand in for a cache whose
+ * source is not a worksheet (an external or consolidation source), which the reader does not model. */
+export interface ParsedPivotSource {
+  readonly sheet: string;
+  readonly ref: string;
+}
+
+/** The semantic model reconstructed from a loaded pivot's `pivotTableDefinition` and its
+ * `pivotCacheDefinition` (see `io/xlsx/pivot-read.ts`). Field roles are indices into {@link fields};
+ * {@link metric} is the aggregation the value field applies. This mirrors the authoring model's shape
+ * without requiring the source sheet it was built from, so a pivot loaded from a package is
+ * inspectable data rather than an opaque preserved blob. It is a read-only view: the writer emits a
+ * loaded pivot from its preserved parts, not from this model, so exposing it never double-emits. */
+export interface ParsedPivotTable {
+  readonly name: string;
+  readonly cacheId: string;
+  readonly source: ParsedPivotSource;
+  readonly fields: readonly ParsedPivotField[];
+  readonly rowFields: readonly number[];
+  readonly columnFields: readonly number[];
+  /** Index into {@link fields} of the aggregated field, or -1 when no `<dataField>` was declared. */
+  readonly valueField: number;
+  readonly valueFieldName: string;
+  /** The `<dataField>`'s own caption ("Average of Amount"), which Excel shows on the data column. */
+  readonly valueCaption: string;
+  readonly metric: PivotMetric;
+}
+
 /** How a pivot table is authored: a source sheet and the header names that drive each axis.
  * `rows`/`columns`/`values` name columns by their header text in the source's first row. */
 export interface PivotTableOptions {

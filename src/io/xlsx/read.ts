@@ -64,6 +64,7 @@ import {
 import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {parseDrawing} from './images.ts';
 import {inflatePackage} from './inflate.ts';
+import {parsePivotTable} from './pivot-read.ts';
 import {parseTable} from './tables.ts';
 import {localName, parseXml} from './xml-read.ts';
 
@@ -148,6 +149,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
         readSheetPreservedReferences(path, sheetXml, partText, partBytes, contentTypeOf, sheet);
       }
       readSheetTables(path, partText, sheet);
+      readSheetPivotTables(path, partText, sheet);
       const printerSettings = readSheetPrinterSettings(path, partText, partBytes);
       if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
     }
@@ -499,6 +501,30 @@ function readSheetTables(
     if (options !== undefined) sheet.addTable(options);
   }
   dropMergesInsideTables(sheet);
+}
+
+// Reconstruct an inspectable model of each pivot table hosted on a sheet. A pivot is reached by a
+// sheet relationship of type `.../pivotTable`; the pivot-table part carries its own relationship of
+// type `.../pivotCacheDefinition` to the cache holding the field catalogue and source range. Both
+// parts are parsed and combined into a read-only view registered on the sheet — separate from the
+// byte-preservation that actually round-trips the pivot, so this never changes what is re-emitted.
+// The read is lenient: a pivot whose cache is missing still yields a (partial) model rather than
+// throwing, matching Excel's tolerance for a damaged package on load.
+function readSheetPivotTables(
+  sheetPath: string,
+  partText: (path: string) => string | undefined,
+  sheet: Worksheet
+): void {
+  const relsXml = partText(relsPathFor(sheetPath));
+  if (relsXml === undefined) return;
+  for (const target of relationshipTargetsByType(relsXml, 'pivotTable')) {
+    const tablePath = resolveRelativePart(sheetPath, target);
+    const tableXml = partText(tablePath);
+    if (tableXml === undefined) continue;
+    const cacheTarget = relationshipTargetByType(partText(relsPathFor(tablePath)) ?? '', 'pivotCacheDefinition');
+    const cacheXml = cacheTarget === undefined ? '' : partText(resolveRelativePart(tablePath, cacheTarget)) ?? '';
+    sheet.addLoadedPivotTable(parsePivotTable(tableXml, cacheXml));
+  }
 }
 
 // Excel forbids a merged range inside a formatted table and repairs such a file on load by dropping

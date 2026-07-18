@@ -12,39 +12,14 @@
 // authoring path (`core/pivot-table.ts`), not here. A hostile part therefore degrades to an
 // incomplete model; it never crashes the reader.
 
-import {type PivotMetric, pivotMetricFromSubtotal} from '../../core/pivot-table.ts';
+import {
+  type ParsedPivotField,
+  type ParsedPivotSource,
+  type ParsedPivotTable,
+  type PivotMetric,
+  pivotMetricFromSubtotal,
+} from '../../core/pivot-table.ts';
 import {localName, parseXml} from './xml-read.ts';
-
-/** One field in the pivot cache's catalogue, in declared order; a pivot table refers to it by index. */
-export interface ParsedPivotField {
-  readonly name: string;
-}
-
-/** Where a worksheet-backed pivot cache draws its rows from. Empty strings stand in for a cache whose
- * source is not a worksheet (an external or consolidation source), which this reader does not model. */
-export interface ParsedPivotSource {
-  readonly sheet: string;
-  readonly ref: string;
-}
-
-/** The semantic model reconstructed from a pivot's `pivotTableDefinition` and `pivotCacheDefinition`.
- * Field roles are indices into {@link fields}; {@link metric} is the aggregation the value field
- * applies. This mirrors the authoring model's shape without requiring the source sheet it was built
- * from, so a loaded pivot is inspectable — and, in a later slice, carryable through a `.model` copy. */
-export interface ParsedPivotTable {
-  readonly name: string;
-  readonly cacheId: string;
-  readonly source: ParsedPivotSource;
-  readonly fields: readonly ParsedPivotField[];
-  readonly rowFields: readonly number[];
-  readonly columnFields: readonly number[];
-  /** Index into {@link fields} of the aggregated field, or -1 when no `<dataField>` was declared. */
-  readonly valueField: number;
-  readonly valueFieldName: string;
-  /** The `<dataField>`'s own caption ("Average of Amount"), which Excel shows on the data column. */
-  readonly valueCaption: string;
-  readonly metric: PivotMetric;
-}
 
 /** Reconstruct a pivot's semantic model from its two definition parts. The records part is not
  * consulted: the cache's field catalogue and the table's field roles fully describe the pivot's

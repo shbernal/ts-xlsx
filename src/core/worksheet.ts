@@ -35,7 +35,7 @@ import {
   type SheetProtectionOptions,
 } from './protection.ts';
 import type {Alignment, Border, Color, Fill, Font, Protection} from './style.ts';
-import {PivotTable, type PivotTableOptions} from './pivot-table.ts';
+import {type ParsedPivotTable, PivotTable, type PivotTableOptions} from './pivot-table.ts';
 import {Table, type TableOptions} from './table.ts';
 import {type CellValue, isSharedFormulaValue, type SharedFormulaValue} from './value.ts';
 
@@ -362,6 +362,11 @@ export class Worksheet {
   // Tables, merged ranges, and anchored images are sheet-level overlays on the grid, not cell storage.
   readonly #tables: Table[] = [];
   readonly #pivotTables: PivotTable[] = [];
+  // Pivot tables reconstructed from a loaded package (see io/xlsx/pivot-read.ts) — a read-only,
+  // inspection-only view distinct from #pivotTables. A loaded pivot round-trips by byte-preservation
+  // (#preservedReferences), which stays its sole emission authority; this collection is never emitted,
+  // so exposing it cannot double-emit. Empty for a sheet authored from scratch.
+  readonly #loadedPivotTables: ParsedPivotTable[] = [];
   readonly #merges: string[] = [];
   readonly #images: AnchoredImage[] = [];
   // A sheet background is a single workbook image tiled behind the grid — distinct from an anchored
@@ -565,6 +570,27 @@ export class Worksheet {
   /** The pivot tables hosted on this sheet, in definition order. */
   get pivotTables(): readonly PivotTable[] {
     return this.#pivotTables;
+  }
+
+  /**
+   * Register a pivot table reconstructed from a loaded package — the reader's counterpart to
+   * {@link addPivotTable}. This records an inspectable, read-only view of a pivot the reader parsed
+   * from its OOXML parts; the pivot itself round-trips by byte-preservation, so registering it here
+   * only makes it visible via {@link loadedPivotTables} and never affects what the writer emits.
+   */
+  addLoadedPivotTable(pivot: ParsedPivotTable): void {
+    this.#loadedPivotTables.push(pivot);
+  }
+
+  /**
+   * Pivot tables reconstructed from a loaded package, in the order the reader found them — a
+   * read-only inspection view (source range, field roles, value field, aggregation). A pivot
+   * authored on this sheet via {@link addPivotTable} does not appear here; a pivot loaded from a
+   * file does not appear in {@link pivotTables}. The loaded pivots re-emit verbatim through
+   * byte-preservation, so this collection is never itself serialised.
+   */
+  get loadedPivotTables(): readonly ParsedPivotTable[] {
+    return this.#loadedPivotTables;
   }
 
   /**
