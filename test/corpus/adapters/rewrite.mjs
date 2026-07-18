@@ -1047,6 +1047,26 @@ const impl = {
     return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
 
+  // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet
+  // XML → { hasNaNToken, cells }. Each cell is { t, formula, value } read off the raw `<c>`. Guards
+  // that a string-typed formula result under a date format is not coerced to a numeric/NaN cell.
+  roundtripFixtureCellXml(rel, refs = []) {
+    const parts = partMapOf(writeXlsx(readXlsx(fixtureBytes(rel))));
+    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const cells = {};
+    for (const ref of refs) {
+      const match = sheetXml.match(new RegExp(`<c r="${ref}"([^>]*)>([\\s\\S]*?)</c>`));
+      if (!match) continue;
+      const t = (match[1].match(/\bt="([^"]*)"/) || [])[1] ?? null;
+      const formula = (match[2].match(/<f[^>]*>([\s\S]*?)<\/f>/) || [])[1] ?? null;
+      const rawValue = (match[2].match(/<v>([\s\S]*?)<\/v>/) || [])[1] ?? null;
+      // A t="str" (or shared-string) cell holds text; anything else with a bare <v> is numeric.
+      const value = rawValue === null ? null : t === 'str' ? rawValue : Number(rawValue);
+      cells[ref] = {t, formula, value};
+    }
+    return {hasNaNToken: /<v>[^<]*NaN[^<]*<\/v>/.test(sheetXml), cells};
+  },
+
   // Round-trip formula cells whose cached results are truthy and falsy (2, 0, false, '') and report
   // each recovered result → { truthy, zero, boolFalse, emptyString } of { hasResult, result }. A falsy
   // result (0, false, empty string) must survive, not be dropped as if the formula had no cached value.
