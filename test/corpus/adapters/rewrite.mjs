@@ -3181,6 +3181,51 @@ const impl = {
     };
   },
 
+  // Build a table-bearing spec, round-trip it through a write→read, fetch the named table on the
+  // reloaded model, append the requested rows, then re-write and re-read to report the final row
+  // count. A table read from a file must expose its data rows and accept appends exactly like a
+  // freshly-created one → { hasTable, loadedRowCount, addError, committed, finalRowCount }.
+  roundtripTableAppend(spec, {tableName, appendRows}) {
+    const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
+    let table = null;
+    for (const s of reloaded.worksheets) {
+      const found = s.getTable(tableName);
+      if (found) { table = found; break; }
+    }
+    const hasTable = table !== null;
+    if (!hasTable) {
+      return {hasTable, loadedRowCount: null, addError: null, committed: false, finalRowCount: null};
+    }
+    const loadedRowCount = table.rowCount;
+
+    let addError = null;
+    for (const row of appendRows) {
+      try {
+        table.addRow(row);
+      } catch (e) {
+        addError = String((e && e.message) || e);
+        break;
+      }
+    }
+
+    let committed = false;
+    let finalRowCount = null;
+    if (addError === null) {
+      try {
+        const out = writeXlsx(reloaded);
+        committed = true;
+        const back = readXlsx(out);
+        for (const s of back.worksheets) {
+          const found = s.getTable(tableName);
+          if (found) { finalRowCount = found.rowCount; break; }
+        }
+      } catch (e) {
+        addError = String((e && e.message) || e);
+      }
+    }
+    return {hasTable, loadedRowCount, addError, committed, finalRowCount};
+  },
+
   // Author a table over A1:B3, populate its cells, load the package, edit a body cell (B2 → 999),
   // and re-write — reporting that both writes and the reload succeed, the table part and its unique
   // worksheet relationship survive, and the edited value reads back. Editing a cell inside a table's

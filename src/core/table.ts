@@ -8,6 +8,12 @@
 // on the *shape* itself: a legal name, at least one column, and at least one row.
 
 import {decodeAddress, encodeAddress} from './address.ts';
+import type {CellValue} from './value.ts';
+
+/** Writes a value into the owning worksheet's grid at a 1-based row/column — the hook a {@link Table}
+ * uses to materialise the cells of a row appended through {@link Table.addRow}. A worksheet supplies
+ * it when it registers the table; a table built standalone has none and cannot write cell values. */
+export type TableCellWriter = (row: number, col: number, value: CellValue) => void;
 
 /**
  * A table's visual style (`<tableStyleInfo>`): the named style to apply plus the banding/highlight
@@ -147,7 +153,12 @@ export class Table {
   #anchorRow: number;
   #dataRowCount: number;
 
-  constructor(options: TableOptions) {
+  // Set by the worksheet that registers this table so an appended row can be written into the grid.
+  // A table constructed standalone (a unit test, a bare model) has none — appending values then
+  // throws rather than silently dropping them.
+  readonly #writeCell: TableCellWriter | undefined;
+
+  constructor(options: TableOptions, writeCell?: TableCellWriter) {
     validateTableName(options.name);
     if (options.columns.length === 0) {
       throw new Error(`table "${options.name}" must declare at least one column`);
@@ -174,6 +185,7 @@ export class Table {
     this.#anchorCol = col;
     this.#anchorRow = row;
     this.#dataRowCount = options.rowCount;
+    this.#writeCell = writeCell;
 
     if (this.#rowSpan < 1) {
       throw new Error(`table "${this.name}" has no rows — it needs a header row or at least one data row`);
@@ -182,6 +194,45 @@ export class Table {
 
   get columnCount(): number {
     return this.columns.length;
+  }
+
+  /** The number of data rows (excludes the header and totals rows). Always defined — a table loaded
+   * from a file derives it from the stored range, so reading the height never throws. */
+  get rowCount(): number {
+    return this.#dataRowCount;
+  }
+
+  /**
+   * Append a data row to the bottom of the table, growing its range by one row and writing `values`
+   * left-to-right across its columns. A loaded table exposes its rows the same as a freshly-authored
+   * one, so this works identically whether the table was built in memory or read from a file.
+   *
+   * A table carrying a totals row is not supported — the new data row would have to displace the
+   * totals row, and the caller almost always wants the totals below the data; throwing is safer than
+   * silently writing over it. Passing `values` on a table not attached to a worksheet also throws,
+   * since there is nowhere to put them.
+   */
+  addRow(values: readonly CellValue[] = []): void {
+    if (this.totalsRow) {
+      throw new Error(
+        `cannot append a row to table "${this.name}": it has a totals row that the new row would displace`
+      );
+    }
+    if (values.length > this.columnCount) {
+      throw new RangeError(
+        `row has ${values.length} values but table "${this.name}" has ${this.columnCount} columns`
+      );
+    }
+    const target = this.#anchorRow + (this.headerRow ? 1 : 0) + this.#dataRowCount;
+    if (values.length > 0) {
+      if (this.#writeCell === undefined) {
+        throw new Error(
+          `table "${this.name}" is not attached to a worksheet — cannot write appended row values`
+        );
+      }
+      values.forEach((value, index) => this.#writeCell?.(target, this.#anchorCol + index, value));
+    }
+    this.#dataRowCount += 1;
   }
 
   /**

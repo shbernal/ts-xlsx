@@ -73,3 +73,26 @@ test('a real style name is preserved', () => {
   const t = table({style: {name: 'TableStyleMedium2'}});
   assert.strictEqual(t.style?.name, 'TableStyleMedium2');
 });
+
+test('rowCount reports the data-row count', () => {
+  assert.strictEqual(table().rowCount, 2);
+});
+
+test('addRow grows the data-row count and the range', () => {
+  const t = table(); // A3:B5, 2 data rows
+  t.addRow();
+  assert.strictEqual(t.rowCount, 3);
+  assert.strictEqual(t.ref, 'A3:B6');
+});
+
+test('addRow with values on a table not attached to a worksheet throws', () => {
+  assert.throws(() => table().addRow(['a', 1]), /not attached to a worksheet/);
+});
+
+test('addRow rejects more values than the table has columns', () => {
+  assert.throws(() => table().addRow(['a', 1, 'x']), /has 2 columns/);
+});
+
+test('addRow on a table with a totals row is rejected', () => {
+  assert.throws(() => table({totalsRow: true}).addRow(), /totals row/);
+});

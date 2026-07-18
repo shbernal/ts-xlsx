@@ -583,7 +583,9 @@ export class Worksheet {
    * @throws {Error} if the name, columns, or geometry are invalid.
    */
   addTable(options: TableOptions): Table {
-    const table = new Table(options);
+    const table = new Table(options, (row, col, value) => {
+      this.#cellAt(row, col).value = value;
+    });
     this.#tables.push(table);
     return table;
   }
@@ -591,6 +593,12 @@ export class Worksheet {
   /** The tables defined on this sheet, in definition order. */
   get tables(): readonly Table[] {
     return this.#tables;
+  }
+
+  /** The table with the given name (case-sensitive, the identifier Excel uses), or `undefined`.
+   * A table read back from a file is fully hydrated — its rows can be read and appended to. */
+  getTable(name: string): Table | undefined {
+    return this.#tables.find(table => table.name === name);
   }
 
   /**

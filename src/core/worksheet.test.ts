@@ -443,6 +443,23 @@ test('inserting a row above a table shifts the table range down', () => {
   assert.equal(sheet.tables[0]?.ref, 'A4:B6');
 });
 
+test('getTable finds a table by name and addRow appends cells into the grid', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.addTable({name: 'T', ref: 'A1', columns: [{name: 'H1'}, {name: 'H2'}], rowCount: 2});
+  const table = sheet.getTable('T');
+  assert.ok(table, 'the table is found by name');
+  assert.equal(table.rowCount, 2);
+  table.addRow(['c', 3]); // appends at row 4 (header on row 1 + 2 data rows)
+  assert.equal(table.rowCount, 3);
+  assert.equal(table.ref, 'A1:B4', 'the range grows to cover the appended row');
+  assert.equal(sheet.getCell('A4').value, 'c', 'the appended values land in the grid');
+  assert.equal(sheet.getCell('B4').value, 3);
+});
+
+test('getTable returns undefined for an unknown table name', () => {
+  assert.equal(new Worksheet('S', 1).getTable('missing'), undefined);
+});
+
 test('spliceColumns removes the requested columns and shifts the rest left', () => {
   const sheet = new Worksheet('S', 1);
   ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => (sheet.getCell(`${L}1`).value = `c${i + 1}`));
