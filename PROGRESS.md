@@ -1720,6 +1720,26 @@ removal artifact), **merges** (trailing-empty merged-row iteration), **core-mode
 master), **types** (trailing-empty-cell iteration), **security** (workbook structure protection),
 **worksheet-decl** (hidden-state write), **address-decoding** (non-canonical comments path).
 
+### 2026-07-18 batch 4 — xlsx-io cluster drained (420→423 green, 26→18 skipped, 0 regressions)
+The three remaining **xlsx-io** cases closed, each landed fully green and committed on its own:
+- **Reserved sheet name ("History")** — the name guard already rejects only illegal characters,
+  over-length, and empty; "History" is a valid OOXML name (Excel blocks it only in its UI), so it is
+  authored and loaded fine while `a/b` is still rejected; adapter-only.
+- **Blank-row row-level props** — a content-less row set hidden or given an outline level already
+  materialises its `<row>` element (`rowAttrs` emits `hidden`/`outlineLevel`), so the property survives
+  a round-trip rather than the blank spacer coming back visible; adapter-only.
+- **Manual row page breaks (rowBreaks)** *(source, new capability)* — new `Worksheet.rowBreaks` model
+  (`PageBreak[]`); the reader parses `<rowBreaks><brk>` (routing column-break `<brk>` children away via
+  an `inRowBreaks` flag, dropping non-positive ids as hostile input), the writer emits `<rowBreaks>` in
+  its CT_Worksheet slot (after `<headerFooter>`, before the drawing block) with matching
+  `count`/`manualBreakCount`, and the break list threads through the sheet clone model.
+
+**Still skipped (18 assertions, 7 cases)** — no **styles**, **tables**, or **xlsx-io** left. Remaining
+clusters: **comments** (note removal artifact), **merges** (trailing-empty merged-row iteration),
+**core-model** (merged child mirrors master), **types** (trailing-empty-cell iteration), **security**
+(workbook structure protection), **worksheet-decl** (hidden-state write), **address-decoding**
+(non-canonical comments path).
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
