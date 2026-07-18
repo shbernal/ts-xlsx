@@ -94,6 +94,7 @@ export {
   type WorkbookProperties,
   type AddWorksheetOptions,
 } from './core/workbook.ts';
+export type {WorkbookProtection} from './core/workbook-protection.ts';
 
 export {writeXlsx} from './io/xlsx/write.ts';
 export {readXlsx, type ReadXlsxOptions} from './io/xlsx/read.ts';

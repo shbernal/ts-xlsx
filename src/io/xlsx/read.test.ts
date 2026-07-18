@@ -1165,3 +1165,69 @@ test('an unknown state attribute on a sheet-list entry falls back to visible, no
   };
   assert.equal(readXlsx(zipSync(files)).getWorksheet('S')?.state, 'visible');
 });
+
+test('workbook structure protection survives a read→write round-trip', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  wb.protection = {lockStructure: true, lockWindows: false};
+  const files = unzipSync(writeXlsx(wb));
+  const wbXml = strFromU8(files['xl/workbook.xml']!);
+  assert.match(wbXml, /<workbookProtection lockStructure="1"\/>/);
+  // The element precedes <sheets> in CT_Workbook order.
+  assert.ok(wbXml.indexOf('<workbookProtection') < wbXml.indexOf('<sheets>'));
+
+  const back = readXlsx(writeXlsx(wb));
+  assert.equal(back.protection?.lockStructure, true);
+  assert.equal(back.protection?.lockWindows, undefined);
+});
+
+test('a workbook with no protection emits no <workbookProtection> and reads back undefined', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const wbXml = strFromU8(unzipSync(writeXlsx(wb))['xl/workbook.xml']!);
+  assert.doesNotMatch(wbXml, /workbookProtection/);
+  assert.equal(readXlsx(writeXlsx(wb)).protection, undefined);
+});
+
+test('a workbook protection password/hash credential is preserved verbatim across a round-trip', () => {
+  const files: Record<string, Uint8Array> = {
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<workbookProtection workbookAlgorithmName="SHA-512" workbookHashValue="aGFzaA==" ' +
+        'workbookSaltValue="c2FsdA==" workbookSpinCount="100000" lockStructure="1"/>' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8('<?xml version="1.0"?><worksheet><sheetData/></worksheet>'),
+  };
+  const back = readXlsx(zipSync(files));
+  assert.equal(back.protection?.lockStructure, true);
+  assert.equal(back.protection?.credentials?.workbookAlgorithmName, 'SHA-512');
+  assert.equal(back.protection?.credentials?.workbookSpinCount, '100000');
+
+  const wbXml = strFromU8(unzipSync(writeXlsx(back))['xl/workbook.xml']!);
+  assert.match(wbXml, /workbookAlgorithmName="SHA-512"/);
+  assert.match(wbXml, /workbookHashValue="aGFzaA=="/);
+  assert.match(wbXml, /workbookSpinCount="100000"/);
+});
+
+test('an unknown attribute on <workbookProtection> is dropped, not echoed back on write', () => {
+  const files: Record<string, Uint8Array> = {
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<workbookProtection lockStructure="1" bogusAttr="evil"/>' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/worksheets/sheet1.xml': strToU8('<?xml version="1.0"?><worksheet><sheetData/></worksheet>'),
+  };
+  const wbXml = strFromU8(unzipSync(writeXlsx(readXlsx(zipSync(files))))['xl/workbook.xml']!);
+  assert.match(wbXml, /lockStructure="1"/);
+  assert.doesNotMatch(wbXml, /bogusAttr/);
+});

@@ -46,6 +46,10 @@ import type {
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {DataTableFormulaValue, RichTextRun, SharedFormulaValue} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
+import {
+  type WorkbookProtection,
+  WORKBOOK_PROTECTION_CREDENTIAL_ATTRS,
+} from '../../core/workbook-protection.ts';
 import type {
   PageMargins,
   PageSetup,
@@ -124,6 +128,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   if (namedStyles.length > 1) workbook.restoreNamedStyles(namedStyles);
   const core = partText('docProps/core.xml');
   if (core !== undefined) applyCoreProperties(workbook, core);
+  workbook.protection = parseWorkbookProtection(workbookXml);
 
   // A picture used on more than one sheet is one media part; caching by media path keeps it a single
   // workbook image so a re-write does not duplicate the bytes.
@@ -669,6 +674,38 @@ export function parseWorkbookSheets(
     onClose() {},
   });
   return sheets;
+}
+
+// Read the workbook's structure/window protection (`<workbookProtection>`). The three lock flags are
+// decoded as booleans (an absent or "0" attribute stays unlocked), and only the whitelisted
+// password/agile-hash attributes are preserved verbatim — a hostile or unknown attribute is dropped
+// rather than echoed back on write. Returns undefined when the workbook declares no protection.
+export function parseWorkbookProtection(xml: string): WorkbookProtection | undefined {
+  let result: WorkbookProtection | undefined;
+  parseXml(xml, {
+    onOpen(name, attrs) {
+      if (localName(name) !== 'workbookProtection') return;
+      const protection: {
+        lockStructure?: boolean;
+        lockWindows?: boolean;
+        lockRevision?: boolean;
+        credentials?: Record<string, string>;
+      } = {};
+      if (attrs.lockStructure === '1' || attrs.lockStructure === 'true') protection.lockStructure = true;
+      if (attrs.lockWindows === '1' || attrs.lockWindows === 'true') protection.lockWindows = true;
+      if (attrs.lockRevision === '1' || attrs.lockRevision === 'true') protection.lockRevision = true;
+      const credentials: Record<string, string> = {};
+      for (const key of WORKBOOK_PROTECTION_CREDENTIAL_ATTRS) {
+        const value = attrs[key];
+        if (value !== undefined) credentials[key] = value;
+      }
+      if (Object.keys(credentials).length > 0) protection.credentials = credentials;
+      result = protection;
+    },
+    onText() {},
+    onClose() {},
+  });
+  return result;
 }
 
 // Reconstruct the workbook's defined names. Each `<definedName>` carries its name (and optional

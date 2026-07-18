@@ -30,6 +30,7 @@ import {
 } from '../../core/value.ts';
 import {type SheetProtection, SHEET_PROTECTION_FLAGS} from '../../core/protection.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
+import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
 import type {
   ColumnProperties,
   HeaderFooter,
@@ -850,6 +851,7 @@ function workbookXml(
   return (
     XML_DECLARATION +
     `<workbook xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
+    workbookProtectionXml(workbook) +
     `<sheets>${entries}</sheets>` +
     definedNamesXml(workbook) +
     calcPrXml(workbook) +
@@ -891,6 +893,25 @@ function pivotCachesXml(
   const entries = [...preserved, ...generated];
   if (entries.length === 0) return '';
   return `<pivotCaches>${entries.join('')}</pivotCaches>`;
+}
+
+// `<workbookProtection>` precedes `<sheets>` in CT_Workbook order. It re-emits the workbook's
+// structure/window lock flags (each written only when true, so an unlocked aspect stays absent) and
+// the preserved password/agile-hash credential attributes verbatim. Emitted only when the workbook
+// actually declares protection — the flags or a credential — so an unprotected workbook stays clean.
+function workbookProtectionXml(workbook: Workbook): string {
+  const p = workbook.protection;
+  if (p === undefined) return '';
+  const attrs: string[] = [];
+  if (p.lockStructure) attrs.push('lockStructure="1"');
+  if (p.lockWindows) attrs.push('lockWindows="1"');
+  if (p.lockRevision) attrs.push('lockRevision="1"');
+  for (const key of WORKBOOK_PROTECTION_CREDENTIAL_ATTRS) {
+    const value = p.credentials?.[key];
+    if (value !== undefined) attrs.push(`${key}="${escapeAttr(value)}"`);
+  }
+  if (attrs.length === 0) return '';
+  return `<workbookProtection ${attrs.join(' ')}/>`;
 }
 
 // `<calcPr>` follows `<definedNames>` in CT_Workbook order and carries the calculation settings.

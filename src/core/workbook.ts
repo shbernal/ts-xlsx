@@ -7,6 +7,7 @@
 
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {NamedCellStyle} from './style.ts';
+import type {WorkbookProtection} from './workbook-protection.ts';
 import {type PreservedPart, Worksheet, type WorksheetState} from './worksheet.ts';
 
 /**
@@ -79,6 +80,14 @@ export class Workbook {
    * whose cached results are authoritative stays unmarked.
    */
   fullCalcOnLoad = false;
+
+  /**
+   * Workbook-level structure/window protection — the OOXML `<workbookProtection>` element. Absent by
+   * default (an unprotected workbook). Set it to lock the workbook shell, or leave it as read from a
+   * file so a protected workbook stays locked across a passthrough save rather than being silently
+   * unlocked. Distinct from a worksheet's own `protect()`, which guards a single sheet's cells.
+   */
+  protection: WorkbookProtection | undefined = undefined;
 
   readonly #worksheets: Worksheet[] = [];
   #nextSheetId = 1;

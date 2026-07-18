@@ -2042,6 +2042,32 @@ const impl = {
     return {readStates, xmlStates};
   },
 
+  // Build a workbook, inject workbook-level structure protection into its workbook.xml (reproducing a
+  // file locked with <workbookProtection lockStructure="1">), then read it back and write it out again.
+  // Report whether the protection survives the read→write round-trip rather than being silently dropped.
+  workbookProtectionRoundtrip() {
+    const base = new Workbook();
+    base.addWorksheet('S').getCell('A1').value = 'x';
+    const parts = partMapOf(writeXlsx(base));
+    const injectedXml = parts['xl/workbook.xml'].replace(
+      /<sheets>/,
+      '<workbookProtection lockStructure="1" lockWindows="0"/><sheets>'
+    );
+    const zipFiles = {};
+    for (const [name, xml] of Object.entries(parts)) {
+      zipFiles[name] = strToU8(name === 'xl/workbook.xml' ? injectedXml : xml);
+    }
+    const injected = zipSync(zipFiles);
+
+    const rewrittenBuffer = writeXlsx(readXlsx(injected));
+    const rewrittenXml = partMapOf(rewrittenBuffer)['xl/workbook.xml'] ?? '';
+    return {
+      sourceHadProtection: /workbookProtection/.test(injectedXml),
+      rewrittenHasProtection: /workbookProtection/.test(rewrittenXml),
+      rewrittenLocksStructure: /lockStructure="1"/.test(rewrittenXml),
+    };
+  },
+
   // Read a fixture and report its defined names as { <name>: [refersTo…] }, mirroring the oracle.
   // The model retains every name as its own entry rather than keying by name, so two same-named
   // names scoped to different sheets both survive — the scope collision that drops one on the
