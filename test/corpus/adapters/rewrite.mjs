@@ -3181,6 +3181,61 @@ const impl = {
     };
   },
 
+  // Author a table over A1:B3, populate its cells, load the package, edit a body cell (B2 → 999),
+  // and re-write — reporting that both writes and the reload succeed, the table part and its unique
+  // worksheet relationship survive, and the edited value reads back. Editing a cell inside a table's
+  // range must not truncate or corrupt the table part or its rels.
+  tableCellEditRoundtrip() {
+    const wb = new Workbook();
+    const s = wb.addWorksheet('S');
+    s.addTable({name: 'T', ref: 'A1', columns: [{name: 'H1'}, {name: 'H2'}], rowCount: 2});
+    s.getCell('A1').value = 'H1';
+    s.getCell('B1').value = 'H2';
+    s.getCell('A2').value = 'a';
+    s.getCell('B2').value = 1;
+    s.getCell('A3').value = 'b';
+    s.getCell('B3').value = 2;
+
+    let writeOk = true;
+    let writeError = null;
+    let firstBuffer = null;
+    try {
+      firstBuffer = writeXlsx(wb);
+    } catch (e) {
+      writeOk = false;
+      writeError = String((e && e.message) || e);
+    }
+    if (!writeOk) {
+      return {writeOk, writeError, reloadOk: false, hasTablePart: false, tablePresent: false, editedValue: null, relUnique: false};
+    }
+
+    let reloadOk = true;
+    let hasTablePart = false;
+    let tablePresent = false;
+    let editedValue = null;
+    let relUnique = false;
+    try {
+      const reloaded = readXlsx(firstBuffer);
+      const sheet = reloaded.getWorksheet('S');
+      sheet.getCell('B2').value = 999;
+      const out = writeXlsx(reloaded);
+      const parts = partMapOf(out);
+      const tablePart = Object.keys(parts).find(n => /^xl\/tables\/table\d+\.xml$/.test(n));
+      hasTablePart = tablePart !== undefined;
+      const relPart = Object.keys(parts).find(n => /xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(n));
+      const relIds = relPart ? [...parts[relPart].matchAll(/Id="([^"]*)"/g)].map(m => m[1]) : [];
+      relUnique = relIds.length > 0 && new Set(relIds).size === relIds.length;
+      const back = readXlsx(out);
+      const backSheet = back.getWorksheet('S');
+      tablePresent = backSheet.tables.some(t => t.name === 'T');
+      editedValue = backSheet.getCell('B2').value;
+    } catch (e) {
+      reloadOk = false;
+      writeError = String((e && e.message) || e);
+    }
+    return {writeOk, writeError, reloadOk, hasTablePart, tablePresent, editedValue, relUnique};
+  },
+
   // Write a table whose first column name embeds CR/LF line breaks, then report the first
   // <tableColumn> tag and whether it carries a raw (unescaped) CR or LF. A raw control char in an
   // attribute value is not preserved by XML normalisation (a CR reparses as a space) and makes the
