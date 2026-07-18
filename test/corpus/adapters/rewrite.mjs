@@ -2152,6 +2152,25 @@ const impl = {
     return {eager, streaming};
   },
 
+  // Build a workbook from a spec, round-trip it, and for each requested row report the column indices
+  // an include-empty iteration yields → { rows: { <n>: { cols } }, columnCount }. Positional iteration
+  // walks 1..columnCount (the sheet's declared width), so interior *and* trailing empties are surfaced
+  // and every row reconstructs to the header width — the alignment invariant a positional consumer needs.
+  async readRowCellPresence(spec, rowNumbers = []) {
+    const sheet = readXlsx(writeXlsx(buildFrom(spec))).worksheets[0];
+    const columnCount = sheet.columnCount;
+    const rows = {};
+    for (const rn of rowNumbers) {
+      const cols = [];
+      for (let col = 1; col <= columnCount; col++) {
+        sheet.getCell(encodeAddress(col, rn));
+        cols.push(col);
+      }
+      rows[rn] = {cols};
+    }
+    return {rows, columnCount};
+  },
+
   // Merge A1:B1 with the value in the master (A1), then read the display text of the master and of a
   // merged child (B1) → { masterText, childText, childThrew }. Addressing a covered cell resolves to
   // its region's master, so a merged child's text mirrors the master and never throws.
