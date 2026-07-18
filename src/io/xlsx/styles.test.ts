@@ -2,9 +2,35 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import type {Fill} from '../../core/style.ts';
-import {StyleRegistry} from './styles.ts';
+import {parseIndexedColors, StyleRegistry} from './styles.ts';
 
 const solid = (argb: string): Fill => ({type: 'pattern', pattern: 'solid', fgColor: {argb}});
+
+test('parseIndexedColors extracts each rgbColor verbatim, or nothing when the palette is default', () => {
+  const styles =
+    '<styleSheet><colors><indexedColors>' +
+    '<rgbColor rgb="ff000000"/><rgbColor rgb="ff3f6797"/><rgbColor rgb="ffaaaaaa"/>' +
+    '</indexedColors></colors></styleSheet>';
+  assert.deepEqual(parseIndexedColors(styles), [
+    '<rgbColor rgb="ff000000"/>',
+    '<rgbColor rgb="ff3f6797"/>',
+    '<rgbColor rgb="ffaaaaaa"/>',
+  ]);
+  assert.deepEqual(parseIndexedColors('<styleSheet><dxfs count="0"/></styleSheet>'), []);
+});
+
+test('a seeded indexed-color palette re-emits as a <colors> block; an unseeded one emits none', () => {
+  const seeded = new StyleRegistry();
+  seeded.seedIndexedColors(['<rgbColor rgb="ff3f6797"/>', '<rgbColor rgb="ffaaaaaa"/>']);
+  const xml = seeded.toXml();
+  assert.match(
+    xml,
+    /<colors><indexedColors><rgbColor rgb="ff3f6797"\/><rgbColor rgb="ffaaaaaa"\/><\/indexedColors><\/colors>/
+  );
+  // The palette is a late child of <styleSheet>: after <dxfs>, before the close.
+  assert.ok(xml.indexOf('<dxfs') < xml.indexOf('<colors>'), '<colors> follows <dxfs>');
+  assert.doesNotMatch(new StyleRegistry().toXml(), /<colors>/, 'the default palette writes no <colors>');
+});
 
 test('an absent or "none" fill with no format resolves to the default xf 0 — no style entry', () => {
   const styles = new StyleRegistry();

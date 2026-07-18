@@ -62,6 +62,7 @@ import type {
 import {decodeCellContent, decodeFormulaResult, type SharedString} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
+import {parseIndexedColors} from './styles.ts';
 import {
   applyDataValidations,
   parseDataValidations,
@@ -123,6 +124,9 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // Preserve the differential-style table verbatim so conditional formatting's dxfId references stay
   // valid — and a foreign dxf's number format stays a real format code — across a re-write.
   workbook.restoreDifferentialStyles(parseDxfs(stylesXml));
+  // Preserve a custom indexed-color palette verbatim so an `indexed="…"` colour reference keeps its
+  // intended RGB across a re-write instead of resolving to a different default-palette entry.
+  workbook.restoreIndexedColors(parseIndexedColors(stylesXml));
   // Preserve the named cell-style layer only when a file declares one beyond the Normal default, so an
   // ordinary workbook keeps an empty named-style table and emits just the default on write.
   if (namedStyles.length > 1) workbook.restoreNamedStyles(namedStyles);

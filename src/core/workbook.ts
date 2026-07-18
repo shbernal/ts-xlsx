@@ -110,6 +110,12 @@ export class Workbook {
   // default Normal style, in which case the writer emits just that default.
   readonly #namedStyles: NamedCellStyle[] = [];
 
+  // A custom indexed-color palette (`<colors><indexedColors>` in styles.xml) read from a file, each
+  // entry a verbatim `<rgbColor rgb="…"/>` fragment. Preserved so an `indexed="…"` colour reference
+  // keeps its intended RGB across a round-trip instead of resolving to a different default-palette
+  // entry. Empty for a workbook that never overrode the palette.
+  readonly #indexedColors: string[] = [];
+
   // Workbook-level references to package content the model does not interpret (pivot caches, slicer
   // caches), captured verbatim on read so a round-trip re-emits them rather than dropping the pivots
   // and slicers they back. Empty for a workbook authored from scratch.
@@ -144,6 +150,22 @@ export class Workbook {
   /** The preserved differential-style (`<dxfs>`) fragments, in index order. */
   get differentialStyles(): readonly string[] {
     return this.#dxfs;
+  }
+
+  /**
+   * Reinstate the custom indexed-color palette (`<colors><indexedColors>`) read from a file — each
+   * entry a verbatim `<rgbColor rgb="…"/>` fragment — so a colour referenced by `indexed="…"` keeps
+   * its intended RGB on re-write instead of the palette being dropped and the colour shifting to a
+   * default-palette entry. Replaces any palette already held.
+   */
+  restoreIndexedColors(fragments: readonly string[]): void {
+    this.#indexedColors.length = 0;
+    this.#indexedColors.push(...fragments);
+  }
+
+  /** The preserved custom indexed-color palette, in index order; empty when the default palette rules. */
+  get indexedColors(): readonly string[] {
+    return this.#indexedColors;
   }
 
   /**

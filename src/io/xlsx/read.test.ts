@@ -379,6 +379,36 @@ test('a built-in numFmt id on a foreign cell resolves to its standard format cod
   assert.equal(back?.getCell('A1').numFmt, '0.00%');
 });
 
+test('a custom indexed-color palette survives a read → write round-trip verbatim', () => {
+  const palette =
+    '<colors><indexedColors><rgbColor rgb="ff000000"/><rgbColor rgb="ffffffff"/>' +
+    '<rgbColor rgb="ff3f6797"/><rgbColor rgb="ffaaaaaa"/></indexedColors></colors>';
+  const files: Record<string, Uint8Array> = {
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/styles.xml': strToU8(`<?xml version="1.0"?><styleSheet><dxfs count="0"/>${palette}</styleSheet>`),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c></row></sheetData></worksheet>'
+    ),
+  };
+  const loaded = readXlsx(zipSync(files));
+  assert.deepEqual(loaded.indexedColors, [
+    '<rgbColor rgb="ff000000"/>',
+    '<rgbColor rgb="ffffffff"/>',
+    '<rgbColor rgb="ff3f6797"/>',
+    '<rgbColor rgb="ffaaaaaa"/>',
+  ]);
+  // The re-written styles part carries the same palette, entry for entry.
+  const rewritten = strFromU8(unzipSync(writeXlsx(loaded))['xl/styles.xml'] as Uint8Array);
+  assert.match(rewritten, /<colors><indexedColors><rgbColor rgb="ff000000"\/>.*<rgbColor rgb="ffaaaaaa"\/><\/indexedColors><\/colors>/);
+});
+
 test('a Strict-mode t="d" cell parses to the ISO date it states, not a 1900 serial', () => {
   const files: Record<string, Uint8Array> = {
     'xl/workbook.xml': strToU8(

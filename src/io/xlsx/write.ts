@@ -294,6 +294,9 @@ export function buildPackageParts(
   // Seed the named cell-style layer (cellStyleXfs/cellStyles) so each style's facets re-intern into the
   // rebuilt sub-tables and a cell's xfId link stays valid; without any, the default Normal alone emits.
   styles.seedNamedStyles(workbook.namedStyles);
+  // Seed the custom indexed-color palette so it re-emits verbatim and an `indexed="…"` colour keeps
+  // its intended RGB; a workbook that never overrode the palette seeds nothing and writes no <colors>.
+  styles.seedIndexedColors(workbook.indexedColors);
   const sheetXml = sheets.map((sheet, i) => {
     const refs = preserved.perSheet[i] ?? [];
     // A preserved `<drawing>` and a modeled one are mutually exclusive (a drawing is only preserved

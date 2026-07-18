@@ -132,6 +132,12 @@ export class StyleRegistry {
   readonly #dxfXml: string[] = [];
   readonly #dxfIndexByFragment = new Map<string, number>();
 
+  // A custom indexed-color palette (`<colors><indexedColors>`) read from a file, each entry a verbatim
+  // `<rgbColor rgb="…"/>`. Preserved and re-emitted unchanged so cells/fonts/borders that reference a
+  // colour by `indexed="…"` keep their intended RGB; dropping it would silently resolve every indexed
+  // colour to a different default-palette entry. Empty for a workbook that never overrode the palette.
+  readonly #indexedColors: string[] = [];
+
   /**
    * The `<cellXfs>` index for a composed cell/row/column style. A style with no facet needs
    * no entry and resolves to the default xf 0, so its owner emits no `s` attribute at all.
@@ -205,6 +211,17 @@ export class StyleRegistry {
       // A seeded fragment can still be reused by an authored style identical to it, so index it too.
       if (!this.#dxfIndexByFragment.has(fragment)) this.#dxfIndexByFragment.set(fragment, index);
     }
+  }
+
+  /**
+   * Seed the custom indexed-color palette (`<colors><indexedColors>`) read from a file, each entry a
+   * verbatim `<rgbColor rgb="…"/>` fragment. Re-emitting it unchanged is what keeps an `indexed="…"`
+   * colour reference resolving to the RGB the source intended. An empty list leaves the workbook on
+   * the default palette and emits no `<colors>` element.
+   */
+  seedIndexedColors(fragments: readonly string[]): void {
+    this.#indexedColors.length = 0;
+    this.#indexedColors.push(...fragments);
   }
 
   /** Intern a differential style authored on a rule, returning its `<dxfs>` index for the cfRule's
@@ -294,8 +311,17 @@ export class StyleRegistry {
       `<cellXfs count="${this.#formats.length}">${cellXfs}</cellXfs>` +
       `<cellStyles count="${this.#cellStyleNames.length}">${cellStyles}</cellStyles>` +
       this.#dxfsXml() +
+      this.#colorsXml() +
       '</styleSheet>'
     );
+  }
+
+  // <colors> (holding the custom <indexedColors> palette) is a late child of <styleSheet>, after
+  // <dxfs> and <tableStyles>. It is emitted only when a file overrode the default palette, so an
+  // ordinary workbook stays on the built-in indexed colours and writes no <colors> element.
+  #colorsXml(): string {
+    if (this.#indexedColors.length === 0) return '';
+    return `<colors><indexedColors>${this.#indexedColors.join('')}</indexedColors></colors>`;
   }
 
   // <dxfs> holds the differential styles conditional formatting references by index. An empty table
@@ -404,6 +430,19 @@ function protectionAttrs(protection: Protection): string {
   if (protection.locked === false) parts.push('locked="0"');
   if (protection.hidden === true) parts.push('hidden="1"');
   return parts.join(' ');
+}
+
+/**
+ * Extract the custom indexed-color palette (`<colors><indexedColors>`) from styles.xml as verbatim
+ * `<rgbColor rgb="…"/>` fragments, or an empty list when the file rides the default palette. Kept raw
+ * — rather than parsed into RGB and re-serialised — so the exact entries (count, order, casing) a
+ * source file declared survive a round-trip and every `indexed="…"` reference keeps its RGB.
+ */
+export function parseIndexedColors(stylesXml: string): string[] {
+  const block = /<indexedColors\b[^>]*>([\s\S]*?)<\/indexedColors>/.exec(stylesXml);
+  if (block === null) return [];
+  const inner = block[1] ?? '';
+  return [...inner.matchAll(/<rgbColor\b[^>]*\/>|<rgbColor\b[^>]*>[\s\S]*?<\/rgbColor>/g)].map(m => m[0] ?? '');
 }
 
 // Serialise the facets a font overrides, in ECMA-376 child order. A boolean flag is emitted only

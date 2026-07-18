@@ -3008,7 +3008,10 @@ const impl = {
   // report the same facts → { source, rewritten }. A faithful no-op round-trip must reproduce every
   // fractional column width and the print-scaling attributes the real file carries.
   roundtripFixtureStyleFacts(rel) {
-    const facts = workbook => {
+    // Model-level facts (column widths, pageSetup, dxfs) come from the parsed workbook; the custom
+    // indexed-color palette is a raw styles.xml fact, so it is read straight from the part bytes on
+    // each side — matching the legacy oracle, which extracts the same block from the zip.
+    const facts = (workbook, stylesXml) => {
       const sheet = workbook.worksheets[0];
       const ps = sheet ? sheet.pageSetup : {};
       // Differential styles are preserved as verbatim `<dxf>` fragments; a rule's number format is
@@ -3017,6 +3020,7 @@ const impl = {
       const dxfFormatCodes = dxfs.flatMap(f =>
         [...f.matchAll(/formatCode="([^"]*)"/g)].map(m => m[1])
       );
+      const palette = stylesXml.match(/<indexedColors>([\s\S]*?)<\/indexedColors>/);
       return {
         columnWidths: sheet
           ? [...sheet.columns()].map(c => c.properties.width).filter(w => w !== undefined)
@@ -3031,12 +3035,17 @@ const impl = {
         },
         dxfCount: dxfs.length,
         dxfFormatCodes,
+        hasIndexedColors: !!palette,
+        indexedColorSample: palette
+          ? [...palette[1].matchAll(/rgb="([0-9a-fA-F]+)"/g)].slice(0, 6).map(m => m[1])
+          : [],
       };
     };
     const before = readFixture(rel);
-    const source = facts(before);
-    const after = readXlsx(writeXlsx(before));
-    return {source, rewritten: facts(after)};
+    const source = facts(before, partMapOf(fixtureBytes(rel))['xl/styles.xml'] || '');
+    const buffer = writeXlsx(before);
+    const after = readXlsx(buffer);
+    return {source, rewritten: facts(after, partMapOf(buffer)['xl/styles.xml'] || '')};
   },
 
   // Author a conditional-formatting rule, write it, and report the emitted CF XML facts plus what the
