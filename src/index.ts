@@ -42,6 +42,8 @@ export {
   type FillPatternType,
   type Font,
   type FontVerticalAlignment,
+  type GradientFill,
+  type GradientStop,
   type HorizontalAlignment,
   type PatternFill,
   type Protection,

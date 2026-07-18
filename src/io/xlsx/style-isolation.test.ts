@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {Workbook} from '../../core/workbook.ts';
+import type {Fill} from '../../core/style.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -20,7 +21,8 @@ function roundtrip(workbook: Workbook): Workbook {
   return readXlsx(writeXlsx(workbook));
 }
 
-const fgOf = (fill: {fgColor?: {argb?: string}} | undefined): string | undefined => fill?.fgColor?.argb;
+const fgOf = (fill: Fill | undefined): string | undefined =>
+  fill?.type === 'pattern' ? fill.fgColor?.argb : undefined;
 
 test('replacing one loaded cell fill leaves a style-sharing sibling untouched, in memory and on disk', () => {
   const wb = new Workbook();

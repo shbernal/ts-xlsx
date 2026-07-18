@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import {zipSync, strToU8, strFromU8, unzipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
+import type {Fill} from '../../core/style.ts';
 import {isFormulaValue} from '../../core/value.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
@@ -11,6 +12,11 @@ import {writeXlsx} from './write.ts';
 /** Write a workbook and read it straight back — the round-trip under test. */
 function roundtrip(workbook: Workbook): Workbook {
   return readXlsx(writeXlsx(workbook));
+}
+
+/** The foreground ARGB of a pattern fill, narrowing the Fill union (a gradient has no fgColor). */
+function fillFgArgb(fill: Fill | undefined): string | undefined {
+  return fill?.type === 'pattern' ? fill.fgColor?.argb : undefined;
 }
 
 test('scalar cell values survive the round-trip with their types', () => {
@@ -214,7 +220,7 @@ test('a formatted-but-empty cell round-trips with its fill and a null value', ()
 
   const back = roundtrip(wb).getWorksheet('S');
   assert.equal(back?.getCell('B2').value, null, 'the empty cell stays empty, not fabricated a value');
-  assert.equal(back?.getCell('B2').fill?.fgColor?.argb, 'FF00FF00', 'the fill survives on the empty cell');
+  assert.equal(fillFgArgb(back?.getCell('B2').fill), 'FF00FF00', 'the fill survives on the empty cell');
 });
 
 test('two cells with different fills stay distinct across the round-trip', () => {
@@ -226,8 +232,8 @@ test('two cells with different fills stay distinct across the round-trip', () =>
   sheet.getCell('A2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF0000FF'}};
 
   const back = roundtrip(wb).getWorksheet('S');
-  assert.equal(back?.getCell('A1').fill?.fgColor?.argb, 'FFFF0000');
-  assert.equal(back?.getCell('A2').fill?.fgColor?.argb, 'FF0000FF');
+  assert.equal(fillFgArgb(back?.getCell('A1').fill), 'FFFF0000');
+  assert.equal(fillFgArgb(back?.getCell('A2').fill), 'FF0000FF');
 });
 
 test('a row-level fill is inherited by the row cells that carry no fill of their own', () => {
@@ -237,7 +243,7 @@ test('a row-level fill is inherited by the row cells that carry no fill of their
   sheet.getRow(3).fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF4500'}};
 
   const back = roundtrip(wb).getWorksheet('S');
-  assert.equal(back?.getCell('A3').fill?.fgColor?.argb, 'FFFF4500', 'the formatted row paints its cell');
+  assert.equal(fillFgArgb(back?.getCell('A3').fill), 'FFFF4500', 'the formatted row paints its cell');
   for (const ref of ['A1', 'A2', 'A4']) {
     assert.equal(back?.getCell(ref).fill, undefined, `${ref} does not inherit the row-3 fill`);
   }
@@ -294,7 +300,7 @@ test('a cell fill and its column number format both survive — overriding one f
   sheet.getCell('A3').value = 3;
 
   const back = roundtrip(wb).getWorksheet('S');
-  assert.equal(back?.getCell('A2').fill?.fgColor?.argb, 'FFFFFF00', 'the filled cell keeps its fill');
+  assert.equal(fillFgArgb(back?.getCell('A2').fill), 'FFFFFF00', 'the filled cell keeps its fill');
   for (const ref of ['A1', 'A2', 'A3']) {
     assert.equal(back?.getCell(ref).numFmt, '0.00', `${ref} keeps the column number format`);
   }
@@ -407,6 +413,106 @@ test('a custom indexed-color palette survives a read → write round-trip verbat
   // The re-written styles part carries the same palette, entry for entry.
   const rewritten = strFromU8(unzipSync(writeXlsx(loaded))['xl/styles.xml'] as Uint8Array);
   assert.match(rewritten, /<colors><indexedColors><rgbColor rgb="ff000000"\/>.*<rgbColor rgb="ffaaaaaa"\/><\/indexedColors><\/colors>/);
+});
+
+test('a gradient fill in the <fills> list keeps its id slot so later fills still resolve', () => {
+  // fills: 0 none, 1 gray125, 2 gradient, 3 solid red. A cell naming fill 3 must read back red — the
+  // gradient at index 2 must not swallow the slot and shift red down to where nothing references it.
+  const styles =
+    '<?xml version="1.0"?><styleSheet><fills count="4">' +
+    '<fill><patternFill patternType="none"/></fill>' +
+    '<fill><patternFill patternType="gray125"/></fill>' +
+    '<fill><gradientFill degree="90"><stop position="0"><color rgb="FFFFFFFF"/></stop>' +
+    '<stop position="1"><color rgb="FF4472C4"/></stop></gradientFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFFF0000"/><bgColor indexed="64"/></patternFill></fill>' +
+    '</fills><cellXfs count="3">' +
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0"/>' +
+    '</cellXfs></styleSheet>';
+  const files: Record<string, Uint8Array> = {
+    'xl/workbook.xml': strToU8(
+      '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>'
+    ),
+    'xl/styles.xml': strToU8(styles),
+    'xl/worksheets/sheet1.xml': strToU8(
+      '<?xml version="1.0"?><worksheet><sheetData><row r="1">' +
+        '<c r="A1" s="1"><v>1</v></c><c r="A2" s="2"><v>2</v></c></row></sheetData></worksheet>'
+    ),
+  };
+  const back = readXlsx(zipSync(files)).getWorksheet('S');
+  assert.equal(fillFgArgb(back?.getCell('A1').fill), 'FFFF0000', 'the solid fill after the gradient still resolves');
+
+  const gradient = back?.getCell('A2').fill;
+  assert.ok(gradient?.type === 'gradient', 'the gradient-filled cell reads back a gradient fill');
+  assert.equal(gradient.gradient, 'linear');
+  assert.equal(gradient.degree, 90);
+  assert.deepEqual(gradient.stops, [
+    {position: 0, color: {argb: 'FFFFFFFF'}},
+    {position: 1, color: {argb: 'FF4472C4'}},
+  ]);
+});
+
+test('a linear gradient fill on a cell survives a model → write → read round-trip', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'g';
+  sheet.getCell('A1').fill = {
+    type: 'gradient',
+    gradient: 'linear',
+    degree: 45,
+    stops: [
+      {position: 0, color: {argb: 'FFFF0000'}},
+      {position: 0.5, color: {argb: 'FF00FF00'}},
+      {position: 1, color: {argb: 'FF0000FF'}},
+    ],
+  };
+
+  const back = roundtrip(wb).getWorksheet('S');
+  const fill = back?.getCell('A1').fill;
+  assert.ok(fill?.type === 'gradient', 'the cell keeps a gradient fill');
+  assert.equal(fill.gradient, 'linear');
+  assert.equal(fill.degree, 45);
+  assert.deepEqual(fill.stops, [
+    {position: 0, color: {argb: 'FFFF0000'}},
+    {position: 0.5, color: {argb: 'FF00FF00'}},
+    {position: 1, color: {argb: 'FF0000FF'}},
+  ]);
+});
+
+test('a path gradient fill round-trips its inner-rectangle insets', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'p';
+  sheet.getCell('A1').fill = {
+    type: 'gradient',
+    gradient: 'path',
+    left: 0.5,
+    right: 0.5,
+    top: 0.5,
+    bottom: 0.5,
+    stops: [
+      {position: 0, color: {argb: 'FFFFFFFF'}},
+      {position: 1, color: {argb: 'FF000000'}},
+    ],
+  };
+
+  const back = roundtrip(wb).getWorksheet('S');
+  const fill = back?.getCell('A1').fill;
+  assert.ok(fill?.type === 'gradient', 'the cell keeps a gradient fill');
+  assert.equal(fill.gradient, 'path');
+  assert.equal(fill.degree, undefined, 'a path gradient carries no degree');
+  assert.deepEqual({left: fill.left, right: fill.right, top: fill.top, bottom: fill.bottom}, {
+    left: 0.5,
+    right: 0.5,
+    top: 0.5,
+    bottom: 0.5,
+  });
 });
 
 test('a Strict-mode t="d" cell parses to the ISO date it states, not a 1900 serial', () => {

@@ -36,6 +36,8 @@ import type {
   Fill,
   FillPatternType,
   Font,
+  GradientFill,
+  GradientStop,
   FontVerticalAlignment,
   HorizontalAlignment,
   NamedCellStyle,
@@ -855,6 +857,15 @@ type FontDraft = {-readonly [K in keyof Font]?: Font[K]};
 // Border on close. The five edges match Border's; a bare styleless edge is simply never set.
 type BorderDraft = {-readonly [K in keyof Border]?: Border[K]};
 
+// A mutable gradient accumulator while a <gradientFill> streams in. `fill` builds up the frozen
+// GradientFill (its stops appended as <stop>/<color> pairs close); `stopPosition`/`stopColor` hold the
+// current <stop> until its close commits a {position, color} pair.
+type GradientDraft = {
+  fill: {-readonly [K in keyof GradientFill]: GradientFill[K]};
+  stopPosition: number | null;
+  stopColor: Color | undefined;
+};
+
 // The four sides plus the diagonal — the edge elements a <border> can hold, in the order the
 // schema lists them. Membership drives edge parsing without a per-name branch.
 type BorderEdgeName = 'left' | 'right' | 'top' | 'bottom' | 'diagonal';
@@ -915,6 +926,11 @@ export function parseStyleTable(xml: string): StyleTable {
   let pattern = '';
   let fgColor: Color | undefined;
   let bgColor: Color | undefined;
+  // A gradient fill accumulates from <gradientFill> open to close; its stops fill in as <stop>/<color>
+  // pairs arrive. `fillSlotAt` marks where in `fills` the current <fill> began, so its close can keep a
+  // slot even when the fill body was neither a pattern nor a gradient — index alignment is load-bearing.
+  let gradientDraft: GradientDraft | null = null;
+  let fillSlotAt = -1;
   let fontDraft: FontDraft | null = null;
   let borderDraft: BorderDraft | null = null;
   // Which edge of the current border a nested <color> belongs to; null between edges.
@@ -939,6 +955,33 @@ export function parseStyleTable(xml: string): StyleTable {
         }
         case 'fills':
           inFills = true;
+          break;
+        case 'fill':
+          // Mark where this <fill> starts so its close can guarantee exactly one slot — a fill body
+          // that is neither <patternFill> nor <gradientFill> (or a gradient we could not parse) must
+          // still consume an id, or every later fill index shifts and cells mis-resolve their fill.
+          if (inFills) fillSlotAt = fills.length;
+          break;
+        case 'gradientFill':
+          if (inFills) {
+            gradientDraft = {
+              fill: {type: 'gradient', gradient: attrs.type === 'path' ? 'path' : 'linear', stops: []},
+              stopPosition: null,
+              stopColor: undefined,
+            };
+            assignGradientNumbers(gradientDraft.fill, attrs);
+            if (selfClosing) {
+              fills.push(gradientDraft.fill);
+              gradientDraft = null;
+            }
+          }
+          break;
+        case 'stop':
+          if (gradientDraft !== null) {
+            const position = Number(attrs.position);
+            gradientDraft.stopPosition = Number.isFinite(position) ? position : 0;
+            gradientDraft.stopColor = undefined;
+          }
           break;
         case 'fonts':
           inFonts = true;
@@ -1006,7 +1049,10 @@ export function parseStyleTable(xml: string): StyleTable {
         default: {
           const local = localName(name);
           // A <font>'s children are self-closing, so they are read here on open.
-          if (fontDraft !== null) {
+          if (gradientDraft !== null && local === 'color') {
+            // The colour of the open <stop>; committed to a GradientStop when the stop closes.
+            gradientDraft.stopColor = parseColor(attrs);
+          } else if (fontDraft !== null) {
             applyFontChild(fontDraft, local, attrs);
           } else if (borderDraft !== null) {
             // A border's edges and their <color> children are all read on open (each is
@@ -1108,6 +1154,25 @@ export function parseStyleTable(xml: string): StyleTable {
           break;
         case 'patternFill':
           if (inFills) fills.push(toFill(pattern, fgColor, bgColor));
+          break;
+        case 'stop':
+          if (gradientDraft !== null && gradientDraft.stopPosition !== null) {
+            const stop: GradientStop = {position: gradientDraft.stopPosition, color: gradientDraft.stopColor ?? {}};
+            gradientDraft.fill.stops = [...gradientDraft.fill.stops, stop];
+            gradientDraft.stopPosition = null;
+            gradientDraft.stopColor = undefined;
+          }
+          break;
+        case 'gradientFill':
+          if (gradientDraft !== null) {
+            fills.push(gradientDraft.fill);
+            gradientDraft = null;
+          }
+          break;
+        case 'fill':
+          // Backstop the slot: if this <fill>'s body pushed nothing (unparsed/unknown content), keep an
+          // empty slot so id alignment holds and later fills still resolve to the right cells.
+          if (inFills && fills.length === fillSlotAt) fills.push(undefined);
           break;
         default:
           // A coloured edge closes after its <color> child; drop the edge context so a stray
@@ -1245,6 +1310,15 @@ function toFill(pattern: string, fgColor: Color | undefined, bgColor: Color | un
     ...(fgColor ? {fgColor} : {}),
     ...(bgColor ? {bgColor} : {}),
   };
+}
+
+// Copy the numeric <gradientFill> attributes (degree; the path insets) onto a gradient draft, keeping
+// only the finite ones so an absent or malformed attribute leaves the field its OOXML default (unset).
+function assignGradientNumbers(fill: GradientDraft['fill'], attrs: Record<string, string>): void {
+  for (const key of ['degree', 'left', 'right', 'top', 'bottom'] as const) {
+    const value = Number(attrs[key]);
+    if (attrs[key] !== undefined && Number.isFinite(value)) fill[key] = value;
+  }
 }
 
 // An accumulated border with no styled edge and no diagonal direction is the empty default:

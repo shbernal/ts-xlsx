@@ -21,6 +21,7 @@ import type {
   Color,
   Fill,
   Font,
+  GradientFill,
   NamedCellStyle,
   Protection,
   UnderlineStyle,
@@ -163,7 +164,9 @@ export class StyleRegistry {
   // number-format into its shared sub-table. Shared by the cell-format path ({@link styleId}) and the
   // named-style path ({@link seedNamedStyles}), which differ only in which table the result lands in.
   #composeFormat(style: CellStyle, xfId: number): CellFormat {
-    const fillId = style.fill && style.fill.pattern !== 'none' ? this.#internFill(style.fill) : 0;
+    // A `none` pattern is the reserved fill 0; a gradient is always a real, interned fill.
+    const paints = style.fill !== undefined && (style.fill.type === 'gradient' || style.fill.pattern !== 'none');
+    const fillId = paints ? this.#internFill(style.fill as Fill) : 0;
     // A number format is a format-code *string*; a caller that assigns a structured object (e.g. a
     // parsed `{id, formatCode}` copied from another cell) must not have it stringified into the styles
     // part as `formatCode="[object Object]"`, which Excel reports as a corrupt package. A non-string
@@ -491,9 +494,30 @@ export function dxfXml(style: DifferentialStyle): string {
 // A differential fill: the pattern with whatever colours it names. Unlike a cell fill, a dxf does not
 // force a placeholder background on a solid pattern — a dxf states only the overrides it carries.
 function dxfFillXml(fill: Fill): string {
+  if (fill.type === 'gradient') return `<fill>${gradientFillXml(fill)}</fill>`;
   const fg = fill.fgColor ? `<fgColor ${colorAttrs(fill.fgColor)}/>` : '';
   const bg = fill.bgColor ? `<bgColor ${colorAttrs(fill.bgColor)}/>` : '';
   return `<fill><patternFill patternType="${fill.pattern}">${fg}${bg}</patternFill></fill>`;
+}
+
+// The gradient element shared by cell fills and dxf fills. Linear gradients carry a `degree`; path
+// gradients carry inner-rectangle insets. A zero-valued attribute is its OOXML default and is omitted.
+function gradientFillXml(fill: GradientFill): string {
+  const attrs =
+    (fill.gradient === 'path' ? ' type="path"' : '') +
+    (fill.degree ? ` degree="${numberAttr(fill.degree)}"` : '') +
+    insetAttr('left', fill.left) +
+    insetAttr('right', fill.right) +
+    insetAttr('top', fill.top) +
+    insetAttr('bottom', fill.bottom);
+  const stops = fill.stops
+    .map(stop => `<stop position="${numberAttr(stop.position)}"><color ${colorAttrs(stop.color)}/></stop>`)
+    .join('');
+  return `<gradientFill${attrs}>${stops}</gradientFill>`;
+}
+
+function insetAttr(name: string, value: number | undefined): string {
+  return value ? ` ${name}="${numberAttr(value)}"` : '';
 }
 
 // `<u/>` is single underline (the same as an explicit "single"); the named variants carry a
@@ -547,6 +571,10 @@ function escapeFormatCode(code: string): string {
 
 // A stable, collision-free key for a fill: identical fills share it, distinct ones don't.
 function fillSignature(fill: Fill): string {
+  if (fill.type === 'gradient') {
+    const stops = fill.stops.map(s => `${s.position}:${colorSignature(s.color)}`).join(',');
+    return `grad|${fill.gradient}|${fill.degree ?? ''}|${fill.left ?? ''}/${fill.right ?? ''}/${fill.top ?? ''}/${fill.bottom ?? ''}|${stops}`;
+  }
   return `${fill.pattern}|${colorSignature(fill.fgColor)}|${colorSignature(fill.bgColor)}`;
 }
 
@@ -556,6 +584,7 @@ function colorSignature(color: Color | undefined): string {
 }
 
 function fillXml(fill: Fill): string {
+  if (fill.type === 'gradient') return `<fill>${gradientFillXml(fill)}</fill>`;
   const fg = fill.fgColor ? `<fgColor ${colorAttrs(fill.fgColor)}/>` : '';
   // A solid fill's background is the automatic indexed placeholder unless one is stated;
   // omitting it makes Excel render the fill as flat black, so it is always emitted.

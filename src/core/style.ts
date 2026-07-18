@@ -49,7 +49,7 @@ export type FillPatternType =
 /**
  * A pattern fill. For a `solid` fill the visible colour is the pattern *foreground*
  * (`fgColor`) — OOXML's counter-intuitive rule — while `bgColor` is the automatic
- * indexed placeholder. Gradient fills land with a later slice.
+ * indexed placeholder.
  */
 export interface PatternFill {
   readonly type: 'pattern';
@@ -58,8 +58,33 @@ export interface PatternFill {
   readonly bgColor?: Color;
 }
 
-/** A cell/row background fill. Only pattern fills exist today; gradients extend this union later. */
-export type Fill = PatternFill;
+/** A colour stop in a gradient, at a fractional `position` in `[0, 1]` along the gradient axis. */
+export interface GradientStop {
+  readonly position: number;
+  readonly color: Color;
+}
+
+/**
+ * A gradient fill, as OOXML's `CT_GradientFill`. A `linear` gradient runs at `degree`
+ * degrees across the cell; a `path` gradient radiates from an inner rectangle whose
+ * insets are `left`/`right`/`top`/`bottom` (each a fraction in `[0, 1]`). The `stops`
+ * place colours along the axis; a well-formed gradient names at least two.
+ */
+export interface GradientFill {
+  readonly type: 'gradient';
+  readonly gradient: 'linear' | 'path';
+  /** Rotation of a `linear` gradient, in degrees. Absent (and meaningless) for `path`. */
+  readonly degree?: number;
+  /** Inner-rectangle insets of a `path` gradient, each a fraction in `[0, 1]`. */
+  readonly left?: number;
+  readonly right?: number;
+  readonly top?: number;
+  readonly bottom?: number;
+  readonly stops: readonly GradientStop[];
+}
+
+/** A cell/row background fill: a flat pattern or a colour gradient. */
+export type Fill = PatternFill | GradientFill;
 
 /**
  * Line styles a cell border edge can take, as OOXML's `ST_BorderStyle` enumerates them.

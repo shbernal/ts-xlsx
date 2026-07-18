@@ -829,8 +829,10 @@ test('a cell linking to a named cell style keeps its fill and xfId link across a
 
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
   const a1 = back?.getCell('A1');
-  assert.equal(a1?.fill?.pattern, 'solid', 'the named-style fill resolves onto the cell on read');
-  assert.equal(a1?.fill?.fgColor?.argb, 'FFFFFF00', 'the resolved fill is the named-style yellow');
+  const fill = a1?.fill;
+  assert.ok(fill?.type === 'pattern', 'the named-style fill resolves onto the cell as a pattern fill');
+  assert.equal(fill.pattern, 'solid', 'the named-style fill resolves onto the cell on read');
+  assert.equal(fill.fgColor?.argb, 'FFFFFF00', 'the resolved fill is the named-style yellow');
   assert.equal(a1?.namedStyleId, 1, 'the cell keeps its link to the named style');
 })
 

@@ -48,6 +48,46 @@ test('an identical fill interns to one shared xf index however many times it is 
   assert.notEqual(first, 0, 'a real fill gets a non-default index');
 });
 
+test('a gradient fill emits a <gradientFill> with its stops, and interns like any other fill', () => {
+  const styles = new StyleRegistry();
+  const grad: Fill = {
+    type: 'gradient',
+    gradient: 'linear',
+    degree: 90,
+    stops: [
+      {position: 0, color: {argb: 'FFFFFFFF'}},
+      {position: 1, color: {argb: 'FF4472C4'}},
+    ],
+  };
+  const first = styles.styleId({fill: grad});
+  assert.notEqual(first, 0, 'a gradient is a real fill, never the default xf 0');
+  assert.equal(styles.styleId({fill: grad}), first, 'an identical gradient interns to the same xf');
+
+  const xml = styles.toXml();
+  assert.match(
+    xml,
+    /<fill><gradientFill degree="90"><stop position="0"><color rgb="FFFFFFFF"\/><\/stop><stop position="1"><color rgb="FF4472C4"\/><\/stop><\/gradientFill><\/fill>/
+  );
+});
+
+test('a path gradient emits its type and insets and omits a zero degree', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({
+    fill: {
+      type: 'gradient',
+      gradient: 'path',
+      left: 0.5,
+      right: 0.5,
+      top: 0.25,
+      bottom: 0.25,
+      stops: [{position: 0, color: {argb: 'FF000000'}}],
+    },
+  });
+  const xml = styles.toXml();
+  assert.match(xml, /<gradientFill type="path" left="0.5" right="0.5" top="0.25" bottom="0.25">/);
+  assert.doesNotMatch(xml, /degree=/, 'a path gradient with no degree emits none');
+});
+
 test('an identical number format interns to one shared xf index', () => {
   const styles = new StyleRegistry();
   const first = styles.styleId({numFmt: '0.00%'});
