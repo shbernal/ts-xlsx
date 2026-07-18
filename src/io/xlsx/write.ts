@@ -21,6 +21,7 @@ import type {Table, TableColumn, TableStyleInfo} from '../../core/table.ts';
 import {
   detectValueType,
   type FormulaResult,
+  isDataTableFormulaValue,
   isErrorValue,
   isFormulaValue,
   isHyperlinkValue,
@@ -1592,6 +1593,18 @@ function cellXml(
     return formulaBodyXml(ref, s, `<f t="shared" si="${shared.si}"/>`, result);
   }
 
+  if (isDataTableFormulaValue(value)) {
+    // A data-table formula carries no expression text — only its declaration attributes — which we
+    // re-emit verbatim so a read-modify-write cycle preserves the What-If kind the library never
+    // evaluates. The cached result travels as any formula result does.
+    const attrs =
+      `ref="${escapeAttr(value.ref)}"` +
+      ` dt2D="${value.dataTable2D ? 1 : 0}"` +
+      ` dtr="${value.dataTableRow ? 1 : 0}"` +
+      (value.r1 !== undefined ? ` r1="${escapeAttr(value.r1)}"` : '') +
+      (value.r2 !== undefined ? ` r2="${escapeAttr(value.r2)}"` : '');
+    return formulaBodyXml(ref, s, `<f t="dataTable" ${attrs}/>`, value.result);
+  }
   if (isFormulaValue(value)) {
     return formulaCellXml(ref, s, value.formula, value.result);
   }

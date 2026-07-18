@@ -43,7 +43,7 @@ import type {
   VerticalAlignment,
 } from '../../core/style.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
-import type {RichTextRun, SharedFormulaValue} from '../../core/value.ts';
+import type {DataTableFormulaValue, RichTextRun, SharedFormulaValue} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {
   PageMargins,
@@ -1259,6 +1259,10 @@ function parseWorksheet(
   let formulaShared = false;
   let formulaSi = -1;
   let sharedClone = false;
+  // The declaration attributes of a `<f t="dataTable">`, held from the `<f>` open until the cell
+  // finalises. Null for every other cell.
+  let formulaDataTable: {ref: string; dt2D: string | undefined; dtr: string | undefined; r1: string | undefined; r2: string | undefined} | null =
+    null;
   let valueText = '';
   let inlineText = '';
   let hasFormula = false;
@@ -1320,6 +1324,23 @@ function parseWorksheet(
           ? rowStyle
           : columnStyle.get(cellCol) ?? -1;
     const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
+    // A data-table formula is preserved by declaration, not evaluated: surface its kind, range, input
+    // cells, and cached result so a read-modify-write cycle re-emits it rather than dropping it.
+    if (formulaDataTable !== null) {
+      const value: DataTableFormulaValue = {
+        shareType: 'dataTable',
+        ref: formulaDataTable.ref,
+        ...(flagValue(formulaDataTable.dt2D ?? '0') ? {dataTable2D: true} : {}),
+        ...(flagValue(formulaDataTable.dtr ?? '0') ? {dataTableRow: true} : {}),
+        ...(formulaDataTable.r1 !== undefined ? {r1: formulaDataTable.r1} : {}),
+        ...(formulaDataTable.r2 !== undefined ? {r2: formulaDataTable.r2} : {}),
+        ...(hasValue ? {result: decodeFormulaResult(cellType, valueText, style?.numFmt)} : {}),
+      };
+      const dtCell = sheet.getCell(cellRef);
+      applyCellStyle(dtCell, style);
+      dtCell.value = value;
+      return;
+    }
     // A shared-formula master seeds the group for its clones before it is finalised as an ordinary
     // formula cell; a clone resolves to the master's formula translated to its own position and is
     // committed here directly, since its value is not a plain `<c>` payload decodeCellContent knows.
@@ -1375,6 +1396,7 @@ function parseWorksheet(
           formulaShared = false;
           formulaSi = -1;
           sharedClone = false;
+          formulaDataTable = null;
           // A self-closing `<c r=".." s=".."/>` is a formatted-but-empty cell: it carries a style but
           // no value, so no `close` fires to finalise it. Commit it here from its style alone, else
           // the formatting on a blank cell is silently lost on read.
@@ -1405,6 +1427,11 @@ function parseWorksheet(
           // A self-closing `<f t="shared" si/>` is a clone: it fires no close event and carries no
           // text, so mark it here to resolve against its master when the cell finalises.
           if (selfClosing && formulaShared) sharedClone = true;
+          // A `<f t="dataTable">` carries only declaration attributes; hold them for finalisation so
+          // the data-table kind is preserved rather than read as an empty formula.
+          if (attrs.t === 'dataTable' && attrs.ref !== undefined) {
+            formulaDataTable = {ref: attrs.ref, dt2D: attrs.dt2D, dtr: attrs.dtr, r1: attrs.r1, r2: attrs.r2};
+          }
           break;
         case 'v':
         case 't':

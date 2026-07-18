@@ -92,6 +92,27 @@ export interface SharedFormulaValue {
   readonly result?: FormulaResult;
 }
 
+/**
+ * A cell computed by a What-If-Analysis data table (`<f t="dataTable">`) — the OOXML formula kind that
+ * fills a range by re-evaluating a model against a grid of substituted input cells. The library does
+ * not evaluate it; it preserves the declaration so a read-modify-write cycle re-emits it verbatim
+ * rather than silently dropping the data-table kind.
+ */
+export interface DataTableFormulaValue {
+  readonly shareType: 'dataTable';
+  /** The range the data table fills, e.g. `'B2:B5'`. */
+  readonly ref: string;
+  /** Whether the table substitutes two inputs (a 2-D data table) rather than one. */
+  readonly dataTable2D?: boolean;
+  /** For a 1-D table, whether the input runs along the row rather than down the column. */
+  readonly dataTableRow?: boolean;
+  /** The first (row) input-cell reference. */
+  readonly r1?: string;
+  /** The second (column) input-cell reference, present for a 2-D table. */
+  readonly r2?: string;
+  readonly result?: FormulaResult;
+}
+
 /** Everything a cell's value can be. `null` is the empty cell. */
 export type CellValue =
   | null
@@ -102,6 +123,7 @@ export type CellValue =
   | ErrorValue
   | FormulaValue
   | SharedFormulaValue
+  | DataTableFormulaValue
   | RichTextValue
   | HyperlinkValue;
 
@@ -121,6 +143,10 @@ export function isFormulaValue(value: CellValue): value is FormulaValue {
 
 export function isSharedFormulaValue(value: CellValue): value is SharedFormulaValue {
   return typeof value === 'object' && value !== null && 'sharedFormula' in value;
+}
+
+export function isDataTableFormulaValue(value: CellValue): value is DataTableFormulaValue {
+  return typeof value === 'object' && value !== null && 'shareType' in value && value.shareType === 'dataTable';
 }
 
 export function isRichTextValue(value: CellValue): value is RichTextValue {
@@ -153,7 +179,9 @@ export function detectValueType(value: CellValue): ValueType {
   // Order matters: a hyperlink whose text is rich must classify as Hyperlink, and a
   // formula carrying a result must classify as Formula — check the outer shape first.
   if (isHyperlinkValue(value)) return ValueType.Hyperlink;
-  if (isFormulaValue(value) || isSharedFormulaValue(value)) return ValueType.Formula;
+  if (isFormulaValue(value) || isSharedFormulaValue(value) || isDataTableFormulaValue(value)) {
+    return ValueType.Formula;
+  }
   if (isRichTextValue(value)) return ValueType.RichText;
   if (isErrorValue(value)) return ValueType.Error;
   throw new TypeError(`unsupported cell value: ${describe(value)}`);

@@ -1047,6 +1047,46 @@ const impl = {
     return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
 
+  // Inject a `<f t="dataTable">` into a written sheet, read it back, and re-write → { reloadOk,
+  // readShareType, readRef, readResult, outHasDataTable }. The reader must surface the data-table
+  // kind/range/result, and a read-modify-write must re-emit t="dataTable" rather than dropping it.
+  dataTableFormulaRoundtrip() {
+    const seed = new Workbook();
+    const seedSheet = seed.addWorksheet('S');
+    seedSheet.getCell('A1').value = 1;
+    seedSheet.getCell('B1').value = 2;
+    seedSheet.getCell('B2').value = 99;
+    const parts = unzipSync(writeXlsx(seed));
+    parts['xl/worksheets/sheet1.xml'] = strToU8(
+      strFromU8(parts['xl/worksheets/sheet1.xml']).replace(
+        /<c r="B2"[^>]*>[\s\S]*?<\/c>/,
+        '<c r="B2"><f t="dataTable" ref="B2:B5" dt2D="0" dtr="1" r1="A1"/><v>99</v></c>'
+      )
+    );
+    const injected = zipSync(parts);
+
+    let reloadOk = false;
+    let readShareType = null;
+    let readRef = null;
+    let readResult = null;
+    let outHasDataTable = false;
+    try {
+      const reload = readXlsx(injected);
+      const value = reload.getWorksheet('S').getCell('B2').value;
+      if (value && typeof value === 'object') {
+        readShareType = value.shareType ?? null;
+        readRef = value.ref ?? null;
+        readResult = value.result ?? null;
+      }
+      reloadOk = true;
+      const outXml = strFromU8(unzipSync(writeXlsx(reload))['xl/worksheets/sheet1.xml']);
+      outHasDataTable = /t="dataTable"/.test(outXml);
+    } catch {
+      reloadOk = false;
+    }
+    return {readShareType, readRef, readResult, reloadOk, outHasDataTable};
+  },
+
   // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet
   // XML → { hasNaNToken, cells }. Each cell is { t, formula, value } read off the raw `<c>`. Guards
   // that a string-typed formula result under a date format is not coerced to a numeric/NaN cell.

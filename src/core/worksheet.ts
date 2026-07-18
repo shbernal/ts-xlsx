@@ -210,9 +210,10 @@ export interface ColumnProperties {
   collapsed?: boolean;
 }
 
-/** A row handed to {@link Worksheet.addRow}: a positional array of cell values, or an object keyed by
- * column {@link ColumnProperties.key} whose values land under the matching columns. */
-export type RowInput = CellValue[] | Record<string, CellValue>;
+/** A row handed to {@link Worksheet.addRow}: a positional array of cell values (a hole or `undefined`
+ * leaves that column untouched), or an object keyed by column {@link ColumnProperties.key} whose
+ * values land under the matching columns. */
+export type RowInput = (CellValue | undefined)[] | Record<string, CellValue>;
 
 /** A merged region as inclusive 1-based grid bounds. */
 interface MergeRect {
@@ -920,7 +921,9 @@ export class Worksheet {
       // iframe) is still an array but fails the identity check, and would then be walked as a keyed
       // object — placing nothing.
       if (Array.isArray(values)) {
-        values.forEach((value, index) => place(index + 1, value));
+        values.forEach((value, index) => {
+          if (value !== undefined) place(index + 1, value);
+        });
       } else {
         for (const [key, value] of Object.entries(values)) place(this.#columnIndexByKey(key), value);
       }
