@@ -1774,6 +1774,32 @@ or **security** left. Remaining clusters: **comments** (note removal artifact), 
 (trailing-empty merged-row iteration), **core-model** (merged child mirrors master), **types**
 (trailing-empty-cell iteration), **address-decoding** (non-canonical comments path).
 
+### 2026-07-18 batch 7 — final skipped cases drained (426→434 green, 13→0 skipped, 229→234 known-opens resolved, 0 regressions)
+The last five skipped cases closed — **the rewrite adapter now skips nothing**; every corpus case runs
+against `src/`. Four were adapter-only (the rewrite's design already satisfied the contract), one a
+source fix:
+- **A merged child cell mirrors its master's text** *(core-model, adapter-only)* — addressing a covered
+  cell already resolves to its region's master, so reading a merged child returns the master's value
+  instead of throwing.
+- **Include-empty row iteration surfaces trailing empties to the declared width** *(types, adapter-only)* —
+  positional iteration walks `1..columnCount`, so interior *and* trailing empty cells are surfaced and
+  every row reconstructs to the header width.
+- **A merged range extends the used-range bounds into empty trailing rows** *(merges, **source**)* —
+  `rowCount`/`columnCount` ignored merge geometry, so a merge reaching into an otherwise-empty final row
+  (`A1:B3` with values only in `A1`/`A2`) fell outside the bounds. Both getters now fold in `#mergeRects`,
+  so the trailing merged row is within bounds, is visited by iteration, and resolves to its master.
+- **Clearing a cell note genuinely removes its comment and VML artifacts** *(comments, adapter-only)* —
+  `note = undefined` drops the comments part and VML drawing entirely (never persists an empty comment),
+  while a neighbour's kept note is untouched.
+- **A comments part at a non-canonical path loads via its relationship type** *(address-decoding,
+  adapter-only)* — the reader locates the comments part by relationship *type*, not filename glob, so a
+  part relocated to `xl/sheet1_comments.xml` (reachable only through the sheet rels) still loads and its
+  note reads back.
+
+**Nothing skipped.** The rewrite adapter is capability-complete against the corpus: **434 green, 0
+regressions, 0 skipped.** Remaining `↑`/`○` entries are legacy `baseline: 'fail'` known-opens the rewrite
+resolves (234) or a handful still genuinely open (e.g. the outline `collapsed` summary-row flag).
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
