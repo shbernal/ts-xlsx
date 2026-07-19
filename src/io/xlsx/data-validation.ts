@@ -26,8 +26,8 @@ import type {Worksheet} from '../../core/worksheet.ts';
 // that need them, exactly as Excel writes them, so the block is self-contained and the worksheet root
 // needs no extra namespace declaration.
 import {DATA_VALIDATION_EXT_URI, X14_NS, XM_NS} from './namespaces.ts';
-import {escapeAttr, escapeText} from './xml.ts';
-import {boolStrict, localName, parseXml} from './xml-read.ts';
+import {escapeAttr, escapeText, stripFormulaEquals} from './xml.ts';
+import {boolStrict, coerceNumericLiteral, localName, parseXml} from './xml-read.ts';
 
 // The typed validations whose literal operands are numbers; `list`/`custom` operands stay strings.
 const TYPED = new Set<string>(['whole', 'decimal', 'date', 'time', 'textLength']);
@@ -79,8 +79,8 @@ function ruleAttrs(rule: DataValidation): string {
 function dataValidationXml(sqref: string, rule: DataValidation): string {
   const [f1, f2] = operands(rule);
   const body =
-    (f1 !== undefined ? `<formula1>${formulaText(f1)}</formula1>` : '') +
-    (f2 !== undefined ? `<formula2>${formulaText(f2)}</formula2>` : '');
+    (f1 !== undefined ? `<formula1>${escapeText(stripFormulaEquals(f1))}</formula1>` : '') +
+    (f2 !== undefined ? `<formula2>${escapeText(stripFormulaEquals(f2))}</formula2>` : '');
   return `<dataValidation${ruleAttrs(rule)} sqref="${escapeAttr(sqref)}">${body}</dataValidation>`;
 }
 
@@ -103,18 +103,14 @@ function operands(
 function extendedDataValidationXml(sqref: string, rule: DataValidation): string {
   const [f1, f2] = operands(rule);
   const body =
-    (f1 !== undefined ? `<x14:formula1><xm:f>${formulaText(f1)}</xm:f></x14:formula1>` : '') +
-    (f2 !== undefined ? `<x14:formula2><xm:f>${formulaText(f2)}</xm:f></x14:formula2>` : '') +
+    (f1 !== undefined
+      ? `<x14:formula1><xm:f>${escapeText(stripFormulaEquals(f1))}</xm:f></x14:formula1>`
+      : '') +
+    (f2 !== undefined
+      ? `<x14:formula2><xm:f>${escapeText(stripFormulaEquals(f2))}</xm:f></x14:formula2>`
+      : '') +
     `<xm:sqref>${escapeText(sqref)}</xm:sqref>`;
   return `<x14:dataValidation${ruleAttrs(rule)}>${body}</x14:dataValidation>`;
-}
-
-// A number serialises as its literal; a string is stripped of exactly one leading '=' (the authoring
-// convention OOXML omits) and escaped as element text.
-function formulaText(value: string | number): string {
-  if (typeof value === 'number') return String(value);
-  const stripped = value.startsWith('=') ? value.slice(1) : value;
-  return escapeText(stripped);
 }
 
 /** Parse every standard `<dataValidation>` out of a worksheet part into range-bound rules. */
@@ -196,9 +192,12 @@ function buildRule(
   if (attrs.prompt !== undefined) rule.prompt = attrs.prompt;
   if (attrs.promptTitle !== undefined) rule.promptTitle = attrs.promptTitle;
 
+  // A `list`/`custom` operand is always a string (a source list or an expression); every other
+  // type's literal operand coerces to a number when it is one, so a numeric bound reads back as a
+  // number while a cell reference or defined name survives as its verbatim string.
   const parsed = formulae
     .filter((f): f is string => f !== undefined)
-    .map((f) => parseFormula(type, f));
+    .map((f) => (type === 'list' || type === 'custom' ? f : coerceNumericLiteral(f)));
   if (parsed.length > 0) rule.formulae = parsed;
 
   return rule;
@@ -267,15 +266,6 @@ function buildExtendedEntry(
   if (sqref === '') return undefined;
   const rule = buildRule(attrs, formulae);
   return rule === undefined ? undefined : {sqref, rule, extended: true};
-}
-
-// A list/custom operand is always a string. A typed rule's operand is a number when it is a plain
-// numeric literal, and otherwise its verbatim string — so a cell reference (`L26`) or defined name
-// survives instead of being coerced to NaN.
-function parseFormula(type: string, text: string): string | number {
-  if (type === 'list' || type === 'custom') return text;
-  const n = Number(text);
-  return text.trim() !== '' && Number.isFinite(n) ? n : text;
 }
 
 /** Fold parsed validations onto a sheet, each bound to its original range and carrying its form: an

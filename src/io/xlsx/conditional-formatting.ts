@@ -25,8 +25,8 @@ import type {Color} from '../../core/style.ts';
 // classic cfRule carries to name its extension.
 import {CF_EXT_URI, DATABAR_LINK_EXT_URI, X14_NS, XM_NS} from './namespaces.ts';
 import {colorAttrs, parseColor, type StyleRegistry} from './styles.ts';
-import {escapeAttr, escapeText} from './xml.ts';
-import {boolStrict, localName, parseXml} from './xml-read.ts';
+import {escapeAttr, escapeText, stripFormulaEquals} from './xml.ts';
+import {boolStrict, coerceNumericLiteral, localName, parseXml} from './xml-read.ts';
 
 // Excel's default data bar when the author supplies none: a min/max anchor pair and its standard blue.
 const DEFAULT_DATABAR_CFVO: readonly CfValueObject[] = [{type: 'min'}, {type: 'max'}];
@@ -192,14 +192,7 @@ function resolveDxfId(rule: ConditionalFormattingRule, styles: StyleRegistry): n
 
 function formulaeXml(formulae: readonly (string | number)[] | undefined): string {
   if (formulae === undefined) return '';
-  return formulae.map((f) => `<formula>${escapeText(formulaText(f))}</formula>`).join('');
-}
-
-// A cellIs bound or expression predicate: a numeric literal serialises as its number, a string keeps
-// its verbatim text with any single leading `=` stripped (authors write `=A1>0`, the element wants `A1>0`).
-function formulaText(formula: string | number): string {
-  if (typeof formula === 'number') return String(formula);
-  return formula.startsWith('=') ? formula.slice(1) : formula;
+  return formulae.map((f) => `<formula>${escapeText(stripFormulaEquals(f))}</formula>`).join('');
 }
 
 function scaleXml(rule: ConditionalFormattingRule): string {
@@ -374,7 +367,7 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
         return;
       }
       if (ln === 'formula' && capturingFormula) {
-        if (draft !== undefined) draft.formulae.push(coerceFormula(formulaText));
+        if (draft !== undefined) draft.formulae.push(coerceNumericLiteral(formulaText));
         capturingFormula = false;
       } else if (ln === 'dataBar' || ln === 'colorScale' || ln === 'iconSet') {
         scale = undefined;
@@ -469,19 +462,7 @@ function parseCfvo(attrs: Record<string, string>): CfValueObject {
   const cfvo: CfValueObject = {type};
   if (attrs.val !== undefined) {
     // A `formula` anchor's value is an expression and stays a string; the rest are numeric.
-    cfvo.value = type === 'formula' ? attrs.val : coerceNumber(attrs.val);
+    cfvo.value = type === 'formula' ? attrs.val : coerceNumericLiteral(attrs.val);
   }
   return cfvo;
-}
-
-// A cellIs bound / expression predicate: a bare numeric literal reads back as a number so it
-// round-trips as one, while a cell reference or expression keeps its verbatim text.
-function coerceFormula(text: string): string | number {
-  const trimmed = text.trim();
-  return /^-?\d+(?:\.\d+)?$/.test(trimmed) ? Number(trimmed) : text;
-}
-
-function coerceNumber(value: string): number | string {
-  const n = Number(value);
-  return Number.isFinite(n) && value.trim() !== '' ? n : value;
 }

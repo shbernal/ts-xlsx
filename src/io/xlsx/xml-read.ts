@@ -258,3 +258,13 @@ export function boolTristate(val: string | undefined): boolean | undefined {
   if (val === '0' || val === 'false') return false;
   return undefined;
 }
+
+/** Read an operand's text as a number only when it is a canonical decimal literal (optional sign,
+ * digits, optional fraction). A cell reference, defined name, expression, or exotically-spelled
+ * number (`1E5`, hex) keeps its verbatim text, so it is neither coerced to `NaN` and lost nor
+ * re-spelled into a number that would not re-write byte-clean. Callers layer their own type rules
+ * (a data-validation `list`/`custom` operand stays a string regardless of what it looks like). */
+export function coerceNumericLiteral(text: string): string | number {
+  const trimmed = text.trim();
+  return /^-?\d+(?:\.\d+)?$/.test(trimmed) ? Number(trimmed) : text;
+}

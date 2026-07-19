@@ -151,6 +151,27 @@ test('a standard validation with xsd:boolean-spelled flags ("true") reads them o
   assert.equal(dv.showErrorMessage, true);
 });
 
+test('a numeric-typed operand spelled non-canonically keeps its verbatim text and re-writes byte-clean', () => {
+  // Only a canonical decimal literal coerces to a number; a scientific-notation operand survives as
+  // its string so a round-trip re-emits it exactly rather than re-spelling it to 100000.
+  const part =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetData/>' +
+    '<dataValidations count="1">' +
+    '<dataValidation type="whole" operator="greaterThan" sqref="A1">' +
+    '<formula1>1E5</formula1></dataValidation>' +
+    '</dataValidations></worksheet>';
+  const workbook = readSheetPart(part);
+  const dv = workbook.getWorksheet('S')?.dataValidationAt('A1');
+  assert.deepEqual(
+    dv?.formulae,
+    ['1E5'],
+    'the exotic literal is not coerced to a differently-spelled number',
+  );
+  assert.match(sheetXml(writeXlsx(workbook)), /<formula1>1E5<\/formula1>/);
+});
+
 test('an extended (x14) list validation is read onto its cell with the cross-sheet source intact', () => {
   const workbook = readSheetPart(sheetWithExtendedValidation('A1:A1048576', 'Sheet2!$A:$A'));
   const dv = workbook.getWorksheet('S')?.dataValidationAt('A5');

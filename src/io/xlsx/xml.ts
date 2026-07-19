@@ -52,4 +52,15 @@ export function textElement(value: string): string {
   return `<t${space}>${escapeText(value)}</t>`;
 }
 
+/**
+ * Render a formula operand for serialisation: a number becomes its literal, a string is stripped of
+ * the single optional leading '=' an author may write (OOXML stores the expression without it, e.g.
+ * `=A1>0` on disk is `A1>0`). The result is unescaped — the caller escapes it for its target,
+ * whether that is element text or an attribute value.
+ */
+export function stripFormulaEquals(value: string | number): string {
+  if (typeof value === 'number') return String(value);
+  return value.startsWith('=') ? value.slice(1) : value;
+}
+
 export const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
