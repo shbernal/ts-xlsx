@@ -18,7 +18,7 @@ import {
   isHyperlinkValue,
   isRichTextValue,
   isSharedFormulaValue,
-  type RichTextValue,
+  richTextToPlain,
 } from './value.ts';
 import type {Worksheet} from './worksheet.ts';
 
@@ -312,11 +312,11 @@ function scalarOf(value: CellValue): PivotItem {
       break;
   }
   if (value instanceof Date) return {kind: 'string', value: value.toISOString()};
-  if (isRichTextValue(value)) return {kind: 'string', value: richTextToString(value)};
+  if (isRichTextValue(value)) return {kind: 'string', value: richTextToPlain(value)};
   if (isHyperlinkValue(value)) {
     return {
       kind: 'string',
-      value: typeof value.text === 'string' ? value.text : richTextToString(value.text),
+      value: typeof value.text === 'string' ? value.text : richTextToPlain(value.text),
     };
   }
   if (isErrorValue(value)) return {kind: 'string', value: value.error};
@@ -324,8 +324,4 @@ function scalarOf(value: CellValue): PivotItem {
     return value.result === undefined ? BLANK : scalarOf(value.result as CellValue);
   }
   return BLANK;
-}
-
-function richTextToString(value: RichTextValue): string {
-  return value.richText.map((run) => run.text).join('');
 }

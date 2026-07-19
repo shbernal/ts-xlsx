@@ -155,6 +155,20 @@ interface RichTextRun {
 
 ---
 
+### `richTextToPlain`
+
+<sub>function</sub>
+
+Flatten a rich-text value to its plain text by concatenating every run's text in order. This is the
+text a consumer that cannot render per-run formatting (a CSV field, a pivot cache entry) sees, and
+the string a rich cell reads as when its formatting is discarded.
+
+```ts
+function richTextToPlain(value: RichTextValue): string;
+```
+
+---
+
 ### `RichTextValue`
 
 <sub>interface</sub>

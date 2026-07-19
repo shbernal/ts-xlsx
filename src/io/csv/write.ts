@@ -18,6 +18,7 @@ import {
   isHyperlinkValue,
   isRichTextValue,
   isSharedFormulaValue,
+  richTextToPlain,
 } from '../../core/value.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
@@ -100,11 +101,9 @@ function csvFieldText(value: CellValue, options: CsvWriteOptions): string {
   if (typeof value === 'string') return value;
   if (value instanceof Date) return formatDate(value, options.dateFormat, options.dateUTC ?? false);
   if (isErrorValue(value)) return value.error;
-  if (isRichTextValue(value)) return value.richText.map((run) => run.text).join('');
+  if (isRichTextValue(value)) return richTextToPlain(value);
   if (isHyperlinkValue(value)) {
-    return typeof value.text === 'string'
-      ? value.text
-      : value.text.richText.map((run) => run.text).join('');
+    return typeof value.text === 'string' ? value.text : richTextToPlain(value.text);
   }
   if (isFormulaValue(value) || isSharedFormulaValue(value)) {
     return value.result === undefined ? '' : csvFieldText(value.result, options);

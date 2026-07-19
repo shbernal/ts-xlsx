@@ -8,7 +8,7 @@
 
 import type {Worksheet} from '../../core/worksheet.ts';
 import {SPREADSHEETML_NS} from './namespaces.ts';
-import {escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
+import {textElement, XML_DECLARATION} from './xml.ts';
 import {localName, parseXml} from './xml-read.ts';
 
 /** A cell carrying a note, paired with the coordinates the VML anchor needs. */
@@ -38,14 +38,12 @@ export function collectNotes(sheet: Worksheet): NoteCell[] {
 /** The `xl/comments{n}.xml` part: a single anonymous author and one comment per noted cell. */
 export function commentsXml(notes: readonly NoteCell[]): string {
   const list = notes
-    .map((note) => {
-      const preserve = needsSpacePreserve(note.text) ? ' xml:space="preserve"' : '';
-      return (
+    .map(
+      (note) =>
         `<comment ref="${note.ref}" authorId="0">` +
-        `<text><r><t${preserve}>${escapeText(note.text)}</t></r></text>` +
-        '</comment>'
-      );
-    })
+        `<text><r>${textElement(note.text)}</r></text>` +
+        '</comment>',
+    )
     .join('');
   return (
     XML_DECLARATION +

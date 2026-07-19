@@ -10,6 +10,7 @@ import {
   isHyperlinkValue,
   isRichTextValue,
   isSharedFormulaValue,
+  richTextToPlain,
   ValueType,
 } from './value.ts';
 
@@ -54,6 +55,14 @@ test('type guards discriminate the structural shapes', () => {
   assert.ok(isSharedFormulaValue({sharedFormula: 'A1'}));
   assert.ok(isRichTextValue({richText: []}));
   assert.ok(isHyperlinkValue({hyperlink: 'u', text: 't'}));
+});
+
+test('richTextToPlain concatenates every run in order, ignoring per-run formatting', () => {
+  assert.equal(
+    richTextToPlain({richText: [{text: 'foo'}, {text: 'bar', font: {bold: true}}, {text: 'baz'}]}),
+    'foobarbaz',
+  );
+  assert.equal(richTextToPlain({richText: []}), '', 'no runs flattens to the empty string');
 });
 
 test('isErrorCode recognises the canonical literals only', () => {

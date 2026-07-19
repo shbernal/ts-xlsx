@@ -75,6 +75,7 @@ export {
   isErrorCode,
   type RichTextRun,
   type RichTextValue,
+  richTextToPlain,
   type SharedFormulaValue,
   ValueType,
 } from './core/value.ts';

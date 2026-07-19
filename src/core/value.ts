@@ -163,6 +163,15 @@ export function isHyperlinkValue(value: CellValue): value is HyperlinkValue {
 }
 
 /**
+ * Flatten a rich-text value to its plain text by concatenating every run's text in order. This is the
+ * text a consumer that cannot render per-run formatting (a CSV field, a pivot cache entry) sees, and
+ * the string a rich cell reads as when its formatting is discarded.
+ */
+export function richTextToPlain(value: RichTextValue): string {
+  return value.richText.map((run) => run.text).join('');
+}
+
+/**
  * Classify a value into its observable {@link ValueType}. This is total over
  * {@link CellValue}: every legal value has exactly one type. A `Date` is a date even
  * when its time is `NaN` (an invalid date is still a date-typed cell); serialization,
