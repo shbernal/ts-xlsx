@@ -36,3 +36,6 @@ jobs:
       # Regression corpus vs the rewrite — every behavior must pass; a pass→fail is
       # a real regression.
       - run: npm run corpus
+      # The public API reference is generated from the types; fail if the committed
+      # pages have drifted from a fresh generation — see ADR-0006.
+      - run: npm run docs:check

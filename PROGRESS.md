@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-19 (**Phase 4 underway — clean break + publishable build + toolchain landed.** Phase 3 is complete: the src/ rewrite passes the whole corpus (671 green, 0 regressions) as its own reference implementation and the legacy lib/ tree is deleted; the runtime dependency tree is fflate alone. Slice 1 done: `npm run build` emits ESM .js + .d.ts to dist/ via pure tsc (rewriteRelativeImportExtensions — no bundler); exports/engines re-pointed, `private` dropped behind a `prepublishOnly` gate, CI enforces a dist smoke round-trip + a 600 KB size budget (currently ~489 KB). Slice 2 done (ADR-0002): **Biome** lint/format over the whole authored tree (now the first gate in `npm test` + CI), **`node --test` kept over Vitest** (native coverage ~98%, `test:coverage`), and **hand-rolled `Expect<Equal>` type-level tests** under src/type-tests/ enforced by tsc. Version stays 0.0.0-dev. Remaining Phase 4, in order: docs generated from the public types, and the human rebrand. See the dated increments below and STRATEGY.md Phase 4.)
+_Last updated: 2026-07-19 (**Phase 4 underway — clean break + publishable build + toolchain landed.** Phase 3 is complete: the src/ rewrite passes the whole corpus (671 green, 0 regressions) as its own reference implementation and the legacy lib/ tree is deleted; the runtime dependency tree is fflate alone. Slice 1 done: `npm run build` emits ESM .js + .d.ts to dist/ via pure tsc (rewriteRelativeImportExtensions — no bundler); exports/engines re-pointed, `private` dropped behind a `prepublishOnly` gate, CI enforces a dist smoke round-trip + a 600 KB size budget (currently ~489 KB). Slice 2 done (ADR-0002): **Biome** lint/format over the whole authored tree (now the first gate in `npm test` + CI), **`node --test` kept over Vitest** (native coverage ~98%, `test:coverage`), and **hand-rolled `Expect<Equal>` type-level tests** under src/type-tests/ enforced by tsc. Slice 3 done (ADR-0006): the `docs/api/` reference is **generated from the public barrel** by a script we own (TypeScript compiler API — no new dependency), gated against drift by `docs:check` in CI; the inherited 3029-line ExcelJS README is replaced by one documenting the real sync `Uint8Array` API plus a `docs/migrating-from-exceljs.md` guide. Version stays 0.0.0-dev. Remaining Phase 4: only the **human rebrand** (definitive package name). See the dated increments below and STRATEGY.md Phase 4.)
 
 ---
 
@@ -2002,3 +2002,30 @@ Full gate green: `lint` clean (336 files), `typecheck` clean (incl. type-tests),
 
 **Remaining in Phase 4:** (3) docs generated from the public types; (4) **rebrand — the definitive package
 name is a human decision** (`CLAUDE.md` §3).
+
+### 2026-07-19 — Phase 4 slice 3: docs from types *(independence)*
+
+The API reference is now **generated from the public barrel by a script we own** (→ **ADR-0006**).
+`scripts/gen-docs.mjs` walks the ~86 symbols `src/index.ts` re-exports through the **TypeScript compiler
+API** (`typescript` is already the toolchain — **no new dependency**; TypeDoc rejected for its tree, the same
+call ADR-0002 made against Vitest) and renders, per symbol, its JSDoc summary + `@throws`/`@param`/`@returns`/
+`@example` tags + a **body-stripped TypeScript signature**. Interfaces/type-aliases/enums/consts print verbatim
+(const types via the checker), functions print every overload, and classes print a public-member signature
+overview plus a prose list of each documented member — so `worksheet.ts`'s 119 member docs survive into the
+reference; `{@link X}` renders as a code span. Output is one Markdown page per module + an index under
+`docs/api/`, sorted by symbol name so generation is deterministic. Because the compiler produces the docs, they
+**cannot describe a shape it wouldn't accept**.
+
+Gated like any artifact: `npm run docs` regenerates; `npm run docs:check` (`git add --intent-to-add` + `git
+diff --exit-code`, so added/removed pages are caught, not just edits) fails on drift and is a **Corpus CI**
+step. The 3029-line inherited ExcelJS `README.md` (still said `npm install exceljs`) is **replaced** by one
+documenting the real API — synchronous `Uint8Array` I/O via free `readXlsx`/`writeXlsx`, the `CellValue` union,
+bounded-memory streaming reads, CSV — framed as an independent rebuild, not a drop-in. `docs/migrating-from-
+exceljs.md` is the translation guide (three shifts, a method-mapping table, an honest "not here yet"). Every
+code block in both was **typechecked against the barrel** before landing; the dead `README_zh.md` link was
+dropped (the file no longer existed).
+
+Full gate green: `lint` clean, `typecheck` clean, `test:src` **647 pass**, `corpus` **671 green, 0
+regressions**, `docs:check` clean, build + smoke + size still green.
+
+**Remaining in Phase 4:** (4) **rebrand — the definitive package name is a human decision** (`CLAUDE.md` §3).

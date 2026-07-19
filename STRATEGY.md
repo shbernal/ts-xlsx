@@ -254,8 +254,16 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
 >    enforced by the existing `tsc` gate (no `expectTypeOf`/`tsd` dependency), excluded
 >    from the published build. See ADR-0002 (which also records the Biome-drops-overrides
 >    -on-comments gotcha and the non-null-assertion policy split between src and tests).
-> 3. **Docs from types** — first-class API docs generated from the public surface;
->    migration notes framed as "a different, better library," not a compatibility shim.
+> 3. ✅ **Docs from types (2026-07-19).** The API reference under `docs/api/` is
+>    **generated from the public barrel by a script we own** (`scripts/gen-docs.mjs`,
+>    TypeScript compiler API — **no new dependency**; TypeDoc rejected for its tree, as
+>    Vitest was), so it cannot describe a shape the compiler wouldn't accept. `npm run
+>    docs` regenerates; `npm run docs:check` (a Corpus CI gate) fails on drift. The
+>    3029-line inherited ExcelJS `README.md` is **replaced** by one documenting the real
+>    API (sync `Uint8Array` I/O, the `CellValue` union, streaming reads, CSV), and
+>    `docs/migrating-from-exceljs.md` frames the port as "a different, better library,"
+>    not a compatibility shim — every code block typechecked against the barrel. See
+>    ADR-0006.
 > 4. **Rebrand (human decision)** — the definitive package name replaces the provisional
 >    `@shbernal/ts-xlsx`. Kept as a single `package.json#name` field so the swap is
 >    trivial. This is escalated per `CLAUDE.md` §3.
