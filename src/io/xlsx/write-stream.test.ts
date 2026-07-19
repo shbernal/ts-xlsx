@@ -379,3 +379,86 @@ test('setting protection or an autofilter on a committed streamed sheet is rejec
     sheet.autoFilter = 'A1:B2';
   }, /already committed/);
 });
+
+test('committing a streamed row evicts its cells from the model, bounding peak memory', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  const row = sheet.addRow(['a', 'b']);
+  assert.ok(sheet.model.hasCell(1, 1), 'the cell is live while the row is being styled');
+  row.commit();
+  assert.equal(sheet.model.hasCell(1, 1), false, 'commit released the cell graph');
+  assert.equal(sheet.model.hasCell(1, 2), false);
+  // rowCount survives the eviction, so the next append lands below the evicted row rather than reusing
+  // its number — the correctness hazard that makes owning the row counter necessary.
+  assert.equal(sheet.rowCount, 1);
+  sheet.addRow(['c']).commit();
+  const reread = readXlsx(await writer.commit()).getWorksheet('S');
+  assert.ok(reread);
+  assert.equal(reread.getCell('A1').value, 'a');
+  assert.equal(reread.getCell('A2').value, 'c', 'the second append did not collide with the evicted first');
+});
+
+test('a fully committed streamed sheet holds no live cells at commit — every row was evicted', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  for (let i = 1; i <= 50; i++) sheet.addRow([i, `v${i}`]).commit();
+  for (let i = 1; i <= 50; i++) assert.equal(sheet.model.hasCell(i, 1), false, `row ${i} was freed`);
+  assert.equal(sheet.rowCount, 50, 'rowCount still reflects every appended row');
+  const reread = readXlsx(await writer.commit()).getWorksheet('S');
+  assert.ok(reread);
+  assert.equal(reread.getCell('A50').value, 50);
+  assert.equal(reread.getCell('B1').value, 'v1');
+});
+
+test('with useSharedStrings a streamed row stays live until commit — the shared pool defeats bounding', async () => {
+  const writer = new WorkbookStreamWriter({useSharedStrings: true});
+  const sheet = writer.addWorksheet('S');
+  sheet.addRow(['x']).commit();
+  assert.ok(sheet.model.hasCell(1, 1), 'shared-strings mode keeps the row live rather than evicting it');
+  const reread = readXlsx(await writer.commit()).getWorksheet('S');
+  assert.equal(reread?.getCell('A1').value, 'x');
+});
+
+test('committing a row that carries a shared-formula cell is rejected legibly', () => {
+  const sheet = new WorkbookStreamWriter().addWorksheet('S');
+  const row = sheet.addRow([{sharedFormula: 'A1'}]);
+  assert.throws(() => row.commit(), /shared-formula/);
+});
+
+test('committing a streamed row twice does not duplicate it in the sheet', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  const row = sheet.addRow(['only']);
+  row.commit();
+  row.commit();
+  const xml = partText(await writer.commit(), 'xl/worksheets/sheet1.xml');
+  assert.equal((xml.match(/<row /g) ?? []).length, 1, 'the row appears exactly once despite the double commit');
+});
+
+test('a styled row committed eagerly round-trips its fill through the shared style registry', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  const row = sheet.addRow(['tinted']);
+  const cell = row.cells[0];
+  assert.ok(cell);
+  cell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF0000'}};
+  row.commit();
+
+  const fill = readXlsx(await writer.commit()).getWorksheet('S')?.getCell('A1').fill;
+  assert.ok(fill && fill.type === 'pattern' && fill.pattern === 'solid', 'the eagerly-flushed row kept its fill');
+});
+
+test('a live getCell row and a committed appended row serialise in ascending order and both reload', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.getCell('A1').value = 'live'; // row 1, never committed → stays in the model
+  sheet.addRow(['flushed']).commit(); // row 2, serialised and evicted
+  const bytes = await writer.commit();
+
+  const xml = partText(bytes, 'xl/worksheets/sheet1.xml');
+  assert.ok(xml.indexOf('r="1"') < xml.indexOf('r="2"'), 'the live row 1 precedes the flushed row 2');
+  const reread = readXlsx(bytes).getWorksheet('S');
+  assert.ok(reread);
+  assert.equal(reread.getCell('A1').value, 'live');
+  assert.equal(reread.getCell('A2').value, 'flushed');
+});

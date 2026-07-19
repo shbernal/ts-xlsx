@@ -123,6 +123,36 @@ export interface WriteOptions {
    * part. Rich-text values stay inline regardless, so their run formatting is unaffected.
    */
   readonly useSharedStrings?: boolean;
+
+  /**
+   * The style registry to intern into, in place of a freshly-seeded one. The streaming writer
+   * serialises each committed row eagerly (freeing its cells), so those rows' style ids must be
+   * assigned by the very same registry that later emits `xl/styles.xml` — otherwise the ids in the
+   * pre-rendered rows would not match the styles part. When omitted the buffered path seeds its own,
+   * so its output is unchanged.
+   */
+  readonly styles?: StyleRegistry;
+
+  /**
+   * Per-sheet rows already serialised and evicted from the model by the streaming writer, keyed by
+   * the model worksheet. Their XML is emitted ahead of the sheet's remaining live rows and their
+   * extent folds into `<dimension>`. Absent for the buffered path, which holds every row live.
+   */
+  readonly flushed?: ReadonlyMap<Worksheet, FlushedSheet>;
+}
+
+/**
+ * A worksheet's eagerly-serialised rows: each row's `<row>` XML tagged with its number (so it merges
+ * into ascending order with the sheet's remaining live rows, whatever order it was committed in), plus
+ * the used-cell extent they span (or the `Infinity`/`-Infinity` sentinels when the flushed rows carried
+ * only formatting). {@link buildPackageParts} folds the extent into the sheet's dimension.
+ */
+export interface FlushedSheet {
+  readonly rows: ReadonlyArray<{readonly number: number; readonly xml: string}>;
+  readonly top: number;
+  readonly left: number;
+  readonly bottom: number;
+  readonly right: number;
 }
 
 /**
@@ -133,6 +163,26 @@ export interface WriteOptions {
  */
 export function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array {
   return zipSync(buildPackageParts(workbook, options), {level: 6});
+}
+
+/**
+ * A style registry seeded from a workbook's read-in style layers (differential styles, named cell
+ * styles, custom indexed palette), ready to intern authored styles after them. Both the buffered
+ * pass and the streaming writer build their registry through here so a cell's style id means the
+ * same thing whichever writer emits it.
+ */
+export function createStyleRegistry(workbook: Workbook): StyleRegistry {
+  const styles = new StyleRegistry();
+  // Seed the differential-style table with the fragments read from a source file so conditional
+  // formatting's dxfId references stay valid; styles authored on rules append after them.
+  styles.seedDifferentialStyles(workbook.differentialStyles);
+  // Seed the named cell-style layer (cellStyleXfs/cellStyles) so each style's facets re-intern into the
+  // rebuilt sub-tables and a cell's xfId link stays valid; without any, the default Normal alone emits.
+  styles.seedNamedStyles(workbook.namedStyles);
+  // Seed the custom indexed-color palette so it re-emits verbatim and an `indexed="…"` colour keeps
+  // its intended RGB; a workbook that never overrode the palette seeds nothing and writes no <colors>.
+  styles.seedIndexedColors(workbook.indexedColors);
+  return styles;
 }
 
 /**
@@ -287,17 +337,10 @@ export function buildPackageParts(
   const allPivots = sheetPivots.flat();
 
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
-  // side effect of that pass, so styles.xml can only be generated once every sheet is done.
-  const styles = new StyleRegistry();
-  // Seed the differential-style table with the fragments read from a source file so conditional
-  // formatting's dxfId references stay valid; styles authored on rules append after them.
-  styles.seedDifferentialStyles(workbook.differentialStyles);
-  // Seed the named cell-style layer (cellStyleXfs/cellStyles) so each style's facets re-intern into the
-  // rebuilt sub-tables and a cell's xfId link stays valid; without any, the default Normal alone emits.
-  styles.seedNamedStyles(workbook.namedStyles);
-  // Seed the custom indexed-color palette so it re-emits verbatim and an `indexed="…"` colour keeps
-  // its intended RGB; a workbook that never overrode the palette seeds nothing and writes no <colors>.
-  styles.seedIndexedColors(workbook.indexedColors);
+  // side effect of that pass, so styles.xml can only be generated once every sheet is done. The
+  // streaming writer supplies its own registry (already seeded, and already carrying its eagerly
+  // flushed rows' styles); the buffered path seeds a fresh one here.
+  const styles = options.styles ?? createStyleRegistry(workbook);
   const sheetXml = sheets.map((sheet, i) => {
     const refs = preserved.perSheet[i] ?? [];
     // A preserved `<drawing>` and a modeled one are mutually exclusive (a drawing is only preserved
@@ -319,7 +362,8 @@ export function buildPackageParts(
       legacyDrawingHFRelId,
       slicerRelIds,
       sheetHyperlinks[i] ?? [],
-      sharedStrings
+      sharedStrings,
+      options.flushed?.get(sheet)
     );
   });
 
@@ -1064,17 +1108,14 @@ function worksheetXml(
   legacyDrawingHFRelId: string | null,
   preservedSlicerRelIds: readonly string[],
   hyperlinks: readonly PlannedHyperlink[],
-  sharedStrings: SharedStringTable | null
+  sharedStrings: SharedStringTable | null,
+  flushed?: FlushedSheet
 ): string {
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
   // rather than emit a package a consumer repairs on open.
   validateMerges(sheet);
 
-  // A column's style facets are defaults its cells inherit unless they override them; the writer
-  // composes each cell's full style up front (cell over row over column, per facet) so a cell that
-  // overrides one facet still carries the column's others, rather than silently dropping them.
-  const columnDefaults = new Map<number, ColumnProperties>();
-  for (const {index, properties} of sheet.columns()) columnDefaults.set(index, properties);
+  const columnDefaults = buildColumnDefaults(sheet);
 
   // A cell filled from a shared formula is written as a master (seeding the group) or a clone
   // (referencing it by shared index); resolve every such role before the row loop so each cell knows
@@ -1086,51 +1127,25 @@ function worksheetXml(
   // so the row loop can stamp it even onto a summary row that carries no properties of its own.
   const collapsedSummaries = collapsedSummaryRows(sheet);
 
-  const rowXml: string[] = [];
-  let top = Infinity;
-  let left = Infinity;
-  let bottom = -Infinity;
-  let right = -Infinity;
+  const context: RowRenderContext = {columnDefaults, styles, sharedStrings, sharedRoles, collapsedSummaries};
 
-  for (const {number, cells, properties} of sheet.rows()) {
-    // A cell earns a <c> element if it holds a value OR carries its own style: a formatted-but-empty
-    // cell (a fill/border on a null value) is a real cell to Excel, and dropping it would lose the
-    // formatting. A cell with neither is inherited from its row/column and needs no element of its own.
-    const rendered = cells.filter(cell => cell.value !== null || hasOwnStyle(cell));
-    const attrs = rowAttrs(properties, styles, collapsedSummaries.has(number));
-    // A row with neither data nor its own formatting has nothing to serialise.
-    if (rendered.length === 0 && attrs === '') continue;
-    const rowFill = properties?.fill;
-    const cellsXml = rendered
-      .map(cell => {
-        // Cell overrides win over row/column defaults; a cell with any facet gets its own,
-        // fully-composed style entry so no default facet is lost to the override. Precedence is
-        // cell over row over column per facet — the row contributes only a fill today.
-        const colDef = columnDefaults.get(cell.col);
-        const style = styles.styleId({
-          fill: cell.fill ?? rowFill ?? colDef?.fill,
-          // A bare Date carries no format of its own, so it renders as a raw serial and reads
-          // back as a number unless we apply a date format. An explicit cell/column format wins.
-          numFmt: cell.numFmt ?? colDef?.numFmt ?? dateDefaultNumFmt(cell.value),
-          font: cell.font ?? colDef?.font,
-          border: cell.border ?? colDef?.border,
-          alignment: cell.alignment ?? colDef?.alignment,
-          protection: cell.protection ?? colDef?.protection,
-          // Quote-prefix is a cell-only flag; a column carries no such default to inherit.
-          quotePrefix: cell.quotePrefix,
-          // The cell's link into the named cell-style layer, preserved so a round-trip keeps it tied
-          // to that style rather than flattening it into a purely-direct format.
-          xfId: cell.namedStyleId,
-        });
-        return cellXml(cell, style, sharedRoles.get(cell.address), sharedStrings);
-      })
-      .join('');
-    rowXml.push(`<row r="${number}"${attrs}>${cellsXml}</row>`);
-    for (const cell of rendered) {
-      if (number < top) top = number;
-      if (number > bottom) bottom = number;
-      if (cell.col < left) left = cell.col;
-      if (cell.col > right) right = cell.col;
+  const liveRows: {number: number; xml: string}[] = [];
+  // Seed the used-cell extent with any rows the streaming writer already serialised and evicted, so
+  // the dimension spans both them and the live rows below.
+  let top = flushed?.top ?? Infinity;
+  let left = flushed?.left ?? Infinity;
+  let bottom = flushed?.bottom ?? -Infinity;
+  let right = flushed?.right ?? -Infinity;
+
+  for (const entry of sheet.rows()) {
+    const {xml, minCol, maxCol} = renderRow(entry, context);
+    if (xml === '') continue;
+    liveRows.push({number: entry.number, xml});
+    if (minCol !== Infinity) {
+      if (entry.number < top) top = entry.number;
+      if (entry.number > bottom) bottom = entry.number;
+      if (minCol < left) left = minCol;
+      if (maxCol > right) right = maxCol;
     }
   }
 
@@ -1138,7 +1153,14 @@ function worksheetXml(
   // extend it, matching how Excel records <dimension>.
   const dimensionRef =
     bottom === -Infinity ? 'A1' : `${encodeAddress(left, top)}:${encodeAddress(right, bottom)}`;
-  const sheetData = rowXml.length === 0 ? '<sheetData/>' : `<sheetData>${rowXml.join('')}</sheetData>`;
+  // Merge the streaming writer's pre-rendered rows with the live ones into ascending row order — a
+  // flushed row can carry any number, and rows may be committed out of order. The buffered path has no
+  // flushed rows, so it skips the merge and its sort entirely.
+  const orderedRows = flushed
+    ? [...flushed.rows, ...liveRows].sort((a, b) => a.number - b.number)
+    : liveRows;
+  const bodyXml = orderedRows.map(row => row.xml).join('');
+  const sheetData = bodyXml === '' ? '<sheetData/>' : `<sheetData>${bodyXml}</sheetData>`;
 
   return (
     XML_DECLARATION +
@@ -1183,6 +1205,82 @@ function worksheetXml(
     worksheetExtLstXml(sheet, preservedSlicerRelIds) +
     '</worksheet>'
   );
+}
+
+/**
+ * A column's style facets are defaults its cells inherit unless they override them; the writer
+ * composes each cell's full style up front (cell over row over column, per facet) so a cell that
+ * overrides one facet still carries the column's others, rather than silently dropping them. Frozen
+ * once by the streaming writer at its first flush so every eagerly-rendered row sees the same defaults.
+ */
+export function buildColumnDefaults(sheet: Worksheet): Map<number, ColumnProperties> {
+  const columnDefaults = new Map<number, ColumnProperties>();
+  for (const {index, properties} of sheet.columns()) columnDefaults.set(index, properties);
+  return columnDefaults;
+}
+
+/** The whole-sheet context a single row needs to serialise: the column defaults it inherits, the
+ * style/string tables it interns into, the shared-formula roles its cells play, and the collapsed
+ * outline summaries whose toggle it must stamp. The streaming writer supplies empty shared-formula
+ * and collapsed-summary sets, since those are whole-sheet derivations a flushed row cannot join. */
+export interface RowRenderContext {
+  readonly columnDefaults: ReadonlyMap<number, ColumnProperties>;
+  readonly styles: StyleRegistry;
+  readonly sharedStrings: SharedStringTable | null;
+  readonly sharedRoles: ReadonlyMap<string, SharedFormulaRole>;
+  readonly collapsedSummaries: ReadonlySet<number>;
+}
+
+/**
+ * Serialise one row to its `<row>` element, or '' when the row has neither data nor its own
+ * formatting. Returns the used-column bounds (`Infinity`/`-Infinity` when nothing was rendered) so a
+ * caller can fold them into the sheet dimension. Shared by the buffered sheet pass and the streaming
+ * writer's eager flush, so both emit byte-identical rows.
+ */
+export function renderRow(
+  entry: {readonly number: number; readonly cells: readonly Cell[]; readonly properties: RowProperties | undefined},
+  ctx: RowRenderContext
+): {xml: string; minCol: number; maxCol: number} {
+  const {number, cells, properties} = entry;
+  // A cell earns a <c> element if it holds a value OR carries its own style: a formatted-but-empty
+  // cell (a fill/border on a null value) is a real cell to Excel, and dropping it would lose the
+  // formatting. A cell with neither is inherited from its row/column and needs no element of its own.
+  const rendered = cells.filter(cell => cell.value !== null || hasOwnStyle(cell));
+  const attrs = rowAttrs(properties, ctx.styles, ctx.collapsedSummaries.has(number));
+  // A row with neither data nor its own formatting has nothing to serialise.
+  if (rendered.length === 0 && attrs === '') return {xml: '', minCol: Infinity, maxCol: -Infinity};
+  const rowFill = properties?.fill;
+  const cellsXml = rendered
+    .map(cell => {
+      // Cell overrides win over row/column defaults; a cell with any facet gets its own,
+      // fully-composed style entry so no default facet is lost to the override. Precedence is
+      // cell over row over column per facet — the row contributes only a fill today.
+      const colDef = ctx.columnDefaults.get(cell.col);
+      const style = ctx.styles.styleId({
+        fill: cell.fill ?? rowFill ?? colDef?.fill,
+        // A bare Date carries no format of its own, so it renders as a raw serial and reads
+        // back as a number unless we apply a date format. An explicit cell/column format wins.
+        numFmt: cell.numFmt ?? colDef?.numFmt ?? dateDefaultNumFmt(cell.value),
+        font: cell.font ?? colDef?.font,
+        border: cell.border ?? colDef?.border,
+        alignment: cell.alignment ?? colDef?.alignment,
+        protection: cell.protection ?? colDef?.protection,
+        // Quote-prefix is a cell-only flag; a column carries no such default to inherit.
+        quotePrefix: cell.quotePrefix,
+        // The cell's link into the named cell-style layer, preserved so a round-trip keeps it tied
+        // to that style rather than flattening it into a purely-direct format.
+        xfId: cell.namedStyleId,
+      });
+      return cellXml(cell, style, ctx.sharedRoles.get(cell.address), ctx.sharedStrings);
+    })
+    .join('');
+  let minCol = Infinity;
+  let maxCol = -Infinity;
+  for (const cell of rendered) {
+    if (cell.col < minCol) minCol = cell.col;
+    if (cell.col > maxCol) maxCol = cell.col;
+  }
+  return {xml: `<row r="${number}"${attrs}>${cellsXml}</row>`, minCol, maxCol};
 }
 
 // Assemble the worksheet's single `<extLst>` from every x14 extension the sheet carries, or '' when it

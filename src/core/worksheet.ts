@@ -526,6 +526,25 @@ export class Worksheet {
     return this.#rows.get(row)?.has(col) ?? false;
   }
 
+  /** The format properties for a 1-based row number if any were set, without materialising them —
+   * the read-only peek {@link getRow} is not, so a serializer can render a row's attributes without
+   * fabricating an empty record for every row it visits. */
+  rowProperties(number: number): RowProperties | undefined {
+    return this.#rowProperties.get(number);
+  }
+
+  /**
+   * Drop a row's materialised cells and format properties, releasing its cell graph. The streaming
+   * writer calls this the moment a row is serialised so peak memory stays bounded to the rows still
+   * in flight rather than the whole sheet. Row *numbering* is the caller's concern: eviction lowers
+   * {@link rowCount}, so an append-driven producer must track its own high-water mark rather than
+   * lean on this sheet's used range.
+   */
+  evictRow(number: number): void {
+    this.#rows.delete(number);
+    this.#rowProperties.delete(number);
+  }
+
   /**
    * Get the mutable format properties for a 1-based column index, creating the record
    * on first access. Setting properties here does not materialise any cells.

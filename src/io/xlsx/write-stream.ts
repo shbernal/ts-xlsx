@@ -13,28 +13,42 @@
 // writer emits a corrupt zip" reports describe is structurally absent here. The bytes reload
 // identically to a whole-file write because both writers share `buildPackageParts` for every part.
 //
-// Scope of this slice: rows accumulate into the in-memory model until the workbook commits, so peak
-// memory is not yet bounded to one row — the analogue of the streaming *reader*'s first slice, which
-// still inflated the package whole. What this delivers is the incremental authoring API, the commit
-// lifecycle, and a Node output stream honouring the pipe contract. A later slice can flush each
-// sheet's `<sheetData>` row-by-row into its zip entry to bound memory; the streamed-container
-// primitive it needs is already the one used here.
+// Peak memory: a row committed with `row.commit()` is serialised to its `<row>` XML immediately and
+// its cells evicted from the model, so an append-driven producer holds only the rows still in flight
+// rather than the whole sheet's cell graph. The eagerly-rendered rows intern into the workbook's live
+// style registry — the same one that emits `xl/styles.xml` — so their style ids stay correct; their
+// XML is handed to `buildPackageParts` and emitted at the head of `<sheetData>`. This eager path runs
+// with strings inline (a shared-strings pool is inherently whole-workbook, so it defeats bounding);
+// turning `useSharedStrings` on falls back to holding every row live until commit. A flushed row is a
+// finished row: it cannot join whole-sheet derivations, so a shared-formula clone in a committed row
+// is rejected, and rows reached only through `getCell` (never `row.commit()`) stay live and serialise
+// the ordinary way. The package bytes themselves are still assembled once at commit — a later slice
+// can flush each sheet's `<sheetData>` straight into its streamed zip entry to bound that half too.
 
 import {createWriteStream} from 'node:fs';
 import {PassThrough, type Readable, type Writable} from 'node:stream';
 
 import {Zip, ZipDeflate} from 'fflate';
 
+import {encodeAddress} from '../../core/address.ts';
 import type {AutoFilter} from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
 import type {ConditionalFormatting} from '../../core/conditional-formatting.ts';
 import type {DataValidation} from '../../core/data-validation.ts';
 import type {AnchorPoint} from '../../core/image.ts';
 import type {SheetProtectionOptions} from '../../core/protection.ts';
-import type {CellValue} from '../../core/value.ts';
+import {isSharedFormulaValue, type CellValue} from '../../core/value.ts';
 import {Workbook, type AddImageOptions, type AddWorksheetOptions} from '../../core/workbook.ts';
-import type {Worksheet} from '../../core/worksheet.ts';
-import {buildPackageParts, type WriteOptions} from './write.ts';
+import type {ColumnProperties, Worksheet} from '../../core/worksheet.ts';
+import type {StyleRegistry} from './styles.ts';
+import {
+  buildColumnDefaults,
+  buildPackageParts,
+  createStyleRegistry,
+  renderRow,
+  type FlushedSheet,
+  type WriteOptions,
+} from './write.ts';
 
 /** Calculation settings applied to the streamed workbook. Mirrors the {@link Workbook} flags. */
 export interface CalcProperties {
@@ -67,24 +81,34 @@ export interface WorkbookStreamWriterOptions {
 }
 
 /**
- * A row appended to a {@link WorksheetStreamWriter}. `commit()` marks the row finished; in this slice
- * the row is already retained in the model, so it is a no-op that exists to match the streaming idiom
- * (`sheet.addRow(...).commit()`) and to reserve the seam a bounded-memory slice will flush through.
+ * A row appended to a {@link WorksheetStreamWriter}. Style its cells through {@link cells}, then call
+ * {@link commit} to mark it finished. In an eager (inline-strings) writer, committing serialises the
+ * row and frees its cells from the model, bounding peak memory; with `useSharedStrings` on it is a
+ * no-op and the row stays live until the workbook commits.
  */
 export class StreamedRow {
   readonly #cells: readonly Cell[];
+  readonly #sheet: WorksheetStreamWriter | null;
+  readonly #number: number;
+  #committed = false;
 
-  constructor(cells: readonly Cell[]) {
+  constructor(cells: readonly Cell[], sheet: WorksheetStreamWriter | null, number: number) {
     this.#cells = cells;
+    this.#sheet = sheet;
+    this.#number = number;
   }
 
-  /** The cells this row materialised, for styling before the sheet is committed. */
+  /** The cells this row materialised, for styling before it is committed. */
   get cells(): readonly Cell[] {
     return this.#cells;
   }
 
+  /** Finalise the row: an eager writer serialises it now and releases its cells; otherwise a no-op.
+   * Committing twice is harmless — the second call does nothing rather than re-emitting the row. */
   commit(): void {
-    // No-op today: the row lives in the model until the workbook commits. See the module comment.
+    if (this.#committed) return;
+    this.#committed = true;
+    this.#sheet?.flushRow(this.#number, this.#cells);
   }
 }
 
@@ -95,10 +119,25 @@ export class StreamedRow {
  */
 export class WorksheetStreamWriter {
   readonly #sheet: Worksheet;
+  readonly #eager: boolean;
+  readonly #styles: StyleRegistry;
   #committed = false;
+  // The last row number this writer appended, tracked independently of the model: an eager writer
+  // evicts flushed rows, which lowers the model's used range, so leaning on it would reuse numbers.
+  #lastRow = 0;
+  // The column defaults an eagerly-rendered row inherits, frozen at the first flush so every flushed
+  // row composes against the same columns even as later ones are defined.
+  #columnDefaults: ReadonlyMap<number, ColumnProperties> | undefined;
+  readonly #flushedRows: {number: number; xml: string}[] = [];
+  #top = Infinity;
+  #left = Infinity;
+  #bottom = -Infinity;
+  #right = -Infinity;
 
-  constructor(sheet: Worksheet) {
+  constructor(sheet: Worksheet, eager: boolean, styles: StyleRegistry) {
     this.#sheet = sheet;
+    this.#eager = eager;
+    this.#styles = styles;
   }
 
   /** The sheet's name. */
@@ -106,21 +145,91 @@ export class WorksheetStreamWriter {
     return this.#sheet.name;
   }
 
-  /** The number of rows written so far — spans gaps and formatted-only rows, like the model. */
+  /** The number of rows written so far — spans gaps and formatted-only rows, like the model, and
+   * survives the eviction of eagerly-flushed rows. */
   get rowCount(): number {
-    return this.#sheet.rowCount;
+    return Math.max(this.#lastRow, this.#sheet.rowCount);
   }
 
   /** Append one row of values after the last used row; the cells are returned for styling. */
   addRow(values: CellValue[]): StreamedRow {
     this.#assertOpen();
-    return new StreamedRow(this.#sheet.addRow(values));
+    if (!this.#eager) return new StreamedRow(this.#sheet.addRow(values), null, 0);
+    const number = this.#nextRowNumber();
+    return new StreamedRow(this.#placeRow(number, values), this, number);
   }
 
   /** Append a batch of rows in one call, each landing directly below the previous. */
   addRows(rows: CellValue[][]): StreamedRow[] {
     this.#assertOpen();
-    return this.#sheet.addRows(rows).map(cells => new StreamedRow(cells));
+    if (!this.#eager) return this.#sheet.addRows(rows).map(cells => new StreamedRow(cells, null, 0));
+    return rows.map(values => this.addRow(values));
+  }
+
+  // The next append position: past both this writer's own high-water mark and any rows a `getCell`
+  // materialised, so appends never collide with random-access edits or with already-evicted rows.
+  #nextRowNumber(): number {
+    this.#lastRow = Math.max(this.#lastRow, this.#sheet.rowCount) + 1;
+    return this.#lastRow;
+  }
+
+  // Materialise a positional row at an explicit number (the model's own append would reuse numbers once
+  // eviction shrinks its used range), returning the cells for styling. A hole leaves its cell absent.
+  #placeRow(number: number, values: CellValue[]): Cell[] {
+    const cells: Cell[] = [];
+    values.forEach((value, index) => {
+      const cell = this.#sheet.getCell(encodeAddress(index + 1, number));
+      cell.value = value;
+      cells.push(cell);
+    });
+    return cells;
+  }
+
+  /**
+   * Serialise an eagerly-committed row and release its cells from the model. Called by
+   * {@link StreamedRow.commit}; the row's `<row>` XML is retained (interned into the workbook's live
+   * style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
+   *
+   * @throws {Error} if the row carries a shared-formula cell — a finished row cannot join the
+   *   whole-sheet formula planning, so shared formulas must be authored through {@link getCell}.
+   */
+  flushRow(number: number, cells: readonly Cell[]): void {
+    for (const cell of cells) {
+      if (isSharedFormulaValue(cell.value)) {
+        throw new Error(
+          `row ${number} of streamed sheet "${this.#sheet.name}" carries a shared-formula cell; a ` +
+            'committed row is finalised before the sheet is planned, so author shared formulas through ' +
+            'getCell (leaving the row uncommitted) instead'
+        );
+      }
+    }
+    this.#columnDefaults ??= buildColumnDefaults(this.#sheet);
+    const {xml, minCol, maxCol} = renderRow(
+      {number, cells, properties: this.#sheet.rowProperties(number)},
+      {
+        columnDefaults: this.#columnDefaults,
+        styles: this.#styles,
+        sharedStrings: null,
+        sharedRoles: new Map(),
+        collapsedSummaries: new Set(),
+      }
+    );
+    if (xml !== '') {
+      this.#flushedRows.push({number, xml});
+      if (minCol !== Infinity) {
+        if (number < this.#top) this.#top = number;
+        if (number > this.#bottom) this.#bottom = number;
+        if (minCol < this.#left) this.#left = minCol;
+        if (maxCol > this.#right) this.#right = maxCol;
+      }
+    }
+    this.#sheet.evictRow(number);
+  }
+
+  // The rows this writer flushed, or undefined if none — handed to buildPackageParts at commit.
+  flushedSheet(): FlushedSheet | undefined {
+    if (this.#flushedRows.length === 0) return undefined;
+    return {rows: this.#flushedRows, top: this.#top, left: this.#left, bottom: this.#bottom, right: this.#right};
   }
 
   /** Address a cell by its A1 reference to read or style it before the sheet is committed. */
@@ -219,6 +328,12 @@ export class WorkbookStreamWriter {
   readonly #sheets: WorksheetStreamWriter[] = [];
   readonly #writeOptions: WriteOptions;
   readonly #sink: Writable | undefined;
+  // The single style registry shared by the eager per-row flush and the commit-time serialisation, so a
+  // flushed row's style ids match the styles.xml built from the same table.
+  readonly #styles: StyleRegistry;
+  // Eager per-row flushing runs with strings inline; a shared-strings pool is inherently whole-workbook,
+  // so it cannot bound memory — turning it on keeps every row live until commit.
+  readonly #eager: boolean;
   #stream: PassThrough | undefined;
   #committed = false;
 
@@ -227,6 +342,8 @@ export class WorkbookStreamWriter {
 
   constructor(options: WorkbookStreamWriterOptions = {}) {
     this.#writeOptions = {useSharedStrings: options.useSharedStrings ?? false};
+    this.#eager = !this.#writeOptions.useSharedStrings;
+    this.#styles = createStyleRegistry(this.#workbook);
     if (options.stream && options.filename) {
       throw new Error('provide either a stream or a filename to the streaming writer, not both');
     }
@@ -265,7 +382,11 @@ export class WorkbookStreamWriter {
     if (this.#committed) {
       throw new Error('the workbook is already committed — no more worksheets can be added');
     }
-    const sheet = new WorksheetStreamWriter(this.#workbook.addWorksheet(name, options));
+    const sheet = new WorksheetStreamWriter(
+      this.#workbook.addWorksheet(name, options),
+      this.#eager,
+      this.#styles
+    );
     this.#sheets.push(sheet);
     return sheet;
   }
@@ -283,7 +404,19 @@ export class WorkbookStreamWriter {
     for (const sheet of this.#sheets) sheet.commit();
     if (this.calcProperties.fullCalcOnLoad) this.#workbook.fullCalcOnLoad = true;
 
-    const parts = buildPackageParts(this.#workbook, this.#writeOptions);
+    // Hand every sheet's eagerly-flushed rows to the shared serialiser, which emits them alongside the
+    // rows still live in the model. The style registry is the same one the flushed rows interned into,
+    // so styles.xml stays consistent with the ids already baked into their XML.
+    const flushed = new Map<Worksheet, FlushedSheet>();
+    for (const sheet of this.#sheets) {
+      const sheetFlushed = sheet.flushedSheet();
+      if (sheetFlushed) flushed.set(sheet.model, sheetFlushed);
+    }
+    const parts = buildPackageParts(this.#workbook, {
+      ...this.#writeOptions,
+      styles: this.#styles,
+      flushed,
+    });
     const owned = this.#stream;
     const sink = this.#sink;
     // Track the caller sink's terminal state before writing a byte, so an open failure that errors on a

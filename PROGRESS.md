@@ -1900,6 +1900,32 @@ precedes `<pageMargins>` in schema order; an unset sheet emits no element; and a
 container cloned, clearing the destination's stale flags. `test:src`: **640 pass**;
 `corpus`/`corpus:rewrite`: **0 regressions**.
 
+### 2026-07-19 — beyond the corpus finish line: the streaming writer stops holding the cell graph *(source)*
+
+The streaming writer's one genuine deferred gap: `WorksheetStreamWriter.addRow` retained every row's cell
+graph in the model until the *workbook* committed, so `StreamedRow.commit()` was a documented no-op — peak
+memory was the whole sheet, not one row. It now flushes: committing a streamed row serialises it to its
+`<row>` XML *immediately* and evicts the cells from the model (a new `Worksheet.evictRow`), so an
+append-driven producer holds only the rows still in flight. The eager path required externalising the two
+side-effecting registries — the eagerly-rendered rows intern into the workbook's *live* `StyleRegistry`
+(the same table `xl/styles.xml` is built from, via a shared `createStyleRegistry`), so their style ids stay
+valid; their `<row>` XML rides into `buildPackageParts` through a new additive `WriteOptions.flushed` and
+merges with the sheet's remaining live rows in ascending row order (`renderRow` was factored out of the
+sheet loop so both paths emit byte-identical rows). The buffered writer is untouched: the new options
+default to a freshly-seeded registry and no flushed rows, so its output — and all 434 corpus cases — are
+unchanged. **Scope of this slice (deliberate):** eager flushing runs with strings *inline* (a shared-strings
+pool is inherently whole-workbook, so `useSharedStrings` falls back to holding rows live); a *finished* row
+cannot join whole-sheet planning, so a shared-formula cell in a committed row is rejected, and rows reached
+only through `getCell` (never `.commit()`) stay live and serialise the ordinary way. The append counter is
+owned by the writer (not the model's used range, which eviction shrinks) so appends never reuse an evicted
+number. **Still buffered once at commit:** the package bytes are assembled whole — a later slice can stream
+each `<sheetData>` straight into its zip entry to bound that half too. Locked test-first (`write-stream.test.ts`):
+a committed row's cells leave the model while `rowCount` survives so the next append lands below; a 50-row
+sheet fully evicts yet reloads intact; `useSharedStrings` keeps rows live; a shared-formula cell in a
+committed row throws; a double commit does not duplicate the row; an eagerly-flushed styled cell round-trips
+its fill through the shared registry; and a live `getCell` row and a flushed appended row serialise in
+ascending order. `test:src`: **647 pass**; `corpus`/`corpus:rewrite`: **434 green, 0 regressions**.
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.
