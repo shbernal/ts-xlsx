@@ -8,6 +8,13 @@ import type {AutoFilter, FilterColumn, FilterCriteria} from '../../core/autofilt
 import type {Cell} from '../../core/cell.ts';
 import {DEFAULT_DATE_NUMFMT, dateToSerial} from '../../core/date.ts';
 import {mangleFormula} from '../../core/formula.ts';
+import type {
+  HeaderFooter,
+  PageBreak,
+  PageMargins,
+  PageSetup,
+  PrintOptions,
+} from '../../core/page-setup.ts';
 import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
 import type {Table, TableColumn, TableStyleInfo} from '../../core/table.ts';
 import {
@@ -22,12 +29,7 @@ import {
 } from '../../core/value.ts';
 import type {
   ColumnProperties,
-  HeaderFooter,
   OutlineProperties,
-  PageBreak,
-  PageMargins,
-  PageSetup,
-  PrintOptions,
   RowProperties,
   SheetView,
   Worksheet,

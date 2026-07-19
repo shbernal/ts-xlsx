@@ -21,6 +21,7 @@ import {strFromU8} from 'fflate';
 
 import {decodeRange} from '../../core/address.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
+import type {PreservedWorksheetReference} from '../../core/preserved.ts';
 import type {Font} from '../../core/style.ts';
 import type {RichTextRun} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
@@ -28,7 +29,7 @@ import {
   WORKBOOK_PROTECTION_CREDENTIAL_ATTRS,
   type WorkbookProtection,
 } from '../../core/workbook-protection.ts';
-import type {PreservedWorksheetReference, Worksheet, WorksheetState} from '../../core/worksheet.ts';
+import type {Worksheet, WorksheetState} from '../../core/worksheet.ts';
 import type {SharedString} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';

@@ -12,6 +12,7 @@ import {
 } from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
+import type {PageBreak, PageMargins, PageSetup, PrintOptions} from '../../core/page-setup.ts';
 import {
   SHEET_PROTECTION_FLAGS,
   type SheetProtection,
@@ -20,13 +21,7 @@ import {
 } from '../../core/protection.ts';
 import type {Font} from '../../core/style.ts';
 import type {DataTableFormulaValue, RichTextRun, SharedFormulaValue} from '../../core/value.ts';
-import type {
-  PageBreak,
-  PageMargins,
-  PageSetup,
-  PrintOptions,
-  Worksheet,
-} from '../../core/worksheet.ts';
+import type {Worksheet} from '../../core/worksheet.ts';
 import {decodeCellContent, decodeFormulaResult, type SharedString} from './cell-value.ts';
 import {applyFontChild, type XfStyle} from './read-styles.ts';
 import {parseColor} from './styles.ts';

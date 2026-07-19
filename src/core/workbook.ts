@@ -6,9 +6,10 @@
 // first place, rather than failing only at write time.
 
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
+import type {PreservedPart} from './preserved.ts';
 import type {NamedCellStyle} from './style.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
-import {type PreservedPart, Worksheet, type WorksheetState} from './worksheet.ts';
+import {Worksheet, type WorksheetState} from './worksheet.ts';
 
 /**
  * A workbook-level reference to package content the model does not model — a pivot cache

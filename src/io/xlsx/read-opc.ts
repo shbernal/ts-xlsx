@@ -3,7 +3,7 @@
 // closure of parts a preserved reference reaches. Every helper here is pure over the inflated package —
 // it takes part text/bytes accessors and returns paths or records, touching no Workbook model.
 
-import type {PreservedPart, PreservedRelationship} from '../../core/worksheet.ts';
+import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts';
 import {openElements} from './xml-read.ts';
 
 // The extension of a part path (`xl/media/image1.png` → `png`), or '' when it carries none.

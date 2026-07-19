@@ -27,6 +27,7 @@ export {
   type TwoCellAnchor,
   type WorkbookImage,
 } from './core/image.ts';
+export type {HeaderFooter, PageMargins} from './core/page-setup.ts';
 export {
   type PivotMetric,
   PivotTable,
@@ -87,8 +88,6 @@ export {
 export type {WorkbookProtection} from './core/workbook-protection.ts';
 export {
   type ColumnProperties,
-  type HeaderFooter,
-  type PageMargins,
   type RowProperties,
   Worksheet,
   type WorksheetProperties,

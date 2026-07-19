@@ -25,7 +25,10 @@ import {
   PX_TO_EMU,
   type TwoCellAnchor,
 } from './image.ts';
+import {decodeSqrefRects, type MergeRect, rectsOverlap} from './merge.ts';
+import type {HeaderFooter, PageBreak, PageMargins, PageSetup, PrintOptions} from './page-setup.ts';
 import {type ParsedPivotTable, PivotTable, type PivotTableOptions} from './pivot-table.ts';
+import type {PreservedWorksheetReference} from './preserved.ts';
 import {
   deriveCredential,
   type SheetProtection,
@@ -48,15 +51,6 @@ export interface WorksheetProperties {
   /** Width, in character units, for columns with no explicit width. */
   defaultColWidth?: number;
 }
-
-// Sub-cell anchor geometry: a fractional grid coordinate resolves to the cell it floors to plus an
-// EMU offset scaled by that cell's real size. Excel measures a column in characters of the default
-// font (~7 px each at 96 DPI) and a row in points (1/72 inch); an unset size falls back to Excel's
-// own defaults.
-const CHAR_WIDTH_PX = 7;
-const EMU_PER_POINT = 12700;
-const DEFAULT_COL_WIDTH_CHARS = 8.43;
-const DEFAULT_ROW_HEIGHT_POINTS = 15;
 
 /**
  * Placement of an outline's summary rows/columns. Excel's defaults are summary *below* the detail
@@ -84,146 +78,6 @@ export interface SheetView {
   ySplit?: number;
   /** The cell anchoring the bottom-right scrolling pane; defaults to the first unfrozen cell. */
   topLeftCell?: string;
-}
-
-/**
- * Print-scaling and orientation settings. These map onto two OOXML elements: `fitToPage` is the
- * `<pageSetUpPr>` flag (a `<sheetPr>` child) that switches Excel from fixed-zoom to fit-to-page
- * scaling, while the rest are `<pageSetup>` attributes. Excel honours `scale` only when `fitToPage`
- * is off and the `fitToWidth`/`fitToHeight` page counts only when it is on, but the model carries
- * whatever the author set — an unset field is omitted so a round-trip never fabricates one. An
- * empty object emits neither element.
- */
-export interface PageSetup {
-  /** Switch to fit-to-page scaling. Emitted as `<pageSetUpPr fitToPage="1">`. */
-  fitToPage?: boolean;
-  /** Pages wide to fit onto; `0` means "unbounded" (fit only by height). */
-  fitToWidth?: number;
-  /** Pages tall to fit onto; `0` means "unbounded" (fit only by width). */
-  fitToHeight?: number;
-  /** Fixed print zoom as a percentage; Excel honours it only when `fitToPage` is off. */
-  scale?: number;
-  /** Paper orientation. */
-  orientation?: 'portrait' | 'landscape';
-  /** Order pages are numbered/printed in across a multi-page sheet. */
-  pageOrder?: 'downThenOver' | 'overThenDown';
-  /**
-   * Paper size as Excel's 1-based enumeration index (e.g. `9` = A4, `1` = US Letter). Carried as an
-   * opaque integer — the model does not map it to physical dimensions, only preserves whatever the
-   * author or source file set.
-   */
-  paperSize?: number;
-  /**
-   * The printer-settings blob a source file bound to this sheet's `<pageSetup>` via an `r:id`
-   * relationship, held verbatim. Excel stores the platform-specific `DEVMODE` (paper tray, duplex,
-   * DPI, …) in this opaque binary part; the model does not interpret it, only round-trips the exact
-   * bytes so re-writing a file that carried one does not silently drop the user's print configuration.
-   */
-  printerSettings?: Uint8Array;
-}
-
-/**
- * Print-toggle flags from the `<printOptions>` element. Each maps to a boolean OOXML attribute that
- * defaults false — except `gridLinesSet`, which defaults true and gates whether `gridLines` is
- * honoured. The model stores only what the source or caller set, so an unset flag is omitted and a
- * round-trip never fabricates one; an empty object emits no element at all.
- */
-export interface PrintOptions {
-  /** Centre the printed content horizontally on the page. */
-  horizontalCentered?: boolean;
-  /** Centre the printed content vertically on the page. */
-  verticalCentered?: boolean;
-  /** Print the row and column headings (the `1,2,3…` / `A,B,C…` gutters). */
-  headings?: boolean;
-  /** Print the cell gridlines. */
-  gridLines?: boolean;
-  /** Whether the `gridLines` flag is authoritative; when `false`, Excel ignores `gridLines`. */
-  gridLinesSet?: boolean;
-}
-
-/**
- * A manual page break (`<brk>`). For a row break, `id` is the row the layout splits *before*; for a
- * column break it is the column. `max` bounds the break's extent across the other axis (Excel writes
- * the last row/column index) and `man` marks it author-set rather than automatic — the model preserves
- * whatever the source carried so a round-trip reproduces the break's span exactly.
- */
-export interface PageBreak {
-  /** The row (or column) the break precedes. */
-  readonly id: number;
-  /** The break's far extent across the other axis, if the source declared one. */
-  readonly max?: number;
-  /** `true` when the break is manual (author-set); Excel-authored breaks always are. */
-  readonly man?: boolean;
-}
-
-/**
- * Print margins, in inches. OOXML's `<pageMargins>` requires all six to be present, but
- * the model stores only what the caller set; the writer fills the untouched ones with
- * valid defaults. An empty object means the element is omitted entirely.
- */
-export interface PageMargins {
-  left?: number;
-  right?: number;
-  top?: number;
-  bottom?: number;
-  header?: number;
-  footer?: number;
-}
-
-/**
- * Page header/footer text, one string per page class. Excel only honours the even- and
- * first-page variants when the writer also sets the gating flags (`differentOddEven`,
- * `differentFirst`); the writer derives those from which variants are present. An empty
- * object means the element is omitted entirely.
- */
-export interface HeaderFooter {
-  oddHeader?: string;
-  oddFooter?: string;
-  evenHeader?: string;
-  evenFooter?: string;
-  firstHeader?: string;
-  firstFooter?: string;
-}
-
-/**
- * One outbound relationship of a {@link PreservedPart}: the id it carries inside its own rels part,
- * the relationship Type URI, and the resolved package path of the (internal) target part. Only
- * package-internal relationships are preserved — an external target (a URL) is not part of the
- * closure and is dropped.
- */
-export interface PreservedRelationship {
-  readonly id: string;
-  readonly type: string;
-  readonly targetPath: string;
-}
-
-/**
- * A package part the model does not interpret, captured verbatim so a round-trip re-emits it intact.
- * `bytes` are the raw part contents, `contentType` how the source package declared it, and `rels` its
- * outbound relationships (empty when the part references nothing). The writer re-numbers the part to a
- * fresh, collision-proof path and rewires `rels` accordingly, but never touches `bytes`.
- */
-export interface PreservedPart {
-  readonly path: string;
-  readonly contentType: string;
-  readonly bytes: Uint8Array;
-  readonly rels: readonly PreservedRelationship[];
-}
-
-/**
- * A worksheet-level reference to package content the model does not model — preserved verbatim across
- * a round-trip instead of being silently dropped. `element` is the worksheet child that wires the
- * reference (`<drawing>` for a vector-shape drawing, `<legacyDrawingHF>` for a header/footer image),
- * or `null` when the sheet wires it by relationship alone (a pivot table or slicer Excel discovers by
- * scanning the sheet's rels, with no worksheet child pointing at it). `relType` is the relationship
- * Type URI to re-emit; `entryPath` is the part it points at; `parts` is the transitive closure of
- * parts that reference reaches (the entry included), each re-emitted with its relationships rewired.
- */
-export interface PreservedWorksheetReference {
-  readonly element: 'drawing' | 'legacyDrawingHF' | null;
-  readonly relType: string;
-  readonly entryPath: string;
-  readonly parts: readonly PreservedPart[];
 }
 
 /**
@@ -262,37 +116,6 @@ export interface ColumnProperties {
  * leaves that column untouched), or an object keyed by column {@link ColumnProperties.key} whose
  * values land under the matching columns. */
 export type RowInput = (CellValue | undefined)[] | Record<string, CellValue>;
-
-/** A merged region as inclusive 1-based grid bounds. */
-interface MergeRect {
-  readonly top: number;
-  readonly left: number;
-  readonly bottom: number;
-  readonly right: number;
-}
-
-/** Whether two inclusive grid rectangles share at least one cell. */
-function rectsOverlap(a: MergeRect, b: MergeRect): boolean {
-  return a.left <= b.right && b.left <= a.right && a.top <= b.bottom && b.top <= a.bottom;
-}
-
-/** Decode an OOXML `sqref` (one or more space-separated ranges) into containment rectangles. A whole
- * column or row leaves one axis unbounded, so its missing edges open to `Infinity` rather than
- * clamping — a cell anywhere down the column still resolves inside it. */
-function decodeSqrefRects(sqref: string): MergeRect[] {
-  const rects: MergeRect[] = [];
-  for (const part of sqref.split(/\s+/)) {
-    if (part === '') continue;
-    const {top, left, bottom, right} = decodeRange(part);
-    rects.push({
-      top: top ?? 1,
-      left: left ?? 1,
-      bottom: bottom ?? Infinity,
-      right: right ?? Infinity,
-    });
-  }
-  return rects;
-}
 
 /** Per-row formatting. A row may exist purely to carry these, with no cells. */
 export interface RowProperties {
@@ -382,6 +205,15 @@ function copyCellContent(source: Cell, target: Cell): void {
   target.protection = source.protection;
   target.note = source.note;
 }
+
+// Sub-cell anchor geometry: a fractional grid coordinate resolves to the cell it floors to plus an
+// EMU offset scaled by that cell's real size. Excel measures a column in characters of the default
+// font (~7 px each at 96 DPI) and a row in points (1/72 inch); an unset size falls back to Excel's
+// own defaults. Consumed by the class's `#columnWidthEmu`/`#rowHeightEmu` anchor-resolution methods.
+const CHAR_WIDTH_PX = 7;
+const EMU_PER_POINT = 12700;
+const DEFAULT_COL_WIDTH_CHARS = 8.43;
+const DEFAULT_ROW_HEIGHT_POINTS = 15;
 
 export class Worksheet {
   readonly name: string;
