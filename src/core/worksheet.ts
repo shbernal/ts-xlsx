@@ -8,20 +8,20 @@
 
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
-import {Cell} from './cell.ts';
+import {Cell, copyCellContent} from './cell.ts';
 import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
 import {
   cloneDataValidation,
   type DataValidation,
   type DataValidationEntry,
 } from './data-validation.ts';
+import {GridEdits} from './grid-edits.ts';
 import {
   type AnchoredImage,
   type AnchorPoint,
   type Extent,
   type ImageAnchor,
   type ImageEditAs,
-  isOneCellAnchor,
   PX_TO_EMU,
   type TwoCellAnchor,
 } from './image.ts';
@@ -37,7 +37,7 @@ import {
 } from './protection.ts';
 import type {Alignment, Border, Color, Fill, Font, Protection} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
-import {type CellValue, isSharedFormulaValue, type SharedFormulaValue} from './value.ts';
+import type {CellValue} from './value.ts';
 
 export interface WorksheetState {
   /** Sheet visibility, as Excel models it. Defaults to `visible`. */
@@ -190,22 +190,6 @@ function overwrite<T extends object>(target: T, source: T): void {
   Object.assign(target, source);
 }
 
-// Copy a cell's value and every style facet onto another cell. Used when a structural edit shifts a
-// cell to a new position: `Cell` fixes its `(row, col)` at construction, so a shifted cell is a fresh
-// cell at the new coordinates carrying the original's content. Facet objects are passed by reference —
-// safe under the copy-on-write style model (facet setters replace, never mutate), so the source and
-// its shifted copy never alias each other's style through a shared object.
-function copyCellContent(source: Cell, target: Cell): void {
-  target.value = source.value;
-  target.fill = source.fill;
-  target.numFmt = source.numFmt;
-  target.font = source.font;
-  target.border = source.border;
-  target.alignment = source.alignment;
-  target.protection = source.protection;
-  target.note = source.note;
-}
-
 // Sub-cell anchor geometry: a fractional grid coordinate resolves to the cell it floors to plus an
 // EMU offset scaled by that cell's real size. Excel measures a column in characters of the default
 // font (~7 px each at 96 DPI) and a row in points (1/72 inch); an unset size falls back to Excel's
@@ -321,6 +305,19 @@ export class Worksheet {
   // sheet-level overlay, distinct from a table's own autofilter; stored canonically so the
   // `<autoFilter>` element and the derived `_FilterDatabase` defined name always agree.
   #autoFilter: AutoFilter | undefined;
+
+  // Structural-edit machinery (row/column splices), sharing this sheet's storage by reference. The
+  // public spliceRows/spliceColumns/duplicateRow build the cells an insert introduces, then delegate
+  // the shift arithmetic here.
+  readonly #edits = new GridEdits({
+    rows: this.#rows,
+    rowProperties: this.#rowProperties,
+    columns: this.#columns,
+    merges: this.#merges,
+    mergeRects: this.#mergeRects,
+    tables: this.#tables,
+    images: this.#images,
+  });
 
   constructor(name: string, id: number, state: WorksheetState['state'] = 'visible') {
     this.name = name;
@@ -840,7 +837,7 @@ export class Worksheet {
       });
       return row;
     });
-    this.#spliceRowRange(start, count, inserted);
+    this.#edits.spliceRows(start, count, inserted);
   }
 
   /**
@@ -971,7 +968,7 @@ export class Worksheet {
     };
     if (insert) {
       const copies = Array.from({length: count}, () => snapshot(start));
-      this.#spliceRowRange(start + 1, 0, copies);
+      this.#edits.spliceRows(start + 1, 0, copies);
     } else {
       for (let i = 1; i <= count; i++) this.#rows.set(start + i, snapshot(start + i));
     }
@@ -993,180 +990,7 @@ export class Worksheet {
     if (!Number.isInteger(count) || count < 0) {
       throw new RangeError(`splice count ${count} is invalid — it must be a non-negative integer`);
     }
-    const delta = inserts.length - count;
-    for (const [row, cols] of this.#rows) {
-      const shifted = new Map<number, Cell>();
-      for (const [col, cell] of cols) {
-        if (col < start) {
-          shifted.set(col, cell);
-        } else if (col >= start + count) {
-          const dest = col + delta;
-          const moved = new Cell(row, dest);
-          copyCellContent(cell, moved);
-          shifted.set(dest, moved);
-        }
-      }
-      inserts.forEach((values, i) => {
-        const value = values[row - 1];
-        if (value !== undefined) {
-          const cell = new Cell(row, start + i);
-          cell.value = value;
-          shifted.set(start + i, cell);
-        }
-      });
-      this.#rows.set(row, shifted);
-    }
-    this.#shiftLineProperties(this.#columns, start, count, delta);
-    this.#shiftMerges(start, count, inserts.length, 'col');
-    this.#shiftTables('col', start, count, delta);
-    this.#shiftImages('col', start, count, delta);
-    this.#reanchorSharedFormulas('col', start, count, delta);
-  }
-
-  // Apply a delete-then-insert to the row grid: surviving rows below the edit shift by
-  // `inserts.length - count`, deleted rows drop out, and the pre-built inserted rows land at `start`.
-  // Row metadata and merged ranges shift the same way, so a formatting-only row or a covered merge
-  // stays aligned with the data it describes.
-  #spliceRowRange(start: number, count: number, inserted: Map<number, Cell>[]): void {
-    const delta = inserted.length - count;
-    const shifted = new Map<number, Map<number, Cell>>();
-    for (const [row, cols] of this.#rows) {
-      if (row < start) shifted.set(row, cols);
-      else if (row >= start + count) shifted.set(row + delta, this.#relocateRow(cols, row + delta));
-    }
-    inserted.forEach((cols, i) => {
-      shifted.set(start + i, this.#relocateRow(cols, start + i));
-    });
-    this.#rows.clear();
-    for (const [row, cols] of shifted) this.#rows.set(row, cols);
-
-    this.#shiftLineProperties(this.#rowProperties, start, count, delta);
-    this.#shiftMerges(start, count, inserted.length, 'row');
-    this.#shiftTables('row', start, count, delta);
-    this.#shiftImages('row', start, count, delta);
-    this.#reanchorSharedFormulas('row', start, count, delta);
-  }
-
-  // Rebuild a row's cells at a new row index. `Cell` fixes its position at construction, so a moved
-  // row is a fresh set of cells at `destRow` carrying the originals' content.
-  #relocateRow(cols: Map<number, Cell>, destRow: number): Map<number, Cell> {
-    const moved = new Map<number, Cell>();
-    for (const [col, cell] of cols) {
-      if (cell.row === destRow) {
-        moved.set(col, cell);
-      } else {
-        const copy = new Cell(destRow, col);
-        copyCellContent(cell, copy);
-        moved.set(col, copy);
-      }
-    }
-    return moved;
-  }
-
-  // Re-anchor shared-formula clones through a splice on the given axis. A clone stores its master's
-  // absolute address; when the splice shifts the master, that stored address goes stale and the writer
-  // would reject the clone as orphaned. Applying the same shift the grid used keeps each clone pointed
-  // at its master's new cell. A master whose axis coordinate falls in the deleted span clamps to the
-  // cut line like a merge edge — a genuinely orphaned clone the writer then reports legibly.
-  #reanchorSharedFormulas(axis: 'row' | 'col', start: number, count: number, delta: number): void {
-    const shift = (v: number): number => (v < start ? v : v >= start + count ? v + delta : start);
-    for (const cols of this.#rows.values()) {
-      for (const cell of cols.values()) {
-        const value = cell.value;
-        if (!isSharedFormulaValue(value)) continue;
-        const master = decodeAddress(value.sharedFormula);
-        if (master.col === undefined || master.row === undefined) continue;
-        const anchored =
-          axis === 'row'
-            ? encodeAddress(master.col, shift(master.row))
-            : encodeAddress(shift(master.col), master.row);
-        if (anchored === value.sharedFormula) continue;
-        const reanchored: SharedFormulaValue = {...value, sharedFormula: anchored};
-        cell.value = reanchored;
-      }
-    }
-  }
-
-  // Shift a line-metadata map (row properties keyed by row, or column properties keyed by column)
-  // through a splice: entries before the edit stay, entries within the deleted span drop, entries
-  // after shift by `delta`. Mutates the map in place.
-  #shiftLineProperties<T>(map: Map<number, T>, start: number, count: number, delta: number): void {
-    const shifted = new Map<number, T>();
-    for (const [index, value] of map) {
-      if (index < start) shifted.set(index, value);
-      else if (index >= start + count) shifted.set(index + delta, value);
-    }
-    map.clear();
-    for (const [index, value] of shifted) map.set(index, value);
-  }
-
-  // Re-anchor merged ranges through a row or column splice. A range wholly before the edit is
-  // untouched; one wholly after shifts by `nInserts - count`; one whose covered rows/columns are
-  // entirely deleted is dropped. A range straddling the cut is a genuinely ambiguous geometry — its
-  // edges are clamped to the cut line as a best effort. Unbounded whole-row/column merges carry no
-  // rectangle and pass through unchanged.
-  #shiftMerges(start: number, count: number, nInserts: number, axis: 'row' | 'col'): void {
-    const delta = nInserts - count;
-    const shift = (v: number): number => (v < start ? v : v >= start + count ? v + delta : start);
-    const merges: string[] = [];
-    const rects: MergeRect[] = [];
-    for (const range of this.#merges) {
-      const {top, left, bottom, right} = decodeRange(range);
-      if (top === undefined || left === undefined || bottom === undefined || right === undefined) {
-        merges.push(range);
-        continue;
-      }
-      const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
-      if (lo >= start && hi < start + count) continue;
-      const rect: MergeRect =
-        axis === 'row'
-          ? {top: shift(top), left, bottom: shift(bottom), right}
-          : {top, left: shift(left), bottom, right: shift(right)};
-      rects.push(rect);
-      merges.push(
-        `${encodeAddress(rect.left, rect.top)}:${encodeAddress(rect.right, rect.bottom)}`,
-      );
-    }
-    this.#merges.length = 0;
-    this.#merges.push(...merges);
-    this.#mergeRects.length = 0;
-    this.#mergeRects.push(...rects);
-  }
-
-  // Re-pin the sheet's tables through a splice on the given axis, dropping any table a delete leaves
-  // with no row to occupy. `Table` owns the shift arithmetic; the sheet only prunes the casualties.
-  #shiftTables(axis: 'row' | 'col', start: number, count: number, delta: number): void {
-    const survivors = this.#tables.filter((table) =>
-      axis === 'row'
-        ? table.shiftRows(start, count, delta)
-        : table.shiftColumns(start, count, delta),
-    );
-    this.#tables.length = 0;
-    this.#tables.push(...survivors);
-  }
-
-  // Re-pin anchored images through a splice. An anchor point moves like a merge edge: a point before
-  // the cut stays, one at or after it shifts by `delta`, and one inside a deleted span clamps to the
-  // cut line. Grid points are 0-based, so each is converted to the 1-based coordinate the shared
-  // shift arithmetic uses and back. An anchor whose points both move keeps its size; an anchor
-  // straddling the cut grows or shrinks, matching how Excel reflows a picture across inserted rows.
-  #shiftImages(axis: 'row' | 'col', start: number, count: number, delta: number): void {
-    const shift = (v: number): number => (v < start ? v : v >= start + count ? v + delta : start);
-    const shiftPoint = (point: AnchorPoint): AnchorPoint => {
-      const zeroBased = axis === 'row' ? point.row : point.col;
-      const shifted = shift(zeroBased + 1) - 1;
-      if (shifted === zeroBased) return point;
-      return axis === 'row' ? {...point, row: shifted} : {...point, col: shifted};
-    };
-    const moved: AnchoredImage[] = this.#images.map((image) => {
-      const from = shiftPoint(image.anchor.from);
-      const anchor: ImageAnchor = isOneCellAnchor(image.anchor)
-        ? {...image.anchor, from}
-        : {...image.anchor, from, to: shiftPoint(image.anchor.to)};
-      return {imageId: image.imageId, anchor};
-    });
-    this.#images.length = 0;
-    this.#images.push(...moved);
+    this.#edits.spliceColumns(start, count, inserts);
   }
 
   /**

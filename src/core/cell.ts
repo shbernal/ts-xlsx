@@ -191,3 +191,19 @@ export class Cell {
     this.#note = note;
   }
 }
+
+// Copy a cell's value and every style facet onto another cell. Used when a structural edit shifts a
+// cell to a new position: `Cell` fixes its `(row, col)` at construction, so a shifted cell is a fresh
+// cell at the new coordinates carrying the original's content. Facet objects are passed by reference —
+// safe under the copy-on-write style model (facet setters replace, never mutate), so the source and
+// its shifted copy never alias each other's style through a shared object.
+export function copyCellContent(source: Cell, target: Cell): void {
+  target.value = source.value;
+  target.fill = source.fill;
+  target.numFmt = source.numFmt;
+  target.font = source.font;
+  target.border = source.border;
+  target.alignment = source.alignment;
+  target.protection = source.protection;
+  target.note = source.note;
+}
