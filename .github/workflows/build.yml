@@ -1,0 +1,32 @@
+name: Build
+
+# The publishable-artifact gate. corpus.yml proves the source is correct; this
+# proves the *emitted* package is shippable: it compiles to ESM .js + .d.ts, loads
+# and round-trips as a consumer would import it, and stays under the size budget.
+#
+# Node 24 for the toolchain (type-stripping dev workflow + tsc emit). The emitted
+# artifact itself targets ES2022 and supports Node >=18, per package.json engines.
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+    name: Publishable build + size budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      # Emit ESM .js + .d.ts to dist/.
+      - run: npm run build
+      # Load the compiled artifact as a consumer would and verify a write→read round-trip.
+      - run: npm run smoke:dist
+      # Fail if the emitted runtime JS crosses the bundle-size budget.
+      - run: npm run size

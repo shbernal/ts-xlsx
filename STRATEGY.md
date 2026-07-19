@@ -232,13 +232,18 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
 > was deleted and the package re-founded on the rewrite: runtime deps are `fflate`
 > alone, entry points resolve to `src/index.ts`, scripts are the real gates
 > (`typecheck` / `test:src` / `corpus`), and CI dropped the grunt/asset-size jobs. The
-> package is `private` and versioned `0.0.0-dev` until the two exit gates below.
-> **What remains in Phase 4, in order:**
-> 1. **Publishable build pipeline** — emit ESM `.js` + `.d.ts` from `src/` (tsup/unbuild
->    class) so consumers don't need a type-stripping runtime; widen `engines`, drop
->    `private`, add an `exports` map over the built output, and a bundle-size budget in
->    CI. Until this lands the package is source-only (`exports` → `./src/index.ts`,
->    `engines.node >=24`).
+> package was versioned `0.0.0-dev` throughout.
+> **Phase 4 progress:**
+> 1. ✅ **Publishable build pipeline (2026-07-19).** The package now emits ESM `.js` +
+>    `.d.ts` to `dist/` via **pure `tsc`** — zero bundler. The source imports carry `.ts`
+>    extensions (required by the no-build dev/test runtime); TypeScript 5.7+'s
+>    `rewriteRelativeImportExtensions` rewrites them to `.js` in the emitted output, so
+>    consumers get standard resolvable ESM with no new dependency. `exports`/`main`/`types`
+>    point at `dist/`, `engines` widened to `>=18` for the compiled artifact (`.nvmrc`
+>    pins the *dev* toolchain to 24), `private` dropped (a `prepublishOnly` gate guards
+>    publish with build + full test + dist smoke + size). A `Build` CI workflow compiles,
+>    round-trips the compiled artifact as a consumer would (`smoke:dist`), and enforces a
+>    bundle-size budget (`size` — runtime JS ~489 KB, budget 600 KB). See ADR-0001.
 > 2. **Toolchain standup** — Biome for lint/format over the (now TS-only) tree, and a
 >    decision to keep `node --test` or adopt Vitest for coverage + type-level tests
 >    (`expectTypeOf`). Record as an ADR.

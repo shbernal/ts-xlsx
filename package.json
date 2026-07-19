@@ -2,7 +2,6 @@
   "name": "@shbernal/ts-xlsx",
   "version": "0.0.0-dev",
   "description": "A TypeScript-first library for reading and writing xlsx (OOXML) spreadsheets.",
-  "private": true,
   "license": "MIT",
   "author": "shbernal",
   "type": "module",
@@ -15,25 +14,34 @@
     "url": "https://github.com/shbernal/ts-xlsx/issues"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=18"
   },
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
-    "src",
+    "dist",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "size": "node scripts/size-budget.mjs",
+    "smoke:dist": "node scripts/smoke-dist.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:src": "node --test \"src/**/*.test.ts\"",
     "corpus": "node test/corpus/run.mjs",
     "test": "npm run typecheck && npm run test:src && npm run corpus",
+    "prepublishOnly": "npm run build && npm run test && npm run smoke:dist && npm run size",
     "validate:ooxml": "dotnet run --project tools/ooxml-validator/OoxmlValidator.csproj --configuration Release --",
     "test:ooxml": "dotnet restore tools/ooxml-validator/OoxmlValidator.csproj --locked-mode && node test/ooxml-validation/run.mjs",
     "harvest": "node scripts/harvest/fetch-issue.mjs",

@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-19 (**Phase 4 underway — the clean break landed.** Phase 3 is complete: the src/ rewrite passes the whole corpus (671 green, 0 regressions) as its own reference implementation and the legacy lib/ tree is deleted; the runtime dependency tree is fflate alone. The package is source-only, private, versioned 0.0.0-dev. Remaining Phase 4, in order: a publishable ESM+.d.ts build pipeline, the Biome/Vitest-or-node:test toolchain standup, docs generated from the public types, and the human rebrand. See the dated increments below and STRATEGY.md Phase 4.)
+_Last updated: 2026-07-19 (**Phase 4 underway — clean break + publishable build landed.** Phase 3 is complete: the src/ rewrite passes the whole corpus (671 green, 0 regressions) as its own reference implementation and the legacy lib/ tree is deleted; the runtime dependency tree is fflate alone. Slice 1 done: `npm run build` emits ESM .js + .d.ts to dist/ via pure tsc (rewriteRelativeImportExtensions — no bundler); exports/engines re-pointed, `private` dropped behind a `prepublishOnly` gate, CI enforces a dist smoke round-trip + a 600 KB size budget (currently ~489 KB). Version stays 0.0.0-dev. Remaining Phase 4, in order: the Biome/Vitest-or-node:test toolchain standup, docs generated from the public types, and the human rebrand. See the dated increments below and STRATEGY.md Phase 4.)
 
 ---
 
@@ -1950,3 +1950,24 @@ lint/format, keep-`node --test`-or-adopt-Vitest decision (ADR) + type-level test
 from the public types; (4) **rebrand — the definitive package name is a human decision** (`CLAUDE.md`
 §3), kept as a single `package.json#name` field. **Housekeeping:** per `STRATEGY.md` we no longer
 track `exceljs/exceljs`; the `upstream` remote can be dropped anytime.
+
+### 2026-07-19 — Phase 4 slice 1: publishable build pipeline *(independence)*
+
+The package is now shippable: `npm run build` emits ESM `.js` + `.d.ts` to `dist/` via **pure `tsc`**
+— no bundler, no new dependency. The wrinkle is that every source import carries a `.ts` extension
+(the no-build dev/test runtime requires it); TypeScript 5.7+'s `rewriteRelativeImportExtensions`
+rewrites those to `.js` in the emitted output, so consumers get standard resolvable ESM. That single
+compiler flag replaced the whole "tsup/unbuild-class bundler" that Phase-3 ADR-0001 had deferred — it
+earns its place; a bundler would not (see ADR-0001 addendum). `exports`/`main`/`types` now point at
+`dist/`; `files` ships `dist` only (no maps, no `src`) for a lean ~237 KB tarball; `engines` widened to
+`>=18` for the compiled artifact while `.nvmrc` pins the dev toolchain to Node 24; `private` dropped,
+with `prepublishOnly` guarding publish behind build + full test + dist smoke + size. Two new
+CI-enforced guards in a dedicated `Build` workflow: `smoke:dist` imports the **compiled** artifact as a
+consumer would and asserts a write→read round-trip (catches emit-shaped breakage typecheck can't), and
+`size` fails if the emitted runtime JS crosses a 600 KB budget (currently **~489 KB across 39 files**).
+Full gate still green: `typecheck` clean, `test:src` **647 pass**, `corpus` **671 green, 0 regressions**;
+build + smoke + size all green. The definitive package **name** stays the one deferred human decision.
+
+**Remaining in Phase 4 (order in `STRATEGY.md`):** (2) toolchain standup — Biome lint/format,
+keep-`node --test`-or-adopt-Vitest decision (ADR) + type-level tests; (3) docs generated from the public
+types; (4) **rebrand — the definitive package name is a human decision** (`CLAUDE.md` §3).

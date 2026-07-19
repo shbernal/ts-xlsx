@@ -1,0 +1,13 @@
+{
+  "//": "Publishable build. Extends the strict gate config but emits ESM .js + .d.ts to dist/. rewriteRelativeImportExtensions (TS 5.7+) rewrites the source's `.ts` import specifiers — required for the no-build dev/test workflow — down to `.js` in the emitted JS, so consumers get standard resolvable ESM with zero bundler. Comments are kept so JSDoc survives into the .d.ts hovers; source/declaration maps are omitted to keep the published tarball lean (maintainers debug src/ directly, never dist/).",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}
