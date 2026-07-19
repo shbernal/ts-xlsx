@@ -1,7 +1,7 @@
 # Backlog dataset
 
 A local, queryable snapshot of the upstream `exceljs/exceljs` backlog — the
-**knowledge** we forked to preserve (see [`../../../STRATEGY.md`](../../../STRATEGY.md)).
+**knowledge** we forked to preserve (see [`../../architecture.md`](../../architecture.md)).
 Each open issue and PR becomes one JSON record here so the backlog survives
 independently of GitHub's API, upstream's availability, and the eventual removal of
 the `upstream` remote.
@@ -29,10 +29,10 @@ activity. Auth comes from the `gh` CLI (must be logged in); scripts shell out to
 `gh api` so no token ever enters a process.
 
 ```
-npm run harvest:list                 # snapshot the universe → manifest.json (once)
-npm run harvest:all                  # fill the queue: fetch every item (resumable)
-npm run harvest:status -- --clusters # follow filled-vs-remaining; remaining by label
-npm run harvest -- <number>          # (re)fetch a single thread — the atom
+pnpm run harvest:list                 # snapshot the universe → manifest.json (once)
+pnpm run harvest:all                  # fill the queue: fetch every item (resumable)
+pnpm run harvest:status -- --clusters # follow filled-vs-remaining; remaining by label
+pnpm run harvest -- <number>          # (re)fetch a single thread — the atom
 ```
 
 `harvest:all` is resumable: rerun after any interruption and it skips records already

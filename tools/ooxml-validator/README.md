@@ -9,8 +9,8 @@ The project targets .NET 10 and pins `DocumentFormat.OpenXml` through both the p
 NuGet lockfile. Validation defaults to `FileFormatVersions.Microsoft365`.
 
 ```bash
-npm run validate:ooxml -- workbook.xlsx another.xlsx
-npm run test:ooxml
+pnpm run validate:ooxml -- workbook.xlsx another.xlsx
+pnpm run test:ooxml
 ```
 
 The command writes a deterministic JSON report to stdout. Exit code `0` means every input is clean,

@@ -1,6 +1,6 @@
 # Regression corpus
 
-The corpus is **the product's spine** (see [`../../STRATEGY.md`](../../STRATEGY.md)).
+The corpus is **the product's spine** (see [`../../docs/architecture.md`](../../docs/architecture.md)).
 It encodes "correct behavior" as a set of implementation-blind cases that run against
 *any* implementation through a thin adapter — so it survives the Phase 3 rewrite and
 proves the new code is at least as correct as the old, plus everything the old one got
@@ -222,9 +222,9 @@ Add capabilities only as cases demand them, and add them to **every** adapter.
 - **`rewrite`** binds the vocabulary to the strict-TypeScript library under `src/` —
   the reference implementation. Node 24 runs the `.ts` sources directly
   (type-stripping), so the adapter imports them with no build step; strict types are
-  enforced separately by `npm run typecheck`.
+  enforced separately by `pnpm run typecheck`.
 
-Run it: `node test/corpus/run.mjs` (default `rewrite`, wired as `npm run corpus`).
+Run it: `node test/corpus/run.mjs` (default `rewrite`, wired as `pnpm run corpus`).
 
 A behavior may declare a capability the library has not built yet by throwing a
 `notImplemented`-tagged error; the runner reports it as **`∅` skipped** — neither pass

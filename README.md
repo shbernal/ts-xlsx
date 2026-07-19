@@ -8,8 +8,8 @@ A TypeScript-first library for reading and writing spreadsheet documents
 > and is being rebuilt from the ground up into a modern, strict-TypeScript library.
 > **It carries no backwards-compatibility guarantee with ExcelJS** — the API below is
 > its own, not a drop-in.
-> See [`CLAUDE.md`](CLAUDE.md) and [`STRATEGY.md`](STRATEGY.md) for the goals and plan,
-> and [migrating from ExcelJS](docs/migrating-from-exceljs.md) if you are coming across.
+> See [`CLAUDE.md`](CLAUDE.md) for the goals and [`docs/architecture.md`](docs/architecture.md)
+> for the design, and [migrating from ExcelJS](docs/migrating-from-exceljs.md) if you are coming across.
 
 ## Why it exists
 
@@ -117,7 +117,7 @@ The full reference is generated from the public types — it cannot drift from w
 compiler accepts — and lives in **[`docs/api/`](docs/api/README.md)**. Regenerate it with:
 
 ```shell
-npm run docs
+pnpm run docs
 ```
 
 ## Coming from ExcelJS?
@@ -131,8 +131,8 @@ shapes are deliberately different (synchronous `Uint8Array` I/O instead of async
 
 This project is optimized to be built and maintained largely by autonomous agents, with
 a machine-checkable safety net as the primary guarantor of correctness. The rules that
-govern every change are in [`CLAUDE.md`](CLAUDE.md); the phased plan is in
-[`STRATEGY.md`](STRATEGY.md); notable decisions are recorded under
+govern every change are in [`CLAUDE.md`](CLAUDE.md); the design and working agreements are
+in [`docs/architecture.md`](docs/architecture.md); notable decisions are recorded under
 [`docs/decisions/`](docs/decisions/).
 
 ## License

@@ -28,8 +28,8 @@ is written and maintained by autonomous agents alongside humans.
 
 ## 1. Non-negotiable stances
 
-1. **This is a clean break.** We aim for full independence from upstream. Once the
-   harvest is complete (see `STRATEGY.md`), we stop tracking upstream entirely.
+1. **This is a clean break.** We aim for full independence from upstream. The harvest is
+   complete (see `docs/architecture.md`) and we no longer track upstream.
 
 2. **No backwards-compatibility guarantee.** Ever. The old API is a *reference*,
    not a contract. If a better shape exists, we take it.
@@ -100,7 +100,7 @@ that is not done — it is in progress.
   green, and leaves the tree in a better state than it found it. No half-migrations
   landed on main.
 - **Leave a trail, not a mess.** Record non-obvious decisions and assumptions in the
-  relevant doc (`STRATEGY.md`, ADRs under `docs/decisions/`, or the change
+  relevant doc (`docs/architecture.md`, ADRs under `docs/decisions/`, or the change
   description) so the next agent — or the human — can audit and reverse them.
 - **Verify, don't assume.** Prefer reproductions and tests over reasoning about what
   "should" work. The OOXML format is full of surprises; the corpus is how we tame
@@ -139,5 +139,5 @@ That is the whole point of the fork.
 
 ---
 
-_See `STRATEGY.md` for the phased plan that operationalizes these principles,
-including how we harvest the upstream backlog before drifting away from it._
+_See `docs/architecture.md` for how these principles are realized — the corpus contract,
+the module layout, and the working agreements — and `docs/decisions/` for the ADRs._

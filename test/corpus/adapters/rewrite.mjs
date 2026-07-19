@@ -5,7 +5,7 @@
 //
 // Node 24 runs the .ts sources directly (type-stripping), so this adapter imports
 // them with no build step. Strict type-checking is enforced separately by
-// `npm run typecheck` (tsc --noEmit -p tsconfig.json).
+// `pnpm run typecheck` (tsc --noEmit -p tsconfig.json).
 //
 // The rewrite is incomplete by construction: it grows one module at a time. Any
 // capability it does not yet implement is served by a tagged thrower (see the

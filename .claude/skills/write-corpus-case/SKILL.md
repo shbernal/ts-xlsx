@@ -5,7 +5,7 @@ description: Author an implementation-blind regression corpus case under test/co
 
 # Writing a corpus case
 
-The corpus is **the product's spine** (`STRATEGY.md`). A case encodes "correct
+The corpus is **the product's spine** (`docs/architecture.md`). A case encodes "correct
 behavior" as implementation-blind assertions that run against *any* implementation
 through a thin adapter — so it survives the Phase 3 rewrite and proves the new code
 is at least as correct as the old, plus everything the old one got wrong. Full
@@ -60,7 +60,7 @@ export default {
 ## Setting the baseline (do this by running, not guessing)
 
 1. Write the behavior with the assertion for *correct* behavior.
-2. Run `npm run corpus` and read the actual result for that behavior.
+2. Run `pnpm run corpus` and read the actual result for that behavior.
 3. Set `baseline` to what legacy actually did:
    - legacy **passes** → `baseline: 'pass'` (a **regression lock** — guards a behavior
      that already works).
@@ -99,7 +99,7 @@ implementation does.
 ## Validate
 
 ```
-npm run corpus
+pnpm run corpus
 ```
 
 Green (`✓`) and known-open (`○`) are both healthy. Zero `✗` regressions is the bar.

@@ -81,10 +81,9 @@ Where a method name is unchanged, its types are still stricter — `getWorksheet
 The rewrite is corpus-driven: a surface lands only once it is strict-typed and pinned by
 tests. Some ExcelJS features are still on the way, and the buffered writer refuses a
 value it cannot represent faithfully rather than emitting a lossy package. If you depend
-on a feature not yet in the [API reference](api/README.md), check
-[`STRATEGY.md`](../STRATEGY.md) for where it sits in the plan — and, per the project's
-working agreement, a missing behavior is best reported as a corpus case so it is fixed
-once and never regresses.
+on a feature not yet in the [API reference](api/README.md), then — per the project's
+working agreement (see [`architecture.md`](architecture.md)) — a missing behavior is best
+reported as a corpus case so it is fixed once and never regresses.
 
 ## Why break compatibility at all?
 

@@ -1,6 +1,6 @@
 # Reading .xlsx
 
-<!-- Generated from the public types by `npm run docs`. Do not edit by hand. -->
+<!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
 ### `readXlsx`
 

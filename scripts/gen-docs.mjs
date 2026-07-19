@@ -5,7 +5,7 @@
 // summary + tags + a body-stripped TypeScript signature, and writes one Markdown
 // page per originating module plus an index. No new dependency — `typescript` is
 // already the toolchain — so the docs cannot describe a shape the compiler wouldn't
-// accept. Run `npm run docs`; `npm run docs:check` fails if the committed pages have
+// accept. Run `pnpm run docs`; `pnpm run docs:check` fails if the committed pages have
 // drifted from a fresh generation (the docs are gated like any other artifact).
 //
 // See docs/decisions/0006-docs-from-types.md.
@@ -298,7 +298,7 @@ function main() {
     const body = [
       `# ${page.title}`,
       '',
-      '<!-- Generated from the public types by `npm run docs`. Do not edit by hand. -->',
+      '<!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->',
       '',
       page.entries.map((e) => e.block).join('\n\n---\n\n'),
       '',
@@ -309,7 +309,7 @@ function main() {
   const index = [
     '# API reference',
     '',
-    '<!-- Generated from the public types by `npm run docs`. Do not edit by hand. -->',
+    '<!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->',
     '',
     'Every symbol below is re-exported from the package root and generated straight from',
     'its TypeScript declaration — the types are the contract.',

@@ -9,7 +9,8 @@ The upstream backlog was pulled into a local **work queue** once:
 `docs/knowledge/backlog/issues/<n>.json`, one thread per file, measured against
 `docs/knowledge/backlog/manifest.json` (the frozen universe). Your job is to
 **drain** that queue: convert each thread's *knowledge* into durable product, then
-delete the raw record. See `STRATEGY.md` Phase 1 and `PROGRESS.md`.
+delete the raw record. The harvest is complete; see `docs/architecture.md` for the origin
+story this skill served.
 
 ## The model in one breath
 
@@ -30,7 +31,7 @@ delete the raw record. See `STRATEGY.md` Phase 1 and `PROGRESS.md`.
 ## Pick what to work on
 
 ```
-npm run harvest:status -- --clusters
+pnpm run harvest:status -- --clusters
 ```
 
 Shows how much of the queue remains and its label breakdown. Prioritize by signal
@@ -89,7 +90,7 @@ specific about *what behavior* each preserves.
 - **Provenance is durable knowledge, not a link.** "Real files declare defined names
   like `$A:$A` for whole columns" survives the fork; "see issue 140" does not.
 - **Do not re-harvest for new upstream activity.** The universe is frozen. If a
-  record is missing but in the manifest, run `npm run harvest:all` (resumable) — do
+  record is missing but in the manifest, run `pnpm run harvest:all` (resumable) — do
   not re-run `harvest:list`.
 - **Don't touch legacy `lib/` behavior.** Turning a case green is Phase 2/3. Here you
   only *record the target*, with `baseline` capturing what legacy does today.

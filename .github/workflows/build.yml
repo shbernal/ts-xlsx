@@ -20,13 +20,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install --no-audit --no-fund
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       # Emit ESM .js + .d.ts to dist/.
-      - run: npm run build
+      - run: pnpm run build
       # Load the compiled artifact as a consumer would and verify a write→read round-trip.
-      - run: npm run smoke:dist
+      - run: pnpm run smoke:dist
       # Fail if the emitted runtime JS crosses the bundle-size budget.
-      - run: npm run size
+      - run: pnpm run size

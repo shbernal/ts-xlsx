@@ -16,6 +16,7 @@
   "engines": {
     "node": ">=18"
   },
+  "packageManager": "pnpm@11.11.0",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -34,7 +35,7 @@
   ],
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "build": "pnpm run clean && tsc -p tsconfig.build.json",
     "size": "node scripts/size-budget.mjs",
     "smoke:dist": "node scripts/smoke-dist.mjs",
     "docs": "node scripts/gen-docs.mjs",
@@ -46,8 +47,8 @@
     "test:src": "node --test \"src/**/*.test.ts\"",
     "test:coverage": "node --test --experimental-test-coverage \"src/**/*.test.ts\"",
     "corpus": "node test/corpus/run.mjs",
-    "test": "npm run lint && npm run typecheck && npm run test:src && npm run corpus",
-    "prepublishOnly": "npm run build && npm run test && npm run smoke:dist && npm run size",
+    "test": "pnpm run lint && pnpm run typecheck && pnpm run test:src && pnpm run corpus",
+    "prepublishOnly": "pnpm run build && pnpm run test && pnpm run smoke:dist && pnpm run size",
     "validate:ooxml": "dotnet run --project tools/ooxml-validator/OoxmlValidator.csproj --configuration Release --",
     "test:ooxml": "dotnet restore tools/ooxml-validator/OoxmlValidator.csproj --locked-mode && node test/ooxml-validation/run.mjs",
     "harvest": "node scripts/harvest/fetch-issue.mjs",

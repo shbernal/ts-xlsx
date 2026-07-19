@@ -1,6 +1,6 @@
 # API reference
 
-<!-- Generated from the public types by `npm run docs`. Do not edit by hand. -->
+<!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
 Every symbol below is re-exported from the package root and generated straight from
 its TypeScript declaration — the types are the contract.

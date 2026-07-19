@@ -13,11 +13,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: pnpm
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
-      - run: npm install --no-audit --no-fund
-      - run: npm run test:ooxml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test:ooxml

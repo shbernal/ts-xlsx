@@ -24,7 +24,7 @@ meaningless the moment we finish leaving that project. Instead:
 ## Follow it
 
 ```
-npm run harvest:status -- --clusters
+pnpm run harvest:status -- --clusters
 ```
 
 Shows filled-vs-remaining against the manifest and the remaining queue by label, so
@@ -40,5 +40,5 @@ security/deps.
 ## One-time, not continuous
 
 We do **not** re-harvest to pick up new upstream activity — the universe is frozen at
-capture. `npm run harvest:list` snapshots it once; `npm run harvest:all` (resumable)
+capture. `pnpm run harvest:list` snapshots it once; `pnpm run harvest:all` (resumable)
 fills the queue; then agents drain it.
