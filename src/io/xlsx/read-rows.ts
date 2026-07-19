@@ -34,7 +34,7 @@ import {
   resolveWorkbookPart,
   type XfStyle,
 } from './read.ts';
-import {localName, xmlEvents} from './xml-read.ts';
+import {boolStrict, localName, xmlEvents} from './xml-read.ts';
 
 export interface ReadSheetRowsOptions extends ReadXlsxOptions {
   /**
@@ -315,7 +315,7 @@ function* scanSheet(
           const declared = Number(event.attrs.r);
           rowNumber = Number.isInteger(declared) && declared >= 1 ? declared : lastRow + 1;
           lastRow = rowNumber;
-          rowHidden = event.attrs.hidden === '1' || event.attrs.hidden === 'true';
+          rowHidden = boolStrict(event.attrs.hidden);
           cells = [];
           break;
         }

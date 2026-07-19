@@ -27,7 +27,7 @@ import type {Worksheet} from '../../core/worksheet.ts';
 // needs no extra namespace declaration.
 import {DATA_VALIDATION_EXT_URI, X14_NS, XM_NS} from './namespaces.ts';
 import {escapeAttr, escapeText} from './xml.ts';
-import {localName, parseXml} from './xml-read.ts';
+import {boolStrict, localName, parseXml} from './xml-read.ts';
 
 // The typed validations whose literal operands are numbers; `list`/`custom` operands stay strings.
 const TYPED = new Set<string>(['whole', 'decimal', 'date', 'time', 'textLength']);
@@ -186,9 +186,9 @@ function buildRule(
     // reader sees the operator the rule actually enforces.
     rule.operator = 'between';
   }
-  if (attrs.allowBlank === '1') rule.allowBlank = true;
-  if (attrs.showInputMessage === '1') rule.showInputMessage = true;
-  if (attrs.showErrorMessage === '1') rule.showErrorMessage = true;
+  if (boolStrict(attrs.allowBlank)) rule.allowBlank = true;
+  if (boolStrict(attrs.showInputMessage)) rule.showInputMessage = true;
+  if (boolStrict(attrs.showErrorMessage)) rule.showErrorMessage = true;
   if (attrs.errorStyle !== undefined)
     rule.errorStyle = attrs.errorStyle as DataValidationErrorStyle;
   if (attrs.error !== undefined) rule.error = attrs.error;

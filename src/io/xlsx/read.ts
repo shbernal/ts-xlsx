@@ -77,7 +77,7 @@ import {inflatePackage} from './inflate.ts';
 import {parsePivotTable} from './pivot-read.ts';
 import {parseColor, parseIndexedColors} from './styles.ts';
 import {parseTable} from './tables.ts';
-import {localName, parseXml} from './xml-read.ts';
+import {boolPresent, boolStrict, boolTristate, localName, parseXml} from './xml-read.ts';
 
 export interface ReadXlsxOptions {
   /**
@@ -724,11 +724,9 @@ export function parseWorkbookProtection(xml: string): WorkbookProtection | undef
         lockRevision?: boolean;
         credentials?: Record<string, string>;
       } = {};
-      if (attrs.lockStructure === '1' || attrs.lockStructure === 'true')
-        protection.lockStructure = true;
-      if (attrs.lockWindows === '1' || attrs.lockWindows === 'true') protection.lockWindows = true;
-      if (attrs.lockRevision === '1' || attrs.lockRevision === 'true')
-        protection.lockRevision = true;
+      if (boolStrict(attrs.lockStructure)) protection.lockStructure = true;
+      if (boolStrict(attrs.lockWindows)) protection.lockWindows = true;
+      if (boolStrict(attrs.lockRevision)) protection.lockRevision = true;
       const credentials: Record<string, string> = {};
       for (const key of WORKBOOK_PROTECTION_CREDENTIAL_ATTRS) {
         const value = attrs[key];
@@ -766,7 +764,7 @@ function parseWorkbookDefinedNames(xml: string, sheetOrder: readonly string[]): 
       pending = {name: attrs.name};
       if (scope !== undefined) pending.scope = scope;
       if (attrs.comment !== undefined) pending.comment = attrs.comment;
-      if (attrs.hidden === '1' || attrs.hidden === 'true') pending.hidden = true;
+      if (boolStrict(attrs.hidden)) pending.hidden = true;
     },
     onText(chunk) {
       if (capture) refersTo += chunk;
@@ -1068,10 +1066,8 @@ export function parseStyleTable(xml: string): StyleTable {
         case 'border':
           borderDraft = {};
           currentEdge = null;
-          if (attrs.diagonalUp === '1' || attrs.diagonalUp === 'true')
-            borderDraft.diagonalUp = true;
-          if (attrs.diagonalDown === '1' || attrs.diagonalDown === 'true')
-            borderDraft.diagonalDown = true;
+          if (boolStrict(attrs.diagonalUp)) borderDraft.diagonalUp = true;
+          if (boolStrict(attrs.diagonalDown)) borderDraft.diagonalDown = true;
           // A bare <border/> holds no edges; keep its id slot as the empty border.
           if (selfClosing) {
             borders.push(borderToStyle(borderDraft));
@@ -1167,7 +1163,7 @@ export function parseStyleTable(xml: string): StyleTable {
             if (border) draft.border = border;
             // The quote-prefix flag is an attribute on the xf itself (no shared sub-table); carry it
             // only when set so an ordinary cell does not gain a spurious `quotePrefix: false`.
-            if (attrs.quotePrefix === '1' || attrs.quotePrefix === 'true') draft.quotePrefix = true;
+            if (boolStrict(attrs.quotePrefix)) draft.quotePrefix = true;
             // A cellXfs entry's xfId links it to a named style; capture it only when it points beyond
             // the Normal default (0), so an ordinary cell carries no spurious named-style link.
             if (inCellXfs && attrs.xfId !== undefined) {
@@ -1297,16 +1293,16 @@ function applyFontChild(
 ): void {
   switch (local) {
     case 'b':
-      draft.bold = flagValue(attrs.val);
+      draft.bold = boolPresent(attrs.val);
       break;
     case 'i':
-      draft.italic = flagValue(attrs.val);
+      draft.italic = boolPresent(attrs.val);
       break;
     case 'strike':
-      draft.strike = flagValue(attrs.val);
+      draft.strike = boolPresent(attrs.val);
       break;
     case 'outline':
-      draft.outline = flagValue(attrs.val);
+      draft.outline = boolPresent(attrs.val);
       break;
     case 'u':
       // A bare <u/> is a single underline; a named style (single/double/…) carries through; but
@@ -1351,12 +1347,6 @@ function applyFontChild(
     default:
       break;
   }
-}
-
-// An OOXML boolean font flag defaults to on when present with no value (`<b/>` is bold); an
-// explicit val turns it on ("1"/"true") or off ("0"/"false").
-function flagValue(val: string | undefined): boolean {
-  return val === undefined || (val !== '0' && val !== 'false');
 }
 
 // Fold a filter column's accumulated `<filters>` or `<customFilters>` state into one criteria value,
@@ -1437,23 +1427,17 @@ function parseAlignment(attrs: {readonly [k: string]: string}): Alignment | unde
     const rotation = Number(attrs.textRotation);
     if (Number.isFinite(rotation) && rotation !== 0) out.textRotation = rotation;
   }
-  if (alignmentFlag(attrs.wrapText)) out.wrapText = true;
+  if (boolStrict(attrs.wrapText)) out.wrapText = true;
   if (attrs.indent !== undefined) {
     const indent = Number(attrs.indent);
     if (Number.isInteger(indent) && indent !== 0) out.indent = indent;
   }
-  if (alignmentFlag(attrs.shrinkToFit)) out.shrinkToFit = true;
+  if (boolStrict(attrs.shrinkToFit)) out.shrinkToFit = true;
   if (attrs.readingOrder !== undefined) {
     const order = Number(attrs.readingOrder);
     if (Number.isInteger(order) && order !== 0) out.readingOrder = order;
   }
   return Object.keys(out).length > 0 ? out : undefined;
-}
-
-// An alignment boolean attribute is on only when explicitly "1"/"true"; unlike a font flag it
-// is never a bare presence (it always carries a value), and its "0" — a truthy JS string — is off.
-function alignmentFlag(val: string | undefined): boolean {
-  return val === '1' || val === 'true';
 }
 
 // Read a <protection> element into a Protection, keeping only facets that differ from the OOXML
@@ -1463,7 +1447,7 @@ function alignmentFlag(val: string | undefined): boolean {
 function parseProtection(attrs: {readonly [k: string]: string}): Protection | undefined {
   const out: {-readonly [K in keyof Protection]?: Protection[K]} = {};
   if (attrs.locked === '0' || attrs.locked === 'false') out.locked = false;
-  if (attrs.hidden === '1' || attrs.hidden === 'true') out.hidden = true;
+  if (boolStrict(attrs.hidden)) out.hidden = true;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
@@ -1478,7 +1462,7 @@ function parseSheetProtection(attrs: {readonly [k: string]: string}): SheetProte
   const flags: {-readonly [K in keyof SheetProtectionFlags]?: boolean} = {};
   for (const {key} of SHEET_PROTECTION_FLAGS) {
     const raw = attrs[key];
-    if (raw !== undefined) flags[key] = !(raw === '1' || raw === 'true');
+    if (raw !== undefined) flags[key] = !boolStrict(raw);
   }
   const {algorithmName, hashValue, saltValue, spinCount} = attrs;
   if (
@@ -1634,8 +1618,8 @@ function parseWorksheet(
       const value: DataTableFormulaValue = {
         shareType: 'dataTable',
         ref: formulaDataTable.ref,
-        ...(flagValue(formulaDataTable.dt2D ?? '0') ? {dataTable2D: true} : {}),
-        ...(flagValue(formulaDataTable.dtr ?? '0') ? {dataTableRow: true} : {}),
+        ...(boolPresent(formulaDataTable.dt2D ?? '0') ? {dataTable2D: true} : {}),
+        ...(boolPresent(formulaDataTable.dtr ?? '0') ? {dataTableRow: true} : {}),
         ...(formulaDataTable.r1 !== undefined ? {r1: formulaDataTable.r1} : {}),
         ...(formulaDataTable.r2 !== undefined ? {r2: formulaDataTable.r2} : {}),
         ...(hasValue ? {result: decodeFormulaResult(cellType, valueText, style?.numFmt)} : {}),
@@ -1697,7 +1681,7 @@ function parseWorksheet(
         case 'row':
           applyRow(sheet, attrs);
           rowStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
-          rowCustomFormat = attrs.customFormat === '1' || attrs.customFormat === 'true';
+          rowCustomFormat = boolStrict(attrs.customFormat);
           break;
         case 'c':
           cellRef = attrs.r ?? '';
@@ -1794,9 +1778,9 @@ function parseWorksheet(
           // Another self-closing `<sheetPr>` child; only set flags the source actually carried, so
           // a file without them leaves `outline` empty and a re-write stays byte-clean.
           if (attrs.summaryBelow !== undefined)
-            sheet.outline.summaryBelow = flagValue(attrs.summaryBelow);
+            sheet.outline.summaryBelow = boolPresent(attrs.summaryBelow);
           if (attrs.summaryRight !== undefined)
-            sheet.outline.summaryRight = flagValue(attrs.summaryRight);
+            sheet.outline.summaryRight = boolPresent(attrs.summaryRight);
           break;
         case 'pane':
           // A `<sheetView>` child recording a frozen (or split) pane. Only a frozen pane maps onto
@@ -1812,7 +1796,8 @@ function parseWorksheet(
           // The fit-to-page flag, a self-closing `<sheetPr>` child. Recorded only when the source
           // carried the attribute, so a `<pageSetUpPr>` present for other reasons (e.g.
           // `autoPageBreaks`) leaves `pageSetup.fitToPage` unset.
-          if (attrs.fitToPage !== undefined) sheet.pageSetup.fitToPage = flagValue(attrs.fitToPage);
+          if (attrs.fitToPage !== undefined)
+            sheet.pageSetup.fitToPage = boolPresent(attrs.fitToPage);
           break;
         case 'printOptions':
           applyPrintOptions(sheet.printOptions, attrs);
@@ -1839,7 +1824,7 @@ function parseWorksheet(
           const brk: {id: number; max?: number; man?: boolean} = {id};
           const max = Number(attrs.max);
           if (Number.isInteger(max) && max >= 0) brk.max = max;
-          if (attrs.man === '1' || attrs.man === 'true') brk.man = true;
+          if (boolStrict(attrs.man)) brk.man = true;
           breakTarget.push(brk);
           break;
         }
@@ -1868,14 +1853,14 @@ function parseWorksheet(
           break;
         case 'filters':
           filterValues = [];
-          filterBlank = flagValue(attrs.blank) && attrs.blank !== undefined;
+          filterBlank = boolPresent(attrs.blank) && attrs.blank !== undefined;
           break;
         case 'filter':
           if (filterValues !== null && attrs.val !== undefined) filterValues.push(attrs.val);
           break;
         case 'customFilters':
           customPredicates = [];
-          customAnd = attrs.and !== undefined && flagValue(attrs.and);
+          customAnd = attrs.and !== undefined && boolPresent(attrs.and);
           break;
         case 'customFilter': {
           // The operator attribute defaults to `equal` when absent (per CT_CustomFilter); an operand
@@ -1981,7 +1966,7 @@ function applyColumn(
   const max = Number(attrs.max);
   if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1) return;
   const width = attrs.width !== undefined ? Number(attrs.width) : undefined;
-  const hidden = attrs.hidden === '1' || attrs.hidden === 'true';
+  const hidden = boolStrict(attrs.hidden);
   const styleIndex = attrs.style !== undefined ? Number(attrs.style) : -1;
   // The column's style resolves to the same facet bundle a cell's does; mirror all of it onto the
   // column model so `getColumn(i)` reflects the declared default, not just its number format.
@@ -1995,7 +1980,7 @@ function applyColumn(
       const level = Number(attrs.outlineLevel);
       if (Number.isInteger(level) && level > 0) properties.outlineLevel = level;
     }
-    if (attrs.collapsed === '1' || attrs.collapsed === 'true') properties.collapsed = true;
+    if (boolStrict(attrs.collapsed)) properties.collapsed = true;
     if (style?.numFmt !== undefined) properties.numFmt = style.numFmt;
     if (style?.fill !== undefined) properties.fill = style.fill;
     if (style?.font !== undefined) properties.font = style.font;
@@ -2015,12 +2000,12 @@ function applyRow(sheet: Worksheet, attrs: {readonly [k: string]: string}): void
     const height = Number(attrs.ht);
     if (Number.isFinite(height)) properties.height = height;
   }
-  if (attrs.hidden === '1' || attrs.hidden === 'true') properties.hidden = true;
+  if (boolStrict(attrs.hidden)) properties.hidden = true;
   if (attrs.outlineLevel !== undefined) {
     const level = Number(attrs.outlineLevel);
     if (Number.isInteger(level) && level > 0) properties.outlineLevel = level;
   }
-  if (attrs.collapsed === '1' || attrs.collapsed === 'true') properties.collapsed = true;
+  if (boolStrict(attrs.collapsed)) properties.collapsed = true;
 }
 
 // Read the `<printOptions>` boolean toggles back onto the model, storing only the ones the source
@@ -2030,20 +2015,15 @@ function applyPrintOptions(
   printOptions: PrintOptions,
   attrs: {readonly [k: string]: string},
 ): void {
-  const flag = (raw: string | undefined): boolean | undefined => {
-    if (raw === '1' || raw === 'true') return true;
-    if (raw === '0' || raw === 'false') return false;
-    return undefined;
-  };
-  const horizontalCentered = flag(attrs.horizontalCentered);
+  const horizontalCentered = boolTristate(attrs.horizontalCentered);
   if (horizontalCentered !== undefined) printOptions.horizontalCentered = horizontalCentered;
-  const verticalCentered = flag(attrs.verticalCentered);
+  const verticalCentered = boolTristate(attrs.verticalCentered);
   if (verticalCentered !== undefined) printOptions.verticalCentered = verticalCentered;
-  const headings = flag(attrs.headings);
+  const headings = boolTristate(attrs.headings);
   if (headings !== undefined) printOptions.headings = headings;
-  const gridLines = flag(attrs.gridLines);
+  const gridLines = boolTristate(attrs.gridLines);
   if (gridLines !== undefined) printOptions.gridLines = gridLines;
-  const gridLinesSet = flag(attrs.gridLinesSet);
+  const gridLinesSet = boolTristate(attrs.gridLinesSet);
   if (gridLinesSet !== undefined) printOptions.gridLinesSet = gridLinesSet;
 }
 

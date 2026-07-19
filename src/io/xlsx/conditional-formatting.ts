@@ -26,7 +26,7 @@ import type {Color} from '../../core/style.ts';
 import {CF_EXT_URI, DATABAR_LINK_EXT_URI, X14_NS, XM_NS} from './namespaces.ts';
 import {colorAttrs, parseColor, type StyleRegistry} from './styles.ts';
 import {escapeAttr, escapeText} from './xml.ts';
-import {localName, parseXml} from './xml-read.ts';
+import {boolStrict, localName, parseXml} from './xml-read.ts';
 
 // Excel's default data bar when the author supplies none: a min/max anchor pair and its standard blue.
 const DEFAULT_DATABAR_CFVO: readonly CfValueObject[] = [{type: 'min'}, {type: 'max'}];
@@ -421,17 +421,17 @@ function newDraft(attrs: Record<string, string>): RuleDraft {
   return {
     type: attrs.type ?? '',
     priority: attrs.priority !== undefined ? Number(attrs.priority) : undefined,
-    stopIfTrue: attrs.stopIfTrue === '1' || attrs.stopIfTrue === 'true',
+    stopIfTrue: boolStrict(attrs.stopIfTrue),
     operator: attrs.operator,
     text: attrs.text,
     timePeriod: attrs.timePeriod,
     rank: attrs.rank !== undefined ? Number(attrs.rank) : undefined,
     stdDev: attrs.stdDev !== undefined ? Number(attrs.stdDev) : undefined,
-    percent: attrs.percent === '1' || attrs.percent === 'true',
-    bottom: attrs.bottom === '1' || attrs.bottom === 'true',
+    percent: boolStrict(attrs.percent),
+    bottom: boolStrict(attrs.bottom),
     // aboveAverage defaults to true in OOXML; only an explicit "0" means below-average.
     aboveAverage: attrs.aboveAverage === undefined ? undefined : attrs.aboveAverage !== '0',
-    equalAverage: attrs.equalAverage === '1' || attrs.equalAverage === 'true',
+    equalAverage: boolStrict(attrs.equalAverage),
     dxfId: attrs.dxfId,
     iconSet: undefined,
     formulae: [],

@@ -135,6 +135,22 @@ function withSheet(): Workbook {
   return workbook;
 }
 
+test('a standard validation with xsd:boolean-spelled flags ("true") reads them on, not just "1"', () => {
+  const part =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetData/>' +
+    '<dataValidations count="1">' +
+    '<dataValidation type="list" allowBlank="true" showInputMessage="true" ' +
+    'showErrorMessage="true" sqref="A1"><formula1>"a,b,c"</formula1></dataValidation>' +
+    '</dataValidations></worksheet>';
+  const dv = readSheetPart(part).getWorksheet('S')?.dataValidationAt('A1');
+  assert.ok(dv, 'the rule is read onto its cell');
+  assert.equal(dv.allowBlank, true, '"true" is honoured, not only "1"');
+  assert.equal(dv.showInputMessage, true);
+  assert.equal(dv.showErrorMessage, true);
+});
+
 test('an extended (x14) list validation is read onto its cell with the cross-sheet source intact', () => {
   const workbook = readSheetPart(sheetWithExtendedValidation('A1:A1048576', 'Sheet2!$A:$A'));
   const dv = workbook.getWorksheet('S')?.dataValidationAt('A5');

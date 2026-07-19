@@ -231,3 +231,30 @@ export function localName(qualified: string): string {
   const colon = qualified.indexOf(':');
   return colon === -1 ? qualified : qualified.slice(colon + 1);
 }
+
+// OOXML spells booleans three ways, and the reader needs all three. A `<b/>`-style font flag
+// defaults to on when present with no value, so its absence is meaningful (`boolPresent`). Most
+// attributes are plain xsd:booleans that are off unless an explicit "1"/"true" turns them on
+// (`boolStrict`). An optional attribute that must round-trip byte-clean has to distinguish absent
+// from present-and-false and drop an unrecognised token rather than coerce it (`boolTristate`).
+
+/** An OOXML boolean that is on when present with no value (`<b/>` is bold) and off only on an
+ * explicit `"0"`/`"false"`; absence reads as on. */
+export function boolPresent(val: string | undefined): boolean {
+  return val === undefined || (val !== '0' && val !== 'false');
+}
+
+/** An OOXML boolean that is on only when explicitly `"1"`/`"true"`; anything else — including
+ * absence and a truthy-looking `"0"` — is off. */
+export function boolStrict(val: string | undefined): boolean {
+  return val === '1' || val === 'true';
+}
+
+/** An optional OOXML boolean: `undefined` when the attribute is absent or carries an unrecognised
+ * token, otherwise its `"1"`/`"true"` vs `"0"`/`"false"` value. Lets a caller store only the
+ * attributes the source actually carried, so a re-write stays byte-clean. */
+export function boolTristate(val: string | undefined): boolean | undefined {
+  if (val === '1' || val === 'true') return true;
+  if (val === '0' || val === 'false') return false;
+  return undefined;
+}

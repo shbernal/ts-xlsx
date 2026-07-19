@@ -14,6 +14,7 @@ import {
   type RichTextRun,
   type RichTextValue,
 } from '../../core/value.ts';
+import {boolStrict} from './xml-read.ts';
 
 /**
  * One entry of the shared-strings pool. A `<si>` built from a bare `<t>` is a plain string; a `<si>`
@@ -90,7 +91,7 @@ function decodeValue(
       return Number.isInteger(index) ? (sharedStrings[index] ?? '') : '';
     }
     case 'b':
-      return valueText === '1' || valueText === 'true';
+      return boolStrict(valueText);
     case 'e':
       return isErrorCode(valueText) ? {error: valueText} : valueText;
     default:
@@ -118,7 +119,7 @@ function decodeResult(type: string, valueText: string): FormulaResult {
     case 'str':
       return valueText;
     case 'b':
-      return valueText === '1' || valueText === 'true';
+      return boolStrict(valueText);
     case 'e':
       return isErrorCode(valueText) ? {error: valueText} : valueText;
     default:
