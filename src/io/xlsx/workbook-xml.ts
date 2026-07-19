@@ -212,12 +212,17 @@ function workbookProtectionXml(workbook: Workbook): string {
   return `<workbookProtection ${attrs.join(' ')}/>`;
 }
 
+// The `calcId` desktop Excel stamps into `<calcPr>` — the build number of the calc engine that last
+// evaluated the workbook. Consumers only compare it to decide whether cached results are stale; we
+// emit a fixed recent value alongside `fullCalcOnLoad`, which already forces a full recalculation.
+const EXCEL_CALC_ID = '171027';
+
 // `<calcPr>` follows `<definedNames>` in CT_Workbook order and carries the calculation settings.
 // Today the model exposes a single one: `fullCalcOnLoad`, which tells the consumer to recalculate
 // every formula on open instead of trusting the cached results. Emitted only when set, so an
 // unmarked workbook keeps the element (and its `calcId`) out of the file entirely.
 function calcPrXml(workbook: Workbook): string {
-  return workbook.fullCalcOnLoad ? '<calcPr calcId="171027" fullCalcOnLoad="1"/>' : '';
+  return workbook.fullCalcOnLoad ? `<calcPr calcId="${EXCEL_CALC_ID}" fullCalcOnLoad="1"/>` : '';
 }
 
 // The `<definedNames>` block follows `<sheets>` in the schema. A sheet-scoped name carries a
@@ -274,6 +279,12 @@ function quoteSheetName(name: string): string {
   return bare ? name : `'${name.replace(/'/g, "''")}'`;
 }
 
+// The relationships the workbook part always carries after its per-sheet rels: `styles.xml` and
+// `theme/theme1.xml`. Their count anchors every downstream rel id — `sharedStrings.xml` (when
+// present) and the preserved/pivot caches all follow — so `write.ts` derives its `workbookRelBase`
+// from this same constant rather than repeating the literal and risking drift.
+export const FIXED_WORKBOOK_REL_COUNT = 2;
+
 export function workbookRelsXml(
   sheetCount: number,
   hasSharedStrings: boolean,
@@ -285,9 +296,15 @@ export function workbookRelsXml(
       relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`),
     ),
     relationship(`rId${sheetCount + 1}`, REL.styles, 'styles.xml'),
-    relationship(`rId${sheetCount + 2}`, REL.theme, 'theme/theme1.xml'),
+    relationship(`rId${sheetCount + FIXED_WORKBOOK_REL_COUNT}`, REL.theme, 'theme/theme1.xml'),
     ...(hasSharedStrings
-      ? [relationship(`rId${sheetCount + 3}`, REL.sharedStrings, 'sharedStrings.xml')]
+      ? [
+          relationship(
+            `rId${sheetCount + FIXED_WORKBOOK_REL_COUNT + 1}`,
+            REL.sharedStrings,
+            'sharedStrings.xml',
+          ),
+        ]
       : []),
     // A preserved cache's target is package-absolute; express it relative to the workbook part.
     ...preservedRels.map((ref) =>

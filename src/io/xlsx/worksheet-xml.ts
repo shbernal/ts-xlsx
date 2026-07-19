@@ -711,8 +711,12 @@ function pageSetupXml(pageSetup: PageSetup, printerSettingsRelId: string | null)
   return attrs.length === 0 ? '' : `<pageSetup ${attrs.join(' ')}/>`;
 }
 
+// Excel's standard row height in points, emitted as the `defaultRowHeight` when the sheet does not
+// override it so a reader sees the same baseline Excel would write.
+const DEFAULT_ROW_HEIGHT = 15;
+
 function sheetFormatPr(properties: WorksheetProperties): string {
-  const rowHeight = properties.defaultRowHeight ?? 15;
+  const rowHeight = properties.defaultRowHeight ?? DEFAULT_ROW_HEIGHT;
   let attrs = ` defaultRowHeight="${numberText(rowHeight)}"`;
   if (properties.defaultColWidth !== undefined) {
     attrs += ` defaultColWidth="${numberText(properties.defaultColWidth)}"`;

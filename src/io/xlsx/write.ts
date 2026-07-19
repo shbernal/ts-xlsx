@@ -44,6 +44,7 @@ import {
   appPropsXml,
   contentTypesXml,
   corePropsXml,
+  FIXED_WORKBOOK_REL_COUNT,
   rootRelsXml,
   workbookRelsXml,
   workbookXml,
@@ -308,7 +309,7 @@ export function buildPackageParts(
   // styles, theme, and (when emitted) shared strings — so adding one never renumbers an id already
   // used. The workbook body and its rels part are wired from the same assignment, so a pivot cache's
   // `<pivotCaches>` registration and its relationship agree on the id.
-  const workbookRelBase = sheets.length + 2 + (hasSharedStrings ? 1 : 0);
+  const workbookRelBase = sheets.length + FIXED_WORKBOOK_REL_COUNT + (hasSharedStrings ? 1 : 0);
   const preservedWorkbookRels = preserved.workbook.map((ref, i) => ({
     ...ref,
     relId: `rId${workbookRelBase + 1 + i}`,
