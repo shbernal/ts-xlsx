@@ -188,6 +188,33 @@ export function* xmlEvents(source: string): Generator<XmlEvent> {
   }
 }
 
+/** An element start surfaced by {@link openElements}: its qualified `name`, the namespace-stripped
+ * `local` name the filter matched on, and its already-decoded `attrs`. */
+export interface OpenElement {
+  readonly name: string;
+  readonly local: string;
+  readonly attrs: XmlAttributes;
+}
+
+/**
+ * Yield each element start in `source` as an {@link OpenElement}, optionally restricted to the given
+ * local names. This is the pull shape for the ubiquitous "scan opens, read attributes" pass: a caller
+ * writes a plain `for..of` and reads `attrs` directly, instead of threading a mutable accumulator out
+ * through a {@link parseXml} `onOpen` closure. With no names every start is yielded; with one or more,
+ * only starts whose namespace-stripped name matches one. Text and close events are skipped.
+ *
+ * Throws {@link SyntaxError} on malformed markup.
+ */
+export function* openElements(source: string, ...localNames: string[]): Generator<OpenElement> {
+  const filter = localNames.length > 0 ? new Set(localNames) : undefined;
+  for (const event of xmlEvents(source)) {
+    if (event.kind !== 'open') continue;
+    const local = localName(event.name);
+    if (filter !== undefined && !filter.has(local)) continue;
+    yield {name: event.name, local, attrs: event.attrs};
+  }
+}
+
 /**
  * Parse an XML document, dispatching SAX events to `handlers`. A thin push adapter over
  * {@link xmlEvents} — one scanning core serves both the callback and the pull consumers.

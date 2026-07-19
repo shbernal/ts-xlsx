@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {decodeEntities, localName, parseXml, type XmlAttributes} from './xml-read.ts';
+import {decodeEntities, localName, openElements, parseXml, type XmlAttributes} from './xml-read.ts';
 
 interface Event {
   readonly kind: 'open' | 'text' | 'close';
@@ -63,6 +63,34 @@ test('parseXml runs an onOpen-only handler, ignoring the omitted onText/onClose'
     },
   });
   assert.deepEqual(opened, ['a', 'b']);
+});
+
+test('openElements with no filter yields every start, skipping text and close', () => {
+  const seen = [...openElements('<a><b>hi</b><c/></a>')].map((e) => e.name);
+  assert.deepEqual(seen, ['a', 'b', 'c']);
+});
+
+test('openElements restricts to the given local names, ignoring namespace prefixes', () => {
+  const source = '<r><a:sheet name="one"/><x/><b:sheet name="two"/></r>';
+  const names = [...openElements(source, 'sheet')].map((e) => e.attrs.name);
+  assert.deepEqual(names, ['one', 'two']);
+});
+
+test('openElements matches any of several local names and reports the matched local name', () => {
+  const source = '<Types><Default Extension="xml"/><Override PartName="/x"/><Other/></Types>';
+  assert.deepEqual(
+    [...openElements(source, 'Override', 'Default')].map((e) => e.local),
+    ['Default', 'Override'],
+  );
+});
+
+test('openElements surfaces decoded attributes and can be stopped early by breaking', () => {
+  let first: XmlAttributes | undefined;
+  for (const {attrs} of openElements('<r><a v="x &amp; y"/><a v="z"/></r>', 'a')) {
+    first = attrs;
+    break;
+  }
+  assert.equal(first?.v, 'x & y');
 });
 
 test('parseXml parses attributes in both quote styles and decodes their entities', () => {

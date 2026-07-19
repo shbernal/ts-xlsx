@@ -77,7 +77,14 @@ import {inflatePackage} from './inflate.ts';
 import {parsePivotTable} from './pivot-read.ts';
 import {parseColor, parseIndexedColors} from './styles.ts';
 import {parseTable} from './tables.ts';
-import {boolPresent, boolStrict, boolTristate, localName, parseXml} from './xml-read.ts';
+import {
+  boolPresent,
+  boolStrict,
+  boolTristate,
+  localName,
+  openElements,
+  parseXml,
+} from './xml-read.ts';
 
 export interface ReadXlsxOptions {
   /**
@@ -392,17 +399,11 @@ function isPreservedWorkbookRelType(type: string): boolean {
 // reaches its cache definition, so a preserved cache carries the `cacheId` a pivot table refers to.
 function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> {
   const byRelId = new Map<string, string>();
-  parseXml(workbookXml, {
-    onOpen(name, attrs) {
-      if (
-        localName(name) === 'pivotCache' &&
-        attrs['r:id'] !== undefined &&
-        attrs.cacheId !== undefined
-      ) {
-        byRelId.set(attrs['r:id'], attrs.cacheId);
-      }
-    },
-  });
+  for (const {attrs} of openElements(workbookXml, 'pivotCache')) {
+    if (attrs['r:id'] !== undefined && attrs.cacheId !== undefined) {
+      byRelId.set(attrs['r:id'], attrs.cacheId);
+    }
+  }
   return byRelId;
 }
 
@@ -411,15 +412,10 @@ function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> 
 // relationship Type — a header/footer VML and a comment VML share the `vmlDrawing` type), so the
 // specific relationship is found by reading the element's `r:id` here.
 function worksheetReferenceRelId(sheetXml: string, element: string): string | undefined {
-  let relId: string | undefined;
-  parseXml(sheetXml, {
-    onOpen(name, attrs) {
-      if (relId === undefined && localName(name) === element && attrs['r:id'] !== undefined) {
-        relId = attrs['r:id'];
-      }
-    },
-  });
-  return relId;
+  for (const {attrs} of openElements(sheetXml, element)) {
+    if (attrs['r:id'] !== undefined) return attrs['r:id'];
+  }
+  return undefined;
 }
 
 // Gather the transitive closure of package parts reachable from an entry part — the part itself, then
@@ -463,20 +459,17 @@ function capturePartClosure(
 function contentTypeResolver(contentTypesXml: string): (path: string) => string {
   const overrides = new Map<string, string>();
   const defaults = new Map<string, string>();
-  parseXml(contentTypesXml, {
-    onOpen(name, attrs) {
-      const local = localName(name);
-      if (local === 'Override' && attrs.PartName !== undefined && attrs.ContentType !== undefined) {
-        overrides.set(attrs.PartName, attrs.ContentType);
-      } else if (
-        local === 'Default' &&
-        attrs.Extension !== undefined &&
-        attrs.ContentType !== undefined
-      ) {
-        defaults.set(attrs.Extension.toLowerCase(), attrs.ContentType);
-      }
-    },
-  });
+  for (const {local, attrs} of openElements(contentTypesXml, 'Override', 'Default')) {
+    if (local === 'Override' && attrs.PartName !== undefined && attrs.ContentType !== undefined) {
+      overrides.set(attrs.PartName, attrs.ContentType);
+    } else if (
+      local === 'Default' &&
+      attrs.Extension !== undefined &&
+      attrs.ContentType !== undefined
+    ) {
+      defaults.set(attrs.Extension.toLowerCase(), attrs.ContentType);
+    }
+  }
   return (path: string): string =>
     overrides.get(`/${path}`) ??
     defaults.get(extensionOf(path).toLowerCase()) ??
@@ -491,23 +484,16 @@ function parseRelationshipRecords(
   xml: string,
 ): Array<{id: string; type: string; target: string; external: boolean}> {
   const records: Array<{id: string; type: string; target: string; external: boolean}> = [];
-  parseXml(xml, {
-    onOpen(name, attrs) {
-      if (
-        localName(name) === 'Relationship' &&
-        attrs.Id !== undefined &&
-        attrs.Type !== undefined &&
-        attrs.Target !== undefined
-      ) {
-        records.push({
-          id: attrs.Id,
-          type: attrs.Type,
-          target: attrs.Target,
-          external: attrs.TargetMode === 'External',
-        });
-      }
-    },
-  });
+  for (const {attrs} of openElements(xml, 'Relationship')) {
+    if (attrs.Id !== undefined && attrs.Type !== undefined && attrs.Target !== undefined) {
+      records.push({
+        id: attrs.Id,
+        type: attrs.Type,
+        target: attrs.Target,
+        external: attrs.TargetMode === 'External',
+      });
+    }
+  }
   return records;
 }
 
@@ -600,21 +586,16 @@ function relsPathFor(partPath: string): string {
 // The Target of the first relationship whose Type ends with `/<suffix>` (local-name match, so a
 // namespaced or oddly-cased type still resolves), or undefined when none is declared.
 function relationshipTargetByType(xml: string, suffix: string): string | undefined {
-  let found: string | undefined;
-  parseXml(xml, {
-    onOpen(name, attrs) {
-      if (
-        found === undefined &&
-        localName(name) === 'Relationship' &&
-        attrs.Type !== undefined &&
-        attrs.Target !== undefined &&
-        attrs.Type.endsWith(`/${suffix}`)
-      ) {
-        found = attrs.Target;
-      }
-    },
-  });
-  return found;
+  for (const {attrs} of openElements(xml, 'Relationship')) {
+    if (
+      attrs.Type !== undefined &&
+      attrs.Target !== undefined &&
+      attrs.Type.endsWith(`/${suffix}`)
+    ) {
+      return attrs.Target;
+    }
+  }
+  return undefined;
 }
 
 // Every Target whose Type ends with `/<suffix>`, in declaration order — for a part class a sheet may
@@ -622,18 +603,15 @@ function relationshipTargetByType(xml: string, suffix: string): string | undefin
 // would miss all but one.
 function relationshipTargetsByType(xml: string, suffix: string): string[] {
   const targets: string[] = [];
-  parseXml(xml, {
-    onOpen(name, attrs) {
-      if (
-        localName(name) === 'Relationship' &&
-        attrs.Type !== undefined &&
-        attrs.Target !== undefined &&
-        attrs.Type.endsWith(`/${suffix}`)
-      ) {
-        targets.push(attrs.Target);
-      }
-    },
-  });
+  for (const {attrs} of openElements(xml, 'Relationship')) {
+    if (
+      attrs.Type !== undefined &&
+      attrs.Target !== undefined &&
+      attrs.Type.endsWith(`/${suffix}`)
+    ) {
+      targets.push(attrs.Target);
+    }
+  }
   return targets;
 }
 
@@ -660,17 +638,11 @@ export function resolveWorkbookPart(target: string): string {
 
 export function parseRelationships(xml: string): Map<string, string> {
   const rels = new Map<string, string>();
-  parseXml(xml, {
-    onOpen(name, attrs) {
-      if (
-        localName(name) === 'Relationship' &&
-        attrs.Id !== undefined &&
-        attrs.Target !== undefined
-      ) {
-        rels.set(attrs.Id, attrs.Target);
-      }
-    },
-  });
+  for (const {attrs} of openElements(xml, 'Relationship')) {
+    if (attrs.Id !== undefined && attrs.Target !== undefined) {
+      rels.set(attrs.Id, attrs.Target);
+    }
+  }
   return rels;
 }
 
@@ -678,18 +650,14 @@ export function parseWorkbookSheets(
   xml: string,
 ): Array<{name: string; relId: string; state?: WorksheetState['state']}> {
   const sheets: Array<{name: string; relId: string; state?: WorksheetState['state']}> = [];
-  parseXml(xml, {
-    onOpen(name, attrs) {
-      if (localName(name) === 'sheet') {
-        const entry: {name: string; relId: string; state?: WorksheetState['state']} = {
-          name: attrs.name ?? '',
-          relId: attrs['r:id'] ?? '',
-        };
-        if (attrs.state === 'hidden' || attrs.state === 'veryHidden') entry.state = attrs.state;
-        sheets.push(entry);
-      }
-    },
-  });
+  for (const {attrs} of openElements(xml, 'sheet')) {
+    const entry: {name: string; relId: string; state?: WorksheetState['state']} = {
+      name: attrs.name ?? '',
+      relId: attrs['r:id'] ?? '',
+    };
+    if (attrs.state === 'hidden' || attrs.state === 'veryHidden') entry.state = attrs.state;
+    sheets.push(entry);
+  }
   return sheets;
 }
 
