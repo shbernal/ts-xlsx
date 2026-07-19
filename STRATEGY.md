@@ -182,8 +182,20 @@ delete.
 - **Exit:** the corpus expresses a clear, agreed "correct behavior" for each captured
   case, with current-code pass/fail recorded as the baseline the rewrite must beat.
 
-### Phase 3 — The rebuild  *(discard the debt)*  → 🔄 **IN PROGRESS (kicked off 2026-07-11)**
+### Phase 3 — The rebuild  *(discard the debt)*  → ✅ **COMPLETE (2026-07-19)**
 
+> ✅ **Done (2026-07-19):** the `src/` rewrite passes **every** captured corpus
+> behavior (671 green, 0 regressions) as its own reference implementation, and the
+> legacy `lib/` tree is deleted — meeting this phase's exit ("feature-parity-or-better
+> on the corpus for all in-scope areas; legacy `lib/` deleted; dependency tree small
+> and audit-clean"). The runtime dependency tree is now **`fflate` alone**. The corpus
+> was re-founded on the rewrite (the legacy oracle and its `--adapter current` are
+> gone; `npm run corpus` runs the rewrite), and every `baseline: 'fail'` the rewrite
+> resolved was flipped to `'pass'`. The marker survives only as a deliberate
+> known-open for future not-yet-built capabilities. Post-finish-line hardening (latent
+> foreign-input bugs, code-named deferred features, the bounded streaming writer) all
+> landed under the corpus contract. Details per increment in `PROGRESS.md`.
+>
 > 🔄 **Kickoff (2026-07-11):** the greenfield tree lives under `src/` (strict
 > TypeScript, ESM, scoped as a module via `src/package.json` so the legacy CommonJS
 > root is untouched). A sibling corpus adapter, `test/corpus/adapters/rewrite.mjs`,
@@ -214,8 +226,30 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
 - **Exit:** feature-parity-or-better on the corpus for all in-scope areas; legacy
   `lib/` deleted; dependency tree small and audit-clean.
 
-### Phase 4 — Independence & identity  *(the clean break)*
+### Phase 4 — Independence & identity  *(the clean break)*  → 🔄 **IN PROGRESS (2026-07-19)**
 
+> 🔄 **The clean break landed (2026-07-19).** With Phase 3 complete, the legacy tree
+> was deleted and the package re-founded on the rewrite: runtime deps are `fflate`
+> alone, entry points resolve to `src/index.ts`, scripts are the real gates
+> (`typecheck` / `test:src` / `corpus`), and CI dropped the grunt/asset-size jobs. The
+> package is `private` and versioned `0.0.0-dev` until the two exit gates below.
+> **What remains in Phase 4, in order:**
+> 1. **Publishable build pipeline** — emit ESM `.js` + `.d.ts` from `src/` (tsup/unbuild
+>    class) so consumers don't need a type-stripping runtime; widen `engines`, drop
+>    `private`, add an `exports` map over the built output, and a bundle-size budget in
+>    CI. Until this lands the package is source-only (`exports` → `./src/index.ts`,
+>    `engines.node >=24`).
+> 2. **Toolchain standup** — Biome for lint/format over the (now TS-only) tree, and a
+>    decision to keep `node --test` or adopt Vitest for coverage + type-level tests
+>    (`expectTypeOf`). Record as an ADR.
+> 3. **Docs from types** — first-class API docs generated from the public surface;
+>    migration notes framed as "a different, better library," not a compatibility shim.
+> 4. **Rebrand (human decision)** — the definitive package name replaces the provisional
+>    `@shbernal/ts-xlsx`. Kept as a single `package.json#name` field so the swap is
+>    trivial. This is escalated per `CLAUDE.md` §3.
+> - **Exit:** a `0.x` release of the independent library, published under its own name,
+>   with the corpus as its living correctness guarantee.
+>
 > **Update (2026-07-09): hosting independence pulled forward.** Rather than remain a
 > GitHub fork until the end, we did the *infrastructure* clean break up front: a fresh,
 > non-fork repo (`shbernal/ts-xlsx`) was created by mirror-pushing full history into it,
