@@ -83,8 +83,6 @@ export function parseTable(xml: string): TableOptions | undefined {
         }
       }
     },
-    onText() {},
-    onClose() {},
   });
 
   if (name === undefined || ref === undefined || columns.length === 0) return undefined;

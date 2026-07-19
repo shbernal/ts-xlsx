@@ -402,8 +402,6 @@ function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> 
         byRelId.set(attrs['r:id'], attrs.cacheId);
       }
     },
-    onText() {},
-    onClose() {},
   });
   return byRelId;
 }
@@ -420,8 +418,6 @@ function worksheetReferenceRelId(sheetXml: string, element: string): string | un
         relId = attrs['r:id'];
       }
     },
-    onText() {},
-    onClose() {},
   });
   return relId;
 }
@@ -480,8 +476,6 @@ function contentTypeResolver(contentTypesXml: string): (path: string) => string 
         defaults.set(attrs.Extension.toLowerCase(), attrs.ContentType);
       }
     },
-    onText() {},
-    onClose() {},
   });
   return (path: string): string =>
     overrides.get(`/${path}`) ??
@@ -513,8 +507,6 @@ function parseRelationshipRecords(
         });
       }
     },
-    onText() {},
-    onClose() {},
   });
   return records;
 }
@@ -621,8 +613,6 @@ function relationshipTargetByType(xml: string, suffix: string): string | undefin
         found = attrs.Target;
       }
     },
-    onText() {},
-    onClose() {},
   });
   return found;
 }
@@ -643,8 +633,6 @@ function relationshipTargetsByType(xml: string, suffix: string): string[] {
         targets.push(attrs.Target);
       }
     },
-    onText() {},
-    onClose() {},
   });
   return targets;
 }
@@ -682,8 +670,6 @@ export function parseRelationships(xml: string): Map<string, string> {
         rels.set(attrs.Id, attrs.Target);
       }
     },
-    onText() {},
-    onClose() {},
   });
   return rels;
 }
@@ -703,8 +689,6 @@ export function parseWorkbookSheets(
         sheets.push(entry);
       }
     },
-    onText() {},
-    onClose() {},
   });
   return sheets;
 }
@@ -735,8 +719,6 @@ export function parseWorkbookProtection(xml: string): WorkbookProtection | undef
       if (Object.keys(credentials).length > 0) protection.credentials = credentials;
       result = protection;
     },
-    onText() {},
-    onClose() {},
   });
   return result;
 }
@@ -1183,7 +1165,6 @@ export function parseStyleTable(xml: string): StyleTable {
         }
       }
     },
-    onText() {},
     onClose(name) {
       switch (localName(name)) {
         case 'fills':

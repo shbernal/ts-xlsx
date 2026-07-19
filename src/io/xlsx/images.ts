@@ -262,8 +262,6 @@ export function drawingHasUnmodeledContent(xml: string): boolean {
     onOpen(name) {
       if (!found && UNMODELED_DRAWING_CONTENT.has(localName(name))) found = true;
     },
-    onText() {},
-    onClose() {},
   });
   return found;
 }

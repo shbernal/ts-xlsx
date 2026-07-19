@@ -18,10 +18,11 @@ export interface XmlAttributes {
 export interface SaxHandlers {
   /** An element start. `selfClosing` is true for `<x/>`; no matching {@link onClose} fires for it. */
   onOpen(name: string, attrs: XmlAttributes, selfClosing: boolean): void;
-  /** A run of character data (already entity-decoded; CDATA delivered verbatim). */
-  onText(text: string): void;
-  /** An element end (`</x>`), or the synthetic end of a self-closing element is *not* reported here. */
-  onClose(name: string): void;
+  /** A run of character data (already entity-decoded; CDATA delivered verbatim). Omit to ignore text. */
+  onText?(text: string): void;
+  /** An element end (`</x>`); the synthetic end of a self-closing element is *not* reported here.
+   * Omit to ignore closes. */
+  onClose?(name: string): void;
 }
 
 /**
@@ -199,10 +200,10 @@ export function parseXml(source: string, handlers: SaxHandlers): void {
         handlers.onOpen(event.name, event.attrs, event.selfClosing);
         break;
       case 'text':
-        handlers.onText(event.text);
+        handlers.onText?.(event.text);
         break;
       case 'close':
-        handlers.onClose(event.name);
+        handlers.onClose?.(event.name);
         break;
     }
   }

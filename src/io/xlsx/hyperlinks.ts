@@ -116,8 +116,6 @@ export function parseSheetHyperlinks(xml: string): ParsedHyperlink[] {
         ...(attrs.tooltip !== undefined ? {tooltip: attrs.tooltip} : {}),
       });
     },
-    onText() {},
-    onClose() {},
   });
   return links;
 }

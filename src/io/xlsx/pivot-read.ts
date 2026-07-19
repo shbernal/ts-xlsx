@@ -64,8 +64,6 @@ function parsePivotCacheDefinition(cacheXml: string): {
         source = {...source, sheet: attrs.sheet ?? '', ref: attrs.ref ?? ''};
       }
     },
-    onText() {},
-    onClose() {},
   });
   return {fields, source};
 }
@@ -122,7 +120,6 @@ function parsePivotTableDefinition(tableXml: string): {
         }
       }
     },
-    onText() {},
     onClose(elementName) {
       const local = localName(elementName);
       if (local === 'rowFields' || local === 'colFields') axis = null;

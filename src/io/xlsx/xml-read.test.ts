@@ -55,6 +55,16 @@ test('parseXml reports open/text/close for a simple element', () => {
   ]);
 });
 
+test('parseXml runs an onOpen-only handler, ignoring the omitted onText/onClose', () => {
+  const opened: string[] = [];
+  parseXml('<a>hi<b/></a>', {
+    onOpen(name) {
+      opened.push(name);
+    },
+  });
+  assert.deepEqual(opened, ['a', 'b']);
+});
+
 test('parseXml parses attributes in both quote styles and decodes their entities', () => {
   const [open] = events(`<c r="A1" t='inlineStr' note="a &amp; b"/>`);
   assert.deepEqual(open?.attrs, {r: 'A1', t: 'inlineStr', note: 'a & b'});
