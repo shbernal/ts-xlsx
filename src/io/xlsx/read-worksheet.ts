@@ -19,13 +19,20 @@ import {
   type SheetProtectionCredential,
   type SheetProtectionFlags,
 } from '../../core/protection.ts';
-import type {Font} from '../../core/style.ts';
 import type {DataTableFormulaValue, RichTextRun, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {decodeCellContent, decodeFormulaResult, type SharedString} from './cell-value.ts';
-import {applyFontChild, type XfStyle} from './read-styles.ts';
+import type {XfStyle} from './read-styles.ts';
+import {RunAccumulator} from './rich-runs.ts';
 import {parseColor} from './styles.ts';
-import {boolPresent, boolStrict, boolTristate, localName, parseXml} from './xml-read.ts';
+import {
+  boolPresent,
+  boolStrict,
+  boolTristate,
+  localName,
+  parseXml,
+  type XmlAttributes,
+} from './xml-read.ts';
 
 const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
 
@@ -86,6 +93,115 @@ function parseSheetProtection(attrs: {readonly [k: string]: string}): SheetProte
   return {flags};
 }
 
+// Autofilter accumulation. The sheet `<autoFilter ref>` seeds a draft; each `<filterColumn colId>`
+// opens a column whose criteria (`<filters>` values or `<customFilters>` predicates) stream into the
+// draft until `</filterColumn>`, and `</autoFilter>` commits the whole thing to the sheet.
+class AutoFilterAccumulator {
+  #ref: string | null = null;
+  #columns: FilterColumn[] = [];
+  #colId = -1;
+  #values: string[] | null = null;
+  #blank = false;
+  #predicates: CustomFilterPredicate[] | null = null;
+  #and = false;
+
+  // Seed a draft from the range. (A table's own `<autoFilter>` also matches, but table sheets route
+  // through parseTable, so this only ever sees the sheet-level one.)
+  begin(attrs: XmlAttributes): void {
+    this.#ref = attrs.ref !== undefined && attrs.ref !== '' ? attrs.ref : null;
+    this.#columns = [];
+  }
+
+  // Open a criteria block for one column, offset `colId` from the range's left edge. Reset the
+  // per-column accumulators; whichever child (`<filters>`/`<customFilters>`) opens fills one.
+  beginColumn(attrs: XmlAttributes): void {
+    this.#colId = attrs.colId !== undefined ? Number(attrs.colId) : -1;
+    this.#values = null;
+    this.#blank = false;
+    this.#predicates = null;
+    this.#and = false;
+  }
+
+  beginValues(attrs: XmlAttributes): void {
+    this.#values = [];
+    this.#blank = boolPresent(attrs.blank) && attrs.blank !== undefined;
+  }
+
+  addValue(attrs: XmlAttributes): void {
+    if (this.#values !== null && attrs.val !== undefined) this.#values.push(attrs.val);
+  }
+
+  beginCustom(attrs: XmlAttributes): void {
+    this.#predicates = [];
+    this.#and = attrs.and !== undefined && boolPresent(attrs.and);
+  }
+
+  // The operator attribute defaults to `equal` when absent (per CT_CustomFilter); an operand is
+  // likewise optional. An unrecognised operator drops the predicate rather than guessing.
+  addCustom(attrs: XmlAttributes): void {
+    if (this.#predicates === null) return;
+    const operator = attrs.operator ?? 'equal';
+    if (isCustomFilterOperator(operator)) {
+      this.#predicates.push({operator, val: attrs.val ?? ''});
+    }
+  }
+
+  // Assemble this column's criteria from whichever accumulator filled. A column whose colId is
+  // negative, or whose criteria are empty (no values, no blank, no predicates), carries nothing
+  // filterable and is dropped so a re-write stays clean — load-repair, not authoring.
+  endColumn(): void {
+    const criteria = pendingFilterCriteria(this.#values, this.#blank, this.#predicates, this.#and);
+    if (this.#colId >= 0 && criteria !== null) {
+      this.#columns.push({colId: this.#colId, criteria});
+    }
+  }
+
+  // Commit the accumulated autofilter to the sheet. Runs on `</autoFilter>` — including the synthesized
+  // close of a criteria-free self-closing `<autoFilter/>`. Columns whose colId falls outside the range
+  // are dropped here so the strict setter never trips on hostile input.
+  commit(sheet: Worksheet): void {
+    if (this.#ref === null) return;
+    try {
+      const {left, right} = decodeRange(this.#ref);
+      const width = left !== undefined && right !== undefined ? right - left + 1 : 0;
+      sheet.autoFilter = {ref: this.#ref, columns: this.#columns.filter((c) => c.colId < width)};
+    } catch {
+      // unbounded or malformed autofilter range in the source file — ignore it
+    }
+    this.#ref = null;
+    this.#columns = [];
+  }
+}
+
+// Page-break accumulation. `<brk>` elements appear under both `<rowBreaks>` and `<colBreaks>`; a break
+// container's open points the accumulator at that axis's list (null outside any container), so a
+// `<brk>` lands on the right axis, and the matching close clears it. A self-closing
+// `<rowBreaks/>`/`<colBreaks/>` fires no close, so a new open simply reassigns the target.
+class PageBreakAccumulator {
+  #target: PageBreak[] | null = null;
+
+  begin(target: PageBreak[]): void {
+    this.#target = target;
+  }
+
+  end(): void {
+    this.#target = null;
+  }
+
+  // `id` is the row/column the layout splits before; a non-positive or non-integer id is hostile input
+  // and dropped rather than trusted. A `<brk>` outside any break container has no axis and is ignored.
+  add(attrs: XmlAttributes): void {
+    if (this.#target === null) return;
+    const id = Number(attrs.id);
+    if (!Number.isInteger(id) || id < 1) return;
+    const brk: {id: number; max?: number; man?: boolean} = {id};
+    const max = Number(attrs.max);
+    if (Number.isInteger(max) && max >= 0) brk.max = max;
+    if (boolStrict(attrs.man)) brk.man = true;
+    this.#target.push(brk);
+  }
+}
+
 export function parseWorksheet(
   xml: string,
   sheet: Worksheet,
@@ -122,52 +238,19 @@ export function parseWorksheet(
   let inInlineString = false;
   let capture = false;
   let text = '';
-  // Rich-text run accumulation while inside an `<is>` built from `<r>` runs: the runs gathered so
-  // far, the current run's font draft (null until an `<rPr>` opens) and its text, and whether we are
-  // inside an `<r>`. A `<t>` inside a run appends to the run text; a bare `<t>` in the `<is>` appends
-  // to `inlineText`, keeping a plain inline string on its existing path.
-  let inlineRuns: RichTextRun[] = [];
-  let runFont: {-readonly [K in keyof Font]?: Font[K]} | null = null;
-  let runText = '';
-  let inRun = false;
+  // Rich-text run accumulation while inside an `<is>` built from `<r>` runs. A `<t>` inside a run
+  // appends to the run's text; a bare `<t>` directly in the `<is>` appends to `inlineText`, keeping a
+  // plain inline string on its existing path.
+  const runs = new RunAccumulator();
   // A row with customFormat="1" supplies a default style for its cells that carry no `s`.
   let rowStyle = -1;
   let rowCustomFormat = false;
-  // Autofilter accumulation. The sheet `<autoFilter ref>` seeds a draft; each `<filterColumn colId>`
-  // opens a column whose criteria (`<filters>` values or `<customFilters>` predicates) stream into
-  // the draft until `</filterColumn>`, and `</autoFilter>` commits the whole thing to the sheet.
-  let filterRef: string | null = null;
-  let filterColumns: FilterColumn[] = [];
-  let filterColId = -1;
-  let filterValues: string[] | null = null;
-  let filterBlank = false;
-  let customPredicates: CustomFilterPredicate[] | null = null;
-  let customAnd = false;
-  // `<brk>` elements appear under both `<rowBreaks>` and `<colBreaks>`; this points at whichever list
-  // the current container's breaks belong to (null outside any break container), so a `<brk>` lands on
-  // the right axis. A self-closing `<rowBreaks/>`/`<colBreaks/>` fires no close, so a new open simply
-  // reassigns the target and the matching close clears it.
-  let breakTarget: PageBreak[] | null = null;
+  const autoFilter = new AutoFilterAccumulator();
+  const pageBreaks = new PageBreakAccumulator();
   // A column's `style` is the default for its cells that carry no style of their own; this
   // maps a column index to that style index so a bare cell can inherit it (as Excel does,
   // without stamping every cell). Columns are parsed before any cell references them.
   const columnStyle = new Map<number, number>();
-
-  // Commit the accumulated autofilter to the sheet. Shared by the `</autoFilter>` close and the
-  // self-closing `<autoFilter/>` open (a criteria-free filter fires no close). Columns whose colId
-  // falls outside the range are dropped here so the strict setter never trips on hostile input.
-  const commitAutoFilter = (): void => {
-    if (filterRef === null) return;
-    try {
-      const {left, right} = decodeRange(filterRef);
-      const width = left !== undefined && right !== undefined ? right - left + 1 : 0;
-      sheet.autoFilter = {ref: filterRef, columns: filterColumns.filter((c) => c.colId < width)};
-    } catch {
-      // unbounded or malformed autofilter range in the source file — ignore it
-    }
-    filterRef = null;
-    filterColumns = [];
-  };
 
   // Commit the cell held in the parser state to the sheet, resolving its style from its own `s`,
   // then its row's (when customFormat), then its column's default — the order Excel applies. Runs on
@@ -232,7 +315,7 @@ export function parseWorksheet(
       hasValue,
       valueText,
       inlineText,
-      inlineRuns,
+      runs.runs,
       sharedStrings,
       style,
     );
@@ -263,9 +346,7 @@ export function parseWorksheet(
             formula = '';
             valueText = '';
             inlineText = '';
-            inlineRuns = [];
-            inRun = false;
-            runFont = null;
+            runs.reset();
             hasFormula = false;
             hasValue = false;
             formulaShared = false;
@@ -276,20 +357,15 @@ export function parseWorksheet(
           case 'is':
             inInlineString = true;
             inlineText = '';
-            inlineRuns = [];
+            runs.reset();
             break;
           case 'r':
-            // A run inside a rich inline string. Its `<rPr>` (if any) and `<t>` follow; reset the
-            // per-run accumulators so an unformatted run inherits nothing from the previous one.
-            if (inInlineString) {
-              inRun = true;
-              runFont = null;
-              runText = '';
-            }
+            // A run inside a rich inline string. Its `<rPr>` (if any) and `<t>` follow.
+            if (inInlineString) runs.beginRun();
             break;
           case 'rPr':
             // The run's formatting bundle; its self-closing children stream into the default branch.
-            if (inRun) runFont = {};
+            runs.beginProperties();
             break;
           case 'f':
             capture = true;
@@ -376,72 +452,41 @@ export function parseWorksheet(
             applyPageSetup(sheet.pageSetup, attrs);
             break;
           case 'rowBreaks':
-            breakTarget = sheet.rowBreaks;
+            pageBreaks.begin(sheet.rowBreaks);
             break;
           case 'colBreaks':
-            breakTarget = sheet.columnBreaks;
+            pageBreaks.begin(sheet.columnBreaks);
             break;
-          case 'brk': {
-            // `id` is the row/column the layout splits before; a non-positive or non-integer id is
-            // hostile input and dropped rather than trusted. A `<brk>` outside any break container has
-            // no axis to belong to and is likewise ignored.
-            if (breakTarget === null) break;
-            const id = Number(attrs.id);
-            if (!Number.isInteger(id) || id < 1) break;
-            const brk: {id: number; max?: number; man?: boolean} = {id};
-            const max = Number(attrs.max);
-            if (Number.isInteger(max) && max >= 0) brk.max = max;
-            if (boolStrict(attrs.man)) brk.man = true;
-            breakTarget.push(brk);
+          case 'brk':
+            pageBreaks.add(attrs);
             break;
-          }
           case 'sheetProtection': {
             const protection = parseSheetProtection(attrs);
             if (protection !== undefined) sheet.restoreProtection(protection);
             break;
           }
           case 'autoFilter':
-            // Seed a draft from the range; its `<filterColumn>` children (if any) stream in below and
-            // `</autoFilter>` commits it — including the synthesized close of a criteria-free
-            // self-closing `<autoFilter/>`. (A table's own `<autoFilter>` also matches, but table
-            // sheets route through parseTable, so this only ever sees the sheet-level one.)
-            filterRef = attrs.ref !== undefined && attrs.ref !== '' ? attrs.ref : null;
-            filterColumns = [];
+            autoFilter.begin(attrs);
             break;
           case 'filterColumn':
-            // A criteria block for one column, offset `colId` from the range's left edge. Reset the
-            // per-column accumulators; whichever child (`<filters>`/`<customFilters>`) opens fills one.
-            filterColId = attrs.colId !== undefined ? Number(attrs.colId) : -1;
-            filterValues = null;
-            filterBlank = false;
-            customPredicates = null;
-            customAnd = false;
+            autoFilter.beginColumn(attrs);
             break;
           case 'filters':
-            filterValues = [];
-            filterBlank = boolPresent(attrs.blank) && attrs.blank !== undefined;
+            autoFilter.beginValues(attrs);
             break;
           case 'filter':
-            if (filterValues !== null && attrs.val !== undefined) filterValues.push(attrs.val);
+            autoFilter.addValue(attrs);
             break;
           case 'customFilters':
-            customPredicates = [];
-            customAnd = attrs.and !== undefined && boolPresent(attrs.and);
+            autoFilter.beginCustom(attrs);
             break;
-          case 'customFilter': {
-            // The operator attribute defaults to `equal` when absent (per CT_CustomFilter); an operand
-            // is likewise optional. An unrecognised operator drops the predicate rather than guessing.
-            if (customPredicates === null) break;
-            const operator = attrs.operator ?? 'equal';
-            if (isCustomFilterOperator(operator)) {
-              customPredicates.push({operator, val: attrs.val ?? ''});
-            }
+          case 'customFilter':
+            autoFilter.addCustom(attrs);
             break;
-          }
           default:
             // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) sets one font facet; it
             // is self-closing, so it is read here on open. Nothing else uses the default branch.
-            if (runFont !== null) applyFontChild(runFont, local, attrs);
+            runs.applyProperty(local, attrs);
             break;
         }
         if (selfClosing && (local === 'f' || local === 'v')) capture = false;
@@ -462,17 +507,11 @@ export function parseWorksheet(
             break;
           case 't':
             // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<is>` is a plain
-            // inline string. `inRun` must be checked first — a run is also inside the inline string.
-            if (inRun) runText += text;
-            else if (inInlineString) inlineText += text;
+            // inline string. A run takes precedence — a run is also inside the inline string.
+            if (!runs.appendText(text) && inInlineString) inlineText += text;
             break;
           case 'r':
-            if (inRun) {
-              const run: {text: string; font?: Partial<Font>} = {text: runText};
-              if (runFont !== null && Object.keys(runFont).length > 0) run.font = runFont;
-              inlineRuns.push(run);
-              inRun = false;
-            }
+            runs.endRun();
             break;
           case 'is':
             inInlineString = false;
@@ -492,27 +531,15 @@ export function parseWorksheet(
             rowStyle = -1;
             rowCustomFormat = false;
             break;
-          case 'filterColumn': {
-            // Assemble this column's criteria from whichever accumulator filled. A column whose colId
-            // is negative, or whose criteria are empty (no values, no blank, no predicates), carries
-            // nothing filterable and is dropped so a re-write stays clean — load-repair, not authoring.
-            const criteria = pendingFilterCriteria(
-              filterValues,
-              filterBlank,
-              customPredicates,
-              customAnd,
-            );
-            if (filterColId >= 0 && criteria !== null) {
-              filterColumns.push({colId: filterColId, criteria});
-            }
+          case 'filterColumn':
+            autoFilter.endColumn();
             break;
-          }
           case 'autoFilter':
-            commitAutoFilter();
+            autoFilter.commit(sheet);
             break;
           case 'rowBreaks':
           case 'colBreaks':
-            breakTarget = null;
+            pageBreaks.end();
             break;
           default:
             break;

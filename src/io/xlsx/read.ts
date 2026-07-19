@@ -22,8 +22,6 @@ import {strFromU8} from 'fflate';
 import {decodeRange} from '../../core/address.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
-import type {Font} from '../../core/style.ts';
-import type {RichTextRun} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import {
   WORKBOOK_PROTECTION_CREDENTIAL_ATTRS,
@@ -54,8 +52,9 @@ import {
   resolveRelativePart,
   resolveWorkbookPart,
 } from './read-opc.ts';
-import {applyFontChild, type FontDraft, parseStyleTable} from './read-styles.ts';
+import {parseStyleTable} from './read-styles.ts';
 import {parseWorksheet} from './read-worksheet.ts';
+import {RunAccumulator} from './rich-runs.ts';
 import {parseIndexedColors} from './styles.ts';
 import {parseTable} from './tables.ts';
 import {boolStrict, localName, openElements, parseXml} from './xml-read.ts';
@@ -564,11 +563,8 @@ export function parseSharedStrings(xml: string): SharedString[] {
   // Per-`<si>` accumulation: `plain` gathers a bare `<t>`; `runs` gathers `<r>` runs. An `<si>` is
   // rich the moment it holds one `<r>`, at which point its runs — not `plain` — become the entry.
   let plain = '';
-  let runs: RichTextRun[] = [];
+  const runs = new RunAccumulator();
   let isRich = false;
-  let inRun = false;
-  let runFont: FontDraft | null = null;
-  let runText = '';
   let capture = false;
   let text = '';
   parseXml(xml, {
@@ -577,26 +573,22 @@ export function parseSharedStrings(xml: string): SharedString[] {
       switch (local) {
         case 'si':
           plain = '';
-          runs = [];
+          runs.reset();
           isRich = false;
           break;
         case 'r':
           isRich = true;
-          inRun = true;
-          runFont = null;
-          runText = '';
+          runs.beginRun();
           break;
         case 'rPr':
-          if (inRun) runFont = {};
+          runs.beginProperties();
           break;
         case 't':
           capture = true;
           text = '';
           break;
         default:
-          // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) is self-closing, read here
-          // on open; it sets one font facet. Nothing else uses the default branch.
-          if (runFont !== null) applyFontChild(runFont, local, attrs);
+          runs.applyProperty(local, attrs);
           break;
       }
     },
@@ -608,20 +600,14 @@ export function parseSharedStrings(xml: string): SharedString[] {
       switch (local) {
         case 't':
           // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<si>` is plain.
-          if (inRun) runText += text;
-          else plain += text;
+          if (!runs.appendText(text)) plain += text;
           capture = false;
           break;
         case 'r':
-          if (inRun) {
-            const run: {text: string; font?: Partial<Font>} = {text: runText};
-            if (runFont !== null && Object.keys(runFont).length > 0) run.font = runFont;
-            runs.push(run);
-            inRun = false;
-          }
+          runs.endRun();
           break;
         case 'si':
-          strings.push(isRich ? {richText: runs} : plain);
+          strings.push(isRich ? {richText: runs.runs} : plain);
           break;
       }
     },
