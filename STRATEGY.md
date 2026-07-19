@@ -4,10 +4,10 @@
 > agents update it as phases complete, decisions are made, and reality diverges
 > from the plan. If you change course, change this file in the same breath.
 
-**Working name:** `ts-xlsx` (npm: `@shbernal/ts-xlsx`) — a **provisional** handle chosen
-2026-07-09 to make the JS/TS ecosystem and file format legible. It is not the final
-brand; the definitive rebrand remains a human decision (see Phase 4). Keep it a single,
-easily-changed field (`package.json#name`) — do not sprinkle it through the code.
+**Name:** `ts-xlsx` (npm: `@shbernal/ts-xlsx`) — chosen 2026-07-09 to make the JS/TS
+ecosystem and file format legible, and **confirmed as the definitive name (2026-07-19)**
+by the human, closing the Phase 4 rebrand decision. Kept as a single, easily-changed
+field (`package.json#name`) — do not sprinkle it through the code.
 
 ---
 
@@ -264,9 +264,9 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
 >    `docs/migrating-from-exceljs.md` frames the port as "a different, better library,"
 >    not a compatibility shim — every code block typechecked against the barrel. See
 >    ADR-0006.
-> 4. **Rebrand (human decision)** — the definitive package name replaces the provisional
->    `@shbernal/ts-xlsx`. Kept as a single `package.json#name` field so the swap is
->    trivial. This is escalated per `CLAUDE.md` §3.
+> 4. ✅ **Rebrand — decided (2026-07-19).** Escalated per `CLAUDE.md` §3; the human
+>    confirmed `@shbernal/ts-xlsx` as the definitive name. The name was already a single
+>    `package.json#name` field, so no swap was needed — the decision closes the slice.
 > - **Exit:** a `0.x` release of the independent library, published under its own name,
 >   with the corpus as its living correctness guarantee.
 >
@@ -280,11 +280,10 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
 > rebrand name* and all *code modernization*, which stay last so the legacy tree keeps
 > its shape as a mergeable base while we drain the backlog.
 
-- **Stop tracking upstream.** Remove the `upstream` remote from the workflow. *(Now: it is
-  already push-disabled and read-only; drop entirely at harvest end.)*
-- Rebrand: new package name, docs, and identity (**human decision** — this is one of
-  the few things escalated per `CLAUDE.md` §3). *(`ts-xlsx` is a provisional working
-  name only; the definitive brand is still open.)*
+- ✅ **Stopped tracking upstream.** The `upstream` remote has been removed; only `origin`
+  (the independent `shbernal/ts-xlsx` repo) remains.
+- Rebrand: package name, docs, and identity (**human decision** escalated per
+  `CLAUDE.md` §3). *(Decided 2026-07-19: `@shbernal/ts-xlsx` is the definitive name.)*
 - First-class docs generated from the types; migration notes framed as "this is a
   different, better library," not a compatibility shim.
 - **Exit:** a `0.x` release of the independent library, published under its own name,

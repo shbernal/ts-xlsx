@@ -1538,10 +1538,10 @@ record; durable artifacts never cite upstream numbers (they die with the fork).
 
 ### ⏳ Phase 4 — Independence & identity  *(only the remainder — hosting already done)*
 - ✅ Hosting/repo independence (done above).
-- ⏳ Drop the `upstream` remote once harvest is complete.
-- ❓ **Final rebrand name** (human decision). `ts-xlsx` / `@shbernal/ts-xlsx` is a
-  **provisional** working name only.
-- ⏳ First-class docs from types; publish a `0.x` release under the chosen name.
+- ✅ Dropped the `upstream` remote (harvest complete; only `origin` remains).
+- ✅ **Rebrand name decided (2026-07-19, human).** `@shbernal/ts-xlsx` confirmed as the
+  definitive name — no code change needed (already a single `package.json#name` field).
+- ✅ First-class docs from types (2026-07-19). ⏳ Publish a `0.x` release under the name.
 
 ---
 

@@ -7,7 +7,7 @@ A TypeScript-first library for reading and writing spreadsheet documents
 > `ts-xlsx` began as a hard fork of [ExcelJS](https://github.com/exceljs/exceljs)
 > and is being rebuilt from the ground up into a modern, strict-TypeScript library.
 > **It carries no backwards-compatibility guarantee with ExcelJS** — the API below is
-> its own, not a drop-in. The package name here (`@shbernal/ts-xlsx`) is provisional.
+> its own, not a drop-in.
 > See [`CLAUDE.md`](CLAUDE.md) and [`STRATEGY.md`](STRATEGY.md) for the goals and plan,
 > and [migrating from ExcelJS](docs/migrating-from-exceljs.md) if you are coming across.
 
