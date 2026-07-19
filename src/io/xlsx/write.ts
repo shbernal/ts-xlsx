@@ -48,7 +48,13 @@ import {
   workbookRelsXml,
   workbookXml,
 } from './workbook-xml.ts';
-import {type FlushedSheet, tableXml, worksheetRelsXml, worksheetXml} from './worksheet-xml.ts';
+import {
+  type FlushedSheet,
+  type SheetReferences,
+  tableXml,
+  worksheetRelsXml,
+  worksheetXml,
+} from './worksheet-xml.ts';
 
 export {
   buildColumnDefaults,
@@ -263,16 +269,19 @@ export function buildPackageParts(
     const slicerRelIds = refs
       .filter((ref) => ref.relType.endsWith('/slicer'))
       .map((ref) => ref.relId);
+    const references: SheetReferences = {
+      drawingRelId: sheetDrawings[i]?.relId ?? preservedDrawingRelId,
+      legacyDrawingRelId: sheetComments[i]?.vmlRelId ?? null,
+      printerSettingsRelId: sheetPrinterSettings[i]?.relId ?? null,
+      backgroundRelId: sheetBackgrounds[i]?.relId ?? null,
+      legacyDrawingHFRelId,
+      slicerRelIds,
+    };
     return worksheetXml(
       sheet,
       sheetTables[i] ?? [],
       styles,
-      sheetDrawings[i]?.relId ?? preservedDrawingRelId,
-      sheetComments[i]?.vmlRelId ?? null,
-      sheetPrinterSettings[i]?.relId ?? null,
-      sheetBackgrounds[i]?.relId ?? null,
-      legacyDrawingHFRelId,
-      slicerRelIds,
+      references,
       sheetHyperlinks[i] ?? [],
       sharedStrings,
       options.flushed?.get(sheet),

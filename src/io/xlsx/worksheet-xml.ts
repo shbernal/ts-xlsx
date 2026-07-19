@@ -69,16 +69,24 @@ export interface FlushedSheet {
   readonly right: number;
 }
 
+// The sheet-local relationship ids that wire a worksheet's tail elements to their parts, gathered into
+// one struct so the caller hands them over as a named unit rather than a run of positional `string |
+// null` arguments a mis-ordered call could silently transpose. Each id is `null` when the sheet carries
+// no part of that kind. `slicerRelIds` is plural because a sheet may carry several preserved slicers.
+export interface SheetReferences {
+  readonly drawingRelId: string | null;
+  readonly legacyDrawingRelId: string | null;
+  readonly printerSettingsRelId: string | null;
+  readonly backgroundRelId: string | null;
+  readonly legacyDrawingHFRelId: string | null;
+  readonly slicerRelIds: readonly string[];
+}
+
 export function worksheetXml(
   sheet: Worksheet,
   tables: readonly PlannedTable[],
   styles: StyleRegistry,
-  drawingRelId: string | null,
-  legacyDrawingRelId: string | null,
-  printerSettingsRelId: string | null,
-  backgroundRelId: string | null,
-  legacyDrawingHFRelId: string | null,
-  preservedSlicerRelIds: readonly string[],
+  references: SheetReferences,
   hyperlinks: readonly PlannedHyperlink[],
   sharedStrings: SharedStringTable | null,
   flushed?: FlushedSheet,
@@ -162,7 +170,7 @@ export function worksheetXml(
     // CT_Worksheet order: <printOptions> precedes <pageMargins>, which precedes <pageSetup>.
     printOptionsXml(sheet.printOptions) +
     pageMarginsXml(sheet.pageMargins) +
-    pageSetupXml(sheet.pageSetup, printerSettingsRelId) +
+    pageSetupXml(sheet.pageSetup, references.printerSettingsRelId) +
     headerFooterXml(sheet.headerFooter) +
     // CT_Worksheet order: <rowBreaks> follows <headerFooter>, <colBreaks> follows <rowBreaks>, and
     // both precede the drawing block.
@@ -171,16 +179,20 @@ export function worksheetXml(
     // Schema order near the tail: <drawing> (the images), then <legacyDrawing> (the VML holding the
     // note boxes), then <legacyDrawingHF> (a preserved header/footer image's VML), then <picture>
     // (the sheet background), then <tableParts>.
-    (drawingRelId !== null ? `<drawing r:id="${drawingRelId}"/>` : '') +
-    (legacyDrawingRelId !== null ? `<legacyDrawing r:id="${legacyDrawingRelId}"/>` : '') +
-    (legacyDrawingHFRelId !== null ? `<legacyDrawingHF r:id="${legacyDrawingHFRelId}"/>` : '') +
-    (backgroundRelId !== null ? `<picture r:id="${backgroundRelId}"/>` : '') +
+    (references.drawingRelId !== null ? `<drawing r:id="${references.drawingRelId}"/>` : '') +
+    (references.legacyDrawingRelId !== null
+      ? `<legacyDrawing r:id="${references.legacyDrawingRelId}"/>`
+      : '') +
+    (references.legacyDrawingHFRelId !== null
+      ? `<legacyDrawingHF r:id="${references.legacyDrawingHFRelId}"/>`
+      : '') +
+    (references.backgroundRelId !== null ? `<picture r:id="${references.backgroundRelId}"/>` : '') +
     tablePartsXml(tables) +
     // `<extLst>` is the final child of CT_Worksheet and a worksheet may carry at most one. Both the
     // x14 conditional-formatting extensions (data-bar gradient/negative-fill/axis) and the extended
     // (x14) data validations ride inside it as sibling `<ext>` blocks — so they are gathered here into
     // a single `<extLst>` rather than each emitting its own.
-    worksheetExtLstXml(sheet, preservedSlicerRelIds) +
+    worksheetExtLstXml(sheet, references.slicerRelIds) +
     '</worksheet>'
   );
 }
