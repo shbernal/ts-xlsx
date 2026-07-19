@@ -13,6 +13,7 @@
 import {decodeRange, type RangeAddress} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import type {SheetRelIds} from './package-plan.ts';
 import {escapeAttr} from './xml.ts';
 import {localName, parseXml} from './xml-read.ts';
 
@@ -56,14 +57,13 @@ export function collectHyperlinks(sheet: Worksheet): CollectedHyperlink[] {
   return links;
 }
 
-/** Split collected links into internal (location, no rel) and external (relationship) forms,
- * numbering external relationship ids from `relIdBase + 1` so they follow every other sheet-local
- * relationship and adding one never renumbers an id already threaded into the sheet XML. */
+/** Split collected links into internal (location, no rel) and external (relationship) forms, drawing
+ * each external link's relationship id from the sheet's allocator so external ids follow every other
+ * sheet-local relationship in canonical order. An internal ('#'-prefixed) link consumes no id. */
 export function planHyperlinks(
   links: readonly CollectedHyperlink[],
-  relIdBase: number,
+  rels: SheetRelIds,
 ): PlannedHyperlink[] {
-  let external = 0;
   return links.map((link) => {
     const tooltip = link.tooltip !== undefined ? {tooltip: link.tooltip} : {};
     // A '#'-prefixed target is an internal document location: held verbatim in `location`, with no
@@ -71,8 +71,7 @@ export function planHyperlinks(
     if (link.target.startsWith('#')) {
       return {ref: link.ref, location: link.target.slice(1), ...tooltip};
     }
-    external += 1;
-    return {ref: link.ref, relId: `rId${relIdBase + external}`, target: link.target, ...tooltip};
+    return {ref: link.ref, relId: rels.next(), target: link.target, ...tooltip};
   });
 }
 

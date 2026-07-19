@@ -20,7 +20,7 @@ import type {WorkbookImage} from '../../core/image.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {collectNotes, commentsXml, vmlDrawingXml} from './comments.ts';
-import {collectHyperlinks, type PlannedHyperlink, planHyperlinks} from './hyperlinks.ts';
+import {collectHyperlinks, planHyperlinks} from './hyperlinks.ts';
 import {drawingRelsXml, drawingXml} from './images.ts';
 import {
   type BackgroundPlan,
@@ -29,9 +29,11 @@ import {
   type PivotPlan,
   type PlannedImage,
   type PlannedTable,
+  type PreservedReferencePlan,
   type PrinterSettingsPlan,
   planMedia,
   planPreservedParts,
+  SheetRelIds,
 } from './package-plan.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {REL, relsPartXml} from './relationships.ts';
@@ -136,139 +138,111 @@ export function buildPackageParts(
   // during the sheet pass (like the style registry); a null table keeps every string inline.
   const sharedStrings = options.useSharedStrings ? new SharedStringTable() : null;
 
-  // Tables are numbered globally across the workbook (their part names and ids must be
-  // unique), but relationship ids are local to each sheet's rels part.
-  let tableNumber = 0;
-  const sheetTables: PlannedTable[][] = sheets.map((sheet) =>
-    sheet.tables.map((table, i) => ({table, number: ++tableNumber, relId: `rId${i + 1}`})),
-  );
-  const allTables = sheetTables.flat();
-
-  // Anchored images share workbook-wide media: every image a sheet references becomes one media
-  // part, addressed by a global number. A sheet's images then ride in a drawing part whose
-  // sheet-local relationship id follows its table ids.
+  // Anchored images share workbook-wide media: every image a sheet references becomes one media part,
+  // addressed by a global number. Resolved before the sheet loop so a drawing's embeds can target it.
   const media = planMedia(workbook, sheets);
-  let drawingNumber = 0;
-  const sheetDrawings: (DrawingPlan | null)[] = sheets.map((sheet, i) => {
-    if (sheet.images.length === 0) return null;
-    const tableCount = (sheetTables[i] ?? []).length;
-    const images: PlannedImage[] = sheet.images.map((image, j) => {
-      const registered = workbook.getImage(image.imageId) as WorkbookImage;
-      return {
-        anchor: image.anchor,
-        embedId: `rId${j + 1}`,
-        mediaNumber: media.numberById.get(image.imageId) as number,
-        extension: registered.extension,
-      };
-    });
-    return {number: ++drawingNumber, relId: `rId${tableCount + 1}`, images};
-  });
-
-  // A sheet's notes ride in a comments part plus a legacy VML drawing. Their sheet-local
-  // relationship ids follow the table and drawing ids, so a sheet with one table and a drawing
-  // anchors its VML at rId3.
-  const sheetComments: (CommentPlan | null)[] = sheets.map((sheet, i) => {
-    const notes = collectNotes(sheet);
-    if (notes.length === 0) return null;
-    const base = (sheetTables[i] ?? []).length + (sheetDrawings[i] !== null ? 1 : 0);
-    return {
-      number: i + 1,
-      notes,
-      vmlRelId: `rId${base + 1}`,
-      commentsRelId: `rId${base + 2}`,
-    };
-  });
-
-  // A sheet's opaque printer-settings blob rides in its own binary part, linked from `<pageSetup>`
-  // by a sheet-local relationship id that follows every other sheet-local id (tables, drawing,
-  // comments) so adding one never renumbers the ids already threaded into the sheet XML.
-  const sheetPrinterSettings: (PrinterSettingsPlan | null)[] = sheets.map((sheet, i) => {
-    const data = sheet.pageSetup.printerSettings;
-    if (data === undefined) return null;
-    const base =
-      (sheetTables[i] ?? []).length +
-      (sheetDrawings[i] !== null ? 1 : 0) +
-      (sheetComments[i] !== null ? 2 : 0);
-    return {number: i + 1, data, relId: `rId${base + 1}`};
-  });
-
-  // A sheet's hyperlinks add external relationships whose ids follow every other sheet-local id
-  // (tables, drawing, comments, printer-settings), so introducing a link never renumbers an id
-  // already threaded into the sheet XML. Internal ('#'-prefixed) links need no relationship at all.
-  const sheetHyperlinks: PlannedHyperlink[][] = sheets.map((sheet, i) => {
-    const base =
-      (sheetTables[i] ?? []).length +
-      (sheetDrawings[i] !== null ? 1 : 0) +
-      (sheetComments[i] !== null ? 2 : 0) +
-      (sheetPrinterSettings[i] !== null ? 1 : 0);
-    return planHyperlinks(collectHyperlinks(sheet), base);
-  });
-
-  // A sheet background is a workbook image referenced by a `<picture>` element through a sheet-local
-  // image relationship. Its id follows every other sheet-local id (tables, drawing, comments,
-  // printer-settings, external hyperlinks) so adding a background never renumbers an existing id.
-  const sheetBackgrounds: (BackgroundPlan | null)[] = sheets.map((sheet, i) => {
-    if (sheet.backgroundImageId === undefined) return null;
-    const registered = workbook.getImage(sheet.backgroundImageId);
-    if (registered === undefined) {
-      throw new Error(
-        `sheet "${sheet.name}" sets background image id ${sheet.backgroundImageId}, which is not registered on the workbook`,
-      );
-    }
-    const base =
-      (sheetTables[i] ?? []).length +
-      (sheetDrawings[i] !== null ? 1 : 0) +
-      (sheetComments[i] !== null ? 2 : 0) +
-      (sheetPrinterSettings[i] !== null ? 1 : 0) +
-      (sheetHyperlinks[i] ?? []).filter((link) => link.relId !== undefined).length;
-    return {
-      relId: `rId${base + 1}`,
-      mediaNumber: media.numberById.get(sheet.backgroundImageId) as number,
-      extension: registered.extension,
-    };
-  });
 
   // Content the model does not interpret — a vector-shape drawing, a header/footer image, a pivot
-  // table and its caches, a slicer — captured on read and re-emitted verbatim. Sheet references are
-  // numbered after the backgrounds so their sheet-local rel ids sit at the tail of the sequence.
-  const preserved = planPreservedParts(
-    workbook,
-    sheetTables,
-    sheetDrawings,
-    sheetComments,
-    sheetPrinterSettings,
-    sheetHyperlinks,
-    sheetBackgrounds,
-    media.parts.length,
-  );
+  // table and its caches, a slicer — captured on read and re-emitted verbatim onto collision-proof
+  // paths. Preserved parts are renumbered past the parts the writer generates of the same kind
+  // (drawings, VML, media), so resolving them needs only those generated counts; each sheet's
+  // preserved references take their sheet-local rel ids in canonical position in the loop below.
+  const generatedDrawingCount = sheets.filter((sheet) => sheet.images.length > 0).length;
+  const preserved = planPreservedParts(workbook, generatedDrawingCount, media.parts.length);
 
-  // A pivot table hosted on a sheet adds one sheet-local relationship (to its pivot-table part),
-  // numbered after every other sheet-local id — including the preserved refs at the tail — so
-  // introducing a pivot never renumbers an id already threaded into the sheet or its rels. Each
-  // pivot is numbered globally (its parts and its `cacheId` must be workbook-unique); the workbook
-  // relationship reaching its cache is assigned once the modeled workbook rels are known (below).
+  // Plan every sheet's parts in a single pass, drawing each sheet-local relationship id from that
+  // sheet's allocator in canonical order: tables, drawing, comments (VML + comments part), printer
+  // settings, external hyperlinks, background, preserved references, pivot tables. One running
+  // allocator per sheet is what keeps the ids gapless and collision-free — no step re-derives its
+  // offset by summing the ones before it, so none can drift into another's id. Part numbers (tables,
+  // drawings, pivots) are global across the workbook and counted here in the same pass.
+  let tableNumber = 0;
+  let drawingNumber = 0;
   let pivotNumber = 0;
-  const sheetPivots: PivotPlan[][] = sheets.map((sheet, i) => {
-    if (sheet.pivotTables.length === 0) return [];
-    const base =
-      (sheetTables[i] ?? []).length +
-      (sheetDrawings[i] !== null ? 1 : 0) +
-      (sheetComments[i] !== null ? 2 : 0) +
-      (sheetPrinterSettings[i] !== null ? 1 : 0) +
-      (sheetHyperlinks[i] ?? []).filter((link) => link.relId !== undefined).length +
-      (sheetBackgrounds[i] !== null ? 1 : 0) +
-      (preserved.perSheet[i]?.length ?? 0);
-    return sheet.pivotTables.map((table, j) => {
-      const number = ++pivotNumber;
-      return {
-        number,
-        cacheId: String(number),
-        table,
-        sheetRelId: `rId${base + j + 1}`,
-        workbookRelId: '',
+  const perSheet = sheets.map((sheet, i) => {
+    const rels = new SheetRelIds();
+
+    const tables: PlannedTable[] = sheet.tables.map((table) => ({
+      table,
+      number: ++tableNumber,
+      relId: rels.next(),
+    }));
+
+    let drawing: DrawingPlan | null = null;
+    if (sheet.images.length > 0) {
+      const images: PlannedImage[] = sheet.images.map((image, j) => {
+        const registered = workbook.getImage(image.imageId) as WorkbookImage;
+        return {
+          anchor: image.anchor,
+          // The embed id is local to the drawing part's own rels, not the sheet's, so it is numbered
+          // per image from rId1 rather than drawn from the sheet allocator.
+          embedId: `rId${j + 1}`,
+          mediaNumber: media.numberById.get(image.imageId) as number,
+          extension: registered.extension,
+        };
+      });
+      drawing = {number: ++drawingNumber, relId: rels.next(), images};
+    }
+
+    const notes = collectNotes(sheet);
+    const comments: CommentPlan | null =
+      notes.length === 0
+        ? null
+        : {number: i + 1, notes, vmlRelId: rels.next(), commentsRelId: rels.next()};
+
+    const printerData = sheet.pageSetup.printerSettings;
+    const printerSettings: PrinterSettingsPlan | null =
+      printerData === undefined ? null : {number: i + 1, data: printerData, relId: rels.next()};
+
+    const hyperlinks = planHyperlinks(collectHyperlinks(sheet), rels);
+
+    let background: BackgroundPlan | null = null;
+    if (sheet.backgroundImageId !== undefined) {
+      const registered = workbook.getImage(sheet.backgroundImageId);
+      if (registered === undefined) {
+        throw new Error(
+          `sheet "${sheet.name}" sets background image id ${sheet.backgroundImageId}, which is not registered on the workbook`,
+        );
+      }
+      background = {
+        relId: rels.next(),
+        mediaNumber: media.numberById.get(sheet.backgroundImageId) as number,
+        extension: registered.extension,
       };
+    }
+
+    const preservedRefs: PreservedReferencePlan[] = (preserved.perSheet[i] ?? []).map(
+      (reference) => ({...reference, relId: rels.next()}),
+    );
+
+    const pivots: PivotPlan[] = sheet.pivotTables.map((table) => {
+      const number = ++pivotNumber;
+      // Each pivot is numbered globally (its parts and its `cacheId` must be workbook-unique); the
+      // workbook relationship reaching its cache is assigned once the modeled workbook rels are known.
+      return {number, cacheId: String(number), table, sheetRelId: rels.next(), workbookRelId: ''};
     });
+
+    return {
+      tables,
+      drawing,
+      comments,
+      printerSettings,
+      hyperlinks,
+      background,
+      preservedRefs,
+      pivots,
+    };
   });
+
+  const sheetTables = perSheet.map((plan) => plan.tables);
+  const sheetDrawings = perSheet.map((plan) => plan.drawing);
+  const sheetComments = perSheet.map((plan) => plan.comments);
+  const sheetPrinterSettings = perSheet.map((plan) => plan.printerSettings);
+  const sheetHyperlinks = perSheet.map((plan) => plan.hyperlinks);
+  const sheetBackgrounds = perSheet.map((plan) => plan.background);
+  const sheetPreservedRefs = perSheet.map((plan) => plan.preservedRefs);
+  const sheetPivots = perSheet.map((plan) => plan.pivots);
+  const allTables = sheetTables.flat();
   const allPivots = sheetPivots.flat();
 
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
@@ -277,7 +251,7 @@ export function buildPackageParts(
   // flushed rows' styles); the buffered path seeds a fresh one here.
   const styles = options.styles ?? createStyleRegistry(workbook);
   const sheetXml = sheets.map((sheet, i) => {
-    const refs = preserved.perSheet[i] ?? [];
+    const refs = sheetPreservedRefs[i] ?? [];
     // A preserved `<drawing>` and a modeled one are mutually exclusive (a drawing is only preserved
     // when the sheet modeled no image from it), so the `<drawing>` slot takes whichever exists.
     const preservedDrawingRelId = refs.find((ref) => ref.element === 'drawing')?.relId ?? null;
@@ -372,7 +346,7 @@ export function buildPackageParts(
     const printerSettings = sheetPrinterSettings[i] ?? null;
     const background = sheetBackgrounds[i] ?? null;
     const hyperlinks = sheetHyperlinks[i] ?? [];
-    const preservedRefs = preserved.perSheet[i] ?? [];
+    const preservedRefs = sheetPreservedRefs[i] ?? [];
     const pivots = sheetPivots[i] ?? [];
     const hasExternalHyperlink = hyperlinks.some((link) => link.relId !== undefined);
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);

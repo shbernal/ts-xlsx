@@ -7,10 +7,24 @@ import type {Table} from '../../core/table.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import type {NoteCell} from './comments.ts';
-import type {PlannedHyperlink} from './hyperlinks.ts';
 import type {DrawingImage} from './images.ts';
 import {extensionOf, relativePartPath, relsPathForPart} from './part-paths.ts';
 import {preservedRelsXml} from './relationships.ts';
+
+// A sheet's relationship-id allocator: hands out `rId1`, `rId2`, … in the one canonical order the
+// package wires a sheet's parts (tables, drawing, comments, printer settings, external hyperlinks,
+// background, preserved references, pivot tables). Every sheet-local id is drawn from here in
+// sequence, so no plan step re-derives its starting offset by summing the counts of the steps before
+// it — the arithmetic that, open-coded once per step with subtly different prefixes, could silently
+// hand two parts the same id and corrupt the package. Monotonic by construction, so collisions cannot
+// arise however the steps grow. One fresh allocator per sheet; the ids it yields are sheet-local.
+export class SheetRelIds {
+  #next = 1;
+  /** The next relationship id (`rId1`, `rId2`, …), advancing the counter. */
+  next(): string {
+    return `rId${this.#next++}`;
+  }
+}
 
 // A pivot table planned for emission: its global part number, the workbook-unique `cacheId` its
 // `<pivotCaches>` registration and `pivotTableDefinition` agree on, the sheet-local relationship
@@ -68,14 +82,22 @@ export interface PreservedPartPlan {
   readonly relsXml: string | null;
 }
 
-// A preserved worksheet reference resolved for serialisation: the worksheet element that wires it
-// (`null` for a pivot-table/slicer reference the sheet carries by relationship alone), the sheet-local
-// relationship id, the relationship Type, and the new path of the entry part it targets.
-export interface PreservedReferencePlan {
+// A preserved worksheet reference resolved for serialisation, short of its sheet-local relationship
+// id: the worksheet element that wires it (`null` for a pivot-table/slicer reference the sheet carries
+// by relationship alone), the relationship Type, and the new path of the entry part it targets. The id
+// is assigned by the caller from the sheet's {@link SheetRelIds} allocator, at the reference's
+// canonical position in the sheet-local id sequence (after tables/drawing/comments/printer-settings/
+// external-hyperlinks/background) — so a preserved reference never renumbers an id already threaded
+// into the sheet XML.
+export interface ResolvedPreservedReference {
   readonly element: 'drawing' | 'legacyDrawingHF' | null;
-  readonly relId: string;
   readonly relType: string;
   readonly entryPath: string;
+}
+
+// A resolved preserved reference with its sheet-local relationship id assigned.
+export interface PreservedReferencePlan extends ResolvedPreservedReference {
+  readonly relId: string;
 }
 
 // A preserved workbook reference resolved for serialisation: its relationship Type, the new path of
@@ -88,12 +110,12 @@ export interface PreservedWorkbookReferencePlan {
   readonly pivotCacheId: string | undefined;
 }
 
-// The whole workbook's preserved content resolved for serialisation: per-sheet reference plans
-// (parallel to the sheets) that wire the worksheet elements and rels, the workbook-level reference
-// plans, and the flat, de-duplicated list of parts to emit. Kept together because the parts are
-// numbered globally while the references are sheet- or workbook-local.
+// The whole workbook's preserved content resolved for serialisation: per-sheet references (parallel to
+// the sheets) still awaiting their sheet-local relationship ids, the workbook-level reference plans,
+// and the flat, de-duplicated list of parts to emit. Kept together because the parts are numbered
+// globally while the references are sheet- or workbook-local.
 export interface PreservedPlan {
-  readonly perSheet: readonly (readonly PreservedReferencePlan[])[];
+  readonly perSheet: readonly (readonly ResolvedPreservedReference[])[];
   readonly workbook: readonly PreservedWorkbookReferencePlan[];
   readonly parts: readonly PreservedPartPlan[];
 }
@@ -172,20 +194,15 @@ export function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): Med
 }
 
 // Resolve every sheet's verbatim-preserved worksheet references (a vector-shape drawing, a
-// header/footer image) into the parts to emit and the sheet-local wiring to inject. Each reference's
-// captured part closure is re-numbered onto collision-proof `preservedP{n}` paths — so preserved
-// content never clobbers a generated drawing/VML/media part — with the closure's internal
-// relationships rewritten to the new sibling paths. The worksheet element's relationship id follows
-// every other sheet-local id (tables, drawing, comments, printer-settings, hyperlinks, background) so
-// adding it never renumbers an id already threaded into the sheet XML.
+// header/footer image) into the parts to emit and the per-sheet reference data that wires them. Each
+// reference's captured part closure is re-numbered onto collision-proof `preservedP{n}` paths — so
+// preserved content never clobbers a generated drawing/VML/media part — with the closure's internal
+// relationships rewritten to the new sibling paths. Part numbering is the only cross-sheet concern
+// here; each reference's sheet-local relationship id is assigned by the caller from the sheet's
+// {@link SheetRelIds} allocator, so this function stays free of the sheet-local id arithmetic.
 export function planPreservedParts(
   workbook: Workbook,
-  sheetTables: readonly (readonly PlannedTable[])[],
-  sheetDrawings: readonly (DrawingPlan | null)[],
-  sheetComments: readonly (CommentPlan | null)[],
-  sheetPrinterSettings: readonly (PrinterSettingsPlan | null)[],
-  sheetHyperlinks: readonly (readonly PlannedHyperlink[])[],
-  sheetBackgrounds: readonly (BackgroundPlan | null)[],
+  generatedDrawingCount: number,
   generatedMediaCount: number,
 ): PreservedPlan {
   const sheets = workbook.worksheets;
@@ -195,7 +212,7 @@ export function planPreservedParts(
   // so `sheets.length` bounds it. Every other kind (pivot tables, caches, slicers, charts) the writer
   // never generates, so those keep their original path — see {@link preservedPartPath}.
   const numbering: PreservedNumbering = {
-    drawing: sheetDrawings.filter((d): d is DrawingPlan => d !== null).length,
+    drawing: generatedDrawingCount,
     vml: sheets.length,
     media: generatedMediaCount,
   };
@@ -234,32 +251,13 @@ export function planPreservedParts(
     }
   }
 
-  const perSheet = sheets.map((sheet, i): PreservedReferencePlan[] => {
-    const references = sheet.preservedReferences;
-    if (references.length === 0) return [];
-    // A preserved reference's sheet-local relationship id follows every modeled sheet-local id
-    // (tables, drawing, comments, printer-settings, external hyperlinks, background) so adding it never
-    // renumbers an id already threaded into the sheet XML.
-    const externalHyperlinks = (sheetHyperlinks[i] ?? []).filter(
-      (link) => link.relId !== undefined,
-    ).length;
-    const base =
-      (sheetTables[i] ?? []).length +
-      (sheetDrawings[i] ? 1 : 0) +
-      (sheetComments[i] ? 2 : 0) +
-      (sheetPrinterSettings[i] ? 1 : 0) +
-      externalHyperlinks +
-      (sheetBackgrounds[i] ? 1 : 0);
-    let next = base + 1;
-    return references.map(
-      (reference): PreservedReferencePlan => ({
-        element: reference.element,
-        relId: `rId${next++}`,
-        relType: reference.relType,
-        entryPath: remap.get(reference.entryPath) as string,
-      }),
-    );
-  });
+  const perSheet = sheets.map((sheet): ResolvedPreservedReference[] =>
+    sheet.preservedReferences.map((reference) => ({
+      element: reference.element,
+      relType: reference.relType,
+      entryPath: remap.get(reference.entryPath) as string,
+    })),
+  );
 
   const workbookRefs = workbook.preservedReferences.map(
     (reference): PreservedWorkbookReferencePlan => ({
