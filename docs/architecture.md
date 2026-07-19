@@ -34,6 +34,22 @@ The rule that follows: **when in doubt, add a case.** A bug without a corpus cas
 bug that will return. A missing feature is best reported as a corpus case so it is fixed
 once and never regresses.
 
+## Spec & schema reference
+
+Correctness is defined by an external standard, so the ground truth lives in the repo
+next to the code that answers to it:
+
+- [`schemas/ooxml-transitional/`](../schemas/) — the complete ECMA-376 **Transitional**
+  XSD set (what Excel actually emits), vendored verbatim for offline, greppable reference
+  while implementing. It is *reference*, not a validator — conformance validation stays
+  with the independent `OpenXmlValidator` oracle (ADR-0002). Repo-only; never published.
+- [`docs/knowledge/specs/`](knowledge/specs/) — hand-authored, implementation-blind
+  behavior notes from the harvest.
+- **Microsoft Learn MCP** (`.mcp.json`) — grounded search over Microsoft's Open
+  Specifications ([MS-XLSX] et al.) for the Excel-specific deltas the standard omits.
+
+See ADR-0007 for why the static standard is vendored while the evolving prose is an MCP.
+
 ## Module layout
 
 The source tree under [`src/`](../src/) is strict-TypeScript, ESM-only, and build-free on
@@ -63,6 +79,7 @@ The stack is deliberately small and each choice is recorded as an ADR under
 - **Zip & XML write path** (`fflate`; a hand-written SAX reader with bounded allocation
   on every parser path) — ADR-0003.
 - **Docs generated from the types** — ADR-0006.
+- **Spec reference** (vendored OOXML schemas + Microsoft Learn MCP) — ADR-0007.
 
 ## Working agreements
 
