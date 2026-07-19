@@ -28,7 +28,10 @@ function events(source: string): Event[] {
 }
 
 test('decodeEntities resolves the five predefined entities', () => {
-  assert.equal(decodeEntities('a &amp; b &lt; c &gt; d &quot; e &apos; f'), 'a & b < c > d " e \' f');
+  assert.equal(
+    decodeEntities('a &amp; b &lt; c &gt; d &quot; e &apos; f'),
+    'a & b < c > d " e \' f',
+  );
 });
 
 test('decodeEntities resolves decimal and hex character references', () => {
@@ -66,8 +69,8 @@ test('parseXml tolerates a literal ">" inside a quoted attribute value', () => {
 test('parseXml normalizes CRLF and lone CR line endings in text to LF (XML §2.11)', () => {
   const evs = events('<t>a\r\nb\rc\nd</t>');
   assert.deepEqual(
-    evs.filter(e => e.kind === 'text').map(e => e.text),
-    ['a\nb\nc\nd']
+    evs.filter((e) => e.kind === 'text').map((e) => e.text),
+    ['a\nb\nc\nd'],
   );
 });
 
@@ -76,16 +79,16 @@ test('parseXml preserves a carriage return supplied as a character reference', (
   // hatch distinguishing an intended carriage return from a producer's newline convention.
   const evs = events('<t>a&#13;b</t>');
   assert.deepEqual(
-    evs.filter(e => e.kind === 'text').map(e => e.text),
-    ['a\rb']
+    evs.filter((e) => e.kind === 'text').map((e) => e.text),
+    ['a\rb'],
   );
 });
 
 test('parseXml delivers CDATA verbatim, without entity decoding', () => {
   const evs = events('<t><![CDATA[a & b < c]]></t>');
   assert.deepEqual(
-    evs.filter(e => e.kind === 'text').map(e => e.text),
-    ['a & b < c']
+    evs.filter((e) => e.kind === 'text').map((e) => e.text),
+    ['a & b < c'],
   );
 });
 

@@ -33,10 +33,13 @@ export default {
           {ref: 'A1', value: 'default'},
           {ref: 'A2', value: 'editable', protection: {locked: false}},
         ]);
-        assert.ok(readBack.A2 && readBack.A2.locked === false, `the unlocked cell must round-trip as locked=false; got ${JSON.stringify(readBack.A2)}`);
         assert.ok(
-          !readBack.A1 || readBack.A1.locked !== false,
-          `a default cell must not come back as explicitly unlocked; got ${JSON.stringify(readBack.A1)}`
+          readBack.A2 && readBack.A2.locked === false,
+          `the unlocked cell must round-trip as locked=false; got ${JSON.stringify(readBack.A2)}`,
+        );
+        assert.ok(
+          readBack.A1?.locked !== false,
+          `a default cell must not come back as explicitly unlocked; got ${JSON.stringify(readBack.A1)}`,
         );
       },
     },
@@ -47,19 +50,25 @@ export default {
         const {hasApplyProtection} = await api.authorCellProtection([
           {ref: 'A2', value: 'editable', protection: {locked: false}},
         ]);
-        assert.ok(hasApplyProtection, 'the written style record must mark applyProtection with a <protection> child, not drop the flag');
+        assert.ok(
+          hasApplyProtection,
+          'the written style record must mark applyProtection with a <protection> child, not drop the flag',
+        );
       },
     },
     {
       name: 'protecting the worksheet emits a <sheetProtection> element — the thing that makes locked flags enforceable',
       baseline: 'pass',
       async expect(api, assert) {
-        const {sheetProtection} = await api.authorCellProtection(
-          [{ref: 'A1', value: 'x'}],
-          {password: 'secret', options: {selectLockedCells: true}}
-        );
+        const {sheetProtection} = await api.authorCellProtection([{ref: 'A1', value: 'x'}], {
+          password: 'secret',
+          options: {selectLockedCells: true},
+        });
         assert.ok(sheetProtection, 'protecting the sheet must emit a <sheetProtection> element');
-        assert.ok(/sheet="1"/.test(sheetProtection), `sheetProtection must enable sheet-level locking; got ${sheetProtection}`);
+        assert.ok(
+          /sheet="1"/.test(sheetProtection),
+          `sheetProtection must enable sheet-level locking; got ${sheetProtection}`,
+        );
       },
     },
     {
@@ -70,12 +79,21 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {readBack} = await api.authorCellProtection(
-          [{ref: 'A1', value: 'a'}, {ref: 'B1', value: 'b'}],
+          [
+            {ref: 'A1', value: 'a'},
+            {ref: 'B1', value: 'b'},
+          ],
           {password: 'pw'},
-          {columns: [{index: 1, protection: {locked: false}}]}
+          {columns: [{index: 1, protection: {locked: false}}]},
         );
-        assert.ok(readBack.A1 && readBack.A1.locked === false, `a cell in the unlocked column must round-trip locked=false; got ${JSON.stringify(readBack.A1)}`);
-        assert.ok(!readBack.B1 || readBack.B1.locked !== false, `a cell outside the unlocked column must not be explicitly unlocked; got ${JSON.stringify(readBack.B1)}`);
+        assert.ok(
+          readBack.A1 && readBack.A1.locked === false,
+          `a cell in the unlocked column must round-trip locked=false; got ${JSON.stringify(readBack.A1)}`,
+        );
+        assert.ok(
+          readBack.B1?.locked !== false,
+          `a cell outside the unlocked column must not be explicitly unlocked; got ${JSON.stringify(readBack.B1)}`,
+        );
       },
     },
     {
@@ -85,9 +103,12 @@ export default {
         const {readBack} = await api.authorCellProtection(
           [{ref: 'A3', value: 'c'}],
           {password: 'pw'},
-          {rows: [{index: 3, protection: {locked: false}}]}
+          {rows: [{index: 3, protection: {locked: false}}]},
         );
-        assert.ok(readBack.A3 && readBack.A3.locked === false, `a cell in the unlocked row must round-trip locked=false; got ${JSON.stringify(readBack.A3)}`);
+        assert.ok(
+          readBack.A3 && readBack.A3.locked === false,
+          `a cell in the unlocked row must round-trip locked=false; got ${JSON.stringify(readBack.A3)}`,
+        );
       },
     },
   ],

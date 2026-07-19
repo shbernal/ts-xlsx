@@ -169,18 +169,24 @@ test('a sheet mixing a standard and an extended validation round-trips both to t
     '</worksheet>';
   const xml = sheetXml(writeXlsx(readSheetPart(part)));
 
-  assert.match(xml, /<dataValidation type="list" allowBlank="1" sqref="A2">/, 'standard rule stays standard');
+  assert.match(
+    xml,
+    /<dataValidation type="list" allowBlank="1" sqref="A2">/,
+    'standard rule stays standard',
+  );
   assert.match(xml, /<x14:dataValidation type="list"/, 'extended rule stays extended');
   assert.match(xml, /<xm:f>Sheet2!\$D\$3:\$D\$5<\/xm:f>/);
 });
 
 test('an extended typed validation round-trips both operands through <xm:f> wrappers', () => {
   const workbook = new Workbook();
-  workbook.addWorksheet('S').addDataValidation(
-    'A1:A9',
-    {type: 'whole', operator: 'between', formulae: [1, 9]},
-    {extended: true}
-  );
+  workbook
+    .addWorksheet('S')
+    .addDataValidation(
+      'A1:A9',
+      {type: 'whole', operator: 'between', formulae: [1, 9]},
+      {extended: true},
+    );
   const pkg = writeXlsx(workbook);
   const xml = sheetXml(pkg);
   assert.match(xml, /<x14:formula1><xm:f>1<\/xm:f><\/x14:formula1>/);

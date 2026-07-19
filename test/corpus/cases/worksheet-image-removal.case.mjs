@@ -24,14 +24,19 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {supported} = await api.removeImageReport();
-        assert.strictEqual(supported, true, 'the worksheet must expose a way to remove an added image');
+        assert.strictEqual(
+          supported,
+          true,
+          'the worksheet must expose a way to remove an added image',
+        );
       },
     },
     {
       name: 'removing one image drops it and leaves the others',
       baseline: 'pass',
       async expect(api, assert) {
-        const {supported, before, after, removedGone, othersSurvive} = await api.removeImageReport();
+        const {supported, before, after, removedGone, othersSurvive} =
+          await api.removeImageReport();
         assert.ok(supported, 'removal must be supported for this behavior to hold');
         assert.strictEqual(after, before - 1, 'exactly one image is removed');
         assert.ok(removedGone, 'the targeted image is gone');

@@ -101,11 +101,13 @@ function cloneRule(rule: ConditionalFormattingRule): ConditionalFormattingRule {
   return {
     ...rule,
     ...(rule.formulae !== undefined ? {formulae: [...rule.formulae]} : {}),
-    ...(rule.cfvo !== undefined ? {cfvo: rule.cfvo.map(v => ({...v}))} : {}),
+    ...(rule.cfvo !== undefined ? {cfvo: rule.cfvo.map((v) => ({...v}))} : {}),
     ...(rule.color !== undefined ? {color: {...rule.color}} : {}),
-    ...(rule.negativeFillColor !== undefined ? {negativeFillColor: {...rule.negativeFillColor}} : {}),
+    ...(rule.negativeFillColor !== undefined
+      ? {negativeFillColor: {...rule.negativeFillColor}}
+      : {}),
     ...(rule.axisColor !== undefined ? {axisColor: {...rule.axisColor}} : {}),
-    ...(rule.colors !== undefined ? {colors: rule.colors.map(c => ({...c}))} : {}),
+    ...(rule.colors !== undefined ? {colors: rule.colors.map((c) => ({...c}))} : {}),
     ...(rule.style !== undefined ? {style: cloneStyle(rule.style)} : {}),
   };
 }

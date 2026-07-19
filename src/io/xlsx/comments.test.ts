@@ -91,7 +91,7 @@ test('a note-free workbook writes no comment or VML parts', () => {
   ws.getCell('A1').value = 'plain';
   const files = unzipSync(writeXlsx(wb));
   const names = Object.keys(files);
-  assert.ok(!names.some(n => /comments\d+\.xml$/.test(n)));
-  assert.ok(!names.some(n => /\.vml$/.test(n)));
+  assert.ok(!names.some((n) => /comments\d+\.xml$/.test(n)));
+  assert.ok(!names.some((n) => /\.vml$/.test(n)));
   assert.ok(!strFromU8(files['[Content_Types].xml'] as Uint8Array).includes('Extension="vml"'));
 });

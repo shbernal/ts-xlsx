@@ -31,9 +31,19 @@ export default {
         const {images, count} = await api.readFixtureImageAnchors(FIXTURE);
         assert.strictEqual(count, 2, 'both images in the file are exposed');
         for (const im of images) {
-          assert.ok(im.tl && Number.isInteger(im.tl.col), 'top-left is an integer cell coordinate, not a string');
-          assert.ok(im.br && Number.isInteger(im.br.col), 'bottom-right is an integer cell coordinate');
-          assert.strictEqual(im.editAs, 'oneCell', 'the anchor editAs is normalized, not left undefined on a string');
+          assert.ok(
+            im.tl && Number.isInteger(im.tl.col),
+            'top-left is an integer cell coordinate, not a string',
+          );
+          assert.ok(
+            im.br && Number.isInteger(im.br.col),
+            'bottom-right is an integer cell coordinate',
+          );
+          assert.strictEqual(
+            im.editAs,
+            'oneCell',
+            'the anchor editAs is normalized, not left undefined on a string',
+          );
         }
       },
     },

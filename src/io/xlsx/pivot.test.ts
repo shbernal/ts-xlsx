@@ -44,7 +44,8 @@ test('a pivot over source data with XML-special characters and a null value writ
 });
 
 test('the pivot cache serialises special characters entity-escaped into well-formed XML', () => {
-  const cache = partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
+  const cache =
+    partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
   assert.doesNotMatch(cache, RAW_AMP, 'no raw unescaped "&" may leak into the cache');
   assert.match(cache, /<s v="Smith &amp; Co"\/>/);
   assert.match(cache, /<s v="&lt;West&gt;"\/>/);
@@ -52,7 +53,8 @@ test('the pivot cache serialises special characters entity-escaped into well-for
 });
 
 test('a missing axis value becomes a blank shared item, not an empty string', () => {
-  const cache = partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
+  const cache =
+    partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
   // The Name field carries a blank shared item and is flagged as containing one.
   assert.match(cache, /name="Name"[^>]*>\s*<sharedItems containsBlank="1"[^>]*>.*<m\/>/s);
   assert.doesNotMatch(cache, /<s v=""\/>/, 'a missing value must be <m/>, never an empty <s>');
@@ -63,7 +65,7 @@ test('a numeric value field is described as numeric and stored inline in the rec
   const cache = parts['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
   assert.match(
     cache,
-    /name="Amount"[^>]*>\s*<sharedItems containsSemiMixedTypes="0" containsString="0" containsNumber="1" containsInteger="1" minValue="10" maxValue="30"\/>/
+    /name="Amount"[^>]*>\s*<sharedItems containsSemiMixedTypes="0" containsString="0" containsNumber="1" containsInteger="1" minValue="10" maxValue="30"\/>/,
   );
   const records = parts['xl/pivotCache/pivotCacheRecords1.xml'] ?? '';
   // Each record: an index into each axis field's catalogue, then the inline numeric amount.
@@ -82,7 +84,12 @@ test('an inline string field escapes its values in the records', () => {
   src.getCell('B2').value = 'x';
   src.getCell('C2').value = 1;
   src.getCell('D2').value = 'see <this> & that';
-  wb.addWorksheet('P').addPivotTable({source: src, rows: ['Name'], columns: ['Region'], values: ['Amount']});
+  wb.addWorksheet('P').addPivotTable({
+    source: src,
+    rows: ['Name'],
+    columns: ['Region'],
+    values: ['Amount'],
+  });
 
   const parts = partsOf(writeXlsx(wb));
   const records = parts['xl/pivotCache/pivotCacheRecords1.xml'] ?? '';
@@ -107,7 +114,9 @@ test('the pivot is wired end to end: content types, workbook cache, sheet link, 
   const workbookRels = parts['xl/_rels/workbook.xml.rels'] ?? '';
   assert.match(
     workbookRels,
-    new RegExp(`Id="${cacheRelId}"[^>]*\\/pivotCacheDefinition"[^>]*Target="pivotCache\\/pivotCacheDefinition1\\.xml"`)
+    new RegExp(
+      `Id="${cacheRelId}"[^>]*\\/pivotCacheDefinition"[^>]*Target="pivotCache\\/pivotCacheDefinition1\\.xml"`,
+    ),
   );
 
   // The host sheet reaches the pivot table part (no reference in the sheet body itself).
@@ -117,11 +126,11 @@ test('the pivot is wired end to end: content types, workbook cache, sheet link, 
   // The chain: pivot table → cache definition → cache records.
   assert.match(
     parts['xl/pivotTables/_rels/pivotTable1.xml.rels'] ?? '',
-    /\/pivotCacheDefinition"[^>]*Target="\.\.\/pivotCache\/pivotCacheDefinition1\.xml"/
+    /\/pivotCacheDefinition"[^>]*Target="\.\.\/pivotCache\/pivotCacheDefinition1\.xml"/,
   );
   assert.match(
     parts['xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels'] ?? '',
-    /\/pivotCacheRecords"[^>]*Target="pivotCacheRecords1\.xml"/
+    /\/pivotCacheRecords"[^>]*Target="pivotCacheRecords1\.xml"/,
   );
 });
 
@@ -155,9 +164,13 @@ test('a non-sum metric carries its subtotal function and an Excel-style caption'
   assert.match(table, /<dataField name="Average of Amount" fld="2" subtotal="average"/);
 });
 
-test('sum omits the subtotal attribute — it is Excel\'s implicit default', () => {
+test("sum omits the subtotal attribute — it is Excel's implicit default", () => {
   const table = partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotTables/pivotTable1.xml'] ?? '';
-  assert.doesNotMatch(table, /subtotal=/, 'the default sum aggregation writes no subtotal attribute');
+  assert.doesNotMatch(
+    table,
+    /subtotal=/,
+    'the default sum aggregation writes no subtotal attribute',
+  );
 });
 
 test('a count aggregates a non-numeric value field, describing it as a plain shared-items field', () => {
@@ -190,8 +203,8 @@ test('a count aggregates a non-numeric value field, describing it as a plain sha
 test('a package carrying a pivot still reads back its sheets', () => {
   const back = readXlsx(writeXlsx(specialCharsWorkbook()));
   assert.deepEqual(
-    back.worksheets.map(sheet => sheet.name),
-    ['Data', 'Pivot']
+    back.worksheets.map((sheet) => sheet.name),
+    ['Data', 'Pivot'],
   );
   assert.equal(back.getWorksheet('Data')?.getCell('A2').value, 'Smith & Co');
 });
@@ -203,8 +216,8 @@ test('a loaded pivot is reconstructed as an inspectable model on its host sheet'
   const pivot = loaded[0];
   assert.ok(pivot);
   assert.deepEqual(
-    pivot.fields.map(field => field.name),
-    ['Name', 'Region', 'Amount']
+    pivot.fields.map((field) => field.name),
+    ['Name', 'Region', 'Amount'],
   );
   assert.deepEqual(pivot.rowFields, [0]);
   assert.deepEqual(pivot.columnFields, [1]);
@@ -240,8 +253,8 @@ test('a loaded pivot decodes XML-special field names back to their original text
   const pivot = readXlsx(writeXlsx(wb)).getWorksheet('Pivot')?.loadedPivotTables[0];
   assert.ok(pivot);
   assert.deepEqual(
-    pivot.fields.map(field => field.name),
-    ['Smith & Co', '<Region>', 'Am"t']
+    pivot.fields.map((field) => field.name),
+    ['Smith & Co', '<Region>', 'Am"t'],
   );
   assert.equal(pivot.valueFieldName, 'Am"t');
 });
@@ -259,8 +272,18 @@ test('two pivot tables number their parts and caches independently', () => {
   src.getCell('A2').value = 'a';
   src.getCell('B2').value = 'x';
   src.getCell('C2').value = 1;
-  wb.addWorksheet('P1').addPivotTable({source: src, rows: ['Name'], columns: ['Region'], values: ['Amount']});
-  wb.addWorksheet('P2').addPivotTable({source: src, rows: ['Name'], columns: ['Region'], values: ['Amount']});
+  wb.addWorksheet('P1').addPivotTable({
+    source: src,
+    rows: ['Name'],
+    columns: ['Region'],
+    values: ['Amount'],
+  });
+  wb.addWorksheet('P2').addPivotTable({
+    source: src,
+    rows: ['Name'],
+    columns: ['Region'],
+    values: ['Amount'],
+  });
 
   const parts = partsOf(writeXlsx(wb));
   assert.ok(parts['xl/pivotCache/pivotCacheDefinition1.xml']);
@@ -282,19 +305,32 @@ test('authoring rejects unsupported shapes at add time', () => {
   const dst = wb.addWorksheet('P');
 
   assert.throws(
-    () => dst.addPivotTable({source: src, rows: ['Name'], columns: ['Region'], values: ['Amount'], metric: 'avg' as never}),
-    /unsupported pivot metric "avg"/
+    () =>
+      dst.addPivotTable({
+        source: src,
+        rows: ['Name'],
+        columns: ['Region'],
+        values: ['Amount'],
+        metric: 'avg' as never,
+      }),
+    /unsupported pivot metric "avg"/,
   );
   assert.throws(
     () => dst.addPivotTable({source: src, rows: ['Nope'], columns: ['Region'], values: ['Amount']}),
-    /"Nope" is not a column header/
+    /"Nope" is not a column header/,
   );
   assert.throws(
-    () => dst.addPivotTable({source: src, rows: ['Name'], columns: ['Region'], values: ['Amount', 'Name']}),
-    /exactly one value field/
+    () =>
+      dst.addPivotTable({
+        source: src,
+        rows: ['Name'],
+        columns: ['Region'],
+        values: ['Amount', 'Name'],
+      }),
+    /exactly one value field/,
   );
   assert.throws(
     () => dst.addPivotTable({source: src, rows: [], columns: ['Region'], values: ['Amount']}),
-    /at least one row field/
+    /at least one row field/,
   );
 });

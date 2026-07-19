@@ -37,7 +37,7 @@ function parseArgs(argv) {
 
 async function loadCases() {
   const dir = resolve(HERE, 'cases');
-  const files = (await readdir(dir)).filter(f => f.endsWith('.case.mjs')).sort();
+  const files = (await readdir(dir)).filter((f) => f.endsWith('.case.mjs')).sort();
   const cases = [];
   for (const file of files) {
     const mod = await import(pathToFileURL(resolve(dir, file)).href);
@@ -62,13 +62,17 @@ const MARK = {ok: '✓', bug: '○', regression: '✗', fixed: '↑', skip: '∅
 
 async function main() {
   const {adapter: adapterName} = parseArgs(process.argv.slice(2));
-  const adapterMod = await import(pathToFileURL(resolve(HERE, 'adapters', `${adapterName}.mjs`)).href);
+  const adapterMod = await import(
+    pathToFileURL(resolve(HERE, 'adapters', `${adapterName}.mjs`)).href
+  );
   const api = adapterMod.default;
   const cases = await loadCases();
 
   const tally = {ok: 0, bug: 0, regression: 0, fixed: 0, skip: 0};
   const behaviorCount = cases.reduce((n, c) => n + c.behavior.length, 0);
-  console.log(`corpus: ${cases.length} case(s), ${behaviorCount} behavior(s) vs adapter "${api.name}"\n`);
+  console.log(
+    `corpus: ${cases.length} case(s), ${behaviorCount} behavior(s) vs adapter "${api.name}"\n`,
+  );
 
   for (const testCase of cases) {
     // `provenance` is an optional, disposable trace — a case is identified by its
@@ -95,9 +99,10 @@ async function main() {
     console.log('');
   }
 
-  const skipNote = tally.skip > 0 ? `, ${tally.skip} skipped (capability not implemented by "${api.name}")` : '';
+  const skipNote =
+    tally.skip > 0 ? `, ${tally.skip} skipped (capability not implemented by "${api.name}")` : '';
   console.log(
-    `summary: ${tally.ok} green, ${tally.bug} known-open, ${tally.fixed} newly-fixed, ${tally.regression} regression(s)${skipNote}`
+    `summary: ${tally.ok} green, ${tally.bug} known-open, ${tally.fixed} newly-fixed, ${tally.regression} regression(s)${skipNote}`,
   );
   if (tally.regression > 0) {
     console.error('\nFAIL: regression(s) detected — a behavior that passed on legacy now fails.');
@@ -105,7 +110,7 @@ async function main() {
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(`corpus runner failed: ${err.stack ?? err}`);
   process.exitCode = 1;
 });

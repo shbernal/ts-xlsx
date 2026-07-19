@@ -3,8 +3,8 @@ import {test} from 'node:test';
 
 import {PivotTable, type PivotTableOptions} from '../../core/pivot-table.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {parsePivotTable} from './pivot-read.ts';
 import {pivotCacheDefinitionXml, pivotTableXml} from './pivot.ts';
+import {parsePivotTable} from './pivot-read.ts';
 
 // Build a pivot the way the writer does, then render its two definition parts. The reader is the
 // inverse of the writer, so round-tripping our own output is the sharpest check that the two agree.
@@ -12,7 +12,7 @@ function renderedPivot(
   options: Omit<PivotTableOptions, 'source'>,
   data: readonly (readonly (string | number)[])[],
   name = 'PivotTable1',
-  cacheId = '1'
+  cacheId = '1',
 ): {table: string; cache: string} {
   const wb = new Workbook();
   const src = wb.addWorksheet('Data');
@@ -41,14 +41,17 @@ const SALES: readonly (readonly (string | number)[])[] = [
 ];
 
 test('a written pivot round-trips its field roles, source, and value field back into a model', () => {
-  const {table, cache} = renderedPivot({rows: ['Name'], columns: ['Region'], values: ['Amount']}, SALES);
+  const {table, cache} = renderedPivot(
+    {rows: ['Name'], columns: ['Region'], values: ['Amount']},
+    SALES,
+  );
   const parsed = parsePivotTable(table, cache);
 
   assert.equal(parsed.name, 'PivotTable1');
   assert.equal(parsed.cacheId, '1');
   assert.deepEqual(
-    parsed.fields.map(field => field.name),
-    ['Name', 'Region', 'Amount']
+    parsed.fields.map((field) => field.name),
+    ['Name', 'Region', 'Amount'],
   );
   assert.deepEqual(parsed.rowFields, [0]);
   assert.deepEqual(parsed.columnFields, [1]);
@@ -57,7 +60,10 @@ test('a written pivot round-trips its field roles, source, and value field back 
 });
 
 test('the worksheet source reference and sheet name survive the round-trip', () => {
-  const {table, cache} = renderedPivot({rows: ['Name'], columns: ['Region'], values: ['Amount']}, SALES);
+  const {table, cache} = renderedPivot(
+    {rows: ['Name'], columns: ['Region'], values: ['Amount']},
+    SALES,
+  );
   const parsed = parsePivotTable(table, cache);
   assert.equal(parsed.source.kind, 'worksheet');
   assert.equal(parsed.source.sheet, 'Data');
@@ -65,7 +71,10 @@ test('the worksheet source reference and sheet name survive the round-trip', () 
 });
 
 test('sum — the metric whose subtotal attribute is omitted — reads back as sum', () => {
-  const {table, cache} = renderedPivot({rows: ['Name'], columns: ['Region'], values: ['Amount']}, SALES);
+  const {table, cache} = renderedPivot(
+    {rows: ['Name'], columns: ['Region'], values: ['Amount']},
+    SALES,
+  );
   const parsed = parsePivotTable(table, cache);
   assert.equal(parsed.metric, 'sum');
   assert.equal(parsed.valueCaption, 'Sum of Amount');
@@ -74,7 +83,7 @@ test('sum — the metric whose subtotal attribute is omitted — reads back as s
 test('a non-sum metric reads back from its subtotal attribute with its caption', () => {
   const {table, cache} = renderedPivot(
     {rows: ['Name'], columns: ['Region'], values: ['Amount'], metric: 'average'},
-    SALES
+    SALES,
   );
   const parsed = parsePivotTable(table, cache);
   assert.equal(parsed.metric, 'average');
@@ -87,11 +96,14 @@ test('field names carrying XML specials decode back to their original text', () 
     ['a', 'x', 1],
     ['b', 'y', 2],
   ];
-  const {table, cache} = renderedPivot({rows: ['Smith & Co'], columns: ['<Region>'], values: ['Am"t']}, data);
+  const {table, cache} = renderedPivot(
+    {rows: ['Smith & Co'], columns: ['<Region>'], values: ['Am"t']},
+    data,
+  );
   const parsed = parsePivotTable(table, cache);
   assert.deepEqual(
-    parsed.fields.map(field => field.name),
-    ['Smith & Co', '<Region>', 'Am"t']
+    parsed.fields.map((field) => field.name),
+    ['Smith & Co', '<Region>', 'Am"t'],
   );
   assert.equal(parsed.valueFieldName, 'Am"t');
   assert.equal(parsed.valueCaption, 'Sum of Am"t');
@@ -103,7 +115,10 @@ test('multiple row fields keep their order and axis', () => {
     [2024, 'a', 'x', 1],
     [2025, 'b', 'y', 2],
   ];
-  const {table, cache} = renderedPivot({rows: ['Year', 'Name'], columns: ['Region'], values: ['Amount']}, data);
+  const {table, cache} = renderedPivot(
+    {rows: ['Year', 'Name'], columns: ['Region'], values: ['Amount']},
+    data,
+  );
   const parsed = parsePivotTable(table, cache);
   assert.deepEqual(parsed.rowFields, [0, 1]);
   assert.deepEqual(parsed.columnFields, [2]);

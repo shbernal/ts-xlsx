@@ -31,7 +31,12 @@ export interface SaxHandlers {
  * drive the parse — the shape the streaming reader needs, where a push callback cannot `yield`.
  */
 export type XmlEvent =
-  | {readonly kind: 'open'; readonly name: string; readonly attrs: XmlAttributes; readonly selfClosing: boolean}
+  | {
+      readonly kind: 'open';
+      readonly name: string;
+      readonly attrs: XmlAttributes;
+      readonly selfClosing: boolean;
+    }
   | {readonly kind: 'text'; readonly text: string}
   | {readonly kind: 'close'; readonly name: string};
 
@@ -55,7 +60,10 @@ export function decodeEntities(value: string): string {
   if (!value.includes('&')) return value;
   return value.replace(ENTITY, (match, body: string) => {
     if (body.charCodeAt(0) === 0x23 /* # */) {
-      const codePoint = body.charCodeAt(1) === 0x78 /* x */ ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      const codePoint =
+        body.charCodeAt(1) === 0x78 /* x */
+          ? parseInt(body.slice(2), 16)
+          : parseInt(body.slice(1), 10);
       if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) return match;
       try {
         return String.fromCodePoint(codePoint);
@@ -76,10 +84,11 @@ const ATTRIBUTE = /([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 function parseAttributes(source: string): XmlAttributes {
   const attrs: Record<string, string> = {};
   ATTRIBUTE.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = ATTRIBUTE.exec(source)) !== null) {
+  let match = ATTRIBUTE.exec(source);
+  while (match !== null) {
     const value = match[2] ?? match[3] ?? '';
     attrs[match[1] as string] = decodeEntities(value);
+    match = ATTRIBUTE.exec(source);
   }
   return attrs;
 }

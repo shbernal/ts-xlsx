@@ -28,7 +28,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, writeError} = await api.roundtripRangeValidation({range: RANGE});
-        assert.strictEqual(writeOk, true, `serialization must not throw; got ${JSON.stringify(writeError)}`);
+        assert.strictEqual(
+          writeOk,
+          true,
+          `serialization must not throw; got ${JSON.stringify(writeError)}`,
+        );
       },
     },
     {
@@ -37,7 +41,11 @@ export default {
       async expect(api, assert) {
         const {count, sqrefs} = await api.roundtripRangeValidation({range: RANGE});
         assert.strictEqual(count, 1, 'one dataValidation entry, not one per covered cell');
-        assert.deepStrictEqual(sqrefs, [RANGE], `the sqref is the whole-column range; got ${JSON.stringify(sqrefs)}`);
+        assert.deepStrictEqual(
+          sqrefs,
+          [RANGE],
+          `the sqref is the whole-column range; got ${JSON.stringify(sqrefs)}`,
+        );
       },
     },
     {
@@ -45,7 +53,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {reloadOk} = await api.roundtripRangeValidation({range: RANGE});
-        assert.strictEqual(reloadOk, true, 'the whole-column validation reads back without throwing');
+        assert.strictEqual(
+          reloadOk,
+          true,
+          'the whole-column validation reads back without throwing',
+        );
       },
     },
   ],

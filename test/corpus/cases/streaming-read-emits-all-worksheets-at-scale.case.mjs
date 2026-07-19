@@ -37,7 +37,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {error} = await api.streamReadManySheets(180);
-        assert.strictEqual(error, null, `streaming a many-sheet workbook must not throw; got ${error}`);
+        assert.strictEqual(
+          error,
+          null,
+          `streaming a many-sheet workbook must not throw; got ${error}`,
+        );
       },
     },
     {
@@ -45,7 +49,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {written, emitted} = await api.streamReadManySheets(180);
-        assert.strictEqual(emitted, written, `every worksheet must be emitted; wrote ${written}, streamed ${emitted}`);
+        assert.strictEqual(
+          emitted,
+          written,
+          `every worksheet must be emitted; wrote ${written}, streamed ${emitted}`,
+        );
       },
     },
   ],

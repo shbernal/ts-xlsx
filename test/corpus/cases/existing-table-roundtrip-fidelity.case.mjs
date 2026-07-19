@@ -33,17 +33,37 @@ export default {
       name: "a table's reference range is written and survives a load→save round-trip",
       baseline: 'pass',
       async expect(api, assert) {
-        const {write, roundtrip, loadOk} = await api.roundtripSpecTableFacts(table([[1, 2], [3, 4]], 'A1:B3'));
+        const {write, roundtrip, loadOk} = await api.roundtripSpecTableFacts(
+          table(
+            [
+              [1, 2],
+              [3, 4],
+            ],
+            'A1:B3',
+          ),
+        );
         assert.ok(loadOk, 'the written table loads without throwing');
         assert.strictEqual(write[0].ref, 'A1:B3', 'the ref is written as authored');
-        assert.strictEqual(roundtrip[0].ref, write[0].ref, 'the ref is unchanged after the round-trip');
+        assert.strictEqual(
+          roundtrip[0].ref,
+          write[0].ref,
+          'the ref is unchanged after the round-trip',
+        );
       },
     },
     {
       name: 'the table part is not dropped across a load→save round-trip',
       baseline: 'pass',
       async expect(api, assert) {
-        const {roundtrip} = await api.roundtripSpecTableFacts(table([[1, 2], [3, 4]], 'A1:B3'));
+        const {roundtrip} = await api.roundtripSpecTableFacts(
+          table(
+            [
+              [1, 2],
+              [3, 4],
+            ],
+            'A1:B3',
+          ),
+        );
         assert.strictEqual(roundtrip.length, 1, 'the table part survives the round-trip');
         assert.ok(roundtrip[0].wellFormed, 'the round-tripped table XML is well-formed');
       },
@@ -52,7 +72,9 @@ export default {
       name: 'an empty-body table round-trips without error and keeps its part',
       baseline: 'pass',
       async expect(api, assert) {
-        const {roundtrip, loadOk, loadError} = await api.roundtripSpecTableFacts(table([], 'A1:B1'));
+        const {roundtrip, loadOk, loadError} = await api.roundtripSpecTableFacts(
+          table([], 'A1:B1'),
+        );
         assert.ok(loadOk, `an empty-body table must load without throwing; got ${loadError}`);
         assert.strictEqual(roundtrip.length, 1, 'the empty-body table part survives');
       },
@@ -61,7 +83,9 @@ export default {
       name: 'a single-data-row table round-trips without error',
       baseline: 'pass',
       async expect(api, assert) {
-        const {roundtrip, loadOk, loadError} = await api.roundtripSpecTableFacts(table([[1, 2]], 'A1:B2'));
+        const {roundtrip, loadOk, loadError} = await api.roundtripSpecTableFacts(
+          table([[1, 2]], 'A1:B2'),
+        );
         assert.ok(loadOk, `a single-row table must load without throwing; got ${loadError}`);
         assert.strictEqual(roundtrip.length, 1, 'the single-row table part survives');
       },

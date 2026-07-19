@@ -28,7 +28,7 @@ export default {
         const {consistency} = await api.inspectPackage({sheets: []});
         assert.ok(
           consistency.worksheetPartCount >= 1,
-          'write succeeded but the package declares zero worksheet parts (Excel-corrupt)'
+          'write succeeded but the package declares zero worksheet parts (Excel-corrupt)',
         );
       },
     },
@@ -36,10 +36,15 @@ export default {
       name: 'a one-worksheet workbook declares that worksheet consistently across the package',
       baseline: 'pass',
       async expect(api, assert) {
-        const {consistency} = await api.inspectPackage({sheets: [{name: 'Sheet1', cells: [{ref: 'A1', value: 'x'}]}]});
+        const {consistency} = await api.inspectPackage({
+          sheets: [{name: 'Sheet1', cells: [{ref: 'A1', value: 'x'}]}],
+        });
         assert.strictEqual(consistency.worksheetPartCount, 1);
         assert.strictEqual(consistency.sheetEntryCount, 1);
-        assert.ok(consistency.declaredConsistent, 'worksheet part not declared consistently in content-types + rels');
+        assert.ok(
+          consistency.declaredConsistent,
+          'worksheet part not declared consistently in content-types + rels',
+        );
       },
     },
   ],

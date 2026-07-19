@@ -45,17 +45,25 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const wide = await api.inspectImageAnchors({
-          sheets: [{name: 'S', columns: [{index: 4, width: 38}], images: [{range: {tl: {col: 3.5, row: 1}, br: {col: 4.5, row: 2}}}]}],
+          sheets: [
+            {
+              name: 'S',
+              columns: [{index: 4, width: 38}],
+              images: [{range: {tl: {col: 3.5, row: 1}, br: {col: 4.5, row: 2}}}],
+            },
+          ],
         });
         const def = await api.inspectImageAnchors({
-          sheets: [{name: 'S', images: [{range: {tl: {col: 3.5, row: 1}, br: {col: 4.5, row: 2}}}]}],
+          sheets: [
+            {name: 'S', images: [{range: {tl: {col: 3.5, row: 1}, br: {col: 4.5, row: 2}}}]},
+          ],
         });
         const wideOff = wide.anchors[0].from.colOff;
         const defOff = def.anchors[0].from.colOff;
         assert.ok(
           wideOff >= defOff,
           `halfway across a width-38 column (${wideOff} EMU) must be at least halfway across a ` +
-            `default-width column (${defOff} EMU); a wider column must not produce a smaller offset`
+            `default-width column (${defOff} EMU); a wider column must not produce a smaller offset`,
         );
       },
     },
@@ -64,7 +72,9 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {anchors} = await api.inspectImageAnchors({
-          sheets: [{name: 'S', images: [{range: {tl: {col: 3.5, row: 1.5}, br: {col: 4.5, row: 2.5}}}]}],
+          sheets: [
+            {name: 'S', images: [{range: {tl: {col: 3.5, row: 1.5}, br: {col: 4.5, row: 2.5}}}]},
+          ],
         });
         const a = anchors[0];
         assert.strictEqual(a.from.col, 3, 'col 3.5 floors to cell column 3');

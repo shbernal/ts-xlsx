@@ -25,7 +25,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {error} = await api.insertRowThenStyle('i');
-        assert.strictEqual(error, null, `styling an inherited-style cell must not throw; got ${JSON.stringify(error)}`);
+        assert.strictEqual(
+          error,
+          null,
+          `styling an inherited-style cell must not throw; got ${JSON.stringify(error)}`,
+        );
       },
     },
     {
@@ -33,7 +37,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {numFmt} = await api.insertRowThenStyle('i');
-        assert.strictEqual(numFmt, '$#,##0.00;[Red]-$#,##0.00', 'the numFmt is set on the inserted cell');
+        assert.strictEqual(
+          numFmt,
+          '$#,##0.00;[Red]-$#,##0.00',
+          'the numFmt is set on the inserted cell',
+        );
       },
     },
     {

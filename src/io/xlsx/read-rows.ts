@@ -106,7 +106,7 @@ export interface StreamedSheet {
  */
 export function* readSheetRows(
   data: Uint8Array,
-  options: ReadSheetRowsOptions = {}
+  options: ReadSheetRowsOptions = {},
 ): Generator<StreamedRow> {
   const pkg = openPackage(data, options.maxUncompressedBytes);
   const chosen = pickSheet(pkg.sheets, options.sheet);
@@ -128,7 +128,7 @@ export function* readSheetRows(
  */
 export function* readWorkbookStream(
   data: Uint8Array,
-  options: ReadXlsxOptions = {}
+  options: ReadXlsxOptions = {},
 ): Generator<StreamedSheet> {
   const pkg = openPackage(data, options.maxUncompressedBytes);
   for (const sheet of pkg.sheets) {
@@ -180,7 +180,7 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
 
 function pickSheet(
   sheets: ReadonlyArray<{name: string; relId: string}>,
-  selector: string | number | undefined
+  selector: string | number | undefined,
 ): {name: string; relId: string} {
   if (sheets.length === 0) throw new Error('workbook names no worksheets');
   if (selector === undefined) return sheets[0] as {name: string; relId: string};
@@ -211,7 +211,7 @@ class StreamedSheetReader implements StreamedSheet {
     name: string,
     xml: string,
     sharedStrings: readonly SharedString[],
-    xfStyles: ReadonlyArray<XfStyle>
+    xfStyles: ReadonlyArray<XfStyle>,
   ) {
     this.name = name;
     this.#xml = xml;
@@ -223,7 +223,13 @@ class StreamedSheetReader implements StreamedSheet {
     this.#hiddenColumns = new Set();
     this.#merges = [];
     this.#scanned = false;
-    yield* scanSheet(this.#xml, this.#sharedStrings, this.#xfStyles, this.#hiddenColumns, this.#merges);
+    yield* scanSheet(
+      this.#xml,
+      this.#sharedStrings,
+      this.#xfStyles,
+      this.#hiddenColumns,
+      this.#merges,
+    );
     this.#scanned = true;
   }
 
@@ -259,7 +265,7 @@ function* scanSheet(
   sharedStrings: readonly SharedString[],
   xfStyles: ReadonlyArray<XfStyle>,
   hiddenColumns: Set<number>,
-  merges: string[]
+  merges: string[],
 ): Generator<StreamedRow> {
   let rowNumber = 0;
   let lastRow = 0;
@@ -286,7 +292,7 @@ function* scanSheet(
     const value = decodeCellContent(
       {type: cellType, hasFormula, formula, hasValue, valueText, inlineText},
       sharedStrings,
-      style?.numFmt
+      style?.numFmt,
     );
     // A blank or purely style-only cell decodes to null; a data read wants only cells that carry
     // something (a formula object, an empty string, a false, and a 0 all count — only null drops).
@@ -381,7 +387,7 @@ function* scanSheet(
 // spans can add at most MAX_COLUMN distinct entries — never an unbounded allocation.
 function collectHiddenColumn(
   attrs: {readonly [k: string]: string | undefined},
-  hiddenColumns: Set<number>
+  hiddenColumns: Set<number>,
 ): void {
   if (attrs.hidden !== '1' && attrs.hidden !== 'true') return;
   const min = Number(attrs.min);

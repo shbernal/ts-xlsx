@@ -18,7 +18,7 @@ const SPEC = {
 };
 
 const stateOf = (entries, name) => {
-  const e = entries.find(s => s.name === name);
+  const e = entries.find((s) => s.name === name);
   return e ? e.state : undefined;
 };
 
@@ -40,7 +40,7 @@ export default {
         const state = stateOf(sheetEntries, 'Default');
         assert.ok(
           state === 'visible' || state === null,
-          `a default-added sheet must be visible; got state ${JSON.stringify(state)}`
+          `a default-added sheet must be visible; got state ${JSON.stringify(state)}`,
         );
       },
     },
@@ -49,7 +49,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheetEntries} = await api.inspectPackage(SPEC);
-        assert.strictEqual(stateOf(sheetEntries, 'Hidden'), 'hidden', 'the hidden state survives to the workbook declaration');
+        assert.strictEqual(
+          stateOf(sheetEntries, 'Hidden'),
+          'hidden',
+          'the hidden state survives to the workbook declaration',
+        );
       },
     },
     {
@@ -58,7 +62,10 @@ export default {
       async expect(api, assert) {
         const {sheetEntries} = await api.inspectPackage(SPEC);
         const state = stateOf(sheetEntries, 'Shown');
-        assert.ok(state === 'visible' || state === null, `an explicitly visible sheet stays visible; got ${JSON.stringify(state)}`);
+        assert.ok(
+          state === 'visible' || state === null,
+          `an explicitly visible sheet stays visible; got ${JSON.stringify(state)}`,
+        );
       },
     },
     {
@@ -67,8 +74,8 @@ export default {
       async expect(api, assert) {
         const {sheetEntries} = await api.inspectPackage(SPEC);
         assert.ok(
-          sheetEntries.every(s => s.state !== 'veryHidden'),
-          'no sheet is silently marked veryHidden'
+          sheetEntries.every((s) => s.state !== 'veryHidden'),
+          'no sheet is silently marked veryHidden',
         );
       },
     },

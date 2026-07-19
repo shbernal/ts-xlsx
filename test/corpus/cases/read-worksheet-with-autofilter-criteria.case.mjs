@@ -44,7 +44,11 @@ export default {
         const cells = await api.readFixtureCells(FIXTURE, ['A2', 'A4', 'B3']);
         assert.strictEqual(cells.A2.value, 'apple', 'the first filtered value is present');
         assert.strictEqual(cells.A4.value, 'plum', 'a value excluded by the filter still loads');
-        assert.strictEqual(cells.B3.value, 12, 'the custom-filtered numeric column loads its value');
+        assert.strictEqual(
+          cells.B3.value,
+          12,
+          'the custom-filtered numeric column loads its value',
+        );
       },
     },
     {
@@ -53,8 +57,16 @@ export default {
       async expect(api, assert) {
         const cells = await api.streamReadFixture(FIXTURE, ['A2', 'A4']);
         assert.ok(cells.A2 && cells.A4, 'the streaming path yields the requested cells');
-        assert.strictEqual(cells.A2.value, 'apple', 'streaming surfaces the same value the buffered read did');
-        assert.strictEqual(cells.A4.value, 'plum', 'streaming does not drop rows past the filtered ones');
+        assert.strictEqual(
+          cells.A2.value,
+          'apple',
+          'streaming surfaces the same value the buffered read did',
+        );
+        assert.strictEqual(
+          cells.A4.value,
+          'plum',
+          'streaming does not drop rows past the filtered ones',
+        );
       },
     },
   ],

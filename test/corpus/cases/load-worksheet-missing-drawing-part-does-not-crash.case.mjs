@@ -30,7 +30,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(ok, true, `the load must not throw on a dangling drawing reference; got ${error}`);
+        assert.strictEqual(
+          ok,
+          true,
+          `the load must not throw on a dangling drawing reference; got ${error}`,
+        );
       },
     },
     {
@@ -38,7 +42,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
-        assert.ok(sheetNames && sheetNames.includes('Sheet1'), `the worksheet must load; got ${JSON.stringify(sheetNames)}`);
+        assert.ok(
+          sheetNames?.includes('Sheet1'),
+          `the worksheet must load; got ${JSON.stringify(sheetNames)}`,
+        );
       },
     },
   ],

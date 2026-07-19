@@ -31,11 +31,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
-        const extensionless = contentTypeDefaults.filter(d => !d.extension);
+        const extensionless = contentTypeDefaults.filter((d) => !d.extension);
         assert.deepStrictEqual(
           extensionless,
           [],
-          `no <Default> may omit its Extension; got ${JSON.stringify(extensionless)}`
+          `no <Default> may omit its Extension; got ${JSON.stringify(extensionless)}`,
         );
       },
     },
@@ -44,8 +44,12 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
-        const bogus = contentTypeDefaults.filter(d => /undefined/.test(d.contentType || ''));
-        assert.deepStrictEqual(bogus, [], `no bogus media type may be declared; got ${JSON.stringify(bogus)}`);
+        const bogus = contentTypeDefaults.filter((d) => /undefined/.test(d.contentType || ''));
+        assert.deepStrictEqual(
+          bogus,
+          [],
+          `no bogus media type may be declared; got ${JSON.stringify(bogus)}`,
+        );
       },
     },
   ],

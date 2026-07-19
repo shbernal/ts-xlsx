@@ -25,7 +25,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {styles} = await api.inspectPackage(NO_THEME);
-        assert.strictEqual(styles.hasThemePart, true, 'a no-theme workbook must still emit the default theme part');
+        assert.strictEqual(
+          styles.hasThemePart,
+          true,
+          'a no-theme workbook must still emit the default theme part',
+        );
       },
     },
     {
@@ -33,7 +37,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {styles} = await api.inspectPackage(NO_THEME);
-        assert.strictEqual(styles.themeColorResolvable, true, 'a theme-color reference is backed by the emitted theme part');
+        assert.strictEqual(
+          styles.themeColorResolvable,
+          true,
+          'a theme-color reference is backed by the emitted theme part',
+        );
       },
     },
   ],

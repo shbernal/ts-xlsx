@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {hasNonFiniteToken, token} = await api.nonFiniteCellReport('NaN');
-        assert.strictEqual(hasNonFiniteToken, false, `a NaN value must not emit a bare token; got <v>${token}</v>`);
+        assert.strictEqual(
+          hasNonFiniteToken,
+          false,
+          `a NaN value must not emit a bare token; got <v>${token}</v>`,
+        );
       },
     },
     {
@@ -34,7 +38,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {hasNonFiniteToken, token} = await api.nonFiniteCellReport('Infinity');
-        assert.strictEqual(hasNonFiniteToken, false, `an Infinity value must not emit a bare token; got <v>${token}</v>`);
+        assert.strictEqual(
+          hasNonFiniteToken,
+          false,
+          `an Infinity value must not emit a bare token; got <v>${token}</v>`,
+        );
       },
     },
     {
@@ -42,7 +50,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {hasNonFiniteToken, token} = await api.nonFiniteCellReport('-Infinity');
-        assert.strictEqual(hasNonFiniteToken, false, `a -Infinity value must not emit a bare token; got <v>${token}</v>`);
+        assert.strictEqual(
+          hasNonFiniteToken,
+          false,
+          `a -Infinity value must not emit a bare token; got <v>${token}</v>`,
+        );
       },
     },
   ],

@@ -10,8 +10,14 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void> }} Behavior */
 
-const WRAP_ON = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x', alignment: {wrapText: true}}]}]};
-const FLAGS_OFF = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x', alignment: {wrapText: false, shrinkToFit: false}}]}]};
+const WRAP_ON = {
+  sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x', alignment: {wrapText: true}}]}],
+};
+const FLAGS_OFF = {
+  sheets: [
+    {name: 'S', cells: [{ref: 'A1', value: 'x', alignment: {wrapText: false, shrinkToFit: false}}]},
+  ],
+};
 const PLAIN = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x'}]}]};
 const INDENT = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x', alignment: {indent: 3}}]}]};
 
@@ -40,7 +46,11 @@ export default {
       async expect(api, assert) {
         const {alignment} = (await api.roundtripWorkbook(FLAGS_OFF)).sheets.S.cells.A1;
         assert.notStrictEqual(alignment?.wrapText, true, 'wrapText must not be spuriously true');
-        assert.notStrictEqual(alignment?.shrinkToFit, true, 'shrinkToFit must not be spuriously true');
+        assert.notStrictEqual(
+          alignment?.shrinkToFit,
+          true,
+          'shrinkToFit must not be spuriously true',
+        );
       },
     },
     {
@@ -49,7 +59,11 @@ export default {
       async expect(api, assert) {
         const {alignment} = (await api.roundtripWorkbook(PLAIN)).sheets.S.cells.A1;
         assert.notStrictEqual(alignment?.wrapText, true, 'wrapText must not be spuriously true');
-        assert.notStrictEqual(alignment?.shrinkToFit, true, 'shrinkToFit must not be spuriously true');
+        assert.notStrictEqual(
+          alignment?.shrinkToFit,
+          true,
+          'shrinkToFit must not be spuriously true',
+        );
       },
     },
     {

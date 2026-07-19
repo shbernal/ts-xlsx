@@ -58,7 +58,7 @@ export default {
         assert.ok(links.A1, 'the hyperlink cell is read');
         assert.ok(
           String(links.A1.hyperlink).includes('#myhash'),
-          `the fragment carried in the location attribute must be rejoined onto the base URL, not dropped; got ${JSON.stringify(links.A1)}`
+          `the fragment carried in the location attribute must be rejoined onto the base URL, not dropped; got ${JSON.stringify(links.A1)}`,
         );
       },
     },

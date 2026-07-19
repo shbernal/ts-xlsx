@@ -38,14 +38,14 @@ async function main() {
 
   console.log(`Harvested ${repo}#${number} (${result.type}) -> ${result.recordPath}`);
   console.log(
-    `  ${result.commentCount} comment(s), ${result.attachmentCount} link(s), ${result.fixtureCount} fixture candidate(s)`
+    `  ${result.commentCount} comment(s), ${result.attachmentCount} link(s), ${result.fixtureCount} fixture candidate(s)`,
   );
   for (const d of result.downloaded) {
     console.log(d.error ? `  ! ${d.name}: ${d.error}` : `  + ${d.name} (${d.bytes} bytes)`);
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(`harvest failed: ${err.message ?? err}`);
   process.exitCode = 1;
 });

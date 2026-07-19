@@ -31,7 +31,7 @@ export default {
         });
         assert.ok(
           /_xlfn\.FILTER/.test(sheets.S.formulas.A1 || ''),
-          `FILTER must be stored as _xlfn.FILTER for Excel to accept it; got: ${sheets.S.formulas.A1}`
+          `FILTER must be stored as _xlfn.FILTER for Excel to accept it; got: ${sheets.S.formulas.A1}`,
         );
       },
     },
@@ -40,7 +40,9 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
-          sheets: [{name: 'S', cells: [{ref: 'A1', formula: '_xlfn.XLOOKUP(1,B:B,C:C)', result: 0}]}],
+          sheets: [
+            {name: 'S', cells: [{ref: 'A1', formula: '_xlfn.XLOOKUP(1,B:B,C:C)', result: 0}]},
+          ],
         });
         const f = sheets.S.formulas.A1 || '';
         assert.ok(/_xlfn\.XLOOKUP/.test(f), 'the explicit prefix survives');
@@ -56,10 +58,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
-          sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'IFS(B1>0,"pos",B1<0,"neg")', result: 'pos'}]}],
+          sheets: [
+            {name: 'S', cells: [{ref: 'A1', formula: 'IFS(B1>0,"pos",B1<0,"neg")', result: 'pos'}]},
+          ],
         });
         const f = sheets.S.formulas.A1 || '';
-        assert.ok(!/(^|[^A-Za-z0-9_])@/.test(f), `no @ implicit-intersection operator should be injected; got: ${f}`);
+        assert.ok(
+          !/(^|[^A-Za-z0-9_])@/.test(f),
+          `no @ implicit-intersection operator should be injected; got: ${f}`,
+        );
       },
     },
     {
@@ -85,7 +92,10 @@ export default {
           ],
         });
         const f = sheets.S.formulas.A1 || '';
-        assert.ok(/_xlfn\.LET/.test(f), `LET must be stored as _xlfn.LET for Excel to accept it; got: ${f}`);
+        assert.ok(
+          /_xlfn\.LET/.test(f),
+          `LET must be stored as _xlfn.LET for Excel to accept it; got: ${f}`,
+        );
       },
     },
     {
@@ -96,11 +106,19 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
-          sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'NORM.DIST(A2,0,1,TRUE)', result: 0.5}]}],
+          sheets: [
+            {name: 'S', cells: [{ref: 'A1', formula: 'NORM.DIST(A2,0,1,TRUE)', result: 0.5}]},
+          ],
         });
         const f = sheets.S.formulas.A1 || '';
-        assert.ok(/_xlfn\.NORM\.DIST/.test(f), `NORM.DIST must be stored as _xlfn.NORM.DIST; got: ${f}`);
-        assert.ok(!/_xlfn\.DIST/.test(f), `the tail segment must not be prefixed on its own; got: ${f}`);
+        assert.ok(
+          /_xlfn\.NORM\.DIST/.test(f),
+          `NORM.DIST must be stored as _xlfn.NORM.DIST; got: ${f}`,
+        );
+        assert.ok(
+          !/_xlfn\.DIST/.test(f),
+          `the tail segment must not be prefixed on its own; got: ${f}`,
+        );
       },
     },
     {

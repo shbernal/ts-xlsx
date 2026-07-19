@@ -29,8 +29,14 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
-        assert.ok(source.hasLegacyDrawingHF && source.hasHeaderFooterImageToken, 'precondition: source has an HF image');
-        assert.ok(rewritten.hasHeaderFooterImageToken, 'the &G header/footer picture token survives');
+        assert.ok(
+          source.hasLegacyDrawingHF && source.hasHeaderFooterImageToken,
+          'precondition: source has an HF image',
+        );
+        assert.ok(
+          rewritten.hasHeaderFooterImageToken,
+          'the &G header/footer picture token survives',
+        );
         assert.ok(rewritten.hasLegacyDrawingHF, 'the legacyDrawingHF relationship survives');
       },
     },
@@ -39,7 +45,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
-        assert.strictEqual(rewritten.vml, source.vml, `both VML drawings must survive (source had ${source.vml})`);
+        assert.strictEqual(
+          rewritten.vml,
+          source.vml,
+          `both VML drawings must survive (source had ${source.vml})`,
+        );
         assert.ok(rewritten.media >= source.media, 'the header/footer image media survives');
         assert.strictEqual(rewritten.comments, source.comments, 'the coexisting comment survives');
       },

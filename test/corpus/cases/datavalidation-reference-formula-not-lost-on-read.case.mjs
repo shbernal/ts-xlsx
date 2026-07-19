@@ -33,7 +33,11 @@ export default {
         const {cells} = await api.readFixtureValidations(FIXTURE);
         const dv = cells['Sheet1!A1'];
         assert.ok(dv, 'the A1 validation is read');
-        assert.strictEqual(dv.formulae && dv.formulae[0], 'L26', `the reference must survive; got ${JSON.stringify(dv.formulae)}`);
+        assert.strictEqual(
+          dv.formulae?.[0],
+          'L26',
+          `the reference must survive; got ${JSON.stringify(dv.formulae)}`,
+        );
       },
     },
     {
@@ -42,7 +46,11 @@ export default {
       async expect(api, assert) {
         const {cells} = await api.readFixtureValidations(FIXTURE);
         const dv = cells['Sheet1!B1'];
-        assert.strictEqual(dv.formulae && dv.formulae[0], 'myNames', `the list name must survive; got ${JSON.stringify(dv && dv.formulae)}`);
+        assert.strictEqual(
+          dv.formulae?.[0],
+          'myNames',
+          `the list name must survive; got ${JSON.stringify(dv?.formulae)}`,
+        );
       },
     },
   ],

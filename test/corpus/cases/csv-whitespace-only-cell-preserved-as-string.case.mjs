@@ -25,7 +25,11 @@ export default {
       async expect(api, assert) {
         const {rows} = await api.csvRead({csv: 'firstValue,   ,secondValue\n'});
         assert.notStrictEqual(rows[0][1], 0, 'a whitespace-only field must not become numeric 0');
-        assert.strictEqual(typeof rows[0][1], 'string', 'a whitespace-only field is preserved as a string');
+        assert.strictEqual(
+          typeof rows[0][1],
+          'string',
+          'a whitespace-only field is preserved as a string',
+        );
       },
     },
     {

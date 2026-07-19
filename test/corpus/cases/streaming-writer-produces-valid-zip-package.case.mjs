@@ -50,10 +50,19 @@ export default {
       name: 'the streamed package re-reads to the same sheet names and cell values',
       baseline: 'pass',
       async expect(api, assert) {
-        const {reloadOk, reloadError, sheetNames, firstCol} = await api.streamWritePackageReport({rows: 50});
-        assert.ok(reloadOk, `the streamed package must re-read without repair, got: ${reloadError}`);
+        const {reloadOk, reloadError, sheetNames, firstCol} = await api.streamWritePackageReport({
+          rows: 50,
+        });
+        assert.ok(
+          reloadOk,
+          `the streamed package must re-read without repair, got: ${reloadError}`,
+        );
         assert.deepStrictEqual(sheetNames, ['S'], 'the written sheet name survives the round-trip');
-        assert.deepStrictEqual(firstCol, ['r1', 'r2', 'r3'], 'the streamed cell values re-read faithfully');
+        assert.deepStrictEqual(
+          firstCol,
+          ['r1', 'r2', 'r3'],
+          'the streamed cell values re-read faithfully',
+        );
       },
     },
   ],

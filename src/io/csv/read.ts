@@ -38,7 +38,7 @@ export function readCsv(input: string | Uint8Array, options: CsvReadOptions = {}
   const coerce = options.map ?? defaultCsvCoerce;
   const workbook = new Workbook();
   const sheet = workbook.addWorksheet(options.sheetName ?? 'Sheet1');
-  sheet.addRows(rows.map(fields => fields.map((field, index) => coerce(field, index))));
+  sheet.addRows(rows.map((fields) => fields.map((field, index) => coerce(field, index))));
   return workbook;
 }
 
@@ -56,7 +56,7 @@ function parseCsvRows(text: string, delimiter: string): string[][] {
   let inQuotes = false;
 
   for (let i = 0; i < text.length; i++) {
-    const ch = text[i]!;
+    const ch = text.charAt(i);
     if (inQuotes) {
       if (ch === '"') {
         if (text[i + 1] === '"') {

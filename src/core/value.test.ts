@@ -3,7 +3,6 @@ import {test} from 'node:test';
 
 import {
   type CellValue,
-  ValueType,
   coerceCellValue,
   detectValueType,
   isErrorCode,
@@ -11,6 +10,7 @@ import {
   isHyperlinkValue,
   isRichTextValue,
   isSharedFormulaValue,
+  ValueType,
 } from './value.ts';
 
 test('detectValueType classifies each primitive', () => {

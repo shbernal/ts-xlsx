@@ -27,7 +27,11 @@ export default {
         const {ok, text} = await api.csvWrite({spec: NARROW_FIRST});
         assert.strictEqual(ok, true, 'the CSV writes');
         const lines = String(text).split(/\r?\n/).filter(Boolean);
-        assert.strictEqual(lines[1], 'b,c,d', 'the wider row keeps all three fields, not truncated to one');
+        assert.strictEqual(
+          lines[1],
+          'b,c,d',
+          'the wider row keeps all three fields, not truncated to one',
+        );
       },
     },
     {
@@ -36,7 +40,11 @@ export default {
       async expect(api, assert) {
         const {text} = await api.csvWrite({spec: NARROW_FIRST});
         const lines = String(text).split(/\r?\n/).filter(Boolean);
-        assert.strictEqual(lines[1].split(',').length, 3, 'the per-row field count reflects the max column extent');
+        assert.strictEqual(
+          lines[1].split(',').length,
+          3,
+          'the per-row field count reflects the max column extent',
+        );
       },
     },
   ],

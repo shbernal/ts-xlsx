@@ -33,11 +33,14 @@ export default {
       async expect(api, assert) {
         const {merges} = await api.mutateWorksheet({
           cells: bannerCells,
-          ops: [{op: 'mergeCells', range: 'A2:C2'}, {op: 'insertRow', pos: 1, value: ['inserted']}],
+          ops: [
+            {op: 'mergeCells', range: 'A2:C2'},
+            {op: 'insertRow', pos: 1, value: ['inserted']},
+          ],
         });
         assert.ok(
           merges.includes('A3:C3'),
-          `inserting a row above must shift the merge to A3:C3; got ${JSON.stringify(merges)}`
+          `inserting a row above must shift the merge to A3:C3; got ${JSON.stringify(merges)}`,
         );
       },
     },
@@ -51,11 +54,14 @@ export default {
             {ref: 'A3', value: 'banner'},
           ],
           // duplicate row 1 twice, inserting — this pushes the A3:C3 merge down to A5:C5.
-          ops: [{op: 'mergeCells', range: 'A3:C3'}, {op: 'duplicateRow', start: 1, count: 2, insert: true}],
+          ops: [
+            {op: 'mergeCells', range: 'A3:C3'},
+            {op: 'duplicateRow', start: 1, count: 2, insert: true},
+          ],
         });
         assert.ok(
           merges.includes('A5:C5'),
-          `duplicating two rows above must shift the merge to A5:C5; got ${JSON.stringify(merges)}`
+          `duplicating two rows above must shift the merge to A5:C5; got ${JSON.stringify(merges)}`,
         );
       },
     },
@@ -65,9 +71,16 @@ export default {
       async expect(api, assert) {
         const {merges} = await api.mutateWorksheet({
           cells: bannerCells,
-          ops: [{op: 'mergeCells', range: 'A2:C2'}, {op: 'insertRow', pos: 10, value: ['below']}],
+          ops: [
+            {op: 'mergeCells', range: 'A2:C2'},
+            {op: 'insertRow', pos: 10, value: ['below']},
+          ],
         });
-        assert.deepStrictEqual(merges, ['A2:C2'], 'a row insert far below must not disturb the merge');
+        assert.deepStrictEqual(
+          merges,
+          ['A2:C2'],
+          'a row insert far below must not disturb the merge',
+        );
       },
     },
   ],

@@ -100,9 +100,11 @@ function csvFieldText(value: CellValue, options: CsvWriteOptions): string {
   if (typeof value === 'string') return value;
   if (value instanceof Date) return formatDate(value, options.dateFormat, options.dateUTC ?? false);
   if (isErrorValue(value)) return value.error;
-  if (isRichTextValue(value)) return value.richText.map(run => run.text).join('');
+  if (isRichTextValue(value)) return value.richText.map((run) => run.text).join('');
   if (isHyperlinkValue(value)) {
-    return typeof value.text === 'string' ? value.text : value.text.richText.map(run => run.text).join('');
+    return typeof value.text === 'string'
+      ? value.text
+      : value.text.richText.map((run) => run.text).join('');
   }
   if (isFormulaValue(value) || isSharedFormulaValue(value)) {
     return value.result === undefined ? '' : csvFieldText(value.result, options);
@@ -137,7 +139,7 @@ function formatDate(date: Date, format: string | undefined, utc: boolean): strin
     ss: pad(second),
     s: String(second),
   };
-  return format.replace(DATE_TOKENS, token => tokens[token] ?? token);
+  return format.replace(DATE_TOKENS, (token) => tokens[token] ?? token);
 }
 
 function quoteField(field: string, delimiter: string): string {

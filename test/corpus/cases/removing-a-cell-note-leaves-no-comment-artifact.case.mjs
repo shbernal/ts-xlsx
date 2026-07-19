@@ -25,7 +25,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {cleanHasCommentPart} = await api.removeCellNoteReport();
-        assert.strictEqual(cleanHasCommentPart, false, 'no note anywhere means no comment part is written');
+        assert.strictEqual(
+          cleanHasCommentPart,
+          false,
+          'no note anywhere means no comment part is written',
+        );
       },
     },
     {
@@ -36,7 +40,7 @@ export default {
         assert.strictEqual(
           commentPartPresent,
           false,
-          `a cleared note must leave no comment part; the cell still reads back a note=${JSON.stringify(readNoteAfter)}`
+          `a cleared note must leave no comment part; the cell still reads back a note=${JSON.stringify(readNoteAfter)}`,
         );
       },
     },
@@ -45,7 +49,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {neighborNoteIntact} = await api.removeCellNoteReport();
-        assert.strictEqual(neighborNoteIntact, true, 'removing one note must not disturb another cell’s note');
+        assert.strictEqual(
+          neighborNoteIntact,
+          true,
+          'removing one note must not disturb another cell’s note',
+        );
       },
     },
   ],

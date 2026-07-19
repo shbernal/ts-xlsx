@@ -244,9 +244,16 @@ Greenfield TypeScript implementation, corpus-driven, module by module.
 >    publish with build + full test + dist smoke + size). A `Build` CI workflow compiles,
 >    round-trips the compiled artifact as a consumer would (`smoke:dist`), and enforces a
 >    bundle-size budget (`size` — runtime JS ~489 KB, budget 600 KB). See ADR-0001.
-> 2. **Toolchain standup** — Biome for lint/format over the (now TS-only) tree, and a
->    decision to keep `node --test` or adopt Vitest for coverage + type-level tests
->    (`expectTypeOf`). Record as an ADR.
+> 2. ✅ **Toolchain standup (2026-07-19).** **Biome** is the lint/format tool — one
+>    zero-dependency binary over the whole authored tree (src + scripts + corpus),
+>    `recommended` preset, config matched to the hand-authored style so adoption was a
+>    format pass, not a restyle. `lint` is now the first gate in `npm test` and in the
+>    Corpus CI workflow. **`node --test` is kept; Vitest is rejected** — coverage comes
+>    from `node --test --experimental-test-coverage` (`test:coverage`, ~98% line) and
+>    type-level tests are **hand-rolled `Expect<Equal<…>>`** under `src/type-tests/`,
+>    enforced by the existing `tsc` gate (no `expectTypeOf`/`tsd` dependency), excluded
+>    from the published build. See ADR-0002 (which also records the Biome-drops-overrides
+>    -on-comments gotcha and the non-null-assertion policy split between src and tests).
 > 3. **Docs from types** — first-class API docs generated from the public surface;
 >    migration notes framed as "a different, better library," not a compatibility shim.
 > 4. **Rebrand (human decision)** — the definitive package name replaces the provisional

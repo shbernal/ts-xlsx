@@ -87,7 +87,10 @@ export function canonicalizeAutoFilter(input: string | AutoFilter): AutoFilter {
   }
   if (typeof input === 'string') return {ref: dimensions, columns: []};
   const width = right - left + 1;
-  return {ref: dimensions, columns: input.columns.map(column => canonicalizeColumn(column, width))};
+  return {
+    ref: dimensions,
+    columns: input.columns.map((column) => canonicalizeColumn(column, width)),
+  };
 }
 
 function canonicalizeColumn(column: FilterColumn, width: number): FilterColumn {

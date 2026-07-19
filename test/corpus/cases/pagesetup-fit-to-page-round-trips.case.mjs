@@ -9,10 +9,22 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 const FIT_WIDTH = {
-  sheets: [{name: 'S', cells: [{ref: 'A1', value: 1}], pageSetup: {fitToPage: true, fitToWidth: 1, fitToHeight: 0, scale: 80}}],
+  sheets: [
+    {
+      name: 'S',
+      cells: [{ref: 'A1', value: 1}],
+      pageSetup: {fitToPage: true, fitToWidth: 1, fitToHeight: 0, scale: 80},
+    },
+  ],
 };
 const FIT_HEIGHT = {
-  sheets: [{name: 'S', cells: [{ref: 'A1', value: 1}], pageSetup: {fitToPage: true, fitToWidth: 0, fitToHeight: 1}}],
+  sheets: [
+    {
+      name: 'S',
+      cells: [{ref: 'A1', value: 1}],
+      pageSetup: {fitToPage: true, fitToWidth: 0, fitToHeight: 1},
+    },
+  ],
 };
 
 export default {

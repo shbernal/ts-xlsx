@@ -10,7 +10,13 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 const SPEC = {
-  sheets: [{name: 'S', properties: {defaultRowHeight: 30, defaultColWidth: 20}, cells: [{ref: 'A1', value: 'x'}]}],
+  sheets: [
+    {
+      name: 'S',
+      properties: {defaultRowHeight: 30, defaultColWidth: 20},
+      cells: [{ref: 'A1', value: 'x'}],
+    },
+  ],
 };
 
 export default {
@@ -29,7 +35,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
-        assert.strictEqual(sheets.S.sheetFormat.defaultRowHeight, 30, 'the default row height is serialized');
+        assert.strictEqual(
+          sheets.S.sheetFormat.defaultRowHeight,
+          30,
+          'the default row height is serialized',
+        );
       },
     },
     {
@@ -37,7 +47,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
-        assert.strictEqual(sheets.S.sheetFormat.defaultColWidth, 20, 'the default column width is serialized');
+        assert.strictEqual(
+          sheets.S.sheetFormat.defaultColWidth,
+          20,
+          'the default column width is serialized',
+        );
       },
     },
   ],

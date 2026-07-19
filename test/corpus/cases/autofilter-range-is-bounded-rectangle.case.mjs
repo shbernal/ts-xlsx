@@ -13,16 +13,22 @@ const SPEC = {
     {
       name: 'S',
       cells: [
-        {ref: 'A1', value: 'H1'}, {ref: 'B1', value: 'H2'}, {ref: 'C1', value: 'H3'},
-        {ref: 'A2', value: 1}, {ref: 'B2', value: 2}, {ref: 'C2', value: 3},
-        {ref: 'A3', value: 4}, {ref: 'B3', value: 5}, {ref: 'C3', value: 6},
+        {ref: 'A1', value: 'H1'},
+        {ref: 'B1', value: 'H2'},
+        {ref: 'C1', value: 'H3'},
+        {ref: 'A2', value: 1},
+        {ref: 'B2', value: 2},
+        {ref: 'C2', value: 3},
+        {ref: 'A3', value: 4},
+        {ref: 'B3', value: 5},
+        {ref: 'C3', value: 6},
       ],
       autoFilter: 'A1:C3',
     },
   ],
 };
 
-const isBoundedRect = ref => /^[A-Z]+\d+:[A-Z]+\d+$/.test(ref || '');
+const isBoundedRect = (ref) => /^[A-Z]+\d+:[A-Z]+\d+$/.test(ref || '');
 
 export default {
   id: 'autofilter-range-is-bounded-rectangle',
@@ -40,7 +46,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
-        assert.strictEqual(sheets.S.autoFilterRef, 'A1:C3', 'the exact bounded range is serialized');
+        assert.strictEqual(
+          sheets.S.autoFilterRef,
+          'A1:C3',
+          'the exact bounded range is serialized',
+        );
         assert.ok(isBoundedRect(sheets.S.autoFilterRef), 'the ref has both row and column bounds');
       },
     },
@@ -49,7 +59,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.autoFilter, 'A1:C3', 'the bounded filter range survives read→write');
+        assert.strictEqual(
+          model.sheets.S.autoFilter,
+          'A1:C3',
+          'the bounded filter range survives read→write',
+        );
       },
     },
   ],

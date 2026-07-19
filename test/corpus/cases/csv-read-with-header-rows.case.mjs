@@ -24,7 +24,10 @@ export default {
       name: 'reading with header mode enabled does not throw',
       baseline: 'pass',
       async expect(api, assert) {
-        const {ok, error} = await api.csvRead({csv: 'name,age\nalice,30', options: {parserOptions: {headers: true}}});
+        const {ok, error} = await api.csvRead({
+          csv: 'name,age\nalice,30',
+          options: {parserOptions: {headers: true}},
+        });
         assert.ok(ok, `header-mode read must not throw; got error ${JSON.stringify(error)}`);
       },
     },
@@ -32,10 +35,17 @@ export default {
       name: 'in header mode the header row is consumed and data rows carry the values',
       baseline: 'pass',
       async expect(api, assert) {
-        const {ok, rows} = await api.csvRead({csv: 'name,age\nalice,30', options: {parserOptions: {headers: true}}});
+        const {ok, rows} = await api.csvRead({
+          csv: 'name,age\nalice,30',
+          options: {parserOptions: {headers: true}},
+        });
         assert.ok(ok, 'header-mode read must complete to yield rows');
         assert.strictEqual(rows.length, 1, 'the header line is consumed, leaving one data row');
-        assert.deepStrictEqual(rows[0], ['alice', 30], 'the data row carries the values in column order');
+        assert.deepStrictEqual(
+          rows[0],
+          ['alice', 30],
+          'the data row carries the values in column order',
+        );
       },
     },
     {
@@ -44,7 +54,11 @@ export default {
       async expect(api, assert) {
         const {ok, rows} = await api.csvRead({csv: 'name,age\nalice,30', options: {}});
         assert.ok(ok, 'array-mode read works');
-        assert.deepStrictEqual(rows[0], ['name', 'age'], 'the header line is itself a data row in array mode');
+        assert.deepStrictEqual(
+          rows[0],
+          ['name', 'age'],
+          'the header line is itself a data row in array mode',
+        );
         assert.deepStrictEqual(rows[1], ['alice', 30], 'the second line splits into fields');
       },
     },

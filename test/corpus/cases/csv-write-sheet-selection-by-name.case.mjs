@@ -41,7 +41,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, rowCount} = await api.csvWriteSheetSelection('Nope');
-        assert.ok(!ok || rowCount > 0, 'a non-matching selector must error or fall back, not emit zero rows for a non-empty workbook');
+        assert.ok(
+          !ok || rowCount > 0,
+          'a non-matching selector must error or fall back, not emit zero rows for a non-empty workbook',
+        );
       },
     },
   ],

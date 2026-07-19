@@ -13,9 +13,9 @@
 // the moment we capture it. Re-running only refreshes titles/labels/counts for the
 // same frozen set and preserves the `harvestComplete` flag.
 
-import {readFile, writeFile, mkdir} from 'node:fs/promises';
+import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {dirname} from 'node:path';
-import {BACKLOG_DIR, DEFAULT_REPO, MANIFEST_PATH, fileExists, isValidRepo, listOpenItems} from './lib.mjs';
+import {DEFAULT_REPO, fileExists, isValidRepo, listOpenItems, MANIFEST_PATH} from './lib.mjs';
 
 function parseArgs(argv) {
   const args = {repo: DEFAULT_REPO};
@@ -45,7 +45,7 @@ async function main() {
   const items = await listOpenItems(repo);
   items.sort((a, b) => a.number - b.number);
 
-  const issues = items.filter(i => i.type === 'issue').length;
+  const issues = items.filter((i) => i.type === 'issue').length;
   const prs = items.length - issues;
 
   const manifest = {
@@ -67,7 +67,7 @@ async function main() {
   console.log(`Next: node scripts/harvest/harvest-all.mjs   (fill the queue)`);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(`list-backlog failed: ${err.message ?? err}`);
   process.exitCode = 1;
 });

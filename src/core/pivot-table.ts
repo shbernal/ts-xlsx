@@ -165,7 +165,9 @@ export class PivotTable {
   constructor(options: PivotTableOptions) {
     const metric = options.metric ?? 'sum';
     if (!PIVOT_METRICS.has(metric)) {
-      throw new Error(`unsupported pivot metric "${metric}" — expected one of ${[...PIVOT_METRICS].join(', ')}`);
+      throw new Error(
+        `unsupported pivot metric "${metric}" — expected one of ${[...PIVOT_METRICS].join(', ')}`,
+      );
     }
     this.metric = metric;
 
@@ -185,18 +187,19 @@ export class PivotTable {
     if (fields.length === 0) throw new Error('the pivot source header row is empty');
 
     const resolve = (role: string, name: string): number => {
-      const index = fields.findIndex(field => field.name === name);
+      const index = fields.findIndex((field) => field.name === name);
       if (index < 0) {
         throw new Error(`pivot ${role} field "${name}" is not a column header in the source sheet`);
       }
       return index;
     };
     if (options.rows.length === 0) throw new Error('a pivot table needs at least one row field');
-    if (options.columns.length === 0) throw new Error('a pivot table needs at least one column field');
+    if (options.columns.length === 0)
+      throw new Error('a pivot table needs at least one column field');
     if (options.values.length !== 1) throw new Error('a pivot table needs exactly one value field');
 
-    this.rowFields = options.rows.map(name => resolve('row', name));
-    this.columnFields = options.columns.map(name => resolve('column', name));
+    this.rowFields = options.rows.map((name) => resolve('row', name));
+    this.columnFields = options.columns.map((name) => resolve('column', name));
     this.valueField = resolve('value', options.values[0] as string);
     const axisFields = new Set<number>([...this.rowFields, ...this.columnFields]);
 
@@ -208,7 +211,7 @@ export class PivotTable {
     // Read the source body once, field by field, so the same scan feeds both the shared-items
     // catalogues and the records that reference them.
     const dataRowCount = lastRow - 1;
-    const columnScalars = fields.map(field => {
+    const columnScalars = fields.map((field) => {
       const scalars: PivotItem[] = [];
       for (let row = 2; row <= lastRow; row++) {
         scalars.push(scalarOf(source.getCell(encodeAddress(field.col, row)).value));
@@ -219,7 +222,7 @@ export class PivotTable {
     const catalogues: (Map<string, number> | null)[] = fields.map(() => null);
     this.cacheFields = fields.map((field, fieldIndex) => {
       const scalars = columnScalars[fieldIndex] as PivotItem[];
-      const containsBlank = scalars.some(scalar => scalar.kind === 'blank');
+      const containsBlank = scalars.some((scalar) => scalar.kind === 'blank');
       if (axisFields.has(fieldIndex)) {
         const items: PivotItem[] = [];
         const catalogue = new Map<string, number>();
@@ -244,7 +247,7 @@ export class PivotTable {
           const catalogue = catalogues[fieldIndex];
           if (!catalogue) return scalar;
           return {kind: 'index', index: catalogue.get(itemKey(scalar)) as number};
-        })
+        }),
       );
     }
     this.records = records;
@@ -311,7 +314,10 @@ function scalarOf(value: CellValue): PivotItem {
   if (value instanceof Date) return {kind: 'string', value: value.toISOString()};
   if (isRichTextValue(value)) return {kind: 'string', value: richTextToString(value)};
   if (isHyperlinkValue(value)) {
-    return {kind: 'string', value: typeof value.text === 'string' ? value.text : richTextToString(value.text)};
+    return {
+      kind: 'string',
+      value: typeof value.text === 'string' ? value.text : richTextToString(value.text),
+    };
   }
   if (isErrorValue(value)) return {kind: 'string', value: value.error};
   if (isFormulaValue(value) || isSharedFormulaValue(value)) {
@@ -321,5 +327,5 @@ function scalarOf(value: CellValue): PivotItem {
 }
 
 function richTextToString(value: RichTextValue): string {
-  return value.richText.map(run => run.text).join('');
+  return value.richText.map((run) => run.text).join('');
 }

@@ -29,7 +29,11 @@ export default {
         const {'Sheet1!A1': a1} = await api.readFixtureCellStyles(FIXTURE, ['Sheet1!A1']);
         assert.strictEqual(a1.fill.pattern, 'solid', 'the fill is a solid pattern');
         assert.strictEqual(a1.fill.fgColor.argb, 'FFFFFF00', 'the visible yellow is on fgColor');
-        assert.strictEqual(a1.fill.bgColor.indexed, 64, 'bgColor stays the automatic indexed placeholder');
+        assert.strictEqual(
+          a1.fill.bgColor.indexed,
+          64,
+          'bgColor stays the automatic indexed placeholder',
+        );
       },
     },
     {
@@ -37,7 +41,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {'Sheet1!A1': a1} = await api.readFixtureCellStyles(FIXTURE, ['Sheet1!A1']);
-        assert.strictEqual(a1.fontColor.argb, 'FFFF0000', 'the red font color is separate from the yellow fill');
+        assert.strictEqual(
+          a1.fontColor.argb,
+          'FFFF0000',
+          'the red font color is separate from the yellow fill',
+        );
       },
     },
   ],

@@ -37,10 +37,14 @@
     "build": "npm run clean && tsc -p tsconfig.build.json",
     "size": "node scripts/size-budget.mjs",
     "smoke:dist": "node scripts/smoke-dist.mjs",
+    "lint": "biome check src scripts test",
+    "lint:fix": "biome check --write src scripts test",
+    "format": "biome format --write src scripts test",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:src": "node --test \"src/**/*.test.ts\"",
+    "test:coverage": "node --test --experimental-test-coverage \"src/**/*.test.ts\"",
     "corpus": "node test/corpus/run.mjs",
-    "test": "npm run typecheck && npm run test:src && npm run corpus",
+    "test": "npm run lint && npm run typecheck && npm run test:src && npm run corpus",
     "prepublishOnly": "npm run build && npm run test && npm run smoke:dist && npm run size",
     "validate:ooxml": "dotnet run --project tools/ooxml-validator/OoxmlValidator.csproj --configuration Release --",
     "test:ooxml": "dotnet restore tools/ooxml-validator/OoxmlValidator.csproj --locked-mode && node test/ooxml-validation/run.mjs",
@@ -63,6 +67,7 @@
     "fflate": "^0.8.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.4",
     "@types/node": "^22.20.1",
     "jszip": "^3.10.1",
     "typescript": "^5.9.3"

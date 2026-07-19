@@ -29,7 +29,7 @@ export default {
         assert.strictEqual(
           String(sixHexRgb),
           'FF00FF00',
-          `a 6-hex RGB must gain an opaque 'FF' alpha, not be emitted as ${JSON.stringify(sixHexRgb)}`
+          `a 6-hex RGB must gain an opaque 'FF' alpha, not be emitted as ${JSON.stringify(sixHexRgb)}`,
         );
       },
     },
@@ -38,7 +38,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {rejectsMalformed} = await api.argbNormalizationReport();
-        assert.strictEqual(rejectsMalformed, true, 'a malformed ARGB must be rejected at the API surface, not written as a black-rendering colour');
+        assert.strictEqual(
+          rejectsMalformed,
+          true,
+          'a malformed ARGB must be rejected at the API surface, not written as a black-rendering colour',
+        );
       },
     },
   ],

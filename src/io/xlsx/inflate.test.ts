@@ -61,7 +61,11 @@ test('a header that lies small about its uncompressed size is still bounded by r
   // local header's uncompressed-size field down to one byte: a declared-size filter would
   // wave this through, but the true 1 MiB of output must still trip the counter.
   const archive = zipSync({'liar.bin': new Uint8Array(1024 * 1024)});
-  assert.deepEqual([...archive.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04], 'local file header at offset 0');
+  assert.deepEqual(
+    [...archive.subarray(0, 4)],
+    [0x50, 0x4b, 0x03, 0x04],
+    'local file header at offset 0',
+  );
   const view = new DataView(archive.buffer, archive.byteOffset, archive.byteLength);
   view.setUint32(22, 1, true); // uncompressed size → 1
   assert.equal(view.getUint32(22, true), 1, 'the forged header now declares a single byte');
@@ -77,7 +81,7 @@ test('an unsupported compression method is rejected, not silently dropped', () =
 });
 
 test('inflatePackage agrees with fflate on a well-formed archive', () => {
-  const archive = zipSync({'a': strToU8('one'), 'b': noise(3000)});
+  const archive = zipSync({a: strToU8('one'), b: noise(3000)});
   const ours = inflatePackage(archive, GENEROUS_CAP);
   const theirs = unzipSync(archive);
   assert.deepEqual(Object.keys(ours).sort(), Object.keys(theirs).sort());

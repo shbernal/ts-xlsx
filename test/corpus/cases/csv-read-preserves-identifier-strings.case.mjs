@@ -29,7 +29,7 @@ export default {
         assert.deepStrictEqual(
           rows[0],
           ['2020-00001', '1-3', '3-4'],
-          'padded IDs and dash-codes stay strings, not coerced to dates'
+          'padded IDs and dash-codes stay strings, not coerced to dates',
         );
       },
     },
@@ -47,8 +47,15 @@ export default {
       async expect(api, assert) {
         const {rows} = await api.csvRead({csv: '2018-01-05', options: {}});
         const cell = rows[0][0];
-        assert.ok(cell && typeof cell === 'object' && cell.date, `a real date should coerce; got ${JSON.stringify(cell)}`);
-        assert.match(cell.date, /^2018-01-0[45]T/, 'the parsed date is Jan 5 2018 (modulo timezone)');
+        assert.ok(
+          cell && typeof cell === 'object' && cell.date,
+          `a real date should coerce; got ${JSON.stringify(cell)}`,
+        );
+        assert.match(
+          cell.date,
+          /^2018-01-0[45]T/,
+          'the parsed date is Jan 5 2018 (modulo timezone)',
+        );
       },
     },
   ],

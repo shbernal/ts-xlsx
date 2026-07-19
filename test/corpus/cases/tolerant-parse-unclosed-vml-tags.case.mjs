@@ -27,7 +27,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.ok(ok, `the read must not abort on a malformed VML part; got ${JSON.stringify(error)}`);
+        assert.ok(
+          ok,
+          `the read must not abort on a malformed VML part; got ${JSON.stringify(error)}`,
+        );
       },
     },
     {

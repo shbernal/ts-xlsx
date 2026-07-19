@@ -19,11 +19,11 @@
 // partially-built writer never produces a false regression — it only runs the cases it
 // can faithfully serialize, and those must go green.
 
-import {createRequire} from 'node:module';
 import fs from 'node:fs';
+import {createRequire} from 'node:module';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {Duplex, PassThrough} from 'node:stream';
-import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
@@ -31,11 +31,11 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import {decodeAddress, decodeRange, encodeAddress} from '../../../src/core/address.ts';
 import {detectValueType} from '../../../src/core/value.ts';
 import {Workbook} from '../../../src/core/workbook.ts';
+import {readCsv} from '../../../src/io/csv/read.ts';
+import {writeCsv, writeCsvText} from '../../../src/io/csv/write.ts';
 import {readXlsx} from '../../../src/io/xlsx/read.ts';
 import {readWorkbookStream} from '../../../src/io/xlsx/read-rows.ts';
 import {writeXlsx} from '../../../src/io/xlsx/write.ts';
-import {readCsv} from '../../../src/io/csv/read.ts';
-import {writeCsv, writeCsvText} from '../../../src/io/csv/write.ts';
 import {WorkbookStreamWriter} from '../../../src/io/xlsx/write-stream.ts';
 import {packageFacts} from './ooxml-facts.mjs';
 
@@ -49,13 +49,13 @@ const JSZip = require('jszip');
 // real-world file. The rewrite reads them straight through readXlsx (a fixture is just a
 // foreign `.xlsx` buffer).
 const FIXTURES_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
-const fixtureBytes = rel => fs.readFileSync(path.join(FIXTURES_ROOT, rel));
-const readFixture = rel => readXlsx(fixtureBytes(rel));
+const fixtureBytes = (rel) => fs.readFileSync(path.join(FIXTURES_ROOT, rel));
+const readFixture = (rel) => readXlsx(fixtureBytes(rel));
 
 // The 1-based `row.values` array a full-load reader exposes, rebuilt from a streamed row's cells:
 // index 0 is an empty leading slot and column A lands at index 1, so streaming and buffered reads
 // index identically. Gaps (and the leading slot) are null, every present value normalized.
-const streamedRowValues = cells => {
+const streamedRowValues = (cells) => {
   const width = cells.reduce((max, cell) => Math.max(max, cell.col), 0);
   const values = new Array(width + 1).fill(null);
   for (const cell of cells) values[cell.col] = normalizeStreamValue(cell.value);
@@ -66,11 +66,11 @@ const streamedRowValues = cells => {
 const ONE_PX_PNG = Uint8Array.from(
   Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-    'base64'
-  )
+    'base64',
+  ),
 );
 
-const notImplemented = message => {
+const notImplemented = (message) => {
   const err = new Error(`rewrite: ${message}`);
   err.notImplemented = true;
   return err;
@@ -79,38 +79,103 @@ const notImplemented = message => {
 const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties', 'definedNames']);
 const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
 const SUPPORTED_SHEET_KEYS = new Set([
-  'name', 'state', 'cells', 'columns', 'rows', 'properties', 'pageSetup', 'pageMargins', 'headerFooter', 'tables', 'merges', 'autoFilter', 'images', 'background',
+  'name',
+  'state',
+  'cells',
+  'columns',
+  'rows',
+  'properties',
+  'pageSetup',
+  'pageMargins',
+  'headerFooter',
+  'tables',
+  'merges',
+  'autoFilter',
+  'images',
+  'background',
 ]);
-const SUPPORTED_CELL_KEYS = new Set(['ref', 'value', 'formula', 'sharedFormula', 'result', 'hyperlink', 'text', 'tooltip', 'fill', 'numFmt', 'font', 'border', 'alignment', 'protection', 'note']);
+const SUPPORTED_CELL_KEYS = new Set([
+  'ref',
+  'value',
+  'formula',
+  'sharedFormula',
+  'result',
+  'hyperlink',
+  'text',
+  'tooltip',
+  'fill',
+  'numFmt',
+  'font',
+  'border',
+  'alignment',
+  'protection',
+  'note',
+]);
 const SUPPORTED_SHEET_PROP_KEYS = new Set(['defaultRowHeight', 'defaultColWidth']);
-const SUPPORTED_COLUMN_KEYS = new Set(['index', 'width', 'hidden', 'numFmt', 'fill', 'font', 'border', 'alignment', 'protection']);
-const SUPPORTED_ROW_KEYS = new Set(['index', 'height', 'hidden', 'outlineLevel', 'collapsed', 'fill']);
+const SUPPORTED_COLUMN_KEYS = new Set([
+  'index',
+  'width',
+  'hidden',
+  'numFmt',
+  'fill',
+  'font',
+  'border',
+  'alignment',
+  'protection',
+]);
+const SUPPORTED_ROW_KEYS = new Set([
+  'index',
+  'height',
+  'hidden',
+  'outlineLevel',
+  'collapsed',
+  'fill',
+]);
 const SUPPORTED_PAGE_MARGIN_KEYS = new Set(['left', 'right', 'top', 'bottom', 'header', 'footer']);
-const SUPPORTED_PAGE_SETUP_KEYS = new Set(['fitToPage', 'fitToWidth', 'fitToHeight', 'scale', 'orientation', 'pageOrder', 'paperSize']);
+const SUPPORTED_PAGE_SETUP_KEYS = new Set([
+  'fitToPage',
+  'fitToWidth',
+  'fitToHeight',
+  'scale',
+  'orientation',
+  'pageOrder',
+  'paperSize',
+]);
 const SUPPORTED_HEADER_FOOTER_KEYS = new Set([
-  'oddHeader', 'oddFooter', 'evenHeader', 'evenFooter', 'firstHeader', 'firstFooter',
+  'oddHeader',
+  'oddFooter',
+  'evenHeader',
+  'evenFooter',
+  'firstHeader',
+  'firstFooter',
 ]);
 const SUPPORTED_TABLE_KEYS = new Set([
-  'name', 'ref', 'headers', 'columnDefs', 'rows', 'headerRow', 'totalsRow',
+  'name',
+  'ref',
+  'headers',
+  'columnDefs',
+  'rows',
+  'headerRow',
+  'totalsRow',
 ]);
 const SUPPORTED_TABLE_COLUMN_KEYS = new Set(['name', 'totalsRowLabel', 'totalsRowFunction']);
 
 // Build an _xlnm.Print_Area refersTo from a comma-separated area (e.g. 'A1:F10,A12:F21' or 'A:D'):
 // each range is made absolute ($-prefixed on every column and row bound) and sheet-qualified, exactly
 // how Excel records a print area. A whole-column range keeps its column-only shape ($A:$D).
-const absolutizeRef = ref => ref.replace(/([A-Z]+)/g, '$$$1').replace(/(\d+)/g, '$$$1');
+const absolutizeRef = (ref) => ref.replace(/([A-Z]+)/g, '$$$1').replace(/(\d+)/g, '$$$1');
 const printAreaRefersTo = (sheetName, area) =>
   area
     .split(',')
-    .map(range => `${sheetName}!${absolutizeRef(range)}`)
+    .map((range) => `${sheetName}!${absolutizeRef(range)}`)
     .join(',');
 
-const toDate = v => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
-const isoOrNull = d => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null);
+const toDate = (v) => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
+const isoOrNull = (d) => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null);
 
 // A JSON-serializable view of a read-back cell value: a Date becomes { date: iso } (null when
 // invalid), every other object is deep-cloned, and a scalar passes through. Mirrors the oracle.
-const normalizeStreamValue = v => {
+const normalizeStreamValue = (v) => {
   if (v instanceof Date) return {date: Number.isNaN(v.getTime()) ? null : v.toISOString()};
   if (v && typeof v === 'object') return JSON.parse(JSON.stringify(v));
   return v ?? null;
@@ -119,10 +184,10 @@ const normalizeStreamValue = v => {
 // Some specs express a rich-text run in the flat inline shape `{ text, bold, italic, … }`, while the
 // rewrite models a run as `{ text, font: { … } }`. Translate a spec value into the model shape on the
 // way in…
-const specValueToModel = value => {
+const specValueToModel = (value) => {
   if (value && typeof value === 'object' && Array.isArray(value.richText)) {
     return {
-      richText: value.richText.map(run => {
+      richText: value.richText.map((run) => {
         const {text, ...font} = run;
         return Object.keys(font).length ? {text, font} : {text};
       }),
@@ -133,7 +198,7 @@ const specValueToModel = value => {
 
 // …and flatten a read-back run's `font` facets back onto the run on the way out, so a spec asserting
 // on `run.bold` sees the shape it wrote.
-const modelValueToSpec = value => {
+const modelValueToSpec = (value) => {
   if (value && typeof value === 'object' && Array.isArray(value.richText)) {
     return {richText: value.richText.map(({text, font}) => ({text, ...(font || {})}))};
   }
@@ -165,26 +230,30 @@ function buildFrom(spec = {}) {
 
     const sp = s.properties || {};
     for (const k of Object.keys(sp)) {
-      if (!SUPPORTED_SHEET_PROP_KEYS.has(k)) throw notImplemented(`sheet.properties.${k} not supported yet`);
+      if (!SUPPORTED_SHEET_PROP_KEYS.has(k))
+        throw notImplemented(`sheet.properties.${k} not supported yet`);
     }
     if (sp.defaultRowHeight !== undefined) sheet.properties.defaultRowHeight = sp.defaultRowHeight;
     if (sp.defaultColWidth !== undefined) sheet.properties.defaultColWidth = sp.defaultColWidth;
 
     const pm = s.pageMargins || {};
     for (const k of Object.keys(pm)) {
-      if (!SUPPORTED_PAGE_MARGIN_KEYS.has(k)) throw notImplemented(`pageMargins.${k} not supported yet`);
+      if (!SUPPORTED_PAGE_MARGIN_KEYS.has(k))
+        throw notImplemented(`pageMargins.${k} not supported yet`);
       sheet.pageMargins[k] = pm[k];
     }
 
     const psu = s.pageSetup || {};
     for (const k of Object.keys(psu)) {
-      if (!SUPPORTED_PAGE_SETUP_KEYS.has(k)) throw notImplemented(`pageSetup.${k} not supported yet`);
+      if (!SUPPORTED_PAGE_SETUP_KEYS.has(k))
+        throw notImplemented(`pageSetup.${k} not supported yet`);
       sheet.pageSetup[k] = psu[k];
     }
 
     const hf = s.headerFooter || {};
     for (const k of Object.keys(hf)) {
-      if (!SUPPORTED_HEADER_FOOTER_KEYS.has(k)) throw notImplemented(`headerFooter.${k} not supported yet`);
+      if (!SUPPORTED_HEADER_FOOTER_KEYS.has(k))
+        throw notImplemented(`headerFooter.${k} not supported yet`);
       sheet.headerFooter[k] = hf[k];
     }
 
@@ -196,22 +265,28 @@ function buildFrom(spec = {}) {
       if (t.columnDefs) {
         for (const cd of t.columnDefs) {
           for (const k of Object.keys(cd)) {
-            if (!SUPPORTED_TABLE_COLUMN_KEYS.has(k)) throw notImplemented(`table.columnDefs.${k} not supported yet`);
+            if (!SUPPORTED_TABLE_COLUMN_KEYS.has(k))
+              throw notImplemented(`table.columnDefs.${k} not supported yet`);
           }
         }
-        columns = t.columnDefs.map(cd => {
+        columns = t.columnDefs.map((cd) => {
           const col = {name: cd.name};
           if (cd.totalsRowLabel !== undefined) col.totalsRowLabel = cd.totalsRowLabel;
           if (cd.totalsRowFunction !== undefined) col.totalsRowFunction = cd.totalsRowFunction;
           return col;
         });
       } else {
-        columns = (t.headers || []).map(name => ({name}));
+        columns = (t.headers || []).map((name) => ({name}));
       }
       // A spec may express a table ref as the full occupied range (`A1:B3`), the shape the oracle
       // accepts, while the model anchors at the single top-left cell and derives the range from the
       // row count. Take the anchor; the declared row count reconstructs the same range.
-      const options = {name: t.name, ref: t.ref.split(':')[0], columns, rowCount: (t.rows || []).length};
+      const options = {
+        name: t.name,
+        ref: t.ref.split(':')[0],
+        columns,
+        rowCount: (t.rows || []).length,
+      };
       if (t.headerRow !== undefined) options.headerRow = t.headerRow;
       if (t.totalsRow !== undefined) options.totalsRow = t.totalsRow;
       sheet.addTable(options);
@@ -256,13 +331,16 @@ function buildFrom(spec = {}) {
       // A spec omits `extension` to mean the default 'png'; it sets the key (to a dirty or missing
       // value) on purpose to exercise the library's write-side extension sanitisation. Pass the raw
       // value through — `workbook.addImage` normalises a leading dot / query string / missing hint.
-      const options = 'extension' in img ? {buffer: ONE_PX_PNG, extension: img.extension} : {buffer: ONE_PX_PNG};
+      const options =
+        'extension' in img ? {buffer: ONE_PX_PNG, extension: img.extension} : {buffer: ONE_PX_PNG};
       anchorSpecImage(sheet, workbook.addImage(options), img.range);
     }
     // A sheet background is a workbook image tiled behind the grid, not anchored — it rides its own
     // worksheet `<picture>` relationship, so a case can assert it coexists with comment/VML parts.
     if (s.background) {
-      sheet.addBackgroundImage(workbook.addImage({buffer: ONE_PX_PNG, extension: s.background.extension || 'png'}));
+      sheet.addBackgroundImage(
+        workbook.addImage({buffer: ONE_PX_PNG, extension: s.background.extension || 'png'}),
+      );
     }
 
     for (const c of s.cells || []) {
@@ -282,7 +360,9 @@ function buildFrom(spec = {}) {
       } else if ('sharedFormula' in c) {
         // A shared-formula clone names its master by address; the master is a plain formula cell.
         cell.value =
-          'result' in c ? {sharedFormula: c.sharedFormula, result: c.result} : {sharedFormula: c.sharedFormula};
+          'result' in c
+            ? {sharedFormula: c.sharedFormula, result: c.result}
+            : {sharedFormula: c.sharedFormula};
       } else if ('value' in c) {
         const v = c.value;
         if (v !== null && typeof v === 'object') {
@@ -328,10 +408,15 @@ function normalizeRewriteCell(cell) {
   const v = cell.value;
   let out;
   if (v && typeof v === 'object' && 'hyperlink' in v) {
-    out = {hyperlink: v.hyperlink, text: v.text, ...(v.tooltip !== undefined ? {tooltip: v.tooltip} : {})};
+    out = {
+      hyperlink: v.hyperlink,
+      text: v.text,
+      ...(v.tooltip !== undefined ? {tooltip: v.tooltip} : {}),
+    };
   } else if (v && typeof v === 'object' && 'sharedFormula' in v) {
     out = {sharedFormula: v.sharedFormula, formula: v.formula ?? null, result: v.result ?? null};
-  } else if (v && typeof v === 'object' && 'formula' in v) out = {formula: v.formula, result: v.result ?? null};
+  } else if (v && typeof v === 'object' && 'formula' in v)
+    out = {formula: v.formula, result: v.result ?? null};
   else if (v instanceof Date) out = {value: Number.isNaN(v.getTime()) ? null : v.toISOString()};
   else out = {value: v ?? null};
   // A style facet is reported only when the round-trip materialized it, matching the
@@ -373,19 +458,19 @@ function partMapOf(buffer) {
 // `packageFactsFromZip`: counts of part families the reader does not fully model (drawings, VML,
 // media, pivot tables/caches, comments) plus the worksheet/drawing reference flags that wire
 // unmodeled features (a vector-shape drawing, a header/footer image) into the sheet.
-const packagePartFacts = parts => {
+const packagePartFacts = (parts) => {
   const names = Object.keys(parts);
-  const at = rx => parts[names.find(p => rx.test(p))] ?? '';
+  const at = (rx) => parts[names.find((p) => rx.test(p))] ?? '';
   const ws1 = at(/worksheets\/sheet1\.xml$/);
   const drawing1 = at(/drawings\/drawing1\.xml$/);
   return {
-    drawings: names.filter(p => /xl\/drawings\/drawing\d+\.xml$/.test(p)).length,
-    vml: names.filter(p => /vmlDrawing\d+\.vml$/.test(p)).length,
-    media: names.filter(p => /xl\/media\//.test(p)).length,
-    pivotTables: names.filter(p => /pivotTables\/pivotTable\d+\.xml$/.test(p)).length,
-    pivotCache: names.filter(p => /pivotCache\/.+\.xml$/.test(p)).length,
-    slicers: names.filter(p => /slicer/i.test(p)).length,
-    comments: names.filter(p => /comments\d+\.xml$/.test(p)).length,
+    drawings: names.filter((p) => /xl\/drawings\/drawing\d+\.xml$/.test(p)).length,
+    vml: names.filter((p) => /vmlDrawing\d+\.vml$/.test(p)).length,
+    media: names.filter((p) => /xl\/media\//.test(p)).length,
+    pivotTables: names.filter((p) => /pivotTables\/pivotTable\d+\.xml$/.test(p)).length,
+    pivotCache: names.filter((p) => /pivotCache\/.+\.xml$/.test(p)).length,
+    slicers: names.filter((p) => /slicer/i.test(p)).length,
+    comments: names.filter((p) => /comments\d+\.xml$/.test(p)).length,
     hasLegacyDrawingHF: /<legacyDrawingHF\b/.test(ws1),
     hasDrawingRef: /<drawing\b/.test(ws1),
     hasHeaderFooterImageToken: /&amp;G|&G/.test(ws1),
@@ -394,7 +479,7 @@ const packagePartFacts = parts => {
   };
 };
 
-const hexBytes = hex => Uint8Array.from(hex.match(/../g).map(h => parseInt(h, 16)));
+const hexBytes = (hex) => Uint8Array.from(hex.match(/../g).map((h) => parseInt(h, 16)));
 
 // Translate a corpus image range — a string like "B2:D6", or a {tl, br?/ext?, editAs?} object — into
 // the model's typed addImage call. A one-cell anchor is a point plus a fixed pixel extent (editAs is a
@@ -421,11 +506,16 @@ const intAt = (xml, tag) => {
   const m = xml.match(new RegExp(`<${tag}>(-?\\d+)</${tag}>`));
   return m ? Number(m[1]) : null;
 };
-const parseAnchorSide = block =>
+const parseAnchorSide = (block) =>
   block
-    ? {col: intAt(block, 'xdr:col'), colOff: intAt(block, 'xdr:colOff'), row: intAt(block, 'xdr:row'), rowOff: intAt(block, 'xdr:rowOff')}
+    ? {
+        col: intAt(block, 'xdr:col'),
+        colOff: intAt(block, 'xdr:colOff'),
+        row: intAt(block, 'xdr:row'),
+        rowOff: intAt(block, 'xdr:rowOff'),
+      }
     : null;
-const imageXmlWellFormed = xml => !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
+const imageXmlWellFormed = (xml) => !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
 
 // Expand an OOXML sqref (space-separated ranges) into its covered cell references, bounded by a cap so
 // a whole-column range never balloons — used to check that a range-form validation is reported on
@@ -459,8 +549,11 @@ function reloadPatched(buffer, edits) {
 function attrsOf(tag) {
   const out = {};
   const re = /([\w:]+)="([^"]*)"/g;
-  let m;
-  while ((m = re.exec(tag)) !== null) out[m[1]] = m[2];
+  let m = re.exec(tag);
+  while (m !== null) {
+    out[m[1]] = m[2];
+    m = re.exec(tag);
+  }
   return out;
 }
 
@@ -513,12 +606,24 @@ const impl = {
         metric: 'sum',
       });
       const parts = partMapOf(writeXlsx(wb));
-      const key = Object.keys(parts).find(n => /pivotCacheDefinition\d*\.xml$/.test(n));
+      const key = Object.keys(parts).find((n) => /pivotCacheDefinition\d*\.xml$/.test(n));
       const cacheXml = key ? parts[key] : '';
-      const hasRawUnescapedAmp = /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/.test(cacheXml);
-      return {ok: true, writeError: null, cacheWellFormed: cacheXml ? !hasRawUnescapedAmp : false, hasRawUnescapedAmp};
+      const hasRawUnescapedAmp = /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/.test(
+        cacheXml,
+      );
+      return {
+        ok: true,
+        writeError: null,
+        cacheWellFormed: cacheXml ? !hasRawUnescapedAmp : false,
+        hasRawUnescapedAmp,
+      };
     } catch (e) {
-      return {ok: false, writeError: String((e && e.message) || e), cacheWellFormed: null, hasRawUnescapedAmp: null};
+      return {
+        ok: false,
+        writeError: String(e?.message || e),
+        cacheWellFormed: null,
+        hasRawUnescapedAmp: null,
+      };
     }
   },
 
@@ -538,7 +643,9 @@ const impl = {
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
     const wbXml = parts['xl/workbook.xml'] || '';
     const autoFilterRef = (sheetXml.match(/<autoFilter\b[^>]*ref="([^"]*)"/) || [])[1] ?? null;
-    const filterDb = wbXml.match(/<definedName\b([^>]*)name="_xlnm._FilterDatabase"([^>]*)>([\s\S]*?)<\/definedName>/);
+    const filterDb = wbXml.match(
+      /<definedName\b([^>]*)name="_xlnm._FilterDatabase"([^>]*)>([\s\S]*?)<\/definedName>/,
+    );
     return {
       autoFilterRef,
       hasFilterDatabase: !!filterDb,
@@ -565,7 +672,7 @@ const impl = {
     let partCount = 0;
     try {
       const zip = await JSZip.loadAsync(buffer, {checkCRC32: true});
-      const names = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+      const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
       partCount = names.length;
       for (const n of names) {
         const bytes = await zip.files[n].async('nodebuffer');
@@ -573,21 +680,22 @@ const impl = {
       }
     } catch (e) {
       crcValid = false;
-      crcError = String((e && e.message) || e);
+      crcError = String(e?.message || e);
     }
 
     let reloadOk = true;
     let reloadError = null;
     let sheetNames = [];
-    let firstCol = [];
+    const firstCol = [];
     try {
       const wb = readXlsx(buffer);
-      sheetNames = wb.worksheets.map(s => s.name);
+      sheetNames = wb.worksheets.map((s) => s.name);
       const s = wb.worksheets[0];
-      for (let i = 1; i <= Math.min(rows, 3); i++) firstCol.push(normalizeStreamValue(s.getCell(`A${i}`).value));
+      for (let i = 1; i <= Math.min(rows, 3); i++)
+        firstCol.push(normalizeStreamValue(s.getCell(`A${i}`).value));
     } catch (e) {
       reloadOk = false;
-      reloadError = String((e && e.message) || e);
+      reloadError = String(e?.message || e);
     }
     return {partCount, emptyParts, crcValid, crcError, reloadOk, reloadError, sheetNames, firstCol};
   },
@@ -596,7 +704,7 @@ const impl = {
   // requested cells back → { ok, error, cells, rowCount }. Exercises the batch-add convenience and the
   // single-row control on the same path.
   async streamWriteSheet({ops = [], read = [], useSharedStrings = false} = {}) {
-    const toRow = values => (values || []).map(specValueToModel);
+    const toRow = (values) => (values || []).map(specValueToModel);
     const writer = new WorkbookStreamWriter({useSharedStrings});
     let error = null;
     try {
@@ -608,14 +716,15 @@ const impl = {
       }
       sheet.commit();
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
     const buffer = Buffer.from(await writer.commit());
     if (error) return {ok: false, error, cells: {}, rowCount: 0};
 
     const s = readXlsx(buffer).worksheets[0];
     const cells = {};
-    for (const ref of read) cells[ref] = modelValueToSpec(normalizeStreamValue(s.getCell(ref).value));
+    for (const ref of read)
+      cells[ref] = modelValueToSpec(normalizeStreamValue(s.getCell(ref).value));
     return {ok: true, error: null, cells, rowCount: s.rowCount};
   },
 
@@ -647,7 +756,7 @@ const impl = {
     try {
       sheet.addRow(['b']).commit();
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
     const buffer = Buffer.from(await writer.commit());
     const legibleRejection = error != null && /commit|committed|finaliz|closed/i.test(error);
@@ -687,7 +796,11 @@ const impl = {
     } catch {
       reloadOk = false;
     }
-    return {protectThrew, sheetProtectionBeforeAutoFilter: posProt >= 0 && posAf >= 0 && posProt < posAf, reloadOk};
+    return {
+      protectThrew,
+      sheetProtectionBeforeAutoFilter: posProt >= 0 && posAf >= 0 && posProt < posAf,
+      reloadOk,
+    };
   },
 
   // Probe the streaming writer's image parity → { writerAddImage, sheetAddImage, error, mediaParts,
@@ -711,14 +824,14 @@ const impl = {
       sheet.commit();
       buffer = Buffer.from(await writer.commit());
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
     let mediaParts = [];
     let drawingParts = [];
     if (!error && buffer) {
       const parts = Object.keys(partMapOf(buffer));
-      mediaParts = parts.filter(n => /xl\/media\//.test(n));
-      drawingParts = parts.filter(n => /drawing/.test(n));
+      mediaParts = parts.filter((n) => /xl\/media\//.test(n));
+      drawingParts = parts.filter((n) => /drawing/.test(n));
     }
     return {...surface, error, mediaParts, drawingParts};
   },
@@ -728,13 +841,17 @@ const impl = {
   // plain numbers — the surface a case asserts against for anchor correctness.
   inspectImageAnchors(spec) {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
-    const drawingParts = Object.keys(parts).filter(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f)).sort();
+    const drawingParts = Object.keys(parts)
+      .filter((f) => /^xl\/drawings\/drawing\d+\.xml$/.test(f))
+      .sort();
     const anchors = [];
     let xmlOk = true;
     for (const p of drawingParts) {
       const xml = parts[p];
       if (!imageXmlWellFormed(xml)) xmlOk = false;
-      for (const m of xml.matchAll(/<xdr:(oneCellAnchor|twoCellAnchor)\b([^>]*)>([\s\S]*?)<\/xdr:\1>/g)) {
+      for (const m of xml.matchAll(
+        /<xdr:(oneCellAnchor|twoCellAnchor)\b([^>]*)>([\s\S]*?)<\/xdr:\1>/g,
+      )) {
         const body = m[3];
         const fromBlock = (body.match(/<xdr:from>([\s\S]*?)<\/xdr:from>/) || [])[1];
         const toBlock = (body.match(/<xdr:to>([\s\S]*?)<\/xdr:to>/) || [])[1];
@@ -755,7 +872,14 @@ const impl = {
             hasXfrm: /<a:xfrm\b/.test(sppr),
             off,
             ext: spExt,
-            zeroedTransform: !!(off && spExt && off.x === 0 && off.y === 0 && spExt.cx === 0 && spExt.cy === 0),
+            zeroedTransform: !!(
+              off &&
+              spExt &&
+              off.x === 0 &&
+              off.y === 0 &&
+              spExt.cx === 0 &&
+              spExt.cy === 0
+            ),
           },
         });
       }
@@ -774,7 +898,11 @@ const impl = {
     ws.getCell('A2').value = 'r3';
     anchorSpecImage(ws, wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), 'C3:C3');
     const drawingXml = partMapOf(writeXlsx(wb))['xl/drawings/drawing1.xml'] || '';
-    const froms = [...drawingXml.matchAll(/<xdr:from>\s*<xdr:col>(\d+)<\/xdr:col>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/g)].map(m => ({
+    const froms = [
+      ...drawingXml.matchAll(
+        /<xdr:from>\s*<xdr:col>(\d+)<\/xdr:col>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/g,
+      ),
+    ].map((m) => ({
       col: Number(m[1]),
       row: Number(m[2]),
     }));
@@ -786,12 +914,21 @@ const impl = {
   enumerateImagesAfterRoundtrip() {
     const wb = new Workbook();
     const ws = wb.addWorksheet('S');
-    ws.addImage(wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), {tl: {col: 1, row: 1}, br: {col: 3, row: 3}});
-    ws.addImage(wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), {tl: {col: 5, row: 5}, ext: {width: 50, height: 50}});
+    ws.addImage(wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), {
+      tl: {col: 1, row: 1},
+      br: {col: 3, row: 3},
+    });
+    ws.addImage(wb.addImage({buffer: ONE_PX_PNG, extension: 'png'}), {
+      tl: {col: 5, row: 5},
+      ext: {width: 50, height: 50},
+    });
     const reread = readXlsx(writeXlsx(wb));
-    const images = (reread.getWorksheet('S')?.images || []).map(im => {
+    const images = (reread.getWorksheet('S')?.images || []).map((im) => {
       const from = im.anchor.from;
-      return {tl: from ? {col: from.col, row: from.row} : null, hasMedia: !!reread.getImage(im.imageId)};
+      return {
+        tl: from ? {col: from.col, row: from.row} : null,
+        hasMedia: !!reread.getImage(im.imageId),
+      };
     });
     return {count: images.length, images, mediaCount: reread.media.length};
   },
@@ -801,14 +938,17 @@ const impl = {
   // assert every anchor renders the image it was placed with, including a reused image.
   interleavedImageAnchors(placement = 'BAA') {
     const PNG_A = hexBytes(
-      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da6360000002000001e5273db40000000049454e44ae426082'
+      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da6360000002000001e5273db40000000049454e44ae426082',
     );
     const PNG_B = hexBytes(
-      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6300010000050001'
+      '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6300010000050001',
     );
     const wb = new Workbook();
     const sheet = wb.addWorksheet('S');
-    const ids = {A: wb.addImage({buffer: PNG_A, extension: 'png'}), B: wb.addImage({buffer: PNG_B, extension: 'png'})};
+    const ids = {
+      A: wb.addImage({buffer: PNG_A, extension: 'png'}),
+      B: wb.addImage({buffer: PNG_B, extension: 'png'}),
+    };
     const placed = [...placement];
     placed.forEach((letter, i) => {
       const col = i * 2;
@@ -823,14 +963,14 @@ const impl = {
       relTarget[a.Id] = (a.Target || '').split('/').pop();
     }
     const drawingXml = strFromU8(raw['xl/drawings/drawing1.xml'] || new Uint8Array());
-    const embedOrder = [...drawingXml.matchAll(/r:embed="([^"]*)"/g)].map(m => m[1]);
-    const resolvedMedia = embedOrder.map(rid => relTarget[rid] ?? null);
+    const embedOrder = [...drawingXml.matchAll(/r:embed="([^"]*)"/g)].map((m) => m[1]);
+    const resolvedMedia = embedOrder.map((rid) => relTarget[rid] ?? null);
     const mediaSizes = {};
     for (const name of Object.keys(raw)) {
       const m = name.match(/^xl\/media\/(image\d+\.png)$/);
       if (m) mediaSizes[m[1]] = raw[name].length;
     }
-    const resolvedLetter = resolvedMedia.map(media => {
+    const resolvedLetter = resolvedMedia.map((media) => {
       const size = mediaSizes[media];
       if (size === PNG_A.length) return 'A';
       if (size === PNG_B.length) return 'B';
@@ -853,13 +993,17 @@ const impl = {
     const base = new Workbook();
     base.addWorksheet('S').getCell('A1').value = 'x';
     const loaded = readXlsx(writeXlsx(base));
-    anchorSpecImage(loaded.getWorksheet('S'), loaded.addImage({buffer: ONE_PX_PNG, extension: 'png'}), range);
+    anchorSpecImage(
+      loaded.getWorksheet('S'),
+      loaded.addImage({buffer: ONE_PX_PNG, extension: 'png'}),
+      range,
+    );
     const out = writeXlsx(loaded);
     const files = Object.keys(partMapOf(out));
     const reloadImages = readXlsx(out).getWorksheet('S')?.images || [];
     return {
-      hasMedia: files.some(f => /xl\/media\//.test(f)),
-      hasDrawing: files.some(f => /xl\/drawings\/drawing/.test(f)),
+      hasMedia: files.some((f) => /xl\/media\//.test(f)),
+      hasDrawing: files.some((f) => /xl\/drawings\/drawing/.test(f)),
       reloadImageCount: reloadImages.length,
     };
   },
@@ -895,12 +1039,12 @@ const impl = {
     ws.addImage(id, {tl: {col: 1, row: 1}, br: {col: 3, row: 3}});
     const buffer = writeXlsx(wb);
     const mediaParts = Object.keys(partMapOf(buffer))
-      .filter(n => /^xl\/media\/.+/.test(n))
-      .map(n => n.replace(/^xl\/media\//, ''));
+      .filter((n) => /^xl\/media\/.+/.test(n))
+      .map((n) => n.replace(/^xl\/media\//, ''));
     const images = readXlsx(buffer).getWorksheet('S')?.images || [];
     return {
       mediaParts,
-      doubledSeparator: mediaParts.some(n => /\.\./.test(n)),
+      doubledSeparator: mediaParts.some((n) => /\.\./.test(n)),
       reloadedImageCount: images.length,
     };
   },
@@ -921,7 +1065,7 @@ const impl = {
     let othersSurvive = false;
     if (supported) {
       ws.removeImage(id1);
-      const ids = ws.images.map(i => i.imageId);
+      const ids = ws.images.map((i) => i.imageId);
       after = ws.images.length;
       removedGone = !ids.includes(id1);
       othersSurvive = ids.includes(id2);
@@ -933,7 +1077,7 @@ const impl = {
   // firstDataCell }. Anchoring a floating image is metadata overlay, not row insertion: it must not
   // advance the row-append cursor, so the layout is identical regardless of add order.
   imageAnchorRowAppendReport() {
-    const run = order => {
+    const run = (order) => {
       const wb = new Workbook();
       const sheet = wb.addWorksheet('S');
       const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
@@ -952,11 +1096,12 @@ const impl = {
   // Read a fixture, load-and-rewrite it, and report the picture's drawing-anchor rotation before and
   // after → { sourceRot, rewrittenRot }. An image rotation (rot on <a:xfrm>) must survive the round-trip.
   roundtripFixtureImageRotation(rel) {
-    const rotOf = xml => {
+    const rotOf = (xml) => {
       const m = xml.match(/<a:xfrm\b[^>]*\brot="(-?\d+)"/);
       return m ? Number(m[1]) : null;
     };
-    const drawingName = parts => Object.keys(parts).find(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
+    const drawingName = (parts) =>
+      Object.keys(parts).find((f) => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
     const srcParts = partMapOf(fixtureBytes(rel));
     const srcDrawing = drawingName(srcParts);
     const sourceRot = srcDrawing ? rotOf(srcParts[srcDrawing]) : null;
@@ -1006,7 +1151,8 @@ const impl = {
   // it again → { sourceRangeCount, readPrintArea, rewrittenRangeCount }. Both disjoint ranges must
   // survive read and re-serialization, never truncated to the first.
   roundtripFixturePrintAreas(rel) {
-    const printAreaOf = wb => wb.definedNames.find(n => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+    const printAreaOf = (wb) =>
+      wb.definedNames.find((n) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const source = readXlsx(fixtureBytes(rel));
     const readPrintArea = printAreaOf(source);
     const sourceRangeCount = readPrintArea.split(',').filter(Boolean).length;
@@ -1021,10 +1167,14 @@ const impl = {
   writePrintAreaDefinedName(area) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
-    workbook.defineName({name: '_xlnm.Print_Area', scope: sheet.name, refersTo: printAreaRefersTo(sheet.name, area)});
+    workbook.defineName({
+      name: '_xlnm.Print_Area',
+      scope: sheet.name,
+      refersTo: printAreaRefersTo(sheet.name, area),
+    });
     const back = readXlsx(writeXlsx(workbook));
-    const refersTo = back.definedNames.find(n => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
-    const ranges = refersTo.split(',').map(r => r.split('!').pop());
+    const refersTo = back.definedNames.find((n) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+    const ranges = refersTo.split(',').map((r) => r.split('!').pop());
     return {ranges};
   },
 
@@ -1034,7 +1184,11 @@ const impl = {
   printAreaRoundtrip(area) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
-    workbook.defineName({name: '_xlnm.Print_Area', scope: sheet.name, refersTo: printAreaRefersTo(sheet.name, area)});
+    workbook.defineName({
+      name: '_xlnm.Print_Area',
+      scope: sheet.name,
+      refersTo: printAreaRefersTo(sheet.name, area),
+    });
     let reloadOk = true;
     let back;
     try {
@@ -1042,7 +1196,7 @@ const impl = {
     } catch {
       reloadOk = false;
     }
-    const refersTo = back?.definedNames.find(n => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+    const refersTo = back?.definedNames.find((n) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const reReadPrintArea = refersTo.split('!').pop()?.replace(/\$/g, '') ?? '';
     return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
@@ -1075,7 +1229,9 @@ const impl = {
     const sheet = workbook.addWorksheet('S');
     sheet.getCell('A1').value = 'header';
     sheet.freeze(1);
-    const frozenHasPane = /<pane\b/.test(partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '');
+    const frozenHasPane = /<pane\b/.test(
+      partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '',
+    );
 
     sheet.unfreeze();
     const normalBuffer = writeXlsx(workbook);
@@ -1101,7 +1257,7 @@ const impl = {
     sheet.getColumn(2).hidden = true;
     sheet.getColumn(3).width = 30;
     const back = reloadPatched(writeXlsx(wb), {
-      'xl/worksheets/sheet1.xml': xml =>
+      'xl/worksheets/sheet1.xml': (xml) =>
         xml.replace(/<cols>([\s\S]*?)<\/cols>/, (_, inner) => {
           const tags = inner.match(/<col\b[^>]*\/>/g) || [];
           return `<cols>${tags.reverse().join('')}</cols>`;
@@ -1125,7 +1281,10 @@ const impl = {
     sheet.getRow(2).outlineLevel = 1;
     sheet.getColumn(3).outlineLevel = 1;
     const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
-    return {rowOutline: back.getRow(2).outlineLevel ?? 0, colOutline: back.getColumn(3).outlineLevel ?? 0};
+    return {
+      rowOutline: back.getRow(2).outlineLevel ?? 0,
+      colOutline: back.getColumn(3).outlineLevel ?? 0,
+    };
   },
 
   // Set explicit widths on three columns (one of which coincides with the format's conventional
@@ -1135,16 +1294,24 @@ const impl = {
   columnWidthDefaultCollisionReport(widths = [8, 9, 10]) {
     const wb = new Workbook();
     const sheet = wb.addWorksheet('S');
-    widths.forEach((w, i) => (sheet.getColumn(i + 1).width = w));
+    widths.forEach((w, i) => {
+      sheet.getColumn(i + 1).width = w;
+    });
     const buffer = writeXlsx(wb);
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     // A column emits an explicit width when its `<col>` carries a customWidth flag over its index.
-    const emittedAt = index =>
-      new RegExp(`<col\\b[^>]*\\bmin="${index}"[^>]*\\bmax="${index}"[^>]*\\bcustomWidth="1"`).test(sheetXml);
+    const emittedAt = (index) =>
+      new RegExp(`<col\\b[^>]*\\bmin="${index}"[^>]*\\bmax="${index}"[^>]*\\bcustomWidth="1"`).test(
+        sheetXml,
+      );
     const back = readXlsx(buffer).getWorksheet('S');
     return {
       emitted: {c1: emittedAt(1), c2: emittedAt(2), c3: emittedAt(3)},
-      readBack: {c1: back.getColumn(1).width, c2: back.getColumn(2).width, c3: back.getColumn(3).width},
+      readBack: {
+        c1: back.getColumn(1).width,
+        c2: back.getColumn(2).width,
+        c3: back.getColumn(3).width,
+      },
     };
   },
 
@@ -1183,7 +1350,9 @@ const impl = {
     cell.value = '=1+1';
     cell.quotePrefix = true;
     const buffer = writeXlsx(wb);
-    const writtenQuotePrefix = /<xf\b[^>]*quotePrefix="1"/.test(partMapOf(buffer)['xl/styles.xml'] || '');
+    const writtenQuotePrefix = /<xf\b[^>]*quotePrefix="1"/.test(
+      partMapOf(buffer)['xl/styles.xml'] || '',
+    );
     const reloaded = readXlsx(buffer).getWorksheet('S').getCell('A1').quotePrefix === true;
     return {writtenQuotePrefix, reloaded};
   },
@@ -1193,8 +1362,11 @@ const impl = {
   // the re-emitted cellStyleXfs count and whether A1's cellXfs entry still links via xfId → so a case
   // asserts the named-style layer is honoured on read and preserved (with its link) on write.
   namedStyleFillReport(rel) {
-    const countCellStyleXfs = xml => Number((xml.match(/<cellStyleXfs count="(\d+)"/) || [])[1] || 0);
-    const srcCellStyleXfsCount = countCellStyleXfs(partMapOf(fixtureBytes(rel))['xl/styles.xml'] || '');
+    const countCellStyleXfs = (xml) =>
+      Number((xml.match(/<cellStyleXfs count="(\d+)"/) || [])[1] || 0);
+    const srcCellStyleXfsCount = countCellStyleXfs(
+      partMapOf(fixtureBytes(rel))['xl/styles.xml'] || '',
+    );
 
     const workbook = readXlsx(fixtureBytes(rel));
     const readFill = workbook.worksheets[0]?.getCell('A1').fill ?? null;
@@ -1204,8 +1376,11 @@ const impl = {
     const outStyles = outParts['xl/styles.xml'] || '';
     const roundtripCellStyleXfsCount = countCellStyleXfs(outStyles);
     // Resolve A1's cellXfs entry via its `s` index and check it retains a non-zero xfId link.
-    const sIndex = Number((outParts['xl/worksheets/sheet1.xml']?.match(/<c r="A1"[^>]*\bs="(\d+)"/) || [])[1] || 0);
-    const cellXfsBlock = (outStyles.match(/<cellXfs count="\d+">([\s\S]*?)<\/cellXfs>/) || [])[1] || '';
+    const sIndex = Number(
+      (outParts['xl/worksheets/sheet1.xml']?.match(/<c r="A1"[^>]*\bs="(\d+)"/) || [])[1] || 0,
+    );
+    const cellXfsBlock =
+      (outStyles.match(/<cellXfs count="\d+">([\s\S]*?)<\/cellXfs>/) || [])[1] || '';
     const cellXfEntries = cellXfsBlock.match(/<xf\b[^>]*(?:\/>|>[\s\S]*?<\/xf>)/g) || [];
     const a1Xf = cellXfEntries[sIndex] || '';
     const xfIdMatch = a1Xf.match(/\bxfId="(\d+)"/);
@@ -1227,8 +1402,8 @@ const impl = {
     parts['xl/worksheets/sheet1.xml'] = strToU8(
       strFromU8(parts['xl/worksheets/sheet1.xml']).replace(
         /<c r="B2"[^>]*>[\s\S]*?<\/c>/,
-        '<c r="B2"><f t="dataTable" ref="B2:B5" dt2D="0" dtr="1" r1="A1"/><v>99</v></c>'
-      )
+        '<c r="B2"><f t="dataTable" ref="B2:B5" dt2D="0" dtr="1" r1="A1"/><v>99</v></c>',
+      ),
     );
     const injected = zipSync(parts);
 
@@ -1281,8 +1456,9 @@ const impl = {
     const buffer = writeXlsx(workbook);
     const reloaded = readXlsx(buffer).getWorksheet('S');
     const formulae = [];
-    for (let r = 1; r <= rows; r++) formulae.push(reloaded.dataValidationAt(`A${r}`)?.formulae?.[0] ?? null);
-    const allIdentical = formulae.every(f => f === source);
+    for (let r = 1; r <= rows; r++)
+      formulae.push(reloaded.dataValidationAt(`A${r}`)?.formulae?.[0] ?? null);
+    const allIdentical = formulae.every((f) => f === source);
     const dvXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     const sqrefBlocks = (dvXml.match(/<(?:x14:)?dataValidation[\s>]/g) || []).length;
     return {source, formulae, allIdentical, sqrefBlocks};
@@ -1292,7 +1468,12 @@ const impl = {
   // carries a bare token in a <v> → { hasNonFiniteToken, token }. A non-finite value has no OOXML
   // representation, so it must serialize as a valueless cell, never a literal "NaN"/"Infinity".
   nonFiniteCellReport(kind) {
-    const value = kind === 'NaN' ? Number.NaN : kind === '-Infinity' ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+    const value =
+      kind === 'NaN'
+        ? Number.NaN
+        : kind === '-Infinity'
+          ? Number.NEGATIVE_INFINITY
+          : Number.POSITIVE_INFINITY;
     const workbook = new Workbook();
     workbook.addWorksheet('S').getCell('A1').value = value;
     const sheetXml = partMapOf(writeXlsx(workbook))['xl/worksheets/sheet1.xml'] || '';
@@ -1319,7 +1500,12 @@ const impl = {
       ok = false;
     }
     const cellXml = (sheetXml.match(/<c r="A1"[\s\S]*?(?:\/>|<\/c>)/) || [])[0] ?? '';
-    return {ok, hasNaN: /NaN/.test(sheetXml), hasInvalidDate: /Invalid Date/.test(sheetXml), cellXml};
+    return {
+      ok,
+      hasNaN: /NaN/.test(sheetXml),
+      hasInvalidDate: /Invalid Date/.test(sheetXml),
+      cellXml,
+    };
   },
 
   // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet
@@ -1353,12 +1539,17 @@ const impl = {
     sheet.getCell('A3').value = {formula: 'FALSE()', result: false};
     sheet.getCell('A4').value = {formula: 'T("")', result: ''};
     const back = readXlsx(writeXlsx(workbook)).getWorksheet('S');
-    const probe = ref => {
+    const probe = (ref) => {
       const value = back.getCell(ref).value;
       const hasResult = !!value && typeof value === 'object' && 'result' in value;
       return {hasResult, result: hasResult ? value.result : undefined};
     };
-    return {truthy: probe('A1'), zero: probe('A2'), boolFalse: probe('A3'), emptyString: probe('A4')};
+    return {
+      truthy: probe('A1'),
+      zero: probe('A2'),
+      boolFalse: probe('A3'),
+      emptyString: probe('A4'),
+    };
   },
 
   // Round-trip a formula whose cached result is a Date → { isValidDate, resultIso, keepsFormula }. The
@@ -1406,7 +1597,7 @@ const impl = {
     sheet.getColumn(2).key = 'k2';
     sheet.addRow(['header']); // row 1 — keeps the checked rows at their stated numbers
     sheet.addRow(['a', 'b', 'c']); // row 2 — dense positional array
-    // eslint-disable-next-line no-sparse-arrays
+    // biome-ignore lint/suspicious/noSparseArray: a genuine array hole (not undefined) is the point — the gap at column B must be skipped positionally
     sheet.addRow(['x', , 'z']); // row 3 — sparse array, gap at column B
     sheet.addRow({k1: 'o1', k2: 'o2'}); // row 4 — keyed object
     sheet.addRow([7, new Date(Date.UTC(2021, 0, 2))]); // row 5 — number + date
@@ -1417,7 +1608,8 @@ const impl = {
     const rows = {};
     for (const {number, cells} of s.rows()) {
       const row = {};
-      for (const cell of cells) row[encodeAddress(cell.col, number).match(/^[A-Z]+/)[0]] = normalizeStreamValue(cell.value);
+      for (const cell of cells)
+        row[encodeAddress(cell.col, number).match(/^[A-Z]+/)[0]] = normalizeStreamValue(cell.value);
       rows[number] = row;
     }
     // Every checked column reads as null when the round-trip left it empty, so a gap is visible.
@@ -1476,10 +1668,18 @@ const impl = {
         ows.commit();
       }
     } catch (e) {
-      copyError = String((e && e.message) || e);
+      copyError = String(e?.message || e);
     }
     const buffer = Buffer.from(await writer.commit());
-    if (copyError) return {copyError, loadOk: false, fontBold: null, fontColor: null, numFmt: null, hasFill: null};
+    if (copyError)
+      return {
+        copyError,
+        loadOk: false,
+        fontBold: null,
+        fontColor: null,
+        numFmt: null,
+        hasFill: null,
+      };
 
     let loadOk = true;
     let cell = null;
@@ -1491,9 +1691,9 @@ const impl = {
     return {
       copyError,
       loadOk,
-      fontBold: cell ? !!(cell.font && cell.font.bold) : null,
-      fontColor: cell && cell.font && cell.font.color ? cell.font.color.argb ?? null : null,
-      numFmt: cell ? cell.numFmt ?? null : null,
+      fontBold: cell ? !!cell.font?.bold : null,
+      fontColor: cell?.font?.color ? (cell.font.color.argb ?? null) : null,
+      numFmt: cell ? (cell.numFmt ?? null) : null,
       hasFill: cell ? !!(cell.fill && cell.fill.type === 'pattern' && cell.fill.fgColor) : null,
     };
   },
@@ -1506,14 +1706,14 @@ const impl = {
     const source = writer.stream;
     const sink = new PassThrough();
     const chunks = [];
-    sink.on('data', c => chunks.push(c));
+    sink.on('data', (c) => chunks.push(c));
     const pipeReturn = source.pipe(sink);
     const pipeReturnsDestination = pipeReturn === sink;
     const ws = writer.addWorksheet('S');
     ws.addRow(['a', 'b']).commit();
     ws.commit();
     await writer.commit();
-    await new Promise(res => setTimeout(res, 20));
+    await new Promise((res) => setTimeout(res, 20));
     const buffer = Buffer.concat(chunks);
     let valid = false;
     try {
@@ -1528,7 +1728,7 @@ const impl = {
   // the output, versus the in-memory writer → { streamSetThrew, streamHasFlag, streamDefaultHasFlag,
   // memoryHasFlag }. Recalc-on-load must work identically on both writers.
   async streamingFullCalcOnLoadReport() {
-    const streamCalc = async setFlag => {
+    const streamCalc = async (setFlag) => {
       const writer = new WorkbookStreamWriter();
       let threw = false;
       if (setFlag) {
@@ -1574,7 +1774,8 @@ const impl = {
 
     const rs = readXlsx(buffer).getWorksheet('yua');
     const slave = rs.getCell('B3').value;
-    const slaveIsEmpty = slave == null || (typeof slave === 'object' && Object.keys(slave).length === 0);
+    const slaveIsEmpty =
+      slave == null || (typeof slave === 'object' && Object.keys(slave).length === 0);
     const master = rs.getCell('B1').value;
     return {
       masterHasFormula: !!(master && typeof master === 'object' && 'formula' in master),
@@ -1660,9 +1861,15 @@ const impl = {
   async streamCommitReport({duplex = false, timeoutMs = 4000} = {}) {
     const chunks = [];
     const stream = duplex
-      ? new Duplex({read() {}, write(c, _e, cb) { chunks.push(c); cb(); }})
+      ? new Duplex({
+          read() {},
+          write(c, _e, cb) {
+            chunks.push(c);
+            cb();
+          },
+        })
       : new PassThrough();
-    if (!duplex) stream.on('data', c => chunks.push(c));
+    if (!duplex) stream.on('data', (c) => chunks.push(c));
 
     const writer = new WorkbookStreamWriter({stream});
     const sheet = writer.addWorksheet('S');
@@ -1672,11 +1879,11 @@ const impl = {
     let settled = 'pending';
     const commit = writer.commit().then(
       () => (settled = 'resolved'),
-      e => (settled = 'rejected:' + ((e && e.message) || e))
+      (e) => (settled = `rejected:${e?.message || e}`),
     );
     const timedOut = await Promise.race([
       commit.then(() => false),
-      new Promise(res => setTimeout(() => res(true), timeoutMs)),
+      new Promise((res) => setTimeout(() => res(true), timeoutMs)),
     ]);
 
     let valid = false;
@@ -1709,11 +1916,11 @@ const impl = {
           .then(() => {
             outcome = 'resolved';
           })
-          .catch(e => {
+          .catch((e) => {
             outcome = 'rejected';
             error = String((e && (e.code || e.message)) || e);
           }),
-        new Promise(res => setTimeout(res, 5000)),
+        new Promise((res) => setTimeout(res, 5000)),
       ]);
     } catch (e) {
       outcome = 'threw-sync';
@@ -1768,8 +1975,8 @@ const impl = {
     const font = cell.font || null;
     return {
       hasFont: !!font,
-      fontName: font ? font.name ?? null : null,
-      fontSize: font ? font.size ?? null : null,
+      fontName: font ? (font.name ?? null) : null,
+      fontSize: font ? (font.size ?? null) : null,
     };
   },
 
@@ -1790,7 +1997,7 @@ const impl = {
     const coloredTab = reload.getWorksheet('Colored').tabColor;
     return {
       tabColorArgbWritten: written,
-      reReadArgb: (coloredTab && coloredTab.argb) || null,
+      reReadArgb: coloredTab?.argb || null,
       uncoloredHasTab: !!reload.getWorksheet('Plain').tabColor,
     };
   },
@@ -1800,7 +2007,7 @@ const impl = {
   // as valid 8-hex-digit values; a '#'-prefixed input must be normalized, never passed through as a
   // malformed 9-character colour.
   fillArgbHashPrefixReport() {
-    const emittedFgColor = argb => {
+    const emittedFgColor = (argb) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -1817,7 +2024,7 @@ const impl = {
   // 6-char rgb that Excel renders black. A value that is neither 6 nor 8 hex digits is a programming
   // error and must be rejected, never written as a colour Excel silently renders black.
   argbNormalizationReport() {
-    const emittedFgColor = argb => {
+    const emittedFgColor = (argb) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -1856,16 +2063,16 @@ const impl = {
   // the reader reads bold back → { bareTag, valOne, valZero }. A boolean font flag's `val` governs:
   // a bare tag or val="1" is on, val="0" is off — presence alone must not force true.
   fontExplicitFalseBoldReport() {
-    const readBoldWith = tag => {
+    const readBoldWith = (tag) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
       ws.getCell('A1').font = {bold: true};
       const reloaded = reloadPatched(writeXlsx(wb), {
-        'xl/styles.xml': xml => xml.replace(/<b ?\/>/, tag),
+        'xl/styles.xml': (xml) => xml.replace(/<b ?\/>/, tag),
       });
       const font = reloaded.getWorksheet('S').getCell('A1').font;
-      return !!(font && font.bold);
+      return !!font?.bold;
     };
     return {
       bareTag: readBoldWith('<b/>'),
@@ -1885,7 +2092,7 @@ const impl = {
       ws.getCell('A1').value = 'x';
       ws.getCell('A1').font = baseFont;
       const reloaded = reloadPatched(writeXlsx(wb), {
-        'xl/styles.xml': xml => xml.replace(tagRe, tag),
+        'xl/styles.xml': (xml) => xml.replace(tagRe, tag),
       });
       const font = reloaded.getWorksheet('S').getCell('A1').font || {};
       return font[field] ?? null;
@@ -1903,13 +2110,13 @@ const impl = {
   // at all — the raw "0" is a truthy JS string, so a reader guarding on the raw value rather than the
   // parsed boolean would wrongly report a present alignment.
   alignmentFalseBooleanReport() {
-    const readWithAlignment = alignAttr => {
+    const readWithAlignment = (alignAttr) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
       let injectedIndex = -1;
       const reloaded = reloadPatched(writeXlsx(wb), {
-        'xl/styles.xml': xml => {
+        'xl/styles.xml': (xml) => {
           const count = Number(xml.match(/<cellXfs count="(\d+)">/)[1]);
           injectedIndex = count;
           return xml
@@ -1917,10 +2124,11 @@ const impl = {
             .replace(
               /<\/cellXfs>/,
               `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1">` +
-                `<alignment ${alignAttr}/></xf></cellXfs>`
+                `<alignment ${alignAttr}/></xf></cellXfs>`,
             );
         },
-        'xl/worksheets/sheet1.xml': xml => xml.replace(/<c r="A1"([^>]*)>/, `<c r="A1" s="${injectedIndex}"$1>`),
+        'xl/worksheets/sheet1.xml': (xml) =>
+          xml.replace(/<c r="A1"([^>]*)>/, `<c r="A1" s="${injectedIndex}"$1>`),
       });
       const alignment = reloaded.getWorksheet('S').getCell('A1').alignment;
       return alignment ? JSON.parse(JSON.stringify(alignment)) : null;
@@ -1942,12 +2150,12 @@ const impl = {
       return {
         ok: true,
         error: null,
-        sheetNames: wb.worksheets.map(s => s.name),
+        sheetNames: wb.worksheets.map((s) => s.name),
         lastModifiedBy: wb.properties.lastModifiedBy ?? null,
         creator: wb.properties.creator ?? null,
       };
     } catch (e) {
-      return {ok: false, error: String((e && e.message) || e), sheetNames: null};
+      return {ok: false, error: String(e?.message || e), sheetNames: null};
     }
   },
 
@@ -1964,10 +2172,11 @@ const impl = {
       wb.addWorksheet('History');
     } catch (e) {
       addThrew = true;
-      addError = String((e && e.message) || e);
+      addError = String(e?.message || e);
     }
     const roundtrip = readXlsx(writeXlsx(wb));
-    const roundtripName = roundtrip.worksheets.map(s => s.name).find(n => n === 'History') ?? null;
+    const roundtripName =
+      roundtrip.worksheets.map((s) => s.name).find((n) => n === 'History') ?? null;
     let invalidRejected = false;
     try {
       wb.addWorksheet('a/b');
@@ -2003,13 +2212,16 @@ const impl = {
   // raw fixture XML (the precondition); loadedBreaks/rewrittenBreaks come off the model after read and
   // after write→re-read, so a dropped-on-read or dropped-on-write regression shows as an empty list.
   roundtripFixtureRowBreaks(rel) {
-    const rowBreakIds = xml => {
+    const rowBreakIds = (xml) => {
       const section = xml.match(/<rowBreaks[\s\S]*?<\/rowBreaks>/);
       if (section === null) return [];
-      return [...section[0].matchAll(/<brk\b[^>]*\bid="(\d+)"/g)].map(m => Number(m[1])).sort((a, b) => a - b);
+      return [...section[0].matchAll(/<brk\b[^>]*\bid="(\d+)"/g)]
+        .map((m) => Number(m[1]))
+        .sort((a, b) => a - b);
     };
-    const sheet1 = parts => parts['xl/worksheets/sheet1.xml'] ?? '';
-    const modelBreaks = wb => wb.worksheets[0].rowBreaks.map(brk => brk.id).sort((a, b) => a - b);
+    const sheet1 = (parts) => parts['xl/worksheets/sheet1.xml'] ?? '';
+    const modelBreaks = (wb) =>
+      wb.worksheets[0].rowBreaks.map((brk) => brk.id).sort((a, b) => a - b);
 
     const sourceBreaks = rowBreakIds(sheet1(partMapOf(fixtureBytes(rel))));
     const loaded = readFixture(rel);
@@ -2051,7 +2263,7 @@ const impl = {
     const parts = partMapOf(writeXlsx(base));
     const injectedXml = parts['xl/workbook.xml'].replace(
       /<sheets>/,
-      '<workbookProtection lockStructure="1" lockWindows="0"/><sheets>'
+      '<workbookProtection lockStructure="1" lockWindows="0"/><sheets>',
     );
     const zipFiles = {};
     for (const [name, xml] of Object.entries(parts)) {
@@ -2075,7 +2287,10 @@ const impl = {
   readFixtureDefinedNames(rel) {
     const wb = readFixture(rel);
     const names = {};
-    for (const dn of wb.definedNames) (names[dn.name] ||= []).push(dn.refersTo);
+    for (const dn of wb.definedNames) {
+      names[dn.name] ||= [];
+      names[dn.name].push(dn.refersTo);
+    }
     for (const k of Object.keys(names)) names[k].sort();
     return {names, count: Object.keys(names).length, modelCount: wb.definedNames.length};
   },
@@ -2117,8 +2332,8 @@ const impl = {
   // surfaces → { eager, streaming }. The streaming reader joins each worksheet part to the
   // workbook-level declaration, so it exposes the real names, not positional placeholders.
   streamVsEagerSheetNames(rel) {
-    const eager = readFixture(rel).worksheets.map(s => s.name);
-    const streaming = [...readWorkbookStream(fixtureBytes(rel))].map(s => s.name);
+    const eager = readFixture(rel).worksheets.map((s) => s.name);
+    const streaming = [...readWorkbookStream(fixtureBytes(rel))].map((s) => s.name);
     return {eager, streaming};
   },
 
@@ -2143,10 +2358,13 @@ const impl = {
   streamVsEagerRowHidden(rel) {
     const es = readFixture(rel).worksheets[0];
     const eager = [];
-    if (es) for (const row of es.rows()) if (row.cells.length) eager.push({number: row.number, hidden: !!row.properties?.hidden});
+    if (es)
+      for (const row of es.rows())
+        if (row.cells.length) eager.push({number: row.number, hidden: !!row.properties?.hidden});
     const streaming = [];
     for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
-      for (const row of sheet.rows()) if (row.cells.length) streaming.push({number: row.number, hidden: !!row.hidden});
+      for (const row of sheet.rows())
+        if (row.cells.length) streaming.push({number: row.number, hidden: !!row.hidden});
       break; // first worksheet only
     }
     return {eager, streaming};
@@ -2162,12 +2380,15 @@ const impl = {
     ws.getCell('A1').value = 'x';
     ws.getCell('A1').note = 'hi';
     const files = unzipSync(new Uint8Array(writeXlsx(wb)));
-    const commentPart = Object.keys(files).find(n => /^xl\/comments\d*\.xml$/.test(n));
+    const commentPart = Object.keys(files).find((n) => /^xl\/comments\d*\.xml$/.test(n));
     const relName = 'xl/worksheets/_rels/sheet1.xml.rels';
     files['xl/sheet1_comments.xml'] = files[commentPart];
     delete files[commentPart];
     files[relName] = strToU8(
-      strFromU8(files[relName]).replace(/Target="[^"]*comments\d*\.xml"/i, 'Target="../sheet1_comments.xml"')
+      strFromU8(files[relName]).replace(
+        /Target="[^"]*comments\d*\.xml"/i,
+        'Target="../sheet1_comments.xml"',
+      ),
     );
     const buffer = zipSync(files);
     let ok = false;
@@ -2177,7 +2398,7 @@ const impl = {
       note = readXlsx(buffer).worksheets[0].getCell('A1').note ?? null;
       ok = true;
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
     return {ok, error, note};
   },
@@ -2188,7 +2409,7 @@ const impl = {
   // cell's comment part disappears and reads back null, while a neighbor that kept its note is intact,
   // and a workbook that never had a note emits no comment part at all.
   removeCellNoteReport() {
-    const partNames = wb => Object.keys(partMapOf(writeXlsx(wb)));
+    const partNames = (wb) => Object.keys(partMapOf(writeXlsx(wb)));
     // The note being cleared is the only one, so a lingering comment part would prove the removal
     // merely emptied the note rather than dropping it.
     const solo = new Workbook();
@@ -2197,8 +2418,8 @@ const impl = {
     soloSheet.getCell('A1').note = 'remove me';
     soloSheet.getCell('A1').note = undefined;
     const soloParts = partNames(solo);
-    const commentPartPresent = soloParts.some(f => /comments\d*\.xml$/.test(f));
-    const vmlPartPresent = soloParts.some(f => /vmlDrawing\d*\.vml$/.test(f));
+    const commentPartPresent = soloParts.some((f) => /comments\d*\.xml$/.test(f));
+    const vmlPartPresent = soloParts.some((f) => /vmlDrawing\d*\.vml$/.test(f));
     const readNoteAfter = readXlsx(writeXlsx(solo)).worksheets[0].getCell('A1').note ?? null;
 
     // Clearing one note must not disturb another cell's note.
@@ -2214,9 +2435,15 @@ const impl = {
 
     const clean = new Workbook();
     clean.addWorksheet('S').getCell('A1').value = 'x';
-    const cleanHasCommentPart = partNames(clean).some(f => /comments\d*\.xml$/.test(f));
+    const cleanHasCommentPart = partNames(clean).some((f) => /comments\d*\.xml$/.test(f));
 
-    return {commentPartPresent, vmlPartPresent, readNoteAfter, neighborNoteIntact, cleanHasCommentPart};
+    return {
+      commentPartPresent,
+      vmlPartPresent,
+      readNoteAfter,
+      neighborNoteIntact,
+      cleanHasCommentPart,
+    };
   },
 
   // Merge A1:B3 with values only in A1/A2, round-trip, then iterate every used-range position
@@ -2230,11 +2457,12 @@ const impl = {
     s.getCell('A2').value = 'data';
     s.mergeCells('A1:B3');
     const rs = readXlsx(writeXlsx(wb)).worksheets[0];
-    const rects = rs.merges.map(range => {
+    const rects = rs.merges.map((range) => {
       const {top, left, bottom, right} = decodeRange(range);
       return {top, left, bottom, right, masterRef: encodeAddress(left, top)};
     });
-    const masterOf = (row, col) => rects.find(r => row >= r.top && row <= r.bottom && col >= r.left && col <= r.right);
+    const masterOf = (row, col) =>
+      rects.find((r) => row >= r.top && row <= r.bottom && col >= r.left && col <= r.right);
     const visited = [];
     for (let row = 1; row <= rs.rowCount; row++) {
       for (let col = 1; col <= rs.columnCount; col++) visited.push(encodeAddress(col, row));
@@ -2243,7 +2471,11 @@ const impl = {
     return {
       rowCount: rs.rowCount,
       visited,
-      a3: {visited: visited.includes('A3'), isMerged: a3Rect !== undefined, master: a3Rect ? a3Rect.masterRef : null},
+      a3: {
+        visited: visited.includes('A3'),
+        isMerged: a3Rect !== undefined,
+        master: a3Rect ? a3Rect.masterRef : null,
+      },
     };
   },
 
@@ -2274,7 +2506,7 @@ const impl = {
     const ws = wb.addWorksheet('S');
     ws.getCell('A1').value = 'Group';
     ws.mergeCells('A1:B1');
-    const textOf = ref => {
+    const textOf = (ref) => {
       const v = ws.getCell(ref).value;
       return v === null || v === undefined ? '' : String(v);
     };
@@ -2307,7 +2539,11 @@ const impl = {
     const buffer = writeXlsx(wb);
 
     const es = readXlsx(buffer).getWorksheet('S');
-    const eager = {col1: !!es.getColumn(1).hidden, col2: !!es.getColumn(2).hidden, col3: !!es.getColumn(3).hidden};
+    const eager = {
+      col1: !!es.getColumn(1).hidden,
+      col2: !!es.getColumn(2).hidden,
+      col3: !!es.getColumn(3).hidden,
+    };
 
     const stream = {};
     let error = null;
@@ -2321,7 +2557,7 @@ const impl = {
         break; // first worksheet only
       }
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
     return {eager, stream, error};
   },
@@ -2349,7 +2585,7 @@ const impl = {
         break; // first worksheet only
       }
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
     return {eagerMerges, streamedMerges, error};
   },
@@ -2363,12 +2599,15 @@ const impl = {
 
     const es = readXlsx(buffer).worksheets[0];
     const eager = {};
-    if (es) for (const row of es.rows()) if (wanted.has(row.number)) eager[row.number] = streamedRowValues(row.cells);
+    if (es)
+      for (const row of es.rows())
+        if (wanted.has(row.number)) eager[row.number] = streamedRowValues(row.cells);
     for (const n of rowNumbers) eager[n] ??= [null];
 
     const streamed = {};
     for (const sheet of readWorkbookStream(buffer)) {
-      for (const row of sheet.rows()) if (wanted.has(row.number)) streamed[row.number] = streamedRowValues(row.cells);
+      for (const row of sheet.rows())
+        if (wanted.has(row.number)) streamed[row.number] = streamedRowValues(row.cells);
       break; // first worksheet only
     }
     for (const n of rowNumbers) streamed[n] ??= [null];
@@ -2387,9 +2626,15 @@ const impl = {
     try {
       for (const sheet of readWorkbookStream(buffer)) names.push(sheet.name);
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
-    return {written: count, emitted: names.length, error, first: names[0] ?? null, last: names[names.length - 1] ?? null};
+    return {
+      written: count,
+      emitted: names.length,
+      error,
+      first: names[0] ?? null,
+      last: names[names.length - 1] ?? null,
+    };
   },
 
   // Write a shared-strings workbook, then read it through the streaming reader once and again
@@ -2409,7 +2654,7 @@ const impl = {
       const strings = [];
       for (const sheet of readWorkbookStream(buffer)) {
         for (const row of sheet.rows()) {
-          const first = row.cells.find(cell => cell.col === 1);
+          const first = row.cells.find((cell) => cell.col === 1);
           strings.push(first ? first.value : undefined);
         }
       }
@@ -2417,14 +2662,16 @@ const impl = {
     };
 
     const single = readOne();
-    const singleComplete = single.length === rowCount && single.every(v => typeof v === 'string');
+    const singleComplete = single.length === rowCount && single.every((v) => typeof v === 'string');
     const many = await Promise.all(Array.from({length: concurrency}, async () => readOne()));
-    const allComplete = many.every(v => v.length === rowCount && v.every(x => typeof x === 'string'));
+    const allComplete = many.every(
+      (v) => v.length === rowCount && v.every((x) => typeof x === 'string'),
+    );
     return {
       singleComplete,
       singleLength: single.length,
       concurrentAllComplete: allComplete,
-      concurrentLengths: many.map(v => v.length),
+      concurrentLengths: many.map((v) => v.length),
     };
   },
 
@@ -2442,7 +2689,7 @@ const impl = {
       }
       return {ok: true, error: null, sheetNames, totalRows};
     } catch (e) {
-      return {ok: false, error: String((e && e.message) || e), sheetNames, totalRows};
+      return {ok: false, error: String(e?.message || e), sheetNames, totalRows};
     }
   },
 
@@ -2450,11 +2697,15 @@ const impl = {
   // type is the model's stable label; a date-formatted numeric cell surfaces as a Date because the
   // streaming reader applies the cell's number format when decoding, exactly as the eager read does.
   streamReadFixture(rel, cells = []) {
-    const wanted = new Map(cells.map(a => [a, null]));
+    const wanted = new Map(cells.map((a) => [a, null]));
     for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
       for (const row of sheet.rows()) {
         for (const cell of row.cells) {
-          if (wanted.has(cell.address)) wanted.set(cell.address, {type: detectValueType(cell.value), value: normalizeStreamValue(cell.value)});
+          if (wanted.has(cell.address))
+            wanted.set(cell.address, {
+              type: detectValueType(cell.value),
+              value: normalizeStreamValue(cell.value),
+            });
         }
       }
       break; // first worksheet only
@@ -2473,7 +2724,8 @@ const impl = {
     const streamed = {};
     for (const sheet of readWorkbookStream(buffer)) {
       for (const row of sheet.rows()) {
-        for (const cell of row.cells) if (wanted.has(cell.address)) streamed[cell.address] = normalizeStreamValue(cell.value);
+        for (const cell of row.cells)
+          if (wanted.has(cell.address)) streamed[cell.address] = normalizeStreamValue(cell.value);
       }
       break; // first worksheet only
     }
@@ -2498,9 +2750,9 @@ const impl = {
     const filled = back.getCell('B2');
     const bordered = back.getCell('C3');
     return {
-      filledArgb: filled.fill && filled.fill.fgColor ? filled.fill.fgColor.argb : null,
+      filledArgb: filled.fill?.fgColor ? filled.fill.fgColor.argb : null,
       filledValue: filled.value,
-      borderedStyle: bordered.border && bordered.border.top ? bordered.border.top.style : null,
+      borderedStyle: bordered.border?.top ? bordered.border.top.style : null,
       borderedValue: bordered.value,
       untouched: !!(back.getCell('D4').fill || back.getCell('D4').value),
     };
@@ -2515,8 +2767,8 @@ const impl = {
       const cell = sheet ? sheet.getCell(addr) : null;
       out[key] = cell
         ? {
-            fill: cell.fill && cell.fill.type ? JSON.parse(JSON.stringify(cell.fill)) : null,
-            fontColor: cell.font && cell.font.color ? JSON.parse(JSON.stringify(cell.font.color)) : null,
+            fill: cell.fill?.type ? JSON.parse(JSON.stringify(cell.fill)) : null,
+            fontColor: cell.font?.color ? JSON.parse(JSON.stringify(cell.font.color)) : null,
           }
         : null;
     }
@@ -2532,16 +2784,17 @@ const impl = {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
-    const realFill = cell => (cell.fill && cell.fill.type === 'pattern' && cell.fill.pattern !== 'none' ? cell.fill : null);
-    const borderColors = cell => {
+    const realFill = (cell) =>
+      cell.fill && cell.fill.type === 'pattern' && cell.fill.pattern !== 'none' ? cell.fill : null;
+    const borderColors = (cell) => {
       if (!cell.border) return null;
       const edges = {};
       for (const edge of ['top', 'left', 'right', 'bottom']) {
-        if (cell.border[edge] && cell.border[edge].color) edges[edge] = cell.border[edge].color;
+        if (cell.border[edge]?.color) edges[edge] = cell.border[edge].color;
       }
       return Object.keys(edges).length ? edges : null;
     };
-    const stableSort = v => {
+    const stableSort = (v) => {
       if (Array.isArray(v)) return v.map(stableSort);
       if (v && typeof v === 'object') {
         const sorted = {};
@@ -2550,7 +2803,7 @@ const impl = {
       }
       return v;
     };
-    const norm = v => JSON.stringify(stableSort(v ?? null));
+    const norm = (v) => JSON.stringify(stableSort(v ?? null));
 
     let checked = 0;
     let fillMismatches = 0;
@@ -2568,13 +2821,15 @@ const impl = {
           const af = oc ? norm(realFill(oc)) : '(missing)';
           if (bf !== af) {
             fillMismatches += 1;
-            if (!fillSample) fillSample = {cell: `${sheet.name}!${cell.address}`, before: bf, after: af};
+            if (!fillSample)
+              fillSample = {cell: `${sheet.name}!${cell.address}`, before: bf, after: af};
           }
           const bb = norm(borderColors(cell));
           const ab = oc ? norm(borderColors(oc)) : '(missing)';
           if (bb !== ab) {
             borderMismatches += 1;
-            if (!borderSample) borderSample = {cell: `${sheet.name}!${cell.address}`, before: bb, after: ab};
+            if (!borderSample)
+              borderSample = {cell: `${sheet.name}!${cell.address}`, before: bb, after: ab};
           }
         }
       }
@@ -2593,7 +2848,7 @@ const impl = {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
-    const stableSort = v => {
+    const stableSort = (v) => {
       if (Array.isArray(v)) return v.map(stableSort);
       if (v && typeof v === 'object') {
         const sorted = {};
@@ -2602,24 +2857,25 @@ const impl = {
       }
       return v;
     };
-    const hasStyle = cell =>
-      !!(cell.numFmt || (cell.fill && cell.fill.type) || cell.font || cell.alignment || cell.border);
-    const styleKey = cell =>
+    const hasStyle = (cell) =>
+      !!(cell.numFmt || cell.fill?.type || cell.font || cell.alignment || cell.border);
+    const styleKey = (cell) =>
       JSON.stringify(
         stableSort({
           numFmt: cell.numFmt || null,
-          fill: cell.fill && cell.fill.type ? cell.fill : null,
+          fill: cell.fill?.type ? cell.fill : null,
           font: cell.font || null,
           alignment: cell.alignment || null,
           border: cell.border || null,
-        })
+        }),
       );
-    const columnsWithWidth = wb => {
+    const columnsWithWidth = (wb) => {
       const out = {};
       for (const sheet of wb.worksheets) {
         const cols = {};
         for (const {index, properties} of sheet.columns()) {
-          if (properties.width !== undefined) cols[index] = {width: properties.width, customWidth: true};
+          if (properties.width !== undefined)
+            cols[index] = {width: properties.width, customWidth: true};
         }
         out[sheet.name] = cols;
       }
@@ -2643,15 +2899,16 @@ const impl = {
           const afterKey = other ? styleKey(other.getCell(cell.address)) : '(sheet missing)';
           if (beforeKey !== afterKey) {
             mismatches += 1;
-            if (!sample) sample = {cell: `${sheet.name}!${cell.address}`, before: beforeKey, after: afterKey};
+            if (!sample)
+              sample = {cell: `${sheet.name}!${cell.address}`, before: beforeKey, after: afterKey};
           }
         }
       }
     }
 
     return {
-      sheetNamesBefore: before.worksheets.map(s => s.name),
-      sheetNames: after.worksheets.map(s => s.name),
+      sheetNamesBefore: before.worksheets.map((s) => s.name),
+      sheetNames: after.worksheets.map((s) => s.name),
       columnsBefore: columnsWithWidth(before),
       columns: columnsWithWidth(after),
       styleSurvival: {checked, mismatches, sample},
@@ -2671,9 +2928,9 @@ const impl = {
     sheet.getCell('B1').value = 'b';
     sheet.getCell('C1').value = 'c';
     const s = readXlsx(writeXlsx(wb)).getWorksheet('S');
-    const rightBorder = ref => {
+    const rightBorder = (ref) => {
       const b = s.getCell(ref).border;
-      return !!(b && b.right && b.right.style);
+      return !!b?.right?.style;
     };
     return {a1: rightBorder('A1'), b1: rightBorder('B1'), c1: rightBorder('C1')};
   },
@@ -2725,7 +2982,10 @@ const impl = {
     }
     const props = reloaded.properties;
     const definedNames = {};
-    for (const dn of reloaded.definedNames) (definedNames[dn.name] ||= []).push(dn.refersTo);
+    for (const dn of reloaded.definedNames) {
+      definedNames[dn.name] ||= [];
+      definedNames[dn.name].push(dn.refersTo);
+    }
     for (const k of Object.keys(definedNames)) definedNames[k].sort();
     return {
       properties: {
@@ -2756,11 +3016,11 @@ const impl = {
     return {
       emptyTextRunInXml,
       runCount: readRuns.length,
-      runs: readRuns.map(r => ({
+      runs: readRuns.map((r) => ({
         text: r.text ?? null,
-        bold: r.font ? r.font.bold ?? false : false,
-        italic: r.font ? r.font.italic ?? false : false,
-        underline: r.font ? r.font.underline ?? false : false,
+        bold: r.font ? (r.font.bold ?? false) : false,
+        italic: r.font ? (r.font.italic ?? false) : false,
+        underline: r.font ? (r.font.underline ?? false) : false,
       })),
     };
   },
@@ -2769,8 +3029,14 @@ const impl = {
   // display label flattened to its concatenated text — for asserting a foreign file's links (and the
   // rejoining of an external URL's fragment carried in the location attribute) are read faithfully.
   async readFixtureHyperlinks(rel) {
-    const flatten = t =>
-      t == null ? null : typeof t === 'string' ? t : Array.isArray(t.richText) ? t.richText.map(r => r.text).join('') : t;
+    const flatten = (t) =>
+      t == null
+        ? null
+        : typeof t === 'string'
+          ? t
+          : Array.isArray(t.richText)
+            ? t.richText.map((r) => r.text).join('')
+            : t;
     const sheet = readFixture(rel).worksheets[0];
     const out = {};
     if (sheet) {
@@ -2832,7 +3098,7 @@ const impl = {
   roundtripFixtureValidationXml(rel) {
     const parts = partMapOf(writeXlsx(readFixture(rel)));
     const sheetParts = Object.keys(parts)
-      .filter(p => /^xl\/worksheets\/sheet\d+\.xml$/.test(p))
+      .filter((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p))
       .sort();
 
     const sheets = {};
@@ -2844,21 +3110,34 @@ const impl = {
       // `<x14:dataValidations>` container (whose next char is `s`).
       const standardCount = [...xml.matchAll(/<dataValidation[ >]/g)].length;
       const extCount = [...xml.matchAll(/<x14:dataValidation[ >]/g)].length;
-      const extSqrefs = [...xml.matchAll(/<xm:sqref>([^<]*)<\/xm:sqref>/g)].map(m => m[1]);
+      const extSqrefs = [...xml.matchAll(/<xm:sqref>([^<]*)<\/xm:sqref>/g)].map((m) => m[1]);
       const standardRules = [
         ...xml.matchAll(/<dataValidation\b([^>]*)>([\s\S]*?)<\/dataValidation>/g),
-      ].map(m => {
-        const a = attrsOf('<x ' + m[1] + '>');
+      ].map((m) => {
+        const a = attrsOf(`<x ${m[1]}>`);
         const f1 = (m[2].match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
         return {
           type: a.type ?? null,
           sqref: a.sqref ?? null,
           errorTitle: a.errorTitle ?? null,
           error: a.error ?? null,
-          formula1: f1 == null ? null : f1.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'),
+          formula1:
+            f1 == null
+              ? null
+              : f1
+                  .replace(/&quot;/g, '"')
+                  .replace(/&lt;/g, '<')
+                  .replace(/&gt;/g, '>')
+                  .replace(/&amp;/g, '&'),
         };
       });
-      sheets[p] = {standardCount, extCount, extSqrefs, standardRules, hasExtLst: /<extLst\b/.test(xml)};
+      sheets[p] = {
+        standardCount,
+        extCount,
+        extSqrefs,
+        standardRules,
+        hasExtLst: /<extLst\b/.test(xml),
+      };
       totalStandard += standardCount;
       totalExt += extCount;
     }
@@ -2870,10 +3149,14 @@ const impl = {
   // no leading '='; the writer must strip exactly one so the app applies the validation immediately.
   dvFormulaLeadingEquals(formula = '=$AA$1:$AA$2') {
     const wb = new Workbook();
-    wb.addWorksheet('S').addDataValidation('A1', {type: 'list', allowBlank: true, formulae: [formula]});
+    wb.addWorksheet('S').addDataValidation('A1', {
+      type: 'list',
+      allowBlank: true,
+      formulae: [formula],
+    });
     const sheetXml = partMapOf(writeXlsx(wb))['xl/worksheets/sheet1.xml'] || '';
     const formula1 = (sheetXml.match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
-    return {formula1, hasLeadingEquals: formula1 != null && formula1.startsWith('=')};
+    return {formula1, hasLeadingEquals: formula1?.startsWith('=')};
   },
 
   // Attach one validation over a whole range, write, and report the serialized facts → { writeOk,
@@ -2887,10 +3170,16 @@ const impl = {
       sheet.addDataValidation(range, {type, allowBlank: true, formulae: [formula]});
       buffer = writeXlsx(wb);
     } catch (e) {
-      return {writeOk: false, writeError: String((e && e.message) || e), sqrefs: [], count: 0, reloadOk: null};
+      return {
+        writeOk: false,
+        writeError: String(e?.message || e),
+        sqrefs: [],
+        count: 0,
+        reloadOk: null,
+      };
     }
     const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
-    const sqrefs = [...xml.matchAll(/<dataValidation\b[^>]*sqref="([^"]*)"/g)].map(m => m[1]);
+    const sqrefs = [...xml.matchAll(/<dataValidation\b[^>]*sqref="([^"]*)"/g)].map((m) => m[1]);
     const count = [...xml.matchAll(/<dataValidation[ >]/g)].length;
     let reloadOk = true;
     try {
@@ -2937,8 +3226,13 @@ const impl = {
         count: [...xml.matchAll(/<dataValidation[ >]/g)].length,
         // Cheap structural check: a strict consumer chokes on a raw & that is not an entity.
         wellFormed: !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(block),
-        formula1: [...block.matchAll(/<formula1>([\s\S]*?)<\/formula1>/g)].map(m =>
-          m[1].replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+        formula1: [...block.matchAll(/<formula1>([\s\S]*?)<\/formula1>/g)].map((m) =>
+          m[1]
+            .replace(/&quot;/g, '"')
+            .replace(/&apos;/g, "'")
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&'),
         ),
       },
     };
@@ -2957,7 +3251,7 @@ const impl = {
     try {
       buffer = writeXlsx(wb);
     } catch (e) {
-      return {writeOk: false, writeError: String((e && e.message) || e)};
+      return {writeOk: false, writeError: String(e?.message || e)};
     }
     const parts = partMapOf(buffer);
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
@@ -2994,7 +3288,8 @@ const impl = {
     const relsXml = parts['xl/worksheets/_rels/sheet1.xml.rels'] || '';
     const hyperlinkEl = (sheetXml.match(/<hyperlink\b[^>]*\/?>/) || [''])[0];
     const relEl = (relsXml.match(/<Relationship\b[^>]*hyperlink[^>]*\/?>/) || [''])[0];
-    const reReadHyperlink = readXlsx(buffer).getWorksheet('Sheet1').getCell('A1').value.hyperlink ?? null;
+    const reReadHyperlink =
+      readXlsx(buffer).getWorksheet('Sheet1').getCell('A1').value.hyperlink ?? null;
     return {
       hasWorksheetRels: /Type="[^"]*\/hyperlink"/.test(relsXml),
       hyperlinkHasRid: /r:id="/.test(hyperlinkEl),
@@ -3017,13 +3312,13 @@ const impl = {
       // Differential styles are preserved as verbatim `<dxf>` fragments; a rule's number format is
       // whatever formatCode the fragment carries, so a coerced "[object Object]" can never appear.
       const dxfs = workbook.differentialStyles;
-      const dxfFormatCodes = dxfs.flatMap(f =>
-        [...f.matchAll(/formatCode="([^"]*)"/g)].map(m => m[1])
+      const dxfFormatCodes = dxfs.flatMap((f) =>
+        [...f.matchAll(/formatCode="([^"]*)"/g)].map((m) => m[1]),
       );
       const palette = stylesXml.match(/<indexedColors>([\s\S]*?)<\/indexedColors>/);
       return {
         columnWidths: sheet
-          ? [...sheet.columns()].map(c => c.properties.width).filter(w => w !== undefined)
+          ? [...sheet.columns()].map((c) => c.properties.width).filter((w) => w !== undefined)
           : [],
         pageSetup: {
           scale: ps.scale ?? null,
@@ -3037,7 +3332,7 @@ const impl = {
         dxfFormatCodes,
         hasIndexedColors: !!palette,
         indexedColorSample: palette
-          ? [...palette[1].matchAll(/rgb="([0-9a-fA-F]+)"/g)].slice(0, 6).map(m => m[1])
+          ? [...palette[1].matchAll(/rgb="([0-9a-fA-F]+)"/g)].slice(0, 6).map((m) => m[1])
           : [],
       };
     };
@@ -3062,30 +3357,35 @@ const impl = {
       sheet.addConditionalFormatting(cf);
       buffer = writeXlsx(workbook);
     } catch (e) {
-      return {writeOk: false, writeError: String((e && e.message) || e), xml: null, reload: null};
+      return {writeOk: false, writeError: String(e?.message || e), xml: null, reload: null};
     }
     const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
-    const cfBlock = (xml.match(/<conditionalFormatting[\s\S]*?<\/conditionalFormatting>/) || [''])[0];
+    const cfBlock = (xml.match(/<conditionalFormatting[\s\S]*?<\/conditionalFormatting>/) || [
+      '',
+    ])[0];
     const dataBar = (cfBlock.match(/<dataBar\b[\s\S]*?<\/dataBar>|<dataBar\b[^>]*\/>/) || [''])[0];
-    const rule = readXlsx(buffer).getWorksheet('S')?.conditionalFormattings?.[0]?.rules?.[0] ?? null;
+    const rule =
+      readXlsx(buffer).getWorksheet('S')?.conditionalFormattings?.[0]?.rules?.[0] ?? null;
     return {
       writeOk: true,
       writeError: null,
       xml: {
         blockCount: [...xml.matchAll(/<conditionalFormatting\b/g)].length,
-        sqrefs: [...xml.matchAll(/<conditionalFormatting\b[^>]*sqref="([^"]*)"/g)].map(m => m[1]),
+        sqrefs: [...xml.matchAll(/<conditionalFormatting\b[^>]*sqref="([^"]*)"/g)].map((m) => m[1]),
         ruleCount: [...cfBlock.matchAll(/<cfRule\b/g)].length,
         hasDataBar: /<dataBar\b/.test(cfBlock),
         cfvoCount: [...dataBar.matchAll(/<cfvo\b/g)].length,
         hasColor: /<color\b/.test(dataBar),
-        wellFormed: cfBlock ? !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(cfBlock) : false,
+        wellFormed: cfBlock
+          ? !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(cfBlock)
+          : false,
       },
       reload: rule
         ? {
             type: rule.type ?? null,
-            color: rule.color ? rule.color.argb ?? null : null,
+            color: rule.color ? (rule.color.argb ?? null) : null,
             gradient: rule.gradient ?? null,
-            cfvo: (rule.cfvo || []).map(v => ({type: v.type ?? null, value: v.value ?? null})),
+            cfvo: (rule.cfvo || []).map((v) => ({type: v.type ?? null, value: v.value ?? null})),
           }
         : null,
     };
@@ -3113,22 +3413,22 @@ const impl = {
     const rule = readXlsx(buffer).getWorksheet('S')?.conditionalFormattings?.[0]?.rules?.[0];
     return {
       xmlHasStopIfTrue: /stopIfTrue="1"/.test(xml),
-      reloadStopIfTrue: rule ? rule.stopIfTrue ?? false : null,
+      reloadStopIfTrue: rule ? (rule.stopIfTrue ?? false) : null,
     };
   },
 
   // Read a fixture's first-sheet conditional-formatting facts, write it back, and report the same
   // before/after → { source, rewritten } each { blockCount, rules:[{type, dxfId, priority}] }.
   roundtripFixtureConditionalFormatting(rel) {
-    const cfFacts = xml => ({
+    const cfFacts = (xml) => ({
       blockCount: [...xml.matchAll(/<conditionalFormatting\b/g)].length,
-      rules: [...xml.matchAll(/<cfRule\b([^>]*?)\/?>/g)].map(m => {
-        const a = attrsOf('<x ' + m[1] + '>');
+      rules: [...xml.matchAll(/<cfRule\b([^>]*?)\/?>/g)].map((m) => {
+        const a = attrsOf(`<x ${m[1]}>`);
         return {type: a.type ?? null, dxfId: a.dxfId ?? null, priority: a.priority ?? null};
       }),
     });
     const srcParts = partMapOf(fs.readFileSync(path.join(FIXTURES_ROOT, rel)));
-    const srcName = Object.keys(srcParts).find(n => /sheet1\.xml$/.test(n));
+    const srcName = Object.keys(srcParts).find((n) => /sheet1\.xml$/.test(n));
     const source = cfFacts(srcName ? srcParts[srcName] : '');
     const outXml = partMapOf(writeXlsx(readFixture(rel)))['xl/worksheets/sheet1.xml'] || '';
     return {source, rewritten: cfFacts(outXml)};
@@ -3141,7 +3441,13 @@ const impl = {
     try {
       workbook = readFixture(rel);
     } catch (e) {
-      return {loadOk: false, loadError: String((e && e.message) || e), writeOk: false, writeError: null, sheetNames: []};
+      return {
+        loadOk: false,
+        loadError: String(e?.message || e),
+        writeOk: false,
+        writeError: null,
+        sheetNames: [],
+      };
     }
     let writeOk = false;
     let writeError = null;
@@ -3149,9 +3455,15 @@ const impl = {
       writeXlsx(workbook);
       writeOk = true;
     } catch (e) {
-      writeError = String((e && e.message) || e);
+      writeError = String(e?.message || e);
     }
-    return {loadOk: true, loadError: null, writeOk, writeError, sheetNames: workbook.worksheets.map(w => w.name)};
+    return {
+      loadOk: true,
+      loadError: null,
+      writeOk,
+      writeError,
+      sheetNames: workbook.worksheets.map((w) => w.name),
+    };
   },
 
   // Merge a horizontal span with a value + alignment on the anchor, write, then read back →
@@ -3168,14 +3480,15 @@ const impl = {
     sheet.mergeCells(range);
     const buffer = writeXlsx(workbook);
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
-    const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map(m => m[1]);
+    const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map((m) => m[1]);
     const {left, right, top, bottom} = decodeRange(range);
     const populatedCoveredCells = [];
     for (let r = top; r <= bottom; r++) {
       for (let c = left; c <= right; c++) {
         const ref = encodeAddress(c, r);
         if (ref === anchor) continue;
-        if (new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*>[\\s\\S]*?<v>`).test(sheetXml)) populatedCoveredCells.push(ref);
+        if (new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*>[\\s\\S]*?<v>`).test(sheetXml))
+          populatedCoveredCells.push(ref);
       }
     }
     const a = readXlsx(buffer).getWorksheet('S').getCell(anchor);
@@ -3204,12 +3517,12 @@ const impl = {
     const m = reread.getCell('A1');
     const b = m.border || {};
     return {
-      hasTopBorder: !!(b.top && b.top.style),
-      hasBottomBorder: !!(b.bottom && b.bottom.style),
-      topStyle: b.top ? b.top.style ?? null : null,
-      bottomStyle: b.bottom ? b.bottom.style ?? null : null,
+      hasTopBorder: !!b.top?.style,
+      hasBottomBorder: !!b.bottom?.style,
+      topStyle: b.top ? (b.top.style ?? null) : null,
+      bottomStyle: b.bottom ? (b.bottom.style ?? null) : null,
       numFmt: m.numFmt ?? null,
-      fontBold: !!(m.font && m.font.bold),
+      fontBold: !!m.font?.bold,
       merges: [...reread.merges],
     };
   },
@@ -3228,10 +3541,12 @@ const impl = {
     // A cell "carries a value" if its element has value content — a number/bool/formula (<v>),
     // an inline string (<is>), or a formula (<f>). The writer serialises strings as inlineStr,
     // so keying on <v> alone would miss them; an empty covered cell is never emitted at all.
-    const cellsWithValue = [...sheetXml.matchAll(/<c\b[^>]*\br="([A-Z]+\d+)"[^>]*>([\s\S]*?)<\/c>/g)]
-      .filter(m => /<(?:v|is|f)\b/.test(m[2]))
-      .map(m => m[1]);
-    const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map(m => m[1]);
+    const cellsWithValue = [
+      ...sheetXml.matchAll(/<c\b[^>]*\br="([A-Z]+\d+)"[^>]*>([\s\S]*?)<\/c>/g),
+    ]
+      .filter((m) => /<(?:v|is|f)\b/.test(m[2]))
+      .map((m) => m[1]);
+    const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map((m) => m[1]);
     const master = range.split(':')[0];
     const s = readXlsx(buffer).getWorksheet('S');
     return {
@@ -3261,7 +3576,7 @@ const impl = {
       dst.model = {...src.model, name: 'Dst'};
       dstMerges = [...dst.model.merges];
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
     return {srcMerges: srcMerges.sort(), dstMerges: dstMerges.sort(), error};
   },
@@ -3286,11 +3601,12 @@ const impl = {
         else if (op.op === 'spliceColumns') sheet.spliceColumns(op.start, op.count, ...inserts);
         else if (op.op === 'mergeCells') sheet.mergeCells(op.range);
         else if (op.op === 'insertRow') sheet.insertRow(op.pos, op.value || []);
-        else if (op.op === 'duplicateRow') sheet.duplicateRow(op.start, op.count ?? 1, op.insert !== false);
+        else if (op.op === 'duplicateRow')
+          sheet.duplicateRow(op.start, op.count ?? 1, op.insert !== false);
         else throw new Error(`unknown mutation op: ${op.op}`);
       }
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
 
     const readCells = {};
@@ -3304,7 +3620,7 @@ const impl = {
       styles[ref] = {
         value: cell.value ?? null,
         font: cell.font ? JSON.parse(JSON.stringify(cell.font)) : null,
-        fill: cell.fill && cell.fill.type ? JSON.parse(JSON.stringify(cell.fill)) : null,
+        fill: cell.fill?.type ? JSON.parse(JSON.stringify(cell.fill)) : null,
         numFmt: cell.numFmt ?? null,
       };
     }
@@ -3314,8 +3630,8 @@ const impl = {
     // trailing empty slot.
     let lastRow = null;
     for (const {number, cells: rowCells} of sheet.rows()) {
-      if (rowCells.some(c => c.value !== null && c.value !== undefined)) {
-        const first = rowCells.find(c => c.col === 1);
+      if (rowCells.some((c) => c.value !== null && c.value !== undefined)) {
+        const first = rowCells.find((c) => c.col === 1);
         lastRow = {number, value: first?.value ?? null};
       }
     }
@@ -3342,16 +3658,16 @@ const impl = {
     try {
       sheet.duplicateRow(1, 1, true);
     } catch (e) {
-      dupError = String((e && e.message) || e);
+      dupError = String(e?.message || e);
     }
-    const val = ref => sheet.getCell(ref).value ?? null;
+    const val = (ref) => sheet.getCell(ref).value ?? null;
     const row1 = [val('A1'), val('B1'), val('C1')];
     const row2 = [val('A2'), val('B2'), val('C2')];
     let mergeError = null;
     try {
       sheet.mergeCells('A2:C2');
     } catch (e) {
-      mergeError = String((e && e.message) || e);
+      mergeError = String(e?.message || e);
     }
     return {dupError, mergeError, rowCount: sheet.rowCount, row1, row2, merges: [...sheet.merges]};
   },
@@ -3374,7 +3690,7 @@ const impl = {
       cell.font = {...cell.font, bold: true};
       numFmt = cell.numFmt;
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
     return {error, numFmt};
   },
@@ -3409,7 +3725,7 @@ const impl = {
 
     const parts = partMapOf(writeXlsx(wb));
     const tableXml = parts['xl/tables/table1.xml'] || '';
-    const tableRef = ((tableXml.match(/<table\b[^>]*\bref="([^"]*)"/) || [])[1]) ?? null;
+    const tableRef = (tableXml.match(/<table\b[^>]*\bref="([^"]*)"/) || [])[1] ?? null;
     const drawingXml = parts['xl/drawings/drawing1.xml'] || '';
     const imageFromRow = (drawingXml.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/) || [])[1];
 
@@ -3420,9 +3736,9 @@ const impl = {
       .addWorksheet('S')
       .addTable({name: 'T2', ref: 'A1', columns: [{name: 'Dup'}, {name: 'Dup'}], rowCount: 1});
     writeXlsx(w2);
-    const dupColumnNames = dupTable.columns.map(c => c.name);
+    const dupColumnNames = dupTable.columns.map((c) => c.name);
     const dupColumnNamesUnique =
-      new Set(dupColumnNames.map(n => n.toLowerCase())).size === dupColumnNames.length;
+      new Set(dupColumnNames.map((n) => n.toLowerCase())).size === dupColumnNames.length;
 
     return {
       tableRef,
@@ -3438,8 +3754,13 @@ const impl = {
   readFixtureTable(rel, tableName) {
     const wb = readFixture(rel);
     for (const s of wb.worksheets) {
-      const table = s.tables.find(t => t.name === tableName);
-      if (table) return {found: true, columns: table.columns.map(c => c.name), rowCount: table.options.rowCount};
+      const table = s.tables.find((t) => t.name === tableName);
+      if (table)
+        return {
+          found: true,
+          columns: table.columns.map((c) => c.name),
+          rowCount: table.options.rowCount,
+        };
     }
     return {found: false, columns: null, rowCount: null};
   },
@@ -3451,14 +3772,24 @@ const impl = {
     try {
       const wb = readFixture(rel);
       for (const s of wb.worksheets) {
-        const table = s.tables.find(t => t.name === tableName);
+        const table = s.tables.find((t) => t.name === tableName);
         if (table) {
-          return {loaded: true, error: null, columnCount: table.columns.length, columnNames: table.columns.map(c => c.name)};
+          return {
+            loaded: true,
+            error: null,
+            columnCount: table.columns.length,
+            columnNames: table.columns.map((c) => c.name),
+          };
         }
       }
       return {loaded: true, error: null, columnCount: 0, columnNames: []};
     } catch (e) {
-      return {loaded: false, error: String((e && e.message) || e), columnCount: null, columnNames: null};
+      return {
+        loaded: false,
+        error: String(e?.message || e),
+        columnCount: null,
+        columnNames: null,
+      };
     }
   },
 
@@ -3466,11 +3797,11 @@ const impl = {
   // package back and re-write it, reporting the ref and well-formedness of each re-emitted part — so
   // a degenerate (empty-body or single-row) table is proven to survive a load→save round-trip.
   roundtripSpecTableFacts(spec) {
-    const tableFacts = parts =>
+    const tableFacts = (parts) =>
       Object.keys(parts)
-        .filter(n => /^xl\/tables\/table\d+\.xml$/.test(n))
+        .filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))
         .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
-        .map(n => {
+        .map((n) => {
           const xml = parts[n];
           return {
             ref: (xml.match(/<table\b[^>]*\bref="([^"]*)"/) || [])[1] ?? null,
@@ -3486,7 +3817,7 @@ const impl = {
       roundtrip = tableFacts(partMapOf(writeXlsx(reloaded)));
     } catch (e) {
       loadOk = false;
-      loadError = String((e && e.message) || e);
+      loadError = String(e?.message || e);
     }
     return {write, roundtrip, loadOk, loadError};
   },
@@ -3502,7 +3833,7 @@ const impl = {
       rowCount: 2,
     });
     const table = readXlsx(writeXlsx(wb)).getWorksheet('S').tables[0];
-    return {colCount: table.columns.length, colNames: table.columns.map(c => c.name)};
+    return {colCount: table.columns.length, colNames: table.columns.map((c) => c.name)};
   },
 
   // Add a table and a list validation to each of five sheets, then report that the package writes
@@ -3522,15 +3853,24 @@ const impl = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e && e.message) || e);
+      writeError = String(e?.message || e);
     }
-    if (!writeOk) return {writeOk, writeError, reloadOk: false, tableCount: null, idsUnique: false, firstSheetDvSurvives: false};
+    if (!writeOk)
+      return {
+        writeOk,
+        writeError,
+        reloadOk: false,
+        tableCount: null,
+        idsUnique: false,
+        firstSheetDvSurvives: false,
+      };
 
     const parts = partMapOf(buffer);
     const ids = Object.keys(parts)
-      .filter(n => /^xl\/tables\/table\d+\.xml$/.test(n))
-      .map(n => (parts[n].match(/<table\b[^>]*\bid="([^"]*)"/) || [])[1]);
-    const idsUnique = ids.length > 0 && ids.every(x => x != null) && new Set(ids).size === ids.length;
+      .filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))
+      .map((n) => (parts[n].match(/<table\b[^>]*\bid="([^"]*)"/) || [])[1]);
+    const idsUnique =
+      ids.length > 0 && ids.every((x) => x != null) && new Set(ids).size === ids.length;
 
     let reloadOk = true;
     let tableCount = 0;
@@ -3552,16 +3892,22 @@ const impl = {
   tableStyleThemeReport() {
     const styleInfoOf = (style) => {
       const wb = new Workbook();
-      wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1, style});
+      wb.addWorksheet('S').addTable({
+        name: 'T',
+        ref: 'A1',
+        columns: [{name: 'A'}],
+        rowCount: 1,
+        style,
+      });
       let ok = true;
       let tag = null;
       try {
         const parts = partMapOf(writeXlsx(wb));
-        const part = Object.keys(parts).find(n => /^xl\/tables\/table\d+\.xml$/.test(n));
+        const part = Object.keys(parts).find((n) => /^xl\/tables\/table\d+\.xml$/.test(n));
         tag = (parts[part].match(/<tableStyleInfo[^>]*\/?>/) || [])[0] ?? null;
       } catch (e) {
         ok = false;
-        tag = String((e && e.message) || e);
+        tag = String(e?.message || e);
       }
       const name = tag && ok ? ((tag.match(/\bname="([^"]*)"/) || [])[1] ?? null) : null;
       const hasStripes = !!(tag && ok && /\bshowRowStripes="1"/.test(tag));
@@ -3588,19 +3934,21 @@ const impl = {
       wb.addWorksheet('S').addTable({
         name: 'T',
         ref: 'A1',
-        columns: headers.map(name => ({name})),
+        columns: headers.map((name) => ({name})),
         rowCount: 1,
       });
       const parts = partMapOf(writeXlsx(wb));
-      const part = Object.keys(parts).find(n => /^xl\/tables\/table\d+\.xml$/.test(n));
-      writtenNames = [...parts[part].matchAll(/<tableColumn\b[^>]*\bname="([^"]*)"/g)].map(m => m[1]);
+      const part = Object.keys(parts).find((n) => /^xl\/tables\/table\d+\.xml$/.test(n));
+      writtenNames = [...parts[part].matchAll(/<tableColumn\b[^>]*\bname="([^"]*)"/g)].map(
+        (m) => m[1],
+      );
     } catch (e) {
       ok = false;
-      writtenNames = String((e && e.message) || e);
+      writtenNames = String(e?.message || e);
     }
     const uniqueNames =
       Array.isArray(writtenNames) &&
-      new Set(writtenNames.map(n => n.toLowerCase())).size === writtenNames.length;
+      new Set(writtenNames.map((n) => n.toLowerCase())).size === writtenNames.length;
     return {ok, writtenNames, uniqueNames};
   },
 
@@ -3622,12 +3970,12 @@ const impl = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e && e.message) || e);
+      writeError = String(e?.message || e);
     }
     if (!writeOk) return {writeOk, writeError, reloadOk: false, colSpanCount: null};
 
     const parts = partMapOf(buffer);
-    const sheetPart = Object.keys(parts).find(n => /xl\/worksheets\/sheet\d+\.xml$/.test(n));
+    const sheetPart = Object.keys(parts).find((n) => /xl\/worksheets\/sheet\d+\.xml$/.test(n));
     const colsBlock = (parts[sheetPart].match(/<cols>[\s\S]*?<\/cols>/) || [])[0] ?? '';
     const colSpanCount = (colsBlock.match(/<col\b/g) || []).length;
 
@@ -3665,9 +4013,10 @@ const impl = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e && e.message) || e);
+      writeError = String(e?.message || e);
     }
-    if (!writeOk) return {writeOk, writeError, reloadOk: false, styledBody: null, unstyledBody: null};
+    if (!writeOk)
+      return {writeOk, writeError, reloadOk: false, styledBody: null, unstyledBody: null};
 
     let reloadOk = true;
     let styledBody = null;
@@ -3678,7 +4027,7 @@ const impl = {
       unstyledBody = [back.getCell('B2').numFmt ?? null, back.getCell('B3').numFmt ?? null];
     } catch (e) {
       reloadOk = false;
-      writeError = String((e && e.message) || e);
+      writeError = String(e?.message || e);
     }
     return {writeOk, writeError, reloadOk, styledBody, unstyledBody};
   },
@@ -3692,11 +4041,20 @@ const impl = {
     let table = null;
     for (const s of reloaded.worksheets) {
       const found = s.getTable(tableName);
-      if (found) { table = found; break; }
+      if (found) {
+        table = found;
+        break;
+      }
     }
     const hasTable = table !== null;
     if (!hasTable) {
-      return {hasTable, loadedRowCount: null, addError: null, committed: false, finalRowCount: null};
+      return {
+        hasTable,
+        loadedRowCount: null,
+        addError: null,
+        committed: false,
+        finalRowCount: null,
+      };
     }
     const loadedRowCount = table.rowCount;
 
@@ -3705,7 +4063,7 @@ const impl = {
       try {
         table.addRow(row);
       } catch (e) {
-        addError = String((e && e.message) || e);
+        addError = String(e?.message || e);
         break;
       }
     }
@@ -3719,10 +4077,13 @@ const impl = {
         const back = readXlsx(out);
         for (const s of back.worksheets) {
           const found = s.getTable(tableName);
-          if (found) { finalRowCount = found.rowCount; break; }
+          if (found) {
+            finalRowCount = found.rowCount;
+            break;
+          }
         }
       } catch (e) {
-        addError = String((e && e.message) || e);
+        addError = String(e?.message || e);
       }
     }
     return {hasTable, loadedRowCount, addError, committed, finalRowCount};
@@ -3750,10 +4111,18 @@ const impl = {
       firstBuffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e && e.message) || e);
+      writeError = String(e?.message || e);
     }
     if (!writeOk) {
-      return {writeOk, writeError, reloadOk: false, hasTablePart: false, tablePresent: false, editedValue: null, relUnique: false};
+      return {
+        writeOk,
+        writeError,
+        reloadOk: false,
+        hasTablePart: false,
+        tablePresent: false,
+        editedValue: null,
+        relUnique: false,
+      };
     }
 
     let reloadOk = true;
@@ -3767,18 +4136,20 @@ const impl = {
       sheet.getCell('B2').value = 999;
       const out = writeXlsx(reloaded);
       const parts = partMapOf(out);
-      const tablePart = Object.keys(parts).find(n => /^xl\/tables\/table\d+\.xml$/.test(n));
+      const tablePart = Object.keys(parts).find((n) => /^xl\/tables\/table\d+\.xml$/.test(n));
       hasTablePart = tablePart !== undefined;
-      const relPart = Object.keys(parts).find(n => /xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(n));
-      const relIds = relPart ? [...parts[relPart].matchAll(/Id="([^"]*)"/g)].map(m => m[1]) : [];
+      const relPart = Object.keys(parts).find((n) =>
+        /xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(n),
+      );
+      const relIds = relPart ? [...parts[relPart].matchAll(/Id="([^"]*)"/g)].map((m) => m[1]) : [];
       relUnique = relIds.length > 0 && new Set(relIds).size === relIds.length;
       const back = readXlsx(out);
       const backSheet = back.getWorksheet('S');
-      tablePresent = backSheet.tables.some(t => t.name === 'T');
+      tablePresent = backSheet.tables.some((t) => t.name === 'T');
       editedValue = backSheet.getCell('B2').value;
     } catch (e) {
       reloadOk = false;
-      writeError = String((e && e.message) || e);
+      writeError = String(e?.message || e);
     }
     return {writeOk, writeError, reloadOk, hasTablePart, tablePresent, editedValue, relUnique};
   },
@@ -3801,12 +4172,12 @@ const impl = {
     let rawControlChars = null;
     try {
       const parts = partMapOf(writeXlsx(wb));
-      const part = Object.keys(parts).find(n => /^xl\/tables\/table\d+\.xml$/.test(n));
+      const part = Object.keys(parts).find((n) => /^xl\/tables\/table\d+\.xml$/.test(n));
       firstColumnTag = (parts[part].match(/<tableColumn\b[^>]*\/?>/) || [])[0] ?? null;
       rawControlChars = firstColumnTag === null ? null : /[\r\n]/.test(firstColumnTag);
     } catch (e) {
       writeOk = false;
-      writeError = String((e && e.message) || e);
+      writeError = String(e?.message || e);
     }
     return {writeOk, writeError, firstColumnTag, rawControlChars};
   },
@@ -3816,18 +4187,18 @@ const impl = {
   // round-trip of a table that has no autoFilter must not inject one, flip the header row off, or turn
   // totalsRowShown on; a table that does have one must keep its ref and column count.
   roundtripFixtureTableXml(rel) {
-    const facts = xml => ({
+    const facts = (xml) => ({
       hasAutoFilter: /<(?:\w+:)?autoFilter\b/.test(xml),
       autoFilterRef: (xml.match(/<(?:\w+:)?autoFilter\b[^>]*\bref="([^"]*)"/) || [])[1] ?? null,
       headerRowCount: (xml.match(/\bheaderRowCount="([^"]*)"/) || [])[1] ?? null,
       totalsRowShown: (xml.match(/\btotalsRowShown="([^"]*)"/) || [])[1] ?? null,
       columnCount: (xml.match(/<tableColumns\b[^>]*\bcount="([^"]*)"/) || [])[1] ?? null,
     });
-    const tablePartsInOrder = parts =>
+    const tablePartsInOrder = (parts) =>
       Object.keys(parts)
-        .filter(n => /^xl\/tables\/table\d+\.xml$/.test(n))
+        .filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))
         .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
-        .map(n => parts[n]);
+        .map((n) => parts[n]);
     const buffer = fs.readFileSync(path.join(FIXTURES_ROOT, rel));
     const source = tablePartsInOrder(partMapOf(buffer));
     const rewritten = tablePartsInOrder(partMapOf(writeXlsx(readXlsx(buffer))));
@@ -3878,7 +4249,7 @@ const impl = {
         out[c.ref] = {
           formula: obj && 'formula' in v ? v.formula : null,
           sharedFormula: obj && 'sharedFormula' in v ? v.sharedFormula : null,
-          result: obj && 'result' in v ? v.result ?? null : null,
+          result: obj && 'result' in v ? (v.result ?? null) : null,
         };
       }
     }
@@ -3909,12 +4280,12 @@ const impl = {
       const reread = readXlsx(buffer);
       writeXlsx(reread);
       const s = reread.getWorksheet('S');
-      preservedFormulas = ['B2', 'B3'].every(ref => {
+      preservedFormulas = ['B2', 'B3'].every((ref) => {
         const v = s.getCell(ref).value;
         return !!(v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v));
       });
     } catch (e) {
-      roundtripError = String((e && e.message) || e);
+      roundtripError = String(e?.message || e);
     }
 
     let spliceError = null;
@@ -3923,7 +4294,7 @@ const impl = {
       reread.getWorksheet('S').spliceColumns(1, 0, []);
       writeXlsx(reread);
     } catch (e) {
-      spliceError = String((e && e.message) || e);
+      spliceError = String(e?.message || e);
     }
 
     return {
@@ -3941,14 +4312,14 @@ const impl = {
       workbook = buildFrom(spec);
     } catch (error) {
       if (error.notImplemented) throw error;
-      return {ok: false, phase: 'build', error: String((error && error.message) || error)};
+      return {ok: false, phase: 'build', error: String(error?.message || error)};
     }
     let buffer;
     try {
       buffer = writeXlsx(workbook);
     } catch (error) {
       if (error.notImplemented) throw error;
-      return {ok: false, phase: 'write', error: String((error && error.message) || error)};
+      return {ok: false, phase: 'write', error: String(error?.message || error)};
     }
     // Report which cells survived the round-trip, so a case can prove a bad cell (e.g. an Invalid
     // Date, written value-less) did not drop its siblings.
@@ -3957,8 +4328,8 @@ const impl = {
     for (const s of spec.sheets || []) {
       const sheet = reread.getWorksheet(s.name);
       survivingCells[s.name] = (s.cells || [])
-        .filter(c => sheet && sheet.getCell(c.ref).value !== null)
-        .map(c => c.ref);
+        .filter((c) => sheet && sheet.getCell(c.ref).value !== null)
+        .map((c) => c.ref);
     }
     return {ok: true, byteLength: buffer.byteLength ?? buffer.length, survivingCells};
   },
@@ -3981,10 +4352,13 @@ const impl = {
     // end-state a per-cell override yields (column-scope inheritance is a separate capability).
     // Applied after the per-cell settings so the band-level flag is what the case asserts.
     for (const col of columns) {
-      for (const c of cells) if (decodeAddress(c.ref).col === col.index) sheet.getCell(c.ref).protection = col.protection;
+      for (const c of cells)
+        if (decodeAddress(c.ref).col === col.index)
+          sheet.getCell(c.ref).protection = col.protection;
     }
     for (const r of rows) {
-      for (const c of cells) if (decodeAddress(c.ref).row === r.index) sheet.getCell(c.ref).protection = r.protection;
+      for (const c of cells)
+        if (decodeAddress(c.ref).row === r.index) sheet.getCell(c.ref).protection = r.protection;
     }
     if (protect) sheet.protect(protect.password ?? undefined, protect.options ?? {});
     const buffer = writeXlsx(workbook);
@@ -4029,9 +4403,14 @@ const impl = {
       second = protectOnce();
     } catch (e) {
       return {
-        threw: String((e && e.message) || e),
-        algorithm: null, hasHash: false, hasSalt: false, spinCount: null,
-        selectLockedCells: null, selectUnlockedCells: null, saltsDiffer: false,
+        threw: String(e?.message || e),
+        algorithm: null,
+        hasHash: false,
+        hasSalt: false,
+        spinCount: null,
+        selectLockedCells: null,
+        selectUnlockedCells: null,
+        saltsDiffer: false,
       };
     }
     const a = attrsOf(first);
@@ -4055,7 +4434,7 @@ const impl = {
   // (no plaintext password survives to re-hash) and the permissive flags intact.
   sheetProtectionRoundtrip(
     password = 'secret',
-    options = {sort: true, autoFilter: true, selectLockedCells: false}
+    options = {sort: true, autoFilter: true, selectLockedCells: false},
   ) {
     const wb = new Workbook();
     const ws = wb.addWorksheet('S');
@@ -4064,7 +4443,7 @@ const impl = {
 
     const buf1 = writeXlsx(wb);
     const buf2 = writeXlsx(readXlsx(buf1));
-    const protAttrs = buf => {
+    const protAttrs = (buf) => {
       const xml = partMapOf(buf)['xl/worksheets/sheet1.xml'] || '';
       const el = (xml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0];
       return el ? attrsOf(el) : null;
@@ -4089,9 +4468,9 @@ const impl = {
     applyStyle(sheet.getCell('A2'), base);
     sheet.getCell('A1').font = {...sheet.getCell('A1').font, color: {argb: 'FF00FF00'}};
     const s = readXlsx(writeXlsx(workbook)).getWorksheet('S');
-    const colorOf = ref => {
+    const colorOf = (ref) => {
       const f = s.getCell(ref).font;
-      return f && f.color ? f.color.argb ?? null : null;
+      return f?.color ? (f.color.argb ?? null) : null;
     };
     const a1Color = colorOf('A1');
     const a2Color = colorOf('A2');
@@ -4110,14 +4489,22 @@ const impl = {
     }
     const loaded = readXlsx(writeXlsx(workbook));
     loaded.getWorksheet('S').getCell('A1').border = {
-      top: {style: 'thin'}, left: {style: 'thin'}, bottom: {style: 'thin'}, right: {style: 'thin'},
+      top: {style: 'thin'},
+      left: {style: 'thin'},
+      bottom: {style: 'thin'},
+      right: {style: 'thin'},
     };
     const s = readXlsx(writeXlsx(loaded)).getWorksheet('S');
-    const hasBorder = ref => {
+    const hasBorder = (ref) => {
       const b = s.getCell(ref).border;
-      return !!(b && b.top && b.top.style);
+      return !!b?.top?.style;
     };
-    return {a1: hasBorder('A1'), a2: hasBorder('A2'), a3: hasBorder('A3'), bled: hasBorder('A2') || hasBorder('A3')};
+    return {
+      a1: hasBorder('A1'),
+      a2: hasBorder('A2'),
+      a3: hasBorder('A3'),
+      bled: hasBorder('A2') || hasBorder('A3'),
+    };
   },
 
   // Author two cells with one shared fill, load, replace ONE cell's fill, read the sibling in
@@ -4130,7 +4517,7 @@ const impl = {
     const fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: sharedFill}};
     s.getCell('A1').fill = fill;
     s.getCell('B1').fill = fill; // identical formatting → one shared style index on disk
-    const fgOf = cell => (cell.fill && cell.fill.fgColor ? cell.fill.fgColor.argb ?? null : null);
+    const fgOf = (cell) => (cell.fill?.fgColor ? (cell.fill.fgColor.argb ?? null) : null);
 
     const wb2 = readXlsx(writeXlsx(wb));
     const s2 = wb2.getWorksheet('S');
@@ -4139,8 +4526,12 @@ const impl = {
 
     const diskSibling = fgOf(readXlsx(writeXlsx(wb2)).getWorksheet('S').getCell('B1'));
     return {
-      sibling, mutatedTo: mutateTo, original: sharedFill,
-      bled: sibling === mutateTo, diskSibling, diskBled: diskSibling === mutateTo,
+      sibling,
+      mutatedTo: mutateTo,
+      original: sharedFill,
+      bled: sibling === mutateTo,
+      diskSibling,
+      diskBled: diskSibling === mutateTo,
     };
   },
 
@@ -4157,9 +4548,15 @@ const impl = {
 
     const s2 = readXlsx(writeXlsx(wb)).getWorksheet('S');
     s2.getCell('A1').font = {...s2.getCell('A1').font, color: {argb: mutateTo}};
-    const colorOf = cell => (cell.font && cell.font.color ? cell.font.color.argb ?? null : null);
+    const colorOf = (cell) => (cell.font?.color ? (cell.font.color.argb ?? null) : null);
     const sibling = colorOf(s2.getCell('B1'));
-    return {edited: colorOf(s2.getCell('A1')), sibling, original, mutatedTo: mutateTo, bled: sibling === mutateTo};
+    return {
+      edited: colorOf(s2.getCell('A1')),
+      sibling,
+      original,
+      mutatedTo: mutateTo,
+      bled: sibling === mutateTo,
+    };
   },
 
   // Load two cells sharing one style record, set ONE style facet (alignment | numFmt | protection)
@@ -4168,14 +4565,21 @@ const impl = {
   // copy-on-write family, alongside fill/font/border above.
   loadMutateCellFacet(facet = 'alignment') {
     const readFacet = {
-      alignment: c => (c.alignment && c.alignment.horizontal) || null,
-      numFmt: c => c.numFmt || null,
-      protection: c => (c.protection && typeof c.protection.locked === 'boolean' ? c.protection.locked : null),
+      alignment: (c) => c.alignment?.horizontal || null,
+      numFmt: (c) => c.numFmt || null,
+      protection: (c) =>
+        c.protection && typeof c.protection.locked === 'boolean' ? c.protection.locked : null,
     }[facet];
     const apply = {
-      alignment: c => { c.alignment = {horizontal: 'center'}; },
-      numFmt: c => { c.numFmt = '#,##0'; },
-      protection: c => { c.protection = {locked: false}; },
+      alignment: (c) => {
+        c.alignment = {horizontal: 'center'};
+      },
+      numFmt: (c) => {
+        c.numFmt = '#,##0';
+      },
+      protection: (c) => {
+        c.protection = {locked: false};
+      },
     }[facet];
     if (!readFacet) throw new Error(`unknown style facet: ${facet}`);
 
@@ -4195,7 +4599,15 @@ const impl = {
     const sibling = readFacet(s2.getCell('B1'));
 
     const diskSibling = readFacet(readXlsx(writeXlsx(wb2)).getWorksheet('S').getCell('B1'));
-    return {facet, target, sibling, original, bled: sibling !== original, diskSibling, diskBled: diskSibling !== original};
+    return {
+      facet,
+      target,
+      sibling,
+      original,
+      bled: sibling !== original,
+      diskSibling,
+      diskBled: diskSibling !== original,
+    };
   },
 
   // --- CSV (src/io/csv) -------------------------------------------------------------------------
@@ -4220,7 +4632,7 @@ const impl = {
       }
       return {ok: true, error: null, rows};
     } catch (e) {
-      return {ok: false, error: String((e && e.message) || e), rows: []};
+      return {ok: false, error: String(e?.message || e), rows: []};
     }
   },
 
@@ -4232,7 +4644,7 @@ const impl = {
       const text = writeCsvText(wb, translateCsvWriteOptions(options));
       return {ok: true, error: null, text};
     } catch (e) {
-      return {ok: false, error: String((e && e.message) || e), text: null};
+      return {ok: false, error: String(e?.message || e), text: null};
     }
   },
 
@@ -4247,21 +4659,26 @@ const impl = {
     try {
       text = writeCsvText(wb, sheetName === undefined ? {} : {sheetName});
     } catch (e) {
-      error = String((e && e.message) || e);
+      error = String(e?.message || e);
     }
-    return {ok: error === null, error, text, rowCount: text ? text.split(/\r?\n/).filter(Boolean).length : 0};
+    return {
+      ok: error === null,
+      error,
+      text,
+      rowCount: text ? text.split(/\r?\n/).filter(Boolean).length : 0,
+    };
   },
 
   csvReadMapReport() {
     const csv = 'id,amount\n007,32.5\n008,40';
-    const read = map => {
+    const read = (map) => {
       const wb = readCsv(csv, map ? {map} : {});
       const sheet = wb.worksheets[0];
       const a = sheet ? sheet.getCell('A2').value : null;
       const b = sheet ? sheet.getCell('B2').value : null;
       return {a, aType: typeof a, b, bType: typeof b};
     };
-    return {default: read(null), identity: read(v => v)};
+    return {default: read(null), identity: read((v) => v)};
   },
 
   csvWriteEncodingReport({encoding = 'utf16le', text = 'café'} = {}) {
@@ -4296,7 +4713,7 @@ const impl = {
 };
 
 // A JSON-serializable view of a read-back CSV cell value, mirroring the oracle's normalizeCsvValue.
-const normalizeCsvValue = v => {
+const normalizeCsvValue = (v) => {
   if (v instanceof Date) return {date: Number.isNaN(v.getTime()) ? null : v.toISOString()};
   if (v && typeof v === 'object' && 'error' in v) return {error: v.error};
   return v ?? null;
@@ -4304,7 +4721,7 @@ const normalizeCsvValue = v => {
 
 // A declarative CSV write-spec cell → a live model value: { date } → Date, { formula, result } →
 // formula value, { error } → error value, primitive passes through.
-const specCsvValue = c => {
+const specCsvValue = (c) => {
   if (c && typeof c === 'object') {
     if (c.date) return new Date(c.date);
     if ('formula' in c) return {formula: c.formula, result: c.result};

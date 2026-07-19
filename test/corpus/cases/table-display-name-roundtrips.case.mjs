@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {writtenDisplayName} = await api.tableDisplayNameReport(DISPLAY);
-        assert.strictEqual(writtenDisplayName, DISPLAY, 'the display name must be serialized, not dropped to a default');
+        assert.strictEqual(
+          writtenDisplayName,
+          DISPLAY,
+          'the display name must be serialized, not dropped to a default',
+        );
       },
     },
     {
@@ -34,7 +38,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {reloadedDisplayName} = await api.tableDisplayNameReport(DISPLAY);
-        assert.strictEqual(reloadedDisplayName, DISPLAY, 'the display name reads back after a round-trip');
+        assert.strictEqual(
+          reloadedDisplayName,
+          DISPLAY,
+          'the display name reads back after a round-trip',
+        );
       },
     },
     {
@@ -42,7 +50,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {reloadedName} = await api.tableDisplayNameReport(DISPLAY);
-        assert.strictEqual(reloadedName, 'MyTable', 'the internal table name is unaffected by the display name');
+        assert.strictEqual(
+          reloadedName,
+          'MyTable',
+          'the internal table name is unaffected by the display name',
+        );
       },
     },
   ],

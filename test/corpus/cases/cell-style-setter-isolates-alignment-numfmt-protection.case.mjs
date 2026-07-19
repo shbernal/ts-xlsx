@@ -15,7 +15,7 @@
 const FACETS = ['alignment', 'numFmt', 'protection'];
 
 /** @type {Behavior[]} */
-const isolation = FACETS.flatMap(facet => [
+const isolation = FACETS.flatMap((facet) => [
   {
     name: `setting ${facet} on one cell changes that cell (control)`,
     baseline: 'pass',
@@ -29,15 +29,21 @@ const isolation = FACETS.flatMap(facet => [
     baseline: 'pass',
     async expect(api, assert) {
       const {sibling, original, bled} = await api.loadMutateCellFacet(facet);
-      assert.ok(!bled, `the sibling must keep its original ${facet}; it changed from ${original} to ${sibling}`);
+      assert.ok(
+        !bled,
+        `the sibling must keep its original ${facet}; it changed from ${original} to ${sibling}`,
+      );
     },
   },
   {
     name: `after write-back only the edited cell's ${facet} changed on disk`,
     baseline: 'pass',
     async expect(api, assert) {
-      const {diskSibling, original, diskBled} = await api.loadMutateCellFacet(facet);
-      assert.ok(!diskBled, `the sibling must keep its original ${facet} in the written file; it became ${diskSibling}`);
+      const {diskSibling, diskBled} = await api.loadMutateCellFacet(facet);
+      assert.ok(
+        !diskBled,
+        `the sibling must keep its original ${facet} in the written file; it became ${diskSibling}`,
+      );
     },
   },
 ]);

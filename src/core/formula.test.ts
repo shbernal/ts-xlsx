@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {mangleFormula, mangleFunctions, mangleParams, translateFormula, unmangleFunctions} from './formula.ts';
+import {
+  mangleFormula,
+  mangleFunctions,
+  mangleParams,
+  translateFormula,
+  unmangleFunctions,
+} from './formula.ts';
 
 test('a modern function called by its plain name gains the _xlfn. prefix', () => {
   assert.equal(mangleFunctions('FILTER(B1:D1,B2:D2=1)'), '_xlfn.FILTER(B1:D1,B2:D2=1)');
@@ -14,10 +20,7 @@ test('a legacy function is left untouched', () => {
 });
 
 test('nested modern functions each get the prefix, legacy ones do not', () => {
-  assert.equal(
-    mangleFunctions('SUM(FILTER(A:A,B:B=1))'),
-    'SUM(_xlfn.FILTER(A:A,B:B=1))',
-  );
+  assert.equal(mangleFunctions('SUM(FILTER(A:A,B:B=1))'), 'SUM(_xlfn.FILTER(A:A,B:B=1))');
   assert.equal(
     mangleFunctions('COUNTA(UNIQUE(FILTER(a,b=1)))'),
     'COUNTA(_xlfn.UNIQUE(_xlfn.FILTER(a,b=1)))',
@@ -46,7 +49,9 @@ test('matching is case-insensitive on the function name but preserves its casing
 });
 
 test('a LET/LAMBDA formula gets the _xlfn. prefix on every modern function', () => {
-  const out = mangleFunctions('LET(a,B2:B9,b,BYROW(a,LAMBDA(r,SUM(r))),COUNTA(UNIQUE(FILTER(a,b=1))))');
+  const out = mangleFunctions(
+    'LET(a,B2:B9,b,BYROW(a,LAMBDA(r,SUM(r))),COUNTA(UNIQUE(FILTER(a,b=1))))',
+  );
   assert.ok(out.includes('_xlfn.LET'));
   assert.ok(out.includes('_xlfn.BYROW'));
   assert.ok(out.includes('_xlfn.LAMBDA'));
@@ -110,14 +115,24 @@ test('unmangle strips _xlfn. and _xlpm. back to the plain names', () => {
 });
 
 test('mangle then unmangle round-trips a plain formula', () => {
-  for (const f of ['FILTER(A:A,B:B=1)', 'SUM(A1:A9)', 'IFS(B1>0,"pos")', 'XLOOKUP(1,B:B,C:C)', 'NORM.DIST(A1,0,1,TRUE)', 'T.DIST.2T(2,10)']) {
+  for (const f of [
+    'FILTER(A:A,B:B=1)',
+    'SUM(A1:A9)',
+    'IFS(B1>0,"pos")',
+    'XLOOKUP(1,B:B,C:C)',
+    'NORM.DIST(A1,0,1,TRUE)',
+    'T.DIST.2T(2,10)',
+  ]) {
     assert.equal(unmangleFunctions(mangleFunctions(f)), f);
   }
 });
 
 test('a LET parameter is _xlpm.-prefixed at its declaration and every reference', () => {
   assert.equal(mangleParams('LET(x,1,x+1)'), 'LET(_xlpm.x,1,_xlpm.x+1)');
-  assert.equal(mangleParams('LET(a,B2:B9,b,2,a+b)'), 'LET(_xlpm.a,B2:B9,_xlpm.b,2,_xlpm.a+_xlpm.b)');
+  assert.equal(
+    mangleParams('LET(a,B2:B9,b,2,a+b)'),
+    'LET(_xlpm.a,B2:B9,_xlpm.b,2,_xlpm.a+_xlpm.b)',
+  );
 });
 
 test('a LAMBDA prefixes every parameter but leaves its body cells and legacy calls alone', () => {
@@ -150,7 +165,12 @@ test('nested LET/LAMBDA scopes each bind their own parameters', () => {
 });
 
 test('a formula with no LET/LAMBDA passes through parameter mangling unchanged', () => {
-  for (const f of ['SUM(A1:A9)', 'IF(A1>0,"y","n")', 'NORM.DIST(A1,0,1,TRUE)', 'Table1[[#Data],[Col]]']) {
+  for (const f of [
+    'SUM(A1:A9)',
+    'IF(A1>0,"y","n")',
+    'NORM.DIST(A1,0,1,TRUE)',
+    'Table1[[#Data],[Col]]',
+  ]) {
     assert.equal(mangleParams(f), f);
   }
 });
@@ -195,13 +215,25 @@ test('translateFormula shifts both endpoints of a range independently', () => {
 test('translateFormula never touches a function name or a defined name', () => {
   assert.equal(translateFormula('SUM(A1:A3)', 0, 1), 'SUM(A2:A4)', 'SUM has no row digits');
   assert.equal(translateFormula('TaxRate*A1', 2, 2), 'TaxRate*C3', 'a defined name is left alone');
-  assert.equal(translateFormula('LOG10(A1)', 0, 1), 'LOG10(A2)', 'a call ending in digits is not a reference');
+  assert.equal(
+    translateFormula('LOG10(A1)', 0, 1),
+    'LOG10(A2)',
+    'a call ending in digits is not a reference',
+  );
 });
 
 test('translateFormula shifts a sheet-qualified cell but not the sheet name', () => {
   assert.equal(translateFormula('Sheet1!A1', 0, 1), 'Sheet1!A2', 'the cell after ! moves');
-  assert.equal(translateFormula('Q1!A1', 0, 1), 'Q1!A2', 'a sheet name that looks like a reference is untouched');
-  assert.equal(translateFormula("'My Sheet'!A1+B2", 1, 1), "'My Sheet'!B2+C3", 'a quoted sheet name is copied verbatim');
+  assert.equal(
+    translateFormula('Q1!A1', 0, 1),
+    'Q1!A2',
+    'a sheet name that looks like a reference is untouched',
+  );
+  assert.equal(
+    translateFormula("'My Sheet'!A1+B2", 1, 1),
+    "'My Sheet'!B2+C3",
+    'a quoted sheet name is copied verbatim',
+  );
 });
 
 test('translateFormula copies a string literal verbatim, references outside it still move', () => {

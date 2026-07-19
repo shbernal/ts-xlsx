@@ -16,7 +16,15 @@ const CJK = '中文测试数据'.repeat(4000);
 const EMOJI = '😀🎉🚀'.repeat(4000);
 
 const SPEC = {
-  sheets: [{name: 'S', cells: [{ref: 'A1', value: CJK}, {ref: 'A2', value: EMOJI}]}],
+  sheets: [
+    {
+      name: 'S',
+      cells: [
+        {ref: 'A1', value: CJK},
+        {ref: 'A2', value: EMOJI},
+      ],
+    },
+  ],
 };
 
 export default {
@@ -48,7 +56,11 @@ export default {
       async expect(api, assert) {
         const {streamed} = await api.streamReadSpec(SPEC, ['A2']);
         assert.ok(!String(streamed.A2).includes('�'), 'no U+FFFD in the emoji cell');
-        assert.strictEqual(streamed.A2, EMOJI, 'the streamed emoji value equals the source exactly');
+        assert.strictEqual(
+          streamed.A2,
+          EMOJI,
+          'the streamed emoji value equals the source exactly',
+        );
       },
     },
     {

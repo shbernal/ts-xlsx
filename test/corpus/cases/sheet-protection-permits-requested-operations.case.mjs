@@ -31,27 +31,52 @@ export default {
       name: 'protecting the sheet emits a sheetProtection element with protection enabled',
       baseline: 'pass',
       async expect(api, assert) {
-        const {sheetProtectionAttrs} = await api.authorCellProtection([{ref: 'A1', value: 'x'}], PERMISSIVE);
+        const {sheetProtectionAttrs} = await api.authorCellProtection(
+          [{ref: 'A1', value: 'x'}],
+          PERMISSIVE,
+        );
         assert.ok(sheetProtectionAttrs, 'a <sheetProtection> element is written');
-        assert.strictEqual(sheetProtectionAttrs.sheet, '1', 'the sheet itself is protected (sheet="1")');
+        assert.strictEqual(
+          sheetProtectionAttrs.sheet,
+          '1',
+          'the sheet itself is protected (sheet="1")',
+        );
       },
     },
     {
       name: 'sorting and autofilter are permitted (not forbidden) under protection',
       baseline: 'pass',
       async expect(api, assert) {
-        const {sheetProtectionAttrs} = await api.authorCellProtection([{ref: 'A1', value: 'x'}], PERMISSIVE);
-        assert.strictEqual(sheetProtectionAttrs.sort, '0', 'sort is permitted (sort="0"), not locked');
-        assert.strictEqual(sheetProtectionAttrs.autoFilter, '0', 'autofilter is permitted (autoFilter="0")');
+        const {sheetProtectionAttrs} = await api.authorCellProtection(
+          [{ref: 'A1', value: 'x'}],
+          PERMISSIVE,
+        );
+        assert.strictEqual(
+          sheetProtectionAttrs.sort,
+          '0',
+          'sort is permitted (sort="0"), not locked',
+        );
+        assert.strictEqual(
+          sheetProtectionAttrs.autoFilter,
+          '0',
+          'autofilter is permitted (autoFilter="0")',
+        );
       },
     },
     {
       name: 'formatting of cells, rows, and columns is permitted under protection',
       baseline: 'pass',
       async expect(api, assert) {
-        const {sheetProtectionAttrs} = await api.authorCellProtection([{ref: 'A1', value: 'x'}], PERMISSIVE);
+        const {sheetProtectionAttrs} = await api.authorCellProtection(
+          [{ref: 'A1', value: 'x'}],
+          PERMISSIVE,
+        );
         assert.strictEqual(sheetProtectionAttrs.formatCells, '0', 'formatting cells is permitted');
-        assert.strictEqual(sheetProtectionAttrs.formatColumns, '0', 'formatting columns is permitted');
+        assert.strictEqual(
+          sheetProtectionAttrs.formatColumns,
+          '0',
+          'formatting columns is permitted',
+        );
         assert.strictEqual(sheetProtectionAttrs.formatRows, '0', 'formatting rows is permitted');
       },
     },

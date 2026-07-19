@@ -25,7 +25,10 @@ export default {
       async expect(api, assert) {
         const {formula1, hasNaN} = await api.authorDateValidation('2020-01-01T00:00:00.000Z');
         assert.strictEqual(hasNaN, false, 'no NaN token is emitted for a real date');
-        assert.ok(formula1 && /^\d+(\.\d+)?$/.test(formula1), `the bound is a numeric serial; got ${JSON.stringify(formula1)}`);
+        assert.ok(
+          formula1 && /^\d+(\.\d+)?$/.test(formula1),
+          `the bound is a numeric serial; got ${JSON.stringify(formula1)}`,
+        );
       },
     },
     {
@@ -33,7 +36,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {formula1, hasNaN} = await api.authorDateValidation('invalid');
-        assert.strictEqual(hasNaN, false, `a non-coercible operand must not serialize "NaN"; got ${JSON.stringify(formula1)}`);
+        assert.strictEqual(
+          hasNaN,
+          false,
+          `a non-coercible operand must not serialize "NaN"; got ${JSON.stringify(formula1)}`,
+        );
       },
     },
   ],

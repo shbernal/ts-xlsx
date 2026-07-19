@@ -42,7 +42,11 @@ export default {
       async expect(api, assert) {
         const {second} = await api.sheetProtectionRoundtrip();
         assert.ok(second, 'the re-written sheet must still declare <sheetProtection>, not drop it');
-        assert.strictEqual(second.sheet, '1', 'the reloaded sheet is still protected after a passthrough save');
+        assert.strictEqual(
+          second.sheet,
+          '1',
+          'the reloaded sheet is still protected after a passthrough save',
+        );
       },
     },
     {
@@ -51,8 +55,16 @@ export default {
       async expect(api, assert) {
         const {first, second} = await api.sheetProtectionRoundtrip();
         assert.ok(first && second, 'both writes emit protection');
-        assert.strictEqual(second.algorithmName, first.algorithmName, 'the hash algorithm is preserved');
-        assert.strictEqual(second.hashValue, first.hashValue, 'the password hash is preserved verbatim (not re-hashed)');
+        assert.strictEqual(
+          second.algorithmName,
+          first.algorithmName,
+          'the hash algorithm is preserved',
+        );
+        assert.strictEqual(
+          second.hashValue,
+          first.hashValue,
+          'the password hash is preserved verbatim (not re-hashed)',
+        );
         assert.strictEqual(second.saltValue, first.saltValue, 'the salt is preserved verbatim');
         assert.strictEqual(second.spinCount, first.spinCount, 'the spin count is preserved');
       },
@@ -63,7 +75,11 @@ export default {
         const {second} = await api.sheetProtectionRoundtrip();
         assert.ok(second, 'the re-written sheet declares protection');
         assert.strictEqual(second.sort, '0', 'sorting stays permitted after the round-trip');
-        assert.strictEqual(second.autoFilter, '0', 'autofilter stays permitted after the round-trip');
+        assert.strictEqual(
+          second.autoFilter,
+          '0',
+          'autofilter stays permitted after the round-trip',
+        );
       },
       baseline: 'pass',
     },

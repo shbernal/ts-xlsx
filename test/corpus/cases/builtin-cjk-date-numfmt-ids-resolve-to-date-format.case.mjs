@@ -32,7 +32,7 @@ export default {
         const cells = await api.readFixtureCells(FIXTURE, ['A2', 'B2']);
         assert.ok(
           cells.A2.numFmt,
-          `a built-in locale date id must resolve to a format code, not empty; got ${JSON.stringify(cells.A2)}`
+          `a built-in locale date id must resolve to a format code, not empty; got ${JSON.stringify(cells.A2)}`,
         );
       },
     },
@@ -44,7 +44,7 @@ export default {
         assert.strictEqual(
           cells.A2.type,
           'date',
-          `a serial styled with a built-in date id must read as a date; got ${JSON.stringify(cells.A2)}`
+          `a serial styled with a built-in date id must read as a date; got ${JSON.stringify(cells.A2)}`,
         );
       },
     },

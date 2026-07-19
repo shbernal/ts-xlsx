@@ -33,6 +33,8 @@ const kb = (n) => `${(n / 1024).toFixed(1)} KB`;
 console.log(`runtime JS: ${kb(total)} across ${count} file(s) — budget ${kb(BUDGET_BYTES)}`);
 
 if (total > BUDGET_BYTES) {
-  console.error(`\nOVER BUDGET by ${kb(total - BUDGET_BYTES)}. Investigate the growth or raise the budget deliberately.`);
+  console.error(
+    `\nOVER BUDGET by ${kb(total - BUDGET_BYTES)}. Investigate the growth or raise the budget deliberately.`,
+  );
   process.exit(1);
 }

@@ -34,7 +34,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {hasSharedStringsPart, isInline} = await api.sharedStringsOption(false);
-        assert.strictEqual(hasSharedStringsPart, false, 'no sharedStrings part when the option is disabled');
+        assert.strictEqual(
+          hasSharedStringsPart,
+          false,
+          'no sharedStrings part when the option is disabled',
+        );
         assert.strictEqual(isInline, true, 'the string is stored inline in the cell');
       },
     },

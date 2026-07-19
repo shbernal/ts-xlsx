@@ -29,7 +29,7 @@ export default {
         const {ok, sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(
           !(ok && (!sheetNames || sheetNames.length === 0)),
-          'the reader must not succeed with zero sheets on a wrong-format file — it must reject it'
+          'the reader must not succeed with zero sheets on a wrong-format file — it must reject it',
         );
       },
     },

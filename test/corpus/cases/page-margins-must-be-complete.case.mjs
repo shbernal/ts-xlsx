@@ -9,7 +9,9 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => void }} Behavior */
 
-const SPEC = {sheets: [{name: 'Sheet1', cells: [{ref: 'A1', value: 1}], pageMargins: {left: 0.1, right: 0.1}}]};
+const SPEC = {
+  sheets: [{name: 'Sheet1', cells: [{ref: 'A1', value: 1}], pageMargins: {left: 0.1, right: 0.1}}],
+};
 const SIX = ['left', 'right', 'top', 'bottom', 'header', 'footer'];
 
 export default {

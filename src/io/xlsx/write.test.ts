@@ -41,8 +41,14 @@ test('the content types and rels declare each worksheet consistently', () => {
   wb.addWorksheet('Two').getCell('A1').value = 2;
   const parts = partsOf(wb);
   for (const i of [1, 2]) {
-    assert.match(parts['[Content_Types].xml'] as string, new RegExp(`/xl/worksheets/sheet${i}\\.xml`));
-    assert.match(parts['xl/_rels/workbook.xml.rels'] as string, new RegExp(`worksheets/sheet${i}\\.xml`));
+    assert.match(
+      parts['[Content_Types].xml'] as string,
+      new RegExp(`/xl/worksheets/sheet${i}\\.xml`),
+    );
+    assert.match(
+      parts['xl/_rels/workbook.xml.rels'] as string,
+      new RegExp(`worksheets/sheet${i}\\.xml`),
+    );
     assert.ok(parts[`xl/worksheets/sheet${i}.xml`], `sheet${i}.xml part exists`);
   }
 });
@@ -94,7 +100,7 @@ test('a string with edge whitespace carries xml:space="preserve"', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = '  padded  ';
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
-  assert.match(xml, /<t xml:space="preserve">  padded  <\/t>/);
+  assert.match(xml, /<t xml:space="preserve"> {2}padded {2}<\/t>/);
 });
 
 test('a non-finite number is written as a valueless cell, never a bare NaN/Infinity token', () => {
@@ -104,7 +110,11 @@ test('a non-finite number is written as a valueless cell, never a bare NaN/Infin
   sheet.getCell('A2').value = Number.NaN;
   sheet.getCell('A3').value = 5; // a sibling finite cell must survive
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
-  assert.doesNotMatch(xml, /<v>[^<]*(NaN|Infinity)[^<]*<\/v>/, 'no bare non-finite token is emitted');
+  assert.doesNotMatch(
+    xml,
+    /<v>[^<]*(NaN|Infinity)[^<]*<\/v>/,
+    'no bare non-finite token is emitted',
+  );
   assert.match(xml, /<c r="A3"><v>5<\/v><\/c>/, 'a finite sibling cell is unaffected');
 });
 
@@ -150,7 +160,11 @@ test('adjacent equivalent columns coalesce into a single <col> span', () => {
   }
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.match(xml, /<col min="1" max="4" width="12" customWidth="1" outlineLevel="1"\/>/);
-  assert.equal((xml.match(/<col\b/g) ?? []).length, 1, 'four equivalent columns collapse to one span');
+  assert.equal(
+    (xml.match(/<col\b/g) ?? []).length,
+    1,
+    'four equivalent columns collapse to one span',
+  );
 });
 
 test('columns that differ are not coalesced', () => {
@@ -238,8 +252,16 @@ test('a formatted-but-empty cell is emitted as a styled <c> with no value, not d
   // B2 carries a fill but no value — a real formatted blank Excel keeps, not a cell to discard.
   s.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
-  assert.match(xml, /<c r="B2" s="\d+"\/>/, 'the styled empty cell is written with its style and no <v>');
-  assert.doesNotMatch(xml, /<c r="B2"[^>]*>.*<\/c>/, 'a valueless styled cell carries no child content');
+  assert.match(
+    xml,
+    /<c r="B2" s="\d+"\/>/,
+    'the styled empty cell is written with its style and no <v>',
+  );
+  assert.doesNotMatch(
+    xml,
+    /<c r="B2"[^>]*>.*<\/c>/,
+    'a valueless styled cell carries no child content',
+  );
 });
 
 test('an empty cell with no style of its own is not serialised', () => {
@@ -275,7 +297,11 @@ test('a fully-hidden outline group derives the collapsed toggle onto its summary
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   // Summary-below is Excel's default: the summary row terminates the group from beneath and carries
   // the collapse toggle, so the outline expands in a single click.
-  assert.match(xml, /<row r="5"[^>]*\bcollapsed="1"/, 'the summary row carries the collapse toggle');
+  assert.match(
+    xml,
+    /<row r="5"[^>]*\bcollapsed="1"/,
+    'the summary row carries the collapse toggle',
+  );
   // The hidden detail rows themselves never carry it.
   assert.doesNotMatch(xml, /<row r="2"[^>]*collapsed/);
   assert.doesNotMatch(xml, /<row r="4"[^>]*collapsed/);
@@ -316,7 +342,10 @@ test('sheet default row height and column width land on <sheetFormatPr>', () => 
   s.properties.defaultRowHeight = 30;
   s.properties.defaultColWidth = 20;
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
-  assert.match(xml, /<sheetFormatPr defaultRowHeight="30" defaultColWidth="20" customHeight="1"\/>/);
+  assert.match(
+    xml,
+    /<sheetFormatPr defaultRowHeight="30" defaultColWidth="20" customHeight="1"\/>/,
+  );
 });
 
 test('an unset default row height falls back to 15 with no customHeight', () => {
@@ -356,7 +385,10 @@ test('<pageMargins> is placed after <sheetData>', () => {
   s.getCell('A1').value = 'x';
   s.pageMargins.top = 1;
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
-  assert.ok(xml.indexOf('<sheetData') < xml.indexOf('<pageMargins'), 'pageMargins must follow sheetData');
+  assert.ok(
+    xml.indexOf('<sheetData') < xml.indexOf('<pageMargins'),
+    'pageMargins must follow sheetData',
+  );
 });
 
 test('print-option toggles are emitted and survive a write→read round-trip', () => {
@@ -388,7 +420,11 @@ test('a print-option flag forced off round-trips as an explicit "0", not a dropp
   assert.match(xml, /<printOptions gridLinesSet="0"\/>/);
 
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
-  assert.deepEqual(back?.printOptions, {gridLinesSet: false}, 'the explicit false survives, not swallowed by the default');
+  assert.deepEqual(
+    back?.printOptions,
+    {gridLinesSet: false},
+    'the explicit false survives, not swallowed by the default',
+  );
 });
 
 test('<printOptions> precedes <pageMargins> in schema order', () => {
@@ -398,7 +434,10 @@ test('<printOptions> precedes <pageMargins> in schema order', () => {
   s.printOptions.horizontalCentered = true;
   s.pageMargins.top = 1;
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
-  assert.ok(xml.indexOf('<printOptions') < xml.indexOf('<pageMargins'), 'printOptions must precede pageMargins');
+  assert.ok(
+    xml.indexOf('<printOptions') < xml.indexOf('<pageMargins'),
+    'printOptions must precede pageMargins',
+  );
 });
 
 test('a sheet with no print options set emits no <printOptions> element', () => {
@@ -450,7 +489,10 @@ test('header/footer text is XML-escaped and placed after <pageMargins>', () => {
   s.headerFooter.oddHeader = 'a & b < c';
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.match(xml, /<oddHeader>a &amp; b &lt; c<\/oddHeader>/);
-  assert.ok(xml.indexOf('<pageMargins') < xml.indexOf('<headerFooter'), 'headerFooter follows pageMargins');
+  assert.ok(
+    xml.indexOf('<pageMargins') < xml.indexOf('<headerFooter'),
+    'headerFooter follows pageMargins',
+  );
 });
 
 test('<cols> is placed after <sheetFormatPr> and before <sheetData>', () => {
@@ -462,7 +504,10 @@ test('<cols> is placed after <sheetFormatPr> and before <sheetData>', () => {
   const fmt = xml.indexOf('<sheetFormatPr');
   const cols = xml.indexOf('<cols>');
   const data = xml.indexOf('<sheetData>');
-  assert.ok(fmt < cols && cols < data, `expected sheetFormatPr < cols < sheetData, got ${fmt},${cols},${data}`);
+  assert.ok(
+    fmt < cols && cols < data,
+    `expected sheetFormatPr < cols < sheetData, got ${fmt},${cols},${data}`,
+  );
 });
 
 test('an empty-body table refs the full header row and writes a table part', () => {
@@ -479,13 +524,24 @@ test('an empty-body table refs the full header row and writes a table part', () 
   assert.match(table, /<tableColumns count="2">/);
   assert.match(table, /<autoFilter ref="A1:B1"\/>/);
   assert.match(parts['[Content_Types].xml'] as string, /\/xl\/tables\/table1\.xml/);
-  assert.match(parts['xl/worksheets/_rels/sheet1.xml.rels'] as string, /Target="\.\.\/tables\/table1\.xml"/);
-  assert.match(parts['xl/worksheets/sheet1.xml'] as string, /<tableParts count="1"><tablePart r:id="rId1"\/><\/tableParts>/);
+  assert.match(
+    parts['xl/worksheets/_rels/sheet1.xml.rels'] as string,
+    /Target="\.\.\/tables\/table1\.xml"/,
+  );
+  assert.match(
+    parts['xl/worksheets/sheet1.xml'] as string,
+    /<tableParts count="1"><tablePart r:id="rId1"\/><\/tableParts>/,
+  );
 });
 
 test('a data row extends the table ref by one row', () => {
   const wb = new Workbook();
-  wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}, {name: 'B'}], rowCount: 1});
+  wb.addWorksheet('S').addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'A'}, {name: 'B'}],
+    rowCount: 1,
+  });
   const table = partsOf(wb)['xl/tables/table1.xml'] as string;
   assert.match(table, /ref="A1:B2"/);
 });
@@ -509,7 +565,10 @@ test('a totals-row column serialises its function and keeps every column', () =>
   wb.addWorksheet('S').addTable({
     name: 'T',
     ref: 'A1',
-    columns: [{name: 'Item', totalsRowLabel: 'Total'}, {name: 'Amount', totalsRowFunction: 'sum'}],
+    columns: [
+      {name: 'Item', totalsRowLabel: 'Total'},
+      {name: 'Amount', totalsRowFunction: 'sum'},
+    ],
     rowCount: 2,
     totalsRow: true,
   });
@@ -524,20 +583,32 @@ test('a no-totals table omits totalsRowShown unless the flag is set explicitly',
   const wb = new Workbook();
   wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
   const table = partsOf(wb)['xl/tables/table1.xml'] as string;
-  assert.doesNotMatch(table, /totalsRowShown/, 'an unset flag emits no attribute — Excel must not see a spurious one');
+  assert.doesNotMatch(
+    table,
+    /totalsRowShown/,
+    'an unset flag emits no attribute — Excel must not see a spurious one',
+  );
 });
 
 test('an explicit totalsRowShown flag round-trips as "0" or "1"', () => {
   const off = new Workbook();
-  off.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1, totalsRowShown: false});
+  off
+    .addWorksheet('S')
+    .addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1, totalsRowShown: false});
   assert.match(partsOf(off)['xl/tables/table1.xml'] as string, /totalsRowShown="0"/);
 
   const on = new Workbook();
-  on.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1, totalsRowShown: true});
+  on.addWorksheet('S').addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'A'}],
+    rowCount: 1,
+    totalsRowShown: true,
+  });
   assert.match(partsOf(on)['xl/tables/table1.xml'] as string, /totalsRowShown="1"/);
 });
 
-test('a table with no explicit style is written with Excel\'s default TableStyleMedium2', () => {
+test("a table with no explicit style is written with Excel's default TableStyleMedium2", () => {
   const wb = new Workbook();
   wb.addWorksheet('S').addTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
   const table = partsOf(wb)['xl/tables/table1.xml'] as string;
@@ -554,21 +625,43 @@ test('an explicit table style is emitted verbatim, omitting the attributes it le
     style: {name: 'Assignment schedule', showRowStripes: false},
   });
   const table = partsOf(wb)['xl/tables/table1.xml'] as string;
-  assert.match(table, /name="Assignment schedule"/, 'a custom style name survives instead of being rewritten');
-  assert.match(table, /showRowStripes="0"/, 'the source\'s stripe choice is preserved, not forced to "1"');
+  assert.match(
+    table,
+    /name="Assignment schedule"/,
+    'a custom style name survives instead of being rewritten',
+  );
+  assert.match(
+    table,
+    /showRowStripes="0"/,
+    'the source\'s stripe choice is preserved, not forced to "1"',
+  );
   assert.doesNotMatch(table, /showFirstColumn/, 'an unset banding flag emits no attribute');
 });
 
 test('an illegal table name is rejected at definition time', () => {
   const s = new Workbook().addWorksheet('S');
-  assert.throws(() => s.addTable({name: "Bob's Accounts", ref: 'A1', columns: [{name: 'A'}], rowCount: 1}), /identifier/);
-  assert.throws(() => s.addTable({name: '1Digit', ref: 'A1', columns: [{name: 'A'}], rowCount: 1}), /identifier/);
-  assert.throws(() => s.addTable({name: 'test-name', ref: 'A1', columns: [{name: 'A'}], rowCount: 1}), /identifier/);
+  assert.throws(
+    () => s.addTable({name: "Bob's Accounts", ref: 'A1', columns: [{name: 'A'}], rowCount: 1}),
+    /identifier/,
+  );
+  assert.throws(
+    () => s.addTable({name: '1Digit', ref: 'A1', columns: [{name: 'A'}], rowCount: 1}),
+    /identifier/,
+  );
+  assert.throws(
+    () => s.addTable({name: 'test-name', ref: 'A1', columns: [{name: 'A'}], rowCount: 1}),
+    /identifier/,
+  );
 });
 
 test('a valid identifier table name is written verbatim', () => {
   const wb = new Workbook();
-  wb.addWorksheet('S').addTable({name: 'Valid_Name', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
+  wb.addWorksheet('S').addTable({
+    name: 'Valid_Name',
+    ref: 'A1',
+    columns: [{name: 'A'}],
+    rowCount: 1,
+  });
   const table = partsOf(wb)['xl/tables/table1.xml'] as string;
   assert.match(table, /name="Valid_Name"/);
   assert.match(table, /displayName="Valid_Name"/);
@@ -581,7 +674,10 @@ test('tables are numbered globally across sheets with sheet-local rel ids', () =
   const parts = partsOf(wb);
   assert.ok(parts['xl/tables/table1.xml'], 'first table part');
   assert.ok(parts['xl/tables/table2.xml'], 'second table part (globally numbered)');
-  assert.match(parts['xl/worksheets/_rels/sheet2.xml.rels'] as string, /Target="\.\.\/tables\/table2\.xml"/);
+  assert.match(
+    parts['xl/worksheets/_rels/sheet2.xml.rels'] as string,
+    /Target="\.\.\/tables\/table2\.xml"/,
+  );
 });
 
 test('a merge overlapping a table is rejected; a disjoint merge is written', () => {
@@ -608,7 +704,7 @@ test('<tableParts> follows <headerFooter> in the worksheet element order', () =>
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.ok(
     xml.indexOf('<headerFooter') < xml.indexOf('<tableParts'),
-    'tableParts must follow headerFooter per CT_Worksheet'
+    'tableParts must follow headerFooter per CT_Worksheet',
   );
 });
 
@@ -628,7 +724,7 @@ test('protecting a sheet emits a self-closing <sheetProtection sheet="1"> after 
   assert.match(xml, /<sheetProtection sheet="1"\/>/);
   assert.ok(
     xml.indexOf('</sheetData>') < xml.indexOf('<sheetProtection'),
-    'sheetProtection must follow sheetData per CT_Worksheet'
+    'sheetProtection must follow sheetData per CT_Worksheet',
   );
 });
 
@@ -691,7 +787,7 @@ test('a sheet autofilter emits an <autoFilter> element after <sheetProtection>',
   assert.match(xml, /<autoFilter ref="A1:C10"\/>/);
   assert.ok(
     xml.indexOf('<sheetProtection') < xml.indexOf('<autoFilter'),
-    'autoFilter follows sheetProtection in CT_Worksheet order'
+    'autoFilter follows sheetProtection in CT_Worksheet order',
   );
 });
 
@@ -711,7 +807,7 @@ test('a sheet autofilter generates a hidden, sheet-scoped _FilterDatabase built-
   const xml = partsOf(wb)['xl/workbook.xml'] as string;
   assert.match(
     xml,
-    /<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">S!\$A\$1:\$C\$10<\/definedName>/
+    /<definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">S!\$A\$1:\$C\$10<\/definedName>/,
   );
 });
 
@@ -724,7 +820,7 @@ test('a _FilterDatabase quotes a sheet name that needs it and uses the sheet 0-b
   const xml = partsOf(wb)['xl/workbook.xml'] as string;
   assert.match(
     xml,
-    /<definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">'Sales 2024'!\$A\$1:\$B\$5<\/definedName>/
+    /<definedName name="_xlnm._FilterDatabase" localSheetId="1" hidden="1">'Sales 2024'!\$A\$1:\$B\$5<\/definedName>/,
   );
 });
 
@@ -741,17 +837,21 @@ test('a sheet autofilter round-trips through write then read, and drops no user 
   assert.deepEqual(
     sheet.autoFilter,
     {ref: 'A1:C10', columns: []},
-    'the filter range survives the round-trip'
+    'the filter range survives the round-trip',
   );
   // The system-generated _FilterDatabase is reconstructed from the sheet, never surfaced as a name…
   assert.deepEqual(
-    back.definedNames.map(n => n.name),
+    back.definedNames.map((n) => n.name),
     ['TaxRate'],
-    'only the user name is exposed; _FilterDatabase is filtered out'
+    'only the user name is exposed; _FilterDatabase is filtered out',
   );
   // …and re-writing does not accumulate a duplicate.
   const rewritten = partsOf(back)['xl/workbook.xml'] as string;
-  assert.equal((rewritten.match(/_FilterDatabase/g) ?? []).length, 1, 'exactly one _FilterDatabase after a re-write');
+  assert.equal(
+    (rewritten.match(/_FilterDatabase/g) ?? []).length,
+    1,
+    'exactly one _FilterDatabase after a re-write',
+  );
 });
 
 test('a criteria-bearing autofilter nests <filterColumn> children under the <autoFilter>', () => {
@@ -770,7 +870,7 @@ test('a criteria-bearing autofilter nests <filterColumn> children under the <aut
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.match(
     xml,
-    /<autoFilter ref="A1:B4"><filterColumn colId="0"><filters><filter val="apple"\/><filter val="pear"\/><\/filters><\/filterColumn><filterColumn colId="1"><customFilters><customFilter operator="greaterThan" val="6"\/><\/customFilters><\/filterColumn><\/autoFilter>/
+    /<autoFilter ref="A1:B4"><filterColumn colId="0"><filters><filter val="apple"\/><filter val="pear"\/><\/filters><\/filterColumn><filterColumn colId="1"><customFilters><customFilter operator="greaterThan" val="6"\/><\/customFilters><\/filterColumn><\/autoFilter>/,
   );
 });
 
@@ -829,13 +929,17 @@ test('a filter column addressing a column outside the range is dropped on read, 
   parts['xl/worksheets/sheet1.xml'] = strToU8(
     strFromU8(parts['xl/worksheets/sheet1.xml'] as Uint8Array).replace(
       '<autoFilter ref="A1:B4"/>',
-      '<autoFilter ref="A1:B4"><filterColumn colId="5"><filters><filter val="z"/></filters></filterColumn></autoFilter>'
-    )
+      '<autoFilter ref="A1:B4"><filterColumn colId="5"><filters><filter val="z"/></filters></filterColumn></autoFilter>',
+    ),
   );
 
   const sheet = readXlsx(zipSync(parts)).getWorksheet('S');
   assert.ok(sheet !== undefined);
-  assert.deepEqual(sheet.autoFilter, {ref: 'A1:B4', columns: []}, 'the range survives, the bad column drops');
+  assert.deepEqual(
+    sheet.autoFilter,
+    {ref: 'A1:B4', columns: []},
+    'the range survives, the bad column drops',
+  );
 });
 
 test('a quote-prefixed cell emits quotePrefix on its xf and survives a round-trip', () => {
@@ -846,10 +950,18 @@ test('a quote-prefixed cell emits quotePrefix on its xf and survives a round-tri
   cell.quotePrefix = true;
 
   const parts = partsOf(wb);
-  assert.match(parts['xl/styles.xml'] ?? '', /<xf [^>]*quotePrefix="1"/, 'the cell-format record carries quotePrefix="1"');
+  assert.match(
+    parts['xl/styles.xml'] ?? '',
+    /<xf [^>]*quotePrefix="1"/,
+    'the cell-format record carries quotePrefix="1"',
+  );
 
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
-  assert.equal(back?.getCell('A1').quotePrefix, true, 'the quote-prefix flag survives read/modify/write');
+  assert.equal(
+    back?.getCell('A1').quotePrefix,
+    true,
+    'the quote-prefix flag survives read/modify/write',
+  );
   assert.equal(back?.getCell('A1').value, '=not-a-formula', 'the literal content is preserved');
 });
 
@@ -858,8 +970,12 @@ test('a cell with no quote-prefix flag does not gain one on read', () => {
   const sheet = wb.addWorksheet('S');
   sheet.getCell('A1').value = 'plain';
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
-  assert.equal(back?.getCell('A1').quotePrefix, undefined, 'an ordinary cell reports no quote-prefix flag');
-})
+  assert.equal(
+    back?.getCell('A1').quotePrefix,
+    undefined,
+    'an ordinary cell reports no quote-prefix flag',
+  );
+});
 
 test('a cell linking to a named cell style keeps its fill and xfId link across a round-trip', () => {
   const wb = new Workbook();
@@ -879,11 +995,14 @@ test('a cell linking to a named cell style keeps its fill and xfId link across a
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
   const a1 = back?.getCell('A1');
   const fill = a1?.fill;
-  assert.ok(fill?.type === 'pattern', 'the named-style fill resolves onto the cell as a pattern fill');
+  assert.ok(
+    fill?.type === 'pattern',
+    'the named-style fill resolves onto the cell as a pattern fill',
+  );
   assert.equal(fill.pattern, 'solid', 'the named-style fill resolves onto the cell on read');
   assert.equal(fill.fgColor?.argb, 'FFFFFF00', 'the resolved fill is the named-style yellow');
   assert.equal(a1?.namedStyleId, 1, 'the cell keeps its link to the named style');
-})
+});
 
 test('manual row breaks are emitted as <rowBreaks> and round-trip', () => {
   const wb = new Workbook();
@@ -892,23 +1011,31 @@ test('manual row breaks are emitted as <rowBreaks> and round-trip', () => {
   sheet.rowBreaks.push({id: 3, max: 16383, man: true}, {id: 6, max: 16383, man: true});
 
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
-  assert.match(xml, /<rowBreaks count="2" manualBreakCount="2">/, 'both breaks are counted as manual');
-  assert.match(xml, /<brk id="3" max="16383" man="1"\/>/, 'the first break carries its column span');
+  assert.match(
+    xml,
+    /<rowBreaks count="2" manualBreakCount="2">/,
+    'both breaks are counted as manual',
+  );
+  assert.match(
+    xml,
+    /<brk id="3" max="16383" man="1"\/>/,
+    'the first break carries its column span',
+  );
 
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
   assert.deepEqual(
-    back?.rowBreaks.map(brk => brk.id),
+    back?.rowBreaks.map((brk) => brk.id),
     [3, 6],
-    'the break rows survive a write→read round-trip'
+    'the break rows survive a write→read round-trip',
   );
-})
+});
 
 test('a sheet with no manual row breaks emits no <rowBreaks> element', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
   assert.doesNotMatch(xml, /<rowBreaks/, 'an empty break list fabricates nothing');
-})
+});
 
 test('column-break <brk> elements land on the column-break model, not the row-break one', () => {
   const wb = new Workbook();
@@ -918,7 +1045,7 @@ test('column-break <brk> elements land on the column-break model, not the row-br
   const files = unzipSync(patched);
   const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml']!).replace(
     '</worksheet>',
-    '<colBreaks count="1" manualBreakCount="1"><brk id="2" max="1048575" man="1"/></colBreaks></worksheet>'
+    '<colBreaks count="1" manualBreakCount="1"><brk id="2" max="1048575" man="1"/></colBreaks></worksheet>',
   );
   files['xl/worksheets/sheet1.xml'] = strToU8(sheetXml);
   const back = readXlsx(zipSync(files)).getWorksheet('S');
@@ -926,9 +1053,9 @@ test('column-break <brk> elements land on the column-break model, not the row-br
   assert.deepEqual(
     back?.columnBreaks,
     [{id: 2, max: 1048575, man: true}],
-    'the column break is surfaced on the column-break model with its span'
+    'the column break is surfaced on the column-break model with its span',
   );
-})
+});
 
 test('manual column breaks are emitted as <colBreaks> and round-trip', () => {
   const wb = new Workbook();
@@ -937,16 +1064,20 @@ test('manual column breaks are emitted as <colBreaks> and round-trip', () => {
   sheet.columnBreaks.push({id: 2, max: 1048575, man: true}, {id: 5, max: 1048575, man: true});
 
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
-  assert.match(xml, /<colBreaks count="2" manualBreakCount="2">/, 'both breaks are counted as manual');
+  assert.match(
+    xml,
+    /<colBreaks count="2" manualBreakCount="2">/,
+    'both breaks are counted as manual',
+  );
   assert.match(xml, /<brk id="2" max="1048575" man="1"\/>/, 'the first break carries its row span');
 
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
   assert.deepEqual(
-    back?.columnBreaks.map(brk => brk.id),
+    back?.columnBreaks.map((brk) => brk.id),
     [2, 5],
-    'the break columns survive a write→read round-trip'
+    'the break columns survive a write→read round-trip',
   );
-})
+});
 
 test('row and column breaks coexist on one sheet without cross-contaminating', () => {
   const wb = new Workbook();
@@ -956,16 +1087,28 @@ test('row and column breaks coexist on one sheet without cross-contaminating', (
   sheet.columnBreaks.push({id: 4, max: 1048575, man: true});
 
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
-  assert.match(xml, /<rowBreaks[^>]*>.*<\/rowBreaks><colBreaks/, '<colBreaks> follows <rowBreaks> in schema order');
+  assert.match(
+    xml,
+    /<rowBreaks[^>]*>.*<\/rowBreaks><colBreaks/,
+    '<colBreaks> follows <rowBreaks> in schema order',
+  );
 
   const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
-  assert.deepEqual(back?.rowBreaks.map(brk => brk.id), [3], 'the row break stays a row break');
-  assert.deepEqual(back?.columnBreaks.map(brk => brk.id), [4], 'the column break stays a column break');
-})
+  assert.deepEqual(
+    back?.rowBreaks.map((brk) => brk.id),
+    [3],
+    'the row break stays a row break',
+  );
+  assert.deepEqual(
+    back?.columnBreaks.map((brk) => brk.id),
+    [4],
+    'the column break stays a column break',
+  );
+});
 
 test('a sheet with no manual column breaks emits no <colBreaks> element', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
   assert.doesNotMatch(xml, /<colBreaks/, 'an empty column-break list fabricates nothing');
-})
+});

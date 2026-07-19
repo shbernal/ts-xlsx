@@ -222,7 +222,9 @@ export class Workbook {
       throw new Error('a defined name cannot be empty');
     }
     if (definedName.scope !== undefined && this.getWorksheet(definedName.scope) === undefined) {
-      throw new Error(`defined name "${definedName.name}" is scoped to unknown worksheet "${definedName.scope}"`);
+      throw new Error(
+        `defined name "${definedName.name}" is scoped to unknown worksheet "${definedName.scope}"`,
+      );
     }
     this.#definedNames.push(definedName);
   }
@@ -243,10 +245,10 @@ export class Workbook {
   /** Look up a worksheet by name (case-insensitive) or by numeric id. */
   getWorksheet(nameOrId: string | number): Worksheet | undefined {
     if (typeof nameOrId === 'number') {
-      return this.#worksheets.find(sheet => sheet.id === nameOrId);
+      return this.#worksheets.find((sheet) => sheet.id === nameOrId);
     }
     const target = nameOrId.toLowerCase();
-    return this.#worksheets.find(sheet => sheet.name.toLowerCase() === target);
+    return this.#worksheets.find((sheet) => sheet.name.toLowerCase() === target);
   }
 
   #assertValidSheetName(name: string): void {
@@ -254,10 +256,14 @@ export class Workbook {
       throw new Error('worksheet name cannot be empty');
     }
     if (name.length > MAX_SHEET_NAME_LENGTH) {
-      throw new Error(`worksheet name "${name}" exceeds the ${MAX_SHEET_NAME_LENGTH}-character limit`);
+      throw new Error(
+        `worksheet name "${name}" exceeds the ${MAX_SHEET_NAME_LENGTH}-character limit`,
+      );
     }
     if (INVALID_SHEET_NAME_CHARS.test(name)) {
-      throw new Error(`worksheet name "${name}" contains a character Excel forbids (* ? : \\ / [ ])`);
+      throw new Error(
+        `worksheet name "${name}" contains a character Excel forbids (* ? : \\ / [ ])`,
+      );
     }
     if (name.startsWith("'") || name.endsWith("'")) {
       throw new Error(`worksheet name "${name}" cannot start or end with an apostrophe`);

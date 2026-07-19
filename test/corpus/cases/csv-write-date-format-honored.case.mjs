@@ -47,7 +47,7 @@ export default {
         assert.match(
           text,
           /^2018-01-05T12:00:00/,
-          `default is a full ISO timestamp; got ${JSON.stringify(text)}`
+          `default is a full ISO timestamp; got ${JSON.stringify(text)}`,
         );
       },
     },

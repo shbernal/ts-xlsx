@@ -33,7 +33,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const out = await api.roundtripFormulas(SPEC);
-        assert.strictEqual(out.B2.formula, 'MixedCase!A10', 'the exact cross-sheet reference survives');
+        assert.strictEqual(
+          out.B2.formula,
+          'MixedCase!A10',
+          'the exact cross-sheet reference survives',
+        );
       },
     },
     {
@@ -44,7 +48,7 @@ export default {
         assert.strictEqual(
           sheets.SheetA.formulas.B2,
           'MixedCase!A10',
-          'the serialized formula text preserves the sheet-name casing and ! separator'
+          'the serialized formula text preserves the sheet-name casing and ! separator',
         );
       },
     },
@@ -58,7 +62,7 @@ export default {
         assert.strictEqual(
           readBack.A1.formulae[0],
           'Levels!$A$2:$A$9999',
-          'the cross-sheet validation reference survives with its sheet name casing intact'
+          'the cross-sheet validation reference survives with its sheet name casing intact',
         );
       },
     },
@@ -70,8 +74,8 @@ export default {
       async expect(api, assert) {
         const {xml} = await api.authorListValidations([{ref: 'A1', formula: 'Levels!$A$2:$A$8'}]);
         assert.ok(
-          xml.formula1.some(f => f === 'Levels!$A$2:$A$8'),
-          `the reference must keep uppercase column letters; got ${JSON.stringify(xml.formula1)}`
+          xml.formula1.some((f) => f === 'Levels!$A$2:$A$8'),
+          `the reference must keep uppercase column letters; got ${JSON.stringify(xml.formula1)}`,
         );
       },
     },

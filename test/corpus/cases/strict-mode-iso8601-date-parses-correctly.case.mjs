@@ -30,7 +30,7 @@ export default {
         assert.strictEqual(
           A2.value.date,
           '2024-02-09T00:00:00.000Z',
-          `the ISO date must parse to 2024-02-09, not a 1900-epoch serial; got ${JSON.stringify(A2.value)}`
+          `the ISO date must parse to 2024-02-09, not a 1900-epoch serial; got ${JSON.stringify(A2.value)}`,
         );
       },
     },

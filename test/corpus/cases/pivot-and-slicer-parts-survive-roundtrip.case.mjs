@@ -25,7 +25,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
-        assert.ok(source.pivotTables >= 1 && source.pivotCache >= 1, 'precondition: source has pivots');
+        assert.ok(
+          source.pivotTables >= 1 && source.pivotCache >= 1,
+          'precondition: source has pivots',
+        );
         assert.strictEqual(rewritten.pivotTables, source.pivotTables, 'pivot table parts survive');
         assert.strictEqual(rewritten.pivotCache, source.pivotCache, 'pivot cache parts survive');
       },
@@ -36,7 +39,11 @@ export default {
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.slicers >= 1, 'precondition: source has slicers');
-        assert.strictEqual(rewritten.slicers, source.slicers, `all ${source.slicers} slicer parts survive`);
+        assert.strictEqual(
+          rewritten.slicers,
+          source.slicers,
+          `all ${source.slicers} slicer parts survive`,
+        );
       },
     },
   ],

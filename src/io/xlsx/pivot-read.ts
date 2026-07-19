@@ -17,8 +17,8 @@ import {
   type ParsedPivotSource,
   type ParsedPivotTable,
   type PivotMetric,
-  pivotMetricFromSubtotal,
   type PivotSourceKind,
+  pivotMetricFromSubtotal,
 } from '../../core/pivot-table.ts';
 import {localName, parseXml} from './xml-read.ts';
 

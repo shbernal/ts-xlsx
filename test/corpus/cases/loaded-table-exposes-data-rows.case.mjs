@@ -40,7 +40,7 @@ export default {
         const {rowCount} = await api.readFixtureTable(FIXTURE, TABLE);
         assert.ok(
           typeof rowCount === 'number' && rowCount > 0,
-          `the loaded table must expose its data rows; got rowCount ${JSON.stringify(rowCount)}`
+          `the loaded table must expose its data rows; got rowCount ${JSON.stringify(rowCount)}`,
         );
       },
     },

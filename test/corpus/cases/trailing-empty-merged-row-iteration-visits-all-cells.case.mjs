@@ -25,7 +25,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {rowCount} = await api.trailingMergedRowIterationReport();
-        assert.ok(rowCount >= 3, `the merged range's last row (3) is included in the bounds; got ${rowCount}`);
+        assert.ok(
+          rowCount >= 3,
+          `the merged range's last row (3) is included in the bounds; got ${rowCount}`,
+        );
       },
     },
     {
@@ -33,7 +36,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {a3} = await api.trailingMergedRowIterationReport();
-        assert.strictEqual(a3.visited, true, 'A3 (leading cell of the trailing merged row) is visited');
+        assert.strictEqual(
+          a3.visited,
+          true,
+          'A3 (leading cell of the trailing merged row) is visited',
+        );
       },
     },
     {

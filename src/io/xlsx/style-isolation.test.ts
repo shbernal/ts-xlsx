@@ -11,9 +11,8 @@
 
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-
-import {Workbook} from '../../core/workbook.ts';
 import type {Fill} from '../../core/style.ts';
+import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -37,8 +36,16 @@ test('replacing one loaded cell fill leaves a style-sharing sibling untouched, i
   const loaded = loadedWb.getWorksheet('S');
   assert.ok(loaded);
   loaded.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
-  assert.equal(fgOf(loaded.getCell('A1').fill), 'FF00FF00', 'the edited cell reflects the new fill');
-  assert.equal(fgOf(loaded.getCell('B1').fill), 'FFFF0000', 'the sibling keeps its original fill in memory');
+  assert.equal(
+    fgOf(loaded.getCell('A1').fill),
+    'FF00FF00',
+    'the edited cell reflects the new fill',
+  );
+  assert.equal(
+    fgOf(loaded.getCell('B1').fill),
+    'FFFF0000',
+    'the sibling keeps its original fill in memory',
+  );
 
   const back = roundtrip(loadedWb).getWorksheet('S');
   assert.equal(fgOf(back?.getCell('A1').fill), 'FF00FF00', 'the edit persists to disk');
@@ -58,8 +65,16 @@ test('spread-reassigning one loaded cell font member does not bleed into a share
   assert.ok(loaded);
   const a1 = loaded.getCell('A1');
   a1.font = {...a1.font, color: {argb: 'FFFF0000'}};
-  assert.equal(loaded.getCell('A1').font?.color?.argb, 'FFFF0000', 'the edited cell reflects the new color');
-  assert.equal(loaded.getCell('B1').font?.color?.argb, 'FF000000', 'the sibling keeps its original color');
+  assert.equal(
+    loaded.getCell('A1').font?.color?.argb,
+    'FFFF0000',
+    'the edited cell reflects the new color',
+  );
+  assert.equal(
+    loaded.getCell('B1').font?.color?.argb,
+    'FF000000',
+    'the sibling keeps its original color',
+  );
 });
 
 test('assigning the same base font object to two cells then mutating one isolates the sibling', () => {
@@ -74,8 +89,16 @@ test('assigning the same base font object to two cells then mutating one isolate
   a1.font = {...a1.font, color: {argb: 'FF00FF00'}};
 
   const back = roundtrip(wb).getWorksheet('S');
-  assert.equal(back?.getCell('A1').font?.color?.argb, 'FF00FF00', 'the targeted cell carries the new color');
-  assert.equal(back?.getCell('A2').font?.color, undefined, 'the sibling given the same base keeps no color');
+  assert.equal(
+    back?.getCell('A1').font?.color?.argb,
+    'FF00FF00',
+    'the targeted cell carries the new color',
+  );
+  assert.equal(
+    back?.getCell('A2').font?.color,
+    undefined,
+    'the sibling given the same base keeps no color',
+  );
 });
 
 test('bordering one loaded cell that shares a style record borders only that cell', () => {
@@ -90,7 +113,12 @@ test('bordering one loaded cell that shares a style record borders only that cel
   const loadedWb = roundtrip(wb);
   const loaded = loadedWb.getWorksheet('S');
   assert.ok(loaded);
-  loaded.getCell('A1').border = {top: {style: 'thin'}, left: {style: 'thin'}, bottom: {style: 'thin'}, right: {style: 'thin'}};
+  loaded.getCell('A1').border = {
+    top: {style: 'thin'},
+    left: {style: 'thin'},
+    bottom: {style: 'thin'},
+    right: {style: 'thin'},
+  };
 
   const back = roundtrip(loadedWb).getWorksheet('S');
   const hasTop = (ref: string): boolean => !!back?.getCell(ref).border?.top?.style;
@@ -115,7 +143,11 @@ test('setting one facet on a loaded cell keeps the sibling and never drops the c
   loaded.getCell('A1').alignment = {horizontal: 'center'};
 
   const back = roundtrip(loadedWb).getWorksheet('S');
-  assert.equal(back?.getCell('A1').alignment?.horizontal, 'center', 'the edited cell gains the alignment');
+  assert.equal(
+    back?.getCell('A1').alignment?.horizontal,
+    'center',
+    'the edited cell gains the alignment',
+  );
   assert.equal(back?.getCell('A1').numFmt, '0.00', 'the edited cell keeps its number format');
   assert.equal(back?.getCell('B1').alignment, undefined, 'the sibling gains no alignment');
   assert.equal(back?.getCell('B1').numFmt, '0.00', 'the sibling keeps its number format');

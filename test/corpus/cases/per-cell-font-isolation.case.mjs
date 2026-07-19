@@ -30,7 +30,7 @@ export default {
           apply: [{cell: 'A1', font: {bold: true}}],
           read: ['A1'],
         });
-        assert.strictEqual(A1 && A1.bold, true, 'A1 should be bold');
+        assert.strictEqual(A1?.bold, true, 'A1 should be bold');
       },
     },
     {
@@ -42,8 +42,8 @@ export default {
           read: ['B2'],
         });
         assert.ok(
-          !B2 || B2.bold !== true,
-          `B2 must not inherit A1's bold font, got ${JSON.stringify(B2)}`
+          B2?.bold !== true,
+          `B2 must not inherit A1's bold font, got ${JSON.stringify(B2)}`,
         );
       },
     },
@@ -59,8 +59,8 @@ export default {
           read: ['C5'],
         });
         assert.ok(
-          !C5 || C5.italic !== true,
-          `C5 (a different column) must not inherit column A's font, got ${JSON.stringify(C5)}`
+          C5?.italic !== true,
+          `C5 (a different column) must not inherit column A's font, got ${JSON.stringify(C5)}`,
         );
       },
     },

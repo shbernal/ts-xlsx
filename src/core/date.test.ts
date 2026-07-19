@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {dateToSerial, DEFAULT_DATE_NUMFMT, isDateFormat, serialToDate} from './date.ts';
+import {DEFAULT_DATE_NUMFMT, dateToSerial, isDateFormat, serialToDate} from './date.ts';
 
 const iso = (serial: number): string => serialToDate(serial).toISOString();
 
@@ -41,13 +41,28 @@ test('dateToSerial reproduces the leap-year boundary in reverse', () => {
 });
 
 test('isDateFormat recognises date and time codes', () => {
-  for (const code of ['yyyy-mm-dd', 'DD/MM/YYYY', 'mm-dd-yy', 'h:mm:ss', '[$-409]mmmm d, yyyy', DEFAULT_DATE_NUMFMT]) {
+  for (const code of [
+    'yyyy-mm-dd',
+    'DD/MM/YYYY',
+    'mm-dd-yy',
+    'h:mm:ss',
+    '[$-409]mmmm d, yyyy',
+    DEFAULT_DATE_NUMFMT,
+  ]) {
     assert.equal(isDateFormat(code), true, `${code} should be a date format`);
   }
 });
 
 test('isDateFormat rejects number, currency, percent, and text codes', () => {
-  for (const code of ['General', '0.00', '#,##0', '0.00%', '_("$"* #,##0.00_)', '@', '#,##0" days"']) {
+  for (const code of [
+    'General',
+    '0.00',
+    '#,##0',
+    '0.00%',
+    '_("$"* #,##0.00_)',
+    '@',
+    '#,##0" days"',
+  ]) {
     assert.equal(isDateFormat(code), false, `${code} should not be a date format`);
   }
 });

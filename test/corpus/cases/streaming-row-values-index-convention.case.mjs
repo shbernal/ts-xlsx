@@ -10,7 +10,18 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
-const spec = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'A'}, {ref: 'B1', value: 'B'}, {ref: 'C1', value: 'C'}]}]};
+const spec = {
+  sheets: [
+    {
+      name: 'S',
+      cells: [
+        {ref: 'A1', value: 'A'},
+        {ref: 'B1', value: 'B'},
+        {ref: 'C1', value: 'C'},
+      ],
+    },
+  ],
+};
 
 export default {
   id: 'streaming-row-values-index-convention',
@@ -28,7 +39,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {streamed} = await api.streamVsEagerRowValues(spec, [1]);
-        assert.strictEqual(streamed[1][0], null, 'index 0 is an empty leading slot (columns are 1-based)');
+        assert.strictEqual(
+          streamed[1][0],
+          null,
+          'index 0 is an empty leading slot (columns are 1-based)',
+        );
         assert.strictEqual(streamed[1][1], 'A', 'column A lands at index 1');
         assert.strictEqual(streamed[1][3], 'C', 'column C lands at index 3');
       },
@@ -38,8 +53,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {streamed, eager} = await api.streamVsEagerRowValues(spec, [1]);
-        assert.deepStrictEqual(streamed[1], eager[1],
-          'streaming and buffered reads must expose the identical row-values array');
+        assert.deepStrictEqual(
+          streamed[1],
+          eager[1],
+          'streaming and buffered reads must expose the identical row-values array',
+        );
       },
     },
   ],

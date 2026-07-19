@@ -16,7 +16,11 @@ const SPEC = {
   sheets: [
     {
       name: 'S',
-      columns: [{index: 1, numFmt: PCT}, {index: 2, numFmt: PCT}, {index: 3, numFmt: CUR}],
+      columns: [
+        {index: 1, numFmt: PCT},
+        {index: 2, numFmt: PCT},
+        {index: 3, numFmt: CUR},
+      ],
       cells: [
         {ref: 'A1', value: 0.1},
         {ref: 'B1', value: 0.2},
@@ -45,7 +49,11 @@ export default {
         const cols = model.sheets.S.columns;
         assert.strictEqual(cols[1].numFmt, PCT, 'column 1 keeps its percentage format');
         assert.strictEqual(cols[2].numFmt, PCT, 'column 2 keeps its percentage format');
-        assert.strictEqual(cols[3].numFmt, CUR, 'column 3 keeps its currency format, not the last-assigned one');
+        assert.strictEqual(
+          cols[3].numFmt,
+          CUR,
+          'column 3 keeps its currency format, not the last-assigned one',
+        );
       },
     },
     {
@@ -53,7 +61,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.cells.C1.numFmt, CUR, 'the currency cell keeps currency, not percentage');
+        assert.strictEqual(
+          model.sheets.S.cells.C1.numFmt,
+          CUR,
+          'the currency cell keeps currency, not percentage',
+        );
       },
     },
     {

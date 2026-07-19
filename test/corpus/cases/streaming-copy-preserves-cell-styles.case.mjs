@@ -24,7 +24,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {copyError, loadOk} = await api.streamingStyleCopyReport();
-        assert.strictEqual(copyError, null, `the streaming copy must not throw; got ${JSON.stringify(copyError)}`);
+        assert.strictEqual(
+          copyError,
+          null,
+          `the streaming copy must not throw; got ${JSON.stringify(copyError)}`,
+        );
         assert.strictEqual(loadOk, true, 'the emitted package (and its styles part) loads');
       },
     },

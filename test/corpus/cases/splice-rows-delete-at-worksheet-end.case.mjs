@@ -11,7 +11,8 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 const rowCells = () => Array.from({length: 5}, (_, i) => ({ref: `A${i + 1}`, value: `r${i + 1}`}));
-const colCells = () => Array.from({length: 5}, (_, i) => ({ref: `${String.fromCharCode(65 + i)}1`, value: `c${i + 1}`}));
+const colCells = () =>
+  Array.from({length: 5}, (_, i) => ({ref: `${String.fromCharCode(65 + i)}1`, value: `c${i + 1}`}));
 
 export default {
   id: 'splice-rows-delete-at-worksheet-end',
@@ -34,7 +35,11 @@ export default {
           read: ['A3', 'A4'],
         });
         assert.strictEqual(rowCount, 4, 'the sheet shrinks from 5 to 4 rows');
-        assert.strictEqual(cells.A3, 'r4', 'the row below the deleted one shifts up into its place');
+        assert.strictEqual(
+          cells.A3,
+          'r4',
+          'the row below the deleted one shifts up into its place',
+        );
         assert.strictEqual(cells.A4, 'r5', 'subsequent rows shift up too');
       },
     },
@@ -47,9 +52,21 @@ export default {
           ops: [{op: 'spliceRows', start: 4, count: 2}],
           read: ['A4', 'A5'],
         });
-        assert.strictEqual(rowCount, 3, 'deleting the trailing two rows must leave only the first three');
-        assert.strictEqual(cells.A4, null, 'the deleted trailing rows must not retain their cell values');
-        assert.strictEqual(cells.A5, null, 'the deleted trailing rows must not retain their cell values');
+        assert.strictEqual(
+          rowCount,
+          3,
+          'deleting the trailing two rows must leave only the first three',
+        );
+        assert.strictEqual(
+          cells.A4,
+          null,
+          'the deleted trailing rows must not retain their cell values',
+        );
+        assert.strictEqual(
+          cells.A5,
+          null,
+          'the deleted trailing rows must not retain their cell values',
+        );
       },
     },
     {
@@ -61,7 +78,11 @@ export default {
           ops: [{op: 'spliceColumns', start: 4, count: 2}],
           read: ['C1'],
         });
-        assert.strictEqual(columnCount, 3, 'deleting the trailing two columns must leave only the first three');
+        assert.strictEqual(
+          columnCount,
+          3,
+          'deleting the trailing two columns must leave only the first three',
+        );
         assert.strictEqual(cells.C1, 'c3', 'the columns before the cut are untouched');
       },
     },

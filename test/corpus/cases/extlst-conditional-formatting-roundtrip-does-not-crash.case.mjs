@@ -37,7 +37,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, writeError} = await api.roundtripFixtureWriteReport(FIXTURE);
-        assert.strictEqual(writeOk, true, `the write-back must not throw; got ${JSON.stringify(writeError)}`);
+        assert.strictEqual(
+          writeOk,
+          true,
+          `the write-back must not throw; got ${JSON.stringify(writeError)}`,
+        );
       },
     },
   ],

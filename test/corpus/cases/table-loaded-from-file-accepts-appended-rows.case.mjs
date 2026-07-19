@@ -12,7 +12,20 @@
 
 const SPEC = {
   sheets: [
-    {name: 'S', tables: [{name: 'T', ref: 'A1', headers: ['H1', 'H2'], rows: [['a', 1], ['b', 2]]}]},
+    {
+      name: 'S',
+      tables: [
+        {
+          name: 'T',
+          ref: 'A1',
+          headers: ['H1', 'H2'],
+          rows: [
+            ['a', 1],
+            ['b', 2],
+          ],
+        },
+      ],
+    },
   ],
 };
 
@@ -39,7 +52,10 @@ export default {
       name: 'the reloaded table exposes its data rows',
       baseline: 'pass',
       async expect(api, assert) {
-        const {loadedRowCount} = await api.roundtripTableAppend(SPEC, {tableName: 'T', appendRows: []});
+        const {loadedRowCount} = await api.roundtripTableAppend(SPEC, {
+          tableName: 'T',
+          appendRows: [],
+        });
         assert.strictEqual(loadedRowCount, 2, 'the two written data rows are rehydrated on load');
       },
     },
@@ -51,7 +67,11 @@ export default {
           tableName: 'T',
           appendRows: [['c', 3]],
         });
-        assert.strictEqual(addError, null, `append must not throw; got ${JSON.stringify(addError)}`);
+        assert.strictEqual(
+          addError,
+          null,
+          `append must not throw; got ${JSON.stringify(addError)}`,
+        );
         assert.ok(committed, 'the append commits');
         assert.strictEqual(finalRowCount, 3, 'the appended row is present after re-writing');
       },

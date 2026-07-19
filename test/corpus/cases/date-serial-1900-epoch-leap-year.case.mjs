@@ -29,7 +29,11 @@ export default {
       async expect(api, assert) {
         const {A1} = await api.readFixtureCells(FIXTURE, ['A1']);
         assert.strictEqual(A1.type, 'date', 'the cell is a date');
-        assert.strictEqual(A1.value.date, '1900-01-01T00:00:00.000Z', `serial 1 must be 1900-01-01; got ${JSON.stringify(A1.value)}`);
+        assert.strictEqual(
+          A1.value.date,
+          '1900-01-01T00:00:00.000Z',
+          `serial 1 must be 1900-01-01; got ${JSON.stringify(A1.value)}`,
+        );
       },
     },
     {
@@ -37,7 +41,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {A2} = await api.readFixtureCells(FIXTURE, ['A2']);
-        assert.strictEqual(A2.value.date, '1900-01-02T00:00:00.000Z', `serial 2 must be 1900-01-02; got ${JSON.stringify(A2.value)}`);
+        assert.strictEqual(
+          A2.value.date,
+          '1900-01-02T00:00:00.000Z',
+          `serial 2 must be 1900-01-02; got ${JSON.stringify(A2.value)}`,
+        );
       },
     },
     {
@@ -49,7 +57,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {A59} = await api.readFixtureCells(FIXTURE, ['A59']);
-        assert.strictEqual(A59.value.date, '1900-02-28T00:00:00.000Z', `serial 59 must be 1900-02-28; got ${JSON.stringify(A59.value)}`);
+        assert.strictEqual(
+          A59.value.date,
+          '1900-02-28T00:00:00.000Z',
+          `serial 59 must be 1900-02-28; got ${JSON.stringify(A59.value)}`,
+        );
       },
     },
     {
@@ -57,7 +69,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {A61} = await api.readFixtureCells(FIXTURE, ['A61']);
-        assert.strictEqual(A61.value.date, '1900-03-01T00:00:00.000Z', `serial 61 must be 1900-03-01; got ${JSON.stringify(A61.value)}`);
+        assert.strictEqual(
+          A61.value.date,
+          '1900-03-01T00:00:00.000Z',
+          `serial 61 must be 1900-03-01; got ${JSON.stringify(A61.value)}`,
+        );
       },
     },
   ],

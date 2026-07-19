@@ -8,8 +8,29 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void> }} Behavior */
 
-const DENSE = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 1}, {ref: 'A2', value: 2}, {ref: 'A3', value: 3}]}]};
-const SPARSE = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 1}, {ref: 'A3', value: 3}]}]};
+const DENSE = {
+  sheets: [
+    {
+      name: 'S',
+      cells: [
+        {ref: 'A1', value: 1},
+        {ref: 'A2', value: 2},
+        {ref: 'A3', value: 3},
+      ],
+    },
+  ],
+};
+const SPARSE = {
+  sheets: [
+    {
+      name: 'S',
+      cells: [
+        {ref: 'A1', value: 1},
+        {ref: 'A3', value: 3},
+      ],
+    },
+  ],
+};
 
 export default {
   id: 'worksheet-row-count-reflects-data',

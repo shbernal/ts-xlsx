@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {
-  MAX_COLUMN,
   columnToNumber,
   decodeAddress,
   decodeRange,
   encodeAddress,
+  MAX_COLUMN,
   numberToColumn,
 } from './address.ts';
 

@@ -14,7 +14,17 @@ const SPEC = {
     {
       name: 'S',
       cells: [{ref: 'E5', value: 'note here', note: 'a comment'}],
-      tables: [{name: 'T', ref: 'A1', headers: ['H1', 'H2'], rows: [['a', 1], ['b', 2]]}],
+      tables: [
+        {
+          name: 'T',
+          ref: 'A1',
+          headers: ['H1', 'H2'],
+          rows: [
+            ['a', 1],
+            ['b', 2],
+          ],
+        },
+      ],
     },
   ],
 };
@@ -40,7 +50,7 @@ export default {
         assert.ok(packageParts.hasTablePart, 'a table part is written');
         assert.ok(
           consistency.worksheetRelIdsUnique,
-          'the worksheet relationship ids must be unique across comment, VML, and table'
+          'the worksheet relationship ids must be unique across comment, VML, and table',
         );
       },
     },
@@ -50,7 +60,11 @@ export default {
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const e5 = model.sheets.S.cells.E5;
-        assert.strictEqual(e5.value, 'note here', 'the commented cell keeps its value (sheet not blanked)');
+        assert.strictEqual(
+          e5.value,
+          'note here',
+          'the commented cell keeps its value (sheet not blanked)',
+        );
         assert.strictEqual(e5.note, 'a comment', 'the comment survives alongside the table');
       },
     },
@@ -70,7 +84,7 @@ export default {
         assert.strictEqual(
           order.legacyBeforeTableParts,
           true,
-          'legacyDrawing must precede tableParts in the worksheet XML per the CT_Worksheet schema'
+          'legacyDrawing must precede tableParts in the worksheet XML per the CT_Worksheet schema',
         );
       },
     },

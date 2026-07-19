@@ -37,7 +37,13 @@ const TIME_SPEC = {
 // date column stays text (and pivots/sorts as text), which the caller can detect rather than being
 // silently told it is a date.
 const STRING_UNDER_DATE_FMT = {
-  sheets: [{name: 'S', columns: [{index: 1, numFmt: 'yyyy/mm/dd'}], cells: [{ref: 'A1', value: '2024/02/02'}]}],
+  sheets: [
+    {
+      name: 'S',
+      columns: [{index: 1, numFmt: 'yyyy/mm/dd'}],
+      cells: [{ref: 'A1', value: '2024/02/02'}],
+    },
+  ],
 };
 
 export default {
@@ -56,7 +62,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.cells.A1.value, ISO, 'the value round-trips as a date, not the text "2020-01-15"');
+        assert.strictEqual(
+          model.sheets.S.cells.A1.value,
+          ISO,
+          'the value round-trips as a date, not the text "2020-01-15"',
+        );
       },
     },
     {
@@ -77,7 +87,11 @@ export default {
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(TIME_SPEC);
         const a1 = model.sheets.T.cells.A1;
-        assert.strictEqual(a1.value, TIME_ISO, 'the time value round-trips as a date, not the text "10:51"');
+        assert.strictEqual(
+          a1.value,
+          TIME_ISO,
+          'the time value round-trips as a date, not the text "10:51"',
+        );
         assert.strictEqual(a1.numFmt, '[h]:mm', 'the duration number format is preserved');
       },
     },
@@ -89,7 +103,7 @@ export default {
         assert.strictEqual(
           model.sheets.S.cells.A1.value,
           '2024/02/02',
-          'the string keeps its exact text — a date number format must not turn text into a date'
+          'the string keeps its exact text — a date number format must not turn text into a date',
         );
       },
     },

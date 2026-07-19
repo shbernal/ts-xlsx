@@ -13,7 +13,7 @@
 // compressed bytes before each counter check bounds the worst-case overshoot past the cap
 // to one slice's expansion — not the whole (possibly enormous) stream.
 
-import {Unzip, UnzipInflate, type FlateError, type UnzipFile} from 'fflate';
+import {type FlateError, Unzip, type UnzipFile, UnzipInflate} from 'fflate';
 
 // Compressed input is pushed in slices this size so decompressed output arrives in
 // increments the running counter can check. Small enough that the worst-case overshoot

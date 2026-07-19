@@ -47,7 +47,7 @@ export class SharedStringTable {
 
   /** Serialise the pool as the `xl/sharedStrings.xml` part. */
   toXml(): string {
-    const items = this.#entries.map(inner => `<si>${inner}</si>`).join('');
+    const items = this.#entries.map((inner) => `<si>${inner}</si>`).join('');
     return (
       XML_DECLARATION +
       `<sst xmlns="${NS_MAIN}" count="${this.#references}" uniqueCount="${this.#entries.length}">` +

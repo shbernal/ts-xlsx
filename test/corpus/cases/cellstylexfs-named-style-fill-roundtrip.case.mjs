@@ -38,7 +38,7 @@ export default {
         const {srcCellStyleXfsCount} = await api.namedStyleFillReport(FIXTURE);
         assert.ok(
           srcCellStyleXfsCount >= 2,
-          `fixture must declare a named-style entry beyond the default; got cellStyleXfs count ${srcCellStyleXfsCount}`
+          `fixture must declare a named-style entry beyond the default; got cellStyleXfs count ${srcCellStyleXfsCount}`,
         );
       },
     },
@@ -47,9 +47,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {readFill} = await api.namedStyleFillReport(FIXTURE);
-        assert.ok(readFill, 'A1 must report a fill inherited through its named cell style, not none');
-        assert.strictEqual(readFill.type, 'pattern', 'the resolved fill is the solid pattern from the named style');
-        const fg = readFill.fgColor && readFill.fgColor.argb;
+        assert.ok(
+          readFill,
+          'A1 must report a fill inherited through its named cell style, not none',
+        );
+        assert.strictEqual(
+          readFill.type,
+          'pattern',
+          'the resolved fill is the solid pattern from the named style',
+        );
+        const fg = readFill.fgColor?.argb;
         assert.strictEqual(fg, 'FFFFFF00', 'the resolved fill carries the named style yellow');
       },
     },
@@ -60,7 +67,7 @@ export default {
         const {roundtripCellStyleXfsCount} = await api.namedStyleFillReport(FIXTURE);
         assert.ok(
           roundtripCellStyleXfsCount >= 2,
-          `the written styles part must retain the named-style (cellStyleXfs) definitions; got count ${roundtripCellStyleXfsCount}`
+          `the written styles part must retain the named-style (cellStyleXfs) definitions; got count ${roundtripCellStyleXfsCount}`,
         );
       },
     },
@@ -72,7 +79,7 @@ export default {
         assert.strictEqual(
           roundtripCellHasXfIdLink,
           true,
-          'the round-tripped cellXfs entry must retain its xfId link to the named-style record'
+          'the round-tripped cellXfs entry must retain its xfId link to the named-style record',
         );
       },
     },

@@ -13,7 +13,14 @@
 // queue thread by thread — see the harvest-triage skill.
 
 import {readFile, writeFile} from 'node:fs/promises';
-import {DEFAULT_REPO, MANIFEST_PATH, fileExists, harvestOne, isValidRepo, recordPathFor} from './lib.mjs';
+import {
+  DEFAULT_REPO,
+  fileExists,
+  harvestOne,
+  isValidRepo,
+  MANIFEST_PATH,
+  recordPathFor,
+} from './lib.mjs';
 
 function parseArgs(argv) {
   const args = {repo: DEFAULT_REPO, concurrency: 6};
@@ -57,7 +64,7 @@ async function main() {
   let skipped = 0;
   const failures = [];
 
-  await runPool(items, concurrency, async item => {
+  await runPool(items, concurrency, async (item) => {
     try {
       const result = await harvestOne({number: item.number, repo, skipIfExists: true});
       if (result.skipped) skipped++;
@@ -67,7 +74,9 @@ async function main() {
     }
     done++;
     if (done % 25 === 0 || done === items.length) {
-      process.stdout.write(`  ${done}/${items.length}  (fetched ${fetched}, skipped ${skipped}, failed ${failures.length})\r`);
+      process.stdout.write(
+        `  ${done}/${items.length}  (fetched ${fetched}, skipped ${skipped}, failed ${failures.length})\r`,
+      );
     }
   });
   process.stdout.write('\n');
@@ -82,8 +91,12 @@ async function main() {
   if (missing.length === 0) {
     manifest.harvestComplete = true;
     await writeFile(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`);
-    console.log(`\nQueue full: ${items.length}/${items.length} records present. harvestComplete = true.`);
-    console.log('Next: node scripts/harvest/status.mjs   (then drain — see the harvest-triage skill)');
+    console.log(
+      `\nQueue full: ${items.length}/${items.length} records present. harvestComplete = true.`,
+    );
+    console.log(
+      'Next: node scripts/harvest/status.mjs   (then drain — see the harvest-triage skill)',
+    );
   } else {
     console.log(`\nIncomplete: ${missing.length} record(s) still missing.`);
     if (failures.length) {
@@ -96,7 +109,7 @@ async function main() {
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(`harvest-all failed: ${err.message ?? err}`);
   process.exitCode = 1;
 });

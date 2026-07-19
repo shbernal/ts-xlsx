@@ -8,8 +8,12 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void> }} Behavior */
 
-const TALL = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x'}], rows: [{index: 1, height: 300}]}]};
-const MODEST = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x'}], rows: [{index: 1, height: 15}]}]};
+const TALL = {
+  sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x'}], rows: [{index: 1, height: 300}]}],
+};
+const MODEST = {
+  sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x'}], rows: [{index: 1, height: 15}]}],
+};
 
 export default {
   id: 'row-height-round-trips',

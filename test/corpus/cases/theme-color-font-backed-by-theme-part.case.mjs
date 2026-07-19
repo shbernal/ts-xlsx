@@ -37,7 +37,7 @@ export default {
         assert.strictEqual(
           styles.themeColorResolvable,
           true,
-          'a theme-color font reference must be backed by a theme part'
+          'a theme-color font reference must be backed by a theme part',
         );
       },
     },

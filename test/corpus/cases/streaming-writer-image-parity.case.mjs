@@ -31,7 +31,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheetAddImage} = await api.streamWriterImageSupport();
-        assert.ok(sheetAddImage, 'the streaming worksheet must expose addImage, like the in-memory worksheet');
+        assert.ok(
+          sheetAddImage,
+          'the streaming worksheet must expose addImage, like the in-memory worksheet',
+        );
       },
     },
     {
@@ -39,9 +42,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {error, mediaParts, drawingParts} = await api.streamWriterImageSupport('B2:D6');
-        assert.strictEqual(error, null, `anchoring an image on a streamed sheet must not throw; got ${error}`);
+        assert.strictEqual(
+          error,
+          null,
+          `anchoring an image on a streamed sheet must not throw; got ${error}`,
+        );
         assert.ok(mediaParts.length >= 1, 'the streamed package must carry the image media part');
-        assert.ok(drawingParts.length >= 1, 'the streamed package must carry a drawing part anchoring the image');
+        assert.ok(
+          drawingParts.length >= 1,
+          'the streamed package must carry a drawing part anchoring the image',
+        );
       },
     },
   ],

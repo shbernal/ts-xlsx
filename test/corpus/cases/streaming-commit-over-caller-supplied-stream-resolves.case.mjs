@@ -32,7 +32,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {settled, timedOut, bytes, valid} = await api.streamCommitReport({duplex: false});
-        assert.strictEqual(timedOut, false, 'the workbook commit must not hang over a caller PassThrough');
+        assert.strictEqual(
+          timedOut,
+          false,
+          'the workbook commit must not hang over a caller PassThrough',
+        );
         assert.strictEqual(settled, 'resolved', `commit must resolve; got ${settled}`);
         assert.ok(bytes > 0 && valid, 'the sink must receive a complete, re-openable package');
       },
@@ -43,7 +47,11 @@ export default {
       async expect(api, assert) {
         const {settled, timedOut, valid} = await api.streamCommitReport({duplex: true});
         assert.strictEqual(timedOut, false, 'the commit must not hang over a caller Duplex stream');
-        assert.strictEqual(settled, 'resolved', `commit must resolve over a Duplex; got ${settled}`);
+        assert.strictEqual(
+          settled,
+          'resolved',
+          `commit must resolve over a Duplex; got ${settled}`,
+        );
         assert.ok(valid, 'the Duplex sink must receive a complete, re-openable package');
       },
     },

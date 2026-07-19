@@ -23,7 +23,7 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {note} = await api.nonCanonicalCommentsPartReport();
-        assert.strictEqual(note && note.texts ? note.texts.map(t => t.text).join('') : note, 'hi');
+        assert.strictEqual(note?.texts ? note.texts.map((t) => t.text).join('') : note, 'hi');
       },
     },
   ],

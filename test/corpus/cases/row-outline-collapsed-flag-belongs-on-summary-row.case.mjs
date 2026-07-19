@@ -50,7 +50,11 @@ export default {
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         for (const r of ['2', '3', '4']) {
-          assert.strictEqual(sheets.S.rows[r].outlineLevel, 1, `detail row ${r} has outlineLevel 1`);
+          assert.strictEqual(
+            sheets.S.rows[r].outlineLevel,
+            1,
+            `detail row ${r} has outlineLevel 1`,
+          );
           assert.strictEqual(sheets.S.rows[r].hidden, true, `detail row ${r} is hidden`);
         }
       },
@@ -64,7 +68,7 @@ export default {
           assert.strictEqual(
             sheets.S.rows[r].collapsed,
             false,
-            `the collapsed toggle belongs on the summary row, not on hidden detail row ${r}`
+            `the collapsed toggle belongs on the summary row, not on hidden detail row ${r}`,
           );
         }
       },
@@ -77,7 +81,7 @@ export default {
         assert.strictEqual(
           sheets.S.rows['5'] ? sheets.S.rows['5'].collapsed : false,
           true,
-          'the summary row (row 5) must carry collapsed="1" so the outline toggle expands in one click'
+          'the summary row (row 5) must carry collapsed="1" so the outline toggle expands in one click',
         );
       },
     },

@@ -23,7 +23,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, reloadOk, writeError} = await api.tableCellEditRoundtrip();
-        assert.strictEqual(writeOk, true, `writing must not throw; got ${JSON.stringify(writeError)}`);
+        assert.strictEqual(
+          writeOk,
+          true,
+          `writing must not throw; got ${JSON.stringify(writeError)}`,
+        );
         assert.strictEqual(reloadOk, true, 'the edited package reloads');
       },
     },

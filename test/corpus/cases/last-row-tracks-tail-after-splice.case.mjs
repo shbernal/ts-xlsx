@@ -35,17 +35,35 @@ export default {
       async expect(api, assert) {
         const {lastRow} = api.mutateWorksheet({cells, ops: []});
         assert.ok(lastRow, 'lastRow must resolve for a fully-populated sheet');
-        assert.strictEqual(lastRow.value, 'e', `lastRow of the untouched sheet is row 5 'e'; got ${JSON.stringify(lastRow && lastRow.value)}`);
+        assert.strictEqual(
+          lastRow.value,
+          'e',
+          `lastRow of the untouched sheet is row 5 'e'; got ${JSON.stringify(lastRow?.value)}`,
+        );
       },
     },
     {
       name: 'deleting the final row leaves lastRow on the new final populated row, not an empty slot',
       baseline: 'pass',
       async expect(api, assert) {
-        const {lastRow} = api.mutateWorksheet({cells, ops: [{op: 'spliceRows', start: 5, count: 1}]});
-        assert.ok(lastRow, `lastRow must resolve after removing the final row; got ${JSON.stringify(lastRow)}`);
-        assert.strictEqual(lastRow.value, 'd', `lastRow should carry the last populated value 'd', not an emptied slot; got ${JSON.stringify(lastRow && lastRow.value)}`);
-        assert.strictEqual(lastRow.number, 4, `lastRow should be row 4 after removing row 5; got #${lastRow && lastRow.number}`);
+        const {lastRow} = api.mutateWorksheet({
+          cells,
+          ops: [{op: 'spliceRows', start: 5, count: 1}],
+        });
+        assert.ok(
+          lastRow,
+          `lastRow must resolve after removing the final row; got ${JSON.stringify(lastRow)}`,
+        );
+        assert.strictEqual(
+          lastRow.value,
+          'd',
+          `lastRow should carry the last populated value 'd', not an emptied slot; got ${JSON.stringify(lastRow?.value)}`,
+        );
+        assert.strictEqual(
+          lastRow.number,
+          4,
+          `lastRow should be row 4 after removing row 5; got #${lastRow?.number}`,
+        );
       },
     },
     {
@@ -53,9 +71,19 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         // Remove rows 2..3 (b,c): surviving data is a(1), d(2), e(3); the true last row is 'e'.
-        const {lastRow} = api.mutateWorksheet({cells, ops: [{op: 'spliceRows', start: 2, count: 2}]});
-        assert.ok(lastRow, `lastRow must resolve after an interior delete; got ${JSON.stringify(lastRow)}`);
-        assert.strictEqual(lastRow.value, 'e', `lastRow should be the shifted-up last row 'e', not a trailing empty slot; got ${JSON.stringify(lastRow && lastRow.value)}`);
+        const {lastRow} = api.mutateWorksheet({
+          cells,
+          ops: [{op: 'spliceRows', start: 2, count: 2}],
+        });
+        assert.ok(
+          lastRow,
+          `lastRow must resolve after an interior delete; got ${JSON.stringify(lastRow)}`,
+        );
+        assert.strictEqual(
+          lastRow.value,
+          'e',
+          `lastRow should be the shifted-up last row 'e', not a trailing empty slot; got ${JSON.stringify(lastRow?.value)}`,
+        );
       },
     },
   ],

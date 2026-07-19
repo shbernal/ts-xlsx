@@ -30,7 +30,7 @@ export default {
         assert.strictEqual(
           pipeReturnsDestination,
           true,
-          'pipe(dest) must return dest so .pipe(out).on("finish", …) and stream.pipeline compose'
+          'pipe(dest) must return dest so .pipe(out).on("finish", …) and stream.pipeline compose',
         );
       },
     },

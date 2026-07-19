@@ -23,7 +23,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {isValidDate, resultIso} = await api.formulaDateResultReport();
-        assert.strictEqual(isValidDate, true, `the formula result must be a valid Date; got ${resultIso}`);
+        assert.strictEqual(
+          isValidDate,
+          true,
+          `the formula result must be a valid Date; got ${resultIso}`,
+        );
       },
     },
     {

@@ -11,7 +11,9 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 const SPEC = {
-  sheets: [{name: 'S', cells: [{ref: 'B2', value: 'x', note: 'a note'}], background: {extension: 'png'}}],
+  sheets: [
+    {name: 'S', cells: [{ref: 'B2', value: 'x', note: 'a note'}], background: {extension: 'png'}},
+  ],
 };
 
 export default {
@@ -30,7 +32,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const result = await api.tryWriteWorkbook(SPEC);
-        assert.strictEqual(result.ok, true, `writing must succeed; got ${JSON.stringify(result.error)}`);
+        assert.strictEqual(
+          result.ok,
+          true,
+          `writing must succeed; got ${JSON.stringify(result.error)}`,
+        );
       },
     },
     {
@@ -38,7 +44,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {consistency} = await api.inspectPackage(SPEC);
-        assert.strictEqual(consistency.worksheetRelIdsUnique, true, 'no two worksheet relationships share an id');
+        assert.strictEqual(
+          consistency.worksheetRelIdsUnique,
+          true,
+          'no two worksheet relationships share an id',
+        );
       },
     },
     {
@@ -57,8 +67,8 @@ export default {
       async expect(api, assert) {
         const {worksheetRels} = await api.inspectPackage(SPEC);
         assert.ok(
-          worksheetRels.some(r => r.type === 'image'),
-          'an image-type worksheet relationship backs the background picture'
+          worksheetRels.some((r) => r.type === 'image'),
+          'an image-type worksheet relationship backs the background picture',
         );
       },
     },

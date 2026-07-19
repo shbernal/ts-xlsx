@@ -15,7 +15,13 @@ function sheetXmlOf(data: Uint8Array): string {
 test('a data-table formula writes its t="dataTable" declaration with input cells', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
-  sheet.getCell('B2').value = {shareType: 'dataTable', ref: 'B2:B5', dataTableRow: true, r1: 'A1', result: 99};
+  sheet.getCell('B2').value = {
+    shareType: 'dataTable',
+    ref: 'B2:B5',
+    dataTableRow: true,
+    r1: 'A1',
+    result: 99,
+  };
 
   const cell = sheetXmlOf(writeXlsx(wb)).match(/<c r="B2"[\s\S]*?<\/c>/)?.[0] ?? '';
   assert.match(cell, /<f t="dataTable"/, 'the formula is emitted as the data-table kind');
@@ -28,7 +34,13 @@ test('a data-table formula writes its t="dataTable" declaration with input cells
 test('a data-table formula round-trips its kind, range, inputs, and result', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
-  sheet.getCell('B2').value = {shareType: 'dataTable', ref: 'B2:B5', dataTableRow: true, r1: 'A1', result: 99};
+  sheet.getCell('B2').value = {
+    shareType: 'dataTable',
+    ref: 'B2:B5',
+    dataTableRow: true,
+    r1: 'A1',
+    result: 99,
+  };
 
   const value = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('B2').value ?? null;
   assert.ok(isDataTableFormulaValue(value), 'the cell reads back as a data-table formula');
@@ -41,11 +53,21 @@ test('a data-table formula round-trips its kind, range, inputs, and result', () 
 test('a re-written data-table formula still declares t="dataTable" after a read-modify-write', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
-  sheet.getCell('B2').value = {shareType: 'dataTable', ref: 'B2:B5', dataTableRow: true, r1: 'A1', result: 99};
+  sheet.getCell('B2').value = {
+    shareType: 'dataTable',
+    ref: 'B2:B5',
+    dataTableRow: true,
+    r1: 'A1',
+    result: 99,
+  };
 
   const reloaded = readXlsx(writeXlsx(wb));
   const sheet2 = reloaded.getWorksheet('S');
   assert.ok(sheet2, 'the sheet reloads');
   sheet2.getCell('A1').value = 'edited elsewhere';
-  assert.match(sheetXmlOf(writeXlsx(reloaded)), /t="dataTable"/, 'the kind survives an unrelated edit');
+  assert.match(
+    sheetXmlOf(writeXlsx(reloaded)),
+    /t="dataTable"/,
+    'the kind survives an unrelated edit',
+  );
 });

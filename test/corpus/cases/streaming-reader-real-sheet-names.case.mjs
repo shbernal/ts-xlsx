@@ -17,7 +17,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'streaming',
   description:
-    'The streaming reader exposes each worksheet\'s real declared name (matching the eager read), ' +
+    "The streaming reader exposes each worksheet's real declared name (matching the eager read), " +
     'not a generic positional placeholder like "Sheet2".',
 
   /** @type {Behavior[]} */
@@ -38,7 +38,7 @@ export default {
         assert.deepStrictEqual(
           streaming,
           eager,
-          `streaming sheet names must equal the declared names, not positional placeholders; got ${JSON.stringify(streaming)}`
+          `streaming sheet names must equal the declared names, not positional placeholders; got ${JSON.stringify(streaming)}`,
         );
       },
     },

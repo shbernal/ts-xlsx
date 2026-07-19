@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {memoryHasFlag} = await api.streamingFullCalcOnLoadReport();
-        assert.strictEqual(memoryHasFlag, true, 'the in-memory writer serializes fullCalcOnLoad="1"');
+        assert.strictEqual(
+          memoryHasFlag,
+          true,
+          'the in-memory writer serializes fullCalcOnLoad="1"',
+        );
       },
     },
     {
@@ -37,7 +41,7 @@ export default {
         assert.strictEqual(
           streamHasFlag,
           true,
-          `the streamed workbook must carry fullCalcOnLoad in its calcPr (setThrew=${streamSetThrew})`
+          `the streamed workbook must carry fullCalcOnLoad in its calcPr (setThrew=${streamSetThrew})`,
         );
       },
     },
@@ -46,7 +50,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {streamDefaultHasFlag} = await api.streamingFullCalcOnLoadReport();
-        assert.strictEqual(streamDefaultHasFlag, false, 'with the flag unset, no fullCalcOnLoad is emitted');
+        assert.strictEqual(
+          streamDefaultHasFlag,
+          false,
+          'with the flag unset, no fullCalcOnLoad is emitted',
+        );
       },
     },
   ],

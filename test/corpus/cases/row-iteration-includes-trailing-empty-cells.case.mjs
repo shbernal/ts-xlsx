@@ -17,10 +17,16 @@ const spec = {
     {
       name: 'S',
       cells: [
-        {ref: 'A1', value: 'h1'}, {ref: 'B1', value: 'h2'}, {ref: 'C1', value: 'h3'},
-        {ref: 'D1', value: 'h4'}, {ref: 'E1', value: 'h5'},
-        {ref: 'A2', value: 'a'}, {ref: 'B2', value: 'b'}, {ref: 'C2', value: 'c'},
-        {ref: 'A3', value: 'x'}, {ref: 'C3', value: 'z'},
+        {ref: 'A1', value: 'h1'},
+        {ref: 'B1', value: 'h2'},
+        {ref: 'C1', value: 'h3'},
+        {ref: 'D1', value: 'h4'},
+        {ref: 'E1', value: 'h5'},
+        {ref: 'A2', value: 'a'},
+        {ref: 'B2', value: 'b'},
+        {ref: 'C2', value: 'c'},
+        {ref: 'A3', value: 'x'},
+        {ref: 'C3', value: 'z'},
       ],
     },
   ],
@@ -42,17 +48,22 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {rows} = await api.readRowCellPresence(spec, [3]);
-        assert.ok(rows[3].cols.includes(2), 'the interior blank (column 2) is yielded between the populated cells');
+        assert.ok(
+          rows[3].cols.includes(2),
+          'the interior blank (column 2) is yielded between the populated cells',
+        );
       },
     },
     {
-      name: 'trailing empty cells are surfaced up to the sheet\'s declared column width',
+      name: "trailing empty cells are surfaced up to the sheet's declared column width",
       baseline: 'pass',
       async expect(api, assert) {
         const {rows, columnCount} = await api.readRowCellPresence(spec, [2]);
         assert.strictEqual(columnCount, 5, 'the header makes the sheet five columns wide');
-        assert.ok(rows[2].cols.includes(4) && rows[2].cols.includes(5),
-          `the trailing empties (columns 4,5) must be yielded; got columns ${JSON.stringify(rows[2].cols)}`);
+        assert.ok(
+          rows[2].cols.includes(4) && rows[2].cols.includes(5),
+          `the trailing empties (columns 4,5) must be yielded; got columns ${JSON.stringify(rows[2].cols)}`,
+        );
       },
     },
     {
@@ -60,8 +71,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {rows, columnCount} = await api.readRowCellPresence(spec, [2]);
-        assert.strictEqual(rows[2].cols.length, columnCount,
-          `a row must yield one cell per declared column; yielded ${rows[2].cols.length} of ${columnCount}`);
+        assert.strictEqual(
+          rows[2].cols.length,
+          columnCount,
+          `a row must yield one cell per declared column; yielded ${rows[2].cols.length} of ${columnCount}`,
+        );
       },
     },
   ],

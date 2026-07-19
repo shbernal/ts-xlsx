@@ -32,8 +32,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {froms} = await api.cellAnchoredImagePositionReport();
-        assert.deepStrictEqual(froms[0], {col: 2, row: 1}, 'the C2 image anchors at col 2, row 1 (zero-based)');
-        assert.deepStrictEqual(froms[1], {col: 2, row: 2}, 'the C3 image anchors at col 2, row 2 — no off-by-one');
+        assert.deepStrictEqual(
+          froms[0],
+          {col: 2, row: 1},
+          'the C2 image anchors at col 2, row 1 (zero-based)',
+        );
+        assert.deepStrictEqual(
+          froms[1],
+          {col: 2, row: 2},
+          'the C3 image anchors at col 2, row 2 — no off-by-one',
+        );
       },
     },
   ],

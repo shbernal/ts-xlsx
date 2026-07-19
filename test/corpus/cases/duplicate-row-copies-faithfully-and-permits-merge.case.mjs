@@ -24,9 +24,17 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {row1, row2, dupError} = await api.duplicateRowReport();
-        assert.strictEqual(dupError, null, `duplication must not throw; got ${JSON.stringify(dupError)}`);
+        assert.strictEqual(
+          dupError,
+          null,
+          `duplication must not throw; got ${JSON.stringify(dupError)}`,
+        );
         assert.deepStrictEqual(row1, ['a', 'b', 'c'], 'the source row keeps its values');
-        assert.deepStrictEqual(row2, ['a', 'b', 'c'], 'the duplicated row copies the values (not empty/NaN)');
+        assert.deepStrictEqual(
+          row2,
+          ['a', 'b', 'c'],
+          'the duplicated row copies the values (not empty/NaN)',
+        );
       },
     },
     {
@@ -34,8 +42,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {mergeError, merges} = await api.duplicateRowReport();
-        assert.strictEqual(mergeError, null, `merging the duplicated row must not throw; got ${JSON.stringify(mergeError)}`);
-        assert.ok(merges.includes('A2:C2'), `the intended merge is present; got ${JSON.stringify(merges)}`);
+        assert.strictEqual(
+          mergeError,
+          null,
+          `merging the duplicated row must not throw; got ${JSON.stringify(mergeError)}`,
+        );
+        assert.ok(
+          merges.includes('A2:C2'),
+          `the intended merge is present; got ${JSON.stringify(merges)}`,
+        );
       },
     },
   ],

@@ -26,7 +26,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {eager} = await api.streamVsEagerRowHidden(FIXTURE);
-        assert.ok(eager.some(r => r.hidden), `the fixture has a hidden row; eager=${JSON.stringify(eager)}`);
+        assert.ok(
+          eager.some((r) => r.hidden),
+          `the fixture has a hidden row; eager=${JSON.stringify(eager)}`,
+        );
       },
     },
     {
@@ -34,12 +37,12 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {eager, streaming} = await api.streamVsEagerRowHidden(FIXTURE);
-        const eagerHidden = eager.filter(r => r.hidden).map(r => r.number);
-        const streamHidden = streaming.filter(r => r.hidden).map(r => r.number);
+        const eagerHidden = eager.filter((r) => r.hidden).map((r) => r.number);
+        const streamHidden = streaming.filter((r) => r.hidden).map((r) => r.number);
         assert.deepStrictEqual(
           streamHidden,
           eagerHidden,
-          `streaming must report the hidden rows the eager read sees; eager=${JSON.stringify(eager)} streaming=${JSON.stringify(streaming)}`
+          `streaming must report the hidden rows the eager read sees; eager=${JSON.stringify(eager)} streaming=${JSON.stringify(streaming)}`,
         );
       },
     },

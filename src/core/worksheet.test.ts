@@ -133,7 +133,7 @@ test('a colId outside the filter range is rejected — a column must lie within 
         ref: 'A1:C10',
         columns: [{colId: 3, criteria: {kind: 'values', values: ['x'], blank: false}}],
       }),
-    /colId 3 is outside/
+    /colId 3 is outside/,
   );
   assert.equal(sheet.autoFilter, undefined, 'the rejected filter never takes hold');
 });
@@ -159,7 +159,7 @@ test('a custom filter with three predicates is rejected — Excel allows at most
           },
         ],
       }),
-    /one or two predicates/
+    /one or two predicates/,
   );
 });
 
@@ -218,7 +218,11 @@ test('a model round-trip carries cell values and per-cell style facets', () => {
 
   assert.equal(dst.getCell('A1').value, 'title');
   assert.equal(dst.getCell('B2').value, 42);
-  assert.deepEqual(dst.getCell('B2').fill, {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}});
+  assert.deepEqual(dst.getCell('B2').fill, {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: {argb: 'FF00FF00'},
+  });
   assert.deepEqual(dst.getCell('B2').font, {bold: true});
 });
 
@@ -276,12 +280,20 @@ test('a model round-trip carries manual row and column breaks on their own axes'
   dst.rowBreaks.push({id: 99}); // stale content the assignment must clear
   dst.model = src.model;
 
-  assert.deepEqual(dst.rowBreaks, [{id: 3, max: 16383, man: true}], 'row breaks copy without residue');
-  assert.deepEqual(dst.columnBreaks, [{id: 4, max: 1048575, man: true}], 'column breaks copy without residue');
+  assert.deepEqual(
+    dst.rowBreaks,
+    [{id: 3, max: 16383, man: true}],
+    'row breaks copy without residue',
+  );
+  assert.deepEqual(
+    dst.columnBreaks,
+    [{id: 4, max: 1048575, man: true}],
+    'column breaks copy without residue',
+  );
   assert.notStrictEqual(dst.rowBreaks[0], src.rowBreaks[0], 'each break is cloned, not aliased');
 });
 
-test('a model round-trip carries print options and clears the destination\'s stale ones', () => {
+test("a model round-trip carries print options and clears the destination's stale ones", () => {
   const src = new Worksheet('Src', 1);
   src.printOptions.horizontalCentered = true;
   src.printOptions.gridLinesSet = false;
@@ -290,7 +302,11 @@ test('a model round-trip carries print options and clears the destination\'s sta
   dst.printOptions.verticalCentered = true; // stale content the assignment must clear
   dst.model = src.model;
 
-  assert.deepEqual(dst.printOptions, {horizontalCentered: true, gridLinesSet: false}, 'print options copy without residue');
+  assert.deepEqual(
+    dst.printOptions,
+    {horizontalCentered: true, gridLinesSet: false},
+    'print options copy without residue',
+  );
   assert.notStrictEqual(dst.printOptions, src.printOptions, 'the container is copied, not aliased');
 });
 
@@ -379,7 +395,7 @@ test('addRow appends after the last used row and returns its cells', () => {
   assert.equal(sheet.getCell('A2').value, 'a', 'appended below the header, not over it');
   assert.equal(sheet.getCell('B2').value, 'b');
   assert.deepEqual(
-    cells.map(cell => cell.value),
+    cells.map((cell) => cell.value),
     ['a', 'b'],
     'returns the materialised cells for styling',
   );
@@ -389,7 +405,11 @@ test('addRow lands below a formatting-only row, not over it', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getRow(3).height = 40;
   sheet.addRow(['tail']);
-  assert.equal(sheet.getCell('A4').value, 'tail', 'the used range spans the formatting-only row at 3');
+  assert.equal(
+    sheet.getCell('A4').value,
+    'tail',
+    'the used range spans the formatting-only row at 3',
+  );
 });
 
 test('addRows stacks each row in order, even when value-less', () => {
@@ -397,8 +417,16 @@ test('addRows stacks each row in order, even when value-less', () => {
   sheet.getCell('A1').value = 'header';
   const created = sheet.addRows([[null], ['x'], [null]]);
   assert.equal(created.length, 3);
-  assert.equal(sheet.getCell('A2').value, null, 'a value-less appended row still consumes its slot');
-  assert.equal(sheet.getCell('A3').value, 'x', 'the next row does not collide with the value-less one above');
+  assert.equal(
+    sheet.getCell('A2').value,
+    null,
+    'a value-less appended row still consumes its slot',
+  );
+  assert.equal(
+    sheet.getCell('A3').value,
+    'x',
+    'the next row does not collide with the value-less one above',
+  );
   assert.equal(sheet.getCell('A4').value, null);
 });
 
@@ -411,7 +439,7 @@ test('addRow skips a hole in a sparse array', () => {
   assert.equal(sheet.hasCell(1, 2), false, 'the hole leaves column B unmaterialised');
   assert.equal(sheet.getCell('C1').value, 'c');
   assert.deepEqual(
-    cells.map(cell => cell.value),
+    cells.map((cell) => cell.value),
     ['a', 'c'],
     'only the visited elements become cells',
   );
@@ -423,7 +451,11 @@ test('a row-splice shifts a merged range below the cut and keeps it merged', () 
   sheet.getCell('A2').value = 'banner';
   sheet.mergeCells('A2:O2');
   sheet.spliceRows(1, 1);
-  assert.deepEqual([...sheet.merges], ['A1:O1'], 'deleting the row above shifts the banner up and keeps it merged');
+  assert.deepEqual(
+    [...sheet.merges],
+    ['A1:O1'],
+    'deleting the row above shifts the banner up and keeps it merged',
+  );
 });
 
 test('an inserted row shifts a merged range below it down', () => {
@@ -431,7 +463,10 @@ test('an inserted row shifts a merged range below it down', () => {
   sheet.getCell('A2').value = 'banner';
   sheet.mergeCells('A2:C2');
   sheet.insertRow(1, ['inserted']);
-  assert.ok([...sheet.merges].includes('A3:C3'), `expected A3:C3; got ${JSON.stringify([...sheet.merges])}`);
+  assert.ok(
+    [...sheet.merges].includes('A3:C3'),
+    `expected A3:C3; got ${JSON.stringify([...sheet.merges])}`,
+  );
 });
 
 test('a splice far below a merged range leaves it untouched', () => {
@@ -460,7 +495,10 @@ test('duplicating rows above a merged range shifts the merge down by the number 
   sheet.getCell('A3').value = 'banner';
   sheet.mergeCells('A3:C3');
   sheet.duplicateRow(1, 2, true);
-  assert.ok([...sheet.merges].includes('A5:C5'), `expected A5:C5; got ${JSON.stringify([...sheet.merges])}`);
+  assert.ok(
+    [...sheet.merges].includes('A5:C5'),
+    `expected A5:C5; got ${JSON.stringify([...sheet.merges])}`,
+  );
 });
 
 test('inserting a row above a table shifts the table range down', () => {
@@ -549,12 +587,18 @@ test('a merged range extends the used-range bounds past the last populated cell'
   sheet.getCell('A2').value = 'data';
   sheet.mergeCells('A1:B3');
   assert.equal(sheet.rowCount, 3, 'the merge reaches row 3, so row 3 is within the bounds');
-  assert.equal(sheet.columnCount, 2, 'the merge reaches column B, so column 2 is within the bounds');
+  assert.equal(
+    sheet.columnCount,
+    2,
+    'the merge reaches column B, so column 2 is within the bounds',
+  );
 });
 
 test('spliceColumns removes the requested columns and shifts the rest left', () => {
   const sheet = new Worksheet('S', 1);
-  ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => (sheet.getCell(`${L}1`).value = `c${i + 1}`));
+  ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => {
+    sheet.getCell(`${L}1`).value = `c${i + 1}`;
+  });
   sheet.spliceColumns(2, 2);
   assert.equal(sheet.columnCount, 3);
   assert.equal(sheet.getCell('A1').value, 'c1', 'columns before the cut are untouched');
@@ -564,7 +608,9 @@ test('spliceColumns removes the requested columns and shifts the rest left', () 
 
 test('spliceColumns can insert blank columns, shifting existing columns right', () => {
   const sheet = new Worksheet('S', 1);
-  ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => (sheet.getCell(`${L}1`).value = `c${i + 1}`));
+  ['A', 'B', 'C', 'D', 'E'].forEach((L, i) => {
+    sheet.getCell(`${L}1`).value = `c${i + 1}`;
+  });
   sheet.spliceColumns(3, 0, [], []);
   assert.equal(sheet.getCell('B1').value, 'c2', 'columns before the insertion point are untouched');
   assert.equal(sheet.getCell('C1').value, null, 'the inserted columns are blank');
@@ -578,7 +624,10 @@ test('a column-splice re-anchors a merged range lying to the right of the cut', 
   sheet.getCell('H1').value = 'H';
   sheet.mergeCells('F1:G1');
   sheet.spliceColumns(2, 1);
-  assert.ok([...sheet.merges].includes('E1:F1'), `expected E1:F1; got ${JSON.stringify([...sheet.merges])}`);
+  assert.ok(
+    [...sheet.merges].includes('E1:F1'),
+    `expected E1:F1; got ${JSON.stringify([...sheet.merges])}`,
+  );
   assert.equal(sheet.getCell('G1').value, 'H', 'trailing data shifts left with the columns');
 });
 
@@ -588,7 +637,11 @@ test('a cell note travels with its cell through a row splice', () => {
   sheet.getCell('A2').note = 'travels';
   sheet.spliceRows(1, 0, ['header']);
   assert.equal(sheet.getCell('A3').value, 'body');
-  assert.equal(sheet.getCell('A3').note, 'travels', 'the note follows its cell to the shifted position');
+  assert.equal(
+    sheet.getCell('A3').note,
+    'travels',
+    'the note follows its cell to the shifted position',
+  );
   assert.equal(sheet.getCell('A2').note, undefined, 'the inserted row carries no note');
 });
 
@@ -639,11 +692,11 @@ test('a splice below a shared-formula group leaves the clone’s master address 
 test('addRow places a dense array left-to-right and skips holes in a sparse array', () => {
   const sheet = new Worksheet('S', 1);
   sheet.addRow(['a', 'b', 'c']);
-  // eslint-disable-next-line no-sparse-arrays
+  // biome-ignore lint/suspicious/noSparseArray: the genuine array hole (not an explicit undefined) is the behavior under test — addRow must skip holes, and `1 in arr === false` is what distinguishes them
   sheet.addRow(['x', , 'z']);
   assert.deepEqual(
-    ['A1', 'B1', 'C1'].map(r => sheet.getCell(r).value),
-    ['a', 'b', 'c']
+    ['A1', 'B1', 'C1'].map((r) => sheet.getCell(r).value),
+    ['a', 'b', 'c'],
   );
   assert.strictEqual(sheet.getCell('A2').value, 'x');
   assert.strictEqual(sheet.getCell('B2').value, null, 'the hole leaves its column untouched');
@@ -669,13 +722,14 @@ test('addRows populates a mixed batch of array- and object-shaped rows', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getColumn(1).key = 'k1';
   sheet.getColumn(2).key = 'k2';
-  sheet.addRows([
-    ['m1', 'm2'],
-    {k1: 'n1'},
-  ]);
+  sheet.addRows([['m1', 'm2'], {k1: 'n1'}]);
   assert.deepEqual(
-    ['A1', 'B1'].map(r => sheet.getCell(r).value),
-    ['m1', 'm2']
+    ['A1', 'B1'].map((r) => sheet.getCell(r).value),
+    ['m1', 'm2'],
   );
-  assert.strictEqual(sheet.getCell('A2').value, 'n1', 'the object-shaped batch row is populated too');
+  assert.strictEqual(
+    sheet.getCell('A2').value,
+    'n1',
+    'the object-shaped batch row is populated too',
+  );
 });

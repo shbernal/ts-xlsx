@@ -5,8 +5,8 @@ import {strToU8, zipSync} from 'fflate';
 
 import {isFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {readSheetRows, readWorkbookStream, type StreamedRow} from './read-rows.ts';
 import {readXlsx} from './read.ts';
+import {readSheetRows, readWorkbookStream, type StreamedRow} from './read-rows.ts';
 import {writeXlsx} from './write.ts';
 
 function rows(data: Uint8Array, options?: Parameters<typeof readSheetRows>[1]): StreamedRow[] {
@@ -25,26 +25,26 @@ test('yields rows in order, non-empty cells only, with decoded values', () => {
   const streamed = rows(writeXlsx(wb));
   assert.deepEqual(
     streamed.map((row) => row.number),
-    [1, 2, 3]
+    [1, 2, 3],
   );
   assert.deepEqual(
     streamed[0]?.cells.map((cell) => [cell.address, cell.value]),
     [
       ['A1', 'name'],
       ['B1', 'qty'],
-    ]
+    ],
   );
   assert.deepEqual(
     streamed[1]?.cells.map((cell) => [cell.col, cell.value]),
     [
       [1, 'widget'],
       [2, 42],
-    ]
+    ],
   );
   // Row 3 has only B3 — A3 was never written, so it is absent, not a null cell.
   assert.deepEqual(
     streamed[2]?.cells.map((cell) => [cell.address, cell.value]),
-    [['B3', true]]
+    [['B3', true]],
   );
 });
 
@@ -64,7 +64,7 @@ test('falsy-but-present values survive; only a truly empty cell drops', () => {
       ['A1', 0],
       ['B1', false],
       ['C1', ''],
-    ]
+    ],
   );
 });
 
@@ -79,7 +79,7 @@ test('row numbers are preserved across a gap', () => {
     [
       [1, 'top'],
       [5, 'bottom'],
-    ]
+    ],
   );
 });
 
@@ -151,9 +151,11 @@ test('an inline string cell decodes through the streaming SAX path', () => {
     '</sheetData></worksheet>';
   const archive = zipSync({
     '[Content_Types].xml': strToU8('<Types/>'),
-    'xl/workbook.xml': strToU8('<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>'),
+    'xl/workbook.xml': strToU8(
+      '<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>',
+    ),
     'xl/_rels/workbook.xml.rels': strToU8(
-      '<Relationships><Relationship Id="rId1" Type="x/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'
+      '<Relationships><Relationship Id="rId1" Type="x/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
     ),
     'xl/worksheets/sheet1.xml': strToU8(sheetXml),
   });
@@ -188,7 +190,7 @@ test('readWorkbookStream yields every worksheet in order, by declared name', () 
   const sheets = [...readWorkbookStream(writeXlsx(wb))];
   assert.deepEqual(
     sheets.map((sheet) => sheet.name),
-    ['Alpha', 'Beta', 'Gamma']
+    ['Alpha', 'Beta', 'Gamma'],
   );
   // Each sheet streams its own rows independently.
   assert.equal([...sheets[1]!.rows()][0]?.cells[0]?.value, 2);
@@ -234,7 +236,7 @@ test('a streamed row carries its hidden flag; visible rows report false', () => 
     [
       [1, false],
       [2, true],
-    ]
+    ],
   );
 });
 
@@ -253,7 +255,11 @@ test('readWorkbookStream agrees with readXlsx across every sheet and cell', () =
     const worksheet = model.getWorksheet(sheet.name);
     for (const row of sheet.rows()) {
       for (const cell of row.cells) {
-        assert.deepEqual(cell.value, worksheet?.getCell(cell.address).value, `${sheet.name}!${cell.address}`);
+        assert.deepEqual(
+          cell.value,
+          worksheet?.getCell(cell.address).value,
+          `${sheet.name}!${cell.address}`,
+        );
       }
     }
   }

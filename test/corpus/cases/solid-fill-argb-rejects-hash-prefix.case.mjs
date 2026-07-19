@@ -25,7 +25,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {validRgb} = await api.fillArgbHashPrefixReport();
-        assert.ok(/^[0-9A-Fa-f]{8}$/.test(String(validRgb)), `a valid ARGB must be 8 hex digits; got ${JSON.stringify(validRgb)}`);
+        assert.ok(
+          /^[0-9A-Fa-f]{8}$/.test(String(validRgb)),
+          `a valid ARGB must be 8 hex digits; got ${JSON.stringify(validRgb)}`,
+        );
       },
     },
     {
@@ -35,7 +38,7 @@ export default {
         const {hashRgb} = await api.fillArgbHashPrefixReport();
         assert.ok(
           /^[0-9A-Fa-f]{8}$/.test(String(hashRgb)),
-          `a '#'-prefixed color must be normalized to a valid 8-hex ARGB (or rejected), not written as ${JSON.stringify(hashRgb)}`
+          `a '#'-prefixed color must be normalized to a valid 8-hex ARGB (or rejected), not written as ${JSON.stringify(hashRgb)}`,
         );
       },
     },

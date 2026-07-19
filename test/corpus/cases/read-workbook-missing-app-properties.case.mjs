@@ -31,7 +31,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(ok, true, `a missing app.xml must not abort the load; got ${JSON.stringify(error)}`);
+        assert.strictEqual(
+          ok,
+          true,
+          `a missing app.xml must not abort the load; got ${JSON.stringify(error)}`,
+        );
       },
     },
     {
@@ -39,7 +43,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
-        assert.deepStrictEqual(sheetNames, ['Sheet1', 'Data'], 'both worksheets survive the tolerant read');
+        assert.deepStrictEqual(
+          sheetNames,
+          ['Sheet1', 'Data'],
+          'both worksheets survive the tolerant read',
+        );
       },
     },
     {

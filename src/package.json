@@ -1,4 +1,0 @@
-{
-  "//": "Scopes the Phase 3 rewrite tree as ESM without flipping the legacy CommonJS root. Node and tsc both resolve the nearest package.json, so src/**/*.ts are ES modules while lib/**/*.js stay CommonJS.",
-  "type": "module"
-}

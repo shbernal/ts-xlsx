@@ -28,7 +28,7 @@ export default {
         assert.deepStrictEqual(
           [rows[2].A, rows[2].B, rows[2].C],
           ['a', 'b', 'c'],
-          'a dense array maps first→A, second→B, third→C'
+          'a dense array maps first→A, second→B, third→C',
         );
       },
     },
@@ -47,7 +47,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {rows} = await api.appendRowShapes();
-        assert.deepStrictEqual([rows[4].A, rows[4].B], ['o1', 'o2'], 'object values land under k1/k2');
+        assert.deepStrictEqual(
+          [rows[4].A, rows[4].B],
+          ['o1', 'o2'],
+          'object values land under k1/k2',
+        );
       },
     },
     {
@@ -55,7 +59,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {rows} = await api.appendRowShapes();
-        assert.deepStrictEqual([rows[6].A, rows[6].B], ['m1', 'm2'], 'the array-shaped batch row is populated');
+        assert.deepStrictEqual(
+          [rows[6].A, rows[6].B],
+          ['m1', 'm2'],
+          'the array-shaped batch row is populated',
+        );
         assert.strictEqual(rows[7].A, 'n1', 'the object-shaped batch row is populated');
       },
     },
@@ -65,7 +73,11 @@ export default {
       async expect(api, assert) {
         const {rows} = await api.appendRowShapes();
         assert.strictEqual(rows[5].A, 7, 'the number stays numeric, not stringified');
-        assert.deepStrictEqual(rows[5].B, {date: '2021-01-02T00:00:00.000Z'}, 'the date stays a date');
+        assert.deepStrictEqual(
+          rows[5].B,
+          {date: '2021-01-02T00:00:00.000Z'},
+          'the date stays a date',
+        );
       },
     },
     {
@@ -77,11 +89,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {isArrayCrossRealm, a, b, c} = await api.crossRealmArrayRow();
-        assert.strictEqual(isArrayCrossRealm, true, 'Array.isArray recognizes the cross-realm array (oracle)');
+        assert.strictEqual(
+          isArrayCrossRealm,
+          true,
+          'Array.isArray recognizes the cross-realm array (oracle)',
+        );
         assert.deepStrictEqual(
           [a, b, c],
           [10, 20, 30],
-          'the cross-realm array must fill columns A/B/C, not leave them null'
+          'the cross-realm array must fill columns A/B/C, not leave them null',
         );
       },
     },

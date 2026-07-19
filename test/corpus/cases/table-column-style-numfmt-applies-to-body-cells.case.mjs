@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, reloadOk, writeError} = await api.tableColumnStyleReport(NUMFMT);
-        assert.strictEqual(writeOk, true, `writing must not throw; got ${JSON.stringify(writeError)}`);
+        assert.strictEqual(
+          writeOk,
+          true,
+          `writing must not throw; got ${JSON.stringify(writeError)}`,
+        );
         assert.strictEqual(reloadOk, true, 'the package reloads without error');
       },
     },
@@ -35,7 +39,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {styledBody} = await api.tableColumnStyleReport(NUMFMT);
-        assert.deepStrictEqual(styledBody, [NUMFMT, NUMFMT], `both body cells of the styled column carry the numFmt; got ${JSON.stringify(styledBody)}`);
+        assert.deepStrictEqual(
+          styledBody,
+          [NUMFMT, NUMFMT],
+          `both body cells of the styled column carry the numFmt; got ${JSON.stringify(styledBody)}`,
+        );
       },
     },
     {
@@ -44,8 +52,8 @@ export default {
       async expect(api, assert) {
         const {unstyledBody} = await api.tableColumnStyleReport(NUMFMT);
         assert.ok(
-          unstyledBody.every(f => f !== NUMFMT),
-          `the unstyled column must not pick up the numFmt; got ${JSON.stringify(unstyledBody)}`
+          unstyledBody.every((f) => f !== NUMFMT),
+          `the unstyled column must not pick up the numFmt; got ${JSON.stringify(unstyledBody)}`,
         );
       },
     },

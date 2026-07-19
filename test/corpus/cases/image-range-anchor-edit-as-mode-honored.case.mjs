@@ -9,11 +9,11 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
-const imageSpec = editAs => ({
+const imageSpec = (editAs) => ({
   sheets: [{name: 'S', images: [{range: {tl: {col: 1, row: 1}, br: {col: 3, row: 3}, editAs}}]}],
 });
 
-const firstEditAs = anchors => (anchors[0] ? anchors[0].editAs : undefined);
+const firstEditAs = (anchors) => (anchors[0] ? anchors[0].editAs : undefined);
 
 export default {
   id: 'image-range-anchor-edit-as-mode-honored',
@@ -30,7 +30,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {anchors} = await api.inspectImageAnchors(imageSpec('twoCell'));
-        assert.strictEqual(firstEditAs(anchors), 'twoCell', 'the two-cell move+resize mode is honored');
+        assert.strictEqual(
+          firstEditAs(anchors),
+          'twoCell',
+          'the two-cell move+resize mode is honored',
+        );
       },
     },
     {
@@ -38,7 +42,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {anchors} = await api.inspectImageAnchors(imageSpec('oneCell'));
-        assert.strictEqual(firstEditAs(anchors), 'oneCell', 'the one-cell move-only mode is honored');
+        assert.strictEqual(
+          firstEditAs(anchors),
+          'oneCell',
+          'the one-cell move-only mode is honored',
+        );
       },
     },
     {
@@ -46,7 +54,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {anchors} = await api.inspectImageAnchors(imageSpec('absolute'));
-        assert.strictEqual(firstEditAs(anchors), 'absolute', 'the absolute (fixed) mode is honored');
+        assert.strictEqual(
+          firstEditAs(anchors),
+          'absolute',
+          'the absolute (fixed) mode is honored',
+        );
       },
     },
     {
@@ -57,7 +69,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {anchors} = await api.inspectImageAnchors(imageSpec(undefined));
-        assert.strictEqual(firstEditAs(anchors), 'oneCell', 'the omitted-mode default is oneCell (singular spelling)');
+        assert.strictEqual(
+          firstEditAs(anchors),
+          'oneCell',
+          'the omitted-mode default is oneCell (singular spelling)',
+        );
       },
     },
   ],

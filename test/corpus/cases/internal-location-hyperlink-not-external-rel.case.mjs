@@ -27,7 +27,10 @@ export default {
       async expect(api, assert) {
         const {hasLocation, location} = await api.internalHyperlinkReport();
         assert.strictEqual(hasLocation, true, 'the <hyperlink> has a location attribute');
-        assert.ok(location && location.includes('Target') && location.includes('A1'), `the location keeps the reference; got ${JSON.stringify(location)}`);
+        assert.ok(
+          location?.includes('Target') && location.includes('A1'),
+          `the location keeps the reference; got ${JSON.stringify(location)}`,
+        );
       },
     },
     {
@@ -35,7 +38,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {hasExternalRel} = await api.internalHyperlinkReport();
-        assert.strictEqual(hasExternalRel, false, 'an internal "#" target must not produce an external-mode relationship');
+        assert.strictEqual(
+          hasExternalRel,
+          false,
+          'an internal "#" target must not produce an external-mode relationship',
+        );
       },
     },
     {

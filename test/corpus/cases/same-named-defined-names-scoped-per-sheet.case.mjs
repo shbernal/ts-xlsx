@@ -29,11 +29,11 @@ export default {
         const ranges = names.namedrange || [];
         assert.ok(
           ranges.includes('Page1!$A$1:$B$1'),
-          `the Page1-scoped range must survive the load; got ${JSON.stringify(ranges)}`
+          `the Page1-scoped range must survive the load; got ${JSON.stringify(ranges)}`,
         );
         assert.ok(
           ranges.includes('Page2!$A$1:$B$1'),
-          `the Page2-scoped range must survive the load; got ${JSON.stringify(ranges)}`
+          `the Page2-scoped range must survive the load; got ${JSON.stringify(ranges)}`,
         );
       },
     },

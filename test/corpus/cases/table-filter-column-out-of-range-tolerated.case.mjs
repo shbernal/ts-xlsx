@@ -35,7 +35,7 @@ export default {
         assert.strictEqual(
           ok,
           true,
-          `a dangling filter-column reference must be tolerated, not crash the load; got ${JSON.stringify(error)}`
+          `a dangling filter-column reference must be tolerated, not crash the load; got ${JSON.stringify(error)}`,
         );
       },
     },

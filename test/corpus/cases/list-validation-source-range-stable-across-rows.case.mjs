@@ -29,11 +29,14 @@ export default {
       name: 'every cell in the span keeps the exact cross-sheet source reference it was assigned',
       baseline: 'pass',
       async expect(api, assert) {
-        const {source, formulae, allIdentical} = await api.listValidationSourceRangeAcrossRows(6, 'Lookup!A1:A5');
+        const {source, formulae, allIdentical} = await api.listValidationSourceRangeAcrossRows(
+          6,
+          'Lookup!A1:A5',
+        );
         assert.strictEqual(
           allIdentical,
           true,
-          `all rows must reference ${source} verbatim; got ${JSON.stringify(formulae)}`
+          `all rows must reference ${source} verbatim; got ${JSON.stringify(formulae)}`,
         );
       },
     },
@@ -43,7 +46,11 @@ export default {
       async expect(api, assert) {
         const {source, formulae} = await api.listValidationSourceRangeAcrossRows(6, 'Lookup!A1:A5');
         assert.strictEqual(formulae[0], source, 'first row source reference');
-        assert.strictEqual(formulae[formulae.length - 1], source, 'last row must not have drifted below the source');
+        assert.strictEqual(
+          formulae[formulae.length - 1],
+          source,
+          'last row must not have drifted below the source',
+        );
       },
     },
     {
@@ -51,7 +58,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sqrefBlocks} = await api.listValidationSourceRangeAcrossRows(6, 'Lookup!A1:A5');
-        assert.strictEqual(sqrefBlocks, 1, 'the six identical validations should serialize as one dataValidation with a spanning sqref');
+        assert.strictEqual(
+          sqrefBlocks,
+          1,
+          'the six identical validations should serialize as one dataValidation with a spanning sqref',
+        );
       },
     },
   ],

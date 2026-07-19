@@ -37,7 +37,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {emitted} = await api.columnWidthDefaultCollisionReport([8, 9, 10]);
-        assert.strictEqual(emitted.c2, true, 'an explicit width of 9 must emit a <col>, not defer to the default');
+        assert.strictEqual(
+          emitted.c2,
+          true,
+          'an explicit width of 9 must emit a <col>, not defer to the default',
+        );
       },
     },
     {

@@ -35,7 +35,8 @@ export default {
       name: 'the emitted protection carries an algorithm, hash, salt, and spin count',
       baseline: 'pass',
       async expect(api, assert) {
-        const {algorithm, hasHash, hasSalt, spinCount} = await api.worksheetPasswordProtectionReport();
+        const {algorithm, hasHash, hasSalt, spinCount} =
+          await api.worksheetPasswordProtectionReport();
         assert.ok(algorithm, 'a hashing algorithm name is written');
         assert.ok(hasHash, 'a password-derived hashValue is written');
         assert.ok(hasSalt, 'a saltValue is written');
@@ -46,9 +47,18 @@ export default {
       name: 'the requested protection options are reflected in the serialized element',
       baseline: 'pass',
       async expect(api, assert) {
-        const {selectLockedCells, selectUnlockedCells} = await api.worksheetPasswordProtectionReport();
-        assert.strictEqual(selectLockedCells, '1', 'disallowing locked-cell selection is serialized');
-        assert.strictEqual(selectUnlockedCells, '1', 'disallowing unlocked-cell selection is serialized');
+        const {selectLockedCells, selectUnlockedCells} =
+          await api.worksheetPasswordProtectionReport();
+        assert.strictEqual(
+          selectLockedCells,
+          '1',
+          'disallowing locked-cell selection is serialized',
+        );
+        assert.strictEqual(
+          selectUnlockedCells,
+          '1',
+          'disallowing unlocked-cell selection is serialized',
+        );
       },
     },
     {
@@ -56,7 +66,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {saltsDiffer} = await api.worksheetPasswordProtectionReport();
-        assert.strictEqual(saltsDiffer, true, 'secure randomness must be exercised, not stubbed to a constant salt');
+        assert.strictEqual(
+          saltsDiffer,
+          true,
+          'secure randomness must be exercised, not stubbed to a constant salt',
+        );
       },
     },
   ],

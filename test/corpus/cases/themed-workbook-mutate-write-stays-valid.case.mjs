@@ -20,7 +20,11 @@ const SPEC = {
       name: 'S',
       cells: [
         {ref: 'A1', value: 'header', font: {name: 'Calibri', color: {theme: 1}}},
-        {ref: 'B2', value: 'edited', fill: {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFFFF00'}}},
+        {
+          ref: 'B2',
+          value: 'edited',
+          fill: {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFFFF00'}},
+        },
       ],
     },
   ],
@@ -43,7 +47,7 @@ export default {
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const fill = model.sheets.S.cells.B2.fill;
-        assert.strictEqual(fill && fill.pattern, 'solid', 'the solid fill is preserved');
+        assert.strictEqual(fill?.pattern, 'solid', 'the solid fill is preserved');
         assert.strictEqual(fill.fgColor.argb, 'FFFFFF00', 'the fill color survives');
       },
     },
@@ -53,7 +57,10 @@ export default {
       async expect(api, assert) {
         const {styles} = await api.inspectPackage(SPEC);
         assert.ok(styles.hasThemePart, 'the package ships a theme part');
-        assert.ok(styles.themeColorResolvable, 'every theme-color reference is backed by a theme part');
+        assert.ok(
+          styles.themeColorResolvable,
+          'every theme-color reference is backed by a theme part',
+        );
       },
     },
     {
@@ -61,7 +68,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {consistency, sheets} = await api.inspectPackage(SPEC);
-        assert.ok(consistency.declaredConsistent, 'every worksheet part is declared and related consistently');
+        assert.ok(
+          consistency.declaredConsistent,
+          'every worksheet part is declared and related consistently',
+        );
         assert.ok(sheets.S.xmlWellFormed, 'the worksheet XML is well-formed');
       },
     },

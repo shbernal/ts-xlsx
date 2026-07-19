@@ -21,9 +21,12 @@ const SPEC = {
       name: 'S',
       cells: [{ref: 'A1', value: 'x'}],
       headerFooter: {
-        oddHeader: 'ODD-H', oddFooter: 'ODD-F',
-        evenHeader: 'EVEN-H', evenFooter: 'EVEN-F',
-        firstHeader: 'FIRST-H', firstFooter: 'FIRST-F',
+        oddHeader: 'ODD-H',
+        oddFooter: 'ODD-F',
+        evenHeader: 'EVEN-H',
+        evenFooter: 'EVEN-F',
+        firstHeader: 'FIRST-H',
+        firstFooter: 'FIRST-F',
       },
     },
   ],
@@ -60,7 +63,7 @@ export default {
         assert.strictEqual(
           sheets.S.headerFooter.differentOddEven,
           true,
-          'even variants require differentOddEven="1" or they are ignored on open'
+          'even variants require differentOddEven="1" or they are ignored on open',
         );
       },
     },
@@ -72,7 +75,7 @@ export default {
         assert.strictEqual(
           sheets.S.headerFooter.differentFirst,
           true,
-          'first-page variants require differentFirst="1" or they are ignored on open'
+          'first-page variants require differentFirst="1" or they are ignored on open',
         );
       },
     },

@@ -33,7 +33,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(ok, true, `a pre-existing reserved sheet name must not abort the load; got ${JSON.stringify(error)}`);
+        assert.strictEqual(
+          ok,
+          true,
+          `a pre-existing reserved sheet name must not abort the load; got ${JSON.stringify(error)}`,
+        );
       },
     },
     {
@@ -41,7 +45,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
-        assert.ok(sheetNames && sheetNames.includes('History'), `the History sheet must survive; got ${JSON.stringify(sheetNames)}`);
+        assert.ok(
+          sheetNames?.includes('History'),
+          `the History sheet must survive; got ${JSON.stringify(sheetNames)}`,
+        );
       },
     },
     {
@@ -49,8 +56,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {addThrew, roundtripName, addError} = await api.addReservedSheetNameReport();
-        assert.strictEqual(addThrew, false, `adding a "History" sheet must not throw; got ${JSON.stringify(addError)}`);
-        assert.strictEqual(roundtripName, 'History', 'the constructed History sheet round-trips with its name');
+        assert.strictEqual(
+          addThrew,
+          false,
+          `adding a "History" sheet must not throw; got ${JSON.stringify(addError)}`,
+        );
+        assert.strictEqual(
+          roundtripName,
+          'History',
+          'the constructed History sheet round-trips with its name',
+        );
       },
     },
     {
@@ -58,7 +73,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {invalidRejected} = await api.addReservedSheetNameReport();
-        assert.strictEqual(invalidRejected, true, 'a name with an illegal character (a/b) is still rejected');
+        assert.strictEqual(
+          invalidRejected,
+          true,
+          'a name with an illegal character (a/b) is still rejected',
+        );
       },
     },
   ],

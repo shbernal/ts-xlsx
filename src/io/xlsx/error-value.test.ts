@@ -70,7 +70,7 @@ test('a foreign t="e" cell carrying a non-canonical code reads back as a plain s
   const files = unzipSync(writeXlsx(wb));
   const patched = strFromU8(files['xl/worksheets/sheet1.xml'] as Uint8Array).replace(
     '<v>#REF!</v>',
-    '<v>#UNKNOWN!</v>'
+    '<v>#UNKNOWN!</v>',
   );
   files['xl/worksheets/sheet1.xml'] = strToU8(patched);
 

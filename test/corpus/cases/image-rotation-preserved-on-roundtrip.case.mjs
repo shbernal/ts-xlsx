@@ -41,7 +41,7 @@ export default {
         assert.strictEqual(
           rewrittenRot,
           ROT,
-          `the rotation must be re-emitted on save; got ${JSON.stringify(rewrittenRot)} (dropped)`
+          `the rotation must be re-emitted on save; got ${JSON.stringify(rewrittenRot)} (dropped)`,
         );
       },
     },

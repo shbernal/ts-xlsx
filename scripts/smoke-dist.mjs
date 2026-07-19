@@ -7,7 +7,7 @@
 // file, a runtime-only reference to something type-stripping tolerated.
 
 import assert from 'node:assert/strict';
-import {Workbook, writeXlsx, readXlsx, decodeAddress} from '../dist/index.js';
+import {decodeAddress, readXlsx, Workbook, writeXlsx} from '../dist/index.js';
 
 const wb = new Workbook();
 const ws = wb.addWorksheet('Smoke');

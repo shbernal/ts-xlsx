@@ -22,7 +22,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {tabColorArgbWritten} = await api.tabColorRoundtrip();
-        assert.strictEqual(tabColorArgbWritten, 'FFFF0000', 'the ARGB is written verbatim (alpha FF first, then red)');
+        assert.strictEqual(
+          tabColorArgbWritten,
+          'FFFF0000',
+          'the ARGB is written verbatim (alpha FF first, then red)',
+        );
       },
     },
     {
@@ -38,7 +42,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {uncoloredHasTab} = await api.tabColorRoundtrip();
-        assert.strictEqual(uncoloredHasTab, false, 'no spurious tab color appears on an uncolored sheet');
+        assert.strictEqual(
+          uncoloredHasTab,
+          false,
+          'no spurious tab color appears on an uncolored sheet',
+        );
       },
     },
   ],

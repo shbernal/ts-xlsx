@@ -27,7 +27,11 @@ export default {
       async expect(api, assert) {
         const {distinctMediaCount, distinctRelTargets} = await api.interleavedImageAnchors('BAA');
         assert.strictEqual(distinctMediaCount, 2, 'two distinct images produce two media parts');
-        assert.strictEqual(distinctRelTargets, 2, 'each distinct image maps to exactly one relationship target');
+        assert.strictEqual(
+          distinctRelTargets,
+          2,
+          'each distinct image maps to exactly one relationship target',
+        );
       },
     },
     {
@@ -47,7 +51,7 @@ export default {
         assert.strictEqual(
           resolvedLetter[2],
           'A',
-          `anchor 3 was placed with A and must render A, not the interleaved image; got ${JSON.stringify(resolvedLetter)}`
+          `anchor 3 was placed with A and must render A, not the interleaved image; got ${JSON.stringify(resolvedLetter)}`,
         );
       },
     },

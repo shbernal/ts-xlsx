@@ -25,11 +25,15 @@ test('a seeded indexed-color palette re-emits as a <colors> block; an unseeded o
   const xml = seeded.toXml();
   assert.match(
     xml,
-    /<colors><indexedColors><rgbColor rgb="ff3f6797"\/><rgbColor rgb="ffaaaaaa"\/><\/indexedColors><\/colors>/
+    /<colors><indexedColors><rgbColor rgb="ff3f6797"\/><rgbColor rgb="ffaaaaaa"\/><\/indexedColors><\/colors>/,
   );
   // The palette is a late child of <styleSheet>: after <dxfs>, before the close.
   assert.ok(xml.indexOf('<dxfs') < xml.indexOf('<colors>'), '<colors> follows <dxfs>');
-  assert.doesNotMatch(new StyleRegistry().toXml(), /<colors>/, 'the default palette writes no <colors>');
+  assert.doesNotMatch(
+    new StyleRegistry().toXml(),
+    /<colors>/,
+    'the default palette writes no <colors>',
+  );
 });
 
 test('an absent or "none" fill with no format resolves to the default xf 0 — no style entry', () => {
@@ -43,7 +47,11 @@ test('an identical fill interns to one shared xf index however many times it is 
   const styles = new StyleRegistry();
   const first = styles.styleId({fill: solid('FFFF0000')});
   for (let i = 0; i < 40; i++) {
-    assert.equal(styles.styleId({fill: solid('FFFF0000')}), first, 'every identical fill returns the same index');
+    assert.equal(
+      styles.styleId({fill: solid('FFFF0000')}),
+      first,
+      'every identical fill returns the same index',
+    );
   }
   assert.notEqual(first, 0, 'a real fill gets a non-default index');
 });
@@ -66,7 +74,7 @@ test('a gradient fill emits a <gradientFill> with its stops, and interns like an
   const xml = styles.toXml();
   assert.match(
     xml,
-    /<fill><gradientFill degree="90"><stop position="0"><color rgb="FFFFFFFF"\/><\/stop><stop position="1"><color rgb="FF4472C4"\/><\/stop><\/gradientFill><\/fill>/
+    /<fill><gradientFill degree="90"><stop position="0"><color rgb="FFFFFFFF"\/><\/stop><stop position="1"><color rgb="FF4472C4"\/><\/stop><\/gradientFill><\/fill>/,
   );
 });
 
@@ -92,7 +100,11 @@ test('an identical number format interns to one shared xf index', () => {
   const styles = new StyleRegistry();
   const first = styles.styleId({numFmt: '0.00%'});
   for (let i = 0; i < 40; i++) {
-    assert.equal(styles.styleId({numFmt: '0.00%'}), first, 'every identical numFmt returns the same index');
+    assert.equal(
+      styles.styleId({numFmt: '0.00%'}),
+      first,
+      'every identical numFmt returns the same index',
+    );
   }
   assert.notEqual(first, 0, 'a real numFmt gets a non-default index');
 });
@@ -124,10 +136,16 @@ test('the emitted stylesheet reflects the interned fills and cell formats', () =
   assert.match(xml, /<fills count="4">/);
   assert.match(xml, /<cellXfs count="3">/);
   // The visible colour is the pattern foreground with an automatic indexed background.
-  assert.match(xml, /<patternFill patternType="solid"><fgColor rgb="FFFF0000"\/><bgColor indexed="64"\/><\/patternFill>/);
+  assert.match(
+    xml,
+    /<patternFill patternType="solid"><fgColor rgb="FFFF0000"\/><bgColor indexed="64"\/><\/patternFill>/,
+  );
   // A styled xf references its fill and flags applyFill; the default xf does neither.
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
-  assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"\/>/);
+  assert.match(
+    xml,
+    /<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"\/>/,
+  );
 });
 
 test('a "#"-prefixed fill colour is normalized to a bare 8-hex ARGB, never emitted as a 9-char value', () => {
@@ -135,7 +153,11 @@ test('a "#"-prefixed fill colour is normalized to a bare 8-hex ARGB, never emitt
   styles.styleId({fill: solid('#FFBFBFBF')});
   const xml = styles.toXml();
 
-  assert.match(xml, /<fgColor rgb="FFBFBFBF"\/>/, 'the leading "#" is stripped so the value is a valid 8 hex digits');
+  assert.match(
+    xml,
+    /<fgColor rgb="FFBFBFBF"\/>/,
+    'the leading "#" is stripped so the value is a valid 8 hex digits',
+  );
   assert.doesNotMatch(xml, /rgb="#/, 'no colour is ever written with a leading "#"');
 });
 
@@ -179,7 +201,10 @@ test('a custom number format is defined in <numFmts> from id 164 and referenced 
   // A quoted currency literal survives with its markup-significant characters escaped.
   assert.match(xml, /<numFmt numFmtId="165" formatCode="&quot;\$&quot;#,##0.00"\/>/);
   // The referencing xf names the custom id and flags applyNumberFormat.
-  assert.match(xml, /<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"\/>/);
+  assert.match(
+    xml,
+    /<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"\/>/,
+  );
 });
 
 test('an empty registry still emits a valid minimal stylesheet with no <numFmts>', () => {
@@ -195,7 +220,11 @@ test('an identical font interns to one shared xf index', () => {
   const styles = new StyleRegistry();
   const first = styles.styleId({font: {bold: true}});
   for (let i = 0; i < 40; i++) {
-    assert.equal(styles.styleId({font: {bold: true}}), first, 'every identical font returns the same index');
+    assert.equal(
+      styles.styleId({font: {bold: true}}),
+      first,
+      'every identical font returns the same index',
+    );
   }
   assert.notEqual(first, 0, 'a real font gets a non-default index');
 });
@@ -214,12 +243,18 @@ test('font, fill, and number format are independent facets composed into one xf'
   const bold = styles.styleId({font: {bold: true}});
   const boldRed = styles.styleId({font: {bold: true}, fill: solid('FFFF0000')});
   const boldRedPct = styles.styleId({font: {bold: true}, fill: solid('FFFF0000'), numFmt: '0.00%'});
-  assert.equal(new Set([bold, boldRed, boldRedPct]).size, 3, 'each added facet is a distinct composed style');
+  assert.equal(
+    new Set([bold, boldRed, boldRedPct]).size,
+    3,
+    'each added facet is a distinct composed style',
+  );
 });
 
 test('a custom font is defined in <fonts> after the default and referenced by its xf', () => {
   const styles = new StyleRegistry();
-  styles.styleId({font: {bold: true, italic: true, size: 14, color: {argb: 'FF3A80D5'}, name: 'Arial'}});
+  styles.styleId({
+    font: {bold: true, italic: true, size: 14, color: {argb: 'FF3A80D5'}, name: 'Arial'},
+  });
   const xml = styles.toXml();
 
   // Default font (id 0) + one custom (id 1).
@@ -227,10 +262,13 @@ test('a custom font is defined in <fonts> after the default and referenced by it
   // The facets serialise in ECMA-376 child order, with the typeface attribute-escaped.
   assert.match(
     xml,
-    /<font><b\/><i\/><sz val="14"\/><color rgb="FF3A80D5"\/><name val="Arial"\/><\/font>/
+    /<font><b\/><i\/><sz val="14"\/><color rgb="FF3A80D5"\/><name val="Arial"\/><\/font>/,
   );
   // The referencing xf names font id 1 and flags applyFont; the default xf keeps font id 0.
-  assert.match(xml, /<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"\/>/);
+  assert.match(
+    xml,
+    /<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"\/>/,
+  );
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
 });
 
@@ -247,7 +285,11 @@ test('an identical border interns to one shared xf index', () => {
   const styles = new StyleRegistry();
   const first = styles.styleId({border: {top: {style: 'thin'}}});
   for (let i = 0; i < 40; i++) {
-    assert.equal(styles.styleId({border: {top: {style: 'thin'}}}), first, 'every identical border returns the same index');
+    assert.equal(
+      styles.styleId({border: {top: {style: 'thin'}}}),
+      first,
+      'every identical border returns the same index',
+    );
   }
   assert.notEqual(first, 0, 'a real border gets a non-default index');
 });
@@ -262,13 +304,23 @@ test('font, fill, number format, and border are independent facets composed into
   const styles = new StyleRegistry();
   const b = styles.styleId({border: {top: {style: 'thin'}}});
   const bFill = styles.styleId({border: {top: {style: 'thin'}}, fill: solid('FFFF0000')});
-  const bFillFont = styles.styleId({border: {top: {style: 'thin'}}, fill: solid('FFFF0000'), font: {bold: true}});
-  assert.equal(new Set([b, bFill, bFillFont]).size, 3, 'each added facet is a distinct composed style');
+  const bFillFont = styles.styleId({
+    border: {top: {style: 'thin'}},
+    fill: solid('FFFF0000'),
+    font: {bold: true},
+  });
+  assert.equal(
+    new Set([b, bFill, bFillFont]).size,
+    3,
+    'each added facet is a distinct composed style',
+  );
 });
 
 test('a custom border is defined in <borders> after the default and referenced by its xf', () => {
   const styles = new StyleRegistry();
-  styles.styleId({border: {top: {style: 'thin'}, bottom: {style: 'medium', color: {argb: 'FF3A80D5'}}}});
+  styles.styleId({
+    border: {top: {style: 'thin'}, bottom: {style: 'medium', color: {argb: 'FF3A80D5'}}},
+  });
   const xml = styles.toXml();
 
   // Empty default border (id 0) + one custom (id 1).
@@ -277,10 +329,13 @@ test('a custom border is defined in <borders> after the default and referenced b
   // a bare self-closing tag, a styled one carries its style and any colour child.
   assert.match(
     xml,
-    /<border><left\/><right\/><top style="thin"\/><bottom style="medium"><color rgb="FF3A80D5"\/><\/bottom><diagonal\/><\/border>/
+    /<border><left\/><right\/><top style="thin"\/><bottom style="medium"><color rgb="FF3A80D5"\/><\/bottom><diagonal\/><\/border>/,
   );
   // The referencing xf names border id 1 and flags applyBorder; the default xf keeps border id 0.
-  assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"\/>/);
+  assert.match(
+    xml,
+    /<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"\/>/,
+  );
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
 });
 
@@ -288,7 +343,11 @@ test('an identical alignment interns to one shared xf index', () => {
   const styles = new StyleRegistry();
   const first = styles.styleId({alignment: {horizontal: 'center'}});
   for (let i = 0; i < 40; i++) {
-    assert.equal(styles.styleId({alignment: {horizontal: 'center'}}), first, 'every identical alignment returns the same index');
+    assert.equal(
+      styles.styleId({alignment: {horizontal: 'center'}}),
+      first,
+      'every identical alignment returns the same index',
+    );
   }
   assert.notEqual(first, 0, 'a real alignment gets a non-default index');
 });
@@ -296,20 +355,25 @@ test('an identical alignment interns to one shared xf index', () => {
 test('an all-default alignment resolves to the default xf 0 — no <alignment>', () => {
   const styles = new StyleRegistry();
   // `general` horizontal is the default, and boolean flags left off contribute nothing.
-  assert.equal(styles.styleId({alignment: {horizontal: 'general', wrapText: false, shrinkToFit: false}}), 0);
+  assert.equal(
+    styles.styleId({alignment: {horizontal: 'general', wrapText: false, shrinkToFit: false}}),
+    0,
+  );
   assert.doesNotMatch(styles.toXml(), /<alignment/);
 });
 
 test('alignment composes into the xf as a child element, not a shared sub-table', () => {
   const styles = new StyleRegistry();
-  styles.styleId({alignment: {horizontal: 'center', vertical: 'top', wrapText: true, indent: 2, textRotation: 45}});
+  styles.styleId({
+    alignment: {horizontal: 'center', vertical: 'top', wrapText: true, indent: 2, textRotation: 45},
+  });
   const xml = styles.toXml();
 
   // The aligned xf carries an <alignment> child in ECMA-376 attribute order and flags applyAlignment;
   // it is no longer self-closing. The default xf stays self-closing with no alignment.
   assert.match(
     xml,
-    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="top" textRotation="45" wrapText="1" indent="2"\/><\/xf>/
+    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="top" textRotation="45" wrapText="1" indent="2"\/><\/xf>/,
   );
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
 });
@@ -318,15 +382,27 @@ test('alignment is an independent facet composed alongside fill, font, and borde
   const styles = new StyleRegistry();
   const a = styles.styleId({alignment: {wrapText: true}});
   const aFill = styles.styleId({alignment: {wrapText: true}, fill: solid('FFFF0000')});
-  const aFillFont = styles.styleId({alignment: {wrapText: true}, fill: solid('FFFF0000'), font: {bold: true}});
-  assert.equal(new Set([a, aFill, aFillFont]).size, 3, 'each added facet is a distinct composed style');
+  const aFillFont = styles.styleId({
+    alignment: {wrapText: true},
+    fill: solid('FFFF0000'),
+    font: {bold: true},
+  });
+  assert.equal(
+    new Set([a, aFill, aFillFont]).size,
+    3,
+    'each added facet is a distinct composed style',
+  );
 });
 
 test('an identical protection interns to one shared xf index', () => {
   const styles = new StyleRegistry();
   const first = styles.styleId({protection: {locked: false}});
   for (let i = 0; i < 40; i++) {
-    assert.equal(styles.styleId({protection: {locked: false}}), first, 'every identical protection returns the same index');
+    assert.equal(
+      styles.styleId({protection: {locked: false}}),
+      first,
+      'every identical protection returns the same index',
+    );
   }
   assert.notEqual(first, 0, 'a real protection gets a non-default index');
 });
@@ -347,7 +423,7 @@ test('protection composes into the xf as a child element, flagging applyProtecti
   // Only the meaningful flags serialise: the unlocked cell writes locked="0", the hidden one hidden="1".
   assert.match(
     xml,
-    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0" hidden="1"\/><\/xf>/
+    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyProtection="1"><protection locked="0" hidden="1"\/><\/xf>/,
   );
   assert.match(xml, /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"\/>/);
 });
@@ -360,7 +436,7 @@ test('alignment and protection compose as two xf children in schema order', () =
   // <alignment> precedes <protection> in the xf body, and both apply flags are set.
   assert.match(
     xml,
-    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1" applyProtection="1"><alignment horizontal="center"\/><protection locked="0"\/><\/xf>/
+    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1" applyProtection="1"><alignment horizontal="center"\/><protection locked="0"\/><\/xf>/,
   );
 });
 
@@ -368,8 +444,16 @@ test('protection is an independent facet composed alongside fill, font, and bord
   const styles = new StyleRegistry();
   const p = styles.styleId({protection: {locked: false}});
   const pFill = styles.styleId({protection: {locked: false}, fill: solid('FFFF0000')});
-  const pFillFont = styles.styleId({protection: {locked: false}, fill: solid('FFFF0000'), font: {bold: true}});
-  assert.equal(new Set([p, pFill, pFillFont]).size, 3, 'each added facet is a distinct composed style');
+  const pFillFont = styles.styleId({
+    protection: {locked: false},
+    fill: solid('FFFF0000'),
+    font: {bold: true},
+  });
+  assert.equal(
+    new Set([p, pFill, pFillFont]).size,
+    3,
+    'each added facet is a distinct composed style',
+  );
 });
 
 test('a non-string number format is dropped rather than corrupting the styles part', () => {
@@ -378,25 +462,44 @@ test('a non-string number format is dropped rather than corrupting the styles pa
   const id = styles.styleId({numFmt: {id: 164, formatCode: '0.00'} as unknown as string});
   assert.equal(id, 0, 'a non-string numFmt contributes no style — it resolves to the default xf 0');
   const xml = styles.toXml();
-  assert.doesNotMatch(xml, /\[object Object\]/, 'the styles part must never carry a stringified object');
+  assert.doesNotMatch(
+    xml,
+    /\[object Object\]/,
+    'the styles part must never carry a stringified object',
+  );
   assert.doesNotMatch(xml, /<numFmts/, 'no custom numFmt entry is emitted for the dropped object');
 });
 
 test('a valid format-code string still interns alongside other facets', () => {
   const styles = new StyleRegistry();
-  const id = styles.styleId({numFmt: 'yyyy-mmm-dd', font: {bold: true}, protection: {locked: false}});
+  const id = styles.styleId({
+    numFmt: 'yyyy-mmm-dd',
+    font: {bold: true},
+    protection: {locked: false},
+  });
   assert.notEqual(id, 0, 'the string format composes into a real style');
   assert.match(styles.toXml(), /formatCode="yyyy-mmm-dd"/);
 });
 
 test('the quote-prefix flag emits quotePrefix="1" on the xf and forms a distinct style', () => {
   const styles = new StyleRegistry();
-  assert.equal(styles.styleId({quotePrefix: false}), 0, 'an unset quote-prefix contributes no style');
+  assert.equal(
+    styles.styleId({quotePrefix: false}),
+    0,
+    'an unset quote-prefix contributes no style',
+  );
   const q = styles.styleId({quotePrefix: true});
   assert.notEqual(q, 0, 'a quote-prefixed style is a real entry, not the default xf 0');
-  assert.equal(styles.styleId({quotePrefix: true}), q, 'identical quote-prefixed styles intern to one entry');
-  assert.match(styles.toXml(), /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" quotePrefix="1"\/>/);
-})
+  assert.equal(
+    styles.styleId({quotePrefix: true}),
+    q,
+    'identical quote-prefixed styles intern to one entry',
+  );
+  assert.match(
+    styles.toXml(),
+    /<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" quotePrefix="1"\/>/,
+  );
+});
 
 test('seeded named cell styles emit a cellStyleXfs/cellStyles layer and cells link to it via xfId', () => {
   const styles = new StyleRegistry();
@@ -408,13 +511,28 @@ test('seeded named cell styles emit a cellStyleXfs/cellStyles layer and cells li
   const linked = styles.styleId({xfId: 1});
   assert.notEqual(linked, 0, 'a cell linking to a named style needs a real cellXfs entry');
   const xml = styles.toXml();
-  assert.match(xml, /<cellStyleXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"\/><xf numFmtId="0" fontId="0" fillId="2" borderId="0" applyFill="1"\/><\/cellStyleXfs>/);
-  assert.match(xml, /<cellStyles count="2"><cellStyle name="Normal" xfId="0" builtinId="0"\/><cellStyle name="Accent" xfId="1"\/><\/cellStyles>/);
-  assert.match(xml, /<cellXfs count="2">.*<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="1"\/><\/cellXfs>/);
+  assert.match(
+    xml,
+    /<cellStyleXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"\/><xf numFmtId="0" fontId="0" fillId="2" borderId="0" applyFill="1"\/><\/cellStyleXfs>/,
+  );
+  assert.match(
+    xml,
+    /<cellStyles count="2"><cellStyle name="Normal" xfId="0" builtinId="0"\/><cellStyle name="Accent" xfId="1"\/><\/cellStyles>/,
+  );
+  assert.match(
+    xml,
+    /<cellXfs count="2">.*<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="1"\/><\/cellXfs>/,
+  );
 });
 
 test('with no named styles the default cellStyleXfs and cellStyles layer is emitted unchanged', () => {
   const xml = new StyleRegistry().toXml();
-  assert.match(xml, /<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"\/><\/cellStyleXfs>/);
-  assert.match(xml, /<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"\/><\/cellStyles>/);
-})
+  assert.match(
+    xml,
+    /<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"\/><\/cellStyleXfs>/,
+  );
+  assert.match(
+    xml,
+    /<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"\/><\/cellStyles>/,
+  );
+});

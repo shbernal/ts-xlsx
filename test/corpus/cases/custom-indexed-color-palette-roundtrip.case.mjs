@@ -27,7 +27,10 @@ export default {
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
         assert.ok(source.hasIndexedColors, 'precondition: the source declares a custom palette');
-        assert.ok(rewritten.hasIndexedColors, 'the written styles part must re-emit the custom indexedColors block');
+        assert.ok(
+          rewritten.hasIndexedColors,
+          'the written styles part must re-emit the custom indexedColors block',
+        );
       },
     },
     {
@@ -35,7 +38,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
-        assert.deepStrictEqual(rewritten.indexedColorSample, source.indexedColorSample, 'the leading palette entries match');
+        assert.deepStrictEqual(
+          rewritten.indexedColorSample,
+          source.indexedColorSample,
+          'the leading palette entries match',
+        );
       },
     },
   ],

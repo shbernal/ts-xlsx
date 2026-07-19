@@ -25,9 +25,17 @@ export default {
       name: 'distinct column names are emitted unchanged (control)',
       baseline: 'pass',
       async expect(api, assert) {
-        const {ok, writtenNames, uniqueNames} = await api.tableDuplicateColumnNamesReport(['a', 'b', 'c']);
+        const {ok, writtenNames, uniqueNames} = await api.tableDuplicateColumnNamesReport([
+          'a',
+          'b',
+          'c',
+        ]);
         assert.ok(ok, 'the table writes');
-        assert.deepStrictEqual(writtenNames, ['a', 'b', 'c'], 'already-distinct names pass through verbatim');
+        assert.deepStrictEqual(
+          writtenNames,
+          ['a', 'b', 'c'],
+          'already-distinct names pass through verbatim',
+        );
         assert.strictEqual(uniqueNames, true, 'distinct names stay unique');
       },
     },
@@ -35,13 +43,17 @@ export default {
       name: 'colliding column names are disambiguated into a unique set',
       baseline: 'pass',
       async expect(api, assert) {
-        const {ok, writtenNames, uniqueNames} = await api.tableDuplicateColumnNamesReport(['foo', 'foo', 'foo']);
+        const {ok, writtenNames, uniqueNames} = await api.tableDuplicateColumnNamesReport([
+          'foo',
+          'foo',
+          'foo',
+        ]);
         assert.ok(ok, 'the table writes');
         assert.strictEqual(
           uniqueNames,
           true,
           `each tableColumn name must be unique; got ${JSON.stringify(writtenNames)} — OOXML rejects a ` +
-            'table whose column names collide'
+            'table whose column names collide',
         );
       },
     },

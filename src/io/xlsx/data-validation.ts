@@ -14,16 +14,16 @@
 // form is tagged `extended` so it is written back there; the two forms are parsed and serialised by
 // prefix so neither reader mistakes one for the other.
 
-import {
-  type DataValidation,
-  type DataValidationEntry,
-  type DataValidationErrorStyle,
-  type DataValidationOperator,
-  type DataValidationType,
+import type {
+  DataValidation,
+  DataValidationEntry,
+  DataValidationErrorStyle,
+  DataValidationOperator,
+  DataValidationType,
 } from '../../core/data-validation.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {localName, parseXml} from './xml-read.ts';
 import {escapeAttr, escapeText} from './xml.ts';
+import {localName, parseXml} from './xml-read.ts';
 
 // The typed validations whose literal operands are numbers; `list`/`custom` operands stay strings.
 const TYPED = new Set<string>(['whole', 'decimal', 'date', 'time', 'textLength']);
@@ -39,7 +39,7 @@ const DATA_VALIDATION_EXT_URI = '{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF}';
  * sheet has none of them — so a sheet with only extended (or no) validations stays byte-clean here.
  * The extended rules are emitted separately by {@link dataValidationsExtXml}. */
 export function dataValidationsXml(entries: readonly DataValidationEntry[]): string {
-  const standard = entries.filter(entry => !entry.extended);
+  const standard = entries.filter((entry) => !entry.extended);
   if (standard.length === 0) return '';
   const items = standard.map(({sqref, rule}) => dataValidationXml(sqref, rule)).join('');
   return `<dataValidations count="${standard.length}">${items}</dataValidations>`;
@@ -49,7 +49,7 @@ export function dataValidationsXml(entries: readonly DataValidationEntry[]): str
  * none. Emitted bare (no `<extLst>` wrapper) so the worksheet serialiser can gather it into a single
  * `<extLst>` beside the conditional-formatting extension — a worksheet may carry at most one. */
 export function dataValidationsExtXml(entries: readonly DataValidationEntry[]): string {
-  const extended = entries.filter(entry => entry.extended);
+  const extended = entries.filter((entry) => entry.extended);
   if (extended.length === 0) return '';
   const items = extended.map(({sqref, rule}) => extendedDataValidationXml(sqref, rule)).join('');
   return (
@@ -91,7 +91,9 @@ function dataValidationXml(sqref: string, rule: DataValidation): string {
 // date validation whose bound failed to coerce to a serial) has no OOXML representation, so it is
 // omitted rather than serialised as the literal "NaN" — the same graceful degradation a non-finite
 // cell value gets.
-function operands(rule: DataValidation): [string | number | undefined, string | number | undefined] {
+function operands(
+  rule: DataValidation,
+): [string | number | undefined, string | number | undefined] {
   const drop = (v: string | number | undefined): string | number | undefined =>
     typeof v === 'number' && !Number.isFinite(v) ? undefined : v;
   const [f1, f2] = rule.formulae ?? [];
@@ -161,7 +163,7 @@ export function parseDataValidations(xml: string): DataValidationEntry[] {
 
 function buildEntry(
   attrs: Record<string, string>,
-  formulae: readonly string[]
+  formulae: readonly string[],
 ): DataValidationEntry | undefined {
   const {sqref} = attrs;
   if (sqref === undefined) return undefined;
@@ -174,7 +176,7 @@ function buildEntry(
 // supplied separately by each form's caller, so it is not read here.
 function buildRule(
   attrs: Record<string, string>,
-  formulae: readonly string[]
+  formulae: readonly string[],
 ): DataValidation | undefined {
   const {type} = attrs;
   if (type === undefined) return undefined;
@@ -190,7 +192,8 @@ function buildRule(
   if (attrs.allowBlank === '1') rule.allowBlank = true;
   if (attrs.showInputMessage === '1') rule.showInputMessage = true;
   if (attrs.showErrorMessage === '1') rule.showErrorMessage = true;
-  if (attrs.errorStyle !== undefined) rule.errorStyle = attrs.errorStyle as DataValidationErrorStyle;
+  if (attrs.errorStyle !== undefined)
+    rule.errorStyle = attrs.errorStyle as DataValidationErrorStyle;
   if (attrs.error !== undefined) rule.error = attrs.error;
   if (attrs.errorTitle !== undefined) rule.errorTitle = attrs.errorTitle;
   if (attrs.prompt !== undefined) rule.prompt = attrs.prompt;
@@ -262,7 +265,7 @@ export function parseExtendedDataValidations(xml: string): DataValidationEntry[]
 function buildExtendedEntry(
   attrs: Record<string, string>,
   formulae: readonly string[],
-  sqref: string
+  sqref: string,
 ): DataValidationEntry | undefined {
   if (sqref === '') return undefined;
   const rule = buildRule(attrs, formulae);
@@ -282,7 +285,7 @@ function parseFormula(type: string, text: string): string | number {
  * `extended` entry is re-attached as extended so a round-trip writes it back to the x14 block. */
 export function applyDataValidations(
   sheet: Worksheet,
-  entries: readonly DataValidationEntry[]
+  entries: readonly DataValidationEntry[],
 ): void {
   for (const {sqref, rule, extended} of entries) {
     sheet.addDataValidation(sqref, rule, extended ? {extended: true} : {});

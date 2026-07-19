@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {mediaParts, doubledSeparator} = await api.imageExtensionRoundtrip('.png');
-        assert.strictEqual(doubledSeparator, false, `the media filename must be well-formed; got ${JSON.stringify(mediaParts)}`);
+        assert.strictEqual(
+          doubledSeparator,
+          false,
+          `the media filename must be well-formed; got ${JSON.stringify(mediaParts)}`,
+        );
       },
     },
     {
@@ -42,7 +46,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {reloadedImageCount, doubledSeparator} = await api.imageExtensionRoundtrip('png');
-        assert.strictEqual(doubledSeparator, false, 'a dot-less extension yields a well-formed media filename');
+        assert.strictEqual(
+          doubledSeparator,
+          false,
+          'a dot-less extension yields a well-formed media filename',
+        );
         assert.strictEqual(reloadedImageCount, 1, 'the image is discoverable');
       },
     },

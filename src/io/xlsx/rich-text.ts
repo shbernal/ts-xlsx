@@ -17,8 +17,8 @@ import {textElement} from './xml.ts';
  */
 export function richTextRunsXml(runs: readonly RichTextRun[]): string {
   return runs
-    .filter(run => run.text !== '')
-    .map(run => {
+    .filter((run) => run.text !== '')
+    .map((run) => {
       const rPr = run.font !== undefined ? `<rPr>${fontXml(run.font, 'rFont')}</rPr>` : '';
       return `<r>${rPr}${textElement(run.text)}</r>`;
     })

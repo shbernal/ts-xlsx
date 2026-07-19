@@ -47,7 +47,8 @@ export function parseTable(xml: string): TableOptions | undefined {
           if (attrs.totalsRowCount !== undefined) totalsRowCount = Number(attrs.totalsRowCount);
           // Capture the flag verbatim so it re-emits exactly (or, absent, stays absent) rather
           // than being normalised.
-          if (attrs.totalsRowShown !== undefined) totalsRowShown = parseOoxmlBool(attrs.totalsRowShown);
+          if (attrs.totalsRowShown !== undefined)
+            totalsRowShown = parseOoxmlBool(attrs.totalsRowShown);
           break;
         case 'autoFilter':
           hasAutoFilter = true;
@@ -57,9 +58,12 @@ export function parseTable(xml: string): TableOptions | undefined {
           // preserving the round-trip — the writer re-emits only the attributes we actually saw.
           const captured: {-readonly [K in keyof TableStyleInfo]: TableStyleInfo[K]} = {};
           if (attrs.name !== undefined) captured.name = attrs.name;
-          if (attrs.showFirstColumn !== undefined) captured.showFirstColumn = parseOoxmlBool(attrs.showFirstColumn);
-          if (attrs.showLastColumn !== undefined) captured.showLastColumn = parseOoxmlBool(attrs.showLastColumn);
-          if (attrs.showRowStripes !== undefined) captured.showRowStripes = parseOoxmlBool(attrs.showRowStripes);
+          if (attrs.showFirstColumn !== undefined)
+            captured.showFirstColumn = parseOoxmlBool(attrs.showFirstColumn);
+          if (attrs.showLastColumn !== undefined)
+            captured.showLastColumn = parseOoxmlBool(attrs.showLastColumn);
+          if (attrs.showRowStripes !== undefined)
+            captured.showRowStripes = parseOoxmlBool(attrs.showRowStripes);
           if (attrs.showColumnStripes !== undefined) {
             captured.showColumnStripes = parseOoxmlBool(attrs.showColumnStripes);
           }
@@ -72,7 +76,8 @@ export function parseTable(xml: string): TableOptions | undefined {
             name: attrs.name,
           };
           if (attrs.totalsRowLabel !== undefined) column.totalsRowLabel = attrs.totalsRowLabel;
-          if (attrs.totalsRowFunction !== undefined) column.totalsRowFunction = attrs.totalsRowFunction;
+          if (attrs.totalsRowFunction !== undefined)
+            column.totalsRowFunction = attrs.totalsRowFunction;
           columns.push(column);
           break;
         }

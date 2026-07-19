@@ -25,7 +25,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {formula1, hasLeadingEquals} = await api.dvFormulaLeadingEquals('=$AA$1:$AA$2');
-        assert.strictEqual(hasLeadingEquals, false, `formula1 must not keep the leading "="; got ${JSON.stringify(formula1)}`);
+        assert.strictEqual(
+          hasLeadingEquals,
+          false,
+          `formula1 must not keep the leading "="; got ${JSON.stringify(formula1)}`,
+        );
       },
     },
     {
@@ -33,7 +37,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {formula1} = await api.dvFormulaLeadingEquals('=$AA$1:$AA$2');
-        assert.strictEqual(formula1, '$AA$1:$AA$2', `the range reference survives without the "="; got ${JSON.stringify(formula1)}`);
+        assert.strictEqual(
+          formula1,
+          '$AA$1:$AA$2',
+          `the range reference survives without the "="; got ${JSON.stringify(formula1)}`,
+        );
       },
     },
     {

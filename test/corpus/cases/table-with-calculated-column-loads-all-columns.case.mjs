@@ -41,8 +41,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {columnCount, columnNames} = await api.loadFixtureTableColumns(FIXTURE, 'Sales');
-        assert.strictEqual(columnCount, 3, 'every column, including those after the calculated one, is read');
-        assert.deepStrictEqual(columnNames, ['Qty', 'Double', 'Label'], 'columns keep their names and order');
+        assert.strictEqual(
+          columnCount,
+          3,
+          'every column, including those after the calculated one, is read',
+        );
+        assert.deepStrictEqual(
+          columnNames,
+          ['Qty', 'Double', 'Label'],
+          'columns keep their names and order',
+        );
       },
     },
   ],

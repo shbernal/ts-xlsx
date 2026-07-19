@@ -48,8 +48,13 @@ export default {
       name: 'a namespace-prefixed workbook root with a leading BOM reads and reports its sheet',
       baseline: 'pass',
       async expect(api, assert) {
-        const {ok, error, sheetNames} = await api.readFixtureReport(`${DIR}/prefixed-root-bom.xlsx`);
-        assert.ok(ok, `reader must not crash on a prefixed root; got error ${JSON.stringify(error)}`);
+        const {ok, error, sheetNames} = await api.readFixtureReport(
+          `${DIR}/prefixed-root-bom.xlsx`,
+        );
+        assert.ok(
+          ok,
+          `reader must not crash on a prefixed root; got error ${JSON.stringify(error)}`,
+        );
         assert.deepStrictEqual(sheetNames, ['Sheet1'], 'the real sheet name must be read');
       },
     },
@@ -57,7 +62,9 @@ export default {
       name: 'a namespace-prefixed root preserves a non-ASCII sheet name',
       baseline: 'pass',
       async expect(api, assert) {
-        const {ok, sheetNames} = await api.readFixtureReport(`${DIR}/prefixed-root-cyrillic-sheet.xlsx`);
+        const {ok, sheetNames} = await api.readFixtureReport(
+          `${DIR}/prefixed-root-cyrillic-sheet.xlsx`,
+        );
         assert.ok(ok, 'reader must not crash on a prefixed root with a non-ASCII sheet name');
         assert.deepStrictEqual(sheetNames, ['Нотатки'], 'the non-ASCII sheet name must survive');
       },
@@ -66,12 +73,14 @@ export default {
       name: 'a workbook whose workbook.xml is ordered after the worksheet part still reads',
       baseline: 'pass',
       async expect(api, assert) {
-        const {ok, sheetNames} = await api.readFixtureReport(`${DIR}/workbook-part-after-worksheet.xlsx`);
+        const {ok, sheetNames} = await api.readFixtureReport(
+          `${DIR}/workbook-part-after-worksheet.xlsx`,
+        );
         assert.ok(ok, 'reading must not depend on zip entry order');
         assert.deepStrictEqual(
           sheetNames,
           ['my fancy title'],
-          'the sheet name must come from the (later-ordered) workbook part, not a default'
+          'the sheet name must come from the (later-ordered) workbook part, not a default',
         );
       },
     },

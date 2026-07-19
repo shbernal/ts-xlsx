@@ -8,8 +8,15 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
-const INITIAL = [['a', 1], ['b', 2], ['c', 3]];
-const APPEND = [['d', 4], ['e', 5]];
+const INITIAL = [
+  ['a', 1],
+  ['b', 2],
+  ['c', 3],
+];
+const APPEND = [
+  ['d', 4],
+  ['e', 5],
+];
 
 export default {
   id: 'append-rows-after-last-row-roundtrip',
@@ -27,7 +34,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {loadedRowCount} = await api.appendRowsAfterReload(INITIAL, APPEND);
-        assert.strictEqual(loadedRowCount, INITIAL.length, 'the loaded sheet reports 3 populated rows');
+        assert.strictEqual(
+          loadedRowCount,
+          INITIAL.length,
+          'the loaded sheet reports 3 populated rows',
+        );
       },
     },
     {
@@ -35,8 +46,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {finalRowCount, rows} = await api.appendRowsAfterReload(INITIAL, APPEND);
-        assert.strictEqual(finalRowCount, INITIAL.length + APPEND.length, 'row count grows by exactly the appended rows');
-        assert.deepStrictEqual(rows[3], ['d', 4], 'the first appended row is at index 4, right after the originals');
+        assert.strictEqual(
+          finalRowCount,
+          INITIAL.length + APPEND.length,
+          'row count grows by exactly the appended rows',
+        );
+        assert.deepStrictEqual(
+          rows[3],
+          ['d', 4],
+          'the first appended row is at index 4, right after the originals',
+        );
         assert.deepStrictEqual(rows[4], ['e', 5], 'the second appended row is at index 5');
       },
     },
@@ -45,7 +64,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {rows} = await api.appendRowsAfterReload(INITIAL, APPEND);
-        assert.deepStrictEqual([rows[0], rows[1], rows[2]], INITIAL, 'the original three rows are untouched');
+        assert.deepStrictEqual(
+          [rows[0], rows[1], rows[2]],
+          INITIAL,
+          'the original three rows are untouched',
+        );
       },
     },
   ],

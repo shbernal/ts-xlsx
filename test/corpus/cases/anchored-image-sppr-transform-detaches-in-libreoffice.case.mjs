@@ -45,7 +45,10 @@ export default {
         assert.strictEqual(anchors[0].anchorType, 'oneCell', 'it is a single-cell anchor');
         assert.strictEqual(anchors[0].from.col, 2, 'the anchor from-column is preserved');
         assert.strictEqual(anchors[0].from.row, 11, 'the anchor from-row is preserved');
-        assert.ok(anchors[0].ext && anchors[0].ext.cx > 0 && anchors[0].ext.cy > 0, 'the anchor extent is non-zero');
+        assert.ok(
+          anchors[0].ext && anchors[0].ext.cx > 0 && anchors[0].ext.cy > 0,
+          'the anchor extent is non-zero',
+        );
       },
     },
     {
@@ -56,7 +59,7 @@ export default {
         assert.strictEqual(
           anchors[0].spPr.zeroedTransform,
           false,
-          `an anchored picture must not emit a zeroed spPr transform (off 0,0 + ext 0,0); got ${JSON.stringify(anchors[0].spPr)}`
+          `an anchored picture must not emit a zeroed spPr transform (off 0,0 + ext 0,0); got ${JSON.stringify(anchors[0].spPr)}`,
         );
       },
     },
@@ -68,7 +71,7 @@ export default {
         assert.strictEqual(anchors[0].anchorType, 'twoCell', 'it is a two-cell anchor');
         assert.ok(
           anchors[0].to.col > anchors[0].from.col && anchors[0].to.row > anchors[0].from.row,
-          `the to-cell must be strictly beyond the from-cell; got ${JSON.stringify({from: anchors[0].from, to: anchors[0].to})}`
+          `the to-cell must be strictly beyond the from-cell; got ${JSON.stringify({from: anchors[0].from, to: anchors[0].to})}`,
         );
       },
     },
@@ -80,7 +83,7 @@ export default {
         assert.strictEqual(
           anchors[0].spPr.zeroedTransform,
           false,
-          `a two-cell-anchored picture must not emit a zeroed spPr extent (cx=0 cy=0), or strict OOXML viewers render nothing; got ${JSON.stringify(anchors[0].spPr)}`
+          `a two-cell-anchored picture must not emit a zeroed spPr extent (cx=0 cy=0), or strict OOXML viewers render nothing; got ${JSON.stringify(anchors[0].spPr)}`,
         );
       },
     },

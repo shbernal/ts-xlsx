@@ -37,15 +37,18 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
-        const imageDefaults = contentTypeDefaults.filter(
-          d => d.contentType && d.contentType.startsWith('image/')
+        const imageDefaults = contentTypeDefaults.filter((d) =>
+          d.contentType?.startsWith('image/'),
         );
-        assert.ok(imageDefaults.length >= 1, 'the image produces at least one image content-type Default');
-        const dirty = imageDefaults.filter(d => !/^[A-Za-z0-9]+$/.test(d.extension || ''));
+        assert.ok(
+          imageDefaults.length >= 1,
+          'the image produces at least one image content-type Default',
+        );
+        const dirty = imageDefaults.filter((d) => !/^[A-Za-z0-9]+$/.test(d.extension || ''));
         assert.deepStrictEqual(
           dirty,
           [],
-          `image content-type extensions must be bare tokens; got ${JSON.stringify(dirty)}`
+          `image content-type extensions must be bare tokens; got ${JSON.stringify(dirty)}`,
         );
       },
     },
@@ -54,8 +57,12 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
-        const leaked = contentTypeDefaults.filter(d => /[?&=]/.test(d.contentType || ''));
-        assert.deepStrictEqual(leaked, [], `no ContentType may carry query-string characters; got ${JSON.stringify(leaked)}`);
+        const leaked = contentTypeDefaults.filter((d) => /[?&=]/.test(d.contentType || ''));
+        assert.deepStrictEqual(
+          leaked,
+          [],
+          `no ContentType may carry query-string characters; got ${JSON.stringify(leaked)}`,
+        );
       },
     },
   ],

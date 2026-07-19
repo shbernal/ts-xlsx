@@ -16,12 +16,12 @@ export default {
   cluster: 'styles',
   description:
     'Cells that shared a style index on disk must expose independent style objects once loaded, so ' +
-    'mutating one cell\'s fill leaves sibling cells untouched — both in memory and after write-back.',
+    "mutating one cell's fill leaves sibling cells untouched — both in memory and after write-back.",
 
   /** @type {Behavior[]} */
   behavior: [
     {
-      name: 'mutating one loaded cell\'s fill does not bleed into a sibling that shared its style index',
+      name: "mutating one loaded cell's fill does not bleed into a sibling that shared its style index",
       baseline: 'pass',
       async expect(api, assert) {
         const {sibling, original, bled} = await api.loadMutateCellStyle();
@@ -34,8 +34,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {diskSibling, original, diskBled} = await api.loadMutateCellStyle();
-        assert.ok(!diskBled, `only the edited cell should change on disk; sibling became ${diskSibling}`);
-        assert.strictEqual(diskSibling, original, 'the sibling keeps its original fill in the written file');
+        assert.ok(
+          !diskBled,
+          `only the edited cell should change on disk; sibling became ${diskSibling}`,
+        );
+        assert.strictEqual(
+          diskSibling,
+          original,
+          'the sibling keeps its original fill in the written file',
+        );
       },
     },
     {
@@ -43,7 +50,7 @@ export default {
       // existing font onto a fresh literal and overriding one member (cell.font = {...cell.font,
       // color}). Even building a new object must not carry the shared record's identity into the
       // sibling.
-      name: 'spread-reassigning one loaded cell\'s font member does not bleed into a shared sibling',
+      name: "spread-reassigning one loaded cell's font member does not bleed into a shared sibling",
       baseline: 'pass',
       async expect(api, assert) {
         const {sibling, original, edited, mutatedTo, bled} = await api.loadMutateCellFont();

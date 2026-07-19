@@ -9,14 +9,16 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => void }} Behavior */
 
 const SPEC = {
-  sheets: [{
-    name: 'Data',
-    cells: [
-      {ref: 'A1', value: {invalidDate: true}},
-      {ref: 'B1', value: 'still here'},
-      {ref: 'C1', value: 42},
-    ],
-  }],
+  sheets: [
+    {
+      name: 'Data',
+      cells: [
+        {ref: 'A1', value: {invalidDate: true}},
+        {ref: 'B1', value: 'still here'},
+        {ref: 'C1', value: 42},
+      ],
+    },
+  ],
 };
 
 export default {

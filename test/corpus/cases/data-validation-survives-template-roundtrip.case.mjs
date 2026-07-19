@@ -37,7 +37,7 @@ export default {
         const {totalValidations} = await api.roundtripFixtureValidationXml(FIXTURE);
         assert.ok(
           totalValidations >= 1,
-          `the template's validation must survive write; found ${totalValidations} in the output`
+          `the template's validation must survive write; found ${totalValidations} in the output`,
         );
       },
     },
@@ -47,10 +47,10 @@ export default {
       async expect(api, assert) {
         const {totalExt, sheets} = await api.roundtripFixtureValidationXml(FIXTURE);
         assert.ok(totalExt >= 1, 'the x14 extended validation should be re-serialized');
-        const sqrefs = Object.values(sheets).flatMap(s => s.extSqrefs);
+        const sqrefs = Object.values(sheets).flatMap((s) => s.extSqrefs);
         assert.ok(
-          sqrefs.some(ref => /^A1:A104857\d$/.test(ref)),
-          `the whole-column target range should survive; got ${JSON.stringify(sqrefs)}`
+          sqrefs.some((ref) => /^A1:A104857\d$/.test(ref)),
+          `the whole-column target range should survive; got ${JSON.stringify(sqrefs)}`,
         );
       },
     },

@@ -28,7 +28,7 @@ export default {
         assert.strictEqual(
           controlNumFmtReload,
           'yyyy-mmm-dd',
-          `the string number format must survive the write; got ${JSON.stringify(controlNumFmtReload)}`
+          `the string number format must survive the write; got ${JSON.stringify(controlNumFmtReload)}`,
         );
       },
     },
@@ -40,7 +40,7 @@ export default {
         assert.strictEqual(
           stylesHasObjectObject,
           false,
-          'the styles part must never contain formatCode="[object Object]" from a coerced object numFmt'
+          'the styles part must never contain formatCode="[object Object]" from a coerced object numFmt',
         );
       },
     },

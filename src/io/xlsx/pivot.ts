@@ -36,7 +36,7 @@ const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
  * to the pixel. `recordCount` is the number of source data rows. */
 export function pivotCacheDefinitionXml(table: PivotTable): string {
   const fields = table.cacheFields
-    .map(field => {
+    .map((field) => {
       const shared = field.sharedItems;
       if (shared !== null) {
         const items = shared.map(sharedItemXml).join('');
@@ -74,7 +74,9 @@ export function pivotCacheDefinitionXml(table: PivotTable): string {
 /** The `pivotCacheRecords` part: one `<r>` per source data row, each cell either an index into an
  * axis field's shared-items catalogue (`<x>`) or an inline value (`<n>`/`<s>`/`<m>`). */
 export function pivotCacheRecordsXml(table: PivotTable): string {
-  const rows = table.records.map(record => `<r>${record.map(recordCellXml).join('')}</r>`).join('');
+  const rows = table.records
+    .map((record) => `<r>${record.map(recordCellXml).join('')}</r>`)
+    .join('');
   return (
     XML_DECLARATION +
     `<pivotCacheRecords xmlns="${MAIN_NS}" xmlns:r="${REL_NS}" count="${table.records.length}">` +
@@ -100,7 +102,7 @@ export function pivotTableXml(table: PivotTable, name: string, cacheId: string):
       if (table.rowFields.includes(index) || table.columnFields.includes(index)) {
         const axis = table.rowFields.includes(index) ? 'axisRow' : 'axisCol';
         const items = field.sharedItems ?? [];
-        const entries = items.map((_item, i) => `<item x="${i}"/>`).join('') + '<item t="default"/>';
+        const entries = `${items.map((_item, i) => `<item x="${i}"/>`).join('')}<item t="default"/>`;
         return `<pivotField axis="${axis}" showAll="0"><items count="${items.length + 1}">${entries}</items></pivotField>`;
       }
       if (index === table.valueField) return '<pivotField dataField="1" showAll="0"/>';
@@ -108,8 +110,8 @@ export function pivotTableXml(table: PivotTable, name: string, cacheId: string):
     })
     .join('');
 
-  const rowFields = table.rowFields.map(index => `<field x="${index}"/>`).join('');
-  const columnFields = table.columnFields.map(index => `<field x="${index}"/>`).join('');
+  const rowFields = table.rowFields.map((index) => `<field x="${index}"/>`).join('');
+  const columnFields = table.columnFields.map((index) => `<field x="${index}"/>`).join('');
 
   return (
     XML_DECLARATION +

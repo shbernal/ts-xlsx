@@ -43,7 +43,10 @@ test('a table read back from a written package exposes its name, columns, and re
   assert.equal(rest.length, 0, 'exactly one table is reconstructed');
   assert.ok(table !== undefined);
   assert.equal(table.name, 'Inventory');
-  assert.deepEqual(table.columns.map(c => c.name), ['Item', 'Qty']);
+  assert.deepEqual(
+    table.columns.map((c) => c.name),
+    ['Item', 'Qty'],
+  );
   assert.equal(table.ref, 'A1:B4', 'header + 3 data rows spans four rows');
   assert.equal(table.options.ref, 'A1', 'the anchor reconstructs to the top-left cell');
 });
@@ -107,15 +110,35 @@ test('a totals-row table round-trips its totals flag and per-column totals behav
 test('a table with no totalsRowShown flag stays without one across a round-trip', () => {
   const [table] = roundtripTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 2});
   assert.ok(table !== undefined);
-  assert.equal(table.options.totalsRowShown, undefined, 'an absent flag must not be fabricated on read-back');
-  assert.equal('totalsRowShown' in table.options, false, 'the key is omitted, not set to undefined');
+  assert.equal(
+    table.options.totalsRowShown,
+    undefined,
+    'an absent flag must not be fabricated on read-back',
+  );
+  assert.equal(
+    'totalsRowShown' in table.options,
+    false,
+    'the key is omitted, not set to undefined',
+  );
 });
 
 test('an explicit totalsRowShown flag survives a round-trip in both states', () => {
-  const [off] = roundtripTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 2, totalsRowShown: false});
+  const [off] = roundtripTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'A'}],
+    rowCount: 2,
+    totalsRowShown: false,
+  });
   assert.equal(off?.options.totalsRowShown, false);
 
-  const [on] = roundtripTable({name: 'T', ref: 'A1', columns: [{name: 'A'}], rowCount: 2, totalsRowShown: true});
+  const [on] = roundtripTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'A'}],
+    rowCount: 2,
+    totalsRowShown: true,
+  });
   assert.equal(on?.options.totalsRowShown, true);
 });
 
@@ -125,7 +148,13 @@ test('a custom table style name and banding flags survive a round-trip verbatim'
     ref: 'A1',
     columns: [{name: 'A'}],
     rowCount: 2,
-    style: {name: 'TableStyleLight9', showFirstColumn: true, showLastColumn: false, showRowStripes: false, showColumnStripes: true},
+    style: {
+      name: 'TableStyleLight9',
+      showFirstColumn: true,
+      showLastColumn: false,
+      showRowStripes: false,
+      showColumnStripes: true,
+    },
   });
   assert.ok(table !== undefined);
   assert.deepEqual(table.options.style, {
@@ -146,11 +175,15 @@ test('a style that omits its name round-trips still nameless, not defaulted', ()
     style: {showRowStripes: true},
   });
   assert.ok(table !== undefined);
-  assert.equal('name' in (table.options.style ?? {}), false, 'an absent style name is not fabricated');
+  assert.equal(
+    'name' in (table.options.style ?? {}),
+    false,
+    'an absent style name is not fabricated',
+  );
   assert.equal(table.options.style?.showRowStripes, true);
 });
 
-test('a table authored without a style reads back with Excel\'s default style', () => {
+test("a table authored without a style reads back with Excel's default style", () => {
   const [table] = roundtripTable({name: 'Plain', ref: 'A1', columns: [{name: 'A'}], rowCount: 1});
   assert.ok(table !== undefined);
   assert.equal(table.options.style?.name, 'TableStyleMedium2');
@@ -193,7 +226,12 @@ test('a header table read without an autoFilter does not gain one on round-trip'
 });
 
 test('a header table gains an autoFilter by default', () => {
-  const [table] = roundtripTable({name: 'Filtered', ref: 'A1', columns: [{name: 'C'}], rowCount: 2});
+  const [table] = roundtripTable({
+    name: 'Filtered',
+    ref: 'A1',
+    columns: [{name: 'C'}],
+    rowCount: 2,
+  });
   assert.ok(table !== undefined);
   assert.equal(table.autoFilterRef, 'A1:A3', 'the default autoFilter spans header + data rows');
   assert.equal(table.options.autoFilter, true);
@@ -207,7 +245,10 @@ test('several tables on one sheet all read back in definition order', () => {
 
   const back = readXlsx(writeXlsx(wb));
   const tables = back.getWorksheet('S')?.tables ?? [];
-  assert.deepEqual(tables.map(t => t.name), ['First', 'Second']);
+  assert.deepEqual(
+    tables.map((t) => t.name),
+    ['First', 'Second'],
+  );
   assert.equal(tables[1]?.ref, 'D1:E3');
 });
 
@@ -217,8 +258,14 @@ test('tables on distinct sheets each reconstruct on their own sheet', () => {
   wb.addWorksheet('Two').addTable({name: 'TB', ref: 'A1', columns: [{name: 'Y'}], rowCount: 1});
 
   const back = readXlsx(writeXlsx(wb));
-  assert.deepEqual(back.getWorksheet('One')?.tables.map(t => t.name), ['TA']);
-  assert.deepEqual(back.getWorksheet('Two')?.tables.map(t => t.name), ['TB']);
+  assert.deepEqual(
+    back.getWorksheet('One')?.tables.map((t) => t.name),
+    ['TA'],
+  );
+  assert.deepEqual(
+    back.getWorksheet('Two')?.tables.map((t) => t.name),
+    ['TB'],
+  );
 });
 
 test('a table survives a second read → write → read round-trip unchanged', () => {
@@ -235,5 +282,8 @@ test('a table survives a second read → write → read round-trip unchanged', (
   assert.ok(table !== undefined);
   assert.equal(table.name, 'Persist');
   assert.equal(table.ref, 'B2:D6', 'the range is stable across two round-trips');
-  assert.deepEqual(table.columns.map(c => c.name), ['One', 'Two', 'Three']);
+  assert.deepEqual(
+    table.columns.map((c) => c.name),
+    ['One', 'Two', 'Three'],
+  );
 });

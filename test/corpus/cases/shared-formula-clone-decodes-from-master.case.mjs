@@ -54,7 +54,11 @@ export default {
         const cells = await api.roundtripFormulas(SPEC);
         assert.strictEqual(cells.B2.formula, 'A2*2', 'clone one row down is A2*2, not empty');
         assert.strictEqual(cells.B3.formula, 'A3*2', 'clone two rows down is A3*2');
-        assert.strictEqual(cells.B2.sharedFormula, 'B1', 'the clone still records its master reference');
+        assert.strictEqual(
+          cells.B2.sharedFormula,
+          'B1',
+          'the clone still records its master reference',
+        );
       },
     },
     {

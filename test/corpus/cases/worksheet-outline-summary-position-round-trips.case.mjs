@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {outlinePrEmitted} = await api.outlinePropertiesRoundtrip();
-        assert.strictEqual(outlinePrEmitted, true, 'the sheet properties emit <outlinePr summaryBelow="0" summaryRight="0"/>');
+        assert.strictEqual(
+          outlinePrEmitted,
+          true,
+          'the sheet properties emit <outlinePr summaryBelow="0" summaryRight="0"/>',
+        );
       },
     },
     {

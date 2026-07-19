@@ -8,7 +8,7 @@
 // `current` (legacy) and `rewrite` adapters unzip their own way yet return byte-identical
 // facts, so a case compares like with like across implementations.
 
-const attrs = tag => {
+const attrs = (tag) => {
   const out = {};
   for (const m of String(tag || '').matchAll(/([\w:]+)="([^"]*)"/g)) out[m[1]] = m[2];
   return out;
@@ -17,7 +17,7 @@ const attrs = tag => {
 // Cheap structural well-formedness check: a raw & that isn't an entity means a strict
 // consumer would choke. A real parser is the reader's concern; here we only need to
 // catch an unescaped special leaking into serialized XML.
-const xmlWellFormed = xml => !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
+const xmlWellFormed = (xml) => !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
 
 /**
  * @param spec  the workbook spec that produced the package (drives per-sheet lookup)
@@ -25,33 +25,35 @@ const xmlWellFormed = xml => !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.
  */
 export function packageFacts(spec, partMap) {
   const parts = Object.keys(partMap).sort();
-  const read = f => (f in partMap ? partMap[f] : null);
+  const read = (f) => (f in partMap ? partMap[f] : null);
 
   const contentTypes = read('[Content_Types].xml') || '';
   const workbookXml = read('xl/workbook.xml') || '';
   const relsXml = read('xl/_rels/workbook.xml.rels') || '';
 
-  const worksheetParts = parts.filter(p => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
+  const worksheetParts = parts.filter((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
   const wsRelsXml = read('xl/worksheets/_rels/sheet1.xml.rels') || '';
-  const worksheetRels = [...wsRelsXml.matchAll(/<Relationship\b[^>]*?\/?>/g)].map(t => {
+  const worksheetRels = [...wsRelsXml.matchAll(/<Relationship\b[^>]*?\/?>/g)].map((t) => {
     const a = attrs(t[0]);
     return {id: a.Id, target: a.Target, type: (a.Type || '').split('/').pop()};
   });
-  const wsRelIds = worksheetRels.map(r => r.id);
-  const overrides = [...contentTypes.matchAll(/<Override[^>]*PartName="([^"]*)"[^>]*\/>/g)].map(m => m[1]);
-  const contentTypeDefaults = [...contentTypes.matchAll(/<Default\b[^>]*\/>/g)].map(t => {
+  const wsRelIds = worksheetRels.map((r) => r.id);
+  const overrides = [...contentTypes.matchAll(/<Override[^>]*PartName="([^"]*)"[^>]*\/>/g)].map(
+    (m) => m[1],
+  );
+  const contentTypeDefaults = [...contentTypes.matchAll(/<Default\b[^>]*\/>/g)].map((t) => {
     const a = attrs(t[0]);
     return {extension: a.Extension ?? null, contentType: a.ContentType ?? null};
   });
-  const sheetEntries = [...workbookXml.matchAll(/<sheet\b[^>]*?\/?>/g)].map(t => {
+  const sheetEntries = [...workbookXml.matchAll(/<sheet\b[^>]*?\/?>/g)].map((t) => {
     const a = attrs(t[0]);
     return {name: a.name, rid: a['r:id'], state: a.state ?? null};
   });
   // Workbook-level defined names: the element's attributes plus its refersTo text content, sorted by
   // name so a case compares a stable set regardless of emission order.
   const definedNames = [...workbookXml.matchAll(/<definedName\b([^>]*)>([\s\S]*?)<\/definedName>/g)]
-    .map(m => {
-      const a = attrs('<x ' + m[1] + '>');
+    .map((m) => {
+      const a = attrs(`<x ${m[1]}>`);
       return {
         name: a.name ?? null,
         localSheetId: a.localSheetId !== undefined ? Number(a.localSheetId) : null,
@@ -60,7 +62,7 @@ export function packageFacts(spec, partMap) {
       };
     })
     .sort((x, y) => String(x.name).localeCompare(String(y.name)));
-  const rels = [...relsXml.matchAll(/<Relationship\b[^>]*?\/?>/g)].map(t => {
+  const rels = [...relsXml.matchAll(/<Relationship\b[^>]*?\/?>/g)].map((t) => {
     const a = attrs(t[0]);
     return {id: a.Id, target: a.Target, type: (a.Type || '').split('/').pop()};
   });
@@ -79,21 +81,27 @@ export function packageFacts(spec, partMap) {
     for (const m of xml.matchAll(/<c\b[^>]*r="([^"]*)"[^>]*>[\s\S]*?<f\b[^>]*>([\s\S]*?)<\/f>/g)) {
       formulas[m[1]] = m[2];
     }
-    const columnGroups = [...xml.matchAll(/<col\b[^>]*\/>/g)].map(t => {
+    const columnGroups = [...xml.matchAll(/<col\b[^>]*\/>/g)].map((t) => {
       const a = attrs(t[0]);
-      return {min: a.min ? Number(a.min) : null, max: a.max ? Number(a.max) : null, width: a.width ?? null};
+      return {
+        min: a.min ? Number(a.min) : null,
+        max: a.max ? Number(a.max) : null,
+        width: a.width ?? null,
+      };
     });
-    const posOf = tag => xml.indexOf(tag);
+    const posOf = (tag) => xml.indexOf(tag);
     const posDrawing = posOf('<drawing ');
     const posLegacy = posOf('<legacyDrawing ');
     const posTable = posOf('<tableParts');
     const ordered = (a, b) => (a >= 0 && b >= 0 ? a < b : null);
-    const hfBlock = (xml.match(/<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/) || [''])[0];
-    const hfChild = tag => {
+    const hfBlock = (xml.match(
+      /<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/,
+    ) || [''])[0];
+    const hfChild = (tag) => {
       const m = hfBlock.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`));
       return m ? m[1] : null;
     };
-    const hfFlag = name => new RegExp(`\\b${name}="(1|true)"`).test(hfBlock);
+    const hfFlag = (name) => new RegExp(`\\b${name}="(1|true)"`).test(hfBlock);
     const rowAttrs = {};
     for (const t of xml.matchAll(/<row\b[^>]*>/g)) {
       const a = attrs(t[0]);
@@ -148,7 +156,7 @@ export function packageFacts(spec, partMap) {
   }
 
   const tables = [];
-  for (const p of parts.filter(f => /^xl\/tables\/table\d+\.xml$/.test(f))) {
+  for (const p of parts.filter((f) => /^xl\/tables\/table\d+\.xml$/.test(f))) {
     const xml = read(p) || '';
     const a = attrs((xml.match(/<table\b[^>]*>/) || [''])[0]);
     const af = xml.match(/<autoFilter\b[^>]*ref="([^"]*)"/);
@@ -165,7 +173,7 @@ export function packageFacts(spec, partMap) {
   const stylesXml = read('xl/styles.xml') || '';
   const defaultFontBlock = (stylesXml.match(/<font>[\s\S]*?<\/font>/) || [''])[0];
   const defaultFontColor = attrs((defaultFontBlock.match(/<color\b[^>]*\/?>/) || [''])[0]);
-  const hasThemePart = parts.some(p => /^xl\/theme\/theme\d+\.xml$/.test(p));
+  const hasThemePart = parts.some((p) => /^xl\/theme\/theme\d+\.xml$/.test(p));
   const styles = {
     hasThemePart,
     defaultFontColor,
@@ -174,19 +182,24 @@ export function packageFacts(spec, partMap) {
   };
 
   const vmlTextboxStyles = [];
-  for (const p of parts.filter(f => /^xl\/drawings\/vmlDrawing\d+\.vml$/.test(f))) {
+  for (const p of parts.filter((f) => /^xl\/drawings\/vmlDrawing\d+\.vml$/.test(f))) {
     const vml = read(p) || '';
-    for (const t of vml.matchAll(/<(?:v:)?textbox\b[^>]*\bstyle="([^"]*)"/g)) vmlTextboxStyles.push(t[1]);
+    for (const t of vml.matchAll(/<(?:v:)?textbox\b[^>]*\bstyle="([^"]*)"/g))
+      vmlTextboxStyles.push(t[1]);
   }
   const vml = {
     textboxStyles: vmlTextboxStyles,
     allTextboxesFitToText:
-      vmlTextboxStyles.length > 0 && vmlTextboxStyles.every(s => /mso-fit-shape-to-text\s*:\s*t/i.test(s)),
+      vmlTextboxStyles.length > 0 &&
+      vmlTextboxStyles.every((s) => /mso-fit-shape-to-text\s*:\s*t/i.test(s)),
   };
 
-  const declaredConsistent = worksheetParts.every(part => {
-    const over = overrides.includes('/' + part);
-    const rid = rels.find(r => ('xl/' + r.target).replace('xl/xl/', 'xl/') === part || r.target === part.replace('xl/', ''));
+  const declaredConsistent = worksheetParts.every((part) => {
+    const over = overrides.includes(`/${part}`);
+    const rid = rels.find(
+      (r) =>
+        `xl/${r.target}`.replace('xl/xl/', 'xl/') === part || r.target === part.replace('xl/', ''),
+    );
     return over && !!rid;
   });
 
@@ -204,9 +217,9 @@ export function packageFacts(spec, partMap) {
     styles,
     vml,
     packageParts: {
-      hasCommentsPart: parts.some(p => /^xl\/comments\d+\.xml$/.test(p)),
-      hasVmlDrawingPart: parts.some(p => /^xl\/drawings\/vmlDrawing\d+\.vml$/.test(p)),
-      hasTablePart: parts.some(p => /^xl\/tables\/table\d+\.xml$/.test(p)),
+      hasCommentsPart: parts.some((p) => /^xl\/comments\d+\.xml$/.test(p)),
+      hasVmlDrawingPart: parts.some((p) => /^xl\/drawings\/vmlDrawing\d+\.vml$/.test(p)),
+      hasTablePart: parts.some((p) => /^xl\/tables\/table\d+\.xml$/.test(p)),
     },
     consistency: {
       worksheetPartCount: worksheetParts.length,

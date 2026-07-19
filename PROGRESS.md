@@ -8,7 +8,7 @@
 > When a phase's status changes, update this file **and** `STRATEGY.md` in the same breath.
 > Legend: ✅ done · 🔜 next · ⏳ pending · 🧊 deferred-on-purpose · ❓ open decision.
 
-_Last updated: 2026-07-19 (**Phase 4 underway — clean break + publishable build landed.** Phase 3 is complete: the src/ rewrite passes the whole corpus (671 green, 0 regressions) as its own reference implementation and the legacy lib/ tree is deleted; the runtime dependency tree is fflate alone. Slice 1 done: `npm run build` emits ESM .js + .d.ts to dist/ via pure tsc (rewriteRelativeImportExtensions — no bundler); exports/engines re-pointed, `private` dropped behind a `prepublishOnly` gate, CI enforces a dist smoke round-trip + a 600 KB size budget (currently ~489 KB). Version stays 0.0.0-dev. Remaining Phase 4, in order: the Biome/Vitest-or-node:test toolchain standup, docs generated from the public types, and the human rebrand. See the dated increments below and STRATEGY.md Phase 4.)
+_Last updated: 2026-07-19 (**Phase 4 underway — clean break + publishable build + toolchain landed.** Phase 3 is complete: the src/ rewrite passes the whole corpus (671 green, 0 regressions) as its own reference implementation and the legacy lib/ tree is deleted; the runtime dependency tree is fflate alone. Slice 1 done: `npm run build` emits ESM .js + .d.ts to dist/ via pure tsc (rewriteRelativeImportExtensions — no bundler); exports/engines re-pointed, `private` dropped behind a `prepublishOnly` gate, CI enforces a dist smoke round-trip + a 600 KB size budget (currently ~489 KB). Slice 2 done (ADR-0002): **Biome** lint/format over the whole authored tree (now the first gate in `npm test` + CI), **`node --test` kept over Vitest** (native coverage ~98%, `test:coverage`), and **hand-rolled `Expect<Equal>` type-level tests** under src/type-tests/ enforced by tsc. Version stays 0.0.0-dev. Remaining Phase 4, in order: docs generated from the public types, and the human rebrand. See the dated increments below and STRATEGY.md Phase 4.)
 
 ---
 
@@ -1971,3 +1971,34 @@ build + smoke + size all green. The definitive package **name** stays the one de
 **Remaining in Phase 4 (order in `STRATEGY.md`):** (2) toolchain standup — Biome lint/format,
 keep-`node --test`-or-adopt-Vitest decision (ADR) + type-level tests; (3) docs generated from the public
 types; (4) **rebrand — the definitive package name is a human decision** (`CLAUDE.md` §3).
+
+### 2026-07-19 — Phase 4 slice 2: toolchain standup *(independence)*
+
+The deferred lint/format/test-runner decisions from ADR-0001 are resolved (→ **ADR-0002**). **Biome** is
+the lint + format tool: one zero-dependency binary over the whole authored tree (src + scripts + the
+`.mjs` corpus), `recommended` preset, config matched to the hand-authored style (2-space, single quote,
+`bracketSpacing:false`, 100-col) so adoption was a format pass, not a restyle. `npm run lint` is now the
+first gate in `npm test` and in the Corpus CI workflow. Applying it surfaced ~140 findings: the bulk
+(`useOptionalChain` ×105, `useTemplate` ×13) auto-fixed and **verified behavior-preserving against the
+671-behavior corpus**; the rest fixed by hand — brace-wrapped `forEach` callbacks (`useIterableCallbackReturn`),
+exec-loops hoisted out of `while` conditions (`noAssignInExpressions`), and one production non-null assertion
+narrowed via `String.prototype.charAt`. Two intentional sparse-array `addRow` tests that Biome's unsafe pass
+had silently rewritten (`['x', , 'z']` → `['x', undefined, 'z']`, a real `1 in arr` semantic change) were
+reverted and pinned with `biome-ignore`. Non-null-assertion policy splits deliberately: kept for production
+(prefer narrowing), disabled for tests (the fixture-is-known idiom) via a `biome.json` override.
+
+**`node --test` kept; Vitest rejected** — everything Vitest would add we already have without its transitive
+tree: coverage via `node --test --experimental-test-coverage` (`test:coverage`, **~98% line**), and
+**type-level tests hand-rolled** as `Expect<Equal<…>>` under `src/type-tests/` (no `expectTypeOf`/`tsd`
+dependency), enforced by the existing `tsc` gate and excluded from the published build. They lock contracts
+the runtime tests can't see — `writeXlsx`/`readXlsx` are synchronous, `CellAddress.col/row` are
+`number | undefined`, `CellValue` excludes `undefined` — proven non-vacuous by a negative control.
+
+Also: deleted the now-redundant `src/package.json` (the root is already `"type":"module"` and the legacy
+CommonJS `lib/` tree it once scoped is gone). Sharp edge banked in ADR-0002: **Biome 2.5.4 silently drops
+the entire `overrides` array when `biome.json` has `//` comments** — so the config is kept comment-free.
+Full gate green: `lint` clean (336 files), `typecheck` clean (incl. type-tests), `test:src` **647 pass**,
+`corpus` **671 green, 0 regressions**, build + smoke + size still green.
+
+**Remaining in Phase 4:** (3) docs generated from the public types; (4) **rebrand — the definitive package
+name is a human decision** (`CLAUDE.md` §3).

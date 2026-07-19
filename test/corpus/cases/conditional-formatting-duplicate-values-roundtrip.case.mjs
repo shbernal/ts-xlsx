@@ -29,8 +29,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {source} = await api.roundtripFixtureConditionalFormatting(FIXTURE);
-        const dup = source.rules.find(r => r.type === 'duplicateValues');
-        assert.ok(dup, `the fixture must declare a duplicateValues rule; got ${JSON.stringify(source)}`);
+        const dup = source.rules.find((r) => r.type === 'duplicateValues');
+        assert.ok(
+          dup,
+          `the fixture must declare a duplicateValues rule; got ${JSON.stringify(source)}`,
+        );
         assert.strictEqual(dup.dxfId, '0', 'the source rule references dxfId 0');
       },
     },
@@ -39,10 +42,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {rewritten} = await api.roundtripFixtureConditionalFormatting(FIXTURE);
-        const dup = rewritten.rules.find(r => r.type === 'duplicateValues');
+        const dup = rewritten.rules.find((r) => r.type === 'duplicateValues');
         assert.ok(
           dup,
-          `the duplicateValues rule must survive re-serialization, not be dropped; rewritten=${JSON.stringify(rewritten)}`
+          `the duplicateValues rule must survive re-serialization, not be dropped; rewritten=${JSON.stringify(rewritten)}`,
         );
         assert.strictEqual(dup.dxfId, '0', 'the rewritten rule keeps its dxfId reference');
         assert.ok(dup.priority != null, 'the rewritten rule keeps a priority');
@@ -55,7 +58,7 @@ export default {
         const {rewritten} = await api.roundtripFixtureConditionalFormatting(FIXTURE);
         assert.ok(
           rewritten.rules.length >= rewritten.blockCount,
-          `every conditionalFormatting block must still contain at least one cfRule; blocks=${rewritten.blockCount} rules=${rewritten.rules.length}`
+          `every conditionalFormatting block must still contain at least one cfRule; blocks=${rewritten.blockCount} rules=${rewritten.rules.length}`,
         );
       },
     },

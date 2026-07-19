@@ -10,7 +10,9 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 // A single image anchored at the top-left with an explicit pixel extent — a oneCellAnchor.
-const SPEC = {sheets: [{name: 'S', images: [{range: {tl: {col: 0, row: 0}, ext: {width: 191, height: 47}}}]}]};
+const SPEC = {
+  sheets: [{name: 'S', images: [{range: {tl: {col: 0, row: 0}, ext: {width: 191, height: 47}}}]}],
+};
 
 const PX_TO_EMU = 9525;
 

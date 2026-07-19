@@ -14,7 +14,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'streaming',
   description:
-    'The streaming reader reports a column\'s hidden flag, agreeing with the eager read — a worksheet ' +
+    "The streaming reader reports a column's hidden flag, agreeing with the eager read — a worksheet " +
     'written with a hidden column is not surfaced as all-visible when streamed.',
 
   /** @type {Behavior[]} */
@@ -34,7 +34,11 @@ export default {
       async expect(api, assert) {
         const {eager, stream, error} = await api.streamVsEagerColumnHidden();
         assert.strictEqual(error, null, `streaming read must not error; got ${error}`);
-        assert.strictEqual(stream.col2, eager.col2, `streaming must report column 2 hidden as the eager read does; stream=${JSON.stringify(stream)}`);
+        assert.strictEqual(
+          stream.col2,
+          eager.col2,
+          `streaming must report column 2 hidden as the eager read does; stream=${JSON.stringify(stream)}`,
+        );
       },
     },
     {

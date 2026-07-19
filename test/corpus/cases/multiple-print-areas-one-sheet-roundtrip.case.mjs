@@ -36,10 +36,12 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {readPrintArea} = await api.roundtripFixturePrintAreas(FIXTURE);
-        const rangeCount = String(readPrintArea || '').split(',').filter(Boolean).length;
+        const rangeCount = String(readPrintArea || '')
+          .split(',')
+          .filter(Boolean).length;
         assert.ok(
           rangeCount >= 2,
-          `both print areas must be recovered on read; got printArea=${JSON.stringify(readPrintArea)}`
+          `both print areas must be recovered on read; got printArea=${JSON.stringify(readPrintArea)}`,
         );
       },
     },
@@ -58,11 +60,11 @@ export default {
         const {ranges} = await api.writePrintAreaDefinedName('A1:F10,A12:F21');
         // Both emitted entries must be proper rectangular ranges (a "$A$1:$F$10" shape). A mangled
         // write drops the second range's tail, leaving a bare "A12" that is not a range at all.
-        const rectangles = ranges.filter(r => /:/.test(r) && /\$?[A-Z]+\$?\d+/.test(r));
+        const rectangles = ranges.filter((r) => /:/.test(r) && /\$?[A-Z]+\$?\d+/.test(r));
         assert.strictEqual(
           rectangles.length,
           2,
-          `a two-range printArea must emit two proper rectangular ranges, not a truncated/mangled one; got ${JSON.stringify(ranges)}`
+          `a two-range printArea must emit two proper rectangular ranges, not a truncated/mangled one; got ${JSON.stringify(ranges)}`,
         );
       },
     },

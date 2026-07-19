@@ -13,8 +13,13 @@ export default {
       name: 'an internal (#-prefixed) hyperlink carries a location attribute, not an r:id',
       baseline: 'pass',
       async expect(api, assert) {
-        const {hyperlinkHasRid, hyperlinkLocation} = await api.internalHyperlinkSerializationReport();
-        assert.strictEqual(hyperlinkHasRid, false, 'internal link must not use an r:id relationship');
+        const {hyperlinkHasRid, hyperlinkLocation} =
+          await api.internalHyperlinkSerializationReport();
+        assert.strictEqual(
+          hyperlinkHasRid,
+          false,
+          'internal link must not use an r:id relationship',
+        );
         assert.ok(hyperlinkLocation, 'internal link must carry a location attribute');
       },
     },

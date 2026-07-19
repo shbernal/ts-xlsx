@@ -38,7 +38,7 @@ export default {
         assert.strictEqual(
           dataValidationsBeforeHyperlinks,
           true,
-          'dataValidations must precede hyperlinks in the worksheet XML, or Excel repairs the file'
+          'dataValidations must precede hyperlinks in the worksheet XML, or Excel repairs the file',
         );
       },
     },
@@ -47,7 +47,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {reloadOk} = await api.streamWriteDvHyperlinkOrder();
-        assert.strictEqual(reloadOk, true, 'the tolerant reader reads it back despite the wrong order');
+        assert.strictEqual(
+          reloadOk,
+          true,
+          'the tolerant reader reads it back despite the wrong order',
+        );
       },
     },
   ],

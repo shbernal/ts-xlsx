@@ -41,7 +41,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.cells.A1.value, 'line1\nline2', 'the \\n break is preserved');
+        assert.strictEqual(
+          model.sheets.S.cells.A1.value,
+          'line1\nline2',
+          'the \\n break is preserved',
+        );
       },
     },
     {
@@ -52,7 +56,7 @@ export default {
         assert.strictEqual(
           model.sheets.S.cells.A2.value,
           'crlf1\ncrlf2',
-          '\\r\\n is normalized to \\n so all readers agree'
+          '\\r\\n is normalized to \\n so all readers agree',
         );
       },
     },
@@ -61,7 +65,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.cells.A3.value, 'a\n\nb', 'a double break is kept intact');
+        assert.strictEqual(
+          model.sheets.S.cells.A3.value,
+          'a\n\nb',
+          'a double break is kept intact',
+        );
       },
     },
     {
@@ -69,7 +77,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.cells.A4.value, 'wrap\nped', 'the break is stored regardless of wrapText');
+        assert.strictEqual(
+          model.sheets.S.cells.A4.value,
+          'wrap\nped',
+          'the break is stored regardless of wrapText',
+        );
       },
     },
   ],

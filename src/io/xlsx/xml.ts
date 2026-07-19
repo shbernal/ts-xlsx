@@ -25,12 +25,12 @@ const ATTR_ESCAPES: Record<string, string> = {
 
 /** Escape a string for use as XML element text. */
 export function escapeText(value: string): string {
-  return value.replace(/[&<>]/g, ch => TEXT_ESCAPES[ch] as string);
+  return value.replace(/[&<>]/g, (ch) => TEXT_ESCAPES[ch] as string);
 }
 
 /** Escape a string for use inside a double-quoted XML attribute value. */
 export function escapeAttr(value: string): string {
-  return value.replace(/[&<>"'\n\r\t]/g, ch => ATTR_ESCAPES[ch] as string);
+  return value.replace(/[&<>"'\n\r\t]/g, (ch) => ATTR_ESCAPES[ch] as string);
 }
 
 /**

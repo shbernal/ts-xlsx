@@ -32,7 +32,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(ok, true, `the load must not throw on a dangling column-style reference; got ${error}`);
+        assert.strictEqual(
+          ok,
+          true,
+          `the load must not throw on a dangling column-style reference; got ${error}`,
+        );
       },
     },
     {
@@ -41,8 +45,8 @@ export default {
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(
-          sheetNames && sheetNames.includes('Sheet1'),
-          `the worksheet must load despite the missing styles part; got ${JSON.stringify(sheetNames)}`
+          sheetNames?.includes('Sheet1'),
+          `the worksheet must load despite the missing styles part; got ${JSON.stringify(sheetNames)}`,
         );
       },
     },

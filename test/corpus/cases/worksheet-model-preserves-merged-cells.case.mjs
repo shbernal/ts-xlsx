@@ -17,7 +17,7 @@ export default {
   cluster: 'core-model',
   description:
     'Copying a worksheet via its model export/import (dst.model = {...src.model, name}) reproduces ' +
-    'the source sheet\'s merged ranges on the destination — model round-trip is lossless for merges.',
+    "the source sheet's merged ranges on the destination — model round-trip is lossless for merges.",
 
   /** @type {Behavior[]} */
   behavior: [
@@ -38,7 +38,7 @@ export default {
         assert.deepStrictEqual(
           dstMerges,
           ['A1:C1'],
-          'the destination sheet must carry the same merges the source model exported'
+          'the destination sheet must carry the same merges the source model exported',
         );
       },
     },

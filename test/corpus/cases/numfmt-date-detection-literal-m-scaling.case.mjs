@@ -34,7 +34,7 @@ export default {
         assert.strictEqual(
           cells.A84.type,
           'number',
-          `an escaped literal "m" must not make the format a date; A84 must be a number, got ${JSON.stringify(cells.A84)}`
+          `an escaped literal "m" must not make the format a date; A84 must be a number, got ${JSON.stringify(cells.A84)}`,
         );
       },
     },

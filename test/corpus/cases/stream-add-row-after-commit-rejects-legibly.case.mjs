@@ -33,8 +33,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {legibleRejection, internalCrash, error} = await api.streamAddRowAfterCommit();
-        assert.strictEqual(internalCrash, false, `the error must not be an internal null-property crash; got ${JSON.stringify(error)}`);
-        assert.strictEqual(legibleRejection, true, `the error must name the committed state; got ${JSON.stringify(error)}`);
+        assert.strictEqual(
+          internalCrash,
+          false,
+          `the error must not be an internal null-property crash; got ${JSON.stringify(error)}`,
+        );
+        assert.strictEqual(
+          legibleRejection,
+          true,
+          `the error must name the committed state; got ${JSON.stringify(error)}`,
+        );
       },
     },
   ],

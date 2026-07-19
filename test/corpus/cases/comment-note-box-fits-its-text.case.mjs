@@ -42,7 +42,7 @@ export default {
         assert.strictEqual(
           vml.allTextboxesFitToText,
           true,
-          `every comment textbox must carry mso-fit-shape-to-text:t; got styles ${JSON.stringify(vml.textboxStyles)}`
+          `every comment textbox must carry mso-fit-shape-to-text:t; got styles ${JSON.stringify(vml.textboxStyles)}`,
         );
       },
     },

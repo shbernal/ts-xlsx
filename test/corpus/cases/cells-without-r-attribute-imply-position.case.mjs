@@ -33,7 +33,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
-        assert.ok(sheetNames && sheetNames.length >= 1, 'the sheet is exposed once positions are implied');
+        assert.ok(
+          sheetNames && sheetNames.length >= 1,
+          'the sheet is exposed once positions are implied',
+        );
       },
     },
   ],

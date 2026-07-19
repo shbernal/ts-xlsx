@@ -36,7 +36,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {totalExt} = await api.roundtripFixtureValidationXml(FIXTURE);
-        assert.ok(totalExt >= 1, `the extended (x14) validation must be re-serialized; got ${totalExt}`);
+        assert.ok(
+          totalExt >= 1,
+          `the extended (x14) validation must be re-serialized; got ${totalExt}`,
+        );
       },
     },
   ],

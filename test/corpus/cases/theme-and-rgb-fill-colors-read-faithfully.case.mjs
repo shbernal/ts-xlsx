@@ -27,7 +27,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const styles = await api.readFixtureCellStyles(FIXTURE, [`${SHEET}!A1`]);
-        assert.strictEqual(styles[`${SHEET}!A1`].fill.fgColor.argb, 'FFFFFF00', 'the RGB fill argb is read');
+        assert.strictEqual(
+          styles[`${SHEET}!A1`].fill.fgColor.argb,
+          'FFFFFF00',
+          'the RGB fill argb is read',
+        );
       },
     },
     {
@@ -37,7 +41,10 @@ export default {
         const styles = await api.readFixtureCellStyles(FIXTURE, [`${SHEET}!C2`]);
         const fg = styles[`${SHEET}!C2`].fill.fgColor;
         assert.strictEqual(fg.theme, 3, 'the theme index is read');
-        assert.ok(typeof fg.tint === 'number' && fg.tint !== 0, `the tint is read (got ${JSON.stringify(fg.tint)})`);
+        assert.ok(
+          typeof fg.tint === 'number' && fg.tint !== 0,
+          `the tint is read (got ${JSON.stringify(fg.tint)})`,
+        );
       },
     },
   ],

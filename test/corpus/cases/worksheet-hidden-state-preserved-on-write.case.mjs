@@ -42,8 +42,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {xmlStates} = await api.worksheetStateReport();
-        assert.strictEqual(xmlStates.Hid, 'hidden', 'the hidden sheet entry carries state="hidden"');
-        assert.strictEqual(xmlStates.VeryHid, 'veryHidden', 'the veryHidden sheet entry carries state="veryHidden"');
+        assert.strictEqual(
+          xmlStates.Hid,
+          'hidden',
+          'the hidden sheet entry carries state="hidden"',
+        );
+        assert.strictEqual(
+          xmlStates.VeryHid,
+          'veryHidden',
+          'the veryHidden sheet entry carries state="veryHidden"',
+        );
       },
     },
   ],

@@ -52,7 +52,7 @@ export default {
           sheets.S.formulas.A1,
           '1+2',
           `the stored <f> text must not begin with "="; got ${JSON.stringify(sheets.S.formulas.A1)} — a ` +
-            'leading = makes the file unreadable to strict consumers'
+            'leading = makes the file unreadable to strict consumers',
         );
       },
     },
@@ -61,7 +61,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {A1} = await api.roundtripFormulas(SHEET);
-        assert.ok(A1.formula && !A1.formula.startsWith('='), `read-back formula must have no leading =; got ${JSON.stringify(A1.formula)}`);
+        assert.ok(
+          A1.formula && !A1.formula.startsWith('='),
+          `read-back formula must have no leading =; got ${JSON.stringify(A1.formula)}`,
+        );
       },
     },
   ],

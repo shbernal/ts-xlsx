@@ -43,7 +43,11 @@ export default {
       async expect(api, assert) {
         const {ok, lastModifiedBy} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(ok, true, 'precondition: the workbook loads');
-        assert.strictEqual(lastModifiedBy, 'Editor Two', `lastModifiedBy must be read from the unprefixed element; got ${JSON.stringify(lastModifiedBy)}`);
+        assert.strictEqual(
+          lastModifiedBy,
+          'Editor Two',
+          `lastModifiedBy must be read from the unprefixed element; got ${JSON.stringify(lastModifiedBy)}`,
+        );
       },
     },
   ],

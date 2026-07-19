@@ -28,7 +28,10 @@ function filledColumn(): Workbook {
 
 function sharedOf(wb: Workbook, ref: string): SharedFormulaValue {
   const value = wb.getWorksheet('S')?.getCell(ref).value;
-  assert.ok(value !== undefined && value !== null && isSharedFormulaValue(value), `${ref} is a shared formula`);
+  assert.ok(
+    value !== undefined && value !== null && isSharedFormulaValue(value),
+    `${ref} is a shared formula`,
+  );
   return value;
 }
 
@@ -71,7 +74,11 @@ test('an absolute reference in the master is not shifted in a clone', () => {
   sheet.getCell('B1').value = {formula: '$A$1+A1', result: 0};
   sheet.getCell('B2').value = {sharedFormula: 'B1', result: 0};
 
-  assert.equal(sharedOf(readXlsx(writeXlsx(wb)), 'B2').formula, '$A$1+A2', 'the anchored term stays put');
+  assert.equal(
+    sharedOf(readXlsx(writeXlsx(wb)), 'B2').formula,
+    '$A$1+A2',
+    'the anchored term stays put',
+  );
 });
 
 test('a shared formula survives a read → write → read round-trip', () => {
@@ -90,11 +97,14 @@ test('a clone whose master has no formula is refused, naming the offending cell'
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('B2').value = {sharedFormula: 'A1', result: 0};
 
-  assert.throws(() => writeXlsx(wb), (error: Error) => {
-    assert.match(error.message, /master/i, 'the error explains the missing master');
-    assert.match(error.message, /B2/, 'the error names the offending clone');
-    return true;
-  });
+  assert.throws(
+    () => writeXlsx(wb),
+    (error: Error) => {
+      assert.match(error.message, /master/i, 'the error explains the missing master');
+      assert.match(error.message, /B2/, 'the error names the offending clone');
+      return true;
+    },
+  );
 });
 
 test('a clone above or left of its master is rejected', () => {
@@ -137,7 +147,11 @@ test('a styled shared-formula clone keeps its fill and font on read, not just it
   const back = readXlsx(writeXlsx(wb));
   const b2 = back.getWorksheet('S')?.getCell('B2');
   assert.ok(b2 !== undefined);
-  assert.equal(sharedOf(back, 'B2').sharedFormula, 'B1', 'the clone is still a shared-formula clone');
+  assert.equal(
+    sharedOf(back, 'B2').sharedFormula,
+    'B1',
+    'the clone is still a shared-formula clone',
+  );
   // A solid fill reads back with the default indexed bgColor the writer emits alongside it.
   assert.deepEqual(b2.fill, {...red, bgColor: {indexed: 64}}, 'the clone keeps its fill');
   assert.deepEqual(b2.font, {bold: true}, 'the clone keeps its font');

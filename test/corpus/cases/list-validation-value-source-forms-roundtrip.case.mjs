@@ -35,8 +35,15 @@ export default {
           {ref: 'B2', formula: '"Male,Female"', error: 'pick one'},
         ]);
         assert.strictEqual(readBack.B2.type, 'list', 'the re-read validation must still be a list');
-        assert.deepStrictEqual(readBack.B2.formulae, ['"Male,Female"'], 'the inline literal must survive verbatim');
-        assert.ok(xml.formula1.includes('"Male,Female"'), `serialized formula1 must carry the literal; got ${JSON.stringify(xml.formula1)}`);
+        assert.deepStrictEqual(
+          readBack.B2.formulae,
+          ['"Male,Female"'],
+          'the inline literal must survive verbatim',
+        );
+        assert.ok(
+          xml.formula1.includes('"Male,Female"'),
+          `serialized formula1 must carry the literal; got ${JSON.stringify(xml.formula1)}`,
+        );
       },
     },
     {
@@ -47,8 +54,15 @@ export default {
           {ref: 'C2', formula: 'Levels!$A$2:$A$9999'},
         ]);
         assert.strictEqual(readBack.C2.type, 'list');
-        assert.deepStrictEqual(readBack.C2.formulae, ['Levels!$A$2:$A$9999'], 'the range reference must survive verbatim');
-        assert.ok(xml.formula1.includes('Levels!$A$2:$A$9999'), `serialized formula1 must carry the reference; got ${JSON.stringify(xml.formula1)}`);
+        assert.deepStrictEqual(
+          readBack.C2.formulae,
+          ['Levels!$A$2:$A$9999'],
+          'the range reference must survive verbatim',
+        );
+        assert.ok(
+          xml.formula1.includes('Levels!$A$2:$A$9999'),
+          `serialized formula1 must carry the reference; got ${JSON.stringify(xml.formula1)}`,
+        );
       },
     },
     {
@@ -61,7 +75,11 @@ export default {
         ]);
         assert.strictEqual(readBack.B2.type, 'list');
         assert.strictEqual(readBack.C2.type, 'list');
-        assert.strictEqual(xml.count, 2, 'each distinct target range must emit its own dataValidation');
+        assert.strictEqual(
+          xml.count,
+          2,
+          'each distinct target range must emit its own dataValidation',
+        );
         assert.ok(xml.wellFormed, 'the emitted dataValidations block must be well-formed OOXML');
       },
     },
@@ -72,15 +90,17 @@ export default {
       name: 'inline literals are quoted and range references are unquoted in the serialized formula1',
       baseline: 'pass',
       async expect(api, assert) {
-        const inline = await api.authorListValidations([{ref: 'B2', formula: '"One,Two,Three,Four"'}]);
+        const inline = await api.authorListValidations([
+          {ref: 'B2', formula: '"One,Two,Three,Four"'},
+        ]);
         assert.ok(
-          inline.xml.formula1.some(f => f.startsWith('"') && f.endsWith('"') && f.includes(',')),
-          `an inline list must serialize as a double-quote-wrapped comma-joined literal; got ${JSON.stringify(inline.xml.formula1)}`
+          inline.xml.formula1.some((f) => f.startsWith('"') && f.endsWith('"') && f.includes(',')),
+          `an inline list must serialize as a double-quote-wrapped comma-joined literal; got ${JSON.stringify(inline.xml.formula1)}`,
         );
         const ranged = await api.authorListValidations([{ref: 'C2', formula: '$Z$1:$Z$10'}]);
         assert.ok(
-          ranged.xml.formula1.some(f => f === '$Z$1:$Z$10'),
-          `a range reference must serialize without surrounding quotes; got ${JSON.stringify(ranged.xml.formula1)}`
+          ranged.xml.formula1.some((f) => f === '$Z$1:$Z$10'),
+          `a range reference must serialize without surrounding quotes; got ${JSON.stringify(ranged.xml.formula1)}`,
         );
       },
     },

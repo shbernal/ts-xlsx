@@ -22,7 +22,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {paneEmitted} = await api.frozenTopRowRoundtrip();
-        assert.strictEqual(paneEmitted, true, 'the sheet view emits <pane ySplit="1" ... state="frozen"/>');
+        assert.strictEqual(
+          paneEmitted,
+          true,
+          'the sheet view emits <pane ySplit="1" ... state="frozen"/>',
+        );
       },
     },
     {

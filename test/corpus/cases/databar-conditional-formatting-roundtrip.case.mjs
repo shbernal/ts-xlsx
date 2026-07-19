@@ -17,7 +17,10 @@ const CF = {
       type: 'dataBar',
       gradient: true,
       color: {argb: 'FF638EC6'},
-      cfvo: [{type: 'num', value: 0}, {type: 'num', value: 1}],
+      cfvo: [
+        {type: 'num', value: 0},
+        {type: 'num', value: 1},
+      ],
     },
   ],
 };
@@ -40,9 +43,17 @@ export default {
         const {writeOk, xml} = await api.authorConditionalFormatting(CF);
         assert.strictEqual(writeOk, true, 'writing the dataBar rule does not throw');
         assert.strictEqual(xml.hasDataBar, true, 'a dataBar element is emitted');
-        assert.strictEqual(xml.cfvoCount, 2, 'both cfvo anchors are present (not truncated to one)');
+        assert.strictEqual(
+          xml.cfvoCount,
+          2,
+          'both cfvo anchors are present (not truncated to one)',
+        );
         assert.strictEqual(xml.hasColor, true, 'the bar color is emitted');
-        assert.strictEqual(xml.wellFormed, true, 'the conditionalFormatting block is well-formed XML');
+        assert.strictEqual(
+          xml.wellFormed,
+          true,
+          'the conditionalFormatting block is well-formed XML',
+        );
       },
     },
     {

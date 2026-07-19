@@ -10,8 +10,8 @@ import {
   type ImageEditAs,
   isOneCellAnchor,
 } from '../../core/image.ts';
-import {localName, parseXml} from './xml-read.ts';
 import {XML_DECLARATION} from './xml.ts';
+import {localName, parseXml} from './xml-read.ts';
 
 const XDR_NS = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
 const A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
@@ -63,7 +63,14 @@ function anchorXml(image: DrawingImage, id: number): string {
   const {anchor} = image;
   return isOneCellAnchor(anchor)
     ? oneCellAnchorXml(anchor.from, anchor.ext, anchor.rotation, image.embedId, id)
-    : twoCellAnchorXml(anchor.from, anchor.to, anchor.editAs ?? 'oneCell', anchor.rotation, image.embedId, id);
+    : twoCellAnchorXml(
+        anchor.from,
+        anchor.to,
+        anchor.editAs ?? 'oneCell',
+        anchor.rotation,
+        image.embedId,
+        id,
+      );
 }
 
 // A picture anchored between two grid points. The geometry lives entirely in <xdr:from>/<xdr:to>, so
@@ -76,7 +83,7 @@ function twoCellAnchorXml(
   editAs: ImageEditAs,
   rotation: number | undefined,
   embedId: string,
-  id: number
+  id: number,
 ): string {
   return (
     `<xdr:twoCellAnchor editAs="${editAs}">` +
@@ -95,7 +102,7 @@ function oneCellAnchorXml(
   ext: Extent,
   rotation: number | undefined,
   embedId: string,
-  id: number
+  id: number,
 ): string {
   return (
     '<xdr:oneCellAnchor>' +
@@ -131,9 +138,11 @@ function anchorPointXml(point: AnchorPoint): string {
  * (`rId1`, `rId2`, …), each pointing at the media part the anchor shows. */
 export function drawingRelsXml(mediaTargets: readonly string[]): string {
   const rels = mediaTargets
-    .map((target, i) => `<Relationship Id="rId${i + 1}" Type="${IMAGE_REL_TYPE}" Target="${target}"/>`)
+    .map(
+      (target, i) => `<Relationship Id="rId${i + 1}" Type="${IMAGE_REL_TYPE}" Target="${target}"/>`,
+    )
     .join('');
-  return XML_DECLARATION + `<Relationships xmlns="${PKG_RELS_NS}">${rels}</Relationships>`;
+  return `${XML_DECLARATION}<Relationships xmlns="${PKG_RELS_NS}">${rels}</Relationships>`;
 }
 
 /** An image anchor parsed from a drawing part, with the `r:embed` id that names its media. A two-cell

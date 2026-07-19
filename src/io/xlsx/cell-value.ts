@@ -45,7 +45,7 @@ export interface RawCell {
 export function decodeCellContent(
   raw: RawCell,
   sharedStrings: readonly SharedString[],
-  numFmt: string | undefined
+  numFmt: string | undefined,
 ): CellValue {
   if (raw.hasFormula) {
     const stored = unmangleFunctions(raw.formula);
@@ -71,7 +71,7 @@ function decodeValue(
   valueText: string,
   inlineText: string,
   hasValue: boolean,
-  sharedStrings: readonly SharedString[]
+  sharedStrings: readonly SharedString[],
 ): CellValue {
   switch (type) {
     case 'inlineStr':
@@ -87,7 +87,7 @@ function decodeValue(
       // A `t="s"` cell indexes the shared pool; the entry is a plain string or, when Excel pooled a
       // rich value, a {@link RichTextValue} whose runs surface here rather than being flattened.
       const index = Number(valueText);
-      return Number.isInteger(index) ? sharedStrings[index] ?? '' : '';
+      return Number.isInteger(index) ? (sharedStrings[index] ?? '') : '';
     }
     case 'b':
       return valueText === '1' || valueText === 'true';
@@ -102,7 +102,11 @@ function decodeValue(
  * `numFmt` to a {@link Date} exactly as a bare numeric cell is — so a date-valued formula result
  * (e.g. `TODAY()`) reads back as a Date, not a serial. Shared by the buffered reader's shared-formula
  * clone resolution, which caches a result the same way a plain formula cell does. */
-export function decodeFormulaResult(type: string, valueText: string, numFmt?: string): FormulaResult {
+export function decodeFormulaResult(
+  type: string,
+  valueText: string,
+  numFmt?: string,
+): FormulaResult {
   const result = decodeResult(type, valueText);
   return typeof result === 'number' && numFmt !== undefined && isDateFormat(numFmt)
     ? serialToDate(result)

@@ -57,8 +57,16 @@ export default {
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(COL_SPEC);
         const cells = model.sheets.S.cells;
-        assert.strictEqual(cells.A1.alignment && cells.A1.alignment.textRotation, 45, 'A1 (column 1) carries the rotation');
-        assert.strictEqual(cells.A2.alignment && cells.A2.alignment.textRotation, 45, 'A2 (column 1) carries the rotation');
+        assert.strictEqual(
+          cells.A1.alignment?.textRotation,
+          45,
+          'A1 (column 1) carries the rotation',
+        );
+        assert.strictEqual(
+          cells.A2.alignment?.textRotation,
+          45,
+          'A2 (column 1) carries the rotation',
+        );
       },
     },
     {
@@ -67,8 +75,14 @@ export default {
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(COL_SPEC);
         const cells = model.sheets.S.cells;
-        assert.ok(!cells.B1.alignment || cells.B1.alignment.textRotation === undefined, `B1 must not inherit the rotation; got ${JSON.stringify(cells.B1.alignment)}`);
-        assert.ok(!cells.C1.alignment || cells.C1.alignment.textRotation === undefined, `C1 must not inherit the rotation; got ${JSON.stringify(cells.C1.alignment)}`);
+        assert.ok(
+          !cells.B1.alignment || cells.B1.alignment.textRotation === undefined,
+          `B1 must not inherit the rotation; got ${JSON.stringify(cells.B1.alignment)}`,
+        );
+        assert.ok(
+          !cells.C1.alignment || cells.C1.alignment.textRotation === undefined,
+          `C1 must not inherit the rotation; got ${JSON.stringify(cells.C1.alignment)}`,
+        );
       },
     },
     {
@@ -77,9 +91,19 @@ export default {
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(CELL_SPEC);
         const cells = model.sheets.S.cells;
-        assert.strictEqual(cells.A1.alignment && cells.A1.alignment.textRotation, 90, 'the targeted cell carries the rotation');
-        assert.ok(!cells.B1.alignment || cells.B1.alignment.textRotation === undefined, 'the row neighbour is unaffected');
-        assert.ok(!cells.A2.alignment || cells.A2.alignment.textRotation === undefined, 'the column neighbour is unaffected');
+        assert.strictEqual(
+          cells.A1.alignment?.textRotation,
+          90,
+          'the targeted cell carries the rotation',
+        );
+        assert.ok(
+          !cells.B1.alignment || cells.B1.alignment.textRotation === undefined,
+          'the row neighbour is unaffected',
+        );
+        assert.ok(
+          !cells.A2.alignment || cells.A2.alignment.textRotation === undefined,
+          'the column neighbour is unaffected',
+        );
       },
     },
   ],

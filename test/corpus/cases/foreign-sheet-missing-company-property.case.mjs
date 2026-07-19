@@ -25,7 +25,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.ok(ok, `a missing optional property must not be fatal; got ${JSON.stringify(error)}`);
+        assert.ok(
+          ok,
+          `a missing optional property must not be fatal; got ${JSON.stringify(error)}`,
+        );
       },
     },
     {

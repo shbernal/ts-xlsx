@@ -13,7 +13,8 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 const fill = () => ({type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFDDEEFF'}});
-const sharedCells = () => Array.from({length: 40}, (_, i) => ({ref: `A${i + 1}`, value: i + 1, fill: fill()}));
+const sharedCells = () =>
+  Array.from({length: 40}, (_, i) => ({ref: `A${i + 1}`, value: i + 1, fill: fill()}));
 
 export default {
   id: 'shared-styles-deduplicated-in-written-package',
@@ -30,18 +31,35 @@ export default {
       name: '40 cells carrying an identical fill resolve to a single shared style index',
       baseline: 'pass',
       async expect(api, assert) {
-        const {indices} = await api.styleDedupReport({sheets: [{name: 'S', cells: sharedCells()}]}, ['A1', 'A20', 'A40']);
-        assert.strictEqual(indices.A1, indices.A40, 'first and last identically-styled cells share one index');
-        assert.strictEqual(indices.A1, indices.A20, 'a middle identically-styled cell shares the same index');
+        const {indices} = await api.styleDedupReport(
+          {sheets: [{name: 'S', cells: sharedCells()}]},
+          ['A1', 'A20', 'A40'],
+        );
+        assert.strictEqual(
+          indices.A1,
+          indices.A40,
+          'first and last identically-styled cells share one index',
+        );
+        assert.strictEqual(
+          indices.A1,
+          indices.A20,
+          'a middle identically-styled cell shares the same index',
+        );
       },
     },
     {
       name: 'the written style table does not emit one entry per identically-styled cell',
       baseline: 'pass',
       async expect(api, assert) {
-        const {cellXfCount} = await api.styleDedupReport({sheets: [{name: 'S', cells: sharedCells()}]}, []);
+        const {cellXfCount} = await api.styleDedupReport(
+          {sheets: [{name: 'S', cells: sharedCells()}]},
+          [],
+        );
         // Default + the one shared fill = a small, bounded table — never ~40 entries.
-        assert.ok(cellXfCount < 5, `40 identically-styled cells must not inflate the style table; got ${cellXfCount} entries`);
+        assert.ok(
+          cellXfCount < 5,
+          `40 identically-styled cells must not inflate the style table; got ${cellXfCount} entries`,
+        );
       },
     },
     {
@@ -50,7 +68,11 @@ export default {
       async expect(api, assert) {
         const cells = [...sharedCells(), {ref: 'B1', value: 'x', numFmt: '0.00%'}];
         const {indices} = await api.styleDedupReport({sheets: [{name: 'S', cells}]}, ['A1', 'B1']);
-        assert.notStrictEqual(indices.A1, indices.B1, 'a differently-formatted cell must keep its own style index');
+        assert.notStrictEqual(
+          indices.A1,
+          indices.B1,
+          'a differently-formatted cell must keep its own style index',
+        );
       },
     },
   ],

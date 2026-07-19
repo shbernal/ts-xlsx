@@ -9,10 +9,7 @@
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {Cell} from './cell.ts';
-import {
-  cloneConditionalFormatting,
-  type ConditionalFormatting,
-} from './conditional-formatting.ts';
+import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
 import {
   cloneDataValidation,
   type DataValidation,
@@ -24,10 +21,11 @@ import {
   type Extent,
   type ImageAnchor,
   type ImageEditAs,
-  type TwoCellAnchor,
   isOneCellAnchor,
   PX_TO_EMU,
+  type TwoCellAnchor,
 } from './image.ts';
+import {type ParsedPivotTable, PivotTable, type PivotTableOptions} from './pivot-table.ts';
 import {
   deriveCredential,
   type SheetProtection,
@@ -35,7 +33,6 @@ import {
   type SheetProtectionOptions,
 } from './protection.ts';
 import type {Alignment, Border, Color, Fill, Font, Protection} from './style.ts';
-import {type ParsedPivotTable, PivotTable, type PivotTableOptions} from './pivot-table.ts';
 import {Table, type TableOptions} from './table.ts';
 import {type CellValue, isSharedFormulaValue, type SharedFormulaValue} from './value.ts';
 
@@ -515,7 +512,9 @@ export class Worksheet {
   getCell(reference: string): Cell {
     const {col, row} = decodeAddress(reference);
     if (col === undefined || row === undefined) {
-      throw new SyntaxError(`"${reference}" is not a single-cell reference — it omits a column or row`);
+      throw new SyntaxError(
+        `"${reference}" is not a single-cell reference — it omits a column or row`,
+      );
     }
     const master = this.#masterOf(row, col);
     return this.#cellAt(master.row, master.col);
@@ -591,7 +590,7 @@ export class Worksheet {
   get rowCount(): number {
     let last = 0;
     for (const [number, cols] of this.#rows) {
-      if (number > last && [...cols.values()].some(cell => cell.value !== null)) last = number;
+      if (number > last && [...cols.values()].some((cell) => cell.value !== null)) last = number;
     }
     for (const number of this.#rowProperties.keys()) {
       if (number > last) last = number;
@@ -608,7 +607,7 @@ export class Worksheet {
   get actualRowCount(): number {
     let count = 0;
     for (const cols of this.#rows.values()) {
-      if ([...cols.values()].some(cell => cell.value !== null)) count++;
+      if ([...cols.values()].some((cell) => cell.value !== null)) count++;
     }
     return count;
   }
@@ -668,20 +667,23 @@ export class Worksheet {
    * @throws {Error} if the name, columns, or geometry are invalid.
    */
   addTable(options: TableOptions): Table {
-    const table = new Table(options, (row, col, value, style) => {
-      const cell = this.#cellAt(row, col);
-      cell.value = value;
-      if (style === undefined) return;
-      if (style.numFmt !== undefined) cell.numFmt = style.numFmt;
-      if (style.font !== undefined) cell.font = style.font;
-      if (style.fill !== undefined) cell.fill = style.fill;
-      if (style.border !== undefined) cell.border = style.border;
-      if (style.alignment !== undefined) cell.alignment = style.alignment;
-      if (style.protection !== undefined) cell.protection = style.protection;
-    },
-    // Insert one empty grid row at `row`; the splice re-pins this table (growing its data rows) and
-    // shifts the totals row and everything below down by one.
-    row => this.spliceRows(row, 0, []));
+    const table = new Table(
+      options,
+      (row, col, value, style) => {
+        const cell = this.#cellAt(row, col);
+        cell.value = value;
+        if (style === undefined) return;
+        if (style.numFmt !== undefined) cell.numFmt = style.numFmt;
+        if (style.font !== undefined) cell.font = style.font;
+        if (style.fill !== undefined) cell.fill = style.fill;
+        if (style.border !== undefined) cell.border = style.border;
+        if (style.alignment !== undefined) cell.alignment = style.alignment;
+        if (style.protection !== undefined) cell.protection = style.protection;
+      },
+      // Insert one empty grid row at `row`; the splice re-pins this table (growing its data rows) and
+      // shifts the totals row and everything below down by one.
+      (row) => this.spliceRows(row, 0, []),
+    );
     this.#tables.push(table);
     return table;
   }
@@ -694,7 +696,7 @@ export class Worksheet {
   /** The table with the given name (case-sensitive, the identifier Excel uses), or `undefined`.
    * A table read back from a file is fully hydrated — its rows can be read and appended to. */
   getTable(name: string): Table | undefined {
-    return this.#tables.find(table => table.name === name);
+    return this.#tables.find((table) => table.name === name);
   }
 
   /**
@@ -749,17 +751,20 @@ export class Worksheet {
    */
   addImage(
     imageId: number,
-    anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs}
+    anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs},
   ): void;
   addImage(
     imageId: number,
-    anchor: {readonly tl: AnchorPoint; readonly ext: {readonly width: number; readonly height: number}}
+    anchor: {
+      readonly tl: AnchorPoint;
+      readonly ext: {readonly width: number; readonly height: number};
+    },
   ): void;
   addImage(
     imageId: number,
     anchor:
       | {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs}
-      | {readonly tl: AnchorPoint; readonly ext: {readonly width: number; readonly height: number}}
+      | {readonly tl: AnchorPoint; readonly ext: {readonly width: number; readonly height: number}},
   ): void {
     if ('ext' in anchor) {
       const ext: Extent = {
@@ -789,13 +794,17 @@ export class Worksheet {
 
   #columnWidthEmu(col: number): number {
     const width =
-      this.#columns.get(col + 1)?.width ?? this.properties.defaultColWidth ?? DEFAULT_COL_WIDTH_CHARS;
+      this.#columns.get(col + 1)?.width ??
+      this.properties.defaultColWidth ??
+      DEFAULT_COL_WIDTH_CHARS;
     return Math.round(width * CHAR_WIDTH_PX * PX_TO_EMU);
   }
 
   #rowHeightEmu(row: number): number {
     const height =
-      this.#rowProperties.get(row + 1)?.height ?? this.properties.defaultRowHeight ?? DEFAULT_ROW_HEIGHT_POINTS;
+      this.#rowProperties.get(row + 1)?.height ??
+      this.properties.defaultRowHeight ??
+      DEFAULT_ROW_HEIGHT_POINTS;
     return Math.round(height * EMU_PER_POINT);
   }
 
@@ -812,7 +821,7 @@ export class Worksheet {
    * workbook — another sheet may still show it — so only this sheet's anchors are removed; the writer
    * then omits any media no sheet anchors any longer. */
   removeImage(imageId: number): void {
-    const kept = this.#images.filter(image => image.imageId !== imageId);
+    const kept = this.#images.filter((image) => image.imageId !== imageId);
     this.#images.length = 0;
     this.#images.push(...kept);
   }
@@ -862,7 +871,7 @@ export class Worksheet {
     const {top, left, bottom, right} = decodeRange(range);
     if (top !== undefined && left !== undefined && bottom !== undefined && right !== undefined) {
       const rect: MergeRect = {top, left, bottom, right};
-      const clash = this.#mergeRects.find(existing => rectsOverlap(existing, rect));
+      const clash = this.#mergeRects.find((existing) => rectsOverlap(existing, rect));
       if (clash) {
         throw new Error(`merged range "${range}" overlaps an existing merged region`);
       }
@@ -908,7 +917,7 @@ export class Worksheet {
     const {top, left, bottom, right} = decodeRange(range);
     if (top !== undefined && left !== undefined && bottom !== undefined && right !== undefined) {
       const rectIndex = this.#mergeRects.findIndex(
-        r => r.top === top && r.left === left && r.bottom === bottom && r.right === right
+        (r) => r.top === top && r.left === left && r.bottom === bottom && r.right === right,
       );
       if (rectIndex !== -1) this.#mergeRects.splice(rectIndex, 1);
     }
@@ -1036,7 +1045,7 @@ export class Worksheet {
    */
   addRows(rows: RowInput[]): Cell[][] {
     let number = this.rowCount;
-    return rows.map(values => {
+    return rows.map((values) => {
       number += 1;
       const cells: Cell[] = [];
       const place = (col: number, value: CellValue): void => {
@@ -1052,7 +1061,8 @@ export class Worksheet {
           if (value !== undefined) place(index + 1, value);
         });
       } else {
-        for (const [key, value] of Object.entries(values)) place(this.#columnIndexByKey(key), value);
+        for (const [key, value] of Object.entries(values))
+          place(this.#columnIndexByKey(key), value);
       }
       return cells;
     });
@@ -1067,7 +1077,9 @@ export class Worksheet {
    */
   freeze(ySplit = 1, xSplit = 0): void {
     if (!Number.isInteger(ySplit) || ySplit < 0 || !Number.isInteger(xSplit) || xSplit < 0) {
-      throw new RangeError(`freeze splits must be non-negative integers; got ySplit=${ySplit}, xSplit=${xSplit}`);
+      throw new RangeError(
+        `freeze splits must be non-negative integers; got ySplit=${ySplit}, xSplit=${xSplit}`,
+      );
     }
     if (ySplit === 0 && xSplit === 0) {
       this.unfreeze();
@@ -1109,7 +1121,9 @@ export class Worksheet {
       throw new RangeError(`duplicate start ${start} is out of bounds — rows start at 1`);
     }
     if (!Number.isInteger(count) || count < 0) {
-      throw new RangeError(`duplicate count ${count} is invalid — it must be a non-negative integer`);
+      throw new RangeError(
+        `duplicate count ${count} is invalid — it must be a non-negative integer`,
+      );
     }
     const source = this.#rows.get(start);
     const snapshot = (destRow: number): Map<number, Cell> => {
@@ -1188,7 +1202,9 @@ export class Worksheet {
       if (row < start) shifted.set(row, cols);
       else if (row >= start + count) shifted.set(row + delta, this.#relocateRow(cols, row + delta));
     }
-    inserted.forEach((cols, i) => shifted.set(start + i, this.#relocateRow(cols, start + i)));
+    inserted.forEach((cols, i) => {
+      shifted.set(start + i, this.#relocateRow(cols, start + i));
+    });
     this.#rows.clear();
     for (const [row, cols] of shifted) this.#rows.set(row, cols);
 
@@ -1275,7 +1291,9 @@ export class Worksheet {
           ? {top: shift(top), left, bottom: shift(bottom), right}
           : {top, left: shift(left), bottom, right: shift(right)};
       rects.push(rect);
-      merges.push(`${encodeAddress(rect.left, rect.top)}:${encodeAddress(rect.right, rect.bottom)}`);
+      merges.push(
+        `${encodeAddress(rect.left, rect.top)}:${encodeAddress(rect.right, rect.bottom)}`,
+      );
     }
     this.#merges.length = 0;
     this.#merges.push(...merges);
@@ -1286,8 +1304,10 @@ export class Worksheet {
   // Re-pin the sheet's tables through a splice on the given axis, dropping any table a delete leaves
   // with no row to occupy. `Table` owns the shift arithmetic; the sheet only prunes the casualties.
   #shiftTables(axis: 'row' | 'col', start: number, count: number, delta: number): void {
-    const survivors = this.#tables.filter(table =>
-      axis === 'row' ? table.shiftRows(start, count, delta) : table.shiftColumns(start, count, delta)
+    const survivors = this.#tables.filter((table) =>
+      axis === 'row'
+        ? table.shiftRows(start, count, delta)
+        : table.shiftColumns(start, count, delta),
     );
     this.#tables.length = 0;
     this.#tables.push(...survivors);
@@ -1306,7 +1326,7 @@ export class Worksheet {
       if (shifted === zeroBased) return point;
       return axis === 'row' ? {...point, row: shifted} : {...point, col: shifted};
     };
-    const moved: AnchoredImage[] = this.#images.map(image => {
+    const moved: AnchoredImage[] = this.#images.map((image) => {
       const from = shiftPoint(image.anchor.from);
       const anchor: ImageAnchor = isOneCellAnchor(image.anchor)
         ? {...image.anchor, from}
@@ -1353,10 +1373,16 @@ export class Worksheet {
       printOptions: {...this.printOptions},
       pageMargins: {...this.pageMargins},
       headerFooter: {...this.headerFooter},
-      rowBreaks: this.rowBreaks.map(brk => ({...brk})),
-      columnBreaks: this.columnBreaks.map(brk => ({...brk})),
-      columns: [...this.#columns].map(([index, properties]) => ({index, properties: {...properties}})),
-      rows: [...this.#rowProperties].map(([number, properties]) => ({number, properties: {...properties}})),
+      rowBreaks: this.rowBreaks.map((brk) => ({...brk})),
+      columnBreaks: this.columnBreaks.map((brk) => ({...brk})),
+      columns: [...this.#columns].map(([index, properties]) => ({
+        index,
+        properties: {...properties},
+      })),
+      rows: [...this.#rowProperties].map(([number, properties]) => ({
+        number,
+        properties: {...properties},
+      })),
       cells,
       merges: [...this.#merges],
       dataValidations: this.#dataValidations.map(({sqref, rule, extended}) => ({
@@ -1365,7 +1391,7 @@ export class Worksheet {
         ...(extended ? {extended: true} : {}),
       })),
       conditionalFormattings: this.#conditionalFormattings.map(cloneConditionalFormatting),
-      tables: this.#tables.map(table => table.options),
+      tables: this.#tables.map((table) => table.options),
       autoFilter: this.#autoFilter,
       protection: this.#protection,
     };
@@ -1384,9 +1410,9 @@ export class Worksheet {
     overwrite(this.pageMargins, model.pageMargins);
     overwrite(this.headerFooter, model.headerFooter);
     this.rowBreaks.length = 0;
-    this.rowBreaks.push(...model.rowBreaks.map(brk => ({...brk})));
+    this.rowBreaks.push(...model.rowBreaks.map((brk) => ({...brk})));
     this.columnBreaks.length = 0;
-    this.columnBreaks.push(...model.columnBreaks.map(brk => ({...brk})));
+    this.columnBreaks.push(...model.columnBreaks.map((brk) => ({...brk})));
 
     this.#rows.clear();
     this.#columns.clear();
@@ -1399,9 +1425,21 @@ export class Worksheet {
     this.#tables.length = 0;
     this.#protection = model.protection;
 
-    for (const {index, properties} of model.columns) Object.assign(this.getColumn(index), properties);
+    for (const {index, properties} of model.columns)
+      Object.assign(this.getColumn(index), properties);
     for (const {number, properties} of model.rows) Object.assign(this.getRow(number), properties);
-    for (const {row, col, value, fill, numFmt, font, border, alignment, protection, note} of model.cells) {
+    for (const {
+      row,
+      col,
+      value,
+      fill,
+      numFmt,
+      font,
+      border,
+      alignment,
+      protection,
+      note,
+    } of model.cells) {
       const cell = this.#cellAt(row, col);
       cell.value = value;
       cell.fill = fill;
@@ -1416,7 +1454,8 @@ export class Worksheet {
     for (const {sqref, rule, extended} of model.dataValidations) {
       this.addDataValidation(sqref, rule, extended ? {extended: true} : {});
     }
-    for (const formatting of model.conditionalFormattings) this.addConditionalFormatting(formatting);
+    for (const formatting of model.conditionalFormattings)
+      this.addConditionalFormatting(formatting);
     for (const options of model.tables) this.addTable(options);
     // Assigning through the setter (rather than the private field) re-canonicalises and, on undefined,
     // clears any autofilter the destination held — the wholesale-replace contract, no residue.
@@ -1434,7 +1473,9 @@ export class Worksheet {
    */
   protect(password?: string, options: SheetProtectionOptions = {}): void {
     const {spinCount, ...flags} = options;
-    const protection: {flags: SheetProtection['flags']; credential?: SheetProtectionCredential} = {flags};
+    const protection: {flags: SheetProtection['flags']; credential?: SheetProtectionCredential} = {
+      flags,
+    };
     if (password !== undefined && password !== '') {
       protection.credential = deriveCredential(password, spinCount);
     }

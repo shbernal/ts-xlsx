@@ -17,9 +17,18 @@ const FIXTURE = 'defined-name-full-row-column-span-survives-roundtrip/whole-row-
 
 // A control (bounded reference) alongside the open-ended spans under test, so a baseline flip
 // is unambiguous: the bug is specifically about references lacking explicit row/column bounds.
-const BOUNDED = {definedNames: [{name: 'Bounded', ranges: ['Sheet1!$A$1:$C$5']}], sheets: [{name: 'Sheet1'}, {name: 'Sheet2'}]};
-const FULL_ROW = {definedNames: [{name: 'FullRow', ranges: ['Sheet2!$1:$5']}], sheets: [{name: 'Sheet1'}, {name: 'Sheet2'}]};
-const FULL_COL = {definedNames: [{name: 'FullCol', ranges: ['Sheet1!$A:$C']}], sheets: [{name: 'Sheet1'}, {name: 'Sheet2'}]};
+const BOUNDED = {
+  definedNames: [{name: 'Bounded', ranges: ['Sheet1!$A$1:$C$5']}],
+  sheets: [{name: 'Sheet1'}, {name: 'Sheet2'}],
+};
+const FULL_ROW = {
+  definedNames: [{name: 'FullRow', ranges: ['Sheet2!$1:$5']}],
+  sheets: [{name: 'Sheet1'}, {name: 'Sheet2'}],
+};
+const FULL_COL = {
+  definedNames: [{name: 'FullCol', ranges: ['Sheet1!$A:$C']}],
+  sheets: [{name: 'Sheet1'}, {name: 'Sheet2'}],
+};
 
 export default {
   id: 'defined-name-full-row-column-span-survives-roundtrip',
@@ -37,7 +46,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {definedNames} = await api.roundtripWorkbook(BOUNDED);
-        assert.deepStrictEqual(definedNames.Bounded, ['Sheet1!$A$1:$C$5'], 'a fully-bounded name round-trips');
+        assert.deepStrictEqual(
+          definedNames.Bounded,
+          ['Sheet1!$A$1:$C$5'],
+          'a fully-bounded name round-trips',
+        );
       },
     },
     {
@@ -48,7 +61,7 @@ export default {
         assert.deepStrictEqual(
           definedNames.FullRow,
           ['Sheet2!$1:$5'],
-          `a whole-row span must not be dropped; got ${JSON.stringify(definedNames)}`
+          `a whole-row span must not be dropped; got ${JSON.stringify(definedNames)}`,
         );
       },
     },
@@ -60,7 +73,7 @@ export default {
         assert.deepStrictEqual(
           definedNames.FullCol,
           ['Sheet1!$A:$C'],
-          `a whole-column span must not be dropped; got ${JSON.stringify(definedNames)}`
+          `a whole-column span must not be dropped; got ${JSON.stringify(definedNames)}`,
         );
       },
     },
@@ -72,7 +85,7 @@ export default {
         assert.deepStrictEqual(
           names.RangeTest,
           ['Sheet2!$1:$5'],
-          `the file declares RangeTest=Sheet2!$1:$5; reader must expose it, got ${JSON.stringify(names)}`
+          `the file declares RangeTest=Sheet2!$1:$5; reader must expose it, got ${JSON.stringify(names)}`,
         );
       },
     },

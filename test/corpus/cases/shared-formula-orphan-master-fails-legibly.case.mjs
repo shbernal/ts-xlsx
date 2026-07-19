@@ -27,7 +27,11 @@ export default {
         const {ok, error} = await api.tryWriteWorkbook({
           sheets: [{name: 'S', cells: [{ref: 'B2', sharedFormula: 'A1', result: 0}]}],
         });
-        assert.strictEqual(ok, false, 'the write must fail rather than emit a broken shared formula');
+        assert.strictEqual(
+          ok,
+          false,
+          'the write must fail rather than emit a broken shared formula',
+        );
         assert.match(error, /master/i, 'the error explains the missing master');
         assert.match(error, /B2/, 'the error names the offending cell');
       },

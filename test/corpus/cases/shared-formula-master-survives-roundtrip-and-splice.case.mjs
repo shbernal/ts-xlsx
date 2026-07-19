@@ -27,7 +27,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {roundtripOk, roundtripError} = await api.sharedFormulaRoundtripAndSplice();
-        assert.strictEqual(roundtripOk, true, `the round-trip must not throw; got ${JSON.stringify(roundtripError)}`);
+        assert.strictEqual(
+          roundtripOk,
+          true,
+          `the round-trip must not throw; got ${JSON.stringify(roundtripError)}`,
+        );
       },
     },
     {
@@ -35,7 +39,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {preservedFormulas} = await api.sharedFormulaRoundtripAndSplice();
-        assert.strictEqual(preservedFormulas, true, 'each dependent cell re-reads as a formula, not a bare value');
+        assert.strictEqual(
+          preservedFormulas,
+          true,
+          'each dependent cell re-reads as a formula, not a bare value',
+        );
       },
     },
     {
@@ -46,7 +54,7 @@ export default {
         assert.strictEqual(
           spliceOk,
           true,
-          `a column splice must re-anchor the shared-formula master rather than throwing; got ${JSON.stringify(spliceError)}`
+          `a column splice must re-anchor the shared-formula master rather than throwing; got ${JSON.stringify(spliceError)}`,
         );
       },
     },

@@ -11,7 +11,13 @@
 
 const CF = {
   ref: 'A1:C1 A3:C3 A5:C5',
-  rules: [{type: 'colorScale', cfvo: [{type: 'min'}, {type: 'max'}], color: [{argb: 'FFFF0000'}, {argb: 'FF00FF00'}]}],
+  rules: [
+    {
+      type: 'colorScale',
+      cfvo: [{type: 'min'}, {type: 'max'}],
+      color: [{argb: 'FFFF0000'}, {argb: 'FF00FF00'}],
+    },
+  ],
 };
 
 export default {
@@ -31,7 +37,11 @@ export default {
       async expect(api, assert) {
         const {writeOk, xml} = await api.authorConditionalFormatting(CF);
         assert.strictEqual(writeOk, true, 'writing the multi-area rule does not throw');
-        assert.strictEqual(xml.blockCount, 1, 'exactly one conditionalFormatting element is emitted');
+        assert.strictEqual(
+          xml.blockCount,
+          1,
+          'exactly one conditionalFormatting element is emitted',
+        );
         assert.ok(xml.ruleCount >= 1, 'the rule is present, not discarded');
       },
     },
@@ -40,7 +50,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {xml} = await api.authorConditionalFormatting(CF);
-        assert.deepStrictEqual(xml.sqrefs, ['A1:C1 A3:C3 A5:C5'], `the multi-area sqref must survive; got ${JSON.stringify(xml.sqrefs)}`);
+        assert.deepStrictEqual(
+          xml.sqrefs,
+          ['A1:C1 A3:C3 A5:C5'],
+          `the multi-area sqref must survive; got ${JSON.stringify(xml.sqrefs)}`,
+        );
       },
     },
     {

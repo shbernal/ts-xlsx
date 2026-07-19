@@ -12,7 +12,7 @@
 const RT_ALPHA = {richText: [{text: 'Alpha', bold: true}, {text: 'One'}]};
 const RT_BETA = {richText: [{text: 'Beta', italic: true}, {text: 'Two'}]};
 
-const text = cell => (cell && cell.richText ? cell.richText.map(r => r.text).join('') : cell);
+const text = (cell) => (cell?.richText ? cell.richText.map((r) => r.text).join('') : cell);
 
 export default {
   id: 'streaming-write-richtext-shared-strings-distinct',
@@ -31,7 +31,10 @@ export default {
       async expect(api, assert) {
         const {ok, cells} = await api.streamWriteSheet({
           useSharedStrings: true,
-          ops: [{op: 'addRow', value: [RT_ALPHA]}, {op: 'addRow', value: [RT_BETA]}],
+          ops: [
+            {op: 'addRow', value: [RT_ALPHA]},
+            {op: 'addRow', value: [RT_BETA]},
+          ],
           read: ['A1', 'A2'],
         });
         assert.ok(ok, 'the streaming write must succeed');
@@ -39,7 +42,7 @@ export default {
         assert.strictEqual(
           text(cells.A2),
           'BetaTwo',
-          'second cell must keep its own rich text, not collapse onto the first'
+          'second cell must keep its own rich text, not collapse onto the first',
         );
       },
     },
@@ -49,7 +52,10 @@ export default {
       async expect(api, assert) {
         const {ok, cells} = await api.streamWriteSheet({
           useSharedStrings: false,
-          ops: [{op: 'addRow', value: [RT_ALPHA]}, {op: 'addRow', value: [RT_BETA]}],
+          ops: [
+            {op: 'addRow', value: [RT_ALPHA]},
+            {op: 'addRow', value: [RT_BETA]},
+          ],
           read: ['A1', 'A2'],
         });
         assert.ok(ok, 'the streaming write must succeed');
@@ -66,7 +72,7 @@ export default {
           ops: [{op: 'addRow', value: [RT_ALPHA]}],
           read: ['A1'],
         });
-        const runs = cells.A1 && cells.A1.richText;
+        const runs = cells.A1?.richText;
         assert.ok(runs, 'the cell reads back as rich text');
         assert.strictEqual(runs[0].text, 'Alpha', 'first run text');
         assert.strictEqual(runs[0].bold, true, 'first run stays bold');

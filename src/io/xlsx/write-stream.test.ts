@@ -22,9 +22,9 @@ function partText(pkg: Uint8Array, name: string): string {
 // A 1×1 transparent PNG — enough bytes to prove the streamed media round-trips verbatim.
 const ONE_PX_PNG = Uint8Array.from(
   atob(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
   ),
-  c => c.charCodeAt(0)
+  (c) => c.charCodeAt(0),
 );
 
 // Drain a Node readable into one buffer, resolving once it ends.
@@ -46,8 +46,8 @@ test('a streamed workbook reloads to the same sheet names and cell values as a w
 
   const workbook = readXlsx(bytes);
   assert.deepEqual(
-    workbook.worksheets.map(s => s.name),
-    ['S']
+    workbook.worksheets.map((s) => s.name),
+    ['S'],
   );
   const reread = workbook.getWorksheet('S');
   assert.ok(reread);
@@ -96,7 +96,11 @@ test('writer.stream.pipe(dest) returns dest and delivers the whole package', asy
   const committed = await writer.commit();
 
   const piped = await drained;
-  assert.deepEqual(Uint8Array.from(piped), committed, 'the piped bytes match the committed package');
+  assert.deepEqual(
+    Uint8Array.from(piped),
+    committed,
+    'the piped bytes match the committed package',
+  );
   const reread = readXlsx(piped).getWorksheet('S');
   assert.ok(reread);
   assert.equal(reread.getCell('A1').value, 'a');
@@ -211,7 +215,7 @@ test('commit to an unopenable filename rejects with the underlying I/O error rat
 test('supplying both a stream and a filename is rejected at construction', () => {
   assert.throws(
     () => new WorkbookStreamWriter({stream: new PassThrough(), filename: 'out.xlsx'}),
-    /either a stream or a filename/i
+    /either a stream or a filename/i,
   );
 });
 
@@ -226,7 +230,10 @@ test('shared-formula slave cells authored on the stream reload populated, not em
   const reread = readXlsx(await writer.commit()).getWorksheet('yua');
   assert.ok(reread);
   const master = reread.getCell('B1').value;
-  assert.ok(master && typeof master === 'object' && 'formula' in master, 'master is a formula cell');
+  assert.ok(
+    master && typeof master === 'object' && 'formula' in master,
+    'master is a formula cell',
+  );
   const slave = reread.getCell('B3').value;
   assert.ok(slave && typeof slave === 'object', 'slave reloads as a value object, not empty');
   assert.ok('sharedFormula' in slave || 'formula' in slave, 'slave carries a (shared) formula');
@@ -238,7 +245,13 @@ test('a streamed sheet emits <conditionalFormatting> before <hyperlinks>, per th
   sheet.getCell('A1').value = {text: 'link', hyperlink: 'https://example.com'};
   sheet.addConditionalFormatting({
     ref: 'A1:A10',
-    rules: [{type: 'expression', formulae: ['MOD(ROW(),2)=0'], style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFEEEEEE'}}}}],
+    rules: [
+      {
+        type: 'expression',
+        formulae: ['MOD(ROW(),2)=0'],
+        style: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFEEEEEE'}}},
+      },
+    ],
   });
   sheet.addRow(['x']).commit();
   sheet.commit();
@@ -270,7 +283,10 @@ test('streamed conditional formatting and data validations reload through the to
   const sheet = writer.addWorksheet('S');
   sheet.getCell('A1').value = {text: 'link', hyperlink: 'https://example.com'};
   sheet.addDataValidation('B1', {type: 'list', allowBlank: true, formulae: ['"x,y,z"']});
-  sheet.addConditionalFormatting({ref: 'A1:A10', rules: [{type: 'cellIs', operator: 'greaterThan', formulae: [3], priority: 1}]});
+  sheet.addConditionalFormatting({
+    ref: 'A1:A10',
+    rules: [{type: 'cellIs', operator: 'greaterThan', formulae: [3], priority: 1}],
+  });
   sheet.addRow(['r']).commit();
   sheet.commit();
 
@@ -286,7 +302,10 @@ test('authoring conditional formatting or a data validation on a committed strea
   const sheet = writer.addWorksheet('S');
   sheet.commit();
   assert.throws(() => sheet.addConditionalFormatting({ref: 'A1', rules: []}), /already committed/);
-  assert.throws(() => sheet.addDataValidation('A1', {type: 'list', formulae: ['"a"']}), /already committed/);
+  assert.throws(
+    () => sheet.addDataValidation('A1', {type: 'list', formulae: ['"a"']}),
+    /already committed/,
+  );
   await writer.commit();
 });
 
@@ -333,7 +352,7 @@ test('one streamed image anchored on two sheets is stored as a single media part
   writer.addWorksheet('B').addImage(id, {tl: {col: 3, row: 3}, br: {col: 4, row: 4}});
 
   const files = unzipSync(await writer.commit());
-  const mediaParts = Object.keys(files).filter(n => n.startsWith('xl/media/'));
+  const mediaParts = Object.keys(files).filter((n) => n.startsWith('xl/media/'));
   assert.strictEqual(mediaParts.length, 1, 'the shared image is streamed once');
 });
 
@@ -359,7 +378,10 @@ test('a streamed sheet carrying both protection and an autofilter emits them in 
   const posAutoFilter = xml.indexOf('<autoFilter');
   assert.ok(posProtection >= 0, 'the streamed sheet carries sheetProtection');
   assert.ok(posAutoFilter >= 0, 'the streamed sheet carries autoFilter');
-  assert.ok(posProtection < posAutoFilter, '<sheetProtection> precedes <autoFilter> per the schema');
+  assert.ok(
+    posProtection < posAutoFilter,
+    '<sheetProtection> precedes <autoFilter> per the schema',
+  );
   // The whole package still reloads, and the autofilter survives.
   assert.deepEqual(readXlsx(bytes).getWorksheet('S')?.autoFilter, {ref: 'A1:B1', columns: []});
 });
@@ -395,14 +417,19 @@ test('committing a streamed row evicts its cells from the model, bounding peak m
   const reread = readXlsx(await writer.commit()).getWorksheet('S');
   assert.ok(reread);
   assert.equal(reread.getCell('A1').value, 'a');
-  assert.equal(reread.getCell('A2').value, 'c', 'the second append did not collide with the evicted first');
+  assert.equal(
+    reread.getCell('A2').value,
+    'c',
+    'the second append did not collide with the evicted first',
+  );
 });
 
 test('a fully committed streamed sheet holds no live cells at commit — every row was evicted', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
   for (let i = 1; i <= 50; i++) sheet.addRow([i, `v${i}`]).commit();
-  for (let i = 1; i <= 50; i++) assert.equal(sheet.model.hasCell(i, 1), false, `row ${i} was freed`);
+  for (let i = 1; i <= 50; i++)
+    assert.equal(sheet.model.hasCell(i, 1), false, `row ${i} was freed`);
   assert.equal(sheet.rowCount, 50, 'rowCount still reflects every appended row');
   const reread = readXlsx(await writer.commit()).getWorksheet('S');
   assert.ok(reread);
@@ -414,7 +441,10 @@ test('with useSharedStrings a streamed row stays live until commit — the share
   const writer = new WorkbookStreamWriter({useSharedStrings: true});
   const sheet = writer.addWorksheet('S');
   sheet.addRow(['x']).commit();
-  assert.ok(sheet.model.hasCell(1, 1), 'shared-strings mode keeps the row live rather than evicting it');
+  assert.ok(
+    sheet.model.hasCell(1, 1),
+    'shared-strings mode keeps the row live rather than evicting it',
+  );
   const reread = readXlsx(await writer.commit()).getWorksheet('S');
   assert.equal(reread?.getCell('A1').value, 'x');
 });
@@ -432,7 +462,11 @@ test('committing a streamed row twice does not duplicate it in the sheet', async
   row.commit();
   row.commit();
   const xml = partText(await writer.commit(), 'xl/worksheets/sheet1.xml');
-  assert.equal((xml.match(/<row /g) ?? []).length, 1, 'the row appears exactly once despite the double commit');
+  assert.equal(
+    (xml.match(/<row /g) ?? []).length,
+    1,
+    'the row appears exactly once despite the double commit',
+  );
 });
 
 test('a styled row committed eagerly round-trips its fill through the shared style registry', async () => {
@@ -444,8 +478,13 @@ test('a styled row committed eagerly round-trips its fill through the shared sty
   cell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF0000'}};
   row.commit();
 
-  const fill = readXlsx(await writer.commit()).getWorksheet('S')?.getCell('A1').fill;
-  assert.ok(fill && fill.type === 'pattern' && fill.pattern === 'solid', 'the eagerly-flushed row kept its fill');
+  const fill = readXlsx(await writer.commit())
+    .getWorksheet('S')
+    ?.getCell('A1').fill;
+  assert.ok(
+    fill && fill.type === 'pattern' && fill.pattern === 'solid',
+    'the eagerly-flushed row kept its fill',
+  );
 });
 
 test('a live getCell row and a committed appended row serialise in ascending order and both reload', async () => {
@@ -456,7 +495,10 @@ test('a live getCell row and a committed appended row serialise in ascending ord
   const bytes = await writer.commit();
 
   const xml = partText(bytes, 'xl/worksheets/sheet1.xml');
-  assert.ok(xml.indexOf('r="1"') < xml.indexOf('r="2"'), 'the live row 1 precedes the flushed row 2');
+  assert.ok(
+    xml.indexOf('r="1"') < xml.indexOf('r="2"'),
+    'the live row 1 precedes the flushed row 2',
+  );
   const reread = readXlsx(bytes).getWorksheet('S');
   assert.ok(reread);
   assert.equal(reread.getCell('A1').value, 'live');

@@ -34,7 +34,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {normalHasPane} = await api.unfreezeViewRoundtrip();
-        assert.strictEqual(normalHasPane, false, 'a normal view must not carry a leftover <pane> (that markup triggers a repair prompt)');
+        assert.strictEqual(
+          normalHasPane,
+          false,
+          'a normal view must not carry a leftover <pane> (that markup triggers a repair prompt)',
+        );
       },
     },
     {
@@ -42,7 +46,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {reloadedState, reloadedHasSplit} = await api.unfreezeViewRoundtrip();
-        assert.strictEqual(reloadedState, 'normal', `unfrozen view must reload as 'normal'; got ${JSON.stringify(reloadedState)}`);
+        assert.strictEqual(
+          reloadedState,
+          'normal',
+          `unfrozen view must reload as 'normal'; got ${JSON.stringify(reloadedState)}`,
+        );
         assert.strictEqual(reloadedHasSplit, false, 'unfrozen view must not retain a frozen split');
       },
     },

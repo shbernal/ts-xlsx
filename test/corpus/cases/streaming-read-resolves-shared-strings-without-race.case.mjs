@@ -25,7 +25,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {singleComplete, singleLength} = await api.streamingSharedStringsRead();
-        assert.strictEqual(singleComplete, true, `every string cell resolves; got ${singleLength} rows`);
+        assert.strictEqual(
+          singleComplete,
+          true,
+          `every string cell resolves; got ${singleLength} rows`,
+        );
       },
     },
     {
@@ -36,7 +40,7 @@ export default {
         assert.strictEqual(
           concurrentAllComplete,
           true,
-          `all concurrent reads must complete with resolved strings; got lengths ${JSON.stringify(concurrentLengths)}`
+          `all concurrent reads must complete with resolved strings; got lengths ${JSON.stringify(concurrentLengths)}`,
         );
       },
     },

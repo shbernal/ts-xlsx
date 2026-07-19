@@ -17,7 +17,10 @@ function partsOf(data: Uint8Array): Record<string, string> {
 
 function hyperlinkOf(workbook: Workbook, sheet: string, ref: string) {
   const value = workbook.getWorksheet(sheet)?.getCell(ref).value;
-  assert.ok(value !== undefined && value !== null && isHyperlinkValue(value), 'expected a hyperlink value');
+  assert.ok(
+    value !== undefined && value !== null && isHyperlinkValue(value),
+    'expected a hyperlink value',
+  );
   return value;
 }
 
@@ -100,7 +103,10 @@ test('the <hyperlinks> element sits after <mergeCells> and before <pageMargins>'
   const links = sheetXml.indexOf('<hyperlinks>');
   const margins = sheetXml.indexOf('<pageMargins');
   assert.ok(merge >= 0 && links >= 0 && margins >= 0);
-  assert.ok(merge < links && links < margins, `order was mergeCells@${merge} hyperlinks@${links} pageMargins@${margins}`);
+  assert.ok(
+    merge < links && links < margins,
+    `order was mergeCells@${merge} hyperlinks@${links} pageMargins@${margins}`,
+  );
 });
 
 test('the reader rejoins a foreign file’s location fragment onto the relationship target', () => {
@@ -112,13 +118,15 @@ test('the reader rejoins a foreign file’s location fragment onto the relations
     '</sheetData><hyperlinks><hyperlink ref="A1" r:id="rId1" location="myhash"/></hyperlinks></worksheet>';
   const archive = zipSync({
     '[Content_Types].xml': strToU8('<Types/>'),
-    'xl/workbook.xml': strToU8('<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>'),
+    'xl/workbook.xml': strToU8(
+      '<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>',
+    ),
     'xl/_rels/workbook.xml.rels': strToU8(
-      '<Relationships><Relationship Id="rId1" Type="x/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'
+      '<Relationships><Relationship Id="rId1" Type="x/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
     ),
     'xl/worksheets/sheet1.xml': strToU8(sheetXml),
     'xl/worksheets/_rels/sheet1.xml.rels': strToU8(
-      '<Relationships><Relationship Id="rId1" Type="x/hyperlink" Target="http://localhost/" TargetMode="External"/></Relationships>'
+      '<Relationships><Relationship Id="rId1" Type="x/hyperlink" Target="http://localhost/" TargetMode="External"/></Relationships>',
     ),
   });
 
@@ -137,7 +145,11 @@ test('a hyperlink relationship id does not collide with a table on the same shee
   const parts = partsOf(writeXlsx(wb));
   const rels = parts['xl/worksheets/_rels/sheet1.xml.rels'] ?? '';
   const ids = [...rels.matchAll(/Id="(rId\d+)"/g)].map((m) => m[1]);
-  assert.equal(new Set(ids).size, ids.length, `relationship ids must be unique; got ${ids.join(', ')}`);
+  assert.equal(
+    new Set(ids).size,
+    ids.length,
+    `relationship ids must be unique; got ${ids.join(', ')}`,
+  );
   // The link reads back intact despite sharing the rels part with the table.
   const back = hyperlinkOf(readXlsx(writeXlsx(wb)), 'S', 'A1');
   assert.equal(back.hyperlink, 'https://example.com');
@@ -152,9 +164,11 @@ test('a hyperlink spanning a range anchors on its top-left cell instead of crash
     '</sheetData><hyperlinks><hyperlink ref="D1:H1" location="Sheet1!A1"/></hyperlinks></worksheet>';
   const archive = zipSync({
     '[Content_Types].xml': strToU8('<Types/>'),
-    'xl/workbook.xml': strToU8('<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>'),
+    'xl/workbook.xml': strToU8(
+      '<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>',
+    ),
     'xl/_rels/workbook.xml.rels': strToU8(
-      '<Relationships><Relationship Id="rId1" Type="x/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'
+      '<Relationships><Relationship Id="rId1" Type="x/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
     ),
     'xl/worksheets/sheet1.xml': strToU8(sheetXml),
   });

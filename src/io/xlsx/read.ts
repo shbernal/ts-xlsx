@@ -22,11 +22,12 @@ import {
   isCustomFilterOperator,
 } from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
+import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import {
+  SHEET_PROTECTION_FLAGS,
   type SheetProtection,
   type SheetProtectionCredential,
   type SheetProtectionFlags,
-  SHEET_PROTECTION_FLAGS,
 } from '../../core/protection.ts';
 import type {
   Alignment,
@@ -36,37 +37,35 @@ import type {
   Fill,
   FillPatternType,
   Font,
+  FontVerticalAlignment,
   GradientFill,
   GradientStop,
-  FontVerticalAlignment,
   HorizontalAlignment,
   NamedCellStyle,
   Protection,
   UnderlineStyle,
   VerticalAlignment,
 } from '../../core/style.ts';
-import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {DataTableFormulaValue, RichTextRun, SharedFormulaValue} from '../../core/value.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import {
-  type WorkbookProtection,
   WORKBOOK_PROTECTION_CREDENTIAL_ATTRS,
+  type WorkbookProtection,
 } from '../../core/workbook-protection.ts';
 import type {
   PageBreak,
   PageMargins,
   PageSetup,
-  PrintOptions,
   PreservedPart,
   PreservedRelationship,
   PreservedWorksheetReference,
+  PrintOptions,
   Worksheet,
   WorksheetState,
 } from '../../core/worksheet.ts';
 import {decodeCellContent, decodeFormulaResult, type SharedString} from './cell-value.ts';
 import {applyNotes, parseComments} from './comments.ts';
 import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
-import {parseIndexedColors} from './styles.ts';
 import {
   applyDataValidations,
   parseDataValidations,
@@ -76,6 +75,7 @@ import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {inflatePackage} from './inflate.ts';
 import {parsePivotTable} from './pivot-read.ts';
+import {parseIndexedColors} from './styles.ts';
 import {parseTable} from './tables.ts';
 import {localName, parseXml} from './xml-read.ts';
 
@@ -188,7 +188,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
 // directory) to the comments part. A sheet with no rels part or no such relationship simply has none.
 function readSheetNotes(
   sheetPath: string,
-  partText: (path: string) => string | undefined
+  partText: (path: string) => string | undefined,
 ): Map<string, string> | undefined {
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return undefined;
@@ -207,7 +207,7 @@ function readSheetNotes(
 function readSheetPrinterSettings(
   sheetPath: string,
   partText: (path: string) => string | undefined,
-  partBytes: (path: string) => Uint8Array | undefined
+  partBytes: (path: string) => Uint8Array | undefined,
 ): Uint8Array | undefined {
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return undefined;
@@ -226,7 +226,7 @@ function readSheetImages(
   partBytes: (path: string) => Uint8Array | undefined,
   workbook: Workbook,
   sheet: Worksheet,
-  imageIdByMediaPath: Map<string, number>
+  imageIdByMediaPath: Map<string, number>,
 ): void {
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return;
@@ -274,7 +274,7 @@ function readSheetBackground(
   partBytes: (path: string) => Uint8Array | undefined,
   workbook: Workbook,
   sheet: Worksheet,
-  imageIdByMediaPath: Map<string, number>
+  imageIdByMediaPath: Map<string, number>,
 ): void {
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return;
@@ -307,17 +307,17 @@ function readSheetPreservedReferences(
   partText: (path: string) => string | undefined,
   partBytes: (path: string) => Uint8Array | undefined,
   contentTypeOf: (path: string) => string,
-  sheet: Worksheet
+  sheet: Worksheet,
 ): void {
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return;
   const records = parseRelationshipRecords(relsXml);
-  const recordById = new Map(records.map(record => [record.id, record]));
+  const recordById = new Map(records.map((record) => [record.id, record]));
 
   const capture = (
     element: PreservedWorksheetReference['element'],
     relType: string,
-    target: string
+    target: string,
   ): void => {
     const entryPath = resolveRelativePart(sheetPath, target);
     const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
@@ -362,7 +362,7 @@ function readWorkbookPreservedReferences(
   partText: (path: string) => string | undefined,
   partBytes: (path: string) => Uint8Array | undefined,
   contentTypeOf: (path: string) => string,
-  workbook: Workbook
+  workbook: Workbook,
 ): void {
   const relsXml = partText('xl/_rels/workbook.xml.rels');
   if (relsXml === undefined) return;
@@ -394,7 +394,11 @@ function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> 
   const byRelId = new Map<string, string>();
   parseXml(workbookXml, {
     onOpen(name, attrs) {
-      if (localName(name) === 'pivotCache' && attrs['r:id'] !== undefined && attrs.cacheId !== undefined) {
+      if (
+        localName(name) === 'pivotCache' &&
+        attrs['r:id'] !== undefined &&
+        attrs.cacheId !== undefined
+      ) {
         byRelId.set(attrs['r:id'], attrs.cacheId);
       }
     },
@@ -431,7 +435,7 @@ function capturePartClosure(
   entryPath: string,
   partText: (path: string) => string | undefined,
   partBytes: (path: string) => Uint8Array | undefined,
-  contentTypeOf: (path: string) => string
+  contentTypeOf: (path: string) => string,
 ): readonly PreservedPart[] | undefined {
   const parts: PreservedPart[] = [];
   const visited = new Set<string>();
@@ -454,7 +458,7 @@ function capturePartClosure(
     }
     parts.push({path, contentType: contentTypeOf(path), bytes, rels});
   }
-  return parts.some(part => part.path === entryPath) ? parts : undefined;
+  return parts.some((part) => part.path === entryPath) ? parts : undefined;
 }
 
 // Resolve a package part path to its declared content type the way OPC does: an `<Override>` naming
@@ -468,7 +472,11 @@ function contentTypeResolver(contentTypesXml: string): (path: string) => string 
       const local = localName(name);
       if (local === 'Override' && attrs.PartName !== undefined && attrs.ContentType !== undefined) {
         overrides.set(attrs.PartName, attrs.ContentType);
-      } else if (local === 'Default' && attrs.Extension !== undefined && attrs.ContentType !== undefined) {
+      } else if (
+        local === 'Default' &&
+        attrs.Extension !== undefined &&
+        attrs.ContentType !== undefined
+      ) {
         defaults.set(attrs.Extension.toLowerCase(), attrs.ContentType);
       }
     },
@@ -476,7 +484,9 @@ function contentTypeResolver(contentTypesXml: string): (path: string) => string 
     onClose() {},
   });
   return (path: string): string =>
-    overrides.get(`/${path}`) ?? defaults.get(extensionOf(path).toLowerCase()) ?? 'application/octet-stream';
+    overrides.get(`/${path}`) ??
+    defaults.get(extensionOf(path).toLowerCase()) ??
+    'application/octet-stream';
 }
 
 // A relationship as declared, with the fields a preserved-part closure needs: its id, Type URI,
@@ -484,7 +494,7 @@ function contentTypeResolver(contentTypesXml: string): (path: string) => string 
 // than {@link parseRelationships}'s id→target map, which the closure walk uses to skip external
 // targets and carry each relationship's type through a re-write.
 function parseRelationshipRecords(
-  xml: string
+  xml: string,
 ): Array<{id: string; type: string; target: string; external: boolean}> {
   const records: Array<{id: string; type: string; target: string; external: boolean}> = [];
   parseXml(xml, {
@@ -516,7 +526,7 @@ function parseRelationshipRecords(
 function readSheetTables(
   sheetPath: string,
   partText: (path: string) => string | undefined,
-  sheet: Worksheet
+  sheet: Worksheet,
 ): void {
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return;
@@ -539,7 +549,7 @@ function readSheetTables(
 function readSheetPivotTables(
   sheetPath: string,
   partText: (path: string) => string | undefined,
-  sheet: Worksheet
+  sheet: Worksheet,
 ): void {
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return;
@@ -547,8 +557,14 @@ function readSheetPivotTables(
     const tablePath = resolveRelativePart(sheetPath, target);
     const tableXml = partText(tablePath);
     if (tableXml === undefined) continue;
-    const cacheTarget = relationshipTargetByType(partText(relsPathFor(tablePath)) ?? '', 'pivotCacheDefinition');
-    const cacheXml = cacheTarget === undefined ? '' : partText(resolveRelativePart(tablePath, cacheTarget)) ?? '';
+    const cacheTarget = relationshipTargetByType(
+      partText(relsPathFor(tablePath)) ?? '',
+      'pivotCacheDefinition',
+    );
+    const cacheXml =
+      cacheTarget === undefined
+        ? ''
+        : (partText(resolveRelativePart(tablePath, cacheTarget)) ?? '');
     sheet.addLoadedPivotTable(parsePivotTable(tableXml, cacheXml));
   }
 }
@@ -558,13 +574,18 @@ function readSheetPivotTables(
 // geometry lands in the model intact; this applies the same repair once the tables are known, so a
 // re-write does not surface the Excel-invalid geometry the writer (correctly) rejects.
 function dropMergesInsideTables(sheet: Worksheet): void {
-  const regions = sheet.tables.map(table => table.region);
+  const regions = sheet.tables.map((table) => table.region);
   if (regions.length === 0) return;
   for (const range of [...sheet.merges]) {
     const {top, left, bottom, right} = decodeRange(range);
-    if (top === undefined || left === undefined || bottom === undefined || right === undefined) continue;
+    if (top === undefined || left === undefined || bottom === undefined || right === undefined)
+      continue;
     const overlaps = regions.some(
-      region => left <= region.right && right >= region.left && top <= region.bottom && bottom >= region.top
+      (region) =>
+        left <= region.right &&
+        right >= region.left &&
+        top <= region.bottom &&
+        bottom >= region.top,
     );
     if (overlaps) sheet.unmergeCells(range);
   }
@@ -653,7 +674,11 @@ export function parseRelationships(xml: string): Map<string, string> {
   const rels = new Map<string, string>();
   parseXml(xml, {
     onOpen(name, attrs) {
-      if (localName(name) === 'Relationship' && attrs.Id !== undefined && attrs.Target !== undefined) {
+      if (
+        localName(name) === 'Relationship' &&
+        attrs.Id !== undefined &&
+        attrs.Target !== undefined
+      ) {
         rels.set(attrs.Id, attrs.Target);
       }
     },
@@ -699,9 +724,11 @@ export function parseWorkbookProtection(xml: string): WorkbookProtection | undef
         lockRevision?: boolean;
         credentials?: Record<string, string>;
       } = {};
-      if (attrs.lockStructure === '1' || attrs.lockStructure === 'true') protection.lockStructure = true;
+      if (attrs.lockStructure === '1' || attrs.lockStructure === 'true')
+        protection.lockStructure = true;
       if (attrs.lockWindows === '1' || attrs.lockWindows === 'true') protection.lockWindows = true;
-      if (attrs.lockRevision === '1' || attrs.lockRevision === 'true') protection.lockRevision = true;
+      if (attrs.lockRevision === '1' || attrs.lockRevision === 'true')
+        protection.lockRevision = true;
       const credentials: Record<string, string> = {};
       for (const key of WORKBOOK_PROTECTION_CREDENTIAL_ATTRS) {
         const value = attrs[key];
@@ -878,23 +905,57 @@ const BORDER_EDGES = new Set<string>(['left', 'right', 'top', 'bottom', 'diagona
 // codes; id 0 (General) and any unknown id resolve to no format. The writer never emits
 // these — it always defines a custom id — but reading them keeps foreign files faithful.
 const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
-  [1, '0'], [2, '0.00'], [3, '#,##0'], [4, '#,##0.00'],
-  [9, '0%'], [10, '0.00%'], [11, '0.00E+00'], [12, '# ?/?'], [13, '# ??/??'],
-  [14, 'mm-dd-yy'], [15, 'd-mmm-yy'], [16, 'd-mmm'], [17, 'mmm-yy'],
-  [18, 'h:mm AM/PM'], [19, 'h:mm:ss AM/PM'], [20, 'h:mm'], [21, 'h:mm:ss'], [22, 'm/d/yy h:mm'],
-  [37, '#,##0 ;(#,##0)'], [38, '#,##0 ;[Red](#,##0)'], [39, '#,##0.00;(#,##0.00)'], [40, '#,##0.00;[Red](#,##0.00)'],
-  [45, 'mm:ss'], [46, '[h]:mm:ss'], [47, 'mmss.0'], [48, '##0.0E+0'], [49, '@'],
+  [1, '0'],
+  [2, '0.00'],
+  [3, '#,##0'],
+  [4, '#,##0.00'],
+  [9, '0%'],
+  [10, '0.00%'],
+  [11, '0.00E+00'],
+  [12, '# ?/?'],
+  [13, '# ??/??'],
+  [14, 'mm-dd-yy'],
+  [15, 'd-mmm-yy'],
+  [16, 'd-mmm'],
+  [17, 'mmm-yy'],
+  [18, 'h:mm AM/PM'],
+  [19, 'h:mm:ss AM/PM'],
+  [20, 'h:mm'],
+  [21, 'h:mm:ss'],
+  [22, 'm/d/yy h:mm'],
+  [37, '#,##0 ;(#,##0)'],
+  [38, '#,##0 ;[Red](#,##0)'],
+  [39, '#,##0.00;(#,##0.00)'],
+  [40, '#,##0.00;[Red](#,##0.00)'],
+  [45, 'mm:ss'],
+  [46, '[h]:mm:ss'],
+  [47, 'mmss.0'],
+  [48, '##0.0E+0'],
+  [49, '@'],
   // Ids 27..36 and 50..58 are reserved for locale-specific built-in East Asian date/time formats;
   // a file authored in a CJK locale styles date cells with them and, being built-ins, emits no
   // <numFmt>. The exact code is locale-defined — these are the representative Excel forms — but what
   // matters for reading is that each resolves to a non-empty date/time code so the serial reads as a
   // date rather than a bare number.
-  [27, '[$-404]e/m/d'], [28, '[$-404]e"年"m"月"d"日"'], [29, '[$-404]e"年"m"月"d"日"'], [30, '[$-404]m/d/yy'],
-  [31, '[$-404]yyyy"年"m"月"d"日"'], [32, '[$-404]h"時"mm"分"'], [33, '[$-404]h"時"mm"分"ss"秒"'],
-  [34, '上午/下午h"時"mm"分"'], [35, '上午/下午h"時"mm"分"ss"秒"'], [36, '[$-404]e/m/d'],
-  [50, '[$-404]e/m/d'], [51, '[$-404]e"年"m"月"d"日"'], [52, '[$-404]yyyy"年"m"月"'], [53, '[$-404]m"月"d"日"'],
-  [54, '[$-404]e"年"m"月"d"日"'], [55, '上午/下午h"時"mm"分"'], [56, '上午/下午h"時"mm"分"ss"秒"'],
-  [57, '[$-404]yyyy"年"m"月"'], [58, '[$-404]m"月"d"日"'],
+  [27, '[$-404]e/m/d'],
+  [28, '[$-404]e"年"m"月"d"日"'],
+  [29, '[$-404]e"年"m"月"d"日"'],
+  [30, '[$-404]m/d/yy'],
+  [31, '[$-404]yyyy"年"m"月"d"日"'],
+  [32, '[$-404]h"時"mm"分"'],
+  [33, '[$-404]h"時"mm"分"ss"秒"'],
+  [34, '上午/下午h"時"mm"分"'],
+  [35, '上午/下午h"時"mm"分"ss"秒"'],
+  [36, '[$-404]e/m/d'],
+  [50, '[$-404]e/m/d'],
+  [51, '[$-404]e"年"m"月"d"日"'],
+  [52, '[$-404]yyyy"年"m"月"'],
+  [53, '[$-404]m"月"d"日"'],
+  [54, '[$-404]e"年"m"月"d"日"'],
+  [55, '上午/下午h"時"mm"分"'],
+  [56, '上午/下午h"時"mm"分"ss"秒"'],
+  [57, '[$-404]yyyy"年"m"月"'],
+  [58, '[$-404]m"月"d"日"'],
 ]);
 
 // styles.xml is a shared table: <numFmts> defines custom format codes by id, <fills> lists
@@ -967,7 +1028,11 @@ export function parseStyleTable(xml: string): StyleTable {
         case 'gradientFill':
           if (inFills) {
             gradientDraft = {
-              fill: {type: 'gradient', gradient: attrs.type === 'path' ? 'path' : 'linear', stops: []},
+              fill: {
+                type: 'gradient',
+                gradient: attrs.type === 'path' ? 'path' : 'linear',
+                stops: [],
+              },
               stopPosition: null,
               stopColor: undefined,
             };
@@ -1003,8 +1068,10 @@ export function parseStyleTable(xml: string): StyleTable {
         case 'border':
           borderDraft = {};
           currentEdge = null;
-          if (attrs.diagonalUp === '1' || attrs.diagonalUp === 'true') borderDraft.diagonalUp = true;
-          if (attrs.diagonalDown === '1' || attrs.diagonalDown === 'true') borderDraft.diagonalDown = true;
+          if (attrs.diagonalUp === '1' || attrs.diagonalUp === 'true')
+            borderDraft.diagonalUp = true;
+          if (attrs.diagonalDown === '1' || attrs.diagonalDown === 'true')
+            borderDraft.diagonalDown = true;
           // A bare <border/> holds no edges; keep its id slot as the empty border.
           if (selfClosing) {
             borders.push(borderToStyle(borderDraft));
@@ -1061,11 +1128,13 @@ export function parseStyleTable(xml: string): StyleTable {
             // self-closing bar a coloured edge, whose colour child is itself self-closing).
             if (BORDER_EDGES.has(local)) {
               currentEdge = attrs.style !== undefined ? (local as BorderEdgeName) : null;
-              if (currentEdge !== null) borderDraft[currentEdge] = {style: attrs.style as BorderStyle};
+              if (currentEdge !== null)
+                borderDraft[currentEdge] = {style: attrs.style as BorderStyle};
               if (selfClosing) currentEdge = null;
             } else if (local === 'color' && currentEdge !== null) {
               const edge = borderDraft[currentEdge];
-              if (edge !== undefined) borderDraft[currentEdge] = {style: edge.style, color: parseColor(attrs)};
+              if (edge !== undefined)
+                borderDraft[currentEdge] = {style: edge.style, color: parseColor(attrs)};
             }
           } else if (pendingXf !== null && local === 'alignment') {
             // An xf's <alignment> child arrives before the xf closes; attach it to the pending xf.
@@ -1088,7 +1157,8 @@ export function parseStyleTable(xml: string): StyleTable {
             const font = Number.isInteger(fontId) ? fonts[fontId] : undefined;
             const borderId = Number(attrs.borderId);
             // Border id 0 is the empty default; only a custom border (id > 0) is an explicit one.
-            const border = Number.isInteger(borderId) && borderId > 0 ? borders[borderId] : undefined;
+            const border =
+              Number.isInteger(borderId) && borderId > 0 ? borders[borderId] : undefined;
             const numFmt = resolveNumFmt(attrs.numFmtId, numFmtCodes);
             const draft: XfDraft = {};
             if (fill) draft.fill = fill;
@@ -1159,7 +1229,10 @@ export function parseStyleTable(xml: string): StyleTable {
           break;
         case 'stop':
           if (gradientDraft !== null && gradientDraft.stopPosition !== null) {
-            const stop: GradientStop = {position: gradientDraft.stopPosition, color: gradientDraft.stopColor ?? {}};
+            const stop: GradientStop = {
+              position: gradientDraft.stopPosition,
+              color: gradientDraft.stopColor ?? {},
+            };
             gradientDraft.fill.stops = [...gradientDraft.fill.stops, stop];
             gradientDraft.stopPosition = null;
             gradientDraft.stopColor = undefined;
@@ -1189,7 +1262,7 @@ export function parseStyleTable(xml: string): StyleTable {
   // wins; one it leaves unset falls through to the named style. The xfId is carried through so the
   // link survives a re-write. A draft only holds keys for facets it actually set, so the spread merge
   // takes the named base and lets the direct entry override exactly what it names.
-  const cellXfs: XfStyle[] = xfStyles.map(xf => {
+  const cellXfs: XfStyle[] = xfStyles.map((xf) => {
     if (xf.xfId === undefined) return xf;
     const named = namedXfs[xf.xfId];
     return named === undefined ? xf : {...named, ...xf};
@@ -1198,7 +1271,7 @@ export function parseStyleTable(xml: string): StyleTable {
   // Zip the resolved cellStyleXfs facets with their cellStyles name/builtinId into the model's named
   // styles, index for index (a cellStyle's xfId is its cellStyleXfs index).
   const namedStyles: NamedCellStyle[] = namedXfs.map((xf, index) => {
-    const label = cellStyleNames.find(entry => entry.xfId === index);
+    const label = cellStyleNames.find((entry) => entry.xfId === index);
     const style: {-readonly [K in keyof NamedCellStyle]?: NamedCellStyle[K]} = {};
     if (xf.fill !== undefined) style.fill = xf.fill;
     if (xf.numFmt !== undefined) style.numFmt = xf.numFmt;
@@ -1217,7 +1290,11 @@ export function parseStyleTable(xml: string): StyleTable {
 // A <font> child element sets one facet on the draft. Boolean flags honour their `val`: a
 // bare tag or val="1"/"true" is on, val="0"/"false" is off (an explicit-false flag is not
 // truthy merely because the tag is present). An unrecognised child is ignored.
-function applyFontChild(draft: FontDraft, local: string, attrs: {readonly [k: string]: string}): void {
+function applyFontChild(
+  draft: FontDraft,
+  local: string,
+  attrs: {readonly [k: string]: string},
+): void {
   switch (local) {
     case 'b':
       draft.bold = flagValue(attrs.val);
@@ -1235,7 +1312,12 @@ function applyFontChild(draft: FontDraft, local: string, attrs: {readonly [k: st
       // A bare <u/> is a single underline; a named style (single/double/…) carries through; but
       // val="none" is the explicit ABSENCE of an underline, so it must read back falsy — not the
       // truthy string "none" that a consumer's `if (font.underline)` would mistake for underlined.
-      draft.underline = attrs.val === undefined ? true : attrs.val === 'none' ? false : (attrs.val as UnderlineStyle);
+      draft.underline =
+        attrs.val === undefined
+          ? true
+          : attrs.val === 'none'
+            ? false
+            : (attrs.val as UnderlineStyle);
       break;
     case 'vertAlign':
       if (attrs.val !== undefined) draft.vertAlign = attrs.val as FontVerticalAlignment;
@@ -1284,7 +1366,7 @@ function pendingFilterCriteria(
   values: string[] | null,
   blank: boolean,
   predicates: CustomFilterPredicate[] | null,
-  and: boolean
+  and: boolean,
 ): FilterCriteria | null {
   if (values !== null && (values.length > 0 || blank)) {
     return {kind: 'values', values, blank};
@@ -1297,14 +1379,21 @@ function pendingFilterCriteria(
 
 // An xf's numFmtId resolves against the custom codes first, then the built-in table; the
 // General format (id 0) and any unrecognised id mean the cell carries no explicit format.
-function resolveNumFmt(raw: string | undefined, custom: ReadonlyMap<number, string>): string | undefined {
+function resolveNumFmt(
+  raw: string | undefined,
+  custom: ReadonlyMap<number, string>,
+): string | undefined {
   if (raw === undefined) return undefined;
   const id = Number(raw);
   if (!Number.isInteger(id) || id === 0) return undefined;
   return custom.get(id) ?? BUILTIN_NUMFMTS.get(id);
 }
 
-function toFill(pattern: string, fgColor: Color | undefined, bgColor: Color | undefined): Fill | undefined {
+function toFill(
+  pattern: string,
+  fgColor: Color | undefined,
+  bgColor: Color | undefined,
+): Fill | undefined {
   if (pattern === '' || pattern === 'none') return undefined;
   return {
     type: 'pattern',
@@ -1327,9 +1416,10 @@ function assignGradientNumbers(fill: GradientDraft['fill'], attrs: Record<string
 // it carries nothing, so it resolves to undefined rather than an all-empty Border object.
 function borderToStyle(draft: BorderDraft): Border | undefined {
   const hasEdge = (['left', 'right', 'top', 'bottom', 'diagonal'] as const).some(
-    (edge: BorderEdgeName): boolean => draft[edge] !== undefined
+    (edge: BorderEdgeName): boolean => draft[edge] !== undefined,
   );
-  if (!hasEdge && draft.diagonalUp === undefined && draft.diagonalDown === undefined) return undefined;
+  if (!hasEdge && draft.diagonalUp === undefined && draft.diagonalDown === undefined)
+    return undefined;
   return draft;
 }
 
@@ -1391,10 +1481,20 @@ function parseSheetProtection(attrs: {readonly [k: string]: string}): SheetProte
     if (raw !== undefined) flags[key] = !(raw === '1' || raw === 'true');
   }
   const {algorithmName, hashValue, saltValue, spinCount} = attrs;
-  if (algorithmName !== undefined && hashValue !== undefined && saltValue !== undefined && spinCount !== undefined) {
+  if (
+    algorithmName !== undefined &&
+    hashValue !== undefined &&
+    saltValue !== undefined &&
+    spinCount !== undefined
+  ) {
     const spin = Number(spinCount);
     if (Number.isFinite(spin)) {
-      const credential: SheetProtectionCredential = {algorithmName, hashValue, saltValue, spinCount: spin};
+      const credential: SheetProtectionCredential = {
+        algorithmName,
+        hashValue,
+        saltValue,
+        spinCount: spin,
+      };
       return {flags, credential};
     }
   }
@@ -1455,7 +1555,7 @@ function parseWorksheet(
   xml: string,
   sheet: Worksheet,
   sharedStrings: readonly SharedString[],
-  xfStyles: ReadonlyArray<XfStyle>
+  xfStyles: ReadonlyArray<XfStyle>,
 ): void {
   let cellRef = '';
   let cellType = '';
@@ -1473,8 +1573,13 @@ function parseWorksheet(
   let sharedClone = false;
   // The declaration attributes of a `<f t="dataTable">`, held from the `<f>` open until the cell
   // finalises. Null for every other cell.
-  let formulaDataTable: {ref: string; dt2D: string | undefined; dtr: string | undefined; r1: string | undefined; r2: string | undefined} | null =
-    null;
+  let formulaDataTable: {
+    ref: string;
+    dt2D: string | undefined;
+    dtr: string | undefined;
+    r1: string | undefined;
+    r2: string | undefined;
+  } | null = null;
   let valueText = '';
   let inlineText = '';
   let hasFormula = false;
@@ -1521,7 +1626,7 @@ function parseWorksheet(
     try {
       const {left, right} = decodeRange(filterRef);
       const width = left !== undefined && right !== undefined ? right - left + 1 : 0;
-      sheet.autoFilter = {ref: filterRef, columns: filterColumns.filter(c => c.colId < width)};
+      sheet.autoFilter = {ref: filterRef, columns: filterColumns.filter((c) => c.colId < width)};
     } catch {
       // unbounded or malformed autofilter range in the source file — ignore it
     }
@@ -1539,7 +1644,7 @@ function parseWorksheet(
         ? cellStyle
         : rowCustomFormat && rowStyle >= 0
           ? rowStyle
-          : columnStyle.get(cellCol) ?? -1;
+          : (columnStyle.get(cellCol) ?? -1);
     const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
     // A data-table formula is preserved by declaration, not evaluated: surface its kind, range, input
     // cells, and cached result so a read-modify-write cycle re-emits it rather than dropping it.
@@ -1566,7 +1671,11 @@ function parseWorksheet(
     } else if (sharedClone && formulaSi >= 0) {
       const master = sharedMasters.get(formulaSi);
       if (master !== undefined) {
-        const translated = translateFormula(master.formula, cellCol - master.col, cellRow - master.row);
+        const translated = translateFormula(
+          master.formula,
+          cellCol - master.col,
+          cellRow - master.row,
+        );
         const value: SharedFormulaValue = {
           sharedFormula: encodeAddress(master.col, master.row),
           formula: unmangleFunctions(translated),
@@ -1579,7 +1688,19 @@ function parseWorksheet(
         return;
       }
     }
-    finalizeCell(sheet, cellRef, cellType, hasFormula, formula, hasValue, valueText, inlineText, inlineRuns, sharedStrings, style);
+    finalizeCell(
+      sheet,
+      cellRef,
+      cellType,
+      hasFormula,
+      formula,
+      hasValue,
+      valueText,
+      inlineText,
+      inlineRuns,
+      sharedStrings,
+      style,
+    );
   };
 
   parseXml(xml, {
@@ -1600,8 +1721,8 @@ function parseWorksheet(
           cellRef = attrs.r ?? '';
           cellType = attrs.t ?? '';
           cellStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
-          cellCol = cellRef === '' ? -1 : decodeAddress(cellRef).col ?? -1;
-          cellRow = cellRef === '' ? -1 : decodeAddress(cellRef).row ?? -1;
+          cellCol = cellRef === '' ? -1 : (decodeAddress(cellRef).col ?? -1);
+          cellRow = cellRef === '' ? -1 : (decodeAddress(cellRef).row ?? -1);
           formula = '';
           valueText = '';
           inlineText = '';
@@ -1647,7 +1768,13 @@ function parseWorksheet(
           // A `<f t="dataTable">` carries only declaration attributes; hold them for finalisation so
           // the data-table kind is preserved rather than read as an empty formula.
           if (attrs.t === 'dataTable' && attrs.ref !== undefined) {
-            formulaDataTable = {ref: attrs.ref, dt2D: attrs.dt2D, dtr: attrs.dtr, r1: attrs.r1, r2: attrs.r2};
+            formulaDataTable = {
+              ref: attrs.ref,
+              dt2D: attrs.dt2D,
+              dtr: attrs.dtr,
+              r1: attrs.r1,
+              r2: attrs.r2,
+            };
           }
           break;
         case 'v':
@@ -1684,8 +1811,10 @@ function parseWorksheet(
         case 'outlinePr':
           // Another self-closing `<sheetPr>` child; only set flags the source actually carried, so
           // a file without them leaves `outline` empty and a re-write stays byte-clean.
-          if (attrs.summaryBelow !== undefined) sheet.outline.summaryBelow = flagValue(attrs.summaryBelow);
-          if (attrs.summaryRight !== undefined) sheet.outline.summaryRight = flagValue(attrs.summaryRight);
+          if (attrs.summaryBelow !== undefined)
+            sheet.outline.summaryBelow = flagValue(attrs.summaryBelow);
+          if (attrs.summaryRight !== undefined)
+            sheet.outline.summaryRight = flagValue(attrs.summaryRight);
           break;
         case 'pane':
           // A `<sheetView>` child recording a frozen (or split) pane. Only a frozen pane maps onto
@@ -1838,7 +1967,7 @@ function parseWorksheet(
             filterValues,
             filterBlank,
             customPredicates,
-            customAnd
+            customAnd,
           );
           if (filterColId >= 0 && criteria !== null) {
             filterColumns.push({colId: filterColId, criteria});
@@ -1864,7 +1993,7 @@ function applyColumn(
   sheet: Worksheet,
   attrs: {readonly [k: string]: string},
   xfStyles: ReadonlyArray<XfStyle>,
-  columnStyle: Map<number, number>
+  columnStyle: Map<number, number>,
 ): void {
   const min = Number(attrs.min);
   const max = Number(attrs.max);
@@ -1877,7 +2006,8 @@ function applyColumn(
   const style = styleIndex >= 0 ? xfStyles[styleIndex] : undefined;
   for (let index = min; index <= max; index++) {
     const properties = sheet.getColumn(index);
-    if (width !== undefined && Number.isFinite(width) && attrs.customWidth !== '0') properties.width = width;
+    if (width !== undefined && Number.isFinite(width) && attrs.customWidth !== '0')
+      properties.width = width;
     if (hidden) properties.hidden = true;
     if (attrs.outlineLevel !== undefined) {
       const level = Number(attrs.outlineLevel);
@@ -1914,7 +2044,10 @@ function applyRow(sheet: Worksheet, attrs: {readonly [k: string]: string}): void
 // Read the `<printOptions>` boolean toggles back onto the model, storing only the ones the source
 // carried so a re-write stays byte-clean. An OOXML boolean is `1`/`true` for on and `0`/`false` for
 // off; a present-but-unrecognised token is dropped rather than coerced.
-function applyPrintOptions(printOptions: PrintOptions, attrs: {readonly [k: string]: string}): void {
+function applyPrintOptions(
+  printOptions: PrintOptions,
+  attrs: {readonly [k: string]: string},
+): void {
   const flag = (raw: string | undefined): boolean | undefined => {
     if (raw === '1' || raw === 'true') return true;
     if (raw === '0' || raw === 'false') return false;
@@ -1978,7 +2111,7 @@ function finalizeCell(
   inlineText: string,
   richTextRuns: readonly RichTextRun[],
   sharedStrings: readonly SharedString[],
-  style: XfStyle | undefined
+  style: XfStyle | undefined,
 ): void {
   const {col, row} = decodeAddress(ref);
   if (col === undefined || row === undefined) return;
@@ -1988,7 +2121,7 @@ function finalizeCell(
   cell.value = decodeCellContent(
     {type, hasFormula, formula, hasValue, valueText, inlineText, richTextRuns},
     sharedStrings,
-    style?.numFmt
+    style?.numFmt,
   );
 }
 

@@ -25,7 +25,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {reloadOk} = await api.streamAutoFilterProtectionOrder();
-        assert.strictEqual(reloadOk, true, 'the streamed workbook reloads through the tolerant reader');
+        assert.strictEqual(
+          reloadOk,
+          true,
+          'the streamed workbook reloads through the tolerant reader',
+        );
       },
     },
     {
@@ -36,7 +40,7 @@ export default {
         assert.strictEqual(
           sheetProtectionBeforeAutoFilter,
           true,
-          '<sheetProtection> must precede <autoFilter> per CT_Worksheet; the streaming writer emits them reversed'
+          '<sheetProtection> must precede <autoFilter> per CT_Worksheet; the streaming writer emits them reversed',
         );
       },
     },

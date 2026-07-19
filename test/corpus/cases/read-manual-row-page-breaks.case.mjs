@@ -29,7 +29,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sourceBreaks} = await api.roundtripFixtureRowBreaks(FIXTURE);
-        assert.deepStrictEqual(sourceBreaks, [3, 6], 'the source XML declares row breaks at rows 3 and 6');
+        assert.deepStrictEqual(
+          sourceBreaks,
+          [3, 6],
+          'the source XML declares row breaks at rows 3 and 6',
+        );
       },
     },
     {
@@ -37,7 +41,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {loadedBreaks} = await api.roundtripFixtureRowBreaks(FIXTURE);
-        assert.deepStrictEqual(loadedBreaks, [3, 6], `the reader must surface the row breaks; got ${JSON.stringify(loadedBreaks)}`);
+        assert.deepStrictEqual(
+          loadedBreaks,
+          [3, 6],
+          `the reader must surface the row breaks; got ${JSON.stringify(loadedBreaks)}`,
+        );
       },
     },
     {
@@ -45,7 +53,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {rewrittenBreaks} = await api.roundtripFixtureRowBreaks(FIXTURE);
-        assert.deepStrictEqual(rewrittenBreaks, [3, 6], `the row breaks must survive the round-trip; got ${JSON.stringify(rewrittenBreaks)}`);
+        assert.deepStrictEqual(
+          rewrittenBreaks,
+          [3, 6],
+          `the row breaks must survive the round-trip; got ${JSON.stringify(rewrittenBreaks)}`,
+        );
       },
     },
   ],

@@ -41,7 +41,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {valZero} = await api.fontExplicitFalseBoldReport();
-        assert.strictEqual(valZero, false, '<b val="0"/> means NOT bold — the val attribute must be honored, not ignored');
+        assert.strictEqual(
+          valZero,
+          false,
+          '<b val="0"/> means NOT bold — the val attribute must be honored, not ignored',
+        );
       },
     },
     {
@@ -65,7 +69,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {underline} = await api.fontExplicitOffFlagsReport();
-        assert.ok(!underline && underline !== 'none', '<u val="none"/> means NOT underlined — the string "none" is not truthy underline');
+        assert.ok(
+          !underline && underline !== 'none',
+          '<u val="none"/> means NOT underlined — the string "none" is not truthy underline',
+        );
       },
     },
   ],

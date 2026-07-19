@@ -33,7 +33,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {hasFilterDatabase} = await api.autoFilterDefinedNameReport('A1:B2');
-        assert.strictEqual(hasFilterDatabase, true, 'the _FilterDatabase defined name must be emitted so LibreOffice recognizes the filter');
+        assert.strictEqual(
+          hasFilterDatabase,
+          true,
+          'the _FilterDatabase defined name must be emitted so LibreOffice recognizes the filter',
+        );
       },
     },
     {
@@ -41,7 +45,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {filterDatabaseHidden} = await api.autoFilterDefinedNameReport('A1:B2');
-        assert.strictEqual(filterDatabaseHidden, true, 'the _FilterDatabase name is marked hidden, as Excel emits it');
+        assert.strictEqual(
+          filterDatabaseHidden,
+          true,
+          'the _FilterDatabase name is marked hidden, as Excel emits it',
+        );
       },
     },
   ],

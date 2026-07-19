@@ -25,8 +25,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {hasFont, fontName} = await api.unstyledCellFontReport();
-        assert.strictEqual(hasFont, true, 'the unstyled cell must resolve to the workbook default font');
-        assert.ok(fontName, `the default font has a concrete name; got ${JSON.stringify(fontName)}`);
+        assert.strictEqual(
+          hasFont,
+          true,
+          'the unstyled cell must resolve to the workbook default font',
+        );
+        assert.ok(
+          fontName,
+          `the default font has a concrete name; got ${JSON.stringify(fontName)}`,
+        );
       },
     },
     {
@@ -34,7 +41,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {fontSize} = await api.unstyledCellFontReport();
-        assert.ok(typeof fontSize === 'number' && fontSize > 0, `the default font has a numeric size; got ${JSON.stringify(fontSize)}`);
+        assert.ok(
+          typeof fontSize === 'number' && fontSize > 0,
+          `the default font has a numeric size; got ${JSON.stringify(fontSize)}`,
+        );
       },
     },
   ],

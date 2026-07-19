@@ -29,7 +29,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(WITH_TABLE);
-        assert.ok(ok, `the read must not crash on the absolute-path table rel; got ${JSON.stringify(error)}`);
+        assert.ok(
+          ok,
+          `the read must not crash on the absolute-path table rel; got ${JSON.stringify(error)}`,
+        );
       },
     },
     {

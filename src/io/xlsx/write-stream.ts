@@ -37,16 +37,16 @@ import type {ConditionalFormatting} from '../../core/conditional-formatting.ts';
 import type {DataValidation} from '../../core/data-validation.ts';
 import type {AnchorPoint} from '../../core/image.ts';
 import type {SheetProtectionOptions} from '../../core/protection.ts';
-import {isSharedFormulaValue, type CellValue} from '../../core/value.ts';
-import {Workbook, type AddImageOptions, type AddWorksheetOptions} from '../../core/workbook.ts';
+import {type CellValue, isSharedFormulaValue} from '../../core/value.ts';
+import {type AddImageOptions, type AddWorksheetOptions, Workbook} from '../../core/workbook.ts';
 import type {ColumnProperties, Worksheet} from '../../core/worksheet.ts';
 import type {StyleRegistry} from './styles.ts';
 import {
   buildColumnDefaults,
   buildPackageParts,
   createStyleRegistry,
-  renderRow,
   type FlushedSheet,
+  renderRow,
   type WriteOptions,
 } from './write.ts';
 
@@ -162,8 +162,9 @@ export class WorksheetStreamWriter {
   /** Append a batch of rows in one call, each landing directly below the previous. */
   addRows(rows: CellValue[][]): StreamedRow[] {
     this.#assertOpen();
-    if (!this.#eager) return this.#sheet.addRows(rows).map(cells => new StreamedRow(cells, null, 0));
-    return rows.map(values => this.addRow(values));
+    if (!this.#eager)
+      return this.#sheet.addRows(rows).map((cells) => new StreamedRow(cells, null, 0));
+    return rows.map((values) => this.addRow(values));
   }
 
   // The next append position: past both this writer's own high-water mark and any rows a `getCell`
@@ -199,7 +200,7 @@ export class WorksheetStreamWriter {
         throw new Error(
           `row ${number} of streamed sheet "${this.#sheet.name}" carries a shared-formula cell; a ` +
             'committed row is finalised before the sheet is planned, so author shared formulas through ' +
-            'getCell (leaving the row uncommitted) instead'
+            'getCell (leaving the row uncommitted) instead',
         );
       }
     }
@@ -212,7 +213,7 @@ export class WorksheetStreamWriter {
         sharedStrings: null,
         sharedRoles: new Map(),
         collapsedSummaries: new Set(),
-      }
+      },
     );
     if (xml !== '') {
       this.#flushedRows.push({number, xml});
@@ -229,7 +230,13 @@ export class WorksheetStreamWriter {
   // The rows this writer flushed, or undefined if none — handed to buildPackageParts at commit.
   flushedSheet(): FlushedSheet | undefined {
     if (this.#flushedRows.length === 0) return undefined;
-    return {rows: this.#flushedRows, top: this.#top, left: this.#left, bottom: this.#bottom, right: this.#right};
+    return {
+      rows: this.#flushedRows,
+      top: this.#top,
+      left: this.#left,
+      bottom: this.#bottom,
+      right: this.#right,
+    };
   }
 
   /** Address a cell by its A1 reference to read or style it before the sheet is committed. */
@@ -311,7 +318,7 @@ export class WorksheetStreamWriter {
   #assertOpen(): void {
     if (this.#committed) {
       throw new Error(
-        `worksheet "${this.#sheet.name}" is already committed — its rows are finalised and no more can be added`
+        `worksheet "${this.#sheet.name}" is already committed — its rows are finalised and no more can be added`,
       );
     }
   }
@@ -347,7 +354,8 @@ export class WorkbookStreamWriter {
     if (options.stream && options.filename) {
       throw new Error('provide either a stream or a filename to the streaming writer, not both');
     }
-    this.#sink = options.stream ?? (options.filename ? createWriteStream(options.filename) : undefined);
+    this.#sink =
+      options.stream ?? (options.filename ? createWriteStream(options.filename) : undefined);
   }
 
   /** Document-level metadata written to the package's core properties. */
@@ -362,7 +370,8 @@ export class WorkbookStreamWriter {
    * ignore this one.
    */
   get stream(): Readable {
-    return (this.#stream ??= new PassThrough());
+    this.#stream ??= new PassThrough();
+    return this.#stream;
   }
 
   /**
@@ -385,7 +394,7 @@ export class WorkbookStreamWriter {
     const sheet = new WorksheetStreamWriter(
       this.#workbook.addWorksheet(name, options),
       this.#eager,
-      this.#styles
+      this.#styles,
     );
     this.#sheets.push(sheet);
     return sheet;
@@ -424,7 +433,7 @@ export class WorkbookStreamWriter {
     // contract.
     const sinkSettled = sink ? settleOnFinish(sink) : undefined;
 
-    const bytes = await streamZipPackage(parts, chunk => {
+    const bytes = await streamZipPackage(parts, (chunk) => {
       owned?.write(chunk);
       sink?.write(chunk);
     });
@@ -452,7 +461,7 @@ function settleOnFinish(sink: Writable): Promise<void> {
 // stamps into every entry's header therefore always matches the bytes it just compressed.
 function streamZipPackage(
   parts: Record<string, Uint8Array>,
-  onChunk: (chunk: Uint8Array) => void
+  onChunk: (chunk: Uint8Array) => void,
 ): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     const collected: Uint8Array[] = [];

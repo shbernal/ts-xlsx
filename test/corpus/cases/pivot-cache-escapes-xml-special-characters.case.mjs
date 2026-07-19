@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, writeError} = await api.pivotCacheSpecialCharsReport();
-        assert.strictEqual(ok, true, `authoring the pivot must not throw; got ${JSON.stringify(writeError)}`);
+        assert.strictEqual(
+          ok,
+          true,
+          `authoring the pivot must not throw; got ${JSON.stringify(writeError)}`,
+        );
       },
     },
     {
@@ -34,8 +38,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {cacheWellFormed, hasRawUnescapedAmp} = await api.pivotCacheSpecialCharsReport();
-        assert.strictEqual(hasRawUnescapedAmp, false, 'no raw unescaped "&" leaks into the pivot cache XML');
-        assert.strictEqual(cacheWellFormed, true, 'the pivotCacheDefinition part is well-formed XML');
+        assert.strictEqual(
+          hasRawUnescapedAmp,
+          false,
+          'no raw unescaped "&" leaks into the pivot cache XML',
+        );
+        assert.strictEqual(
+          cacheWellFormed,
+          true,
+          'the pivotCacheDefinition part is well-formed XML',
+        );
       },
     },
   ],

@@ -26,8 +26,11 @@ export default {
           {text: 'here', font: {underline: true}},
           {text: ' plain', font: {}},
         ]);
-        const lead = runs.find(r => r.text === 'here');
-        assert.ok(lead && lead.underline === true, 'the underlined leading run survives with its underline');
+        const lead = runs.find((r) => r.text === 'here');
+        assert.ok(
+          lead && lead.underline === true,
+          'the underlined leading run survives with its underline',
+        );
       },
     },
     {
@@ -38,8 +41,11 @@ export default {
           {text: 'plain ', font: {}},
           {text: 'here', font: {underline: true}},
         ]);
-        const tail = runs.find(r => r.text === 'here');
-        assert.ok(tail && tail.underline === true, 'the underlined non-leading run survives with its underline');
+        const tail = runs.find((r) => r.text === 'here');
+        assert.ok(
+          tail && tail.underline === true,
+          'the underlined non-leading run survives with its underline',
+        );
       },
     },
     {

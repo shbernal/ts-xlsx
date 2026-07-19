@@ -29,8 +29,16 @@ export default {
         assert.ok(tables.length >= 2, 'the fixture has multiple tables');
         for (const t of tables) {
           assert.ok(t.rewritten, `table ${t.name} still present after round-trip`);
-          assert.strictEqual(t.rewritten.autoFilterRef, t.source.autoFilterRef, `autoFilter ref preserved for ${t.name}`);
-          assert.strictEqual(t.rewritten.columnCount, t.source.columnCount, `column count preserved for ${t.name}`);
+          assert.strictEqual(
+            t.rewritten.autoFilterRef,
+            t.source.autoFilterRef,
+            `autoFilter ref preserved for ${t.name}`,
+          );
+          assert.strictEqual(
+            t.rewritten.columnCount,
+            t.source.columnCount,
+            `column count preserved for ${t.name}`,
+          );
         }
       },
     },
@@ -43,7 +51,7 @@ export default {
           assert.strictEqual(
             t.rewritten.totalsRowShown,
             t.source.totalsRowShown,
-            `totalsRowShown must stay ${t.source.totalsRowShown} for ${t.name}`
+            `totalsRowShown must stay ${t.source.totalsRowShown} for ${t.name}`,
           );
         }
       },

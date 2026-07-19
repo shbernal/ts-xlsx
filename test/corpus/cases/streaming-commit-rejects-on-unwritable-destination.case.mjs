@@ -23,7 +23,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {outcome, rejected} = await api.streamCommitBadDestination();
-        assert.strictEqual(rejected, true, `commit must reject on a failed sink; outcome was "${outcome}"`);
+        assert.strictEqual(
+          rejected,
+          true,
+          `commit must reject on a failed sink; outcome was "${outcome}"`,
+        );
       },
     },
     {
@@ -31,7 +35,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {carriesIoError, error} = await api.streamCommitBadDestination();
-        assert.strictEqual(carriesIoError, true, `the rejection names the I/O failure; got ${JSON.stringify(error)}`);
+        assert.strictEqual(
+          carriesIoError,
+          true,
+          `the rejection names the I/O failure; got ${JSON.stringify(error)}`,
+        );
       },
     },
   ],

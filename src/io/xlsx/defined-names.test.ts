@@ -16,7 +16,10 @@ test('a global defined name is written into <definedNames> after <sheets>', () =
   wb.addWorksheet('S').getCell('A1').value = 1;
   wb.defineName({name: 'TaxRate', refersTo: 'S!$A$1'});
   const xml = workbookXmlOf(wb);
-  assert.match(xml, /<definedNames><definedName name="TaxRate">S!\$A\$1<\/definedName><\/definedNames>/);
+  assert.match(
+    xml,
+    /<definedNames><definedName name="TaxRate">S!\$A\$1<\/definedName><\/definedNames>/,
+  );
   assert.ok(xml.indexOf('<sheets>') < xml.indexOf('<definedNames>'), 'definedNames follows sheets');
 });
 
@@ -39,7 +42,10 @@ test('a sheet-scoped name carries the 0-based localSheetId of its sheet', () => 
   wb.addWorksheet('First').getCell('A1').value = 1;
   wb.addWorksheet('Second').getCell('A1').value = 2;
   wb.defineName({name: 'Local', refersTo: 'Second!$A$1', scope: 'Second'});
-  assert.match(workbookXmlOf(wb), /<definedName name="Local" localSheetId="1">Second!\$A\$1<\/definedName>/);
+  assert.match(
+    workbookXmlOf(wb),
+    /<definedName name="Local" localSheetId="1">Second!\$A\$1<\/definedName>/,
+  );
 });
 
 test('a sheet-scoped name round-trips back to its scope worksheet name', () => {
@@ -48,7 +54,10 @@ test('a sheet-scoped name round-trips back to its scope worksheet name', () => {
   wb.addWorksheet('Second').getCell('A1').value = 2;
   wb.defineName({name: 'Local', refersTo: 'Second!$A$1', scope: 'Second'});
   const back = readXlsx(writeXlsx(wb));
-  assert.deepEqual([...back.definedNames], [{name: 'Local', refersTo: 'Second!$A$1', scope: 'Second'}]);
+  assert.deepEqual(
+    [...back.definedNames],
+    [{name: 'Local', refersTo: 'Second!$A$1', scope: 'Second'}],
+  );
 });
 
 test('a comment and the hidden flag survive the round-trip', () => {
@@ -56,9 +65,10 @@ test('a comment and the hidden flag survive the round-trip', () => {
   wb.addWorksheet('S').getCell('A1').value = 1;
   wb.defineName({name: 'Secret', refersTo: 'S!$A$1', comment: 'internal use', hidden: true});
   const back = readXlsx(writeXlsx(wb));
-  assert.deepEqual([...back.definedNames], [
-    {name: 'Secret', refersTo: 'S!$A$1', comment: 'internal use', hidden: true},
-  ]);
+  assert.deepEqual(
+    [...back.definedNames],
+    [{name: 'Secret', refersTo: 'S!$A$1', comment: 'internal use', hidden: true}],
+  );
 });
 
 test('special characters in the name and formula are escaped and round-trip verbatim', () => {
@@ -77,7 +87,10 @@ test('a name defined as a LAMBDA stores _xlfn. and _xlpm. but is modelled plain'
   wb.addWorksheet('S').getCell('A1').value = 1;
   wb.defineName({name: 'Double', refersTo: 'LAMBDA(x,x*2)'});
   const xml = workbookXmlOf(wb);
-  assert.match(xml, /<definedName name="Double">_xlfn\.LAMBDA\(_xlpm\.x,_xlpm\.x\*2\)<\/definedName>/);
+  assert.match(
+    xml,
+    /<definedName name="Double">_xlfn\.LAMBDA\(_xlpm\.x,_xlpm\.x\*2\)<\/definedName>/,
+  );
   const back = readXlsx(writeXlsx(wb));
   assert.deepEqual([...back.definedNames], [{name: 'Double', refersTo: 'LAMBDA(x,x*2)'}]);
 });
@@ -105,7 +118,10 @@ test('defineName rejects an empty name and an unknown scope', () => {
   const wb = new Workbook();
   wb.addWorksheet('S');
   assert.throws(() => wb.defineName({name: '', refersTo: 'S!$A$1'}), /cannot be empty/);
-  assert.throws(() => wb.defineName({name: 'X', refersTo: 'S!$A$1', scope: 'Nope'}), /unknown worksheet/);
+  assert.throws(
+    () => wb.defineName({name: 'X', refersTo: 'S!$A$1', scope: 'Nope'}),
+    /unknown worksheet/,
+  );
 });
 
 test('a localSheetId pointing past the loaded sheets reads back as a global name', () => {

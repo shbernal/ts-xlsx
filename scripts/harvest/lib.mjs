@@ -70,11 +70,11 @@ export async function gh(path, {paginate = false} = {}) {
 // list-backlog to snapshot the manifest.
 export async function listOpenItems(repo = DEFAULT_REPO) {
   const raw = await gh(`repos/${repo}/issues?state=open&per_page=100`, {paginate: true});
-  return raw.map(item => ({
+  return raw.map((item) => ({
     number: item.number,
     type: item.pull_request ? 'pull_request' : 'issue',
     title: item.title ?? '',
-    labels: (item.labels ?? []).map(l => (typeof l === 'string' ? l : l.name)),
+    labels: (item.labels ?? []).map((l) => (typeof l === 'string' ? l : l.name)),
     reactions: item.reactions?.total_count ?? 0,
     comments: item.comments ?? 0,
     url: item.html_url,
@@ -146,9 +146,10 @@ export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = fa
 
   const issue = await gh(`repos/${repo}/issues/${number}`);
   const isPR = Boolean(issue.pull_request);
-  const comments = issue.comments > 0 ? await gh(`repos/${repo}/issues/${number}/comments`, {paginate: true}) : [];
+  const comments =
+    issue.comments > 0 ? await gh(`repos/${repo}/issues/${number}/comments`, {paginate: true}) : [];
 
-  const attachmentSources = [issue.body, ...comments.map(c => c.body)].join('\n');
+  const attachmentSources = [issue.body, ...comments.map((c) => c.body)].join('\n');
   const attachments = discoverAttachments(attachmentSources);
 
   // PRs carry their real value in the reproduction and the changed-file map, not
@@ -165,7 +166,12 @@ export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = fa
       baseRef: detail.base?.ref ?? null,
       additions: detail.additions ?? null,
       deletions: detail.deletions ?? null,
-      changedFiles: files.map(f => ({path: f.filename, status: f.status, additions: f.additions, deletions: f.deletions})),
+      changedFiles: files.map((f) => ({
+        path: f.filename,
+        status: f.status,
+        additions: f.additions,
+        deletions: f.deletions,
+      })),
     };
   }
 
@@ -180,7 +186,7 @@ export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = fa
     author: issue.user?.login ?? null,
     createdAt: issue.created_at ?? null,
     closedAt: issue.closed_at ?? null,
-    labels: (issue.labels ?? []).map(l => (typeof l === 'string' ? l : l.name)),
+    labels: (issue.labels ?? []).map((l) => (typeof l === 'string' ? l : l.name)),
     reactions: issue.reactions?.total_count ?? 0,
     commentCount: issue.comments ?? 0,
     body: issue.body ?? '',
@@ -192,7 +198,7 @@ export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = fa
   await mkdir(ISSUES_DIR, {recursive: true});
   await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`);
 
-  const fixtures = attachments.filter(a => a.isFixture);
+  const fixtures = attachments.filter((a) => a.isFixture);
   const downloaded = [];
   for (const [i, att] of fixtures.entries()) {
     const name = `${padded}-${i}.${att.ext}`;

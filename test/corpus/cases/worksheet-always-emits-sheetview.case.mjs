@@ -23,7 +23,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
-          sheets: [{name: 'Sheet1', rows: [{index: 1, height: 40}, {index: 2, height: 40}]}],
+          sheets: [
+            {
+              name: 'Sheet1',
+              rows: [
+                {index: 1, height: 40},
+                {index: 2, height: 40},
+              ],
+            },
+          ],
         });
         assert.ok(sheets.Sheet1.hasSheetViews, 'expected a <sheetViews> block');
         assert.ok(sheets.Sheet1.sheetViewCount >= 1, 'expected at least one <sheetView>');

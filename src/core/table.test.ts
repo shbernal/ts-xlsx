@@ -14,19 +14,33 @@ function table(overrides: Partial<TableOptions> = {}): Table {
 }
 
 test('duplicate column names are disambiguated with a numeric suffix', () => {
-  const t = new Table({name: 'T', ref: 'A1', columns: [{name: 'Dup'}, {name: 'Dup'}, {name: 'Dup'}], rowCount: 1});
+  const t = new Table({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'Dup'}, {name: 'Dup'}, {name: 'Dup'}],
+    rowCount: 1,
+  });
   assert.deepStrictEqual(
-    t.columns.map(c => c.name),
+    t.columns.map((c) => c.name),
     ['Dup', 'Dup2', 'Dup3'],
-    'the first name is kept; later clashes gain the smallest resolving suffix'
+    'the first name is kept; later clashes gain the smallest resolving suffix',
   );
 });
 
 test('duplicate column names are disambiguated case-insensitively', () => {
-  const t = new Table({name: 'T', ref: 'A1', columns: [{name: 'Name'}, {name: 'name'}], rowCount: 1});
-  const [first, second] = t.columns.map(c => c.name);
+  const t = new Table({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'Name'}, {name: 'name'}],
+    rowCount: 1,
+  });
+  const [first, second] = t.columns.map((c) => c.name);
   assert.strictEqual(first, 'Name');
-  assert.notStrictEqual(second?.toLowerCase(), 'name', 'a case-insensitive clash is still resolved');
+  assert.notStrictEqual(
+    second?.toLowerCase(),
+    'name',
+    'a case-insensitive clash is still resolved',
+  );
 });
 
 test('distinct column names are accepted', () => {
@@ -67,7 +81,11 @@ test('a column splice to the left shifts the table anchor', () => {
 
 test('the sentinel style name "None" is normalised to an absent name', () => {
   const t = table({style: {name: 'None', showRowStripes: true}});
-  assert.strictEqual(t.style?.name, undefined, '"None" means unstyled, not a literal style reference');
+  assert.strictEqual(
+    t.style?.name,
+    undefined,
+    '"None" means unstyled, not a literal style reference',
+  );
   assert.strictEqual(t.style?.showRowStripes, true, 'flags set alongside the theme survive');
 });
 
@@ -96,5 +114,8 @@ test('addRow rejects more values than the table has columns', () => {
 });
 
 test('addRow on a detached table with a totals row throws — relocation needs the grid', () => {
-  assert.throws(() => table({totalsRow: true}).addRow(), /not attached to a worksheet.*relocate its totals row/);
+  assert.throws(
+    () => table({totalsRow: true}).addRow(),
+    /not attached to a worksheet.*relocate its totals row/,
+  );
 });

@@ -31,7 +31,7 @@ export default {
         const {writtenDefinedName} = await api.printAreaRoundtrip('A:D');
         assert.ok(
           /\$A:\$D$/.test(String(writtenDefinedName)),
-          `the written Print_Area name is the column-only reference $A:$D; got ${JSON.stringify(writtenDefinedName)}`
+          `the written Print_Area name is the column-only reference $A:$D; got ${JSON.stringify(writtenDefinedName)}`,
         );
       },
     },
@@ -42,7 +42,7 @@ export default {
         const {reReadPrintArea} = await api.printAreaRoundtrip('A:D');
         assert.ok(
           !/NaN/.test(String(reReadPrintArea)),
-          `a column-only print area must round-trip without NaN; got ${JSON.stringify(reReadPrintArea)}`
+          `a column-only print area must round-trip without NaN; got ${JSON.stringify(reReadPrintArea)}`,
         );
       },
     },
@@ -52,7 +52,11 @@ export default {
       async expect(api, assert) {
         const {reReadPrintArea, reloadOk} = await api.printAreaRoundtrip('A1:D10');
         assert.strictEqual(reloadOk, true, 'the workbook reloads');
-        assert.strictEqual(reReadPrintArea, 'A1:D10', 'a bounded range survives the round-trip exactly');
+        assert.strictEqual(
+          reReadPrintArea,
+          'A1:D10',
+          'a bounded range survives the round-trip exactly',
+        );
       },
     },
   ],

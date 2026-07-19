@@ -16,9 +16,15 @@
 
 export default {
   id: '0140-address-decoding',
-  provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 140, url: 'https://github.com/exceljs/exceljs/issues/140'},
+  provenance: {
+    source: 'upstream-issue',
+    repo: 'exceljs/exceljs',
+    ref: 140,
+    url: 'https://github.com/exceljs/exceljs/issues/140',
+  },
   cluster: 'address-decoding',
-  description: 'Defined names referencing whole rows/columns must decode without crashing or leaking undefined/NaN.',
+  description:
+    'Defined names referencing whole rows/columns must decode without crashing or leaking undefined/NaN.',
 
   /** @type {Behavior[]} */
   behavior: [
@@ -45,7 +51,10 @@ export default {
       baseline: 'pass',
       expect(api, assert) {
         const serialized = JSON.stringify(api.decodeRange('$1:$1'));
-        assert.ok(!serialized.includes('undefined'), `serialized range leaks "undefined": ${serialized}`);
+        assert.ok(
+          !serialized.includes('undefined'),
+          `serialized range leaks "undefined": ${serialized}`,
+        );
         assert.ok(!serialized.includes('NaN'), `serialized range leaks "NaN": ${serialized}`);
       },
     },

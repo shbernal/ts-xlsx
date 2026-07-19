@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, writeError} = await api.tableColumnNameControlChars();
-        assert.strictEqual(writeOk, true, `writing must not throw; got ${JSON.stringify(writeError)}`);
+        assert.strictEqual(
+          writeOk,
+          true,
+          `writing must not throw; got ${JSON.stringify(writeError)}`,
+        );
       },
     },
     {
@@ -37,7 +41,7 @@ export default {
         assert.strictEqual(
           rawControlChars,
           false,
-          `the name must be XML-escaped, not emit raw control chars; got ${JSON.stringify(firstColumnTag)}`
+          `the name must be XML-escaped, not emit raw control chars; got ${JSON.stringify(firstColumnTag)}`,
         );
       },
     },

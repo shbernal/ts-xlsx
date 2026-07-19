@@ -29,8 +29,16 @@ export default {
       async expect(api, assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         const t = tables[0];
-        assert.strictEqual(t.source.hasAutoFilter, false, 'precondition: the source table has no autoFilter');
-        assert.strictEqual(t.rewritten.hasAutoFilter, false, 'the round-trip must not inject an autoFilter');
+        assert.strictEqual(
+          t.source.hasAutoFilter,
+          false,
+          'precondition: the source table has no autoFilter',
+        );
+        assert.strictEqual(
+          t.rewritten.hasAutoFilter,
+          false,
+          'the round-trip must not inject an autoFilter',
+        );
       },
     },
     {
@@ -42,7 +50,7 @@ export default {
         assert.strictEqual(
           t.rewritten.headerRowCount,
           t.source.headerRowCount,
-          `headerRowCount must be preserved (${t.source.headerRowCount})`
+          `headerRowCount must be preserved (${t.source.headerRowCount})`,
         );
       },
     },
@@ -55,7 +63,7 @@ export default {
         assert.strictEqual(
           t.rewritten.totalsRowShown,
           t.source.totalsRowShown,
-          `totalsRowShown must stay ${t.source.totalsRowShown}`
+          `totalsRowShown must stay ${t.source.totalsRowShown}`,
         );
       },
     },

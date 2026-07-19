@@ -5,7 +5,13 @@
 // facets landed so far — colours, fills, borders, fonts, alignment, and protection.
 
 /** Underline can be a plain flag or one of Excel's named underline styles. */
-export type UnderlineStyle = boolean | 'none' | 'single' | 'double' | 'singleAccounting' | 'doubleAccounting';
+export type UnderlineStyle =
+  | boolean
+  | 'none'
+  | 'single'
+  | 'double'
+  | 'singleAccounting'
+  | 'doubleAccounting';
 
 /** A colour, expressed as an ARGB hex string (`"FF0000FF"`) or an indexed theme colour. */
 export interface Color {

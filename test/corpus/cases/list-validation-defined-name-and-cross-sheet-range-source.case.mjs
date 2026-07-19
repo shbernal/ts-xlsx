@@ -28,12 +28,17 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.readFixtureValidationRules(FIXTURE);
-        const rules = sheets.Main.rules.map(r => r.rule);
-        const crossSheet = rules.find(r => r.type === 'list' && (r.formulae || []).some(f => /^Options!/.test(f)));
-        assert.ok(crossSheet, `expected a list validation sourced from a cross-sheet range; got ${JSON.stringify(rules)}`);
+        const rules = sheets.Main.rules.map((r) => r.rule);
+        const crossSheet = rules.find(
+          (r) => r.type === 'list' && (r.formulae || []).some((f) => /^Options!/.test(f)),
+        );
+        assert.ok(
+          crossSheet,
+          `expected a list validation sourced from a cross-sheet range; got ${JSON.stringify(rules)}`,
+        );
         assert.ok(
           (crossSheet.formulae || []).includes('Options!A1:B1'),
-          `the cross-sheet range must be surfaced verbatim, not stringified; got ${JSON.stringify(crossSheet.formulae)}`
+          `the cross-sheet range must be surfaced verbatim, not stringified; got ${JSON.stringify(crossSheet.formulae)}`,
         );
       },
     },
@@ -42,11 +47,13 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.readFixtureValidationRules(FIXTURE);
-        const rules = sheets.Main.rules.map(r => r.rule);
-        const named = rules.find(r => r.type === 'list' && (r.formulae || []).includes('DropdownOptions'));
+        const rules = sheets.Main.rules.map((r) => r.rule);
+        const named = rules.find(
+          (r) => r.type === 'list' && (r.formulae || []).includes('DropdownOptions'),
+        );
         assert.ok(
           named,
-          `a defined-name list source must be read back as the name "DropdownOptions", not "[object Object]"; got ${JSON.stringify(rules)}`
+          `a defined-name list source must be read back as the name "DropdownOptions", not "[object Object]"; got ${JSON.stringify(rules)}`,
         );
       },
     },
@@ -55,15 +62,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.roundtripFixtureValidationXml(FIXTURE);
-        const rules = Object.values(sheets).flatMap(s => s.standardRules);
-        const sources = rules.filter(r => r.type === 'list').map(r => r.formula1);
+        const rules = Object.values(sheets).flatMap((s) => s.standardRules);
+        const sources = rules.filter((r) => r.type === 'list').map((r) => r.formula1);
         assert.ok(
           sources.includes('Options!A1:B1'),
-          `the cross-sheet range source must survive re-serialization; got ${JSON.stringify(sources)}`
+          `the cross-sheet range source must survive re-serialization; got ${JSON.stringify(sources)}`,
         );
         assert.ok(
           sources.includes('DropdownOptions'),
-          `the defined-name source must survive re-serialization; got ${JSON.stringify(sources)}`
+          `the defined-name source must survive re-serialization; got ${JSON.stringify(sources)}`,
         );
       },
     },

@@ -19,8 +19,14 @@ const SPEC = {
           name: 'T',
           ref: 'A1',
           totalsRow: true,
-          columnDefs: [{name: 'Item', totalsRowLabel: 'Total'}, {name: 'Amount', totalsRowFunction: 'sum'}],
-          rows: [['a', 1], ['b', 2]],
+          columnDefs: [
+            {name: 'Item', totalsRowLabel: 'Total'},
+            {name: 'Amount', totalsRowFunction: 'sum'},
+          ],
+          rows: [
+            ['a', 1],
+            ['b', 2],
+          ],
         },
       ],
     },
@@ -43,7 +49,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const result = await api.tryWriteWorkbook(SPEC);
-        assert.strictEqual(result.ok, true, `writing/reading must not throw; got ${JSON.stringify(result.error)}`);
+        assert.strictEqual(
+          result.ok,
+          true,
+          `writing/reading must not throw; got ${JSON.stringify(result.error)}`,
+        );
       },
     },
     {
@@ -52,7 +62,11 @@ export default {
       async expect(api, assert) {
         const {tables} = await api.inspectPackage(SPEC);
         assert.strictEqual(tables.length, 1, 'the table part is written');
-        assert.strictEqual(tables[0].columnCount, 2, 'both columns are emitted, none dropped as a leaf');
+        assert.strictEqual(
+          tables[0].columnCount,
+          2,
+          'both columns are emitted, none dropped as a leaf',
+        );
       },
     },
     {

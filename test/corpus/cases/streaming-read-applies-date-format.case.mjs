@@ -45,7 +45,7 @@ export default {
         assert.strictEqual(
           cells.B2.type,
           'date',
-          `a date-formatted cell must stream as a date, not the raw serial; got ${JSON.stringify(cells.B2)}`
+          `a date-formatted cell must stream as a date, not the raw serial; got ${JSON.stringify(cells.B2)}`,
         );
       },
     },
@@ -54,8 +54,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const cells = await api.readFixtureCells(LOCALE_FIXTURE, ['A2', 'A5']);
-        assert.strictEqual(cells.A2.type, 'date', 'the plain built-in date cell reads as a date in the full read');
-        assert.strictEqual(cells.A5.type, 'date', 'the locale-keyed built-in date cell reads as a date in the full read');
+        assert.strictEqual(
+          cells.A2.type,
+          'date',
+          'the plain built-in date cell reads as a date in the full read',
+        );
+        assert.strictEqual(
+          cells.A5.type,
+          'date',
+          'the locale-keyed built-in date cell reads as a date in the full read',
+        );
       },
     },
     {
@@ -66,7 +74,7 @@ export default {
         assert.strictEqual(
           cells.A5.type,
           'date',
-          `a built-in locale-keyed date id must stream as a date, not a raw serial; got ${JSON.stringify(cells.A5)}`
+          `a built-in locale-keyed date id must stream as a date, not a raw serial; got ${JSON.stringify(cells.A5)}`,
         );
       },
     },

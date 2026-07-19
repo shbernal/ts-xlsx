@@ -24,7 +24,7 @@ const spec = {
   ],
 };
 
-const readBack = async api => (await api.roundtripWorkbook(spec)).sheets.S.cells;
+const readBack = async (api) => (await api.roundtripWorkbook(spec)).sheets.S.cells;
 
 export default {
   id: 'numeric-looking-string-stays-text-cell',
@@ -43,7 +43,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const cells = await readBack(api);
-        assert.strictEqual(typeof cells.A1.value, 'string', `"10" must stay a string; got ${typeof cells.A1.value} ${JSON.stringify(cells.A1.value)}`);
+        assert.strictEqual(
+          typeof cells.A1.value,
+          'string',
+          `"10" must stay a string; got ${typeof cells.A1.value} ${JSON.stringify(cells.A1.value)}`,
+        );
         assert.strictEqual(cells.A1.value, '10');
       },
     },
@@ -52,7 +56,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const cells = await readBack(api);
-        assert.strictEqual(typeof cells.A2.value, 'number', `15 must stay a number; got ${typeof cells.A2.value}`);
+        assert.strictEqual(
+          typeof cells.A2.value,
+          'number',
+          `15 must stay a number; got ${typeof cells.A2.value}`,
+        );
         assert.strictEqual(cells.A2.value, 15);
       },
     },
@@ -61,7 +69,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const cells = await readBack(api);
-        assert.strictEqual(cells.A3.value, '007', `zero-padded code must not be coerced to 7; got ${JSON.stringify(cells.A3.value)}`);
+        assert.strictEqual(
+          cells.A3.value,
+          '007',
+          `zero-padded code must not be coerced to 7; got ${JSON.stringify(cells.A3.value)}`,
+        );
       },
     },
   ],

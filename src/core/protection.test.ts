@@ -10,11 +10,15 @@ import {deriveCredential} from './protection.ts';
 function referenceHash(password: string, saltBase64: string, spinCount: number): string {
   const salt = Buffer.from(saltBase64, 'base64');
   const secret = Buffer.from(password, 'utf16le');
-  let hash = createHash('sha512').update(Buffer.concat([salt, secret])).digest();
+  let hash = createHash('sha512')
+    .update(Buffer.concat([salt, secret]))
+    .digest();
   const iteration = Buffer.alloc(4);
   for (let i = 0; i < spinCount; i++) {
     iteration.writeUInt32LE(i, 0);
-    hash = createHash('sha512').update(Buffer.concat([hash, iteration])).digest();
+    hash = createHash('sha512')
+      .update(Buffer.concat([hash, iteration]))
+      .digest();
   }
   return hash.toString('base64');
 }

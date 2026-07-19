@@ -76,7 +76,9 @@ export function columnToNumber(letters: string): number {
     n = n * 26 + (code - 64);
   }
   if (n > MAX_COLUMN) {
-    throw new RangeError(`column "${letters}" is out of bounds — Excel supports up to ${MAX_COLUMN} (XFD)`);
+    throw new RangeError(
+      `column "${letters}" is out of bounds — Excel supports up to ${MAX_COLUMN} (XFD)`,
+    );
   }
   return n;
 }

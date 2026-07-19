@@ -41,7 +41,7 @@ export default {
         assert.strictEqual(
           rows[1][0],
           BIG,
-          `a 20-digit value must be preserved verbatim, not rounded through Number(); got ${JSON.stringify(rows[1][0])}`
+          `a 20-digit value must be preserved verbatim, not rounded through Number(); got ${JSON.stringify(rows[1][0])}`,
         );
       },
     },

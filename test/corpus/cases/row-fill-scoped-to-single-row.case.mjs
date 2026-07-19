@@ -39,8 +39,8 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.roundtripWorkbook(SPEC);
-        const fg = sheets.S.cells.A3.fill && sheets.S.cells.A3.fill.fgColor;
-        assert.strictEqual(fg && fg.argb, 'FFFF4500', 'row 3 keeps its solid fill');
+        const fg = sheets.S.cells.A3.fill?.fgColor;
+        assert.strictEqual(fg?.argb, 'FFFF4500', 'row 3 keeps its solid fill');
       },
     },
     {
@@ -49,7 +49,11 @@ export default {
       async expect(api, assert) {
         const {sheets} = await api.roundtripWorkbook(SPEC);
         for (const ref of ['A1', 'A2', 'A4', 'A5']) {
-          assert.strictEqual(sheets.S.cells[ref].fill, undefined, `${ref} must not inherit the row-3 fill`);
+          assert.strictEqual(
+            sheets.S.cells[ref].fill,
+            undefined,
+            `${ref} must not inherit the row-3 fill`,
+          );
         }
       },
     },

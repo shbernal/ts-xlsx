@@ -27,7 +27,12 @@ export interface TableColumnStyle {
  * style (if any) to the cell — the hook a {@link Table} uses to materialise the cells of a row
  * appended through {@link Table.addRow}. A worksheet supplies it when it registers the table; a table
  * built standalone has none and cannot write cell values. */
-export type TableCellWriter = (row: number, col: number, value: CellValue, style?: TableColumnStyle) => void;
+export type TableCellWriter = (
+  row: number,
+  col: number,
+  value: CellValue,
+  style?: TableColumnStyle,
+) => void;
 
 /** Inserts one empty row into the owning worksheet's grid at a 1-based `row`, shifting that row and
  * everything below it down by one — the hook a {@link Table} with a totals row uses to open a slot
@@ -138,7 +143,7 @@ const IDENTIFIER = /^[\p{L}\\_][\p{L}\p{N}._]*$/u;
  */
 export function disambiguateColumnNames(columns: readonly TableColumn[]): TableColumn[] {
   const seen = new Set<string>();
-  return columns.map(column => {
+  return columns.map((column) => {
     let candidate = column.name;
     for (let n = 2; seen.has(candidate.toLowerCase()); n++) candidate = `${column.name}${n}`;
     seen.add(candidate.toLowerCase());
@@ -153,7 +158,7 @@ function validateTableName(name: string): void {
   if (!IDENTIFIER.test(name)) {
     throw new Error(
       `table name ${JSON.stringify(name)} is not a valid Excel identifier — it must start with a letter, ` +
-        'underscore, or backslash and contain only letters, digits, periods, and underscores'
+        'underscore, or backslash and contain only letters, digits, periods, and underscores',
     );
   }
 }
@@ -197,7 +202,9 @@ export class Table {
       throw new Error(`table "${options.name}" must declare at least one column`);
     }
     if (!Number.isInteger(options.rowCount) || options.rowCount < 0) {
-      throw new RangeError(`table "${options.name}" has an invalid data-row count (${options.rowCount})`);
+      throw new RangeError(
+        `table "${options.name}" has an invalid data-row count (${options.rowCount})`,
+      );
     }
     const {col, row} = decodeAddress(options.ref);
     if (col === undefined || row === undefined) {
@@ -221,7 +228,9 @@ export class Table {
     this.#insertRow = insertRow;
 
     if (this.#rowSpan < 1) {
-      throw new Error(`table "${this.name}" has no rows — it needs a header row or at least one data row`);
+      throw new Error(
+        `table "${this.name}" has no rows — it needs a header row or at least one data row`,
+      );
     }
   }
 
@@ -248,7 +257,7 @@ export class Table {
   addRow(values: readonly CellValue[] = []): void {
     if (values.length > this.columnCount) {
       throw new RangeError(
-        `row has ${values.length} values but table "${this.name}" has ${this.columnCount} columns`
+        `row has ${values.length} values but table "${this.name}" has ${this.columnCount} columns`,
       );
     }
 
@@ -259,27 +268,27 @@ export class Table {
     if (this.totalsRow) {
       if (this.#insertRow === undefined) {
         throw new Error(
-          `table "${this.name}" is not attached to a worksheet — cannot relocate its totals row to append a data row`
+          `table "${this.name}" is not attached to a worksheet — cannot relocate its totals row to append a data row`,
         );
       }
       // Opening a grid slot at the totals row shifts the totals down and grows this table by one
       // through the sheet's own table re-pinning, so #dataRowCount is not bumped again here.
       this.#insertRow(target);
-      values.forEach((value, index) =>
-        this.#writeCell?.(target, this.#anchorCol + index, value, this.columns[index]?.style)
-      );
+      values.forEach((value, index) => {
+        this.#writeCell?.(target, this.#anchorCol + index, value, this.columns[index]?.style);
+      });
       return;
     }
 
     if (values.length > 0) {
       if (this.#writeCell === undefined) {
         throw new Error(
-          `table "${this.name}" is not attached to a worksheet — cannot write appended row values`
+          `table "${this.name}" is not attached to a worksheet — cannot write appended row values`,
         );
       }
-      values.forEach((value, index) =>
-        this.#writeCell?.(target, this.#anchorCol + index, value, this.columns[index]?.style)
-      );
+      values.forEach((value, index) => {
+        this.#writeCell?.(target, this.#anchorCol + index, value, this.columns[index]?.style);
+      });
     }
     this.#dataRowCount += 1;
   }
@@ -328,7 +337,7 @@ export class Table {
       name: this.name,
       displayName: this.displayName,
       ref: encodeAddress(this.#anchorCol, this.#anchorRow),
-      columns: this.columns.map(column => ({...column})),
+      columns: this.columns.map((column) => ({...column})),
       rowCount: this.#dataRowCount,
       headerRow: this.headerRow,
       totalsRow: this.totalsRow,

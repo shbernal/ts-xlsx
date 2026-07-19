@@ -30,14 +30,18 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.readFixtureValidationRules(FIXTURE);
-        const rules = Object.values(sheets).flatMap(s => s.rules.map(r => r.rule));
-        const custom = rules.find(r => r.type === 'custom');
+        const rules = Object.values(sheets).flatMap((s) => s.rules.map((r) => r.rule));
+        const custom = rules.find((r) => r.type === 'custom');
         assert.ok(custom, `expected a custom-type validation; got ${JSON.stringify(rules)}`);
         assert.ok(
-          (custom.formulae || []).some(f => /COUNTIF/i.test(f)),
-          `the custom formula must retain its COUNTIF text; got ${JSON.stringify(custom.formulae)}`
+          (custom.formulae || []).some((f) => /COUNTIF/i.test(f)),
+          `the custom formula must retain its COUNTIF text; got ${JSON.stringify(custom.formulae)}`,
         );
-        assert.strictEqual(custom.errorTitle, 'Duplicate Value', 'the error title must be read back');
+        assert.strictEqual(
+          custom.errorTitle,
+          'Duplicate Value',
+          'the error title must be read back',
+        );
       },
     },
     {
@@ -45,11 +49,21 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.roundtripFixtureValidationXml(FIXTURE);
-        const rules = Object.values(sheets).flatMap(s => s.standardRules);
-        const custom = rules.find(r => r.type === 'custom');
-        assert.ok(custom, `the custom validation must survive re-serialization; got ${JSON.stringify(rules)}`);
-        assert.ok(/COUNTIF/i.test(custom.formula1 || ''), `the COUNTIF formula must survive; got ${custom.formula1}`);
-        assert.strictEqual(custom.errorTitle, 'Duplicate Value', 'the error title must survive the round-trip');
+        const rules = Object.values(sheets).flatMap((s) => s.standardRules);
+        const custom = rules.find((r) => r.type === 'custom');
+        assert.ok(
+          custom,
+          `the custom validation must survive re-serialization; got ${JSON.stringify(rules)}`,
+        );
+        assert.ok(
+          /COUNTIF/i.test(custom.formula1 || ''),
+          `the COUNTIF formula must survive; got ${custom.formula1}`,
+        );
+        assert.strictEqual(
+          custom.errorTitle,
+          'Duplicate Value',
+          'the error title must survive the round-trip',
+        );
         assert.ok(custom.sqref, 'the validation must keep a target range');
       },
     },

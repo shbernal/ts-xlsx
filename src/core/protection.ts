@@ -106,14 +106,21 @@ const SALT_BYTES = 16;
  * random salt, so protecting two sheets with the same password yields different credentials —
  * the salt is real randomness, not a stub.
  */
-export function deriveCredential(password: string, spinCount: number = DEFAULT_SPIN_COUNT): SheetProtectionCredential {
+export function deriveCredential(
+  password: string,
+  spinCount: number = DEFAULT_SPIN_COUNT,
+): SheetProtectionCredential {
   const salt = randomBytes(SALT_BYTES);
   const secret = Buffer.from(password, 'utf16le');
-  let hash = createHash(HASH).update(Buffer.concat([salt, secret])).digest();
+  let hash = createHash(HASH)
+    .update(Buffer.concat([salt, secret]))
+    .digest();
   const iteration = Buffer.alloc(4);
   for (let i = 0; i < spinCount; i++) {
     iteration.writeUInt32LE(i, 0);
-    hash = createHash(HASH).update(Buffer.concat([hash, iteration])).digest();
+    hash = createHash(HASH)
+      .update(Buffer.concat([hash, iteration]))
+      .digest();
   }
   return {
     algorithmName: ALGORITHM_NAME,

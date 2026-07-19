@@ -9,7 +9,15 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 const SPEC = {
-  sheets: [{name: 'S', cells: [{ref: 'A1', value: '1000.80'}, {ref: 'A2', value: '007'}]}],
+  sheets: [
+    {
+      name: 'S',
+      cells: [
+        {ref: 'A1', value: '1000.80'},
+        {ref: 'A2', value: '007'},
+      ],
+    },
+  ],
 };
 
 export default {
@@ -28,7 +36,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.cells.A1.value, '1000.80', 'the trailing zero is preserved, not dropped to 1000.8');
+        assert.strictEqual(
+          model.sheets.S.cells.A1.value,
+          '1000.80',
+          'the trailing zero is preserved, not dropped to 1000.8',
+        );
       },
     },
     {
@@ -36,7 +48,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.cells.A2.value, '007', 'leading zeros survive, not coerced to 7');
+        assert.strictEqual(
+          model.sheets.S.cells.A2.value,
+          '007',
+          'leading zeros survive, not coerced to 7',
+        );
       },
     },
     {
@@ -44,7 +60,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(typeof model.sheets.S.cells.A1.value, 'string', 'the cell reads back as a string type');
+        assert.strictEqual(
+          typeof model.sheets.S.cells.A1.value,
+          'string',
+          'the cell reads back as a string type',
+        );
       },
     },
   ],

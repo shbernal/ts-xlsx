@@ -24,7 +24,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {masterHasFormula} = await api.streamingSharedFormulaReport();
-        assert.strictEqual(masterHasFormula, true, 'the master formula cell reloads as a formula cell');
+        assert.strictEqual(
+          masterHasFormula,
+          true,
+          'the master formula cell reloads as a formula cell',
+        );
       },
     },
     {
@@ -35,7 +39,7 @@ export default {
         assert.strictEqual(
           slaveResolved,
           true,
-          `a shared-formula slave must reload populated, not empty; got ${JSON.stringify(slaveValue)}`
+          `a shared-formula slave must reload populated, not empty; got ${JSON.stringify(slaveValue)}`,
         );
       },
     },

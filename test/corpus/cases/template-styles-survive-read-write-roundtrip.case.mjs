@@ -34,8 +34,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames, sheetNamesBefore} = await api.roundtripFixture(FIXTURE);
-        assert.deepStrictEqual(sheetNamesBefore, ['Americas', 'Asia-Pacific', 'EMEA'], 'names as read');
-        assert.deepStrictEqual(sheetNames, sheetNamesBefore, 'names must be identical after round-trip');
+        assert.deepStrictEqual(
+          sheetNamesBefore,
+          ['Americas', 'Asia-Pacific', 'EMEA'],
+          'names as read',
+        );
+        assert.deepStrictEqual(
+          sheetNames,
+          sheetNamesBefore,
+          'names must be identical after round-trip',
+        );
       },
     },
     {
@@ -45,10 +53,18 @@ export default {
         const {columns, columnsBefore} = await api.roundtripFixture(FIXTURE);
         const b = columnsBefore[SHEET];
         const a = columns[SHEET];
-        assert.ok(b['1'] && b['1'].customWidth, 'template declares a custom-width first column');
-        assert.strictEqual(a['1'].width, b['1'].width, 'the wide first column width must be preserved');
+        assert.ok(b['1']?.customWidth, 'template declares a custom-width first column');
+        assert.strictEqual(
+          a['1'].width,
+          b['1'].width,
+          'the wide first column width must be preserved',
+        );
         assert.strictEqual(a['1'].customWidth, true, 'and stay flagged as a custom width');
-        assert.strictEqual(a['2'].width, b['2'].width, 'a narrow custom column width must be preserved too');
+        assert.strictEqual(
+          a['2'].width,
+          b['2'].width,
+          'a narrow custom column width must be preserved too',
+        );
       },
     },
     {
@@ -56,11 +72,14 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {styleSurvival} = await api.roundtripFixture(FIXTURE);
-        assert.ok(styleSurvival.checked > 0, 'the template must actually carry styled cells to check');
+        assert.ok(
+          styleSurvival.checked > 0,
+          'the template must actually carry styled cells to check',
+        );
         assert.strictEqual(
           styleSurvival.mismatches,
           0,
-          `every styled cell must round-trip; first drift: ${JSON.stringify(styleSurvival.sample)}`
+          `every styled cell must round-trip; first drift: ${JSON.stringify(styleSurvival.sample)}`,
         );
       },
     },

@@ -13,7 +13,9 @@
 // corpus can round-trip quickly.
 const MERGES = Array.from({length: 60}, (_, i) => `A${i + 1}:B${i + 1}`);
 const SPEC = {
-  sheets: [{name: 'S', cells: MERGES.map((_, i) => ({ref: `A${i + 1}`, value: i + 1})), merges: MERGES}],
+  sheets: [
+    {name: 'S', cells: MERGES.map((_, i) => ({ref: `A${i + 1}`, value: i + 1})), merges: MERGES},
+  ],
 };
 
 export default {
@@ -32,7 +34,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.merges.length, MERGES.length, 'no merge dropped or duplicated');
+        assert.strictEqual(
+          model.sheets.S.merges.length,
+          MERGES.length,
+          'no merge dropped or duplicated',
+        );
       },
     },
     {
@@ -49,7 +55,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {error} = await api.mutateWorksheet({
-          ops: [{op: 'mergeCells', range: 'A1:B2'}, {op: 'mergeCells', range: 'B2:C3'}],
+          ops: [
+            {op: 'mergeCells', range: 'A1:B2'},
+            {op: 'mergeCells', range: 'B2:C3'},
+          ],
         });
         assert.ok(error, `overlapping merges must be rejected; got error ${JSON.stringify(error)}`);
       },

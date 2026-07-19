@@ -35,7 +35,11 @@ export default {
       async expect(api, assert) {
         const {identity} = await api.csvReadMapReport();
         assert.strictEqual(identity.aType, 'string', 'the identity map keeps the value a string');
-        assert.strictEqual(identity.a, '007', 'the raw text, including the leading zero, is preserved');
+        assert.strictEqual(
+          identity.a,
+          '007',
+          'the raw text, including the leading zero, is preserved',
+        );
         assert.strictEqual(identity.b, '32.5', 'the decimal string is preserved verbatim too');
       },
     },

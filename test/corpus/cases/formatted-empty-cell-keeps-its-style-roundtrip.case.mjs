@@ -24,7 +24,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {filledArgb} = await api.styledEmptyCellReport();
-        assert.strictEqual(filledArgb, 'FF00FF00', 'the fill on the empty cell must not be dropped on write');
+        assert.strictEqual(
+          filledArgb,
+          'FF00FF00',
+          'the fill on the empty cell must not be dropped on write',
+        );
       },
     },
     {
@@ -32,7 +36,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {filledValue} = await api.styledEmptyCellReport();
-        assert.strictEqual(filledValue, null, 'a styled-but-empty cell stays empty, not fabricated a value');
+        assert.strictEqual(
+          filledValue,
+          null,
+          'a styled-but-empty cell stays empty, not fabricated a value',
+        );
       },
     },
     {
@@ -49,7 +57,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {untouched} = await api.styledEmptyCellReport();
-        assert.strictEqual(untouched, false, 'a merely-touched cell must not gain a value or style');
+        assert.strictEqual(
+          untouched,
+          false,
+          'a merely-touched cell must not gain a value or style',
+        );
       },
     },
   ],

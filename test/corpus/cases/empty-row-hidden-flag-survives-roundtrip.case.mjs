@@ -24,7 +24,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {row3Hidden} = await api.hiddenEmptyRowReport();
-        assert.strictEqual(row3Hidden, true, 'the hidden flag on a content-less row must survive the write');
+        assert.strictEqual(
+          row3Hidden,
+          true,
+          'the hidden flag on a content-less row must survive the write',
+        );
       },
     },
     {
@@ -41,7 +45,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {row5Hidden} = await api.hiddenEmptyRowReport();
-        assert.strictEqual(row5Hidden, true, 'a blank hidden row with an outline level stays hidden');
+        assert.strictEqual(
+          row5Hidden,
+          true,
+          'a blank hidden row with an outline level stays hidden',
+        );
       },
     },
   ],

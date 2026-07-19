@@ -29,7 +29,7 @@ export default {
         assert.strictEqual(
           emojiRoundtrips,
           true,
-          'astral (emoji) and CJK characters must round-trip byte-for-byte under UTF-8, not be substituted or truncated'
+          'astral (emoji) and CJK characters must round-trip byte-for-byte under UTF-8, not be substituted or truncated',
         );
       },
     },
@@ -37,12 +37,13 @@ export default {
       name: 'a requested non-UTF-8 output encoding is actually applied',
       baseline: 'pass',
       async expect(api, assert) {
-        const {decodesAsRequested, decodesAsUtf8, requestedEncoding} = await api.csvWriteEncodingReport({encoding: 'utf16le'});
+        const {decodesAsRequested, decodesAsUtf8, requestedEncoding} =
+          await api.csvWriteEncodingReport({encoding: 'utf16le'});
         assert.strictEqual(
           decodesAsRequested,
           true,
           `requesting ${requestedEncoding} must produce bytes that decode under that encoding; ` +
-            `instead the encoding was ignored and the bytes are UTF-8 (decodesAsUtf8=${decodesAsUtf8})`
+            `instead the encoding was ignored and the bytes are UTF-8 (decodesAsUtf8=${decodesAsUtf8})`,
         );
       },
     },

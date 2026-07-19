@@ -14,9 +14,9 @@
 // live view of that drain — the denominator is the manifest, the numerator is what
 // remains on disk.
 
-import {readFile, readdir} from 'node:fs/promises';
+import {readdir, readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
-import {BACKLOG_DIR, ISSUES_DIR, MANIFEST_PATH, REPO_ROOT, fileExists} from './lib.mjs';
+import {BACKLOG_DIR, fileExists, ISSUES_DIR, MANIFEST_PATH, REPO_ROOT} from './lib.mjs';
 
 const CORPUS_CASES_DIR = resolve(REPO_ROOT, 'test', 'corpus', 'cases');
 const SPECS_DIR = resolve(BACKLOG_DIR, '..', 'specs');
@@ -32,13 +32,13 @@ function parseArgs(argv) {
 
 async function countFiles(dir, suffix) {
   if (!(await fileExists(dir))) return 0;
-  return (await readdir(dir)).filter(f => f.endsWith(suffix)).length;
+  return (await readdir(dir)).filter((f) => f.endsWith(suffix)).length;
 }
 
 async function presentRecordNumbers() {
   if (!(await fileExists(ISSUES_DIR))) return new Set();
-  const files = (await readdir(ISSUES_DIR)).filter(f => /^\d+\.json$/.test(f));
-  return new Set(files.map(f => Number(f.replace('.json', ''))));
+  const files = (await readdir(ISSUES_DIR)).filter((f) => /^\d+\.json$/.test(f));
+  return new Set(files.map((f) => Number(f.replace('.json', ''))));
 }
 
 function bar(fraction, width = 32) {
@@ -60,16 +60,20 @@ async function main() {
 
   if (!(await fileExists(MANIFEST_PATH))) {
     console.log(`  No manifest yet. ${present.size} record(s) harvested ad hoc.`);
-    console.log('  Run `node scripts/harvest/list-backlog.mjs` to snapshot the universe, then `harvest-all.mjs`.\n');
+    console.log(
+      '  Run `node scripts/harvest/list-backlog.mjs` to snapshot the universe, then `harvest-all.mjs`.\n',
+    );
     return;
   }
 
   const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
   const items = manifest.items ?? [];
   const total = manifest.total ?? items.length;
-  const inQueue = items.filter(i => present.has(i.number)).length;
+  const inQueue = items.filter((i) => present.has(i.number)).length;
 
-  console.log(`  universe: ${total} item(s)  (${manifest.issues ?? '?'} issue(s), ${manifest.pullRequests ?? '?'} PR(s))`);
+  console.log(
+    `  universe: ${total} item(s)  (${manifest.issues ?? '?'} issue(s), ${manifest.pullRequests ?? '?'} PR(s))`,
+  );
   console.log(`  captured: ${manifest.generatedAt ?? 'unknown'}`);
 
   if (!manifest.harvestComplete) {
@@ -84,10 +88,12 @@ async function main() {
     console.log(`  remaining in queue: ${inQueue}`);
   }
 
-  console.log(`\n  durable output so far:  ${corpusCases} corpus case(s), ${specNotes} spec note(s)`);
+  console.log(
+    `\n  durable output so far:  ${corpusCases} corpus case(s), ${specNotes} spec note(s)`,
+  );
 
   if (clusters) {
-    const remaining = items.filter(i => present.has(i.number));
+    const remaining = items.filter((i) => present.has(i.number));
     const byLabel = new Map();
     for (const it of remaining) {
       const labels = it.labels?.length ? it.labels : ['(unlabeled)'];
@@ -105,7 +111,7 @@ async function main() {
   console.log('');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(`status failed: ${err.message ?? err}`);
   process.exitCode = 1;
 });

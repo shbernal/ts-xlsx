@@ -11,8 +11,8 @@ test('addWorksheet appends sheets with stable, distinct ids', () => {
   assert.equal(a.id, 1);
   assert.equal(b.id, 2);
   assert.deepEqual(
-    wb.worksheets.map(s => s.name),
-    ['Alpha', 'Beta']
+    wb.worksheets.map((s) => s.name),
+    ['Alpha', 'Beta'],
   );
 });
 

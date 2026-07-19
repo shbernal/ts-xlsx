@@ -11,8 +11,10 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
-const tableSpec = tableName => ({
-  sheets: [{name: 'S', tables: [{name: tableName, ref: 'A1', headers: ['H1', 'H2'], rows: [['a', 1]]}]}],
+const tableSpec = (tableName) => ({
+  sheets: [
+    {name: 'S', tables: [{name: tableName, ref: 'A1', headers: ['H1', 'H2'], rows: [['a', 1]]}]},
+  ],
 });
 
 export default {
@@ -31,7 +33,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const result = await api.tryWriteWorkbook(tableSpec("Bob's Accounts"));
-        assert.strictEqual(result.ok, false, 'a name with a space and apostrophe must be rejected, not written through');
+        assert.strictEqual(
+          result.ok,
+          false,
+          'a name with a space and apostrophe must be rejected, not written through',
+        );
       },
     },
     {
@@ -49,7 +55,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const result = await api.tryWriteWorkbook(tableSpec('test-name'));
-        assert.strictEqual(result.ok, false, 'a hyphenated name must be rejected, not emitted into corrupt XML');
+        assert.strictEqual(
+          result.ok,
+          false,
+          'a hyphenated name must be rejected, not emitted into corrupt XML',
+        );
       },
     },
     {
@@ -58,9 +68,17 @@ export default {
       async expect(api, assert) {
         const spec = tableSpec('Valid_Name');
         const result = await api.tryWriteWorkbook(spec);
-        assert.strictEqual(result.ok, true, `a valid name must write; got ${JSON.stringify(result.error)}`);
+        assert.strictEqual(
+          result.ok,
+          true,
+          `a valid name must write; got ${JSON.stringify(result.error)}`,
+        );
         const {tables} = await api.inspectPackage(spec);
-        assert.strictEqual(tables[0].name, 'Valid_Name', 'the valid name is written verbatim into the table XML');
+        assert.strictEqual(
+          tables[0].name,
+          'Valid_Name',
+          'the valid name is written verbatim into the table XML',
+        );
       },
     },
   ],

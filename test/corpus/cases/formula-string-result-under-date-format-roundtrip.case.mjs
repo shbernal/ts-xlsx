@@ -29,7 +29,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {hasNaNToken} = await api.roundtripFixtureCellXml(FIXTURE, ['A2']);
-        assert.strictEqual(hasNaNToken, false, 'a round-trip must never emit "NaN" as a cell value');
+        assert.strictEqual(
+          hasNaNToken,
+          false,
+          'a round-trip must never emit "NaN" as a cell value',
+        );
       },
     },
     {
@@ -42,9 +46,13 @@ export default {
         assert.strictEqual(
           cells.A2.value,
           'test',
-          `A2's cached string result must round-trip as "test", not be coerced; got ${JSON.stringify(cells.A2)}`
+          `A2's cached string result must round-trip as "test", not be coerced; got ${JSON.stringify(cells.A2)}`,
         );
-        assert.strictEqual(cells.A2.t, 'str', 'a string-typed formula cell must stay t="str", not become numeric');
+        assert.strictEqual(
+          cells.A2.t,
+          'str',
+          'a string-typed formula cell must stay t="str", not become numeric',
+        );
       },
     },
   ],

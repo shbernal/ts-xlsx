@@ -20,8 +20,8 @@ import type {
 } from '../../core/conditional-formatting.ts';
 import type {Color} from '../../core/style.ts';
 import {colorAttrs, type StyleRegistry} from './styles.ts';
-import {localName, parseXml} from './xml-read.ts';
 import {escapeAttr, escapeText} from './xml.ts';
+import {localName, parseXml} from './xml-read.ts';
 
 // Excel's default data bar when the author supplies none: a min/max anchor pair and its standard blue.
 const DEFAULT_DATABAR_CFVO: readonly CfValueObject[] = [{type: 'min'}, {type: 'max'}];
@@ -64,14 +64,14 @@ const SCALE_TYPES = new Set(['dataBar', 'colorScale', 'iconSet']);
  */
 export function conditionalFormattingsXml(
   formattings: readonly ConditionalFormatting[],
-  styles: StyleRegistry
+  styles: StyleRegistry,
 ): string {
   if (formattings.length === 0) return '';
   const priority = {next: 1};
   // A shared counter assigns each extended data bar its link id in block/rule order — the same order
   // {@link conditionalFormattingsExtXml} walks, so the two ends of a link always agree.
   const extGuid = {next: 0};
-  return formattings.map(cf => blockXml(cf, styles, priority, extGuid)).join('');
+  return formattings.map((cf) => blockXml(cf, styles, priority, extGuid)).join('');
 }
 
 /**
@@ -81,7 +81,9 @@ export function conditionalFormattingsXml(
  * `<extLst>` wrapper) so the worksheet serialiser can gather it into a single `<extLst>` beside the
  * data-validation extension.
  */
-export function conditionalFormattingsExtXml(formattings: readonly ConditionalFormatting[]): string {
+export function conditionalFormattingsExtXml(
+  formattings: readonly ConditionalFormatting[],
+): string {
   const items: string[] = [];
   let index = 0;
   for (const cf of formattings) {
@@ -139,9 +141,9 @@ function blockXml(
   cf: ConditionalFormatting,
   styles: StyleRegistry,
   priority: {next: number},
-  extGuid: {next: number}
+  extGuid: {next: number},
 ): string {
-  const rules = cf.rules.map(rule => ruleXml(rule, styles, priority, extGuid)).join('');
+  const rules = cf.rules.map((rule) => ruleXml(rule, styles, priority, extGuid)).join('');
   return `<conditionalFormatting sqref="${escapeAttr(cf.ref)}">${rules}</conditionalFormatting>`;
 }
 
@@ -149,7 +151,7 @@ function ruleXml(
   rule: ConditionalFormattingRule,
   styles: StyleRegistry,
   priority: {next: number},
-  extGuid: {next: number}
+  extGuid: {next: number},
 ): string {
   const p = rule.priority ?? priority.next;
   // Keep the running counter ahead of any explicit priority so later auto-assigned ones stay unique.
@@ -176,7 +178,9 @@ function ruleXml(
   if (rule.type === 'dataBar' && needsDataBarExt(rule)) {
     body += cfRuleExtLinkXml(dataBarExtGuid(extGuid.next++));
   }
-  return body === '' ? `<cfRule ${attrs.join(' ')}/>` : `<cfRule ${attrs.join(' ')}>${body}</cfRule>`;
+  return body === ''
+    ? `<cfRule ${attrs.join(' ')}/>`
+    : `<cfRule ${attrs.join(' ')}>${body}</cfRule>`;
 }
 
 // A rule points at a differential style either by a preserved index read from a file (`dxfId`) or by
@@ -191,7 +195,7 @@ function resolveDxfId(rule: ConditionalFormattingRule, styles: StyleRegistry): n
 
 function formulaeXml(formulae: readonly (string | number)[] | undefined): string {
   if (formulae === undefined) return '';
-  return formulae.map(f => `<formula>${escapeText(formulaText(f))}</formula>`).join('');
+  return formulae.map((f) => `<formula>${escapeText(formulaText(f))}</formula>`).join('');
 }
 
 // A cellIs bound or expression predicate: a numeric literal serialises as its number, a string keeps
@@ -223,7 +227,7 @@ function dataBarXml(rule: ConditionalFormattingRule): string {
 // well-formed (if plain) element.
 function colorScaleXml(rule: ConditionalFormattingRule): string {
   const anchors = (rule.cfvo ?? []).map(cfvoXml).join('');
-  const colors = (rule.colors ?? []).map(c => `<color ${colorAttrs(c)}/>`).join('');
+  const colors = (rule.colors ?? []).map((c) => `<color ${colorAttrs(c)}/>`).join('');
   return `<colorScale>${anchors}${colors}</colorScale>`;
 }
 
@@ -338,7 +342,10 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
           draft = newDraft(attrs);
           scale = undefined;
         }
-      } else if (draft !== undefined && (ln === 'dataBar' || ln === 'colorScale' || ln === 'iconSet')) {
+      } else if (
+        draft !== undefined &&
+        (ln === 'dataBar' || ln === 'colorScale' || ln === 'iconSet')
+      ) {
         scale = ln;
         if (ln === 'iconSet' && attrs.iconSet !== undefined) draft.iconSet = attrs.iconSet;
       } else if (draft !== undefined && ln === 'cfvo') {
@@ -410,7 +417,7 @@ export function parseDxfs(stylesXml: string): string[] {
   const block = /<dxfs\b[^>]*>([\s\S]*?)<\/dxfs>/.exec(stylesXml);
   if (block === null) return [];
   const inner = block[1] ?? '';
-  return [...inner.matchAll(/<dxf\b[^>]*>[\s\S]*?<\/dxf>|<dxf\b[^>]*\/>/g)].map(m => m[0] ?? '');
+  return [...inner.matchAll(/<dxf\b[^>]*>[\s\S]*?<\/dxf>|<dxf\b[^>]*\/>/g)].map((m) => m[0] ?? '');
 }
 
 function newDraft(attrs: Record<string, string>): RuleDraft {

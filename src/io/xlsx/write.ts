@@ -8,15 +8,16 @@
 // as the model grows; until then the writer refuses a value it cannot represent
 // faithfully rather than emitting a lossy or corrupt package.
 
-import {zipSync, strToU8} from 'fflate';
+import {strToU8, zipSync} from 'fflate';
 
 import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import type {AutoFilter, FilterColumn, FilterCriteria} from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
-import {dateToSerial, DEFAULT_DATE_NUMFMT} from '../../core/date.ts';
-import type {WorkbookImage} from '../../core/image.ts';
+import {DEFAULT_DATE_NUMFMT, dateToSerial} from '../../core/date.ts';
 import {mangleFormula} from '../../core/formula.ts';
+import type {WorkbookImage} from '../../core/image.ts';
 import type {PivotTable} from '../../core/pivot-table.ts';
+import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
 import type {Table, TableColumn, TableStyleInfo} from '../../core/table.ts';
 import {
   detectValueType,
@@ -28,7 +29,6 @@ import {
   isRichTextValue,
   isSharedFormulaValue,
 } from '../../core/value.ts';
-import {type SheetProtection, SHEET_PROTECTION_FLAGS} from '../../core/protection.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
 import type {
@@ -50,8 +50,8 @@ import {dataValidationsExtXml, dataValidationsXml} from './data-validation.ts';
 import {
   collectHyperlinks,
   hyperlinksXml,
-  planHyperlinks,
   type PlannedHyperlink,
+  planHyperlinks,
 } from './hyperlinks.ts';
 import {type DrawingImage, drawingRelsXml, drawingXml, imageContentType} from './images.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
@@ -196,11 +196,13 @@ export function createStyleRegistry(workbook: Workbook): StyleRegistry {
  */
 export function buildPackageParts(
   workbook: Workbook,
-  options: WriteOptions = {}
+  options: WriteOptions = {},
 ): Record<string, Uint8Array> {
   const sheets = workbook.worksheets;
   if (sheets.length === 0) {
-    throw new Error('cannot write a workbook with no worksheets — a zero-sheet package is corrupt to Excel');
+    throw new Error(
+      'cannot write a workbook with no worksheets — a zero-sheet package is corrupt to Excel',
+    );
   }
 
   // With the option on, plain string cell values are pooled into a shared-strings table interned
@@ -210,8 +212,8 @@ export function buildPackageParts(
   // Tables are numbered globally across the workbook (their part names and ids must be
   // unique), but relationship ids are local to each sheet's rels part.
   let tableNumber = 0;
-  const sheetTables: PlannedTable[][] = sheets.map(sheet =>
-    sheet.tables.map((table, i) => ({table, number: ++tableNumber, relId: `rId${i + 1}`}))
+  const sheetTables: PlannedTable[][] = sheets.map((sheet) =>
+    sheet.tables.map((table, i) => ({table, number: ++tableNumber, relId: `rId${i + 1}`})),
   );
   const allTables = sheetTables.flat();
 
@@ -283,7 +285,7 @@ export function buildPackageParts(
     const registered = workbook.getImage(sheet.backgroundImageId);
     if (registered === undefined) {
       throw new Error(
-        `sheet "${sheet.name}" sets background image id ${sheet.backgroundImageId}, which is not registered on the workbook`
+        `sheet "${sheet.name}" sets background image id ${sheet.backgroundImageId}, which is not registered on the workbook`,
       );
     }
     const base =
@@ -291,7 +293,7 @@ export function buildPackageParts(
       (sheetDrawings[i] !== null ? 1 : 0) +
       (sheetComments[i] !== null ? 2 : 0) +
       (sheetPrinterSettings[i] !== null ? 1 : 0) +
-      (sheetHyperlinks[i] ?? []).filter(link => link.relId !== undefined).length;
+      (sheetHyperlinks[i] ?? []).filter((link) => link.relId !== undefined).length;
     return {
       relId: `rId${base + 1}`,
       mediaNumber: media.numberById.get(sheet.backgroundImageId) as number,
@@ -310,7 +312,7 @@ export function buildPackageParts(
     sheetPrinterSettings,
     sheetHyperlinks,
     sheetBackgrounds,
-    media.parts.length
+    media.parts.length,
   );
 
   // A pivot table hosted on a sheet adds one sheet-local relationship (to its pivot-table part),
@@ -326,12 +328,18 @@ export function buildPackageParts(
       (sheetDrawings[i] !== null ? 1 : 0) +
       (sheetComments[i] !== null ? 2 : 0) +
       (sheetPrinterSettings[i] !== null ? 1 : 0) +
-      (sheetHyperlinks[i] ?? []).filter(link => link.relId !== undefined).length +
+      (sheetHyperlinks[i] ?? []).filter((link) => link.relId !== undefined).length +
       (sheetBackgrounds[i] !== null ? 1 : 0) +
       (preserved.perSheet[i]?.length ?? 0);
     return sheet.pivotTables.map((table, j) => {
       const number = ++pivotNumber;
-      return {number, cacheId: String(number), table, sheetRelId: `rId${base + j + 1}`, workbookRelId: ''};
+      return {
+        number,
+        cacheId: String(number),
+        table,
+        sheetRelId: `rId${base + j + 1}`,
+        workbookRelId: '',
+      };
     });
   });
   const allPivots = sheetPivots.flat();
@@ -345,12 +353,15 @@ export function buildPackageParts(
     const refs = preserved.perSheet[i] ?? [];
     // A preserved `<drawing>` and a modeled one are mutually exclusive (a drawing is only preserved
     // when the sheet modeled no image from it), so the `<drawing>` slot takes whichever exists.
-    const preservedDrawingRelId = refs.find(ref => ref.element === 'drawing')?.relId ?? null;
-    const legacyDrawingHFRelId = refs.find(ref => ref.element === 'legacyDrawingHF')?.relId ?? null;
+    const preservedDrawingRelId = refs.find((ref) => ref.element === 'drawing')?.relId ?? null;
+    const legacyDrawingHFRelId =
+      refs.find((ref) => ref.element === 'legacyDrawingHF')?.relId ?? null;
     // A slicer is wired into the sheet body by an `<x14:slicerList>` extension that names the same
     // relationship id the sheet's slicer rel carries — re-emitting it reactivates the widget rather
     // than leaving the preserved slicer part orphaned.
-    const slicerRelIds = refs.filter(ref => ref.relType.endsWith('/slicer')).map(ref => ref.relId);
+    const slicerRelIds = refs
+      .filter((ref) => ref.relType.endsWith('/slicer'))
+      .map((ref) => ref.relId);
     return worksheetXml(
       sheet,
       sheetTables[i] ?? [],
@@ -363,7 +374,7 @@ export function buildPackageParts(
       slicerRelIds,
       sheetHyperlinks[i] ?? [],
       sharedStrings,
-      options.flushed?.get(sheet)
+      options.flushed?.get(sheet),
     );
   });
 
@@ -372,11 +383,15 @@ export function buildPackageParts(
   // string cells never fabricates an empty table.
   const hasSharedStrings = sharedStrings !== null && !sharedStrings.isEmpty;
 
-  const commentNumbers = sheetComments.filter((c): c is CommentPlan => c !== null).map(c => c.number);
-  const drawingNumbers = sheetDrawings.filter((d): d is DrawingPlan => d !== null).map(d => d.number);
+  const commentNumbers = sheetComments
+    .filter((c): c is CommentPlan => c !== null)
+    .map((c) => c.number);
+  const drawingNumbers = sheetDrawings
+    .filter((d): d is DrawingPlan => d !== null)
+    .map((d) => d.number);
   const printerSettingsNumbers = sheetPrinterSettings
     .filter((p): p is PrinterSettingsPlan => p !== null)
-    .map(p => p.number);
+    .map((p) => p.number);
 
   // A preserved workbook reference's relationship id follows the modeled workbook rels — the sheets,
   // styles, theme, and (when emitted) shared strings — so adding one never renumbers an id already
@@ -404,15 +419,15 @@ export function buildPackageParts(
         media.extensions,
         hasSharedStrings,
         preserved.parts,
-        allPivots
-      )
+        allPivots,
+      ),
     ),
     '_rels/.rels': strToU8(rootRelsXml()),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
     'docProps/app.xml': strToU8(appPropsXml()),
     'xl/workbook.xml': strToU8(workbookXml(workbook, preservedWorkbookRels, allPivots)),
     'xl/_rels/workbook.xml.rels': strToU8(
-      workbookRelsXml(sheets.length, hasSharedStrings, preservedWorkbookRels, allPivots)
+      workbookRelsXml(sheets.length, hasSharedStrings, preservedWorkbookRels, allPivots),
     ),
     'xl/styles.xml': strToU8(styles.toXml()),
     'xl/theme/theme1.xml': strToU8(THEME1_XML),
@@ -445,20 +460,36 @@ export function buildPackageParts(
       pivots.length > 0
     ) {
       files[`xl/worksheets/_rels/sheet${i + 1}.xml.rels`] = strToU8(
-        worksheetRelsXml(tables, drawing, comments, printerSettings, background, hyperlinks, preservedRefs, pivots)
+        worksheetRelsXml(
+          tables,
+          drawing,
+          comments,
+          printerSettings,
+          background,
+          hyperlinks,
+          preservedRefs,
+          pivots,
+        ),
       );
     }
     if (printerSettings !== null) {
-      files[`xl/printerSettings/printerSettings${printerSettings.number}.bin`] = printerSettings.data;
+      files[`xl/printerSettings/printerSettings${printerSettings.number}.bin`] =
+        printerSettings.data;
     }
     if (drawing !== null) {
       files[`xl/drawings/drawing${drawing.number}.xml`] = strToU8(drawingXml(drawing.images));
-      const targets = drawing.images.map(image => `../media/image${image.mediaNumber}.${image.extension}`);
-      files[`xl/drawings/_rels/drawing${drawing.number}.xml.rels`] = strToU8(drawingRelsXml(targets));
+      const targets = drawing.images.map(
+        (image) => `../media/image${image.mediaNumber}.${image.extension}`,
+      );
+      files[`xl/drawings/_rels/drawing${drawing.number}.xml.rels`] = strToU8(
+        drawingRelsXml(targets),
+      );
     }
     if (comments !== null) {
       files[`xl/comments${comments.number}.xml`] = strToU8(commentsXml(comments.notes));
-      files[`xl/drawings/vmlDrawing${comments.number}.vml`] = strToU8(vmlDrawingXml(comments.notes));
+      files[`xl/drawings/vmlDrawing${comments.number}.vml`] = strToU8(
+        vmlDrawingXml(comments.notes),
+      );
     }
   });
   for (const {table, number} of allTables) {
@@ -470,16 +501,24 @@ export function buildPackageParts(
   for (const pivot of allPivots) {
     const {number, cacheId, table} = pivot;
     files[`xl/pivotTables/pivotTable${number}.xml`] = strToU8(
-      pivotTableXml(table, `PivotTable${number}`, cacheId)
+      pivotTableXml(table, `PivotTable${number}`, cacheId),
     );
     files[`xl/pivotTables/_rels/pivotTable${number}.xml.rels`] = strToU8(
       relsPartXml([
-        {id: 'rId1', type: REL.pivotCacheDefinition, target: `../pivotCache/pivotCacheDefinition${number}.xml`},
-      ])
+        {
+          id: 'rId1',
+          type: REL.pivotCacheDefinition,
+          target: `../pivotCache/pivotCacheDefinition${number}.xml`,
+        },
+      ]),
     );
-    files[`xl/pivotCache/pivotCacheDefinition${number}.xml`] = strToU8(pivotCacheDefinitionXml(table));
+    files[`xl/pivotCache/pivotCacheDefinition${number}.xml`] = strToU8(
+      pivotCacheDefinitionXml(table),
+    );
     files[`xl/pivotCache/_rels/pivotCacheDefinition${number}.xml.rels`] = strToU8(
-      relsPartXml([{id: 'rId1', type: REL.pivotCacheRecords, target: `pivotCacheRecords${number}.xml`}])
+      relsPartXml([
+        {id: 'rId1', type: REL.pivotCacheRecords, target: `pivotCacheRecords${number}.xml`},
+      ]),
     );
     files[`xl/pivotCache/pivotCacheRecords${number}.xml`] = strToU8(pivotCacheRecordsXml(table));
   }
@@ -635,7 +674,9 @@ function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): MediaPlan 
   usedIds.forEach((id, i) => {
     const image = workbook.getImage(id);
     if (image === undefined) {
-      throw new Error(`a worksheet anchors image id ${id}, which is not registered on the workbook`);
+      throw new Error(
+        `a worksheet anchors image id ${id}, which is not registered on the workbook`,
+      );
     }
     const number = i + 1;
     parts.push({number, extension: image.extension, data: image.data});
@@ -660,7 +701,7 @@ function planPreservedParts(
   sheetPrinterSettings: readonly (PrinterSettingsPlan | null)[],
   sheetHyperlinks: readonly (readonly PlannedHyperlink[])[],
   sheetBackgrounds: readonly (BackgroundPlan | null)[],
-  generatedMediaCount: number
+  generatedMediaCount: number,
 ): PreservedPlan {
   const sheets = workbook.worksheets;
   // The writer generates drawings, VML, and media of its own, so a preserved part of one of those
@@ -678,7 +719,10 @@ function planPreservedParts(
   // (a pivot cache reached both from its pivot table and from the workbook) is numbered once and
   // emitted once, so overlapping closures collapse instead of duplicating parts.
   const remap = new Map<string, string>();
-  const allReferences = [...sheets.flatMap(sheet => sheet.preservedReferences), ...workbook.preservedReferences];
+  const allReferences = [
+    ...sheets.flatMap((sheet) => sheet.preservedReferences),
+    ...workbook.preservedReferences,
+  ];
   for (const reference of allReferences) {
     for (const part of reference.parts) {
       if (!remap.has(part.path)) remap.set(part.path, preservedPartPath(part.path, numbering));
@@ -689,9 +733,11 @@ function planPreservedParts(
     for (const part of reference.parts) {
       const newPath = remap.get(part.path) as string;
       if (emitted.has(newPath)) continue;
-      const rels = part.rels.flatMap(rel => {
+      const rels = part.rels.flatMap((rel) => {
         const target = remap.get(rel.targetPath);
-        return target === undefined ? [] : [{id: rel.id, type: rel.type, target: relativePartPath(newPath, target)}];
+        return target === undefined
+          ? []
+          : [{id: rel.id, type: rel.type, target: relativePartPath(newPath, target)}];
       });
       emitted.set(newPath, {
         path: newPath,
@@ -709,7 +755,9 @@ function planPreservedParts(
     // A preserved reference's sheet-local relationship id follows every modeled sheet-local id
     // (tables, drawing, comments, printer-settings, external hyperlinks, background) so adding it never
     // renumbers an id already threaded into the sheet XML.
-    const externalHyperlinks = (sheetHyperlinks[i] ?? []).filter(link => link.relId !== undefined).length;
+    const externalHyperlinks = (sheetHyperlinks[i] ?? []).filter(
+      (link) => link.relId !== undefined,
+    ).length;
     const base =
       (sheetTables[i] ?? []).length +
       (sheetDrawings[i] ? 1 : 0) +
@@ -718,19 +766,23 @@ function planPreservedParts(
       externalHyperlinks +
       (sheetBackgrounds[i] ? 1 : 0);
     let next = base + 1;
-    return references.map((reference): PreservedReferencePlan => ({
-      element: reference.element,
-      relId: `rId${next++}`,
-      relType: reference.relType,
-      entryPath: remap.get(reference.entryPath) as string,
-    }));
+    return references.map(
+      (reference): PreservedReferencePlan => ({
+        element: reference.element,
+        relId: `rId${next++}`,
+        relType: reference.relType,
+        entryPath: remap.get(reference.entryPath) as string,
+      }),
+    );
   });
 
-  const workbookRefs = workbook.preservedReferences.map((reference): PreservedWorkbookReferencePlan => ({
-    relType: reference.relType,
-    entryPath: remap.get(reference.entryPath) as string,
-    pivotCacheId: reference.pivotCacheId,
-  }));
+  const workbookRefs = workbook.preservedReferences.map(
+    (reference): PreservedWorkbookReferencePlan => ({
+      relType: reference.relType,
+      entryPath: remap.get(reference.entryPath) as string,
+      pivotCacheId: reference.pivotCacheId,
+    }),
+  );
 
   return {perSheet, workbook: workbookRefs, parts: [...emitted.values()]};
 }
@@ -779,7 +831,11 @@ function relativePartPath(fromPath: string, toPath: string): string {
   const fromDir = fromPath.split('/').slice(0, -1);
   const toSegments = toPath.split('/');
   let common = 0;
-  while (common < fromDir.length && common < toSegments.length - 1 && fromDir[common] === toSegments[common]) {
+  while (
+    common < fromDir.length &&
+    common < toSegments.length - 1 &&
+    fromDir[common] === toSegments[common]
+  ) {
     common++;
   }
   const up = fromDir.length - common;
@@ -787,15 +843,15 @@ function relativePartPath(fromPath: string, toPath: string): string {
 }
 
 function preservedRelsXml(rels: readonly {id: string; type: string; target: string}[]): string {
-  const body = rels.map(rel => relationship(rel.id, rel.type, escapeAttr(rel.target))).join('');
-  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${body}</Relationships>`;
+  const body = rels.map((rel) => relationship(rel.id, rel.type, escapeAttr(rel.target))).join('');
+  return `${XML_DECLARATION}<Relationships xmlns="${NS.packageRels}">${body}</Relationships>`;
 }
 
 // A `.rels` part for a generated part chain (pivot table → cache definition → cache records). Targets
 // are writer-controlled package paths, so no attribute escaping is needed.
 function relsPartXml(rels: readonly {id: string; type: string; target: string}[]): string {
-  const body = rels.map(rel => relationship(rel.id, rel.type, rel.target)).join('');
-  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${body}</Relationships>`;
+  const body = rels.map((rel) => relationship(rel.id, rel.type, rel.target)).join('');
+  return `${XML_DECLARATION}<Relationships xmlns="${NS.packageRels}">${body}</Relationships>`;
 }
 
 function contentTypesXml(
@@ -807,7 +863,7 @@ function contentTypesXml(
   mediaExtensions: readonly string[],
   hasSharedStrings: boolean,
   preservedParts: readonly PreservedPartPlan[],
-  pivots: readonly PivotPlan[]
+  pivots: readonly PivotPlan[],
 ): string {
   // A preserved part with its own XML content type (a drawing) needs an <Override>; a binary one (a
   // VML, an image) is declared by a <Default> for its extension, deduped against the defaults already
@@ -830,16 +886,16 @@ function contentTypesXml(
 
   const overrides = [
     override('/xl/workbook.xml', CT.workbook),
-    ...range(sheetCount).map(i => override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet)),
+    ...range(sheetCount).map((i) => override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet)),
     ...tables.map(({number}) => override(`/xl/tables/table${number}.xml`, CT.table)),
-    ...drawingNumbers.map(number => override(`/xl/drawings/drawing${number}.xml`, CT.drawing)),
-    ...commentNumbers.map(number => override(`/xl/comments${number}.xml`, CT.comments)),
+    ...drawingNumbers.map((number) => override(`/xl/drawings/drawing${number}.xml`, CT.drawing)),
+    ...commentNumbers.map((number) => override(`/xl/comments${number}.xml`, CT.comments)),
     ...pivots.map(({number}) => override(`/xl/pivotTables/pivotTable${number}.xml`, CT.pivotTable)),
     ...pivots.map(({number}) =>
-      override(`/xl/pivotCache/pivotCacheDefinition${number}.xml`, CT.pivotCacheDefinition)
+      override(`/xl/pivotCache/pivotCacheDefinition${number}.xml`, CT.pivotCacheDefinition),
     ),
     ...pivots.map(({number}) =>
-      override(`/xl/pivotCache/pivotCacheRecords${number}.xml`, CT.pivotCacheRecords)
+      override(`/xl/pivotCache/pivotCacheRecords${number}.xml`, CT.pivotCacheRecords),
     ),
     override('/xl/theme/theme1.xml', CT.theme),
     override('/xl/styles.xml', CT.styles),
@@ -853,9 +909,11 @@ function contentTypesXml(
   const vmlDefault =
     commentNumbers.length > 0 ? `<Default Extension="vml" ContentType="${CT.vml}"/>` : '';
   const binDefault =
-    printerSettingsNumbers.length > 0 ? `<Default Extension="bin" ContentType="${CT.printerSettings}"/>` : '';
+    printerSettingsNumbers.length > 0
+      ? `<Default Extension="bin" ContentType="${CT.printerSettings}"/>`
+      : '';
   const imageDefaults = mediaExtensions
-    .map(ext => `<Default Extension="${ext}" ContentType="${imageContentType(ext)}"/>`)
+    .map((ext) => `<Default Extension="${ext}" ContentType="${imageContentType(ext)}"/>`)
     .join('');
   return (
     XML_DECLARATION +
@@ -881,13 +939,13 @@ function rootRelsXml(): string {
     relationship('rId2', REL.coreProps, 'docProps/core.xml'),
     relationship('rId3', REL.extProps, 'docProps/app.xml'),
   ].join('');
-  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
+  return `${XML_DECLARATION}<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
 
 function workbookXml(
   workbook: Workbook,
   preservedRels: readonly PreservedWorkbookRel[],
-  pivots: readonly PivotPlan[]
+  pivots: readonly PivotPlan[],
 ): string {
   const sheets = workbook.worksheets;
   const entries = sheets
@@ -914,9 +972,9 @@ function workbookXml(
 // `<pivotCaches>`) live only in this extension block, so re-emitting it is what lets Excel rediscover
 // the slicers. `<extLst>` is the final child of CT_Workbook. '' when no slicer cache was preserved.
 function workbookExtLstXml(preservedRels: readonly PreservedWorkbookRel[]): string {
-  const caches = preservedRels.filter(ref => ref.relType.endsWith('/slicerCache'));
+  const caches = preservedRels.filter((ref) => ref.relType.endsWith('/slicerCache'));
   if (caches.length === 0) return '';
-  const entries = caches.map(ref => `<x14:slicerCache r:id="${ref.relId}"/>`).join('');
+  const entries = caches.map((ref) => `<x14:slicerCache r:id="${ref.relId}"/>`).join('');
   return (
     `<extLst><ext uri="${SLICER_CACHES_EXT_URI}" xmlns:x14="${X14_NS}">` +
     `<x14:slicerCaches>${entries}</x14:slicerCaches></ext></extLst>`
@@ -930,13 +988,16 @@ function workbookExtLstXml(preservedRels: readonly PreservedWorkbookRel[]): stri
 // registered in a workbook extension block, not here, so it is skipped.
 function pivotCachesXml(
   preservedRels: readonly PreservedWorkbookRel[],
-  pivots: readonly PivotPlan[]
+  pivots: readonly PivotPlan[],
 ): string {
   const preserved = preservedRels
-    .filter(ref => ref.pivotCacheId !== undefined)
-    .map(ref => `<pivotCache cacheId="${escapeAttr(ref.pivotCacheId as string)}" r:id="${ref.relId}"/>`);
+    .filter((ref) => ref.pivotCacheId !== undefined)
+    .map(
+      (ref) =>
+        `<pivotCache cacheId="${escapeAttr(ref.pivotCacheId as string)}" r:id="${ref.relId}"/>`,
+    );
   const generated = pivots.map(
-    pivot => `<pivotCache cacheId="${escapeAttr(pivot.cacheId)}" r:id="${pivot.workbookRelId}"/>`
+    (pivot) => `<pivotCache cacheId="${escapeAttr(pivot.cacheId)}" r:id="${pivot.workbookRelId}"/>`,
   );
   const entries = [...preserved, ...generated];
   if (entries.length === 0) return '';
@@ -979,11 +1040,11 @@ function calcPrXml(workbook: Workbook): string {
 // untouched. Only names that are actually set emit anything.
 function definedNamesXml(workbook: Workbook): string {
   const sheets = workbook.worksheets;
-  const userEntries = workbook.definedNames.map(name => {
+  const userEntries = workbook.definedNames.map((name) => {
     const scopeAttr =
       name.scope === undefined
         ? ''
-        : ` localSheetId="${sheets.findIndex(sheet => sheet.name === name.scope)}"`;
+        : ` localSheetId="${sheets.findIndex((sheet) => sheet.name === name.scope)}"`;
     const commentAttr = name.comment === undefined ? '' : ` comment="${escapeAttr(name.comment)}"`;
     const hiddenAttr = name.hidden ? ' hidden="1"' : '';
     return (
@@ -1001,7 +1062,7 @@ function definedNamesXml(workbook: Workbook): string {
       : [
           `<definedName name="_xlnm._FilterDatabase" localSheetId="${index}" hidden="1">` +
             `${escapeText(filterDatabaseRefersTo(sheet.name, sheet.autoFilter.ref))}</definedName>`,
-        ]
+        ],
   );
 
   const entries = [...userEntries, ...filterEntries];
@@ -1028,11 +1089,11 @@ function workbookRelsXml(
   sheetCount: number,
   hasSharedStrings: boolean,
   preservedRels: readonly PreservedWorkbookRel[],
-  pivots: readonly PivotPlan[]
+  pivots: readonly PivotPlan[],
 ): string {
   const rels = [
-    ...range(sheetCount).map(i =>
-      relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`)
+    ...range(sheetCount).map((i) =>
+      relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`),
     ),
     relationship(`rId${sheetCount + 1}`, REL.styles, 'styles.xml'),
     relationship(`rId${sheetCount + 2}`, REL.theme, 'theme/theme1.xml'),
@@ -1040,19 +1101,23 @@ function workbookRelsXml(
       ? [relationship(`rId${sheetCount + 3}`, REL.sharedStrings, 'sharedStrings.xml')]
       : []),
     // A preserved cache's target is package-absolute; express it relative to the workbook part.
-    ...preservedRels.map(ref =>
-      relationship(ref.relId, ref.relType, escapeAttr(relativePartPath('xl/workbook.xml', ref.entryPath)))
+    ...preservedRels.map((ref) =>
+      relationship(
+        ref.relId,
+        ref.relType,
+        escapeAttr(relativePartPath('xl/workbook.xml', ref.entryPath)),
+      ),
     ),
     // A generated pivot cache's workbook relationship reaches its cache definition part.
-    ...pivots.map(pivot =>
+    ...pivots.map((pivot) =>
       relationship(
         pivot.workbookRelId,
         REL.pivotCacheDefinition,
-        `pivotCache/pivotCacheDefinition${pivot.number}.xml`
-      )
+        `pivotCache/pivotCacheDefinition${pivot.number}.xml`,
+      ),
     ),
   ].join('');
-  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
+  return `${XML_DECLARATION}<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
 
 // A preserved workbook reference with the relationship id assigned for emission (see the body and
@@ -1109,7 +1174,7 @@ function worksheetXml(
   preservedSlicerRelIds: readonly string[],
   hyperlinks: readonly PlannedHyperlink[],
   sharedStrings: SharedStringTable | null,
-  flushed?: FlushedSheet
+  flushed?: FlushedSheet,
 ): string {
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
   // rather than emit a package a consumer repairs on open.
@@ -1127,7 +1192,13 @@ function worksheetXml(
   // so the row loop can stamp it even onto a summary row that carries no properties of its own.
   const collapsedSummaries = collapsedSummaryRows(sheet);
 
-  const context: RowRenderContext = {columnDefaults, styles, sharedStrings, sharedRoles, collapsedSummaries};
+  const context: RowRenderContext = {
+    columnDefaults,
+    styles,
+    sharedStrings,
+    sharedRoles,
+    collapsedSummaries,
+  };
 
   const liveRows: {number: number; xml: string}[] = [];
   // Seed the used-cell extent with any rows the streaming writer already serialised and evicted, so
@@ -1159,7 +1230,7 @@ function worksheetXml(
   const orderedRows = flushed
     ? [...flushed.rows, ...liveRows].sort((a, b) => a.number - b.number)
     : liveRows;
-  const bodyXml = orderedRows.map(row => row.xml).join('');
+  const bodyXml = orderedRows.map((row) => row.xml).join('');
   const sheetData = bodyXml === '' ? '<sheetData/>' : `<sheetData>${bodyXml}</sheetData>`;
 
   return (
@@ -1238,20 +1309,24 @@ export interface RowRenderContext {
  * writer's eager flush, so both emit byte-identical rows.
  */
 export function renderRow(
-  entry: {readonly number: number; readonly cells: readonly Cell[]; readonly properties: RowProperties | undefined},
-  ctx: RowRenderContext
+  entry: {
+    readonly number: number;
+    readonly cells: readonly Cell[];
+    readonly properties: RowProperties | undefined;
+  },
+  ctx: RowRenderContext,
 ): {xml: string; minCol: number; maxCol: number} {
   const {number, cells, properties} = entry;
   // A cell earns a <c> element if it holds a value OR carries its own style: a formatted-but-empty
   // cell (a fill/border on a null value) is a real cell to Excel, and dropping it would lose the
   // formatting. A cell with neither is inherited from its row/column and needs no element of its own.
-  const rendered = cells.filter(cell => cell.value !== null || hasOwnStyle(cell));
+  const rendered = cells.filter((cell) => cell.value !== null || hasOwnStyle(cell));
   const attrs = rowAttrs(properties, ctx.styles, ctx.collapsedSummaries.has(number));
   // A row with neither data nor its own formatting has nothing to serialise.
   if (rendered.length === 0 && attrs === '') return {xml: '', minCol: Infinity, maxCol: -Infinity};
   const rowFill = properties?.fill;
   const cellsXml = rendered
-    .map(cell => {
+    .map((cell) => {
       // Cell overrides win over row/column defaults; a cell with any facet gets its own,
       // fully-composed style entry so no default facet is lost to the override. Precedence is
       // cell over row over column per facet — the row contributes only a fill today.
@@ -1290,7 +1365,7 @@ function worksheetExtLstXml(sheet: Worksheet, slicerRelIds: readonly string[]): 
     conditionalFormattingsExtXml(sheet.conditionalFormattings),
     dataValidationsExtXml(sheet.dataValidations),
     slicerListExtXml(slicerRelIds),
-  ].filter(ext => ext !== '');
+  ].filter((ext) => ext !== '');
   return exts.length === 0 ? '' : `<extLst>${exts.join('')}</extLst>`;
 }
 
@@ -1306,7 +1381,7 @@ const SLICER_CACHES_EXT_URI = '{BBE1A952-AA13-448e-AADC-164F8A28A991}';
 // so the wiring stays consistent even though the id is reassigned on write. '' when the sheet has none.
 function slicerListExtXml(slicerRelIds: readonly string[]): string {
   if (slicerRelIds.length === 0) return '';
-  const slicers = slicerRelIds.map(relId => `<x14:slicer r:id="${relId}"/>`).join('');
+  const slicers = slicerRelIds.map((relId) => `<x14:slicer r:id="${relId}"/>`).join('');
   return (
     `<ext uri="${SLICER_LIST_EXT_URI}" xmlns:x14="${X14_NS}">` +
     `<x14:slicerList>${slicers}</x14:slicerList></ext>`
@@ -1319,14 +1394,18 @@ function validateMerges(sheet: Worksheet): void {
   if (sheet.merges.length === 0 || sheet.tables.length === 0) return;
   for (const merge of sheet.merges) {
     const {left, right, top, bottom} = decodeRange(merge);
-    if (left === undefined || right === undefined || top === undefined || bottom === undefined) continue;
+    if (left === undefined || right === undefined || top === undefined || bottom === undefined)
+      continue;
     for (const table of sheet.tables) {
       const region = table.region;
       const overlaps =
-        left <= region.right && right >= region.left && top <= region.bottom && bottom >= region.top;
+        left <= region.right &&
+        right >= region.left &&
+        top <= region.bottom &&
+        bottom >= region.top;
       if (overlaps) {
         throw new Error(
-          `merged range ${merge} overlaps table "${table.name}" (${table.ref}) — Excel forbids a merge inside a table`
+          `merged range ${merge} overlaps table "${table.name}" (${table.ref}) — Excel forbids a merge inside a table`,
         );
       }
     }
@@ -1345,7 +1424,8 @@ function sheetViewsXml(view: SheetView): string {
     return '<sheetViews><sheetView workbookViewId="0"/></sheetViews>';
   }
   const topLeftCell = view.topLeftCell ?? encodeAddress(xSplit + 1, ySplit + 1);
-  const activePane = xSplit > 0 && ySplit > 0 ? 'bottomRight' : xSplit > 0 ? 'topRight' : 'bottomLeft';
+  const activePane =
+    xSplit > 0 && ySplit > 0 ? 'bottomRight' : xSplit > 0 ? 'topRight' : 'bottomLeft';
   const pane =
     '<pane' +
     (xSplit > 0 ? ` xSplit="${xSplit}"` : '') +
@@ -1380,14 +1460,18 @@ function pageSetUpPrXml(pageSetup: PageSetup): string {
 // keeps the element out of the file entirely.
 function outlinePrXml(outline: OutlineProperties): string {
   const attrs: string[] = [];
-  if (outline.summaryBelow !== undefined) attrs.push(`summaryBelow="${outline.summaryBelow ? 1 : 0}"`);
-  if (outline.summaryRight !== undefined) attrs.push(`summaryRight="${outline.summaryRight ? 1 : 0}"`);
+  if (outline.summaryBelow !== undefined)
+    attrs.push(`summaryBelow="${outline.summaryBelow ? 1 : 0}"`);
+  if (outline.summaryRight !== undefined)
+    attrs.push(`summaryRight="${outline.summaryRight ? 1 : 0}"`);
   return attrs.length === 0 ? '' : `<outlinePr ${attrs.join(' ')}/>`;
 }
 
 function mergeCellsXml(merges: readonly string[]): string {
   if (merges.length === 0) return '';
-  const cells = merges.map(range => `<mergeCell ref="${escapeAttr(decodeRange(range).dimensions)}"/>`).join('');
+  const cells = merges
+    .map((range) => `<mergeCell ref="${escapeAttr(decodeRange(range).dimensions)}"/>`)
+    .join('');
   return `<mergeCells count="${merges.length}">${cells}</mergeCells>`;
 }
 
@@ -1412,12 +1496,12 @@ function filterColumnXml(column: FilterColumn): string {
 function filterCriteriaXml(criteria: FilterCriteria): string {
   if (criteria.kind === 'values') {
     const blankAttr = criteria.blank ? ' blank="1"' : '';
-    const filters = criteria.values.map(value => `<filter val="${escapeAttr(value)}"/>`).join('');
+    const filters = criteria.values.map((value) => `<filter val="${escapeAttr(value)}"/>`).join('');
     return `<filters${blankAttr}>${filters}</filters>`;
   }
   const andAttr = criteria.and ? ' and="1"' : '';
   const predicates = criteria.predicates
-    .map(p => `<customFilter operator="${p.operator}" val="${escapeAttr(p.val)}"/>`)
+    .map((p) => `<customFilter operator="${p.operator}" val="${escapeAttr(p.val)}"/>`)
     .join('');
   return `<customFilters${andAttr}>${predicates}</customFilters>`;
 }
@@ -1467,14 +1551,20 @@ function worksheetRelsXml(
   background: BackgroundPlan | null,
   hyperlinks: readonly PlannedHyperlink[],
   preservedReferences: readonly PreservedReferencePlan[],
-  pivots: readonly PivotPlan[]
+  pivots: readonly PivotPlan[],
 ): string {
   const rels = [
-    ...tables.map(({relId, number}) => relationship(relId, REL.table, `../tables/table${number}.xml`)),
+    ...tables.map(({relId, number}) =>
+      relationship(relId, REL.table, `../tables/table${number}.xml`),
+    ),
     // A pivot table hosted on this sheet is reached by a relationship of type pivotTable; Excel
     // discovers the pivot from the rels part, so the sheet body itself carries no reference to it.
-    ...pivots.map(pivot =>
-      relationship(pivot.sheetRelId, REL.pivotTable, `../pivotTables/pivotTable${pivot.number}.xml`)
+    ...pivots.map((pivot) =>
+      relationship(
+        pivot.sheetRelId,
+        REL.pivotTable,
+        `../pivotTables/pivotTable${pivot.number}.xml`,
+      ),
     ),
     ...(drawing === null
       ? []
@@ -1482,7 +1572,11 @@ function worksheetRelsXml(
     ...(comments === null
       ? []
       : [
-          relationship(comments.vmlRelId, REL.vmlDrawing, `../drawings/vmlDrawing${comments.number}.vml`),
+          relationship(
+            comments.vmlRelId,
+            REL.vmlDrawing,
+            `../drawings/vmlDrawing${comments.number}.vml`,
+          ),
           relationship(comments.commentsRelId, REL.comments, `../comments${comments.number}.xml`),
         ]),
     ...(printerSettings === null
@@ -1491,7 +1585,7 @@ function worksheetRelsXml(
           relationship(
             printerSettings.relId,
             REL.printerSettings,
-            `../printerSettings/printerSettings${printerSettings.number}.bin`
+            `../printerSettings/printerSettings${printerSettings.number}.bin`,
           ),
         ]),
     ...(background === null
@@ -1500,17 +1594,17 @@ function worksheetRelsXml(
           relationship(
             background.relId,
             REL.image,
-            `../media/image${background.mediaNumber}.${background.extension}`
+            `../media/image${background.mediaNumber}.${background.extension}`,
           ),
         ]),
     // A preserved reference targets its entry part's new (package-absolute) path; a worksheet always
     // lives under `xl/worksheets/`, so the target is that path made relative to that directory.
-    ...preservedReferences.map(reference =>
+    ...preservedReferences.map((reference) =>
       relationship(
         reference.relId,
         reference.relType,
-        escapeAttr(relativePartPath('xl/worksheets/sheet1.xml', reference.entryPath))
-      )
+        escapeAttr(relativePartPath('xl/worksheets/sheet1.xml', reference.entryPath)),
+      ),
     ),
     // An external hyperlink's target is a URL outside the package, so its relationship carries
     // TargetMode="External" and the plain `relationship()` helper (a package-internal target) will
@@ -1520,10 +1614,10 @@ function worksheetRelsXml(
       .map(
         (link) =>
           `<Relationship Id="${link.relId}" Type="${REL.hyperlink}" ` +
-          `Target="${escapeAttr(link.target as string)}" TargetMode="External"/>`
+          `Target="${escapeAttr(link.target as string)}" TargetMode="External"/>`,
       ),
   ].join('');
-  return XML_DECLARATION + `<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
+  return `${XML_DECLARATION}<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
 }
 
 function tableXml(table: Table, id: number): string {
@@ -1569,9 +1663,12 @@ function tableStyleInfoXml(style: TableStyleInfo | undefined): string {
   if (style === undefined) return DEFAULT_TABLE_STYLE;
   let attrs = '';
   if (style.name !== undefined) attrs += ` name="${escapeAttr(style.name)}"`;
-  if (style.showFirstColumn !== undefined) attrs += ` showFirstColumn="${style.showFirstColumn ? '1' : '0'}"`;
-  if (style.showLastColumn !== undefined) attrs += ` showLastColumn="${style.showLastColumn ? '1' : '0'}"`;
-  if (style.showRowStripes !== undefined) attrs += ` showRowStripes="${style.showRowStripes ? '1' : '0'}"`;
+  if (style.showFirstColumn !== undefined)
+    attrs += ` showFirstColumn="${style.showFirstColumn ? '1' : '0'}"`;
+  if (style.showLastColumn !== undefined)
+    attrs += ` showLastColumn="${style.showLastColumn ? '1' : '0'}"`;
+  if (style.showRowStripes !== undefined)
+    attrs += ` showRowStripes="${style.showRowStripes ? '1' : '0'}"`;
   if (style.showColumnStripes !== undefined) {
     attrs += ` showColumnStripes="${style.showColumnStripes ? '1' : '0'}"`;
   }
@@ -1609,12 +1706,21 @@ function headerFooterXml(hf: HeaderFooter): string {
   let attrs = '';
   if (differentOddEven) attrs += ' differentOddEven="1"';
   if (differentFirst) attrs += ' differentFirst="1"';
-  const body = children.map(({tag, key}) => `<${tag}>${escapeText(hf[key] as string)}</${tag}>`).join('');
+  const body = children
+    .map(({tag, key}) => `<${tag}>${escapeText(hf[key] as string)}</${tag}>`)
+    .join('');
   return `<headerFooter${attrs}>${body}</headerFooter>`;
 }
 
 // Excel's "Normal" margins, in inches — the defaults Excel writes for an untouched sheet.
-const DEFAULT_MARGINS = {left: 0.7, right: 0.7, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3} as const;
+const DEFAULT_MARGINS = {
+  left: 0.7,
+  right: 0.7,
+  top: 0.75,
+  bottom: 0.75,
+  header: 0.3,
+  footer: 0.3,
+} as const;
 const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
 
 // `<printOptions>` carries the print-toggle flags and sits just before `<pageMargins>` in
@@ -1631,7 +1737,8 @@ function printOptionsXml(printOptions: PrintOptions): string {
     attrs.push(`verticalCentered="${bit(printOptions.verticalCentered)}"`);
   }
   if (printOptions.headings !== undefined) attrs.push(`headings="${bit(printOptions.headings)}"`);
-  if (printOptions.gridLines !== undefined) attrs.push(`gridLines="${bit(printOptions.gridLines)}"`);
+  if (printOptions.gridLines !== undefined)
+    attrs.push(`gridLines="${bit(printOptions.gridLines)}"`);
   if (printOptions.gridLinesSet !== undefined) {
     attrs.push(`gridLinesSet="${bit(printOptions.gridLinesSet)}"`);
   }
@@ -1642,9 +1749,9 @@ function printOptionsXml(printOptions: PrintOptions): string {
 // repairs the file. So the element is emitted only when the caller set at least one, and the
 // untouched sides fall back to the Normal-preset defaults.
 function pageMarginsXml(margins: PageMargins): string {
-  if (MARGIN_SIDES.every(side => margins[side] === undefined)) return '';
+  if (MARGIN_SIDES.every((side) => margins[side] === undefined)) return '';
   const attrs = MARGIN_SIDES.map(
-    side => `${side}="${numberText(margins[side] ?? DEFAULT_MARGINS[side])}"`
+    (side) => `${side}="${numberText(margins[side] ?? DEFAULT_MARGINS[side])}"`,
   ).join(' ');
   return `<pageMargins ${attrs}/>`;
 }
@@ -1699,7 +1806,7 @@ function colsXml(sheet: Worksheet, styles: StyleRegistry): string {
     }
   }
   if (runs.length === 0) return '';
-  const cols = runs.map(run => `<col min="${run.min}" max="${run.max}"${run.body}/>`).join('');
+  const cols = runs.map((run) => `<col min="${run.min}" max="${run.max}"${run.body}/>`).join('');
   return `<cols>${cols}</cols>`;
 }
 
@@ -1751,7 +1858,7 @@ function colBody(properties: ColumnProperties, styles: StyleRegistry): string | 
 function pageBreaksXml(breaks: readonly PageBreak[], element: 'rowBreaks' | 'colBreaks'): string {
   if (breaks.length === 0) return '';
   const brks = breaks
-    .map(brk => {
+    .map((brk) => {
       const maxAttr = brk.max !== undefined ? ` max="${brk.max}"` : '';
       return `<brk id="${brk.id}"${maxAttr} man="1"/>`;
     })
@@ -1762,11 +1869,12 @@ function pageBreaksXml(breaks: readonly PageBreak[], element: 'rowBreaks' | 'col
 function rowAttrs(
   properties: RowProperties | undefined,
   styles: StyleRegistry,
-  collapsedSummary: boolean
+  collapsedSummary: boolean,
 ): string {
   if (properties === undefined) return collapsedSummary ? ' collapsed="1"' : '';
   let attrs = '';
-  if (properties.height !== undefined) attrs += ` ht="${numberText(properties.height)}" customHeight="1"`;
+  if (properties.height !== undefined)
+    attrs += ` ht="${numberText(properties.height)}" customHeight="1"`;
   if (properties.hidden) attrs += ' hidden="1"';
   if (properties.outlineLevel !== undefined && properties.outlineLevel > 0) {
     attrs += ` outlineLevel="${properties.outlineLevel}"`;
@@ -1830,7 +1938,7 @@ function cellXml(
   cell: Cell,
   style: number,
   shared: SharedFormulaRole | undefined,
-  sharedStrings: SharedStringTable | null
+  sharedStrings: SharedStringTable | null,
 ): string {
   const ref = cell.address;
   const value = cell.value;
@@ -1899,7 +2007,10 @@ function cellXml(
     // The cell holds only the visible label; the link itself rides in the sheet's <hyperlinks>.
     // The label is either a plain string or rich text, serialised the same way a cell value of
     // that kind would be.
-    const label = typeof value.text === 'string' ? textElement(value.text) : richTextRunsXml(value.text.richText);
+    const label =
+      typeof value.text === 'string'
+        ? textElement(value.text)
+        : richTextRunsXml(value.text.richText);
     return `<c r="${ref}"${s} t="inlineStr"><is>${label}</is></c>`;
   }
   if (isErrorValue(value)) {
@@ -1929,14 +2040,24 @@ function hasOwnStyle(cell: Cell): boolean {
   );
 }
 
-function formulaCellXml(ref: string, s: string, formula: string, result: FormulaResult | undefined): string {
+function formulaCellXml(
+  ref: string,
+  s: string,
+  formula: string,
+  result: FormulaResult | undefined,
+): string {
   return formulaBodyXml(ref, s, `<f>${escapeText(mangleFormula(formula))}</f>`, result);
 }
 
 // Wrap a prepared `<f>` element (a plain formula, or a shared master/slave `<f>`) with the cell
 // element and its cached result, typing the cell by the result's kind exactly as a bare value of that
 // kind would be.
-function formulaBodyXml(ref: string, s: string, f: string, result: FormulaResult | undefined): string {
+function formulaBodyXml(
+  ref: string,
+  s: string,
+  f: string,
+  result: FormulaResult | undefined,
+): string {
   // A non-finite cached result (a `1/0` that reached the model as Infinity/NaN) has no OOXML
   // representation; keep the formula but cache no value rather than emit a bare "NaN" — the same
   // graceful degradation a bare non-finite cell and an Invalid Date result get.
@@ -1999,7 +2120,7 @@ function planSharedFormulas(sheet: Worksheet): Map<string, SharedFormulaRole> {
     if (!isFormulaValue(master.value)) {
       const offender = clones[0] as Cell;
       throw new Error(
-        `shared-formula clone ${offender.address} names master ${masterAddress}, which holds no formula`
+        `shared-formula clone ${offender.address} names master ${masterAddress}, which holds no formula`,
       );
     }
     let maxCol = master.col;
@@ -2007,7 +2128,7 @@ function planSharedFormulas(sheet: Worksheet): Map<string, SharedFormulaRole> {
     for (const clone of clones) {
       if (clone.col < master.col || clone.row < master.row) {
         throw new Error(
-          `shared-formula master ${masterAddress} must sit above and/or left of clone ${clone.address}`
+          `shared-formula master ${masterAddress} must sit above and/or left of clone ${clone.address}`,
         );
       }
       if (clone.col > maxCol) maxCol = clone.col;

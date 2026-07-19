@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import {strFromU8, unzipSync} from 'fflate';
 
 import {dateToSerial} from '../../core/date.ts';
-import {isFormulaValue, isSharedFormulaValue, type FormulaValue} from '../../core/value.ts';
+import {type FormulaValue, isFormulaValue, isSharedFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
@@ -38,7 +38,10 @@ test('the result caches the serial and the cell carries a date format so it read
 
   // The serial rides in <v> exactly as a bare date cell stores its value, and the cell references a
   // (non-default) style — the date number format that makes the serial read back as a Date.
-  assert.match(sheetXml, new RegExp(`<c r="A1" s="\\d+"><f>TODAY\\(\\)</f><v>${dateToSerial(when)}</v></c>`));
+  assert.match(
+    sheetXml,
+    new RegExp(`<c r="A1" s="\\d+"><f>TODAY\\(\\)</f><v>${dateToSerial(when)}</v></c>`),
+  );
 });
 
 test('an explicit date format on the cell wins over the default but still reads back as a date', () => {
@@ -52,7 +55,11 @@ test('an explicit date format on the cell wins over the default but still reads 
   const a1 = formulaOf(back, 'A1');
   assert.ok(a1.result instanceof Date, 'the explicit-format cell still yields a Date');
   assert.equal((a1.result as Date).getTime(), when.getTime());
-  assert.equal(back.getWorksheet('S')?.getCell('A1').numFmt, 'yyyy-mm-dd', 'the chosen format survives');
+  assert.equal(
+    back.getWorksheet('S')?.getCell('A1').numFmt,
+    'yyyy-mm-dd',
+    'the chosen format survives',
+  );
 });
 
 test('a formula with an Invalid Date result writes no cached value and reads back result-less', () => {
@@ -62,7 +69,11 @@ test('a formula with an Invalid Date result writes no cached value and reads bac
   sheet.getCell('A2').value = 'sibling'; // one bad result must not take down the rest of the sheet
 
   const sheetXml = sheetXmlOf(writeXlsx(wb));
-  assert.match(sheetXml, /<c r="A1"><f>TODAY\(\)<\/f><\/c>/, 'no <v> is cached for an unrepresentable date');
+  assert.match(
+    sheetXml,
+    /<c r="A1"><f>TODAY\(\)<\/f><\/c>/,
+    'no <v> is cached for an unrepresentable date',
+  );
 
   const back = readXlsx(writeXlsx(wb));
   const a1 = formulaOf(back, 'A1');
@@ -80,7 +91,10 @@ test('a shared-formula clone with a date result reads back as a Date', () => {
   sheet.getCell('B2').value = {sharedFormula: 'B1', result: day2};
 
   const clone = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('B2').value;
-  assert.ok(clone !== undefined && clone !== null && isSharedFormulaValue(clone), 'B2 stays a shared formula');
+  assert.ok(
+    clone !== undefined && clone !== null && isSharedFormulaValue(clone),
+    'B2 stays a shared formula',
+  );
   assert.ok(clone.result instanceof Date, 'the clone caches its result as a Date');
   assert.equal(clone.result.getTime(), day2.getTime());
 });

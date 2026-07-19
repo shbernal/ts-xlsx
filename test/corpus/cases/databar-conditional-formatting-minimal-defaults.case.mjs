@@ -27,7 +27,14 @@ export default {
       async expect(api, assert) {
         const {writeOk} = await api.authorConditionalFormatting({
           ref: 'A1:A3',
-          rules: [{type: 'dataBar', priority: 1, cfvo: [{type: 'min'}, {type: 'max'}], color: {argb: 'FF638EC6'}}],
+          rules: [
+            {
+              type: 'dataBar',
+              priority: 1,
+              cfvo: [{type: 'min'}, {type: 'max'}],
+              color: {argb: 'FF638EC6'},
+            },
+          ],
         });
         assert.strictEqual(writeOk, true, 'a fully-specified dataBar writes');
       },
@@ -43,7 +50,7 @@ export default {
         assert.strictEqual(
           writeOk,
           true,
-          `a minimal dataBar must default its cfvo/color, not crash; got ${JSON.stringify(writeError)}`
+          `a minimal dataBar must default its cfvo/color, not crash; got ${JSON.stringify(writeError)}`,
         );
       },
     },
@@ -51,8 +58,11 @@ export default {
       name: 'the minimal dataBar gains two default cfvo anchors',
       baseline: 'pass',
       async expect(api, assert) {
-        const {xml} = await api.authorConditionalFormatting({ref: 'A1:A3', rules: [{type: 'dataBar', priority: 1}]});
-        assert.ok(xml && xml.hasDataBar, 'a dataBar element is emitted');
+        const {xml} = await api.authorConditionalFormatting({
+          ref: 'A1:A3',
+          rules: [{type: 'dataBar', priority: 1}],
+        });
+        assert.ok(xml?.hasDataBar, 'a dataBar element is emitted');
         assert.strictEqual(xml.cfvoCount, 2, 'a default data bar carries a min and a max cfvo');
       },
     },
@@ -60,8 +70,11 @@ export default {
       name: 'the minimal dataBar gains a default bar color',
       baseline: 'pass',
       async expect(api, assert) {
-        const {xml} = await api.authorConditionalFormatting({ref: 'A1:A3', rules: [{type: 'dataBar', priority: 1}]});
-        assert.ok(xml && xml.hasColor, 'a default data bar carries a bar color when none was supplied');
+        const {xml} = await api.authorConditionalFormatting({
+          ref: 'A1:A3',
+          rules: [{type: 'dataBar', priority: 1}],
+        });
+        assert.ok(xml?.hasColor, 'a default data bar carries a bar color when none was supplied');
       },
     },
   ],

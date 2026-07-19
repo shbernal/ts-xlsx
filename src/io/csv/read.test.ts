@@ -34,7 +34,7 @@ test('an over-precision numeric string is preserved verbatim; in-range numbers c
 
 test('a leading-zero id coerces to a number by default but survives the identity map', () => {
   assert.deepEqual(rowsOf('007,32.5'), [[7, 32.5]]);
-  assert.deepEqual(rowsOf('007,32.5', {map: v => v}), [['007', '32.5']]);
+  assert.deepEqual(rowsOf('007,32.5', {map: (v) => v}), [['007', '32.5']]);
 });
 
 test('padded ids and dash-codes stay strings; a strict ISO date becomes a Date', () => {
@@ -60,7 +60,9 @@ test('header mode consumes the first line, leaving data rows', () => {
 });
 
 test('quoted fields carry embedded delimiters, quotes, and newlines', () => {
-  assert.deepEqual(rowsOf('"a,b","he said ""hi""","line\nbreak"'), [['a,b', 'he said "hi"', 'line\nbreak']]);
+  assert.deepEqual(rowsOf('"a,b","he said ""hi""","line\nbreak"'), [
+    ['a,b', 'he said "hi"', 'line\nbreak'],
+  ]);
 });
 
 test('a leading UTF-8 BOM is stripped and bytes decode', () => {
@@ -71,6 +73,6 @@ test('a leading UTF-8 BOM is stripped and bytes decode', () => {
 function rowsOfBytes(bytes: Uint8Array): unknown[][] {
   const sheet = readCsv(bytes).worksheets[0]!;
   const rows: unknown[][] = [];
-  for (const {cells} of sheet.rows()) rows.push(cells.map(c => c.value));
+  for (const {cells} of sheet.rows()) rows.push(cells.map((c) => c.value));
   return rows;
 }

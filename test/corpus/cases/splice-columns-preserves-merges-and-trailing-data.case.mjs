@@ -19,7 +19,10 @@ const sheet = {
     {ref: 'F1', value: 'F'},
     {ref: 'H1', value: 'H'},
   ],
-  ops: [{op: 'mergeCells', range: 'F1:G1'}, {op: 'spliceColumns', start: 2, count: 1}],
+  ops: [
+    {op: 'mergeCells', range: 'F1:G1'},
+    {op: 'spliceColumns', start: 2, count: 1},
+  ],
   read: ['A1', 'B1', 'E1', 'G1'],
 };
 
@@ -40,7 +43,11 @@ export default {
       async expect(api, assert) {
         const {cells} = await api.mutateWorksheet(sheet);
         assert.strictEqual(cells.B1, 'C', 'the value formerly at C1 shifts left to B1');
-        assert.strictEqual(cells.E1, 'F', 'the value formerly at F1 shifts left to E1 (trailing data preserved)');
+        assert.strictEqual(
+          cells.E1,
+          'F',
+          'the value formerly at F1 shifts left to E1 (trailing data preserved)',
+        );
         assert.strictEqual(cells.G1, 'H', 'the value formerly at H1 shifts left to G1');
       },
     },
@@ -51,7 +58,7 @@ export default {
         const {merges} = await api.mutateWorksheet(sheet);
         assert.ok(
           merges.includes('E1:F1'),
-          `the F1:G1 merge must shift left to E1:F1 after removing a column to its left; got ${JSON.stringify(merges)}`
+          `the F1:G1 merge must shift left to E1:F1 after removing a column to its left; got ${JSON.stringify(merges)}`,
         );
       },
     },

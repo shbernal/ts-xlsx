@@ -33,7 +33,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
-        assert.strictEqual(ok, true, `the load must not abort on a degenerate defined name; got ${JSON.stringify(error)}`);
+        assert.strictEqual(
+          ok,
+          true,
+          `the load must not abort on a degenerate defined name; got ${JSON.stringify(error)}`,
+        );
       },
     },
     {
@@ -41,7 +45,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
-        assert.deepStrictEqual(sheetNames, ['Sheet1', 'Data'], 'both worksheets survive the tolerant read');
+        assert.deepStrictEqual(
+          sheetNames,
+          ['Sheet1', 'Data'],
+          'both worksheets survive the tolerant read',
+        );
       },
     },
     {
@@ -52,7 +60,7 @@ export default {
         assert.deepStrictEqual(
           names.GoodName,
           ['Sheet1!$A$1'],
-          'the well-formed defined name is read back rather than dropped alongside the degenerate ones'
+          'the well-formed defined name is read back rather than dropped alongside the degenerate ones',
         );
       },
     },

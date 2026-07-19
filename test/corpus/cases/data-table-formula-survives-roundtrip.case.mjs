@@ -25,9 +25,14 @@ export default {
       name: 'reading a data-table formula surfaces its kind, range, and cached result',
       baseline: 'pass',
       async expect(api, assert) {
-        const {reloadOk, readShareType, readRef, readResult} = await api.dataTableFormulaRoundtrip();
+        const {reloadOk, readShareType, readRef, readResult} =
+          await api.dataTableFormulaRoundtrip();
         assert.strictEqual(reloadOk, true, 'the workbook with a data-table formula loads');
-        assert.strictEqual(readShareType, 'dataTable', 'the formula kind is recognized as a data table');
+        assert.strictEqual(
+          readShareType,
+          'dataTable',
+          'the formula kind is recognized as a data table',
+        );
         assert.strictEqual(readRef, 'B2:B5', 'the data-table range is surfaced');
         assert.strictEqual(readResult, 99, 'the cached result is surfaced');
       },
@@ -40,7 +45,7 @@ export default {
         assert.strictEqual(
           outHasDataTable,
           true,
-          'the re-written worksheet must still declare the data-table formula (t="dataTable"), not drop it'
+          'the re-written worksheet must still declare the data-table formula (t="dataTable"), not drop it',
         );
       },
     },

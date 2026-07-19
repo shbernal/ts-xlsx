@@ -10,7 +10,7 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
-const bannerSheet = ops => ({
+const bannerSheet = (ops) => ({
   cells: [
     {ref: 'A1', value: 'header'},
     {ref: 'A2', value: 'banner'},
@@ -34,7 +34,9 @@ export default {
       name: 'a splice below the merged range leaves it merged and untouched (control)',
       baseline: 'pass',
       async expect(api, assert) {
-        const {merges} = await api.mutateWorksheet(bannerSheet([{op: 'spliceRows', start: 10, count: 1}]));
+        const {merges} = await api.mutateWorksheet(
+          bannerSheet([{op: 'spliceRows', start: 10, count: 1}]),
+        );
         assert.deepStrictEqual(merges, ['A2:O2'], 'a splice far below must not disturb the merge');
       },
     },
@@ -42,10 +44,12 @@ export default {
       name: 'deleting a row above the merged range shifts it up and keeps it merged',
       baseline: 'pass',
       async expect(api, assert) {
-        const {merges} = await api.mutateWorksheet(bannerSheet([{op: 'spliceRows', start: 1, count: 1}]));
+        const {merges} = await api.mutateWorksheet(
+          bannerSheet([{op: 'spliceRows', start: 1, count: 1}]),
+        );
         assert.ok(
           merges.includes('A1:O1'),
-          `deleting row 1 must shift the merge to A1:O1 and keep it merged; got ${JSON.stringify(merges)}`
+          `deleting row 1 must shift the merge to A1:O1 and keep it merged; got ${JSON.stringify(merges)}`,
         );
       },
     },
@@ -54,11 +58,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {merges} = await api.mutateWorksheet(
-          bannerSheet([{op: 'spliceRows', start: 1, count: 0, inserts: [['inserted']]}])
+          bannerSheet([{op: 'spliceRows', start: 1, count: 0, inserts: [['inserted']]}]),
         );
         assert.ok(
           merges.includes('A3:O3'),
-          `inserting a row above must shift the merge to A3:O3 and keep it merged; got ${JSON.stringify(merges)}`
+          `inserting a row above must shift the merge to A3:O3 and keep it merged; got ${JSON.stringify(merges)}`,
         );
       },
     },

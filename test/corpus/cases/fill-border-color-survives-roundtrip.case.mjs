@@ -15,7 +15,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'styles',
   description:
-    'A pure open-then-save round-trip preserves cells\' visible fill (solid/patterned foreground) ' +
+    "A pure open-then-save round-trip preserves cells' visible fill (solid/patterned foreground) " +
     'and border-edge colors — including theme+tint and indexed-palette references — so the sheet ' +
     'renders identically after re-saving.',
 
@@ -30,19 +30,27 @@ export default {
       },
     },
     {
-      name: 'no cell\'s visible fill color changes across the round-trip',
+      name: "no cell's visible fill color changes across the round-trip",
       baseline: 'pass',
       async expect(api, assert) {
         const {fillMismatches, fillSample} = await api.roundtripFixtureColorFidelity(FIXTURE);
-        assert.strictEqual(fillMismatches, 0, `fill colors must survive; first divergence: ${JSON.stringify(fillSample)}`);
+        assert.strictEqual(
+          fillMismatches,
+          0,
+          `fill colors must survive; first divergence: ${JSON.stringify(fillSample)}`,
+        );
       },
     },
     {
-      name: 'no cell\'s border-edge color changes across the round-trip',
+      name: "no cell's border-edge color changes across the round-trip",
       baseline: 'pass',
       async expect(api, assert) {
         const {borderMismatches, borderSample} = await api.roundtripFixtureColorFidelity(FIXTURE);
-        assert.strictEqual(borderMismatches, 0, `border colors must survive; first divergence: ${JSON.stringify(borderSample)}`);
+        assert.strictEqual(
+          borderMismatches,
+          0,
+          `border colors must survive; first divergence: ${JSON.stringify(borderSample)}`,
+        );
       },
     },
   ],

@@ -36,7 +36,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
-        assert.deepStrictEqual(sheetNames, ['apis 3445'], 'the single sheet is discovered by its declared name');
+        assert.deepStrictEqual(
+          sheetNames,
+          ['apis 3445'],
+          'the single sheet is discovered by its declared name',
+        );
       },
     },
   ],

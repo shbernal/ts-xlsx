@@ -26,8 +26,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
-        assert.ok(source.columnWidths.length >= 1, 'precondition: the file has custom column widths');
-        assert.deepStrictEqual(rewritten.columnWidths, source.columnWidths, 'the fractional widths are preserved exactly');
+        assert.ok(
+          source.columnWidths.length >= 1,
+          'precondition: the file has custom column widths',
+        );
+        assert.deepStrictEqual(
+          rewritten.columnWidths,
+          source.columnWidths,
+          'the fractional widths are preserved exactly',
+        );
       },
     },
     {
@@ -35,7 +42,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
-        assert.deepStrictEqual(rewritten.pageSetup, source.pageSetup, 'scale/fit/pageOrder/orientation are preserved');
+        assert.deepStrictEqual(
+          rewritten.pageSetup,
+          source.pageSetup,
+          'scale/fit/pageOrder/orientation are preserved',
+        );
       },
     },
   ],

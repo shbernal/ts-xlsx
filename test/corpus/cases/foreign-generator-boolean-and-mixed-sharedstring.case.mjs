@@ -41,7 +41,7 @@ export default {
         const {ok, error} = await api.readFixtureReport(LARK);
         assert.ok(
           ok,
-          `a schema-valid foreign export must load, not throw on its mixed <si>/boolean shapes; got ${JSON.stringify(error)}`
+          `a schema-valid foreign export must load, not throw on its mixed <si>/boolean shapes; got ${JSON.stringify(error)}`,
         );
       },
     },
@@ -54,7 +54,7 @@ export default {
         assert.deepStrictEqual(
           foreign.sheetNames,
           normalized.sheetNames,
-          'the two interchangeable inputs must expose the same sheets'
+          'the two interchangeable inputs must expose the same sheets',
         );
       },
     },

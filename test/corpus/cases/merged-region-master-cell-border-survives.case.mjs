@@ -21,7 +21,8 @@ export default {
       name: 'the master cell keeps its top and bottom borders after the merge',
       baseline: 'pass',
       async expect(api, assert) {
-        const {hasTopBorder, hasBottomBorder, topStyle, bottomStyle} = await api.mergeMasterBorderReport();
+        const {hasTopBorder, hasBottomBorder, topStyle, bottomStyle} =
+          await api.mergeMasterBorderReport();
         assert.strictEqual(hasTopBorder, true, 'the top border survives the merge');
         assert.strictEqual(hasBottomBorder, true, 'the bottom border survives the merge');
         assert.strictEqual(topStyle, 'thin', 'the top border style is preserved');

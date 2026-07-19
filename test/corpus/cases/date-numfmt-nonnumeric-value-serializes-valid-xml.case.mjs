@@ -49,7 +49,7 @@ export default {
         assert.strictEqual(
           hasNaN,
           false,
-          `an invalid Date must not serialize as <v>NaN</v>; got cell XML ${JSON.stringify(cellXml)}`
+          `an invalid Date must not serialize as <v>NaN</v>; got cell XML ${JSON.stringify(cellXml)}`,
         );
       },
     },
@@ -61,7 +61,7 @@ export default {
         assert.strictEqual(
           hasInvalidDate,
           false,
-          `an invalid Date must not serialize the literal "Invalid Date"; got ${JSON.stringify(cellXml)}`
+          `an invalid Date must not serialize the literal "Invalid Date"; got ${JSON.stringify(cellXml)}`,
         );
       },
     },

@@ -7,7 +7,7 @@
 
 import {encodeAddress} from './address.ts';
 import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
-import {type CellValue, type ValueType, coerceCellValue, detectValueType} from './value.ts';
+import {type CellValue, coerceCellValue, detectValueType, type ValueType} from './value.ts';
 
 export class Cell {
   /** 1-based row index. */

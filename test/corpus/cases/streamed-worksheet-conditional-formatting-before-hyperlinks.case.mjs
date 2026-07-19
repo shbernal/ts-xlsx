@@ -38,7 +38,7 @@ export default {
         assert.strictEqual(
           conditionalFormattingBeforeHyperlinks,
           true,
-          'conditionalFormatting must precede hyperlinks in the worksheet XML, or Excel repairs the file'
+          'conditionalFormatting must precede hyperlinks in the worksheet XML, or Excel repairs the file',
         );
       },
     },
@@ -47,7 +47,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {reloadOk} = await api.streamWriteCfHyperlinkOrder();
-        assert.strictEqual(reloadOk, true, 'the tolerant reader reads it back even though the order is wrong');
+        assert.strictEqual(
+          reloadOk,
+          true,
+          'the tolerant reader reads it back even though the order is wrong',
+        );
       },
     },
   ],

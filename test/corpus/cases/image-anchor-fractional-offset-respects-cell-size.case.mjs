@@ -31,7 +31,7 @@ export default {
   provenance: {source: 'upstream-pr'},
   cluster: 'images',
   description:
-    'The sub-cell EMU offset of a fractional image anchor scales with the target cell\'s real ' +
+    "The sub-cell EMU offset of a fractional image anchor scales with the target cell's real " +
     'column width and row height — a col-0.5 anchor sits further right in a wide column, and a ' +
     'row-0.5 anchor further down in a tall row, rather than using the default cell size.',
 
@@ -43,10 +43,13 @@ export default {
       async expect(api, assert) {
         const narrow = await firstFrom(api, fractionalAnchorSheet({colWidth: 5}));
         const wide = await firstFrom(api, fractionalAnchorSheet({colWidth: 50}));
-        assert.ok(narrow.colOff > 0 && wide.colOff > 0, 'both offsets are positive sub-cell offsets');
+        assert.ok(
+          narrow.colOff > 0 && wide.colOff > 0,
+          'both offsets are positive sub-cell offsets',
+        );
         assert.ok(
           wide.colOff > narrow.colOff,
-          `a wider column must produce a larger sub-cell colOff; narrow=${narrow.colOff} wide=${wide.colOff}`
+          `a wider column must produce a larger sub-cell colOff; narrow=${narrow.colOff} wide=${wide.colOff}`,
         );
       },
     },
@@ -56,10 +59,13 @@ export default {
       async expect(api, assert) {
         const short = await firstFrom(api, fractionalAnchorSheet({rowHeight: 10}));
         const tall = await firstFrom(api, fractionalAnchorSheet({rowHeight: 80}));
-        assert.ok(short.rowOff > 0 && tall.rowOff > 0, 'both offsets are positive sub-cell offsets');
+        assert.ok(
+          short.rowOff > 0 && tall.rowOff > 0,
+          'both offsets are positive sub-cell offsets',
+        );
         assert.ok(
           tall.rowOff > short.rowOff,
-          `a taller row must produce a larger sub-cell rowOff; short=${short.rowOff} tall=${tall.rowOff}`
+          `a taller row must produce a larger sub-cell rowOff; short=${short.rowOff} tall=${tall.rowOff}`,
         );
       },
     },

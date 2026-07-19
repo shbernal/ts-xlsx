@@ -146,7 +146,12 @@ export function isSharedFormulaValue(value: CellValue): value is SharedFormulaVa
 }
 
 export function isDataTableFormulaValue(value: CellValue): value is DataTableFormulaValue {
-  return typeof value === 'object' && value !== null && 'shareType' in value && value.shareType === 'dataTable';
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'shareType' in value &&
+    value.shareType === 'dataTable'
+  );
 }
 
 export function isRichTextValue(value: CellValue): value is RichTextValue {

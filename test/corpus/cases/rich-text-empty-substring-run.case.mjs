@@ -31,7 +31,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {emptyTextRunInXml} = await api.richTextRoundtripReport(RUNS);
-        assert.strictEqual(emptyTextRunInXml, false, 'an empty-text run must not be emitted as an empty <t> element');
+        assert.strictEqual(
+          emptyTextRunInXml,
+          false,
+          'an empty-text run must not be emitted as an empty <t> element',
+        );
       },
     },
     {
@@ -39,7 +43,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {runs} = await api.richTextRoundtripReport(RUNS);
-        assert.deepStrictEqual(runs.map(r => r.text), ['a', 'b'], 'only the two non-empty runs survive');
+        assert.deepStrictEqual(
+          runs.map((r) => r.text),
+          ['a', 'b'],
+          'only the two non-empty runs survive',
+        );
       },
     },
     {
@@ -47,8 +55,8 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {runs} = await api.richTextRoundtripReport(RUNS);
-        const a = runs.find(r => r.text === 'a');
-        const b = runs.find(r => r.text === 'b');
+        const a = runs.find((r) => r.text === 'a');
+        const b = runs.find((r) => r.text === 'b');
         assert.ok(a && a.bold === true, 'the leading bold run survives with its formatting');
         assert.ok(b, 'the trailing run survives');
       },

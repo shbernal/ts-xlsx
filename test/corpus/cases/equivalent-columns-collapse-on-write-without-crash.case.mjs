@@ -25,7 +25,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, writeError, reloadOk} = await api.equivalentColumnCollapseReport();
-        assert.strictEqual(writeOk, true, `the write must not throw; got ${JSON.stringify(writeError)}`);
+        assert.strictEqual(
+          writeOk,
+          true,
+          `the write must not throw; got ${JSON.stringify(writeError)}`,
+        );
         assert.strictEqual(reloadOk, true, 'the written package reloads');
       },
     },
@@ -36,7 +40,7 @@ export default {
         const {colSpanCount} = await api.equivalentColumnCollapseReport();
         assert.ok(
           colSpanCount >= 1 && colSpanCount < 4,
-          `four equivalent columns should collapse into fewer than four <col> spans; got ${colSpanCount}`
+          `four equivalent columns should collapse into fewer than four <col> spans; got ${colSpanCount}`,
         );
       },
     },

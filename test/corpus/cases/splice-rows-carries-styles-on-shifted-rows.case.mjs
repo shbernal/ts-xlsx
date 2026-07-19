@@ -11,7 +11,7 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 // A styled cell two rows below the top; distinct font + fill + numFmt so a lost style is unambiguous.
-const styledCell = ref => ({
+const styledCell = (ref) => ({
   ref,
   value: 'styled',
   font: {bold: true, color: {argb: 'FFFF0000'}},
@@ -39,7 +39,11 @@ export default {
           ops: [{op: 'spliceRows', start: 1, count: 1}],
           readStyles: ['A2'],
         });
-        assert.strictEqual(styles.A2.value, 'styled', 'the styled cell shifts from A3 up to A2 with its value');
+        assert.strictEqual(
+          styles.A2.value,
+          'styled',
+          'the styled cell shifts from A3 up to A2 with its value',
+        );
       },
     },
     {
@@ -51,13 +55,17 @@ export default {
           ops: [{op: 'spliceRows', start: 1, count: 1}],
           readStyles: ['A2'],
         });
-        assert.strictEqual(styles.A2.font && styles.A2.font.bold, true, 'the font travels with the shifted cell');
+        assert.strictEqual(styles.A2.font?.bold, true, 'the font travels with the shifted cell');
         assert.strictEqual(
-          styles.A2.fill && styles.A2.fill.fgColor && styles.A2.fill.fgColor.argb,
+          styles.A2.fill?.fgColor?.argb,
           'FF00FF00',
-          'the fill travels with the shifted cell'
+          'the fill travels with the shifted cell',
         );
-        assert.strictEqual(styles.A2.numFmt, '0.00', 'the number format travels with the shifted cell');
+        assert.strictEqual(
+          styles.A2.numFmt,
+          '0.00',
+          'the number format travels with the shifted cell',
+        );
       },
     },
     {
@@ -69,9 +77,21 @@ export default {
           ops: [{op: 'spliceRows', start: 1, count: 0, inserts: [['inserted']]}],
           readStyles: ['A4'],
         });
-        assert.strictEqual(styles.A4.value, 'styled', 'the styled cell shifts from A3 down to A4 with its value');
-        assert.strictEqual(styles.A4.font && styles.A4.font.bold, true, 'the font is preserved on the shifted-down cell');
-        assert.strictEqual(styles.A4.numFmt, '0.00', 'the number format is preserved on the shifted-down cell');
+        assert.strictEqual(
+          styles.A4.value,
+          'styled',
+          'the styled cell shifts from A3 down to A4 with its value',
+        );
+        assert.strictEqual(
+          styles.A4.font?.bold,
+          true,
+          'the font is preserved on the shifted-down cell',
+        );
+        assert.strictEqual(
+          styles.A4.numFmt,
+          '0.00',
+          'the number format is preserved on the shifted-down cell',
+        );
       },
     },
   ],

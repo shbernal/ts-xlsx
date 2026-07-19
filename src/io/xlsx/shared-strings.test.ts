@@ -17,7 +17,9 @@ function partText(pkg: Uint8Array, name: string): string | undefined {
 function bookWithStrings(...values: string[]): Workbook {
   const workbook = new Workbook();
   const sheet = workbook.addWorksheet('S');
-  values.forEach((value, i) => (sheet.getCell(`A${i + 1}`).value = value));
+  values.forEach((value, i) => {
+    sheet.getCell(`A${i + 1}`).value = value;
+  });
   return workbook;
 }
 
@@ -80,7 +82,10 @@ test('under the option a rich-text cell is pooled as a rich <si> of runs and rea
   const pkg = writeXlsx(workbook, {useSharedStrings: true});
 
   // The runs become a rich <si> entry the cell references by index — the shape Excel itself writes.
-  assert.match(partText(pkg, 'xl/sharedStrings.xml') ?? '', /<si><r><rPr><b\/><\/rPr><t>bold<\/t><\/r><r><t>plain<\/t><\/r><\/si>/);
+  assert.match(
+    partText(pkg, 'xl/sharedStrings.xml') ?? '',
+    /<si><r><rPr><b\/><\/rPr><t>bold<\/t><\/r><r><t>plain<\/t><\/r><\/si>/,
+  );
   const sheet = partText(pkg, 'xl/worksheets/sheet1.xml') ?? '';
   assert.match(sheet, /r="A1"[^>]* t="s"><v>0<\/v>/);
   assert.doesNotMatch(sheet, /inlineStr/);
@@ -142,11 +147,11 @@ test('a t="s" cell pointing at a foreign rich <si> reads back as rich text', () 
   files['xl/sharedStrings.xml'] = strToU8(
     '<?xml version="1.0"?>' +
       '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1">' +
-      '<si><r><rPr><i/></rPr><t>emph</t></r><r><t>rest</t></r></si></sst>'
+      '<si><r><rPr><i/></rPr><t>emph</t></r><r><t>rest</t></r></si></sst>',
   );
   const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml'] ?? new Uint8Array()).replace(
     '<sheetData/>',
-    '<sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row></sheetData>'
+    '<sheetData><row r="1"><c r="A1" t="s"><v>0</v></c></row></sheetData>',
   );
   files['xl/worksheets/sheet1.xml'] = strToU8(sheetXml);
 

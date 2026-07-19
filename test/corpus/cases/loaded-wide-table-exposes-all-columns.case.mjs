@@ -23,7 +23,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {colCount} = await api.wideTableColumnReadReport();
-        assert.strictEqual(colCount, 5, 'the loaded table exposes all five columns, not a cap of three');
+        assert.strictEqual(
+          colCount,
+          5,
+          'the loaded table exposes all five columns, not a cap of three',
+        );
       },
     },
     {
@@ -31,7 +35,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {colNames} = await api.wideTableColumnReadReport();
-        assert.deepStrictEqual(colNames, ['C1', 'C2', 'C3', 'C4', 'C5'], 'the header names match the source order');
+        assert.deepStrictEqual(
+          colNames,
+          ['C1', 'C2', 'C3', 'C4', 'C5'],
+          'the header names match the source order',
+        );
       },
     },
   ],

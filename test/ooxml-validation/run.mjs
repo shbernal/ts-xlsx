@@ -2,8 +2,8 @@
 
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
-import {createRequire} from 'node:module';
 import {mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
+import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -44,7 +44,7 @@ function runDotnet(files, {format = 'Microsoft365'} = {}) {
       reject(new Error(`OOXML validator timed out after ${TIMEOUT_MS}ms`));
     }, TIMEOUT_MS);
 
-    const collect = target => chunk => {
+    const collect = (target) => (chunk) => {
       outputBytes += chunk.length;
       if (outputBytes > MAX_OUTPUT_BYTES) {
         child.kill('SIGKILL');
@@ -55,14 +55,14 @@ function runDotnet(files, {format = 'Microsoft365'} = {}) {
     };
     child.stdout.on('data', collect(stdout));
     child.stderr.on('data', collect(stderr));
-    child.on('error', error => {
+    child.on('error', (error) => {
       clearTimeout(timeout);
       if (!settled) {
         settled = true;
         reject(error);
       }
     });
-    child.on('close', code => {
+    child.on('close', (code) => {
       clearTimeout(timeout);
       if (settled) return;
       settled = true;
@@ -120,13 +120,13 @@ async function rewritePackage(source, destination, transform) {
 }
 
 async function makeSchemaCleanControl(source, destination) {
-  await rewritePackage(source, destination, async zip => {
+  await rewritePackage(source, destination, async (zip) => {
     const stylesPart = zip.file('xl/styles.xml');
     assert.ok(stylesPart, 'generated workbook must contain xl/styles.xml');
     const styles = await stylesPart.async('string');
     const corrected = styles.replace(
       '<font><color theme="1"/><family val="2"/><scheme val="minor"/><sz val="11"/><name val="Calibri"/></font>',
-      '<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>'
+      '<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>',
     );
     assert.notStrictEqual(corrected, styles, 'known font-order sequence must be present');
     zip.file('xl/styles.xml', corrected);
@@ -134,7 +134,7 @@ async function makeSchemaCleanControl(source, destination) {
 }
 
 async function makeSchemaInvalidControl(source, destination) {
-  await rewritePackage(source, destination, async zip => {
+  await rewritePackage(source, destination, async (zip) => {
     const sheetPart = zip.file('xl/worksheets/sheet1.xml');
     assert.ok(sheetPart, 'generated workbook must contain xl/worksheets/sheet1.xml');
     const xml = await sheetPart.async('string');
@@ -157,9 +157,12 @@ function parseReport(result, expectedCode) {
   assert.strictEqual(
     result.code,
     expectedCode,
-    `validator exit code; stderr=${result.stderr}; stdout=${result.stdout}`
+    `validator exit code; stderr=${result.stderr}; stdout=${result.stdout}`,
   );
-  assert.doesNotThrow(() => JSON.parse(result.stdout), `validator must emit JSON: ${result.stdout}`);
+  assert.doesNotThrow(
+    () => JSON.parse(result.stdout),
+    `validator must emit JSON: ${result.stdout}`,
+  );
   return JSON.parse(result.stdout);
 }
 
@@ -180,31 +183,50 @@ async function main() {
     await writeFile(truncated, (await readFile(clean)).subarray(0, 128));
     await writeFile(unsupported, 'not an xlsx');
 
-    const report = parseReport(await runDotnet([buffered, streaming, clean, invalid, truncated]), 1);
+    const report = parseReport(
+      await runDotnet([buffered, streaming, clean, invalid, truncated]),
+      1,
+    );
     assert.strictEqual(report.format, 'Microsoft365');
-    const byName = new Map(report.results.map(result => [path.basename(result.file), result]));
+    const byName = new Map(report.results.map((result) => [path.basename(result.file), result]));
 
     for (const [name, expected] of Object.entries(BASELINE)) {
       const result = byName.get(name);
       assert.ok(result, `missing validator result for ${name}`);
       assert.deepStrictEqual(result.errors.map(fingerprint), expected, `${name} baseline changed`);
-      assert.strictEqual(result.valid, false, `${name} must remain baselined until the writer is fixed`);
+      assert.strictEqual(
+        result.valid,
+        false,
+        `${name} must remain baselined until the writer is fixed`,
+      );
     }
 
-    assert.deepStrictEqual(byName.get('clean.xlsx')?.errors, [], 'schema-clean control must validate');
+    assert.deepStrictEqual(
+      byName.get('clean.xlsx')?.errors,
+      [],
+      'schema-clean control must validate',
+    );
     assert.strictEqual(byName.get('clean.xlsx')?.valid, true);
 
     const invalidResult = byName.get('invalid.xlsx');
     assert.strictEqual(invalidResult?.valid, false);
     assert.ok(
-      invalidResult?.errors.some(error => error.type === 'Schema' && error.partUri === '/xl/worksheets/sheet1.xml'),
-      'invalid worksheet must produce a structured schema diagnostic'
+      invalidResult?.errors.some(
+        (error) => error.type === 'Schema' && error.partUri === '/xl/worksheets/sheet1.xml',
+      ),
+      'invalid worksheet must produce a structured schema diagnostic',
     );
 
     const truncatedResult = byName.get('truncated.xlsx');
     assert.strictEqual(truncatedResult?.valid, false);
-    assert.deepStrictEqual(truncatedResult?.errors.map(error => error.id), ['PackageOpenError']);
-    assert.deepStrictEqual(truncatedResult?.errors.map(error => error.type), ['Package']);
+    assert.deepStrictEqual(
+      truncatedResult?.errors.map((error) => error.id),
+      ['PackageOpenError'],
+    );
+    assert.deepStrictEqual(
+      truncatedResult?.errors.map((error) => error.type),
+      ['Package'],
+    );
 
     parseReport(await runDotnet([clean]), 0);
 
@@ -219,7 +241,7 @@ async function main() {
   }
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error(error.stack ?? error);
   process.exitCode = 1;
 });

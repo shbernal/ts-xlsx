@@ -12,7 +12,17 @@
 
 const MAX_COLUMNS = 16384;
 // A column at the last legal index (control) and one past it (the corruption trigger).
-const SPEC = {sheets: [{name: 'S', columns: [{index: MAX_COLUMNS, width: 10}, {index: MAX_COLUMNS + 1, width: 10}]}]};
+const SPEC = {
+  sheets: [
+    {
+      name: 'S',
+      columns: [
+        {index: MAX_COLUMNS, width: 10},
+        {index: MAX_COLUMNS + 1, width: 10},
+      ],
+    },
+  ],
+};
 
 export default {
   id: 'column-definitions-stay-within-sheet-column-limit',
@@ -32,7 +42,7 @@ export default {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.ok(
           sheets.S.maxColumnIndex <= MAX_COLUMNS,
-          `no <col> max may exceed ${MAX_COLUMNS}; got groups ${JSON.stringify(sheets.S.columnGroups)}`
+          `no <col> max may exceed ${MAX_COLUMNS}; got groups ${JSON.stringify(sheets.S.columnGroups)}`,
         );
       },
     },

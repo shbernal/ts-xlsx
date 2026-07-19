@@ -165,14 +165,17 @@ export class StyleRegistry {
   // named-style path ({@link seedNamedStyles}), which differ only in which table the result lands in.
   #composeFormat(style: CellStyle, xfId: number): CellFormat {
     // A `none` pattern is the reserved fill 0; a gradient is always a real, interned fill.
-    const paints = style.fill !== undefined && (style.fill.type === 'gradient' || style.fill.pattern !== 'none');
+    const paints =
+      style.fill !== undefined && (style.fill.type === 'gradient' || style.fill.pattern !== 'none');
     const fillId = paints ? this.#internFill(style.fill as Fill) : 0;
     // A number format is a format-code *string*; a caller that assigns a structured object (e.g. a
     // parsed `{id, formatCode}` copied from another cell) must not have it stringified into the styles
     // part as `formatCode="[object Object]"`, which Excel reports as a corrupt package. A non-string
     // format is dropped to the General format rather than corrupting the file.
     const numFmtId =
-      typeof style.numFmt === 'string' && style.numFmt !== '' ? this.#internNumFmt(style.numFmt) : 0;
+      typeof style.numFmt === 'string' && style.numFmt !== ''
+        ? this.#internNumFmt(style.numFmt)
+        : 0;
     const fontId = style.font ? this.#internFont(style.font) : 0;
     const borderId = style.border ? this.#internBorder(style.border) : 0;
     const alignment = style.alignment ? alignmentAttrs(style.alignment) : '';
@@ -296,8 +299,8 @@ export class StyleRegistry {
       '<fill><patternFill patternType="none"/></fill>' +
       '<fill><patternFill patternType="gray125"/></fill>' +
       this.#fillXml.join('');
-    const cellXfs = this.#formats.map(format => xfXml(format, format.xfId)).join('');
-    const cellStyleXfs = this.#cellStyleXfs.map(format => xfXml(format, null)).join('');
+    const cellXfs = this.#formats.map((format) => xfXml(format, format.xfId)).join('');
+    const cellStyleXfs = this.#cellStyleXfs.map((format) => xfXml(format, null)).join('');
     const cellStyles = this.#cellStyleNames.map(cellStyleTag).join('');
     const fontCount = RESERVED_FONT_COUNT + this.#fontXml.length;
     const fonts = DEFAULT_FONT + this.#fontXml.join('');
@@ -340,7 +343,10 @@ export class StyleRegistry {
   #numFmtsXml(): string {
     if (this.#numFmtCodes.length === 0) return '';
     const entries = this.#numFmtCodes
-      .map((code, i) => `<numFmt numFmtId="${CUSTOM_NUMFMT_BASE + i}" formatCode="${escapeFormatCode(code)}"/>`)
+      .map(
+        (code, i) =>
+          `<numFmt numFmtId="${CUSTOM_NUMFMT_BASE + i}" formatCode="${escapeFormatCode(code)}"/>`,
+      )
       .join('');
     return `<numFmts count="${this.#numFmtCodes.length}">${entries}</numFmts>`;
   }
@@ -445,7 +451,9 @@ export function parseIndexedColors(stylesXml: string): string[] {
   const block = /<indexedColors\b[^>]*>([\s\S]*?)<\/indexedColors>/.exec(stylesXml);
   if (block === null) return [];
   const inner = block[1] ?? '';
-  return [...inner.matchAll(/<rgbColor\b[^>]*\/>|<rgbColor\b[^>]*>[\s\S]*?<\/rgbColor>/g)].map(m => m[0] ?? '');
+  return [...inner.matchAll(/<rgbColor\b[^>]*\/>|<rgbColor\b[^>]*>[\s\S]*?<\/rgbColor>/g)].map(
+    (m) => m[0] ?? '',
+  );
 }
 
 // Serialise the facets a font overrides, in ECMA-376 child order. A boolean flag is emitted only
@@ -467,7 +475,8 @@ export function fontXml(font: Partial<Font>, nameTag: 'name' | 'rFont' = 'name')
   if (font.name !== undefined) parts.push(`<${nameTag} val="${escapeAttr(font.name)}"/>`);
   if (font.family !== undefined) parts.push(`<family val="${numberAttr(font.family)}"/>`);
   if (font.charset !== undefined) parts.push(`<charset val="${numberAttr(font.charset)}"/>`);
-  if (font.scheme !== undefined && font.scheme !== 'none') parts.push(`<scheme val="${font.scheme}"/>`);
+  if (font.scheme !== undefined && font.scheme !== 'none')
+    parts.push(`<scheme val="${font.scheme}"/>`);
   return parts.join('');
 }
 
@@ -484,7 +493,9 @@ export function dxfXml(style: DifferentialStyle): string {
   // A dxf numFmt still needs an id; the code is what matters (dxf formats are not shared by id like
   // cell formats), so a fixed custom id carries it without a <numFmts> entry.
   if (typeof style.numFmt === 'string' && style.numFmt !== '') {
-    parts.push(`<numFmt numFmtId="${CUSTOM_NUMFMT_BASE}" formatCode="${escapeFormatCode(style.numFmt)}"/>`);
+    parts.push(
+      `<numFmt numFmtId="${CUSTOM_NUMFMT_BASE}" formatCode="${escapeFormatCode(style.numFmt)}"/>`,
+    );
   }
   if (style.fill !== undefined) parts.push(dxfFillXml(style.fill));
   if (style.border !== undefined) parts.push(borderXml(style.border));
@@ -511,7 +522,10 @@ function gradientFillXml(fill: GradientFill): string {
     insetAttr('top', fill.top) +
     insetAttr('bottom', fill.bottom);
   const stops = fill.stops
-    .map(stop => `<stop position="${numberAttr(stop.position)}"><color ${colorAttrs(stop.color)}/></stop>`)
+    .map(
+      (stop) =>
+        `<stop position="${numberAttr(stop.position)}"><color ${colorAttrs(stop.color)}/></stop>`,
+    )
     .join('');
   return `<gradientFill${attrs}>${stops}</gradientFill>`;
 }
@@ -539,7 +553,8 @@ function numberAttr(value: number): string {
 // Every edge element is always present — a styleless `<left/>` is how OOXML says "no left
 // border" — so an all-absent border round-trips to the empty default rather than a new id.
 function borderXml(border: Border): string {
-  const attrs = (border.diagonalUp ? ' diagonalUp="1"' : '') + (border.diagonalDown ? ' diagonalDown="1"' : '');
+  const attrs =
+    (border.diagonalUp ? ' diagonalUp="1"' : '') + (border.diagonalDown ? ' diagonalDown="1"' : '');
   return (
     `<border${attrs}>` +
     edgeXml('left', border.left) +
@@ -572,7 +587,7 @@ function escapeFormatCode(code: string): string {
 // A stable, collision-free key for a fill: identical fills share it, distinct ones don't.
 function fillSignature(fill: Fill): string {
   if (fill.type === 'gradient') {
-    const stops = fill.stops.map(s => `${s.position}:${colorSignature(s.color)}`).join(',');
+    const stops = fill.stops.map((s) => `${s.position}:${colorSignature(s.color)}`).join(',');
     return `grad|${fill.gradient}|${fill.degree ?? ''}|${fill.left ?? ''}/${fill.right ?? ''}/${fill.top ?? ''}/${fill.bottom ?? ''}|${stops}`;
   }
   return `${fill.pattern}|${colorSignature(fill.fgColor)}|${colorSignature(fill.bgColor)}`;
@@ -608,7 +623,9 @@ function normalizeArgb(argb: string): string {
   const hex = argb.startsWith('#') ? argb.slice(1) : argb;
   const rgb = hex.length === 6 ? `FF${hex}` : hex;
   if (!/^[0-9a-fA-F]{8}$/.test(rgb)) {
-    throw new Error(`Invalid ARGB colour ${JSON.stringify(argb)}: expected 6 or 8 hexadecimal digits`);
+    throw new Error(
+      `Invalid ARGB colour ${JSON.stringify(argb)}: expected 6 or 8 hexadecimal digits`,
+    );
   }
   return rgb;
 }

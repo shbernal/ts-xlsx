@@ -8,7 +8,14 @@ test('a stored conditional formatting does not alias the caller-supplied object 
   const sheet = new Workbook().addWorksheet('S');
   const cf = {
     ref: 'A1:A3',
-    rules: [{type: 'cellIs', operator: 'greaterThan', formulae: [3], cfvo: [{type: 'num' as const, value: 0}]}],
+    rules: [
+      {
+        type: 'cellIs',
+        operator: 'greaterThan',
+        formulae: [3],
+        cfvo: [{type: 'num' as const, value: 0}],
+      },
+    ],
   };
   sheet.addConditionalFormatting(cf);
   cf.rules[0]!.formulae[0] = 99;
@@ -29,7 +36,9 @@ test('cloneConditionalFormatting deep-copies rules, formulae, cfvo, colours, and
         type: 'colorScale',
         cfvo: [{type: 'min' as const}, {type: 'max' as const}],
         colors: [{argb: 'FFFF0000'}, {argb: 'FF00FF00'}],
-        style: {fill: {type: 'pattern' as const, pattern: 'solid' as const, bgColor: {argb: 'FF0000FF'}}},
+        style: {
+          fill: {type: 'pattern' as const, pattern: 'solid' as const, bgColor: {argb: 'FF0000FF'}},
+        },
       },
     ],
   };
@@ -46,7 +55,16 @@ test('conditional formattings survive a worksheet model round-trip', () => {
   const source = new Workbook().addWorksheet('src');
   source.addConditionalFormatting({
     ref: 'A1:A3',
-    rules: [{type: 'dataBar', color: {argb: 'FF638EC6'}, cfvo: [{type: 'num', value: 0}, {type: 'num', value: 1}]}],
+    rules: [
+      {
+        type: 'dataBar',
+        color: {argb: 'FF638EC6'},
+        cfvo: [
+          {type: 'num', value: 0},
+          {type: 'num', value: 1},
+        ],
+      },
+    ],
   });
   source.addConditionalFormatting({
     ref: 'C1:C9',
@@ -58,6 +76,9 @@ test('conditional formattings survive a worksheet model round-trip', () => {
 
   assert.equal(dest.conditionalFormattings.length, 2, 'both blocks survive');
   assert.equal(dest.conditionalFormattings[0]?.rules[0]?.type, 'dataBar');
-  assert.deepEqual(dest.conditionalFormattings[0]?.rules[0]?.cfvo?.map(v => v.value), [0, 1]);
+  assert.deepEqual(
+    dest.conditionalFormattings[0]?.rules[0]?.cfvo?.map((v) => v.value),
+    [0, 1],
+  );
   assert.equal(dest.conditionalFormattings[1]?.rules[0]?.priority, 2);
 });

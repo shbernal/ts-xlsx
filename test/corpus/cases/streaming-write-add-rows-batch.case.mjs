@@ -25,7 +25,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.streamWriteSheet({
-          ops: [{op: 'addRows', value: [['a', 1], ['b', 2]]}],
+          ops: [
+            {
+              op: 'addRows',
+              value: [
+                ['a', 1],
+                ['b', 2],
+              ],
+            },
+          ],
           read: ['A1'],
         });
         assert.ok(ok, `streaming batch add must be supported; got error ${JSON.stringify(error)}`);
@@ -36,7 +44,15 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, cells, rowCount} = await api.streamWriteSheet({
-          ops: [{op: 'addRows', value: [['a', 1], ['b', 2]]}],
+          ops: [
+            {
+              op: 'addRows',
+              value: [
+                ['a', 1],
+                ['b', 2],
+              ],
+            },
+          ],
           read: ['A1', 'B1', 'A2', 'B2'],
         });
         assert.ok(ok, 'the batch add must complete to inspect the rows');
@@ -50,7 +66,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {ok, cells, rowCount} = await api.streamWriteSheet({
-          ops: [{op: 'addRow', value: ['a', 1]}, {op: 'addRow', value: ['b', 2]}],
+          ops: [
+            {op: 'addRow', value: ['a', 1]},
+            {op: 'addRow', value: ['b', 2]},
+          ],
           read: ['A1', 'B2'],
         });
         assert.ok(ok, 'single-row streaming add works');

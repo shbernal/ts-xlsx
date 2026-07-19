@@ -24,7 +24,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, writeError, reloadOk, tableCount} = await api.multiSheetTableReport();
-        assert.strictEqual(writeOk, true, `the write must succeed; got ${JSON.stringify(writeError)}`);
+        assert.strictEqual(
+          writeOk,
+          true,
+          `the write must succeed; got ${JSON.stringify(writeError)}`,
+        );
         assert.strictEqual(reloadOk, true, 'the package reloads');
         assert.strictEqual(tableCount, 5, 'one table part per sheet is emitted');
       },
@@ -34,7 +38,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {idsUnique} = await api.multiSheetTableReport();
-        assert.strictEqual(idsUnique, true, 'each table gets a distinct id (a collision forces repair)');
+        assert.strictEqual(
+          idsUnique,
+          true,
+          'each table gets a distinct id (a collision forces repair)',
+        );
       },
     },
     {

@@ -28,7 +28,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.strictEqual(model.sheets.S.cells.A1.numFmt, FMT, 'the numFmt reads back byte-for-byte');
+        assert.strictEqual(
+          model.sheets.S.cells.A1.numFmt,
+          FMT,
+          'the numFmt reads back byte-for-byte',
+        );
       },
     },
     {
@@ -37,7 +41,11 @@ export default {
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const got = model.sheets.S.cells.A1.numFmt || '';
-        assert.strictEqual((got.match(/#,##0/g) || []).length, 2, 'both #,##0 group patterns survive with their commas');
+        assert.strictEqual(
+          (got.match(/#,##0/g) || []).length,
+          2,
+          'both #,##0 group patterns survive with their commas',
+        );
       },
     },
     {
@@ -45,7 +53,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
-        assert.ok(model.sheets.S.cells.A1.numFmt, 'the cell still carries a custom numFmt after the round-trip');
+        assert.ok(
+          model.sheets.S.cells.A1.numFmt,
+          'the cell still carries a custom numFmt after the round-trip',
+        );
       },
     },
     {
@@ -57,13 +68,26 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const model = await api.roundtripWorkbook({
-          sheets: [{name: 'S', cells: [
-            {ref: 'A1', value: 0.5, numFmt: '0.00%'},
-            {ref: 'A2', value: {date: '2020-03-04T00:00:00.000Z'}, numFmt: 'DD/MM/YYYY'},
-          ]}],
+          sheets: [
+            {
+              name: 'S',
+              cells: [
+                {ref: 'A1', value: 0.5, numFmt: '0.00%'},
+                {ref: 'A2', value: {date: '2020-03-04T00:00:00.000Z'}, numFmt: 'DD/MM/YYYY'},
+              ],
+            },
+          ],
         });
-        assert.strictEqual(model.sheets.S.cells.A1.numFmt, '0.00%', 'the percentage code keeps its "." decimal, not a "," swap');
-        assert.strictEqual(model.sheets.S.cells.A2.numFmt, 'DD/MM/YYYY', 'the date code keeps its "/" separators, not "-"');
+        assert.strictEqual(
+          model.sheets.S.cells.A1.numFmt,
+          '0.00%',
+          'the percentage code keeps its "." decimal, not a "," swap',
+        );
+        assert.strictEqual(
+          model.sheets.S.cells.A2.numFmt,
+          'DD/MM/YYYY',
+          'the date code keeps its "/" separators, not "-"',
+        );
       },
     },
   ],

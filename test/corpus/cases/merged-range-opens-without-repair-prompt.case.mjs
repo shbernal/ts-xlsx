@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {mergeCount, merges} = await api.mergeCleanReport();
-        assert.strictEqual(mergeCount, 1, `exactly one mergeCell entry; got ${JSON.stringify(merges)}`);
+        assert.strictEqual(
+          mergeCount,
+          1,
+          `exactly one mergeCell entry; got ${JSON.stringify(merges)}`,
+        );
       },
     },
     {
@@ -34,7 +38,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {populatedCoveredCells} = await api.mergeCleanReport();
-        assert.deepStrictEqual(populatedCoveredCells, [], `covered cells must carry no conflicting value; got ${JSON.stringify(populatedCoveredCells)}`);
+        assert.deepStrictEqual(
+          populatedCoveredCells,
+          [],
+          `covered cells must carry no conflicting value; got ${JSON.stringify(populatedCoveredCells)}`,
+        );
       },
     },
     {
@@ -43,7 +51,11 @@ export default {
       async expect(api, assert) {
         const {anchorValue, anchorAlignment} = await api.mergeCleanReport();
         assert.strictEqual(anchorValue, 'Group Title', 'the anchor value round-trips');
-        assert.strictEqual(anchorAlignment && anchorAlignment.horizontal, 'center', 'the anchor alignment round-trips');
+        assert.strictEqual(
+          anchorAlignment?.horizontal,
+          'center',
+          'the anchor alignment round-trips',
+        );
       },
     },
   ],

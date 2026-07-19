@@ -7,8 +7,8 @@
 // no matching `<legacyDrawing>`/VML reads as text but renders nothing, so we never split them.
 
 import type {Worksheet} from '../../core/worksheet.ts';
-import {localName, parseXml} from './xml-read.ts';
 import {escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
+import {localName, parseXml} from './xml-read.ts';
 
 const MAIN_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
@@ -39,7 +39,7 @@ export function collectNotes(sheet: Worksheet): NoteCell[] {
 /** The `xl/comments{n}.xml` part: a single anonymous author and one comment per noted cell. */
 export function commentsXml(notes: readonly NoteCell[]): string {
   const list = notes
-    .map(note => {
+    .map((note) => {
       const preserve = needsSpacePreserve(note.text) ? ' xml:space="preserve"' : '';
       return (
         `<comment ref="${note.ref}" authorId="0">` +

@@ -29,7 +29,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {eagerMerges} = await api.streamReadMergesReport();
-        assert.deepStrictEqual(eagerMerges, ['A1:B2', 'D1:D3'], 'the buffered reader surfaces both merges');
+        assert.deepStrictEqual(
+          eagerMerges,
+          ['A1:B2', 'D1:D3'],
+          'the buffered reader surfaces both merges',
+        );
       },
     },
     {
@@ -41,7 +45,7 @@ export default {
         assert.deepStrictEqual(
           streamedMerges,
           eagerMerges,
-          `the streaming reader must surface the same merges as the buffered reader; got ${JSON.stringify(streamedMerges)}`
+          `the streaming reader must surface the same merges as the buffered reader; got ${JSON.stringify(streamedMerges)}`,
         );
       },
     },

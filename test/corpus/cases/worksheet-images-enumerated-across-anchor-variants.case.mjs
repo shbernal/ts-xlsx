@@ -25,7 +25,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {count} = await api.enumerateImagesAfterRoundtrip();
-        assert.strictEqual(count, 2, 'both the two-cell and one-cell anchored images are enumerated');
+        assert.strictEqual(
+          count,
+          2,
+          'both the two-cell and one-cell anchored images are enumerated',
+        );
       },
     },
     {
@@ -33,8 +37,12 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {images} = await api.enumerateImagesAfterRoundtrip();
-        const tls = images.map(i => i.tl && `${i.tl.col},${i.tl.row}`).sort();
-        assert.deepStrictEqual(tls, ['1,1', '5,5'], `each image reports its from-cell; got ${JSON.stringify(tls)}`);
+        const tls = images.map((i) => i.tl && `${i.tl.col},${i.tl.row}`).sort();
+        assert.deepStrictEqual(
+          tls,
+          ['1,1', '5,5'],
+          `each image reports its from-cell; got ${JSON.stringify(tls)}`,
+        );
       },
     },
     {

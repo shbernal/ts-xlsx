@@ -26,7 +26,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {cellsWithValue} = await api.mergeSlaveWrite();
-        assert.deepStrictEqual(cellsWithValue, ['A1'], `only the master A1 must carry a value; got ${JSON.stringify(cellsWithValue)}`);
+        assert.deepStrictEqual(
+          cellsWithValue,
+          ['A1'],
+          `only the master A1 must carry a value; got ${JSON.stringify(cellsWithValue)}`,
+        );
       },
     },
     {
@@ -42,8 +46,16 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {masterValue, slaveValue} = await api.mergeSlaveWrite();
-        assert.strictEqual(masterValue, 'slave-write', 'the master carries the value written through the slave');
-        assert.strictEqual(slaveValue, 'slave-write', 'reading the slave returns the merged region’s value');
+        assert.strictEqual(
+          masterValue,
+          'slave-write',
+          'the master carries the value written through the slave',
+        );
+        assert.strictEqual(
+          slaveValue,
+          'slave-write',
+          'reading the slave returns the merged region’s value',
+        );
       },
     },
   ],

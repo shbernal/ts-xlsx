@@ -45,7 +45,7 @@ export default {
         assert.strictEqual(
           none.name,
           null,
-          `theme "None" must mean unstyled (no name), not a bogus name="${none.name}" referencing a non-existent style`
+          `theme "None" must mean unstyled (no name), not a bogus name="${none.name}" referencing a non-existent style`,
         );
       },
     },
@@ -54,7 +54,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {none} = await api.tableStyleThemeReport();
-        assert.strictEqual(none.hasStripes, true, 'showRowStripes is preserved regardless of the theme value');
+        assert.strictEqual(
+          none.hasStripes,
+          true,
+          'showRowStripes is preserved regardless of the theme value',
+        );
       },
     },
   ],

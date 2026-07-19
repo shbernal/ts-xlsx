@@ -24,7 +24,10 @@ export default {
       name: 'reading with a configured semicolon delimiter splits fields on the semicolon',
       baseline: 'pass',
       async expect(api, assert) {
-        const {ok, rows} = await api.csvRead({csv: 'a;b;c\n1;2;3', options: {parserOptions: {delimiter: ';'}}});
+        const {ok, rows} = await api.csvRead({
+          csv: 'a;b;c\n1;2;3',
+          options: {parserOptions: {delimiter: ';'}},
+        });
         assert.ok(ok, 'the read must succeed');
         assert.deepStrictEqual(rows[0], ['a', 'b', 'c'], 'first row split into three fields');
         assert.deepStrictEqual(rows[1], [1, 2, 3], 'numeric fields coerced, split on semicolon');
@@ -39,16 +42,27 @@ export default {
           options: {formatterOptions: {delimiter: ';'}},
         });
         assert.ok(ok, 'the write must succeed');
-        assert.strictEqual(text, 'a;b;c', 'fields separated by the configured delimiter, not comma');
+        assert.strictEqual(
+          text,
+          'a;b;c',
+          'fields separated by the configured delimiter, not comma',
+        );
       },
     },
     {
       name: 'a value round-trips through a non-comma delimiter with field boundaries intact',
       baseline: 'pass',
       async expect(api, assert) {
-        const {text} = await api.csvWrite({spec: {rows: [['x', 'y']]}, options: {formatterOptions: {delimiter: ';'}}});
+        const {text} = await api.csvWrite({
+          spec: {rows: [['x', 'y']]},
+          options: {formatterOptions: {delimiter: ';'}},
+        });
         const {rows} = await api.csvRead({csv: text, options: {parserOptions: {delimiter: ';'}}});
-        assert.deepStrictEqual(rows[0], ['x', 'y'], 'the two fields survive the semicolon round-trip');
+        assert.deepStrictEqual(
+          rows[0],
+          ['x', 'y'],
+          'the two fields survive the semicolon round-trip',
+        );
       },
     },
   ],

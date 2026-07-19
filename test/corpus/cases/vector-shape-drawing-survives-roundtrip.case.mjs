@@ -26,7 +26,10 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
-        assert.ok(source.drawings >= 1 && source.hasDrawingRef, 'precondition: source has a drawing');
+        assert.ok(
+          source.drawings >= 1 && source.hasDrawingRef,
+          'precondition: source has a drawing',
+        );
         assert.ok(rewritten.drawings >= 1, 'the drawing part survives');
         assert.ok(rewritten.hasDrawingRef, 'the worksheet still references the drawing');
       },

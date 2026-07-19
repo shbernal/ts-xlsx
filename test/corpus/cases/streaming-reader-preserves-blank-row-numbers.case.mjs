@@ -15,7 +15,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'streaming',
   description:
-    'The streaming reader preserves each data row\'s true sheet index in row.number across interior ' +
+    "The streaming reader preserves each data row's true sheet index in row.number across interior " +
     'blank rows, agreeing with the eager read — a row after a run of blanks keeps its absolute ' +
     'number rather than being shifted up by the count of skipped blanks.',
 
@@ -29,7 +29,7 @@ export default {
         assert.deepStrictEqual(
           streaming,
           eager,
-          `streaming must yield the same row numbers as the eager read; eager=${JSON.stringify(eager)} streaming=${JSON.stringify(streaming)}`
+          `streaming must yield the same row numbers as the eager read; eager=${JSON.stringify(eager)} streaming=${JSON.stringify(streaming)}`,
         );
       },
     },
@@ -42,7 +42,7 @@ export default {
         assert.strictEqual(streaming[0], 1, 'the first data row is row 1');
         assert.ok(
           streaming[1] > 2,
-          `the row after the blank run must keep its true index (a gap), not be resequenced to 2; got ${JSON.stringify(streaming)}`
+          `the row after the blank run must keep its true index (a gap), not be resequenced to 2; got ${JSON.stringify(streaming)}`,
         );
       },
     },

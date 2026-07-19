@@ -27,7 +27,11 @@ export default {
           ref: 'A1:A10',
           rules: [{type: 'expression', formulae: ['$A1>0'], style: {}}],
         });
-        assert.strictEqual(writeOk, true, `a well-formed expression rule must write; error: ${writeError}`);
+        assert.strictEqual(
+          writeOk,
+          true,
+          `a well-formed expression rule must write; error: ${writeError}`,
+        );
       },
     },
     {
@@ -41,7 +45,7 @@ export default {
         assert.strictEqual(
           writeOk,
           true,
-          `a formula-less conditional-formatting rule must serialize, not throw; got ${writeError}`
+          `a formula-less conditional-formatting rule must serialize, not throw; got ${writeError}`,
         );
       },
     },

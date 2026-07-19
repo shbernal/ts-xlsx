@@ -34,7 +34,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {noteFollowsRow} = await api.rowInsertPreservesNoteAndOutline();
-        assert.strictEqual(noteFollowsRow, true, 'the note must remain attached to its cell at the shifted position, not be dropped');
+        assert.strictEqual(
+          noteFollowsRow,
+          true,
+          'the note must remain attached to its cell at the shifted position, not be dropped',
+        );
       },
     },
     {
@@ -42,7 +46,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {outlineFollowsRow} = await api.rowInsertPreservesNoteAndOutline();
-        assert.strictEqual(outlineFollowsRow, true, 'the outline level must move with its logical row, not stay at the old absolute row index');
+        assert.strictEqual(
+          outlineFollowsRow,
+          true,
+          'the outline level must move with its logical row, not stay at the old absolute row index',
+        );
       },
     },
   ],

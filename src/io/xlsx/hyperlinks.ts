@@ -13,8 +13,8 @@
 import {decodeRange, type RangeAddress} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {localName, parseXml} from './xml-read.ts';
 import {escapeAttr} from './xml.ts';
+import {localName, parseXml} from './xml-read.ts';
 
 /** A hyperlink gathered from a sheet for serialisation: the cell it sits on, its target, and an
  * optional tooltip. The visible label is the cell's own value and is serialised as that value. */
@@ -61,7 +61,7 @@ export function collectHyperlinks(sheet: Worksheet): CollectedHyperlink[] {
  * relationship and adding one never renumbers an id already threaded into the sheet XML. */
 export function planHyperlinks(
   links: readonly CollectedHyperlink[],
-  relIdBase: number
+  relIdBase: number,
 ): PlannedHyperlink[] {
   let external = 0;
   return links.map((link) => {
@@ -83,7 +83,8 @@ export function hyperlinksXml(links: readonly PlannedHyperlink[]): string {
   const items = links
     .map((link) => {
       const rid = link.relId !== undefined ? ` r:id="${link.relId}"` : '';
-      const location = link.location !== undefined ? ` location="${escapeAttr(link.location)}"` : '';
+      const location =
+        link.location !== undefined ? ` location="${escapeAttr(link.location)}"` : '';
       const tooltip = link.tooltip !== undefined ? ` tooltip="${escapeAttr(link.tooltip)}"` : '';
       return `<hyperlink ref="${escapeAttr(link.ref)}"${rid}${location}${tooltip}/>`;
     })
@@ -126,7 +127,7 @@ export function parseSheetHyperlinks(xml: string): ParsedHyperlink[] {
 export function applyHyperlinks(
   sheet: Worksheet,
   links: readonly ParsedHyperlink[],
-  rels: Map<string, string>
+  rels: Map<string, string>,
 ): void {
   for (const link of links) {
     const target = resolveTarget(link, rels);

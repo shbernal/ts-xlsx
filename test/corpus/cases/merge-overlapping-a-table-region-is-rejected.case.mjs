@@ -9,12 +9,22 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
-const table = () => ({name: 'T', ref: 'A1', headers: ['H1', 'H2'], rows: [['a', 1], ['b', 2]]});
+const table = () => ({
+  name: 'T',
+  ref: 'A1',
+  headers: ['H1', 'H2'],
+  rows: [
+    ['a', 1],
+    ['b', 2],
+  ],
+});
 
 // The table occupies A1:B3 (header + two data rows). A merge over A2:B2 lands inside it.
 const overlappingSpec = {sheets: [{name: 'S', tables: [table()], merges: ['A2:B2']}]};
 // A merge well clear of the table region.
-const disjointSpec = {sheets: [{name: 'S', cells: [{ref: 'D5', value: 'x'}], tables: [table()], merges: ['D5:E5']}]};
+const disjointSpec = {
+  sheets: [{name: 'S', cells: [{ref: 'D5', value: 'x'}], tables: [table()], merges: ['D5:E5']}],
+};
 const noMergeSpec = {sheets: [{name: 'S', tables: [table()]}]};
 
 export default {
@@ -36,7 +46,7 @@ export default {
         assert.strictEqual(
           result.ok,
           false,
-          'a merge overlapping a table must be rejected, not silently written as Excel-invalid geometry'
+          'a merge overlapping a table must be rejected, not silently written as Excel-invalid geometry',
         );
       },
     },
@@ -45,7 +55,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const result = await api.tryWriteWorkbook(disjointSpec);
-        assert.strictEqual(result.ok, true, `a disjoint merge must write; got ${JSON.stringify(result.error)}`);
+        assert.strictEqual(
+          result.ok,
+          true,
+          `a disjoint merge must write; got ${JSON.stringify(result.error)}`,
+        );
       },
     },
     {

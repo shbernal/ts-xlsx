@@ -25,7 +25,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {bytesDecodeToText} = await api.csvNonAsciiEncodingReport();
-        assert.strictEqual(bytesDecodeToText, true, 'the UTF-8 bytes decode back to the original text');
+        assert.strictEqual(
+          bytesDecodeToText,
+          true,
+          'the UTF-8 bytes decode back to the original text',
+        );
       },
     },
     {

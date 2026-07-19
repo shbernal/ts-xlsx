@@ -9,8 +9,14 @@
 
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => void }} Behavior */
 
-const EMPTY = {sheets: [{name: 'S', tables: [{name: 'T1', ref: 'A1', headers: ['Alpha', 'Beta'], rows: []}]}]};
-const ONE_ROW = {sheets: [{name: 'S', tables: [{name: 'T2', ref: 'A1', headers: ['Alpha', 'Beta'], rows: [['x', 'y']]}]}]};
+const EMPTY = {
+  sheets: [{name: 'S', tables: [{name: 'T1', ref: 'A1', headers: ['Alpha', 'Beta'], rows: []}]}],
+};
+const ONE_ROW = {
+  sheets: [
+    {name: 'S', tables: [{name: 'T2', ref: 'A1', headers: ['Alpha', 'Beta'], rows: [['x', 'y']]}]},
+  ],
+};
 
 export default {
   id: 'empty-table-writes-valid-file',
@@ -40,7 +46,11 @@ export default {
         const [table] = (await api.inspectPackage(EMPTY)).tables;
         assert.ok(table.xmlWellFormed, 'table XML not well-formed');
         if (table.autoFilterRef !== null) {
-          assert.strictEqual(table.autoFilterRef, table.ref, 'autoFilter ref inconsistent with table ref');
+          assert.strictEqual(
+            table.autoFilterRef,
+            table.ref,
+            'autoFilter ref inconsistent with table ref',
+          );
         }
       },
     },

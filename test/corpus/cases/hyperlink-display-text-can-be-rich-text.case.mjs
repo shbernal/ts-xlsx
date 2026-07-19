@@ -50,9 +50,16 @@ export default {
       async expect(api, assert) {
         const {A2} = (await api.roundtripWorkbook(SPEC)).sheets.S.cells;
         assert.strictEqual(A2.hyperlink, 'https://example.org', 'the target survives');
-        assert.ok(A2.text && Array.isArray(A2.text.richText), 'the display text is rich text, not flattened to a string');
+        assert.ok(
+          A2.text && Array.isArray(A2.text.richText),
+          'the display text is rich text, not flattened to a string',
+        );
         assert.strictEqual(A2.text.richText[0].text, 'bold', 'the first run text survives');
-        assert.strictEqual(A2.text.richText[0].font.bold, true, 'the first run keeps its bold formatting');
+        assert.strictEqual(
+          A2.text.richText[0].font.bold,
+          true,
+          'the first run keeps its bold formatting',
+        );
         assert.strictEqual(A2.text.richText[1].text, 'plain', 'the second run text survives');
       },
     },

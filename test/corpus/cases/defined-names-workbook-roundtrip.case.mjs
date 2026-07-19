@@ -26,8 +26,11 @@ export default {
           sheets: [{name: 'S', cells: [{ref: 'A1', value: 1}]}],
           definedNames: [{name: 'TaxRate', ranges: ['S!$A$1:$B$2']}],
         });
-        const entry = definedNames.find(d => d.name === 'TaxRate');
-        assert.ok(entry, `TaxRate must appear in <definedNames>; got ${JSON.stringify(definedNames)}`);
+        const entry = definedNames.find((d) => d.name === 'TaxRate');
+        assert.ok(
+          entry,
+          `TaxRate must appear in <definedNames>; got ${JSON.stringify(definedNames)}`,
+        );
         assert.equal(entry.refersTo, 'S!$A$1:$B$2', 'the reference is the element text');
         assert.equal(entry.localSheetId, null, 'a global name carries no localSheetId');
       },
@@ -40,12 +43,18 @@ export default {
           sheets: [{name: 'S', cells: [{ref: 'A1', value: 1}]}],
           definedNames: [{name: 'Combo', ranges: ["'A & B'!$A$1"]}],
         });
-        const entry = definedNames.find(d => d.name === 'Combo');
-        assert.ok(entry, `Combo must appear in <definedNames>; got ${JSON.stringify(definedNames)}`);
-        assert.ok(entry.refersTo.includes('&amp;'), `the ampersand must be stored as an entity; got ${entry.refersTo}`);
+        const entry = definedNames.find((d) => d.name === 'Combo');
+        assert.ok(
+          entry,
+          `Combo must appear in <definedNames>; got ${JSON.stringify(definedNames)}`,
+        );
+        assert.ok(
+          entry.refersTo.includes('&amp;'),
+          `the ampersand must be stored as an entity; got ${entry.refersTo}`,
+        );
         assert.ok(
           !/&(?!(amp|lt|gt|quot|apos);)/.test(entry.refersTo),
-          `the stored text must be XML-well-formed; got ${entry.refersTo}`
+          `the stored text must be XML-well-formed; got ${entry.refersTo}`,
         );
       },
     },

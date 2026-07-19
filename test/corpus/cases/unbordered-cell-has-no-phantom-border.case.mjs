@@ -10,7 +10,9 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void>|void }} Behavior */
 
 const NO_BORDER = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x'}]}]};
-const TOP_ONLY = {sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x', border: {top: {style: 'thin'}}}]}]};
+const TOP_ONLY = {
+  sheets: [{name: 'S', cells: [{ref: 'A1', value: 'x', border: {top: {style: 'thin'}}}]}],
+};
 
 export default {
   id: 'unbordered-cell-has-no-phantom-border',
@@ -27,8 +29,14 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {border} = (await api.roundtripWorkbook(NO_BORDER)).sheets.S.cells.A1;
-        const sides = border ? ['top', 'left', 'right', 'bottom'].filter(s => border[s] && border[s].style) : [];
-        assert.deepStrictEqual(sides, [], `no border side should be present; got ${JSON.stringify(border)}`);
+        const sides = border
+          ? ['top', 'left', 'right', 'bottom'].filter((s) => border[s]?.style)
+          : [];
+        assert.deepStrictEqual(
+          sides,
+          [],
+          `no border side should be present; got ${JSON.stringify(border)}`,
+        );
       },
     },
     {
@@ -37,8 +45,12 @@ export default {
       async expect(api, assert) {
         const {border} = (await api.roundtripWorkbook(TOP_ONLY)).sheets.S.cells.A1;
         assert.strictEqual(border?.top?.style, 'thin', 'the declared top border survives');
-        const others = ['left', 'right', 'bottom'].filter(s => border && border[s] && border[s].style);
-        assert.deepStrictEqual(others, [], `only the top side should be present; got ${JSON.stringify(border)}`);
+        const others = ['left', 'right', 'bottom'].filter((s) => border?.[s]?.style);
+        assert.deepStrictEqual(
+          others,
+          [],
+          `only the top side should be present; got ${JSON.stringify(border)}`,
+        );
       },
     },
   ],

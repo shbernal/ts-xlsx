@@ -52,7 +52,11 @@ export default {
       async expect(api, assert) {
         const {emptyString} = await api.formulaFalsyResultReport();
         assert.strictEqual(emptyString.hasResult, true, 'the empty-string result must survive');
-        assert.strictEqual(emptyString.result, '', 'the result reads back as exactly the empty string');
+        assert.strictEqual(
+          emptyString.result,
+          '',
+          'the result reads back as exactly the empty string',
+        );
       },
     },
   ],

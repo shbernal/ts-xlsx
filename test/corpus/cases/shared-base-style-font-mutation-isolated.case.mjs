@@ -37,7 +37,11 @@ export default {
       baseline: 'pass',
       async expect(api, assert) {
         const {a2Color, bled} = await api.sharedBaseStyleFontMutation();
-        assert.strictEqual(bled, false, `the sibling must not pick up the color; got A2 color ${JSON.stringify(a2Color)}`);
+        assert.strictEqual(
+          bled,
+          false,
+          `the sibling must not pick up the color; got A2 color ${JSON.stringify(a2Color)}`,
+        );
       },
     },
   ],

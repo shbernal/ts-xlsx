@@ -28,8 +28,12 @@ export default {
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
         assert.ok(source.dxfCount >= 1, 'precondition: the source has differential formats');
-        const broken = rewritten.dxfFormatCodes.filter(c => /\[object Object\]/.test(c));
-        assert.deepStrictEqual(broken, [], `no DXF numFmt may be "[object Object]"; got ${JSON.stringify(rewritten.dxfFormatCodes)}`);
+        const broken = rewritten.dxfFormatCodes.filter((c) => /\[object Object\]/.test(c));
+        assert.deepStrictEqual(
+          broken,
+          [],
+          `no DXF numFmt may be "[object Object]"; got ${JSON.stringify(rewritten.dxfFormatCodes)}`,
+        );
       },
     },
   ],

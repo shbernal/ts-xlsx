@@ -43,7 +43,7 @@ export default {
       async expect(api, assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const a2 = model.sheets.S.cells.A2;
-        assert.strictEqual(a2.fill && a2.fill.fgColor && a2.fill.fgColor.argb, YELLOW, 'A2 carries the yellow fill');
+        assert.strictEqual(a2.fill?.fgColor?.argb, YELLOW, 'A2 carries the yellow fill');
       },
     },
     {
@@ -54,9 +54,16 @@ export default {
         const cells = model.sheets.S.cells;
         // The writer may add a benign patternFill pattern="none" (no visible fill) to an unfilled
         // cell; what must NOT happen is the sibling acquiring the yellow foreground.
-        const notYellow = fill => !fill || fill.pattern === 'none' || !fill.fgColor || fill.fgColor.argb !== YELLOW;
-        assert.ok(notYellow(cells.A1.fill), `A1 must not pick up the yellow fill; got ${JSON.stringify(cells.A1.fill)}`);
-        assert.ok(notYellow(cells.A3.fill), `A3 must not pick up the yellow fill; got ${JSON.stringify(cells.A3.fill)}`);
+        const notYellow = (fill) =>
+          !fill || fill.pattern === 'none' || !fill.fgColor || fill.fgColor.argb !== YELLOW;
+        assert.ok(
+          notYellow(cells.A1.fill),
+          `A1 must not pick up the yellow fill; got ${JSON.stringify(cells.A1.fill)}`,
+        );
+        assert.ok(
+          notYellow(cells.A3.fill),
+          `A3 must not pick up the yellow fill; got ${JSON.stringify(cells.A3.fill)}`,
+        );
       },
     },
     {

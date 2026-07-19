@@ -10,7 +10,9 @@
 /** @typedef {{ name: string, baseline: 'pass'|'fail', expect: (api: any, assert: any) => Promise<void> }} Behavior */
 
 const STYLED = {sheets: [{name: 'S', columns: [{index: 2, numFmt: '#,##0'}]}]};
-const STYLED_VISIBLE = {sheets: [{name: 'S', columns: [{index: 2, numFmt: '#,##0', hidden: false}]}]};
+const STYLED_VISIBLE = {
+  sheets: [{name: 'S', columns: [{index: 2, numFmt: '#,##0', hidden: false}]}],
+};
 
 export default {
   id: 'column-style-does-not-force-hidden',
