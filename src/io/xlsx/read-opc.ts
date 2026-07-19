@@ -87,10 +87,15 @@ export function parseRelationships(xml: string): Map<string, string> {
 // Target, and whether the target lies outside the package (`TargetMode="External"`). A fuller record
 // than {@link parseRelationships}'s id→target map, which the closure walk uses to skip external
 // targets and carry each relationship's type through a re-write.
-export function parseRelationshipRecords(
-  xml: string,
-): Array<{id: string; type: string; target: string; external: boolean}> {
-  const records: Array<{id: string; type: string; target: string; external: boolean}> = [];
+export interface RelationshipRecord {
+  readonly id: string;
+  readonly type: string;
+  readonly target: string;
+  readonly external: boolean;
+}
+
+export function parseRelationshipRecords(xml: string): RelationshipRecord[] {
+  const records: RelationshipRecord[] = [];
   for (const {attrs} of openElements(xml, 'Relationship')) {
     if (attrs.Id !== undefined && attrs.Type !== undefined && attrs.Target !== undefined) {
       records.push({

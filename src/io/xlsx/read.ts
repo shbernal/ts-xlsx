@@ -467,10 +467,16 @@ function dropMergesInsideTables(sheet: Worksheet): void {
   }
 }
 
-export function parseWorkbookSheets(
-  xml: string,
-): Array<{name: string; relId: string; state?: WorksheetState['state']}> {
-  const sheets: Array<{name: string; relId: string; state?: WorksheetState['state']}> = [];
+// One `<sheet>` entry from `xl/workbook.xml`: its display name, the rel id linking to the sheet part,
+// and its visibility state (absent for a normal, visible sheet).
+export interface SheetEntry {
+  readonly name: string;
+  readonly relId: string;
+  readonly state?: WorksheetState['state'];
+}
+
+export function parseWorkbookSheets(xml: string): SheetEntry[] {
+  const sheets: SheetEntry[] = [];
   for (const {attrs} of openElements(xml, 'sheet')) {
     const entry: {name: string; relId: string; state?: WorksheetState['state']} = {
       name: attrs.name ?? '',

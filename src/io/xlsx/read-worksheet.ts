@@ -19,9 +19,14 @@ import {
   type SheetProtectionCredential,
   type SheetProtectionFlags,
 } from '../../core/protection.ts';
-import type {DataTableFormulaValue, RichTextRun, SharedFormulaValue} from '../../core/value.ts';
+import type {DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {decodeCellContent, decodeFormulaResult, type SharedString} from './cell-value.ts';
+import {
+  decodeCellContent,
+  decodeFormulaResult,
+  type RawCell,
+  type SharedString,
+} from './cell-value.ts';
 import type {XfStyle} from './read-styles.ts';
 import {RunAccumulator} from './rich-runs.ts';
 import {parseColor} from './styles.ts';
@@ -309,13 +314,15 @@ export function parseWorksheet(
     finalizeCell(
       sheet,
       cellRef,
-      cellType,
-      hasFormula,
-      formula,
-      hasValue,
-      valueText,
-      inlineText,
-      runs.runs,
+      {
+        type: cellType,
+        hasFormula,
+        formula,
+        hasValue,
+        valueText,
+        inlineText,
+        richTextRuns: runs.runs,
+      },
       sharedStrings,
       style,
     );
@@ -660,13 +667,7 @@ function applyPageSetup(pageSetup: PageSetup, attrs: {readonly [k: string]: stri
 function finalizeCell(
   sheet: Worksheet,
   ref: string,
-  type: string,
-  hasFormula: boolean,
-  formula: string,
-  hasValue: boolean,
-  valueText: string,
-  inlineText: string,
-  richTextRuns: readonly RichTextRun[],
+  raw: RawCell,
   sharedStrings: readonly SharedString[],
   style: XfStyle | undefined,
 ): void {
@@ -674,12 +675,7 @@ function finalizeCell(
   if (col === undefined || row === undefined) return;
   const cell = sheet.getCell(ref);
   applyCellStyle(cell, style);
-
-  cell.value = decodeCellContent(
-    {type, hasFormula, formula, hasValue, valueText, inlineText, richTextRuns},
-    sharedStrings,
-    style?.numFmt,
-  );
+  cell.value = decodeCellContent(raw, sharedStrings, style?.numFmt);
 }
 
 // Applies a resolved xf's non-value facets to a cell. Shared by the ordinary cell path and the

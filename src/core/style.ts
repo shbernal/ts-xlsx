@@ -13,6 +13,19 @@ export type UnderlineStyle =
   | 'singleAccounting'
   | 'doubleAccounting';
 
+const NAMED_UNDERLINE_STYLES: ReadonlySet<string> = new Set([
+  'none',
+  'single',
+  'double',
+  'singleAccounting',
+  'doubleAccounting',
+]);
+
+/** Narrow a raw `<u val>` token to a named {@link UnderlineStyle} (the non-boolean members). */
+export function isNamedUnderlineStyle(value: string): value is Exclude<UnderlineStyle, boolean> {
+  return NAMED_UNDERLINE_STYLES.has(value);
+}
+
 /** A colour, expressed as an ARGB hex string (`"FF0000FF"`) or an indexed theme colour. */
 export interface Color {
   /** 8-digit ARGB hex, uppercase, no leading `#`. */
@@ -111,6 +124,27 @@ export type BorderStyle =
   | 'mediumDashDotDot'
   | 'slantDashDot';
 
+const BORDER_STYLES: ReadonlySet<string> = new Set<BorderStyle>([
+  'thin',
+  'medium',
+  'thick',
+  'dashed',
+  'dotted',
+  'double',
+  'hair',
+  'mediumDashed',
+  'dashDot',
+  'mediumDashDot',
+  'dashDotDot',
+  'mediumDashDotDot',
+  'slantDashDot',
+]);
+
+/** Narrow a raw border-edge `style` attribute to a known {@link BorderStyle}. */
+export function isBorderStyle(value: string): value is BorderStyle {
+  return BORDER_STYLES.has(value);
+}
+
 /** One edge of a cell border: its line style, and optionally the line colour. */
 export interface BorderEdge {
   readonly style: BorderStyle;
@@ -135,6 +169,16 @@ export interface Border {
 
 /** Vertical alignment of a font relative to the baseline (super/subscript). */
 export type FontVerticalAlignment = 'superscript' | 'subscript';
+
+/** Narrow a raw `<vertAlign val>` token to a known {@link FontVerticalAlignment}. */
+export function isFontVerticalAlignment(value: string): value is FontVerticalAlignment {
+  return value === 'superscript' || value === 'subscript';
+}
+
+/** Narrow a raw `<scheme val>` token to a known font scheme ({@link Font}'s `scheme` member). */
+export function isFontScheme(value: string): value is Font['scheme'] {
+  return value === 'minor' || value === 'major' || value === 'none';
+}
 
 /** A font, as it applies to a cell or a single rich-text run. */
 export interface Font {
@@ -165,9 +209,38 @@ export type HorizontalAlignment =
   | 'centerContinuous'
   | 'distributed';
 
+const HORIZONTAL_ALIGNMENTS: ReadonlySet<string> = new Set<HorizontalAlignment>([
+  'general',
+  'left',
+  'center',
+  'right',
+  'fill',
+  'justify',
+  'centerContinuous',
+  'distributed',
+]);
+
+/** Narrow a raw `<alignment horizontal>` token to a known {@link HorizontalAlignment}. */
+export function isHorizontalAlignment(value: string): value is HorizontalAlignment {
+  return HORIZONTAL_ALIGNMENTS.has(value);
+}
+
 /** How a cell's content sits vertically within its bounds, as OOXML's `ST_VerticalAlignment`
  *  enumerates it. */
 export type VerticalAlignment = 'top' | 'center' | 'bottom' | 'justify' | 'distributed';
+
+const VERTICAL_ALIGNMENTS: ReadonlySet<string> = new Set<VerticalAlignment>([
+  'top',
+  'center',
+  'bottom',
+  'justify',
+  'distributed',
+]);
+
+/** Narrow a raw `<alignment vertical>` token to a known {@link VerticalAlignment}. */
+export function isVerticalAlignment(value: string): value is VerticalAlignment {
+  return VERTICAL_ALIGNMENTS.has(value);
+}
 
 /**
  * A cell's alignment. Every facet is optional and independent; an absent facet means the cell

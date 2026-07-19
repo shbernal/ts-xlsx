@@ -3,22 +3,23 @@
 // and the two xf tables (`<cellXfs>`, `<cellStyleXfs>`), flattening the id-indirection so a cell's
 // `s` index maps straight to its facets. A construct it does not recognise is skipped, never guessed.
 
-import type {
-  Alignment,
-  Border,
-  BorderStyle,
-  Color,
-  Fill,
-  FillPatternType,
-  Font,
-  FontVerticalAlignment,
-  GradientFill,
-  GradientStop,
-  HorizontalAlignment,
-  NamedCellStyle,
-  Protection,
-  UnderlineStyle,
-  VerticalAlignment,
+import {
+  type Alignment,
+  type Border,
+  type Color,
+  type Fill,
+  type FillPatternType,
+  type Font,
+  type GradientFill,
+  type GradientStop,
+  isBorderStyle,
+  isFontScheme,
+  isFontVerticalAlignment,
+  isHorizontalAlignment,
+  isNamedUnderlineStyle,
+  isVerticalAlignment,
+  type NamedCellStyle,
+  type Protection,
 } from '../../core/style.ts';
 import {parseColor} from './styles.ts';
 import {
@@ -401,10 +402,15 @@ function parseBorders(events: Iterator<XmlEvent>): ReadonlyArray<Border | undefi
         if (boolStrict(attrs.diagonalDown)) borderDraft.diagonalDown = true;
       } else if (borderDraft !== null) {
         // A border's edges and their <color> children are all read on open (each is self-closing bar a
-        // coloured edge, whose colour child is itself self-closing).
+        // coloured edge, whose colour child is itself self-closing). An edge whose style is absent or
+        // an unrecognised token is dropped — the side simply carries no border.
         if (BORDER_EDGES.has(local)) {
-          currentEdge = attrs.style !== undefined ? (local as BorderEdgeName) : null;
-          if (currentEdge !== null) borderDraft[currentEdge] = {style: attrs.style as BorderStyle};
+          if (attrs.style !== undefined && isBorderStyle(attrs.style)) {
+            currentEdge = local as BorderEdgeName;
+            borderDraft[currentEdge] = {style: attrs.style};
+          } else {
+            currentEdge = null;
+          }
         } else if (local === 'color' && currentEdge !== null) {
           const edge = borderDraft[currentEdge];
           if (edge !== undefined)
@@ -543,16 +549,20 @@ export function applyFontChild(
     case 'u':
       // A bare <u/> is a single underline; a named style (single/double/…) carries through; but
       // val="none" is the explicit ABSENCE of an underline, so it must read back falsy — not the
-      // truthy string "none" that a consumer's `if (font.underline)` would mistake for underlined.
+      // truthy string "none" that a consumer's `if (font.underline)` would mistake for underlined. An
+      // unrecognised token keeps the "is underlined" fact but drops the unknown style (a plain true).
       draft.underline =
         attrs.val === undefined
           ? true
           : attrs.val === 'none'
             ? false
-            : (attrs.val as UnderlineStyle);
+            : isNamedUnderlineStyle(attrs.val)
+              ? attrs.val
+              : true;
       break;
     case 'vertAlign':
-      if (attrs.val !== undefined) draft.vertAlign = attrs.val as FontVerticalAlignment;
+      if (attrs.val !== undefined && isFontVerticalAlignment(attrs.val))
+        draft.vertAlign = attrs.val;
       break;
     case 'sz': {
       const size = Number(attrs.val);
@@ -578,7 +588,7 @@ export function applyFontChild(
       break;
     }
     case 'scheme':
-      if (attrs.val !== undefined) draft.scheme = attrs.val as Font['scheme'];
+      if (attrs.val !== undefined && isFontScheme(attrs.val)) draft.scheme = attrs.val;
       break;
     default:
       break;
@@ -637,10 +647,17 @@ function borderToStyle(draft: BorderDraft): Border | undefined {
 // undefined rather than an empty alignment object.
 function parseAlignment(attrs: {readonly [k: string]: string}): Alignment | undefined {
   const out: {-readonly [K in keyof Alignment]?: Alignment[K]} = {};
-  if (attrs.horizontal !== undefined && attrs.horizontal !== 'general') {
-    out.horizontal = attrs.horizontal as HorizontalAlignment;
+  // `general` is the default and reads back as no explicit horizontal alignment; an unrecognised
+  // token (like an out-of-enum vertical one) is dropped rather than trusted into the model.
+  if (
+    attrs.horizontal !== undefined &&
+    attrs.horizontal !== 'general' &&
+    isHorizontalAlignment(attrs.horizontal)
+  ) {
+    out.horizontal = attrs.horizontal;
   }
-  if (attrs.vertical !== undefined) out.vertical = attrs.vertical as VerticalAlignment;
+  if (attrs.vertical !== undefined && isVerticalAlignment(attrs.vertical))
+    out.vertical = attrs.vertical;
   if (attrs.textRotation !== undefined) {
     const rotation = Number(attrs.textRotation);
     if (Number.isFinite(rotation) && rotation !== 0) out.textRotation = rotation;

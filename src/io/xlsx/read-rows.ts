@@ -32,6 +32,7 @@ import {
   parseWorkbookSheets,
   type ReadXlsxOptions,
   resolveWorkbookPart,
+  type SheetEntry,
   type XfStyle,
 } from './read.ts';
 import {boolStrict, closeEmptyElements, localName, xmlEvents} from './xml-read.ts';
@@ -179,11 +180,12 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
 }
 
 function pickSheet(
-  sheets: ReadonlyArray<{name: string; relId: string}>,
+  sheets: ReadonlyArray<SheetEntry>,
   selector: string | number | undefined,
-): {name: string; relId: string} {
-  if (sheets.length === 0) throw new Error('workbook names no worksheets');
-  if (selector === undefined) return sheets[0] as {name: string; relId: string};
+): SheetEntry {
+  const first = sheets[0];
+  if (first === undefined) throw new Error('workbook names no worksheets');
+  if (selector === undefined) return first;
   if (typeof selector === 'number') {
     const sheet = sheets[selector - 1];
     if (sheet === undefined) throw new RangeError(`no worksheet at position ${selector}`);
