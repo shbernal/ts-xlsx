@@ -14,7 +14,7 @@ import type {
   PreservedWorkbookReferencePlan,
 } from './package-plan.ts';
 import {range, relativePartPath} from './part-paths.ts';
-import {NS, REL, relationship} from './relationships.ts';
+import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
 import {escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
 
 const CT = {
@@ -67,7 +67,7 @@ export function contentTypesXml(
       preservedOverrides.push(override(`/${part.path}`, part.contentType));
     } else if (!declaredExtensions.has(ext.toLowerCase())) {
       declaredExtensions.add(ext.toLowerCase());
-      preservedDefaults.push(`<Default Extension="${ext}" ContentType="${part.contentType}"/>`);
+      preservedDefaults.push(defaultType(ext, part.contentType));
     }
   }
 
@@ -93,20 +93,17 @@ export function contentTypesXml(
   ].join('');
   // The VML drawings, printer-settings blobs, and each media kind are declared by extension-level
   // defaults rather than a per-part override — the raw bytes carry no XML content type of their own.
-  const vmlDefault =
-    commentNumbers.length > 0 ? `<Default Extension="vml" ContentType="${CT.vml}"/>` : '';
+  const vmlDefault = commentNumbers.length > 0 ? defaultType('vml', CT.vml) : '';
   const binDefault =
-    printerSettingsNumbers.length > 0
-      ? `<Default Extension="bin" ContentType="${CT.printerSettings}"/>`
-      : '';
+    printerSettingsNumbers.length > 0 ? defaultType('bin', CT.printerSettings) : '';
   const imageDefaults = mediaExtensions
-    .map((ext) => `<Default Extension="${ext}" ContentType="${imageContentType(ext)}"/>`)
+    .map((ext) => defaultType(ext, imageContentType(ext)))
     .join('');
   return (
     XML_DECLARATION +
     `<Types xmlns="${NS.contentTypes}">` +
-    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-    '<Default Extension="xml" ContentType="application/xml"/>' +
+    defaultType('rels', 'application/vnd.openxmlformats-package.relationships+xml') +
+    defaultType('xml', 'application/xml') +
     vmlDefault +
     binDefault +
     imageDefaults +
@@ -120,13 +117,18 @@ function override(partName: string, contentType: string): string {
   return `<Override PartName="${partName}" ContentType="${contentType}"/>`;
 }
 
+// A `<Default>` content-type declaration binding a file extension to the type every part with that
+// extension carries — the extension-level counterpart to {@link override}'s per-part declaration.
+function defaultType(extension: string, contentType: string): string {
+  return `<Default Extension="${extension}" ContentType="${contentType}"/>`;
+}
+
 export function rootRelsXml(): string {
-  const rels = [
+  return relationshipsPart([
     relationship('rId1', REL.officeDocument, 'xl/workbook.xml'),
     relationship('rId2', REL.coreProps, 'docProps/core.xml'),
     relationship('rId3', REL.extProps, 'docProps/app.xml'),
-  ].join('');
-  return `${XML_DECLARATION}<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
+  ]);
 }
 
 export function workbookXml(
@@ -278,7 +280,7 @@ export function workbookRelsXml(
   preservedRels: readonly PreservedWorkbookRel[],
   pivots: readonly PivotPlan[],
 ): string {
-  const rels = [
+  return relationshipsPart([
     ...range(sheetCount).map((i) =>
       relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`),
     ),
@@ -303,8 +305,7 @@ export function workbookRelsXml(
         `pivotCache/pivotCacheDefinition${pivot.number}.xml`,
       ),
     ),
-  ].join('');
-  return `${XML_DECLARATION}<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
+  ]);
 }
 
 export function corePropsXml(properties: WorkbookProperties): string {

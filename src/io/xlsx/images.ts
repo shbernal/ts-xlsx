@@ -10,7 +10,8 @@ import {
   type ImageEditAs,
   isOneCellAnchor,
 } from '../../core/image.ts';
-import {DRAWINGML_NS, PKG_RELS_NS, RELATIONSHIPS_NS, XDR_NS} from './namespaces.ts';
+import {DRAWINGML_NS, RELATIONSHIPS_NS, XDR_NS} from './namespaces.ts';
+import {relationship, relationshipsPart} from './relationships.ts';
 import {XML_DECLARATION} from './xml.ts';
 import {localName, parseXml} from './xml-read.ts';
 
@@ -134,12 +135,9 @@ function anchorPointXml(point: AnchorPoint): string {
 /** The drawing's `_rels/drawing{n}.xml.rels`: one image relationship per anchor, in `embedId` order
  * (`rId1`, `rId2`, …), each pointing at the media part the anchor shows. */
 export function drawingRelsXml(mediaTargets: readonly string[]): string {
-  const rels = mediaTargets
-    .map(
-      (target, i) => `<Relationship Id="rId${i + 1}" Type="${IMAGE_REL_TYPE}" Target="${target}"/>`,
-    )
-    .join('');
-  return `${XML_DECLARATION}<Relationships xmlns="${PKG_RELS_NS}">${rels}</Relationships>`;
+  return relationshipsPart(
+    mediaTargets.map((target, i) => relationship(`rId${i + 1}`, IMAGE_REL_TYPE, target)),
+  );
 }
 
 /** An image anchor parsed from a drawing part, with the `r:embed` id that names its media. A two-cell

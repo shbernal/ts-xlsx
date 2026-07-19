@@ -49,7 +49,7 @@ import type {
   PrinterSettingsPlan,
 } from './package-plan.ts';
 import {numberText, relativePartPath} from './part-paths.ts';
-import {NS, REL, relationship} from './relationships.ts';
+import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
 import {richTextRunsXml} from './rich-text.ts';
 import type {SharedStringTable} from './shared-strings.ts';
 import {colorAttrs, type StyleRegistry} from './styles.ts';
@@ -519,17 +519,16 @@ export function worksheetRelsXml(
       ),
     ),
     // An external hyperlink's target is a URL outside the package, so its relationship carries
-    // TargetMode="External" and the plain `relationship()` helper (a package-internal target) will
-    // not do. Internal links have no relId and contribute nothing here.
+    // TargetMode="External". Internal links have no relId and contribute nothing here.
     ...hyperlinks
       .filter((link) => link.relId !== undefined && link.target !== undefined)
-      .map(
-        (link) =>
-          `<Relationship Id="${link.relId}" Type="${REL.hyperlink}" ` +
-          `Target="${escapeAttr(link.target as string)}" TargetMode="External"/>`,
+      .map((link) =>
+        relationship(link.relId as string, REL.hyperlink, escapeAttr(link.target as string), {
+          external: true,
+        }),
       ),
-  ].join('');
-  return `${XML_DECLARATION}<Relationships xmlns="${NS.packageRels}">${rels}</Relationships>`;
+  ];
+  return relationshipsPart(rels);
 }
 
 export function tableXml(table: Table, id: number): string {
