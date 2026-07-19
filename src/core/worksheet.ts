@@ -329,6 +329,7 @@ export interface WorksheetModel {
   pageMargins: PageMargins;
   headerFooter: HeaderFooter;
   rowBreaks: PageBreak[];
+  columnBreaks: PageBreak[];
   columns: {index: number; properties: ColumnProperties}[];
   rows: {number: number; properties: RowProperties}[];
   cells: CellModel[];
@@ -412,6 +413,13 @@ export class Worksheet {
    * writer emits no `<rowBreaks>` element.
    */
   readonly rowBreaks: PageBreak[] = [];
+
+  /**
+   * Manual vertical page breaks (`<colBreaks>`): each break's `id` is a column the print layout splits
+   * before. Mutate in place: `sheet.columnBreaks.push({id: 3})`. Empty means no manual column breaks and
+   * the writer emits no `<colBreaks>` element.
+   */
+  readonly columnBreaks: PageBreak[] = [];
 
   // Row-major sparse storage: row index → (column index → cell). Keeping rows as the
   // outer key makes whole-row iteration cheap and mirrors how OOXML serializes
@@ -1299,6 +1307,7 @@ export class Worksheet {
       pageMargins: {...this.pageMargins},
       headerFooter: {...this.headerFooter},
       rowBreaks: this.rowBreaks.map(brk => ({...brk})),
+      columnBreaks: this.columnBreaks.map(brk => ({...brk})),
       columns: [...this.#columns].map(([index, properties]) => ({index, properties: {...properties}})),
       rows: [...this.#rowProperties].map(([number, properties]) => ({number, properties: {...properties}})),
       cells,
@@ -1328,6 +1337,8 @@ export class Worksheet {
     overwrite(this.headerFooter, model.headerFooter);
     this.rowBreaks.length = 0;
     this.rowBreaks.push(...model.rowBreaks.map(brk => ({...brk})));
+    this.columnBreaks.length = 0;
+    this.columnBreaks.push(...model.columnBreaks.map(brk => ({...brk})));
 
     this.#rows.clear();
     this.#columns.clear();

@@ -1863,6 +1863,24 @@ relocation lives in the grid), and the non-totals path is unchanged. Locked test
 the content below both move down one, the range and data-row count grow, and the column `numFmt` is baked
 into the appended cell. `test:src`: **631 pass**; `corpus`/`corpus:rewrite`: **0 regressions**.
 
+### 2026-07-19 — beyond the corpus finish line: manual column page breaks *(worksheet, source)*
+
+The reader modelled manual row page breaks (`<rowBreaks>`) but *silently dropped* their vertical
+counterpart (`<colBreaks>`) — a valid Excel-authored file with manual column breaks lost them on any
+load, and the writer had no way to emit them, so a fill-and-save cycle quietly discarded the author's
+print layout. Column breaks are the exact mirror of row breaks, so the model now carries both:
+`Worksheet.columnBreaks` (a `PageBreak[]` beside `rowBreaks`, in `WorksheetModel` and cloned by the
+`model` get/set); the writer emits `<colBreaks>` right after `<rowBreaks>` in CT_Worksheet order (the two
+now share one `pageBreaksXml(breaks, element)` helper); and the reader routes each `<brk>` onto the
+correct axis via a `breakTarget` pointer set by the enclosing `<rowBreaks>`/`<colBreaks>` (replacing the
+old row-only boolean that discarded column breaks). Hostile input is handled as before — a non-integer or
+non-positive `id`, or a `<brk>` outside any break container, is dropped. Locked test-first
+(`write.test.ts`, `worksheet.test.ts`): a column break lands on `columnBreaks` (not `rowBreaks`) with its
+row span; manual column breaks emit `<colBreaks>` and survive a write→read round-trip; row and column
+breaks coexist without cross-contaminating and serialise in schema order; an empty list emits nothing; and
+a `model` copy carries both axes cloned, not aliased. `test:src`: **635 pass**;
+`corpus`/`corpus:rewrite`: **0 regressions**.
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.

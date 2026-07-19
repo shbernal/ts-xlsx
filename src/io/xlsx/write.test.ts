@@ -861,7 +861,7 @@ test('a sheet with no manual row breaks emits no <rowBreaks> element', () => {
   assert.doesNotMatch(xml, /<rowBreaks/, 'an empty break list fabricates nothing');
 })
 
-test('column-break <brk> elements are not read as row breaks', () => {
+test('column-break <brk> elements land on the column-break model, not the row-break one', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
   sheet.getCell('A1').value = 'x';
@@ -874,4 +874,49 @@ test('column-break <brk> elements are not read as row breaks', () => {
   files['xl/worksheets/sheet1.xml'] = strToU8(sheetXml);
   const back = readXlsx(zipSync(files)).getWorksheet('S');
   assert.deepEqual(back?.rowBreaks, [], 'a column break must not land on the row-break model');
+  assert.deepEqual(
+    back?.columnBreaks,
+    [{id: 2, max: 1048575, man: true}],
+    'the column break is surfaced on the column-break model with its span'
+  );
+})
+
+test('manual column breaks are emitted as <colBreaks> and round-trip', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  sheet.columnBreaks.push({id: 2, max: 1048575, man: true}, {id: 5, max: 1048575, man: true});
+
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
+  assert.match(xml, /<colBreaks count="2" manualBreakCount="2">/, 'both breaks are counted as manual');
+  assert.match(xml, /<brk id="2" max="1048575" man="1"\/>/, 'the first break carries its row span');
+
+  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  assert.deepEqual(
+    back?.columnBreaks.map(brk => brk.id),
+    [2, 5],
+    'the break columns survive a write→read round-trip'
+  );
+})
+
+test('row and column breaks coexist on one sheet without cross-contaminating', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'x';
+  sheet.rowBreaks.push({id: 3, max: 16383, man: true});
+  sheet.columnBreaks.push({id: 4, max: 1048575, man: true});
+
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
+  assert.match(xml, /<rowBreaks[^>]*>.*<\/rowBreaks><colBreaks/, '<colBreaks> follows <rowBreaks> in schema order');
+
+  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  assert.deepEqual(back?.rowBreaks.map(brk => brk.id), [3], 'the row break stays a row break');
+  assert.deepEqual(back?.columnBreaks.map(brk => brk.id), [4], 'the column break stays a column break');
+})
+
+test('a sheet with no manual column breaks emits no <colBreaks> element', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
+  assert.doesNotMatch(xml, /<colBreaks/, 'an empty column-break list fabricates nothing');
 })

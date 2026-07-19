@@ -267,6 +267,20 @@ test('a model round-trip carries the autofilter, criteria and all', () => {
   assert.deepEqual(dst.autoFilter, src.autoFilter);
 });
 
+test('a model round-trip carries manual row and column breaks on their own axes', () => {
+  const src = new Worksheet('Src', 1);
+  src.rowBreaks.push({id: 3, max: 16383, man: true});
+  src.columnBreaks.push({id: 4, max: 1048575, man: true});
+
+  const dst = new Worksheet('Dst', 2);
+  dst.rowBreaks.push({id: 99}); // stale content the assignment must clear
+  dst.model = src.model;
+
+  assert.deepEqual(dst.rowBreaks, [{id: 3, max: 16383, man: true}], 'row breaks copy without residue');
+  assert.deepEqual(dst.columnBreaks, [{id: 4, max: 1048575, man: true}], 'column breaks copy without residue');
+  assert.notStrictEqual(dst.rowBreaks[0], src.rowBreaks[0], 'each break is cloned, not aliased');
+});
+
 test('assigning a model clears an autofilter the destination held, leaving no residue', () => {
   const dst = new Worksheet('Dst', 2);
   dst.autoFilter = 'Y1:Z9';

@@ -1161,8 +1161,10 @@ function worksheetXml(
     pageMarginsXml(sheet.pageMargins) +
     pageSetupXml(sheet.pageSetup, printerSettingsRelId) +
     headerFooterXml(sheet.headerFooter) +
-    // CT_Worksheet order: <rowBreaks> follows <headerFooter> and precedes the drawing block.
-    rowBreaksXml(sheet.rowBreaks) +
+    // CT_Worksheet order: <rowBreaks> follows <headerFooter>, <colBreaks> follows <rowBreaks>, and
+    // both precede the drawing block.
+    pageBreaksXml(sheet.rowBreaks, 'rowBreaks') +
+    pageBreaksXml(sheet.columnBreaks, 'colBreaks') +
     // Schema order near the tail: <drawing> (the images), then <legacyDrawing> (the VML holding the
     // note boxes), then <legacyDrawingHF> (a preserved header/footer image's VML), then <picture>
     // (the sheet background), then <tableParts>.
@@ -1619,11 +1621,12 @@ function colBody(properties: ColumnProperties, styles: StyleRegistry): string | 
   return meaningful ? attrs : null;
 }
 
-// Manual horizontal page breaks (`<rowBreaks>`): one `<brk>` per row the layout splits before. Excel
-// records both the running total (`count`) and the manual subset (`manualBreakCount`); every break the
-// model carries is a manual, author-set one, so the two counts coincide. `max` bounds the break across
-// columns (Excel writes the last column index); a break without one is emitted bare.
-function rowBreaksXml(breaks: readonly PageBreak[]): string {
+// Manual page breaks (`<rowBreaks>`/`<colBreaks>`): one `<brk>` per row/column the layout splits
+// before. Excel records both the running total (`count`) and the manual subset (`manualBreakCount`);
+// every break the model carries is a manual, author-set one, so the two counts coincide. `max` bounds
+// the break across the other axis (Excel writes the last row/column index); a break without one is
+// emitted bare. Row and column breaks share this shape, differing only in the wrapping element.
+function pageBreaksXml(breaks: readonly PageBreak[], element: 'rowBreaks' | 'colBreaks'): string {
   if (breaks.length === 0) return '';
   const brks = breaks
     .map(brk => {
@@ -1631,7 +1634,7 @@ function rowBreaksXml(breaks: readonly PageBreak[]): string {
       return `<brk id="${brk.id}"${maxAttr} man="1"/>`;
     })
     .join('');
-  return `<rowBreaks count="${breaks.length}" manualBreakCount="${breaks.length}">${brks}</rowBreaks>`;
+  return `<${element} count="${breaks.length}" manualBreakCount="${breaks.length}">${brks}</${element}>`;
 }
 
 function rowAttrs(
