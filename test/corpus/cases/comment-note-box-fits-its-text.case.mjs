@@ -36,7 +36,7 @@ export default {
     },
     {
       name: 'the comment textbox is styled to auto-fit its text so a multi-line note is not clipped',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {vml} = await api.inspectPackage(SPEC);
         assert.strictEqual(

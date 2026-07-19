@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'the streaming writer emits fullCalcOnLoad when set',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {streamHasFlag, streamSetThrew} = await api.streamingFullCalcOnLoadReport();
         assert.strictEqual(

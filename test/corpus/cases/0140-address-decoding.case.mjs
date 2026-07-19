@@ -42,7 +42,7 @@ export default {
     },
     {
       name: 'decodeRange("$1:$1") — serialized form leaks no "undefined"/"NaN"',
-      baseline: 'fail',
+      baseline: 'pass',
       expect(api, assert) {
         const serialized = JSON.stringify(api.decodeRange('$1:$1'));
         assert.ok(!serialized.includes('undefined'), `serialized range leaks "undefined": ${serialized}`);

@@ -36,7 +36,7 @@ export default {
     },
     {
       name: 'the duplicateValues rule survives a no-op round-trip with its type, dxfId, and priority',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rewritten} = await api.roundtripFixtureConditionalFormatting(FIXTURE);
         const dup = rewritten.rules.find(r => r.type === 'duplicateValues');
@@ -50,7 +50,7 @@ export default {
     },
     {
       name: 'the re-written worksheet has no empty conditionalFormatting shell (block without a rule)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rewritten} = await api.roundtripFixtureConditionalFormatting(FIXTURE);
         assert.ok(

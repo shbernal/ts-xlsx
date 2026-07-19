@@ -30,7 +30,7 @@ export default {
   behavior: [
     {
       name: 'merging a range that overlaps a table region surfaces a conflict instead of writing a corrupt file',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const result = await api.tryWriteWorkbook(overlappingSpec);
         assert.strictEqual(

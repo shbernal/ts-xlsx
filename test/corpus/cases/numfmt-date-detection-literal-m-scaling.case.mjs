@@ -28,7 +28,7 @@ export default {
   behavior: [
     {
       name: 'a plain integer with the escaped-literal-m scaling format reads back as a number, not a Date',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const cells = await api.readFixtureCells(FIXTURE, ['A84']);
         assert.strictEqual(

@@ -23,7 +23,7 @@ export default {
   behavior: [
     {
       name: 'the drawing part and its worksheet reference survive the round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.drawings >= 1 && source.hasDrawingRef, 'precondition: source has a drawing');
@@ -33,7 +33,7 @@ export default {
     },
     {
       name: 'the vector shape element survives inside the drawing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.drawingHasShape, 'precondition: source drawing has an xdr:sp shape');

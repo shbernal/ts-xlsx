@@ -52,7 +52,7 @@ export default {
     },
     {
       name: 'reading a foreign file rejoins the fragment from the location attribute onto the base URL',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const links = await api.readFixtureHyperlinks(FIXTURE);
         assert.ok(links.A1, 'the hyperlink cell is read');

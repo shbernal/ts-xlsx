@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'a column explicitly set to the default magic width (9) emits an explicit <col>',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {emitted} = await api.columnWidthDefaultCollisionReport([8, 9, 10]);
         assert.strictEqual(emitted.c2, true, 'an explicit width of 9 must emit a <col>, not defer to the default');
@@ -42,7 +42,7 @@ export default {
     },
     {
       name: 'a column explicitly set to 9 reads back as 9, not undefined',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {readBack} = await api.columnWidthDefaultCollisionReport([8, 9, 10]);
         assert.strictEqual(readBack.c2, 9, 'an explicit width of 9 must survive the round-trip');

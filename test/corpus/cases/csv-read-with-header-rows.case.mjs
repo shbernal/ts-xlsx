@@ -22,7 +22,7 @@ export default {
   behavior: [
     {
       name: 'reading with header mode enabled does not throw',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.csvRead({csv: 'name,age\nalice,30', options: {parserOptions: {headers: true}}});
         assert.ok(ok, `header-mode read must not throw; got error ${JSON.stringify(error)}`);
@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'in header mode the header row is consumed and data rows carry the values',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, rows} = await api.csvRead({csv: 'name,age\nalice,30', options: {parserOptions: {headers: true}}});
         assert.ok(ok, 'header-mode read must complete to yield rows');

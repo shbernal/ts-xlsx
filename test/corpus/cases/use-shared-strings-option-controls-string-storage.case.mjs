@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'useSharedStrings=false stores strings inline with no shared-strings part',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hasSharedStringsPart, isInline} = await api.sharedStringsOption(false);
         assert.strictEqual(hasSharedStringsPart, false, 'no sharedStrings part when the option is disabled');

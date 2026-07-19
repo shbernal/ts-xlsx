@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'the streaming read reports the same hidden flags as the eager read',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {eager, streaming} = await api.streamVsEagerRowHidden(FIXTURE);
         const eagerHidden = eager.filter(r => r.hidden).map(r => r.number);

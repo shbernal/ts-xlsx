@@ -38,7 +38,7 @@ export default {
     },
     {
       name: 'an explicit-false bold tag reads as false',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {valZero} = await api.fontExplicitFalseBoldReport();
         assert.strictEqual(valZero, false, '<b val="0"/> means NOT bold — the val attribute must be honored, not ignored');
@@ -46,7 +46,7 @@ export default {
     },
     {
       name: 'an explicit-false italic tag reads as not italic',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {italic} = await api.fontExplicitOffFlagsReport();
         assert.ok(!italic, '<i val="0"/> means NOT italic');
@@ -54,7 +54,7 @@ export default {
     },
     {
       name: 'an explicit-false strikethrough tag reads as not struck',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {strike} = await api.fontExplicitOffFlagsReport();
         assert.ok(!strike, '<strike val="0"/> means NOT struck');
@@ -62,7 +62,7 @@ export default {
     },
     {
       name: 'an underline tag with value "none" reads as not underlined',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {underline} = await api.fontExplicitOffFlagsReport();
         assert.ok(!underline && underline !== 'none', '<u val="none"/> means NOT underlined — the string "none" is not truthy underline');

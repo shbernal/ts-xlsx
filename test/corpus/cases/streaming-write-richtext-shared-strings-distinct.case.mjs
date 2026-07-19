@@ -27,7 +27,7 @@ export default {
   behavior: [
     {
       name: 'with shared strings enabled, distinct rich-text cells stay distinct',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, cells} = await api.streamWriteSheet({
           useSharedStrings: true,

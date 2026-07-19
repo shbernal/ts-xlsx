@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'a many-sheet workbook streams without the reader throwing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {error} = await api.streamReadManySheets(180);
         assert.strictEqual(error, null, `streaming a many-sheet workbook must not throw; got ${error}`);
@@ -42,7 +42,7 @@ export default {
     },
     {
       name: 'the streamed worksheet count equals the number written, at scale',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {written, emitted} = await api.streamReadManySheets(180);
         assert.strictEqual(emitted, written, `every worksheet must be emitted; wrote ${written}, streamed ${emitted}`);

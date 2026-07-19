@@ -74,7 +74,7 @@ export default {
       // that checks `instanceof Array` or the constructor identity mistakes it for a plain object
       // and populates no cells. Feeding such a row must place one value per element like any array.
       name: 'a row from an array built in another realm still populates one cell per element',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {isArrayCrossRealm, a, b, c} = await api.crossRealmArrayRow();
         assert.strictEqual(isArrayCrossRealm, true, 'Array.isArray recognizes the cross-realm array (oracle)');

@@ -35,7 +35,7 @@ export default {
     },
     {
       name: 'the loaded table exposes its data rows populated from the sheet',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rowCount} = await api.readFixtureTable(FIXTURE, TABLE);
         assert.ok(

@@ -29,7 +29,7 @@ export default {
   behavior: [
     {
       name: 'loading a workbook whose column style has no styles part does not throw',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(ok, true, `the load must not throw on a dangling column-style reference; got ${error}`);
@@ -37,7 +37,7 @@ export default {
     },
     {
       name: 'the worksheet is still present after tolerating the unresolved column style',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(

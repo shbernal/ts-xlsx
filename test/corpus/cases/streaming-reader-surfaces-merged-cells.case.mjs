@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'the streaming reader surfaces the same merge ranges',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {eagerMerges, streamedMerges, error} = await api.streamReadMergesReport();
         assert.ok(!error, `streaming read must not error; got ${JSON.stringify(error)}`);

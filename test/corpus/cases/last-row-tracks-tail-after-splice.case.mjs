@@ -40,7 +40,7 @@ export default {
     },
     {
       name: 'deleting the final row leaves lastRow on the new final populated row, not an empty slot',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {lastRow} = api.mutateWorksheet({cells, ops: [{op: 'spliceRows', start: 5, count: 1}]});
         assert.ok(lastRow, `lastRow must resolve after removing the final row; got ${JSON.stringify(lastRow)}`);
@@ -50,7 +50,7 @@ export default {
     },
     {
       name: 'deleting an interior block shifts data up and lastRow follows to the last populated row',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         // Remove rows 2..3 (b,c): surviving data is a(1), d(2), e(3); the true last row is 'e'.
         const {lastRow} = api.mutateWorksheet({cells, ops: [{op: 'spliceRows', start: 2, count: 2}]});

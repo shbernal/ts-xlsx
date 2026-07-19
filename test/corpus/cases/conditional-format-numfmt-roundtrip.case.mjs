@@ -24,7 +24,7 @@ export default {
   behavior: [
     {
       name: 'no DXF number format serializes as the literal "[object Object]"',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
         assert.ok(source.dxfCount >= 1, 'precondition: the source has differential formats');

@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'clearing the only relevant note removes its comment part from the package',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {commentPartPresent, readNoteAfter} = await api.removeCellNoteReport();
         assert.strictEqual(

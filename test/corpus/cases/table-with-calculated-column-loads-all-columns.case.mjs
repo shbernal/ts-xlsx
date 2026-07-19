@@ -29,7 +29,7 @@ export default {
   behavior: [
     {
       name: 'a workbook whose table has a calculated column loads without throwing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {loaded, error} = await api.loadFixtureTableColumns(FIXTURE, 'Sales');
         assert.strictEqual(error, null, 'loading must not crash on the calculated-column table');
@@ -38,7 +38,7 @@ export default {
     },
     {
       name: 'the calculated column does not truncate the table — all three columns survive',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {columnCount, columnNames} = await api.loadFixtureTableColumns(FIXTURE, 'Sales');
         assert.strictEqual(columnCount, 3, 'every column, including those after the calculated one, is read');

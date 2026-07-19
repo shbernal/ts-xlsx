@@ -32,7 +32,7 @@ export default {
     },
     {
       name: 'dataValidations is emitted before hyperlinks (CT_Worksheet sequence order)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {dataValidationsBeforeHyperlinks} = await api.streamWriteDvHyperlinkOrder();
         assert.strictEqual(

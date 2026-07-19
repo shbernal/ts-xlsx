@@ -24,7 +24,7 @@ export default {
   behavior: [
     {
       name: 'a non-ZIP legacy .xls payload does not resolve to a silently-empty workbook',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(

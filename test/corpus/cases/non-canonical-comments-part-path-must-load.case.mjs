@@ -11,7 +11,7 @@ export default {
   behavior: [
     {
       name: 'a workbook whose comments part lives at a non-canonical path loads without throwing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.nonCanonicalCommentsPartReport();
         assert.strictEqual(error, null, `load must not throw (got: ${error})`);
@@ -20,7 +20,7 @@ export default {
     },
     {
       name: 'the comment carried by the non-canonically-located part is still read',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {note} = await api.nonCanonicalCommentsPartReport();
         assert.strictEqual(note && note.texts ? note.texts.map(t => t.text).join('') : note, 'hi');

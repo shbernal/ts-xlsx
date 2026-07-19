@@ -26,7 +26,7 @@ export default {
   behavior: [
     {
       name: 'the header/footer image token and its legacyDrawingHF wiring survive the round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.hasLegacyDrawingHF && source.hasHeaderFooterImageToken, 'precondition: source has an HF image');
@@ -36,7 +36,7 @@ export default {
     },
     {
       name: 'both VML drawings (header image + comment) survive with the image media',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.strictEqual(rewritten.vml, source.vml, `both VML drawings must survive (source had ${source.vml})`);

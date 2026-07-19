@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'the sibling sharing the base style does not inherit the mutated font color',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {a2Color, bled} = await api.sharedBaseStyleFontMutation();
         assert.strictEqual(bled, false, `the sibling must not pick up the color; got A2 color ${JSON.stringify(a2Color)}`);

@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'an object-valued number format is not stringified into the styles part as "[object Object]"',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {stylesHasObjectObject} = await api.numFmtObjectCorruptionReport();
         assert.strictEqual(

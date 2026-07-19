@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'a minimal dataBar rule (no cfvo, no color) writes without throwing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, writeError} = await api.authorConditionalFormatting({
           ref: 'A1:A3',
@@ -49,7 +49,7 @@ export default {
     },
     {
       name: 'the minimal dataBar gains two default cfvo anchors',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {xml} = await api.authorConditionalFormatting({ref: 'A1:A3', rules: [{type: 'dataBar', priority: 1}]});
         assert.ok(xml && xml.hasDataBar, 'a dataBar element is emitted');
@@ -58,7 +58,7 @@ export default {
     },
     {
       name: 'the minimal dataBar gains a default bar color',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {xml} = await api.authorConditionalFormatting({ref: 'A1:A3', rules: [{type: 'dataBar', priority: 1}]});
         assert.ok(xml && xml.hasColor, 'a default data bar carries a bar color when none was supplied');

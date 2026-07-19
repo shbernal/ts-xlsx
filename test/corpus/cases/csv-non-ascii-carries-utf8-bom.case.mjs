@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'the CSV carries a UTF-8 BOM so the encoding is detected',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hasBom} = await api.csvNonAsciiEncodingReport();
         assert.strictEqual(hasBom, true, 'the CSV output begins with a UTF-8 byte-order mark');

@@ -35,7 +35,7 @@ export default {
     },
     {
       name: 'an over-precision numeric string is preserved with all its digits',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rows} = await api.csvRead({csv: CSV});
         assert.strictEqual(

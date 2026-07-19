@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'writing the workbook back out does not crash on the extension rule',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, writeError} = await api.roundtripFixtureWriteReport(FIXTURE);
         assert.strictEqual(writeOk, true, `the write-back must not throw; got ${JSON.stringify(writeError)}`);

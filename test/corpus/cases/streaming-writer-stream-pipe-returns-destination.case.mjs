@@ -24,7 +24,7 @@ export default {
   behavior: [
     {
       name: 'writer.stream.pipe(destination) returns the destination stream (Node contract)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {pipeReturnsDestination} = await api.streamWriterPipeContract();
         assert.strictEqual(

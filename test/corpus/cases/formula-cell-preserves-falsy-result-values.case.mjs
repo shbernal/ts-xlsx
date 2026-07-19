@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'a formula result of 0 is preserved, not dropped',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {zero} = await api.formulaFalsyResultReport();
         assert.strictEqual(zero.hasResult, true, 'the numeric-zero result must survive');
@@ -39,7 +39,7 @@ export default {
     },
     {
       name: 'a formula result of false is preserved, not dropped',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {boolFalse} = await api.formulaFalsyResultReport();
         assert.strictEqual(boolFalse.hasResult, true, 'the boolean-false result must survive');
@@ -48,7 +48,7 @@ export default {
     },
     {
       name: 'a formula result of empty string is preserved, not dropped',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {emptyString} = await api.formulaFalsyResultReport();
         assert.strictEqual(emptyString.hasResult, true, 'the empty-string result must survive');

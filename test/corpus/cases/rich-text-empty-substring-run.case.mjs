@@ -28,7 +28,7 @@ export default {
   behavior: [
     {
       name: 'no empty <t> run element is serialized for a run with empty text',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {emptyTextRunInXml} = await api.richTextRoundtripReport(RUNS);
         assert.strictEqual(emptyTextRunInXml, false, 'an empty-text run must not be emitted as an empty <t> element');
@@ -36,7 +36,7 @@ export default {
     },
     {
       name: 'the empty-text run is dropped, leaving only the non-empty runs',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {runs} = await api.richTextRoundtripReport(RUNS);
         assert.deepStrictEqual(runs.map(r => r.text), ['a', 'b'], 'only the two non-empty runs survive');

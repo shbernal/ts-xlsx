@@ -37,7 +37,7 @@ export default {
     },
     {
       name: 'the reloaded table exposes its data rows',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {loadedRowCount} = await api.roundtripTableAppend(SPEC, {tableName: 'T', appendRows: []});
         assert.strictEqual(loadedRowCount, 2, 'the two written data rows are rehydrated on load');
@@ -45,7 +45,7 @@ export default {
     },
     {
       name: 'appending a row to the reloaded table succeeds',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {addError, committed, finalRowCount} = await api.roundtripTableAppend(SPEC, {
           tableName: 'T',

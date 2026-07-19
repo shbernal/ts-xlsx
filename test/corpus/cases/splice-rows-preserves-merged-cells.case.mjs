@@ -40,7 +40,7 @@ export default {
     },
     {
       name: 'deleting a row above the merged range shifts it up and keeps it merged',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {merges} = await api.mutateWorksheet(bannerSheet([{op: 'spliceRows', start: 1, count: 1}]));
         assert.ok(
@@ -51,7 +51,7 @@ export default {
     },
     {
       name: 'inserting a row above the merged range shifts it down and keeps it merged',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {merges} = await api.mutateWorksheet(
           bannerSheet([{op: 'spliceRows', start: 1, count: 0, inserts: [['inserted']]}])

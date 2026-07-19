@@ -48,7 +48,7 @@ export default {
     },
     {
       name: 'editAs is not stamped onto the one-cell anchor, which the drawing schema cannot carry it on',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {anchors} = await api.inspectImageAnchors(ONE_CELL);
         assert.strictEqual(

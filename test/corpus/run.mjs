@@ -2,22 +2,22 @@
 // Regression corpus runner.
 //
 // Loads every case under cases/, runs each behavior against an adapter (default:
-// the current legacy code), and compares the *actual* outcome to the behavior's
-// recorded `baseline` — the outcome we know today's legacy code produces.
+// the rewrite), and compares the *actual* outcome to the behavior's recorded
+// `baseline` — the outcome we expect the implementation to produce.
 //
-//   baseline  actual   meaning                         fails build?
-//   --------  ------   -----------------------------   ------------
-//   pass      pass     green, as expected              no
-//   fail      fail     known-open bug, tracked         no   (this is the point of the corpus)
-//   pass      fail     REGRESSION                      YES
-//   fail      pass     bug fixed — update the baseline no   (but loudly flagged)
+//   baseline  actual   meaning                          fails build?
+//   --------  ------   ------------------------------    ------------
+//   pass      pass     green, as expected               no
+//   fail      fail     known-open bug, tracked          no   (an intentional pending marker)
+//   pass      fail     REGRESSION                       YES
+//   fail      pass     bug fixed — flip baseline to pass no   (but loudly flagged)
 //
-// This is what lets the corpus run against the frozen legacy tree "mostly red where
-// bugs are real" (STRATEGY.md Phase 1) without a red build, while still catching any
-// real regression the moment it appears. The rewrite's bar is: every baseline flips
-// to `pass`.
+// Post-Phase-3 the rewrite is the reference implementation and every behavior in the
+// corpus baselines to `pass`. The `baseline: 'fail'` marker survives as the way to
+// land a case for a not-yet-built capability without reddening CI — a tracked
+// known-open, not a legacy oracle's verdict.
 //
-// Usage:  node test/corpus/run.mjs [--adapter current]
+// Usage:  node test/corpus/run.mjs [--adapter rewrite]
 
 import assert from 'node:assert/strict';
 import {readdir} from 'node:fs/promises';
@@ -27,7 +27,7 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 function parseArgs(argv) {
-  const args = {adapter: 'current'};
+  const args = {adapter: 'rewrite'};
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--adapter') args.adapter = argv[++i];
     else throw new Error(`Unrecognized argument: ${argv[i]}`);
@@ -66,12 +66,6 @@ async function main() {
   const api = adapterMod.default;
   const cases = await loadCases();
 
-  // The `current` adapter IS the baseline oracle: `baseline` records what it does,
-  // so a fail→pass there means legacy itself changed → flip the baseline. For any
-  // other adapter (the rewrite), a fail→pass is the goal — the rewrite fixing a
-  // legacy known-open — and the baseline stays put, still recording legacy's state.
-  const isBaselineAdapter = adapterName === 'current';
-
   const tally = {ok: 0, bug: 0, regression: 0, fixed: 0, skip: 0};
   const behaviorCount = cases.reduce((n, c) => n + c.behavior.length, 0);
   console.log(`corpus: ${cases.length} case(s), ${behaviorCount} behavior(s) vs adapter "${api.name}"\n`);
@@ -95,20 +89,15 @@ async function main() {
       if (status === 'regression') console.log(`        REGRESSION: ${detail}`);
       if (status === 'bug') console.log(`        known-open (baseline=fail): ${detail}`);
       if (status === 'fixed') {
-        console.log(
-          isBaselineAdapter
-            ? `        FIXED — legacy now passes; flip baseline to 'pass' for this behavior`
-            : `        FIXED — "${api.name}" resolves a legacy known-open (baseline stays 'fail')`
-        );
+        console.log(`        FIXED — now passes; flip this behavior's baseline to 'pass'`);
       }
     }
     console.log('');
   }
 
   const skipNote = tally.skip > 0 ? `, ${tally.skip} skipped (capability not implemented by "${api.name}")` : '';
-  const fixedLabel = isBaselineAdapter ? 'newly-fixed' : 'legacy known-opens resolved';
   console.log(
-    `summary: ${tally.ok} green, ${tally.bug} known-open, ${tally.fixed} ${fixedLabel}, ${tally.regression} regression(s)${skipNote}`
+    `summary: ${tally.ok} green, ${tally.bug} known-open, ${tally.fixed} newly-fixed, ${tally.regression} regression(s)${skipNote}`
   );
   if (tally.regression > 0) {
     console.error('\nFAIL: regression(s) detected — a behavior that passed on legacy now fails.');

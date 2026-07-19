@@ -25,7 +25,7 @@ export default {
   behavior: [
     {
       name: 'the cross-sheet list validation is detected on read',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {count} = await api.readFixtureValidations(FIXTURE);
         assert.ok(count >= 1, `the x14 list validation must be read; got ${count} validations`);
@@ -33,7 +33,7 @@ export default {
     },
     {
       name: 'the x14 validation survives a read→write round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {totalExt} = await api.roundtripFixtureValidationXml(FIXTURE);
         assert.ok(totalExt >= 1, `the extended (x14) validation must be re-serialized; got ${totalExt}`);

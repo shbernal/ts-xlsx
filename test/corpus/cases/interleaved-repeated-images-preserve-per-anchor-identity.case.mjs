@@ -41,7 +41,7 @@ export default {
     },
     {
       name: 'the third anchor, reusing image A, does not collide onto the other image',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {resolvedLetter} = await api.interleavedImageAnchors('BAA');
         assert.strictEqual(

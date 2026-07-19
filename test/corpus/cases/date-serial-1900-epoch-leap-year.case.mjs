@@ -25,7 +25,7 @@ export default {
   behavior: [
     {
       name: 'serial 1 reads as 1900-01-01',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {A1} = await api.readFixtureCells(FIXTURE, ['A1']);
         assert.strictEqual(A1.type, 'date', 'the cell is a date');
@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'serial 2 reads as 1900-01-02 (consecutive days)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {A2} = await api.readFixtureCells(FIXTURE, ['A2']);
         assert.strictEqual(A2.value.date, '1900-01-02T00:00:00.000Z', `serial 2 must be 1900-01-02; got ${JSON.stringify(A2.value)}`);
@@ -46,7 +46,7 @@ export default {
       // it — serial 59 is 1900-02-28, the real day just before the phantom. A reader that ignores the
       // phantom day reads serial 59 as 1900-02-27, one day early.
       name: 'serial 59 reads as 1900-02-28 (the real day just below the phantom 1900-02-29)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {A59} = await api.readFixtureCells(FIXTURE, ['A59']);
         assert.strictEqual(A59.value.date, '1900-02-28T00:00:00.000Z', `serial 59 must be 1900-02-28; got ${JSON.stringify(A59.value)}`);

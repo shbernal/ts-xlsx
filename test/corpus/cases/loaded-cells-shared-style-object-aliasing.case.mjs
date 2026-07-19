@@ -22,7 +22,7 @@ export default {
   behavior: [
     {
       name: 'mutating one loaded cell\'s fill does not bleed into a sibling that shared its style index',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sibling, original, bled} = await api.loadMutateCellStyle();
         assert.ok(!bled, `the sibling cell must keep its own fill; it changed to ${sibling}`);
@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'writing back after a single-cell style edit changes only that cell on disk',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {diskSibling, original, diskBled} = await api.loadMutateCellStyle();
         assert.ok(!diskBled, `only the edited cell should change on disk; sibling became ${diskSibling}`);
@@ -44,7 +44,7 @@ export default {
       // color}). Even building a new object must not carry the shared record's identity into the
       // sibling.
       name: 'spread-reassigning one loaded cell\'s font member does not bleed into a shared sibling',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sibling, original, edited, mutatedTo, bled} = await api.loadMutateCellFont();
         assert.strictEqual(edited, mutatedTo, 'the edited cell reflects the new font color');

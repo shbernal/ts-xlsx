@@ -23,7 +23,7 @@ export default {
   behavior: [
     {
       name: 'a 6-hex RGB fill colour is promoted to a fully-opaque 8-hex ARGB',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sixHexRgb} = await api.argbNormalizationReport();
         assert.strictEqual(
@@ -35,7 +35,7 @@ export default {
     },
     {
       name: 'a colour that is neither 6 nor 8 hex digits is rejected, not written',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rejectsMalformed} = await api.argbNormalizationReport();
         assert.strictEqual(rejectsMalformed, true, 'a malformed ARGB must be rejected at the API surface, not written as a black-rendering colour');

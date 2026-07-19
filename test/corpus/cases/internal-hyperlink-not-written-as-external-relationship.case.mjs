@@ -11,7 +11,7 @@ export default {
   behavior: [
     {
       name: 'an internal (#-prefixed) hyperlink carries a location attribute, not an r:id',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hyperlinkHasRid, hyperlinkLocation} = await api.internalHyperlinkSerializationReport();
         assert.strictEqual(hyperlinkHasRid, false, 'internal link must not use an r:id relationship');
@@ -20,7 +20,7 @@ export default {
     },
     {
       name: 'an internal hyperlink creates no external-mode worksheet relationship',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hasWorksheetRels, relTargetMode} = await api.internalHyperlinkSerializationReport();
         assert.strictEqual(

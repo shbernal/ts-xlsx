@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'a cell note survives a row insert above it',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {noteFollowsRow} = await api.rowInsertPreservesNoteAndOutline();
         assert.strictEqual(noteFollowsRow, true, 'the note must remain attached to its cell at the shifted position, not be dropped');
@@ -39,7 +39,7 @@ export default {
     },
     {
       name: 'an outline level follows its row through a row insert',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {outlineFollowsRow} = await api.rowInsertPreservesNoteAndOutline();
         assert.strictEqual(outlineFollowsRow, true, 'the outline level must move with its logical row, not stay at the old absolute row index');

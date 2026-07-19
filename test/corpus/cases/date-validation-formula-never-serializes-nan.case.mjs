@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'a non-coercible operand never emits the literal NaN into the formula',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {formula1, hasNaN} = await api.authorDateValidation('invalid');
         assert.strictEqual(hasNaN, false, `a non-coercible operand must not serialize "NaN"; got ${JSON.stringify(formula1)}`);

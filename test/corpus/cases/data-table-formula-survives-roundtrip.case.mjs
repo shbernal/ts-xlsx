@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'writing the workbook back preserves the data-table formula kind',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {outHasDataTable} = await api.dataTableFormulaRoundtrip();
         assert.strictEqual(

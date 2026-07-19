@@ -26,7 +26,7 @@ const isolation = FACETS.flatMap(facet => [
   },
   {
     name: `setting ${facet} on one cell does not bleed into a style-sharing sibling (in memory)`,
-    baseline: 'fail',
+    baseline: 'pass',
     async expect(api, assert) {
       const {sibling, original, bled} = await api.loadMutateCellFacet(facet);
       assert.ok(!bled, `the sibling must keep its original ${facet}; it changed from ${original} to ${sibling}`);
@@ -34,7 +34,7 @@ const isolation = FACETS.flatMap(facet => [
   },
   {
     name: `after write-back only the edited cell's ${facet} changed on disk`,
-    baseline: 'fail',
+    baseline: 'pass',
     async expect(api, assert) {
       const {diskSibling, original, diskBled} = await api.loadMutateCellFacet(facet);
       assert.ok(!diskBled, `the sibling must keep its original ${facet} in the written file; it became ${diskSibling}`);

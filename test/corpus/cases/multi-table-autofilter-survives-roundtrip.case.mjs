@@ -36,7 +36,7 @@ export default {
     },
     {
       name: 'no table gains a totalsRowShown the source did not have',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         for (const t of tables) {

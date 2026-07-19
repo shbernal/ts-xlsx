@@ -25,7 +25,7 @@ export default {
   behavior: [
     {
       name: 'setting a subset of margins still emits all six pageMargins attributes',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         const present = sheets.Sheet1.pageMargins.present;
@@ -36,7 +36,7 @@ export default {
     },
     {
       name: 'margins not explicitly set are filled with valid finite numbers',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {values} = (await api.inspectPackage(SPEC)).sheets.Sheet1.pageMargins;
         for (const attr of SIX) {

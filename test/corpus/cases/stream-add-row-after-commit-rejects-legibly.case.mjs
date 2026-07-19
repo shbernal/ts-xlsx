@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'the rejection is a legible "already committed" error, not an internal null crash',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {legibleRejection, internalCrash, error} = await api.streamAddRowAfterCommit();
         assert.strictEqual(internalCrash, false, `the error must not be an internal null-property crash; got ${JSON.stringify(error)}`);

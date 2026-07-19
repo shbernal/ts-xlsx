@@ -28,7 +28,7 @@ export default {
   behavior: [
     {
       name: 'a whole-type validation with a cell-reference operand keeps the reference (not null/NaN)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {cells} = await api.readFixtureValidations(FIXTURE);
         const dv = cells['Sheet1!A1'];

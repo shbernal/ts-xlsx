@@ -43,7 +43,7 @@ export default {
     },
     {
       name: 'an invalid Date under a date number format does not leak NaN into the sheet XML',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hasNaN, cellXml} = await api.dateNumFmtValueReport('invalidDate');
         assert.strictEqual(

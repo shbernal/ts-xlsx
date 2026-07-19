@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'the loaded worksheet surfaces the manual row breaks',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {loadedBreaks} = await api.roundtripFixtureRowBreaks(FIXTURE);
         assert.deepStrictEqual(loadedBreaks, [3, 6], `the reader must surface the row breaks; got ${JSON.stringify(loadedBreaks)}`);
@@ -42,7 +42,7 @@ export default {
     },
     {
       name: 'a load→save round-trip preserves the rowBreaks section',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rewrittenBreaks} = await api.roundtripFixtureRowBreaks(FIXTURE);
         assert.deepStrictEqual(rewrittenBreaks, [3, 6], `the row breaks must survive the round-trip; got ${JSON.stringify(rewrittenBreaks)}`);

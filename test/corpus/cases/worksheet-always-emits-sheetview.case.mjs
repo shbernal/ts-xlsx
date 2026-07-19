@@ -20,7 +20,7 @@ export default {
   behavior: [
     {
       name: 'a worksheet with explicit row heights still emits a sheetView',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [{name: 'Sheet1', rows: [{index: 1, height: 40}, {index: 2, height: 40}]}],
@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'a default worksheet emits a default sheetView',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [{name: 'Sheet1', cells: [{ref: 'A1', value: 'x'}]}],

@@ -35,7 +35,7 @@ export default {
     },
     {
       name: 'a requested non-UTF-8 output encoding is actually applied',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {decodesAsRequested, decodesAsUtf8, requestedEncoding} = await api.csvWriteEncodingReport({encoding: 'utf16le'});
         assert.strictEqual(

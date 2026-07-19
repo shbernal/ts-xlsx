@@ -32,7 +32,7 @@ export default {
     },
     {
       name: 'conditionalFormatting is emitted before hyperlinks (CT_Worksheet sequence order)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {conditionalFormattingBeforeHyperlinks} = await api.streamWriteCfHyperlinkOrder();
         assert.strictEqual(

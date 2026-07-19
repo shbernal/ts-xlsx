@@ -46,7 +46,7 @@ export default {
   behavior: [
     {
       name: 'a namespace-prefixed workbook root with a leading BOM reads and reports its sheet',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error, sheetNames} = await api.readFixtureReport(`${DIR}/prefixed-root-bom.xlsx`);
         assert.ok(ok, `reader must not crash on a prefixed root; got error ${JSON.stringify(error)}`);
@@ -55,7 +55,7 @@ export default {
     },
     {
       name: 'a namespace-prefixed root preserves a non-ASCII sheet name',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, sheetNames} = await api.readFixtureReport(`${DIR}/prefixed-root-cyrillic-sheet.xlsx`);
         assert.ok(ok, 'reader must not crash on a prefixed root with a non-ASCII sheet name');

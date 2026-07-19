@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'the streaming read reports the hidden column, not every column visible',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {eager, stream, error} = await api.streamVsEagerColumnHidden();
         assert.strictEqual(error, null, `streaming read must not error; got ${error}`);

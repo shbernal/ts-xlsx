@@ -40,7 +40,7 @@ export default {
     },
     {
       name: 'splicing a column into a shared-formula sheet does not throw the master-position error',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {spliceOk, spliceError} = await api.sharedFormulaRoundtripAndSplice();
         assert.strictEqual(

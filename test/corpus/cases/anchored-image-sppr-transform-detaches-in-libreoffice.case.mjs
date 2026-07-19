@@ -50,7 +50,7 @@ export default {
     },
     {
       name: 'the emitted picture carries no zeroed absolute transform that would override the anchor',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {anchors} = await api.inspectImageAnchors(oneCellImageSpec);
         assert.strictEqual(
@@ -74,7 +74,7 @@ export default {
     },
     {
       name: 'a two-cell-anchored image carries no zeroed spPr transform that strict viewers honor',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {anchors} = await api.inspectImageAnchors(twoCellImageSpec);
         assert.strictEqual(

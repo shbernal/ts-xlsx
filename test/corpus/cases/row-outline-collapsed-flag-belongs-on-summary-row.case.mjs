@@ -57,7 +57,7 @@ export default {
     },
     {
       name: 'the hidden detail rows do NOT carry the collapsed flag',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         for (const r of ['2', '3', '4']) {
@@ -71,7 +71,7 @@ export default {
     },
     {
       name: 'the summary row terminating the group carries the collapsed flag',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(

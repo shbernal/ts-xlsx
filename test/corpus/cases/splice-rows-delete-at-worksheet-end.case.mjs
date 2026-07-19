@@ -40,7 +40,7 @@ export default {
     },
     {
       name: 'deleting rows whose range includes the last populated row actually removes them',
-      baseline: 'fail',
+      baseline: 'pass',
       expect(api, assert) {
         const {rowCount, cells} = api.mutateWorksheet({
           cells: rowCells(),
@@ -54,7 +54,7 @@ export default {
     },
     {
       name: 'deleting trailing columns removes them and shrinks the column count',
-      baseline: 'fail',
+      baseline: 'pass',
       expect(api, assert) {
         const {columnCount, cells} = api.mutateWorksheet({
           cells: colCells(),

@@ -21,7 +21,7 @@ export default {
   behavior: [
     {
       name: 'a whitespace-only field is not coerced to the number 0',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rows} = await api.csvRead({csv: 'firstValue,   ,secondValue\n'});
         assert.notStrictEqual(rows[0][1], 0, 'a whitespace-only field must not become numeric 0');

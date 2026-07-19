@@ -40,7 +40,7 @@ export default {
     },
     {
       name: 'a headerless table emits no autoFilter (autoFilter is only valid with a header row)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {tables} = await api.inspectPackage(headerlessSpec);
         assert.strictEqual(

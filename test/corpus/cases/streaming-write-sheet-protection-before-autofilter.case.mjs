@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'sheetProtection is emitted before autoFilter',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheetProtectionBeforeAutoFilter} = await api.streamAutoFilterProtectionOrder();
         assert.strictEqual(

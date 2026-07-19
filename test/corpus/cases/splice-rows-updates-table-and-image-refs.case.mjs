@@ -24,7 +24,7 @@ export default {
   behavior: [
     {
       name: 'inserting a row above a table shifts the table’s cell range down',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {tableRef} = await api.spliceShiftsRefs();
         assert.strictEqual(tableRef, 'A4:B6', `the table at A3:B5 must shift to A4:B6 after inserting a top row; got ${JSON.stringify(tableRef)}`);
@@ -32,7 +32,7 @@ export default {
     },
     {
       name: 'inserting a row above an anchored image shifts the image’s from-anchor down',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {imageFromRow} = await api.spliceShiftsRefs();
         assert.strictEqual(imageFromRow, 6, `the image anchored from row 5 must shift to row 6; got ${JSON.stringify(imageFromRow)}`);
@@ -40,7 +40,7 @@ export default {
     },
     {
       name: 'authoring a table with duplicate column names disambiguates them',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {dupColumnNamesUnique, dupColumnNames} = await api.spliceShiftsRefs();
         assert.strictEqual(

@@ -30,7 +30,7 @@ export default {
   behavior: [
     {
       name: 'loading a comment worksheet whose VML drawing target is missing does not throw',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(ok, true, `a dangling VML-drawing target must not abort the load; got ${JSON.stringify(error)}`);
@@ -38,7 +38,7 @@ export default {
     },
     {
       name: 'the worksheets are recovered despite the missing VML drawing part',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(sheetNames, ['Sheet1', 'Data'], 'both worksheets survive the tolerant read');

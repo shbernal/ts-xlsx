@@ -11,7 +11,7 @@ export default {
   behavior: [
     {
       name: 'a cell whose only alignment attribute is wrapText="0" reads back with no alignment',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {wrapTextZero} = await api.alignmentFalseBooleanReport();
         assert.strictEqual(wrapTextZero, null);
@@ -19,7 +19,7 @@ export default {
     },
     {
       name: 'a cell whose only alignment attribute is shrinkToFit="0" reads back with no alignment',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {shrinkZero} = await api.alignmentFalseBooleanReport();
         assert.strictEqual(shrinkZero, null);

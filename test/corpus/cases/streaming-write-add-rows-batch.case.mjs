@@ -22,7 +22,7 @@ export default {
   behavior: [
     {
       name: 'adding a batch of rows to a streaming worksheet does not throw',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.streamWriteSheet({
           ops: [{op: 'addRows', value: [['a', 1], ['b', 2]]}],
@@ -33,7 +33,7 @@ export default {
     },
     {
       name: 'the batch-added rows carry their values in order',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, cells, rowCount} = await api.streamWriteSheet({
           ops: [{op: 'addRows', value: [['a', 1], ['b', 2]]}],

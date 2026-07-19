@@ -39,7 +39,7 @@ export default {
     },
     {
       name: 'the "None" theme produces an unstyled table with no name',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {none} = await api.tableStyleThemeReport();
         assert.strictEqual(

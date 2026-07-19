@@ -39,7 +39,7 @@ export default {
     },
     {
       name: 'a date-formatted cell is surfaced as a date in streaming read',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const cells = await api.streamReadFixture(FIXTURE, ['B2']);
         assert.strictEqual(
@@ -60,7 +60,7 @@ export default {
     },
     {
       name: 'a cell using a locale-keyed built-in date format streams as a date, matching the full read',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const cells = await api.streamReadFixture(LOCALE_FIXTURE, ['A5']);
         assert.strictEqual(

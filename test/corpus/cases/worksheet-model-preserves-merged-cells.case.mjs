@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'assigning that model onto another sheet reproduces the merged ranges',
-      baseline: 'fail',
+      baseline: 'pass',
       expect(api, assert) {
         const {dstMerges, error} = api.copyWorksheetModel({merges: ['A1:C1']});
         assert.strictEqual(error, null, 'the model copy must not throw');

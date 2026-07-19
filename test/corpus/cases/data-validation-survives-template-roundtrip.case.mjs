@@ -32,7 +32,7 @@ export default {
   behavior: [
     {
       name: 'at least one data validation survives the round-trip in some form',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {totalValidations} = await api.roundtripFixtureValidationXml(FIXTURE);
         assert.ok(
@@ -43,7 +43,7 @@ export default {
     },
     {
       name: 'the extended (whole-column list) validation is preserved',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {totalExt, sheets} = await api.roundtripFixtureValidationXml(FIXTURE);
         assert.ok(totalExt >= 1, 'the x14 extended validation should be re-serialized');

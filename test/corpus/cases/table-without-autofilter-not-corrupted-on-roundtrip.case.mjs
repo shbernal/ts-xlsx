@@ -25,7 +25,7 @@ export default {
   behavior: [
     {
       name: 'a table with no autoFilter does not gain one on round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         const t = tables[0];
@@ -35,7 +35,7 @@ export default {
     },
     {
       name: 'the header-row configuration is not flipped on round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         const t = tables[0];
@@ -48,7 +48,7 @@ export default {
     },
     {
       name: 'totalsRowShown is not spuriously turned on',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         const t = tables[0];

@@ -27,7 +27,7 @@ export default {
   behavior: [
     {
       name: 'no emitted column group runs past the 16384-column limit',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.ok(

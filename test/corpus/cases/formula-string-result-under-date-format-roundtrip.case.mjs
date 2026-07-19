@@ -26,7 +26,7 @@ export default {
   behavior: [
     {
       name: 'no cell in the re-written package carries the invalid literal "NaN" as its value',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hasNaNToken} = await api.roundtripFixtureCellXml(FIXTURE, ['A2']);
         assert.strictEqual(hasNaNToken, false, 'a round-trip must never emit "NaN" as a cell value');
@@ -34,7 +34,7 @@ export default {
     },
     {
       name: 'the string-typed formula cell keeps its formula and is not written as a numeric cell',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {cells} = await api.roundtripFixtureCellXml(FIXTURE, ['A2']);
         assert.ok(cells.A2, 'A2 must survive the round-trip');

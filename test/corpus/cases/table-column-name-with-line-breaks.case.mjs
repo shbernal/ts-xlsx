@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'the tableColumn name attribute contains no raw CR/LF control characters',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rawControlChars, firstColumnTag} = await api.tableColumnNameControlChars();
         assert.strictEqual(

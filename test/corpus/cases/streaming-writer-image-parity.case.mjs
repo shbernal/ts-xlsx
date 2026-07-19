@@ -28,7 +28,7 @@ export default {
   behavior: [
     {
       name: 'a streamed worksheet exposes an addImage anchor method (parity with the in-memory worksheet)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheetAddImage} = await api.streamWriterImageSupport();
         assert.ok(sheetAddImage, 'the streaming worksheet must expose addImage, like the in-memory worksheet');
@@ -36,7 +36,7 @@ export default {
     },
     {
       name: 'anchoring a registered image on a streamed sheet embeds the media and drawing parts',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {error, mediaParts, drawingParts} = await api.streamWriterImageSupport('B2:D6');
         assert.strictEqual(error, null, `anchoring an image on a streamed sheet must not throw; got ${error}`);

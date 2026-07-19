@@ -23,7 +23,7 @@ export default {
   behavior: [
     {
       name: 'both sheet-scoped ranges of a same-named defined name are retained',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {names} = await api.readFixtureDefinedNames(FIXTURE);
         const ranges = names.namedrange || [];

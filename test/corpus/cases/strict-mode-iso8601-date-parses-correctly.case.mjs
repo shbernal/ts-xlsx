@@ -23,7 +23,7 @@ export default {
   behavior: [
     {
       name: 'the ISO 8601 date cell parses to the date it states',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {A2} = await api.readFixtureCells(FIXTURE, ['A2']);
         assert.strictEqual(A2.type, 'date', 'the cell is typed as a date');

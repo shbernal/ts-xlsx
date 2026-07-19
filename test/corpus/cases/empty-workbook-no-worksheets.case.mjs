@@ -21,7 +21,7 @@ export default {
   behavior: [
     {
       name: 'writing a workbook with no worksheets does not silently produce a corrupt package',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const write = await api.tryWriteWorkbook({sheets: []});
         if (!write.ok) return; // throwing is an acceptable resolution

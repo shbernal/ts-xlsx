@@ -27,7 +27,7 @@ export default {
   behavior: [
     {
       name: 'a cell with a built-in CJK date format id exposes a non-empty number-format code',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const cells = await api.readFixtureCells(FIXTURE, ['A2', 'B2']);
         assert.ok(
@@ -38,7 +38,7 @@ export default {
     },
     {
       name: 'a cell with a built-in CJK date format id reads as a date, not a bare number',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const cells = await api.readFixtureCells(FIXTURE, ['A2', 'B2']);
         assert.strictEqual(

@@ -37,7 +37,7 @@ export default {
     },
     {
       name: 'reading a whole-column print area back does not leak NaN into the recovered address',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {reReadPrintArea} = await api.printAreaRoundtrip('A:D');
         assert.ok(

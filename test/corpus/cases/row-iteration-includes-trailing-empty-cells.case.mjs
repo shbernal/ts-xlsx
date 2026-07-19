@@ -47,7 +47,7 @@ export default {
     },
     {
       name: 'trailing empty cells are surfaced up to the sheet\'s declared column width',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rows, columnCount} = await api.readRowCellPresence(spec, [2]);
         assert.strictEqual(columnCount, 5, 'the header makes the sheet five columns wide');
@@ -57,7 +57,7 @@ export default {
     },
     {
       name: 'every data row reconstructs to the header width so rows align column-for-column',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rows, columnCount} = await api.readRowCellPresence(spec, [2]);
         assert.strictEqual(rows[2].cols.length, columnCount,

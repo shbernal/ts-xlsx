@@ -33,7 +33,7 @@ export default {
     },
     {
       name: 'colliding column names are disambiguated into a unique set',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, writtenNames, uniqueNames} = await api.tableDuplicateColumnNamesReport(['foo', 'foo', 'foo']);
         assert.ok(ok, 'the table writes');

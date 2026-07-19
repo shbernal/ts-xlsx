@@ -25,7 +25,7 @@ export default {
   behavior: [
     {
       name: 'the prefixed-namespace workbook reads without throwing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(ok, `the read must not crash; got error ${JSON.stringify(error)}`);
@@ -33,7 +33,7 @@ export default {
     },
     {
       name: 'the declared sheet name is exposed',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(sheetNames, ['apis 3445'], 'the single sheet is discovered by its declared name');

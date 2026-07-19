@@ -22,7 +22,7 @@ export default {
   behavior: [
     {
       name: 'a workbook missing an optional Company property reads without throwing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(ok, `a missing optional property must not be fatal; got ${JSON.stringify(error)}`);
@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'the worksheets are accessible after loading',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(sheetNames && sheetNames.length >= 1, 'at least one worksheet is exposed');

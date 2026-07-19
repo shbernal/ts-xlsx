@@ -45,7 +45,7 @@ export default {
     },
     {
       name: 'a count that spans all rows from start to the end clears the tail',
-      baseline: 'fail',
+      baseline: 'pass',
       expect(api, assert) {
         // 10 rows, remove from row 3 with count 8 (rows 3..10) → only r1, r2 remain.
         const {rowCount, cells} = api.mutateWorksheet({
@@ -59,7 +59,7 @@ export default {
     },
     {
       name: 'a count larger than the rows present still clears the tail (never a no-op)',
-      baseline: 'fail',
+      baseline: 'pass',
       expect(api, assert) {
         // Over-large count must clamp to "remove the rest", not silently remove nothing.
         const {rowCount} = api.mutateWorksheet({

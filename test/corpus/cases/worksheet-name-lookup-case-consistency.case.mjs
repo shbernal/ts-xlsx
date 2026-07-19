@@ -19,7 +19,7 @@ export default {
     },
     {
       name: 'lookup and add agree: a case-variant name reported absent by getWorksheet is addable',
-      baseline: 'fail',
+      baseline: 'pass',
       expect(api, assert) {
         const {foundVariant, addVariantThrew} = api.worksheetNameLookupReport();
         // A consistent API cannot both fail to find "sheet" AND refuse to add it.

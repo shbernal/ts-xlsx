@@ -24,7 +24,7 @@ export default {
   behavior: [
     {
       name: 'a workbook with malformed VML break tags reads without throwing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(ok, `the read must not abort on a malformed VML part; got ${JSON.stringify(error)}`);
@@ -32,7 +32,7 @@ export default {
     },
     {
       name: 'the worksheets remain accessible after tolerating the malformed part',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(sheetNames && sheetNames.length >= 1, 'at least one worksheet is exposed');

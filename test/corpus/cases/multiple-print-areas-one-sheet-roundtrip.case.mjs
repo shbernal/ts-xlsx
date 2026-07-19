@@ -33,7 +33,7 @@ export default {
     },
     {
       name: 'reading recovers both print-area ranges, not just the first',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {readPrintArea} = await api.roundtripFixturePrintAreas(FIXTURE);
         const rangeCount = String(readPrintArea || '').split(',').filter(Boolean).length;
@@ -45,7 +45,7 @@ export default {
     },
     {
       name: 'writing the file back preserves both print-area ranges in the Print_Area name',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rewrittenRangeCount} = await api.roundtripFixturePrintAreas(FIXTURE);
         assert.strictEqual(rewrittenRangeCount, 2, 'both ranges must survive re-serialization');
@@ -53,7 +53,7 @@ export default {
     },
     {
       name: 'authoring two print areas emits both ranges in one sheet-scoped Print_Area name',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ranges} = await api.writePrintAreaDefinedName('A1:F10,A12:F21');
         // Both emitted entries must be proper rectangular ranges (a "$A$1:$F$10" shape). A mangled

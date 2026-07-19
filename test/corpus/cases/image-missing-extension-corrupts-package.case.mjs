@@ -28,7 +28,7 @@ export default {
   behavior: [
     {
       name: 'every content-type Default declaration carries an Extension attribute',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
         const extensionless = contentTypeDefaults.filter(d => !d.extension);
@@ -41,7 +41,7 @@ export default {
     },
     {
       name: 'no content-type declares the bogus "image/undefined" media type',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
         const bogus = contentTypeDefaults.filter(d => /undefined/.test(d.contentType || ''));

@@ -32,7 +32,7 @@ export default {
     },
     {
       name: 'an expression rule with NO formula does not crash serialization',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {writeOk, writeError} = await api.authorConditionalFormatting({
           ref: 'A1:A10',

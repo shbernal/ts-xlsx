@@ -23,7 +23,7 @@ export default {
   behavior: [
     {
       name: 'a NaN cell value does not serialize a bare "NaN" token',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hasNonFiniteToken, token} = await api.nonFiniteCellReport('NaN');
         assert.strictEqual(hasNonFiniteToken, false, `a NaN value must not emit a bare token; got <v>${token}</v>`);
@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'an Infinity cell value does not serialize a bare "Infinity" token',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hasNonFiniteToken, token} = await api.nonFiniteCellReport('Infinity');
         assert.strictEqual(hasNonFiniteToken, false, `an Infinity value must not emit a bare token; got <v>${token}</v>`);
@@ -39,7 +39,7 @@ export default {
     },
     {
       name: 'a -Infinity cell value does not serialize a bare "-Infinity" token',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hasNonFiniteToken, token} = await api.nonFiniteCellReport('-Infinity');
         assert.strictEqual(hasNonFiniteToken, false, `a -Infinity value must not emit a bare token; got <v>${token}</v>`);

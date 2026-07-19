@@ -34,7 +34,7 @@ export default {
   behavior: [
     {
       name: 'every image content-type Default extension is a bare alphanumeric token',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
         const imageDefaults = contentTypeDefaults.filter(
@@ -51,7 +51,7 @@ export default {
     },
     {
       name: 'no image content-type embeds the URL query string',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
         const leaked = contentTypeDefaults.filter(d => /[?&=]/.test(d.contentType || ''));

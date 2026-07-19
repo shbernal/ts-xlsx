@@ -54,7 +54,7 @@ export default {
     },
     {
       name: 'differentOddEven is set when even-page header/footer content is provided',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(
@@ -66,7 +66,7 @@ export default {
     },
     {
       name: 'differentFirst is set when first-page header/footer content is provided',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(

@@ -30,7 +30,7 @@ export default {
   behavior: [
     {
       name: 'a workbook with a reserved-named sheet loads without throwing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(ok, true, `a pre-existing reserved sheet name must not abort the load; got ${JSON.stringify(error)}`);
@@ -38,7 +38,7 @@ export default {
     },
     {
       name: 'the reserved-named sheet is exposed with its original name preserved',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(sheetNames && sheetNames.includes('History'), `the History sheet must survive; got ${JSON.stringify(sheetNames)}`);
@@ -46,7 +46,7 @@ export default {
     },
     {
       name: 'constructing a worksheet named "History" through the API is permitted',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {addThrew, roundtripName, addError} = await api.addReservedSheetNameReport();
         assert.strictEqual(addThrew, false, `adding a "History" sheet must not throw; got ${JSON.stringify(addError)}`);

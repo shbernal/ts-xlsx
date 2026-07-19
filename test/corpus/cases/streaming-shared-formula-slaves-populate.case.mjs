@@ -29,7 +29,7 @@ export default {
     },
     {
       name: 'shared-formula slave cells are not dropped to empty on a streaming write',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {slaveResolved, slaveValue} = await api.streamingSharedFormulaReport();
         assert.strictEqual(

@@ -32,7 +32,7 @@ export default {
     },
     {
       name: 'no external relationship is created for the internal target',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hasExternalRel} = await api.internalHyperlinkReport();
         assert.strictEqual(hasExternalRel, false, 'an internal "#" target must not produce an external-mode relationship');

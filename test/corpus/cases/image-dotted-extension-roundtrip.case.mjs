@@ -23,7 +23,7 @@ export default {
   behavior: [
     {
       name: 'a leading-dot extension does not produce a doubled-separator media filename',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {mediaParts, doubledSeparator} = await api.imageExtensionRoundtrip('.png');
         assert.strictEqual(doubledSeparator, false, `the media filename must be well-formed; got ${JSON.stringify(mediaParts)}`);
@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'an image added with a leading-dot extension is still discoverable after a round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {reloadedImageCount} = await api.imageExtensionRoundtrip('.png');
         assert.strictEqual(reloadedImageCount, 1, 'the worksheet reports its one image, not zero');

@@ -45,7 +45,7 @@ export default {
     },
     {
       name: 'a formula supplied with a leading = is stored without it',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SHEET);
         assert.strictEqual(
@@ -58,7 +58,7 @@ export default {
     },
     {
       name: 'the round-tripped formula does not retain a leading =',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {A1} = await api.roundtripFormulas(SHEET);
         assert.ok(A1.formula && !A1.formula.startsWith('='), `read-back formula must have no leading =; got ${JSON.stringify(A1.formula)}`);

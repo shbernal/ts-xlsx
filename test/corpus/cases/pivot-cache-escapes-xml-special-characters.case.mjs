@@ -31,7 +31,7 @@ export default {
     },
     {
       name: 'the pivot cache XML is well-formed with special characters escaped',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {cacheWellFormed, hasRawUnescapedAmp} = await api.pivotCacheSpecialCharsReport();
         assert.strictEqual(hasRawUnescapedAmp, false, 'no raw unescaped "&" leaks into the pivot cache XML');

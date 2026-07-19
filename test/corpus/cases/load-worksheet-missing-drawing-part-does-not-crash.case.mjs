@@ -27,7 +27,7 @@ export default {
   behavior: [
     {
       name: 'loading a workbook with an unresolved drawing reference does not throw',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(ok, true, `the load must not throw on a dangling drawing reference; got ${error}`);
@@ -35,7 +35,7 @@ export default {
     },
     {
       name: 'the worksheet is still present after tolerating the dangling drawing',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(sheetNames && sheetNames.includes('Sheet1'), `the worksheet must load; got ${JSON.stringify(sheetNames)}`);

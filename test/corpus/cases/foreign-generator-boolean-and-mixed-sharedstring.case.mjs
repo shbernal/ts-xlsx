@@ -36,7 +36,7 @@ export default {
     },
     {
       name: 'the foreign-exported original loads without throwing on the mixed shared-string shape',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, error} = await api.readFixtureReport(LARK);
         assert.ok(
@@ -47,7 +47,7 @@ export default {
     },
     {
       name: 'the foreign export exposes the same worksheet as the normalized copy',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const foreign = await api.readFixtureReport(LARK);
         const normalized = await api.readFixtureReport(NORMALIZED);

@@ -44,7 +44,7 @@ export default {
     },
     {
       name: "a cell's fill defined in the named-style layer is resolved on read",
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {readFill} = await api.namedStyleFillReport(FIXTURE);
         assert.ok(readFill, 'A1 must report a fill inherited through its named cell style, not none');
@@ -55,7 +55,7 @@ export default {
     },
     {
       name: 'the named-style layer survives a load→save round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {roundtripCellStyleXfsCount} = await api.namedStyleFillReport(FIXTURE);
         assert.ok(
@@ -66,7 +66,7 @@ export default {
     },
     {
       name: "the cell's xfId link into the named style survives the round-trip",
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {roundtripCellHasXfIdLink} = await api.namedStyleFillReport(FIXTURE);
         assert.strictEqual(

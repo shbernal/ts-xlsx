@@ -38,7 +38,7 @@ export default {
     },
     {
       name: 'a name matching no worksheet does not silently yield empty output',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {ok, rowCount} = await api.csvWriteSheetSelection('Nope');
         assert.ok(!ok || rowCount > 0, 'a non-matching selector must error or fall back, not emit zero rows for a non-empty workbook');

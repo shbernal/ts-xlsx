@@ -32,7 +32,7 @@ export default {
     },
     {
       name: 'the streaming reader surfaces the same declared names, not positional placeholders',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {eager, streaming} = await api.streamVsEagerSheetNames(FIXTURE);
         assert.deepStrictEqual(

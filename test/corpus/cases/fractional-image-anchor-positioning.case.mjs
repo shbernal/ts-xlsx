@@ -42,7 +42,7 @@ export default {
     },
     {
       name: 'halfway across a wide custom column is a larger offset than halfway across a default column',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const wide = await api.inspectImageAnchors({
           sheets: [{name: 'S', columns: [{index: 4, width: 38}], images: [{range: {tl: {col: 3.5, row: 1}, br: {col: 4.5, row: 2}}}]}],

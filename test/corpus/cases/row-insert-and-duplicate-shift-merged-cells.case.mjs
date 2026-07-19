@@ -29,7 +29,7 @@ export default {
   behavior: [
     {
       name: 'inserting a row above a merged range shifts the merge down and keeps it merged',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {merges} = await api.mutateWorksheet({
           cells: bannerCells,
@@ -43,7 +43,7 @@ export default {
     },
     {
       name: 'duplicating rows above a merged range shifts that range down by the number inserted',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {merges} = await api.mutateWorksheet({
           cells: [

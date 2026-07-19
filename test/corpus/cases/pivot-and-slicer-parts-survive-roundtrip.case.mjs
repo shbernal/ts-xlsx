@@ -22,7 +22,7 @@ export default {
   behavior: [
     {
       name: 'pivot table and cache parts survive the round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.pivotTables >= 1 && source.pivotCache >= 1, 'precondition: source has pivots');
@@ -32,7 +32,7 @@ export default {
     },
     {
       name: 'slicer parts survive the round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.slicers >= 1, 'precondition: source has slicers');

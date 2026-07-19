@@ -46,7 +46,7 @@ export default {
     },
     {
       name: 'a merged range to the right of the removed column is re-anchored to its new position',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {merges} = await api.mutateWorksheet(sheet);
         assert.ok(

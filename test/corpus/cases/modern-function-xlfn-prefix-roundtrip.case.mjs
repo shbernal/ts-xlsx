@@ -24,7 +24,7 @@ export default {
   behavior: [
     {
       name: 'a modern function written by its plain name is stored with the _xlfn. prefix on disk',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'FILTER(B1:D1,B2:D2=1)', result: 0}]}],
@@ -68,7 +68,7 @@ export default {
       // formula combining them (LET + BYROW + LAMBDA + FILTER) that is written verbatim, with none of
       // these prefixes, is rejected by Excel as corrupt.
       name: 'a LET/LAMBDA formula is stored with the _xlfn. function prefix Excel requires',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [
@@ -93,7 +93,7 @@ export default {
       // frozen grammar and needs the `_xlfn.` prefix, but its names carry an internal '.'. The whole
       // dotted name must be prefixed once — `_xlfn.NORM.DIST` — not its trailing segment.
       name: 'a dotted statistical function is stored whole with the _xlfn. prefix, not on its tail segment',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'NORM.DIST(A2,0,1,TRUE)', result: 0.5}]}],
@@ -109,7 +109,7 @@ export default {
       // that carry the same `_xlfn.` requirement. A pre-2007 cousin of the same shape (SIN) must be
       // left bare, so this pins that the prefix follows the function's vintage, not its spelling.
       name: 'a bare-name post-2007 function is prefixed while its pre-2007 cousin is left bare',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'SEC(A2)+SIN(A2)', result: 0}]}],

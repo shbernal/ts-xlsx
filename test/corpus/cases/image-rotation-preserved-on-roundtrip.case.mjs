@@ -35,7 +35,7 @@ export default {
     },
     {
       name: 'the image rotation survives a load/save round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {rewrittenRot} = await api.roundtripFixtureImageRotation(FIXTURE);
         assert.strictEqual(

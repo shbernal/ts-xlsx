@@ -30,7 +30,7 @@ export default {
     },
     {
       name: 'a "#"-prefixed ARGB is not emitted as a malformed rgb value',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {hashRgb} = await api.fillArgbHashPrefixReport();
         assert.ok(

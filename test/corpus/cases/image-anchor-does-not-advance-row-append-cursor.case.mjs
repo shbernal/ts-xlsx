@@ -20,7 +20,7 @@ export default {
     },
     {
       name: 'anchoring an image first still places subsequently appended rows at the top',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {imageFirst} = await api.imageAnchorRowAppendReport();
         assert.strictEqual(imageFirst.firstDataCell, 'a');
@@ -28,7 +28,7 @@ export default {
     },
     {
       name: 'the appended-row layout is identical regardless of image-vs-rows add order',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {imageFirst, rowsFirst} = await api.imageAnchorRowAppendReport();
         assert.strictEqual(imageFirst.firstDataCell, rowsFirst.firstDataCell);

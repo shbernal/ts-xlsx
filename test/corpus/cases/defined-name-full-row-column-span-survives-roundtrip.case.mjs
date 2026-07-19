@@ -42,7 +42,7 @@ export default {
     },
     {
       name: 'a full-row-span defined name survives a write→read round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {definedNames} = await api.roundtripWorkbook(FULL_ROW);
         assert.deepStrictEqual(
@@ -54,7 +54,7 @@ export default {
     },
     {
       name: 'a full-column-span defined name survives a write→read round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {definedNames} = await api.roundtripWorkbook(FULL_COL);
         assert.deepStrictEqual(
@@ -66,7 +66,7 @@ export default {
     },
     {
       name: 'a full-row-span defined name declared by a real file is read back',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {names} = await api.readFixtureDefinedNames(FIXTURE);
         assert.deepStrictEqual(

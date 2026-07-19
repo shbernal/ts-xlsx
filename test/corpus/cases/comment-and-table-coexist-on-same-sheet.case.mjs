@@ -61,7 +61,7 @@ export default {
       // though this library's own tolerant reader reads it back fine, so the round-trip above
       // does not catch it. Order, not just presence, is the invariant.
       name: 'the note’s legacyDrawing is emitted before the table’s tableParts (schema order)',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         const order = sheets.S.elementOrder;

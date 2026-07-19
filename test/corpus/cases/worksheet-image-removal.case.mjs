@@ -21,7 +21,7 @@ export default {
   behavior: [
     {
       name: 'a worksheet exposes an image-removal method',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {supported} = await api.removeImageReport();
         assert.strictEqual(supported, true, 'the worksheet must expose a way to remove an added image');
@@ -29,7 +29,7 @@ export default {
     },
     {
       name: 'removing one image drops it and leaves the others',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {supported, before, after, removedGone, othersSurvive} = await api.removeImageReport();
         assert.ok(supported, 'removal must be supported for this behavior to hold');

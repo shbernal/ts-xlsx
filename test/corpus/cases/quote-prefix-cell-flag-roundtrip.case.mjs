@@ -24,7 +24,7 @@ export default {
   behavior: [
     {
       name: 'writing a quote-prefixed cell emits the quotePrefix attribute on its cell-format record',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {writtenQuotePrefix} = await api.quotePrefixReport();
         assert.ok(writtenQuotePrefix, 'the cell\'s xf must carry quotePrefix="1"');
@@ -32,7 +32,7 @@ export default {
     },
     {
       name: 'the quote-prefix flag survives a read/modify/write round-trip',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api, assert) {
         const {reloaded} = await api.quotePrefixReport();
         assert.ok(reloaded, 'the reloaded cell must still report the quote-prefix flag');
