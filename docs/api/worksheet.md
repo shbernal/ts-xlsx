@@ -47,6 +47,26 @@ interface RowProperties {
 
 ---
 
+### `SheetView`
+
+<sub>interface</sub>
+
+A worksheet's frozen-pane view. `state` `'frozen'` locks the top `ySplit` rows and left `xSplit`
+columns in place while the rest scrolls; `'normal'` (the default) has no split and emits no
+`<pane>` — writing a normal view leaves no leftover pane markup that would trip Excel's repair
+prompt. An empty object is a normal view.
+
+```ts
+interface SheetView {
+    state?: 'normal' | 'frozen';
+    xSplit?: number;
+    ySplit?: number;
+    topLeftCell?: string;
+}
+```
+
+---
+
 ### `Worksheet`
 
 <sub>class</sub>

@@ -4,10 +4,19 @@
 // I/O, the optionality of an address's col/row, the membership of CellValue.
 
 import type {
+  AddImageOptions,
+  AutoFilter,
   CellAddress,
   CellValue,
+  DefinedName,
   decodeAddress,
+  FilterColumn,
+  FilterCriteria,
+  PageBreak,
+  PageSetup,
+  PrintOptions,
   readXlsx,
+  SheetView,
   Workbook,
   Worksheet,
   writeXlsx,
@@ -40,4 +49,19 @@ export type IoContracts = [
   Expect<Equal<ReturnType<typeof writeXlsx>, Uint8Array>>,
   Expect<Equal<ReturnType<typeof readXlsx>, Workbook>>,
   Expect<Equal<ReturnType<Workbook['getWorksheet']>, Worksheet | undefined>>,
+];
+
+// Export-presence guards for the core feature types now on the barrel: importing each locks it into
+// the public surface (its removal would break this compilation), and a self-`Extends` references it.
+// FilterColumn/FilterCriteria come along so a constructed AutoFilter is fully nameable by callers.
+export type FeatureSurface = [
+  Expect<Extends<AutoFilter, AutoFilter>>,
+  Expect<Extends<FilterColumn, FilterColumn>>,
+  Expect<Extends<FilterCriteria, FilterCriteria>>,
+  Expect<Extends<PageSetup, PageSetup>>,
+  Expect<Extends<PrintOptions, PrintOptions>>,
+  Expect<Extends<PageBreak, PageBreak>>,
+  Expect<Extends<SheetView, SheetView>>,
+  Expect<Extends<DefinedName, DefinedName>>,
+  Expect<Extends<AddImageOptions, AddImageOptions>>,
 ];

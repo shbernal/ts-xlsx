@@ -14,6 +14,15 @@ export {
   numberToColumn,
   type RangeAddress,
 } from './core/address.ts';
+export type {
+  AutoFilter,
+  CustomFilter,
+  CustomFilterOperator,
+  CustomFilterPredicate,
+  FilterColumn,
+  FilterCriteria,
+  ValuesFilter,
+} from './core/autofilter.ts';
 export {Cell} from './core/cell.ts';
 export {
   type AnchoredImage,
@@ -27,7 +36,13 @@ export {
   type TwoCellAnchor,
   type WorkbookImage,
 } from './core/image.ts';
-export type {HeaderFooter, PageMargins} from './core/page-setup.ts';
+export type {
+  HeaderFooter,
+  PageBreak,
+  PageMargins,
+  PageSetup,
+  PrintOptions,
+} from './core/page-setup.ts';
 export {
   type PivotMetric,
   PivotTable,
@@ -81,7 +96,9 @@ export {
   ValueType,
 } from './core/value.ts';
 export {
+  type AddImageOptions,
   type AddWorksheetOptions,
+  type DefinedName,
   Workbook,
   type WorkbookProperties,
 } from './core/workbook.ts';
@@ -89,6 +106,7 @@ export type {WorkbookProtection} from './core/workbook-protection.ts';
 export {
   type ColumnProperties,
   type RowProperties,
+  type SheetView,
   Worksheet,
   type WorksheetProperties,
   type WorksheetState,
@@ -96,13 +114,8 @@ export {
 export {type CsvReadOptions, readCsv} from './io/csv/read.ts';
 export {type CsvWriteOptions, writeCsv, writeCsvText} from './io/csv/write.ts';
 export {type ReadXlsxOptions, readXlsx} from './io/xlsx/read.ts';
-export {
-  type ReadSheetRowsOptions,
-  readSheetRows,
-  readWorkbookStream,
-  type StreamedCell,
-  type StreamedCellStyle,
-  type StreamedRow,
-  type StreamedSheet,
-} from './io/xlsx/read-rows.ts';
+// The streaming reader's entry points are public; the granular per-row/cell/sheet output shapes
+// (`StreamedRow`/`StreamedCell`/`StreamedSheet`) are intentionally left as inferred structural types
+// rather than named barrel commitments while that surface settles.
+export {type ReadSheetRowsOptions, readSheetRows, readWorkbookStream} from './io/xlsx/read-rows.ts';
 export {writeXlsx} from './io/xlsx/write.ts';

@@ -2,6 +2,21 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `AddImageOptions`
+
+<sub>interface</sub>
+
+A picture registered on the workbook, ready to be anchored to a worksheet.
+
+```ts
+interface AddImageOptions {
+    readonly buffer: Uint8Array;
+    readonly extension?: string;
+}
+```
+
+---
+
 ### `AddWorksheetOptions`
 
 <sub>interface</sub>
@@ -9,6 +24,27 @@
 ```ts
 interface AddWorksheetOptions {
     readonly state?: WorksheetState['state'];
+}
+```
+
+---
+
+### `DefinedName`
+
+<sub>interface</sub>
+
+A named reference in the workbook — the entries Excel surfaces in its Name Manager. A name maps
+an identifier to a formula (`refersTo`), most often a cell range like `Sheet1!$A$1:$B$2` but
+possibly any formula. A name is global to the workbook unless it names a sheet in `scope`,
+which restricts it to that sheet and lets another sheet reuse the same name independently.
+
+```ts
+interface DefinedName {
+    readonly name: string;
+    readonly refersTo: string;
+    readonly scope?: string;
+    readonly comment?: string;
+    readonly hidden?: boolean;
 }
 ```
 
