@@ -6,7 +6,7 @@ import {mangleFormula} from '../../core/formula.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
 import {imageContentType} from './images.ts';
-import {SLICER_CACHES_EXT_URI, X14_NS} from './namespaces.ts';
+import {SLICER_CACHES_EXT_URI} from './namespaces.ts';
 import type {
   PivotPlan,
   PlannedTable,
@@ -15,6 +15,7 @@ import type {
 } from './package-plan.ts';
 import {range, relativePartPath} from './part-paths.ts';
 import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
+import {x14Ext} from './x14-ext.ts';
 import {escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
 
 const CT = {
@@ -164,10 +165,7 @@ function workbookExtLstXml(preservedRels: readonly PreservedWorkbookRel[]): stri
   const caches = preservedRels.filter((ref) => ref.relType.endsWith('/slicerCache'));
   if (caches.length === 0) return '';
   const entries = caches.map((ref) => `<x14:slicerCache r:id="${ref.relId}"/>`).join('');
-  return (
-    `<extLst><ext uri="${SLICER_CACHES_EXT_URI}" xmlns:x14="${X14_NS}">` +
-    `<x14:slicerCaches>${entries}</x14:slicerCaches></ext></extLst>`
-  );
+  return `<extLst>${x14Ext(SLICER_CACHES_EXT_URI, `<x14:slicerCaches>${entries}</x14:slicerCaches>`)}</extLst>`;
 }
 
 // The `<pivotCaches>` element registers each pivot cache under the `cacheId` a pivot table resolves

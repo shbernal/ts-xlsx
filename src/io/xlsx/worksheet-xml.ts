@@ -38,7 +38,7 @@ import type {
 import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
 import {dataValidationsExtXml, dataValidationsXml} from './data-validation.ts';
 import {hyperlinksXml, type PlannedHyperlink} from './hyperlinks.ts';
-import {SLICER_LIST_EXT_URI, X14_NS} from './namespaces.ts';
+import {SLICER_LIST_EXT_URI} from './namespaces.ts';
 import type {
   BackgroundPlan,
   CommentPlan,
@@ -53,6 +53,7 @@ import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
 import {richTextRunsXml} from './rich-text.ts';
 import type {SharedStringTable} from './shared-strings.ts';
 import {colorAttrs, type StyleRegistry} from './styles.ts';
+import {x14Ext} from './x14-ext.ts';
 import {escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
 
 /**
@@ -320,10 +321,7 @@ function worksheetExtLstXml(sheet: Worksheet, slicerRelIds: readonly string[]): 
 function slicerListExtXml(slicerRelIds: readonly string[]): string {
   if (slicerRelIds.length === 0) return '';
   const slicers = slicerRelIds.map((relId) => `<x14:slicer r:id="${relId}"/>`).join('');
-  return (
-    `<ext uri="${SLICER_LIST_EXT_URI}" xmlns:x14="${X14_NS}">` +
-    `<x14:slicerList>${slicers}</x14:slicerList></ext>`
-  );
+  return x14Ext(SLICER_LIST_EXT_URI, `<x14:slicerList>${slicers}</x14:slicerList>`);
 }
 
 // Excel forbids a merged range from intersecting a formatted table; such a file opens as
@@ -885,33 +883,9 @@ function cellXml(
   const value = cell.value;
   const s = style !== 0 ? ` s="${style}"` : '';
 
-  // A shared-formula master seeds the group with its formula text under `t="shared" ref si`; a clone
-  // carries no text of its own, only a back-reference to the master's `si`. Its cached result still
-  // travels with the cell.
-  if (shared !== undefined) {
-    if (shared.ref !== undefined && isFormulaValue(value)) {
-      const f = `<f t="shared" ref="${shared.ref}" si="${shared.si}">${escapeText(mangleFormula(value.formula))}</f>`;
-      return formulaBodyXml(ref, s, f, value.result);
-    }
-    const result = isSharedFormulaValue(value) ? value.result : undefined;
-    return formulaBodyXml(ref, s, `<f t="shared" si="${shared.si}"/>`, result);
-  }
+  const formula = cellFormulaXml(ref, s, value, shared);
+  if (formula !== undefined) return formula;
 
-  if (isDataTableFormulaValue(value)) {
-    // A data-table formula carries no expression text — only its declaration attributes — which we
-    // re-emit verbatim so a read-modify-write cycle preserves the What-If kind the library never
-    // evaluates. The cached result travels as any formula result does.
-    const attrs =
-      `ref="${escapeAttr(value.ref)}"` +
-      ` dt2D="${value.dataTable2D ? 1 : 0}"` +
-      ` dtr="${value.dataTableRow ? 1 : 0}"` +
-      (value.r1 !== undefined ? ` r1="${escapeAttr(value.r1)}"` : '') +
-      (value.r2 !== undefined ? ` r2="${escapeAttr(value.r2)}"` : '');
-    return formulaBodyXml(ref, s, `<f t="dataTable" ${attrs}/>`, value.result);
-  }
-  if (isFormulaValue(value)) {
-    return formulaCellXml(ref, s, value.formula, value.result);
-  }
   if (value instanceof Date) {
     // An Invalid Date (new Date(NaN)) has no serial; keep the cell (and its style) but emit no
     // value rather than throwing, so one bad date never takes down the whole sheet's export.
@@ -981,13 +955,47 @@ function hasOwnStyle(cell: Cell): boolean {
   );
 }
 
-function formulaCellXml(
+// Serialise a formula cell — a shared-formula master or clone, a What-If data table, or a plain
+// formula — into its `<c>` element, or return undefined when the value is not a formula so `cellXml`
+// falls through to its value dispatch.
+function cellFormulaXml(
   ref: string,
   s: string,
-  formula: string,
-  result: FormulaResult | undefined,
-): string {
-  return formulaBodyXml(ref, s, `<f>${escapeText(mangleFormula(formula))}</f>`, result);
+  value: Cell['value'],
+  shared: SharedFormulaRole | undefined,
+): string | undefined {
+  // A shared-formula master seeds the group with its formula text under `t="shared" ref si`; a clone
+  // carries no text of its own, only a back-reference to the master's `si`. Its cached result still
+  // travels with the cell.
+  if (shared !== undefined) {
+    if (shared.ref !== undefined && isFormulaValue(value)) {
+      const f = `<f t="shared" ref="${shared.ref}" si="${shared.si}">${escapeText(mangleFormula(value.formula))}</f>`;
+      return formulaBodyXml(ref, s, f, value.result);
+    }
+    const result = isSharedFormulaValue(value) ? value.result : undefined;
+    return formulaBodyXml(ref, s, `<f t="shared" si="${shared.si}"/>`, result);
+  }
+  if (isDataTableFormulaValue(value)) {
+    // A data-table formula carries no expression text — only its declaration attributes — which we
+    // re-emit verbatim so a read-modify-write cycle preserves the What-If kind the library never
+    // evaluates. The cached result travels as any formula result does.
+    const attrs =
+      `ref="${escapeAttr(value.ref)}"` +
+      ` dt2D="${value.dataTable2D ? 1 : 0}"` +
+      ` dtr="${value.dataTableRow ? 1 : 0}"` +
+      (value.r1 !== undefined ? ` r1="${escapeAttr(value.r1)}"` : '') +
+      (value.r2 !== undefined ? ` r2="${escapeAttr(value.r2)}"` : '');
+    return formulaBodyXml(ref, s, `<f t="dataTable" ${attrs}/>`, value.result);
+  }
+  if (isFormulaValue(value)) {
+    return formulaBodyXml(
+      ref,
+      s,
+      `<f>${escapeText(mangleFormula(value.formula))}</f>`,
+      value.result,
+    );
+  }
+  return undefined;
 }
 
 // Wrap a prepared `<f>` element (a plain formula, or a shared master/slave `<f>`) with the cell

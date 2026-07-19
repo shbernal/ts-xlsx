@@ -25,7 +25,8 @@ import type {Worksheet} from '../../core/worksheet.ts';
 // The x14/xm extension namespaces and `DATA_VALIDATION_EXT_URI` are declared inline on the elements
 // that need them, exactly as Excel writes them, so the block is self-contained and the worksheet root
 // needs no extra namespace declaration.
-import {DATA_VALIDATION_EXT_URI, X14_NS, XM_NS} from './namespaces.ts';
+import {DATA_VALIDATION_EXT_URI, XM_NS} from './namespaces.ts';
+import {x14Ext} from './x14-ext.ts';
 import {escapeAttr, escapeText, stripFormulaEquals} from './xml.ts';
 import {boolStrict, coerceNumericLiteral, localName, parseXml} from './xml-read.ts';
 
@@ -49,10 +50,9 @@ export function dataValidationsExtXml(entries: readonly DataValidationEntry[]): 
   const extended = entries.filter((entry) => entry.extended);
   if (extended.length === 0) return '';
   const items = extended.map(({sqref, rule}) => extendedDataValidationXml(sqref, rule)).join('');
-  return (
-    `<ext uri="${DATA_VALIDATION_EXT_URI}" xmlns:x14="${X14_NS}">` +
-    `<x14:dataValidations count="${extended.length}" xmlns:xm="${XM_NS}">${items}</x14:dataValidations>` +
-    '</ext>'
+  return x14Ext(
+    DATA_VALIDATION_EXT_URI,
+    `<x14:dataValidations count="${extended.length}" xmlns:xm="${XM_NS}">${items}</x14:dataValidations>`,
   );
 }
 

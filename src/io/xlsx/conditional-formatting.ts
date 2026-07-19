@@ -23,8 +23,9 @@ import type {Color} from '../../core/style.ts';
 // exactly as Excel writes them, so no worksheet-root xmlns is needed. `CF_EXT_URI` scopes the
 // worksheet's x14 conditional formattings; `DATABAR_LINK_EXT_URI` scopes the `<x14:id>` link a
 // classic cfRule carries to name its extension.
-import {CF_EXT_URI, DATABAR_LINK_EXT_URI, X14_NS, XM_NS} from './namespaces.ts';
+import {CF_EXT_URI, DATABAR_LINK_EXT_URI, XM_NS} from './namespaces.ts';
 import {colorAttrs, parseColor, type StyleRegistry} from './styles.ts';
+import {x14Ext} from './x14-ext.ts';
 import {escapeAttr, escapeText, stripFormulaEquals} from './xml.ts';
 import {boolStrict, coerceNumericLiteral, localName, parseXml} from './xml-read.ts';
 
@@ -92,9 +93,9 @@ export function conditionalFormattingsExtXml(
     }
   }
   if (items.length === 0) return '';
-  return (
-    `<ext uri="${CF_EXT_URI}" xmlns:x14="${X14_NS}">` +
-    `<x14:conditionalFormattings>${items.join('')}</x14:conditionalFormattings></ext>`
+  return x14Ext(
+    CF_EXT_URI,
+    `<x14:conditionalFormattings>${items.join('')}</x14:conditionalFormattings>`,
   );
 }
 
@@ -128,10 +129,7 @@ function x14CfvoXml(cfvo: CfValueObject): string {
 
 // The `<extLst>` a classic data-bar cfRule carries to name its x14 extension by shared id.
 function cfRuleExtLinkXml(guid: string): string {
-  return (
-    `<extLst><ext uri="${DATABAR_LINK_EXT_URI}" xmlns:x14="${X14_NS}">` +
-    `<x14:id>${guid}</x14:id></ext></extLst>`
-  );
+  return `<extLst>${x14Ext(DATABAR_LINK_EXT_URI, `<x14:id>${guid}</x14:id>`)}</extLst>`;
 }
 
 function blockXml(
