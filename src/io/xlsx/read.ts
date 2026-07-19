@@ -848,6 +848,23 @@ type GradientDraft = {
 type BorderEdgeName = 'left' | 'right' | 'top' | 'bottom' | 'diagonal';
 const BORDER_EDGES = new Set<string>(['left', 'right', 'top', 'bottom', 'diagonal']);
 
+// Style-table elements that commit on their close: a bare <font/>/<border/>/<patternFill/>/
+// <gradientFill/>/<xf/> or a self-closing border edge is expanded to open+close so each commits
+// exactly once in onClose, never in a duplicated (and easily-forgotten) self-closing branch.
+const STYLE_EMPTY_CLOSES: ReadonlySet<string> = new Set([
+  'font',
+  'border',
+  'patternFill',
+  'gradientFill',
+  'xf',
+  ...BORDER_EDGES,
+]);
+
+// Worksheet elements that commit on their close: a formatted-but-empty `<c/>` and a criteria-free
+// self-closing `<autoFilter/>` are expanded to open+close so each finalises once in onClose. The
+// text-bearing `<f/>`/`<v/>`/`<t/>` are deliberately excluded — an empty one must not commit.
+const WORKSHEET_EMPTY_CLOSES: ReadonlySet<string> = new Set(['c', 'autoFilter']);
+
 // ECMA-376 reserves numFmt ids below 164 for formats every consumer knows implicitly, so a
 // foreign file may name one with no <numFmt> entry. This maps the standard ids to their
 // codes; id 0 (General) and any unknown id resolve to no format. The writer never emits
@@ -952,256 +969,236 @@ export function parseStyleTable(xml: string): StyleTable {
   let pendingXf: XfDraft | null = null;
   let pendingXfTarget: 'cell' | 'named' | null = null;
 
-  parseXml(xml, {
-    onOpen(name, attrs, selfClosing) {
-      switch (localName(name)) {
-        case 'numFmt': {
-          // <numFmts> entries are self-closing, so they are read here on open. A code with
-          // no id, or the General id 0, contributes nothing.
-          const id = Number(attrs.numFmtId);
-          if (Number.isInteger(id) && id > 0 && attrs.formatCode !== undefined) {
-            numFmtCodes.set(id, attrs.formatCode);
-          }
-          break;
-        }
-        case 'fills':
-          inFills = true;
-          break;
-        case 'fill':
-          // Mark where this <fill> starts so its close can guarantee exactly one slot — a fill body
-          // that is neither <patternFill> nor <gradientFill> (or a gradient we could not parse) must
-          // still consume an id, or every later fill index shifts and cells mis-resolve their fill.
-          if (inFills) fillSlotAt = fills.length;
-          break;
-        case 'gradientFill':
-          if (inFills) {
-            gradientDraft = {
-              fill: {
-                type: 'gradient',
-                gradient: attrs.type === 'path' ? 'path' : 'linear',
-                stops: [],
-              },
-              stopPosition: null,
-              stopColor: undefined,
-            };
-            assignGradientNumbers(gradientDraft.fill, attrs);
-            if (selfClosing) {
-              fills.push(gradientDraft.fill);
-              gradientDraft = null;
+  parseXml(
+    xml,
+    {
+      onOpen(name, attrs) {
+        switch (localName(name)) {
+          case 'numFmt': {
+            // <numFmts> entries are self-closing, so they are read here on open. A code with
+            // no id, or the General id 0, contributes nothing.
+            const id = Number(attrs.numFmtId);
+            if (Number.isInteger(id) && id > 0 && attrs.formatCode !== undefined) {
+              numFmtCodes.set(id, attrs.formatCode);
             }
+            break;
           }
-          break;
-        case 'stop':
-          if (gradientDraft !== null) {
-            const position = Number(attrs.position);
-            gradientDraft.stopPosition = Number.isFinite(position) ? position : 0;
-            gradientDraft.stopColor = undefined;
-          }
-          break;
-        case 'fonts':
-          inFonts = true;
-          break;
-        case 'font':
-          if (inFonts) {
-            fontDraft = {};
-            // A bare <font/> would be a font that overrides nothing; keep its id slot.
-            if (selfClosing) {
-              fonts.push(undefined);
-              fontDraft = null;
+          case 'fills':
+            inFills = true;
+            break;
+          case 'fill':
+            // Mark where this <fill> starts so its close can guarantee exactly one slot — a fill body
+            // that is neither <patternFill> nor <gradientFill> (or a gradient we could not parse) must
+            // still consume an id, or every later fill index shifts and cells mis-resolve their fill.
+            if (inFills) fillSlotAt = fills.length;
+            break;
+          case 'gradientFill':
+            if (inFills) {
+              gradientDraft = {
+                fill: {
+                  type: 'gradient',
+                  gradient: attrs.type === 'path' ? 'path' : 'linear',
+                  stops: [],
+                },
+                stopPosition: null,
+                stopColor: undefined,
+              };
+              assignGradientNumbers(gradientDraft.fill, attrs);
             }
-          }
-          break;
-        case 'borders':
-          break;
-        case 'border':
-          borderDraft = {};
-          currentEdge = null;
-          if (boolStrict(attrs.diagonalUp)) borderDraft.diagonalUp = true;
-          if (boolStrict(attrs.diagonalDown)) borderDraft.diagonalDown = true;
-          // A bare <border/> holds no edges; keep its id slot as the empty border.
-          if (selfClosing) {
-            borders.push(borderToStyle(borderDraft));
-            borderDraft = null;
-          }
-          break;
-        case 'cellXfs':
-          inCellXfs = true;
-          break;
-        case 'cellStyleXfs':
-          inCellStyleXfs = true;
-          break;
-        case 'cellStyle': {
-          // A <cellStyle> (inside <cellStyles>) names a cellStyleXfs entry by xfId; it is self-closing,
-          // so it is read here on open.
-          const xfId = Number(attrs.xfId);
-          if (Number.isInteger(xfId)) {
-            const entry: {xfId: number; name?: string; builtinId?: number} = {xfId};
-            if (attrs.name !== undefined) entry.name = attrs.name;
-            if (attrs.builtinId !== undefined) {
-              const builtinId = Number(attrs.builtinId);
-              if (Number.isInteger(builtinId)) entry.builtinId = builtinId;
+            break;
+          case 'stop':
+            if (gradientDraft !== null) {
+              const position = Number(attrs.position);
+              gradientDraft.stopPosition = Number.isFinite(position) ? position : 0;
+              gradientDraft.stopColor = undefined;
             }
-            cellStyleNames.push(entry);
-          }
-          break;
-        }
-        case 'patternFill':
-          if (inFills) {
-            pattern = attrs.patternType ?? 'none';
-            fgColor = undefined;
-            bgColor = undefined;
-            // A colourless fill (none/gray125) is a self-closing element, which the SAX
-            // parser reports with no matching close — push it here so its id slot is kept.
-            if (selfClosing) fills.push(toFill(pattern, undefined, undefined));
-          }
-          break;
-        case 'fgColor':
-          if (inFills) fgColor = parseColor(attrs);
-          break;
-        case 'bgColor':
-          if (inFills) bgColor = parseColor(attrs);
-          break;
-        default: {
-          const local = localName(name);
-          // A <font>'s children are self-closing, so they are read here on open.
-          if (gradientDraft !== null && local === 'color') {
-            // The colour of the open <stop>; committed to a GradientStop when the stop closes.
-            gradientDraft.stopColor = parseColor(attrs);
-          } else if (fontDraft !== null) {
-            applyFontChild(fontDraft, local, attrs);
-          } else if (borderDraft !== null) {
-            // A border's edges and their <color> children are all read on open (each is
-            // self-closing bar a coloured edge, whose colour child is itself self-closing).
-            if (BORDER_EDGES.has(local)) {
-              currentEdge = attrs.style !== undefined ? (local as BorderEdgeName) : null;
-              if (currentEdge !== null)
-                borderDraft[currentEdge] = {style: attrs.style as BorderStyle};
-              if (selfClosing) currentEdge = null;
-            } else if (local === 'color' && currentEdge !== null) {
-              const edge = borderDraft[currentEdge];
-              if (edge !== undefined)
-                borderDraft[currentEdge] = {style: edge.style, color: parseColor(attrs)};
+            break;
+          case 'fonts':
+            inFonts = true;
+            break;
+          case 'font':
+            if (inFonts) fontDraft = {};
+            break;
+          case 'borders':
+            break;
+          case 'border':
+            borderDraft = {};
+            currentEdge = null;
+            if (boolStrict(attrs.diagonalUp)) borderDraft.diagonalUp = true;
+            if (boolStrict(attrs.diagonalDown)) borderDraft.diagonalDown = true;
+            break;
+          case 'cellXfs':
+            inCellXfs = true;
+            break;
+          case 'cellStyleXfs':
+            inCellStyleXfs = true;
+            break;
+          case 'cellStyle': {
+            // A <cellStyle> (inside <cellStyles>) names a cellStyleXfs entry by xfId; it is self-closing,
+            // so it is read here on open.
+            const xfId = Number(attrs.xfId);
+            if (Number.isInteger(xfId)) {
+              const entry: {xfId: number; name?: string; builtinId?: number} = {xfId};
+              if (attrs.name !== undefined) entry.name = attrs.name;
+              if (attrs.builtinId !== undefined) {
+                const builtinId = Number(attrs.builtinId);
+                if (Number.isInteger(builtinId)) entry.builtinId = builtinId;
+              }
+              cellStyleNames.push(entry);
             }
-          } else if (pendingXf !== null && local === 'alignment') {
-            // An xf's <alignment> child arrives before the xf closes; attach it to the pending xf.
-            const alignment = parseAlignment(attrs);
-            if (alignment !== undefined) pendingXf.alignment = alignment;
-          } else if (pendingXf !== null && local === 'protection') {
-            // An xf's <protection> child likewise arrives before the xf closes.
-            const protection = parseProtection(attrs);
-            if (protection !== undefined) pendingXf.protection = protection;
-          } else if ((inCellXfs || inCellStyleXfs) && local === 'xf') {
-            // Both <cellXfs> and <cellStyleXfs> hold <xf> with identical structure; they differ only
-            // in which table the result lands in and whether an xfId link is meaningful (only cellXfs
-            // entries link to a named style).
-            const fillId = Number(attrs.fillId);
-            const fill = Number.isInteger(fillId) ? fills[fillId] : undefined;
-            const fontId = Number(attrs.fontId);
-            // Font id 0 is the workbook default font (a real Calibri-11-style face), not an
-            // absence — unlike border id 0, which is a genuinely empty border. So an xf naming
-            // font 0 resolves to that default face, giving every cell a concrete font to render.
-            const font = Number.isInteger(fontId) ? fonts[fontId] : undefined;
-            const borderId = Number(attrs.borderId);
-            // Border id 0 is the empty default; only a custom border (id > 0) is an explicit one.
-            const border =
-              Number.isInteger(borderId) && borderId > 0 ? borders[borderId] : undefined;
-            const numFmt = resolveNumFmt(attrs.numFmtId, numFmtCodes);
-            const draft: XfDraft = {};
-            if (fill) draft.fill = fill;
-            if (numFmt !== undefined) draft.numFmt = numFmt;
-            if (font) draft.font = font;
-            if (border) draft.border = border;
-            // The quote-prefix flag is an attribute on the xf itself (no shared sub-table); carry it
-            // only when set so an ordinary cell does not gain a spurious `quotePrefix: false`.
-            if (boolStrict(attrs.quotePrefix)) draft.quotePrefix = true;
-            // A cellXfs entry's xfId links it to a named style; capture it only when it points beyond
-            // the Normal default (0), so an ordinary cell carries no spurious named-style link.
-            if (inCellXfs && attrs.xfId !== undefined) {
-              const xfId = Number(attrs.xfId);
-              if (Number.isInteger(xfId) && xfId > 0) draft.xfId = xfId;
+            break;
+          }
+          case 'patternFill':
+            if (inFills) {
+              pattern = attrs.patternType ?? 'none';
+              fgColor = undefined;
+              bgColor = undefined;
             }
-            const target = inCellXfs ? xfStyles : namedXfs;
-            // A self-closing <xf/> has no alignment child and commits now; otherwise it is held
-            // open until its close so an <alignment> child can attach first.
-            if (selfClosing) target.push(draft);
-            else {
+            break;
+          case 'fgColor':
+            if (inFills) fgColor = parseColor(attrs);
+            break;
+          case 'bgColor':
+            if (inFills) bgColor = parseColor(attrs);
+            break;
+          default: {
+            const local = localName(name);
+            // A <font>'s children are self-closing, so they are read here on open.
+            if (gradientDraft !== null && local === 'color') {
+              // The colour of the open <stop>; committed to a GradientStop when the stop closes.
+              gradientDraft.stopColor = parseColor(attrs);
+            } else if (fontDraft !== null) {
+              applyFontChild(fontDraft, local, attrs);
+            } else if (borderDraft !== null) {
+              // A border's edges and their <color> children are all read on open (each is
+              // self-closing bar a coloured edge, whose colour child is itself self-closing).
+              if (BORDER_EDGES.has(local)) {
+                currentEdge = attrs.style !== undefined ? (local as BorderEdgeName) : null;
+                if (currentEdge !== null)
+                  borderDraft[currentEdge] = {style: attrs.style as BorderStyle};
+              } else if (local === 'color' && currentEdge !== null) {
+                const edge = borderDraft[currentEdge];
+                if (edge !== undefined)
+                  borderDraft[currentEdge] = {style: edge.style, color: parseColor(attrs)};
+              }
+            } else if (pendingXf !== null && local === 'alignment') {
+              // An xf's <alignment> child arrives before the xf closes; attach it to the pending xf.
+              const alignment = parseAlignment(attrs);
+              if (alignment !== undefined) pendingXf.alignment = alignment;
+            } else if (pendingXf !== null && local === 'protection') {
+              // An xf's <protection> child likewise arrives before the xf closes.
+              const protection = parseProtection(attrs);
+              if (protection !== undefined) pendingXf.protection = protection;
+            } else if ((inCellXfs || inCellStyleXfs) && local === 'xf') {
+              // Both <cellXfs> and <cellStyleXfs> hold <xf> with identical structure; they differ only
+              // in which table the result lands in and whether an xfId link is meaningful (only cellXfs
+              // entries link to a named style).
+              const fillId = Number(attrs.fillId);
+              const fill = Number.isInteger(fillId) ? fills[fillId] : undefined;
+              const fontId = Number(attrs.fontId);
+              // Font id 0 is the workbook default font (a real Calibri-11-style face), not an
+              // absence — unlike border id 0, which is a genuinely empty border. So an xf naming
+              // font 0 resolves to that default face, giving every cell a concrete font to render.
+              const font = Number.isInteger(fontId) ? fonts[fontId] : undefined;
+              const borderId = Number(attrs.borderId);
+              // Border id 0 is the empty default; only a custom border (id > 0) is an explicit one.
+              const border =
+                Number.isInteger(borderId) && borderId > 0 ? borders[borderId] : undefined;
+              const numFmt = resolveNumFmt(attrs.numFmtId, numFmtCodes);
+              const draft: XfDraft = {};
+              if (fill) draft.fill = fill;
+              if (numFmt !== undefined) draft.numFmt = numFmt;
+              if (font) draft.font = font;
+              if (border) draft.border = border;
+              // The quote-prefix flag is an attribute on the xf itself (no shared sub-table); carry it
+              // only when set so an ordinary cell does not gain a spurious `quotePrefix: false`.
+              if (boolStrict(attrs.quotePrefix)) draft.quotePrefix = true;
+              // A cellXfs entry's xfId links it to a named style; capture it only when it points beyond
+              // the Normal default (0), so an ordinary cell carries no spurious named-style link.
+              if (inCellXfs && attrs.xfId !== undefined) {
+                const xfId = Number(attrs.xfId);
+                if (Number.isInteger(xfId) && xfId > 0) draft.xfId = xfId;
+              }
+              // Hold the xf open until its close so an <alignment>/<protection> child can attach first;
+              // a self-closing <xf/> is expanded to a close, so it commits there too, child-free.
               pendingXf = draft;
               pendingXfTarget = inCellXfs ? 'cell' : 'named';
             }
+            break;
           }
-          break;
         }
-      }
+      },
+      onClose(name) {
+        switch (localName(name)) {
+          case 'fills':
+            inFills = false;
+            break;
+          case 'fonts':
+            inFonts = false;
+            break;
+          case 'font':
+            if (fontDraft !== null) {
+              fonts.push(Object.keys(fontDraft).length > 0 ? fontDraft : undefined);
+              fontDraft = null;
+            }
+            break;
+          case 'border':
+            if (borderDraft !== null) {
+              borders.push(borderToStyle(borderDraft));
+              borderDraft = null;
+              currentEdge = null;
+            }
+            break;
+          case 'cellXfs':
+            inCellXfs = false;
+            break;
+          case 'cellStyleXfs':
+            inCellStyleXfs = false;
+            break;
+          case 'xf':
+            // A held (non-self-closing) xf commits here, with any alignment child attached, into
+            // whichever table it was opened in.
+            if (pendingXf !== null) {
+              (pendingXfTarget === 'named' ? namedXfs : xfStyles).push(pendingXf);
+              pendingXf = null;
+              pendingXfTarget = null;
+            }
+            break;
+          case 'patternFill':
+            if (inFills) fills.push(toFill(pattern, fgColor, bgColor));
+            break;
+          case 'stop':
+            if (gradientDraft !== null && gradientDraft.stopPosition !== null) {
+              const stop: GradientStop = {
+                position: gradientDraft.stopPosition,
+                color: gradientDraft.stopColor ?? {},
+              };
+              gradientDraft.fill.stops = [...gradientDraft.fill.stops, stop];
+              gradientDraft.stopPosition = null;
+              gradientDraft.stopColor = undefined;
+            }
+            break;
+          case 'gradientFill':
+            if (gradientDraft !== null) {
+              fills.push(gradientDraft.fill);
+              gradientDraft = null;
+            }
+            break;
+          case 'fill':
+            // Backstop the slot: if this <fill>'s body pushed nothing (unparsed/unknown content), keep an
+            // empty slot so id alignment holds and later fills still resolve to the right cells.
+            if (inFills && fills.length === fillSlotAt) fills.push(undefined);
+            break;
+          default:
+            // A coloured edge closes after its <color> child; drop the edge context so a stray
+            // later <color> cannot attach to it.
+            if (borderDraft !== null && BORDER_EDGES.has(localName(name))) currentEdge = null;
+            break;
+        }
+      },
     },
-    onClose(name) {
-      switch (localName(name)) {
-        case 'fills':
-          inFills = false;
-          break;
-        case 'fonts':
-          inFonts = false;
-          break;
-        case 'font':
-          if (fontDraft !== null) {
-            fonts.push(Object.keys(fontDraft).length > 0 ? fontDraft : undefined);
-            fontDraft = null;
-          }
-          break;
-        case 'border':
-          if (borderDraft !== null) {
-            borders.push(borderToStyle(borderDraft));
-            borderDraft = null;
-            currentEdge = null;
-          }
-          break;
-        case 'cellXfs':
-          inCellXfs = false;
-          break;
-        case 'cellStyleXfs':
-          inCellStyleXfs = false;
-          break;
-        case 'xf':
-          // A held (non-self-closing) xf commits here, with any alignment child attached, into
-          // whichever table it was opened in.
-          if (pendingXf !== null) {
-            (pendingXfTarget === 'named' ? namedXfs : xfStyles).push(pendingXf);
-            pendingXf = null;
-            pendingXfTarget = null;
-          }
-          break;
-        case 'patternFill':
-          if (inFills) fills.push(toFill(pattern, fgColor, bgColor));
-          break;
-        case 'stop':
-          if (gradientDraft !== null && gradientDraft.stopPosition !== null) {
-            const stop: GradientStop = {
-              position: gradientDraft.stopPosition,
-              color: gradientDraft.stopColor ?? {},
-            };
-            gradientDraft.fill.stops = [...gradientDraft.fill.stops, stop];
-            gradientDraft.stopPosition = null;
-            gradientDraft.stopColor = undefined;
-          }
-          break;
-        case 'gradientFill':
-          if (gradientDraft !== null) {
-            fills.push(gradientDraft.fill);
-            gradientDraft = null;
-          }
-          break;
-        case 'fill':
-          // Backstop the slot: if this <fill>'s body pushed nothing (unparsed/unknown content), keep an
-          // empty slot so id alignment holds and later fills still resolve to the right cells.
-          if (inFills && fills.length === fillSlotAt) fills.push(undefined);
-          break;
-        default:
-          // A coloured edge closes after its <color> child; drop the edge context so a stray
-          // later <color> cannot attach to it.
-          if (borderDraft !== null && BORDER_EDGES.has(localName(name))) currentEdge = null;
-          break;
-      }
-    },
-  });
+    {closeEmptyElements: STYLE_EMPTY_CLOSES},
+  );
 
   // Layer each cellXfs entry over the named style its xfId links to: a facet the direct format sets
   // wins; one it leaves unset falls through to the named style. The xfId is carried through so the
@@ -1550,8 +1547,8 @@ function parseWorksheet(
   };
 
   // Commit the cell held in the parser state to the sheet, resolving its style from its own `s`,
-  // then its row's (when customFormat), then its column's default — the order Excel applies. Shared
-  // by the normal `</c>` close and the self-closing `<c/>` open of a formatted-but-empty cell.
+  // then its row's (when customFormat), then its column's default — the order Excel applies. Runs on
+  // `</c>` close, including the synthesized close of a self-closing `<c/>` formatted-but-empty cell.
   const finalizeCellFromState = (): void => {
     if (cellRef === '') return;
     const styleIndex =
@@ -1618,291 +1615,290 @@ function parseWorksheet(
     );
   };
 
-  parseXml(xml, {
-    onOpen(name, attrs, selfClosing) {
-      const local = localName(name);
-      text = '';
-      capture = false;
-      switch (local) {
-        case 'col':
-          applyColumn(sheet, attrs, xfStyles, columnStyle);
-          break;
-        case 'row':
-          applyRow(sheet, attrs);
-          rowStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
-          rowCustomFormat = boolStrict(attrs.customFormat);
-          break;
-        case 'c':
-          cellRef = attrs.r ?? '';
-          cellType = attrs.t ?? '';
-          cellStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
-          cellCol = cellRef === '' ? -1 : (decodeAddress(cellRef).col ?? -1);
-          cellRow = cellRef === '' ? -1 : (decodeAddress(cellRef).row ?? -1);
-          formula = '';
-          valueText = '';
-          inlineText = '';
-          inlineRuns = [];
-          inRun = false;
-          runFont = null;
-          hasFormula = false;
-          hasValue = false;
-          formulaShared = false;
-          formulaSi = -1;
-          sharedClone = false;
-          formulaDataTable = null;
-          // A self-closing `<c r=".." s=".."/>` is a formatted-but-empty cell: it carries a style but
-          // no value, so no `close` fires to finalise it. Commit it here from its style alone, else
-          // the formatting on a blank cell is silently lost on read.
-          if (selfClosing) finalizeCellFromState();
-          break;
-        case 'is':
-          inInlineString = true;
-          inlineText = '';
-          inlineRuns = [];
-          break;
-        case 'r':
-          // A run inside a rich inline string. Its `<rPr>` (if any) and `<t>` follow; reset the
-          // per-run accumulators so an unformatted run inherits nothing from the previous one.
-          if (inInlineString) {
-            inRun = true;
-            runFont = null;
-            runText = '';
-          }
-          break;
-        case 'rPr':
-          // The run's formatting bundle; its self-closing children stream into the default branch.
-          if (inRun) runFont = {};
-          break;
-        case 'f':
-          capture = true;
-          formulaShared = attrs.t === 'shared';
-          formulaSi = attrs.si !== undefined ? Number(attrs.si) : -1;
-          // A self-closing `<f t="shared" si/>` is a clone: it fires no close event and carries no
-          // text, so mark it here to resolve against its master when the cell finalises.
-          if (selfClosing && formulaShared) sharedClone = true;
-          // A `<f t="dataTable">` carries only declaration attributes; hold them for finalisation so
-          // the data-table kind is preserved rather than read as an empty formula.
-          if (attrs.t === 'dataTable' && attrs.ref !== undefined) {
-            formulaDataTable = {
-              ref: attrs.ref,
-              dt2D: attrs.dt2D,
-              dtr: attrs.dtr,
-              r1: attrs.r1,
-              r2: attrs.r2,
-            };
-          }
-          break;
-        case 'v':
-        case 't':
-          capture = true;
-          break;
-        case 'oddHeader':
-        case 'oddFooter':
-        case 'evenHeader':
-        case 'evenFooter':
-        case 'firstHeader':
-        case 'firstFooter':
-          // A `<headerFooter>` child carries its header/footer definition as text (the `&`-prefixed
-          // section/format tokens, e.g. `&C&"Arial"&G`). Capture it verbatim so a round-trip preserves
-          // a header image's `&G` picture token and every other formatting directive.
-          capture = true;
-          break;
-        case 'mergeCell':
-          // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
-          // bad range at the model boundary, but don't let one abort the whole parse — drop it and
-          // keep reading the valid geometry.
-          if (attrs.ref !== undefined && attrs.ref !== '') {
-            try {
-              sheet.mergeCells(attrs.ref);
-            } catch {
-              // overlapping/malformed merge in the source file — skip it
-            }
-          }
-          break;
-        case 'tabColor':
-          // A self-closing `<sheetPr>` child, so it arrives here rather than as text.
-          sheet.tabColor = parseColor(attrs);
-          break;
-        case 'outlinePr':
-          // Another self-closing `<sheetPr>` child; only set flags the source actually carried, so
-          // a file without them leaves `outline` empty and a re-write stays byte-clean.
-          if (attrs.summaryBelow !== undefined)
-            sheet.outline.summaryBelow = boolPresent(attrs.summaryBelow);
-          if (attrs.summaryRight !== undefined)
-            sheet.outline.summaryRight = boolPresent(attrs.summaryRight);
-          break;
-        case 'pane':
-          // A `<sheetView>` child recording a frozen (or split) pane. Only a frozen pane maps onto
-          // the model's view; a source without one leaves `view` empty, so a re-write emits no pane.
-          if (attrs.state === 'frozen' || attrs.state === 'frozenSplit') {
-            sheet.view.state = 'frozen';
-            if (attrs.xSplit !== undefined) sheet.view.xSplit = Number(attrs.xSplit);
-            if (attrs.ySplit !== undefined) sheet.view.ySplit = Number(attrs.ySplit);
-            if (attrs.topLeftCell !== undefined) sheet.view.topLeftCell = attrs.topLeftCell;
-          }
-          break;
-        case 'pageSetUpPr':
-          // The fit-to-page flag, a self-closing `<sheetPr>` child. Recorded only when the source
-          // carried the attribute, so a `<pageSetUpPr>` present for other reasons (e.g.
-          // `autoPageBreaks`) leaves `pageSetup.fitToPage` unset.
-          if (attrs.fitToPage !== undefined)
-            sheet.pageSetup.fitToPage = boolPresent(attrs.fitToPage);
-          break;
-        case 'printOptions':
-          applyPrintOptions(sheet.printOptions, attrs);
-          break;
-        case 'pageMargins':
-          applyMargins(sheet.pageMargins, attrs);
-          break;
-        case 'pageSetup':
-          applyPageSetup(sheet.pageSetup, attrs);
-          break;
-        case 'rowBreaks':
-          breakTarget = sheet.rowBreaks;
-          break;
-        case 'colBreaks':
-          breakTarget = sheet.columnBreaks;
-          break;
-        case 'brk': {
-          // `id` is the row/column the layout splits before; a non-positive or non-integer id is
-          // hostile input and dropped rather than trusted. A `<brk>` outside any break container has
-          // no axis to belong to and is likewise ignored.
-          if (breakTarget === null) break;
-          const id = Number(attrs.id);
-          if (!Number.isInteger(id) || id < 1) break;
-          const brk: {id: number; max?: number; man?: boolean} = {id};
-          const max = Number(attrs.max);
-          if (Number.isInteger(max) && max >= 0) brk.max = max;
-          if (boolStrict(attrs.man)) brk.man = true;
-          breakTarget.push(brk);
-          break;
-        }
-        case 'sheetProtection': {
-          const protection = parseSheetProtection(attrs);
-          if (protection !== undefined) sheet.restoreProtection(protection);
-          break;
-        }
-        case 'autoFilter':
-          // Seed a draft from the range; its `<filterColumn>` children (if any) stream in below and
-          // `</autoFilter>` commits it. A criteria-free filter is self-closing and fires no close, so
-          // commit it here. (A table's own `<autoFilter>` also matches, but table sheets route
-          // through parseTable, so this only ever sees the sheet-level one.)
-          filterRef = attrs.ref !== undefined && attrs.ref !== '' ? attrs.ref : null;
-          filterColumns = [];
-          if (selfClosing) commitAutoFilter();
-          break;
-        case 'filterColumn':
-          // A criteria block for one column, offset `colId` from the range's left edge. Reset the
-          // per-column accumulators; whichever child (`<filters>`/`<customFilters>`) opens fills one.
-          filterColId = attrs.colId !== undefined ? Number(attrs.colId) : -1;
-          filterValues = null;
-          filterBlank = false;
-          customPredicates = null;
-          customAnd = false;
-          break;
-        case 'filters':
-          filterValues = [];
-          filterBlank = boolPresent(attrs.blank) && attrs.blank !== undefined;
-          break;
-        case 'filter':
-          if (filterValues !== null && attrs.val !== undefined) filterValues.push(attrs.val);
-          break;
-        case 'customFilters':
-          customPredicates = [];
-          customAnd = attrs.and !== undefined && boolPresent(attrs.and);
-          break;
-        case 'customFilter': {
-          // The operator attribute defaults to `equal` when absent (per CT_CustomFilter); an operand
-          // is likewise optional. An unrecognised operator drops the predicate rather than guessing.
-          if (customPredicates === null) break;
-          const operator = attrs.operator ?? 'equal';
-          if (isCustomFilterOperator(operator)) {
-            customPredicates.push({operator, val: attrs.val ?? ''});
-          }
-          break;
-        }
-        default:
-          // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) sets one font facet; it
-          // is self-closing, so it is read here on open. Nothing else uses the default branch.
-          if (runFont !== null) applyFontChild(runFont, local, attrs);
-          break;
-      }
-      if (selfClosing && (local === 'f' || local === 'v')) capture = false;
-    },
-    onText(chunk) {
-      if (capture) text += chunk;
-    },
-    onClose(name) {
-      const local = localName(name);
-      switch (local) {
-        case 'f':
-          formula = text;
-          hasFormula = true;
-          break;
-        case 'v':
-          valueText = text;
-          hasValue = true;
-          break;
-        case 't':
-          // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<is>` is a plain
-          // inline string. `inRun` must be checked first — a run is also inside the inline string.
-          if (inRun) runText += text;
-          else if (inInlineString) inlineText += text;
-          break;
-        case 'r':
-          if (inRun) {
-            const run: {text: string; font?: Partial<Font>} = {text: runText};
-            if (runFont !== null && Object.keys(runFont).length > 0) run.font = runFont;
-            inlineRuns.push(run);
+  parseXml(
+    xml,
+    {
+      onOpen(name, attrs, selfClosing) {
+        const local = localName(name);
+        text = '';
+        capture = false;
+        switch (local) {
+          case 'col':
+            applyColumn(sheet, attrs, xfStyles, columnStyle);
+            break;
+          case 'row':
+            applyRow(sheet, attrs);
+            rowStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
+            rowCustomFormat = boolStrict(attrs.customFormat);
+            break;
+          case 'c':
+            cellRef = attrs.r ?? '';
+            cellType = attrs.t ?? '';
+            cellStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
+            cellCol = cellRef === '' ? -1 : (decodeAddress(cellRef).col ?? -1);
+            cellRow = cellRef === '' ? -1 : (decodeAddress(cellRef).row ?? -1);
+            formula = '';
+            valueText = '';
+            inlineText = '';
+            inlineRuns = [];
             inRun = false;
+            runFont = null;
+            hasFormula = false;
+            hasValue = false;
+            formulaShared = false;
+            formulaSi = -1;
+            sharedClone = false;
+            formulaDataTable = null;
+            break;
+          case 'is':
+            inInlineString = true;
+            inlineText = '';
+            inlineRuns = [];
+            break;
+          case 'r':
+            // A run inside a rich inline string. Its `<rPr>` (if any) and `<t>` follow; reset the
+            // per-run accumulators so an unformatted run inherits nothing from the previous one.
+            if (inInlineString) {
+              inRun = true;
+              runFont = null;
+              runText = '';
+            }
+            break;
+          case 'rPr':
+            // The run's formatting bundle; its self-closing children stream into the default branch.
+            if (inRun) runFont = {};
+            break;
+          case 'f':
+            capture = true;
+            formulaShared = attrs.t === 'shared';
+            formulaSi = attrs.si !== undefined ? Number(attrs.si) : -1;
+            // A self-closing `<f t="shared" si/>` is a clone: it fires no close event and carries no
+            // text, so mark it here to resolve against its master when the cell finalises.
+            if (selfClosing && formulaShared) sharedClone = true;
+            // A `<f t="dataTable">` carries only declaration attributes; hold them for finalisation so
+            // the data-table kind is preserved rather than read as an empty formula.
+            if (attrs.t === 'dataTable' && attrs.ref !== undefined) {
+              formulaDataTable = {
+                ref: attrs.ref,
+                dt2D: attrs.dt2D,
+                dtr: attrs.dtr,
+                r1: attrs.r1,
+                r2: attrs.r2,
+              };
+            }
+            break;
+          case 'v':
+          case 't':
+            capture = true;
+            break;
+          case 'oddHeader':
+          case 'oddFooter':
+          case 'evenHeader':
+          case 'evenFooter':
+          case 'firstHeader':
+          case 'firstFooter':
+            // A `<headerFooter>` child carries its header/footer definition as text (the `&`-prefixed
+            // section/format tokens, e.g. `&C&"Arial"&G`). Capture it verbatim so a round-trip preserves
+            // a header image's `&G` picture token and every other formatting directive.
+            capture = true;
+            break;
+          case 'mergeCell':
+            // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
+            // bad range at the model boundary, but don't let one abort the whole parse — drop it and
+            // keep reading the valid geometry.
+            if (attrs.ref !== undefined && attrs.ref !== '') {
+              try {
+                sheet.mergeCells(attrs.ref);
+              } catch {
+                // overlapping/malformed merge in the source file — skip it
+              }
+            }
+            break;
+          case 'tabColor':
+            // A self-closing `<sheetPr>` child, so it arrives here rather than as text.
+            sheet.tabColor = parseColor(attrs);
+            break;
+          case 'outlinePr':
+            // Another self-closing `<sheetPr>` child; only set flags the source actually carried, so
+            // a file without them leaves `outline` empty and a re-write stays byte-clean.
+            if (attrs.summaryBelow !== undefined)
+              sheet.outline.summaryBelow = boolPresent(attrs.summaryBelow);
+            if (attrs.summaryRight !== undefined)
+              sheet.outline.summaryRight = boolPresent(attrs.summaryRight);
+            break;
+          case 'pane':
+            // A `<sheetView>` child recording a frozen (or split) pane. Only a frozen pane maps onto
+            // the model's view; a source without one leaves `view` empty, so a re-write emits no pane.
+            if (attrs.state === 'frozen' || attrs.state === 'frozenSplit') {
+              sheet.view.state = 'frozen';
+              if (attrs.xSplit !== undefined) sheet.view.xSplit = Number(attrs.xSplit);
+              if (attrs.ySplit !== undefined) sheet.view.ySplit = Number(attrs.ySplit);
+              if (attrs.topLeftCell !== undefined) sheet.view.topLeftCell = attrs.topLeftCell;
+            }
+            break;
+          case 'pageSetUpPr':
+            // The fit-to-page flag, a self-closing `<sheetPr>` child. Recorded only when the source
+            // carried the attribute, so a `<pageSetUpPr>` present for other reasons (e.g.
+            // `autoPageBreaks`) leaves `pageSetup.fitToPage` unset.
+            if (attrs.fitToPage !== undefined)
+              sheet.pageSetup.fitToPage = boolPresent(attrs.fitToPage);
+            break;
+          case 'printOptions':
+            applyPrintOptions(sheet.printOptions, attrs);
+            break;
+          case 'pageMargins':
+            applyMargins(sheet.pageMargins, attrs);
+            break;
+          case 'pageSetup':
+            applyPageSetup(sheet.pageSetup, attrs);
+            break;
+          case 'rowBreaks':
+            breakTarget = sheet.rowBreaks;
+            break;
+          case 'colBreaks':
+            breakTarget = sheet.columnBreaks;
+            break;
+          case 'brk': {
+            // `id` is the row/column the layout splits before; a non-positive or non-integer id is
+            // hostile input and dropped rather than trusted. A `<brk>` outside any break container has
+            // no axis to belong to and is likewise ignored.
+            if (breakTarget === null) break;
+            const id = Number(attrs.id);
+            if (!Number.isInteger(id) || id < 1) break;
+            const brk: {id: number; max?: number; man?: boolean} = {id};
+            const max = Number(attrs.max);
+            if (Number.isInteger(max) && max >= 0) brk.max = max;
+            if (boolStrict(attrs.man)) brk.man = true;
+            breakTarget.push(brk);
+            break;
           }
-          break;
-        case 'is':
-          inInlineString = false;
-          break;
-        case 'oddHeader':
-        case 'oddFooter':
-        case 'evenHeader':
-        case 'evenFooter':
-        case 'firstHeader':
-        case 'firstFooter':
-          sheet.headerFooter[local] = text;
-          break;
-        case 'c':
-          finalizeCellFromState();
-          break;
-        case 'row':
-          rowStyle = -1;
-          rowCustomFormat = false;
-          break;
-        case 'filterColumn': {
-          // Assemble this column's criteria from whichever accumulator filled. A column whose colId
-          // is negative, or whose criteria are empty (no values, no blank, no predicates), carries
-          // nothing filterable and is dropped so a re-write stays clean — load-repair, not authoring.
-          const criteria = pendingFilterCriteria(
-            filterValues,
-            filterBlank,
-            customPredicates,
-            customAnd,
-          );
-          if (filterColId >= 0 && criteria !== null) {
-            filterColumns.push({colId: filterColId, criteria});
+          case 'sheetProtection': {
+            const protection = parseSheetProtection(attrs);
+            if (protection !== undefined) sheet.restoreProtection(protection);
+            break;
           }
-          break;
+          case 'autoFilter':
+            // Seed a draft from the range; its `<filterColumn>` children (if any) stream in below and
+            // `</autoFilter>` commits it — including the synthesized close of a criteria-free
+            // self-closing `<autoFilter/>`. (A table's own `<autoFilter>` also matches, but table
+            // sheets route through parseTable, so this only ever sees the sheet-level one.)
+            filterRef = attrs.ref !== undefined && attrs.ref !== '' ? attrs.ref : null;
+            filterColumns = [];
+            break;
+          case 'filterColumn':
+            // A criteria block for one column, offset `colId` from the range's left edge. Reset the
+            // per-column accumulators; whichever child (`<filters>`/`<customFilters>`) opens fills one.
+            filterColId = attrs.colId !== undefined ? Number(attrs.colId) : -1;
+            filterValues = null;
+            filterBlank = false;
+            customPredicates = null;
+            customAnd = false;
+            break;
+          case 'filters':
+            filterValues = [];
+            filterBlank = boolPresent(attrs.blank) && attrs.blank !== undefined;
+            break;
+          case 'filter':
+            if (filterValues !== null && attrs.val !== undefined) filterValues.push(attrs.val);
+            break;
+          case 'customFilters':
+            customPredicates = [];
+            customAnd = attrs.and !== undefined && boolPresent(attrs.and);
+            break;
+          case 'customFilter': {
+            // The operator attribute defaults to `equal` when absent (per CT_CustomFilter); an operand
+            // is likewise optional. An unrecognised operator drops the predicate rather than guessing.
+            if (customPredicates === null) break;
+            const operator = attrs.operator ?? 'equal';
+            if (isCustomFilterOperator(operator)) {
+              customPredicates.push({operator, val: attrs.val ?? ''});
+            }
+            break;
+          }
+          default:
+            // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) sets one font facet; it
+            // is self-closing, so it is read here on open. Nothing else uses the default branch.
+            if (runFont !== null) applyFontChild(runFont, local, attrs);
+            break;
         }
-        case 'autoFilter':
-          commitAutoFilter();
-          break;
-        case 'rowBreaks':
-        case 'colBreaks':
-          breakTarget = null;
-          break;
-        default:
-          break;
-      }
-      capture = false;
+        if (selfClosing && (local === 'f' || local === 'v')) capture = false;
+      },
+      onText(chunk) {
+        if (capture) text += chunk;
+      },
+      onClose(name) {
+        const local = localName(name);
+        switch (local) {
+          case 'f':
+            formula = text;
+            hasFormula = true;
+            break;
+          case 'v':
+            valueText = text;
+            hasValue = true;
+            break;
+          case 't':
+            // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<is>` is a plain
+            // inline string. `inRun` must be checked first — a run is also inside the inline string.
+            if (inRun) runText += text;
+            else if (inInlineString) inlineText += text;
+            break;
+          case 'r':
+            if (inRun) {
+              const run: {text: string; font?: Partial<Font>} = {text: runText};
+              if (runFont !== null && Object.keys(runFont).length > 0) run.font = runFont;
+              inlineRuns.push(run);
+              inRun = false;
+            }
+            break;
+          case 'is':
+            inInlineString = false;
+            break;
+          case 'oddHeader':
+          case 'oddFooter':
+          case 'evenHeader':
+          case 'evenFooter':
+          case 'firstHeader':
+          case 'firstFooter':
+            sheet.headerFooter[local] = text;
+            break;
+          case 'c':
+            finalizeCellFromState();
+            break;
+          case 'row':
+            rowStyle = -1;
+            rowCustomFormat = false;
+            break;
+          case 'filterColumn': {
+            // Assemble this column's criteria from whichever accumulator filled. A column whose colId
+            // is negative, or whose criteria are empty (no values, no blank, no predicates), carries
+            // nothing filterable and is dropped so a re-write stays clean — load-repair, not authoring.
+            const criteria = pendingFilterCriteria(
+              filterValues,
+              filterBlank,
+              customPredicates,
+              customAnd,
+            );
+            if (filterColId >= 0 && criteria !== null) {
+              filterColumns.push({colId: filterColId, criteria});
+            }
+            break;
+          }
+          case 'autoFilter':
+            commitAutoFilter();
+            break;
+          case 'rowBreaks':
+          case 'colBreaks':
+            breakTarget = null;
+            break;
+          default:
+            break;
+        }
+        capture = false;
+      },
     },
-  });
+    {closeEmptyElements: WORKSHEET_EMPTY_CLOSES},
+  );
 }
 
 function applyColumn(

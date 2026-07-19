@@ -34,7 +34,7 @@ import {
   resolveWorkbookPart,
   type XfStyle,
 } from './read.ts';
-import {boolStrict, localName, xmlEvents} from './xml-read.ts';
+import {boolStrict, closeEmptyElements, localName, xmlEvents} from './xml-read.ts';
 
 export interface ReadSheetRowsOptions extends ReadXlsxOptions {
   /**
@@ -254,6 +254,11 @@ class StreamedSheetReader implements StreamedSheet {
   }
 }
 
+// A formatted-but-empty `<c/>` is expanded to open+close so it finalises once on close, matching
+// the buffered reader; the text-bearing `<f/>`/`<v/>`/`<t/>` are excluded so an empty one never
+// commits (their close captures text, which an empty tag has none of).
+const CELL_EMPTY_CLOSE: ReadonlySet<string> = new Set(['c']);
+
 // Pull the sheet XML through the event stream, yielding a StreamedRow at each `</row>`, while
 // recording the sheet's hidden columns (from `<col hidden>`, before <sheetData>) and merged ranges
 // (from `<mergeCells>`, after <sheetData>) into the caller-supplied collectors. The cell state
@@ -301,7 +306,7 @@ function* scanSheet(
     }
   };
 
-  for (const event of xmlEvents(xml)) {
+  for (const event of closeEmptyElements(xmlEvents(xml), CELL_EMPTY_CLOSE)) {
     if (event.kind === 'text') {
       if (capture) text += event.text;
       continue;
@@ -334,8 +339,6 @@ function* scanSheet(
           inlineText = '';
           hasFormula = false;
           hasValue = false;
-          // A self-closing `<c .../>` fires no close, so commit it here (mirrors parseWorksheet).
-          if (event.selfClosing) finalizeCell();
           break;
         case 'is':
           inInlineString = true;

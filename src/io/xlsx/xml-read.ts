@@ -216,12 +216,49 @@ export function* openElements(source: string, ...localNames: string[]): Generato
 }
 
 /**
+ * Wrap an {@link XmlEvent} stream so a self-closing `<x/>` whose local name is in `names` is
+ * presented as an open (with `selfClosing: false`) immediately followed by a close — the exact
+ * event shape of `<x></x>`. This lets a consumer commit such an element from its close handling
+ * alone, instead of hand-coding a parallel self-closing branch: {@link xmlEvents} fires no close
+ * for `<x/>`, and forgetting that branch silently drops the empty element. Names not in the set
+ * pass through untouched, so an element whose close would wrongly act on absent content — an empty
+ * `<v/>`/`<f/>` that must not commit captured text — is left as a bare self-closing open.
+ */
+export function* closeEmptyElements(
+  events: Iterable<XmlEvent>,
+  names: ReadonlySet<string>,
+): Generator<XmlEvent> {
+  for (const event of events) {
+    if (event.kind === 'open' && event.selfClosing && names.has(localName(event.name))) {
+      yield {kind: 'open', name: event.name, attrs: event.attrs, selfClosing: false};
+      yield {kind: 'close', name: event.name};
+    } else {
+      yield event;
+    }
+  }
+}
+
+/** Options for {@link parseXml}. */
+export interface ParseXmlOptions {
+  /**
+   * Local names whose self-closing form should also fire {@link SaxHandlers.onClose}. For each name
+   * listed, `<x/>` is delivered as an open followed by a close (via {@link closeEmptyElements}), so a
+   * handler commits the element once in `onClose` rather than duplicating that logic in a self-closing
+   * branch. Only name elements the handler is safe to run on close when empty.
+   */
+  readonly closeEmptyElements?: ReadonlySet<string>;
+}
+
+/**
  * Parse an XML document, dispatching SAX events to `handlers`. A thin push adapter over
  * {@link xmlEvents} — one scanning core serves both the callback and the pull consumers.
  * Throws {@link SyntaxError} on malformed markup.
  */
-export function parseXml(source: string, handlers: SaxHandlers): void {
-  for (const event of xmlEvents(source)) {
+export function parseXml(source: string, handlers: SaxHandlers, options?: ParseXmlOptions): void {
+  const events = options?.closeEmptyElements
+    ? closeEmptyElements(xmlEvents(source), options.closeEmptyElements)
+    : xmlEvents(source);
+  for (const event of events) {
     switch (event.kind) {
       case 'open':
         handlers.onOpen(event.name, event.attrs, event.selfClosing);

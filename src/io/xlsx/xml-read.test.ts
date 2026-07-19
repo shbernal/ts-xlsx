@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {decodeEntities, localName, openElements, parseXml, type XmlAttributes} from './xml-read.ts';
+import {
+  closeEmptyElements,
+  decodeEntities,
+  localName,
+  openElements,
+  parseXml,
+  type XmlAttributes,
+  xmlEvents,
+} from './xml-read.ts';
 
 interface Event {
   readonly kind: 'open' | 'text' | 'close';
@@ -91,6 +99,44 @@ test('openElements surfaces decoded attributes and can be stopped early by break
     break;
   }
   assert.equal(first?.v, 'x & y');
+});
+
+test('closeEmptyElements expands a named self-closing element to open+close, as if <x></x>', () => {
+  const events = [...closeEmptyElements(xmlEvents('<r><c/></r>'), new Set(['c']))];
+  assert.deepEqual(
+    events.map((e) =>
+      e.kind === 'open'
+        ? `open:${e.name}:${e.selfClosing}`
+        : `${e.kind}:${'name' in e ? e.name : ''}`,
+    ),
+    ['open:r:false', 'open:c:false', 'close:c', 'close:r'],
+  );
+});
+
+test('closeEmptyElements matches by local name and leaves un-named self-closing tags bare', () => {
+  // `a:c` matches on local name `c` and is expanded; the un-named `d` stays a self-closing open
+  // with no synthesized close.
+  const events = [...closeEmptyElements(xmlEvents('<a:c/><d/>'), new Set(['c']))];
+  assert.deepEqual(
+    events.map((e) => (e.kind === 'open' ? `${e.name}:${e.selfClosing}` : e.kind)),
+    ['a:c:false', 'close', 'd:true'],
+  );
+});
+
+test('parseXml with closeEmptyElements fires onClose only for the named self-closing element', () => {
+  const opens: string[] = [];
+  const closes: string[] = [];
+  parseXml(
+    '<r><c/><v/></r>',
+    {
+      onOpen: (name) => opens.push(name),
+      onClose: (name) => closes.push(name),
+    },
+    {closeEmptyElements: new Set(['c'])},
+  );
+  assert.deepEqual(opens, ['r', 'c', 'v']);
+  // `<c/>` is expanded (fires a close); the un-named `<v/>` is not; `<r>` closes normally.
+  assert.deepEqual(closes, ['c', 'r']);
 });
 
 test('parseXml parses attributes in both quote styles and decodes their entities', () => {
