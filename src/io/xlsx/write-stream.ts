@@ -45,6 +45,7 @@ import {
   buildColumnDefaults,
   buildPackageParts,
   createStyleRegistry,
+  Extent,
   type FlushedSheet,
   renderRow,
   type WriteOptions,
@@ -129,10 +130,7 @@ export class WorksheetStreamWriter {
   // row composes against the same columns even as later ones are defined.
   #columnDefaults: ReadonlyMap<number, ColumnProperties> | undefined;
   readonly #flushedRows: {number: number; xml: string}[] = [];
-  #top = Infinity;
-  #left = Infinity;
-  #bottom = -Infinity;
-  #right = -Infinity;
+  readonly #extent = new Extent();
 
   constructor(sheet: Worksheet, eager: boolean, styles: StyleRegistry) {
     this.#sheet = sheet;
@@ -217,12 +215,7 @@ export class WorksheetStreamWriter {
     );
     if (xml !== '') {
       this.#flushedRows.push({number, xml});
-      if (minCol !== Infinity) {
-        if (number < this.#top) this.#top = number;
-        if (number > this.#bottom) this.#bottom = number;
-        if (minCol < this.#left) this.#left = minCol;
-        if (maxCol > this.#right) this.#right = maxCol;
-      }
+      this.#extent.add(number, minCol, maxCol);
     }
     this.#sheet.evictRow(number);
   }
@@ -230,13 +223,7 @@ export class WorksheetStreamWriter {
   // The rows this writer flushed, or undefined if none — handed to buildPackageParts at commit.
   flushedSheet(): FlushedSheet | undefined {
     if (this.#flushedRows.length === 0) return undefined;
-    return {
-      rows: this.#flushedRows,
-      top: this.#top,
-      left: this.#left,
-      bottom: this.#bottom,
-      right: this.#right,
-    };
+    return {rows: this.#flushedRows, extent: this.#extent};
   }
 
   /** Address a cell by its A1 reference to read or style it before the sheet is committed. */

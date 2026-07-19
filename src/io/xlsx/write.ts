@@ -58,6 +58,7 @@ import {
 
 export {
   buildColumnDefaults,
+  Extent,
   type FlushedSheet,
   type RowRenderContext,
   renderRow,

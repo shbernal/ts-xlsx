@@ -56,17 +56,52 @@ import {colorAttrs, type StyleRegistry} from './styles.ts';
 import {escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
 
 /**
+ * The used-cell extent of a sheet — the top-left/bottom-right grid bounds that fold into the
+ * `<dimension>`. Rows carrying only formatting (a row height, an outline level) do not extend the
+ * used range, matching how Excel records `<dimension>`, so {@link add} ignores them. A fresh extent
+ * holds the `Infinity`/`-Infinity` sentinels; {@link isEmpty} reports that no used cell has been seen.
+ */
+export class Extent {
+  top = Infinity;
+  left = Infinity;
+  bottom = -Infinity;
+  right = -Infinity;
+
+  // Seed from a prior extent (the rows a streaming writer already flushed and evicted) so the buffered
+  // pass folds its live rows onto the same bounds; unseeded, it starts empty.
+  constructor(seed?: Extent) {
+    if (seed) {
+      this.top = seed.top;
+      this.left = seed.left;
+      this.bottom = seed.bottom;
+      this.right = seed.right;
+    }
+  }
+
+  /** Whether no used cell has been folded in yet — the sheet's dimension is then the lone cell `A1`. */
+  get isEmpty(): boolean {
+    return this.bottom === -Infinity;
+  }
+
+  /** Fold a rendered row's used-column span into the extent. `minCol` is `Infinity` when the row
+   * carried no cells (only formatting), which extends nothing. */
+  add(row: number, minCol: number, maxCol: number): void {
+    if (minCol === Infinity) return;
+    if (row < this.top) this.top = row;
+    if (row > this.bottom) this.bottom = row;
+    if (minCol < this.left) this.left = minCol;
+    if (maxCol > this.right) this.right = maxCol;
+  }
+}
+
+/**
  * A worksheet's eagerly-serialised rows: each row's `<row>` XML tagged with its number (so it merges
  * into ascending order with the sheet's remaining live rows, whatever order it was committed in), plus
- * the used-cell extent they span (or the `Infinity`/`-Infinity` sentinels when the flushed rows carried
- * only formatting). The buffered pass folds the extent into the sheet's dimension.
+ * the used-cell {@link Extent} they span. The buffered pass folds that extent into the sheet's dimension.
  */
 export interface FlushedSheet {
   readonly rows: ReadonlyArray<{readonly number: number; readonly xml: string}>;
-  readonly top: number;
-  readonly left: number;
-  readonly bottom: number;
-  readonly right: number;
+  readonly extent: Extent;
 }
 
 // The sheet-local relationship ids that wire a worksheet's tail elements to their parts, gathered into
@@ -118,27 +153,18 @@ export function worksheetXml(
   const liveRows: {number: number; xml: string}[] = [];
   // Seed the used-cell extent with any rows the streaming writer already serialised and evicted, so
   // the dimension spans both them and the live rows below.
-  let top = flushed?.top ?? Infinity;
-  let left = flushed?.left ?? Infinity;
-  let bottom = flushed?.bottom ?? -Infinity;
-  let right = flushed?.right ?? -Infinity;
+  const extent = new Extent(flushed?.extent);
 
   for (const entry of sheet.rows()) {
     const {xml, minCol, maxCol} = renderRow(entry, context);
     if (xml === '') continue;
     liveRows.push({number: entry.number, xml});
-    if (minCol !== Infinity) {
-      if (entry.number < top) top = entry.number;
-      if (entry.number > bottom) bottom = entry.number;
-      if (minCol < left) left = minCol;
-      if (maxCol > right) right = maxCol;
-    }
+    extent.add(entry.number, minCol, maxCol);
   }
 
-  // Dimension is the used *cell* range; rows/columns carrying only formatting do not
-  // extend it, matching how Excel records <dimension>.
-  const dimensionRef =
-    bottom === -Infinity ? 'A1' : `${encodeAddress(left, top)}:${encodeAddress(right, bottom)}`;
+  const dimensionRef = extent.isEmpty
+    ? 'A1'
+    : `${encodeAddress(extent.left, extent.top)}:${encodeAddress(extent.right, extent.bottom)}`;
   // Merge the streaming writer's pre-rendered rows with the live ones into ascending row order — a
   // flushed row can carry any number, and rows may be committed out of order. The buffered path has no
   // flushed rows, so it skips the merge and its sort entirely.
