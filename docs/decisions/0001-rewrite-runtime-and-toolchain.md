@@ -28,7 +28,7 @@ dependency-clean (`CLAUDE.md` §2).
   the built-in `node --test` runner on `.ts` files. Local TS imports use explicit
   `.ts` extensions.
 - **`tsc` is the type-safety *gate*, not a build tool.** `npm run typecheck`
-  (`tsc --noEmit -p tsconfig.build.json`) enforces the full strict flag set
+  (`tsc --noEmit -p tsconfig.json`) enforces the full strict flag set
   (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
   `noImplicitOverride`, `verbatimModuleSyntax`, …). TypeScript is pinned to 5.x.
 - **The new tree is ESM, scoped by `src/package.json` (`"type": "module"`).** The

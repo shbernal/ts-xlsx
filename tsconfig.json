@@ -1,14 +1,27 @@
 {
+  "//": "Strict config for the rewrite tree under src/. Node 24 runs the .ts sources directly via type-stripping, so this config exists to ENFORCE the type-safety gate (tsc --noEmit), not to build.",
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es5",
-    "sourceMap": true,
-    "types": [
-      "node",
-      "mocha"
-    ]
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "types": ["node"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "noEmit": true
   },
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["src/**/*.ts"]
 }

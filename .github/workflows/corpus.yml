@@ -1,9 +1,8 @@
 name: Corpus
 
-# The regression corpus is the knowledge we harvest across the rewrite, and the
-# Phase 3 rewrite (src/) is validated against it. Everything here must stay green on
-# every push and PR. These are additive checks: they do not touch the legacy
-# toolchain, which is frozen (see PROGRESS.md / STRATEGY.md).
+# The regression corpus is the knowledge harvested across the rewrite, and the
+# rewrite (src/) is the reference implementation validated against it. Everything
+# here must stay green on every push and PR.
 #
 # Node 24: the rewrite runs its .ts sources directly via type-stripping (no build
 # step) — see docs/decisions/0001-rewrite-runtime-and-toolchain.md. There is no
@@ -30,8 +29,6 @@ jobs:
       - run: npm run typecheck
       # Rewrite unit tests (native node --test on .ts).
       - run: npm run test:src
-      # Corpus vs the legacy oracle — must be 0 regressions.
+      # Regression corpus vs the rewrite — every behavior must pass; a pass→fail is
+      # a real regression.
       - run: npm run corpus
-      # Corpus vs the rewrite — must be 0 regressions (skips are expected while
-      # the rewrite is incomplete; a pass→fail here is a real rewrite regression).
-      - run: npm run corpus:rewrite
