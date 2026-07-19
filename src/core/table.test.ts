@@ -95,6 +95,6 @@ test('addRow rejects more values than the table has columns', () => {
   assert.throws(() => table().addRow(['a', 1, 'x']), /has 2 columns/);
 });
 
-test('addRow on a table with a totals row is rejected', () => {
-  assert.throws(() => table({totalsRow: true}).addRow(), /totals row/);
+test('addRow on a detached table with a totals row throws — relocation needs the grid', () => {
+  assert.throws(() => table({totalsRow: true}).addRow(), /not attached to a worksheet.*relocate its totals row/);
 });

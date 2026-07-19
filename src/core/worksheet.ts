@@ -624,7 +624,10 @@ export class Worksheet {
       if (style.border !== undefined) cell.border = style.border;
       if (style.alignment !== undefined) cell.alignment = style.alignment;
       if (style.protection !== undefined) cell.protection = style.protection;
-    });
+    },
+    // Insert one empty grid row at `row`; the splice re-pins this table (growing its data rows) and
+    // shifts the totals row and everything below down by one.
+    row => this.spliceRows(row, 0, []));
     this.#tables.push(table);
     return table;
   }

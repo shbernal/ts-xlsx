@@ -29,6 +29,12 @@ export interface TableColumnStyle {
  * built standalone has none and cannot write cell values. */
 export type TableCellWriter = (row: number, col: number, value: CellValue, style?: TableColumnStyle) => void;
 
+/** Inserts one empty row into the owning worksheet's grid at a 1-based `row`, shifting that row and
+ * everything below it down by one — the hook a {@link Table} with a totals row uses to open a slot
+ * for an appended data row above the totals. Relocating the totals row lives in the grid, so a
+ * standalone table has no inserter and cannot append past a totals row. */
+export type TableRowInserter = (row: number) => void;
+
 /**
  * A table's visual style (`<tableStyleInfo>`): the named style to apply plus the banding/highlight
  * toggles. Every field is a tri-state so a round-trip stays faithful — a value present in the source
@@ -181,7 +187,11 @@ export class Table {
   // throws rather than silently dropping them.
   readonly #writeCell: TableCellWriter | undefined;
 
-  constructor(options: TableOptions, writeCell?: TableCellWriter) {
+  // Supplied alongside #writeCell by the registering worksheet. A totals-row table appends by
+  // inserting a grid row above the totals; a standalone table has neither hook.
+  readonly #insertRow: TableRowInserter | undefined;
+
+  constructor(options: TableOptions, writeCell?: TableCellWriter, insertRow?: TableRowInserter) {
     validateTableName(options.name);
     if (options.columns.length === 0) {
       throw new Error(`table "${options.name}" must declare at least one column`);
@@ -208,6 +218,7 @@ export class Table {
     this.#anchorRow = row;
     this.#dataRowCount = options.rowCount;
     this.#writeCell = writeCell;
+    this.#insertRow = insertRow;
 
     if (this.#rowSpan < 1) {
       throw new Error(`table "${this.name}" has no rows — it needs a header row or at least one data row`);
@@ -229,23 +240,37 @@ export class Table {
    * left-to-right across its columns. A loaded table exposes its rows the same as a freshly-authored
    * one, so this works identically whether the table was built in memory or read from a file.
    *
-   * A table carrying a totals row is not supported — the new data row would have to displace the
-   * totals row, and the caller almost always wants the totals below the data; throwing is safer than
-   * silently writing over it. Passing `values` on a table not attached to a worksheet also throws,
-   * since there is nowhere to put them.
+   * A table carrying a totals row appends above it: the new data row lands where the totals row sat,
+   * and the totals row (with any sheet content below) shifts down by one — exactly what inserting a
+   * worksheet row does. That relocation lives in the grid, so a totals-row table not attached to a
+   * worksheet throws, as does passing `values` on any detached table — there is nowhere to put them.
    */
   addRow(values: readonly CellValue[] = []): void {
-    if (this.totalsRow) {
-      throw new Error(
-        `cannot append a row to table "${this.name}": it has a totals row that the new row would displace`
-      );
-    }
     if (values.length > this.columnCount) {
       throw new RangeError(
         `row has ${values.length} values but table "${this.name}" has ${this.columnCount} columns`
       );
     }
+
+    // The append point is the row directly below the last data row: the totals row when one exists,
+    // otherwise the first free row under the table.
     const target = this.#anchorRow + (this.headerRow ? 1 : 0) + this.#dataRowCount;
+
+    if (this.totalsRow) {
+      if (this.#insertRow === undefined) {
+        throw new Error(
+          `table "${this.name}" is not attached to a worksheet — cannot relocate its totals row to append a data row`
+        );
+      }
+      // Opening a grid slot at the totals row shifts the totals down and grows this table by one
+      // through the sheet's own table re-pinning, so #dataRowCount is not bumped again here.
+      this.#insertRow(target);
+      values.forEach((value, index) =>
+        this.#writeCell?.(target, this.#anchorCol + index, value, this.columns[index]?.style)
+      );
+      return;
+    }
+
     if (values.length > 0) {
       if (this.#writeCell === undefined) {
         throw new Error(

@@ -1848,6 +1848,21 @@ pattern fills keeps the later fill's index; linear and path gradients survive a 
 round-trip; the writer emits the expected markup and omits a zero `degree`. `GradientFill`/`GradientStop`
 are exported from `index.ts`. `test:src`: **629 pass**; `corpus`/`corpus:rewrite`: **0 regressions**.
 
+### 2026-07-19 — beyond the corpus finish line: a totals-row table can append a data row *(tables, source)*
+
+The only *legitimate* operation the source still threw on was `Table.addRow` when the table carried a
+totals row — it rejected the append outright rather than displace the totals. Excel appends a table row by
+inserting a worksheet row above the totals, pushing the totals row (and any sheet content below) down by
+one; the model now does exactly that. `Table` gained a `TableRowInserter` hook (supplied by the
+registering worksheet alongside `TableCellWriter`); a totals-row `addRow` opens a grid slot at the totals
+position via the sheet's `spliceRows`, which re-pins the table through its own `shiftRows` (growing the
+data rows) and relocates the totals cells — and any rows beneath — down. The new data row's values are then
+written into the freed slot with their column styles. A **detached** totals-row table still throws (the
+relocation lives in the grid), and the non-totals path is unchanged. Locked test-first
+(`worksheet.test.ts`, `table.test.ts`): the appended row lands where the totals row sat, the totals row and
+the content below both move down one, the range and data-row count grow, and the column `numFmt` is baked
+into the appended cell. `test:src`: **631 pass**; `corpus`/`corpus:rewrite`: **0 regressions**.
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.

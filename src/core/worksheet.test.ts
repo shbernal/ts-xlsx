@@ -456,6 +456,46 @@ test('getTable finds a table by name and addRow appends cells into the grid', ()
   assert.equal(sheet.getCell('B4').value, 3);
 });
 
+test('addRow on a table with a totals row appends above it, moving the totals down', () => {
+  const sheet = new Worksheet('S', 1);
+  const table = sheet.addTable({
+    name: 'T',
+    ref: 'A1', // header row 1, data rows 2–3, totals row 4
+    columns: [{name: 'H1'}, {name: 'H2'}],
+    rowCount: 2,
+    totalsRow: true,
+  });
+  sheet.getCell('A4').value = 'Total'; // the totals-row label sits in the grid
+  sheet.getCell('B4').value = 42;
+  sheet.getCell('A6').value = 'below'; // unrelated content beneath the table
+
+  table.addRow(['c', 3]);
+
+  assert.equal(table.rowCount, 3, 'the data-row count grows by one');
+  assert.equal(table.ref, 'A1:B5', 'the range grows and still covers the totals row');
+  assert.equal(table.totalsRow, true, 'the totals-row flag is unchanged');
+  assert.equal(sheet.getCell('A4').value, 'c', 'the new data row lands where the totals row sat');
+  assert.equal(sheet.getCell('B4').value, 3);
+  assert.equal(sheet.getCell('A5').value, 'Total', 'the totals row moved down by one');
+  assert.equal(sheet.getCell('B5').value, 42);
+  assert.equal(sheet.getCell('A7').value, 'below', 'content below the table shifted down too');
+});
+
+test('a totals-row table applies the column style to a row appended above the totals', () => {
+  const sheet = new Worksheet('S', 1);
+  const table = sheet.addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'Amount', style: {numFmt: '#,##0.00'}}, {name: 'Label'}],
+    rowCount: 1,
+    totalsRow: true,
+  });
+  table.addRow([1234.5, 'x']); // lands at row 3 (header 1 + 1 data + this), above the totals
+  assert.equal(sheet.getCell('A3').value, 1234.5, 'the appended value lands above the totals');
+  assert.equal(sheet.getCell('A3').numFmt, '#,##0.00', 'the styled column carries its numFmt');
+  assert.equal(sheet.getCell('B3').numFmt, undefined, 'the unstyled column is unaffected');
+});
+
 test('getTable returns undefined for an unknown table name', () => {
   assert.equal(new Worksheet('S', 1).getTable('missing'), undefined);
 });
