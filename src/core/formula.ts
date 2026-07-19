@@ -11,173 +11,15 @@
 // it once on a master cell and marking the rest as shared clones. Reading a clone means recovering the
 // master's formula shifted to the clone's position — relative references move by the row/column
 // offset, absolute (`$`-anchored) parts stay put. That relative-reference arithmetic lives here too.
+//
+// Every pass over a formula shares one hazard: a comma, paren, function name, or cell reference is
+// mere text when it sits inside a string literal, a single-quoted sheet name, or a bracketed
+// structured reference. `skipOpaque` is the single owner of skipping those regions, and `scanFormula`
+// the single forward walk that copies them verbatim while transforming the code between; every pass
+// here drives its string/quote/bracket handling from one of the two, so the rule lives in one place.
 
 import {columnToNumber, numberToColumn} from './address.ts';
-
-// The post-2007 functions Excel persists with an `_xlfn.` prefix, keyed by their uppercased name.
-// The tokenizer below treats '.' as part of a function name, so both the plain modern functions and
-// the dotted 2010 statistical rename family are matched as whole names and prefixed.
-const MODERN_FUNCTIONS: ReadonlySet<string> = new Set([
-  // Dynamic arrays (Excel 365)
-  'FILTER',
-  'SORT',
-  'SORTBY',
-  'UNIQUE',
-  'SEQUENCE',
-  'RANDARRAY',
-  'XLOOKUP',
-  'XMATCH',
-  // LAMBDA and its helpers
-  'LAMBDA',
-  'LET',
-  'BYROW',
-  'BYCOL',
-  'MAKEARRAY',
-  'MAP',
-  'REDUCE',
-  'SCAN',
-  'ISOMITTED',
-  // Array shaping (Excel 365)
-  'VSTACK',
-  'HSTACK',
-  'TOROW',
-  'TOCOL',
-  'WRAPROWS',
-  'WRAPCOLS',
-  'TAKE',
-  'DROP',
-  'EXPAND',
-  'CHOOSEROWS',
-  'CHOOSECOLS',
-  // Text (Excel 2019 / 365)
-  'TEXTJOIN',
-  'CONCAT',
-  'TEXTBEFORE',
-  'TEXTAFTER',
-  'TEXTSPLIT',
-  'ARRAYTOTEXT',
-  'VALUETOTEXT',
-  // Logical and conditional aggregation (Excel 2016 / 2019)
-  'IFS',
-  'SWITCH',
-  'MAXIFS',
-  'MINIFS',
-
-  // Other bare-name functions added after the frozen grammar (Excel 2010 / 2013) — trigonometric,
-  // bitwise, engineering, information, and math/financial additions. Their names carry no '.', so
-  // they need no tokenizer work; they simply have to be recognised as modern to earn the prefix.
-  'AGGREGATE',
-  'ACOT',
-  'ACOTH',
-  'COT',
-  'COTH',
-  'CSC',
-  'CSCH',
-  'SEC',
-  'SECH',
-  'ARABIC',
-  'BASE',
-  'DECIMAL',
-  'COMBINA',
-  'PERMUTATIONA',
-  'GAMMA',
-  'GAUSS',
-  'PHI',
-  'MUNIT',
-  'BITAND',
-  'BITOR',
-  'BITXOR',
-  'BITLSHIFT',
-  'BITRSHIFT',
-  'IMCOSH',
-  'IMCOT',
-  'IMCSC',
-  'IMCSCH',
-  'IMSEC',
-  'IMSECH',
-  'IMSINH',
-  'IMTAN',
-  'DAYS',
-  'ISOWEEKNUM',
-  'IFNA',
-  'NUMBERVALUE',
-  'SHEET',
-  'SHEETS',
-  'FORMULATEXT',
-  'ISFORMULA',
-  'ENCODEURL',
-  'WEBSERVICE',
-  'FILTERXML',
-  'UNICHAR',
-  'UNICODE',
-  'XOR',
-  'PDURATION',
-  'RRI',
-
-  // The Excel 2010 statistical-consistency rename family and the handful of other post-2007
-  // functions whose canonical names contain a '.'. They carry the same `_xlfn.` prefix; the whole
-  // dotted name is stored, e.g. `_xlfn.NORM.DIST`, `_xlfn.T.DIST.2T`.
-  'BETA.DIST',
-  'BETA.INV',
-  'BINOM.DIST',
-  'BINOM.DIST.RANGE',
-  'BINOM.INV',
-  'CHISQ.DIST',
-  'CHISQ.DIST.RT',
-  'CHISQ.INV',
-  'CHISQ.INV.RT',
-  'CHISQ.TEST',
-  'CONFIDENCE.NORM',
-  'CONFIDENCE.T',
-  'COVARIANCE.P',
-  'COVARIANCE.S',
-  'EXPON.DIST',
-  'F.DIST',
-  'F.DIST.RT',
-  'F.INV',
-  'F.INV.RT',
-  'F.TEST',
-  'GAMMA.DIST',
-  'GAMMA.INV',
-  'GAMMALN.PRECISE',
-  'HYPGEOM.DIST',
-  'LOGNORM.DIST',
-  'LOGNORM.INV',
-  'MODE.MULT',
-  'MODE.SNGL',
-  'NEGBINOM.DIST',
-  'NORM.DIST',
-  'NORM.INV',
-  'NORM.S.DIST',
-  'NORM.S.INV',
-  'PERCENTILE.EXC',
-  'PERCENTILE.INC',
-  'PERCENTRANK.EXC',
-  'PERCENTRANK.INC',
-  'POISSON.DIST',
-  'QUARTILE.EXC',
-  'QUARTILE.INC',
-  'RANK.AVG',
-  'RANK.EQ',
-  'SKEW.P',
-  'STDEV.P',
-  'STDEV.S',
-  'T.DIST',
-  'T.DIST.2T',
-  'T.DIST.RT',
-  'T.INV',
-  'T.INV.2T',
-  'T.TEST',
-  'VAR.P',
-  'VAR.S',
-  'WEIBULL.DIST',
-  'Z.TEST',
-  'CEILING.PRECISE',
-  'FLOOR.PRECISE',
-  'ISO.CEILING',
-  'ERF.PRECISE',
-  'ERFC.PRECISE',
-]);
+import {MODERN_FUNCTIONS} from './modern-functions.ts';
 
 const XLFN = '_xlfn.';
 const XLPM = '_xlpm.';
@@ -197,48 +39,78 @@ const SCOPING_FUNCTIONS: ReadonlySet<string> = new Set(['LET', 'LAMBDA']);
 const FUNCTION_CALL = /(?<![A-Za-z0-9_.])([A-Za-z_][A-Za-z0-9_.]*)(\s*\()/g;
 const PREFIX = /_xlfn\.|_xlpm\./g;
 
-/**
- * Apply `transform` to a formula's code while copying its string literals verbatim. OOXML formula
- * strings are double-quoted, with a doubled `""` standing for an embedded quote; keeping the
- * transform out of them means a literal like `"FILTER("` is never mistaken for a function call.
- */
-function outsideStrings(formula: string, transform: (code: string) => string): string {
-  let out = '';
-  let i = 0;
+// Advance past the opaque region opened at `index`: a double-quoted string literal or a single-quoted
+// sheet name — both honouring the doubled-quote escape (`""`, `''`) — or a bracketed structured
+// reference, which may nest (`Table[[#Data],[Col]]`). Returns the index just past the region, or
+// `index` unchanged when no opaque region opens there. Inside any of the three a comma, paren, function
+// name, or cell reference is inert, so every pass over a formula skips them through this one function.
+function skipOpaque(formula: string, index: number): number {
+  const opener = formula[index];
   const n = formula.length;
-  while (i < n) {
-    const quote = formula.indexOf('"', i);
-    if (quote === -1) {
-      out += transform(formula.slice(i));
-      break;
-    }
-    out += transform(formula.slice(i, quote));
-    let j = quote + 1;
+  if (opener === '"' || opener === "'") {
+    let j = index + 1;
     while (j < n) {
-      if (formula[j] === '"') {
-        if (formula[j + 1] === '"') {
+      if (formula[j] === opener) {
+        if (formula[j + 1] === opener) {
           j += 2;
           continue;
         }
-        j += 1;
-        break;
+        return j + 1;
       }
       j += 1;
     }
-    out += formula.slice(quote, j);
-    i = j;
+    return n;
   }
-  return out;
+  if (opener === '[') {
+    let depth = 0;
+    let j = index;
+    while (j < n) {
+      const ch = formula[j];
+      if (ch === '[') depth += 1;
+      else if (ch === ']') {
+        depth -= 1;
+        if (depth === 0) return j + 1;
+      }
+      j += 1;
+    }
+    return n;
+  }
+  return index;
+}
+
+// Rewrite a formula's code while copying its opaque regions — string literals, single-quoted sheet
+// names, bracketed structured references — verbatim. `transform` sees each maximal run of code between
+// those regions and returns its replacement; the opaque text is never handed to it, so a literal like
+// `"FILTER("` is never mistaken for a call and a `,` inside a structured reference never reads as a
+// separator. Concatenating the transformed runs with the copied regions reproduces the formula.
+function scanFormula(formula: string, transform: (code: string) => string): string {
+  let out = '';
+  let codeStart = 0;
+  let i = 0;
+  const n = formula.length;
+  while (i < n) {
+    const past = skipOpaque(formula, i);
+    if (past > i) {
+      out += transform(formula.slice(codeStart, i));
+      out += formula.slice(i, past);
+      i = past;
+      codeStart = past;
+    } else {
+      i += 1;
+    }
+  }
+  return out + transform(formula.slice(codeStart));
 }
 
 /**
  * Prefix every modern function called by its plain name with `_xlfn.` so Excel accepts the stored
  * formula. Names already prefixed are left alone (never doubled), unknown/legacy functions pass
- * through untouched, and string literals are preserved verbatim. No other rewriting occurs — in
- * particular no `@` implicit-intersection operator is ever introduced.
+ * through untouched, and opaque regions (string literals, sheet names, structured references) are
+ * preserved verbatim. No other rewriting occurs — in particular no `@` implicit-intersection operator
+ * is ever introduced.
  */
 export function mangleFunctions(formula: string): string {
-  return outsideStrings(formula, (code) =>
+  return scanFormula(formula, (code) =>
     code.replace(FUNCTION_CALL, (whole, name: string, open: string) =>
       MODERN_FUNCTIONS.has(name.toUpperCase()) ? `${XLFN}${name}${open}` : whole,
     ),
@@ -247,11 +119,11 @@ export function mangleFunctions(formula: string): string {
 
 /**
  * Strip the `_xlfn.` function prefix and the `_xlpm.` LET-parameter prefix back to the plain names,
- * so the model holds the readable form regardless of how a file stored it. String literals are left
- * untouched.
+ * so the model holds the readable form regardless of how a file stored it. Opaque regions (string
+ * literals, sheet names, structured references) are left untouched.
  */
 export function unmangleFunctions(formula: string): string {
-  return outsideStrings(formula, (code) => code.replace(PREFIX, ''));
+  return scanFormula(formula, (code) => code.replace(PREFIX, ''));
 }
 
 const NAME_START = /[A-Za-z_]/;
@@ -267,46 +139,11 @@ function readName(formula: string, i: number): number {
   return j;
 }
 
-// Advance past a double-quoted string literal (opening quote at `i`), honouring the doubled-quote
-// escape, so a comma or paren inside a literal never registers as syntax.
-function skipString(formula: string, i: number): number {
-  let j = i + 1;
-  const n = formula.length;
-  while (j < n) {
-    if (formula[j] === '"') {
-      if (formula[j + 1] === '"') {
-        j += 2;
-        continue;
-      }
-      return j + 1;
-    }
-    j += 1;
-  }
-  return n;
-}
-
-// Advance past a bracketed structured reference (opening bracket at `i`), which may nest, so a comma
-// inside `Table[[#Data],[Col]]` never registers as an argument separator.
-function skipBrackets(formula: string, i: number): number {
-  let depth = 0;
-  let j = i;
-  const n = formula.length;
-  while (j < n) {
-    const ch = formula[j];
-    if (ch === '[') depth += 1;
-    else if (ch === ']') {
-      depth -= 1;
-      if (depth === 0) return j + 1;
-    }
-    j += 1;
-  }
-  return n;
-}
-
 /**
  * From the index of a call's opening paren, find the matching close and the `[start, end)` ranges of
- * its top-level, comma-separated arguments. Nested parens, string literals, and bracketed structured
- * references are skipped so their commas do not split an argument.
+ * its top-level, comma-separated arguments. Nested parens are tracked by depth; opaque regions (string
+ * literals, sheet names, structured references) are skipped whole so their commas do not split an
+ * argument.
  */
 function parseCall(formula: string, open: number): {close: number; args: [number, number][]} {
   const args: [number, number][] = [];
@@ -315,12 +152,13 @@ function parseCall(formula: string, open: number): {close: number; args: [number
   let argStart = open + 1;
   let i = open;
   while (i < n) {
+    const past = skipOpaque(formula, i);
+    if (past > i) {
+      i = past;
+      continue;
+    }
     const ch = formula[i];
-    if (ch === '"') {
-      i = skipString(formula, i);
-    } else if (ch === '[') {
-      i = skipBrackets(formula, i);
-    } else if (ch === '(') {
+    if (ch === '(') {
       depth += 1;
       i += 1;
     } else if (ch === ')') {
@@ -375,7 +213,7 @@ function parameterNames(
 /**
  * Prefix every LET/LAMBDA parameter identifier with `_xlpm.` — at its declaration and at each
  * reference within the binding call's parentheses — so Excel accepts the stored formula. The prefix
- * is lexically scoped: a name is only rewritten inside the call that binds it, string literals are
+ * is lexically scoped: a name is only rewritten inside the call that binds it, opaque regions are
  * copied verbatim, and a lambda-valued parameter used as a call (`f(…)`) is prefixed too. Formulas
  * with no LET/LAMBDA pass through unchanged.
  */
@@ -395,20 +233,14 @@ export function mangleParams(formula: string): string {
       continue;
     }
 
-    const ch = formula[i] as string;
-    if (ch === '"') {
-      const j = skipString(formula, i);
-      out += formula.slice(i, j);
-      i = j;
-      continue;
-    }
-    if (ch === '[') {
-      const j = skipBrackets(formula, i);
-      out += formula.slice(i, j);
-      i = j;
+    const past = skipOpaque(formula, i);
+    if (past > i) {
+      out += formula.slice(i, past);
+      i = past;
       continue;
     }
 
+    const ch = formula[i] as string;
     const nameEnd = readName(formula, i);
     if (nameEnd === i) {
       out += ch;
@@ -449,36 +281,14 @@ export function mangleFormula(formula: string): string {
   return mangleFunctions(mangleParams(formula));
 }
 
-// A cell reference at the start of a slice: an optional `$` then 1–3 uppercase column letters, an
-// optional `$`, then the row digits. The column is uppercase-only because Excel stores it that way and
-// so that a lowercase identifier (a defined name) is never mistaken for a reference. The row is capped
-// at seven digits (Excel's last row is 1048576).
-const CELL_REFERENCE = /^(\$?)([A-Z]{1,3})(\$?)([0-9]{1,7})/;
-
-// A reference token must sit at an identifier boundary: not glued to a preceding name character (so
-// the `A1` inside `_xlfn.A1` or a defined name `FOO_A1` is left alone) and not continued by one, nor
-// opening a call `(` nor separating a sheet name `!` — a token followed by `!` is the sheet name, not
-// a cell, and its reference sits after the `!`.
-const NAME_CHAR_OR_DOT = /[A-Za-z0-9_.]/;
-const REFERENCE_TAIL = /[A-Za-z0-9_.!(]/;
-
-// Advance past a single-quoted sheet name (opening quote at `i`), honouring the doubled-quote escape,
-// so a token inside `'My Sheet'` is never read as a cell reference.
-function skipSingleQuoted(formula: string, i: number): number {
-  let j = i + 1;
-  const n = formula.length;
-  while (j < n) {
-    if (formula[j] === "'") {
-      if (formula[j + 1] === "'") {
-        j += 2;
-        continue;
-      }
-      return j + 1;
-    }
-    j += 1;
-  }
-  return n;
-}
+// A relative cell reference to shift: an optional `$`, then 1–3 uppercase column letters, an optional
+// `$`, then the row digits (capped at seven — Excel's last row is 1048576). The column is uppercase-
+// only because Excel stores it that way and so a lowercase defined name is never mistaken for a
+// reference. The lookbehind rejects a reference glued to a preceding name character or '.', so the
+// `A1` inside `_xlfn.A1` or a defined name `FOO_A1` is left alone; the lookahead rejects one continued
+// by a name character, opening a call `(`, or preceding a sheet `!` — a token before `!` is the sheet
+// name (`Q1!A1`), not a cell. Applied per code run, where opaque regions have already been stripped.
+const CELL_REFERENCE = /(?<![A-Za-z0-9_.])(\$?)([A-Z]{1,3})(\$?)([0-9]{1,7})(?![A-Za-z0-9_.!(])/g;
 
 /**
  * Shift every relative cell reference in a formula by `colDelta` columns and `rowDelta` rows, leaving
@@ -490,64 +300,15 @@ function skipSingleQuoted(formula: string, i: number): number {
  */
 export function translateFormula(formula: string, colDelta: number, rowDelta: number): string {
   if (colDelta === 0 && rowDelta === 0) return formula;
-  let out = '';
-  let i = 0;
-  const n = formula.length;
-  while (i < n) {
-    const ch = formula[i] as string;
-    if (ch === '"') {
-      const j = skipString(formula, i);
-      out += formula.slice(i, j);
-      i = j;
-      continue;
-    }
-    if (ch === "'") {
-      const j = skipSingleQuoted(formula, i);
-      out += formula.slice(i, j);
-      i = j;
-      continue;
-    }
-    if (ch === '[') {
-      const j = skipBrackets(formula, i);
-      out += formula.slice(i, j);
-      i = j;
-      continue;
-    }
-
-    const prev = formula[i - 1];
-    const atBoundary = prev === undefined || !NAME_CHAR_OR_DOT.test(prev);
-    if (atBoundary && (ch === '$' || (ch >= 'A' && ch <= 'Z'))) {
-      const match = CELL_REFERENCE.exec(formula.slice(i));
-      if (match !== null) {
-        const after = formula[i + match[0].length];
-        if (after === undefined || !REFERENCE_TAIL.test(after)) {
-          const [, colAbs, colLetters, rowAbs, rowDigits] = match as unknown as [
-            string,
-            string,
-            string,
-            string,
-            string,
-          ];
-          const col =
-            colAbs === '$' ? colLetters : numberToColumn(columnToNumber(colLetters) + colDelta);
-          const row = rowAbs === '$' ? rowDigits : String(Number(rowDigits) + rowDelta);
-          out += `${colAbs}${col}${rowAbs}${row}`;
-          i += match[0].length;
-          continue;
-        }
-      }
-    }
-
-    // Not a reference: consume a whole identifier at once (so its interior is never re-examined) or
-    // copy a single non-name character.
-    const nameEnd = readName(formula, i);
-    if (nameEnd > i) {
-      out += formula.slice(i, nameEnd);
-      i = nameEnd;
-      continue;
-    }
-    out += ch;
-    i += 1;
-  }
-  return out;
+  return scanFormula(formula, (code) =>
+    code.replace(
+      CELL_REFERENCE,
+      (_match, colAbs: string, colLetters: string, rowAbs: string, rowDigits: string) => {
+        const col =
+          colAbs === '$' ? colLetters : numberToColumn(columnToNumber(colLetters) + colDelta);
+        const row = rowAbs === '$' ? rowDigits : String(Number(rowDigits) + rowDelta);
+        return `${colAbs}${col}${rowAbs}${row}`;
+      },
+    ),
+  );
 }

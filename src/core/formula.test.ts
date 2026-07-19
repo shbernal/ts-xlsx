@@ -150,6 +150,15 @@ test('a parameter name inside a string literal is never mistaken for a reference
   assert.equal(mangleParams('LET(x,1,"x is one"&x)'), 'LET(_xlpm.x,1,"x is one"&_xlpm.x)');
 });
 
+test('a parameter name inside a single-quoted sheet name is never prefixed', () => {
+  // The sheet name `x` collides with the LET parameter; skipping the quoted region keeps it verbatim.
+  assert.equal(mangleParams("LET(x,1,'x sheet'!A1&x)"), "LET(_xlpm.x,1,'x sheet'!A1&_xlpm.x)");
+});
+
+test('a parameter name inside a structured reference is never prefixed', () => {
+  assert.equal(mangleParams('LET(x,1,Table[x]&x)'), 'LET(_xlpm.x,1,Table[x]&_xlpm.x)');
+});
+
 test('a lambda-valued parameter called as a function is prefixed', () => {
   assert.equal(
     mangleParams('LET(f,LAMBDA(v,v+1),f(5))'),
