@@ -38,6 +38,7 @@ import type {
   PageBreak,
   PageMargins,
   PageSetup,
+  PrintOptions,
   RowProperties,
   SheetView,
   Worksheet,
@@ -1158,6 +1159,8 @@ function worksheetXml(
     conditionalFormattingsXml(sheet.conditionalFormattings, styles) +
     dataValidationsXml(sheet.dataValidations) +
     hyperlinksXml(hyperlinks) +
+    // CT_Worksheet order: <printOptions> precedes <pageMargins>, which precedes <pageSetup>.
+    printOptionsXml(sheet.printOptions) +
     pageMarginsXml(sheet.pageMargins) +
     pageSetupXml(sheet.pageSetup, printerSettingsRelId) +
     headerFooterXml(sheet.headerFooter) +
@@ -1515,6 +1518,27 @@ function headerFooterXml(hf: HeaderFooter): string {
 // Excel's "Normal" margins, in inches — the defaults Excel writes for an untouched sheet.
 const DEFAULT_MARGINS = {left: 0.7, right: 0.7, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3} as const;
 const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
+
+// `<printOptions>` carries the print-toggle flags and sits just before `<pageMargins>` in
+// CT_Worksheet order. Each attribute is emitted only when the model carries it — as an explicit
+// `="1"`/`="0"` so a caller can force a flag off against Excel's default — and an untouched sheet
+// keeps the element out of the file entirely.
+function printOptionsXml(printOptions: PrintOptions): string {
+  const bit = (value: boolean): '1' | '0' => (value ? '1' : '0');
+  const attrs: string[] = [];
+  if (printOptions.horizontalCentered !== undefined) {
+    attrs.push(`horizontalCentered="${bit(printOptions.horizontalCentered)}"`);
+  }
+  if (printOptions.verticalCentered !== undefined) {
+    attrs.push(`verticalCentered="${bit(printOptions.verticalCentered)}"`);
+  }
+  if (printOptions.headings !== undefined) attrs.push(`headings="${bit(printOptions.headings)}"`);
+  if (printOptions.gridLines !== undefined) attrs.push(`gridLines="${bit(printOptions.gridLines)}"`);
+  if (printOptions.gridLinesSet !== undefined) {
+    attrs.push(`gridLinesSet="${bit(printOptions.gridLinesSet)}"`);
+  }
+  return attrs.length === 0 ? '' : `<printOptions ${attrs.join(' ')}/>`;
+}
 
 // OOXML's <pageMargins> is all-or-nothing: setting any one margin requires all six, or Excel
 // repairs the file. So the element is emitted only when the caller set at least one, and the

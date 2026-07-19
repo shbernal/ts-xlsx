@@ -281,6 +281,19 @@ test('a model round-trip carries manual row and column breaks on their own axes'
   assert.notStrictEqual(dst.rowBreaks[0], src.rowBreaks[0], 'each break is cloned, not aliased');
 });
 
+test('a model round-trip carries print options and clears the destination\'s stale ones', () => {
+  const src = new Worksheet('Src', 1);
+  src.printOptions.horizontalCentered = true;
+  src.printOptions.gridLinesSet = false;
+
+  const dst = new Worksheet('Dst', 2);
+  dst.printOptions.verticalCentered = true; // stale content the assignment must clear
+  dst.model = src.model;
+
+  assert.deepEqual(dst.printOptions, {horizontalCentered: true, gridLinesSet: false}, 'print options copy without residue');
+  assert.notStrictEqual(dst.printOptions, src.printOptions, 'the container is copied, not aliased');
+});
+
 test('assigning a model clears an autofilter the destination held, leaving no residue', () => {
   const dst = new Worksheet('Dst', 2);
   dst.autoFilter = 'Y1:Z9';

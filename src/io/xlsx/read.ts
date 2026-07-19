@@ -56,6 +56,7 @@ import type {
   PageBreak,
   PageMargins,
   PageSetup,
+  PrintOptions,
   PreservedPart,
   PreservedRelationship,
   PreservedWorksheetReference,
@@ -1702,6 +1703,9 @@ function parseWorksheet(
           // `autoPageBreaks`) leaves `pageSetup.fitToPage` unset.
           if (attrs.fitToPage !== undefined) sheet.pageSetup.fitToPage = flagValue(attrs.fitToPage);
           break;
+        case 'printOptions':
+          applyPrintOptions(sheet.printOptions, attrs);
+          break;
         case 'pageMargins':
           applyMargins(sheet.pageMargins, attrs);
           break;
@@ -1905,6 +1909,27 @@ function applyRow(sheet: Worksheet, attrs: {readonly [k: string]: string}): void
     if (Number.isInteger(level) && level > 0) properties.outlineLevel = level;
   }
   if (attrs.collapsed === '1' || attrs.collapsed === 'true') properties.collapsed = true;
+}
+
+// Read the `<printOptions>` boolean toggles back onto the model, storing only the ones the source
+// carried so a re-write stays byte-clean. An OOXML boolean is `1`/`true` for on and `0`/`false` for
+// off; a present-but-unrecognised token is dropped rather than coerced.
+function applyPrintOptions(printOptions: PrintOptions, attrs: {readonly [k: string]: string}): void {
+  const flag = (raw: string | undefined): boolean | undefined => {
+    if (raw === '1' || raw === 'true') return true;
+    if (raw === '0' || raw === 'false') return false;
+    return undefined;
+  };
+  const horizontalCentered = flag(attrs.horizontalCentered);
+  if (horizontalCentered !== undefined) printOptions.horizontalCentered = horizontalCentered;
+  const verticalCentered = flag(attrs.verticalCentered);
+  if (verticalCentered !== undefined) printOptions.verticalCentered = verticalCentered;
+  const headings = flag(attrs.headings);
+  if (headings !== undefined) printOptions.headings = headings;
+  const gridLines = flag(attrs.gridLines);
+  if (gridLines !== undefined) printOptions.gridLines = gridLines;
+  const gridLinesSet = flag(attrs.gridLinesSet);
+  if (gridLinesSet !== undefined) printOptions.gridLinesSet = gridLinesSet;
 }
 
 function applyMargins(margins: PageMargins, attrs: {readonly [k: string]: string}): void {

@@ -1881,6 +1881,25 @@ breaks coexist without cross-contaminating and serialise in schema order; an emp
 a `model` copy carries both axes cloned, not aliased. `test:src`: **635 pass**;
 `corpus`/`corpus:rewrite`: **0 regressions**.
 
+### 2026-07-19 — beyond the corpus finish line: print options *(worksheet, source)*
+
+The `<printOptions>` element — the print-toggle flags an author sets from *Page Layout → Sheet Options*
+(centre horizontally/vertically, print the row/column headings, print the gridlines) — was *never read
+and never written*: a valid file that carried it lost every one of those toggles on a load-and-save. It
+mirrors the existing `<pageSetup>`/`<pageMargins>` handling, so the model now carries a `PrintOptions`
+container (`Worksheet.printOptions`, in `WorksheetModel`, copied by the `model` get/set alongside the
+other page containers). The reader's new `applyPrintOptions` stores each boolean the source carried
+(OOXML `1`/`true` → on, `0`/`false` → off; an unrecognised token is dropped, not coerced); the writer's
+`printOptionsXml` emits `<printOptions>` just before `<pageMargins>` in CT_Worksheet order, writing each
+set flag as an explicit `="1"`/`="0"` so a caller can force one *off* against Excel's default (notably
+`gridLinesSet`, which defaults true) — and keeps the element out of an untouched sheet entirely. Only the
+attributes the model carries are emitted, so a round-trip never fabricates a flag. Locked test-first
+(`write.test.ts`, `worksheet.test.ts`): the toggles emit and survive a write→read round-trip; a flag
+forced off round-trips as an explicit `"0"` rather than being swallowed by the default; `<printOptions>`
+precedes `<pageMargins>` in schema order; an unset sheet emits no element; and a `model` copy carries the
+container cloned, clearing the destination's stale flags. `test:src`: **640 pass**;
+`corpus`/`corpus:rewrite`: **0 regressions**.
+
 **Reserved for the human (not blocking the rewrite):** open decision #1 (now optional — see above)
 and the final brand name (Phase 4). **Housekeeping:** per `STRATEGY.md` we no longer track
 `exceljs/exceljs` (frozen universe, no re-harvest); the `upstream` remote can be dropped anytime.

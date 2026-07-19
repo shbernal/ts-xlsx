@@ -126,6 +126,25 @@ export interface PageSetup {
 }
 
 /**
+ * Print-toggle flags from the `<printOptions>` element. Each maps to a boolean OOXML attribute that
+ * defaults false — except `gridLinesSet`, which defaults true and gates whether `gridLines` is
+ * honoured. The model stores only what the source or caller set, so an unset flag is omitted and a
+ * round-trip never fabricates one; an empty object emits no element at all.
+ */
+export interface PrintOptions {
+  /** Centre the printed content horizontally on the page. */
+  horizontalCentered?: boolean;
+  /** Centre the printed content vertically on the page. */
+  verticalCentered?: boolean;
+  /** Print the row and column headings (the `1,2,3…` / `A,B,C…` gutters). */
+  headings?: boolean;
+  /** Print the cell gridlines. */
+  gridLines?: boolean;
+  /** Whether the `gridLines` flag is authoritative; when `false`, Excel ignores `gridLines`. */
+  gridLinesSet?: boolean;
+}
+
+/**
  * A manual page break (`<brk>`). For a row break, `id` is the row the layout splits *before*; for a
  * column break it is the column. `max` bounds the break's extent across the other axis (Excel writes
  * the last row/column index) and `man` marks it author-set rather than automatic — the model preserves
@@ -326,6 +345,7 @@ export interface WorksheetModel {
   properties: WorksheetProperties;
   outline: OutlineProperties;
   pageSetup: PageSetup;
+  printOptions: PrintOptions;
   pageMargins: PageMargins;
   headerFooter: HeaderFooter;
   rowBreaks: PageBreak[];
@@ -400,6 +420,13 @@ export class Worksheet {
    * fabricates them.
    */
   readonly pageSetup: PageSetup = {};
+
+  /**
+   * Print-toggle flags (`<printOptions>`): centring, and whether headings/gridlines print. Mutate in
+   * place: `sheet.printOptions.gridLines = true`. Empty means unset — the writer emits no element and
+   * a round-trip never fabricates one.
+   */
+  readonly printOptions: PrintOptions = {};
 
   /** Print margins. Mutate in place: `sheet.pageMargins.left = 0.5`. Empty means unset. */
   readonly pageMargins: PageMargins = {};
@@ -1304,6 +1331,7 @@ export class Worksheet {
       properties: {...this.properties},
       outline: {...this.outline},
       pageSetup: {...this.pageSetup},
+      printOptions: {...this.printOptions},
       pageMargins: {...this.pageMargins},
       headerFooter: {...this.headerFooter},
       rowBreaks: this.rowBreaks.map(brk => ({...brk})),
@@ -1333,6 +1361,7 @@ export class Worksheet {
     overwrite(this.properties, model.properties);
     overwrite(this.outline, model.outline);
     overwrite(this.pageSetup, model.pageSetup);
+    overwrite(this.printOptions, model.printOptions);
     overwrite(this.pageMargins, model.pageMargins);
     overwrite(this.headerFooter, model.headerFooter);
     this.rowBreaks.length = 0;

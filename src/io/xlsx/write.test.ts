@@ -359,6 +359,55 @@ test('<pageMargins> is placed after <sheetData>', () => {
   assert.ok(xml.indexOf('<sheetData') < xml.indexOf('<pageMargins'), 'pageMargins must follow sheetData');
 });
 
+test('print-option toggles are emitted and survive a write→read round-trip', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.printOptions.horizontalCentered = true;
+  s.printOptions.gridLines = true;
+  s.printOptions.headings = true;
+
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  const tag = /<printOptions ([^/]*)\/>/.exec(xml)?.[1] ?? '';
+  assert.match(tag, /horizontalCentered="1"/);
+  assert.match(tag, /gridLines="1"/);
+  assert.match(tag, /headings="1"/);
+  assert.doesNotMatch(tag, /verticalCentered/, 'an untouched flag is not fabricated');
+
+  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  assert.deepEqual(back?.printOptions, {horizontalCentered: true, gridLines: true, headings: true});
+});
+
+test('a print-option flag forced off round-trips as an explicit "0", not a dropped default', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.printOptions.gridLinesSet = false;
+
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<printOptions gridLinesSet="0"\/>/);
+
+  const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+  assert.deepEqual(back?.printOptions, {gridLinesSet: false}, 'the explicit false survives, not swallowed by the default');
+});
+
+test('<printOptions> precedes <pageMargins> in schema order', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.printOptions.horizontalCentered = true;
+  s.pageMargins.top = 1;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.ok(xml.indexOf('<printOptions') < xml.indexOf('<pageMargins'), 'printOptions must precede pageMargins');
+});
+
+test('a sheet with no print options set emits no <printOptions> element', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /<printOptions/, 'an empty print-option set fabricates nothing');
+});
+
 test('header/footer variants emit their children and gate them with different* flags', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');
