@@ -8,6 +8,7 @@
 import {encodeAddress} from './address.ts';
 import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
 import {type CellValue, coerceCellValue, detectValueType, type ValueType} from './value.ts';
+import type {CellModel} from './worksheet.ts';
 
 export class Cell {
   /** 1-based row index. */
@@ -192,12 +193,16 @@ export class Cell {
   }
 }
 
-// Copy a cell's value and every style facet onto another cell. Used when a structural edit shifts a
-// cell to a new position: `Cell` fixes its `(row, col)` at construction, so a shifted cell is a fresh
-// cell at the new coordinates carrying the original's content. Facet objects are passed by reference —
-// safe under the copy-on-write style model (facet setters replace, never mutate), so the source and
-// its shifted copy never alias each other's style through a shared object.
-export function copyCellContent(source: Cell, target: Cell): void {
+// Copy a cell's value and every style facet onto a target cell. The source is a {@link CellModel},
+// which a live {@link Cell} structurally satisfies, so this one primitive serves both directions that
+// load content into a cell: a structural edit shifting a cell to fresh coordinates (`Cell` fixes its
+// `(row, col)` at construction, so the shifted cell is a new cell carrying the original's content) and
+// assigning a {@link WorksheetModel} onto a sheet. Position is never copied — the target keeps its own
+// `(row, col)`. Facet objects are assigned by reference, safe under the copy-on-write style model
+// (facet setters replace, never mutate), so source and target never alias each other's style through a
+// shared object. Paired with {@link cellToModel} (the read direction); the two field lists must carry
+// the same facets or a model round-trip would silently drop one — the historical merge-loss failure.
+export function copyCellContent(source: CellModel, target: Cell): void {
   target.value = source.value;
   target.fill = source.fill;
   target.numFmt = source.numFmt;
@@ -206,4 +211,23 @@ export function copyCellContent(source: Cell, target: Cell): void {
   target.alignment = source.alignment;
   target.protection = source.protection;
   target.note = source.note;
+}
+
+// Snapshot a cell's position and content as a {@link CellModel} — the read direction paired with
+// {@link copyCellContent}'s write. Emits exactly the facets copyCellContent consumes, so a
+// `dst.model = src.model` round-trip carries every one; a facet listed here but not there (or the
+// reverse) is precisely the silent merge-loss the {@link WorksheetModel} contract guards against.
+export function cellToModel(cell: Cell): CellModel {
+  return {
+    row: cell.row,
+    col: cell.col,
+    value: cell.value,
+    fill: cell.fill,
+    numFmt: cell.numFmt,
+    font: cell.font,
+    border: cell.border,
+    alignment: cell.alignment,
+    protection: cell.protection,
+    note: cell.note,
+  };
 }

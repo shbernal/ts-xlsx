@@ -8,7 +8,7 @@
 
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
-import {Cell, copyCellContent} from './cell.ts';
+import {Cell, cellToModel, copyCellContent} from './cell.ts';
 import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
 import {
   cloneDataValidation,
@@ -1004,21 +1004,8 @@ export class Worksheet {
    */
   get model(): WorksheetModel {
     const cells: CellModel[] = [];
-    for (const [row, cols] of this.#rows) {
-      for (const [col, cell] of cols) {
-        cells.push({
-          row,
-          col,
-          value: cell.value,
-          fill: cell.fill,
-          numFmt: cell.numFmt,
-          font: cell.font,
-          border: cell.border,
-          alignment: cell.alignment,
-          protection: cell.protection,
-          note: cell.note,
-        });
-      }
+    for (const cols of this.#rows.values()) {
+      for (const cell of cols.values()) cells.push(cellToModel(cell));
     }
     return {
       state: this.state,
@@ -1084,27 +1071,8 @@ export class Worksheet {
     for (const {index, properties} of model.columns)
       Object.assign(this.getColumn(index), properties);
     for (const {number, properties} of model.rows) Object.assign(this.getRow(number), properties);
-    for (const {
-      row,
-      col,
-      value,
-      fill,
-      numFmt,
-      font,
-      border,
-      alignment,
-      protection,
-      note,
-    } of model.cells) {
-      const cell = this.#cellAt(row, col);
-      cell.value = value;
-      cell.fill = fill;
-      cell.numFmt = numFmt;
-      cell.font = font;
-      cell.border = border;
-      cell.alignment = alignment;
-      cell.protection = protection;
-      cell.note = note;
+    for (const cellModel of model.cells) {
+      copyCellContent(cellModel, this.#cellAt(cellModel.row, cellModel.col));
     }
     for (const range of model.merges) this.mergeCells(range);
     for (const {sqref, rule, extended} of model.dataValidations) {
