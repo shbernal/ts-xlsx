@@ -10,6 +10,12 @@ import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
 import {type CellValue, coerceCellValue, detectValueType, type ValueType} from './value.ts';
 import type {CellModel} from './worksheet.ts';
 
+/**
+ * A single cell owns its value and every style facet outright. Each facet below — fill, number format,
+ * font, border, alignment, protection, quote-prefix, and note — is held in the cell's own field and
+ * *replaced* (never mutated in place) by its setter, so a facet set on one cell never aliases or bleeds
+ * onto its row, column, or sheet siblings. Each facet's own doc covers only what is specific to it.
+ */
 export class Cell {
   /** 1-based row index. */
   readonly row: number;
@@ -57,11 +63,7 @@ export class Cell {
     return detectValueType(this.#value);
   }
 
-  /**
-   * The cell's background fill, or `undefined` when it has none. Each cell owns its
-   * own fill; assigning one never aliases a neighbour's style, so a fill set on one
-   * cell cannot bleed onto its row, column, or sheet siblings.
-   */
+  /** The cell's background fill, or `undefined` when it has none. */
   get fill(): Fill | undefined {
     return this.#fill;
   }
@@ -74,9 +76,8 @@ export class Cell {
    * The cell's number-format code (`"0.00%"`, a custom accounting format, …), or
    * `undefined` for the General format. Stored verbatim: the invariant form Excel
    * persists — `.` decimal, `,` grouping, `/` date separator — is neither localized
-   * nor rewritten, so the code round-trips character-for-character. Like {@link fill},
-   * each cell owns its own code; a cell that also carries a column-level format keeps
-   * both, so overriding one facet never drops the other.
+   * nor rewritten, so the code round-trips character-for-character. A cell that also carries
+   * a column-level format keeps both, so overriding one facet never drops the other.
    */
   get numFmt(): string | undefined {
     return this.#numFmt;
@@ -89,9 +90,7 @@ export class Cell {
   /**
    * The cell's font — bold/italic/underline, size, colour, typeface — as a partial set
    * of the facets that differ from the default (only the facets actually set are carried,
-   * exactly as OOXML stores them). `undefined` means the cell uses the workbook default
-   * font. Like {@link fill} and {@link numFmt}, each cell owns its own font object, so a
-   * font set on one cell never aliases or bleeds onto its row, column, or sheet siblings.
+   * exactly as OOXML stores them). `undefined` means the cell uses the workbook default font.
    */
   get font(): Partial<Font> | undefined {
     return this.#font;
@@ -104,9 +103,7 @@ export class Cell {
   /**
    * The cell's border — the line style and colour of each side — or `undefined` when the
    * cell has none. An absent edge within a border means that side is unbordered, so reading
-   * a cell never fabricates a border it does not have. Like {@link fill}, {@link numFmt}, and
-   * {@link font}, each cell owns its own border object, so a border set on one cell never
-   * aliases or bleeds onto its row, column, or sheet siblings.
+   * a cell never fabricates a border it does not have.
    */
   get border(): Border | undefined {
     return this.#border;
@@ -119,9 +116,7 @@ export class Cell {
   /**
    * The cell's alignment — how its content sits within the cell, plus the wrap/shrink flags —
    * or `undefined` when it uses the defaults. The boolean flags are off unless explicitly set,
-   * so a cell that never enabled wrapping never reads back wrapped. Like {@link fill},
-   * {@link numFmt}, {@link font}, and {@link border}, each cell owns its own alignment object, so
-   * an alignment set on one cell never aliases or bleeds onto its row, column, or sheet siblings.
+   * so a cell that never enabled wrapping never reads back wrapped.
    */
   get alignment(): Alignment | undefined {
     return this.#alignment;
@@ -135,9 +130,7 @@ export class Cell {
    * The cell's protection — its locked/hidden flags, enforced only once the sheet is protected —
    * or `undefined` when the cell carries neither. `locked` defaults to on in OOXML, so a cell
    * that never touched protection is implicitly locked and reads back as `undefined`, not as
-   * `{locked: true}`; the flag only becomes explicit when a cell is unlocked. Like {@link fill},
-   * {@link numFmt}, {@link font}, {@link border}, and {@link alignment}, each cell owns its own
-   * protection object, so protection set on one cell never aliases or bleeds onto its siblings.
+   * `{locked: true}`; the flag only becomes explicit when a cell is unlocked.
    */
   get protection(): Protection | undefined {
     return this.#protection;
@@ -152,7 +145,7 @@ export class Cell {
    * when it looks like a formula or number, and shows a leading apostrophe in the formula bar without
    * that apostrophe being part of the stored value. `undefined` (or `false`) when unset. It is a
    * cell-format flag — an attribute on the cell's `xf` record — so it composes independently of the
-   * value and, like the other style facets, never bleeds onto sibling cells.
+   * value.
    */
   get quotePrefix(): boolean | undefined {
     return this.#quotePrefix;
@@ -180,9 +173,8 @@ export class Cell {
   /**
    * The cell's note (comment) as plain text, or `undefined` when it carries none. A note is
    * metadata anchored to the cell, independent of its value: a cell can hold a note while empty,
-   * and clearing the value leaves the note intact. Like the style facets, each cell owns its own
-   * note, so a note set on one cell never bleeds onto its siblings, and a structural edit that
-   * shifts the cell carries the note along to its new position.
+   * and clearing the value leaves the note intact. A structural edit that shifts the cell carries the
+   * note along to its new position.
    */
   get note(): string | undefined {
     return this.#note;

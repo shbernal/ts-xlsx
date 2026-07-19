@@ -5,6 +5,7 @@
 // of the characters Excel forbids — so an invalid book cannot be constructed in the
 // first place, rather than failing only at write time.
 
+import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {PreservedPart} from './preserved.ts';
 import type {NamedCellStyle} from './style.ts';
@@ -144,8 +145,7 @@ export class Workbook {
    * re-write. Replaces any table already held.
    */
   restoreDifferentialStyles(fragments: readonly string[]): void {
-    this.#dxfs.length = 0;
-    this.#dxfs.push(...fragments);
+    replaceContents(this.#dxfs, fragments);
   }
 
   /** The preserved differential-style (`<dxfs>`) fragments, in index order. */
@@ -160,8 +160,7 @@ export class Workbook {
    * default-palette entry. Replaces any palette already held.
    */
   restoreIndexedColors(fragments: readonly string[]): void {
-    this.#indexedColors.length = 0;
-    this.#indexedColors.push(...fragments);
+    replaceContents(this.#indexedColors, fragments);
   }
 
   /** The preserved custom indexed-color palette, in index order; empty when the default palette rules. */
@@ -175,8 +174,7 @@ export class Workbook {
    * default. Replaces any table already held.
    */
   restoreNamedStyles(styles: readonly NamedCellStyle[]): void {
-    this.#namedStyles.length = 0;
-    this.#namedStyles.push(...styles);
+    replaceContents(this.#namedStyles, styles);
   }
 
   /** The named cell styles, in index order (index 0 is Normal); empty when only the default exists. */

@@ -83,9 +83,15 @@ export function columnToNumber(letters: string): number {
   return n;
 }
 
-/** Reconstruct a canonical corner string from optional axes (`""` if both absent). */
-function corner(col: number | undefined, row: number | undefined): string {
-  return `${col !== undefined ? numberToColumn(col) : ''}${row !== undefined ? row : ''}`;
+/** Build a {@link CellAddress} corner straight from optional numeric axes — the address string is
+ * assembled from the parts we already hold, so no encode-then-decode round-trip is needed. An axis the
+ * corner omits stays `undefined`; both absent yields the empty address (`""`). */
+function makeCellAddress(col: number | undefined, row: number | undefined): CellAddress {
+  return {
+    address: `${col !== undefined ? numberToColumn(col) : ''}${row !== undefined ? row : ''}`,
+    col,
+    row,
+  };
 }
 
 /**
@@ -135,8 +141,8 @@ export function decodeRange(reference: string): RangeAddress {
   const top = rows.length > 0 ? Math.min(...rows) : undefined;
   const bottom = rows.length > 0 ? Math.max(...rows) : undefined;
 
-  const tl = decodeAddress(corner(left, top));
-  const br = decodeAddress(corner(right, bottom));
+  const tl = makeCellAddress(left, top);
+  const br = makeCellAddress(right, bottom);
 
   return {
     top,

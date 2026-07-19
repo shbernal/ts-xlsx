@@ -129,37 +129,36 @@ export type CellValue =
 
 const ERROR_SET: ReadonlySet<string> = new Set(ERROR_CODES);
 
+// Whether a value is a non-null object carrying `key` — the object-shaped {@link CellValue} kinds are all
+// discriminated by the presence of a single property, so every guard below narrows through this one test.
+function hasKey<K extends string>(value: unknown, key: K): value is Record<K, unknown> & object {
+  return typeof value === 'object' && value !== null && key in value;
+}
+
 export function isErrorValue(value: CellValue): value is ErrorValue {
-  return typeof value === 'object' && value !== null && 'error' in value;
+  return hasKey(value, 'error');
 }
 
 export function isFormulaValue(value: CellValue): value is FormulaValue {
   // A shared-formula clone resolved on read carries both its master address (`sharedFormula`) and the
   // translated `formula`; it is a SharedFormulaValue, so exclude it here to keep the two kinds distinct.
-  return (
-    typeof value === 'object' && value !== null && 'formula' in value && !('sharedFormula' in value)
-  );
+  return hasKey(value, 'formula') && !('sharedFormula' in value);
 }
 
 export function isSharedFormulaValue(value: CellValue): value is SharedFormulaValue {
-  return typeof value === 'object' && value !== null && 'sharedFormula' in value;
+  return hasKey(value, 'sharedFormula');
 }
 
 export function isDataTableFormulaValue(value: CellValue): value is DataTableFormulaValue {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'shareType' in value &&
-    value.shareType === 'dataTable'
-  );
+  return hasKey(value, 'shareType') && value.shareType === 'dataTable';
 }
 
 export function isRichTextValue(value: CellValue): value is RichTextValue {
-  return typeof value === 'object' && value !== null && 'richText' in value;
+  return hasKey(value, 'richText');
 }
 
 export function isHyperlinkValue(value: CellValue): value is HyperlinkValue {
-  return typeof value === 'object' && value !== null && 'hyperlink' in value;
+  return hasKey(value, 'hyperlink');
 }
 
 /**

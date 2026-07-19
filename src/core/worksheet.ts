@@ -10,6 +10,7 @@ import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {Cell, cellToModel, copyCellContent} from './cell.ts';
 import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
+import {overwrite, replaceContents} from './containers.ts';
 import {
   cloneDataValidation,
   type DataValidation,
@@ -179,15 +180,6 @@ export interface WorksheetModel {
   tables: TableOptions[];
   autoFilter: AutoFilter | undefined;
   protection: SheetProtection | undefined;
-}
-
-// Replace a mutable container's contents in place: a worksheet's `properties`/`pageSetup`/
-// `pageMargins`/`headerFooter` are readonly fields holding mutable objects, so importing a model must overwrite
-// them rather than reassign — and clear any stale key the incoming model does not carry.
-function overwrite<T extends object>(target: T, source: T): void {
-  const bag = target as unknown as Record<string, unknown>;
-  for (const key of Object.keys(bag)) delete bag[key];
-  Object.assign(target, source);
 }
 
 // Sub-cell anchor geometry: a fractional grid coordinate resolves to the cell it floors to plus an
@@ -419,7 +411,7 @@ export class Worksheet {
   get rowCount(): number {
     let last = 0;
     for (const [number, cols] of this.#rows) {
-      if (number > last && [...cols.values()].some((cell) => cell.value !== null)) last = number;
+      if (number > last && this.#rowHasContent(cols)) last = number;
     }
     for (const number of this.#rowProperties.keys()) {
       if (number > last) last = number;
@@ -436,9 +428,19 @@ export class Worksheet {
   get actualRowCount(): number {
     let count = 0;
     for (const cols of this.#rows.values()) {
-      if ([...cols.values()].some((cell) => cell.value !== null)) count++;
+      if (this.#rowHasContent(cols)) count++;
     }
     return count;
+  }
+
+  // Whether any cell materialised in a row holds a value — the used-range test {@link rowCount} and
+  // {@link actualRowCount} share. Short-circuits on the first non-empty cell rather than allocating the
+  // row's values into a throwaway array to scan them.
+  #rowHasContent(cols: Map<number, Cell>): boolean {
+    for (const cell of cols.values()) {
+      if (cell.value !== null) return true;
+    }
+    return false;
   }
 
   /**
@@ -651,8 +653,7 @@ export class Worksheet {
    * then omits any media no sheet anchors any longer. */
   removeImage(imageId: number): void {
     const kept = this.#images.filter((image) => image.imageId !== imageId);
-    this.#images.length = 0;
-    this.#images.push(...kept);
+    replaceContents(this.#images, kept);
   }
 
   /** The images anchored to this sheet, in the order they were added. */
@@ -1052,10 +1053,14 @@ export class Worksheet {
     overwrite(this.printOptions, model.printOptions);
     overwrite(this.pageMargins, model.pageMargins);
     overwrite(this.headerFooter, model.headerFooter);
-    this.rowBreaks.length = 0;
-    this.rowBreaks.push(...model.rowBreaks.map((brk) => ({...brk})));
-    this.columnBreaks.length = 0;
-    this.columnBreaks.push(...model.columnBreaks.map((brk) => ({...brk})));
+    replaceContents(
+      this.rowBreaks,
+      model.rowBreaks.map((brk) => ({...brk})),
+    );
+    replaceContents(
+      this.columnBreaks,
+      model.columnBreaks.map((brk) => ({...brk})),
+    );
 
     this.#rows.clear();
     this.#columns.clear();
