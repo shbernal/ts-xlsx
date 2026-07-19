@@ -75,7 +75,7 @@ import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {inflatePackage} from './inflate.ts';
 import {parsePivotTable} from './pivot-read.ts';
-import {parseIndexedColors} from './styles.ts';
+import {parseColor, parseIndexedColors} from './styles.ts';
 import {parseTable} from './tables.ts';
 import {localName, parseXml} from './xml-read.ts';
 
@@ -1499,24 +1499,6 @@ function parseSheetProtection(attrs: {readonly [k: string]: string}): SheetProte
     }
   }
   return {flags};
-}
-
-function parseColor(attrs: {readonly [k: string]: string}): Color {
-  const color: {argb?: string; theme?: number; tint?: number; indexed?: number} = {};
-  if (attrs.rgb !== undefined) color.argb = attrs.rgb;
-  if (attrs.theme !== undefined) {
-    const theme = Number(attrs.theme);
-    if (Number.isInteger(theme)) color.theme = theme;
-  }
-  if (attrs.tint !== undefined) {
-    const tint = Number(attrs.tint);
-    if (Number.isFinite(tint)) color.tint = tint;
-  }
-  if (attrs.indexed !== undefined) {
-    const indexed = Number(attrs.indexed);
-    if (Number.isInteger(indexed)) color.indexed = indexed;
-  }
-  return color;
 }
 
 // Core document properties live in docProps/core.xml under mixed namespaces

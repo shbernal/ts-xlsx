@@ -228,6 +228,22 @@ test('an x14 extLst conditional formatting is left untouched and writing the she
   );
 });
 
+test('a colorScale colour with a malformed theme attribute drops it rather than round-tripping NaN', () => {
+  const sheet1 =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
+    '<conditionalFormatting sqref="A1:A3"><cfRule type="colorScale" priority="1"><colorScale>' +
+    '<cfvo type="min"/><cfvo type="max"/>' +
+    '<color theme="oops"/><color rgb="FF00FF00"/>' +
+    '</colorScale></cfRule></conditionalFormatting></worksheet>';
+  const out = sheetXml(writeXlsx(readParts({sheet1})));
+
+  // The shared validated parseColor drops the non-integer theme instead of coercing it to NaN, so the
+  // writer never emits `theme="NaN"` — which Excel would reject.
+  assert.doesNotMatch(out, /theme="NaN"/, 'the malformed theme is not written as NaN');
+  assert.match(out, /<color rgb="FF00FF00"\/>/, 'the well-formed sibling colour survives');
+});
+
 function dataBarBook(rule: Record<string, unknown>): Workbook {
   const workbook = new Workbook();
   workbook.addWorksheet('S').addConditionalFormatting({

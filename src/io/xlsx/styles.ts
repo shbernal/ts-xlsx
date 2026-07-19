@@ -638,3 +638,24 @@ export function colorAttrs(color: Color): string {
   if (color.indexed !== undefined) parts.push(`indexed="${color.indexed}"`);
   return parts.join(' ');
 }
+
+// The read counterpart of colorAttrs: decode a `<color>`/`<fgColor>`/… element's attributes.
+// theme/indexed must be integers and tint a finite number; a malformed foreign attribute is dropped
+// rather than propagated as NaN, so a downstream colorAttrs never emits `theme="NaN"`.
+export function parseColor(attrs: {readonly [k: string]: string}): Color {
+  const color: {argb?: string; theme?: number; tint?: number; indexed?: number} = {};
+  if (attrs.rgb !== undefined) color.argb = attrs.rgb;
+  if (attrs.theme !== undefined) {
+    const theme = Number(attrs.theme);
+    if (Number.isInteger(theme)) color.theme = theme;
+  }
+  if (attrs.tint !== undefined) {
+    const tint = Number(attrs.tint);
+    if (Number.isFinite(tint)) color.tint = tint;
+  }
+  if (attrs.indexed !== undefined) {
+    const indexed = Number(attrs.indexed);
+    if (Number.isInteger(indexed)) color.indexed = indexed;
+  }
+  return color;
+}

@@ -24,7 +24,7 @@ import type {Color} from '../../core/style.ts';
 // worksheet's x14 conditional formattings; `DATABAR_LINK_EXT_URI` scopes the `<x14:id>` link a
 // classic cfRule carries to name its extension.
 import {CF_EXT_URI, DATABAR_LINK_EXT_URI, X14_NS, XM_NS} from './namespaces.ts';
-import {colorAttrs, type StyleRegistry} from './styles.ts';
+import {colorAttrs, parseColor, type StyleRegistry} from './styles.ts';
 import {escapeAttr, escapeText} from './xml.ts';
 import {localName, parseXml} from './xml-read.ts';
 
@@ -472,15 +472,6 @@ function parseCfvo(attrs: Record<string, string>): CfValueObject {
     cfvo.value = type === 'formula' ? attrs.val : coerceNumber(attrs.val);
   }
   return cfvo;
-}
-
-function parseColor(attrs: Record<string, string>): Color {
-  return {
-    ...(attrs.rgb !== undefined ? {argb: attrs.rgb} : {}),
-    ...(attrs.theme !== undefined ? {theme: Number(attrs.theme)} : {}),
-    ...(attrs.tint !== undefined ? {tint: Number(attrs.tint)} : {}),
-    ...(attrs.indexed !== undefined ? {indexed: Number(attrs.indexed)} : {}),
-  };
 }
 
 // A cellIs bound / expression predicate: a bare numeric literal reads back as a number so it
