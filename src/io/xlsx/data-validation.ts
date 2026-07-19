@@ -22,18 +22,15 @@ import type {
   DataValidationType,
 } from '../../core/data-validation.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+// The x14/xm extension namespaces and `DATA_VALIDATION_EXT_URI` are declared inline on the elements
+// that need them, exactly as Excel writes them, so the block is self-contained and the worksheet root
+// needs no extra namespace declaration.
+import {DATA_VALIDATION_EXT_URI, X14_NS, XM_NS} from './namespaces.ts';
 import {escapeAttr, escapeText} from './xml.ts';
 import {localName, parseXml} from './xml-read.ts';
 
 // The typed validations whose literal operands are numbers; `list`/`custom` operands stay strings.
 const TYPED = new Set<string>(['whole', 'decimal', 'date', 'time', 'textLength']);
-
-// The 2009 extension namespaces and the `<ext>` uri that scopes a worksheet's extended validations —
-// declared inline on the elements that need them, exactly as Excel writes them, so the block is
-// self-contained and the worksheet root needs no extra namespace declaration.
-const X14_NS = 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main';
-const XM_NS = 'http://schemas.microsoft.com/office/excel/2006/main';
-const DATA_VALIDATION_EXT_URI = '{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF}';
 
 /** The standard `<dataValidations>` element for the rules stored in the legacy form, or '' when the
  * sheet has none of them — so a sheet with only extended (or no) validations stays byte-clean here.

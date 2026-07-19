@@ -7,10 +7,9 @@
 // no matching `<legacyDrawing>`/VML reads as text but renders nothing, so we never split them.
 
 import type {Worksheet} from '../../core/worksheet.ts';
+import {SPREADSHEETML_NS} from './namespaces.ts';
 import {escapeText, needsSpacePreserve, XML_DECLARATION} from './xml.ts';
 import {localName, parseXml} from './xml-read.ts';
-
-const MAIN_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
 /** A cell carrying a note, paired with the coordinates the VML anchor needs. */
 export interface NoteCell {
@@ -50,7 +49,7 @@ export function commentsXml(notes: readonly NoteCell[]): string {
     .join('');
   return (
     XML_DECLARATION +
-    `<comments xmlns="${MAIN_NS}">` +
+    `<comments xmlns="${SPREADSHEETML_NS}">` +
     '<authors><author></author></authors>' +
     `<commentList>${list}</commentList>` +
     '</comments>'

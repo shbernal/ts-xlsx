@@ -11,10 +11,9 @@
 // rich text round-trips its formatting rather than flattening to text.
 
 import type {RichTextValue} from '../../core/value.ts';
+import {SPREADSHEETML_NS} from './namespaces.ts';
 import {richTextRunsXml} from './rich-text.ts';
 import {textElement, XML_DECLARATION} from './xml.ts';
-
-const NS_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
 /**
  * Interns cell string values into the shared-strings pool. {@link intern} returns the index a
@@ -50,7 +49,7 @@ export class SharedStringTable {
     const items = this.#entries.map((inner) => `<si>${inner}</si>`).join('');
     return (
       XML_DECLARATION +
-      `<sst xmlns="${NS_MAIN}" count="${this.#references}" uniqueCount="${this.#entries.length}">` +
+      `<sst xmlns="${SPREADSHEETML_NS}" count="${this.#references}" uniqueCount="${this.#entries.length}">` +
       items +
       '</sst>'
     );

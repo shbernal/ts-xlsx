@@ -26,6 +26,7 @@ import type {
   Protection,
   UnderlineStyle,
 } from '../../core/style.ts';
+import {SPREADSHEETML_NS} from './namespaces.ts';
 import {escapeAttr, XML_DECLARATION} from './xml.ts';
 
 // Excel reserves fill ids 0 and 1 for the "none" and "gray125" patterns it always emits;
@@ -42,7 +43,6 @@ const CUSTOM_NUMFMT_BASE = 164;
 // Border id 0 is the always-present empty border (every edge absent); custom borders from 1.
 const RESERVED_BORDER_COUNT = 1;
 
-const NS_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 // The default font's inner fragment, in the exact child order `fontXml` emits. The reader
 // surfaces this face on every otherwise-unstyled cell (font id 0 is a real font, not an
 // absence), so a cell carrying exactly the default must intern back to id 0 rather than a
@@ -308,7 +308,7 @@ export class StyleRegistry {
     const borders = DEFAULT_BORDER + this.#borderXml.join('');
     return (
       XML_DECLARATION +
-      `<styleSheet xmlns="${NS_MAIN}">` +
+      `<styleSheet xmlns="${SPREADSHEETML_NS}">` +
       this.#numFmtsXml() +
       `<fonts count="${fontCount}">${fonts}</fonts>` +
       `<fills count="${fillCount}">${fills}</fills>` +

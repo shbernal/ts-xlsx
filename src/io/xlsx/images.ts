@@ -10,14 +10,11 @@ import {
   type ImageEditAs,
   isOneCellAnchor,
 } from '../../core/image.ts';
+import {DRAWINGML_NS, PKG_RELS_NS, RELATIONSHIPS_NS, XDR_NS} from './namespaces.ts';
 import {XML_DECLARATION} from './xml.ts';
 import {localName, parseXml} from './xml-read.ts';
 
-const XDR_NS = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing';
-const A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
-const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-const PKG_RELS_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
-const IMAGE_REL_TYPE = `${R_NS}/image`;
+const IMAGE_REL_TYPE = `${RELATIONSHIPS_NS}/image`;
 
 // The content type Excel expects for each image kind, keyed by lower-case extension. An unlisted
 // extension falls back to `image/<ext>`, which is what a well-behaved consumer infers anyway.
@@ -53,7 +50,7 @@ export function drawingXml(images: readonly DrawingImage[]): string {
   const anchors = images.map((image, i) => anchorXml(image, i + 1)).join('');
   return (
     XML_DECLARATION +
-    `<xdr:wsDr xmlns:xdr="${XDR_NS}" xmlns:a="${A_NS}" xmlns:r="${R_NS}">` +
+    `<xdr:wsDr xmlns:xdr="${XDR_NS}" xmlns:a="${DRAWINGML_NS}" xmlns:r="${RELATIONSHIPS_NS}">` +
     anchors +
     '</xdr:wsDr>'
   );

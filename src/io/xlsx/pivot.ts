@@ -8,6 +8,7 @@
 
 import {encodeAddress} from '../../core/address.ts';
 import type {PivotItem, PivotMetric, PivotRecordCell, PivotTable} from '../../core/pivot-table.ts';
+import {RELATIONSHIPS_NS, SPREADSHEETML_NS} from './namespaces.ts';
 import {escapeAttr} from './xml.ts';
 
 // Excel's default caption prefix for each aggregation ("Sum of Amount", "Average of Amount"). A
@@ -26,8 +27,6 @@ const METRIC_CAPTIONS: Record<PivotMetric, string> = {
   varp: 'Varp',
 };
 
-const MAIN_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
-const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 
 /** The `pivotCacheDefinition` part: the source reference and the field catalogue. `r:id="rId1"`
@@ -60,7 +59,7 @@ export function pivotCacheDefinitionXml(table: PivotTable): string {
     .join('');
   return (
     XML_DECLARATION +
-    `<pivotCacheDefinition xmlns="${MAIN_NS}" xmlns:r="${REL_NS}" r:id="rId1" refreshOnLoad="1" ` +
+    `<pivotCacheDefinition xmlns="${SPREADSHEETML_NS}" xmlns:r="${RELATIONSHIPS_NS}" r:id="rId1" refreshOnLoad="1" ` +
     `refreshedBy="ts-xlsx" createdVersion="8" refreshedVersion="8" minRefreshableVersion="3" ` +
     `recordCount="${table.records.length}">` +
     `<cacheSource type="worksheet">` +
@@ -79,7 +78,7 @@ export function pivotCacheRecordsXml(table: PivotTable): string {
     .join('');
   return (
     XML_DECLARATION +
-    `<pivotCacheRecords xmlns="${MAIN_NS}" xmlns:r="${REL_NS}" count="${table.records.length}">` +
+    `<pivotCacheRecords xmlns="${SPREADSHEETML_NS}" xmlns:r="${RELATIONSHIPS_NS}" count="${table.records.length}">` +
     rows +
     `</pivotCacheRecords>`
   );
@@ -115,7 +114,7 @@ export function pivotTableXml(table: PivotTable, name: string, cacheId: string):
 
   return (
     XML_DECLARATION +
-    `<pivotTableDefinition xmlns="${MAIN_NS}" xmlns:r="${REL_NS}" name="${escapeAttr(name)}" ` +
+    `<pivotTableDefinition xmlns="${SPREADSHEETML_NS}" xmlns:r="${RELATIONSHIPS_NS}" name="${escapeAttr(name)}" ` +
     `cacheId="${escapeAttr(cacheId)}" applyNumberFormats="0" applyBorderFormats="0" ` +
     `applyFontFormats="0" applyPatternFormats="0" applyAlignmentFormats="0" ` +
     `applyWidthHeightFormats="1" dataCaption="Values" updatedVersion="8" minRefreshableVersion="3" ` +

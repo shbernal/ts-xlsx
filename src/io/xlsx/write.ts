@@ -54,6 +54,14 @@ import {
   planHyperlinks,
 } from './hyperlinks.ts';
 import {type DrawingImage, drawingRelsXml, drawingXml, imageContentType} from './images.ts';
+import {
+  PKG_RELS_NS,
+  RELATIONSHIPS_NS,
+  SLICER_CACHES_EXT_URI,
+  SLICER_LIST_EXT_URI,
+  SPREADSHEETML_NS,
+  X14_NS,
+} from './namespaces.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {richTextRunsXml} from './rich-text.ts';
 import {SharedStringTable} from './shared-strings.ts';
@@ -63,9 +71,9 @@ import {escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
 
 const NS = {
   contentTypes: 'http://schemas.openxmlformats.org/package/2006/content-types',
-  packageRels: 'http://schemas.openxmlformats.org/package/2006/relationships',
-  main: 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
-  docRels: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+  packageRels: PKG_RELS_NS,
+  main: SPREADSHEETML_NS,
+  docRels: RELATIONSHIPS_NS,
   coreProps: 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties',
   extProps: 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties',
   dc: 'http://purl.org/dc/elements/1.1/',
@@ -1368,13 +1376,6 @@ function worksheetExtLstXml(sheet: Worksheet, slicerRelIds: readonly string[]): 
   ].filter((ext) => ext !== '');
   return exts.length === 0 ? '' : `<extLst>${exts.join('')}</extLst>`;
 }
-
-// The x14 namespace and the well-known extension URIs Excel keys the slicer wiring off. The `<ext>`
-// blocks are opaque to any consumer that does not understand them, so a producer must reproduce these
-// exact GUIDs for Excel to rediscover the slicer widget and its caches.
-const X14_NS = 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main';
-const SLICER_LIST_EXT_URI = '{A8765BA9-456A-4dab-B4F3-ACF838C121DE}';
-const SLICER_CACHES_EXT_URI = '{BBE1A952-AA13-448e-AADC-164F8A28A991}';
 
 // The worksheet-body `<x14:slicerList>` extension that reconnects a sheet to its preserved slicer
 // parts. Each `<x14:slicer>` names the sheet-local relationship id its slicer rel was re-emitted under,

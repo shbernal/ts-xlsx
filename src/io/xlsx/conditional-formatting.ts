@@ -19,6 +19,11 @@ import type {
   ConditionalFormattingRule,
 } from '../../core/conditional-formatting.ts';
 import type {Color} from '../../core/style.ts';
+// The x14/xm extension namespaces and ext-URI GUIDs are declared inline on the `<ext>` elements
+// exactly as Excel writes them, so no worksheet-root xmlns is needed. `CF_EXT_URI` scopes the
+// worksheet's x14 conditional formattings; `DATABAR_LINK_EXT_URI` scopes the `<x14:id>` link a
+// classic cfRule carries to name its extension.
+import {CF_EXT_URI, DATABAR_LINK_EXT_URI, X14_NS, XM_NS} from './namespaces.ts';
 import {colorAttrs, type StyleRegistry} from './styles.ts';
 import {escapeAttr, escapeText} from './xml.ts';
 import {localName, parseXml} from './xml-read.ts';
@@ -26,14 +31,6 @@ import {localName, parseXml} from './xml-read.ts';
 // Excel's default data bar when the author supplies none: a min/max anchor pair and its standard blue.
 const DEFAULT_DATABAR_CFVO: readonly CfValueObject[] = [{type: 'min'}, {type: 'max'}];
 const DEFAULT_DATABAR_COLOR: Color = {argb: 'FF638EC6'};
-
-// The 2009 extension namespaces and the two `<ext>` uris a data bar uses: one scopes the worksheet's
-// x14 conditional formattings, the other scopes the `<x14:id>` link a classic cfRule carries to name
-// its extension. Declared inline exactly as Excel writes them, so no worksheet-root xmlns is needed.
-const X14_NS = 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main';
-const XM_NS = 'http://schemas.microsoft.com/office/excel/2006/main';
-const CF_EXT_URI = '{78C0D931-6437-407d-A8EE-F0AAD7539E65}';
-const DATABAR_LINK_EXT_URI = '{B025F937-C7B1-47D3-B67F-A62EFF666E3E}';
 
 // A data bar needs the x14 extension only when it carries a facet the classic element cannot express.
 // A plain data bar (anchors and bar colour alone) stays classic-only, so an unadorned rule never
