@@ -21,7 +21,15 @@ import type {
   VerticalAlignment,
 } from '../../core/style.ts';
 import {parseColor} from './styles.ts';
-import {boolPresent, boolStrict, localName, parseXml} from './xml-read.ts';
+import {
+  boolPresent,
+  boolStrict,
+  closeEmptyElements,
+  localName,
+  type XmlAttributes,
+  type XmlEvent,
+  xmlEvents,
+} from './xml-read.ts';
 
 // The style facets an xf resolves to. Absent facets stay undefined, matching the contract
 // that an unset facet is simply not present on the reconstructed cell.
@@ -149,267 +157,55 @@ export interface StyleTable {
 
 export function parseStyleTable(xml: string): StyleTable {
   if (xml === '') return {cellXfs: [], namedStyles: []};
-  const fills: Array<Fill | undefined> = [];
-  const fonts: Array<Partial<Font> | undefined> = [];
-  const borders: Array<Border | undefined> = [];
-  const numFmtCodes = new Map<number, string>();
+  let fills: ReadonlyArray<Fill | undefined> = [];
+  let fonts: ReadonlyArray<Partial<Font> | undefined> = [];
+  let borders: ReadonlyArray<Border | undefined> = [];
+  let numFmtCodes: ReadonlyMap<number, string> = new Map();
   const xfStyles: XfStyle[] = [];
   // The named-style layer: <cellStyleXfs> holds the base formats a cell's xfId links to; <cellStyles>
   // labels them by name/builtinId. Parsed in parallel with cellXfs, then zipped and merged below.
   const namedXfs: XfStyle[] = [];
-  const cellStyleNames: {xfId: number; name?: string; builtinId?: number}[] = [];
-  let inFills = false;
-  let inFonts = false;
-  let inCellXfs = false;
-  let inCellStyleXfs = false;
-  let pattern = '';
-  let fgColor: Color | undefined;
-  let bgColor: Color | undefined;
-  // A gradient fill accumulates from <gradientFill> open to close; its stops fill in as <stop>/<color>
-  // pairs arrive. `fillSlotAt` marks where in `fills` the current <fill> began, so its close can keep a
-  // slot even when the fill body was neither a pattern nor a gradient — index alignment is load-bearing.
-  let gradientDraft: GradientDraft | null = null;
-  let fillSlotAt = -1;
-  let fontDraft: FontDraft | null = null;
-  let borderDraft: BorderDraft | null = null;
-  // Which edge of the current border a nested <color> belongs to; null between edges.
-  let currentEdge: BorderEdgeName | null = null;
-  // The <cellXfs>/<cellStyleXfs> xf being read; held from open to close so its <alignment>/
-  // <protection> children can attach before the xf is committed. null outside an <xf>. `pendingXfTarget`
-  // records which table the held xf belongs to.
-  let pendingXf: XfDraft | null = null;
-  let pendingXfTarget: 'cell' | 'named' | null = null;
+  let cellStyleNames: ReadonlyArray<CellStyleName> = [];
 
-  parseXml(
-    xml,
-    {
-      onOpen(name, attrs) {
-        switch (localName(name)) {
-          case 'numFmt': {
-            // <numFmts> entries are self-closing, so they are read here on open. A code with
-            // no id, or the General id 0, contributes nothing.
-            const id = Number(attrs.numFmtId);
-            if (Number.isInteger(id) && id > 0 && attrs.formatCode !== undefined) {
-              numFmtCodes.set(id, attrs.formatCode);
-            }
-            break;
-          }
-          case 'fills':
-            inFills = true;
-            break;
-          case 'fill':
-            // Mark where this <fill> starts so its close can guarantee exactly one slot — a fill body
-            // that is neither <patternFill> nor <gradientFill> (or a gradient we could not parse) must
-            // still consume an id, or every later fill index shifts and cells mis-resolve their fill.
-            if (inFills) fillSlotAt = fills.length;
-            break;
-          case 'gradientFill':
-            if (inFills) {
-              gradientDraft = {
-                fill: {
-                  type: 'gradient',
-                  gradient: attrs.type === 'path' ? 'path' : 'linear',
-                  stops: [],
-                },
-                stopPosition: null,
-                stopColor: undefined,
-              };
-              assignGradientNumbers(gradientDraft.fill, attrs);
-            }
-            break;
-          case 'stop':
-            if (gradientDraft !== null) {
-              const position = Number(attrs.position);
-              gradientDraft.stopPosition = Number.isFinite(position) ? position : 0;
-              gradientDraft.stopColor = undefined;
-            }
-            break;
-          case 'fonts':
-            inFonts = true;
-            break;
-          case 'font':
-            if (inFonts) fontDraft = {};
-            break;
-          case 'borders':
-            break;
-          case 'border':
-            borderDraft = {};
-            currentEdge = null;
-            if (boolStrict(attrs.diagonalUp)) borderDraft.diagonalUp = true;
-            if (boolStrict(attrs.diagonalDown)) borderDraft.diagonalDown = true;
-            break;
-          case 'cellXfs':
-            inCellXfs = true;
-            break;
-          case 'cellStyleXfs':
-            inCellStyleXfs = true;
-            break;
-          case 'cellStyle': {
-            // A <cellStyle> (inside <cellStyles>) names a cellStyleXfs entry by xfId; it is self-closing,
-            // so it is read here on open.
-            const xfId = Number(attrs.xfId);
-            if (Number.isInteger(xfId)) {
-              const entry: {xfId: number; name?: string; builtinId?: number} = {xfId};
-              if (attrs.name !== undefined) entry.name = attrs.name;
-              if (attrs.builtinId !== undefined) {
-                const builtinId = Number(attrs.builtinId);
-                if (Number.isInteger(builtinId)) entry.builtinId = builtinId;
-              }
-              cellStyleNames.push(entry);
-            }
-            break;
-          }
-          case 'patternFill':
-            if (inFills) {
-              pattern = attrs.patternType ?? 'none';
-              fgColor = undefined;
-              bgColor = undefined;
-            }
-            break;
-          case 'fgColor':
-            if (inFills) fgColor = parseColor(attrs);
-            break;
-          case 'bgColor':
-            if (inFills) bgColor = parseColor(attrs);
-            break;
-          default: {
-            const local = localName(name);
-            // A <font>'s children are self-closing, so they are read here on open.
-            if (gradientDraft !== null && local === 'color') {
-              // The colour of the open <stop>; committed to a GradientStop when the stop closes.
-              gradientDraft.stopColor = parseColor(attrs);
-            } else if (fontDraft !== null) {
-              applyFontChild(fontDraft, local, attrs);
-            } else if (borderDraft !== null) {
-              // A border's edges and their <color> children are all read on open (each is
-              // self-closing bar a coloured edge, whose colour child is itself self-closing).
-              if (BORDER_EDGES.has(local)) {
-                currentEdge = attrs.style !== undefined ? (local as BorderEdgeName) : null;
-                if (currentEdge !== null)
-                  borderDraft[currentEdge] = {style: attrs.style as BorderStyle};
-              } else if (local === 'color' && currentEdge !== null) {
-                const edge = borderDraft[currentEdge];
-                if (edge !== undefined)
-                  borderDraft[currentEdge] = {style: edge.style, color: parseColor(attrs)};
-              }
-            } else if (pendingXf !== null && local === 'alignment') {
-              // An xf's <alignment> child arrives before the xf closes; attach it to the pending xf.
-              const alignment = parseAlignment(attrs);
-              if (alignment !== undefined) pendingXf.alignment = alignment;
-            } else if (pendingXf !== null && local === 'protection') {
-              // An xf's <protection> child likewise arrives before the xf closes.
-              const protection = parseProtection(attrs);
-              if (protection !== undefined) pendingXf.protection = protection;
-            } else if ((inCellXfs || inCellStyleXfs) && local === 'xf') {
-              // Both <cellXfs> and <cellStyleXfs> hold <xf> with identical structure; they differ only
-              // in which table the result lands in and whether an xfId link is meaningful (only cellXfs
-              // entries link to a named style).
-              const fillId = Number(attrs.fillId);
-              const fill = Number.isInteger(fillId) ? fills[fillId] : undefined;
-              const fontId = Number(attrs.fontId);
-              // Font id 0 is the workbook default font (a real Calibri-11-style face), not an
-              // absence — unlike border id 0, which is a genuinely empty border. So an xf naming
-              // font 0 resolves to that default face, giving every cell a concrete font to render.
-              const font = Number.isInteger(fontId) ? fonts[fontId] : undefined;
-              const borderId = Number(attrs.borderId);
-              // Border id 0 is the empty default; only a custom border (id > 0) is an explicit one.
-              const border =
-                Number.isInteger(borderId) && borderId > 0 ? borders[borderId] : undefined;
-              const numFmt = resolveNumFmt(attrs.numFmtId, numFmtCodes);
-              const draft: XfDraft = {};
-              if (fill) draft.fill = fill;
-              if (numFmt !== undefined) draft.numFmt = numFmt;
-              if (font) draft.font = font;
-              if (border) draft.border = border;
-              // The quote-prefix flag is an attribute on the xf itself (no shared sub-table); carry it
-              // only when set so an ordinary cell does not gain a spurious `quotePrefix: false`.
-              if (boolStrict(attrs.quotePrefix)) draft.quotePrefix = true;
-              // A cellXfs entry's xfId links it to a named style; capture it only when it points beyond
-              // the Normal default (0), so an ordinary cell carries no spurious named-style link.
-              if (inCellXfs && attrs.xfId !== undefined) {
-                const xfId = Number(attrs.xfId);
-                if (Number.isInteger(xfId) && xfId > 0) draft.xfId = xfId;
-              }
-              // Hold the xf open until its close so an <alignment>/<protection> child can attach first;
-              // a self-closing <xf/> is expanded to a close, so it commits there too, child-free.
-              pendingXf = draft;
-              pendingXfTarget = inCellXfs ? 'cell' : 'named';
-            }
-            break;
-          }
-        }
-      },
-      onClose(name) {
-        switch (localName(name)) {
-          case 'fills':
-            inFills = false;
-            break;
-          case 'fonts':
-            inFonts = false;
-            break;
-          case 'font':
-            if (fontDraft !== null) {
-              fonts.push(Object.keys(fontDraft).length > 0 ? fontDraft : undefined);
-              fontDraft = null;
-            }
-            break;
-          case 'border':
-            if (borderDraft !== null) {
-              borders.push(borderToStyle(borderDraft));
-              borderDraft = null;
-              currentEdge = null;
-            }
-            break;
-          case 'cellXfs':
-            inCellXfs = false;
-            break;
-          case 'cellStyleXfs':
-            inCellStyleXfs = false;
-            break;
-          case 'xf':
-            // A held (non-self-closing) xf commits here, with any alignment child attached, into
-            // whichever table it was opened in.
-            if (pendingXf !== null) {
-              (pendingXfTarget === 'named' ? namedXfs : xfStyles).push(pendingXf);
-              pendingXf = null;
-              pendingXfTarget = null;
-            }
-            break;
-          case 'patternFill':
-            if (inFills) fills.push(toFill(pattern, fgColor, bgColor));
-            break;
-          case 'stop':
-            if (gradientDraft !== null && gradientDraft.stopPosition !== null) {
-              const stop: GradientStop = {
-                position: gradientDraft.stopPosition,
-                color: gradientDraft.stopColor ?? {},
-              };
-              gradientDraft.fill.stops = [...gradientDraft.fill.stops, stop];
-              gradientDraft.stopPosition = null;
-              gradientDraft.stopColor = undefined;
-            }
-            break;
-          case 'gradientFill':
-            if (gradientDraft !== null) {
-              fills.push(gradientDraft.fill);
-              gradientDraft = null;
-            }
-            break;
-          case 'fill':
-            // Backstop the slot: if this <fill>'s body pushed nothing (unparsed/unknown content), keep an
-            // empty slot so id alignment holds and later fills still resolve to the right cells.
-            if (inFills && fills.length === fillSlotAt) fills.push(undefined);
-            break;
-          default:
-            // A coloured edge closes after its <color> child; drop the edge context so a stray
-            // later <color> cannot attach to it.
-            if (borderDraft !== null && BORDER_EDGES.has(localName(name))) currentEdge = null;
-            break;
-        }
-      },
-    },
-    {closeEmptyElements: STYLE_EMPTY_CLOSES},
-  );
+  // One streaming pass, but each top-level sub-table drives its own focused sub-parser over the slice
+  // of events between its open and close. The schema orders the shared tables (<numFmts>, <fonts>,
+  // <fills>, <borders>) before the xf tables, so their results are complete before an <xf> resolves
+  // against them. Every recognised container name is plural and unique to the styleSheet root — none
+  // appears inside a <dxf>'s singular <font>/<fill>/<border> children — so skipping an unrecognised
+  // section here drops exactly what the old flat pass gated off with its `in*` flags.
+  const events = closeEmptyElements(xmlEvents(xml), STYLE_EMPTY_CLOSES);
+  let next = events.next();
+  while (next.done !== true) {
+    const event = next.value;
+    if (event.kind === 'open' && !event.selfClosing) {
+      switch (localName(event.name)) {
+        case 'numFmts':
+          numFmtCodes = parseNumFmts(events);
+          break;
+        case 'fonts':
+          fonts = parseFonts(events);
+          break;
+        case 'fills':
+          fills = parseFills(events);
+          break;
+        case 'borders':
+          borders = parseBorders(events);
+          break;
+        case 'cellStyleXfs':
+          namedXfs.push(
+            ...parseXfTable(events, 'cellStyleXfs', {fills, fonts, borders, numFmtCodes}),
+          );
+          break;
+        case 'cellXfs':
+          xfStyles.push(...parseXfTable(events, 'cellXfs', {fills, fonts, borders, numFmtCodes}));
+          break;
+        case 'cellStyles':
+          cellStyleNames = parseCellStyles(events);
+          break;
+      }
+    }
+    next = events.next();
+  }
 
   // Layer each cellXfs entry over the named style its xfId links to: a facet the direct format sets
   // wins; one it leaves unset falls through to the named style. The xfId is carried through so the
@@ -438,6 +234,289 @@ export function parseStyleTable(xml: string): StyleTable {
   });
 
   return {cellXfs, namedStyles};
+}
+
+// A <cellStyle> label: the name/builtinId a cellStyleXfs entry carries, keyed by its xfId (its index).
+interface CellStyleName {
+  readonly xfId: number;
+  readonly name?: string;
+  readonly builtinId?: number;
+}
+
+// The shared sub-tables an <xf> resolves its facet ids against.
+interface XfDeps {
+  readonly fills: ReadonlyArray<Fill | undefined>;
+  readonly fonts: ReadonlyArray<Partial<Font> | undefined>;
+  readonly borders: ReadonlyArray<Border | undefined>;
+  readonly numFmtCodes: ReadonlyMap<number, string>;
+}
+
+// Pull events off the shared stream up to — and consuming — the close of `container`, yielding only
+// those strictly inside it. A sub-table parser loops this to completion (never breaking), so it drives
+// its own small state machine over exactly its section without closing the underlying generator, and
+// the outer pass resumes at the element after the container's close.
+function* until(events: Iterator<XmlEvent>, container: string): Generator<XmlEvent> {
+  let next = events.next();
+  while (next.done !== true) {
+    const event = next.value;
+    if (event.kind === 'close' && localName(event.name) === container) return;
+    yield event;
+    next = events.next();
+  }
+}
+
+// <numFmts> entries are self-closing, so they are read on open. A code with no id, or the General
+// id 0, contributes nothing.
+function parseNumFmts(events: Iterator<XmlEvent>): ReadonlyMap<number, string> {
+  const codes = new Map<number, string>();
+  for (const event of until(events, 'numFmts')) {
+    if (event.kind === 'open' && localName(event.name) === 'numFmt') {
+      const id = Number(event.attrs.numFmtId);
+      if (Number.isInteger(id) && id > 0 && event.attrs.formatCode !== undefined) {
+        codes.set(id, event.attrs.formatCode);
+      }
+    }
+  }
+  return codes;
+}
+
+function parseFonts(events: Iterator<XmlEvent>): ReadonlyArray<Partial<Font> | undefined> {
+  const fonts: Array<Partial<Font> | undefined> = [];
+  let fontDraft: FontDraft | null = null;
+  for (const event of until(events, 'fonts')) {
+    if (event.kind === 'open') {
+      const local = localName(event.name);
+      // A <font>'s children are self-closing, so they are read here on open.
+      if (local === 'font') fontDraft = {};
+      else if (fontDraft !== null) applyFontChild(fontDraft, local, event.attrs);
+    } else if (event.kind === 'close' && localName(event.name) === 'font' && fontDraft !== null) {
+      fonts.push(Object.keys(fontDraft).length > 0 ? fontDraft : undefined);
+      fontDraft = null;
+    }
+  }
+  return fonts;
+}
+
+function parseFills(events: Iterator<XmlEvent>): ReadonlyArray<Fill | undefined> {
+  const fills: Array<Fill | undefined> = [];
+  let pattern = '';
+  let fgColor: Color | undefined;
+  let bgColor: Color | undefined;
+  // A gradient fill accumulates from <gradientFill> open to close; its stops fill in as <stop>/<color>
+  // pairs arrive. `fillSlotAt` marks where in `fills` the current <fill> began, so its close can keep a
+  // slot even when the fill body was neither a pattern nor a gradient — index alignment is load-bearing.
+  let gradientDraft: GradientDraft | null = null;
+  let fillSlotAt = -1;
+  for (const event of until(events, 'fills')) {
+    if (event.kind === 'open') {
+      const attrs = event.attrs;
+      switch (localName(event.name)) {
+        case 'fill':
+          // Mark where this <fill> starts so its close can guarantee exactly one slot — a fill body
+          // that is neither <patternFill> nor <gradientFill> (or a gradient we could not parse) must
+          // still consume an id, or every later fill index shifts and cells mis-resolve their fill.
+          fillSlotAt = fills.length;
+          break;
+        case 'patternFill':
+          pattern = attrs.patternType ?? 'none';
+          fgColor = undefined;
+          bgColor = undefined;
+          break;
+        case 'fgColor':
+          fgColor = parseColor(attrs);
+          break;
+        case 'bgColor':
+          bgColor = parseColor(attrs);
+          break;
+        case 'gradientFill':
+          gradientDraft = {
+            fill: {
+              type: 'gradient',
+              gradient: attrs.type === 'path' ? 'path' : 'linear',
+              stops: [],
+            },
+            stopPosition: null,
+            stopColor: undefined,
+          };
+          assignGradientNumbers(gradientDraft.fill, attrs);
+          break;
+        case 'stop':
+          if (gradientDraft !== null) {
+            const position = Number(attrs.position);
+            gradientDraft.stopPosition = Number.isFinite(position) ? position : 0;
+            gradientDraft.stopColor = undefined;
+          }
+          break;
+        case 'color':
+          // The colour of the open <stop>; committed to a GradientStop when the stop closes.
+          if (gradientDraft !== null) gradientDraft.stopColor = parseColor(attrs);
+          break;
+      }
+    } else if (event.kind === 'close') {
+      switch (localName(event.name)) {
+        case 'patternFill':
+          fills.push(toFill(pattern, fgColor, bgColor));
+          break;
+        case 'stop':
+          if (gradientDraft !== null && gradientDraft.stopPosition !== null) {
+            const stop: GradientStop = {
+              position: gradientDraft.stopPosition,
+              color: gradientDraft.stopColor ?? {},
+            };
+            gradientDraft.fill.stops = [...gradientDraft.fill.stops, stop];
+            gradientDraft.stopPosition = null;
+            gradientDraft.stopColor = undefined;
+          }
+          break;
+        case 'gradientFill':
+          if (gradientDraft !== null) {
+            fills.push(gradientDraft.fill);
+            gradientDraft = null;
+          }
+          break;
+        case 'fill':
+          // Backstop the slot: if this <fill>'s body pushed nothing (unparsed/unknown content), keep an
+          // empty slot so id alignment holds and later fills still resolve to the right cells.
+          if (fills.length === fillSlotAt) fills.push(undefined);
+          break;
+      }
+    }
+  }
+  return fills;
+}
+
+function parseBorders(events: Iterator<XmlEvent>): ReadonlyArray<Border | undefined> {
+  const borders: Array<Border | undefined> = [];
+  let borderDraft: BorderDraft | null = null;
+  // Which edge of the current border a nested <color> belongs to; null between edges.
+  let currentEdge: BorderEdgeName | null = null;
+  for (const event of until(events, 'borders')) {
+    if (event.kind === 'open') {
+      const local = localName(event.name);
+      const attrs = event.attrs;
+      if (local === 'border') {
+        borderDraft = {};
+        currentEdge = null;
+        if (boolStrict(attrs.diagonalUp)) borderDraft.diagonalUp = true;
+        if (boolStrict(attrs.diagonalDown)) borderDraft.diagonalDown = true;
+      } else if (borderDraft !== null) {
+        // A border's edges and their <color> children are all read on open (each is self-closing bar a
+        // coloured edge, whose colour child is itself self-closing).
+        if (BORDER_EDGES.has(local)) {
+          currentEdge = attrs.style !== undefined ? (local as BorderEdgeName) : null;
+          if (currentEdge !== null) borderDraft[currentEdge] = {style: attrs.style as BorderStyle};
+        } else if (local === 'color' && currentEdge !== null) {
+          const edge = borderDraft[currentEdge];
+          if (edge !== undefined)
+            borderDraft[currentEdge] = {style: edge.style, color: parseColor(attrs)};
+        }
+      }
+    } else if (event.kind === 'close') {
+      const local = localName(event.name);
+      if (local === 'border') {
+        if (borderDraft !== null) {
+          borders.push(borderToStyle(borderDraft));
+          borderDraft = null;
+          currentEdge = null;
+        }
+      } else if (borderDraft !== null && BORDER_EDGES.has(local)) {
+        // A coloured edge closes after its <color> child; drop the edge context so a stray later
+        // <color> cannot attach to it.
+        currentEdge = null;
+      }
+    }
+  }
+  return borders;
+}
+
+// Both <cellXfs> and <cellStyleXfs> hold <xf> with identical structure; they differ only in which
+// table the result lands in and whether an xfId link is meaningful (only cellXfs entries link to a
+// named style). One parser serves both, told by `container` which it is reading.
+function parseXfTable(
+  events: Iterator<XmlEvent>,
+  container: 'cellXfs' | 'cellStyleXfs',
+  deps: XfDeps,
+): XfStyle[] {
+  const xfs: XfStyle[] = [];
+  const captureXfId = container === 'cellXfs';
+  // The xf being read; held from open to close so its <alignment>/<protection> children can attach
+  // before it is committed. null outside an <xf>.
+  let pendingXf: XfDraft | null = null;
+  for (const event of until(events, container)) {
+    if (event.kind === 'open') {
+      const local = localName(event.name);
+      if (local === 'xf') {
+        // Hold the xf open until its close so an <alignment>/<protection> child can attach first; a
+        // self-closing <xf/> is expanded to a close, so it commits there too, child-free.
+        pendingXf = resolveXf(event.attrs, deps, captureXfId);
+      } else if (pendingXf !== null && local === 'alignment') {
+        // An xf's <alignment> child arrives before the xf closes; attach it to the pending xf.
+        const alignment = parseAlignment(event.attrs);
+        if (alignment !== undefined) pendingXf.alignment = alignment;
+      } else if (pendingXf !== null && local === 'protection') {
+        // An xf's <protection> child likewise arrives before the xf closes.
+        const protection = parseProtection(event.attrs);
+        if (protection !== undefined) pendingXf.protection = protection;
+      }
+    } else if (event.kind === 'close' && localName(event.name) === 'xf' && pendingXf !== null) {
+      xfs.push(pendingXf);
+      pendingXf = null;
+    }
+  }
+  return xfs;
+}
+
+// Resolve an <xf>'s facet ids against the shared sub-tables into a draft. `captureXfId` is set only
+// for cellXfs entries, the sole table whose xfId links to a named style.
+function resolveXf(attrs: XmlAttributes, deps: XfDeps, captureXfId: boolean): XfDraft {
+  const fillId = Number(attrs.fillId);
+  const fill = Number.isInteger(fillId) ? deps.fills[fillId] : undefined;
+  const fontId = Number(attrs.fontId);
+  // Font id 0 is the workbook default font (a real Calibri-11-style face), not an absence — unlike
+  // border id 0, which is a genuinely empty border. So an xf naming font 0 resolves to that default
+  // face, giving every cell a concrete font to render.
+  const font = Number.isInteger(fontId) ? deps.fonts[fontId] : undefined;
+  const borderId = Number(attrs.borderId);
+  // Border id 0 is the empty default; only a custom border (id > 0) is an explicit one.
+  const border = Number.isInteger(borderId) && borderId > 0 ? deps.borders[borderId] : undefined;
+  const numFmt = resolveNumFmt(attrs.numFmtId, deps.numFmtCodes);
+  const draft: XfDraft = {};
+  if (fill) draft.fill = fill;
+  if (numFmt !== undefined) draft.numFmt = numFmt;
+  if (font) draft.font = font;
+  if (border) draft.border = border;
+  // The quote-prefix flag is an attribute on the xf itself (no shared sub-table); carry it only when
+  // set so an ordinary cell does not gain a spurious `quotePrefix: false`.
+  if (boolStrict(attrs.quotePrefix)) draft.quotePrefix = true;
+  // A cellXfs entry's xfId links it to a named style; capture it only when it points beyond the Normal
+  // default (0), so an ordinary cell carries no spurious named-style link.
+  if (captureXfId && attrs.xfId !== undefined) {
+    const xfId = Number(attrs.xfId);
+    if (Number.isInteger(xfId) && xfId > 0) draft.xfId = xfId;
+  }
+  return draft;
+}
+
+// A <cellStyle> (inside <cellStyles>) names a cellStyleXfs entry by xfId; it is self-closing, so it
+// is read on open.
+function parseCellStyles(events: Iterator<XmlEvent>): ReadonlyArray<CellStyleName> {
+  const names: CellStyleName[] = [];
+  for (const event of until(events, 'cellStyles')) {
+    if (event.kind === 'open' && localName(event.name) === 'cellStyle') {
+      const attrs = event.attrs;
+      const xfId = Number(attrs.xfId);
+      if (Number.isInteger(xfId)) {
+        const entry: {xfId: number; name?: string; builtinId?: number} = {xfId};
+        if (attrs.name !== undefined) entry.name = attrs.name;
+        if (attrs.builtinId !== undefined) {
+          const builtinId = Number(attrs.builtinId);
+          if (Number.isInteger(builtinId)) entry.builtinId = builtinId;
+        }
+        names.push(entry);
+      }
+    }
+  }
+  return names;
 }
 
 // A <font> child element sets one facet on the draft. Boolean flags honour their `val`: a
