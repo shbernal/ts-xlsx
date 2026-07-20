@@ -206,14 +206,10 @@ export function worksheetXml(
     // Schema order near the tail: <drawing> (the images), then <legacyDrawing> (the VML holding the
     // note boxes), then <legacyDrawingHF> (a preserved header/footer image's VML), then <picture>
     // (the sheet background), then <tableParts>.
-    (references.drawingRelId !== null ? `<drawing r:id="${references.drawingRelId}"/>` : '') +
-    (references.legacyDrawingRelId !== null
-      ? `<legacyDrawing r:id="${references.legacyDrawingRelId}"/>`
-      : '') +
-    (references.legacyDrawingHFRelId !== null
-      ? `<legacyDrawingHF r:id="${references.legacyDrawingHFRelId}"/>`
-      : '') +
-    (references.backgroundRelId !== null ? `<picture r:id="${references.backgroundRelId}"/>` : '') +
+    refElement('drawing', references.drawingRelId) +
+    refElement('legacyDrawing', references.legacyDrawingRelId) +
+    refElement('legacyDrawingHF', references.legacyDrawingHFRelId) +
+    refElement('picture', references.backgroundRelId) +
     tablePartsXml(tables) +
     // `<extLst>` is the final child of CT_Worksheet and a worksheet may carry at most one. Both the
     // x14 conditional-formatting extensions (data-bar gradient/negative-fill/axis) and the extended
@@ -471,6 +467,13 @@ function sheetProtectionXml(protection: SheetProtection | undefined): string {
     attrs += ` ${key}="${forbidden ? 1 : 0}"`;
   }
   return `<sheetProtection${attrs}/>`;
+}
+
+// A tail reference element (`<drawing r:id="…"/>` and its `<legacyDrawing>`/`<legacyDrawingHF>`/
+// `<picture>` siblings) wiring the sheet to a part by relationship id, or '' when the sheet carries no
+// part of that kind — each such id is null then.
+function refElement(tag: string, relId: string | null): string {
+  return relId === null ? '' : `<${tag} r:id="${relId}"/>`;
 }
 
 function tablePartsXml(tables: readonly PlannedTable[]): string {
