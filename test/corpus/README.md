@@ -220,6 +220,13 @@ case can assert the CT_Worksheet child-element order, and a `headerFooter` fact 
 header/footer child text plus the `differentOddEven`/`differentFirst` gating flags). The `spec`
 worksheet input accepts a `headerFooter` block mirroring those children.
 
+The per-sheet fact also carries `cellText` (address → text for every cell holding a value,
+resolved across all three storage forms — inline string, shared string, bare value — with
+rich-text runs concatenated), and each entry of `inspectPackage`'s `tables` carries
+`columnNames` (the declared `tableColumn` names in order). Together they let a case assert the
+correspondence OOXML requires between a table's column metadata and the grid cells beneath it,
+without knowing which string encoding the writer picked.
+
 The `spec` shape consumed by the workbook capabilities is documented alongside the
 capabilities themselves in `adapters/rewrite.ts` (worksheets with cells, columns,
 rows, page margins, tables).

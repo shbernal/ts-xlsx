@@ -268,6 +268,65 @@ test('tables on distinct sheets each reconstruct on their own sheet', () => {
   );
 });
 
+test('declaring a table fills its header row cells with the column names', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.addTable({name: 'T', ref: 'C3', columns: [{name: 'Alpha'}, {name: 'Beta'}], rowCount: 1});
+  assert.equal(sheet.getCell('C3').value, 'Alpha', 'headers land at the table anchor, not row 1');
+  assert.equal(sheet.getCell('D3').value, 'Beta');
+});
+
+test('a headerless table claims no header row', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'Alpha'}],
+    rowCount: 1,
+    headerRow: false,
+  });
+  assert.equal(sheet.getCell('A1').value, null, 'row 1 belongs to the data, not a header');
+});
+
+test('a header cell that already holds a value is not overwritten by a table declaration', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'Existing';
+  sheet.addTable({name: 'T', ref: 'A1', columns: [{name: 'Alpha'}, {name: 'Beta'}], rowCount: 1});
+  assert.equal(sheet.getCell('A1').value, 'Existing', 'authored content wins over the column name');
+  assert.equal(sheet.getCell('B1').value, 'Beta', 'the empty header cell is still filled');
+});
+
+// Reading re-registers every table through addTable *after* the sheet's cells are loaded, so the
+// header-filling step runs against a populated grid. It must never write over what the file said:
+// these two cases are the ones where the loaded cell carries more than the column name does.
+test('reading does not flatten a rich-text header cell to its plain column name', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.addTable({name: 'T', ref: 'A1', columns: [{name: 'Alpha'}], rowCount: 1});
+  sheet.getCell('A1').value = {richText: [{text: 'Al', font: {bold: true}}, {text: 'pha'}]};
+
+  const value = readXlsx(writeXlsx(wb)).getWorksheet('S')?.getCell('A1').value;
+  assert.ok(value !== null && typeof value === 'object' && 'richText' in value);
+  assert.equal(value.richText.length, 2, 'the runs survive the read');
+  assert.equal(value.richText[0]?.font?.bold, true);
+});
+
+test('reading preserves a header cell whose text drifted from the declared column name', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.addTable({name: 'T', ref: 'A1', columns: [{name: 'Alpha'}], rowCount: 1});
+  sheet.getCell('A1').value = 'Drifted';
+
+  const back = readXlsx(writeXlsx(wb));
+  assert.equal(
+    back.getWorksheet('S')?.getCell('A1').value,
+    'Drifted',
+    'the file is authoritative on read — a re-declaration must not repair it',
+  );
+});
+
 test('a table survives a second read → write → read round-trip unchanged', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').addTable({

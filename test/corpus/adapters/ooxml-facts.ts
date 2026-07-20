@@ -28,6 +28,47 @@ const attrs = (tag: string | null | undefined): Attrs => {
 const xmlWellFormed = (xml: string): boolean =>
   !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
 
+const unescapeXml = (s: string): string =>
+  s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&amp;/g, '&');
+
+// The shared-string table as plain text, indexed as `t="s"` cells reference it. Rich-text runs
+// concatenate: a case asserting on a header's *text* should not have to care whether the writer
+// split it into runs.
+const sharedStringTexts = (xml: string): string[] =>
+  [...xml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>|<si\b[^>]*\/>/g)].map((m) =>
+    m[1] === undefined
+      ? ''
+      : [...m[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map((t) => unescapeXml(t[1]!)).join(''),
+  );
+
+// Address → text for every cell carrying a value, across all three storage forms (inline string,
+// shared string, bare value). Lets a case assert what a reader would *see* in the grid without
+// knowing which encoding the writer chose.
+const cellTexts = (xml: string, shared: string[]): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const m of xml.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+    const a = attrs(`<c ${m[1]}>`);
+    if (a.r === undefined) continue;
+    const body = m[2];
+    if (body === undefined) continue;
+    if (a.t === 'inlineStr') {
+      const runs = [...body.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)];
+      if (runs.length > 0) out[a.r] = runs.map((t) => unescapeXml(t[1]!)).join('');
+      continue;
+    }
+    const v = body.match(/<v\b[^>]*>([\s\S]*?)<\/v>/);
+    if (v === null) continue;
+    out[a.r] = a.t === 's' ? (shared[Number(v[1])] ?? '') : unescapeXml(v[1]!);
+  }
+  return out;
+};
+
 /**
  * @param spec  the workbook spec that produced the package (drives per-sheet lookup)
  * @param partMap  { [zipPath]: xmlString } for every non-directory package part
@@ -75,6 +116,8 @@ export function packageFacts(spec: CorpusApi, partMap: PartMap) {
     const a = attrs(t[0]);
     return {id: a.Id, target: a.Target, type: (a.Type || '').split('/').pop()};
   });
+
+  const sharedStrings = sharedStringTexts(read('xl/sharedStrings.xml') || '');
 
   const sheets: Record<string, unknown> = {};
   const sheetIndex: Record<string, string> = {};
@@ -152,6 +195,7 @@ export function packageFacts(spec: CorpusApi, partMap: PartMap) {
         differentFirst: hfFlag('differentFirst'),
       },
       rows: rowAttrs,
+      cellText: cellTexts(xml, sharedStrings),
       hasBackgroundPicture: /<picture\b[^>]*r:id=/.test(xml),
       sheetFormat: (() => {
         const a = attrs((xml.match(/<sheetFormatPr\b[^>]*\/?>/) || [''])[0]!);
@@ -175,6 +219,9 @@ export function packageFacts(spec: CorpusApi, partMap: PartMap) {
       name: a.name ?? null,
       autoFilterRef: af ? af[1]! : null,
       columnCount: [...xml.matchAll(/<tableColumn\b/g)].length,
+      columnNames: [...xml.matchAll(/<tableColumn\b[^>]*\bname="([^"]*)"/g)].map((m) =>
+        unescapeXml(m[1]!),
+      ),
       headerRowCount: a.headerRowCount ?? '1',
       xmlWellFormed: xmlWellFormed(xml),
     });

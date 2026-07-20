@@ -485,6 +485,26 @@ export class Worksheet {
       (row) => this.spliceRows(row, 0, []),
     );
     this.#tables.push(table);
+
+    // A table's declared range includes its header row, and Excel treats the column metadata and
+    // the cells under it as one fact: a header row that is empty in the grid is corruption, and
+    // Excel repairs the file on open — discarding the column names entirely. The caller already
+    // named the columns once in the table definition, so materialising them here is what makes the
+    // obvious API call produce a file that opens.
+    //
+    // Only *empty* header cells are filled. Reading a workbook re-registers each table through this
+    // method after the sheet's cells are loaded, and those cells are authoritative: they may carry
+    // rich text, a style, or text that drifted from the column name, none of which a re-declaration
+    // may clobber. An empty cell has no such content to lose.
+    if (table.headerRow) {
+      const {top, left} = table.region;
+      table.columns.forEach((column, index) => {
+        const col = left + index;
+        if (this.hasCell(top, col) && this.#cellAt(top, col).value != null) return;
+        this.#cellAt(top, col).value = column.name;
+      });
+    }
+
     return table;
   }
 
