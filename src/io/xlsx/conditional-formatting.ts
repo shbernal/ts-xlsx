@@ -52,8 +52,11 @@ function dataBarExtGuid(index: number): string {
   return `{00000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}}`;
 }
 
-// The scale rules render a built-in visual and carry no differential style; the rest apply a dxf.
-const SCALE_TYPES = new Set(['dataBar', 'colorScale', 'iconSet']);
+// The three built-in visual rules. Each renders a built-in visual and carries no differential
+// style (so the write side skips the dxf), and each nests its `<color>` children differently (so
+// the read side, {@link ScaleKind}, tracks which one it is inside). This tuple drives both.
+const SCALE_KINDS = ['dataBar', 'colorScale', 'iconSet'] as const;
+const SCALE_TYPES = new Set<string>(SCALE_KINDS);
 
 /**
  * Serialise every conditional formatting on a sheet into its `<conditionalFormatting>` blocks, in
@@ -232,9 +235,9 @@ function cfvoXml(cfvo: CfValueObject): string {
   return `<cfvo type="${escapeAttr(cfvo.type)}"${val}/>`;
 }
 
-// The scale kinds nest a `<color>` differently: a data bar names one bar colour, a colour scale a
-// colour per anchor. Tracking which element we are inside routes a parsed `<color>` to the right slot.
-type ScaleKind = 'dataBar' | 'colorScale' | 'iconSet';
+// Which scale element a parsed `<color>` belongs to: a data bar names one bar colour, a colour scale
+// a colour per anchor. Tracking which element we are inside routes a parsed `<color>` to the right slot.
+type ScaleKind = (typeof SCALE_KINDS)[number];
 
 // A rule under construction: fields accumulate across the cfRule's attributes and children, then are
 // finalised into a ConditionalFormattingRule on the closing tag. The array/collection fields are

@@ -70,9 +70,11 @@ type GradientDraft = {
 };
 
 // The four sides plus the diagonal — the edge elements a <border> can hold, in the order the
-// schema lists them. Membership drives edge parsing without a per-name branch.
-type BorderEdgeName = 'left' | 'right' | 'top' | 'bottom' | 'diagonal';
-const BORDER_EDGES = new Set<string>(['left', 'right', 'top', 'bottom', 'diagonal']);
+// schema lists them. This one tuple drives the edge-name union, the membership set (which drives
+// edge parsing without a per-name branch), and the "does any edge carry a style" scan below.
+const BORDER_EDGE_NAMES = ['left', 'right', 'top', 'bottom', 'diagonal'] as const;
+type BorderEdgeName = (typeof BORDER_EDGE_NAMES)[number];
+const BORDER_EDGES = new Set<string>(BORDER_EDGE_NAMES);
 
 // Style-table elements that commit on their close: a bare <font/>/<border/>/<patternFill/>/
 // <gradientFill/>/<xf/> or a self-closing border edge is expanded to open+close so each commits
@@ -629,9 +631,7 @@ function assignGradientNumbers(fill: GradientDraft['fill'], attrs: Record<string
 // An accumulated border with no styled edge and no diagonal direction is the empty default:
 // it carries nothing, so it resolves to undefined rather than an all-empty Border object.
 function borderToStyle(draft: BorderDraft): Border | undefined {
-  const hasEdge = (['left', 'right', 'top', 'bottom', 'diagonal'] as const).some(
-    (edge: BorderEdgeName): boolean => draft[edge] !== undefined,
-  );
+  const hasEdge = BORDER_EDGE_NAMES.some((edge): boolean => draft[edge] !== undefined);
   if (!hasEdge && draft.diagonalUp === undefined && draft.diagonalDown === undefined)
     return undefined;
   return draft;
