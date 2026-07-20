@@ -10,6 +10,7 @@
       "src/**/*.ts",
       "scripts/**/*.ts",
       "test/**/*.mjs",
+      "test/**/*.ts",
       "!test/corpus/fixtures/**"
     ]
   },
@@ -50,7 +51,7 @@
   },
   "overrides": [
     {
-      "includes": ["**/*.test.ts", "test/**/*.mjs"],
+      "includes": ["**/*.test.ts", "test/**/*.mjs", "test/**/*.ts"],
       "linter": {
         "rules": {
           "style": {
