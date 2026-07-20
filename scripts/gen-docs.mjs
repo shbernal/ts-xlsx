@@ -37,6 +37,7 @@ const GROUPS = [
   ['xlsx/read', 'Reading .xlsx'],
   ['xlsx/read-rows', 'Streaming reads'],
   ['xlsx/write', 'Writing .xlsx'],
+  ['xlsx/write-stream', 'Streaming writes'],
   ['csv/read', 'CSV'],
   ['csv/write', 'CSV'],
 ];

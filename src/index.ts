@@ -120,3 +120,13 @@ export {type ReadXlsxOptions, readXlsx} from './io/xlsx/read.ts';
 // rather than named barrel commitments while that surface settles.
 export {type ReadSheetRowsOptions, readSheetRows, readWorkbookStream} from './io/xlsx/read-rows.ts';
 export {writeXlsx} from './io/xlsx/write.ts';
+// The streaming writer's whole surface is named: the incremental workbook/worksheet/row handles are
+// classes and their options are interfaces, so — unlike the streaming reader's inferred output shapes
+// — there is nothing structural left un-named here. A styled row hands back `Cell` (already exported).
+export {
+  type CalcProperties,
+  StreamedRow,
+  WorkbookStreamWriter,
+  type WorkbookStreamWriterOptions,
+  WorksheetStreamWriter,
+} from './io/xlsx/write-stream.ts';
