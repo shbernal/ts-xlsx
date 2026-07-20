@@ -10,7 +10,7 @@ import {
   type FilterCriteria,
   isCustomFilterOperator,
 } from '../../core/autofilter.ts';
-import type {Cell} from '../../core/cell.ts';
+import {applyCellStyle, type Cell} from '../../core/cell.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {PageBreak, PageMargins, PageSetup, PrintOptions} from '../../core/page-setup.ts';
 import {
@@ -282,7 +282,7 @@ export function parseWorksheet(
         ...(hasValue ? {result: decodeFormulaResult(cellType, valueText, style?.numFmt)} : {}),
       };
       const dtCell = sheet.getCell(cellRef);
-      applyCellStyle(dtCell, style);
+      applyXfToCell(dtCell, style);
       dtCell.value = value;
       return;
     }
@@ -306,7 +306,7 @@ export function parseWorksheet(
           ...(hasValue ? {result: decodeFormulaResult(cellType, valueText, style?.numFmt)} : {}),
         };
         const cloneCell = sheet.getCell(cellRef);
-        applyCellStyle(cloneCell, style);
+        applyXfToCell(cloneCell, style);
         cloneCell.value = value;
         return;
       }
@@ -674,20 +674,17 @@ function finalizeCell(
   const {col, row} = decodeAddress(ref);
   if (col === undefined || row === undefined) return;
   const cell = sheet.getCell(ref);
-  applyCellStyle(cell, style);
+  applyXfToCell(cell, style);
   cell.value = decodeCellContent(raw, sharedStrings, style?.numFmt);
 }
 
 // Applies a resolved xf's non-value facets to a cell. Shared by the ordinary cell path and the
 // shared-formula clone path, so a styled clone (fill/font/border/alignment/protection) keeps its
-// look on read rather than surviving as value-only.
-function applyCellStyle(cell: Cell, style: XfStyle | undefined): void {
-  if (style?.fill !== undefined) cell.fill = style.fill;
-  if (style?.numFmt !== undefined) cell.numFmt = style.numFmt;
-  if (style?.font !== undefined) cell.font = style.font;
-  if (style?.border !== undefined) cell.border = style.border;
-  if (style?.alignment !== undefined) cell.alignment = style.alignment;
-  if (style?.protection !== undefined) cell.protection = style.protection;
-  if (style?.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
-  if (style?.xfId !== undefined) cell.namedStyleId = style.xfId;
+// look on read rather than surviving as value-only. The six cell-style facets go through the shared
+// {@link applyCellStyle}; the xf-only links (`quotePrefix`, the named-style `xfId`) are applied here.
+function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
+  if (style === undefined) return;
+  applyCellStyle(cell, style);
+  if (style.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
+  if (style.xfId !== undefined) cell.namedStyleId = style.xfId;
 }

@@ -8,7 +8,7 @@
 
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
-import {Cell, cellToModel, copyCellContent} from './cell.ts';
+import {applyCellStyle, Cell, cellToModel, copyCellContent} from './cell.ts';
 import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
 import {overwrite, replaceContents} from './containers.ts';
 import {
@@ -485,13 +485,7 @@ export class Worksheet {
       (row, col, value, style) => {
         const cell = this.#cellAt(row, col);
         cell.value = value;
-        if (style === undefined) return;
-        if (style.numFmt !== undefined) cell.numFmt = style.numFmt;
-        if (style.font !== undefined) cell.font = style.font;
-        if (style.fill !== undefined) cell.fill = style.fill;
-        if (style.border !== undefined) cell.border = style.border;
-        if (style.alignment !== undefined) cell.alignment = style.alignment;
-        if (style.protection !== undefined) cell.protection = style.protection;
+        if (style !== undefined) applyCellStyle(cell, style);
       },
       // Insert one empty grid row at `row`; the splice re-pins this table (growing its data rows) and
       // shifts the totals row and everything below down by one.
