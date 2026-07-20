@@ -320,9 +320,9 @@ export class Worksheet {
     return this.#rows.get(row)?.has(col) ?? false;
   }
 
-  /** The format properties for a 1-based row number if any were set, without materialising them —
-   * the read-only peek {@link getRow} is not, so a serializer can render a row's attributes without
-   * fabricating an empty record for every row it visits. */
+  /** The format properties for a 1-based row number if any were set, or `undefined` — a read-only
+   * peek that never creates a record, so a serializer can render a row's attributes without
+   * fabricating an empty one for every row it visits. Use {@link getRow} to create-on-access. */
   rowProperties(number: number): RowProperties | undefined {
     return this.#rowProperties.get(number);
   }
@@ -360,7 +360,8 @@ export class Worksheet {
   /**
    * Get the mutable format properties for a 1-based row number, creating the record on
    * first access. This is row *metadata* (height, visibility, outline) — it does not
-   * materialise any cells.
+   * materialise any cells. See {@link rowProperties} for a read-only peek that never
+   * creates a record.
    *
    * @throws {RangeError} if the number is not a positive integer.
    */

@@ -122,7 +122,9 @@ class AutoFilterAccumulator {
 
   beginValues(attrs: XmlAttributes): void {
     this.#values = [];
-    this.#blank = boolPresent(attrs.blank) && attrs.blank !== undefined;
+    // `blank` defaults off when absent, so presence is required first — then it reads as an
+    // on-when-present flag. (`boolPresent` alone would treat the absent attribute as on.)
+    this.#blank = attrs.blank !== undefined && boolPresent(attrs.blank);
   }
 
   addValue(attrs: XmlAttributes): void {

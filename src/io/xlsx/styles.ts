@@ -567,6 +567,9 @@ function edgeXml(tag: string, edge: BorderEdge | undefined): string {
 
 // A format code sits in the `formatCode` attribute; only the markup-significant characters
 // need escaping. A code can legitimately contain `"` (quoted literals like `"$"`), `<`, `&`.
+// Unlike `escapeAttr`, a lone `'` is left untouched: it is not markup-significant inside a
+// double-quoted attribute, and Excel writes format codes with bare apostrophes, so leaving it
+// keeps the round-tripped code byte-identical to the source.
 function escapeFormatCode(code: string): string {
   return code
     .replace(/&/g, '&amp;')

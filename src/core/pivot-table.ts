@@ -196,17 +196,24 @@ export class PivotTable {
     if (options.rows.length === 0) throw new Error('a pivot table needs at least one row field');
     if (options.columns.length === 0)
       throw new Error('a pivot table needs at least one column field');
-    if (options.values.length !== 1) throw new Error('a pivot table needs exactly one value field');
+    const [valueName, ...extraValues] = options.values;
+    if (valueName === undefined || extraValues.length > 0) {
+      throw new Error('a pivot table needs exactly one value field');
+    }
 
     this.rowFields = options.rows.map((name) => resolve('row', name));
     this.columnFields = options.columns.map((name) => resolve('column', name));
-    this.valueField = resolve('value', options.values[0] as string);
+    this.valueField = resolve('value', valueName);
     const axisFields = new Set<number>([...this.rowFields, ...this.columnFields]);
 
-    const firstCol = fields[0]?.col as number;
-    const lastCol = fields[fields.length - 1]?.col as number;
+    // fields is non-empty (guarded above); the source span runs from its first to its last column.
+    const firstField = fields[0];
+    const lastField = fields[fields.length - 1];
+    if (firstField === undefined || lastField === undefined) {
+      throw new Error('the pivot source header row is empty');
+    }
     this.sourceSheetName = source.name;
-    this.sourceRef = `${encodeAddress(firstCol, 1)}:${encodeAddress(lastCol, lastRow)}`;
+    this.sourceRef = `${encodeAddress(firstField.col, 1)}:${encodeAddress(lastField.col, lastRow)}`;
 
     // Read the source body once, field by field, so the same scan feeds both the shared-items
     // catalogues and the records that reference them.
@@ -246,7 +253,10 @@ export class PivotTable {
           const scalar = (columnScalars[fieldIndex] as PivotItem[])[row] as PivotItem;
           const catalogue = catalogues[fieldIndex];
           if (!catalogue) return scalar;
-          return {kind: 'index', index: catalogue.get(itemKey(scalar)) as number};
+          // Every scalar was catalogued in the shared-items pass above, so this always hits.
+          const index = catalogue.get(itemKey(scalar));
+          if (index === undefined) throw new Error('pivot record references an uncatalogued item');
+          return {kind: 'index', index};
         }),
       );
     }

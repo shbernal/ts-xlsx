@@ -367,7 +367,10 @@ function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> 
 // the sheet declares none. The reference lives in the worksheet XML (not distinguishable by
 // relationship Type — a header/footer VML and a comment VML share the `vmlDrawing` type), so the
 // specific relationship is found by reading the element's `r:id` here.
-function worksheetReferenceRelId(sheetXml: string, element: string): string | undefined {
+function worksheetReferenceRelId(
+  sheetXml: string,
+  element: 'drawing' | 'legacyDrawingHF',
+): string | undefined {
   for (const {attrs} of openElements(sheetXml, element)) {
     if (attrs['r:id'] !== undefined) return attrs['r:id'];
   }

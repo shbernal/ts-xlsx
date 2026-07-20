@@ -114,6 +114,9 @@ export function decodeFormulaResult(
     : result;
 }
 
+// The formula-result subset of `decodeValue`: a cached result is only ever a string, boolean,
+// error, or number — never a shared-string index, inline string, or Strict-mode date — so this
+// handles just those cases rather than the full cell-value grammar.
 function decodeResult(type: string, valueText: string): FormulaResult {
   switch (type) {
     case 'str':
