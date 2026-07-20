@@ -63,7 +63,7 @@ function pendingFilterCriteria(
 // and only attributes actually present are carried, so an omitted (default-valued) flag stays absent —
 // exactly what the writer emitted. A password credential is preserved verbatim in its agile form
 // (algorithm, hash, salt, spin count); there is no plaintext password to recover, so it is not re-hashed.
-function parseSheetProtection(attrs: {readonly [k: string]: string}): SheetProtection | undefined {
+function parseSheetProtection(attrs: XmlAttributes): SheetProtection | undefined {
   if (attrs.sheet === '0' || attrs.sheet === 'false') return undefined;
   const flags: {-readonly [K in keyof SheetProtectionFlags]?: boolean} = {};
   for (const {key} of SHEET_PROTECTION_FLAGS) {
@@ -452,7 +452,7 @@ function applySheetProperties(local: string, attrs: XmlAttributes, sheet: Worksh
 
 function applyColumn(
   sheet: Worksheet,
-  attrs: {readonly [k: string]: string},
+  attrs: XmlAttributes,
   xfStyles: ReadonlyArray<XfStyle>,
   columnStyle: Map<number, number>,
 ): void {
@@ -481,7 +481,7 @@ function applyColumn(
   }
 }
 
-function applyRow(sheet: Worksheet, attrs: {readonly [k: string]: string}): void {
+function applyRow(sheet: Worksheet, attrs: XmlAttributes): void {
   const number = Number(attrs.r);
   if (!Number.isInteger(number) || number < 1) return;
   const properties = sheet.getRow(number);
@@ -500,10 +500,7 @@ function applyRow(sheet: Worksheet, attrs: {readonly [k: string]: string}): void
 // Read the `<printOptions>` boolean toggles back onto the model, storing only the ones the source
 // carried so a re-write stays byte-clean. An OOXML boolean is `1`/`true` for on and `0`/`false` for
 // off; a present-but-unrecognised token is dropped rather than coerced.
-function applyPrintOptions(
-  printOptions: PrintOptions,
-  attrs: {readonly [k: string]: string},
-): void {
+function applyPrintOptions(printOptions: PrintOptions, attrs: XmlAttributes): void {
   const horizontalCentered = boolTristate(attrs.horizontalCentered);
   if (horizontalCentered !== undefined) printOptions.horizontalCentered = horizontalCentered;
   const verticalCentered = boolTristate(attrs.verticalCentered);
@@ -516,7 +513,7 @@ function applyPrintOptions(
   if (gridLinesSet !== undefined) printOptions.gridLinesSet = gridLinesSet;
 }
 
-function applyMargins(margins: PageMargins, attrs: {readonly [k: string]: string}): void {
+function applyMargins(margins: PageMargins, attrs: XmlAttributes): void {
   for (const side of MARGIN_SIDES) {
     const raw = attrs[side];
     if (raw === undefined) continue;
@@ -529,7 +526,7 @@ function applyMargins(margins: PageMargins, attrs: {readonly [k: string]: string
 // source carried so a re-write stays byte-clean. Numeric attributes that fail to parse are
 // dropped rather than stored as NaN; the enumerated ones are trusted verbatim (an unexpected token
 // round-trips harmlessly as an unknown string).
-function applyPageSetup(pageSetup: PageSetup, attrs: {readonly [k: string]: string}): void {
+function applyPageSetup(pageSetup: PageSetup, attrs: XmlAttributes): void {
   const num = (raw: string | undefined): number | undefined => {
     if (raw === undefined) return undefined;
     const value = Number(raw);

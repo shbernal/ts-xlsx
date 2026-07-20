@@ -526,11 +526,7 @@ function parseCellStyles(events: Iterator<XmlEvent>): ReadonlyArray<CellStyleNam
 // A <font> child element sets one facet on the draft. Boolean flags honour their `val`: a
 // bare tag or val="1"/"true" is on, val="0"/"false" is off (an explicit-false flag is not
 // truthy merely because the tag is present). An unrecognised child is ignored.
-export function applyFontChild(
-  draft: FontDraft,
-  local: string,
-  attrs: {readonly [k: string]: string},
-): void {
+export function applyFontChild(draft: FontDraft, local: string, attrs: XmlAttributes): void {
   switch (local) {
     case 'b':
       draft.bold = boolPresent(attrs.val);
@@ -621,7 +617,7 @@ function toFill(
 
 // Copy the numeric <gradientFill> attributes (degree; the path insets) onto a gradient draft, keeping
 // only the finite ones so an absent or malformed attribute leaves the field its OOXML default (unset).
-function assignGradientNumbers(fill: GradientDraft['fill'], attrs: Record<string, string>): void {
+function assignGradientNumbers(fill: GradientDraft['fill'], attrs: XmlAttributes): void {
   for (const key of ['degree', 'left', 'right', 'top', 'bottom'] as const) {
     const value = Number(attrs[key]);
     if (attrs[key] !== undefined && Number.isFinite(value)) fill[key] = value;
@@ -641,7 +637,7 @@ function borderToStyle(draft: BorderDraft): Border | undefined {
 // from the default. Boolean flags honour their parsed value — wrapText="0" is off, so it must
 // not fabricate a { wrapText: false } alignment — and an element carrying only defaults yields
 // undefined rather than an empty alignment object.
-function parseAlignment(attrs: {readonly [k: string]: string}): Alignment | undefined {
+function parseAlignment(attrs: XmlAttributes): Alignment | undefined {
   const out: {-readonly [K in keyof Alignment]?: Alignment[K]} = {};
   // `general` is the default and reads back as no explicit horizontal alignment; an unrecognised
   // token (like an out-of-enum vertical one) is dropped rather than trusted into the model.
@@ -675,7 +671,7 @@ function parseAlignment(attrs: {readonly [k: string]: string}): Alignment | unde
 // default. `locked` defaults to TRUE, so only an explicit `locked="0"` carries information (an
 // unlocked cell) — a default or explicit-true cell must not read back as { locked: true }; `hidden`
 // defaults to false, so only `hidden="1"` is carried. An element with only defaults yields undefined.
-function parseProtection(attrs: {readonly [k: string]: string}): Protection | undefined {
+function parseProtection(attrs: XmlAttributes): Protection | undefined {
   const out: {-readonly [K in keyof Protection]?: Protection[K]} = {};
   if (attrs.locked === '0' || attrs.locked === 'false') out.locked = false;
   if (boolStrict(attrs.hidden)) out.hidden = true;
