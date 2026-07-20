@@ -20,9 +20,10 @@
 
 import {strFromU8} from 'fflate';
 
-import {decodeAddress, MAX_COLUMN} from '../../core/address.ts';
+import {MAX_COLUMN} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
-import {decodeCellContent, type SharedString} from './cell-value.ts';
+import {CellAccumulator} from './cell-accumulator.ts';
+import type {SharedString} from './cell-value.ts';
 import {inflatePackage} from './inflate.ts';
 import {
   DEFAULT_MAX_UNCOMPRESSED,
@@ -279,32 +280,25 @@ function* scanSheet(
   let rowHidden = false;
   let cells: StreamedCell[] = [];
 
-  let cellRef = '';
-  let cellType = '';
-  let cellStyle = -1;
-  let formula = '';
-  let valueText = '';
-  let inlineText = '';
-  let hasFormula = false;
-  let hasValue = false;
+  // The in-flight `<c>`, gathered exactly as the buffered reader gathers it. This reader drives the
+  // same beginCell/setFormula/setValue/appendText methods, then takes only the cell's plain decoded
+  // value (via decode) — never the shared-formula / data-table resolution the buffered finalize adds,
+  // which a data read does not want. Rich `<r>` runs are deliberately not opened here, so a rich
+  // inline string flattens to its concatenated text as a streamed value always has.
+  const cell = new CellAccumulator();
   let inInlineString = false;
   let capture = false;
   let text = '';
 
   const finalizeCell = (): void => {
-    if (cellRef === '') return;
-    const {col} = decodeAddress(cellRef);
-    if (col === undefined) return;
-    const style = cellStyle >= 0 ? xfStyles[cellStyle] : undefined;
-    const value = decodeCellContent(
-      {type: cellType, hasFormula, formula, hasValue, valueText, inlineText},
-      sharedStrings,
-      style?.numFmt,
-    );
+    if (cell.ref === '' || cell.col < 0) return;
+    const style = cell.styleIndex >= 0 ? xfStyles[cell.styleIndex] : undefined;
+    const value = cell.decode(sharedStrings, style);
     // A blank or purely style-only cell decodes to null; a data read wants only cells that carry
     // something (a formula object, an empty string, a false, and a 0 all count — only null drops).
     if (value !== null) {
-      cells.push(style ? {col, address: cellRef, value, style} : {col, address: cellRef, value});
+      const {col, ref} = cell;
+      cells.push(style ? {col, address: ref, value, style} : {col, address: ref, value});
     }
   };
 
@@ -333,20 +327,16 @@ function* scanSheet(
           if (event.attrs.ref !== undefined) merges.push(event.attrs.ref);
           break;
         case 'c':
-          cellRef = event.attrs.r ?? '';
-          cellType = event.attrs.t ?? '';
-          cellStyle = event.attrs.s !== undefined ? Number(event.attrs.s) : -1;
-          formula = '';
-          valueText = '';
-          inlineText = '';
-          hasFormula = false;
-          hasValue = false;
+          cell.beginCell(event.attrs);
           break;
         case 'is':
           inInlineString = true;
-          inlineText = '';
+          cell.beginInlineString();
           break;
         case 'f':
+          capture = true;
+          cell.beginFormula(event.attrs, event.selfClosing);
+          break;
         case 'v':
         case 't':
           capture = true;
@@ -361,15 +351,13 @@ function* scanSheet(
     const local = localName(event.name);
     switch (local) {
       case 'f':
-        formula = text;
-        hasFormula = true;
+        cell.setFormula(text);
         break;
       case 'v':
-        valueText = text;
-        hasValue = true;
+        cell.setValue(text);
         break;
       case 't':
-        if (inInlineString) inlineText += text;
+        cell.appendText(text, inInlineString);
         break;
       case 'is':
         inInlineString = false;

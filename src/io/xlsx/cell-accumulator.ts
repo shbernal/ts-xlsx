@@ -8,7 +8,7 @@
 import {decodeAddress, encodeAddress} from '../../core/address.ts';
 import {applyCellStyle, type Cell} from '../../core/cell.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
-import type {DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
+import type {CellValue, DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {
   decodeCellContent,
@@ -52,12 +52,17 @@ export class CellAccumulator {
   // a map filled as the sheet streams: the master's formula translated to the clone's position.
   readonly #masters = new Map<number, {formula: string; col: number; row: number}>();
 
+  /** This cell's `<c r>` address (`"B3"`), or '' when it carried none. */
+  get ref(): string {
+    return this.#ref;
+  }
+
   /** This cell's own `<c s>` style index, or -1 when it carries none. */
   get styleIndex(): number {
     return this.#style;
   }
 
-  /** This cell's 0-based column, or -1 when its address was absent or unparseable. */
+  /** This cell's 1-based column, or -1 when its address was absent or unparseable. */
   get col(): number {
     return this.#col;
   }
@@ -179,6 +184,16 @@ export class CellAccumulator {
         return;
       }
     }
+    const cell = sheet.getCell(this.#ref);
+    applyXfToCell(cell, style);
+    cell.value = this.decode(sharedStrings, style);
+  }
+
+  // Decode the gathered pieces into a plain cell value, resolving the shared pool and date formats but
+  // NOT the shared-formula / data-table declarations {@link finalize} handles. This is what a data
+  // read (the streaming reader) wants: the cell's own value, with a shared-formula clone surfacing its
+  // cached result rather than a translated formula it will not evaluate.
+  decode(sharedStrings: readonly SharedString[], style: XfStyle | undefined): CellValue {
     const raw: RawCell = {
       type: this.#type,
       hasFormula: this.#hasFormula,
@@ -188,9 +203,7 @@ export class CellAccumulator {
       inlineText: this.#inlineText,
       richTextRuns: this.#runs.runs,
     };
-    const cell = sheet.getCell(this.#ref);
-    applyXfToCell(cell, style);
-    cell.value = decodeCellContent(raw, sharedStrings, style?.numFmt);
+    return decodeCellContent(raw, sharedStrings, style?.numFmt);
   }
 }
 
