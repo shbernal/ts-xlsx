@@ -26,7 +26,7 @@ import type {Color} from '../../core/style.ts';
 import {CF_EXT_URI, DATABAR_LINK_EXT_URI, XM_NS} from './namespaces.ts';
 import {colorAttrs, parseColor, type StyleRegistry} from './styles.ts';
 import {x14Ext} from './x14-ext.ts';
-import {escapeAttr, escapeText, stripFormulaEquals} from './xml.ts';
+import {boolAttr, escapeAttr, escapeText, stripFormulaEquals} from './xml.ts';
 import {boolStrict, coerceNumericLiteral, localName, parseXml} from './xml-read.ts';
 
 // Excel's default data bar when the author supplies none: a min/max anchor pair and its standard blue.
@@ -108,7 +108,7 @@ export function conditionalFormattingsExtXml(
 function x14DataBarXml(ref: string, rule: ConditionalFormattingRule, guid: string): string {
   const cfvo = rule.cfvo && rule.cfvo.length > 0 ? rule.cfvo : DEFAULT_DATABAR_CFVO;
   const anchors = cfvo.map(x14CfvoXml).join('');
-  const gradient = rule.gradient !== undefined ? ` gradient="${rule.gradient ? 1 : 0}"` : '';
+  const gradient = boolAttr('gradient', rule.gradient);
   const negative =
     rule.negativeFillColor !== undefined
       ? `<x14:negativeFillColor ${colorAttrs(rule.negativeFillColor)}/>`

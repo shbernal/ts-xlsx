@@ -55,7 +55,7 @@ import {richTextRunsXml} from './rich-text.ts';
 import type {SharedStringTable} from './shared-strings.ts';
 import {type CellStyle, colorAttrs, type StyleRegistry} from './styles.ts';
 import {x14Ext} from './x14-ext.ts';
-import {escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
+import {attr, boolAttr, escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
 
 /**
  * The used-cell extent of a sheet — the top-left/bottom-right grid bounds that fold into the
@@ -401,12 +401,9 @@ function pageSetUpPrXml(pageSetup: PageSetup): string {
 // caller set it, so an inverted placement (`summaryBelow="0"`) is honoured while an untouched sheet
 // keeps the element out of the file entirely.
 function outlinePrXml(outline: OutlineProperties): string {
-  const attrs: string[] = [];
-  if (outline.summaryBelow !== undefined)
-    attrs.push(`summaryBelow="${outline.summaryBelow ? 1 : 0}"`);
-  if (outline.summaryRight !== undefined)
-    attrs.push(`summaryRight="${outline.summaryRight ? 1 : 0}"`);
-  return attrs.length === 0 ? '' : `<outlinePr ${attrs.join(' ')}/>`;
+  const attrs =
+    boolAttr('summaryBelow', outline.summaryBelow) + boolAttr('summaryRight', outline.summaryRight);
+  return attrs === '' ? '' : `<outlinePr${attrs}/>`;
 }
 
 function mergeCellsXml(merges: readonly string[]): string {
@@ -474,7 +471,7 @@ function sheetProtectionXml(protection: SheetProtection | undefined): string {
     if (allow === undefined) continue;
     const forbidden = !allow;
     if (forbidden === defaultForbidden) continue;
-    attrs += ` ${key}="${forbidden ? 1 : 0}"`;
+    attrs += boolAttr(key, forbidden);
   }
   return `<sheetProtection${attrs}/>`;
 }
@@ -611,15 +608,11 @@ function tableStyleInfoXml(style: TableStyleInfo | undefined): string {
   if (style === undefined) return DEFAULT_TABLE_STYLE;
   let attrs = '';
   if (style.name !== undefined) attrs += ` name="${escapeAttr(style.name)}"`;
-  if (style.showFirstColumn !== undefined)
-    attrs += ` showFirstColumn="${style.showFirstColumn ? '1' : '0'}"`;
-  if (style.showLastColumn !== undefined)
-    attrs += ` showLastColumn="${style.showLastColumn ? '1' : '0'}"`;
-  if (style.showRowStripes !== undefined)
-    attrs += ` showRowStripes="${style.showRowStripes ? '1' : '0'}"`;
-  if (style.showColumnStripes !== undefined) {
-    attrs += ` showColumnStripes="${style.showColumnStripes ? '1' : '0'}"`;
-  }
+  attrs +=
+    boolAttr('showFirstColumn', style.showFirstColumn) +
+    boolAttr('showLastColumn', style.showLastColumn) +
+    boolAttr('showRowStripes', style.showRowStripes) +
+    boolAttr('showColumnStripes', style.showColumnStripes);
   return `<tableStyleInfo${attrs}/>`;
 }
 
@@ -676,21 +669,13 @@ const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as c
 // `="1"`/`="0"` so a caller can force a flag off against Excel's default — and an untouched sheet
 // keeps the element out of the file entirely.
 function printOptionsXml(printOptions: PrintOptions): string {
-  const bit = (value: boolean): '1' | '0' => (value ? '1' : '0');
-  const attrs: string[] = [];
-  if (printOptions.horizontalCentered !== undefined) {
-    attrs.push(`horizontalCentered="${bit(printOptions.horizontalCentered)}"`);
-  }
-  if (printOptions.verticalCentered !== undefined) {
-    attrs.push(`verticalCentered="${bit(printOptions.verticalCentered)}"`);
-  }
-  if (printOptions.headings !== undefined) attrs.push(`headings="${bit(printOptions.headings)}"`);
-  if (printOptions.gridLines !== undefined)
-    attrs.push(`gridLines="${bit(printOptions.gridLines)}"`);
-  if (printOptions.gridLinesSet !== undefined) {
-    attrs.push(`gridLinesSet="${bit(printOptions.gridLinesSet)}"`);
-  }
-  return attrs.length === 0 ? '' : `<printOptions ${attrs.join(' ')}/>`;
+  const attrs =
+    boolAttr('horizontalCentered', printOptions.horizontalCentered) +
+    boolAttr('verticalCentered', printOptions.verticalCentered) +
+    boolAttr('headings', printOptions.headings) +
+    boolAttr('gridLines', printOptions.gridLines) +
+    boolAttr('gridLinesSet', printOptions.gridLinesSet);
+  return attrs === '' ? '' : `<printOptions${attrs}/>`;
 }
 
 // OOXML's <pageMargins> is all-or-nothing: setting any one margin requires all six, or Excel
@@ -711,15 +696,15 @@ function pageMarginsXml(margins: PageMargins): string {
 // `printerSettingsRelId` links the sheet's opaque printer-settings blob and forces the element out
 // even when no scaling attribute is set — the reference is the only thing the model has to carry.
 function pageSetupXml(pageSetup: PageSetup, printerSettingsRelId: string | null): string {
-  const attrs: string[] = [];
-  if (pageSetup.paperSize !== undefined) attrs.push(`paperSize="${pageSetup.paperSize}"`);
-  if (pageSetup.scale !== undefined) attrs.push(`scale="${pageSetup.scale}"`);
-  if (pageSetup.fitToWidth !== undefined) attrs.push(`fitToWidth="${pageSetup.fitToWidth}"`);
-  if (pageSetup.fitToHeight !== undefined) attrs.push(`fitToHeight="${pageSetup.fitToHeight}"`);
-  if (pageSetup.pageOrder !== undefined) attrs.push(`pageOrder="${pageSetup.pageOrder}"`);
-  if (pageSetup.orientation !== undefined) attrs.push(`orientation="${pageSetup.orientation}"`);
-  if (printerSettingsRelId !== null) attrs.push(`r:id="${printerSettingsRelId}"`);
-  return attrs.length === 0 ? '' : `<pageSetup ${attrs.join(' ')}/>`;
+  const attrs =
+    attr('paperSize', pageSetup.paperSize) +
+    attr('scale', pageSetup.scale) +
+    attr('fitToWidth', pageSetup.fitToWidth) +
+    attr('fitToHeight', pageSetup.fitToHeight) +
+    (pageSetup.pageOrder !== undefined ? ` pageOrder="${pageSetup.pageOrder}"` : '') +
+    (pageSetup.orientation !== undefined ? ` orientation="${pageSetup.orientation}"` : '') +
+    (printerSettingsRelId !== null ? ` r:id="${printerSettingsRelId}"` : '');
+  return attrs === '' ? '' : `<pageSetup${attrs}/>`;
 }
 
 // Excel's standard row height in points, emitted as the `defaultRowHeight` when the sheet does not

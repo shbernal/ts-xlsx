@@ -63,4 +63,22 @@ export function stripFormulaEquals(value: string | number): string {
   return value.startsWith('=') ? value.slice(1) : value;
 }
 
+/**
+ * A boolean attribute rendered with a leading space (` name="1"` / ` name="0"`), or '' when the value
+ * is undefined. OOXML booleans serialise as 1/0; emitting the explicit `="0"` lets a writer force a
+ * flag off against a consumer's default, while an unset (undefined) flag stays out of the element
+ * entirely — the two-state-plus-absent contract every flag writer here shares.
+ */
+export function boolAttr(name: string, value: boolean | undefined): string {
+  return value === undefined ? '' : ` ${name}="${value ? 1 : 0}"`;
+}
+
+/**
+ * A numeric attribute rendered with a leading space (` name="42"`), or '' when the value is undefined
+ * — so a count an author never set stays out of the element rather than fabricating a default.
+ */
+export function attr(name: string, value: number | undefined): string {
+  return value === undefined ? '' : ` ${name}="${value}"`;
+}
+
 export const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
