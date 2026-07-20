@@ -17,8 +17,6 @@
 // actual decompressed output rather than trusting the archive's forgeable size headers, and
 // the parser (ADR 0004) never expands entities.
 
-import {strFromU8} from 'fflate';
-
 import {decodeRange} from '../../core/address.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
@@ -44,6 +42,8 @@ import {
   capturePartClosure,
   contentTypeResolver,
   extensionOf,
+  type PackageAccessors,
+  packageAccessors,
   parseRelationshipRecords,
   parseRelationships,
   relationshipTargetByType,
@@ -51,6 +51,7 @@ import {
   relsPathFor,
   resolveRelativePart,
   resolveWorkbookPart,
+  sheetRelTarget,
 } from './read-opc.ts';
 import {parseStyleTable} from './read-styles.ts';
 import {parseWorksheet} from './read-worksheet.ts';
@@ -84,13 +85,8 @@ export const DEFAULT_MAX_UNCOMPRESSED = 512 * 1024 * 1024;
  */
 export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
   const cap = options.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  const files = inflatePackage(data, cap);
-
-  const partText = (path: string): string | undefined => {
-    const bytes = files[path];
-    return bytes === undefined ? undefined : strFromU8(bytes);
-  };
-  const partBytes = (path: string): Uint8Array | undefined => files[path];
+  const pkg = packageAccessors(inflatePackage(data, cap));
+  const {partText} = pkg;
 
   const workbookXml = partText('xl/workbook.xml');
   if (workbookXml === undefined) throw new Error('not an xlsx package: xl/workbook.xml is missing');
@@ -143,21 +139,21 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
         ]);
         for (const cf of parseConditionalFormattings(sheetXml)) sheet.addConditionalFormatting(cf);
       }
-      const notes = readSheetNotes(path, partText);
+      const notes = readSheetNotes(path, pkg);
       if (notes !== undefined) applyNotes(sheet, notes);
-      readSheetImages(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
-      readSheetBackground(path, partText, partBytes, workbook, sheet, imageIdByMediaPath);
+      readSheetImages(path, pkg, workbook, sheet, imageIdByMediaPath);
+      readSheetBackground(path, pkg, workbook, sheet, imageIdByMediaPath);
       if (sheetXml !== undefined) {
-        readSheetPreservedReferences(path, sheetXml, partText, partBytes, contentTypeOf, sheet);
+        readSheetPreservedReferences(path, sheetXml, pkg, contentTypeOf, sheet);
       }
-      readSheetTables(path, partText, sheet);
-      readSheetPivotTables(path, partText, sheet);
-      const printerSettings = readSheetPrinterSettings(path, partText, partBytes);
+      readSheetTables(path, pkg, sheet);
+      readSheetPivotTables(path, pkg, sheet);
+      const printerSettings = readSheetPrinterSettings(path, pkg);
       if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
     }
   }
 
-  readWorkbookPreservedReferences(workbookXml, partText, partBytes, contentTypeOf, workbook);
+  readWorkbookPreservedReferences(workbookXml, pkg, contentTypeOf, workbook);
 
   // Defined names follow the sheets: a scoped name's `localSheetId` indexes the sheet order, which
   // is why the names are read only once every sheet is registered.
@@ -170,15 +166,10 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
 // A sheet's notes live in a comments part reached through the sheet's own relationships: the sheet
 // declares a relationship of type `.../comments` whose target resolves (relative to the sheet's
 // directory) to the comments part. A sheet with no rels part or no such relationship simply has none.
-function readSheetNotes(
-  sheetPath: string,
-  partText: (path: string) => string | undefined,
-): Map<string, string> | undefined {
-  const relsXml = partText(relsPathFor(sheetPath));
-  if (relsXml === undefined) return undefined;
-  const target = relationshipTargetByType(relsXml, 'comments');
-  if (target === undefined) return undefined;
-  const commentsXml = partText(resolveRelativePart(sheetPath, target));
+function readSheetNotes(sheetPath: string, pkg: PackageAccessors): Map<string, string> | undefined {
+  const commentsPath = sheetRelTarget(sheetPath, pkg.partText, 'comments');
+  if (commentsPath === undefined) return undefined;
+  const commentsXml = pkg.partText(commentsPath);
   if (commentsXml === undefined) return undefined;
   return parseComments(commentsXml);
 }
@@ -190,14 +181,10 @@ function readSheetNotes(
 // A sheet with no rels part or no such relationship simply has none.
 function readSheetPrinterSettings(
   sheetPath: string,
-  partText: (path: string) => string | undefined,
-  partBytes: (path: string) => Uint8Array | undefined,
+  pkg: PackageAccessors,
 ): Uint8Array | undefined {
-  const relsXml = partText(relsPathFor(sheetPath));
-  if (relsXml === undefined) return undefined;
-  const target = relationshipTargetByType(relsXml, 'printerSettings');
-  if (target === undefined) return undefined;
-  return partBytes(resolveRelativePart(sheetPath, target));
+  const path = sheetRelTarget(sheetPath, pkg.partText, 'printerSettings');
+  return path === undefined ? undefined : pkg.partBytes(path);
 }
 
 // A sheet's anchored images live in a drawing part reached through the sheet's own relationships: a
@@ -206,17 +193,14 @@ function readSheetPrinterSettings(
 // by media path) placed back on the sheet at its two-cell anchor.
 function readSheetImages(
   sheetPath: string,
-  partText: (path: string) => string | undefined,
-  partBytes: (path: string) => Uint8Array | undefined,
+  pkg: PackageAccessors,
   workbook: Workbook,
   sheet: Worksheet,
   imageIdByMediaPath: Map<string, number>,
 ): void {
-  const relsXml = partText(relsPathFor(sheetPath));
-  if (relsXml === undefined) return;
-  const drawingTarget = relationshipTargetByType(relsXml, 'drawing');
-  if (drawingTarget === undefined) return;
-  const drawingPath = resolveRelativePart(sheetPath, drawingTarget);
+  const {partText, partBytes} = pkg;
+  const drawingPath = sheetRelTarget(sheetPath, partText, 'drawing');
+  if (drawingPath === undefined) return;
   const drawingXml = partText(drawingPath);
   if (drawingXml === undefined) return;
   // A drawing that also holds a chart or shape is preserved whole (see readSheetPreservedReferences),
@@ -254,20 +238,16 @@ function readSheetImages(
 // drawing, keeping one media part per picture across a re-write.
 function readSheetBackground(
   sheetPath: string,
-  partText: (path: string) => string | undefined,
-  partBytes: (path: string) => Uint8Array | undefined,
+  pkg: PackageAccessors,
   workbook: Workbook,
   sheet: Worksheet,
   imageIdByMediaPath: Map<string, number>,
 ): void {
-  const relsXml = partText(relsPathFor(sheetPath));
-  if (relsXml === undefined) return;
-  const target = relationshipTargetByType(relsXml, 'image');
-  if (target === undefined) return;
-  const mediaPath = resolveRelativePart(sheetPath, target);
+  const mediaPath = sheetRelTarget(sheetPath, pkg.partText, 'image');
+  if (mediaPath === undefined) return;
   let id = imageIdByMediaPath.get(mediaPath);
   if (id === undefined) {
-    const bytes = partBytes(mediaPath);
+    const bytes = pkg.partBytes(mediaPath);
     if (bytes === undefined) return;
     id = workbook.addImage({buffer: bytes, extension: extensionOf(mediaPath)});
     imageIdByMediaPath.set(mediaPath, id);
@@ -288,11 +268,11 @@ function readSheetBackground(
 function readSheetPreservedReferences(
   sheetPath: string,
   sheetXml: string,
-  partText: (path: string) => string | undefined,
-  partBytes: (path: string) => Uint8Array | undefined,
+  pkg: PackageAccessors,
   contentTypeOf: (path: string) => string,
   sheet: Worksheet,
 ): void {
+  const {partText, partBytes} = pkg;
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return;
   const records = parseRelationshipRecords(relsXml);
@@ -343,11 +323,11 @@ function isPreservedSheetRelType(type: string): boolean {
 // survives too.
 function readWorkbookPreservedReferences(
   workbookXml: string,
-  partText: (path: string) => string | undefined,
-  partBytes: (path: string) => Uint8Array | undefined,
+  pkg: PackageAccessors,
   contentTypeOf: (path: string) => string,
   workbook: Workbook,
 ): void {
+  const {partText, partBytes} = pkg;
   const relsXml = partText('xl/_rels/workbook.xml.rels');
   if (relsXml === undefined) return;
   const cacheIdByRelId = parsePivotCacheRegistrations(workbookXml);
@@ -399,15 +379,11 @@ function worksheetReferenceRelId(sheetXml: string, element: string): string | un
 // type `.../table` on the sheet's own rels. The writer emits one relationship per table; each part
 // is parsed back into the model and re-registered in definition order. A part that fails to parse
 // (missing name/ref/columns — Excel corruption) is skipped rather than crashing the whole read.
-function readSheetTables(
-  sheetPath: string,
-  partText: (path: string) => string | undefined,
-  sheet: Worksheet,
-): void {
-  const relsXml = partText(relsPathFor(sheetPath));
+function readSheetTables(sheetPath: string, pkg: PackageAccessors, sheet: Worksheet): void {
+  const relsXml = pkg.partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return;
   for (const target of relationshipTargetsByType(relsXml, 'table')) {
-    const tableXml = partText(resolveRelativePart(sheetPath, target));
+    const tableXml = pkg.partText(resolveRelativePart(sheetPath, target));
     if (tableXml === undefined) continue;
     const options = parseTable(tableXml);
     if (options !== undefined) sheet.addTable(options);
@@ -422,11 +398,8 @@ function readSheetTables(
 // byte-preservation that actually round-trips the pivot, so this never changes what is re-emitted.
 // The read is lenient: a pivot whose cache is missing still yields a (partial) model rather than
 // throwing, matching Excel's tolerance for a damaged package on load.
-function readSheetPivotTables(
-  sheetPath: string,
-  partText: (path: string) => string | undefined,
-  sheet: Worksheet,
-): void {
+function readSheetPivotTables(sheetPath: string, pkg: PackageAccessors, sheet: Worksheet): void {
+  const {partText} = pkg;
   const relsXml = partText(relsPathFor(sheetPath));
   if (relsXml === undefined) return;
   for (const target of relationshipTargetsByType(relsXml, 'pivotTable')) {

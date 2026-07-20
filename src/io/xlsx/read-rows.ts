@@ -18,8 +18,6 @@
 // make the inflate itself per-part lazy; the pull primitive this stands on (`xmlEvents`) is the
 // same one that path will use.
 
-import {strFromU8} from 'fflate';
-
 import {MAX_COLUMN} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
@@ -36,6 +34,7 @@ import {
   type SheetEntry,
   type XfStyle,
 } from './read.ts';
+import {packageAccessors} from './read-opc.ts';
 import {boolStrict, closeEmptyElements, localName, xmlEvents} from './xml-read.ts';
 
 export interface ReadSheetRowsOptions extends ReadXlsxOptions {
@@ -154,11 +153,7 @@ interface OpenPackage {
 
 function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined): OpenPackage {
   const cap = maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  const files = inflatePackage(data, cap);
-  const text = (path: string): string | undefined => {
-    const bytes = files[path];
-    return bytes === undefined ? undefined : strFromU8(bytes);
-  };
+  const {partText: text} = packageAccessors(inflatePackage(data, cap));
 
   const workbookXml = text('xl/workbook.xml');
   if (workbookXml === undefined) throw new Error('not an xlsx package: xl/workbook.xml is missing');

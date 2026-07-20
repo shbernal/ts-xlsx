@@ -3,8 +3,32 @@
 // closure of parts a preserved reference reaches. Every helper here is pure over the inflated package —
 // it takes part text/bytes accessors and returns paths or records, touching no Workbook model.
 
+import {strFromU8} from 'fflate';
+
 import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts';
 import {openElements, type XmlAttributes} from './xml-read.ts';
+
+// The two ways a reader reaches into an inflated package: a part's UTF-8-decoded text, or its raw
+// bytes. Built once per read (see {@link packageAccessors}) so the buffered and streaming readers
+// share one implementation of the lookup rather than each re-declaring the same closures.
+export interface PackageAccessors {
+  /** A part's decoded text, or undefined when the package holds no such part. Decodes lazily, so a
+   * part the reader never asks for is never stringified. */
+  partText(path: string): string | undefined;
+  /** A part's raw bytes, or undefined when the package holds no such part. */
+  partBytes(path: string): Uint8Array | undefined;
+}
+
+// Bind the part-lookup accessors over an inflated package (a part-path → bytes map).
+export function packageAccessors(files: Record<string, Uint8Array>): PackageAccessors {
+  return {
+    partText(path: string): string | undefined {
+      const bytes = files[path];
+      return bytes === undefined ? undefined : strFromU8(bytes);
+    },
+    partBytes: (path: string): Uint8Array | undefined => files[path],
+  };
+}
 
 // The extension of a part path (`xl/media/image1.png` → `png`), or '' when it carries none.
 export function extensionOf(partPath: string): string {
@@ -47,6 +71,21 @@ export function relationshipTargetsByType(xml: string, suffix: string): string[]
     if (matchesType(attrs, suffix)) targets.push(attrs.Target);
   }
   return targets;
+}
+
+// The package part a sheet reaches through the first relationship of a given type, already resolved
+// relative to the sheet — the "load the sheet's rels, find the one relationship of this type, resolve
+// its target" preamble every single-part sheet lookup (notes, printer settings, drawing, background)
+// opens with. undefined when the sheet has no rels part or declares no such relationship.
+export function sheetRelTarget(
+  sheetPath: string,
+  partText: (path: string) => string | undefined,
+  type: string,
+): string | undefined {
+  const relsXml = partText(relsPathFor(sheetPath));
+  if (relsXml === undefined) return undefined;
+  const target = relationshipTargetByType(relsXml, type);
+  return target === undefined ? undefined : resolveRelativePart(sheetPath, target);
 }
 
 // Resolve a relationship target (relative to the referencing part's directory, or absolute from the
