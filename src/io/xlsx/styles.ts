@@ -248,7 +248,7 @@ export class StyleRegistry {
     let id = this.#fillIdBySignature.get(signature);
     if (id === undefined) {
       id = RESERVED_FILL_COUNT + this.#fillXml.length;
-      this.#fillXml.push(fillXml(fill));
+      this.#fillXml.push(patternFillXml(fill, {solidBgFallback: true}));
       this.#fillIdBySignature.set(signature, id);
     }
     return id;
@@ -497,18 +497,9 @@ export function dxfXml(style: DifferentialStyle): string {
       `<numFmt numFmtId="${CUSTOM_NUMFMT_BASE}" formatCode="${escapeFormatCode(style.numFmt)}"/>`,
     );
   }
-  if (style.fill !== undefined) parts.push(dxfFillXml(style.fill));
+  if (style.fill !== undefined) parts.push(patternFillXml(style.fill, {solidBgFallback: false}));
   if (style.border !== undefined) parts.push(borderXml(style.border));
   return `<dxf>${parts.join('')}</dxf>`;
-}
-
-// A differential fill: the pattern with whatever colours it names. Unlike a cell fill, a dxf does not
-// force a placeholder background on a solid pattern — a dxf states only the overrides it carries.
-function dxfFillXml(fill: Fill): string {
-  if (fill.type === 'gradient') return `<fill>${gradientFillXml(fill)}</fill>`;
-  const fg = fill.fgColor ? `<fgColor ${colorAttrs(fill.fgColor)}/>` : '';
-  const bg = fill.bgColor ? `<bgColor ${colorAttrs(fill.bgColor)}/>` : '';
-  return `<fill><patternFill patternType="${fill.pattern}">${fg}${bg}</patternFill></fill>`;
 }
 
 // The gradient element shared by cell fills and dxf fills. Linear gradients carry a `degree`; path
@@ -598,14 +589,16 @@ function colorSignature(color: Color | undefined): string {
   return `${color.argb ?? ''}/${color.theme ?? ''}/${color.tint ?? ''}/${color.indexed ?? ''}`;
 }
 
-function fillXml(fill: Fill): string {
+// The `<fill>` element for a pattern or gradient fill. The two callers differ only in the solid-fill
+// background fallback: a cell fill forces the automatic indexed placeholder onto a solid pattern that
+// names no background — omitting it makes Excel render the fill as flat black — whereas a dxf states
+// only the overrides it carries, so `solidBgFallback` gates that placeholder.
+function patternFillXml(fill: Fill, {solidBgFallback}: {solidBgFallback: boolean}): string {
   if (fill.type === 'gradient') return `<fill>${gradientFillXml(fill)}</fill>`;
   const fg = fill.fgColor ? `<fgColor ${colorAttrs(fill.fgColor)}/>` : '';
-  // A solid fill's background is the automatic indexed placeholder unless one is stated;
-  // omitting it makes Excel render the fill as flat black, so it is always emitted.
   const bg = fill.bgColor
     ? `<bgColor ${colorAttrs(fill.bgColor)}/>`
-    : fill.pattern === 'solid'
+    : solidBgFallback && fill.pattern === 'solid'
       ? '<bgColor indexed="64"/>'
       : '';
   return `<fill><patternFill patternType="${fill.pattern}">${fg}${bg}</patternFill></fill>`;
