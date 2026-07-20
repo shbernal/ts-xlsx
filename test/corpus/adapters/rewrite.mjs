@@ -28,7 +28,7 @@ import {fileURLToPath} from 'node:url';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
-import {packageFacts} from './ooxml-facts.mjs';
+import {packageFacts} from './ooxml-facts.ts';
 
 // Retarget the implementation under test. Default: the src/ .ts sources, run
 // directly via Node's type-stripping (the zero-build dev/test loop). Set

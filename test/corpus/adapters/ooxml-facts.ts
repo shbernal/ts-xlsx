@@ -8,24 +8,33 @@
 // `current` (legacy) and `rewrite` adapters unzip their own way yet return byte-identical
 // facts, so a case compares like with like across implementations.
 
-const attrs = (tag) => {
-  const out = {};
-  for (const m of String(tag || '').matchAll(/([\w:]+)="([^"]*)"/g)) out[m[1]] = m[2];
+import type {CorpusApi} from '../case.ts';
+
+/** The parts of a written package, keyed by their zip path. */
+type PartMap = Record<string, string>;
+
+/** Attribute name → value for one XML tag; absent names read back as `undefined`. */
+type Attrs = Record<string, string | undefined>;
+
+const attrs = (tag: string | null | undefined): Attrs => {
+  const out: Attrs = {};
+  for (const m of String(tag || '').matchAll(/([\w:]+)="([^"]*)"/g)) out[m[1]!] = m[2]!;
   return out;
 };
 
 // Cheap structural well-formedness check: a raw & that isn't an entity means a strict
 // consumer would choke. A real parser is the reader's concern; here we only need to
 // catch an unescaped special leaking into serialized XML.
-const xmlWellFormed = (xml) => !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
+const xmlWellFormed = (xml: string): boolean =>
+  !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
 
 /**
  * @param spec  the workbook spec that produced the package (drives per-sheet lookup)
  * @param partMap  { [zipPath]: xmlString } for every non-directory package part
  */
-export function packageFacts(spec, partMap) {
+export function packageFacts(spec: CorpusApi, partMap: PartMap) {
   const parts = Object.keys(partMap).sort();
-  const read = (f) => (f in partMap ? partMap[f] : null);
+  const read = (f: string): string | null => (f in partMap ? partMap[f]! : null);
 
   const contentTypes = read('[Content_Types].xml') || '';
   const workbookXml = read('xl/workbook.xml') || '';
@@ -39,7 +48,7 @@ export function packageFacts(spec, partMap) {
   });
   const wsRelIds = worksheetRels.map((r) => r.id);
   const overrides = [...contentTypes.matchAll(/<Override[^>]*PartName="([^"]*)"[^>]*\/>/g)].map(
-    (m) => m[1],
+    (m) => m[1]!,
   );
   const contentTypeDefaults = [...contentTypes.matchAll(/<Default\b[^>]*\/>/g)].map((t) => {
     const a = attrs(t[0]);
@@ -58,7 +67,7 @@ export function packageFacts(spec, partMap) {
         name: a.name ?? null,
         localSheetId: a.localSheetId !== undefined ? Number(a.localSheetId) : null,
         hidden: a.hidden === '1' || a.hidden === 'true',
-        refersTo: m[2],
+        refersTo: m[2]!,
       };
     })
     .sort((x, y) => String(x.name).localeCompare(String(y.name)));
@@ -67,19 +76,19 @@ export function packageFacts(spec, partMap) {
     return {id: a.Id, target: a.Target, type: (a.Type || '').split('/').pop()};
   });
 
-  const sheets = {};
-  const sheetIndex = {};
-  (spec.sheets || []).forEach((s, i) => {
+  const sheets: Record<string, unknown> = {};
+  const sheetIndex: Record<string, string> = {};
+  (spec.sheets || []).forEach((s: CorpusApi, i: number) => {
     sheetIndex[s.name] = `xl/worksheets/sheet${i + 1}.xml`;
   });
   for (const s of spec.sheets || []) {
-    const xml = read(sheetIndex[s.name]) || '';
-    const marginTag = (xml.match(/<pageMargins\b[^>]*\/>/) || [''])[0];
+    const xml = read(sheetIndex[s.name]!) || '';
+    const marginTag = (xml.match(/<pageMargins\b[^>]*\/>/) || [''])[0]!;
     const marginAttrs = attrs(marginTag);
     const sheetViewTags = [...xml.matchAll(/<sheetView\b[^>]*(?:\/>|>)/g)];
-    const formulas = {};
+    const formulas: Record<string, string> = {};
     for (const m of xml.matchAll(/<c\b[^>]*r="([^"]*)"[^>]*>[\s\S]*?<f\b[^>]*>([\s\S]*?)<\/f>/g)) {
-      formulas[m[1]] = m[2];
+      formulas[m[1]!] = m[2]!;
     }
     const columnGroups = [...xml.matchAll(/<col\b[^>]*\/>/g)].map((t) => {
       const a = attrs(t[0]);
@@ -89,20 +98,21 @@ export function packageFacts(spec, partMap) {
         width: a.width ?? null,
       };
     });
-    const posOf = (tag) => xml.indexOf(tag);
+    const posOf = (tag: string): number => xml.indexOf(tag);
     const posDrawing = posOf('<drawing ');
     const posLegacy = posOf('<legacyDrawing ');
     const posTable = posOf('<tableParts');
-    const ordered = (a, b) => (a >= 0 && b >= 0 ? a < b : null);
+    const ordered = (a: number, b: number): boolean | null => (a >= 0 && b >= 0 ? a < b : null);
     const hfBlock = (xml.match(
       /<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/,
-    ) || [''])[0];
-    const hfChild = (tag) => {
+    ) || [''])[0]!;
+    const hfChild = (tag: string): string | null => {
       const m = hfBlock.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`));
-      return m ? m[1] : null;
+      return m ? m[1]! : null;
     };
-    const hfFlag = (name) => new RegExp(`\\b${name}="(1|true)"`).test(hfBlock);
-    const rowAttrs = {};
+    const hfFlag = (name: string): boolean => new RegExp(`\\b${name}="(1|true)"`).test(hfBlock);
+    const rowAttrs: Record<string, {outlineLevel: number; hidden: boolean; collapsed: boolean}> =
+      {};
     for (const t of xml.matchAll(/<row\b[^>]*>/g)) {
       const a = attrs(t[0]);
       if (a.r === undefined) continue;
@@ -144,7 +154,7 @@ export function packageFacts(spec, partMap) {
       rows: rowAttrs,
       hasBackgroundPicture: /<picture\b[^>]*r:id=/.test(xml),
       sheetFormat: (() => {
-        const a = attrs((xml.match(/<sheetFormatPr\b[^>]*\/?>/) || [''])[0]);
+        const a = attrs((xml.match(/<sheetFormatPr\b[^>]*\/?>/) || [''])[0]!);
         return {
           defaultRowHeight: a.defaultRowHeight != null ? Number(a.defaultRowHeight) : null,
           defaultColWidth: a.defaultColWidth != null ? Number(a.defaultColWidth) : null,
@@ -158,12 +168,12 @@ export function packageFacts(spec, partMap) {
   const tables = [];
   for (const p of parts.filter((f) => /^xl\/tables\/table\d+\.xml$/.test(f))) {
     const xml = read(p) || '';
-    const a = attrs((xml.match(/<table\b[^>]*>/) || [''])[0]);
+    const a = attrs((xml.match(/<table\b[^>]*>/) || [''])[0]!);
     const af = xml.match(/<autoFilter\b[^>]*ref="([^"]*)"/);
     tables.push({
       ref: a.ref ?? null,
       name: a.name ?? null,
-      autoFilterRef: af ? af[1] : null,
+      autoFilterRef: af ? af[1]! : null,
       columnCount: [...xml.matchAll(/<tableColumn\b/g)].length,
       headerRowCount: a.headerRowCount ?? '1',
       xmlWellFormed: xmlWellFormed(xml),
@@ -171,8 +181,8 @@ export function packageFacts(spec, partMap) {
   }
 
   const stylesXml = read('xl/styles.xml') || '';
-  const defaultFontBlock = (stylesXml.match(/<font>[\s\S]*?<\/font>/) || [''])[0];
-  const defaultFontColor = attrs((defaultFontBlock.match(/<color\b[^>]*\/?>/) || [''])[0]);
+  const defaultFontBlock = (stylesXml.match(/<font>[\s\S]*?<\/font>/) || [''])[0]!;
+  const defaultFontColor = attrs((defaultFontBlock.match(/<color\b[^>]*\/?>/) || [''])[0]!);
   const hasThemePart = parts.some((p) => /^xl\/theme\/theme\d+\.xml$/.test(p));
   const styles = {
     hasThemePart,
@@ -181,11 +191,11 @@ export function packageFacts(spec, partMap) {
     themeColorResolvable: !('theme' in defaultFontColor) || hasThemePart,
   };
 
-  const vmlTextboxStyles = [];
+  const vmlTextboxStyles: string[] = [];
   for (const p of parts.filter((f) => /^xl\/drawings\/vmlDrawing\d+\.vml$/.test(f))) {
     const vml = read(p) || '';
     for (const t of vml.matchAll(/<(?:v:)?textbox\b[^>]*\bstyle="([^"]*)"/g))
-      vmlTextboxStyles.push(t[1]);
+      vmlTextboxStyles.push(t[1]!);
   }
   const vml = {
     textboxStyles: vmlTextboxStyles,

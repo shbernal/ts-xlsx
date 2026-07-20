@@ -25,7 +25,7 @@ is **not** in the hook (it needs .NET and is slower); invoke it yourself — see
 **You added or changed a writer path (anything that emits XML).**
 Run `pnpm run corpus` — it parses the written package and asserts well-formedness,
 part/relationship/content-type structure, and element ordering
-(`test/corpus/adapters/ooxml-facts.mjs`), plus every behavior regression. Then run the
+(`test/corpus/adapters/ooxml-facts.ts`), plus every behavior regression. Then run the
 schema/semantic oracle on a representative file — use the **`validate-ooxml` skill**,
 which emits a workbook and runs `pnpm run validate:ooxml` for you. New behavior ships
 with a corpus case in the same change (use the **`write-corpus-case` skill**).
