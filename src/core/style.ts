@@ -290,15 +290,43 @@ export interface CellStyle {
   protection?: Protection | undefined;
 }
 
+// One entry per facet, as a Record rather than a bare list so the compiler rejects it the moment a
+// facet is added to CellStyle and forgotten here — which would otherwise let the facet-list-driven
+// copies below (assignStyleFacets) silently skip the new facet, a merge-loss.
+const CELL_STYLE_FACET_KEYS: Record<keyof CellStyle, true> = {
+  fill: true,
+  numFmt: true,
+  font: true,
+  border: true,
+  alignment: true,
+  protection: true,
+};
+
 /** The names of the {@link CellStyle} facets, for helpers that copy the tuple facet-by-facet. */
-export const CELL_STYLE_FACETS = [
-  'fill',
-  'numFmt',
-  'font',
-  'border',
-  'alignment',
-  'protection',
-] as const satisfies readonly (keyof CellStyle)[];
+export const CELL_STYLE_FACETS = Object.keys(CELL_STYLE_FACET_KEYS) as (keyof CellStyle)[];
+
+/**
+ * Copy each present facet of `source` onto `target`, leaving facets `source` omits untouched — the
+ * plain-record counterpart to a cell's `applyCellStyle`, for the {@link CellStyle}-shaped targets a
+ * `Cell`'s setters don't reach (a column's cell-defaults, a named style being assembled on read).
+ * Driven by {@link CELL_STYLE_FACETS}, so a facet added to the tuple reaches these paths the moment
+ * it joins — the same single-point-of-change the cell path gets.
+ */
+export function assignStyleFacets(target: CellStyle, source: Readonly<CellStyle>): void {
+  for (const facet of CELL_STYLE_FACETS) copyFacet(target, source, facet);
+}
+
+// A single facet key at a time, so the write's key type is one member (not the whole union) and
+// `target[key] = source[key]` typechecks without a cast — the correlated-key access TS can't verify
+// when the key is a union.
+function copyFacet<K extends keyof CellStyle>(
+  target: CellStyle,
+  source: Readonly<CellStyle>,
+  key: K,
+): void {
+  const value = source[key];
+  if (value !== undefined) target[key] = value;
+}
 
 /**
  * A named cell style — the OOXML `cellStyleXfs`/`cellStyles` layer. A spreadsheet applies a built-in

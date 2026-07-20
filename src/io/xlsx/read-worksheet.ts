@@ -19,6 +19,7 @@ import {
   type SheetProtectionCredential,
   type SheetProtectionFlags,
 } from '../../core/protection.ts';
+import {assignStyleFacets} from '../../core/style.ts';
 import type {DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {
@@ -583,12 +584,7 @@ function applyColumn(
       if (Number.isInteger(level) && level > 0) properties.outlineLevel = level;
     }
     if (boolStrict(attrs.collapsed)) properties.collapsed = true;
-    if (style?.numFmt !== undefined) properties.numFmt = style.numFmt;
-    if (style?.fill !== undefined) properties.fill = style.fill;
-    if (style?.font !== undefined) properties.font = style.font;
-    if (style?.border !== undefined) properties.border = style.border;
-    if (style?.alignment !== undefined) properties.alignment = style.alignment;
-    if (style?.protection !== undefined) properties.protection = style.protection;
+    if (style !== undefined) assignStyleFacets(properties, style);
     // Record the column's style so a bare cell in it can inherit the full column format on read.
     if (styleIndex >= 0) columnStyle.set(index, styleIndex);
   }

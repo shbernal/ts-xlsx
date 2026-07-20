@@ -5,6 +5,7 @@
 
 import {
   type Alignment,
+  assignStyleFacets,
   type Border,
   type Color,
   type Fill,
@@ -223,12 +224,7 @@ export function parseStyleTable(xml: string): StyleTable {
   const namedStyles: NamedCellStyle[] = namedXfs.map((xf, index) => {
     const label = cellStyleNames.find((entry) => entry.xfId === index);
     const style: {-readonly [K in keyof NamedCellStyle]?: NamedCellStyle[K]} = {};
-    if (xf.fill !== undefined) style.fill = xf.fill;
-    if (xf.numFmt !== undefined) style.numFmt = xf.numFmt;
-    if (xf.font !== undefined) style.font = xf.font;
-    if (xf.border !== undefined) style.border = xf.border;
-    if (xf.alignment !== undefined) style.alignment = xf.alignment;
-    if (xf.protection !== undefined) style.protection = xf.protection;
+    assignStyleFacets(style, xf);
     if (label?.name !== undefined) style.name = label.name;
     if (label?.builtinId !== undefined) style.builtinId = label.builtinId;
     return style;
