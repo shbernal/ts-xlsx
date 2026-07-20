@@ -9,7 +9,7 @@
 import {encodeAddress} from '../../core/address.ts';
 import type {PivotItem, PivotMetric, PivotRecordCell, PivotTable} from '../../core/pivot-table.ts';
 import {RELATIONSHIPS_NS, SPREADSHEETML_NS} from './namespaces.ts';
-import {escapeAttr} from './xml.ts';
+import {escapeAttr, XML_DECLARATION} from './xml.ts';
 
 // Excel's default caption prefix for each aggregation ("Sum of Amount", "Average of Amount"). A
 // metric's name is also its `subtotal` value, which is why the record key equals the enum member.
@@ -26,8 +26,6 @@ const METRIC_CAPTIONS: Record<PivotMetric, string> = {
   var: 'Var',
   varp: 'Varp',
 };
-
-const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 
 /** The `pivotCacheDefinition` part: the source reference and the field catalogue. `r:id="rId1"`
  * names the cache-records part through this cache's own rels part. `refreshOnLoad="1"` tells Excel to
