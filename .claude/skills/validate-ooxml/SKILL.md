@@ -60,7 +60,7 @@ be clean.
 
 ## The baseline (do not paper over new errors)
 
-`test/ooxml-validation/run.mjs` (`pnpm run test:ooxml`) generates buffered + streaming
+`test/ooxml-validation/run.ts` (`pnpm run test:ooxml`) generates buffered + streaming
 workbooks and control cases, then compares each package's errors to the frozen set in
 `test/ooxml-validation/allowed-errors.json`.
 

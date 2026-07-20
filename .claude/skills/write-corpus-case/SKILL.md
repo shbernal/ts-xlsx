@@ -1,6 +1,6 @@
 ---
 name: write-corpus-case
-description: Author an implementation-blind regression corpus case under test/corpus/cases. Use when distilling a bug/reproduction into a corpus case, adding a regression test that must survive the rewrite, writing a *.case.mjs file, extending the adapter contract, or setting a behavior baseline. Pairs with the harvest-triage skill.
+description: Author an implementation-blind regression corpus case under test/corpus/cases. Use when distilling a bug/reproduction into a corpus case, adding a regression test that must survive the rewrite, writing a *.case.ts file, extending the adapter contract, or setting a behavior baseline. Pairs with the harvest-triage skill.
 ---
 
 # Writing a corpus case
@@ -27,10 +27,13 @@ reference: `test/corpus/README.md`.
 
 ## Shape
 
-`test/corpus/cases/<descriptive-slug>.case.mjs` (a slug like
-`whole-column-defined-names` — no number prefix) default-exports:
+`test/corpus/cases/<descriptive-slug>.case.ts` (a slug like
+`whole-column-defined-names` — no number prefix) imports the shared `Case` type and
+default-exports an object pinned to it with `satisfies Case`:
 
-```js
+```ts
+import type {Assert, Case, CorpusApi} from '../case.ts';
+
 export default {
   id: 'whole-column-defined-names',
   cluster: 'address-decoding',                 // one of the known clusters
@@ -41,19 +44,25 @@ export default {
     {
       name: 'decodeRange("$1:$1") — a full-row range — resolves its known row bounds',
       baseline: 'pass',                         // what legacy does TODAY (see below)
-      expect(api, assert) {
+      expect(api: CorpusApi, assert: Assert) {
         const range = api.decodeRange('$1:$1');
         assert.strictEqual(range.top, 1);
         assert.strictEqual(range.bottom, 1);
       },
     },
   ],
-};
+} satisfies Case;
 ```
 
+- **`CorpusApi`** is the shared alias for the implementation-blind adapter surface — a
+  named `any` (never a literal `any`, which Biome rejects). Annotate `api` and any value
+  derived from it (callback params over adapter results) with `CorpusApi`. `Assert` is
+  Node's strict `assert`. Both params must be explicitly annotated — `assert`'s assertion
+  signatures need it (TS2775). The harness is type-checked (`pnpm run typecheck:test`), so
+  a new case must be green there too, not just under `pnpm run corpus`.
 - **`behavior[]`** — each entry is one assertion about *observable* behavior.
-  `expect(api, assert)` gets the adapter and Node's strict `assert`; throw to fail,
-  return to pass. Keep each behavior single-purpose so a baseline flip is unambiguous.
+  `expect` gets the adapter and Node's strict `assert`; throw to fail, return to pass.
+  Keep each behavior single-purpose so a baseline flip is unambiguous.
 - **`cluster`** — group by theme (`address-decoding`, tables, styles, streaming,
   pivot, images, conditional-formatting, dates, formulas, csv, types, security/deps).
 
@@ -86,15 +95,16 @@ see below), never by reaching into an implementation's reader directly.
 
 If a case needs a capability the contract doesn't have yet:
 
-1. Add the method to **every** adapter under `test/corpus/adapters/` (today: just
-   `current.mjs`). Each method returns plain JSON-serializable data — corners,
-   dimensions, cell values — never implementation objects.
+1. Add the method to the adapters under `test/corpus/adapters/` (`rewrite.ts`, which
+   binds the contract to the `src/` implementation, and `ooxml-facts.ts` for
+   package-level OOXML facts). Each method returns plain JSON-serializable data —
+   corners, dimensions, cell values — never implementation objects.
 2. Document it in the contract table in `test/corpus/README.md`.
 3. Keep it minimal and behavior-shaped; the vocabulary grows only as cases demand.
 
-When the rewrite lands, a `rewrite.mjs` adapter binds the same vocabulary to the new
-code and every existing case runs unchanged — the corpus does not move, the
-implementation does.
+`rewrite.ts` binds the contract vocabulary to the `src/` code, so the same case runs
+unchanged against the implementation — the corpus does not move, the implementation
+does.
 
 ## Validate
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Harvest a single upstream issue or PR into the local backlog queue.
 //
-// Usage:  node scripts/harvest/fetch-issue.mjs <number> [--repo owner/name]
+// Usage:  node scripts/harvest/fetch-issue.ts <number> [--repo owner/name]
 //
 // This is the *atom* of the harvest: it turns one GitHub thread into a durable,
 // queryable JSON record under docs/knowledge/backlog/issues/, plus any

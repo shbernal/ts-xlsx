@@ -65,7 +65,7 @@ function pct(n: number, d: number): string {
 async function main() {
   const {clusters} = parseArgs(process.argv.slice(2));
   const present = await presentRecordNumbers();
-  const corpusCases = await countFiles(CORPUS_CASES_DIR, '.case.mjs');
+  const corpusCases = await countFiles(CORPUS_CASES_DIR, '.case.ts');
   const specNotes = await countFiles(SPECS_DIR, '.md');
 
   console.log('\n  ts-xlsx harvest status\n  ──────────────────────');

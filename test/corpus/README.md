@@ -10,32 +10,41 @@ wrong. A bug without a corpus case is a bug that will return.
 
 ```
 test/corpus/
-  cases/*.case.mjs      one harvested behavior cluster, implementation-blind
-  adapters/<name>.mjs   binds the contract vocabulary to a concrete implementation
-  run.mjs               discovers cases, runs them against an adapter, reports red/green
+  case.ts              the shared Case/Behavior/CorpusApi types every case imports
+  cases/*.case.ts      one harvested behavior cluster, implementation-blind
+  adapters/<name>.ts   binds the contract vocabulary to a concrete implementation
+  run.ts               discovers cases, runs them against an adapter, reports red/green
 ```
 
 Run it:
 
 ```
-node test/corpus/run.mjs [--adapter rewrite]
+node test/corpus/run.ts [--adapter rewrite]
 ```
 
 ## A case
 
-A case module default-exports:
+A case module imports the shared `Case` type and default-exports an object pinned to
+it with `satisfies Case`:
 
-```js
-{
+```ts
+import type {Assert, Case, CorpusApi} from '../case.ts';
+
+export default {
   id: 'whole-column-defined-names',              // durable descriptive slug — no number prefix
   cluster: 'address-decoding',
   description: '…',
-  provenance: { source: 'upstream-issue' },      // OPTIONAL, disposable trace — never the identity
+  provenance: {source: 'upstream-issue'},        // OPTIONAL, disposable trace — never the identity
   behavior: [
-    { name, baseline: 'pass' | 'fail', expect(api, assert) { … } },
+    {name: '…', baseline: 'pass', expect(api: CorpusApi, assert: Assert) { … }},
   ],
-}
+} satisfies Case;
 ```
+
+`CorpusApi` is the implementation-blind adapter surface (a named `any` — Biome rejects a
+literal `any`); annotate `api` and any value derived from it with it. Both `expect` params
+must be explicitly annotated (`assert`'s assertion signatures require it). The harness is
+type-checked (`pnpm run typecheck:test`), so a case must be green there as well.
 
 - **`id` / `description`** carry the durable identity: a descriptive slug and the
   *real-world scenario* in prose. Do **not** encode upstream issue/PR numbers here —
@@ -212,7 +221,7 @@ header/footer child text plus the `differentOddEven`/`differentFirst` gating fla
 worksheet input accepts a `headerFooter` block mirroring those children.
 
 The `spec` shape consumed by the workbook capabilities is documented alongside the
-capabilities themselves in `adapters/rewrite.mjs` (worksheets with cells, columns,
+capabilities themselves in `adapters/rewrite.ts` (worksheets with cells, columns,
 rows, page margins, tables).
 
 Add capabilities only as cases demand them, and add them to **every** adapter.
@@ -221,10 +230,10 @@ Add capabilities only as cases demand them, and add them to **every** adapter.
 
 - **`rewrite`** binds the vocabulary to the strict-TypeScript library under `src/` —
   the reference implementation. Node 24 runs the `.ts` sources directly
-  (type-stripping), so the adapter imports them with no build step; strict types are
-  enforced separately by `pnpm run typecheck`.
+  (type-stripping), so the adapter imports them with no build step; the adapter is
+  itself type-checked against `src` by `pnpm run typecheck:test` (see ADR 0011).
 
-Run it: `node test/corpus/run.mjs` (default `rewrite`, wired as `pnpm run corpus`).
+Run it: `node test/corpus/run.ts` (default `rewrite`, wired as `pnpm run corpus`).
 
 A behavior may declare a capability the library has not built yet by throwing a
 `notImplemented`-tagged error; the runner reports it as **`∅` skipped** — neither pass

@@ -20,7 +20,7 @@
 // Usage:  node test/corpus/run.ts [--adapter rewrite]
 
 import assert from 'node:assert/strict';
-import {access, readdir} from 'node:fs/promises';
+import {readdir} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import type {Behavior, Case, CorpusApi} from './case.ts';
@@ -48,18 +48,6 @@ function isNotImplemented(err: unknown): boolean {
   );
 }
 
-// Resolve a module that may be mid-migration from `.mjs` to `.ts`, preferring the
-// migrated `.ts` when both exist.
-async function resolveExisting(...candidates: string[]): Promise<string> {
-  for (const path of candidates) {
-    try {
-      await access(path);
-      return path;
-    } catch {}
-  }
-  throw new Error(`none of these exist:\n  ${candidates.join('\n  ')}`);
-}
-
 function parseArgs(argv: string[]): {adapter: string} {
   const args = {adapter: 'rewrite'};
   for (let i = 0; i < argv.length; i++) {
@@ -71,11 +59,7 @@ function parseArgs(argv: string[]): {adapter: string} {
 
 async function loadCases(): Promise<Case[]> {
   const dir = resolve(HERE, 'cases');
-  // Cases are migrating `.case.mjs` → `.case.ts`; accept either so the rename can
-  // land incrementally without a flag day.
-  const files = (await readdir(dir))
-    .filter((f) => f.endsWith('.case.mjs') || f.endsWith('.case.ts'))
-    .sort();
+  const files = (await readdir(dir)).filter((f) => f.endsWith('.case.ts')).sort();
   const cases: Case[] = [];
   for (const file of files) {
     const mod = await import(pathToFileURL(resolve(dir, file)).href);
@@ -99,10 +83,7 @@ const MARK: Record<Status, string> = {ok: '✓', bug: '○', regression: '✗', 
 
 async function main() {
   const {adapter: adapterName} = parseArgs(process.argv.slice(2));
-  const adapterPath = await resolveExisting(
-    resolve(HERE, 'adapters', `${adapterName}.ts`),
-    resolve(HERE, 'adapters', `${adapterName}.mjs`),
-  );
+  const adapterPath = resolve(HERE, 'adapters', `${adapterName}.ts`);
   const adapterMod = await import(pathToFileURL(adapterPath).href);
   const api = adapterMod.default;
   const cases = await loadCases();
