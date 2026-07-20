@@ -118,3 +118,22 @@ must pull with `.next()` (or a helper generator that `return`s), **never** `for.
 breaking out of a `for..of` calls the generator's `.return()`, which terminates the shared stream for
 every later sub-parser. The style-table driver's `until(events, container)` is the canonical shape:
 one `xmlEvents` pass, each section's sub-parser draining its own container's slice, no re-scan.
+
+## Update (2026-07-20) — one cell-gathering state machine, two finalisers
+
+The earlier update shared value *decoding* across the buffered and streaming readers; cell
+*gathering* — the per-cell `<c>`/`<f>`/`<v>`/`<is>` state each reader accumulated — was still
+re-implemented twice, free to drift. It is now one class, `CellAccumulator`
+(`src/io/xlsx/cell-accumulator.ts`, modelled on the `rich-runs.ts` run accumulator): both readers
+drive the same `beginCell`/`beginFormula`/`setFormula`/`setValue`/`appendText` surface, so a cell
+can never be *gathered* differently depending on which reader saw it.
+
+Finalisation, by contrast, deliberately diverges — and that split is the point. The buffered reader
+calls `finalize`, which resolves shared-formula masters/clones and data-table cells and opens rich
+`<r>` runs; the streaming reader calls `decode`, the plain-decode subset, which must **not** resolve
+shared formulas (it surfaces the clone's own cached result) and must **not** open rich runs (a
+streamed inline string flattens to text). `finalize`'s plain path is itself routed through `decode`,
+so there is exactly one `RawCell`-build and one decode. Sharing gathering while forking finalisation
+is what lets the two readers stay honest to their different contracts without duplicating the fragile
+part. A malformed non-empty `<c r>` now throws in `beginCell` for *both* readers, closing another way
+the two could have diverged.

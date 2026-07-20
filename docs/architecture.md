@@ -64,13 +64,24 @@ order:
 | streaming | bounded-memory row streaming for reads |
 | csv | a thin, optional entry point, never coupled to the xlsx core |
 
+Cell formatting is one named tuple, not six loose fields. `CellStyle` in `core/style.ts`
+holds the six OOXML direct-format facets (`fill`, `numFmt`, `font`, `border`, `alignment`,
+`protection`); every style-bearing shape — a cell model, a column's defaults, a table column,
+a differential (conditional) format, a named style — derives from it rather than re-declaring
+the tuple. `CELL_STYLE_FACETS`, derived from `Record<keyof CellStyle, true>`, is the single
+facet list the copy loops walk, so adding a facet is a one-line change the compiler forces every
+consumer to honour. Applying a style splits by target: `applyCellStyle` drives a `Cell`'s
+per-property setters, `assignStyleFacets` copies plain records — two helpers because a cell and a
+bag of fields have different write surfaces.
+
 The two largest surfaces — the xlsx reader and writer — are each a **cluster**, not a
 monolith, split along the OOXML package's own seams so a change touches one part:
 
 - **read** (`src/io/xlsx/`): `read-opc.ts` (the OPC/relationship layer), `read-styles.ts`
   (`styles.xml`), `read-worksheet.ts` (one sheet), with `read.ts` keeping `readXlsx` and
   the workbook-level wiring. `rich-runs.ts` owns the `<r>`/`<rPr>`/`<t>` run accumulator
-  the worksheet and shared-strings parsers share.
+  the worksheet and shared-strings parsers share; `cell-accumulator.ts` owns the per-cell
+  gathering state machine the buffered and streaming readers both drive (ADR-0004).
 - **write** (`src/io/xlsx/`): `package-plan.ts` (the part-graph plan layer), `workbook-xml.ts`
   and `worksheet-xml.ts` (the serialisers), `part-paths.ts` and `relationships.ts` (shared
   OPC primitives), with `write.ts` keeping `writeXlsx` and the `buildPackageParts`
@@ -84,10 +95,13 @@ recomputed by arithmetic.
 
 The public surface is a single curated barrel, [`src/index.ts`](../src/index.ts). It is
 curated, not exhaustive: modelled core-feature types (autofilter, page setup, sheet views,
-defined names, image options) are public, while streaming per-row/cell output stays inferred-
-structural rather than a named commitment, and internal helper functions stay off the barrel.
-The [API reference](api/README.md) is generated straight from it, so it cannot describe a
-shape the compiler wouldn't accept.
+defined names, image options) are public, and internal helper functions stay off the barrel.
+The two halves of the streaming API are symmetric in reach but asymmetric in what needed
+naming: the streaming *writer*'s whole surface is public (its workbook/worksheet/row handles
+are classes, its options are interfaces — nothing structural is left un-named), while the
+streaming *reader*'s per-row/cell output stays inferred-structural rather than a named
+commitment. The [API reference](api/README.md) is generated straight from the barrel, so it
+cannot describe a shape the compiler wouldn't accept.
 
 ## Tech decisions
 

@@ -42,3 +42,25 @@ forces two dependency decisions that `STRATEGY.md` left open:
   writer, and the streaming writer slice can move to its async/stream API later.
 - **Revisit when:** the streaming writer needs incremental/async zipping, or the
   reader slice benching shows a different inflate is materially better.
+
+## Update (2026-07-20) — the streaming writer, and a settled attribute-serialisation vocabulary
+
+The deferred streaming *writer* is built (`src/io/xlsx/write-stream.ts`):
+`WorkbookStreamWriter`/`WorksheetStreamWriter`/`StreamedRow` author a package incrementally,
+flushing each committed row and evicting its cell graph so peak memory tracks the rows in flight,
+not the whole sheet. It uses `fflate`'s streaming `Zip`/`ZipDeflate` with incremental CRC-32 — the
+async zip API this ADR anticipated — and `commit()` settles on the sink's `finish`/`error` rather
+than hanging. Its whole surface is public (see the barrel note in `architecture.md`).
+`useSharedStrings` is offered but **disables** eager per-row flushing, because a whole-workbook
+string pool defeats the memory bound the streaming writer exists to provide — a deliberate,
+documented trade rather than a silent one.
+
+Direct string assembly stayed the right call, but the ad-hoc `? '1' : '0'` / `? 1 : 0` attribute
+spellings scattered across the serialisers were unified into `boolAttr(name, value?)` and numeric
+`attr(name, value?)` in `xml.ts` — each returns a leading-space ` name="…"` or `''`, so an emitter
+states an attribute once and absence costs nothing. One subtlety worth keeping: when two passes emit
+paired markup for the same logical element (a data-bar rule's classic body and its `<extLst>` x14
+extension), they must agree on the shared synthetic key by *identity*, not by walking the rule list
+in lock-step. A `ReadonlyMap<rule, guid>` built once and read by both passes replaces the pair of
+parallel counters whose only guarantee was that they iterated in the same order — the fragile kind
+of coupling that survives until someone reorders one pass.
