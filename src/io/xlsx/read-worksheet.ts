@@ -299,42 +299,13 @@ export function parseWorksheet(
             }
             break;
           case 'tabColor':
-            // A self-closing `<sheetPr>` child, so it arrives here rather than as text.
-            sheet.tabColor = parseColor(attrs);
-            break;
           case 'outlinePr':
-            // Another self-closing `<sheetPr>` child; only set flags the source actually carried, so
-            // a file without them leaves `outline` empty and a re-write stays byte-clean.
-            if (attrs.summaryBelow !== undefined)
-              sheet.outline.summaryBelow = boolPresent(attrs.summaryBelow);
-            if (attrs.summaryRight !== undefined)
-              sheet.outline.summaryRight = boolPresent(attrs.summaryRight);
-            break;
           case 'pane':
-            // A `<sheetView>` child recording a frozen (or split) pane. Only a frozen pane maps onto
-            // the model's view; a source without one leaves `view` empty, so a re-write emits no pane.
-            if (attrs.state === 'frozen' || attrs.state === 'frozenSplit') {
-              sheet.view.state = 'frozen';
-              if (attrs.xSplit !== undefined) sheet.view.xSplit = Number(attrs.xSplit);
-              if (attrs.ySplit !== undefined) sheet.view.ySplit = Number(attrs.ySplit);
-              if (attrs.topLeftCell !== undefined) sheet.view.topLeftCell = attrs.topLeftCell;
-            }
-            break;
           case 'pageSetUpPr':
-            // The fit-to-page flag, a self-closing `<sheetPr>` child. Recorded only when the source
-            // carried the attribute, so a `<pageSetUpPr>` present for other reasons (e.g.
-            // `autoPageBreaks`) leaves `pageSetup.fitToPage` unset.
-            if (attrs.fitToPage !== undefined)
-              sheet.pageSetup.fitToPage = boolPresent(attrs.fitToPage);
-            break;
           case 'printOptions':
-            applyPrintOptions(sheet.printOptions, attrs);
-            break;
           case 'pageMargins':
-            applyMargins(sheet.pageMargins, attrs);
-            break;
           case 'pageSetup':
-            applyPageSetup(sheet.pageSetup, attrs);
+            applySheetProperties(local, attrs, sheet);
             break;
           case 'rowBreaks':
             pageBreaks.begin(sheet.rowBreaks);
@@ -432,6 +403,51 @@ export function parseWorksheet(
     },
     {closeEmptyElements: WORKSHEET_EMPTY_CLOSES},
   );
+}
+
+// Apply one `<sheetPr>` / `<sheetView>` / print-setup child to the sheet. These are the worksheet's
+// layout and print metadata; grouping them here keeps the cell-reading switch a pure dispatch. Each
+// records only what the source carried, so a file missing a facet leaves it unset and a re-write
+// stays byte-clean. Every element here is self-closing (its state is all in attributes), so it is
+// read on open.
+function applySheetProperties(local: string, attrs: XmlAttributes, sheet: Worksheet): void {
+  switch (local) {
+    case 'tabColor':
+      // A `<sheetPr>` child.
+      sheet.tabColor = parseColor(attrs);
+      break;
+    case 'outlinePr':
+      // A `<sheetPr>` child.
+      if (attrs.summaryBelow !== undefined)
+        sheet.outline.summaryBelow = boolPresent(attrs.summaryBelow);
+      if (attrs.summaryRight !== undefined)
+        sheet.outline.summaryRight = boolPresent(attrs.summaryRight);
+      break;
+    case 'pane':
+      // A `<sheetView>` child recording a frozen (or split) pane. Only a frozen pane maps onto the
+      // model's view; a source without one leaves `view` empty, so a re-write emits no pane.
+      if (attrs.state === 'frozen' || attrs.state === 'frozenSplit') {
+        sheet.view.state = 'frozen';
+        if (attrs.xSplit !== undefined) sheet.view.xSplit = Number(attrs.xSplit);
+        if (attrs.ySplit !== undefined) sheet.view.ySplit = Number(attrs.ySplit);
+        if (attrs.topLeftCell !== undefined) sheet.view.topLeftCell = attrs.topLeftCell;
+      }
+      break;
+    case 'pageSetUpPr':
+      // The fit-to-page flag, a `<sheetPr>` child. Recorded only when the attribute is present, so a
+      // `<pageSetUpPr>` present for other reasons (e.g. `autoPageBreaks`) leaves `fitToPage` unset.
+      if (attrs.fitToPage !== undefined) sheet.pageSetup.fitToPage = boolPresent(attrs.fitToPage);
+      break;
+    case 'printOptions':
+      applyPrintOptions(sheet.printOptions, attrs);
+      break;
+    case 'pageMargins':
+      applyMargins(sheet.pageMargins, attrs);
+      break;
+    case 'pageSetup':
+      applyPageSetup(sheet.pageSetup, attrs);
+      break;
+  }
 }
 
 function applyColumn(
