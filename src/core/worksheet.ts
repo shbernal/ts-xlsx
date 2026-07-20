@@ -1017,10 +1017,26 @@ export class Worksheet {
     };
   }
 
+  // Empty every collection the model round-trips, so a subsequent replay leaves no residue from
+  // whatever the sheet held before. Images, pivots, and byte-preserved parts carry workbook-level
+  // identity, are excluded from the model, and so are deliberately left untouched here.
+  #resetContent(): void {
+    this.#rows.clear();
+    this.#columns.clear();
+    this.#rowProperties.clear();
+    this.#merges.length = 0;
+    this.#mergeRects.length = 0;
+    this.#dataValidations.length = 0;
+    this.#dataValidationRects.length = 0;
+    this.#conditionalFormattings.length = 0;
+    this.#tables.length = 0;
+  }
+
   // Assigning a model replaces this sheet's content wholesale — the sheet becomes the model, with no
   // residue from whatever it held before. Cells are placed at their exact positions (bypassing merge
   // resolution) and merges re-applied after, so a slave's value cannot be misrouted during the load.
   set model(model: WorksheetModel) {
+    this.#resetContent();
     this.state = model.state;
     this.tabColor = model.tabColor;
     overwrite(this.properties, model.properties);
@@ -1038,15 +1054,6 @@ export class Worksheet {
       model.columnBreaks.map((brk) => ({...brk})),
     );
 
-    this.#rows.clear();
-    this.#columns.clear();
-    this.#rowProperties.clear();
-    this.#merges.length = 0;
-    this.#mergeRects.length = 0;
-    this.#dataValidations.length = 0;
-    this.#dataValidationRects.length = 0;
-    this.#conditionalFormattings.length = 0;
-    this.#tables.length = 0;
     this.#protection = model.protection;
 
     for (const {index, properties} of model.columns)
