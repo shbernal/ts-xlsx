@@ -28,6 +28,7 @@ import {fileURLToPath} from 'node:url';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
+import type {CorpusApi} from '../case.ts';
 import {packageFacts} from './ooxml-facts.ts';
 
 // Retarget the implementation under test. Default: the src/ .ts sources, run
@@ -41,18 +42,27 @@ import {packageFacts} from './ooxml-facts.ts';
 // the base dir and the .ts→.js extension.
 const target =
   process.env.CORPUS_TARGET === 'dist' ? {dir: 'dist', ext: 'js'} : {dir: 'src', ext: 'ts'};
-const loadModule = (rel) =>
-  import(new URL(`../../../${target.dir}/${rel}.${target.ext}`, import.meta.url).href);
+const loadModule = <T>(rel: string): Promise<T> =>
+  import(
+    new URL(`../../../${target.dir}/${rel}.${target.ext}`, import.meta.url).href
+  ) as Promise<T>;
 
-const {decodeAddress, decodeRange, encodeAddress} = await loadModule('core/address');
-const {detectValueType} = await loadModule('core/value');
-const {Workbook} = await loadModule('core/workbook');
-const {readCsv} = await loadModule('io/csv/read');
-const {writeCsv, writeCsvText} = await loadModule('io/csv/write');
-const {readXlsx} = await loadModule('io/xlsx/read');
-const {readWorkbookStream} = await loadModule('io/xlsx/read-rows');
-const {writeXlsx} = await loadModule('io/xlsx/write');
-const {WorkbookStreamWriter} = await loadModule('io/xlsx/write-stream');
+const {decodeAddress, decodeRange, encodeAddress} =
+  await loadModule<typeof import('../../../src/core/address.ts')>('core/address');
+const {detectValueType} =
+  await loadModule<typeof import('../../../src/core/value.ts')>('core/value');
+const {Workbook} =
+  await loadModule<typeof import('../../../src/core/workbook.ts')>('core/workbook');
+const {readCsv} = await loadModule<typeof import('../../../src/io/csv/read.ts')>('io/csv/read');
+const {writeCsv, writeCsvText} =
+  await loadModule<typeof import('../../../src/io/csv/write.ts')>('io/csv/write');
+const {readXlsx} = await loadModule<typeof import('../../../src/io/xlsx/read.ts')>('io/xlsx/read');
+const {readWorkbookStream} =
+  await loadModule<typeof import('../../../src/io/xlsx/read-rows.ts')>('io/xlsx/read-rows');
+const {writeXlsx} =
+  await loadModule<typeof import('../../../src/io/xlsx/write.ts')>('io/xlsx/write');
+const {WorkbookStreamWriter} =
+  await loadModule<typeof import('../../../src/io/xlsx/write-stream.ts')>('io/xlsx/write-stream');
 
 // JSZip is an independent zip implementation used only to VERIFY the streaming writer's output (CRC
 // integrity), a hostile-input posture toward our own archive — never in the production src path.
@@ -64,14 +74,14 @@ const JSZip = require('jszip');
 // real-world file. The rewrite reads them straight through readXlsx (a fixture is just a
 // foreign `.xlsx` buffer).
 const FIXTURES_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
-const fixtureBytes = (rel) => fs.readFileSync(path.join(FIXTURES_ROOT, rel));
-const readFixture = (rel) => readXlsx(fixtureBytes(rel));
+const fixtureBytes = (rel: string) => fs.readFileSync(path.join(FIXTURES_ROOT, rel));
+const readFixture = (rel: string) => readXlsx(fixtureBytes(rel));
 
 // The 1-based `row.values` array a full-load reader exposes, rebuilt from a streamed row's cells:
 // index 0 is an empty leading slot and column A lands at index 1, so streaming and buffered reads
 // index identically. Gaps (and the leading slot) are null, every present value normalized.
-const streamedRowValues = (cells) => {
-  const width = cells.reduce((max, cell) => Math.max(max, cell.col), 0);
+const streamedRowValues = (cells: CorpusApi[]) => {
+  const width = cells.reduce((max: number, cell: CorpusApi) => Math.max(max, cell.col), 0);
   const values = new Array(width + 1).fill(null);
   for (const cell of cells) values[cell.col] = normalizeStreamValue(cell.value);
   return values;
@@ -85,8 +95,8 @@ const ONE_PX_PNG = Uint8Array.from(
   ),
 );
 
-const notImplemented = (message) => {
-  const err = new Error(`rewrite: ${message}`);
+const notImplemented = (message: string): Error & {notImplemented?: boolean} => {
+  const err: Error & {notImplemented?: boolean} = new Error(`rewrite: ${message}`);
   err.notImplemented = true;
   return err;
 };
@@ -178,19 +188,21 @@ const SUPPORTED_TABLE_COLUMN_KEYS = new Set(['name', 'totalsRowLabel', 'totalsRo
 // Build an _xlnm.Print_Area refersTo from a comma-separated area (e.g. 'A1:F10,A12:F21' or 'A:D'):
 // each range is made absolute ($-prefixed on every column and row bound) and sheet-qualified, exactly
 // how Excel records a print area. A whole-column range keeps its column-only shape ($A:$D).
-const absolutizeRef = (ref) => ref.replace(/([A-Z]+)/g, '$$$1').replace(/(\d+)/g, '$$$1');
-const printAreaRefersTo = (sheetName, area) =>
+const absolutizeRef = (ref: string) => ref.replace(/([A-Z]+)/g, '$$$1').replace(/(\d+)/g, '$$$1');
+const printAreaRefersTo = (sheetName: string, area: string) =>
   area
     .split(',')
     .map((range) => `${sheetName}!${absolutizeRef(range)}`)
     .join(',');
 
-const toDate = (v) => (v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v));
-const isoOrNull = (d) => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null);
+const toDate = (v: CorpusApi) =>
+  v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v);
+const isoOrNull = (d: CorpusApi) =>
+  d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null;
 
 // A JSON-serializable view of a read-back cell value: a Date becomes { date: iso } (null when
 // invalid), every other object is deep-cloned, and a scalar passes through. Mirrors the oracle.
-const normalizeStreamValue = (v) => {
+const normalizeStreamValue = (v: CorpusApi) => {
   if (v instanceof Date) return {date: Number.isNaN(v.getTime()) ? null : v.toISOString()};
   if (v && typeof v === 'object') return JSON.parse(JSON.stringify(v));
   return v ?? null;
@@ -199,10 +211,10 @@ const normalizeStreamValue = (v) => {
 // Some specs express a rich-text run in the flat inline shape `{ text, bold, italic, … }`, while the
 // rewrite models a run as `{ text, font: { … } }`. Translate a spec value into the model shape on the
 // way in…
-const specValueToModel = (value) => {
+const specValueToModel = (value: CorpusApi) => {
   if (value && typeof value === 'object' && Array.isArray(value.richText)) {
     return {
-      richText: value.richText.map((run) => {
+      richText: value.richText.map((run: CorpusApi) => {
         const {text, ...font} = run;
         return Object.keys(font).length ? {text, font} : {text};
       }),
@@ -213,16 +225,18 @@ const specValueToModel = (value) => {
 
 // …and flatten a read-back run's `font` facets back onto the run on the way out, so a spec asserting
 // on `run.bold` sees the shape it wrote.
-const modelValueToSpec = (value) => {
+const modelValueToSpec = (value: CorpusApi) => {
   if (value && typeof value === 'object' && Array.isArray(value.richText)) {
-    return {richText: value.richText.map(({text, font}) => ({text, ...(font || {})}))};
+    return {
+      richText: value.richText.map(({text, font}: CorpusApi) => ({text, ...(font || {})})),
+    };
   }
   return value;
 };
 
 // Map a declarative spec onto the rewrite's Workbook model, throwing a `notImplemented`
 // skip the moment the spec uses a feature the writer cannot represent yet.
-function buildFrom(spec = {}) {
+function buildFrom(spec: CorpusApi = {}) {
   for (const k of Object.keys(spec)) {
     if (!SUPPORTED_TOP_KEYS.has(k)) throw notImplemented(`spec.${k} not supported yet`);
   }
@@ -255,28 +269,28 @@ function buildFrom(spec = {}) {
     for (const k of Object.keys(pm)) {
       if (!SUPPORTED_PAGE_MARGIN_KEYS.has(k))
         throw notImplemented(`pageMargins.${k} not supported yet`);
-      sheet.pageMargins[k] = pm[k];
+      (sheet.pageMargins as Record<string, unknown>)[k] = pm[k];
     }
 
     const psu = s.pageSetup || {};
     for (const k of Object.keys(psu)) {
       if (!SUPPORTED_PAGE_SETUP_KEYS.has(k))
         throw notImplemented(`pageSetup.${k} not supported yet`);
-      sheet.pageSetup[k] = psu[k];
+      (sheet.pageSetup as Record<string, unknown>)[k] = psu[k];
     }
 
     const hf = s.headerFooter || {};
     for (const k of Object.keys(hf)) {
       if (!SUPPORTED_HEADER_FOOTER_KEYS.has(k))
         throw notImplemented(`headerFooter.${k} not supported yet`);
-      sheet.headerFooter[k] = hf[k];
+      (sheet.headerFooter as Record<string, unknown>)[k] = hf[k];
     }
 
     for (const t of s.tables || []) {
       for (const k of Object.keys(t)) {
         if (!SUPPORTED_TABLE_KEYS.has(k)) throw notImplemented(`table.${k} not supported yet`);
       }
-      let columns;
+      let columns: CorpusApi[];
       if (t.columnDefs) {
         for (const cd of t.columnDefs) {
           for (const k of Object.keys(cd)) {
@@ -284,19 +298,19 @@ function buildFrom(spec = {}) {
               throw notImplemented(`table.columnDefs.${k} not supported yet`);
           }
         }
-        columns = t.columnDefs.map((cd) => {
-          const col = {name: cd.name};
+        columns = t.columnDefs.map((cd: CorpusApi) => {
+          const col: CorpusApi = {name: cd.name};
           if (cd.totalsRowLabel !== undefined) col.totalsRowLabel = cd.totalsRowLabel;
           if (cd.totalsRowFunction !== undefined) col.totalsRowFunction = cd.totalsRowFunction;
           return col;
         });
       } else {
-        columns = (t.headers || []).map((name) => ({name}));
+        columns = (t.headers || []).map((name: CorpusApi) => ({name}));
       }
       // A spec may express a table ref as the full occupied range (`A1:B3`), the shape the oracle
       // accepts, while the model anchors at the single top-left cell and derives the range from the
       // row count. Take the anchor; the declared row count reconstructs the same range.
-      const options = {
+      const options: CorpusApi = {
         name: t.name,
         ref: t.ref.split(':')[0],
         columns,
@@ -419,9 +433,9 @@ function buildFrom(spec = {}) {
 // Mirror current.mjs's normalizeCell for the rewrite's Cell: a plain JSON view of the
 // value that survived the round-trip. Style facets are absent until the reader reads
 // them, matching the contract that an unmaterialized facet is simply not present.
-function normalizeRewriteCell(cell) {
+function normalizeRewriteCell(cell: CorpusApi) {
   const v = cell.value;
-  let out;
+  let out: CorpusApi;
   if (v && typeof v === 'object' && 'hyperlink' in v) {
     out = {
       hyperlink: v.hyperlink,
@@ -453,7 +467,7 @@ function normalizeRewriteCell(cell) {
 // one base style to two cells" (the shared-style aliasing setup) is just assigning each facet
 // present. Assigning the SAME base object to two cells shares the facet references — exactly the
 // aliasing a copy-on-write setter must not let bleed when one cell is later mutated.
-function applyStyle(cell, style) {
+function applyStyle(cell: CorpusApi, style: CorpusApi) {
   if (style.fill !== undefined) cell.fill = style.fill;
   if (style.numFmt !== undefined) cell.numFmt = style.numFmt;
   if (style.font !== undefined) cell.font = style.font;
@@ -462,10 +476,10 @@ function applyStyle(cell, style) {
   if (style.protection !== undefined) cell.protection = style.protection;
 }
 
-function partMapOf(buffer) {
+function partMapOf(buffer: Uint8Array) {
   const unzipped = unzipSync(buffer);
-  const out = {};
-  for (const name of Object.keys(unzipped)) out[name] = strFromU8(unzipped[name]);
+  const out: Record<string, string> = {};
+  for (const name of Object.keys(unzipped)) out[name] = strFromU8(unzipped[name]!);
   return out;
 }
 
@@ -473,9 +487,12 @@ function partMapOf(buffer) {
 // `packageFactsFromZip`: counts of part families the reader does not fully model (drawings, VML,
 // media, pivot tables/caches, comments) plus the worksheet/drawing reference flags that wire
 // unmodeled features (a vector-shape drawing, a header/footer image) into the sheet.
-const packagePartFacts = (parts) => {
+const packagePartFacts = (parts: Record<string, string>) => {
   const names = Object.keys(parts);
-  const at = (rx) => parts[names.find((p) => rx.test(p))] ?? '';
+  const at = (rx: RegExp) => {
+    const found = names.find((p) => rx.test(p));
+    return found !== undefined ? (parts[found] ?? '') : '';
+  };
   const ws1 = at(/worksheets\/sheet1\.xml$/);
   const drawing1 = at(/drawings\/drawing1\.xml$/);
   return {
@@ -494,17 +511,18 @@ const packagePartFacts = (parts) => {
   };
 };
 
-const hexBytes = (hex) => Uint8Array.from(hex.match(/../g).map((h) => parseInt(h, 16)));
+const hexBytes = (hex: string) =>
+  Uint8Array.from((hex.match(/../g) ?? []).map((h) => parseInt(h, 16)));
 
 // Translate a corpus image range — a string like "B2:D6", or a {tl, br?/ext?, editAs?} object — into
 // the model's typed addImage call. A one-cell anchor is a point plus a fixed pixel extent (editAs is a
 // two-cell-only attribute the model drops by construction); a two-cell anchor spans tl..br. A
 // fractional grid coordinate (col 3.5) is passed through — the model floors it to the cell and derives
 // the sub-cell EMU offset from that cell's real width/height.
-function anchorSpecImage(sheet, imageId, range) {
+function anchorSpecImage(sheet: CorpusApi, imageId: CorpusApi, range: CorpusApi) {
   if (typeof range === 'string') {
     const {left, top, right, bottom} = decodeRange(range);
-    sheet.addImage(imageId, {tl: {col: left - 1, row: top - 1}, br: {col: right, row: bottom}});
+    sheet.addImage(imageId, {tl: {col: left! - 1, row: top! - 1}, br: {col: right, row: bottom}});
     return;
   }
   const {tl, br, ext, editAs} = range;
@@ -517,11 +535,11 @@ function anchorSpecImage(sheet, imageId, range) {
 
 // Parse the integer children of an <xdr:from>/<xdr:to> block, mirroring the oracle so a drawing anchor
 // reports the same plain-number geometry from either adapter.
-const intAt = (xml, tag) => {
+const intAt = (xml: string, tag: string) => {
   const m = xml.match(new RegExp(`<${tag}>(-?\\d+)</${tag}>`));
   return m ? Number(m[1]) : null;
 };
-const parseAnchorSide = (block) =>
+const parseAnchorSide = (block: string | null | undefined) =>
   block
     ? {
         col: intAt(block, 'xdr:col'),
@@ -530,13 +548,14 @@ const parseAnchorSide = (block) =>
         rowOff: intAt(block, 'xdr:rowOff'),
       }
     : null;
-const imageXmlWellFormed = (xml) => !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
+const imageXmlWellFormed = (xml: string) =>
+  !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
 
 // Expand an OOXML sqref (space-separated ranges) into its covered cell references, bounded by a cap so
 // a whole-column range never balloons — used to check that a range-form validation is reported on
 // every covered cell. An unbounded whole-row/column part is skipped rather than expanded.
-function expandSqref(sqref, cap = 4096) {
-  const refs = [];
+function expandSqref(sqref: CorpusApi, cap = 4096) {
+  const refs: string[] = [];
   for (const part of String(sqref).split(/\s+/).filter(Boolean)) {
     const {left, right, top, bottom} = decodeRange(part);
     if (left == null || right == null || top == null || bottom == null) continue;
@@ -551,22 +570,22 @@ function expandSqref(sqref, cap = 4096) {
 // reader the hand-edited OOXML forms real producers emit but the writer itself never generates
 // (an explicit-false boolean flag `<b val="0"/>`, an alignment element carrying only `wrapText="0"`,
 // an injected xf). `edits` maps a part path to a (xml) => xml transform; unlisted parts pass through.
-function reloadPatched(buffer, edits) {
+function reloadPatched(buffer: Uint8Array, edits: Record<string, (xml: string) => string>) {
   const files = unzipSync(buffer);
   for (const [name, transform] of Object.entries(edits)) {
-    files[name] = strToU8(transform(strFromU8(files[name])));
+    files[name] = strToU8(transform(strFromU8(files[name]!)));
   }
   return readXlsx(zipSync(files));
 }
 
 // Parse an XML tag's attributes into a plain { name: value } map. base64 salt/hash values use
 // only XML-safe characters, so a naive quoted-value scan is sufficient here.
-function attrsOf(tag) {
-  const out = {};
+function attrsOf(tag: string) {
+  const out: Record<string, string> = {};
   const re = /([\w:]+)="([^"]*)"/g;
   let m = re.exec(tag);
   while (m !== null) {
-    out[m[1]] = m[2];
+    out[m[1]!] = m[2]!;
     m = re.exec(tag);
   }
   return out;
@@ -575,11 +594,11 @@ function attrsOf(tag) {
 const impl = {
   name: 'rewrite',
 
-  decodeAddress(reference) {
+  decodeAddress(reference: CorpusApi) {
     return decodeAddress(reference);
   },
 
-  decodeRange(reference) {
+  decodeRange(reference: CorpusApi) {
     return decodeRange(reference);
   },
 
@@ -590,7 +609,7 @@ const impl = {
     return {col: cell.col, row: cell.row, colType: typeof cell.col, rowType: typeof cell.row};
   },
 
-  inspectPackage(spec) {
+  inspectPackage(spec: CorpusApi) {
     return packageFacts(spec, partMapOf(writeXlsx(buildFrom(spec))));
   },
 
@@ -622,7 +641,7 @@ const impl = {
       });
       const parts = partMapOf(writeXlsx(wb));
       const key = Object.keys(parts).find((n) => /pivotCacheDefinition\d*\.xml$/.test(n));
-      const cacheXml = key ? parts[key] : '';
+      const cacheXml = key ? parts[key]! : '';
       const hasRawUnescapedAmp = /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/.test(
         cacheXml,
       );
@@ -635,7 +654,7 @@ const impl = {
     } catch (e) {
       return {
         ok: false,
-        writeError: String(e?.message || e),
+        writeError: String((e as CorpusApi)?.message || e),
         cacheWellFormed: null,
         hasRawUnescapedAmp: null,
       };
@@ -664,7 +683,7 @@ const impl = {
     return {
       autoFilterRef,
       hasFilterDatabase: !!filterDb,
-      filterDatabaseHidden: filterDb ? /hidden="1"/.test(filterDb[1] + filterDb[2]) : false,
+      filterDatabaseHidden: filterDb ? /hidden="1"/.test(filterDb[1]! + filterDb[2]!) : false,
       filterDatabaseFormula: filterDb ? filterDb[3] : null,
     };
   },
@@ -695,22 +714,22 @@ const impl = {
       }
     } catch (e) {
       crcValid = false;
-      crcError = String(e?.message || e);
+      crcError = String((e as CorpusApi)?.message || e);
     }
 
     let reloadOk = true;
     let reloadError = null;
-    let sheetNames = [];
+    let sheetNames: string[] = [];
     const firstCol = [];
     try {
       const wb = readXlsx(buffer);
-      sheetNames = wb.worksheets.map((s) => s.name);
+      sheetNames = wb.worksheets.map((s: CorpusApi) => s.name);
       const s = wb.worksheets[0];
       for (let i = 1; i <= Math.min(rows, 3); i++)
-        firstCol.push(normalizeStreamValue(s.getCell(`A${i}`).value));
+        firstCol.push(normalizeStreamValue(s!.getCell(`A${i}`).value));
     } catch (e) {
       reloadOk = false;
-      reloadError = String(e?.message || e);
+      reloadError = String((e as CorpusApi)?.message || e);
     }
     return {partCount, emptyParts, crcValid, crcError, reloadOk, reloadError, sheetNames, firstCol};
   },
@@ -718,8 +737,8 @@ const impl = {
   // Drive the streaming worksheet writer through row ops (addRow/addRows), commit, and read the
   // requested cells back → { ok, error, cells, rowCount }. Exercises the batch-add convenience and the
   // single-row control on the same path.
-  async streamWriteSheet({ops = [], read = [], useSharedStrings = false} = {}) {
-    const toRow = (values) => (values || []).map(specValueToModel);
+  async streamWriteSheet({ops = [], read = [], useSharedStrings = false}: CorpusApi = {}) {
+    const toRow = (values: CorpusApi) => (values || []).map(specValueToModel);
     const writer = new WorkbookStreamWriter({useSharedStrings});
     let error = null;
     try {
@@ -731,23 +750,23 @@ const impl = {
       }
       sheet.commit();
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
     const buffer = Buffer.from(await writer.commit());
     if (error) return {ok: false, error, cells: {}, rowCount: 0};
 
     const s = readXlsx(buffer).worksheets[0];
-    const cells = {};
+    const cells: Record<string, CorpusApi> = {};
     for (const ref of read)
-      cells[ref] = modelValueToSpec(normalizeStreamValue(s.getCell(ref).value));
-    return {ok: true, error: null, cells, rowCount: s.rowCount};
+      cells[ref] = modelValueToSpec(normalizeStreamValue(s!.getCell(ref).value));
+    return {ok: true, error: null, cells, rowCount: s!.rowCount};
   },
 
   // Write one string cell with the buffered writer's useSharedStrings option and report how it was
   // stored → { hasSharedStringsPart, isSharedRef, isInline }. The option must actually control
   // storage: enabled emits a sharedStrings part and a t="s" cell reference; disabled keeps the string
   // inline with no such part.
-  sharedStringsOption(useSharedStrings) {
+  sharedStringsOption(useSharedStrings: CorpusApi) {
     const wb = new Workbook();
     wb.addWorksheet('S').getCell('A1').value = 'shared-me';
     const parts = partMapOf(writeXlsx(wb, {useSharedStrings}));
@@ -771,7 +790,7 @@ const impl = {
     try {
       sheet.addRow(['b']).commit();
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
     const buffer = Buffer.from(await writer.commit());
     const legibleRejection = error != null && /commit|committed|finaliz|closed/i.test(error);
@@ -834,15 +853,18 @@ const impl = {
     try {
       const imageId = writer.addImage({buffer: ONE_PX_PNG, extension: 'png'});
       const {left, top, right, bottom} = decodeRange(range);
-      sheet.addImage(imageId, {tl: {col: left - 1, row: top - 1}, br: {col: right, row: bottom}});
+      sheet.addImage(imageId, {
+        tl: {col: left! - 1, row: top! - 1},
+        br: {col: right!, row: bottom!},
+      });
       sheet.addRow(['x']).commit();
       sheet.commit();
       buffer = Buffer.from(await writer.commit());
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
-    let mediaParts = [];
-    let drawingParts = [];
+    let mediaParts: string[] = [];
+    let drawingParts: string[] = [];
     if (!error && buffer) {
       const parts = Object.keys(partMapOf(buffer));
       mediaParts = parts.filter((n) => /xl\/media\//.test(n));
@@ -854,7 +876,7 @@ const impl = {
   // Build a workbook whose sheets place images at the spec's ranges, write it, and report the
   // serialized drawing-anchor geometry (type, editAs, from/to, one-cell extent, spPr transform) as
   // plain numbers — the surface a case asserts against for anchor correctness.
-  inspectImageAnchors(spec) {
+  inspectImageAnchors(spec: CorpusApi) {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
     const drawingParts = Object.keys(parts)
       .filter((f) => /^xl\/drawings\/drawing\d+\.xml$/.test(f))
@@ -862,16 +884,16 @@ const impl = {
     const anchors = [];
     let xmlOk = true;
     for (const p of drawingParts) {
-      const xml = parts[p];
+      const xml = parts[p]!;
       if (!imageXmlWellFormed(xml)) xmlOk = false;
       for (const m of xml.matchAll(
         /<xdr:(oneCellAnchor|twoCellAnchor)\b([^>]*)>([\s\S]*?)<\/xdr:\1>/g,
       )) {
-        const body = m[3];
+        const body = m[3]!;
         const fromBlock = (body.match(/<xdr:from>([\s\S]*?)<\/xdr:from>/) || [])[1];
         const toBlock = (body.match(/<xdr:to>([\s\S]*?)<\/xdr:to>/) || [])[1];
         const extTag = body.match(/<xdr:ext\b[^>]*cx="(\d+)"[^>]*cy="(\d+)"/);
-        const editAs = (m[2].match(/editAs="([^"]*)"/) || [])[1] || null;
+        const editAs = (m[2]!.match(/editAs="([^"]*)"/) || [])[1] || null;
         const sppr = (body.match(/<xdr:spPr\b[\s\S]*?<\/xdr:spPr>/) || [])[0] || '';
         const offTag = sppr.match(/<a:off\b[^>]*x="(-?\d+)"[^>]*y="(-?\d+)"/);
         const spExtTag = sppr.match(/<a:ext\b[^>]*cx="(-?\d+)"[^>]*cy="(-?\d+)"/);
@@ -967,26 +989,29 @@ const impl = {
     const placed = [...placement];
     placed.forEach((letter, i) => {
       const col = i * 2;
-      sheet.addImage(ids[letter], {tl: {col, row: 0}, br: {col: col + 2, row: 2}});
+      sheet.addImage((ids as Record<string, number>)[letter]!, {
+        tl: {col, row: 0},
+        br: {col: col + 2, row: 2},
+      });
     });
     const buffer = writeXlsx(wb);
     const raw = unzipSync(buffer);
     const relsXml = strFromU8(raw['xl/drawings/_rels/drawing1.xml.rels'] || new Uint8Array());
-    const relTarget = {};
+    const relTarget: Record<string, string | undefined> = {};
     for (const t of relsXml.matchAll(/<Relationship\b[^>]*\/?>/g)) {
-      const a = attrsOf(t[0]);
-      relTarget[a.Id] = (a.Target || '').split('/').pop();
+      const a = attrsOf(t[0]!);
+      relTarget[a.Id!] = (a.Target || '').split('/').pop();
     }
     const drawingXml = strFromU8(raw['xl/drawings/drawing1.xml'] || new Uint8Array());
     const embedOrder = [...drawingXml.matchAll(/r:embed="([^"]*)"/g)].map((m) => m[1]);
-    const resolvedMedia = embedOrder.map((rid) => relTarget[rid] ?? null);
-    const mediaSizes = {};
+    const resolvedMedia = embedOrder.map((rid) => relTarget[rid!] ?? null);
+    const mediaSizes: Record<string, number> = {};
     for (const name of Object.keys(raw)) {
       const m = name.match(/^xl\/media\/(image\d+\.png)$/);
-      if (m) mediaSizes[m[1]] = raw[name].length;
+      if (m) mediaSizes[m[1]!] = raw[name]!.length;
     }
     const resolvedLetter = resolvedMedia.map((media) => {
-      const size = mediaSizes[media];
+      const size = mediaSizes[media!];
       if (size === PNG_A.length) return 'A';
       if (size === PNG_B.length) return 'B';
       return '?';
@@ -1026,16 +1051,18 @@ const impl = {
   // Read a fixture and report each image's normalized anchor range → for asserting a file whose
   // drawing anchors were authored as cell ranges reads without throwing and exposes integer cell
   // coordinates, never a raw string.
-  readFixtureImageAnchors(rel) {
+  readFixtureImageAnchors(rel: CorpusApi) {
     const workbook = readFixture(rel);
     const images = [];
     for (const sheet of workbook.worksheets) {
       for (const im of sheet.images) {
         const from = im.anchor.from;
-        const to = im.anchor.to;
+        // reaches past the public ImageAnchor type for the two-cell `to` side
+        const to = (im.anchor as CorpusApi).to;
         images.push({
           sheet: sheet.name,
-          editAs: im.anchor.editAs ?? null,
+          // reaches past the public ImageAnchor type for `editAs`
+          editAs: (im.anchor as CorpusApi).editAs ?? null,
           tl: from ? {col: from.col, row: from.row} : null,
           br: to ? {col: to.col, row: to.row} : null,
         });
@@ -1092,7 +1119,7 @@ const impl = {
   // firstDataCell }. Anchoring a floating image is metadata overlay, not row insertion: it must not
   // advance the row-append cursor, so the layout is identical regardless of add order.
   imageAnchorRowAppendReport() {
-    const run = (order) => {
+    const run = (order: CorpusApi) => {
       const wb = new Workbook();
       const sheet = wb.addWorksheet('S');
       const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
@@ -1110,12 +1137,12 @@ const impl = {
 
   // Read a fixture, load-and-rewrite it, and report the picture's drawing-anchor rotation before and
   // after → { sourceRot, rewrittenRot }. An image rotation (rot on <a:xfrm>) must survive the round-trip.
-  roundtripFixtureImageRotation(rel) {
-    const rotOf = (xml) => {
+  roundtripFixtureImageRotation(rel: CorpusApi) {
+    const rotOf = (xml: CorpusApi) => {
       const m = xml.match(/<a:xfrm\b[^>]*\brot="(-?\d+)"/);
       return m ? Number(m[1]) : null;
     };
-    const drawingName = (parts) =>
+    const drawingName = (parts: CorpusApi) =>
       Object.keys(parts).find((f) => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
     const srcParts = partMapOf(fixtureBytes(rel));
     const srcDrawing = drawingName(srcParts);
@@ -1129,7 +1156,7 @@ const impl = {
   // Read a fixture, write it back unchanged, and report package-part facts before/after →
   // { source, rewritten } — for asserting a no-op round-trip PRESERVES parts the reader does not
   // model (a vector-shape drawing, a header/footer image and its VML) instead of dropping them.
-  roundtripFixturePackageParts(rel) {
+  roundtripFixturePackageParts(rel: CorpusApi) {
     const source = packagePartFacts(partMapOf(fixtureBytes(rel)));
     const rewritten = packagePartFacts(partMapOf(writeXlsx(readXlsx(fixtureBytes(rel)))));
     return {source, rewritten};
@@ -1145,29 +1172,29 @@ const impl = {
 
     const loaded = readXlsx(writeXlsx(workbook));
     const s = loaded.getWorksheet('S');
-    const loadedRowCount = s.rowCount;
-    for (const row of append) s.addRow(row);
+    const loadedRowCount = s!.rowCount;
+    for (const row of append) s!.addRow(row);
 
     const final = readXlsx(writeXlsx(loaded));
     const f = final.getWorksheet('S');
     // Mirror the oracle's `row.values.slice(1)` per-row array: each row is sized to its own populated
     // extent, holes are null, and an empty row is an empty array — indexed by row number so a gap shows.
-    const rows = Array.from({length: f.rowCount}, () => []);
-    for (const {number, cells} of f.rows()) {
-      const maxCol = cells.reduce((m, c) => Math.max(m, c.col), 0);
+    const rows: CorpusApi[] = Array.from({length: f!.rowCount}, () => []);
+    for (const {number, cells} of f!.rows()) {
+      const maxCol = cells.reduce((m: number, c: CorpusApi) => Math.max(m, c.col), 0);
       const arr = new Array(maxCol).fill(null);
       for (const cell of cells) arr[cell.col - 1] = normalizeStreamValue(cell.value);
       rows[number - 1] = arr;
     }
-    return {loadedRowCount, finalRowCount: f.rowCount, rows};
+    return {loadedRowCount, finalRowCount: f!.rowCount, rows};
   },
 
   // Read a fixture's single _xlnm.Print_Area name (a comma-separated range list), re-write it, and read
   // it again → { sourceRangeCount, readPrintArea, rewrittenRangeCount }. Both disjoint ranges must
   // survive read and re-serialization, never truncated to the first.
-  roundtripFixturePrintAreas(rel) {
-    const printAreaOf = (wb) =>
-      wb.definedNames.find((n) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+  roundtripFixturePrintAreas(rel: CorpusApi) {
+    const printAreaOf = (wb: CorpusApi) =>
+      wb.definedNames.find((n: CorpusApi) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const source = readXlsx(fixtureBytes(rel));
     const readPrintArea = printAreaOf(source);
     const sourceRangeCount = readPrintArea.split(',').filter(Boolean).length;
@@ -1179,7 +1206,7 @@ const impl = {
   // Author a sheet-scoped _xlnm.Print_Area over a comma-separated area, round-trip, and report the
   // emitted ranges (sheet prefix stripped) → { ranges }. Two disjoint areas must emit two proper
   // rectangular ranges in one name, not a truncated single range.
-  writePrintAreaDefinedName(area) {
+  writePrintAreaDefinedName(area: CorpusApi) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     workbook.defineName({
@@ -1196,7 +1223,7 @@ const impl = {
   // Author a sheet-scoped _xlnm.Print_Area over one area (whole-column or bounded), round-trip, and
   // report the written and recovered forms → { writtenDefinedName, reReadPrintArea, reloadOk }. A
   // column-only reference ($A:$D) must recover intact, never decoded to a NaN-mangled address.
-  printAreaRoundtrip(area) {
+  printAreaRoundtrip(area: CorpusApi) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     workbook.defineName({
@@ -1205,13 +1232,14 @@ const impl = {
       refersTo: printAreaRefersTo(sheet.name, area),
     });
     let reloadOk = true;
-    let back;
+    let back: CorpusApi;
     try {
       back = readXlsx(writeXlsx(workbook));
     } catch {
       reloadOk = false;
     }
-    const refersTo = back?.definedNames.find((n) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+    const refersTo =
+      back?.definedNames.find((n: CorpusApi) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const reReadPrintArea = refersTo.split('!').pop()?.replace(/\$/g, '') ?? '';
     return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
@@ -1227,7 +1255,7 @@ const impl = {
     const buffer = writeXlsx(workbook);
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     const paneEmitted = /<pane\b[^>]*ySplit="1"[^>]*state="frozen"/.test(sheetXml);
-    const view = readXlsx(buffer).getWorksheet('S').view;
+    const view = readXlsx(buffer).getWorksheet('S')!.view;
     return {
       paneEmitted,
       reReadState: view.state ?? 'normal',
@@ -1251,7 +1279,7 @@ const impl = {
     sheet.unfreeze();
     const normalBuffer = writeXlsx(workbook);
     const normalHasPane = /<pane\b/.test(partMapOf(normalBuffer)['xl/worksheets/sheet1.xml'] || '');
-    const view = readXlsx(normalBuffer).getWorksheet('S').view;
+    const view = readXlsx(normalBuffer).getWorksheet('S')!.view;
     return {
       frozenHasPane,
       normalHasPane,
@@ -1277,7 +1305,7 @@ const impl = {
           const tags = inner.match(/<col\b[^>]*\/>/g) || [];
           return `<cols>${tags.reverse().join('')}</cols>`;
         }),
-    }).getWorksheet('S');
+    }).getWorksheet('S')!;
     return {
       w1: back.getColumn(1).width,
       w2: back.getColumn(2).width,
@@ -1295,7 +1323,7 @@ const impl = {
     sheet.getCell('A1').value = 'x';
     sheet.getRow(2).outlineLevel = 1;
     sheet.getColumn(3).outlineLevel = 1;
-    const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     return {
       rowOutline: back.getRow(2).outlineLevel ?? 0,
       colOutline: back.getColumn(3).outlineLevel ?? 0,
@@ -1315,11 +1343,11 @@ const impl = {
     const buffer = writeXlsx(wb);
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     // A column emits an explicit width when its `<col>` carries a customWidth flag over its index.
-    const emittedAt = (index) =>
+    const emittedAt = (index: CorpusApi) =>
       new RegExp(`<col\\b[^>]*\\bmin="${index}"[^>]*\\bmax="${index}"[^>]*\\bcustomWidth="1"`).test(
         sheetXml,
       );
-    const back = readXlsx(buffer).getWorksheet('S');
+    const back = readXlsx(buffer).getWorksheet('S')!;
     return {
       emitted: {c1: emittedAt(1), c2: emittedAt(2), c3: emittedAt(3)},
       readBack: {
@@ -1346,9 +1374,9 @@ const impl = {
     const bad = sheet.getCell('A2');
     bad.value = 42;
     // A caller wrongly assigns the structured numFmt object Excel parses a cell's format into.
-    bad.numFmt = {id: 164, formatCode: '0.00'};
+    bad.numFmt = {id: 164, formatCode: '0.00'} as CorpusApi;
     const stylesXml = partMapOf(writeXlsx(wb))['xl/styles.xml'] || '';
-    const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     return {
       controlNumFmtReload: back.getCell('A1').numFmt ?? null,
       stylesHasObjectObject: stylesXml.includes('[object Object]'),
@@ -1368,7 +1396,7 @@ const impl = {
     const writtenQuotePrefix = /<xf\b[^>]*quotePrefix="1"/.test(
       partMapOf(buffer)['xl/styles.xml'] || '',
     );
-    const reloaded = readXlsx(buffer).getWorksheet('S').getCell('A1').quotePrefix === true;
+    const reloaded = readXlsx(buffer).getWorksheet('S')!.getCell('A1').quotePrefix === true;
     return {writtenQuotePrefix, reloaded};
   },
 
@@ -1376,8 +1404,8 @@ const impl = {
   // report: the source's cellStyleXfs count, A1's resolved fill, and — after a load→save round-trip —
   // the re-emitted cellStyleXfs count and whether A1's cellXfs entry still links via xfId → so a case
   // asserts the named-style layer is honoured on read and preserved (with its link) on write.
-  namedStyleFillReport(rel) {
-    const countCellStyleXfs = (xml) =>
+  namedStyleFillReport(rel: CorpusApi) {
+    const countCellStyleXfs = (xml: CorpusApi) =>
       Number((xml.match(/<cellStyleXfs count="(\d+)"/) || [])[1] || 0);
     const srcCellStyleXfsCount = countCellStyleXfs(
       partMapOf(fixtureBytes(rel))['xl/styles.xml'] || '',
@@ -1415,7 +1443,7 @@ const impl = {
     seedSheet.getCell('B2').value = 99;
     const parts = unzipSync(writeXlsx(seed));
     parts['xl/worksheets/sheet1.xml'] = strToU8(
-      strFromU8(parts['xl/worksheets/sheet1.xml']).replace(
+      strFromU8(parts['xl/worksheets/sheet1.xml']!).replace(
         /<c r="B2"[^>]*>[\s\S]*?<\/c>/,
         '<c r="B2"><f t="dataTable" ref="B2:B5" dt2D="0" dtr="1" r1="A1"/><v>99</v></c>',
       ),
@@ -1429,14 +1457,15 @@ const impl = {
     let outHasDataTable = false;
     try {
       const reload = readXlsx(injected);
-      const value = reload.getWorksheet('S').getCell('B2').value;
+      const value = reload.getWorksheet('S')!.getCell('B2').value;
       if (value && typeof value === 'object') {
-        readShareType = value.shareType ?? null;
-        readRef = value.ref ?? null;
-        readResult = value.result ?? null;
+        // reaches past the value union for the data-table formula's parsed fields
+        readShareType = (value as CorpusApi).shareType ?? null;
+        readRef = (value as CorpusApi).ref ?? null;
+        readResult = (value as CorpusApi).result ?? null;
       }
       reloadOk = true;
-      const outXml = strFromU8(unzipSync(writeXlsx(reload))['xl/worksheets/sheet1.xml']);
+      const outXml = strFromU8(unzipSync(writeXlsx(reload))['xl/worksheets/sheet1.xml']!);
       outHasDataTable = /t="dataTable"/.test(outXml);
     } catch {
       reloadOk = false;
@@ -1447,7 +1476,7 @@ const impl = {
   // Author a date-type validation whose operand coerces to a serial (or fails to), write, and report
   // the emitted first bound → { formula1, hasNaN }. A real date writes a numeric serial; a
   // non-coercible operand must drop the bound, never serialize the literal "NaN".
-  authorDateValidation(operand) {
+  authorDateValidation(operand: CorpusApi) {
     const serial = (() => {
       const ms = Date.parse(operand);
       return Number.isNaN(ms) ? Number.NaN : ms / 86_400_000 + 25_569; // Unix epoch → 1900 serial
@@ -1464,7 +1493,7 @@ const impl = {
   // the per-row source references plus how many dataValidation blocks were emitted → { source,
   // formulae, allIdentical, sqrefBlocks }. Every row must keep the exact source (no relative drift),
   // and the identical rules collapse into one spanning sqref.
-  listValidationSourceRangeAcrossRows(rows, source) {
+  listValidationSourceRangeAcrossRows(rows: CorpusApi, source: CorpusApi) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     sheet.addDataValidation(`A1:A${rows}`, {type: 'list', formulae: [source]}, {extended: true});
@@ -1472,7 +1501,7 @@ const impl = {
     const reloaded = readXlsx(buffer).getWorksheet('S');
     const formulae = [];
     for (let r = 1; r <= rows; r++)
-      formulae.push(reloaded.dataValidationAt(`A${r}`)?.formulae?.[0] ?? null);
+      formulae.push(reloaded!.dataValidationAt(`A${r}`)?.formulae?.[0] ?? null);
     const allIdentical = formulae.every((f) => f === source);
     const dvXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     const sqrefBlocks = (dvXml.match(/<(?:x14:)?dataValidation[\s>]/g) || []).length;
@@ -1482,7 +1511,7 @@ const impl = {
   // Write a non-finite numeric cell (NaN / Infinity / -Infinity) and report whether the sheet XML
   // carries a bare token in a <v> → { hasNonFiniteToken, token }. A non-finite value has no OOXML
   // representation, so it must serialize as a valueless cell, never a literal "NaN"/"Infinity".
-  nonFiniteCellReport(kind) {
+  nonFiniteCellReport(kind: CorpusApi) {
     const value =
       kind === 'NaN'
         ? Number.NaN
@@ -1499,7 +1528,7 @@ const impl = {
   // Write a value under a date number format and report the sheet XML's health → { ok, hasNaN,
   // hasInvalidDate, cellXml }. A string, a null (empty cell), or an Invalid Date under a date format
   // must never leak a bare "NaN" or "Invalid Date" into the cell value.
-  dateNumFmtValueReport(kind) {
+  dateNumFmtValueReport(kind: CorpusApi) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     const cell = sheet.getCell('A1');
@@ -1526,16 +1555,16 @@ const impl = {
   // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet
   // XML → { hasNaNToken, cells }. Each cell is { t, formula, value } read off the raw `<c>`. Guards
   // that a string-typed formula result under a date format is not coerced to a numeric/NaN cell.
-  roundtripFixtureCellXml(rel, refs = []) {
+  roundtripFixtureCellXml(rel: CorpusApi, refs = []) {
     const parts = partMapOf(writeXlsx(readXlsx(fixtureBytes(rel))));
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
-    const cells = {};
+    const cells: Record<string, CorpusApi> = {};
     for (const ref of refs) {
       const match = sheetXml.match(new RegExp(`<c r="${ref}"([^>]*)>([\\s\\S]*?)</c>`));
       if (!match) continue;
-      const t = (match[1].match(/\bt="([^"]*)"/) || [])[1] ?? null;
-      const formula = (match[2].match(/<f[^>]*>([\s\S]*?)<\/f>/) || [])[1] ?? null;
-      const rawValue = (match[2].match(/<v>([\s\S]*?)<\/v>/) || [])[1] ?? null;
+      const t = (match[1]!.match(/\bt="([^"]*)"/) || [])[1] ?? null;
+      const formula = (match[2]!.match(/<f[^>]*>([\s\S]*?)<\/f>/) || [])[1] ?? null;
+      const rawValue = (match[2]!.match(/<v>([\s\S]*?)<\/v>/) || [])[1] ?? null;
       // A t="str" (or shared-string) cell holds text; anything else with a bare <v> is numeric.
       const value = rawValue === null ? null : t === 'str' ? rawValue : Number(rawValue);
       cells[ref] = {t, formula, value};
@@ -1553,11 +1582,11 @@ const impl = {
     sheet.getCell('A2').value = {formula: 'B1-B1', result: 0};
     sheet.getCell('A3').value = {formula: 'FALSE()', result: false};
     sheet.getCell('A4').value = {formula: 'T("")', result: ''};
-    const back = readXlsx(writeXlsx(workbook)).getWorksheet('S');
-    const probe = (ref) => {
+    const back = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
+    const probe = (ref: CorpusApi) => {
       const value = back.getCell(ref).value;
       const hasResult = !!value && typeof value === 'object' && 'result' in value;
-      return {hasResult, result: hasResult ? value.result : undefined};
+      return {hasResult, result: hasResult ? (value as CorpusApi).result : undefined};
     };
     return {
       truthy: probe('A1'),
@@ -1574,13 +1603,14 @@ const impl = {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     sheet.getCell('A1').value = {formula: 'TODAY()', result: new Date(Date.UTC(2021, 0, 2))};
-    const value = readXlsx(writeXlsx(workbook)).getWorksheet('S').getCell('A1').value;
-    const result = value && typeof value === 'object' ? value.result : undefined;
+    const value = readXlsx(writeXlsx(workbook)).getWorksheet('S')!.getCell('A1').value;
+    const result = value && typeof value === 'object' ? (value as CorpusApi).result : undefined;
     const isValidDate = result instanceof Date && !Number.isNaN(result.getTime());
     return {
       isValidDate,
       resultIso: result instanceof Date ? isoOrNull(result) : String(result),
-      keepsFormula: !!value && typeof value === 'object' && typeof value.formula === 'string',
+      keepsFormula:
+        !!value && typeof value === 'object' && typeof (value as CorpusApi).formula === 'string',
     };
   },
 
@@ -1620,15 +1650,17 @@ const impl = {
 
     const loaded = readXlsx(writeXlsx(workbook));
     const s = loaded.getWorksheet('S');
-    const rows = {};
-    for (const {number, cells} of s.rows()) {
-      const row = {};
+    const rows: Record<string, Record<string, CorpusApi>> = {};
+    for (const {number, cells} of s!.rows()) {
+      const row: Record<string, CorpusApi> = {};
       for (const cell of cells)
-        row[encodeAddress(cell.col, number).match(/^[A-Z]+/)[0]] = normalizeStreamValue(cell.value);
+        row[encodeAddress(cell.col, number).match(/^[A-Z]+/)![0]] = normalizeStreamValue(
+          cell.value,
+        );
       rows[number] = row;
     }
     // Every checked column reads as null when the round-trip left it empty, so a gap is visible.
-    for (const n of Object.keys(rows)) for (const col of ['A', 'B', 'C']) rows[n][col] ??= null;
+    for (const n of Object.keys(rows)) for (const col of ['A', 'B', 'C']) rows[n]![col] ??= null;
     return {rows};
   },
 
@@ -1683,7 +1715,7 @@ const impl = {
         ows.commit();
       }
     } catch (e) {
-      copyError = String(e?.message || e);
+      copyError = String((e as CorpusApi)?.message || e);
     }
     const buffer = Buffer.from(await writer.commit());
     if (copyError)
@@ -1699,7 +1731,7 @@ const impl = {
     let loadOk = true;
     let cell = null;
     try {
-      cell = readXlsx(buffer).getWorksheet('S').getCell('A1');
+      cell = readXlsx(buffer).getWorksheet('S')!.getCell('A1');
     } catch {
       loadOk = false;
     }
@@ -1720,7 +1752,7 @@ const impl = {
     const writer = new WorkbookStreamWriter();
     const source = writer.stream;
     const sink = new PassThrough();
-    const chunks = [];
+    const chunks: CorpusApi[] = [];
     sink.on('data', (c) => chunks.push(c));
     const pipeReturn = source.pipe(sink);
     const pipeReturnsDestination = pipeReturn === sink;
@@ -1732,7 +1764,7 @@ const impl = {
     const buffer = Buffer.concat(chunks);
     let valid = false;
     try {
-      valid = readXlsx(buffer).worksheets[0].getCell('A1').value === 'a';
+      valid = readXlsx(buffer).worksheets[0]!.getCell('A1').value === 'a';
     } catch {
       valid = false;
     }
@@ -1743,7 +1775,7 @@ const impl = {
   // the output, versus the in-memory writer → { streamSetThrew, streamHasFlag, streamDefaultHasFlag,
   // memoryHasFlag }. Recalc-on-load must work identically on both writers.
   async streamingFullCalcOnLoadReport() {
-    const streamCalc = async (setFlag) => {
+    const streamCalc = async (setFlag: CorpusApi) => {
       const writer = new WorkbookStreamWriter();
       let threw = false;
       if (setFlag) {
@@ -1757,7 +1789,7 @@ const impl = {
       sheet.getCell('A1').value = 1;
       sheet.commit();
       const buffer = Buffer.from(await writer.commit());
-      const wbXml = strFromU8(unzipSync(buffer)['xl/workbook.xml']);
+      const wbXml = strFromU8(unzipSync(buffer)['xl/workbook.xml']!);
       return {threw, hasFlag: /fullCalcOnLoad="1"/.test(wbXml)};
     };
     const set = await streamCalc(true);
@@ -1766,7 +1798,7 @@ const impl = {
     const wb = new Workbook();
     wb.fullCalcOnLoad = true;
     wb.addWorksheet('S').getCell('A1').value = 1;
-    const memXml = strFromU8(unzipSync(writeXlsx(wb))['xl/workbook.xml']);
+    const memXml = strFromU8(unzipSync(writeXlsx(wb))['xl/workbook.xml']!);
 
     return {
       streamSetThrew: set.threw,
@@ -1788,10 +1820,10 @@ const impl = {
     const buffer = Buffer.from(await writer.commit());
 
     const rs = readXlsx(buffer).getWorksheet('yua');
-    const slave = rs.getCell('B3').value;
+    const slave = rs!.getCell('B3').value;
     const slaveIsEmpty =
       slave == null || (typeof slave === 'object' && Object.keys(slave).length === 0);
-    const master = rs.getCell('B1').value;
+    const master = rs!.getCell('B1').value;
     return {
       masterHasFormula: !!(master && typeof master === 'object' && 'formula' in master),
       slaveResolved: !slaveIsEmpty,
@@ -1822,7 +1854,7 @@ const impl = {
     sheet.commit();
 
     const buffer = Buffer.from(await writer.commit());
-    const xml = strFromU8(unzipSync(buffer)['xl/worksheets/sheet1.xml']);
+    const xml = strFromU8(unzipSync(buffer)['xl/worksheets/sheet1.xml']!);
     const posCf = xml.indexOf('<conditionalFormatting');
     const posHl = xml.indexOf('<hyperlinks');
     let reloadOk = true;
@@ -1852,7 +1884,7 @@ const impl = {
     sheet.commit();
 
     const buffer = Buffer.from(await writer.commit());
-    const xml = strFromU8(unzipSync(buffer)['xl/worksheets/sheet1.xml']);
+    const xml = strFromU8(unzipSync(buffer)['xl/worksheets/sheet1.xml']!);
     const posDv = xml.indexOf('<dataValidations');
     const posHl = xml.indexOf('<hyperlinks');
     let reloadOk = true;
@@ -1874,7 +1906,7 @@ const impl = {
   // sink must receive a complete, re-openable package — the library owes this even when it does not own
   // the stream.
   async streamCommitReport({duplex = false, timeoutMs = 4000} = {}) {
-    const chunks = [];
+    const chunks: CorpusApi[] = [];
     const stream = duplex
       ? new Duplex({
           read() {},
@@ -1905,7 +1937,7 @@ const impl = {
     if (settled === 'resolved') {
       try {
         const back = readXlsx(Buffer.concat(chunks));
-        valid = back.worksheets.length === 1 && back.worksheets[0].getCell('A1').value === 'a';
+        valid = back.worksheets.length === 1 && back.worksheets[0]!.getCell('A1').value === 'a';
       } catch {
         valid = false;
       }
@@ -1939,7 +1971,7 @@ const impl = {
       ]);
     } catch (e) {
       outcome = 'threw-sync';
-      error = String((e && (e.code || e.message)) || e);
+      error = String((e && ((e as CorpusApi).code || (e as CorpusApi).message)) || e);
     }
     return {
       outcome,
@@ -1953,10 +1985,10 @@ const impl = {
   // font|null }. Each cell owns its own font, so a font set on one cell is observable there
   // and nowhere else — the isolation this reports. In-memory, matching the contract: the
   // <fonts>-table write/read path is exercised by the io/xlsx unit tests.
-  probeCellFonts({apply = [], read = []}) {
+  probeCellFonts({apply = [], read = []}: CorpusApi) {
     const sheet = new Workbook().addWorksheet('sheet');
     for (const {cell, font} of apply) sheet.getCell(cell).font = font;
-    const fonts = {};
+    const fonts: Record<string, CorpusApi> = {};
     for (const address of read) fonts[address] = sheet.getCell(address).font ?? null;
     return JSON.parse(JSON.stringify(fonts));
   },
@@ -1966,13 +1998,13 @@ const impl = {
   // referenced by index, so identically-styled cells must collapse to one <cellXfs> entry (one
   // shared index) — dedup neither inflating to one entry per cell nor over-collapsing distinct
   // styles. A cell left at the default style carries no `s` and reports null.
-  styleDedupReport(spec, cells = []) {
+  styleDedupReport(spec: CorpusApi, cells = []) {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
     const styles = parts['xl/styles.xml'] || '';
     const xfBlock = (styles.match(/<cellXfs\b[\s\S]*?<\/cellXfs>/) || [''])[0];
-    const cellXfCount = (xfBlock.match(/<xf\b/g) || []).length;
+    const cellXfCount = (xfBlock!.match(/<xf\b/g) || []).length;
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
-    const indices = {};
+    const indices: Record<string, CorpusApi> = {};
     for (const ref of cells) {
       const m = sheetXml.match(new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*\\bs="(\\d+)"`));
       indices[ref] = m ? Number(m[1]) : null;
@@ -1986,7 +2018,7 @@ const impl = {
   unstyledCellFontReport() {
     const wb = new Workbook();
     wb.addWorksheet('S').getCell('A1').value = 'hello';
-    const cell = readXlsx(writeXlsx(wb)).getWorksheet('S').getCell('A1');
+    const cell = readXlsx(writeXlsx(wb)).getWorksheet('S')!.getCell('A1');
     const font = cell.font || null;
     return {
       hasFont: !!font,
@@ -2009,11 +2041,11 @@ const impl = {
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     const written = (sheetXml.match(/<tabColor\b[^>]*rgb="([^"]*)"/) || [null, null])[1];
     const reload = readXlsx(buffer);
-    const coloredTab = reload.getWorksheet('Colored').tabColor;
+    const coloredTab = reload.getWorksheet('Colored')!.tabColor;
     return {
       tabColorArgbWritten: written,
       reReadArgb: coloredTab?.argb || null,
-      uncoloredHasTab: !!reload.getWorksheet('Plain').tabColor,
+      uncoloredHasTab: !!reload.getWorksheet('Plain')!.tabColor,
     };
   },
 
@@ -2022,7 +2054,7 @@ const impl = {
   // as valid 8-hex-digit values; a '#'-prefixed input must be normalized, never passed through as a
   // malformed 9-character colour.
   fillArgbHashPrefixReport() {
-    const emittedFgColor = (argb) => {
+    const emittedFgColor = (argb: CorpusApi) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -2039,7 +2071,7 @@ const impl = {
   // 6-char rgb that Excel renders black. A value that is neither 6 nor 8 hex digits is a programming
   // error and must be rejected, never written as a colour Excel silently renders black.
   argbNormalizationReport() {
-    const emittedFgColor = (argb) => {
+    const emittedFgColor = (argb: CorpusApi) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -2066,7 +2098,7 @@ const impl = {
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     const outlinePr = (sheetXml.match(/<outlinePr\b[^>]*\/?>/) || [''])[0];
     const reload = readXlsx(buffer);
-    const outline = reload.getWorksheet('S').outline;
+    const outline = reload.getWorksheet('S')!.outline;
     return {
       outlinePrEmitted: /summaryBelow="0"/.test(outlinePr) && /summaryRight="0"/.test(outlinePr),
       reReadSummaryBelow: outline.summaryBelow ?? null,
@@ -2078,7 +2110,7 @@ const impl = {
   // the reader reads bold back → { bareTag, valOne, valZero }. A boolean font flag's `val` governs:
   // a bare tag or val="1" is on, val="0" is off — presence alone must not force true.
   fontExplicitFalseBoldReport() {
-    const readBoldWith = (tag) => {
+    const readBoldWith = (tag: CorpusApi) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -2086,7 +2118,7 @@ const impl = {
       const reloaded = reloadPatched(writeXlsx(wb), {
         'xl/styles.xml': (xml) => xml.replace(/<b ?\/>/, tag),
       });
-      const font = reloaded.getWorksheet('S').getCell('A1').font;
+      const font = reloaded.getWorksheet('S')!.getCell('A1').font;
       return !!font?.bold;
     };
     return {
@@ -2101,7 +2133,7 @@ const impl = {
   // off; <u val="none"/> is the ABSENCE of an underline, so it must read back falsy — never the
   // truthy string "none".
   fontExplicitOffFlagsReport() {
-    const readWith = (baseFont, tagRe, tag, field) => {
+    const readWith = (baseFont: CorpusApi, tagRe: CorpusApi, tag: CorpusApi, field: CorpusApi) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -2109,8 +2141,8 @@ const impl = {
       const reloaded = reloadPatched(writeXlsx(wb), {
         'xl/styles.xml': (xml) => xml.replace(tagRe, tag),
       });
-      const font = reloaded.getWorksheet('S').getCell('A1').font || {};
-      return font[field] ?? null;
+      const font = reloaded.getWorksheet('S')!.getCell('A1').font || {};
+      return (font as Record<string, CorpusApi>)[field] ?? null;
     };
     return {
       italic: readWith({italic: true}, /<i ?\/>/, '<i val="0"/>', 'italic'),
@@ -2125,14 +2157,14 @@ const impl = {
   // at all — the raw "0" is a truthy JS string, so a reader guarding on the raw value rather than the
   // parsed boolean would wrongly report a present alignment.
   alignmentFalseBooleanReport() {
-    const readWithAlignment = (alignAttr) => {
+    const readWithAlignment = (alignAttr: CorpusApi) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
       let injectedIndex = -1;
       const reloaded = reloadPatched(writeXlsx(wb), {
         'xl/styles.xml': (xml) => {
-          const count = Number(xml.match(/<cellXfs count="(\d+)">/)[1]);
+          const count = Number(xml.match(/<cellXfs count="(\d+)">/)![1]);
           injectedIndex = count;
           return xml
             .replace(/<cellXfs count="\d+">/, `<cellXfs count="${count + 1}">`)
@@ -2145,7 +2177,7 @@ const impl = {
         'xl/worksheets/sheet1.xml': (xml) =>
           xml.replace(/<c r="A1"([^>]*)>/, `<c r="A1" s="${injectedIndex}"$1>`),
       });
-      const alignment = reloaded.getWorksheet('S').getCell('A1').alignment;
+      const alignment = reloaded.getWorksheet('S')!.getCell('A1').alignment;
       return alignment ? JSON.parse(JSON.stringify(alignment)) : null;
     };
     return {
@@ -2159,7 +2191,7 @@ const impl = {
   // is captured and returned as data (never propagated) so a case asserts on a crash rather than the
   // runner blowing up. Exercises the reader against foreign generators and schema-valid corners Excel
   // never emits (namespace-prefixed roots, a leading BOM, unusual part order, missing optional parts).
-  readFixtureReport(rel) {
+  readFixtureReport(rel: CorpusApi) {
     try {
       const wb = readFixture(rel);
       return {
@@ -2170,7 +2202,7 @@ const impl = {
         creator: wb.properties.creator ?? null,
       };
     } catch (e) {
-      return {ok: false, error: String(e?.message || e), sheetNames: null};
+      return {ok: false, error: String((e as CorpusApi)?.message || e), sheetNames: null};
     }
   },
 
@@ -2187,7 +2219,7 @@ const impl = {
       wb.addWorksheet('History');
     } catch (e) {
       addThrew = true;
-      addError = String(e?.message || e);
+      addError = String((e as CorpusApi)?.message || e);
     }
     const roundtrip = readXlsx(writeXlsx(wb));
     const roundtripName =
@@ -2213,7 +2245,7 @@ const impl = {
     ws.getRow(4).height = 25;
     ws.getRow(5).hidden = true;
     ws.getRow(5).outlineLevel = 1;
-    const rt = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    const rt = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     return {
       row3Hidden: rt.getRow(3).hidden ?? false,
       row4Hidden: rt.getRow(4).hidden ?? false,
@@ -2226,17 +2258,19 @@ const impl = {
   // loadedBreaks, rewrittenBreaks }, each the ascending list of break row ids. sourceBreaks reads the
   // raw fixture XML (the precondition); loadedBreaks/rewrittenBreaks come off the model after read and
   // after write→re-read, so a dropped-on-read or dropped-on-write regression shows as an empty list.
-  roundtripFixtureRowBreaks(rel) {
-    const rowBreakIds = (xml) => {
+  roundtripFixtureRowBreaks(rel: CorpusApi) {
+    const rowBreakIds = (xml: CorpusApi) => {
       const section = xml.match(/<rowBreaks[\s\S]*?<\/rowBreaks>/);
       if (section === null) return [];
       return [...section[0].matchAll(/<brk\b[^>]*\bid="(\d+)"/g)]
         .map((m) => Number(m[1]))
         .sort((a, b) => a - b);
     };
-    const sheet1 = (parts) => parts['xl/worksheets/sheet1.xml'] ?? '';
-    const modelBreaks = (wb) =>
-      wb.worksheets[0].rowBreaks.map((brk) => brk.id).sort((a, b) => a - b);
+    const sheet1 = (parts: CorpusApi) => parts['xl/worksheets/sheet1.xml'] ?? '';
+    const modelBreaks = (wb: CorpusApi) =>
+      wb.worksheets[0].rowBreaks
+        .map((brk: CorpusApi) => brk.id)
+        .sort((a: CorpusApi, b: CorpusApi) => a - b);
 
     const sourceBreaks = rowBreakIds(sheet1(partMapOf(fixtureBytes(rel))));
     const loaded = readFixture(rel);
@@ -2256,12 +2290,12 @@ const impl = {
     wb.addWorksheet('Hid', {state: 'hidden'});
     wb.addWorksheet('VeryHid', {state: 'veryHidden'});
     const buffer = writeXlsx(wb);
-    const readStates = {};
+    const readStates: Record<string, CorpusApi> = {};
     for (const sheet of readXlsx(buffer).worksheets) readStates[sheet.name] = sheet.state;
     const workbookXml = partMapOf(buffer)['xl/workbook.xml'] ?? '';
-    const xmlStates = {};
+    const xmlStates: Record<string, CorpusApi> = {};
     for (const m of workbookXml.matchAll(/<sheet\b([^>]*)\/?>/g)) {
-      const attrs = m[1];
+      const attrs = m[1]!;
       const name = attrs.match(/\bname="([^"]*)"/)?.[1];
       if (name === undefined) continue;
       xmlStates[name] = attrs.match(/\bstate="([^"]*)"/)?.[1] ?? 'visible';
@@ -2276,11 +2310,11 @@ const impl = {
     const base = new Workbook();
     base.addWorksheet('S').getCell('A1').value = 'x';
     const parts = partMapOf(writeXlsx(base));
-    const injectedXml = parts['xl/workbook.xml'].replace(
+    const injectedXml = parts['xl/workbook.xml']!.replace(
       /<sheets>/,
       '<workbookProtection lockStructure="1" lockWindows="0"/><sheets>',
     );
-    const zipFiles = {};
+    const zipFiles: Record<string, CorpusApi> = {};
     for (const [name, xml] of Object.entries(parts)) {
       zipFiles[name] = strToU8(name === 'xl/workbook.xml' ? injectedXml : xml);
     }
@@ -2299,14 +2333,14 @@ const impl = {
   // The model retains every name as its own entry rather than keying by name, so two same-named
   // names scoped to different sheets both survive — the scope collision that drops one on the
   // oracle's name-keyed reader.
-  readFixtureDefinedNames(rel) {
+  readFixtureDefinedNames(rel: CorpusApi) {
     const wb = readFixture(rel);
-    const names = {};
+    const names: Record<string, CorpusApi> = {};
     for (const dn of wb.definedNames) {
       names[dn.name] ||= [];
       names[dn.name].push(dn.refersTo);
     }
-    for (const k of Object.keys(names)) names[k].sort();
+    for (const k of Object.keys(names)) names[k]!.sort();
     return {names, count: Object.keys(names).length, modelCount: wb.definedNames.length};
   },
 
@@ -2318,10 +2352,10 @@ const impl = {
   // format, and note → { <addr>: {type, value, numFmt, note} | null }, on the first sheet. Mirrors
   // the oracle: a date-formatted numeric serial surfaces as a Date (value { date: iso }), not a raw
   // number, honouring the 1900 date-system leap-year quirk. `type` is a stable label.
-  readFixtureCells(rel, cells = []) {
+  readFixtureCells(rel: CorpusApi, cells: CorpusApi = []) {
     const wb = readFixture(rel);
     const sheet = wb.worksheets[0];
-    const out = {};
+    const out: Record<string, CorpusApi> = {};
     for (const addr of cells) {
       const cell = sheet ? sheet.getCell(addr) : null;
       out[addr] = cell
@@ -2346,7 +2380,7 @@ const impl = {
   // Read a fixture both eagerly and through the streaming reader, reporting the sheet names each
   // surfaces → { eager, streaming }. The streaming reader joins each worksheet part to the
   // workbook-level declaration, so it exposes the real names, not positional placeholders.
-  streamVsEagerSheetNames(rel) {
+  streamVsEagerSheetNames(rel: CorpusApi) {
     const eager = readFixture(rel).worksheets.map((s) => s.name);
     const streaming = [...readWorkbookStream(fixtureBytes(rel))].map((s) => s.name);
     return {eager, streaming};
@@ -2355,11 +2389,11 @@ const impl = {
   // Report the first sheet's populated row numbers from both paths → { eager, streaming }. Both skip
   // fully-empty rows (the eager `includeEmpty:false` intent) so a gap between data rows is preserved
   // as a jump in the numbers, never resequenced.
-  streamVsEagerRowNumbers(rel) {
+  streamVsEagerRowNumbers(rel: CorpusApi) {
     const es = readFixture(rel).worksheets[0];
-    const eager = [];
+    const eager: CorpusApi[] = [];
     if (es) for (const row of es.rows()) if (row.cells.length) eager.push(row.number);
-    const streaming = [];
+    const streaming: CorpusApi[] = [];
     for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
       for (const row of sheet.rows()) if (row.cells.length) streaming.push(row.number);
       break; // first worksheet only
@@ -2370,13 +2404,13 @@ const impl = {
   // Report each populated first-sheet row's { number, hidden } from both paths → { eager, streaming }.
   // The streaming reader must surface a row's hidden flag (in the string form "true"/"false" some
   // generators write), agreeing with the eager read rather than reporting every row visible.
-  streamVsEagerRowHidden(rel) {
+  streamVsEagerRowHidden(rel: CorpusApi) {
     const es = readFixture(rel).worksheets[0];
-    const eager = [];
+    const eager: CorpusApi[] = [];
     if (es)
       for (const row of es.rows())
         if (row.cells.length) eager.push({number: row.number, hidden: !!row.properties?.hidden});
-    const streaming = [];
+    const streaming: CorpusApi[] = [];
     for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
       for (const row of sheet.rows())
         if (row.cells.length) streaming.push({number: row.number, hidden: !!row.hidden});
@@ -2395,12 +2429,12 @@ const impl = {
     ws.getCell('A1').value = 'x';
     ws.getCell('A1').note = 'hi';
     const files = unzipSync(new Uint8Array(writeXlsx(wb)));
-    const commentPart = Object.keys(files).find((n) => /^xl\/comments\d*\.xml$/.test(n));
+    const commentPart = Object.keys(files).find((n) => /^xl\/comments\d*\.xml$/.test(n))!;
     const relName = 'xl/worksheets/_rels/sheet1.xml.rels';
-    files['xl/sheet1_comments.xml'] = files[commentPart];
+    files['xl/sheet1_comments.xml'] = files[commentPart]!;
     delete files[commentPart];
     files[relName] = strToU8(
-      strFromU8(files[relName]).replace(
+      strFromU8(files[relName]!).replace(
         /Target="[^"]*comments\d*\.xml"/i,
         'Target="../sheet1_comments.xml"',
       ),
@@ -2410,10 +2444,10 @@ const impl = {
     let error = null;
     let note = null;
     try {
-      note = readXlsx(buffer).worksheets[0].getCell('A1').note ?? null;
+      note = readXlsx(buffer).worksheets[0]!.getCell('A1').note ?? null;
       ok = true;
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
     return {ok, error, note};
   },
@@ -2424,7 +2458,7 @@ const impl = {
   // cell's comment part disappears and reads back null, while a neighbor that kept its note is intact,
   // and a workbook that never had a note emits no comment part at all.
   removeCellNoteReport() {
-    const partNames = (wb) => Object.keys(partMapOf(writeXlsx(wb)));
+    const partNames = (wb: CorpusApi) => Object.keys(partMapOf(writeXlsx(wb)));
     // The note being cleared is the only one, so a lingering comment part would prove the removal
     // merely emptied the note rather than dropping it.
     const solo = new Workbook();
@@ -2435,7 +2469,7 @@ const impl = {
     const soloParts = partNames(solo);
     const commentPartPresent = soloParts.some((f) => /comments\d*\.xml$/.test(f));
     const vmlPartPresent = soloParts.some((f) => /vmlDrawing\d*\.vml$/.test(f));
-    const readNoteAfter = readXlsx(writeXlsx(solo)).worksheets[0].getCell('A1').note ?? null;
+    const readNoteAfter = readXlsx(writeXlsx(solo)).worksheets[0]!.getCell('A1').note ?? null;
 
     // Clearing one note must not disturb another cell's note.
     const pair = new Workbook();
@@ -2445,7 +2479,7 @@ const impl = {
     pairSheet.getCell('B1').value = 'y';
     pairSheet.getCell('B1').note = 'keep me';
     pairSheet.getCell('A1').note = undefined;
-    const reloaded = readXlsx(writeXlsx(pair)).worksheets[0];
+    const reloaded = readXlsx(writeXlsx(pair)).worksheets[0]!;
     const neighborNoteIntact = !!reloaded.getCell('B1').note;
 
     const clean = new Workbook();
@@ -2471,14 +2505,14 @@ const impl = {
     s.getCell('A1').value = 'top';
     s.getCell('A2').value = 'data';
     s.mergeCells('A1:B3');
-    const rs = readXlsx(writeXlsx(wb)).worksheets[0];
-    const rects = rs.merges.map((range) => {
+    const rs = readXlsx(writeXlsx(wb)).worksheets[0]!;
+    const rects = rs.merges.map((range: CorpusApi) => {
       const {top, left, bottom, right} = decodeRange(range);
-      return {top, left, bottom, right, masterRef: encodeAddress(left, top)};
+      return {top, left, bottom, right, masterRef: encodeAddress(left!, top!)};
     });
-    const masterOf = (row, col) =>
-      rects.find((r) => row >= r.top && row <= r.bottom && col >= r.left && col <= r.right);
-    const visited = [];
+    const masterOf = (row: CorpusApi, col: CorpusApi) =>
+      rects.find((r) => row >= r.top! && row <= r.bottom! && col >= r.left! && col <= r.right!);
+    const visited: CorpusApi[] = [];
     for (let row = 1; row <= rs.rowCount; row++) {
       for (let col = 1; col <= rs.columnCount; col++) visited.push(encodeAddress(col, row));
     }
@@ -2498,12 +2532,12 @@ const impl = {
   // an include-empty iteration yields → { rows: { <n>: { cols } }, columnCount }. Positional iteration
   // walks 1..columnCount (the sheet's declared width), so interior *and* trailing empties are surfaced
   // and every row reconstructs to the header width — the alignment invariant a positional consumer needs.
-  async readRowCellPresence(spec, rowNumbers = []) {
-    const sheet = readXlsx(writeXlsx(buildFrom(spec))).worksheets[0];
+  async readRowCellPresence(spec: CorpusApi, rowNumbers: CorpusApi = []) {
+    const sheet = readXlsx(writeXlsx(buildFrom(spec))).worksheets[0]!;
     const columnCount = sheet.columnCount;
-    const rows = {};
+    const rows: Record<string, CorpusApi> = {};
     for (const rn of rowNumbers) {
-      const cols = [];
+      const cols: CorpusApi[] = [];
       for (let col = 1; col <= columnCount; col++) {
         sheet.getCell(encodeAddress(col, rn));
         cols.push(col);
@@ -2521,7 +2555,7 @@ const impl = {
     const ws = wb.addWorksheet('S');
     ws.getCell('A1').value = 'Group';
     ws.mergeCells('A1:B1');
-    const textOf = (ref) => {
+    const textOf = (ref: CorpusApi) => {
       const v = ws.getCell(ref).value;
       return v === null || v === undefined ? '' : String(v);
     };
@@ -2553,14 +2587,14 @@ const impl = {
     s.getCell('C1').value = 'c';
     const buffer = writeXlsx(wb);
 
-    const es = readXlsx(buffer).getWorksheet('S');
+    const es = readXlsx(buffer).getWorksheet('S')!;
     const eager = {
       col1: !!es.getColumn(1).hidden,
       col2: !!es.getColumn(2).hidden,
       col3: !!es.getColumn(3).hidden,
     };
 
-    const stream = {};
+    const stream: Record<string, CorpusApi> = {};
     let error = null;
     try {
       for (const sheet of readWorkbookStream(buffer)) {
@@ -2572,7 +2606,7 @@ const impl = {
         break; // first worksheet only
       }
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
     return {eager, stream, error};
   },
@@ -2589,7 +2623,7 @@ const impl = {
     ws.mergeCells('D1:D3');
     const buffer = writeXlsx(wb);
 
-    const eagerMerges = [...readXlsx(buffer).getWorksheet('S').merges].sort();
+    const eagerMerges = [...readXlsx(buffer).getWorksheet('S')!.merges].sort();
 
     let streamedMerges = null;
     let error = null;
@@ -2600,7 +2634,7 @@ const impl = {
         break; // first worksheet only
       }
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
     return {eagerMerges, streamedMerges, error};
   },
@@ -2608,21 +2642,22 @@ const impl = {
   // Report the 1-based row-values array for the requested rows from both paths → { eager, streamed }.
   // A streamed row indexes exactly as a full-load row does (empty slot at 0, column A at 1), so a
   // caller can switch readers without re-indexing.
-  streamVsEagerRowValues(spec, rowNumbers = [1]) {
+  streamVsEagerRowValues(spec: CorpusApi, rowNumbers = [1]) {
     const buffer = writeXlsx(buildFrom(spec));
     const wanted = new Set(rowNumbers);
 
     const es = readXlsx(buffer).worksheets[0];
-    const eager = {};
+    const eager: Record<string, CorpusApi> = {};
     if (es)
       for (const row of es.rows())
-        if (wanted.has(row.number)) eager[row.number] = streamedRowValues(row.cells);
+        if (wanted.has(row.number)) eager[row.number] = streamedRowValues(row.cells as CorpusApi[]);
     for (const n of rowNumbers) eager[n] ??= [null];
 
-    const streamed = {};
+    const streamed: Record<string, CorpusApi> = {};
     for (const sheet of readWorkbookStream(buffer)) {
       for (const row of sheet.rows())
-        if (wanted.has(row.number)) streamed[row.number] = streamedRowValues(row.cells);
+        if (wanted.has(row.number))
+          streamed[row.number] = streamedRowValues(row.cells as CorpusApi[]);
       break; // first worksheet only
     }
     for (const n of rowNumbers) streamed[n] ??= [null];
@@ -2636,12 +2671,12 @@ const impl = {
     const wb = new Workbook();
     for (let i = 0; i < count; i++) wb.addWorksheet(`Sheet${i + 1}`).getCell('A1').value = i;
     const buffer = writeXlsx(wb);
-    const names = [];
+    const names: CorpusApi[] = [];
     let error = null;
     try {
       for (const sheet of readWorkbookStream(buffer)) names.push(sheet.name);
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
     return {
       written: count,
@@ -2694,8 +2729,8 @@ const impl = {
   // completes (with every sheet name and the total rows delivered) or its error is captured as data.
   // Locks that the reader tolerates a package whose ZIP places a worksheet part before xl/workbook.xml
   // (the inflate builds a path→bytes map, so entry order is irrelevant).
-  streamReadReport(rel) {
-    const sheetNames = [];
+  streamReadReport(rel: CorpusApi) {
+    const sheetNames: CorpusApi[] = [];
     let totalRows = 0;
     try {
       for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
@@ -2704,15 +2739,15 @@ const impl = {
       }
       return {ok: true, error: null, sheetNames, totalRows};
     } catch (e) {
-      return {ok: false, error: String(e?.message || e), sheetNames, totalRows};
+      return {ok: false, error: String((e as CorpusApi)?.message || e), sheetNames, totalRows};
     }
   },
 
   // Stream-read a fixture's first sheet, reporting each requested cell's { type, value } | null. The
   // type is the model's stable label; a date-formatted numeric cell surfaces as a Date because the
   // streaming reader applies the cell's number format when decoding, exactly as the eager read does.
-  streamReadFixture(rel, cells = []) {
-    const wanted = new Map(cells.map((a) => [a, null]));
+  streamReadFixture(rel: CorpusApi, cells: CorpusApi = []) {
+    const wanted = new Map(cells.map((a: CorpusApi) => [a, null]));
     for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
       for (const row of sheet.rows()) {
         for (const cell of row.cells) {
@@ -2725,18 +2760,18 @@ const impl = {
       }
       break; // first worksheet only
     }
-    const out = {};
-    for (const [k, v] of wanted) out[k] = v;
+    const out: Record<string, CorpusApi> = {};
+    for (const [k, v] of wanted) out[k as string] = v;
     return out;
   },
 
   // Write a spec, then read the requested cells through both paths → { streamed, eager }. Proves the
   // streaming reader returns multi-byte UTF-8 text (CJK, emoji) byte-exact and identical to the eager
   // read — the whole-package inflate decodes UTF-8 as one unit, so no character is split.
-  streamReadSpec(spec, cells = []) {
+  streamReadSpec(spec: CorpusApi, cells: CorpusApi = []) {
     const buffer = writeXlsx(buildFrom(spec));
     const wanted = new Set(cells);
-    const streamed = {};
+    const streamed: Record<string, CorpusApi> = {};
     for (const sheet of readWorkbookStream(buffer)) {
       for (const row of sheet.rows()) {
         for (const cell of row.cells)
@@ -2745,7 +2780,7 @@ const impl = {
       break; // first worksheet only
     }
     const es = readXlsx(buffer).worksheets[0];
-    const eager = {};
+    const eager: Record<string, CorpusApi> = {};
     for (const ref of cells) eager[ref] = normalizeStreamValue(es ? es.getCell(ref).value : null);
     return {streamed, eager};
   },
@@ -2761,11 +2796,13 @@ const impl = {
     sheet.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
     sheet.getCell('C3').border = {top: {style: 'thin', color: {argb: 'FF000000'}}};
     sheet.getCell('D4'); // materialised but never given a value or style
-    const back = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     const filled = back.getCell('B2');
     const bordered = back.getCell('C3');
+    // fgColor lives on the pattern-fill variant, past the general Fill union surface.
+    const filledFill = filled.fill as CorpusApi;
     return {
-      filledArgb: filled.fill?.fgColor ? filled.fill.fgColor.argb : null,
+      filledArgb: filledFill?.fgColor ? filledFill.fgColor.argb : null,
       filledValue: filled.value,
       borderedStyle: bordered.border?.top ? bordered.border.top.style : null,
       borderedValue: bordered.value,
@@ -2773,9 +2810,9 @@ const impl = {
     };
   },
 
-  readFixtureCellStyles(rel, cells = []) {
+  readFixtureCellStyles(rel: CorpusApi, cells: CorpusApi = []) {
     const wb = readFixture(rel);
-    const out = {};
+    const out: Record<string, CorpusApi> = {};
     for (const key of cells) {
       const [sheetName, addr] = key.split('!');
       const sheet = wb.getWorksheet(sheetName);
@@ -2795,30 +2832,30 @@ const impl = {
   // { checked, fillMismatches, borderMismatches, fillSample, borderSample }. Theme+tint and
   // indexed-palette references must survive verbatim so the sheet renders identically after a
   // pure open-then-save. Colour comparison is key-order-insensitive.
-  roundtripFixtureColorFidelity(rel) {
+  roundtripFixtureColorFidelity(rel: CorpusApi) {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
-    const realFill = (cell) =>
+    const realFill = (cell: CorpusApi) =>
       cell.fill && cell.fill.type === 'pattern' && cell.fill.pattern !== 'none' ? cell.fill : null;
-    const borderColors = (cell) => {
+    const borderColors = (cell: CorpusApi) => {
       if (!cell.border) return null;
-      const edges = {};
+      const edges: Record<string, CorpusApi> = {};
       for (const edge of ['top', 'left', 'right', 'bottom']) {
         if (cell.border[edge]?.color) edges[edge] = cell.border[edge].color;
       }
       return Object.keys(edges).length ? edges : null;
     };
-    const stableSort = (v) => {
+    const stableSort = (v: CorpusApi): CorpusApi => {
       if (Array.isArray(v)) return v.map(stableSort);
       if (v && typeof v === 'object') {
-        const sorted = {};
+        const sorted: Record<string, CorpusApi> = {};
         for (const k of Object.keys(v).sort()) sorted[k] = stableSort(v[k]);
         return sorted;
       }
       return v;
     };
-    const norm = (v) => JSON.stringify(stableSort(v ?? null));
+    const norm = (v: CorpusApi) => JSON.stringify(stableSort(v ?? null));
 
     let checked = 0;
     let fillMismatches = 0;
@@ -2859,22 +2896,22 @@ const impl = {
   // Style comparison is key-order-insensitive so a case asserts on content survival, not
   // serialization incidentals. In the rewrite's model a column stores a width only when it is a
   // custom width, so "has a width" is exactly "is a custom width".
-  roundtripFixture(rel) {
+  roundtripFixture(rel: CorpusApi) {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
-    const stableSort = (v) => {
+    const stableSort = (v: CorpusApi): CorpusApi => {
       if (Array.isArray(v)) return v.map(stableSort);
       if (v && typeof v === 'object') {
-        const sorted = {};
+        const sorted: Record<string, CorpusApi> = {};
         for (const k of Object.keys(v).sort()) sorted[k] = stableSort(v[k]);
         return sorted;
       }
       return v;
     };
-    const hasStyle = (cell) =>
+    const hasStyle = (cell: CorpusApi) =>
       !!(cell.numFmt || cell.fill?.type || cell.font || cell.alignment || cell.border);
-    const styleKey = (cell) =>
+    const styleKey = (cell: CorpusApi) =>
       JSON.stringify(
         stableSort({
           numFmt: cell.numFmt || null,
@@ -2884,10 +2921,10 @@ const impl = {
           border: cell.border || null,
         }),
       );
-    const columnsWithWidth = (wb) => {
-      const out = {};
+    const columnsWithWidth = (wb: CorpusApi) => {
+      const out: Record<string, CorpusApi> = {};
       for (const sheet of wb.worksheets) {
-        const cols = {};
+        const cols: Record<string, CorpusApi> = {};
         for (const {index, properties} of sheet.columns()) {
           if (properties.width !== undefined)
             cols[index] = {width: properties.width, customWidth: true};
@@ -2942,8 +2979,8 @@ const impl = {
     sheet.getCell('A1').value = 'a';
     sheet.getCell('B1').value = 'b';
     sheet.getCell('C1').value = 'c';
-    const s = readXlsx(writeXlsx(wb)).getWorksheet('S');
-    const rightBorder = (ref) => {
+    const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+    const rightBorder = (ref: CorpusApi) => {
       const b = s.getCell(ref).border;
       return !!b?.right?.style;
     };
@@ -2954,23 +2991,23 @@ const impl = {
   // same JSON model current.mjs reports, so every write→read round-trip case runs
   // unchanged. Facets the writer/reader do not materialize yet come back empty/null;
   // the writer's feature-gate keeps a case whose spec needs those from ever running here.
-  roundtripWorkbook(spec) {
+  roundtripWorkbook(spec: CorpusApi) {
     const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
-    const sheets = {};
+    const sheets: Record<string, CorpusApi> = {};
     for (const s of spec.sheets || []) {
       const sheet = reloaded.getWorksheet(s.name);
       if (!sheet) {
         sheets[s.name] = null;
         continue;
       }
-      const cells = {};
+      const cells: Record<string, CorpusApi> = {};
       for (const c of s.cells || []) cells[c.ref] = normalizeRewriteCell(sheet.getCell(c.ref));
-      const columns = {};
+      const columns: Record<string, CorpusApi> = {};
       for (const col of s.columns || []) {
         const p = sheet.getColumn(col.index);
         columns[col.index] = {width: p.width ?? null, hidden: !!p.hidden, numFmt: p.numFmt ?? null};
       }
-      const rows = {};
+      const rows: Record<string, CorpusApi> = {};
       for (const row of s.rows || []) {
         const p = sheet.getRow(row.index);
         rows[row.index] = {height: p.height ?? null, hidden: !!p.hidden};
@@ -2996,12 +3033,12 @@ const impl = {
       };
     }
     const props = reloaded.properties;
-    const definedNames = {};
+    const definedNames: Record<string, CorpusApi> = {};
     for (const dn of reloaded.definedNames) {
       definedNames[dn.name] ||= [];
       definedNames[dn.name].push(dn.refersTo);
     }
-    for (const k of Object.keys(definedNames)) definedNames[k].sort();
+    for (const k of Object.keys(definedNames)) definedNames[k]!.sort();
     return {
       properties: {
         creator: props.creator ?? null,
@@ -3019,19 +3056,19 @@ const impl = {
   // zero-length run must never emit an empty <t> (Excel flags it corrupt); the surviving runs keep
   // their text and per-run formatting. The rewrite writes rich text inline, so both the empty-<t>
   // scan and the read-back target the worksheet XML (there is no shared-strings part).
-  async richTextRoundtripReport(runs) {
+  async richTextRoundtripReport(runs: CorpusApi) {
     const wb = new Workbook();
     wb.addWorksheet('S').getCell('A1').value = {richText: runs};
     const buffer = writeXlsx(wb);
     const parts = partMapOf(buffer);
     const xml = parts['xl/sharedStrings.xml'] || parts['xl/worksheets/sheet1.xml'] || '';
     const emptyTextRunInXml = /<(?:\w+:)?t\b[^>]*\/>|<(?:\w+:)?t\b[^>]*><\/(?:\w+:)?t>/.test(xml);
-    const value = readXlsx(buffer).getWorksheet('S').getCell('A1').value;
+    const value = readXlsx(buffer).getWorksheet('S')!.getCell('A1').value as CorpusApi;
     const readRuns = value && Array.isArray(value.richText) ? value.richText : [];
     return {
       emptyTextRunInXml,
       runCount: readRuns.length,
-      runs: readRuns.map((r) => ({
+      runs: readRuns.map((r: CorpusApi) => ({
         text: r.text ?? null,
         bold: r.font ? (r.font.bold ?? false) : false,
         italic: r.font ? (r.font.italic ?? false) : false,
@@ -3043,21 +3080,21 @@ const impl = {
   // Read a fixture and report every hyperlink cell as { <addr>: { hyperlink, text } }, with a rich
   // display label flattened to its concatenated text — for asserting a foreign file's links (and the
   // rejoining of an external URL's fragment carried in the location attribute) are read faithfully.
-  async readFixtureHyperlinks(rel) {
-    const flatten = (t) =>
+  async readFixtureHyperlinks(rel: CorpusApi) {
+    const flatten = (t: CorpusApi) =>
       t == null
         ? null
         : typeof t === 'string'
           ? t
           : Array.isArray(t.richText)
-            ? t.richText.map((r) => r.text).join('')
+            ? t.richText.map((r: CorpusApi) => r.text).join('')
             : t;
     const sheet = readFixture(rel).worksheets[0];
-    const out = {};
+    const out: Record<string, CorpusApi> = {};
     if (sheet) {
       for (const {cells} of sheet.rows()) {
         for (const cell of cells) {
-          const v = cell.value;
+          const v = cell.value as CorpusApi;
           if (v && typeof v === 'object' && 'hyperlink' in v) {
             out[cell.address] = {hyperlink: v.hyperlink ?? null, text: flatten(v.text)};
           }
@@ -3070,9 +3107,9 @@ const impl = {
   // Read a fixture and report each covered cell's data validation → { cells: { 'Sheet!Ref': rule },
   // count }. A rule authored over a multi-cell range must be reported on EVERY covered cell (the
   // range form is resolved per cell), and a reference/name operand must survive as its string.
-  readFixtureValidations(rel) {
+  readFixtureValidations(rel: CorpusApi) {
     const wb = readFixture(rel);
-    const cells = {};
+    const cells: Record<string, CorpusApi> = {};
     for (const sheet of wb.worksheets) {
       for (const {sqref} of sheet.dataValidations) {
         for (const ref of expandSqref(sqref)) {
@@ -3089,9 +3126,9 @@ const impl = {
   // Reads the worksheet overlay (not populated cells), so a rule over an empty range is still seen,
   // and surfaces a reference source (a defined name, a cross-sheet range) as its verbatim formula
   // text rather than "[object Object]".
-  readFixtureValidationRules(rel) {
+  readFixtureValidationRules(rel: CorpusApi) {
     const wb = readFixture(rel);
-    const sheets = {};
+    const sheets: Record<string, CorpusApi> = {};
     for (const sheet of wb.worksheets) {
       const byContent = new Map();
       for (const {sqref, rule} of sheet.dataValidations) {
@@ -3110,13 +3147,13 @@ const impl = {
   // form (2009 extension schema, carried in `<extLst>`, used for cross-sheet / whole-column list
   // sources). Lets a case assert a template's validation survives a read→write round-trip rather than
   // being silently dropped because only the standard form was understood.
-  roundtripFixtureValidationXml(rel) {
+  roundtripFixtureValidationXml(rel: CorpusApi) {
     const parts = partMapOf(writeXlsx(readFixture(rel)));
     const sheetParts = Object.keys(parts)
       .filter((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p))
       .sort();
 
-    const sheets = {};
+    const sheets: Record<string, CorpusApi> = {};
     let totalStandard = 0;
     let totalExt = 0;
     for (const p of sheetParts) {
@@ -3130,7 +3167,7 @@ const impl = {
         ...xml.matchAll(/<dataValidation\b([^>]*)>([\s\S]*?)<\/dataValidation>/g),
       ].map((m) => {
         const a = attrsOf(`<x ${m[1]}>`);
-        const f1 = (m[2].match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
+        const f1 = (m[2]!.match(/<formula1>([\s\S]*?)<\/formula1>/) || [])[1] ?? null;
         return {
           type: a.type ?? null,
           sqref: a.sqref ?? null,
@@ -3177,17 +3214,17 @@ const impl = {
   // Attach one validation over a whole range, write, and report the serialized facts → { writeOk,
   // writeError, sqrefs, count, reloadOk }. A range-form validation must emit exactly ONE
   // dataValidation whose sqref is the requested range, not one entry per covered cell.
-  roundtripRangeValidation({range, type = 'list', formula = '"a,b,c"'} = {}) {
+  roundtripRangeValidation({range, type = 'list', formula = '"a,b,c"'}: CorpusApi = {}) {
     const wb = new Workbook();
     const sheet = wb.addWorksheet('S');
-    let buffer;
+    let buffer: CorpusApi;
     try {
       sheet.addDataValidation(range, {type, allowBlank: true, formulae: [formula]});
       buffer = writeXlsx(wb);
     } catch (e) {
       return {
         writeOk: false,
-        writeError: String(e?.message || e),
+        writeError: String((e as CorpusApi)?.message || e),
         sqrefs: [],
         count: 0,
         reloadOk: null,
@@ -3211,13 +3248,17 @@ const impl = {
   // `<dataValidations>` facts (count, well-formedness, the verbatim formula1 texts). Lets a case
   // assert BOTH forms survive a write→read round-trip and that inline lists stay quoted while range
   // references stay unquoted, without the case knowing how validations are shaped internally.
-  authorListValidations(validations = []) {
+  authorListValidations(validations: CorpusApi = []) {
     const wb = new Workbook();
     const main = wb.addWorksheet('Main');
     const levels = wb.addWorksheet('Levels');
     levels.getCell('A2').value = 'X';
     for (const v of validations) {
-      const rule = {type: 'list', allowBlank: v.allowBlank !== false, formulae: [v.formula]};
+      const rule: CorpusApi = {
+        type: 'list',
+        allowBlank: v.allowBlank !== false,
+        formulae: [v.formula],
+      };
       if (v.error !== undefined) {
         rule.showErrorMessage = true;
         rule.error = v.error;
@@ -3227,7 +3268,7 @@ const impl = {
     const buffer = writeXlsx(wb);
 
     const reread = readXlsx(buffer).getWorksheet('Main');
-    const readBack = {};
+    const readBack: Record<string, CorpusApi> = {};
     for (const v of validations) {
       const dv = reread?.dataValidationAt(v.ref);
       readBack[v.ref] = dv ? {type: dv.type, formulae: dv.formulae ?? null} : null;
@@ -3242,7 +3283,7 @@ const impl = {
         // Cheap structural check: a strict consumer chokes on a raw & that is not an entity.
         wellFormed: !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(block),
         formula1: [...block.matchAll(/<formula1>([\s\S]*?)<\/formula1>/g)].map((m) =>
-          m[1]
+          m[1]!
             .replace(/&quot;/g, '"')
             .replace(/&apos;/g, "'")
             .replace(/&lt;/g, '<')
@@ -3262,11 +3303,11 @@ const impl = {
     const sheet = wb.addWorksheet('Main');
     wb.addWorksheet('Target');
     sheet.getCell('A1').value = {text: 'go', hyperlink: target};
-    let buffer;
+    let buffer: CorpusApi;
     try {
       buffer = writeXlsx(wb);
     } catch (e) {
-      return {writeOk: false, writeError: String(e?.message || e)};
+      return {writeOk: false, writeError: String((e as CorpusApi)?.message || e)};
     }
     const parts = partMapOf(buffer);
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
@@ -3304,7 +3345,7 @@ const impl = {
     const hyperlinkEl = (sheetXml.match(/<hyperlink\b[^>]*\/?>/) || [''])[0];
     const relEl = (relsXml.match(/<Relationship\b[^>]*hyperlink[^>]*\/?>/) || [''])[0];
     const reReadHyperlink =
-      readXlsx(buffer).getWorksheet('Sheet1').getCell('A1').value.hyperlink ?? null;
+      (readXlsx(buffer).getWorksheet('Sheet1')!.getCell('A1').value as CorpusApi).hyperlink ?? null;
     return {
       hasWorksheetRels: /Type="[^"]*\/hyperlink"/.test(relsXml),
       hyperlinkHasRid: /r:id="/.test(hyperlinkEl),
@@ -3317,17 +3358,17 @@ const impl = {
   // Read a fixture, extract its column widths and pageSetup, write it straight back, re-read, and
   // report the same facts → { source, rewritten }. A faithful no-op round-trip must reproduce every
   // fractional column width and the print-scaling attributes the real file carries.
-  roundtripFixtureStyleFacts(rel) {
+  roundtripFixtureStyleFacts(rel: CorpusApi) {
     // Model-level facts (column widths, pageSetup, dxfs) come from the parsed workbook; the custom
     // indexed-color palette is a raw styles.xml fact, so it is read straight from the part bytes on
     // each side — matching the legacy oracle, which extracts the same block from the zip.
-    const facts = (workbook, stylesXml) => {
+    const facts = (workbook: CorpusApi, stylesXml: CorpusApi) => {
       const sheet = workbook.worksheets[0];
       const ps = sheet ? sheet.pageSetup : {};
       // Differential styles are preserved as verbatim `<dxf>` fragments; a rule's number format is
       // whatever formatCode the fragment carries, so a coerced "[object Object]" can never appear.
       const dxfs = workbook.differentialStyles;
-      const dxfFormatCodes = dxfs.flatMap((f) =>
+      const dxfFormatCodes = dxfs.flatMap((f: CorpusApi) =>
         [...f.matchAll(/formatCode="([^"]*)"/g)].map((m) => m[1]),
       );
       const palette = stylesXml.match(/<indexedColors>([\s\S]*?)<\/indexedColors>/);
@@ -3361,18 +3402,23 @@ const impl = {
   // Author a conditional-formatting rule, write it, and report the emitted CF XML facts plus what the
   // reader surfaces on reload → { writeOk, writeError, xml:{blockCount, sqrefs, ruleCount, hasDataBar,
   // cfvoCount, hasColor, wellFormed}, reload:{type, color, gradient, cfvo} }.
-  authorConditionalFormatting(cf) {
+  authorConditionalFormatting(cf: CorpusApi) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     // Populate the ref's first column so the rule binds to real cells.
     const rows = Number((cf.ref.match(/(\d+)\s*$/) || [])[1] || 3);
     for (let r = 1; r <= rows; r++) sheet.getCell(`A${r}`).value = r / rows;
-    let buffer;
+    let buffer: CorpusApi;
     try {
       sheet.addConditionalFormatting(cf);
       buffer = writeXlsx(workbook);
     } catch (e) {
-      return {writeOk: false, writeError: String(e?.message || e), xml: null, reload: null};
+      return {
+        writeOk: false,
+        writeError: String((e as CorpusApi)?.message || e),
+        xml: null,
+        reload: null,
+      };
     }
     const xml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     const cfBlock = (xml.match(/<conditionalFormatting[\s\S]*?<\/conditionalFormatting>/) || [
@@ -3434,8 +3480,8 @@ const impl = {
 
   // Read a fixture's first-sheet conditional-formatting facts, write it back, and report the same
   // before/after → { source, rewritten } each { blockCount, rules:[{type, dxfId, priority}] }.
-  roundtripFixtureConditionalFormatting(rel) {
-    const cfFacts = (xml) => ({
+  roundtripFixtureConditionalFormatting(rel: CorpusApi) {
+    const cfFacts = (xml: CorpusApi) => ({
       blockCount: [...xml.matchAll(/<conditionalFormatting\b/g)].length,
       rules: [...xml.matchAll(/<cfRule\b([^>]*?)\/?>/g)].map((m) => {
         const a = attrsOf(`<x ${m[1]}>`);
@@ -3451,14 +3497,14 @@ const impl = {
 
   // Load a fixture and try to write it back → { loadOk, loadError, writeOk, writeError, sheetNames } —
   // for asserting a foreign construct round-trips without the writer crashing.
-  roundtripFixtureWriteReport(rel) {
-    let workbook;
+  roundtripFixtureWriteReport(rel: CorpusApi) {
+    let workbook: CorpusApi;
     try {
       workbook = readFixture(rel);
     } catch (e) {
       return {
         loadOk: false,
-        loadError: String(e?.message || e),
+        loadError: String((e as CorpusApi)?.message || e),
         writeOk: false,
         writeError: null,
         sheetNames: [],
@@ -3470,14 +3516,14 @@ const impl = {
       writeXlsx(workbook);
       writeOk = true;
     } catch (e) {
-      writeError = String(e?.message || e);
+      writeError = String((e as CorpusApi)?.message || e);
     }
     return {
       loadOk: true,
       loadError: null,
       writeOk,
       writeError,
-      sheetNames: workbook.worksheets.map((w) => w.name),
+      sheetNames: workbook.worksheets.map((w: CorpusApi) => w.name),
     };
   },
 
@@ -3486,7 +3532,7 @@ const impl = {
   // declares the range exactly once and emits a value only on the anchor, so the covered cells
   // carry no conflicting <v> — the shape that opens without Excel's repair prompt — and the
   // anchor's value and alignment survive the round-trip.
-  mergeCleanReport({anchor = 'B1', range = 'B1:G1', value = 'Group Title'} = {}) {
+  mergeCleanReport({anchor = 'B1', range = 'B1:G1', value = 'Group Title'}: CorpusApi = {}) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     const cell = sheet.getCell(anchor);
@@ -3497,16 +3543,16 @@ const impl = {
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map((m) => m[1]);
     const {left, right, top, bottom} = decodeRange(range);
-    const populatedCoveredCells = [];
-    for (let r = top; r <= bottom; r++) {
-      for (let c = left; c <= right; c++) {
+    const populatedCoveredCells: CorpusApi[] = [];
+    for (let r = top!; r <= bottom!; r++) {
+      for (let c = left!; c <= right!; c++) {
         const ref = encodeAddress(c, r);
         if (ref === anchor) continue;
         if (new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*>[\\s\\S]*?<v>`).test(sheetXml))
           populatedCoveredCells.push(ref);
       }
     }
-    const a = readXlsx(buffer).getWorksheet('S').getCell(anchor);
+    const a = readXlsx(buffer).getWorksheet('S')!.getCell(anchor);
     return {
       mergeCount: merges.length,
       merges,
@@ -3528,7 +3574,7 @@ const impl = {
     cell.numFmt = '0.00';
     cell.font = {bold: true};
     sheet.mergeCells('A1:B2');
-    const reread = readXlsx(writeXlsx(workbook)).getWorksheet('S');
+    const reread = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
     const m = reread.getCell('A1');
     const b = m.border || {};
     return {
@@ -3546,7 +3592,7 @@ const impl = {
   // (slave) cell inside it, write, and report which cells carry an independent <v> in the sheet
   // XML, the declared merges, and the re-read master/slave values → for asserting the slave write
   // resolves to the master (only the master carries a value; reading either address returns it).
-  mergeSlaveWrite({range = 'A1:B2', slave = 'B2', value = 'slave-write'} = {}) {
+  mergeSlaveWrite({range = 'A1:B2', slave = 'B2', value = 'slave-write'}: CorpusApi = {}) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     sheet.mergeCells(range);
@@ -3559,11 +3605,11 @@ const impl = {
     const cellsWithValue = [
       ...sheetXml.matchAll(/<c\b[^>]*\br="([A-Z]+\d+)"[^>]*>([\s\S]*?)<\/c>/g),
     ]
-      .filter((m) => /<(?:v|is|f)\b/.test(m[2]))
+      .filter((m) => /<(?:v|is|f)\b/.test(m[2]!))
       .map((m) => m[1]);
     const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map((m) => m[1]);
-    const master = range.split(':')[0];
-    const s = readXlsx(buffer).getWorksheet('S');
+    const master = range.split(':')[0]!;
+    const s = readXlsx(buffer).getWorksheet('S')!;
     return {
       cellsWithValue,
       merges,
@@ -3577,7 +3623,7 @@ const impl = {
   // exposed and the merges the destination carries afterwards → { srcMerges, dstMerges, error }.
   // The historical bug this measures is an asymmetric model contract that dropped merges on import;
   // the rewrite's getter and setter cover the same fields, so the round-trip is lossless.
-  copyWorksheetModel({merges = ['A1:C1'], cells = [{ref: 'A1', value: 'merged'}]} = {}) {
+  copyWorksheetModel({merges = ['A1:C1'], cells = [{ref: 'A1', value: 'merged'}]}: CorpusApi = {}) {
     const workbook = new Workbook();
     const src = workbook.addWorksheet('Src');
     for (const c of cells) src.getCell(c.ref).value = c.value;
@@ -3585,18 +3631,18 @@ const impl = {
     const dst = workbook.addWorksheet('Dst');
 
     let error = null;
-    let dstMerges = [];
+    let dstMerges: CorpusApi[] = [];
     const srcMerges = [...src.model.merges];
     try {
-      dst.model = {...src.model, name: 'Dst'};
+      dst.model = {...src.model, name: 'Dst'} as CorpusApi;
       dstMerges = [...dst.model.merges];
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
     return {srcMerges: srcMerges.sort(), dstMerges: dstMerges.sort(), error};
   },
 
-  mutateWorksheet({cells = [], ops = [], read = [], readStyles = []} = {}) {
+  mutateWorksheet({cells = [], ops = [], read = [], readStyles = []}: CorpusApi = {}) {
     const sheet = new Workbook().addWorksheet('S');
     for (const c of cells) {
       const cell = sheet.getCell(c.ref);
@@ -3621,15 +3667,15 @@ const impl = {
         else throw new Error(`unknown mutation op: ${op.op}`);
       }
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
 
-    const readCells = {};
+    const readCells: Record<string, CorpusApi> = {};
     for (const ref of read) readCells[ref] = sheet.getCell(ref).value ?? null;
 
     // Per-cell style facets after the mutations — for asserting the style a cell carried before a
     // splice still describes the (possibly shifted) cell afterward, rather than being lost.
-    const styles = {};
+    const styles: Record<string, CorpusApi> = {};
     for (const ref of readStyles) {
       const cell = sheet.getCell(ref);
       styles[ref] = {
@@ -3673,16 +3719,16 @@ const impl = {
     try {
       sheet.duplicateRow(1, 1, true);
     } catch (e) {
-      dupError = String(e?.message || e);
+      dupError = String((e as CorpusApi)?.message || e);
     }
-    const val = (ref) => sheet.getCell(ref).value ?? null;
+    const val = (ref: CorpusApi) => sheet.getCell(ref).value ?? null;
     const row1 = [val('A1'), val('B1'), val('C1')];
     const row2 = [val('A2'), val('B2'), val('C2')];
     let mergeError = null;
     try {
       sheet.mergeCells('A2:C2');
     } catch (e) {
-      mergeError = String(e?.message || e);
+      mergeError = String((e as CorpusApi)?.message || e);
     }
     return {dupError, mergeError, rowCount: sheet.rowCount, row1, row2, merges: [...sheet.merges]};
   },
@@ -3705,7 +3751,7 @@ const impl = {
       cell.font = {...cell.font, bold: true};
       numFmt = cell.numFmt;
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
     return {error, numFmt};
   },
@@ -3721,7 +3767,7 @@ const impl = {
     ws.getCell('A2').note = 'mynote';
     ws.getRow(2).outlineLevel = 1;
     ws.insertRow(1, ['new']); // r1 -> row 2, r2 (noted, outlined) -> row 3
-    const s = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     return {
       dataShifted: s.getCell('A2').value === 'r1' && s.getCell('A3').value === 'r2',
       noteFollowsRow: !!s.getCell('A3').note,
@@ -3766,7 +3812,7 @@ const impl = {
   // Find a table by name across a loaded fixture's sheets and report its column names and data-row
   // count. The reader reconstructs the table from its part, deriving the data-row count from the
   // stored range (height minus the header and totals rows), so a loaded table exposes its rows.
-  readFixtureTable(rel, tableName) {
+  readFixtureTable(rel: CorpusApi, tableName: CorpusApi) {
     const wb = readFixture(rel);
     for (const s of wb.worksheets) {
       const table = s.tables.find((t) => t.name === tableName);
@@ -3783,7 +3829,7 @@ const impl = {
   // Load a fixture and report a named table's column count and names — used to prove a table with a
   // calculated column (a <calculatedColumnFormula> child the reader ignores) does not truncate the
   // column list or crash the read.
-  loadFixtureTableColumns(rel, tableName) {
+  loadFixtureTableColumns(rel: CorpusApi, tableName: CorpusApi) {
     try {
       const wb = readFixture(rel);
       for (const s of wb.worksheets) {
@@ -3801,7 +3847,7 @@ const impl = {
     } catch (e) {
       return {
         loaded: false,
-        error: String(e?.message || e),
+        error: String((e as CorpusApi)?.message || e),
         columnCount: null,
         columnNames: null,
       };
@@ -3811,11 +3857,11 @@ const impl = {
   // Build a table-bearing spec, report the full ref written into each table part, then read the
   // package back and re-write it, reporting the ref and well-formedness of each re-emitted part — so
   // a degenerate (empty-body or single-row) table is proven to survive a load→save round-trip.
-  roundtripSpecTableFacts(spec) {
-    const tableFacts = (parts) =>
+  roundtripSpecTableFacts(spec: CorpusApi) {
+    const tableFacts = (parts: CorpusApi) =>
       Object.keys(parts)
         .filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))
-        .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
+        .sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]))
         .map((n) => {
           const xml = parts[n];
           return {
@@ -3826,13 +3872,13 @@ const impl = {
     const write = tableFacts(partMapOf(writeXlsx(buildFrom(spec))));
     let loadOk = true;
     let loadError = null;
-    let roundtrip = [];
+    let roundtrip: CorpusApi[] = [];
     try {
       const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
       roundtrip = tableFacts(partMapOf(writeXlsx(reloaded)));
     } catch (e) {
       loadOk = false;
-      loadError = String(e?.message || e);
+      loadError = String((e as CorpusApi)?.message || e);
     }
     return {write, roundtrip, loadOk, loadError};
   },
@@ -3847,7 +3893,7 @@ const impl = {
       columns: [{name: 'C1'}, {name: 'C2'}, {name: 'C3'}, {name: 'C4'}, {name: 'C5'}],
       rowCount: 2,
     });
-    const table = readXlsx(writeXlsx(wb)).getWorksheet('S').tables[0];
+    const table = readXlsx(writeXlsx(wb)).getWorksheet('S')!.tables[0]!;
     return {colCount: table.columns.length, colNames: table.columns.map((c) => c.name)};
   },
 
@@ -3868,7 +3914,7 @@ const impl = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String(e?.message || e);
+      writeError = String((e as CorpusApi)?.message || e);
     }
     if (!writeOk)
       return {
@@ -3880,10 +3926,10 @@ const impl = {
         firstSheetDvSurvives: false,
       };
 
-    const parts = partMapOf(buffer);
+    const parts = partMapOf(buffer!);
     const ids = Object.keys(parts)
       .filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))
-      .map((n) => (parts[n].match(/<table\b[^>]*\bid="([^"]*)"/) || [])[1]);
+      .map((n) => (parts[n]!.match(/<table\b[^>]*\bid="([^"]*)"/) || [])[1]);
     const idsUnique =
       ids.length > 0 && ids.every((x) => x != null) && new Set(ids).size === ids.length;
 
@@ -3891,7 +3937,7 @@ const impl = {
     let tableCount = 0;
     let firstSheetDvSurvives = false;
     try {
-      const back = readXlsx(buffer);
+      const back = readXlsx(buffer!);
       tableCount = back.worksheets.reduce((n, s) => n + s.tables.length, 0);
       firstSheetDvSurvives = !!back.getWorksheet('Sheet1')?.dataValidationAt('C1');
     } catch {
@@ -3905,7 +3951,7 @@ const impl = {
   // emits, plus whether the "None" table kept its showRowStripes flag. Theme "None" must mean an
   // unstyled table (no name attribute), not a bogus name="None" referencing a non-existent style.
   tableStyleThemeReport() {
-    const styleInfoOf = (style) => {
+    const styleInfoOf = (style: CorpusApi) => {
       const wb = new Workbook();
       wb.addWorksheet('S').addTable({
         name: 'T',
@@ -3919,10 +3965,10 @@ const impl = {
       try {
         const parts = partMapOf(writeXlsx(wb));
         const part = Object.keys(parts).find((n) => /^xl\/tables\/table\d+\.xml$/.test(n));
-        tag = (parts[part].match(/<tableStyleInfo[^>]*\/?>/) || [])[0] ?? null;
+        tag = (parts[part!]!.match(/<tableStyleInfo[^>]*\/?>/) || [])[0] ?? null;
       } catch (e) {
         ok = false;
-        tag = String(e?.message || e);
+        tag = String((e as CorpusApi)?.message || e);
       }
       const name = tag && ok ? ((tag.match(/\bname="([^"]*)"/) || [])[1] ?? null) : null;
       const hasStripes = !!(tag && ok && /\bshowRowStripes="1"/.test(tag));
@@ -3941,7 +3987,7 @@ const impl = {
   // column names emitted into the table part plus whether they are unique. OOXML requires unique
   // tableColumn names; colliding inputs must be disambiguated deterministically, not written verbatim
   // into a corrupt file → { ok, writtenNames, uniqueNames }.
-  tableDuplicateColumnNamesReport(headers) {
+  tableDuplicateColumnNamesReport(headers: CorpusApi) {
     const wb = new Workbook();
     let ok = true;
     let writtenNames = null;
@@ -3949,21 +3995,21 @@ const impl = {
       wb.addWorksheet('S').addTable({
         name: 'T',
         ref: 'A1',
-        columns: headers.map((name) => ({name})),
+        columns: headers.map((name: CorpusApi) => ({name})),
         rowCount: 1,
       });
       const parts = partMapOf(writeXlsx(wb));
       const part = Object.keys(parts).find((n) => /^xl\/tables\/table\d+\.xml$/.test(n));
-      writtenNames = [...parts[part].matchAll(/<tableColumn\b[^>]*\bname="([^"]*)"/g)].map(
+      writtenNames = [...parts[part!]!.matchAll(/<tableColumn\b[^>]*\bname="([^"]*)"/g)].map(
         (m) => m[1],
       );
     } catch (e) {
       ok = false;
-      writtenNames = String(e?.message || e);
+      writtenNames = String((e as CorpusApi)?.message || e);
     }
     const uniqueNames =
       Array.isArray(writtenNames) &&
-      new Set(writtenNames.map((n) => n.toLowerCase())).size === writtenNames.length;
+      new Set(writtenNames.map((n) => n!.toLowerCase())).size === writtenNames.length;
     return {ok, writtenNames, uniqueNames};
   },
 
@@ -3985,18 +4031,18 @@ const impl = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String(e?.message || e);
+      writeError = String((e as CorpusApi)?.message || e);
     }
     if (!writeOk) return {writeOk, writeError, reloadOk: false, colSpanCount: null};
 
-    const parts = partMapOf(buffer);
+    const parts = partMapOf(buffer!);
     const sheetPart = Object.keys(parts).find((n) => /xl\/worksheets\/sheet\d+\.xml$/.test(n));
-    const colsBlock = (parts[sheetPart].match(/<cols>[\s\S]*?<\/cols>/) || [])[0] ?? '';
+    const colsBlock = (parts[sheetPart!]!.match(/<cols>[\s\S]*?<\/cols>/) || [])[0] ?? '';
     const colSpanCount = (colsBlock.match(/<col\b/g) || []).length;
 
     let reloadOk = true;
     try {
-      readXlsx(buffer);
+      readXlsx(buffer!);
     } catch {
       reloadOk = false;
     }
@@ -4007,7 +4053,7 @@ const impl = {
   // round-trip and report the numFmt read back on each column's body cells → { writeOk, reloadOk,
   // writeError, styledBody, unstyledBody }. The per-column style must bake into the styled column's
   // body cells and leave the unstyled column untouched.
-  tableColumnStyleReport(numFmt) {
+  tableColumnStyleReport(numFmt: CorpusApi) {
     const wb = new Workbook();
     const s = wb.addWorksheet('S');
     const table = s.addTable({
@@ -4028,7 +4074,7 @@ const impl = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String(e?.message || e);
+      writeError = String((e as CorpusApi)?.message || e);
     }
     if (!writeOk)
       return {writeOk, writeError, reloadOk: false, styledBody: null, unstyledBody: null};
@@ -4037,12 +4083,12 @@ const impl = {
     let styledBody = null;
     let unstyledBody = null;
     try {
-      const back = readXlsx(buffer).getWorksheet('S');
+      const back = readXlsx(buffer!).getWorksheet('S')!;
       styledBody = [back.getCell('A2').numFmt ?? null, back.getCell('A3').numFmt ?? null];
       unstyledBody = [back.getCell('B2').numFmt ?? null, back.getCell('B3').numFmt ?? null];
     } catch (e) {
       reloadOk = false;
-      writeError = String(e?.message || e);
+      writeError = String((e as CorpusApi)?.message || e);
     }
     return {writeOk, writeError, reloadOk, styledBody, unstyledBody};
   },
@@ -4051,9 +4097,9 @@ const impl = {
   // reloaded model, append the requested rows, then re-write and re-read to report the final row
   // count. A table read from a file must expose its data rows and accept appends exactly like a
   // freshly-created one → { hasTable, loadedRowCount, addError, committed, finalRowCount }.
-  roundtripTableAppend(spec, {tableName, appendRows}) {
+  roundtripTableAppend(spec: CorpusApi, {tableName, appendRows}: CorpusApi) {
     const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
-    let table = null;
+    let table: CorpusApi = null;
     for (const s of reloaded.worksheets) {
       const found = s.getTable(tableName);
       if (found) {
@@ -4078,7 +4124,7 @@ const impl = {
       try {
         table.addRow(row);
       } catch (e) {
-        addError = String(e?.message || e);
+        addError = String((e as CorpusApi)?.message || e);
         break;
       }
     }
@@ -4098,7 +4144,7 @@ const impl = {
           }
         }
       } catch (e) {
-        addError = String(e?.message || e);
+        addError = String((e as CorpusApi)?.message || e);
       }
     }
     return {hasTable, loadedRowCount, addError, committed, finalRowCount};
@@ -4126,7 +4172,7 @@ const impl = {
       firstBuffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String(e?.message || e);
+      writeError = String((e as CorpusApi)?.message || e);
     }
     if (!writeOk) {
       return {
@@ -4146,8 +4192,8 @@ const impl = {
     let editedValue = null;
     let relUnique = false;
     try {
-      const reloaded = readXlsx(firstBuffer);
-      const sheet = reloaded.getWorksheet('S');
+      const reloaded = readXlsx(firstBuffer!);
+      const sheet = reloaded.getWorksheet('S')!;
       sheet.getCell('B2').value = 999;
       const out = writeXlsx(reloaded);
       const parts = partMapOf(out);
@@ -4156,15 +4202,15 @@ const impl = {
       const relPart = Object.keys(parts).find((n) =>
         /xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(n),
       );
-      const relIds = relPart ? [...parts[relPart].matchAll(/Id="([^"]*)"/g)].map((m) => m[1]) : [];
+      const relIds = relPart ? [...parts[relPart]!.matchAll(/Id="([^"]*)"/g)].map((m) => m[1]) : [];
       relUnique = relIds.length > 0 && new Set(relIds).size === relIds.length;
       const back = readXlsx(out);
-      const backSheet = back.getWorksheet('S');
+      const backSheet = back.getWorksheet('S')!;
       tablePresent = backSheet.tables.some((t) => t.name === 'T');
       editedValue = backSheet.getCell('B2').value;
     } catch (e) {
       reloadOk = false;
-      writeError = String(e?.message || e);
+      writeError = String((e as CorpusApi)?.message || e);
     }
     return {writeOk, writeError, reloadOk, hasTablePart, tablePresent, editedValue, relUnique};
   },
@@ -4188,11 +4234,11 @@ const impl = {
     try {
       const parts = partMapOf(writeXlsx(wb));
       const part = Object.keys(parts).find((n) => /^xl\/tables\/table\d+\.xml$/.test(n));
-      firstColumnTag = (parts[part].match(/<tableColumn\b[^>]*\/?>/) || [])[0] ?? null;
+      firstColumnTag = (parts[part!]!.match(/<tableColumn\b[^>]*\/?>/) || [])[0] ?? null;
       rawControlChars = firstColumnTag === null ? null : /[\r\n]/.test(firstColumnTag);
     } catch (e) {
       writeOk = false;
-      writeError = String(e?.message || e);
+      writeError = String((e as CorpusApi)?.message || e);
     }
     return {writeOk, writeError, firstColumnTag, rawControlChars};
   },
@@ -4201,18 +4247,18 @@ const impl = {
   // each table's autoFilter / header-row / totals-row / column-count facts before and after. A no-op
   // round-trip of a table that has no autoFilter must not inject one, flip the header row off, or turn
   // totalsRowShown on; a table that does have one must keep its ref and column count.
-  roundtripFixtureTableXml(rel) {
-    const facts = (xml) => ({
+  roundtripFixtureTableXml(rel: CorpusApi) {
+    const facts = (xml: CorpusApi) => ({
       hasAutoFilter: /<(?:\w+:)?autoFilter\b/.test(xml),
       autoFilterRef: (xml.match(/<(?:\w+:)?autoFilter\b[^>]*\bref="([^"]*)"/) || [])[1] ?? null,
       headerRowCount: (xml.match(/\bheaderRowCount="([^"]*)"/) || [])[1] ?? null,
       totalsRowShown: (xml.match(/\btotalsRowShown="([^"]*)"/) || [])[1] ?? null,
       columnCount: (xml.match(/<tableColumns\b[^>]*\bcount="([^"]*)"/) || [])[1] ?? null,
     });
-    const tablePartsInOrder = (parts) =>
+    const tablePartsInOrder = (parts: CorpusApi) =>
       Object.keys(parts)
         .filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))
-        .sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]))
+        .sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]))
         .map((n) => parts[n]);
     const buffer = fs.readFileSync(path.join(FIXTURES_ROOT, rel));
     const source = tablePartsInOrder(partMapOf(buffer));
@@ -4229,7 +4275,7 @@ const impl = {
   // Author a table whose display name differs from its internal name, then report the displayName
   // written into the table part and the internal/display names read back from the reloaded model —
   // a serializer that mis-keys the property drops the display name to the internal default.
-  tableDisplayNameReport(display) {
+  tableDisplayNameReport(display: CorpusApi) {
     const wb = new Workbook();
     wb.addWorksheet('S').addTable({
       name: 'MyTable',
@@ -4241,7 +4287,7 @@ const impl = {
     const buffer = writeXlsx(wb);
     const part = partMapOf(buffer)['xl/tables/table1.xml'] || '';
     const writtenDisplayName = (part.match(/\bdisplayName="([^"]*)"/) || [])[1] ?? null;
-    const table = readXlsx(buffer).getWorksheet('S').tables[0];
+    const table = readXlsx(buffer).getWorksheet('S')!.tables[0];
     return {
       writtenDisplayName,
       reloadedDisplayName: table ? table.displayName : null,
@@ -4253,9 +4299,9 @@ const impl = {
   // { formula, sharedFormula, result } — mirroring the oracle. A shared-formula clone reads back a
   // concrete formula (the master's, translated to the clone's address) while retaining its master
   // reference under `sharedFormula`; a plain formula master carries no `sharedFormula`.
-  roundtripFormulas(spec) {
+  roundtripFormulas(spec: CorpusApi) {
     const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
-    const out = {};
+    const out: Record<string, CorpusApi> = {};
     for (const s of spec.sheets || []) {
       const sheet = reloaded.getWorksheet(s.name);
       for (const c of s.cells || []) {
@@ -4294,22 +4340,22 @@ const impl = {
     try {
       const reread = readXlsx(buffer);
       writeXlsx(reread);
-      const s = reread.getWorksheet('S');
+      const s = reread.getWorksheet('S')!;
       preservedFormulas = ['B2', 'B3'].every((ref) => {
         const v = s.getCell(ref).value;
         return !!(v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v));
       });
     } catch (e) {
-      roundtripError = String(e?.message || e);
+      roundtripError = String((e as CorpusApi)?.message || e);
     }
 
     let spliceError = null;
     try {
       const reread = readXlsx(buffer);
-      reread.getWorksheet('S').spliceColumns(1, 0, []);
+      reread.getWorksheet('S')!.spliceColumns(1, 0, []);
       writeXlsx(reread);
     } catch (e) {
-      spliceError = String(e?.message || e);
+      spliceError = String((e as CorpusApi)?.message || e);
     }
 
     return {
@@ -4321,30 +4367,30 @@ const impl = {
     };
   },
 
-  tryWriteWorkbook(spec) {
-    let workbook;
+  tryWriteWorkbook(spec: CorpusApi) {
+    let workbook: CorpusApi;
     try {
       workbook = buildFrom(spec);
     } catch (error) {
-      if (error.notImplemented) throw error;
-      return {ok: false, phase: 'build', error: String(error?.message || error)};
+      if ((error as CorpusApi).notImplemented) throw error;
+      return {ok: false, phase: 'build', error: String((error as CorpusApi)?.message || error)};
     }
-    let buffer;
+    let buffer: CorpusApi;
     try {
       buffer = writeXlsx(workbook);
     } catch (error) {
-      if (error.notImplemented) throw error;
-      return {ok: false, phase: 'write', error: String(error?.message || error)};
+      if ((error as CorpusApi).notImplemented) throw error;
+      return {ok: false, phase: 'write', error: String((error as CorpusApi)?.message || error)};
     }
     // Report which cells survived the round-trip, so a case can prove a bad cell (e.g. an Invalid
     // Date, written value-less) did not drop its siblings.
     const reread = readXlsx(buffer);
-    const survivingCells = {};
+    const survivingCells: Record<string, CorpusApi> = {};
     for (const s of spec.sheets || []) {
       const sheet = reread.getWorksheet(s.name);
       survivingCells[s.name] = (s.cells || [])
-        .filter((c) => sheet && sheet.getCell(c.ref).value !== null)
-        .map((c) => c.ref);
+        .filter((c: CorpusApi) => sheet && sheet.getCell(c.ref).value !== null)
+        .map((c: CorpusApi) => c.ref);
     }
     return {ok: true, byteLength: buffer.byteLength ?? buffer.length, survivingCells};
   },
@@ -4354,7 +4400,11 @@ const impl = {
   // explicitly-unlocked cell round-trips as locked=false, whether the style record carries the
   // flag (applyProtection + <protection> in cellXfs), and the emitted <sheetProtection> that
   // makes the locked flags enforceable.
-  authorCellProtection(cells = [], protect = null, {rows = [], columns = []} = {}) {
+  authorCellProtection(
+    cells: CorpusApi = [],
+    protect: CorpusApi = null,
+    {rows = [], columns = []}: CorpusApi = {},
+  ) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     for (const c of cells) {
@@ -4383,8 +4433,8 @@ const impl = {
     const sheetProtection = (sheetXml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0] || null;
 
     const reread = readXlsx(buffer);
-    const sheet2 = reread.getWorksheet('S');
-    const readBack = {};
+    const sheet2 = reread.getWorksheet('S')!;
+    const readBack: Record<string, CorpusApi> = {};
     for (const c of cells) {
       const p = sheet2.getCell(c.ref).protection;
       readBack[c.ref] = p ? {locked: p.locked ?? null} : null;
@@ -4418,7 +4468,7 @@ const impl = {
       second = protectOnce();
     } catch (e) {
       return {
-        threw: String(e?.message || e),
+        threw: String((e as CorpusApi)?.message || e),
         algorithm: null,
         hasHash: false,
         hasSalt: false,
@@ -4458,7 +4508,7 @@ const impl = {
 
     const buf1 = writeXlsx(wb);
     const buf2 = writeXlsx(readXlsx(buf1));
-    const protAttrs = (buf) => {
+    const protAttrs = (buf: CorpusApi) => {
       const xml = partMapOf(buf)['xl/worksheets/sheet1.xml'] || '';
       const el = (xml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0];
       return el ? attrsOf(el) : null;
@@ -4482,8 +4532,8 @@ const impl = {
     applyStyle(sheet.getCell('A1'), base);
     applyStyle(sheet.getCell('A2'), base);
     sheet.getCell('A1').font = {...sheet.getCell('A1').font, color: {argb: 'FF00FF00'}};
-    const s = readXlsx(writeXlsx(workbook)).getWorksheet('S');
-    const colorOf = (ref) => {
+    const s = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
+    const colorOf = (ref: CorpusApi) => {
       const f = s.getCell(ref).font;
       return f?.color ? (f.color.argb ?? null) : null;
     };
@@ -4503,14 +4553,14 @@ const impl = {
       c.font = {bold: true};
     }
     const loaded = readXlsx(writeXlsx(workbook));
-    loaded.getWorksheet('S').getCell('A1').border = {
+    loaded.getWorksheet('S')!.getCell('A1').border = {
       top: {style: 'thin'},
       left: {style: 'thin'},
       bottom: {style: 'thin'},
       right: {style: 'thin'},
     };
-    const s = readXlsx(writeXlsx(loaded)).getWorksheet('S');
-    const hasBorder = (ref) => {
+    const s = readXlsx(writeXlsx(loaded)).getWorksheet('S')!;
+    const hasBorder = (ref: CorpusApi) => {
       const b = s.getCell(ref).border;
       return !!b?.top?.style;
     };
@@ -4524,22 +4574,28 @@ const impl = {
 
   // Author two cells with one shared fill, load, replace ONE cell's fill, read the sibling in
   // memory and after write-back → { sibling, mutatedTo, original, bled, diskSibling, diskBled }.
-  loadMutateCellStyle({sharedFill = 'FFFF0000', mutateTo = 'FF00FF00'} = {}) {
+  loadMutateCellStyle({sharedFill = 'FFFF0000', mutateTo = 'FF00FF00'}: CorpusApi = {}) {
     const wb = new Workbook();
     const s = wb.addWorksheet('S');
     s.getCell('A1').value = 'a';
     s.getCell('B1').value = 'b';
-    const fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: sharedFill}};
+    const fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: sharedFill}} as CorpusApi;
     s.getCell('A1').fill = fill;
     s.getCell('B1').fill = fill; // identical formatting → one shared style index on disk
-    const fgOf = (cell) => (cell.fill?.fgColor ? (cell.fill.fgColor.argb ?? null) : null);
+    // fgColor lives on the pattern-fill variant, past the general Fill union surface.
+    const fgOf = (cell: CorpusApi) =>
+      (cell.fill as CorpusApi)?.fgColor ? ((cell.fill as CorpusApi).fgColor.argb ?? null) : null;
 
     const wb2 = readXlsx(writeXlsx(wb));
-    const s2 = wb2.getWorksheet('S');
-    s2.getCell('A1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: mutateTo}};
+    const s2 = wb2.getWorksheet('S')!;
+    s2.getCell('A1').fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: {argb: mutateTo},
+    } as CorpusApi;
     const sibling = fgOf(s2.getCell('B1'));
 
-    const diskSibling = fgOf(readXlsx(writeXlsx(wb2)).getWorksheet('S').getCell('B1'));
+    const diskSibling = fgOf(readXlsx(writeXlsx(wb2)).getWorksheet('S')!.getCell('B1'));
     return {
       sibling,
       mutatedTo: mutateTo,
@@ -4552,7 +4608,7 @@ const impl = {
 
   // Author two cells with one shared font, load, spread-reassign ONE cell's font color, read the
   // sibling → { edited, sibling, original, mutatedTo, bled }.
-  loadMutateCellFont({original = 'FF000000', mutateTo = 'FFFF0000'} = {}) {
+  loadMutateCellFont({original = 'FF000000', mutateTo = 'FFFF0000'}: CorpusApi = {}) {
     const wb = new Workbook();
     const s = wb.addWorksheet('S');
     const font = {name: 'Arial', size: 12, color: {argb: original}};
@@ -4561,9 +4617,9 @@ const impl = {
     s.getCell('B1').value = 'b';
     s.getCell('B1').font = font; // identical formatting → one shared style index on disk
 
-    const s2 = readXlsx(writeXlsx(wb)).getWorksheet('S');
+    const s2 = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     s2.getCell('A1').font = {...s2.getCell('A1').font, color: {argb: mutateTo}};
-    const colorOf = (cell) => (cell.font?.color ? (cell.font.color.argb ?? null) : null);
+    const colorOf = (cell: CorpusApi) => (cell.font?.color ? (cell.font.color.argb ?? null) : null);
     const sibling = colorOf(s2.getCell('B1'));
     return {
       edited: colorOf(s2.getCell('A1')),
@@ -4578,24 +4634,28 @@ const impl = {
   // on one via its setter, and report whether it bled into the sibling in memory and on disk →
   // { facet, target, sibling, original, bled, diskSibling, diskBled }. The remaining facets of the
   // copy-on-write family, alongside fill/font/border above.
-  loadMutateCellFacet(facet = 'alignment') {
-    const readFacet = {
-      alignment: (c) => c.alignment?.horizontal || null,
-      numFmt: (c) => c.numFmt || null,
-      protection: (c) =>
-        c.protection && typeof c.protection.locked === 'boolean' ? c.protection.locked : null,
-    }[facet];
-    const apply = {
-      alignment: (c) => {
-        c.alignment = {horizontal: 'center'};
-      },
-      numFmt: (c) => {
-        c.numFmt = '#,##0';
-      },
-      protection: (c) => {
-        c.protection = {locked: false};
-      },
-    }[facet];
+  loadMutateCellFacet(facet: CorpusApi = 'alignment') {
+    const readFacet = (
+      {
+        alignment: (c: CorpusApi) => c.alignment?.horizontal || null,
+        numFmt: (c: CorpusApi) => c.numFmt || null,
+        protection: (c: CorpusApi) =>
+          c.protection && typeof c.protection.locked === 'boolean' ? c.protection.locked : null,
+      } as Record<string, CorpusApi>
+    )[facet];
+    const apply = (
+      {
+        alignment: (c: CorpusApi) => {
+          c.alignment = {horizontal: 'center'};
+        },
+        numFmt: (c: CorpusApi) => {
+          c.numFmt = '#,##0';
+        },
+        protection: (c: CorpusApi) => {
+          c.protection = {locked: false};
+        },
+      } as Record<string, CorpusApi>
+    )[facet];
     if (!readFacet) throw new Error(`unknown style facet: ${facet}`);
 
     const wb = new Workbook();
@@ -4607,13 +4667,13 @@ const impl = {
     applyStyle(s.getCell('B1'), base);
 
     const wb2 = readXlsx(writeXlsx(wb));
-    const s2 = wb2.getWorksheet('S');
+    const s2 = wb2.getWorksheet('S')!;
     const original = readFacet(s2.getCell('B1'));
     apply(s2.getCell('A1'));
     const target = readFacet(s2.getCell('A1'));
     const sibling = readFacet(s2.getCell('B1'));
 
-    const diskSibling = readFacet(readXlsx(writeXlsx(wb2)).getWorksheet('S').getCell('B1'));
+    const diskSibling = readFacet(readXlsx(writeXlsx(wb2)).getWorksheet('S')!.getCell('B1'));
     return {
       facet,
       target,
@@ -4631,7 +4691,7 @@ const impl = {
   // values (Date → { date: iso }, error → { error }, else the scalar or null), matching the oracle so
   // the same cases assert unchanged.
 
-  csvRead({csv, options} = {}) {
+  csvRead({csv, options}: CorpusApi = {}) {
     try {
       const wb = readCsv(csv, translateCsvReadOptions(options));
       const sheet = wb.worksheets[0];
@@ -4647,11 +4707,11 @@ const impl = {
       }
       return {ok: true, error: null, rows};
     } catch (e) {
-      return {ok: false, error: String(e?.message || e), rows: []};
+      return {ok: false, error: String((e as CorpusApi)?.message || e), rows: []};
     }
   },
 
-  csvWrite({spec = {}, options} = {}) {
+  csvWrite({spec = {}, options}: CorpusApi = {}) {
     try {
       const wb = new Workbook();
       const sheet = wb.addWorksheet('S');
@@ -4659,11 +4719,11 @@ const impl = {
       const text = writeCsvText(wb, translateCsvWriteOptions(options));
       return {ok: true, error: null, text};
     } catch (e) {
-      return {ok: false, error: String(e?.message || e), text: null};
+      return {ok: false, error: String((e as CorpusApi)?.message || e), text: null};
     }
   },
 
-  csvWriteSheetSelection(sheetName) {
+  csvWriteSheetSelection(sheetName: CorpusApi) {
     const wb = new Workbook();
     wb.addWorksheet('First').addRow(['a', 1]);
     const second = wb.addWorksheet('Second');
@@ -4674,7 +4734,7 @@ const impl = {
     try {
       text = writeCsvText(wb, sheetName === undefined ? {} : {sheetName});
     } catch (e) {
-      error = String(e?.message || e);
+      error = String((e as CorpusApi)?.message || e);
     }
     return {
       ok: error === null,
@@ -4686,17 +4746,17 @@ const impl = {
 
   csvReadMapReport() {
     const csv = 'id,amount\n007,32.5\n008,40';
-    const read = (map) => {
+    const read = (map: CorpusApi) => {
       const wb = readCsv(csv, map ? {map} : {});
       const sheet = wb.worksheets[0];
       const a = sheet ? sheet.getCell('A2').value : null;
       const b = sheet ? sheet.getCell('B2').value : null;
       return {a, aType: typeof a, b, bType: typeof b};
     };
-    return {default: read(null), identity: read((v) => v)};
+    return {default: read(null), identity: read((v: CorpusApi) => v)};
   },
 
-  csvWriteEncodingReport({encoding = 'utf16le', text = 'café'} = {}) {
+  csvWriteEncodingReport({encoding = 'utf16le', text = 'café'}: CorpusApi = {}) {
     const EMOJI = '😀🎉';
     const CJK = '日本語テスト';
 
@@ -4728,7 +4788,7 @@ const impl = {
 };
 
 // A JSON-serializable view of a read-back CSV cell value, mirroring the oracle's normalizeCsvValue.
-const normalizeCsvValue = (v) => {
+const normalizeCsvValue = (v: CorpusApi) => {
   if (v instanceof Date) return {date: Number.isNaN(v.getTime()) ? null : v.toISOString()};
   if (v && typeof v === 'object' && 'error' in v) return {error: v.error};
   return v ?? null;
@@ -4736,7 +4796,7 @@ const normalizeCsvValue = (v) => {
 
 // A declarative CSV write-spec cell → a live model value: { date } → Date, { formula, result } →
 // formula value, { error } → error value, primitive passes through.
-const specCsvValue = (c) => {
+const specCsvValue = (c: CorpusApi) => {
   if (c && typeof c === 'object') {
     if (c.date) return new Date(c.date);
     if ('formula' in c) return {formula: c.formula, result: c.result};
@@ -4746,9 +4806,9 @@ const specCsvValue = (c) => {
 };
 
 // The oracle's ExcelJS-shaped read options → the rewrite's CsvReadOptions.
-const translateCsvReadOptions = (options = {}) => {
+const translateCsvReadOptions = (options: CorpusApi = {}) => {
   const parser = options.parserOptions || {};
-  const translated = {};
+  const translated: Record<string, CorpusApi> = {};
   if (parser.delimiter !== undefined) translated.delimiter = parser.delimiter;
   if (parser.headers) translated.headers = true;
   if (typeof options.map === 'function') translated.map = options.map;
@@ -4756,9 +4816,9 @@ const translateCsvReadOptions = (options = {}) => {
 };
 
 // The oracle's ExcelJS-shaped write options → the rewrite's CsvWriteOptions.
-const translateCsvWriteOptions = (options = {}) => {
+const translateCsvWriteOptions = (options: CorpusApi = {}) => {
   const formatter = options.formatterOptions || {};
-  const translated = {};
+  const translated: Record<string, CorpusApi> = {};
   if (formatter.delimiter !== undefined) translated.delimiter = formatter.delimiter;
   if (options.dateFormat !== undefined) translated.dateFormat = options.dateFormat;
   if (options.dateUTC !== undefined) translated.dateUTC = options.dateUTC;
