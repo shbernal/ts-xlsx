@@ -80,3 +80,41 @@ cell read as part of a full workbook — the divergence such a split would other
 by construction. This slice still inflates the package whole (bounded as above) and reads shared
 strings / styles as whole parts — both legitimately document-sized; a later slice can make the
 inflate itself per-part lazy on the same pull primitive.
+
+## Update (2026-07-20) — the reader consumes the pull parser through a small helper vocabulary
+
+The hand-written SAX was right, but the *consumption* side had drifted into three habits worth
+naming so they don't return: ~30 no-op `onText(){}`/`onClose(){}` stubs, ~20 inline
+`=== '1' || === 'true'` boolean idioms in three incompatible forks, and every parser hand-coding
+both a self-closing branch *and* an on-close branch for the same element. The read path now consumes
+events through a settled set of helpers built on the same primitive, so a parser states only what it
+means:
+
+- **`SaxHandlers.onText`/`onClose` are optional** — a handler declares only the events it consumes.
+- **`openElements(xml, ...localNames)`** (`xml-read.ts`) is a pull generator over `xmlEvents` for the
+  "scan opens, read attributes" readers, collapsing an accumulator-threaded-through-a-closure into a
+  plain `for..of` that reads `attrs` directly.
+- **`closeEmptyElements(events, names)`** expands a self-closing `<x/>` whose local name is in `names`
+  into open+close, so a formatted-but-empty element commits once in `onClose`. It is a **per-name
+  opt-in** (`ReadonlySet<string>`), deliberately *not* a blanket "synthesize a close for every empty
+  tag" mode: text-bearing elements (`<f/>`, `<v/>`, `<t/>`) commit *captured text* on close, so a
+  synthesized close would misread them — a self-closing shared-formula clone `<f t="shared" si=".."/>`
+  would set `hasFormula` and be mis-read as a shared-formula *master*. Only elements safe to run
+  on-close-when-empty are listed.
+- **Boolean attributes** go through `boolPresent` / `boolStrict` / `boolTristate`; **numeric operands**
+  through `coerceNumericLiteral` (strict decimal regex `^-?\d+(?:\.\d+)?$` — a non-canonical spelling
+  like `1E5` is kept *verbatim*, the round-trip-faithful and more conservative read of foreign input);
+  a leading `=` through `stripFormulaEquals` (returns *unescaped* text — the caller escapes for its
+  target).
+
+**Enumerated attributes are narrowed, never trusted.** A union-typed attribute token is admitted only
+through a guard that recognises the known members; an unrecognised one is dropped rather than cast in
+with `as` (see the *narrow foreign tokens* working agreement in `docs/architecture.md`). This is a
+behaviour change on *malformed* input only — valid tokens are unchanged, so the byte corpus stays
+green; the drops are pinned by unit tests.
+
+**Generator gotcha (load-bearing).** A sub-parser that drains a slice of a *shared* event generator
+must pull with `.next()` (or a helper generator that `return`s), **never** `for..of` + `break` —
+breaking out of a `for..of` calls the generator's `.return()`, which terminates the shared stream for
+every later sub-parser. The style-table driver's `until(events, container)` is the canonical shape:
+one `xmlEvents` pass, each section's sub-parser draining its own container's slice, no re-scan.

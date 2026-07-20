@@ -64,8 +64,29 @@ order:
 | streaming | bounded-memory row streaming for reads |
 | csv | a thin, optional entry point, never coupled to the xlsx core |
 
-The public surface is a single curated barrel, [`src/index.ts`](../src/index.ts). The
-[API reference](api/README.md) is generated straight from it, so it cannot describe a
+The two largest surfaces — the xlsx reader and writer — are each a **cluster**, not a
+monolith, split along the OOXML package's own seams so a change touches one part:
+
+- **read** (`src/io/xlsx/`): `read-opc.ts` (the OPC/relationship layer), `read-styles.ts`
+  (`styles.xml`), `read-worksheet.ts` (one sheet), with `read.ts` keeping `readXlsx` and
+  the workbook-level wiring. `rich-runs.ts` owns the `<r>`/`<rPr>`/`<t>` run accumulator
+  the worksheet and shared-strings parsers share.
+- **write** (`src/io/xlsx/`): `package-plan.ts` (the part-graph plan layer), `workbook-xml.ts`
+  and `worksheet-xml.ts` (the serialisers), `part-paths.ts` and `relationships.ts` (shared
+  OPC primitives), with `write.ts` keeping `writeXlsx` and the `buildPackageParts`
+  orchestrator.
+
+Namespace URIs and ext-URI GUIDs are registered once in `namespaces.ts`. Sheet-local
+relationship ids are handed out by a single monotonic `SheetRelIds` allocator: id prefixes
+were once re-derived by hand-summing every prior part's count, which silently collides two
+parts onto one id when a prefix drifts — ids are now unique by construction and never
+recomputed by arithmetic.
+
+The public surface is a single curated barrel, [`src/index.ts`](../src/index.ts). It is
+curated, not exhaustive: modelled core-feature types (autofilter, page setup, sheet views,
+defined names, image options) are public, while streaming per-row/cell output stays inferred-
+structural rather than a named commitment, and internal helper functions stay off the barrel.
+The [API reference](api/README.md) is generated straight from it, so it cannot describe a
 shape the compiler wouldn't accept.
 
 ## Tech decisions
@@ -90,5 +111,11 @@ The stack is deliberately small and each choice is recorded as an ADR under
 - **Security- and correctness-first.** Every parser path is hostile-input-facing: no
   unbounded allocation, no zip-bomb naïveté. Entities are decoded but never expanded;
   inflation is bounded by a running output counter, not any declared size.
+- **Narrow foreign tokens; never trust them into the model.** An enumerated attribute
+  read from a file is admitted only through a type guard that recognises the known union
+  members (the pattern is `isCustomFilterOperator` in `core/autofilter.ts`); an
+  unrecognised token is *dropped* — the facet stays unset — rather than cast in with `as`.
+  The reader's posture is *skip, never guess*: a malformed token yields absence, not a
+  bogus value the rest of the code will trust. See ADR-0004 for the read path this serves.
 - **No half-migrations on main.** Each change is fully green — typed, linted, tested,
   corpus-passing — and leaves the tree better than it found it.
