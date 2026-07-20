@@ -20,7 +20,7 @@ import type {WorkbookImage} from '../../core/image.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {collectNotes, commentsXml, vmlDrawingXml} from './comments.ts';
-import {collectHyperlinks, planHyperlinks} from './hyperlinks.ts';
+import {collectHyperlinks, type PlannedHyperlink, planHyperlinks} from './hyperlinks.ts';
 import {drawingRelsXml, drawingXml} from './images.ts';
 import {
   type BackgroundPlan,
@@ -122,6 +122,42 @@ export function createStyleRegistry(workbook: Workbook): StyleRegistry {
   return styles;
 }
 
+// One worksheet's planned package parts and the sheet-local relationship ids wiring them, produced in
+// the single planning pass. Held as a struct per sheet — rather than eight index-aligned arrays — so a
+// downstream step reads one sheet's plan as a unit and cannot transpose two sheets by mis-indexing.
+interface SheetPlan {
+  readonly tables: PlannedTable[];
+  readonly drawing: DrawingPlan | null;
+  readonly comments: CommentPlan | null;
+  readonly printerSettings: PrinterSettingsPlan | null;
+  readonly hyperlinks: PlannedHyperlink[];
+  readonly background: BackgroundPlan | null;
+  readonly preservedRefs: PreservedReferencePlan[];
+  readonly pivots: PivotPlan[];
+}
+
+// Resolve one sheet's tail reference ids (the `<drawing>`/`<legacyDrawing>`/`<legacyDrawingHF>`/
+// `<picture>` slots and the slicer list) from its plan. A preserved `<drawing>` and a modeled one are
+// mutually exclusive, so the drawing slot takes whichever exists; a comment's VML rides the legacy-
+// drawing slot; and each preserved slicer surfaces its rel id so the `<x14:slicerList>` can reactivate
+// the widget rather than orphan its part.
+function resolveSheetReferences(plan: SheetPlan): SheetReferences {
+  const refs = plan.preservedRefs;
+  const preservedDrawingRelId = refs.find((ref) => ref.element === 'drawing')?.relId ?? null;
+  const legacyDrawingHFRelId = refs.find((ref) => ref.element === 'legacyDrawingHF')?.relId ?? null;
+  const slicerRelIds = refs
+    .filter((ref) => ref.relType.endsWith('/slicer'))
+    .map((ref) => ref.relId);
+  return {
+    drawingRelId: plan.drawing?.relId ?? preservedDrawingRelId,
+    legacyDrawingRelId: plan.comments?.vmlRelId ?? null,
+    printerSettingsRelId: plan.printerSettings?.relId ?? null,
+    backgroundRelId: plan.background?.relId ?? null,
+    legacyDrawingHFRelId,
+    slicerRelIds,
+  };
+}
+
 /**
  * Assemble a workbook into the map of OPC package parts (part name → bytes) that make up an `.xlsx`,
  * short of zipping them. This is the whole serialisation — content types, relationships, workbook,
@@ -167,7 +203,7 @@ export function buildPackageParts(
   let tableNumber = 0;
   let drawingNumber = 0;
   let pivotNumber = 0;
-  const perSheet = sheets.map((sheet, i) => {
+  const perSheet = sheets.map((sheet, i): SheetPlan => {
     const rels = new SheetRelIds();
 
     const tables: PlannedTable[] = sheet.tables.map((table) => ({
@@ -242,16 +278,8 @@ export function buildPackageParts(
     };
   });
 
-  const sheetTables = perSheet.map((plan) => plan.tables);
-  const sheetDrawings = perSheet.map((plan) => plan.drawing);
-  const sheetComments = perSheet.map((plan) => plan.comments);
-  const sheetPrinterSettings = perSheet.map((plan) => plan.printerSettings);
-  const sheetHyperlinks = perSheet.map((plan) => plan.hyperlinks);
-  const sheetBackgrounds = perSheet.map((plan) => plan.background);
-  const sheetPreservedRefs = perSheet.map((plan) => plan.preservedRefs);
-  const sheetPivots = perSheet.map((plan) => plan.pivots);
-  const allTables = sheetTables.flat();
-  const allPivots = sheetPivots.flat();
+  const allTables = perSheet.flatMap((plan) => plan.tables);
+  const allPivots = perSheet.flatMap((plan) => plan.pivots);
 
   // Serialise the worksheets first: interning each cell/row fill into the style table is a
   // side effect of that pass, so styles.xml can only be generated once every sheet is done. The
@@ -259,32 +287,13 @@ export function buildPackageParts(
   // flushed rows' styles); the buffered path seeds a fresh one here.
   const styles = options.styles ?? createStyleRegistry(workbook);
   const sheetXml = sheets.map((sheet, i) => {
-    const refs = sheetPreservedRefs[i] ?? [];
-    // A preserved `<drawing>` and a modeled one are mutually exclusive (a drawing is only preserved
-    // when the sheet modeled no image from it), so the `<drawing>` slot takes whichever exists.
-    const preservedDrawingRelId = refs.find((ref) => ref.element === 'drawing')?.relId ?? null;
-    const legacyDrawingHFRelId =
-      refs.find((ref) => ref.element === 'legacyDrawingHF')?.relId ?? null;
-    // A slicer is wired into the sheet body by an `<x14:slicerList>` extension that names the same
-    // relationship id the sheet's slicer rel carries — re-emitting it reactivates the widget rather
-    // than leaving the preserved slicer part orphaned.
-    const slicerRelIds = refs
-      .filter((ref) => ref.relType.endsWith('/slicer'))
-      .map((ref) => ref.relId);
-    const references: SheetReferences = {
-      drawingRelId: sheetDrawings[i]?.relId ?? preservedDrawingRelId,
-      legacyDrawingRelId: sheetComments[i]?.vmlRelId ?? null,
-      printerSettingsRelId: sheetPrinterSettings[i]?.relId ?? null,
-      backgroundRelId: sheetBackgrounds[i]?.relId ?? null,
-      legacyDrawingHFRelId,
-      slicerRelIds,
-    };
+    const plan = perSheet[i] as SheetPlan;
     return worksheetXml(
       sheet,
-      sheetTables[i] ?? [],
+      plan.tables,
       styles,
-      references,
-      sheetHyperlinks[i] ?? [],
+      resolveSheetReferences(plan),
+      plan.hyperlinks,
       sharedStrings,
       options.flushed?.get(sheet),
     );
@@ -295,13 +304,16 @@ export function buildPackageParts(
   // string cells never fabricates an empty table.
   const hasSharedStrings = sharedStrings !== null && !sharedStrings.isEmpty;
 
-  const commentNumbers = sheetComments
+  const commentNumbers = perSheet
+    .map((plan) => plan.comments)
     .filter((c): c is CommentPlan => c !== null)
     .map((c) => c.number);
-  const drawingNumbers = sheetDrawings
+  const drawingNumbers = perSheet
+    .map((plan) => plan.drawing)
     .filter((d): d is DrawingPlan => d !== null)
     .map((d) => d.number);
-  const printerSettingsNumbers = sheetPrinterSettings
+  const printerSettingsNumbers = perSheet
+    .map((plan) => plan.printerSettings)
     .filter((p): p is PrinterSettingsPlan => p !== null)
     .map((p) => p.number);
 
@@ -350,15 +362,17 @@ export function buildPackageParts(
   for (const part of media.parts) {
     files[`xl/media/image${part.number}.${part.extension}`] = part.data;
   }
-  sheets.forEach((_sheet, i) => {
-    const tables = sheetTables[i] ?? [];
-    const drawing = sheetDrawings[i] ?? null;
-    const comments = sheetComments[i] ?? null;
-    const printerSettings = sheetPrinterSettings[i] ?? null;
-    const background = sheetBackgrounds[i] ?? null;
-    const hyperlinks = sheetHyperlinks[i] ?? [];
-    const preservedRefs = sheetPreservedRefs[i] ?? [];
-    const pivots = sheetPivots[i] ?? [];
+  perSheet.forEach((plan, i) => {
+    const {
+      tables,
+      drawing,
+      comments,
+      printerSettings,
+      background,
+      hyperlinks,
+      preservedRefs,
+      pivots,
+    } = plan;
     const hasExternalHyperlink = hyperlinks.some((link) => link.relId !== undefined);
     files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(sheetXml[i] as string);
     if (
