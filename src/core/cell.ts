@@ -6,7 +6,15 @@
 // through the value model so the cell's `type` is always consistent with what it holds.
 
 import {encodeAddress} from './address.ts';
-import type {Alignment, Border, CellStyle, Fill, Font, Protection} from './style.ts';
+import {
+  type Alignment,
+  assignStyleFacets,
+  type Border,
+  type CellStyle,
+  type Fill,
+  type Font,
+  type Protection,
+} from './style.ts';
 import {type CellValue, coerceCellValue, detectValueType, type ValueType} from './value.ts';
 import type {CellModel} from './worksheet.ts';
 
@@ -185,18 +193,15 @@ export class Cell {
   }
 }
 
-// Lay each present style facet of `style` onto `cell`, leaving facets it omits untouched. This is the
-// one place the six-facet {@link CellStyle} tuple is walked onto a cell, shared by every path that
-// applies a style — a table column's format, a resolved read xf, a model assignment — so the facet
-// list lives in a single spot and no path can silently forget one. Facet objects are assigned by
-// reference, safe under the copy-on-write style model (setters replace, never mutate in place).
+// Lay each present style facet of `style` onto `cell`, leaving facets it omits untouched. A {@link Cell}
+// exposes every facet as a setter of its declared type, so it *is* a mutable {@link CellStyle} target and
+// the shared {@link assignStyleFacets} loop drives it — the facet list lives only on {@link CellStyle}, and
+// no apply path can forget a facet without a compile error there. Facet objects are assigned by reference,
+// safe under the copy-on-write style model (setters replace, never mutate in place). This is the named
+// entry point for the many paths that style a cell — a table column's format, a resolved read xf, a model
+// assignment — so their call sites read as intent, not as a raw record copy.
 export function applyCellStyle(cell: Cell, style: Readonly<CellStyle>): void {
-  if (style.fill !== undefined) cell.fill = style.fill;
-  if (style.numFmt !== undefined) cell.numFmt = style.numFmt;
-  if (style.font !== undefined) cell.font = style.font;
-  if (style.border !== undefined) cell.border = style.border;
-  if (style.alignment !== undefined) cell.alignment = style.alignment;
-  if (style.protection !== undefined) cell.protection = style.protection;
+  assignStyleFacets(cell, style);
 }
 
 // Copy a cell's value and every style facet onto a target cell. The source is a {@link CellModel},
@@ -215,20 +220,18 @@ export function copyCellContent(source: CellModel, target: Cell): void {
 }
 
 // Snapshot a cell's position and content as a {@link CellModel} — the read direction paired with
-// {@link copyCellContent}'s write. Emits exactly the facets {@link applyCellStyle} consumes, so a
-// `dst.model = src.model` round-trip carries every one; a facet listed here but not there (or the
-// reverse) is precisely the silent merge-loss the {@link WorksheetModel} contract guards against.
+// {@link copyCellContent}'s write. The style facets flow through the same {@link assignStyleFacets} loop
+// as every other copy (a {@link Cell} is structurally a {@link CellStyle} source), so this direction emits
+// exactly the facets the apply direction consumes: a `dst.model = src.model` round-trip carries every one,
+// and a facet added to {@link CellStyle} propagates here without a hand edit. Facets the cell does not
+// carry are left off the model rather than pinned to `undefined`; no consumer distinguishes the two.
 export function cellToModel(cell: Cell): CellModel {
-  return {
+  const model: CellModel = {
     row: cell.row,
     col: cell.col,
     value: cell.value,
-    fill: cell.fill,
-    numFmt: cell.numFmt,
-    font: cell.font,
-    border: cell.border,
-    alignment: cell.alignment,
-    protection: cell.protection,
     note: cell.note,
   };
+  assignStyleFacets(model, cell);
+  return model;
 }
