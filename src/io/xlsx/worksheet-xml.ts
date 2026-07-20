@@ -16,6 +16,7 @@ import type {
   PrintOptions,
 } from '../../core/page-setup.ts';
 import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
+import type {Fill} from '../../core/style.ts';
 import type {Table, TableColumn, TableStyleInfo} from '../../core/table.ts';
 import {
   detectValueType,
@@ -52,7 +53,7 @@ import {numberText, relativePartPath} from './part-paths.ts';
 import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
 import {richTextRunsXml} from './rich-text.ts';
 import type {SharedStringTable} from './shared-strings.ts';
-import {colorAttrs, type StyleRegistry} from './styles.ts';
+import {type CellStyle, colorAttrs, type StyleRegistry} from './styles.ts';
 import {x14Ext} from './x14-ext.ts';
 import {escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
 
@@ -269,25 +270,9 @@ export function renderRow(
   const rowFill = properties?.fill;
   const cellsXml = rendered
     .map((cell) => {
-      // Cell overrides win over row/column defaults; a cell with any facet gets its own,
-      // fully-composed style entry so no default facet is lost to the override. Precedence is
-      // cell over row over column per facet — the row contributes only a fill today.
-      const colDef = ctx.columnDefaults.get(cell.col);
-      const style = ctx.styles.styleId({
-        fill: cell.fill ?? rowFill ?? colDef?.fill,
-        // A bare Date carries no format of its own, so it renders as a raw serial and reads
-        // back as a number unless we apply a date format. An explicit cell/column format wins.
-        numFmt: cell.numFmt ?? colDef?.numFmt ?? dateDefaultNumFmt(cell.value),
-        font: cell.font ?? colDef?.font,
-        border: cell.border ?? colDef?.border,
-        alignment: cell.alignment ?? colDef?.alignment,
-        protection: cell.protection ?? colDef?.protection,
-        // Quote-prefix is a cell-only flag; a column carries no such default to inherit.
-        quotePrefix: cell.quotePrefix,
-        // The cell's link into the named cell-style layer, preserved so a round-trip keeps it tied
-        // to that style rather than flattening it into a purely-direct format.
-        xfId: cell.namedStyleId,
-      });
+      const style = ctx.styles.styleId(
+        composeCellStyle(cell, rowFill, ctx.columnDefaults.get(cell.col)),
+      );
       return cellXml(cell, style, ctx.sharedRoles.get(cell.address), ctx.sharedStrings);
     })
     .join('');
@@ -298,6 +283,31 @@ export function renderRow(
     if (cell.col > maxCol) maxCol = cell.col;
   }
   return {xml: `<row r="${number}"${attrs}>${cellsXml}</row>`, minCol, maxCol};
+}
+
+// Compose a cell's full style by resolving each facet cell-over-row-over-column, so a cell that
+// overrides one facet still carries the row's fill and the column's other facets rather than silently
+// dropping them — the per-facet precedence Excel applies. The row contributes only a fill today;
+// quote-prefix and the named-style link are cell-only, with no row/column default to inherit.
+function composeCellStyle(
+  cell: Cell,
+  rowFill: Fill | undefined,
+  colDef: ColumnProperties | undefined,
+): CellStyle {
+  return {
+    fill: cell.fill ?? rowFill ?? colDef?.fill,
+    // A bare Date carries no format of its own, so it renders as a raw serial and reads back as a
+    // number unless we apply a date format. An explicit cell/column format wins.
+    numFmt: cell.numFmt ?? colDef?.numFmt ?? dateDefaultNumFmt(cell.value),
+    font: cell.font ?? colDef?.font,
+    border: cell.border ?? colDef?.border,
+    alignment: cell.alignment ?? colDef?.alignment,
+    protection: cell.protection ?? colDef?.protection,
+    quotePrefix: cell.quotePrefix,
+    // Preserved so a round-trip keeps the cell tied to its named style rather than flattening it into
+    // a purely-direct format.
+    xfId: cell.namedStyleId,
+  };
 }
 
 // Assemble the worksheet's single `<extLst>` from every x14 extension the sheet carries, or '' when it
