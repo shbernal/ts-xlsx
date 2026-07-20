@@ -16,6 +16,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
 
+    "noUncheckedSideEffectImports": true,
+
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true,
