@@ -7,6 +7,7 @@
 
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {Cell, copyCellContent} from './cell.ts';
+import {replaceContents} from './containers.ts';
 import {type AnchoredImage, type AnchorPoint, type ImageAnchor, isOneCellAnchor} from './image.ts';
 import type {MergeRect} from './merge.ts';
 import type {Table} from './table.ts';
@@ -187,10 +188,8 @@ export class GridEdits {
         `${encodeAddress(rect.left, rect.top)}:${encodeAddress(rect.right, rect.bottom)}`,
       );
     }
-    this.#merges.length = 0;
-    this.#merges.push(...merges);
-    this.#mergeRects.length = 0;
-    this.#mergeRects.push(...rects);
+    replaceContents(this.#merges, merges);
+    replaceContents(this.#mergeRects, rects);
   }
 
   // Re-pin the sheet's tables through a splice on the given axis, dropping any table a delete leaves
@@ -201,8 +200,7 @@ export class GridEdits {
         ? table.shiftRows(start, count, delta)
         : table.shiftColumns(start, count, delta),
     );
-    this.#tables.length = 0;
-    this.#tables.push(...survivors);
+    replaceContents(this.#tables, survivors);
   }
 
   // Re-pin anchored images through a splice. An anchor point moves like a merge edge: a point before
@@ -224,7 +222,6 @@ export class GridEdits {
         : {...image.anchor, from, to: shiftPoint(image.anchor.to)};
       return {imageId: image.imageId, anchor};
     });
-    this.#images.length = 0;
-    this.#images.push(...moved);
+    replaceContents(this.#images, moved);
   }
 }
