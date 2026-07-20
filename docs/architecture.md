@@ -85,7 +85,7 @@ order:
 | --- | --- |
 | core model | `Workbook` / `Worksheet` / `Row` / `Cell`, addresses, styles — the in-memory document |
 | xlsx read/write | OOXML parse and serialize; the hardest, highest-value surface |
-| streaming | bounded-memory row streaming for reads |
+| streaming | bounded-memory row streaming — reads, and an incremental workbook writer |
 | csv | a thin, optional entry point, never coupled to the xlsx core |
 
 Cell formatting is one named tuple, not six loose fields. `CellStyle` in `core/style.ts`

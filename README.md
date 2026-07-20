@@ -28,8 +28,9 @@ What that buys you today:
 - **Synchronous, buffer-native I/O.** `readXlsx`/`writeXlsx` take and return a
   `Uint8Array` — no streams to await for the buffered path, no Node `Buffer` assumption,
   so the same code runs in Node and the browser.
-- **Streaming when you need it.** Bounded-memory row streaming for reads, so a large
-  workbook never has to be fully materialized.
+- **Streaming when you need it.** Bounded-memory row streaming both ways — read a large
+  workbook without materializing it, or write one incrementally to a Node stream so peak
+  memory stays flat.
 - **One runtime dependency** ([`fflate`](https://github.com/101arrowz/fflate) for zip),
   a hand-written SAX reader with bounded allocation on every parser path, and a
   build-free, strict-typed source tree.
@@ -40,7 +41,7 @@ What that buys you today:
 npm install @shbernal/ts-xlsx
 ```
 
-Requires Node ≥ 18 (or any modern browser bundler). ESM only.
+Requires Node ≥ 24 (or any modern browser bundler). ESM only.
 
 ## Quick start
 
@@ -97,6 +98,7 @@ import {
   readXlsx, writeXlsx,        // buffered .xlsx  (Uint8Array ⇄ Workbook)
   readSheetRows,              // stream one sheet's rows, bounded memory
   readWorkbookStream,         // stream every sheet, rows one at a time
+  WorkbookStreamWriter,       // write a workbook incrementally, bounded memory
   readCsv, writeCsv,          // CSV as Uint8Array
   writeCsvText,               // CSV as a string
 } from '@shbernal/ts-xlsx';
@@ -105,7 +107,18 @@ import {
 for (const row of readSheetRows(bytes, {sheet: 'People'})) {
   console.log(row.number, row.cells.map((c) => c.value));
 }
+
+// Bounded-memory generation — commit each row to serialize and free it as you go:
+const writer = new WorkbookStreamWriter();
+const out = writer.addWorksheet('Big');
+for (let i = 1; i <= 1_000_000; i++) out.addRow([i, i * i]).commit();
+out.commit();
+const packaged: Uint8Array = await writer.commit(); // also delivered via writer.stream
 ```
+
+The streaming writer is asynchronous where the buffered path is synchronous: `commit()`
+resolves to the package bytes and simultaneously pipes them through `writer.stream` (a Node
+`Readable`), so `writer.stream.pipe(res)` streams a workbook straight to an HTTP response.
 
 The reader decodes untrusted input defensively — entities are decoded but never
 expanded, and inflation is bounded by a running output counter rather than any declared
