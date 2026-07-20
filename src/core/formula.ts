@@ -14,9 +14,12 @@
 //
 // Every pass over a formula shares one hazard: a comma, paren, function name, or cell reference is
 // mere text when it sits inside a string literal, a single-quoted sheet name, or a bracketed
-// structured reference. `skipOpaque` is the single owner of skipping those regions, and `scanFormula`
-// the single forward walk that copies them verbatim while transforming the code between; every pass
-// here drives its string/quote/bracket handling from one of the two, so the rule lives in one place.
+// structured reference. `skipOpaque` is the single owner of skipping those regions — every pass drives
+// its string/quote/bracket handling through it, so the rule lives in one place. The stateless passes
+// (function-name and cell-reference rewriting) ride `scanFormula`, which copies the opaque regions
+// verbatim and hands each code run between them to a transform. `mangleParams` is the deliberate
+// exception: LET/LAMBDA parameter scope opens and closes at paren boundaries, state `scanFormula`'s
+// per-run transform cannot carry, so it runs its own forward walk — still deferring to `skipOpaque`.
 
 import {columnToNumber, numberToColumn} from './address.ts';
 import {MODERN_FUNCTIONS} from './modern-functions.ts';
@@ -218,6 +221,10 @@ function parameterNames(
  * with no LET/LAMBDA pass through unchanged.
  */
 export function mangleParams(formula: string): string {
+  // This is the one pass scanFormula cannot serve: it must know when a paren opens a LET/LAMBDA scope
+  // and when the matching paren closes it, so it carries frame state across the code between opaque
+  // regions rather than transforming each run in isolation. It still defers to skipOpaque, keeping the
+  // opaque-skipping rule in one place even though the forward walk here is bespoke.
   let out = '';
   let i = 0;
   const n = formula.length;
