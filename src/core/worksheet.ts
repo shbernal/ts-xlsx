@@ -763,39 +763,33 @@ export class Worksheet {
   /**
    * Remove `count` rows starting at the 1-based `start`, then insert the given rows in their place.
    * Rows below the edit shift by `inserts.length - count`: a delete pulls the tail up, an insert
-   * pushes it down, and doing both at once is a replace. Each inserted row is an array of cell
-   * values, one per column from A. A `count` larger than the rows present simply clears the tail —
-   * it never silently becomes a no-op. Cells carry their full style to the shifted position, and
-   * merged ranges shift with the rows they cover.
+   * pushes it down, and doing both at once is a replace. Each inserted row takes either
+   * {@link RowInput} shape — a positional array from column A, or a key-addressed object — exactly
+   * like {@link addRow}. A `count` larger than the rows present simply clears the tail — it never
+   * silently becomes a no-op. Cells carry their full style to the shifted position, and merged ranges
+   * shift with the rows they cover.
    *
    * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
    */
-  spliceRows(start: number, count: number, ...inserts: CellValue[][]): void {
+  spliceRows(start: number, count: number, ...inserts: RowInput[]): void {
     if (!Number.isInteger(start) || start < 1) {
       throw new RangeError(`splice start ${start} is out of bounds — rows start at 1`);
     }
     if (!Number.isInteger(count) || count < 0) {
       throw new RangeError(`splice count ${count} is invalid — it must be a non-negative integer`);
     }
-    const inserted = inserts.map((values, i) => {
-      const row = new Map<number, Cell>();
-      values.forEach((value, index) => {
-        const cell = new Cell(start + i, index + 1);
-        cell.value = value;
-        row.set(index + 1, cell);
-      });
-      return row;
-    });
+    const inserted = inserts.map((values, i) => this.#buildRowCells(start + i, values));
     this.#edits.spliceRows(start, count, inserted);
   }
 
   /**
    * Insert one row of `values` at the 1-based `pos`, shifting the rows at and below it down by one.
-   * Shorthand for {@link spliceRows}`(pos, 0, values)`.
+   * `values` takes either {@link RowInput} shape (positional array or keyed object), like
+   * {@link addRow}. Shorthand for {@link spliceRows}`(pos, 0, values)`.
    *
    * @throws {RangeError} if `pos` is not a positive integer.
    */
-  insertRow(pos: number, values: CellValue[]): void {
+  insertRow(pos: number, values: RowInput): void {
     this.spliceRows(pos, 0, values);
   }
 
@@ -825,25 +819,42 @@ export class Worksheet {
     let number = this.rowCount;
     return rows.map((values) => {
       number += 1;
-      const cells: Cell[] = [];
-      const place = (col: number, value: CellValue): void => {
+      return this.#rowPlacements(values).map(([col, value]) => {
         const cell = this.#cellAt(number, col);
         cell.value = value;
-        cells.push(cell);
-      };
-      // Array.isArray, not `instanceof Array`: a row built in another realm (a vm context, a browser
-      // iframe) is still an array but fails the identity check, and would then be walked as a keyed
-      // object — placing nothing.
-      if (Array.isArray(values)) {
-        values.forEach((value, index) => {
-          if (value !== undefined) place(index + 1, value);
-        });
-      } else {
-        for (const [key, value] of Object.entries(values))
-          place(this.#columnIndexByKey(key), value);
-      }
-      return cells;
+        return cell;
+      });
     });
+  }
+
+  // Resolve a RowInput to the (1-based column, value) placements it names, the one interpretation of
+  // row shape that both appending (into the live grid) and splicing (into a detached row) share. A
+  // positional array maps each value to its column from A, skipping a hole or an explicit `undefined`
+  // so that column is left untouched; a keyed object maps each value under the column carrying the
+  // matching key. Array.isArray, not `instanceof Array`: a row built in another realm (a vm context,
+  // a browser iframe) is still an array but fails the identity check, and would then be walked as a
+  // keyed object — placing nothing.
+  #rowPlacements(values: RowInput): Array<[number, CellValue]> {
+    if (Array.isArray(values)) {
+      const placements: Array<[number, CellValue]> = [];
+      values.forEach((value, index) => {
+        if (value !== undefined) placements.push([index + 1, value]);
+      });
+      return placements;
+    }
+    return Object.entries(values).map(([key, value]) => [this.#columnIndexByKey(key), value]);
+  }
+
+  // Build the detached cell row an insert introduces: a fresh cell per placement, positioned at
+  // `number`, keyed by column. The grid-edit machinery then splices this map into place.
+  #buildRowCells(number: number, values: RowInput): Map<number, Cell> {
+    const row = new Map<number, Cell>();
+    for (const [col, value] of this.#rowPlacements(values)) {
+      const cell = new Cell(number, col);
+      cell.value = value;
+      row.set(col, cell);
+    }
+    return row;
   }
 
   /**
