@@ -34,6 +34,7 @@
     "README.md"
   ],
   "scripts": {
+    "prepare": "lefthook install",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build": "pnpm run clean && tsc -p tsconfig.build.json",
     "size": "node scripts/size-budget.ts",
@@ -75,6 +76,7 @@
     "@biomejs/biome": "2.5.4",
     "@types/node": "^24.13.3",
     "jszip": "^3.10.1",
+    "lefthook": "^2.1.10",
     "typescript": "^6.0.3"
   }
 }

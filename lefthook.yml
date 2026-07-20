@@ -1,0 +1,36 @@
+# Git hooks, managed by lefthook. Installed automatically on `pnpm install`
+# (see the `prepare` script). These mirror the CI gates so a failure surfaces
+# locally instead of on the runner — the same "green checks are the moat"
+# contract from CLAUDE.md, enforced one step earlier.
+#
+# Bypass a hook when you genuinely must: `git commit --no-verify` /
+# `git push --no-verify`, or `LEFTHOOK=0 git …` to disable all hooks.
+
+# Fast, staged-scoped: format + lint only what you're committing, and re-stage
+# any autofixes so the commit is always Biome-clean.
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome
+      glob: "*.{ts,js,mjs,cjs,json,jsonc}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+
+# Full source-correctness gate, mirroring .github/workflows/corpus.yml. Runs on
+# the whole tree (not just staged files) because a push may carry commits made
+# with --no-verify. This is exactly what CI will check, run before the round-trip.
+pre-push:
+  parallel: true
+  jobs:
+    - name: lint
+      run: pnpm run lint
+    - name: typecheck
+      run: pnpm run typecheck
+    - name: typecheck:test
+      run: pnpm run typecheck:test
+    - name: test:src
+      run: pnpm run test:src
+    - name: corpus
+      run: pnpm run corpus
+    - name: docs:check
+      run: pnpm run docs:check
