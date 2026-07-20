@@ -110,7 +110,8 @@ The stack is deliberately small and each choice is recorded as an ADR under
 
 - **Runtime & no-build dev path** — ADR-0001.
 - **Toolchain** (Biome for lint/format; `node --test` over Vitest; hand-rolled
-  type-level tests) — ADR-0002.
+  type-level tests) — ADR-0002. The harness (`test/` + `scripts/`) is TypeScript held
+  to the same strict bar as `src/`, gated by `typecheck:test` — ADR-0011.
 - **Zip & XML write path** (`fflate`; a hand-written SAX reader with bounded allocation
   on every parser path) — ADR-0003.
 - **Docs generated from the types** — ADR-0006.

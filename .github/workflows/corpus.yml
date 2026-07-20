@@ -33,6 +33,10 @@ jobs:
       # Strict type-safety gate for the rewrite tree (src/). Also runs the
       # src/type-tests/ compile-time API assertions.
       - run: pnpm run typecheck
+      # Strict type-safety gate for the harness tree (test/ + scripts/), held to
+      # the same bar as src/: the regression corpus cases, its adapters, the corpus
+      # runner, and the tooling scripts. See ADR 0011.
+      - run: pnpm run typecheck:test
       # Rewrite unit tests (native node --test on .ts).
       - run: pnpm run test:src
       # Regression corpus vs the rewrite — every behavior must pass; a pass→fail is
