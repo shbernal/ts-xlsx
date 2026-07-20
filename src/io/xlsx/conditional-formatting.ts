@@ -46,10 +46,26 @@ function needsDataBarExt(rule: ConditionalFormattingRule): boolean {
 
 // The synthetic id linking a classic cfRule to its x14 extension. Excel uses a random GUID; any unique
 // token that matches on both ends works, so a deterministic per-sheet index keeps the output stable
-// and testable. The classic and extension passes iterate rules identically, so the Nth extended data
-// bar gets the same id on both ends.
+// and testable.
 function dataBarExtGuid(index: number): string {
   return `{00000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}}`;
+}
+
+// Assign every extended data bar its link id once, keyed by rule identity. The classic pass (which
+// emits the `<extLst>` link on the cfRule) and the extension pass (which emits the `<x14:cfRule id>`)
+// both read the id from this map, so the two ends of a link agree by construction — not by the two
+// passes happening to walk the rules in the same order. A rule absent from the map needs no extension.
+function dataBarExtLinks(
+  formattings: readonly ConditionalFormatting[],
+): ReadonlyMap<ConditionalFormattingRule, string> {
+  const links = new Map<ConditionalFormattingRule, string>();
+  let index = 0;
+  for (const cf of formattings) {
+    for (const rule of cf.rules) {
+      if (rule.type === 'dataBar' && needsDataBarExt(rule)) links.set(rule, dataBarExtGuid(index++));
+    }
+  }
+  return links;
 }
 
 // The three built-in visual rules. Each renders a built-in visual and carries no differential
@@ -69,30 +85,26 @@ export function conditionalFormattingsXml(
 ): string {
   if (formattings.length === 0) return '';
   const priority = {next: 1};
-  // A shared counter assigns each extended data bar its link id in block/rule order — the same order
-  // {@link conditionalFormattingsExtXml} walks, so the two ends of a link always agree.
-  const extGuid = {next: 0};
-  return formattings.map((cf) => blockXml(cf, styles, priority, extGuid)).join('');
+  const extLinks = dataBarExtLinks(formattings);
+  return formattings.map((cf) => blockXml(cf, styles, priority, extLinks)).join('');
 }
 
 /**
  * The worksheet `<extLst>` `<ext>` carrying the x14 data-bar extensions, or '' when no data bar needs
- * one. Walks the rules in the same order as {@link conditionalFormattingsXml}, so the Nth extended
- * data bar's `<x14:cfRule id>` matches the `<x14:id>` its classic cfRule carries. Emitted bare (no
- * `<extLst>` wrapper) so the worksheet serialiser can gather it into a single `<extLst>` beside the
+ * one. Each extension's `<x14:cfRule id>` is read from the same {@link dataBarExtLinks} map the classic
+ * pass uses for the `<x14:id>` its cfRule carries, so the two ends of a link always match. Emitted bare
+ * (no `<extLst>` wrapper) so the worksheet serialiser can gather it into a single `<extLst>` beside the
  * data-validation extension.
  */
 export function conditionalFormattingsExtXml(
   formattings: readonly ConditionalFormatting[],
 ): string {
+  const extLinks = dataBarExtLinks(formattings);
   const items: string[] = [];
-  let index = 0;
   for (const cf of formattings) {
     for (const rule of cf.rules) {
-      if (rule.type === 'dataBar' && needsDataBarExt(rule)) {
-        items.push(x14DataBarXml(cf.ref, rule, dataBarExtGuid(index)));
-        index += 1;
-      }
+      const guid = extLinks.get(rule);
+      if (guid !== undefined) items.push(x14DataBarXml(cf.ref, rule, guid));
     }
   }
   if (items.length === 0) return '';
@@ -139,9 +151,9 @@ function blockXml(
   cf: ConditionalFormatting,
   styles: StyleRegistry,
   priority: {next: number},
-  extGuid: {next: number},
+  extLinks: ReadonlyMap<ConditionalFormattingRule, string>,
 ): string {
-  const rules = cf.rules.map((rule) => ruleXml(rule, styles, priority, extGuid)).join('');
+  const rules = cf.rules.map((rule) => ruleXml(rule, styles, priority, extLinks)).join('');
   return `<conditionalFormatting sqref="${escapeAttr(cf.ref)}">${rules}</conditionalFormatting>`;
 }
 
@@ -149,7 +161,7 @@ function ruleXml(
   rule: ConditionalFormattingRule,
   styles: StyleRegistry,
   priority: {next: number},
-  extGuid: {next: number},
+  extLinks: ReadonlyMap<ConditionalFormattingRule, string>,
 ): string {
   const p = rule.priority ?? priority.next;
   // Keep the running counter ahead of any explicit priority so later auto-assigned ones stay unique.
@@ -171,11 +183,11 @@ function ruleXml(
   if (rule.stdDev !== undefined) attrs.push(`stdDev="${rule.stdDev}"`);
 
   let body = SCALE_TYPES.has(rule.type) ? scaleXml(rule) : formulaeXml(rule.formulae);
-  // A data bar with x14-only facets links to its extension by a freshly allocated id; the extension
-  // itself rides in the worksheet <extLst>. The link is the cfRule's last child, after the dataBar.
-  if (rule.type === 'dataBar' && needsDataBarExt(rule)) {
-    body += cfRuleExtLinkXml(dataBarExtGuid(extGuid.next++));
-  }
+  // A data bar with x14-only facets links to its extension by the id assigned in dataBarExtLinks; the
+  // extension itself rides in the worksheet <extLst>. The link is the cfRule's last child, after the
+  // dataBar. A rule absent from the map carries no extension.
+  const extGuid = extLinks.get(rule);
+  if (extGuid !== undefined) body += cfRuleExtLinkXml(extGuid);
   return body === ''
     ? `<cfRule ${attrs.join(' ')}/>`
     : `<cfRule ${attrs.join(' ')}>${body}</cfRule>`;
