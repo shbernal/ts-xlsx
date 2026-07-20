@@ -77,4 +77,21 @@ Decisions that rode along:
   typecheck can't); `size` fails if the emitted runtime JS crosses a 600 KB budget
   (currently ~489 KB). Both run in a dedicated `Build` workflow.
 
+## Addendum (2026-07-20) — full corpus runs against the emitted artifact too
+
+The stripping-vs-transpilation question was revisited (no `.ts`-execution-free
+runtime materialized, so type-stripping stays the dev/test inner loop — see §0's
+framing). But it surfaced the one real gap: `test:src` and the corpus's default
+adapter only ever exercise **stripped `src/`**, while consumers run the
+**`tsc`-emitted `dist/`**. `smoke:dist` guarded a single round-trip against that
+divergence; the full 671-behavior corpus did not.
+
+Closed cheaply, with no new inner-loop cost: the `rewrite` corpus adapter now
+retargets its implementation imports via `CORPUS_TARGET` (default `src`/`.ts`;
+`dist`/`.js` mirrors the tree since `rootDir=src`). `pnpm run corpus:dist` runs the
+entire behavioral corpus against the emitted JS, wired into the `Build` workflow
+after `smoke:dist` so it reuses the single build. The zero-dep type-stripping loop
+is unchanged for day-to-day work; emit parity is now proven by the whole corpus, not
+one smoke case.
+
 Vitest and Biome remain deferred to the toolchain-standup slice.

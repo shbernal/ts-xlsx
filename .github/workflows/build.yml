@@ -30,5 +30,9 @@ jobs:
       - run: pnpm run build
       # Load the compiled artifact as a consumer would and verify a write→read round-trip.
       - run: pnpm run smoke:dist
+      # Run the FULL behavioral corpus against the emitted artifact, not just the
+      # smoke round-trip: proves every case that passes on stripped src/ also passes
+      # on the tsc-emitted JS consumers actually run. Reuses the single build above.
+      - run: pnpm run corpus:dist
       # Fail if the emitted runtime JS crosses the bundle-size budget.
       - run: pnpm run size

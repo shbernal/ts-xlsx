@@ -28,16 +28,31 @@ import {fileURLToPath} from 'node:url';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
-import {decodeAddress, decodeRange, encodeAddress} from '../../../src/core/address.ts';
-import {detectValueType} from '../../../src/core/value.ts';
-import {Workbook} from '../../../src/core/workbook.ts';
-import {readCsv} from '../../../src/io/csv/read.ts';
-import {writeCsv, writeCsvText} from '../../../src/io/csv/write.ts';
-import {readXlsx} from '../../../src/io/xlsx/read.ts';
-import {readWorkbookStream} from '../../../src/io/xlsx/read-rows.ts';
-import {writeXlsx} from '../../../src/io/xlsx/write.ts';
-import {WorkbookStreamWriter} from '../../../src/io/xlsx/write-stream.ts';
 import {packageFacts} from './ooxml-facts.mjs';
+
+// Retarget the implementation under test. Default: the src/ .ts sources, run
+// directly via Node's type-stripping (the zero-build dev/test loop). Set
+// CORPUS_TARGET=dist to run the *emitted* artifact instead — the exact ESM `tsc`
+// produces for consumers — putting the full behavioral corpus behind the same
+// gate. test:src and this adapter's default only ever see *stripped* source;
+// dist runs catch strip-vs-emit divergence (import-specifier rewrite, a
+// runtime reference type-stripping tolerated) across every case, not just the
+// smoke round-trip. dist mirrors src's tree (rootDir=src), so the only change is
+// the base dir and the .ts→.js extension.
+const target =
+  process.env.CORPUS_TARGET === 'dist' ? {dir: 'dist', ext: 'js'} : {dir: 'src', ext: 'ts'};
+const loadModule = (rel) =>
+  import(new URL(`../../../${target.dir}/${rel}.${target.ext}`, import.meta.url).href);
+
+const {decodeAddress, decodeRange, encodeAddress} = await loadModule('core/address');
+const {detectValueType} = await loadModule('core/value');
+const {Workbook} = await loadModule('core/workbook');
+const {readCsv} = await loadModule('io/csv/read');
+const {writeCsv, writeCsvText} = await loadModule('io/csv/write');
+const {readXlsx} = await loadModule('io/xlsx/read');
+const {readWorkbookStream} = await loadModule('io/xlsx/read-rows');
+const {writeXlsx} = await loadModule('io/xlsx/write');
+const {WorkbookStreamWriter} = await loadModule('io/xlsx/write-stream');
 
 // JSZip is an independent zip implementation used only to VERIFY the streaming writer's output (CRC
 // integrity), a hostile-input posture toward our own archive — never in the production src path.
