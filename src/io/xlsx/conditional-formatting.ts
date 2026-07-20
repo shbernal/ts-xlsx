@@ -62,7 +62,8 @@ function dataBarExtLinks(
   let index = 0;
   for (const cf of formattings) {
     for (const rule of cf.rules) {
-      if (rule.type === 'dataBar' && needsDataBarExt(rule)) links.set(rule, dataBarExtGuid(index++));
+      if (rule.type === 'dataBar' && needsDataBarExt(rule))
+        links.set(rule, dataBarExtGuid(index++));
     }
   }
   return links;
