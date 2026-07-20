@@ -104,7 +104,9 @@ that is not done — it is in progress.
   description) so the next agent — or the human — can audit and reverse them.
 - **Verify, don't assume.** Prefer reproductions and tests over reasoning about what
   "should" work. The OOXML format is full of surprises; the corpus is how we tame
-  them.
+  them. `docs/agent-correctness-playbook.md` is the dispatch table — *what you are
+  doing* → *the check that proves it correct* → *the exact command* — so you never
+  have to rebuild that decision tree.
 - **When you must ask, batch it and make it count.** Only escalate to the human for
   decisions that are genuinely theirs: irreversible/outward-facing actions
   (publishing, naming/branding, license), or a true fork-in-the-road where the
@@ -140,4 +142,5 @@ That is the whole point of the fork.
 ---
 
 _See `docs/architecture.md` for how these principles are realized — the corpus contract,
-the module layout, and the working agreements — and `docs/decisions/` for the ADRs._
+the module layout, and the working agreements; `docs/agent-correctness-playbook.md` for
+the situation → check → command dispatch table; and `docs/decisions/` for the ADRs._
