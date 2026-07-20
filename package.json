@@ -14,7 +14,7 @@
     "url": "https://github.com/shbernal/ts-xlsx/issues"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "packageManager": "pnpm@11.11.0",
   "exports": {

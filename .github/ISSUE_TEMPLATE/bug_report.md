@@ -15,12 +15,14 @@ Lib version: X.Y.Z
 
 <!-- The exact steps required to reproduce the issue, ideally with a code example -->
 
-```javascript
-const wb = new ExcelJS.Workbook();
+```ts
+import {Workbook} from '@shbernal/ts-xlsx';
+
+const wb = new Workbook();
 const ws = wb.addWorksheet('XYZ');
 
 ws.getCell('A1').value = 7;
-expect(ws.getCell('A1').value).to.equal(7);
+// observed: ...   expected: 7
 ```
 
 ## The expected behaviour:
@@ -30,6 +32,6 @@ expect(ws.getCell('A1').value).to.equal(7);
 
 ## Possible solution (optional, but very helpful):
 
-```javascript
+```ts
 
 ```
