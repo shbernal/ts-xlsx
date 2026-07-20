@@ -26,7 +26,6 @@ import {inflatePackage} from './inflate.ts';
 import {
   DEFAULT_MAX_UNCOMPRESSED,
   parseRelationships,
-  parseSharedStrings,
   parseStyleTable,
   parseWorkbookSheets,
   type ReadXlsxOptions,
@@ -35,6 +34,7 @@ import {
   type XfStyle,
 } from './read.ts';
 import {packageAccessors} from './read-opc.ts';
+import {parseSharedStrings} from './shared-strings-read.ts';
 import {boolStrict, closeEmptyElements, localName, xmlEvents} from './xml-read.ts';
 
 export interface ReadSheetRowsOptions extends ReadXlsxOptions {
