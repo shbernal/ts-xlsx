@@ -1,31 +1,38 @@
 #!/usr/bin/env node
 // Fill the backlog queue: fetch every item in the manifest into issues/.
 //
-// Usage:  node scripts/harvest/harvest-all.mjs [--repo owner/name] [--concurrency N]
+// Usage:  node scripts/harvest/harvest-all.ts [--repo owner/name] [--concurrency N]
 //
-// Reads the manifest written by list-backlog.mjs and harvests each thread that
+// Reads the manifest written by list-backlog.ts and harvests each thread that
 // isn't already on disk. Resumable by design — rerun after a failure or interrupt
 // and it skips what it already has and retries the rest. When every item is
-// present it flips the manifest's `harvestComplete` flag, which is how status.mjs
+// present it flips the manifest's `harvestComplete` flag, which is how status.ts
 // knows an absent record means "drained" rather than "never fetched".
 //
-// This is the one-time bulk fill (STRATEGY.md Phase 1). After it, agents drain the
-// queue thread by thread — see the harvest-triage skill.
+// This is the one-time bulk fill. After it, agents drain the queue thread by
+// thread — see the harvest-triage skill.
 
 import {readFile, writeFile} from 'node:fs/promises';
+import type {Manifest, ManifestItem} from './lib.ts';
 import {
   DEFAULT_REPO,
+  errorMessage,
   fileExists,
   harvestOne,
   isValidRepo,
   MANIFEST_PATH,
   recordPathFor,
-} from './lib.mjs';
+} from './lib.ts';
 
-function parseArgs(argv) {
-  const args = {repo: DEFAULT_REPO, concurrency: 6};
+interface HarvestAllArgs {
+  repo: string;
+  concurrency: number;
+}
+
+function parseArgs(argv: string[]): HarvestAllArgs {
+  const args: HarvestAllArgs = {repo: DEFAULT_REPO, concurrency: 6};
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--repo') args.repo = argv[++i];
+    if (argv[i] === '--repo') args.repo = argv[++i] ?? '';
     else if (argv[i] === '--concurrency') args.concurrency = Number(argv[++i]);
     else throw new Error(`Unrecognized argument: ${argv[i]}`);
   }
@@ -38,12 +45,18 @@ function parseArgs(argv) {
 
 // A bounded worker pool: `concurrency` workers pull from a shared cursor until the
 // list is drained. Keeps us well under GitHub's abuse thresholds on ~800 items.
-async function runPool(items, concurrency, worker) {
+async function runPool<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T, index: number) => Promise<void>,
+): Promise<void> {
   let cursor = 0;
-  async function work() {
+  async function work(): Promise<void> {
     while (cursor < items.length) {
       const index = cursor++;
-      await worker(items[index], index);
+      const item = items[index];
+      if (item === undefined) break;
+      await worker(item, index);
     }
   }
   await Promise.all(Array.from({length: Math.min(concurrency, items.length)}, work));
@@ -53,16 +66,16 @@ async function main() {
   const {repo, concurrency} = parseArgs(process.argv.slice(2));
 
   if (!(await fileExists(MANIFEST_PATH))) {
-    throw new Error('No manifest found. Run `node scripts/harvest/list-backlog.mjs` first.');
+    throw new Error('No manifest found. Run `node scripts/harvest/list-backlog.ts` first.');
   }
-  const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
-  const items = manifest.items ?? [];
+  const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8')) as Manifest;
+  const items: ManifestItem[] = manifest.items ?? [];
   console.log(`Filling queue from manifest: ${items.length} item(s), concurrency ${concurrency}\n`);
 
   let done = 0;
   let fetched = 0;
   let skipped = 0;
-  const failures = [];
+  const failures: Array<{number: number; error: string}> = [];
 
   await runPool(items, concurrency, async (item) => {
     try {
@@ -70,7 +83,7 @@ async function main() {
       if (result.skipped) skipped++;
       else fetched++;
     } catch (err) {
-      failures.push({number: item.number, error: String(err.message ?? err)});
+      failures.push({number: item.number, error: errorMessage(err)});
     }
     done++;
     if (done % 25 === 0 || done === items.length) {
@@ -95,7 +108,7 @@ async function main() {
       `\nQueue full: ${items.length}/${items.length} records present. harvestComplete = true.`,
     );
     console.log(
-      'Next: node scripts/harvest/status.mjs   (then drain — see the harvest-triage skill)',
+      'Next: node scripts/harvest/status.ts   (then drain — see the harvest-triage skill)',
     );
   } else {
     console.log(`\nIncomplete: ${missing.length} record(s) still missing.`);
@@ -109,7 +122,7 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(`harvest-all failed: ${err.message ?? err}`);
+main().catch((err: unknown) => {
+  console.error(`harvest-all failed: ${errorMessage(err)}`);
   process.exitCode = 1;
 });

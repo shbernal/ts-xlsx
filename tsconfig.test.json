@@ -1,0 +1,7 @@
+{
+  "//": "Strict type-safety gate for the harness tree (test/ + scripts/). Extends the same strict config as src/ so the regression corpus, its adapters, and the tooling scripts are held to the identical bar. Node 24 runs these .ts files directly via type-stripping; this config exists to ENFORCE the gate (tsc --noEmit), not to build.",
+  "extends": "./tsconfig.json",
+  "include": ["test/**/*.ts", "scripts/**/*.ts"],
+  "//exclude": "smoke-dist imports the built ../dist artifact, which does not exist before a build (and never in the corpus CI job); its type-safety is already guaranteed by the typechecked src it is emitted from, so it is linted-but-not-gated here.",
+  "exclude": ["scripts/smoke-dist.ts"]
+}

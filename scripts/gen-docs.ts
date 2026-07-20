@@ -22,7 +22,7 @@ const OUT_DIR = join(ROOT, 'docs/api');
 // Human-facing page titles + ordering, keyed by the source module basename an export
 // resolves to. A module not listed here still renders (alphabetically, titled from its
 // filename) so a new public module can never silently vanish from the docs.
-const GROUPS = [
+const GROUPS: ReadonlyArray<readonly [string, string]> = [
   ['address', 'Addresses & ranges'],
   ['value', 'Cell values'],
   ['cell', 'Cell'],
@@ -43,8 +43,8 @@ const GROUPS = [
 ];
 
 /** A TS transform that drops function/method bodies so a declaration prints as a signature. */
-function stripBodies(context) {
-  const visit = (node) => {
+function stripBodies(context: ts.TransformationContext): ts.Transformer<ts.Node> {
+  const visit: ts.Visitor = (node) => {
     const n = ts.visitEachChild(node, visit, context);
     if (ts.isFunctionDeclaration(n) && n.body) {
       return ts.factory.updateFunctionDeclaration(
@@ -95,12 +95,14 @@ function stripBodies(context) {
     }
     return n;
   };
-  return (node) => ts.visitNode(node, visit);
+  return (node) => ts.visitNode(node, visit) as ts.Node;
 }
 
 /** Strip the `export`/`default`/`declare` modifiers a standalone signature shouldn't carry. */
-function dropExport(modifiers) {
-  if (!modifiers) return modifiers;
+function dropExport(
+  modifiers: ts.NodeArray<ts.ModifierLike> | undefined,
+): ts.ModifierLike[] | undefined {
+  if (!modifiers) return undefined;
   const kept = modifiers.filter(
     (m) =>
       m.kind !== ts.SyntaxKind.ExportKeyword &&
@@ -112,33 +114,33 @@ function dropExport(modifiers) {
 
 const printer = ts.createPrinter({removeComments: true});
 
-function printSignature(node, sourceFile) {
-  const stripped = ts.transform(node, [stripBodies]).transformed[0];
+function printSignature(node: ts.Node, sourceFile: ts.SourceFile): string {
+  const stripped = ts.transform(node, [stripBodies]).transformed[0] ?? node;
   return printer
     .printNode(ts.EmitHint.Unspecified, stripped, sourceFile)
     .replace(/^export (?:default )?/, '');
 }
 
 /** Turn TSDoc `{@link Target}` / `{@link Target | label}` into a plain code span. */
-function resolveLinks(text) {
+function resolveLinks(text: string): string {
   return text.replace(
     /\{@link(?:code|plain)?\s+([^}|]+?)(?:\s*\|\s*([^}]+))?\}/g,
-    (_m, target, label) => `\`${(label ?? target).trim()}\``,
+    (_m: string, target: string, label: string | undefined) => `\`${(label ?? target).trim()}\``,
   );
 }
 
-function docText(symbol, checker) {
+function docText(symbol: ts.Symbol, checker: ts.TypeChecker): string {
   return resolveLinks(ts.displayPartsToString(symbol.getDocumentationComment(checker)).trim());
 }
 
 /** Render `@throws`, `@param`, `@returns`, `@example` tags into Markdown, in a stable order. */
-function docTags(symbol, checker) {
-  const order = {param: 0, returns: 1, throws: 2, example: 3};
+function docTags(symbol: ts.Symbol, checker: ts.TypeChecker): string[] {
+  const order: Record<string, number> = {param: 0, returns: 1, throws: 2, example: 3};
   const tags = symbol
     .getJsDocTags(checker)
     .filter((t) => t.name in order)
-    .sort((a, b) => order[a.name] - order[b.name]);
-  const lines = [];
+    .sort((a, b) => (order[a.name] ?? 0) - (order[b.name] ?? 0));
+  const lines: string[] = [];
   for (const tag of tags) {
     const text = resolveLinks(ts.displayPartsToString(tag.text).trim());
     if (tag.name === 'example') {
@@ -155,7 +157,7 @@ function docTags(symbol, checker) {
   return lines;
 }
 
-function kindLabel(node) {
+function kindLabel(node: ts.Node): string {
   if (ts.isInterfaceDeclaration(node)) return 'interface';
   if (ts.isTypeAliasDeclaration(node)) return 'type';
   if (ts.isClassDeclaration(node)) return 'class';
@@ -165,8 +167,8 @@ function kindLabel(node) {
   return 'value';
 }
 
-function isPublicMember(member) {
-  if (ts.isPrivateIdentifier(member.name ?? {})) return false;
+function isPublicMember(member: ts.ClassElement): boolean {
+  if (member.name && ts.isPrivateIdentifier(member.name)) return false;
   const mods = ts.canHaveModifiers(member) ? ts.getModifiers(member) : undefined;
   if (mods?.some((m) => m.kind === ts.SyntaxKind.PrivateKeyword)) return false;
   if (mods?.some((m) => m.kind === ts.SyntaxKind.ProtectedKeyword)) return false;
@@ -179,12 +181,17 @@ function isPublicMember(member) {
  * lines and the Markdown doc list separately so the reader gets a compact signature
  * block above readable per-member notes.
  */
-function renderClassMembers(node, sourceFile, checker) {
-  const sigs = [];
-  const docs = [];
-  const documented = new Set();
+function renderClassMembers(
+  node: ts.ClassDeclaration,
+  sourceFile: ts.SourceFile,
+  checker: ts.TypeChecker,
+): {sigs: string[]; docs: string[]} {
+  const sigs: string[] = [];
+  const docs: string[] = [];
+  const documented = new Set<string>();
   for (const member of node.members) {
     if (!isPublicMember(member)) continue;
+    if (!member.name) continue;
     const name = member.name.getText(sourceFile);
     const sig = printSignature(member, sourceFile).trim();
     sigs.push(`  ${sig}`);
@@ -215,9 +222,10 @@ function main() {
   if (!moduleSymbol) throw new Error('entry has no module symbol — is src/index.ts a module?');
 
   const groupTitle = new Map(GROUPS);
-  const groupOrder = new Map(GROUPS.map(([key], i) => [key, i]));
-  /** @type {Map<string, {title: string, key: string, entries: string[], symbols: string[]}>} */
-  const pages = new Map();
+  const groupOrder = new Map<string, number>(GROUPS.map(([key], i) => [key, i]));
+  type Entry = {name: string; block: string};
+  type Page = {title: string; key: string; entries: Entry[]};
+  const pages = new Map<string, Page>();
 
   for (const exported of checker.getExportsOfModule(moduleSymbol)) {
     const symbol =
@@ -247,8 +255,8 @@ function main() {
     const block = [`### \`${name}\``, '', `<sub>${kind}</sub>`, ''];
     if (summary) block.push(summary, '');
 
-    let signature;
-    let memberDocs = [];
+    let signature: string;
+    let memberDocs: string[] = [];
     if (ts.isClassDeclaration(decl)) {
       const {sigs, docs} = renderClassMembers(decl, sourceFile, checker);
       const heritage = decl.heritageClauses?.map((h) => h.getText(sourceFile)).join(' ');
@@ -263,11 +271,11 @@ function main() {
       signature = `const ${name}: ${type}`;
     } else if (ts.isFunctionDeclaration(decl)) {
       // Print every overload declaration (those without a body); skip the impl signature.
-      const overloads = symbol
-        .getDeclarations()
-        .filter(
-          (d) => ts.isFunctionDeclaration(d) && (!d.body || symbol.getDeclarations().length === 1),
-        );
+      const declarations = symbol.getDeclarations() ?? [];
+      const overloads = declarations.filter(
+        (d): d is ts.FunctionDeclaration =>
+          ts.isFunctionDeclaration(d) && (!d.body || declarations.length === 1),
+      );
       signature = overloads.map((d) => printSignature(d, d.getSourceFile())).join('\n');
     } else {
       signature = printSignature(decl, sourceFile);
@@ -282,7 +290,7 @@ function main() {
   // Deterministic output regardless of `getExportsOfModule` iteration order — the CI
   // drift check compares committed pages against a fresh generation byte for byte.
   for (const page of pages.values()) {
-    page.entries.sort((a, b) => a.name.localeCompare(b.name));
+    page.entries.sort((a: Entry, b: Entry) => a.name.localeCompare(b.name));
   }
 
   const ordered = [...pages.values()].sort((a, b) => {
@@ -330,16 +338,16 @@ function main() {
   process.stdout.write(`docs: ${count} symbols across ${ordered.length} pages → docs/api/\n`);
 }
 
-function titleize(key) {
+function titleize(key: string): string {
   return key.replace(/[-/]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
-function slugify(title) {
+function slugify(title: string): string {
   return title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 }
-function anchor(name) {
+function anchor(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 

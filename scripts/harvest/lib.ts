@@ -3,8 +3,7 @@
 // The harvest is a *one-time* operation: we pull the entire upstream backlog
 // into a local queue once, then drain that queue by distilling each thread into
 // durable product (a corpus case and/or spec note) and deleting the raw record.
-// We never re-harvest to pick up new upstream activity — see STRATEGY.md Phase 1
-// and docs/knowledge/BACKLOG.md for the drain model.
+// We never re-harvest to pick up new upstream activity.
 //
 // This module holds the pieces the CLI entry points share (fetch-issue,
 // harvest-all, list-backlog, status) so the fetch logic lives in exactly one
@@ -33,19 +32,152 @@ export const DEFAULT_REPO = 'exceljs/exceljs';
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const SPREADSHEET_EXTENSIONS = new Set(['xlsx', 'xlsm', 'xlsb', 'xls', 'csv', 'zip', 'ods']);
 
-export function padNumber(number) {
+// --- External JSON shapes ----------------------------------------------------
+// The `gh api` responses are untrusted JSON; these describe only the fields we
+// read. Every property is optional because we defensively default each access.
+
+interface GhLabel {
+  name?: string;
+}
+
+interface GhReactions {
+  total_count?: number;
+}
+
+interface GhUser {
+  login?: string;
+}
+
+interface GhComment {
+  user?: GhUser;
+  author_association?: string;
+  created_at?: string;
+  reactions?: GhReactions;
+  body?: string;
+}
+
+interface GhIssue {
+  number?: number;
+  title?: string;
+  state?: string;
+  html_url?: string;
+  body?: string;
+  comments?: number;
+  user?: GhUser;
+  created_at?: string;
+  closed_at?: string;
+  labels?: Array<string | GhLabel>;
+  reactions?: GhReactions;
+  pull_request?: unknown;
+}
+
+interface GhPullDetail {
+  merged?: boolean;
+  mergeable?: boolean | null;
+  base?: {ref?: string};
+  additions?: number;
+  deletions?: number;
+}
+
+interface GhPullFile {
+  filename?: string;
+  status?: string;
+  additions?: number;
+  deletions?: number;
+}
+
+// --- Durable record shapes ---------------------------------------------------
+// What we write to disk and pass between the CLI entry points.
+
+export type ItemType = 'issue' | 'pull_request';
+
+export interface ManifestItem {
+  number: number;
+  type: ItemType;
+  title: string;
+  labels: Array<string | undefined>;
+  reactions: number;
+  comments: number;
+  url: string | undefined;
+}
+
+export interface Manifest {
+  schema: string;
+  repo: string;
+  generatedAt: string;
+  total: number;
+  issues: number;
+  pullRequests: number;
+  harvestComplete: boolean;
+  items: ManifestItem[];
+}
+
+interface NormalizedComment {
+  author: string | null;
+  authorAssociation: string | null;
+  createdAt: string | null;
+  reactions: number;
+  body: string;
+}
+
+interface DiscoveredAttachment {
+  url: string;
+  ext: string | null;
+  isFixture: boolean;
+}
+
+interface ChangedFile {
+  path: string | undefined;
+  status: string | undefined;
+  additions: number | undefined;
+  deletions: number | undefined;
+}
+
+interface PrSummary {
+  merged: boolean;
+  mergeable: boolean | null;
+  baseRef: string | null;
+  additions: number | null;
+  deletions: number | null;
+  changedFiles: ChangedFile[];
+}
+
+interface DownloadResult {
+  name: string;
+  bytes?: number;
+  error?: string;
+}
+
+export interface HarvestSummary {
+  number: number;
+  recordPath: string;
+  skipped: boolean;
+  type?: ItemType;
+  commentCount?: number;
+  attachmentCount?: number;
+  fixtureCount?: number;
+  downloaded?: DownloadResult[];
+}
+
+export interface HarvestOptions {
+  number: number;
+  repo?: string;
+  skipIfExists?: boolean;
+}
+
+export function padNumber(number: number): string {
   return String(number).padStart(4, '0');
 }
 
-export function recordPathFor(number) {
+export function recordPathFor(number: number): string {
   return resolve(ISSUES_DIR, `${padNumber(number)}.json`);
 }
 
-export function isValidRepo(repo) {
+export function isValidRepo(repo: string): boolean {
   return /^[\w.-]+\/[\w.-]+$/.test(repo);
 }
 
-export async function fileExists(path) {
+export async function fileExists(path: string): Promise<boolean> {
   try {
     await access(path);
     return true;
@@ -54,7 +186,7 @@ export async function fileExists(path) {
   }
 }
 
-export async function gh(path, {paginate = false} = {}) {
+export async function gh(path: string, {paginate = false} = {}): Promise<unknown> {
   const argv = ['api', path];
   if (paginate) argv.push('--paginate');
   const {stdout} = await execFileAsync('gh', argv, {maxBuffer: 128 * 1024 * 1024});
@@ -65,16 +197,22 @@ export async function gh(path, {paginate = false} = {}) {
   return JSON.parse(stdout);
 }
 
+function labelName(label: string | GhLabel): string | undefined {
+  return typeof label === 'string' ? label : label.name;
+}
+
 // GitHub's issues endpoint returns PRs too (they carry a `pull_request` key), so
 // one paginated call enumerates the whole open universe. Used once by
 // list-backlog to snapshot the manifest.
-export async function listOpenItems(repo = DEFAULT_REPO) {
-  const raw = await gh(`repos/${repo}/issues?state=open&per_page=100`, {paginate: true});
+export async function listOpenItems(repo = DEFAULT_REPO): Promise<ManifestItem[]> {
+  const raw = (await gh(`repos/${repo}/issues?state=open&per_page=100`, {
+    paginate: true,
+  })) as GhIssue[];
   return raw.map((item) => ({
-    number: item.number,
+    number: item.number ?? 0,
     type: item.pull_request ? 'pull_request' : 'issue',
     title: item.title ?? '',
-    labels: (item.labels ?? []).map((l) => (typeof l === 'string' ? l : l.name)),
+    labels: (item.labels ?? []).map(labelName),
     reactions: item.reactions?.total_count ?? 0,
     comments: item.comments ?? 0,
     url: item.html_url,
@@ -85,22 +223,22 @@ export async function listOpenItems(repo = DEFAULT_REPO) {
 // user uploads from a handful of hosts; we record every match and download only
 // the ones that look like real fixtures (by extension).
 const URL_RE = /https?:\/\/[^\s)"'<>\]]+/g;
-function discoverAttachments(text) {
+function discoverAttachments(text: string): DiscoveredAttachment[] {
   if (!text) return [];
-  const out = [];
+  const out: DiscoveredAttachment[] = [];
   for (const url of text.match(URL_RE) ?? []) {
     const clean = url.replace(/[.,);]+$/, '');
-    const lastSegment = clean.split('?')[0].split('#')[0].split('/').pop() ?? '';
+    const lastSegment = clean.split('?')[0]?.split('#')[0]?.split('/').pop() ?? '';
     // Only treat a trailing `.foo` on the final path segment as an extension —
     // a bare URL like `.../pull/636` has no filename and no fixture.
     const match = lastSegment.match(/\.([a-z0-9]{1,5})$/i);
-    const ext = match ? match[1].toLowerCase() : null;
+    const ext = match?.[1]?.toLowerCase() ?? null;
     out.push({url: clean, ext, isFixture: ext !== null && SPREADSHEET_EXTENSIONS.has(ext)});
   }
   return out;
 }
 
-async function downloadFixture(url, destPath) {
+async function downloadFixture(url: string, destPath: string): Promise<number> {
   const res = await fetch(url, {redirect: 'follow'});
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   const length = Number(res.headers.get('content-length') ?? '0');
@@ -116,7 +254,7 @@ async function downloadFixture(url, destPath) {
   return buf.byteLength;
 }
 
-function normalizeComment(c) {
+function normalizeComment(c: GhComment): NormalizedComment {
   return {
     author: c.user?.login ?? null,
     authorAssociation: c.author_association ?? null,
@@ -130,7 +268,11 @@ function normalizeComment(c) {
 // attachments. This is the atom Phase 1 fans out across the whole backlog.
 // Returns a summary; with `skipIfExists`, a thread already on disk is left
 // untouched so a bulk fill is cheaply resumable.
-export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = false} = {}) {
+export async function harvestOne({
+  number,
+  repo = DEFAULT_REPO,
+  skipIfExists = false,
+}: HarvestOptions): Promise<HarvestSummary> {
   if (!Number.isInteger(number) || number <= 0) {
     throw new Error(`Expected a positive issue/PR number, got: ${number}`);
   }
@@ -144,22 +286,25 @@ export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = fa
     return {number, recordPath, skipped: true};
   }
 
-  const issue = await gh(`repos/${repo}/issues/${number}`);
+  const issue = (await gh(`repos/${repo}/issues/${number}`)) as GhIssue;
   const isPR = Boolean(issue.pull_request);
+  const type: ItemType = isPR ? 'pull_request' : 'issue';
   const comments =
-    issue.comments > 0 ? await gh(`repos/${repo}/issues/${number}/comments`, {paginate: true}) : [];
+    (issue.comments ?? 0) > 0
+      ? ((await gh(`repos/${repo}/issues/${number}/comments`, {paginate: true})) as GhComment[])
+      : [];
 
   const attachmentSources = [issue.body, ...comments.map((c) => c.body)].join('\n');
   const attachments = discoverAttachments(attachmentSources);
 
   // PRs carry their real value in the reproduction and the changed-file map, not
   // the diff itself (we are deleting the code the diff targets). Capture the shape.
-  let pr;
+  let pr: PrSummary | undefined;
   if (isPR) {
-    const [detail, files] = await Promise.all([
+    const [detail, files] = (await Promise.all([
       gh(`repos/${repo}/pulls/${number}`),
       gh(`repos/${repo}/pulls/${number}/files`, {paginate: true}),
-    ]);
+    ])) as [GhPullDetail, GhPullFile[]];
     pr = {
       merged: detail.merged ?? false,
       mergeable: detail.mergeable ?? null,
@@ -179,14 +324,14 @@ export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = fa
     schema: 'ts-xlsx/backlog-item@1',
     repo,
     number,
-    type: isPR ? 'pull_request' : 'issue',
+    type,
     url: issue.html_url,
     title: issue.title,
     state: issue.state,
     author: issue.user?.login ?? null,
     createdAt: issue.created_at ?? null,
     closedAt: issue.closed_at ?? null,
-    labels: (issue.labels ?? []).map((l) => (typeof l === 'string' ? l : l.name)),
+    labels: (issue.labels ?? []).map(labelName),
     reactions: issue.reactions?.total_count ?? 0,
     commentCount: issue.comments ?? 0,
     body: issue.body ?? '',
@@ -199,7 +344,7 @@ export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = fa
   await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`);
 
   const fixtures = attachments.filter((a) => a.isFixture);
-  const downloaded = [];
+  const downloaded: DownloadResult[] = [];
   for (const [i, att] of fixtures.entries()) {
     const name = `${padded}-${i}.${att.ext}`;
     const dest = resolve(ATTACHMENTS_DIR, padded, name);
@@ -207,7 +352,7 @@ export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = fa
       const bytes = await downloadFixture(att.url, dest);
       downloaded.push({name, bytes});
     } catch (err) {
-      downloaded.push({name, error: String(err.message ?? err)});
+      downloaded.push({name, error: errorMessage(err)});
     }
   }
 
@@ -221,4 +366,10 @@ export async function harvestOne({number, repo = DEFAULT_REPO, skipIfExists = fa
     fixtureCount: fixtures.length,
     downloaded,
   };
+}
+
+// Coerce an unknown thrown value into a printable message without assuming Error.
+export function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
 }

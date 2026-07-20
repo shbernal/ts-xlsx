@@ -12,8 +12,8 @@ import {join} from 'node:path';
 const DIST = 'dist';
 const BUDGET_BYTES = 600 * 1024;
 
-function jsFiles(dir) {
-  const out = [];
+function jsFiles(dir: string): string[] {
+  const out: string[] = [];
   for (const entry of readdirSync(dir, {withFileTypes: true})) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...jsFiles(path));
@@ -29,7 +29,7 @@ for (const file of jsFiles(DIST)) {
   count += 1;
 }
 
-const kb = (n) => `${(n / 1024).toFixed(1)} KB`;
+const kb = (n: number) => `${(n / 1024).toFixed(1)} KB`;
 console.log(`runtime JS: ${kb(total)} across ${count} file(s) — budget ${kb(BUDGET_BYTES)}`);
 
 if (total > BUDGET_BYTES) {

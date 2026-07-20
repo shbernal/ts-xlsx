@@ -20,11 +20,23 @@
 // Usage:  node test/corpus/run.mjs [--adapter rewrite]
 
 import assert from 'node:assert/strict';
-import {readdir} from 'node:fs/promises';
+import {access, readdir} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+// Resolve a module that may be mid-migration from `.mjs` to `.ts`, preferring the
+// migrated `.ts` when both exist.
+async function resolveExisting(...candidates) {
+  for (const path of candidates) {
+    try {
+      await access(path);
+      return path;
+    } catch {}
+  }
+  throw new Error(`none of these exist:\n  ${candidates.join('\n  ')}`);
+}
 
 function parseArgs(argv) {
   const args = {adapter: 'rewrite'};
@@ -37,7 +49,11 @@ function parseArgs(argv) {
 
 async function loadCases() {
   const dir = resolve(HERE, 'cases');
-  const files = (await readdir(dir)).filter((f) => f.endsWith('.case.mjs')).sort();
+  // Cases are migrating `.case.mjs` → `.case.ts`; accept either so the rename can
+  // land incrementally without a flag day.
+  const files = (await readdir(dir))
+    .filter((f) => f.endsWith('.case.mjs') || f.endsWith('.case.ts'))
+    .sort();
   const cases = [];
   for (const file of files) {
     const mod = await import(pathToFileURL(resolve(dir, file)).href);
@@ -62,9 +78,11 @@ const MARK = {ok: '✓', bug: '○', regression: '✗', fixed: '↑', skip: '∅
 
 async function main() {
   const {adapter: adapterName} = parseArgs(process.argv.slice(2));
-  const adapterMod = await import(
-    pathToFileURL(resolve(HERE, 'adapters', `${adapterName}.mjs`)).href
+  const adapterPath = await resolveExisting(
+    resolve(HERE, 'adapters', `${adapterName}.ts`),
+    resolve(HERE, 'adapters', `${adapterName}.mjs`),
   );
+  const adapterMod = await import(pathToFileURL(adapterPath).href);
   const api = adapterMod.default;
   const cases = await loadCases();
 

@@ -8,7 +8,7 @@
   "files": {
     "includes": [
       "src/**/*.ts",
-      "scripts/**/*.mjs",
+      "scripts/**/*.ts",
       "test/**/*.mjs",
       "!test/corpus/fixtures/**"
     ]
@@ -63,7 +63,7 @@
       }
     },
     {
-      "includes": ["scripts/**/*.mjs"],
+      "includes": ["scripts/**/*.ts"],
       "linter": {
         "rules": {
           "suspicious": {

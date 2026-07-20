@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Snapshot the entire open upstream backlog into a manifest — done ONCE.
 //
-// Usage:  node scripts/harvest/list-backlog.mjs [--repo owner/name]
+// Usage:  node scripts/harvest/list-backlog.ts [--repo owner/name]
 //
-// The harvest is a one-time operation (STRATEGY.md Phase 1): this manifest is the
-// proof-of-universe. It records every open issue + PR that existed at fork time so
-// the drain has a fixed denominator — `status.mjs` measures progress against it,
-// and it lets us prove nothing was silently dropped (CLAUDE.md §"no silent caps")
-// even though we delete each raw record as we process it.
+// The harvest is a one-time operation: this manifest is the proof-of-universe. It
+// records every open issue + PR that existed at fork time so the drain has a fixed
+// denominator — `status.ts` measures progress against it, and it lets us prove
+// nothing was silently dropped even though we delete each raw record as we
+// process it.
 //
 // We do NOT re-run this to pick up new upstream activity; the universe is frozen
 // the moment we capture it. Re-running only refreshes titles/labels/counts for the
@@ -15,12 +15,24 @@
 
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {dirname} from 'node:path';
-import {DEFAULT_REPO, fileExists, isValidRepo, listOpenItems, MANIFEST_PATH} from './lib.mjs';
+import type {Manifest} from './lib.ts';
+import {
+  DEFAULT_REPO,
+  errorMessage,
+  fileExists,
+  isValidRepo,
+  listOpenItems,
+  MANIFEST_PATH,
+} from './lib.ts';
 
-function parseArgs(argv) {
-  const args = {repo: DEFAULT_REPO};
+interface ListArgs {
+  repo: string;
+}
+
+function parseArgs(argv: string[]): ListArgs {
+  const args: ListArgs = {repo: DEFAULT_REPO};
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--repo') args.repo = argv[++i];
+    if (argv[i] === '--repo') args.repo = argv[++i] ?? '';
     else throw new Error(`Unrecognized argument: ${argv[i]}`);
   }
   if (!isValidRepo(args.repo)) throw new Error(`Invalid --repo value: ${args.repo}`);
@@ -35,7 +47,8 @@ async function main() {
   let harvestComplete = false;
   if (await fileExists(MANIFEST_PATH)) {
     try {
-      harvestComplete = JSON.parse(await readFile(MANIFEST_PATH, 'utf8')).harvestComplete ?? false;
+      const prior = JSON.parse(await readFile(MANIFEST_PATH, 'utf8')) as Partial<Manifest>;
+      harvestComplete = prior.harvestComplete ?? false;
     } catch {
       // A corrupt manifest is rewritten from scratch.
     }
@@ -48,7 +61,7 @@ async function main() {
   const issues = items.filter((i) => i.type === 'issue').length;
   const prs = items.length - issues;
 
-  const manifest = {
+  const manifest: Manifest = {
     schema: 'ts-xlsx/backlog-manifest@1',
     repo,
     generatedAt: new Date().toISOString(),
@@ -64,10 +77,10 @@ async function main() {
 
   console.log(`Wrote manifest: ${MANIFEST_PATH}`);
   console.log(`  universe: ${items.length} item(s) — ${issues} issue(s), ${prs} PR(s)`);
-  console.log(`Next: node scripts/harvest/harvest-all.mjs   (fill the queue)`);
+  console.log(`Next: node scripts/harvest/harvest-all.ts   (fill the queue)`);
 }
 
-main().catch((err) => {
-  console.error(`list-backlog failed: ${err.message ?? err}`);
+main().catch((err: unknown) => {
+  console.error(`list-backlog failed: ${errorMessage(err)}`);
   process.exitCode = 1;
 });
