@@ -7,19 +7,89 @@ import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import type JSZipType from 'jszip';
+
+/** Structured diagnostic emitted per validation problem by OpenXmlValidator. */
+interface ValidationError {
+  readonly id: string;
+  readonly type: string;
+  readonly partUri: string;
+  readonly xpath: string;
+}
+
+/** The stable subset of a diagnostic used to detect baseline drift. */
+type ValidationFingerprint = Pick<ValidationError, 'id' | 'type' | 'partUri' | 'xpath'>;
+
+/** Per-file validation outcome inside a report. */
+interface ValidationResult {
+  readonly file: string;
+  readonly valid: boolean;
+  readonly errors: readonly ValidationError[];
+}
+
+/** The full JSON document the validator prints to stdout. */
+interface ValidationReport {
+  readonly format: string;
+  readonly results: readonly ValidationResult[];
+}
+
+/** Baselined-until-fixed diagnostics, keyed by workbook basename. */
+type Baseline = Readonly<Record<string, readonly ValidationFingerprint[]>>;
+
+/** The captured outcome of one `dotnet run` invocation. */
+interface DotnetRun {
+  readonly code: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+/** The narrow slice of the legacy ExcelJS surface this harness drives. */
+interface LegacyWorkbook {
+  addWorksheet(name: string): LegacyWorksheet;
+  readonly xlsx: {writeFile(file: string): Promise<void>};
+  commit(): Promise<void>;
+}
+
+interface LegacyCell {
+  font: unknown;
+  dataValidation: unknown;
+  value: unknown;
+}
+
+interface LegacyRow {
+  commit(): void;
+}
+
+interface LegacyWorksheet {
+  columns: ReadonlyArray<{header: string; key: string; width: number}>;
+  addRow(data: unknown): LegacyRow;
+  getCell(address: string): LegacyCell;
+  addTable(table: unknown): void;
+  commit(): void;
+}
+
+interface LegacyExcelJS {
+  Workbook: {new (): LegacyWorkbook};
+  stream: {xlsx: {WorkbookWriter: {new (options: unknown): LegacyWorkbook}}};
+}
 
 const require = createRequire(import.meta.url);
-const ExcelJS = require('../../lib/exceljs.nodejs.js');
-const JSZip = require('jszip');
+const ExcelJS = require('../../lib/exceljs.nodejs.js') as LegacyExcelJS;
+const JSZip = require('jszip') as typeof JSZipType;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
 const PROJECT = path.join(ROOT, 'tools', 'ooxml-validator', 'OoxmlValidator.csproj');
-const BASELINE = JSON.parse(await readFile(path.join(HERE, 'allowed-errors.json'), 'utf8'));
+const BASELINE = JSON.parse(
+  await readFile(path.join(HERE, 'allowed-errors.json'), 'utf8'),
+) as Baseline;
 const TIMEOUT_MS = 30_000;
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 
-function runDotnet(files, {format = 'Microsoft365'} = {}) {
+function runDotnet(
+  files: readonly string[],
+  {format = 'Microsoft365'}: {format?: string} = {},
+): Promise<DotnetRun> {
   const args = [
     'run',
     '--project',
@@ -33,10 +103,13 @@ function runDotnet(files, {format = 'Microsoft365'} = {}) {
     ...files,
   ];
 
-  return new Promise((resolve, reject) => {
-    const child = spawn('dotnet', args, {cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe']});
-    const stdout = [];
-    const stderr = [];
+  return new Promise<DotnetRun>((resolve, reject) => {
+    const child = spawn('dotnet', args, {
+      cwd: ROOT,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
     let outputBytes = 0;
     let settled = false;
     const timeout = setTimeout(() => {
@@ -44,7 +117,7 @@ function runDotnet(files, {format = 'Microsoft365'} = {}) {
       reject(new Error(`OOXML validator timed out after ${TIMEOUT_MS}ms`));
     }, TIMEOUT_MS);
 
-    const collect = (target) => (chunk) => {
+    const collect = (target: Buffer[]) => (chunk: Buffer) => {
       outputBytes += chunk.length;
       if (outputBytes > MAX_OUTPUT_BYTES) {
         child.kill('SIGKILL');
@@ -75,7 +148,7 @@ function runDotnet(files, {format = 'Microsoft365'} = {}) {
   });
 }
 
-async function writeBufferedWorkbook(file) {
+async function writeBufferedWorkbook(file: string): Promise<void> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Data');
   sheet.columns = [
@@ -96,7 +169,7 @@ async function writeBufferedWorkbook(file) {
   await workbook.xlsx.writeFile(file);
 }
 
-async function writeStreamingWorkbook(file) {
+async function writeStreamingWorkbook(file: string): Promise<void> {
   const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
     filename: file,
     useSharedStrings: true,
@@ -113,13 +186,17 @@ async function writeStreamingWorkbook(file) {
   await workbook.commit();
 }
 
-async function rewritePackage(source, destination, transform) {
+async function rewritePackage(
+  source: string,
+  destination: string,
+  transform: (zip: JSZipType) => Promise<void>,
+): Promise<void> {
   const zip = await JSZip.loadAsync(await readFile(source));
   await transform(zip);
   await writeFile(destination, await zip.generateAsync({type: 'nodebuffer'}));
 }
 
-async function makeSchemaCleanControl(source, destination) {
+async function makeSchemaCleanControl(source: string, destination: string): Promise<void> {
   await rewritePackage(source, destination, async (zip) => {
     const stylesPart = zip.file('xl/styles.xml');
     assert.ok(stylesPart, 'generated workbook must contain xl/styles.xml');
@@ -133,7 +210,7 @@ async function makeSchemaCleanControl(source, destination) {
   });
 }
 
-async function makeSchemaInvalidControl(source, destination) {
+async function makeSchemaInvalidControl(source: string, destination: string): Promise<void> {
   await rewritePackage(source, destination, async (zip) => {
     const sheetPart = zip.file('xl/worksheets/sheet1.xml');
     assert.ok(sheetPart, 'generated workbook must contain xl/worksheets/sheet1.xml');
@@ -144,7 +221,7 @@ async function makeSchemaInvalidControl(source, destination) {
   });
 }
 
-function fingerprint(error) {
+function fingerprint(error: ValidationError): ValidationFingerprint {
   return {
     id: error.id,
     type: error.type,
@@ -153,7 +230,7 @@ function fingerprint(error) {
   };
 }
 
-function parseReport(result, expectedCode) {
+function parseReport(result: DotnetRun, expectedCode: number): ValidationReport {
   assert.strictEqual(
     result.code,
     expectedCode,
@@ -163,10 +240,10 @@ function parseReport(result, expectedCode) {
     () => JSON.parse(result.stdout),
     `validator must emit JSON: ${result.stdout}`,
   );
-  return JSON.parse(result.stdout);
+  return JSON.parse(result.stdout) as ValidationReport;
 }
 
-async function main() {
+async function main(): Promise<void> {
   const temp = await mkdtemp(path.join(tmpdir(), 'ts-xlsx-ooxml-'));
   try {
     const buffered = path.join(temp, 'buffered.xlsx');
@@ -241,7 +318,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.stack ?? error);
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? (error.stack ?? error.message) : error);
   process.exitCode = 1;
 });
