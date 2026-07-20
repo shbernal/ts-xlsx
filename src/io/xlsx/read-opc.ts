@@ -4,7 +4,7 @@
 // it takes part text/bytes accessors and returns paths or records, touching no Workbook model.
 
 import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts';
-import {openElements} from './xml-read.ts';
+import {openElements, type XmlAttributes} from './xml-read.ts';
 
 // The extension of a part path (`xl/media/image1.png` → `png`), or '' when it carries none.
 export function extensionOf(partPath: string): string {
@@ -20,19 +20,22 @@ export function relsPathFor(partPath: string): string {
   return `${dir}_rels/${base}.rels`;
 }
 
-// The Target of the first relationship whose Type ends with `/<suffix>` (local-name match, so a
-// namespaced or oddly-cased type still resolves), or undefined when none is declared.
+// Whether a <Relationship> carries a resolvable Target and its Type ends with `/<suffix>` (a
+// local-name match, so a namespaced or oddly-cased type still resolves). The type guard lets a
+// matching relationship's Target be read without a further presence check.
+function matchesType(
+  attrs: XmlAttributes,
+  suffix: string,
+): attrs is {Type: string; Target: string} {
+  return (
+    attrs.Type !== undefined && attrs.Target !== undefined && attrs.Type.endsWith(`/${suffix}`)
+  );
+}
+
+// The Target of the first relationship whose Type ends with `/<suffix>`, or undefined when none is
+// declared — for a single expected reference, where the plural form below would over-gather.
 export function relationshipTargetByType(xml: string, suffix: string): string | undefined {
-  for (const {attrs} of openElements(xml, 'Relationship')) {
-    if (
-      attrs.Type !== undefined &&
-      attrs.Target !== undefined &&
-      attrs.Type.endsWith(`/${suffix}`)
-    ) {
-      return attrs.Target;
-    }
-  }
-  return undefined;
+  return relationshipTargetsByType(xml, suffix)[0];
 }
 
 // Every Target whose Type ends with `/<suffix>`, in declaration order — for a part class a sheet may
@@ -41,13 +44,7 @@ export function relationshipTargetByType(xml: string, suffix: string): string | 
 export function relationshipTargetsByType(xml: string, suffix: string): string[] {
   const targets: string[] = [];
   for (const {attrs} of openElements(xml, 'Relationship')) {
-    if (
-      attrs.Type !== undefined &&
-      attrs.Target !== undefined &&
-      attrs.Type.endsWith(`/${suffix}`)
-    ) {
-      targets.push(attrs.Target);
-    }
+    if (matchesType(attrs, suffix)) targets.push(attrs.Target);
   }
   return targets;
 }
