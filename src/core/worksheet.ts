@@ -36,7 +36,7 @@ import {
   type SheetProtectionCredential,
   type SheetProtectionOptions,
 } from './protection.ts';
-import type {Alignment, Border, Color, Fill, Font, Protection} from './style.ts';
+import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions} from './table.ts';
 import type {CellValue} from './value.ts';
 
@@ -87,7 +87,7 @@ export interface SheetView {
  * one that leaves a facet unset inherits the column's — the same precedence Excel applies, and
  * symmetric with how a {@link RowProperties} fill defaults a row's cells.
  */
-export interface ColumnProperties {
+export interface ColumnProperties extends CellStyle {
   /** Stable key naming the column so a keyed-object row (see {@link Worksheet.addRow}) can place a
    * value under it by name rather than position. In-memory only — it is not serialized to OOXML. */
   key?: string;
@@ -95,18 +95,6 @@ export interface ColumnProperties {
   width?: number;
   /** Whether the column is hidden. */
   hidden?: boolean;
-  /** Number-format code applied to the column's cells that carry no format of their own. */
-  numFmt?: string;
-  /** Background fill applied to the column's cells that carry no fill of their own. */
-  fill?: Fill;
-  /** Font applied to the column's cells that carry no font of their own. */
-  font?: Partial<Font>;
-  /** Border applied to the column's cells that carry no border of their own. */
-  border?: Border;
-  /** Alignment applied to the column's cells that carry no alignment of their own. */
-  alignment?: Alignment;
-  /** Protection applied to the column's cells that carry no protection of their own. */
-  protection?: Protection;
   /** Outline (grouping) depth; 0 or absent means ungrouped. */
   outlineLevel?: number;
   /** Whether this column is the collapsed summary of an outline group. */
@@ -133,16 +121,10 @@ export interface RowProperties {
 }
 
 /** One materialised cell in a {@link WorksheetModel}: its position, value, and per-cell style facets. */
-export interface CellModel {
+export interface CellModel extends CellStyle {
   readonly row: number;
   readonly col: number;
   value: CellValue;
-  fill?: Fill | undefined;
-  numFmt?: string | undefined;
-  font?: Partial<Font> | undefined;
-  border?: Border | undefined;
-  alignment?: Alignment | undefined;
-  protection?: Protection | undefined;
   note?: string | undefined;
 }
 

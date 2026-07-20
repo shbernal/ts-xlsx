@@ -59,6 +59,7 @@ export type {
   Border,
   BorderEdge,
   BorderStyle,
+  CellStyle,
   Color,
   Fill,
   FillPatternType,

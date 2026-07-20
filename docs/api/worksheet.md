@@ -12,16 +12,10 @@ one that leaves a facet unset inherits the column's — the same precedence Exce
 symmetric with how a `RowProperties` fill defaults a row's cells.
 
 ```ts
-interface ColumnProperties {
+interface ColumnProperties extends CellStyle {
     key?: string;
     width?: number;
     hidden?: boolean;
-    numFmt?: string;
-    fill?: Fill;
-    font?: Partial<Font>;
-    border?: Border;
-    alignment?: Alignment;
-    protection?: Protection;
     outlineLevel?: number;
     collapsed?: boolean;
 }

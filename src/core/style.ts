@@ -272,19 +272,42 @@ export interface Protection {
 }
 
 /**
+ * The six direct-format facets a cell can carry — its fill, number format, font, border, alignment,
+ * and protection. Every facet is optional and independent: a cell sets only the facets it overrides
+ * and inherits the rest. This one tuple is the unit of style throughout the library, so the
+ * interfaces that carry a cell's formatting compose it rather than re-listing the fields — a column,
+ * table column, or named style whose facets *default* the cells that leave them unset (see
+ * {@link ColumnProperties}, {@link NamedCellStyle}), and a cell's own resolved format. Because they
+ * share this type, "add a facet" is a single edit here and the compiler enforces that no read/write
+ * path silently drops one — the round-trip symmetry the merge-loss contract depends on.
+ */
+export interface CellStyle {
+  fill?: Fill | undefined;
+  numFmt?: string | undefined;
+  font?: Partial<Font> | undefined;
+  border?: Border | undefined;
+  alignment?: Alignment | undefined;
+  protection?: Protection | undefined;
+}
+
+/** The names of the {@link CellStyle} facets, for helpers that copy the tuple facet-by-facet. */
+export const CELL_STYLE_FACETS = [
+  'fill',
+  'numFmt',
+  'font',
+  'border',
+  'alignment',
+  'protection',
+] as const satisfies readonly (keyof CellStyle)[];
+
+/**
  * A named cell style — the OOXML `cellStyleXfs`/`cellStyles` layer. A spreadsheet applies a built-in
  * or custom style (e.g. "Normal", "Accent1") whose visual facets live in this shared, named layer
  * rather than on each cell's direct format; a cell links to it and inherits any facet the direct
- * format leaves unset. The facets mirror {@link Cell}'s own; `name` is the style's display name and
- * `builtinId` its Excel gallery index when it is a built-in style.
+ * format leaves unset. The facets are a cell's own (see {@link CellStyle}); `name` is the style's
+ * display name and `builtinId` its Excel gallery index when it is a built-in style.
  */
-export interface NamedCellStyle {
+export type NamedCellStyle = Readonly<CellStyle> & {
   readonly name?: string;
   readonly builtinId?: number;
-  readonly fill?: Fill;
-  readonly numFmt?: string;
-  readonly font?: Partial<Font>;
-  readonly border?: Border;
-  readonly alignment?: Alignment;
-  readonly protection?: Protection;
-}
+};

@@ -76,6 +76,32 @@ type BorderStyle = 'thin' | 'medium' | 'thick' | 'dashed' | 'dotted' | 'double' 
 
 ---
 
+### `CellStyle`
+
+<sub>interface</sub>
+
+The six direct-format facets a cell can carry — its fill, number format, font, border, alignment,
+and protection. Every facet is optional and independent: a cell sets only the facets it overrides
+and inherits the rest. This one tuple is the unit of style throughout the library, so the
+interfaces that carry a cell's formatting compose it rather than re-listing the fields — a column,
+table column, or named style whose facets *default* the cells that leave them unset (see
+`ColumnProperties`, `NamedCellStyle`), and a cell's own resolved format. Because they
+share this type, "add a facet" is a single edit here and the compiler enforces that no read/write
+path silently drops one — the round-trip symmetry the merge-loss contract depends on.
+
+```ts
+interface CellStyle {
+    fill?: Fill | undefined;
+    numFmt?: string | undefined;
+    font?: Partial<Font> | undefined;
+    border?: Border | undefined;
+    alignment?: Alignment | undefined;
+    protection?: Protection | undefined;
+}
+```
+
+---
+
 ### `Color`
 
 <sub>interface</sub>

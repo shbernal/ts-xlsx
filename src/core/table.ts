@@ -8,20 +8,13 @@
 // on the *shape* itself: a legal name, at least one column, and at least one row.
 
 import {decodeAddress, encodeAddress} from './address.ts';
-import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
+import type {CellStyle} from './style.ts';
 import type {CellValue} from './value.ts';
 
 /** A per-column cell format applied to a table's body cells — the facets Excel's table-column style
- * bakes into the cells rather than storing as table metadata. Every facet is optional; only the ones
- * set are applied, leaving the rest of each cell's style untouched. */
-export interface TableColumnStyle {
-  readonly numFmt?: string;
-  readonly font?: Partial<Font>;
-  readonly fill?: Fill;
-  readonly border?: Border;
-  readonly alignment?: Alignment;
-  readonly protection?: Protection;
-}
+ * bakes into the cells rather than storing as table metadata. Every facet ({@link CellStyle}) is
+ * optional; only the ones set are applied, leaving the rest of each cell's style untouched. */
+export type TableColumnStyle = Readonly<CellStyle>;
 
 /** Writes a value into the owning worksheet's grid at a 1-based row/column, applying the column's
  * style (if any) to the cell — the hook a {@link Table} uses to materialise the cells of a row
