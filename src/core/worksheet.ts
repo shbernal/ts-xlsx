@@ -24,6 +24,7 @@ import {
   type ImageAnchor,
   type ImageEditAs,
   PX_TO_EMU,
+  resolveAnchorPoint,
   type TwoCellAnchor,
 } from './image.ts';
 import {decodeSqrefRects, type MergeRect, rectsOverlap} from './merge.ts';
@@ -163,15 +164,6 @@ export interface WorksheetModel {
   autoFilter: AutoFilter | undefined;
   protection: SheetProtection | undefined;
 }
-
-// Sub-cell anchor geometry: a fractional grid coordinate resolves to the cell it floors to plus an
-// EMU offset scaled by that cell's real size. Excel measures a column in characters of the default
-// font (~7 px each at 96 DPI) and a row in points (1/72 inch); an unset size falls back to Excel's
-// own defaults. Consumed by the class's `#columnWidthEmu`/`#rowHeightEmu` anchor-resolution methods.
-const CHAR_WIDTH_PX = 7;
-const EMU_PER_POINT = 12700;
-const DEFAULT_COL_WIDTH_CHARS = 8.43;
-const DEFAULT_ROW_HEIGHT_POINTS = 15;
 
 export class Worksheet {
   readonly name: string;
@@ -573,46 +565,26 @@ export class Worksheet {
       | {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs}
       | {readonly tl: AnchorPoint; readonly ext: {readonly width: number; readonly height: number}},
   ): void {
+    // Bind the pure anchor geometry to this sheet's per-column/row sizes; a size a column or row does
+    // not set defers to the sheet default, then (inside resolveAnchorPoint) to Excel's own default.
+    const columnWidth = (col: number): number | undefined =>
+      this.#columns.get(col + 1)?.width ?? this.properties.defaultColWidth;
+    const rowHeight = (row: number): number | undefined =>
+      this.#rowProperties.get(row + 1)?.height ?? this.properties.defaultRowHeight;
     if ('ext' in anchor) {
       const ext: Extent = {
         cx: Math.round(anchor.ext.width * PX_TO_EMU),
         cy: Math.round(anchor.ext.height * PX_TO_EMU),
       };
-      this.#images.push({imageId, anchor: {from: this.#resolveAnchorPoint(anchor.tl), ext}});
+      const from = resolveAnchorPoint(anchor.tl, columnWidth, rowHeight);
+      this.#images.push({imageId, anchor: {from, ext}});
       return;
     }
-    const from = this.#resolveAnchorPoint(anchor.tl);
-    const to = this.#resolveAnchorPoint(anchor.br);
+    const from = resolveAnchorPoint(anchor.tl, columnWidth, rowHeight);
+    const to = resolveAnchorPoint(anchor.br, columnWidth, rowHeight);
     const twoCell: TwoCellAnchor =
       anchor.editAs !== undefined ? {from, to, editAs: anchor.editAs} : {from, to};
     this.#images.push({imageId, anchor: twoCell});
-  }
-
-  // Resolve a possibly-fractional anchor point to the cell it floors to plus a sub-cell EMU offset
-  // scaled by that cell's real width/height, so `col: 3.5` lands halfway across column 3 regardless
-  // of the column's size. An already-integer point keeps a zero offset (unless one was given).
-  #resolveAnchorPoint(point: AnchorPoint): AnchorPoint {
-    const col = Math.floor(point.col);
-    const row = Math.floor(point.row);
-    const colOff = (point.colOff ?? 0) + Math.round((point.col - col) * this.#columnWidthEmu(col));
-    const rowOff = (point.rowOff ?? 0) + Math.round((point.row - row) * this.#rowHeightEmu(row));
-    return {col, row, colOff, rowOff};
-  }
-
-  #columnWidthEmu(col: number): number {
-    const width =
-      this.#columns.get(col + 1)?.width ??
-      this.properties.defaultColWidth ??
-      DEFAULT_COL_WIDTH_CHARS;
-    return Math.round(width * CHAR_WIDTH_PX * PX_TO_EMU);
-  }
-
-  #rowHeightEmu(row: number): number {
-    const height =
-      this.#rowProperties.get(row + 1)?.height ??
-      this.properties.defaultRowHeight ??
-      DEFAULT_ROW_HEIGHT_POINTS;
-    return Math.round(height * EMU_PER_POINT);
   }
 
   /**

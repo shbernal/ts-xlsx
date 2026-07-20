@@ -62,6 +62,40 @@ export function isOneCellAnchor(anchor: ImageAnchor): anchor is OneCellAnchor {
   return 'ext' in anchor;
 }
 
+// Sub-cell anchor geometry. Excel measures a column in characters of the default font (~7 px each at
+// 96 DPI) and a row in points (1/72 inch); a column or row that sets no size falls back to Excel's
+// own defaults. These constants live here, beside the anchor model they serve, rather than in the
+// Worksheet that merely supplies the per-column/row sizes.
+const CHAR_WIDTH_PX = 7;
+const EMU_PER_POINT = 12700;
+const DEFAULT_COL_WIDTH_CHARS = 8.43;
+const DEFAULT_ROW_HEIGHT_POINTS = 15;
+
+/** A column's width in characters of the default font, or `undefined` to take Excel's default. */
+export type ColumnWidthLookup = (col: number) => number | undefined;
+/** A row's height in points, or `undefined` to take Excel's default. */
+export type RowHeightLookup = (row: number) => number | undefined;
+
+/** Resolve a possibly-fractional anchor point to the cell it floors to plus a sub-cell EMU offset
+ * scaled by that cell's real width/height, so `col: 3.5` lands halfway across column 3 regardless of
+ * the column's size. An already-integer point keeps a zero offset (unless one was given). The two
+ * lookups supply each column/row's size; a size they leave `undefined` falls back to Excel's default. */
+export function resolveAnchorPoint(
+  point: AnchorPoint,
+  columnWidth: ColumnWidthLookup,
+  rowHeight: RowHeightLookup,
+): AnchorPoint {
+  const col = Math.floor(point.col);
+  const row = Math.floor(point.row);
+  const colWidthEmu = Math.round(
+    (columnWidth(col) ?? DEFAULT_COL_WIDTH_CHARS) * CHAR_WIDTH_PX * PX_TO_EMU,
+  );
+  const rowHeightEmu = Math.round((rowHeight(row) ?? DEFAULT_ROW_HEIGHT_POINTS) * EMU_PER_POINT);
+  const colOff = (point.colOff ?? 0) + Math.round((point.col - col) * colWidthEmu);
+  const rowOff = (point.rowOff ?? 0) + Math.round((point.row - row) * rowHeightEmu);
+  return {col, row, colOff, rowOff};
+}
+
 /** An image pinned to a worksheet: which workbook media it shows (`imageId`) and where. */
 export interface AnchoredImage {
   /** Index into the workbook's media registry (the id {@link Workbook.addImage} returned). */
