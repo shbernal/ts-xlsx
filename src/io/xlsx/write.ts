@@ -29,6 +29,7 @@ import {
   type PivotPlan,
   type PlannedImage,
   type PlannedTable,
+  type PreservedPartPlan,
   type PreservedReferencePlan,
   type PrinterSettingsPlan,
   planMedia,
@@ -362,6 +363,28 @@ export function buildPackageParts(
   for (const part of media.parts) {
     files[`xl/media/image${part.number}.${part.extension}`] = part.data;
   }
+  emitSheetParts(files, perSheet, sheetXml);
+  for (const {table, number} of allTables) {
+    files[`xl/tables/table${number}.xml`] = strToU8(tableXml(table, number));
+  }
+  emitPivotParts(files, allPivots);
+  emitPreservedParts(files, preserved.parts);
+
+  return files;
+}
+
+// The map of OPC part paths to their serialised bytes, accumulated by {@link buildPackageParts} and
+// its per-phase `emit*` helpers.
+type PackageFiles = Record<string, Uint8Array>;
+
+// Emit each sheet's own parts: the sheet XML, its rels part (only when the sheet references something),
+// and the drawing/comment/printer-settings parts those relationships point at. `sheetXml[i]` is the
+// already-serialised body for `perSheet[i]`, indexed in lockstep.
+function emitSheetParts(
+  files: PackageFiles,
+  perSheet: readonly SheetPlan[],
+  sheetXml: readonly string[],
+): void {
   perSheet.forEach((plan, i) => {
     const {
       tables,
@@ -418,12 +441,12 @@ export function buildPackageParts(
       );
     }
   });
-  for (const {table, number} of allTables) {
-    files[`xl/tables/table${number}.xml`] = strToU8(tableXml(table, number));
-  }
-  // A pivot spans three parts wired in a chain: the pivot-table part (linked from its host sheet)
-  // references the cache definition, which references the cache records. Each cache carries a rels
-  // part naming the next link by `rId1` — the id the definition/table XML resolves against.
+}
+
+// Emit every pivot table's three chained parts. A pivot spans a pivot-table part (linked from its host
+// sheet) that references a cache definition, which references its cache records. Each cache carries a
+// rels part naming the next link by `rId1` — the id the definition/table XML resolves against.
+function emitPivotParts(files: PackageFiles, allPivots: readonly PivotPlan[]): void {
   for (const pivot of allPivots) {
     const {number, cacheId, table} = pivot;
     files[`xl/pivotTables/pivotTable${number}.xml`] = strToU8(
@@ -448,14 +471,15 @@ export function buildPackageParts(
     );
     files[`xl/pivotCache/pivotCacheRecords${number}.xml`] = strToU8(pivotCacheRecordsXml(table));
   }
-  // Emit the verbatim-preserved parts (and their rewired rels) last: their paths are collision-proof,
-  // so ordering against the generated parts does not matter.
-  for (const part of preserved.parts) {
+}
+
+// Emit the verbatim-preserved parts (and their rewired rels) last: their paths are collision-proof, so
+// ordering against the generated parts does not matter.
+function emitPreservedParts(files: PackageFiles, parts: readonly PreservedPartPlan[]): void {
+  for (const part of parts) {
     files[part.path] = part.bytes;
     if (part.relsPath !== null && part.relsXml !== null) {
       files[part.relsPath] = strToU8(part.relsXml);
     }
   }
-
-  return files;
 }
