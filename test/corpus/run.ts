@@ -17,18 +17,40 @@
 // land a case for a not-yet-built capability without reddening CI — a tracked
 // known-open, not a legacy oracle's verdict.
 //
-// Usage:  node test/corpus/run.mjs [--adapter rewrite]
+// Usage:  node test/corpus/run.ts [--adapter rewrite]
 
 import assert from 'node:assert/strict';
 import {access, readdir} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import type {Behavior, Case, CorpusApi} from './case.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
+/** What a behavior actually did this run. */
+type Actual = 'pass' | 'fail' | 'skip';
+/** How that outcome reads against its baseline. */
+type Status = 'ok' | 'bug' | 'regression' | 'fixed' | 'skip';
+
+interface Outcome {
+  actual: Actual;
+  detail?: string;
+}
+
+// An adapter that does not yet implement a capability tags its error object so the
+// behavior is SKIPPED rather than counted as a failure/regression.
+function isNotImplemented(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'notImplemented' in err &&
+    Boolean((err as {notImplemented?: unknown}).notImplemented)
+  );
+}
+
 // Resolve a module that may be mid-migration from `.mjs` to `.ts`, preferring the
 // migrated `.ts` when both exist.
-async function resolveExisting(...candidates) {
+async function resolveExisting(...candidates: string[]): Promise<string> {
   for (const path of candidates) {
     try {
       await access(path);
@@ -38,43 +60,42 @@ async function resolveExisting(...candidates) {
   throw new Error(`none of these exist:\n  ${candidates.join('\n  ')}`);
 }
 
-function parseArgs(argv) {
+function parseArgs(argv: string[]): {adapter: string} {
   const args = {adapter: 'rewrite'};
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--adapter') args.adapter = argv[++i];
+    if (argv[i] === '--adapter') args.adapter = argv[++i] ?? '';
     else throw new Error(`Unrecognized argument: ${argv[i]}`);
   }
   return args;
 }
 
-async function loadCases() {
+async function loadCases(): Promise<Case[]> {
   const dir = resolve(HERE, 'cases');
   // Cases are migrating `.case.mjs` → `.case.ts`; accept either so the rename can
   // land incrementally without a flag day.
   const files = (await readdir(dir))
     .filter((f) => f.endsWith('.case.mjs') || f.endsWith('.case.ts'))
     .sort();
-  const cases = [];
+  const cases: Case[] = [];
   for (const file of files) {
     const mod = await import(pathToFileURL(resolve(dir, file)).href);
-    cases.push(mod.default);
+    cases.push(mod.default as Case);
   }
   return cases;
 }
 
-async function runBehavior(behavior, api) {
+async function runBehavior(behavior: Behavior, api: CorpusApi): Promise<Outcome> {
   try {
     await behavior.expect(api, assert);
     return {actual: 'pass'};
   } catch (err) {
-    // An adapter that does not yet implement a capability (the in-progress rewrite)
-    // tags the error so the behavior is SKIPPED, not counted as a failure/regression.
-    if (err?.notImplemented) return {actual: 'skip', detail: err.message ?? String(err)};
-    return {actual: 'fail', detail: err.message ?? String(err)};
+    const detail = err instanceof Error ? err.message : String(err);
+    if (isNotImplemented(err)) return {actual: 'skip', detail};
+    return {actual: 'fail', detail};
   }
 }
 
-const MARK = {ok: '✓', bug: '○', regression: '✗', fixed: '↑', skip: '∅'};
+const MARK: Record<Status, string> = {ok: '✓', bug: '○', regression: '✗', fixed: '↑', skip: '∅'};
 
 async function main() {
   const {adapter: adapterName} = parseArgs(process.argv.slice(2));
@@ -86,7 +107,7 @@ async function main() {
   const api = adapterMod.default;
   const cases = await loadCases();
 
-  const tally = {ok: 0, bug: 0, regression: 0, fixed: 0, skip: 0};
+  const tally: Record<Status, number> = {ok: 0, bug: 0, regression: 0, fixed: 0, skip: 0};
   const behaviorCount = cases.reduce((n, c) => n + c.behavior.length, 0);
   console.log(
     `corpus: ${cases.length} case(s), ${behaviorCount} behavior(s) vs adapter "${api.name}"\n`,
@@ -100,7 +121,7 @@ async function main() {
     console.log(`  ${testCase.id}${tag}  ${testCase.cluster}`);
     for (const behavior of testCase.behavior) {
       const {actual, detail} = await runBehavior(behavior, api);
-      let status;
+      let status: Status;
       if (actual === 'skip') status = 'skip';
       else if (behavior.baseline === 'pass' && actual === 'pass') status = 'ok';
       else if (behavior.baseline === 'fail' && actual === 'fail') status = 'bug';
@@ -128,7 +149,7 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(`corpus runner failed: ${err.stack ?? err}`);
+main().catch((err: unknown) => {
+  console.error(`corpus runner failed: ${err instanceof Error ? (err.stack ?? err.message) : err}`);
   process.exitCode = 1;
 });
