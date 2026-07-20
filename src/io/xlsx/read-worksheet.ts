@@ -3,15 +3,13 @@
 // (the cell being read, shared-formula masters, an autofilter draft, the current page-break axis) so
 // each element commits its state as it closes. Style indices resolve through the parsed style table.
 
-import {decodeAddress, decodeRange, encodeAddress} from '../../core/address.ts';
+import {decodeRange} from '../../core/address.ts';
 import {
   type CustomFilterPredicate,
   type FilterColumn,
   type FilterCriteria,
   isCustomFilterOperator,
 } from '../../core/autofilter.ts';
-import {applyCellStyle, type Cell} from '../../core/cell.ts';
-import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {PageBreak, PageMargins, PageSetup, PrintOptions} from '../../core/page-setup.ts';
 import {
   SHEET_PROTECTION_FLAGS,
@@ -20,16 +18,10 @@ import {
   type SheetProtectionFlags,
 } from '../../core/protection.ts';
 import {assignStyleFacets} from '../../core/style.ts';
-import type {DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {
-  decodeCellContent,
-  decodeFormulaResult,
-  type RawCell,
-  type SharedString,
-} from './cell-value.ts';
+import {CellAccumulator} from './cell-accumulator.ts';
+import type {SharedString} from './cell-value.ts';
 import type {XfStyle} from './read-styles.ts';
-import {RunAccumulator} from './rich-runs.ts';
 import {parseColor} from './styles.ts';
 import {
   boolPresent,
@@ -214,40 +206,12 @@ export function parseWorksheet(
   sharedStrings: readonly SharedString[],
   xfStyles: ReadonlyArray<XfStyle>,
 ): void {
-  let cellRef = '';
-  let cellType = '';
-  let cellStyle = -1;
-  let cellCol = -1;
-  let cellRow = -1;
-  let formula = '';
-  // Shared-formula bookkeeping. A master `<f t="shared" ref si>TEXT</f>` seeds the group; every clone
-  // `<f t="shared" si/>` in the sheet references it by `si` and carries no text of its own. Masters
-  // always precede their clones (Excel keeps the master top-left), so a clone resolves against a map
-  // filled as the sheet streams: the master's formula translated to the clone's position.
-  const sharedMasters = new Map<number, {formula: string; col: number; row: number}>();
-  let formulaShared = false;
-  let formulaSi = -1;
-  let sharedClone = false;
-  // The declaration attributes of a `<f t="dataTable">`, held from the `<f>` open until the cell
-  // finalises. Null for every other cell.
-  let formulaDataTable: {
-    ref: string;
-    dt2D: string | undefined;
-    dtr: string | undefined;
-    r1: string | undefined;
-    r2: string | undefined;
-  } | null = null;
-  let valueText = '';
-  let inlineText = '';
-  let hasFormula = false;
-  let hasValue = false;
+  // The one `<c>` currently being read: its address/type/style, formula, value, inline text, rich
+  // runs, and the sheet-spanning shared-formula master map. Each `<c>` resets it and commits it.
+  const cell = new CellAccumulator();
   let inInlineString = false;
   let capture = false;
   let text = '';
-  // Rich-text run accumulation while inside an `<is>` built from `<r>` runs. A `<t>` inside a run
-  // appends to the run's text; a bare `<t>` directly in the `<is>` appends to `inlineText`, keeping a
-  // plain inline string on its existing path.
-  const runs = new RunAccumulator();
   // A row with customFormat="1" supplies a default style for its cells that carry no `s`.
   let rowStyle = -1;
   let rowCustomFormat = false;
@@ -258,75 +222,18 @@ export function parseWorksheet(
   // without stamping every cell). Columns are parsed before any cell references them.
   const columnStyle = new Map<number, number>();
 
-  // Commit the cell held in the parser state to the sheet, resolving its style from its own `s`,
-  // then its row's (when customFormat), then its column's default — the order Excel applies. Runs on
-  // `</c>` close, including the synthesized close of a self-closing `<c/>` formatted-but-empty cell.
+  // Commit the cell held in the accumulator, resolving its style from its own `s`, then its row's
+  // (when customFormat), then its column's default — the order Excel applies. Runs on `</c>` close,
+  // including the synthesized close of a self-closing `<c/>` formatted-but-empty cell.
   const finalizeCellFromState = (): void => {
-    if (cellRef === '') return;
     const styleIndex =
-      cellStyle >= 0
-        ? cellStyle
+      cell.styleIndex >= 0
+        ? cell.styleIndex
         : rowCustomFormat && rowStyle >= 0
           ? rowStyle
-          : (columnStyle.get(cellCol) ?? -1);
+          : (columnStyle.get(cell.col) ?? -1);
     const style = styleIndex >= 0 ? xfStyles[styleIndex] : xfStyles[0];
-    // A data-table formula is preserved by declaration, not evaluated: surface its kind, range, input
-    // cells, and cached result so a read-modify-write cycle re-emits it rather than dropping it.
-    if (formulaDataTable !== null) {
-      const value: DataTableFormulaValue = {
-        shareType: 'dataTable',
-        ref: formulaDataTable.ref,
-        ...(boolPresent(formulaDataTable.dt2D ?? '0') ? {dataTable2D: true} : {}),
-        ...(boolPresent(formulaDataTable.dtr ?? '0') ? {dataTableRow: true} : {}),
-        ...(formulaDataTable.r1 !== undefined ? {r1: formulaDataTable.r1} : {}),
-        ...(formulaDataTable.r2 !== undefined ? {r2: formulaDataTable.r2} : {}),
-        ...(hasValue ? {result: decodeFormulaResult(cellType, valueText, style?.numFmt)} : {}),
-      };
-      const dtCell = sheet.getCell(cellRef);
-      applyXfToCell(dtCell, style);
-      dtCell.value = value;
-      return;
-    }
-    // A shared-formula master seeds the group for its clones before it is finalised as an ordinary
-    // formula cell; a clone resolves to the master's formula translated to its own position and is
-    // committed here directly, since its value is not a plain `<c>` payload decodeCellContent knows.
-    if (hasFormula && formulaShared && formulaSi >= 0) {
-      sharedMasters.set(formulaSi, {formula, col: cellCol, row: cellRow});
-    } else if (sharedClone && formulaSi >= 0) {
-      const master = sharedMasters.get(formulaSi);
-      if (master !== undefined) {
-        const translated = translateFormula(
-          master.formula,
-          cellCol - master.col,
-          cellRow - master.row,
-        );
-        const value: SharedFormulaValue = {
-          sharedFormula: encodeAddress(master.col, master.row),
-          formula: unmangleFunctions(translated),
-          // A clone's cached result honours the cell's date format the same way a plain formula's does.
-          ...(hasValue ? {result: decodeFormulaResult(cellType, valueText, style?.numFmt)} : {}),
-        };
-        const cloneCell = sheet.getCell(cellRef);
-        applyXfToCell(cloneCell, style);
-        cloneCell.value = value;
-        return;
-      }
-    }
-    finalizeCell(
-      sheet,
-      cellRef,
-      {
-        type: cellType,
-        hasFormula,
-        formula,
-        hasValue,
-        valueText,
-        inlineText,
-        richTextRuns: runs.runs,
-      },
-      sharedStrings,
-      style,
-    );
+    cell.finalize(sheet, sharedStrings, style);
   };
 
   parseXml(
@@ -346,53 +253,23 @@ export function parseWorksheet(
             rowCustomFormat = boolStrict(attrs.customFormat);
             break;
           case 'c':
-            cellRef = attrs.r ?? '';
-            cellType = attrs.t ?? '';
-            cellStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
-            cellCol = cellRef === '' ? -1 : (decodeAddress(cellRef).col ?? -1);
-            cellRow = cellRef === '' ? -1 : (decodeAddress(cellRef).row ?? -1);
-            formula = '';
-            valueText = '';
-            inlineText = '';
-            runs.reset();
-            hasFormula = false;
-            hasValue = false;
-            formulaShared = false;
-            formulaSi = -1;
-            sharedClone = false;
-            formulaDataTable = null;
+            cell.beginCell(attrs);
             break;
           case 'is':
             inInlineString = true;
-            inlineText = '';
-            runs.reset();
+            cell.beginInlineString();
             break;
           case 'r':
             // A run inside a rich inline string. Its `<rPr>` (if any) and `<t>` follow.
-            if (inInlineString) runs.beginRun();
+            if (inInlineString) cell.runs.beginRun();
             break;
           case 'rPr':
             // The run's formatting bundle; its self-closing children stream into the default branch.
-            runs.beginProperties();
+            cell.runs.beginProperties();
             break;
           case 'f':
             capture = true;
-            formulaShared = attrs.t === 'shared';
-            formulaSi = attrs.si !== undefined ? Number(attrs.si) : -1;
-            // A self-closing `<f t="shared" si/>` is a clone: it fires no close event and carries no
-            // text, so mark it here to resolve against its master when the cell finalises.
-            if (selfClosing && formulaShared) sharedClone = true;
-            // A `<f t="dataTable">` carries only declaration attributes; hold them for finalisation so
-            // the data-table kind is preserved rather than read as an empty formula.
-            if (attrs.t === 'dataTable' && attrs.ref !== undefined) {
-              formulaDataTable = {
-                ref: attrs.ref,
-                dt2D: attrs.dt2D,
-                dtr: attrs.dtr,
-                r1: attrs.r1,
-                r2: attrs.r2,
-              };
-            }
+            cell.beginFormula(attrs, selfClosing);
             break;
           case 'v':
           case 't':
@@ -494,7 +371,7 @@ export function parseWorksheet(
           default:
             // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) sets one font facet; it
             // is self-closing, so it is read here on open. Nothing else uses the default branch.
-            runs.applyProperty(local, attrs);
+            cell.runs.applyProperty(local, attrs);
             break;
         }
         if (selfClosing && (local === 'f' || local === 'v')) capture = false;
@@ -506,20 +383,18 @@ export function parseWorksheet(
         const local = localName(name);
         switch (local) {
           case 'f':
-            formula = text;
-            hasFormula = true;
+            cell.setFormula(text);
             break;
           case 'v':
-            valueText = text;
-            hasValue = true;
+            cell.setValue(text);
             break;
           case 't':
             // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<is>` is a plain
             // inline string. A run takes precedence — a run is also inside the inline string.
-            if (!runs.appendText(text) && inInlineString) inlineText += text;
+            cell.appendText(text, inInlineString);
             break;
           case 'r':
-            runs.endRun();
+            cell.runs.endRun();
             break;
           case 'is':
             inInlineString = false;
@@ -658,29 +533,4 @@ function applyPageSetup(pageSetup: PageSetup, attrs: {readonly [k: string]: stri
   if (attrs.orientation === 'portrait' || attrs.orientation === 'landscape') {
     pageSetup.orientation = attrs.orientation;
   }
-}
-
-function finalizeCell(
-  sheet: Worksheet,
-  ref: string,
-  raw: RawCell,
-  sharedStrings: readonly SharedString[],
-  style: XfStyle | undefined,
-): void {
-  const {col, row} = decodeAddress(ref);
-  if (col === undefined || row === undefined) return;
-  const cell = sheet.getCell(ref);
-  applyXfToCell(cell, style);
-  cell.value = decodeCellContent(raw, sharedStrings, style?.numFmt);
-}
-
-// Applies a resolved xf's non-value facets to a cell. Shared by the ordinary cell path and the
-// shared-formula clone path, so a styled clone (fill/font/border/alignment/protection) keeps its
-// look on read rather than surviving as value-only. The six cell-style facets go through the shared
-// {@link applyCellStyle}; the xf-only links (`quotePrefix`, the named-style `xfId`) are applied here.
-function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
-  if (style === undefined) return;
-  applyCellStyle(cell, style);
-  if (style.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
-  if (style.xfId !== undefined) cell.namedStyleId = style.xfId;
 }
