@@ -68,7 +68,7 @@ export class GridEdits {
     for (const [row, cols] of shifted) this.#rows.set(row, cols);
 
     this.#shiftLineProperties(this.#rowProperties, start, count, delta);
-    this.#shiftMerges(start, count, inserted.length, 'row');
+    this.#shiftMerges('row', start, count, delta);
     this.#shiftTables('row', start, count, delta);
     this.#shiftImages('row', start, count, delta);
     this.#reanchorSharedFormulas('row', start, count, delta);
@@ -103,7 +103,7 @@ export class GridEdits {
       this.#rows.set(row, shifted);
     }
     this.#shiftLineProperties(this.#columns, start, count, delta);
-    this.#shiftMerges(start, count, inserts.length, 'col');
+    this.#shiftMerges('col', start, count, delta);
     this.#shiftTables('col', start, count, delta);
     this.#shiftImages('col', start, count, delta);
     this.#reanchorSharedFormulas('col', start, count, delta);
@@ -166,8 +166,7 @@ export class GridEdits {
   // entirely deleted is dropped. A range straddling the cut is a genuinely ambiguous geometry — its
   // edges are clamped to the cut line as a best effort. Unbounded whole-row/column merges carry no
   // rectangle and pass through unchanged.
-  #shiftMerges(start: number, count: number, nInserts: number, axis: 'row' | 'col'): void {
-    const delta = nInserts - count;
+  #shiftMerges(axis: 'row' | 'col', start: number, count: number, delta: number): void {
     const shift = (v: number): number => shiftIndex(v, start, count, delta);
     const merges: string[] = [];
     const rects: MergeRect[] = [];
