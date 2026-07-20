@@ -45,3 +45,7 @@ jobs:
       # The public API reference is generated from the types; fail if the committed
       # pages have drifted from a fresh generation — see ADR-0006.
       - run: pnpm run docs:check
+      # CLAUDE.md and AGENTS.md are one document. They were a symlink until Windows
+      # (where symlinks need admin) silently turned AGENTS.md into a 9-byte stub; the
+      # duplication is now guarded by a check instead of by the filesystem.
+      - run: pnpm run constitution:check

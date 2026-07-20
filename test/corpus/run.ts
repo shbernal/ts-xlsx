@@ -17,7 +17,7 @@
 // land a case for a not-yet-built capability without reddening CI — a tracked
 // known-open, not a legacy oracle's verdict.
 //
-// Usage:  node test/corpus/run.ts [--adapter rewrite]
+// Usage:  node test/corpus/run.ts [--adapter rewrite] [--target src|dist]
 
 import assert from 'node:assert/strict';
 import {readdir} from 'node:fs/promises';
@@ -48,10 +48,14 @@ function isNotImplemented(err: unknown): boolean {
   );
 }
 
-function parseArgs(argv: string[]): {adapter: string} {
-  const args = {adapter: 'rewrite'};
+function parseArgs(argv: string[]): {adapter: string; target: string | undefined} {
+  const args: {adapter: string; target: string | undefined} = {
+    adapter: 'rewrite',
+    target: undefined,
+  };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--adapter') args.adapter = argv[++i] ?? '';
+    else if (argv[i] === '--target') args.target = argv[++i] ?? '';
     else throw new Error(`Unrecognized argument: ${argv[i]}`);
   }
   return args;
@@ -82,7 +86,12 @@ async function runBehavior(behavior: Behavior, api: CorpusApi): Promise<Outcome>
 const MARK: Record<Status, string> = {ok: '✓', bug: '○', regression: '✗', fixed: '↑', skip: '∅'};
 
 async function main() {
-  const {adapter: adapterName} = parseArgs(process.argv.slice(2));
+  const {adapter: adapterName, target} = parseArgs(process.argv.slice(2));
+  // The adapter picks its target from CORPUS_TARGET at module load, so seed the env
+  // before importing it. The flag exists because `VAR=value cmd` is POSIX shell syntax
+  // that cmd.exe cannot parse — a package script using it is unrunnable on Windows.
+  // Env var and flag stay equivalent; the flag simply survives the shell.
+  if (target !== undefined) process.env.CORPUS_TARGET = target;
   const adapterPath = resolve(HERE, 'adapters', `${adapterName}.ts`);
   const adapterMod = await import(pathToFileURL(adapterPath).href);
   const api = adapterMod.default;

@@ -34,3 +34,5 @@ pre-push:
       run: pnpm run corpus
     - name: docs:check
       run: pnpm run docs:check
+    - name: constitution:check
+      run: pnpm run constitution:check

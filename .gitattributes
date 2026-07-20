@@ -1,0 +1,41 @@
+# Line endings and binary classification, pinned in the repo so they do not depend
+# on any developer's `core.autocrlf`. Without this file a Windows checkout produces
+# CRLF sources, which Biome (LF) rejects across the entire tree — `pnpm run lint`
+# fails on every file and the pre-push hook becomes unpassable.
+* text=auto eol=lf
+
+# Spreadsheet fixtures are the regression corpus's ground truth: byte-exact packages
+# whose meaning lives in the bytes. Git's text/binary heuristic samples for NUL and is
+# usually right about a zip, but "usually" is not a contract to hand the spine of the
+# test suite — a fixture silently rewritten by EOL normalization is a corrupt archive
+# that fails far from its cause. Classify every package format we do, or plausibly may,
+# check in.
+*.xls   binary
+*.xlsx  binary
+*.xlsm  binary
+*.xlsb  binary
+*.xltx  binary
+*.xltm  binary
+*.ods   binary
+
+# Media and embedded-object parts that ride inside an OOXML package. EMF/WMF in
+# particular can carry no NUL in their leading bytes, so the heuristic is least
+# reliable exactly where a drawing fixture would be corrupted.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.bmp   binary
+*.emf   binary
+*.wmf   binary
+*.zip   binary
+*.bin   binary
+
+# The ECMA-376 XSD set is vendored *verbatim* (docs/architecture.md) — it is upstream's
+# artifact, not ours, and ships with CRLF. Normalizing it would edit a reference copy we
+# promise not to edit and would break byte-comparison against the ECMA distribution.
+# `-text` disables EOL translation in both directions, leaving the bytes untouched.
+schemas/ooxml-transitional/** -text
+
+# Generated lockfile: keep diffs collapsed in review, but still merge-resolvable.
+pnpm-lock.yaml -diff
