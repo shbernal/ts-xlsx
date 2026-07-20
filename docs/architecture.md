@@ -34,6 +34,30 @@ The rule that follows: **when in doubt, add a case.** A bug without a corpus cas
 bug that will return. A missing feature is best reported as a corpus case so it is fixed
 once and never regresses.
 
+## Test topology
+
+Tests live in two places on purpose, because they are two different kinds of test with
+opposite contracts. Where a test goes is decided by *what it is allowed to know*, not by
+tidiness:
+
+- **Co-located unit tests — `src/**/*.test.ts`.** White-box. Each sits next to the module
+  it exercises (`address.ts` ↔ `address.test.ts`), imports src internals freely, and moves
+  or dies with that module under refactor. Co-location keeps the test honest about one unit
+  and makes an untested module visible at a glance. Run by `test:src`.
+- **The regression corpus — `test/corpus/`.** Black-box and **implementation-blind** (see
+  above): cases reach the implementation *only* through the adapter and must never import a
+  src internal, because that blindness is the whole reason the corpus outlived the rewrite.
+  It is a behavioral spec, not a test of any module. Run by `corpus`.
+- **External-oracle harness — `test/ooxml-validation/`.** Validates emitted packages
+  against the independent `OpenXmlValidator` (ADR-0002); different toolchain (dotnet),
+  different cadence (`test:ooxml`, not in the default `test`).
+
+The wall matters: the `test/` trees earn their separation by being forbidden from reaching
+into src the way a co-located unit test may. Put a white-box test in `src/`; keep `test/`
+for the blind corpus and the external oracles. A "corpus" case that imports a src internal
+has quietly stopped being implementation-blind — the directory boundary is what keeps that
+mistake hard to make by accident.
+
 ## Spec & schema reference
 
 Correctness is defined by an external standard, so the ground truth lives in the repo
