@@ -8,7 +8,14 @@
 // only when `totalsRowCount` is positive), so reconstructing one from the other is lossless.
 
 import {decodeRange, encodeAddress} from '../../core/address.ts';
-import type {Table, TableColumn, TableOptions, TableStyleInfo} from '../../core/table.ts';
+import {
+  isTotalsRowFunction,
+  type Table,
+  type TableColumn,
+  type TableOptions,
+  type TableStyleInfo,
+  type TotalsRowFunction,
+} from '../../core/table.ts';
 import {NS} from './relationships.ts';
 import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
 import {localName, parseXml} from './xml-read.ts';
@@ -104,7 +111,7 @@ export function parseTable(xml: string): TableOptions | undefined {
   const columns: {
     name: string;
     totalsRowLabel?: string;
-    totalsRowFunction?: string;
+    totalsRowFunction?: TotalsRowFunction;
     totalsRowFormula?: string;
   }[] = [];
 
@@ -153,12 +160,21 @@ export function parseTable(xml: string): TableOptions | undefined {
         }
         case 'tableColumn': {
           if (attrs.name === undefined) break;
-          const column: {name: string; totalsRowLabel?: string; totalsRowFunction?: string} = {
-            name: attrs.name,
-          };
+          const column: {
+            name: string;
+            totalsRowLabel?: string;
+            totalsRowFunction?: TotalsRowFunction;
+          } = {name: attrs.name};
           if (attrs.totalsRowLabel !== undefined) column.totalsRowLabel = attrs.totalsRowLabel;
-          if (attrs.totalsRowFunction !== undefined)
+          // An unrecognised totalsRowFunction is dropped rather than trusted in verbatim — the token
+          // is a closed OOXML enumeration, so a foreign value is malformed input, not a future Excel
+          // addition to accommodate.
+          if (
+            attrs.totalsRowFunction !== undefined &&
+            isTotalsRowFunction(attrs.totalsRowFunction)
+          ) {
             column.totalsRowFunction = attrs.totalsRowFunction;
+          }
           columns.push(column);
           break;
         }

@@ -79,7 +79,7 @@ function cloneStyleInfo(style: TableStyleInfo): TableStyleInfo {
  * stored in {@link TableColumn.totalsRowFormula}, which the reader/writer round-trip and the
  * materialiser writes into the cell verbatim.
  */
-export const TOTALS_ROW_SUBTOTAL_CODE: Readonly<Record<string, number>> = {
+export const TOTALS_ROW_SUBTOTAL_CODE: Readonly<Partial<Record<TotalsRowFunction, number>>> = {
   average: 101,
   countNums: 102,
   count: 103,
@@ -89,6 +89,41 @@ export const TOTALS_ROW_SUBTOTAL_CODE: Readonly<Record<string, number>> = {
   sum: 109,
   var: 110,
 };
+
+/**
+ * The values `ST_TotalsRowFunction` (ECMA-376 §18.18.86) can take — a closed OOXML enumeration Excel
+ * does not extend over time (unlike, say, a conditional-formatting rule type), so an author-side typo
+ * such as `"avg"` is a compile error here rather than a silently no-op attribute at write time.
+ */
+export type TotalsRowFunction =
+  | 'average'
+  | 'countNums'
+  | 'count'
+  | 'max'
+  | 'min'
+  | 'stdDev'
+  | 'sum'
+  | 'var'
+  | 'custom'
+  | 'none';
+
+const TOTALS_ROW_FUNCTIONS: ReadonlySet<string> = new Set<TotalsRowFunction>([
+  'average',
+  'countNums',
+  'count',
+  'max',
+  'min',
+  'stdDev',
+  'sum',
+  'var',
+  'custom',
+  'none',
+]);
+
+/** Narrow a raw `totalsRowFunction` attribute to a known {@link TotalsRowFunction}. */
+export function isTotalsRowFunction(value: string): value is TotalsRowFunction {
+  return TOTALS_ROW_FUNCTIONS.has(value);
+}
 
 /** One column of a table: a header name and its optional totals-row behaviour. */
 export interface TableColumn {
@@ -101,7 +136,7 @@ export interface TableColumn {
   readonly totalsRowLabel?: string;
   /** Built-in totals-row aggregate (`"sum"`, `"average"`, `"count"`, …), or `"custom"` when the
    * column's total is the arbitrary formula in {@link totalsRowFormula} rather than a `SUBTOTAL`. */
-  readonly totalsRowFunction?: string;
+  readonly totalsRowFunction?: TotalsRowFunction;
   /** The formula (no leading `=`) backing a `totalsRowFunction: "custom"` column — OOXML's
    * `<totalsRowFormula>` child. Round-tripped verbatim and written into the totals cell as the
    * cell's formula. Meaningful only alongside `totalsRowFunction: "custom"`; ignored otherwise. */

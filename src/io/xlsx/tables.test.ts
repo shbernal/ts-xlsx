@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import type {TotalsRowFunction} from '../../core/table.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
+import {parseTable} from './tables.ts';
 import {writeXlsx} from './write.ts';
 
 // Author a workbook whose single sheet carries one table, round-trip it, and hand back the
@@ -11,7 +13,7 @@ function roundtripTable(options: {
   name: string;
   displayName?: string;
   ref: string;
-  columns: {name: string; totalsRowLabel?: string; totalsRowFunction?: string}[];
+  columns: {name: string; totalsRowLabel?: string; totalsRowFunction?: TotalsRowFunction}[];
   rowCount: number;
   headerRow?: boolean;
   totalsRow?: boolean;
@@ -105,6 +107,18 @@ test('a totals-row table round-trips its totals flag and per-column totals behav
   assert.equal(table.ref, 'A1:B4', 'header + 2 data + totals spans four rows');
   assert.equal(table.columns[0]?.totalsRowLabel, 'Total');
   assert.equal(table.columns[1]?.totalsRowFunction, 'sum');
+});
+
+test('an unrecognised totalsRowFunction is dropped rather than trusted in verbatim', () => {
+  const xml =
+    '<?xml version="1.0"?>' +
+    '<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" ' +
+    'name="T" displayName="T" ref="A1:A3" totalsRowCount="1">' +
+    '<tableColumns count="1"><tableColumn id="1" name="A" totalsRowFunction="avg"/></tableColumns>' +
+    '</table>';
+  const table = parseTable(xml);
+  assert.ok(table !== undefined);
+  assert.equal(table.columns[0]?.totalsRowFunction, undefined);
 });
 
 test('a table with no totalsRowShown flag stays without one across a round-trip', () => {

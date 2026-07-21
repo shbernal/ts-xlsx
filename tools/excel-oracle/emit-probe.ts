@@ -10,6 +10,7 @@
 import {mkdirSync, writeFileSync} from 'node:fs';
 import {dirname} from 'node:path';
 
+import type {TotalsRowFunction} from '../../src/core/table.ts';
 import {Workbook} from '../../src/core/workbook.ts';
 import {writeXlsx} from '../../src/io/xlsx/write.ts';
 
@@ -26,7 +27,7 @@ export type ProbeCell =
 export interface ProbeTableColumn {
   readonly name: string;
   readonly totalsRowLabel?: string;
-  readonly totalsRowFunction?: string;
+  readonly totalsRowFunction?: TotalsRowFunction;
 }
 
 /** A table on a probe sheet — enough vocabulary to exercise header/totals-row materialization. The

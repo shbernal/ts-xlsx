@@ -51,7 +51,7 @@ One column of a table: a header name and its optional totals-row behaviour.
 interface TableColumn {
     readonly name: string;
     readonly totalsRowLabel?: string;
-    readonly totalsRowFunction?: string;
+    readonly totalsRowFunction?: TotalsRowFunction;
     readonly totalsRowFormula?: string;
     readonly style?: TableColumnStyle;
 }
