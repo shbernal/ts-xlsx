@@ -2,6 +2,20 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `WriteOptions`
+
+<sub>interface</sub>
+
+Options controlling how `writeXlsx` serialises a workbook.
+
+```ts
+interface WriteOptions {
+    readonly useSharedStrings?: boolean;
+}
+```
+
+---
+
 ### `writeXlsx`
 
 <sub>function</sub>

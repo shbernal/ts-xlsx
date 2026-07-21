@@ -75,7 +75,14 @@ export interface WriteOptions {
    * part. Rich-text values stay inline regardless, so their run formatting is unaffected.
    */
   readonly useSharedStrings?: boolean;
+}
 
+/**
+ * {@link WriteOptions} plus the streaming writer's internal wiring, so a buffered caller's options
+ * object can never carry fields meant only for {@link WorkbookStreamWriter}'s own use. Not exported
+ * from the public barrel — {@link buildPackageParts} is the only consumer outside this module.
+ */
+export interface InternalWriteOptions extends WriteOptions {
   /**
    * The style registry to intern into, in place of a freshly-seeded one. The streaming writer
    * serialises each committed row eagerly (freeing its cells), so those rows' style ids must be
@@ -170,7 +177,7 @@ function resolveSheetReferences(plan: SheetPlan): SheetReferences {
  */
 export function buildPackageParts(
   workbook: Workbook,
-  options: WriteOptions = {},
+  options: InternalWriteOptions = {},
 ): Record<string, Uint8Array> {
   const sheets = workbook.worksheets;
   if (sheets.length === 0) {
