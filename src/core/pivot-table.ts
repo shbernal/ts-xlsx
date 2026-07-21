@@ -38,7 +38,7 @@ export type PivotMetric =
   | 'var'
   | 'varp';
 
-const PIVOT_METRICS: ReadonlySet<PivotMetric> = new Set<PivotMetric>([
+const PIVOT_METRICS: ReadonlySet<string> = new Set<PivotMetric>([
   'sum',
   'count',
   'countNums',
@@ -52,13 +52,18 @@ const PIVOT_METRICS: ReadonlySet<PivotMetric> = new Set<PivotMetric>([
   'varp',
 ]);
 
+/** Narrow a raw `subtotal` attribute (or any string) to a known {@link PivotMetric}. */
+export function isPivotMetric(value: string): value is PivotMetric {
+  return PIVOT_METRICS.has(value);
+}
+
 /** Map an OOXML `<dataField subtotal="…">` value back to its metric. The attribute is absent for
  * `sum` (Excel's implicit default), so `undefined` reads as `sum`; an unrecognised value also reads
  * as `sum` rather than throwing, because reconstructing an existing file is a lenient operation —
  * the strict rejection of unknown metrics belongs on the authoring path, not the read path. */
 export function pivotMetricFromSubtotal(subtotal: string | undefined): PivotMetric {
   if (subtotal === undefined) return 'sum';
-  return PIVOT_METRICS.has(subtotal as PivotMetric) ? (subtotal as PivotMetric) : 'sum';
+  return isPivotMetric(subtotal) ? subtotal : 'sum';
 }
 
 /** One field in a loaded pivot's cache catalogue, in declared order; the pivot refers to it by index. */
@@ -228,7 +233,7 @@ export class PivotTable {
 
     const catalogues: (Map<string, number> | null)[] = fields.map(() => null);
     this.cacheFields = fields.map((field, fieldIndex) => {
-      const scalars = columnScalars[fieldIndex] as PivotItem[];
+      const scalars = scalarsForField(columnScalars, fieldIndex);
       const containsBlank = scalars.some((scalar) => scalar.kind === 'blank');
       if (axisFields.has(fieldIndex)) {
         const items: PivotItem[] = [];
@@ -250,7 +255,13 @@ export class PivotTable {
     for (let row = 0; row < dataRowCount; row++) {
       records.push(
         fields.map((_field, fieldIndex): PivotRecordCell => {
-          const scalar = (columnScalars[fieldIndex] as PivotItem[])[row] as PivotItem;
+          const scalar = scalarsForField(columnScalars, fieldIndex)[row];
+          if (scalar === undefined) {
+            throw new Error(
+              `pivot record row ${row} is out of range for field ${fieldIndex} — every column was ` +
+                'scanned for the same dataRowCount above, so this index is always in range',
+            );
+          }
           const catalogue = catalogues[fieldIndex];
           if (!catalogue) return scalar;
           // Every scalar was catalogued in the shared-items pass above, so this always hits.
@@ -265,8 +276,31 @@ export class PivotTable {
 
   /** The value field's header name, used to label the aggregated data column ("Sum of Amount"). */
   get valueFieldName(): string {
-    return (this.cacheFields[this.valueField] as PivotCacheField).name;
+    const field = this.cacheFields[this.valueField];
+    if (field === undefined) {
+      throw new Error(
+        `pivot valueField index ${this.valueField} is out of range — resolve() validated it against ` +
+          'the same fields array cacheFields was built from',
+      );
+    }
+    return field.name;
   }
+}
+
+// columnScalars[fieldIndex] is always present: it was built by mapping the same `fields` array this
+// index is drawn from. Centralised here so the invariant is asserted once rather than cast away at
+// each of its two call sites.
+function scalarsForField(
+  columnScalars: readonly (readonly PivotItem[])[],
+  fieldIndex: number,
+): readonly PivotItem[] {
+  const scalars = columnScalars[fieldIndex];
+  if (scalars === undefined) {
+    throw new Error(
+      `pivot field index ${fieldIndex} is out of range for columnScalars — it was built from the same fields array`,
+    );
+  }
+  return scalars;
 }
 
 /** A stable dedup key for a shared item: kind-tagged so the number `1` and the string `"1"` differ. */
@@ -331,7 +365,7 @@ function scalarOf(value: CellValue): PivotItem {
   }
   if (isErrorValue(value)) return {kind: 'string', value: value.error};
   if (isFormulaValue(value) || isSharedFormulaValue(value)) {
-    return value.result === undefined ? BLANK : scalarOf(value.result as CellValue);
+    return value.result === undefined ? BLANK : scalarOf(value.result);
   }
   return BLANK;
 }
