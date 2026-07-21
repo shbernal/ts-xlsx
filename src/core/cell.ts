@@ -71,6 +71,25 @@ export class Cell {
     return detectValueType(this.#value);
   }
 
+  /**
+   * The cell's full style — fill, number format, font, border, alignment, and protection — as one
+   * {@link CellStyle}, for restyling a cell wholesale without importing {@link applyCellStyle}
+   * separately (mirrors {@link Worksheet.model}'s getter/setter pair for the whole sheet). The
+   * getter carries only the facets this cell has set (the same shape {@link cellToModel} emits);
+   * the setter lays each facet `style` carries onto this cell — like every per-facet setter, it
+   * replaces that facet outright but leaves a facet `style` omits untouched, so `cell.style = {...}`
+   * composes with prior per-facet sets rather than clearing them wholesale.
+   */
+  get style(): CellStyle {
+    const style: CellStyle = {};
+    assignStyleFacets(style, this);
+    return style;
+  }
+
+  set style(style: Readonly<CellStyle>) {
+    applyCellStyle(this, style);
+  }
+
   /** The cell's background fill, or `undefined` when it has none. */
   get fill(): Fill | undefined {
     return this.#fill;

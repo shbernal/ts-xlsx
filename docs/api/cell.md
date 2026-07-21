@@ -19,6 +19,8 @@ class Cell {
   get value(): CellValue;
   set value(value: CellValue | undefined);
   get type(): ValueType;
+  get style(): CellStyle;
+  set style(style: Readonly<CellStyle>);
   get fill(): Fill | undefined;
   set fill(fill: Fill | undefined);
   get numFmt(): string | undefined;
@@ -47,6 +49,7 @@ class Cell {
 - `get address(): string;` — Canonical A1 address of this cell (`"B3"`).
 - `get value(): CellValue;` — The cell's value; `null` when empty. Assigning `undefined` clears it.
 - `get type(): ValueType;` — The observable `ValueType` of the current value.
+- `get style(): CellStyle;` — The cell's full style — fill, number format, font, border, alignment, and protection — as one `CellStyle`, for restyling a cell wholesale without importing `applyCellStyle` separately (mirrors `Worksheet.model`'s getter/setter pair for the whole sheet). The getter carries only the facets this cell has set (the same shape `cellToModel` emits); the setter lays each facet `style` carries onto this cell — like every per-facet setter, it replaces that facet outright but leaves a facet `style` omits untouched, so `cell.style = {...}` composes with prior per-facet sets rather than clearing them wholesale.
 - `get fill(): Fill | undefined;` — The cell's background fill, or `undefined` when it has none.
 - `get numFmt(): string | undefined;` — The cell's number-format code (`"0.00%"`, a custom accounting format, …), or `undefined` for the General format. Stored verbatim: the invariant form Excel persists — `.` decimal, `,` grouping, `/` date separator — is neither localized nor rewritten, so the code round-trips character-for-character. A cell that also carries a column-level format keeps both, so overriding one facet never drops the other.
 - `get font(): Font | undefined;` — The cell's font — bold/italic/underline, size, colour, typeface — as a partial set of the facets that differ from the default (only the facets actually set are carried, exactly as OOXML stores them). `undefined` means the cell uses the workbook default font.
