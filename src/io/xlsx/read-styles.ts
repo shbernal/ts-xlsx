@@ -38,7 +38,7 @@ import {
 export interface XfStyle {
   readonly fill?: Fill;
   readonly numFmt?: string;
-  readonly font?: Partial<Font>;
+  readonly font?: Font;
   readonly border?: Border;
   readonly alignment?: Alignment;
   readonly protection?: Protection;
@@ -53,7 +53,7 @@ export interface XfStyle {
 type XfDraft = {-readonly [K in keyof XfStyle]?: XfStyle[K]};
 
 // A mutable font accumulator while a <font> element's children stream in; frozen into a
-// Partial<Font> on close.
+// Font on close.
 export type FontDraft = {-readonly [K in keyof Font]?: Font[K]};
 
 // A mutable border accumulator while a <border> element's edges stream in; frozen into a
@@ -162,7 +162,7 @@ export interface StyleTable {
 export function parseStyleTable(xml: string): StyleTable {
   if (xml === '') return {cellXfs: [], namedStyles: []};
   let fills: ReadonlyArray<Fill | undefined> = [];
-  let fonts: ReadonlyArray<Partial<Font> | undefined> = [];
+  let fonts: ReadonlyArray<Font | undefined> = [];
   let borders: ReadonlyArray<Border | undefined> = [];
   let numFmtCodes: ReadonlyMap<number, string> = new Map();
   const xfStyles: XfStyle[] = [];
@@ -245,7 +245,7 @@ interface CellStyleName {
 // The shared sub-tables an <xf> resolves its facet ids against.
 interface XfDeps {
   readonly fills: ReadonlyArray<Fill | undefined>;
-  readonly fonts: ReadonlyArray<Partial<Font> | undefined>;
+  readonly fonts: ReadonlyArray<Font | undefined>;
   readonly borders: ReadonlyArray<Border | undefined>;
   readonly numFmtCodes: ReadonlyMap<number, string>;
 }
@@ -279,8 +279,8 @@ function parseNumFmts(events: Iterator<XmlEvent>): ReadonlyMap<number, string> {
   return codes;
 }
 
-function parseFonts(events: Iterator<XmlEvent>): ReadonlyArray<Partial<Font> | undefined> {
-  const fonts: Array<Partial<Font> | undefined> = [];
+function parseFonts(events: Iterator<XmlEvent>): ReadonlyArray<Font | undefined> {
+  const fonts: Array<Font | undefined> = [];
   let fontDraft: FontDraft | null = null;
   for (const event of until(events, 'fonts')) {
     if (event.kind === 'open') {

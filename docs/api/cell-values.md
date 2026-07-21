@@ -172,7 +172,7 @@ One formatted run of a rich-text value.
 ```ts
 interface RichTextRun {
     readonly text: string;
-    readonly font?: Partial<Font>;
+    readonly font?: Font;
 }
 ```
 

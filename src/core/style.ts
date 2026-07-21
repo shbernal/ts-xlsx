@@ -175,25 +175,32 @@ export function isFontVerticalAlignment(value: string): value is FontVerticalAli
   return value === 'superscript' || value === 'subscript';
 }
 
-/** Narrow a raw `<scheme val>` token to a known font scheme ({@link Font}'s `scheme` member). */
-export function isFontScheme(value: string): value is Font['scheme'] {
+/** The theme-font role a `<scheme val>` names — `"minor"`/`"major"` bind the font to whichever
+ * face the workbook theme assigns that role, `"none"` leaves it a literal, unbound face. */
+export type FontScheme = 'minor' | 'major' | 'none';
+
+/** Narrow a raw `<scheme val>` token to a known {@link FontScheme}. */
+export function isFontScheme(value: string): value is FontScheme {
   return value === 'minor' || value === 'major' || value === 'none';
 }
 
-/** A font, as it applies to a cell or a single rich-text run. */
+/** A font, as it applies to a cell or a single rich-text run. Every facet is optional and
+ * independent, like {@link Border}/{@link Alignment}/{@link Protection} — a font sets only the
+ * facets it overrides (Excel's own default font backs the rest), so no consumer ever holds every
+ * field populated at once. */
 export interface Font {
-  readonly name: string;
-  readonly size: number;
-  readonly family: number;
-  readonly scheme: 'minor' | 'major' | 'none';
-  readonly charset: number;
-  readonly color: Color;
-  readonly bold: boolean;
-  readonly italic: boolean;
-  readonly underline: UnderlineStyle;
-  readonly strike: boolean;
-  readonly outline: boolean;
-  readonly vertAlign: FontVerticalAlignment;
+  readonly name?: string;
+  readonly size?: number;
+  readonly family?: number;
+  readonly scheme?: FontScheme;
+  readonly charset?: number;
+  readonly color?: Color;
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly underline?: UnderlineStyle;
+  readonly strike?: boolean;
+  readonly outline?: boolean;
+  readonly vertAlign?: FontVerticalAlignment;
 }
 
 /** How a cell's content sits horizontally within its bounds, as OOXML's `ST_HorizontalAlignment`
@@ -284,7 +291,7 @@ export interface Protection {
 export interface CellStyle {
   fill?: Fill | undefined;
   numFmt?: string | undefined;
-  font?: Partial<Font> | undefined;
+  font?: Font | undefined;
   border?: Border | undefined;
   alignment?: Alignment | undefined;
   protection?: Protection | undefined;

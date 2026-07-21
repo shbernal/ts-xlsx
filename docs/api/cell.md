@@ -23,8 +23,8 @@ class Cell {
   set fill(fill: Fill | undefined);
   get numFmt(): string | undefined;
   set numFmt(numFmt: string | undefined);
-  get font(): Partial<Font> | undefined;
-  set font(font: Partial<Font> | undefined);
+  get font(): Font | undefined;
+  set font(font: Font | undefined);
   get border(): Border | undefined;
   set border(border: Border | undefined);
   get alignment(): Alignment | undefined;
@@ -49,7 +49,7 @@ class Cell {
 - `get type(): ValueType;` — The observable `ValueType` of the current value.
 - `get fill(): Fill | undefined;` — The cell's background fill, or `undefined` when it has none.
 - `get numFmt(): string | undefined;` — The cell's number-format code (`"0.00%"`, a custom accounting format, …), or `undefined` for the General format. Stored verbatim: the invariant form Excel persists — `.` decimal, `,` grouping, `/` date separator — is neither localized nor rewritten, so the code round-trips character-for-character. A cell that also carries a column-level format keeps both, so overriding one facet never drops the other.
-- `get font(): Partial<Font> | undefined;` — The cell's font — bold/italic/underline, size, colour, typeface — as a partial set of the facets that differ from the default (only the facets actually set are carried, exactly as OOXML stores them). `undefined` means the cell uses the workbook default font.
+- `get font(): Font | undefined;` — The cell's font — bold/italic/underline, size, colour, typeface — as a partial set of the facets that differ from the default (only the facets actually set are carried, exactly as OOXML stores them). `undefined` means the cell uses the workbook default font.
 - `get border(): Border | undefined;` — The cell's border — the line style and colour of each side — or `undefined` when the cell has none. An absent edge within a border means that side is unbordered, so reading a cell never fabricates a border it does not have.
 - `get alignment(): Alignment | undefined;` — The cell's alignment — how its content sits within the cell, plus the wrap/shrink flags — or `undefined` when it uses the defaults. The boolean flags are off unless explicitly set, so a cell that never enabled wrapping never reads back wrapped.
 - `get protection(): Protection | undefined;` — The cell's protection — its locked/hidden flags, enforced only once the sheet is protected — or `undefined` when the cell carries neither. `locked` defaults to on in OOXML, so a cell that never touched protection is implicitly locked and reads back as `undefined`, not as `{locked: true}`; the flag only becomes explicit when a cell is unlocked.

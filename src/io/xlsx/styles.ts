@@ -58,7 +58,7 @@ const DEFAULT_BORDER = '<border><left/><right/><top/><bottom/><diagonal/></borde
 export interface CellStyle {
   readonly fill?: Fill | undefined;
   readonly numFmt?: string | undefined;
-  readonly font?: Partial<Font> | undefined;
+  readonly font?: Font | undefined;
   readonly border?: Border | undefined;
   readonly alignment?: Alignment | undefined;
   readonly protection?: Protection | undefined;
@@ -266,7 +266,7 @@ export class StyleRegistry {
 
   // A font whose partial carries no facet that differs from the default contributes nothing
   // and maps to font id 0; otherwise its serialised form is interned and dedup'd like a fill.
-  #internFont(font: Partial<Font>): number {
+  #internFont(font: Font): number {
     const xml = fontXml(font);
     if (xml === '' || xml === DEFAULT_FONT_BODY) return 0;
     let id = this.#fontIdBySignature.get(xml);
@@ -461,7 +461,7 @@ export function parseIndexedColors(stylesXml: string): string[] {
 // default in nothing and needs no entry at all. The face element differs by context: a styles
 // `<font>` names it `<name>` (CT_Font), a rich-text run's `<rPr>` names it `<rFont>` (CT_RPrElt) —
 // otherwise the two share every child, so `nameTag` selects the face element and the rest is common.
-export function fontXml(font: Partial<Font>, nameTag: 'name' | 'rFont' = 'name'): string {
+export function fontXml(font: Font, nameTag: 'name' | 'rFont' = 'name'): string {
   const parts: string[] = [];
   if (font.bold) parts.push('<b/>');
   if (font.italic) parts.push('<i/>');

@@ -33,7 +33,7 @@ export class Cell {
   #value: CellValue = null;
   #fill: Fill | undefined;
   #numFmt: string | undefined;
-  #font: Partial<Font> | undefined;
+  #font: Font | undefined;
   #border: Border | undefined;
   #alignment: Alignment | undefined;
   #protection: Protection | undefined;
@@ -100,11 +100,11 @@ export class Cell {
    * of the facets that differ from the default (only the facets actually set are carried,
    * exactly as OOXML stores them). `undefined` means the cell uses the workbook default font.
    */
-  get font(): Partial<Font> | undefined {
+  get font(): Font | undefined {
     return this.#font;
   }
 
-  set font(font: Partial<Font> | undefined) {
+  set font(font: Font | undefined) {
     this.#font = font;
   }
 

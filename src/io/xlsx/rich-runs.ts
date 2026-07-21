@@ -58,7 +58,7 @@ export class RunAccumulator {
   // Commit the open run — with its font, only if that font set at least one facet — to the runs list.
   endRun(): void {
     if (!this.#inRun) return;
-    const run: {text: string; font?: Partial<Font>} = {text: this.#text};
+    const run: {text: string; font?: Font} = {text: this.#text};
     if (this.#font !== null && Object.keys(this.#font).length > 0) run.font = this.#font;
     this.#runs.push(run);
     this.#inRun = false;

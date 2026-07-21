@@ -93,7 +93,7 @@ path silently drops one — the round-trip symmetry the merge-loss contract depe
 interface CellStyle {
     fill?: Fill | undefined;
     numFmt?: string | undefined;
-    font?: Partial<Font> | undefined;
+    font?: Font | undefined;
     border?: Border | undefined;
     alignment?: Alignment | undefined;
     protection?: Protection | undefined;
@@ -149,23 +149,39 @@ type FillPatternType = 'none' | 'solid' | 'gray125' | 'darkGray' | 'mediumGray' 
 
 <sub>interface</sub>
 
-A font, as it applies to a cell or a single rich-text run.
+A font, as it applies to a cell or a single rich-text run. Every facet is optional and
+independent, like `Border`/`Alignment`/`Protection` — a font sets only the
+facets it overrides (Excel's own default font backs the rest), so no consumer ever holds every
+field populated at once.
 
 ```ts
 interface Font {
-    readonly name: string;
-    readonly size: number;
-    readonly family: number;
-    readonly scheme: 'minor' | 'major' | 'none';
-    readonly charset: number;
-    readonly color: Color;
-    readonly bold: boolean;
-    readonly italic: boolean;
-    readonly underline: UnderlineStyle;
-    readonly strike: boolean;
-    readonly outline: boolean;
-    readonly vertAlign: FontVerticalAlignment;
+    readonly name?: string;
+    readonly size?: number;
+    readonly family?: number;
+    readonly scheme?: FontScheme;
+    readonly charset?: number;
+    readonly color?: Color;
+    readonly bold?: boolean;
+    readonly italic?: boolean;
+    readonly underline?: UnderlineStyle;
+    readonly strike?: boolean;
+    readonly outline?: boolean;
+    readonly vertAlign?: FontVerticalAlignment;
 }
+```
+
+---
+
+### `FontScheme`
+
+<sub>type</sub>
+
+The theme-font role a `<scheme val>` names — `"minor"`/`"major"` bind the font to whichever
+face the workbook theme assigns that role, `"none"` leaves it a literal, unbound face.
+
+```ts
+type FontScheme = 'minor' | 'major' | 'none';
 ```
 
 ---

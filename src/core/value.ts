@@ -49,7 +49,7 @@ export interface ErrorValue {
 /** One formatted run of a rich-text value. */
 export interface RichTextRun {
   readonly text: string;
-  readonly font?: Partial<Font>;
+  readonly font?: Font;
 }
 
 /** A value composed of independently-formatted text runs. */

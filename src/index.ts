@@ -90,6 +90,7 @@ export type {
   Fill,
   FillPatternType,
   Font,
+  FontScheme,
   FontVerticalAlignment,
   GradientFill,
   GradientStop,
