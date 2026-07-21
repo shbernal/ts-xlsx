@@ -10,7 +10,8 @@
       "src/**/*.ts",
       "scripts/**/*.ts",
       "test/**/*.ts",
-      "!test/corpus/fixtures/**"
+      "tools/**/*.ts",
+      "!test/corpus/fixtures"
     ]
   },
   "formatter": {

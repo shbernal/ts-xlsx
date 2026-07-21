@@ -1,0 +1,121 @@
+{
+  "invariant": "shared-formula-sparse-ref",
+  "description": "Non-contiguous shared group: master B1 (=A1*2), clones B2 and D5. ts-xlsx plans the ref as master->furthest-clone (B1:D5), leaving 11 empty interior cells inside the bounding box. Probes whether Excel materializes them, ignores them, or repairs the package.",
+  "probeSpecRef": "tools/excel-oracle/probes/shared-formula-sparse-ref.json",
+  "excel": {
+    "version": "16.0",
+    "build": 20131
+  },
+  "capturedAt": "2026-07-21",
+  "openClass": "automation-open (DisplayAlerts=false, AutomationSecurity=ForceDisable)",
+  "open": {
+    "threw": false,
+    "error": null,
+    "repairedMarker": false
+  },
+  "cells": [
+    {
+      "address": "B1",
+      "hasFormula": true,
+      "formula": "=A1*2",
+      "value": "2"
+    },
+    {
+      "address": "B2",
+      "hasFormula": true,
+      "formula": "=A2*2",
+      "value": "4"
+    },
+    {
+      "address": "D5",
+      "hasFormula": true,
+      "formula": "=C5*2",
+      "value": "10"
+    },
+    {
+      "address": "C5",
+      "hasFormula": false,
+      "formula": "5",
+      "value": "5"
+    },
+    {
+      "address": "B3",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "B4",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "B5",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "C1",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "C2",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "C3",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "C4",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "D1",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "D2",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "D3",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    },
+    {
+      "address": "D4",
+      "hasFormula": false,
+      "formula": "",
+      "value": ""
+    }
+  ],
+  "resave": {
+    "attempted": true,
+    "threw": false,
+    "error": null,
+    "canonicalSharedFormulasBySheet": {
+      "sheet1": [
+        "<f t=\"shared\" ref=\"B1:D5\" si=\"0\">A1*2</f>",
+        "<f t=\"shared\" si=\"0\"/>",
+        "<f t=\"shared\" si=\"0\"/>"
+      ]
+    }
+  },
+  "verdict": "BENIGN. Excel treats a shared-formula `ref` as a bounding-box hint, not an assertion that every enclosed cell is a clone. It opened the sparse-ref package without repair, did not materialize the 11 empty interior cells, and re-saved a byte-structurally identical group (same ref=B1:D5, same si=0, the same two clones). ts-xlsx's planSharedFormulas output for a non-contiguous group is already Excel's own canonical form, so splitting into contiguous runs or degrading clones to standalone <f> would make ts-xlsx DIVERGE from Excel. Lock with a Tier-2 seam fact asserting our emitted ref matches this canonical ref."
+}

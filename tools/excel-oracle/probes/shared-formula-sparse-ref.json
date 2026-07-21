@@ -1,0 +1,24 @@
+{
+  "invariant": "shared-formula-sparse-ref",
+  "description": "Non-contiguous shared group: master B1 (=A1*2), clones B2 and D5. ts-xlsx plans the ref as master->furthest-clone (B1:D5), leaving 11 empty interior cells inside the bounding box. Probes whether Excel materializes them, ignores them, or repairs the package.",
+  "spec": {
+    "sheets": [
+      {
+        "name": "S",
+        "cells": [
+          {"ref": "A1", "value": 1},
+          {"ref": "A2", "value": 2},
+          {"ref": "C5", "value": 5},
+          {"ref": "B1", "formula": "A1*2", "result": 2},
+          {"ref": "B2", "sharedFormula": "B1", "result": 4},
+          {"ref": "D5", "sharedFormula": "B1", "result": 10}
+        ]
+      }
+    ]
+  },
+  "observe": {
+    "cells": ["B1", "B2", "D5", "C5", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "D1", "D2", "D3", "D4"],
+    "resave": true
+  },
+  "verdict": "BENIGN. Excel treats a shared-formula `ref` as a bounding-box hint, not an assertion that every enclosed cell is a clone. It opened the sparse-ref package without repair, did not materialize the 11 empty interior cells, and re-saved a byte-structurally identical group (same ref=B1:D5, same si=0, the same two clones). ts-xlsx's planSharedFormulas output for a non-contiguous group is already Excel's own canonical form, so splitting into contiguous runs or degrading clones to standalone <f> would make ts-xlsx DIVERGE from Excel. Lock with a Tier-2 seam fact asserting our emitted ref matches this canonical ref."
+}

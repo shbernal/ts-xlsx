@@ -28,7 +28,8 @@ different things, and a lower one cannot stand in for a higher one:
   conformance**.
 - **Excel behavior** — what Excel Desktop actually does. The only ground truth for cross-part
   invariants the spec omits (e.g. a table's header cells must exist and match its column
-  names). Reached by hand, recorded as `provenance: {source: 'excel-desktop-verification'}`.
+  names). On a Windows+Excel host, scriptable via the Excel-oracle harness for state-observable
+  behavior (ADR 0013); recorded as `provenance: {source: 'excel-desktop-verification'}`.
 
 For a **cross-part correspondence**, one Excel-Desktop verification *seeds* the invariant
 and a corpus fact whose shape *is* the relationship *locks* it. The `inspectPackage`
@@ -61,6 +62,19 @@ about (`test/corpus/fixtures/<case>/…`), then `pnpm run corpus`. A round-trip 
 Test-first. Write an implementation-blind corpus case that reproduces it
 (`write-corpus-case` skill), set its `baseline` to what the code does *today*, watch it
 fail, then fix until `pnpm run corpus` is green. We never fix the same bug twice.
+
+**You need a cross-part / Excel-quirk invariant seeded — the only ground truth is what Excel Desktop does.**
+On a Windows host with Excel installed, don't do it by hand: run the Excel-oracle harness.
+Write a probe (`tools/excel-oracle/probes/<invariant>.json`: a cell spec + the cells to
+observe), then `node tools/excel-oracle/run.ts <probe.json> --out test/corpus/fixtures/excel-oracle/<invariant>.json`.
+It opens the file headless over COM, reads formula/value per cell, re-saves to reveal the
+geometry Excel considers canonical, and writes an auditable observation sidecar. This
+**seeds** the invariant only — then **lock** it with a Tier-2 seam fact that runs in CI and
+a case carrying `provenance: {source: 'excel-desktop-verification', ref: '<sidecar>'}`. The
+harness is a probe, not a test: it needs Windows+Excel+`pwsh`, self-guards to a loud refusal
+without them, and **never** runs in CI (`pnpm run corpus` must not depend on Excel). It answers
+*state-observable* questions on *one Excel build* only — see [ADR 0013](./decisions/0013-excel-desktop-as-automatable-tier3-oracle.md)
+for what is and isn't scriptable and the five standing pitfalls.
 
 **You are unsure how an OOXML element / attribute / enum / child-ordering should look.**
 Do not guess — the format is full of surprises. In order:

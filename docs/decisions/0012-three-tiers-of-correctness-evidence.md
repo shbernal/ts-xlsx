@@ -62,8 +62,11 @@ code, so it cannot share our blind spot.
 ### Tier 3 — Excel behavior (the application itself)
 
 What Excel Desktop actually does with the file. The **only** ground truth for Excel's
-quirks and for cross-part invariants the spec omits. Not cheaply automatable; reached
-by hand and captured as provenance (`{source: 'excel-desktop-verification'}`).
+quirks and for cross-part invariants the spec omits. On a Windows+Excel host it is
+**scriptable for state-observable behavior** via the Excel-oracle harness
+([ADR 0013](./0013-excel-desktop-as-automatable-tier3-oracle.md)) — auto-fill, canonical
+re-save, value/formula readback — though the interactive repair-dialog experience is not;
+captured as provenance (`{source: 'excel-desktop-verification'}`) either way.
 
 - The table invariant was **discovered** here and could only be discovered here.
 - Required for any **cross-part correspondence** or known-Excel-quirk claim.
@@ -104,8 +107,9 @@ built to cross the seam. An audit of the current vocabulary (2026-07-21) found t
   is inspected).
 - ~~Shared-formula master ↔ slaves (`formulas` holds `<f>` text only, not `t="shared" si= ref=`).~~
   **Closed** — `sharedFormulas` fact + `shared-formula-master-slave-geometry-structural.case.ts`
-  lock the master/slave `si`/`ref` geometry structurally. **Left open (see hazard below):** the
-  `ref` for a *non-contiguous* clone set.
+  lock the master/slave `si`/`ref` geometry structurally. The `ref` for a *non-contiguous* clone set
+  is also **closed** — Excel verified benign (ADR 0013) and locked by
+  `shared-formula-sparse-ref-matches-excel-canonical.case.ts` (see hazard below).
 - Comment ↔ VML shape ↔ `legacyDrawing` rel.
 
 **Structural ceiling:** `worksheetRels` reads only `sheet1.xml.rels`, and tables/drawings
@@ -116,7 +120,21 @@ it is the precondition for several rows above, so it is the highest-leverage fix
 These are not scheduled here; they are the backlog this ADR makes visible. Close each
 the same way: Tier-3 seed, then a seam fact that locks it.
 
-### Open Tier-3 hazard: shared-formula `ref` over-covers a non-contiguous clone set
+### Tier-3 hazard (closed — verdict benign, locked in CI): shared-formula `ref` over-covers a non-contiguous clone set
+
+> **Seeded 2026-07-21 via the Excel-oracle harness ([ADR 0013](./0013-excel-desktop-as-automatable-tier3-oracle.md)); locked the same day.**
+> **Verdict: BENIGN — the presumed fix direction was wrong.** Excel treats the shared-formula
+> `ref` as a *bounding-box hint*, not an instruction to materialize the interior. On Excel 16.0
+> build 20131 it opened the `ref="B1:D5"` package **without repair**, did **not** auto-fill the
+> empty interior cells, and **re-saved a byte-structurally identical group** (same `ref="B1:D5"`,
+> same `si="0"`, the same two clones). ts-xlsx's output *is* Excel's own canonical form, so the
+> two candidate fixes below (split into contiguous runs / degrade clones) would make ts-xlsx
+> **diverge from Excel**. Sidecar: `test/corpus/fixtures/excel-oracle/shared-formula-sparse-ref.json`.
+> **Locked (Phase 4):** `shared-formula-sparse-ref-matches-excel-canonical.case.ts` is the Tier-2
+> seam fact — it asserts the emitted geometry is one master with `ref="B1:D5"` and exactly the two
+> authored clones as slaves (the interior is never materialized), matching Excel's canonical re-save,
+> and runs in CI without re-opening Excel. The discovery narrative below is kept for context; the seed
+> has answered its open question and the seam fact keeps it answered.
 
 Discovered while closing the shared-formula seam (2026-07-21). `planSharedFormulas`
 (`src/io/xlsx/worksheet-xml.ts`) computes a master's `ref` as the **bounding rectangle**
@@ -136,44 +154,23 @@ gain a formula the caller never wrote. This is the same shape as the merge-repai
 writer emits geometry a consuming app interprets more aggressively than we intended — which is
 why it is called out rather than left implicit.
 
-It is deliberately **not locked and not fixed**:
+The two candidate fixes this framing implied were **split the group into maximal contiguous runs**
+(each its own master, each needing the formula **translated** to its new anchor — R1C1/relative-offset
+machinery we do not yet have) or **degrade non-fill clones to standalone `<f>` cells**. Both are real
+work, and — crucially — the seed proved neither is *correct*: Excel keeps the group whole and the
+over-wide `ref` intact, so either would make ts-xlsx diverge from the application it must match. The
+right move was to seed the Tier-3 question before touching the writer, and the seed's answer was "the
+writer is already right." That is why the resolution is a seam fact, not a code change.
 
-- **Not locked.** A seam fact asserting current behavior would freeze a `ref` we suspect is
-  wrong. Per the recipe, a cross-part invariant is locked only *after* a Tier-3 seed proves what
-  the correct geometry is; locking first would cement the bug.
-- **Not fixed blind.** The correct behavior is unknown without Tier 3, and the fix is not cheap:
-  a rectangular `ref` cannot represent a non-contiguous group, so a correct writer must either
-  split the group into maximal contiguous runs (each its own master, each needing the formula
-  **translated** to its new anchor — the R1C1/relative-offset machinery we do not yet have) or
-  degrade non-fill clones to standalone `<f>` cells. Both are real work; neither should be
-  attempted before the Tier-3 seed says which is even needed.
-
-**What a Tier-3 seed requires — how to confirm Excel's exact behavior.** The tier is irreducible:
-there is no local oracle for it (the schema validator passed the analogous table bug). It means,
-concretely:
-
-1. **Emit the probe file.** Write a `.xlsx` whose only shared group is non-contiguous — e.g.
-   master `B1` with clones `B2` and `D5`, so ts-xlsx produces `ref="B1:D5"` with twelve empty
-   interior cells. (`scratch-totals-probe.ts` is the kind of throwaway harness this uses.)
-2. **Open it in Excel Desktop** — the real application, not Online or a viewer, since the quirk
-   is an application acceptance rule, not a spec rule — and observe, for the twelve empty cells,
-   which of these Excel actually does:
-   - **Materializes** them (auto-fills the translated formula across the rectangle, like
-     LibreOffice) → our `ref` is actively wrong; it injects data. Fix is mandatory.
-   - **Ignores** the interior and keeps only the three written cells → the over-wide `ref` is
-     cosmetically loose but harmless in Excel; the fix is then driven by other consumers
-     (LibreOffice) rather than Excel.
-   - **Repairs** the file (the "we found a problem… recover?" dialog) → the geometry is rejected
-     outright, the highest-severity outcome, same class as the merge bug.
-3. **Cross-check the other direction:** re-save from Excel and diff the `ref` Excel itself writes
-   for the same non-contiguous group — that reveals the geometry Excel considers canonical (most
-   likely: it never emits a non-contiguous group as one shared formula at all).
-4. **Record the observed behavior** as `provenance: {source: 'excel-desktop-verification'}` on the
-   seeding case, then lock it with a seam fact whose shape *is* the corrected `ref`↔clone-set
-   relationship, so CI catches regressions without re-opening Excel.
-
-Until someone with Excel Desktop runs steps 1–3, the correct geometry is unknown, so the seam is
-recorded here rather than closed.
+**How the seed was taken.** The tier is irreducible — there is no local oracle for it (the schema
+validator passed the analogous table bug) — so the probe file (master `B1`, clones `B2`+`D5`,
+`ref="B1:D5"`) was emitted, opened headless in Excel Desktop, and re-saved via the Excel-oracle
+harness ([ADR 0013](./0013-excel-desktop-as-automatable-tier3-oracle.md)): probe
+`tools/excel-oracle/probes/shared-formula-sparse-ref.json` → sidecar
+`test/corpus/fixtures/excel-oracle/shared-formula-sparse-ref.json`. Excel *ignored* the empty interior
+(no auto-fill) and re-saved the identical group — the verdict box above records the result. The seam
+fact `shared-formula-sparse-ref-matches-excel-canonical.case.ts` then locked that `ref`↔clone-set
+geometry so CI catches any regression without re-opening Excel.
 
 ## Consequences
 
