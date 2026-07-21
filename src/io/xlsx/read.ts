@@ -305,7 +305,7 @@ function readSheetPreservedReferences(
   // each so the pivots/slicers a fill-and-save workflow does not touch are not dropped.
   for (const record of records) {
     if (record.external) continue;
-    if (isPreservedSheetRelType(record.type)) capture(null, record.type, record.target);
+    if (isPreservedSheetRelType(record.type)) capture(undefined, record.type, record.target);
   }
 }
 

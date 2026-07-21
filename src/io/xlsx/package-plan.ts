@@ -83,14 +83,14 @@ export interface PreservedPartPlan {
 }
 
 // A preserved worksheet reference resolved for serialisation, short of its sheet-local relationship
-// id: the worksheet element that wires it (`null` for a pivot-table/slicer reference the sheet carries
-// by relationship alone), the relationship Type, and the new path of the entry part it targets. The id
-// is assigned by the caller from the sheet's {@link SheetRelIds} allocator, at the reference's
-// canonical position in the sheet-local id sequence (after tables/drawing/comments/printer-settings/
-// external-hyperlinks/background) — so a preserved reference never renumbers an id already threaded
-// into the sheet XML.
+// id: the worksheet element that wires it (`undefined` for a pivot-table/slicer reference the sheet
+// carries by relationship alone), the relationship Type, and the new path of the entry part it
+// targets. The id is assigned by the caller from the sheet's {@link SheetRelIds} allocator, at the
+// reference's canonical position in the sheet-local id sequence (after tables/drawing/comments/
+// printer-settings/external-hyperlinks/background) — so a preserved reference never renumbers an id
+// already threaded into the sheet XML.
 export interface ResolvedPreservedReference {
-  readonly element: 'drawing' | 'legacyDrawingHF' | null;
+  readonly element: 'drawing' | 'legacyDrawingHF' | undefined;
   readonly relType: string;
   readonly entryPath: string;
 }

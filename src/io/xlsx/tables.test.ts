@@ -87,7 +87,7 @@ test('a headerless table round-trips with headerRow false and no autofilter', ()
   assert.ok(table !== undefined);
   assert.equal(table.options.headerRow, false);
   assert.equal(table.options.rowCount, 2, 'both rows are data rows when there is no header');
-  assert.equal(table.autoFilterRef, null, 'a headerless table anchors no autofilter');
+  assert.equal(table.autoFilterRef, undefined, 'a headerless table anchors no autofilter');
 });
 
 test('a totals-row table round-trips its totals flag and per-column totals behaviour', () => {
@@ -235,7 +235,7 @@ test('a header table read without an autoFilter does not gain one on round-trip'
   });
   assert.ok(table !== undefined);
   assert.equal(table.headerRow, true, 'it keeps its header row');
-  assert.equal(table.autoFilterRef, null, 'but exposes no autoFilter range');
+  assert.equal(table.autoFilterRef, undefined, 'but exposes no autoFilter range');
   assert.equal(table.options.autoFilter, false, 'and the flag survives the round-trip');
 });
 

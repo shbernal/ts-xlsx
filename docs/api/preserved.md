@@ -48,14 +48,15 @@ interface PreservedRelationship {
 A worksheet-level reference to package content the model does not model — preserved verbatim across
 a round-trip instead of being silently dropped. `element` is the worksheet child that wires the
 reference (`<drawing>` for a vector-shape drawing, `<legacyDrawingHF>` for a header/footer image),
-or `null` when the sheet wires it by relationship alone (a pivot table or slicer Excel discovers by
-scanning the sheet's rels, with no worksheet child pointing at it). `relType` is the relationship
-Type URI to re-emit; `entryPath` is the part it points at; `parts` is the transitive closure of
-parts that reference reaches (the entry included), each re-emitted with its relationships rewired.
+or `undefined` when the sheet wires it by relationship alone (a pivot table or slicer Excel
+discovers by scanning the sheet's rels, with no worksheet child pointing at it). `relType` is the
+relationship Type URI to re-emit; `entryPath` is the part it points at; `parts` is the transitive
+closure of parts that reference reaches (the entry included), each re-emitted with its relationships
+rewired.
 
 ```ts
 interface PreservedWorksheetReference {
-    readonly element: 'drawing' | 'legacyDrawingHF' | null;
+    readonly element: 'drawing' | 'legacyDrawingHF' | undefined;
     readonly relType: string;
     readonly entryPath: string;
     readonly parts: readonly PreservedPart[];

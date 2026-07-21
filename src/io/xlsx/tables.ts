@@ -38,7 +38,7 @@ export function tableXml(table: Table, id: number): string {
     totals = '';
   }
   const autoFilter =
-    table.autoFilterRef !== null ? `<autoFilter ref="${table.autoFilterRef}"/>` : '';
+    table.autoFilterRef !== undefined ? `<autoFilter ref="${table.autoFilterRef}"/>` : '';
   const columns = table.columns.map((column, i) => tableColumnXml(column, i + 1)).join('');
   return (
     XML_DECLARATION +

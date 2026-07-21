@@ -414,12 +414,12 @@ export class Table {
 
   /**
    * The autoFilter range — the header row plus the data rows, never the totals row — or
-   * `null` when the table has no autoFilter: either it is headerless (an autoFilter has nothing
-   * to anchor to and Excel treats its presence as corruption) or its {@link autoFilter} flag is
-   * off (a table read without one must not gain one on round-trip).
+   * `undefined` when the table has no autoFilter: either it is headerless (an autoFilter has
+   * nothing to anchor to and Excel treats its presence as corruption) or its {@link autoFilter}
+   * flag is off (a table read without one must not gain one on round-trip).
    */
-  get autoFilterRef(): string | null {
-    if (!this.autoFilter) return null;
+  get autoFilterRef(): string | undefined {
+    if (!this.autoFilter) return undefined;
     const bottom = this.#anchorRow + this.#dataRowCount;
     return `${encodeAddress(this.#anchorCol, this.#anchorRow)}:${encodeAddress(this.#right, bottom)}`;
   }
