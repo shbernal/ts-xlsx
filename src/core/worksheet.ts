@@ -505,6 +505,16 @@ export class Worksheet {
       });
     }
 
+    // The totals row is deliberately NOT materialized, though its geometry mirrors the header row's.
+    // A header cell's text *is* the column's identity, so Excel cross-checks it against `tableColumn`
+    // and repairs a file whose header row is empty in the grid — which is why we fill it above. A
+    // totals cell carries no such identity: `totalsRowLabel`/`totalsRowFunction` are display directives
+    // Excel evaluates itself, and an absent totals cell is a valid "not yet computed" state. Verified
+    // against Excel Desktop — it opens a declared-but-empty totals row without repair and re-saves it
+    // unchanged, whereas the same probe refuses an empty header row outright. Writing the label and a
+    // SUBTOTAL formula to match Excel's own on-open rendering is a UX nicety, not a validity fix, so it
+    // stays out of this path.
+
     return table;
   }
 
