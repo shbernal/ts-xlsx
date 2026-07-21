@@ -482,7 +482,7 @@ test('duplicateRow makes a faithful copy that carries no merge of its own', () =
   sheet.getCell('A1').value = 'a';
   sheet.getCell('B1').value = 'b';
   sheet.getCell('C1').value = 'c';
-  sheet.duplicateRow(1, 1, true);
+  sheet.duplicateRow(1, {count: 1, insert: true});
   assert.equal(sheet.getCell('A2').value, 'a', 'the duplicated row copies the values');
   assert.equal(sheet.getCell('C2').value, 'c');
   // No phantom merge was fabricated on the new row, so an explicit merge succeeds.
@@ -494,7 +494,7 @@ test('duplicating rows above a merged range shifts the merge down by the number 
   sheet.getCell('A1').value = 'a';
   sheet.getCell('A3').value = 'banner';
   sheet.mergeCells('A3:C3');
-  sheet.duplicateRow(1, 2, true);
+  sheet.duplicateRow(1, {count: 2, insert: true});
   assert.ok(
     [...sheet.merges].includes('A5:C5'),
     `expected A5:C5; got ${JSON.stringify([...sheet.merges])}`,

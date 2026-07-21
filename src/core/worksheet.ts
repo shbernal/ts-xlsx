@@ -980,15 +980,16 @@ export class Worksheet {
   }
 
   /**
-   * Copy the row at the 1-based `start`, `count` times. With `insert` (the default) the copies are
-   * inserted directly after the source, shifting the rows below — and any merged range there — down
-   * by `count`; otherwise the copies overwrite the rows immediately below without shifting. Each
-   * copy is a faithful duplicate of the source's values and per-cell styles, and carries no merge of
-   * its own, so a range can be merged onto a duplicated row afterwards.
+   * Copy the row at the 1-based `start`, `options.count` times (default 1). With `options.insert`
+   * (the default) the copies are inserted directly after the source, shifting the rows below — and
+   * any merged range there — down by `count`; otherwise the copies overwrite the rows immediately
+   * below without shifting. Each copy is a faithful duplicate of the source's values and per-cell
+   * styles, and carries no merge of its own, so a range can be merged onto a duplicated row afterwards.
    *
    * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
    */
-  duplicateRow(start: number, count = 1, insert = true): void {
+  duplicateRow(start: number, options: {count?: number; insert?: boolean} = {}): void {
+    const {count = 1, insert = true} = options;
     if (!Number.isInteger(start) || start < 1) {
       throw new RangeError(`duplicate start ${start} is out of bounds — rows start at 1`);
     }

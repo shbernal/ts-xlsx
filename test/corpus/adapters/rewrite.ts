@@ -3776,7 +3776,7 @@ const impl = {
         else if (op.op === 'mergeCells') sheet.mergeCells(op.range);
         else if (op.op === 'insertRow') sheet.insertRow(op.pos, op.value || []);
         else if (op.op === 'duplicateRow')
-          sheet.duplicateRow(op.start, op.count ?? 1, op.insert !== false);
+          sheet.duplicateRow(op.start, {count: op.count ?? 1, insert: op.insert !== false});
         else throw new Error(`unknown mutation op: ${op.op}`);
       }
     } catch (e) {
@@ -3830,7 +3830,7 @@ const impl = {
     sheet.getCell('C1').value = 'c';
     let dupError = null;
     try {
-      sheet.duplicateRow(1, 1, true);
+      sheet.duplicateRow(1, {count: 1, insert: true});
     } catch (e) {
       dupError = String((e as CorpusApi)?.message || e);
     }

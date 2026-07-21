@@ -203,7 +203,10 @@ class Worksheet {
   addRows(rows: RowInput[]): Cell[][];
   freeze(ySplit = 1, xSplit = 0): void;
   unfreeze(): void;
-  duplicateRow(start: number, count = 1, insert = true): void;
+  duplicateRow(start: number, options: {
+    count?: number;
+    insert?: boolean;
+} = {}): void;
   spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void;
   get model(): WorksheetModel;
   set model(model: WorksheetModel);
@@ -282,7 +285,10 @@ class Worksheet {
 - `addRows(rows: RowInput[]): Cell[][];` — Append several rows after the last used row in one call, returning the cells materialised for each. The rows stack in order — the first lands at `rowCount`` + 1`, the next directly below it — so a later row never collides with an earlier one even when both are value-less. Each row is an array or a keyed object independently, so a mixed batch is fine. The bulk form of `addRow`.
 - `freeze(ySplit = 1, xSplit = 0): void;` — Freeze the top `ySplit` rows and left `xSplit` columns in place; the rest of the sheet scrolls beneath them. `freeze(1)` pins a header row; `freeze(0, 1)` pins the first column. Passing both zero clears the freeze (equivalent to `unfreeze`).
 - `unfreeze(): void;` — Clear any frozen split, returning the sheet to a normal (fully scrolling) view.
-- `duplicateRow(start: number, count = 1, insert = true): void;` — Copy the row at the 1-based `start`, `count` times. With `insert` (the default) the copies are inserted directly after the source, shifting the rows below — and any merged range there — down by `count`; otherwise the copies overwrite the rows immediately below without shifting. Each copy is a faithful duplicate of the source's values and per-cell styles, and carries no merge of its own, so a range can be merged onto a duplicated row afterwards.
+- `duplicateRow(start: number, options: {
+    count?: number;
+    insert?: boolean;
+} = {}): void;` — Copy the row at the 1-based `start`, `options.count` times (default 1). With `options.insert` (the default) the copies are inserted directly after the source, shifting the rows below — and any merged range there — down by `count`; otherwise the copies overwrite the rows immediately below without shifting. Each copy is a faithful duplicate of the source's values and per-cell styles, and carries no merge of its own, so a range can be merged onto a duplicated row afterwards.
 - `spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void;` — Remove `count` columns starting at the 1-based `start`, then insert the given columns in their place — the column analog of `spliceRows`. Columns to the right shift by `inserts.length - count`, keeping their values and styles, and a merged range lying wholly to the right of the edit re-anchors to its new columns. Each inserted column is an array of values indexed by row (index 0 → row 1); an empty array inserts a blank column.
 - `get model(): WorksheetModel;` — A snapshot of this sheet's value and overlay content (see `WorksheetModel`). Reading it and assigning it onto another sheet — `dst.model = src.model` — reproduces the source: merges, cells and their styles, column/row metadata, tables, the autofilter, protection, and the page setup all survive, because the getter emits and the setter consumes exactly the same fields. Identity (`name`, `id`) is not part of the model and is never touched by assignment; nor are attached parts that carry workbook-level identity (images, pivots, byte-preserved charts/drawings) — see `WorksheetModel` for that boundary.
 - `protect(password?: string, options: SheetProtectionOptions = {}): void;` — Protect the sheet, making the per-cell `locked`/`hidden` flags enforceable. Without a password the protection is a soft lock any consumer can lift; with one, the password is salted and hashed on the spot (the plaintext is never retained) so lifting the protection requires re-supplying it. `options` names which operations stay available to a user while the sheet is protected; anything unspecified falls to Excel's default for that operation. Re-protecting replaces any prior protection; `unprotect` clears it.
