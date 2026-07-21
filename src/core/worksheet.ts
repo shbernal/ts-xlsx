@@ -274,21 +274,25 @@ export class Worksheet {
 
   // Structural-edit machinery (row/column splices), sharing this sheet's storage by reference. The
   // public spliceRows/spliceColumns/duplicateRow build the cells an insert introduces, then delegate
-  // the shift arithmetic here.
-  readonly #edits = new GridEdits({
-    rows: this.#rows,
-    rowProperties: this.#rowProperties,
-    columns: this.#columns,
-    merges: this.#merges,
-    mergeRects: this.#mergeRects,
-    tables: this.#tables,
-    images: this.#images,
-  });
+  // the shift arithmetic here. Wired in the constructor body, not a field initializer, so it never
+  // depends on this field's declaration position relative to the storage fields above — a class field
+  // initializer only sees an earlier-declared field's initial value, so if this stayed a field
+  // initializer, reordering the class body could silently hand GridEdits a still-undefined map.
+  readonly #edits: GridEdits;
 
   constructor(name: string, id: number, state: WorksheetState['state'] = 'visible') {
     this.name = name;
     this.id = id;
     this.state = state;
+    this.#edits = new GridEdits({
+      rows: this.#rows,
+      rowProperties: this.#rowProperties,
+      columns: this.#columns,
+      merges: this.#merges,
+      mergeRects: this.#mergeRects,
+      tables: this.#tables,
+      images: this.#images,
+    });
   }
 
   /**
