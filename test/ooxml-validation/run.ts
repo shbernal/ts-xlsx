@@ -8,6 +8,9 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import type JSZipType from 'jszip';
+import {Workbook} from '../../src/core/workbook.ts';
+import {writeXlsx} from '../../src/io/xlsx/write.ts';
+import {WorkbookStreamWriter} from '../../src/io/xlsx/write-stream.ts';
 
 /** Structured diagnostic emitted per validation problem by OpenXmlValidator. */
 interface ValidationError {
@@ -33,7 +36,8 @@ interface ValidationReport {
   readonly results: readonly ValidationResult[];
 }
 
-/** Baselined-until-fixed diagnostics, keyed by workbook basename. */
+/** Baselined-until-fixed diagnostics, keyed by workbook basename. Empty while the writer is clean —
+ * an entry is a *known-open* writer bug we've chosen to track, never a mute button for a new one. */
 type Baseline = Readonly<Record<string, readonly ValidationFingerprint[]>>;
 
 /** The captured outcome of one `dotnet run` invocation. */
@@ -43,38 +47,7 @@ interface DotnetRun {
   readonly stderr: string;
 }
 
-/** The narrow slice of the legacy ExcelJS surface this harness drives. */
-interface LegacyWorkbook {
-  addWorksheet(name: string): LegacyWorksheet;
-  readonly xlsx: {writeFile(file: string): Promise<void>};
-  commit(): Promise<void>;
-}
-
-interface LegacyCell {
-  font: unknown;
-  dataValidation: unknown;
-  value: unknown;
-}
-
-interface LegacyRow {
-  commit(): void;
-}
-
-interface LegacyWorksheet {
-  columns: ReadonlyArray<{header: string; key: string; width: number}>;
-  addRow(data: unknown): LegacyRow;
-  getCell(address: string): LegacyCell;
-  addTable(table: unknown): void;
-  commit(): void;
-}
-
-interface LegacyExcelJS {
-  Workbook: {new (): LegacyWorkbook};
-  stream: {xlsx: {WorkbookWriter: {new (options: unknown): LegacyWorkbook}}};
-}
-
 const require = createRequire(import.meta.url);
-const ExcelJS = require('../../lib/exceljs.nodejs.js') as LegacyExcelJS;
 const JSZip = require('jszip') as typeof JSZipType;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -85,6 +58,10 @@ const BASELINE = JSON.parse(
 ) as Baseline;
 const TIMEOUT_MS = 30_000;
 const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+
+// The buffered and both streaming outputs are the packages under test: every one must validate against
+// the frozen baseline (empty today, so: clean). A new diagnostic on any of them fails the gate.
+const WRITER_FILES = ['buffered.xlsx', 'streaming-inline.xlsx', 'streaming-shared.xlsx'] as const;
 
 function runDotnet(
   files: readonly string[],
@@ -148,42 +125,42 @@ function runDotnet(
   });
 }
 
+// Exercise a representative slice of the buffered writer — styled font, data validation, a formula, and
+// a table over its own cells — so the oracle sees more than a bare grid.
 async function writeBufferedWorkbook(file: string): Promise<void> {
-  const workbook = new ExcelJS.Workbook();
+  const workbook = new Workbook();
   const sheet = workbook.addWorksheet('Data');
-  sheet.columns = [
-    {header: 'Name', key: 'name', width: 20},
-    {header: 'Value', key: 'value', width: 12},
-  ];
-  sheet.addRow({name: 'alpha', value: 42});
+  Object.assign(sheet.getColumn(1), {key: 'name', width: 20});
+  Object.assign(sheet.getColumn(2), {key: 'value', width: 12});
+  sheet.addRow(['Name', 'Value']);
+  sheet.addRow(['alpha', 42]);
   sheet.getCell('A2').font = {bold: true, color: {argb: 'FF336699'}};
-  sheet.getCell('B2').dataValidation = {type: 'whole', operator: 'between', formulae: [0, 100]};
+  sheet.addDataValidation('B2:B20', {type: 'whole', operator: 'between', formulae: [0, 100]});
   sheet.getCell('B3').value = {formula: 'SUM(B2:B2)', result: 42};
+  sheet.getCell('D1').value = 'Label';
+  sheet.getCell('E1').value = 'Amount';
+  sheet.getCell('D2').value = 'alpha';
+  sheet.getCell('E2').value = 42;
   sheet.addTable({
     name: 'DataTable',
     ref: 'D1',
     headerRow: true,
     columns: [{name: 'Label'}, {name: 'Amount'}],
-    rows: [['alpha', 42]],
+    rowCount: 1,
   });
-  await workbook.xlsx.writeFile(file);
+  await writeFile(file, writeXlsx(workbook));
 }
 
-async function writeStreamingWorkbook(file: string): Promise<void> {
-  const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-    filename: file,
-    useSharedStrings: true,
-    useStyles: true,
-  });
-  const sheet = workbook.addWorksheet('Stream');
-  sheet.columns = [
-    {header: 'Name', key: 'name', width: 20},
-    {header: 'Value', key: 'value', width: 12},
-  ];
-  sheet.addRow({name: 'alpha', value: 42}).commit();
-  sheet.addRow({name: 'beta', value: 7}).commit();
+// The streaming writer must be clean in both string-storage modes: inline (eager per-row flush) and
+// shared-strings (whole-workbook pool). They travel different serialisation paths, so both are exercised.
+async function writeStreamingWorkbook(file: string, useSharedStrings: boolean): Promise<void> {
+  const writer = new WorkbookStreamWriter({useSharedStrings});
+  const sheet = writer.addWorksheet('Stream');
+  sheet.addRow(['Name', 'Value']).commit();
+  sheet.addRow(['alpha', 42]).commit();
+  sheet.addRow(['beta', 7]).commit();
   sheet.commit();
-  await workbook.commit();
+  await writeFile(file, await writer.commit());
 }
 
 async function rewritePackage(
@@ -196,20 +173,8 @@ async function rewritePackage(
   await writeFile(destination, await zip.generateAsync({type: 'nodebuffer'}));
 }
 
-async function makeSchemaCleanControl(source: string, destination: string): Promise<void> {
-  await rewritePackage(source, destination, async (zip) => {
-    const stylesPart = zip.file('xl/styles.xml');
-    assert.ok(stylesPart, 'generated workbook must contain xl/styles.xml');
-    const styles = await stylesPart.async('string');
-    const corrected = styles.replace(
-      '<font><color theme="1"/><family val="2"/><scheme val="minor"/><sz val="11"/><name val="Calibri"/></font>',
-      '<font><sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>',
-    );
-    assert.notStrictEqual(corrected, styles, 'known font-order sequence must be present');
-    zip.file('xl/styles.xml', corrected);
-  });
-}
-
+// A negative control: inject an element the worksheet schema forbids, so a passing run proves the oracle
+// still discriminates rather than rubber-stamping. Derived from a known-clean package.
 async function makeSchemaInvalidControl(source: string, destination: string): Promise<void> {
   await rewritePackage(source, destination, async (zip) => {
     const sheetPart = zip.file('xl/worksheets/sheet1.xml');
@@ -246,44 +211,38 @@ function parseReport(result: DotnetRun, expectedCode: number): ValidationReport 
 async function main(): Promise<void> {
   const temp = await mkdtemp(path.join(tmpdir(), 'ts-xlsx-ooxml-'));
   try {
-    const buffered = path.join(temp, 'buffered.xlsx');
-    const streaming = path.join(temp, 'streaming.xlsx');
-    const clean = path.join(temp, 'clean.xlsx');
-    const invalid = path.join(temp, 'invalid.xlsx');
-    const truncated = path.join(temp, 'truncated.xlsx');
-    const unsupported = path.join(temp, 'unsupported.txt');
+    const at = (name: string) => path.join(temp, name);
+    const invalid = at('invalid.xlsx');
+    const truncated = at('truncated.xlsx');
+    const unsupported = at('unsupported.txt');
 
-    await writeBufferedWorkbook(buffered);
-    await writeStreamingWorkbook(streaming);
-    await makeSchemaCleanControl(buffered, clean);
-    await makeSchemaInvalidControl(clean, invalid);
-    await writeFile(truncated, (await readFile(clean)).subarray(0, 128));
+    await writeBufferedWorkbook(at('buffered.xlsx'));
+    await writeStreamingWorkbook(at('streaming-inline.xlsx'), false);
+    await writeStreamingWorkbook(at('streaming-shared.xlsx'), true);
+    await makeSchemaInvalidControl(at('buffered.xlsx'), invalid);
+    await writeFile(truncated, (await readFile(at('buffered.xlsx'))).subarray(0, 128));
     await writeFile(unsupported, 'not an xlsx');
 
-    const report = parseReport(
-      await runDotnet([buffered, streaming, clean, invalid, truncated]),
-      1,
-    );
+    // Both negative controls make this a non-zero run; the writer files are asserted clean below.
+    const report = parseReport(await runDotnet([...WRITER_FILES.map(at), invalid, truncated]), 1);
     assert.strictEqual(report.format, 'Microsoft365');
     const byName = new Map(report.results.map((result) => [path.basename(result.file), result]));
 
-    for (const [name, expected] of Object.entries(BASELINE)) {
+    for (const name of WRITER_FILES) {
       const result = byName.get(name);
       assert.ok(result, `missing validator result for ${name}`);
-      assert.deepStrictEqual(result.errors.map(fingerprint), expected, `${name} baseline changed`);
+      const expected = BASELINE[name] ?? [];
+      assert.deepStrictEqual(
+        result.errors.map(fingerprint),
+        expected,
+        `${name} diverged from its baseline — fix the writer, do not baseline a new error`,
+      );
       assert.strictEqual(
         result.valid,
-        false,
-        `${name} must remain baselined until the writer is fixed`,
+        expected.length === 0,
+        `${name} validity must match its (empty) baseline`,
       );
     }
-
-    assert.deepStrictEqual(
-      byName.get('clean.xlsx')?.errors,
-      [],
-      'schema-clean control must validate',
-    );
-    assert.strictEqual(byName.get('clean.xlsx')?.valid, true);
 
     const invalidResult = byName.get('invalid.xlsx');
     assert.strictEqual(invalidResult?.valid, false);
@@ -305,14 +264,15 @@ async function main(): Promise<void> {
       ['Package'],
     );
 
-    parseReport(await runDotnet([clean]), 0);
+    // The clean exit path: the writer outputs alone must return exit 0.
+    parseReport(await runDotnet(WRITER_FILES.map(at)), 0);
 
     const badInvocation = await runDotnet([unsupported]);
     assert.strictEqual(badInvocation.code, 2);
     assert.match(badInvocation.stderr, /Only \.xlsx files are supported/);
     assert.strictEqual(badInvocation.stdout, '');
 
-    console.log('ooxml validation: buffered + streaming baselines and clean/error controls passed');
+    console.log('ooxml validation: buffered + streaming outputs clean; error controls detected');
   } finally {
     await rm(temp, {recursive: true, force: true});
   }
