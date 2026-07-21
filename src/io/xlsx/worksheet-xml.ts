@@ -38,16 +38,16 @@ import type {
 } from '../../core/worksheet.ts';
 import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
 import {dataValidationsExtXml, dataValidationsXml} from './data-validation.ts';
-import {hyperlinksXml, type PlannedHyperlink} from './hyperlinks.ts';
+import {type HyperlinkPlan, hyperlinksXml} from './hyperlinks.ts';
 import {SLICER_LIST_EXT_URI} from './namespaces.ts';
 import type {
   BackgroundPlan,
   CommentPlan,
   DrawingPlan,
   PivotPlan,
-  PlannedTable,
   PreservedReferencePlan,
   PrinterSettingsPlan,
+  TablePlan,
 } from './package-plan.ts';
 import {numberText, relativePartPath} from './part-paths.ts';
 import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
@@ -121,10 +121,10 @@ export interface SheetReferences {
 
 export function worksheetXml(
   sheet: Worksheet,
-  tables: readonly PlannedTable[],
+  tables: readonly TablePlan[],
   styles: StyleRegistry,
   references: SheetReferences,
-  hyperlinks: readonly PlannedHyperlink[],
+  hyperlinks: readonly HyperlinkPlan[],
   sharedStrings: SharedStringTable | null,
   flushed?: FlushedSheet,
 ): string {
@@ -483,19 +483,19 @@ function refElement(tag: string, relId: string | null): string {
   return relId === null ? '' : `<${tag} r:id="${relId}"/>`;
 }
 
-function tablePartsXml(tables: readonly PlannedTable[]): string {
+function tablePartsXml(tables: readonly TablePlan[]): string {
   if (tables.length === 0) return '';
   const parts = tables.map(({relId}) => `<tablePart r:id="${relId}"/>`).join('');
   return `<tableParts count="${tables.length}">${parts}</tableParts>`;
 }
 
 export function worksheetRelsXml(
-  tables: readonly PlannedTable[],
+  tables: readonly TablePlan[],
   drawing: DrawingPlan | null,
   comments: CommentPlan | null,
   printerSettings: PrinterSettingsPlan | null,
   background: BackgroundPlan | null,
-  hyperlinks: readonly PlannedHyperlink[],
+  hyperlinks: readonly HyperlinkPlan[],
   preservedReferences: readonly PreservedReferencePlan[],
   pivots: readonly PivotPlan[],
 ): string {

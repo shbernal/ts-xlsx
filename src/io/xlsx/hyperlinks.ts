@@ -28,7 +28,7 @@ export interface CollectedHyperlink {
 /** A hyperlink resolved for serialisation. An external target carries a `relId` (the sheet
  * relationship holding the URL) plus that `target`; an internal target carries a `location` (the
  * in-workbook reference). Exactly one of `relId`/`location` is ever set. */
-export interface PlannedHyperlink {
+export interface HyperlinkPlan {
   readonly ref: string;
   readonly relId?: string;
   readonly target?: string;
@@ -63,7 +63,7 @@ export function collectHyperlinks(sheet: Worksheet): CollectedHyperlink[] {
 export function planHyperlinks(
   links: readonly CollectedHyperlink[],
   rels: SheetRelIds,
-): PlannedHyperlink[] {
+): HyperlinkPlan[] {
   return links.map((link) => {
     const tooltip = link.tooltip !== undefined ? {tooltip: link.tooltip} : {};
     // A '#'-prefixed target is an internal document location: held verbatim in `location`, with no
@@ -77,7 +77,7 @@ export function planHyperlinks(
 
 /** The `<hyperlinks>` element, or '' when the sheet has none. Attribute order follows CT_Hyperlink:
  * `ref`, `r:id`, `location`, `tooltip`. */
-export function hyperlinksXml(links: readonly PlannedHyperlink[]): string {
+export function hyperlinksXml(links: readonly HyperlinkPlan[]): string {
   if (links.length === 0) return '';
   const items = links
     .map((link) => {

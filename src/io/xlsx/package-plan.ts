@@ -57,7 +57,7 @@ export interface PrinterSettingsPlan {
 
 // A table paired with the identifiers the package needs: a workbook-global part number
 // and the sheet-local relationship id that links its worksheet to the table part.
-export interface PlannedTable {
+export interface TablePlan {
   readonly table: Table;
   readonly number: number;
   readonly relId: string;
@@ -125,12 +125,12 @@ export interface PreservedPlan {
 export interface DrawingPlan {
   readonly number: number;
   readonly relId: string;
-  readonly images: readonly PlannedImage[];
+  readonly images: readonly ImagePlan[];
 }
 
 // An anchored image resolved for serialisation: its anchor and drawing-local embed id (via
 // DrawingImage) plus the media part number and extension its embed relationship targets.
-export interface PlannedImage extends DrawingImage {
+export interface ImagePlan extends DrawingImage {
   readonly mediaNumber: number;
   readonly extension: string;
 }

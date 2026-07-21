@@ -9,9 +9,9 @@ import {imageContentType} from './images.ts';
 import {SLICER_CACHES_EXT_URI} from './namespaces.ts';
 import type {
   PivotPlan,
-  PlannedTable,
   PreservedPartPlan,
   PreservedWorkbookReferencePlan,
+  TablePlan,
 } from './package-plan.ts';
 import {range, relativePartPath} from './part-paths.ts';
 import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
@@ -45,7 +45,7 @@ export type PreservedWorkbookRel = PreservedWorkbookReferencePlan & {readonly re
 
 export function contentTypesXml(
   sheetCount: number,
-  tables: readonly PlannedTable[],
+  tables: readonly TablePlan[],
   commentNumbers: readonly number[],
   drawingNumbers: readonly number[],
   printerSettingsNumbers: readonly number[],
@@ -126,7 +126,7 @@ function contentTypeDefaults(
 // doc-props pair, then any preserved part that carries its own XML content type.
 function contentTypeOverrides(
   sheetCount: number,
-  tables: readonly PlannedTable[],
+  tables: readonly TablePlan[],
   drawingNumbers: readonly number[],
   commentNumbers: readonly number[],
   hasSharedStrings: boolean,

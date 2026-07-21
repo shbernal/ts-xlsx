@@ -20,21 +20,21 @@ import type {WorkbookImage} from '../../core/image.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {collectNotes, commentsXml, vmlDrawingXml} from './comments.ts';
-import {collectHyperlinks, type PlannedHyperlink, planHyperlinks} from './hyperlinks.ts';
+import {collectHyperlinks, type HyperlinkPlan, planHyperlinks} from './hyperlinks.ts';
 import {drawingRelsXml, drawingXml} from './images.ts';
 import {
   type BackgroundPlan,
   type CommentPlan,
   type DrawingPlan,
+  type ImagePlan,
   type PivotPlan,
-  type PlannedImage,
-  type PlannedTable,
   type PreservedPartPlan,
   type PreservedReferencePlan,
   type PrinterSettingsPlan,
   planMedia,
   planPreservedParts,
   SheetRelIds,
+  type TablePlan,
 } from './package-plan.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {REL, relsPartXml} from './relationships.ts';
@@ -134,11 +134,11 @@ export function createStyleRegistry(workbook: Workbook): StyleRegistry {
 // the single planning pass. Held as a struct per sheet — rather than eight index-aligned arrays — so a
 // downstream step reads one sheet's plan as a unit and cannot transpose two sheets by mis-indexing.
 interface SheetPlan {
-  readonly tables: PlannedTable[];
+  readonly tables: TablePlan[];
   readonly drawing: DrawingPlan | null;
   readonly comments: CommentPlan | null;
   readonly printerSettings: PrinterSettingsPlan | null;
-  readonly hyperlinks: PlannedHyperlink[];
+  readonly hyperlinks: HyperlinkPlan[];
   readonly background: BackgroundPlan | null;
   readonly preservedRefs: PreservedReferencePlan[];
   readonly pivots: PivotPlan[];
@@ -214,7 +214,7 @@ export function buildPackageParts(
   const perSheet = sheets.map((sheet, i): SheetPlan => {
     const rels = new SheetRelIds();
 
-    const tables: PlannedTable[] = sheet.tables.map((table) => ({
+    const tables: TablePlan[] = sheet.tables.map((table) => ({
       table,
       number: ++tableNumber,
       relId: rels.next(),
@@ -222,7 +222,7 @@ export function buildPackageParts(
 
     let drawing: DrawingPlan | null = null;
     if (sheet.images.length > 0) {
-      const images: PlannedImage[] = sheet.images.map((image, j) => {
+      const images: ImagePlan[] = sheet.images.map((image, j) => {
         const registered = workbook.getImage(image.imageId) as WorkbookImage;
         return {
           anchor: image.anchor,
