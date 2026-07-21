@@ -33,3 +33,7 @@ docs/knowledge/backlog/attachments/
 # Development-only .NET OOXML validator build output
 tools/ooxml-validator/bin/
 tools/ooxml-validator/obj/
+
+# GUI-automation scratch (screenshots, extracted packages) — see the
+# excel-gui-automation skill. Windows/Excel-bound probe output, never committed.
+.tmp/
