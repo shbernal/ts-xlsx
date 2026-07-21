@@ -6,6 +6,7 @@
 import {strFromU8} from 'fflate';
 
 import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts';
+import {extensionOf} from './part-paths.ts';
 import {openElements, type XmlAttributes} from './xml-read.ts';
 
 // The two ways a reader reaches into an inflated package: a part's UTF-8-decoded text, or its raw
@@ -28,12 +29,6 @@ export function packageAccessors(files: Record<string, Uint8Array>): PackageAcce
     },
     partBytes: (path: string): Uint8Array | undefined => files[path],
   };
-}
-
-// The extension of a part path (`xl/media/image1.png` → `png`), or '' when it carries none.
-export function extensionOf(partPath: string): string {
-  const dot = partPath.lastIndexOf('.');
-  return dot === -1 ? '' : partPath.slice(dot + 1);
 }
 
 // The relationships for `dir/name.ext` live at `dir/_rels/name.ext.rels`.

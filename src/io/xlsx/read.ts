@@ -36,11 +36,11 @@ import {
 import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {inflatePackage} from './inflate.ts';
+import {extensionOf} from './part-paths.ts';
 import {parsePivotTable} from './pivot-read.ts';
 import {
   capturePartClosure,
   contentTypeResolver,
-  extensionOf,
   type PackageAccessors,
   packageAccessors,
   parseRelationshipRecords,
