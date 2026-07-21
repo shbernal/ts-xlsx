@@ -675,6 +675,11 @@ export class Worksheet {
    * Merge a range of cells (`"A1:B2"`). A range that overlaps an already-merged region is
    * rejected — Excel forbids overlapping merges and writes such geometry as a corrupt file.
    * Whole-row/column ranges (`"A:A"`) are unbounded, carry no rectangle, and are not overlap-checked.
+   *
+   * Any value already sitting in a covered non-anchor cell is discarded, keeping only the top-left
+   * anchor's — exactly how Excel collapses a range on merge. Leaving it would emit a populated `<c>`
+   * under the `<mergeCell>` ref, the geometry Excel opens with a repair prompt. Covered-cell styles
+   * survive (a border spanning the merge is legal), so only the conflicting value is cleared.
    */
   mergeCells(range: string): void {
     const {top, left, bottom, right} = decodeRange(range);
@@ -685,8 +690,25 @@ export class Worksheet {
         throw new Error(`merged range "${range}" overlaps an existing merged region`);
       }
       this.#mergeRects.push(rect);
+      this.#clearCoveredValues(rect);
     }
     this.#merges.push(range);
+  }
+
+  // Drop any value already sitting in a merge's covered non-anchor cells, keeping only the top-left
+  // anchor — the collapse Excel performs on merge. A leftover covered value would serialise as a
+  // populated `<c>` under the range's `<mergeCell>` ref, the geometry that trips Excel's repair
+  // prompt. Styles are untouched: a border spanning the merged region rides the covered cells.
+  #clearCoveredValues(rect: MergeRect): void {
+    for (let row = rect.top; row <= rect.bottom; row++) {
+      const cols = this.#rows.get(row);
+      if (cols === undefined) continue;
+      for (let col = rect.left; col <= rect.right; col++) {
+        if (row === rect.top && col === rect.left) continue;
+        const covered = cols.get(col);
+        if (covered !== undefined) covered.value = null;
+      }
+    }
   }
 
   /** The merged ranges on this sheet, in the order they were added. */

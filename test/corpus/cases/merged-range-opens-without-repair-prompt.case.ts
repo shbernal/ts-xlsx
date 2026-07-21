@@ -57,5 +57,21 @@ export default {
         );
       },
     },
+    {
+      // The seam the clean-merge behaviors above miss: values written into covered cells BEFORE the
+      // merge collapses the range. Excel keeps only the anchor's; a leftover covered <v> under the
+      // <mergeCell> ref is the exact geometry that trips the repair prompt.
+      name: 'merging over already-populated covered cells discards their values, keeping the anchor',
+      baseline: 'pass',
+      async expect(api: CorpusApi, assert: Assert) {
+        const {anchorValue, populatedCoveredCells} = await api.mergeOverPopulatedReport();
+        assert.deepStrictEqual(
+          populatedCoveredCells,
+          [],
+          `covered cells populated before the merge must be cleared; got ${JSON.stringify(populatedCoveredCells)}`,
+        );
+        assert.strictEqual(anchorValue, 'Group Title', 'the anchor value survives the merge');
+      },
+    },
   ],
 } satisfies Case;

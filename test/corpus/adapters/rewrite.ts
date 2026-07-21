@@ -3578,6 +3578,43 @@ const impl = {
     };
   },
 
+  // Populate covered non-anchor cells FIRST, then merge over them — the order that leaves stray
+  // values behind. Write and read back → { anchorValue, populatedCoveredCells, coveredValuesOnRead }.
+  // Excel keeps only the anchor's value on merge; a covered cell that still carries a <v> under the
+  // <mergeCell> ref is the geometry that trips Excel's repair prompt.
+  mergeOverPopulatedReport({
+    anchor = 'B1',
+    range = 'B1:G1',
+    value = 'Group Title',
+  }: CorpusApi = {}) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    const {left, right, top, bottom} = decodeRange(range);
+    // Fill every cell of the range, anchor included, before the merge collapses it.
+    for (let r = top!; r <= bottom!; r++) {
+      for (let c = left!; c <= right!; c++) {
+        sheet.getCell(encodeAddress(c, r)).value = c === left && r === top ? value : `covered-${c}`;
+      }
+    }
+    sheet.mergeCells(range);
+    const buffer = writeXlsx(workbook);
+    const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
+    const populatedCoveredCells: CorpusApi[] = [];
+    for (let r = top!; r <= bottom!; r++) {
+      for (let c = left!; c <= right!; c++) {
+        const ref = encodeAddress(c, r);
+        if (ref === anchor) continue;
+        if (new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*>[\\s\\S]*?<v>`).test(sheetXml))
+          populatedCoveredCells.push(ref);
+      }
+    }
+    const reread = readXlsx(buffer).getWorksheet('S')!;
+    return {
+      anchorValue: reread.getCell(anchor).value ?? null,
+      populatedCoveredCells,
+    };
+  },
+
   // Give the top-left/master cell a border (+ numFmt + font), merge it into a region, round-trip,
   // then report the master's border/numFmt/font and the declared merges → for asserting a merge
   // does not strip the style the master needs to render the merged region's outline.

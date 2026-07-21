@@ -91,7 +91,8 @@ barely. Any invariant spanning two parts is unstateable until a fact is delibera
 built to cross the seam. An audit of the current vocabulary (2026-07-21) found these
 **unstated cross-part seams** Excel is known or expected to enforce:
 
-- `<mergeCell ref>` ↔ covered cells must be empty (no `mergeCells` fact).
+- ~~`<mergeCell ref>` ↔ covered cells must be empty (no `mergeCells` fact).~~
+  **Closed** — `mergeCleanReport` fact + `merged-range-opens-without-repair-prompt.case.ts`.
 - `<tablePart r:id>` in a sheet → rel → table part → content-type override (tables carry
   no owning sheet or rel id).
 - Drawing/image anchor → `r:embed` → drawing rel → media part → content-type (no
