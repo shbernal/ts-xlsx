@@ -91,6 +91,11 @@ const wb2 = readXlsx(readFileSync('people.xlsx')); // a Buffer is a Uint8Array
 Addresses are honest: an axis a reference doesn't mention is `undefined`, never a
 sentinel — see [`decodeAddress`](docs/api/addresses-ranges.md).
 
+Charts, vector shapes, slicers, and legacy form controls are **round-trip-only**: a
+workbook that has them keeps them byte-faithfully through a load/edit/save, but there is
+no API to author a new one — see [`docs/api/preserved.md`](docs/api/preserved.md) and
+[ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round-trip-only-for-1-0.md).
+
 ## Reading, writing, streaming, CSV
 
 ```ts

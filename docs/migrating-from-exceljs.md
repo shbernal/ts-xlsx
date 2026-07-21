@@ -85,6 +85,13 @@ on a feature not yet in the [API reference](api/README.md), then — per the pro
 working agreement (see [`architecture.md`](architecture.md)) — a missing behavior is best
 reported as a corpus case so it is fixed once and never regresses.
 
+**Charts, vector shapes, slicers, and legacy form controls are round-trip-only, by
+decision, not by omission.** ExcelJS let you create these from scratch (with varying
+fidelity); `ts-xlsx` preserves them byte-faithfully through a load/edit/save but has no
+authoring API for any of the four — see [`docs/api/preserved.md`](api/preserved.md) and
+[ADR-0014](decisions/0014-charts-shapes-slicers-are-round-trip-only-for-1-0.md) for the
+reasoning and what it would take to pick one up.
+
 ## Why break compatibility at all?
 
 Because keeping the old surface would make the library worse but easier, and replacing it
