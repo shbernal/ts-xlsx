@@ -1,0 +1,37 @@
+{
+  "invariant": "table-totals-row-materialized",
+  "description": "A table (header row 1, data rows 2-3, totals row 4) whose totals row ts-xlsx now materializes: A4 holds the literal label 'Total', B4 holds SUBTOTAL(103,T[Qty]) (COUNTA), C4 holds SUBTOTAL(109,T[Amount]) (SUM). The aggregate cells carry the formula with NO cached <v>. Probes whether Excel opens the package without repair, computes the uncached SUBTOTAL cells on open (B4=2, C4=30), and whether it rewrites the label/formula on re-save or keeps them verbatim.",
+  "spec": {
+    "sheets": [
+      {
+        "name": "S",
+        "tables": [
+          {
+            "name": "T",
+            "ref": "A1",
+            "totalsRow": true,
+            "rowCount": 2,
+            "columns": [
+              {"name": "Item", "totalsRowLabel": "Total"},
+              {"name": "Qty", "totalsRowFunction": "count"},
+              {"name": "Amount", "totalsRowFunction": "sum"}
+            ]
+          }
+        ],
+        "cells": [
+          {"ref": "A2", "value": "a"},
+          {"ref": "B2", "value": 1},
+          {"ref": "C2", "value": 10},
+          {"ref": "A3", "value": "b"},
+          {"ref": "B3", "value": 2},
+          {"ref": "C3", "value": 20}
+        ]
+      }
+    ]
+  },
+  "observe": {
+    "cells": ["A1", "B1", "C1", "A4", "B4", "C4"],
+    "resave": true
+  },
+  "verdict": "CONFIRMED on Excel 16.0 build 20131. Excel opened the materialized totals row without repair (repairedMarker=false), exactly as it accepts a declared-but-empty one. It computed both uncached SUBTOTAL cells on open — B4=2 (COUNTA over 'a','b'), C4=30 (SUM 10+20) — so the library's no-cached-<v> emission is safe and fullCalcOnLoad is NOT required. The count/sum → 103/109 function codes round-trip correctly. Excel accepts our fully-qualified structured reference T[Column] and renders it in its canonical intra-table form [Column] (the table name is elided for a reference inside its own table); both spellings compute identically, so our emitted SUBTOTAL(109,T[Amount]) is semantically canonical and the qualified spelling is a display-only difference, not a divergence. Lock the emitted formula text and label with a Tier-2 seam fact (the corpus case), which asserts our text structurally without re-opening Excel. Caveat: observe.ps1 captures the COM display form and, on resave, only shared-formula <f> elements — the resaved XML stored form of the table-formula cells was not extracted, so the display readback is the evidence for Excel's spelling."
+}

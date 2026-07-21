@@ -629,6 +629,14 @@ const impl = {
     return packageFacts(spec, partMapOf(writeXlsx(buildFrom(spec))));
   },
 
+  // Same package facts as `inspectPackage`, but after a full write→read→write cycle: the spec is
+  // written, loaded back into a fresh model, and re-emitted. Lets a case assert that content the
+  // writer materializes (e.g. a table's totals row) survives a round-trip unchanged — neither dropped
+  // on read nor duplicated/clobbered when the reloaded model is written again.
+  roundtripInspectPackage(spec: CorpusApi) {
+    return packageFacts(spec, partMapOf(writeXlsx(readXlsx(writeXlsx(buildFrom(spec))))));
+  },
+
   // Author a pivot table over source data containing XML-special characters (& < > " ') and a
   // missing field value, write, and report whether the emitted pivotCacheDefinition is well-formed
   // and free of raw unescaped ampersands. Mirrors the oracle's shape → { ok, writeError,

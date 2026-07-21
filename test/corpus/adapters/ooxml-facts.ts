@@ -192,9 +192,16 @@ export function packageFacts(spec: CorpusApi, partMap: PartMap) {
     const marginTag = (xml.match(/<pageMargins\b[^>]*\/>/) || [''])[0]!;
     const marginAttrs = attrs(marginTag);
     const sheetViewTags = [...xml.matchAll(/<sheetView\b[^>]*(?:\/>|>)/g)];
+    // Extract each cell's `<f>` scoped to its own `<c>…</c>` body. A single cross-cell regex would let
+    // `[\s\S]*?` run from one cell's `<c>` to a *later* cell's `<f>`, mis-attributing the formula to the
+    // preceding cell (e.g. a totals row's label cell A4 stealing B4's SUBTOTAL). Iterating cells the way
+    // `cellTexts` does keeps every formula keyed to the cell that owns it.
     const formulas: Record<string, string> = {};
-    for (const m of xml.matchAll(/<c\b[^>]*r="([^"]*)"[^>]*>[\s\S]*?<f\b[^>]*>([\s\S]*?)<\/f>/g)) {
-      formulas[m[1]!] = m[2]!;
+    for (const m of xml.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const a = attrs(`<c ${m[1]}>`);
+      if (a.r === undefined || m[2] === undefined) continue;
+      const f = m[2].match(/<f\b[^>]*>([\s\S]*?)<\/f>/);
+      if (f !== null) formulas[a.r] = f[1]!;
     }
     const columnGroups = [...xml.matchAll(/<col\b[^>]*\/>/g)].map((t) => {
       const a = attrs(t[0]);

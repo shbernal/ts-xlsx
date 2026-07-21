@@ -69,6 +69,25 @@ function cloneStyleInfo(style: TableStyleInfo): TableStyleInfo {
   return clone;
 }
 
+/**
+ * OOXML's totals-row function names (`ST_TotalsRowFunction`) to the `SUBTOTAL` first-argument code
+ * Excel writes into a materialised totals cell. The `10x` band ignores manually hidden rows — the
+ * behaviour Excel's totals row uses. The one inversion trap: `count` is COUNTA (103, non-empty) while
+ * `countNums` is COUNT (102, numbers only). `none` (no aggregate) and `custom` (backed by a stored
+ * `<totalsRowFormula>` the reader does not yet model) have no built-in code, so a column carrying
+ * either is absent here and its totals cell is left unmaterialised — Excel accepts the blank cell.
+ */
+export const TOTALS_ROW_SUBTOTAL_CODE: Readonly<Record<string, number>> = {
+  average: 101,
+  countNums: 102,
+  count: 103,
+  max: 104,
+  min: 105,
+  stdDev: 107,
+  sum: 109,
+  var: 110,
+};
+
 /** One column of a table: a header name and its optional totals-row behaviour. */
 export interface TableColumn {
   /** The column's header/display name. Must be unique within the table (case-insensitively) —

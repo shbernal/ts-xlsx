@@ -521,6 +521,59 @@ test('getTable finds a table by name and addRow appends cells into the grid', ()
   assert.equal(sheet.getCell('B4').value, 3);
 });
 
+test('addTable materializes the totals row: label cells and SUBTOTAL formula cells', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.addTable({
+    name: 'T',
+    ref: 'A1', // header row 1, data rows 2–3, totals row 4
+    columns: [
+      {name: 'Item', totalsRowLabel: 'Total'},
+      {name: 'Amount', totalsRowFunction: 'sum'},
+    ],
+    rowCount: 2,
+    totalsRow: true,
+  });
+
+  assert.equal(sheet.getCell('A4').value, 'Total', 'the label column materializes its label');
+  assert.deepEqual(
+    sheet.getCell('B4').value,
+    {formula: 'SUBTOTAL(109,T[Amount])'},
+    'the aggregate column materializes a resultless SUBTOTAL formula over the table column',
+  );
+});
+
+test('addTable leaves a totals column with no built-in aggregate blank', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'Item', totalsRowLabel: 'Total'}, {name: 'Note'}],
+    rowCount: 1, // totals row is row 3
+    totalsRow: true,
+  });
+
+  assert.equal(sheet.getCell('A3').value, 'Total');
+  assert.equal(sheet.getCell('B3').value, null, 'a column with no aggregate stays blank');
+});
+
+test('addTable does not clobber a pre-set totals cell — round-trip re-registration is idempotent', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('B3').value = 99; // a cell already sitting where the totals aggregate would land
+  sheet.addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [
+      {name: 'Item', totalsRowLabel: 'Total'},
+      {name: 'Amount', totalsRowFunction: 'sum'},
+    ],
+    rowCount: 1, // totals row is row 3
+    totalsRow: true,
+  });
+
+  assert.equal(sheet.getCell('A3').value, 'Total', 'the empty label cell is filled');
+  assert.equal(sheet.getCell('B3').value, 99, 'the already-populated aggregate cell is preserved');
+});
+
 test('addRow on a table with a totals row appends above it, moving the totals down', () => {
   const sheet = new Worksheet('S', 1);
   const table = sheet.addTable({

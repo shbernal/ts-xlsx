@@ -22,9 +22,28 @@ export type ProbeCell =
   | {readonly ref: string; readonly formula: string; readonly result?: FormulaResult}
   | {readonly ref: string; readonly sharedFormula: string; readonly result?: FormulaResult};
 
+/** One column of a probe table: its header name and its optional totals-row directive. */
+export interface ProbeTableColumn {
+  readonly name: string;
+  readonly totalsRowLabel?: string;
+  readonly totalsRowFunction?: string;
+}
+
+/** A table on a probe sheet — enough vocabulary to exercise header/totals-row materialization. The
+ * body data rows are written through the sheet's `cells`; `addTable` materializes the header and
+ * totals rows itself, which is exactly what a totals-row probe observes Excel's reaction to. */
+export interface ProbeTable {
+  readonly name: string;
+  readonly ref: string;
+  readonly columns: readonly ProbeTableColumn[];
+  readonly rowCount: number;
+  readonly totalsRow?: boolean;
+}
+
 export interface ProbeSheet {
   readonly name: string;
   readonly cells: readonly ProbeCell[];
+  readonly tables?: readonly ProbeTable[];
 }
 
 export interface ProbeSpec {
@@ -36,6 +55,21 @@ export function buildWorkbook(spec: ProbeSpec): Workbook {
   const workbook = new Workbook();
   for (const sheetSpec of spec.sheets) {
     const sheet = workbook.addWorksheet(sheetSpec.name);
+    // Tables first, so `addTable`'s header/totals materialization runs before the body cells land — and
+    // a `cells` entry over a materialized cell still wins, mirroring the corpus builder's ordering.
+    for (const t of sheetSpec.tables ?? []) {
+      sheet.addTable({
+        name: t.name,
+        ref: t.ref,
+        columns: t.columns.map((c) => ({
+          name: c.name,
+          ...(c.totalsRowLabel !== undefined ? {totalsRowLabel: c.totalsRowLabel} : {}),
+          ...(c.totalsRowFunction !== undefined ? {totalsRowFunction: c.totalsRowFunction} : {}),
+        })),
+        rowCount: t.rowCount,
+        ...(t.totalsRow !== undefined ? {totalsRow: t.totalsRow} : {}),
+      });
+    }
     for (const c of sheetSpec.cells) {
       const cell = sheet.getCell(c.ref);
       if ('formula' in c) {

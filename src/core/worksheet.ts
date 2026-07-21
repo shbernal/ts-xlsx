@@ -38,7 +38,7 @@ import {
   type SheetProtectionOptions,
 } from './protection.ts';
 import type {CellStyle, Color, Fill} from './style.ts';
-import {Table, type TableOptions} from './table.ts';
+import {Table, type TableOptions, TOTALS_ROW_SUBTOTAL_CODE} from './table.ts';
 import type {CellValue} from './value.ts';
 
 export interface WorksheetState {
@@ -505,15 +505,38 @@ export class Worksheet {
       });
     }
 
-    // The totals row is deliberately NOT materialized, though its geometry mirrors the header row's.
-    // A header cell's text *is* the column's identity, so Excel cross-checks it against `tableColumn`
-    // and repairs a file whose header row is empty in the grid — which is why we fill it above. A
-    // totals cell carries no such identity: `totalsRowLabel`/`totalsRowFunction` are display directives
-    // Excel evaluates itself, and an absent totals cell is a valid "not yet computed" state. Verified
-    // against Excel Desktop — it opens a declared-but-empty totals row without repair and re-saves it
-    // unchanged, whereas the same probe refuses an empty header row outright. Writing the label and a
-    // SUBTOTAL formula to match Excel's own on-open rendering is a UX nicety, not a validity fix, so it
-    // stays out of this path.
+    // Materialize the totals row Excel renders on open, so our files show it immediately rather than a
+    // blank strip until the user interacts. A labelled column writes its label string; an aggregate
+    // column writes the `SUBTOTAL(code, Table[Column])` formula Excel would compute. Unlike the header
+    // row, this is a UX-parity nicety, not a validity fix — Excel opens a declared-but-empty totals row
+    // without repair — but matching its on-open rendering is the point.
+    //
+    // Same round-trip guard as the header row: only *empty* cells are filled. Reading a file
+    // re-registers the table after its cells are loaded, so a materialized totals cell — ours, Excel's,
+    // or a hand-set override — is authoritative and must survive untouched, keeping the round-trip
+    // idempotent. The formula carries no cached result; Excel computes an uncached formula cell on open,
+    // so the row shows real values without the library pretending to be a calc engine. A `none`/`custom`
+    // column has no built-in aggregate (see {@link TOTALS_ROW_SUBTOTAL_CODE}) and stays blank, exactly
+    // as the whole row did before.
+    if (table.totalsRow) {
+      const {left, bottom} = table.region;
+      table.columns.forEach((column, index) => {
+        const col = left + index;
+        if (this.hasCell(bottom, col) && this.#cellAt(bottom, col).value != null) return;
+        if (column.totalsRowLabel !== undefined) {
+          this.#cellAt(bottom, col).value = column.totalsRowLabel;
+          return;
+        }
+        if (column.totalsRowFunction !== undefined) {
+          const code = TOTALS_ROW_SUBTOTAL_CODE[column.totalsRowFunction];
+          if (code !== undefined) {
+            this.#cellAt(bottom, col).value = {
+              formula: `SUBTOTAL(${code},${table.name}[${column.name}])`,
+            };
+          }
+        }
+      });
+    }
 
     return table;
   }
