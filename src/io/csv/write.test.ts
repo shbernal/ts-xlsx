@@ -70,6 +70,23 @@ test('writeCsv honours a requested non-UTF-8 encoding and adds no BOM there', ()
   assert.notEqual(Buffer.from(bytes).toString('utf8'), 'café');
 });
 
+test('map overrides the default rendering per field, receiving the value and column index', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 7;
+  sheet.getCell('C1').value = 'x';
+  assert.equal(
+    writeCsvText(wb, {map: (value, index) => `${index}:${value === null ? '_' : value}`}),
+    '0:7,1:_,2:x',
+  );
+});
+
+test("map's returned text is still quoted like any other field", () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addRow(['a']);
+  assert.equal(writeCsvText(wb, {map: () => 'x,y'}), '"x,y"');
+});
+
 test('emoji and CJK survive the default UTF-8 byte path', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').addRow(['😀🎉', '日本語']);

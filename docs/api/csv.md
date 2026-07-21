@@ -30,6 +30,7 @@ interface CsvWriteOptions {
     readonly dateUTC?: boolean;
     readonly encoding?: BufferEncoding;
     readonly bom?: boolean;
+    readonly map?: (value: CellValue, index: number) => string;
 }
 ```
 

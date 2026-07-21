@@ -40,6 +40,10 @@ export interface CsvWriteOptions {
   readonly encoding?: BufferEncoding;
   /** Prepend a UTF-8 byte-order mark (applies only to UTF-8); defaults to `true` for UTF-8. */
   readonly bom?: boolean;
+  /** Per-field transform replacing the default value rendering; receives the cell's value (`null`
+   * for an unpopulated column) and its 0-based column index. Quoting (commas, quotes, newlines) is
+   * still applied to the returned text. */
+  readonly map?: (value: CellValue, index: number) => string;
 }
 
 const UTF8_BOM = Uint8Array.of(0xef, 0xbb, 0xbf);
@@ -60,8 +64,8 @@ export function writeCsvText(workbook: Workbook, options: CsvWriteOptions = {}):
     }
     const fields: string[] = [];
     for (let column = 1; column <= width; column++) {
-      const cell = byColumn.get(column);
-      const text = cell ? csvFieldText(cell.value, options) : '';
+      const value = byColumn.get(column)?.value ?? null;
+      const text = options.map ? options.map(value, column - 1) : csvFieldText(value, options);
       fields.push(quoteField(text, delimiter));
     }
     lines.push(fields.join(delimiter));
