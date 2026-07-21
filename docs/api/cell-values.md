@@ -33,6 +33,29 @@ function coerceCellValue(value: CellValue | undefined): CellValue;
 
 ---
 
+### `DataTableFormulaValue`
+
+<sub>interface</sub>
+
+A cell computed by a What-If-Analysis data table (`<f t="dataTable">`) — the OOXML formula kind that
+fills a range by re-evaluating a model against a grid of substituted input cells. The library does
+not evaluate it; it preserves the declaration so a read-modify-write cycle re-emits it verbatim
+rather than silently dropping the data-table kind.
+
+```ts
+interface DataTableFormulaValue {
+    readonly shareType: 'dataTable';
+    readonly ref: string;
+    readonly dataTable2D?: boolean;
+    readonly dataTableRow?: boolean;
+    readonly r1?: string;
+    readonly r2?: string;
+    readonly result?: FormulaResult;
+}
+```
+
+---
+
 ### `detectValueType`
 
 <sub>function</sub>

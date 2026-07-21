@@ -2,6 +2,23 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `CellModel`
+
+<sub>interface</sub>
+
+One materialised cell in a `WorksheetModel`: its position, value, and per-cell style facets.
+
+```ts
+interface CellModel extends CellStyle {
+    readonly row: number;
+    readonly col: number;
+    value: CellValue;
+    note?: string | undefined;
+}
+```
+
+---
+
 ### `ColumnProperties`
 
 <sub>interface</sub>
@@ -19,6 +36,38 @@ interface ColumnProperties extends CellStyle {
     outlineLevel?: number;
     collapsed?: boolean;
 }
+```
+
+---
+
+### `OutlineProperties`
+
+<sub>interface</sub>
+
+Placement of an outline's summary rows/columns. Excel's defaults are summary *below* the detail
+rows and *right* of the detail columns; setting either to `false` inverts that placement so an
+author who groups upward gets a file that honours it. An unset flag is omitted from the written
+`<outlinePr>`, and an empty object emits no `<outlinePr>` at all.
+
+```ts
+interface OutlineProperties {
+    summaryBelow?: boolean;
+    summaryRight?: boolean;
+}
+```
+
+---
+
+### `RowInput`
+
+<sub>type</sub>
+
+A row handed to `Worksheet.addRow`: a positional array of cell values (a hole or `undefined`
+leaves that column untouched), or an object keyed by column `ColumnProperties.key` whose
+values land under the matching columns.
+
+```ts
+type RowInput = (CellValue | undefined)[] | Record<string, CellValue>;
 ```
 
 ---
@@ -240,6 +289,55 @@ class Worksheet {
 - `unprotect(): void;` — Remove any protection previously set by `protect`.
 - `restoreProtection(protection: SheetProtection): void;` — Reinstate an already-derived protection state — the deserialization counterpart to `protect`. A loaded `<sheetProtection>` carries its credential in finished agile form (algorithm, hash, salt, spin count) with no recoverable plaintext password, so the reader restores that credential verbatim rather than re-hashing. Use `protect` to protect from a plaintext password; use this only to carry a parsed protection back into the model.
 - `get protection(): SheetProtection | undefined;` — The sheet's protection, or `undefined` if the sheet is unprotected.
+
+---
+
+### `WorksheetModel`
+
+<sub>interface</sub>
+
+A serialisable snapshot of a worksheet's value and overlay content — its cells and their styles,
+the column/row/page metadata, and the sheet-level overlays (merges, data validations, conditional
+formattings, tables, the autofilter, protection). `Worksheet.model` exports one; assigning
+it back reproduces that content. The getter and setter cover exactly the same fields, so a
+`dst.model = src.model` round-trip drops none of it — an export field the import ignored would
+silently lose data, the historical merge-loss failure this contract exists to prevent.
+
+Out of scope by design: content that carries workbook-level identity rather than pure sheet
+state — anchored and background images (their bytes live on the `Workbook`), pivot tables
+(their source references a live worksheet), and byte-preserved parts (charts, vector drawings,
+slicers) kept verbatim for round-tripping. These stay with their source sheet; a model assignment
+neither copies nor clears them.
+
+```ts
+interface WorksheetModel {
+    state: WorksheetState['state'];
+    tabColor: Color | undefined;
+    properties: WorksheetProperties;
+    outline: OutlineProperties;
+    pageSetup: PageSetup;
+    printOptions: PrintOptions;
+    pageMargins: PageMargins;
+    headerFooter: HeaderFooter;
+    rowBreaks: PageBreak[];
+    columnBreaks: PageBreak[];
+    columns: {
+        index: number;
+        properties: ColumnProperties;
+    }[];
+    rows: {
+        number: number;
+        properties: RowProperties;
+    }[];
+    cells: CellModel[];
+    merges: string[];
+    dataValidations: DataValidationEntry[];
+    conditionalFormattings: ConditionalFormatting[];
+    tables: TableOptions[];
+    autoFilter: AutoFilter | undefined;
+    protection: SheetProtection | undefined;
+}
+```
 
 ---
 

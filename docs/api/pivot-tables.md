@@ -2,6 +2,107 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `ParsedPivotField`
+
+<sub>interface</sub>
+
+One field in a loaded pivot's cache catalogue, in declared order; the pivot refers to it by index.
+
+```ts
+interface ParsedPivotField {
+    readonly name: string;
+}
+```
+
+---
+
+### `ParsedPivotSource`
+
+<sub>interface</sub>
+
+Where a pivot cache draws its rows from. `kind` names the source type; `sheet` and
+`ref` locate the range only when it is `worksheet` and are empty strings otherwise, so a
+consumer can tell a genuinely non-worksheet source apart from a worksheet source that failed to
+parse (the former reports its `kind`, the latter stays `worksheet` with empty coordinates).
+
+```ts
+interface ParsedPivotSource {
+    readonly kind: PivotSourceKind;
+    readonly sheet: string;
+    readonly ref: string;
+}
+```
+
+---
+
+### `ParsedPivotTable`
+
+<sub>interface</sub>
+
+The semantic model reconstructed from a loaded pivot's `pivotTableDefinition` and its
+`pivotCacheDefinition` (see `io/xlsx/pivot-read.ts`). Field roles are indices into `fields`;
+`metric` is the aggregation the value field applies. This mirrors the authoring model's shape
+without requiring the source sheet it was built from, so a pivot loaded from a package is
+inspectable data rather than an opaque preserved blob. It is a read-only view: the writer emits a
+loaded pivot from its preserved parts, not from this model, so exposing it never double-emits.
+
+```ts
+interface ParsedPivotTable {
+    readonly name: string;
+    readonly cacheId: string;
+    readonly source: ParsedPivotSource;
+    readonly fields: readonly ParsedPivotField[];
+    readonly rowFields: readonly number[];
+    readonly columnFields: readonly number[];
+    readonly valueField: number;
+    readonly valueFieldName: string;
+    readonly valueCaption: string;
+    readonly metric: PivotMetric;
+}
+```
+
+---
+
+### `PivotCacheField`
+
+<sub>interface</sub>
+
+One field of the pivot cache. An axis field (row or column) carries a `sharedItems` catalogue its
+records reference by index; any other field stores its values inline in the records and, when they
+are all numeric, describes them with a `numeric` summary.
+
+```ts
+interface PivotCacheField {
+    readonly name: string;
+    readonly sharedItems: readonly PivotItem[] | null;
+    readonly numeric: PivotNumericSummary | null;
+    readonly containsBlank: boolean;
+}
+```
+
+---
+
+### `PivotItem`
+
+<sub>type</sub>
+
+One distinct value in a cache field's shared-items catalogue, or an inline record cell. A
+`blank` is a missing source value, serialised as `<m/>` rather than an empty string.
+
+```ts
+type PivotItem = {
+    readonly kind: 'string';
+    readonly value: string;
+} | {
+    readonly kind: 'number';
+    readonly value: number;
+} | {
+    readonly kind: 'blank';
+};
+```
+
+---
+
 ### `PivotMetric`
 
 <sub>type</sub>
@@ -12,6 +113,52 @@ aggregation itself on refresh; the writer only records which function to apply.
 
 ```ts
 type PivotMetric = 'sum' | 'count' | 'countNums' | 'average' | 'max' | 'min' | 'product' | 'stdDev' | 'stdDevp' | 'var' | 'varp';
+```
+
+---
+
+### `PivotNumericSummary`
+
+<sub>interface</sub>
+
+The numeric summary Excel expects on a non-shared field whose every present value is a number.
+
+```ts
+interface PivotNumericSummary {
+    readonly allInteger: boolean;
+    readonly min: number;
+    readonly max: number;
+}
+```
+
+---
+
+### `PivotRecordCell`
+
+<sub>type</sub>
+
+One cell of a cache record: an index into a shared-items catalogue, or an inline value.
+
+```ts
+type PivotRecordCell = {
+    readonly kind: 'index';
+    readonly index: number;
+} | PivotItem;
+```
+
+---
+
+### `PivotSourceKind`
+
+<sub>type</sub>
+
+The kind of data a pivot cache draws from, mirroring OOXML's `ST_SourceType`. Only `worksheet`
+carries a `ParsedPivotSource.sheet`/`ParsedPivotSource.ref`; every other kind draws from
+data the reader does not model (an external connection, a range consolidation, or a scenario), and
+`unknown` covers a `type` the file declares that is none of these.
+
+```ts
+type PivotSourceKind = 'worksheet' | 'external' | 'consolidation' | 'scenario' | 'unknown';
 ```
 
 ---

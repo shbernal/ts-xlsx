@@ -24,6 +24,19 @@ export type {
   ValuesFilter,
 } from './core/autofilter.ts';
 export {Cell} from './core/cell.ts';
+export type {
+  CfValueObject,
+  ConditionalFormatting,
+  ConditionalFormattingRule,
+  DifferentialStyle,
+} from './core/conditional-formatting.ts';
+export type {
+  DataValidation,
+  DataValidationEntry,
+  DataValidationErrorStyle,
+  DataValidationOperator,
+  DataValidationType,
+} from './core/data-validation.ts';
 export {
   type AnchoredImage,
   type AnchorPoint,
@@ -44,10 +57,23 @@ export type {
   PrintOptions,
 } from './core/page-setup.ts';
 export {
+  type ParsedPivotField,
+  type ParsedPivotSource,
+  type ParsedPivotTable,
+  type PivotCacheField,
+  type PivotItem,
   type PivotMetric,
+  type PivotNumericSummary,
+  type PivotRecordCell,
+  type PivotSourceKind,
   PivotTable,
   type PivotTableOptions,
 } from './core/pivot-table.ts';
+export type {
+  PreservedPart,
+  PreservedRelationship,
+  PreservedWorksheetReference,
+} from './core/preserved.ts';
 export type {
   SheetProtection,
   SheetProtectionCredential,
@@ -68,6 +94,7 @@ export type {
   GradientFill,
   GradientStop,
   HorizontalAlignment,
+  NamedCellStyle,
   PatternFill,
   Protection,
   UnderlineStyle,
@@ -76,12 +103,15 @@ export type {
 export {
   Table,
   type TableColumn,
+  type TableColumnStyle,
   type TableOptions,
   type TableRegion,
+  type TableStyleInfo,
 } from './core/table.ts';
 export {
   type CellValue,
   coerceCellValue,
+  type DataTableFormulaValue,
   detectValueType,
   ERROR_CODES,
   type ErrorCode,
@@ -100,15 +130,20 @@ export {
   type AddImageOptions,
   type AddWorksheetOptions,
   type DefinedName,
+  type PreservedWorkbookReference,
   Workbook,
   type WorkbookProperties,
 } from './core/workbook.ts';
 export type {WorkbookProtection} from './core/workbook-protection.ts';
 export {
+  type CellModel,
   type ColumnProperties,
+  type OutlineProperties,
+  type RowInput,
   type RowProperties,
   type SheetView,
   Worksheet,
+  type WorksheetModel,
   type WorksheetProperties,
   type WorksheetState,
 } from './core/worksheet.ts';

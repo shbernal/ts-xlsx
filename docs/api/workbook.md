@@ -50,6 +50,29 @@ interface DefinedName {
 
 ---
 
+### `PreservedWorkbookReference`
+
+<sub>interface</sub>
+
+A workbook-level reference to package content the model does not model — a pivot cache
+(`pivotCacheDefinition`) or a slicer cache (`slicerCache`) — preserved verbatim across a round-trip
+instead of being dropped. `relType` is the workbook relationship Type URI to re-emit; `entryPath`
+is the part it points at; `parts` is the transitive closure that reference reaches (the entry
+included). `pivotCacheId` carries the `<pivotCache cacheId>` a pivot cache is registered under in
+the workbook's `<pivotCaches>`, so the wiring a pivot table resolves its cache through is re-emitted
+too; it is absent for a slicer cache, which the workbook lists in an extension block instead.
+
+```ts
+interface PreservedWorkbookReference {
+    readonly relType: string;
+    readonly entryPath: string;
+    readonly parts: readonly PreservedPart[];
+    readonly pivotCacheId?: string;
+}
+```
+
+---
+
 ### `Workbook`
 
 <sub>class</sub>

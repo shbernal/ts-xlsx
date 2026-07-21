@@ -235,6 +235,25 @@ type HorizontalAlignment = 'general' | 'left' | 'center' | 'right' | 'fill' | 'j
 
 ---
 
+### `NamedCellStyle`
+
+<sub>type</sub>
+
+A named cell style — the OOXML `cellStyleXfs`/`cellStyles` layer. A spreadsheet applies a built-in
+or custom style (e.g. "Normal", "Accent1") whose visual facets live in this shared, named layer
+rather than on each cell's direct format; a cell links to it and inherits any facet the direct
+format leaves unset. The facets are a cell's own (see `CellStyle`); `name` is the style's
+display name and `builtinId` its Excel gallery index when it is a built-in style.
+
+```ts
+type NamedCellStyle = Readonly<CellStyle> & {
+    readonly name?: string;
+    readonly builtinId?: number;
+};
+```
+
+---
+
 ### `PatternFill`
 
 <sub>interface</sub>

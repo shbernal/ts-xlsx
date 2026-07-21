@@ -59,6 +59,20 @@ interface TableColumn {
 
 ---
 
+### `TableColumnStyle`
+
+<sub>type</sub>
+
+A per-column cell format applied to a table's body cells — the facets Excel's table-column style
+bakes into the cells rather than storing as table metadata. Every facet (`CellStyle`) is
+optional; only the ones set are applied, leaving the rest of each cell's style untouched.
+
+```ts
+type TableColumnStyle = Readonly<CellStyle>;
+```
+
+---
+
 ### `TableOptions`
 
 <sub>interface</sub>
@@ -92,5 +106,26 @@ interface TableRegion {
     readonly left: number;
     readonly bottom: number;
     readonly right: number;
+}
+```
+
+---
+
+### `TableStyleInfo`
+
+<sub>interface</sub>
+
+A table's visual style (`<tableStyleInfo>`): the named style to apply plus the banding/highlight
+toggles. Every field is a tri-state so a round-trip stays faithful — a value present in the source
+re-emits, one the source omitted stays omitted rather than being defaulted to `"0"`. A workbook
+whose part carries no `<tableStyleInfo>` at all leaves `TableOptions.style` undefined.
+
+```ts
+interface TableStyleInfo {
+    readonly name?: string;
+    readonly showFirstColumn?: boolean;
+    readonly showLastColumn?: boolean;
+    readonly showRowStripes?: boolean;
+    readonly showColumnStripes?: boolean;
 }
 ```
