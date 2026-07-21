@@ -345,6 +345,7 @@ export function buildPackageParts(
         hasSharedStrings,
         preserved.parts,
         allPivots,
+        preservedWorkbookRels,
       ),
     ),
     '_rels/.rels': strToU8(rootRelsXml()),

@@ -345,10 +345,18 @@ function readWorkbookPreservedReferences(
   }
 }
 
-// A workbook relationship the model does not consume but must round-trip: a pivot cache or a slicer
-// cache. Worksheets, styles, theme, and shared strings are modeled and re-serialised from the model.
+// A workbook relationship the model does not consume but must round-trip: a pivot cache, a slicer
+// cache, or a macro-enabled workbook's VBA project. Worksheets, styles, theme, and shared strings
+// are modeled and re-serialised from the model. Preserving vbaProject here — rather than silently
+// dropping it, as an unrecognised relationship type otherwise would — is what keeps loading and
+// re-saving a .xlsm from discarding its macros; the content-type override in workbook-xml.ts is the
+// other half, so the re-emitted package still declares itself macro-enabled.
 function isPreservedWorkbookRelType(type: string): boolean {
-  return type.endsWith('/pivotCacheDefinition') || type.endsWith('/slicerCache');
+  return (
+    type.endsWith('/pivotCacheDefinition') ||
+    type.endsWith('/slicerCache') ||
+    type.endsWith('/vbaProject')
+  );
 }
 
 // Map each `<pivotCache>` registration in the workbook's `<pivotCaches>` to the relationship id that

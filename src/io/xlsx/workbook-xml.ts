@@ -20,6 +20,7 @@ import {escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
 
 const CT = {
   workbook: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml',
+  macroEnabledWorkbook: 'application/vnd.ms-excel.sheet.macroEnabled.main+xml',
   worksheet: 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml',
   styles: 'application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml',
   theme: 'application/vnd.openxmlformats-officedocument.theme+xml',
@@ -52,6 +53,7 @@ export function contentTypesXml(
   hasSharedStrings: boolean,
   preservedParts: readonly PreservedPartPlan[],
   pivots: readonly PivotPlan[],
+  preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[],
 ): string {
   return (
     XML_DECLARATION +
@@ -65,9 +67,18 @@ export function contentTypesXml(
       hasSharedStrings,
       preservedParts,
       pivots,
+      preservedWorkbookRefs,
     ) +
     '</Types>'
   );
+}
+
+// A macro-enabled workbook's own VBA project is round-tripped as a preserved workbook reference
+// (see `isPreservedWorkbookRelType` in read.ts), so its presence is what distinguishes a re-emitted
+// .xlsm from a plain .xlsx: `xl/workbook.xml` must declare the macro-enabled content type or Excel
+// flags the package as needing repair on open.
+function isMacroEnabled(preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[]): boolean {
+  return preservedWorkbookRefs.some((ref) => ref.relType.endsWith('/vbaProject'));
 }
 
 // The extension-level `<Default>` declarations: the built-in rels/xml pair, then the vml/bin/media
@@ -121,12 +132,16 @@ function contentTypeOverrides(
   hasSharedStrings: boolean,
   preservedParts: readonly PreservedPartPlan[],
   pivots: readonly PivotPlan[],
+  preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[],
 ): string {
   const preservedOverrides = preservedParts
     .filter((part) => part.path.slice(part.path.lastIndexOf('.') + 1).toLowerCase() === 'xml')
     .map((part) => override(`/${part.path}`, part.contentType));
   return [
-    override('/xl/workbook.xml', CT.workbook),
+    override(
+      '/xl/workbook.xml',
+      isMacroEnabled(preservedWorkbookRefs) ? CT.macroEnabledWorkbook : CT.workbook,
+    ),
     ...range(sheetCount).map((i) => override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet)),
     ...tables.map(({number}) => override(`/xl/tables/table${number}.xml`, CT.table)),
     ...drawingNumbers.map((number) => override(`/xl/drawings/drawing${number}.xml`, CT.drawing)),

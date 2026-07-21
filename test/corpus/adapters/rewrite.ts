@@ -1121,6 +1121,52 @@ const impl = {
     };
   },
 
+  // Splice a synthetic vbaProject.bin + its workbook relationship + content-type override into an
+  // otherwise-plain written package — the writer cannot author a VBA project itself (its bytes are
+  // opaque, never modeled), so this is the only way to produce a macro-enabled-shaped package to
+  // round-trip — then read it back and write it again → { originalHasVba, reloadedPreservedCount,
+  // rewrittenHasVba, rewrittenIsMacroEnabled }. For asserting a macro-enabled workbook's VBA project
+  // and its macro-enabled content-type survive a read/write cycle rather than being silently dropped
+  // (an unrecognised workbook relationship is otherwise discarded — real-world data loss on any
+  // .xlsm a caller loads and re-saves).
+  xlsmVbaProjectRoundtrip() {
+    const VBA_REL_TYPE =
+      'http://schemas.openxmlformats.org/officeDocument/2006/relationships/vbaProject';
+    const wb = new Workbook();
+    wb.addWorksheet('S');
+    const base = unzipSync(writeXlsx(wb));
+
+    const relId = 'rIdVba';
+    base['xl/_rels/workbook.xml.rels'] = strToU8(
+      strFromU8(base['xl/_rels/workbook.xml.rels']!).replace(
+        '</Relationships>',
+        `<Relationship Id="${relId}" Type="${VBA_REL_TYPE}" Target="vbaProject.bin"/></Relationships>`,
+      ),
+    );
+    base['[Content_Types].xml'] = strToU8(
+      strFromU8(base['[Content_Types].xml']!).replace(
+        '</Types>',
+        '<Override PartName="/xl/vbaProject.bin" ContentType="application/vnd.ms-office.vbaProject"/></Types>',
+      ),
+    );
+    base['xl/vbaProject.bin'] = strToU8('FAKE-VBA-PROJECT-BYTES');
+    const macroPackage = zipSync(base);
+    const originalHasVba = 'xl/vbaProject.bin' in unzipSync(macroPackage);
+
+    const loaded = readXlsx(macroPackage);
+    const reloadedPreservedCount = (loaded.preservedReferences as CorpusApi[]).filter(
+      (r: CorpusApi) => r.relType.endsWith('/vbaProject'),
+    ).length;
+
+    const rewritten = unzipSync(writeXlsx(loaded));
+    const rewrittenHasVba = 'xl/vbaProject.bin' in rewritten;
+    const rewrittenIsMacroEnabled = /macroEnabled\.main\+xml/.test(
+      strFromU8(rewritten['[Content_Types].xml']!),
+    );
+
+    return {originalHasVba, reloadedPreservedCount, rewrittenHasVba, rewrittenIsMacroEnabled};
+  },
+
   // Anchor two images, then remove one by its media id → { supported, before, after, removedGone,
   // othersSurvive }. Removal must drop exactly the targeted image and leave the rest anchored.
   removeImageReport(range = 'A1:B2') {
