@@ -126,7 +126,8 @@ function runDotnet(
 }
 
 // Exercise a representative slice of the buffered writer — styled font, data validation, a formula, and
-// a table over its own cells — so the oracle sees more than a bare grid.
+// a table over its own cells with a totals row carrying a custom <totalsRowFormula> — so the oracle sees
+// more than a bare grid and validates the totals-row markup against the schema.
 async function writeBufferedWorkbook(file: string): Promise<void> {
   const workbook = new Workbook();
   const sheet = workbook.addWorksheet('Data');
@@ -141,11 +142,17 @@ async function writeBufferedWorkbook(file: string): Promise<void> {
   sheet.getCell('E1').value = 'Amount';
   sheet.getCell('D2').value = 'alpha';
   sheet.getCell('E2').value = 42;
+  // The totals row's cells (label + custom SUBTOTAL-less formula) are materialised by addTable, so the
+  // oracle checks both the <totalsRowFormula> child and the grid cells it writes.
   sheet.addTable({
     name: 'DataTable',
     ref: 'D1',
     headerRow: true,
-    columns: [{name: 'Label'}, {name: 'Amount'}],
+    totalsRow: true,
+    columns: [
+      {name: 'Label', totalsRowLabel: 'Total'},
+      {name: 'Amount', totalsRowFunction: 'custom', totalsRowFormula: 'SUM(DataTable[Amount])*1.1'},
+    ],
     rowCount: 1,
   });
   await writeFile(file, writeXlsx(workbook));

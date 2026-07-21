@@ -624,6 +624,12 @@ function tableColumnXml(column: TableColumn, id: number): string {
   if (column.totalsRowFunction !== undefined) {
     attrs += ` totalsRowFunction="${escapeAttr(column.totalsRowFunction)}"`;
   }
+  // A `custom` total is carried by a `<totalsRowFormula>` child rather than a built-in function, so
+  // the element is non-self-closing when one is present. The formula is stored without a leading `=`,
+  // matching how Excel writes it.
+  if (column.totalsRowFormula !== undefined) {
+    return `<tableColumn ${attrs}><totalsRowFormula>${escapeText(column.totalsRowFormula)}</totalsRowFormula></tableColumn>`;
+  }
   return `<tableColumn ${attrs}/>`;
 }
 

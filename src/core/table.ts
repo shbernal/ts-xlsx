@@ -73,9 +73,11 @@ function cloneStyleInfo(style: TableStyleInfo): TableStyleInfo {
  * OOXML's totals-row function names (`ST_TotalsRowFunction`) to the `SUBTOTAL` first-argument code
  * Excel writes into a materialised totals cell. The `10x` band ignores manually hidden rows — the
  * behaviour Excel's totals row uses. The one inversion trap: `count` is COUNTA (103, non-empty) while
- * `countNums` is COUNT (102, numbers only). `none` (no aggregate) and `custom` (backed by a stored
- * `<totalsRowFormula>` the reader does not yet model) have no built-in code, so a column carrying
- * either is absent here and its totals cell is left unmaterialised — Excel accepts the blank cell.
+ * `countNums` is COUNT (102, numbers only). `none` (no aggregate) has no built-in code, so a column
+ * carrying it is absent here and its totals cell is left unmaterialised — Excel accepts the blank
+ * cell. `custom` is likewise absent: its aggregate is not a `SUBTOTAL` but the arbitrary formula
+ * stored in {@link TableColumn.totalsRowFormula}, which the reader/writer round-trip and the
+ * materialiser writes into the cell verbatim.
  */
 export const TOTALS_ROW_SUBTOTAL_CODE: Readonly<Record<string, number>> = {
   average: 101,
@@ -97,8 +99,13 @@ export interface TableColumn {
   readonly name: string;
   /** Literal label shown in the totals row (e.g. `"Total"`), mutually exclusive with a function. */
   readonly totalsRowLabel?: string;
-  /** Built-in totals-row aggregate (`"sum"`, `"average"`, `"count"`, …). */
+  /** Built-in totals-row aggregate (`"sum"`, `"average"`, `"count"`, …), or `"custom"` when the
+   * column's total is the arbitrary formula in {@link totalsRowFormula} rather than a `SUBTOTAL`. */
   readonly totalsRowFunction?: string;
+  /** The formula (no leading `=`) backing a `totalsRowFunction: "custom"` column — OOXML's
+   * `<totalsRowFormula>` child. Round-tripped verbatim and written into the totals cell as the
+   * cell's formula. Meaningful only alongside `totalsRowFunction: "custom"`; ignored otherwise. */
+  readonly totalsRowFormula?: string;
   /** A format applied to this column's body cells as they are written (see {@link TableColumnStyle}).
    * Excel bakes a table-column style into the cells rather than storing it as table metadata, so this
    * is an authoring convenience: it round-trips as the affected cells' own styles, not as the table. */

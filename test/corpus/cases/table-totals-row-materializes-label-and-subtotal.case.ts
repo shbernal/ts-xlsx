@@ -11,8 +11,9 @@
 // aggregate cell holds `SUBTOTAL(code, Table[Column])` — the same formula Excel would compute, with the
 // correct SUBTOTAL function code per aggregate (the count/countNums → COUNTA/COUNT inversion is the
 // trap). The formula carries no cached result: the library is not a calc engine, and Excel computes an
-// uncached formula cell on open. Columns with no built-in aggregate (none/custom) stay blank, exactly
-// as the whole row did before, so nothing regresses for them.
+// uncached formula cell on open. A column with no built-in aggregate stays blank, exactly as the whole
+// row did before, so nothing regresses for it — a `custom` column's stored formula is materialized
+// separately (see the table-column-custom-totals-formula-roundtrip case).
 //
 // The materialization mirrors the header row's "fill only empty cells" guard, which keeps a round-trip
 // idempotent: reloading a file re-registers the table after its cells are loaded, so the already-present

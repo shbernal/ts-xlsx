@@ -515,9 +515,9 @@ export class Worksheet {
     // re-registers the table after its cells are loaded, so a materialized totals cell — ours, Excel's,
     // or a hand-set override — is authoritative and must survive untouched, keeping the round-trip
     // idempotent. The formula carries no cached result; Excel computes an uncached formula cell on open,
-    // so the row shows real values without the library pretending to be a calc engine. A `none`/`custom`
-    // column has no built-in aggregate (see {@link TOTALS_ROW_SUBTOTAL_CODE}) and stays blank, exactly
-    // as the whole row did before.
+    // so the row shows real values without the library pretending to be a calc engine. A `custom` column
+    // writes its stored `totalsRowFormula` verbatim; a `none` column (or a `custom` with no stored
+    // formula) has nothing to write (see {@link TOTALS_ROW_SUBTOTAL_CODE}) and stays blank.
     if (table.totalsRow) {
       const {left, bottom} = table.region;
       table.columns.forEach((column, index) => {
@@ -533,6 +533,13 @@ export class Worksheet {
             this.#cellAt(bottom, col).value = {
               formula: `SUBTOTAL(${code},${table.name}[${column.name}])`,
             };
+          } else if (
+            column.totalsRowFunction === 'custom' &&
+            column.totalsRowFormula !== undefined
+          ) {
+            // A `custom` total is the column's own stored formula, not a SUBTOTAL. Excel stores it
+            // without a leading `=`, which is the formula string a cell value expects.
+            this.#cellAt(bottom, col).value = {formula: column.totalsRowFormula};
           }
         }
       });

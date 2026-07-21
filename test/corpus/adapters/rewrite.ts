@@ -183,7 +183,12 @@ const SUPPORTED_TABLE_KEYS = new Set([
   'headerRow',
   'totalsRow',
 ]);
-const SUPPORTED_TABLE_COLUMN_KEYS = new Set(['name', 'totalsRowLabel', 'totalsRowFunction']);
+const SUPPORTED_TABLE_COLUMN_KEYS = new Set([
+  'name',
+  'totalsRowLabel',
+  'totalsRowFunction',
+  'totalsRowFormula',
+]);
 
 // Build an _xlnm.Print_Area refersTo from a comma-separated area (e.g. 'A1:F10,A12:F21' or 'A:D'):
 // each range is made absolute ($-prefixed on every column and row bound) and sheet-qualified, exactly
@@ -302,6 +307,7 @@ function buildFrom(spec: CorpusApi = {}) {
           const col: CorpusApi = {name: cd.name};
           if (cd.totalsRowLabel !== undefined) col.totalsRowLabel = cd.totalsRowLabel;
           if (cd.totalsRowFunction !== undefined) col.totalsRowFunction = cd.totalsRowFunction;
+          if (cd.totalsRowFormula !== undefined) col.totalsRowFormula = cd.totalsRowFormula;
           return col;
         });
       } else {

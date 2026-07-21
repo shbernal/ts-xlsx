@@ -224,9 +224,10 @@ worksheet input accepts a `headerFooter` block mirroring those children.
 The per-sheet fact also carries `cellText` (address → text for every cell holding a value,
 resolved across all three storage forms — inline string, shared string, bare value — with
 rich-text runs concatenated), and each entry of `inspectPackage`'s `tables` carries
-`columnNames` (the declared `tableColumn` names in order). Together they let a case assert the
-correspondence OOXML requires between a table's column metadata and the grid cells beneath it,
-without knowing which string encoding the writer picked.
+`columnNames` (the declared `tableColumn` names in order) and `totalsRowFormulas` (the text of
+every `<totalsRowFormula>` child, in order — the custom-total formulas a `totalsRowFunction="custom"`
+column carries). Together they let a case assert the correspondence OOXML requires between a table's
+column metadata and the grid cells beneath it, without knowing which string encoding the writer picked.
 
 The `spec` shape consumed by the workbook capabilities is documented alongside the
 capabilities themselves in `adapters/rewrite.ts` (worksheets with cells, columns,

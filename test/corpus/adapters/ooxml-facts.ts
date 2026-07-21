@@ -293,6 +293,9 @@ export function packageFacts(spec: CorpusApi, partMap: PartMap) {
       columnNames: [...xml.matchAll(/<tableColumn\b[^>]*\bname="([^"]*)"/g)].map((m) =>
         unescapeXml(m[1]!),
       ),
+      totalsRowFormulas: [...xml.matchAll(/<totalsRowFormula>([\s\S]*?)<\/totalsRowFormula>/g)].map(
+        (m) => unescapeXml(m[1]!),
+      ),
       headerRowCount: a.headerRowCount ?? '1',
       xmlWellFormed: xmlWellFormed(xml),
     });

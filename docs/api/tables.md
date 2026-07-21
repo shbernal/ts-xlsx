@@ -52,6 +52,7 @@ interface TableColumn {
     readonly name: string;
     readonly totalsRowLabel?: string;
     readonly totalsRowFunction?: string;
+    readonly totalsRowFormula?: string;
     readonly style?: TableColumnStyle;
 }
 ```
