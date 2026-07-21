@@ -57,29 +57,41 @@ export interface CalcProperties {
   fullCalcOnLoad?: boolean;
 }
 
+// A caller may supply a sink to write to (a stream or a filename) but never both — enforced here as a
+// type-level union rather than only the runtime check the constructor also carries, so passing both is
+// a compile error, not a first-run surprise.
+type SinkOptions =
+  | {
+      /**
+       * Write the package to a caller-owned {@link Writable} sink — an outbound upload, a cloud-SDK
+       * stream, any destination the caller controls. {@link WorkbookStreamWriter.commit} pushes every
+       * chunk into it and settles only once the sink has finished (or rejects if it errors), so a
+       * caller can deterministically sequence work after the upload completes. Mutually exclusive
+       * with {@link filename}.
+       */
+      readonly stream: Writable;
+      readonly filename?: never;
+    }
+  | {
+      readonly stream?: never;
+      /**
+       * Write the package to a file at this path. The writer opens a `fs.createWriteStream` for it; if
+       * the destination cannot be opened (bad path, name too long) the stream errors and
+       * {@link WorkbookStreamWriter.commit} rejects with that I/O error rather than hanging. Mutually
+       * exclusive with {@link stream}.
+       */
+      readonly filename: string;
+    }
+  | {readonly stream?: never; readonly filename?: never};
+
 /** Options fixed at construction that shape the whole streamed package. */
-export interface WorkbookStreamWriterOptions {
+export type WorkbookStreamWriterOptions = SinkOptions & {
   /**
    * Pool plain string cell values into a shared-strings table rather than storing each inline — the
    * same {@link WriteOptions.useSharedStrings} the buffered writer exposes. Off by default.
    */
   readonly useSharedStrings?: boolean;
-
-  /**
-   * Write the package to a caller-owned {@link Writable} sink — an outbound upload, a cloud-SDK
-   * stream, any destination the caller controls. {@link commit} pushes every chunk into it and
-   * settles only once the sink has finished (or rejects if it errors), so a caller can deterministically
-   * sequence work after the upload completes. Mutually exclusive with {@link filename}.
-   */
-  readonly stream?: Writable;
-
-  /**
-   * Write the package to a file at this path. The writer opens a `fs.createWriteStream` for it; if the
-   * destination cannot be opened (bad path, name too long) the stream errors and {@link commit} rejects
-   * with that I/O error rather than hanging. Mutually exclusive with {@link stream}.
-   */
-  readonly filename?: string;
-}
+};
 
 /**
  * A row appended to a {@link WorksheetStreamWriter}. Style its cells through {@link cells}, then call

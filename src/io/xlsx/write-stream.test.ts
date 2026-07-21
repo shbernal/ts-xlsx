@@ -213,10 +213,12 @@ test('commit to an unopenable filename rejects with the underlying I/O error rat
 });
 
 test('supplying both a stream and a filename is rejected at construction', () => {
-  assert.throws(
-    () => new WorkbookStreamWriter({stream: new PassThrough(), filename: 'out.xlsx'}),
-    /either a stream or a filename/i,
-  );
+  // Mutual exclusivity is a compile-time error for a typed caller (see WorkbookStreamWriterOptions'
+  // discriminated union); this exercises the runtime backstop that still catches an untyped JS caller.
+  const options = {stream: new PassThrough(), filename: 'out.xlsx'} as ConstructorParameters<
+    typeof WorkbookStreamWriter
+  >[0];
+  assert.throws(() => new WorkbookStreamWriter(options), /either a stream or a filename/i);
 });
 
 test('shared-formula slave cells authored on the stream reload populated, not empty', async () => {

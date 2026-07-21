@@ -72,16 +72,14 @@ class WorkbookStreamWriter {
 
 ### `WorkbookStreamWriterOptions`
 
-<sub>interface</sub>
+<sub>type</sub>
 
 Options fixed at construction that shape the whole streamed package.
 
 ```ts
-interface WorkbookStreamWriterOptions {
+type WorkbookStreamWriterOptions = SinkOptions & {
     readonly useSharedStrings?: boolean;
-    readonly stream?: Writable;
-    readonly filename?: string;
-}
+};
 ```
 
 ---
