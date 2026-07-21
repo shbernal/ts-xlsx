@@ -69,6 +69,69 @@ const cellTexts = (xml: string, shared: string[]): Record<string, string> => {
   return out;
 };
 
+// Column letters (A, AA, …) to a 1-based index, and an A1 reference / range to plain coordinates —
+// the minimum geometry the shared-formula fact needs to decide whether a slave falls inside its
+// master's ref, kept local so this extractor stays free of the library it inspects.
+const colToNum = (letters: string): number => {
+  let n = 0;
+  for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n;
+};
+const parseA1 = (ref: string): {col: number; row: number} | null => {
+  const m = /^([A-Z]+)(\d+)$/.exec(ref);
+  return m ? {col: colToNum(m[1]!), row: Number(m[2]!)} : null;
+};
+const parseRect = (
+  range: string,
+): {left: number; top: number; right: number; bottom: number} | null => {
+  const [a, b] = range.split(':');
+  const tl = a ? parseA1(a) : null;
+  if (tl === null) return null;
+  const br = b ? parseA1(b) : tl;
+  if (br === null) return null;
+  return {left: tl.col, top: tl.row, right: br.col, bottom: br.row};
+};
+
+// Shared-formula geometry read straight off the emitted `<f>` elements — the master/slave
+// correspondence a write→read round-trip cannot witness (our reader resolves a slave by its `si`, so
+// a writer that mis-stamped `si`/`ref` and a reader that read it back the same wrong way agree). A
+// master carries `t="shared"` with a `ref` range and a `si`; a slave carries the same `si` and no
+// `ref` or text. The derived booleans phrase the cross-cell invariants Excel enforces: a slave's `si`
+// must resolve to a master, and the slave must fall inside that master's `ref`, or Excel repairs the
+// sheet.
+const sharedFormulaFacts = (xml: string) => {
+  const masters: {cell: string; si: number; ref: string}[] = [];
+  const slaves: {cell: string; si: number}[] = [];
+  for (const m of xml.matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
+    const cellRef = attrs(`<c ${m[1]}>`).r;
+    if (cellRef === undefined) continue;
+    const f = m[2]!.match(/<f\b([^>]*?)\s*(?:\/>|>)/);
+    if (f === null) continue;
+    const fa = attrs(`<f ${f[1]}>`);
+    if (fa.t !== 'shared' || fa.si === undefined) continue;
+    const si = Number(fa.si);
+    if (fa.ref !== undefined) masters.push({cell: cellRef, si, ref: fa.ref});
+    else slaves.push({cell: cellRef, si});
+  }
+  const masterOfSi = new Map(masters.map((mm) => [mm.si, mm]));
+  const withinMasterRef = (slave: {cell: string; si: number}): boolean => {
+    const master = masterOfSi.get(slave.si);
+    const rect = master ? parseRect(master.ref) : null;
+    const at = parseA1(slave.cell);
+    if (rect === null || at === null) return false;
+    return (
+      at.col >= rect.left && at.col <= rect.right && at.row >= rect.top && at.row <= rect.bottom
+    );
+  };
+  return {
+    masters,
+    slaves,
+    siUniqueAcrossMasters: new Set(masters.map((mm) => mm.si)).size === masters.length,
+    everySlaveHasMaster: slaves.every((sl) => masterOfSi.has(sl.si)),
+    everySlaveWithinMasterRef: slaves.every(withinMasterRef),
+  };
+};
+
 /**
  * @param spec  the workbook spec that produced the package (drives per-sheet lookup)
  * @param partMap  { [zipPath]: xmlString } for every non-directory package part
@@ -173,6 +236,7 @@ export function packageFacts(spec: CorpusApi, partMap: PartMap) {
       dimensionRef: (xml.match(/<dimension\b[^>]*ref="([^"]*)"/) || [])[1] ?? null,
       autoFilterRef: (xml.match(/<autoFilter\b[^>]*ref="([^"]*)"/) || [])[1] ?? null,
       formulas,
+      sharedFormulas: sharedFormulaFacts(xml),
       columnGroups,
       maxColumnIndex: columnGroups.reduce((m, g) => Math.max(m, g.max ?? 0), 0),
       elementOrder: {

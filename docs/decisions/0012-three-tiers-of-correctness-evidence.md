@@ -102,7 +102,10 @@ built to cross the seam. An audit of the current vocabulary (2026-07-21) found t
 - `<sheet r:id>` → rel → existing worksheet part (captured but only checked part→declaration).
 - Cell `s=` index → `styles.xml` xf/font/fill (`cellText` drops `s`; only the default font
   is inspected).
-- Shared-formula master ↔ slaves (`formulas` holds `<f>` text only, not `t="shared" si= ref=`).
+- ~~Shared-formula master ↔ slaves (`formulas` holds `<f>` text only, not `t="shared" si= ref=`).~~
+  **Closed** — `sharedFormulas` fact + `shared-formula-master-slave-geometry-structural.case.ts`
+  lock the master/slave `si`/`ref` geometry structurally. **Left open (see hazard below):** the
+  `ref` for a *non-contiguous* clone set.
 - Comment ↔ VML shape ↔ `legacyDrawing` rel.
 
 **Structural ceiling:** `worksheetRels` reads only `sheet1.xml.rels`, and tables/drawings
@@ -112,6 +115,65 @@ it is the precondition for several rows above, so it is the highest-leverage fix
 
 These are not scheduled here; they are the backlog this ADR makes visible. Close each
 the same way: Tier-3 seed, then a seam fact that locks it.
+
+### Open Tier-3 hazard: shared-formula `ref` over-covers a non-contiguous clone set
+
+Discovered while closing the shared-formula seam (2026-07-21). `planSharedFormulas`
+(`src/io/xlsx/worksheet-xml.ts`) computes a master's `ref` as the **bounding rectangle**
+of the master plus all its clones. For the common fills — down a column, across a row —
+that rectangle *is* the clone set, and the emitted geometry is exact. But when the clones
+are non-contiguous, the rectangle covers cells that were never cloned:
+
+```
+master B1, clones B2 + D5  →  <f t="shared" ref="B1:D5" si="0">…</f>
+```
+
+`B1:D5` is fifteen cells; only three (`B1`, `B2`, `D5`) carry a `<c>`. The other twelve are
+absent from the sheet. The hazard is that the shared-formula `ref` is, to some consumers, an
+*instruction to materialize the formula across the whole rectangle*: **LibreOffice** auto-fills
+every cell in `ref` with the translated formula, so those twelve empty cells would silently
+gain a formula the caller never wrote. This is the same shape as the merge-repair bug — the
+writer emits geometry a consuming app interprets more aggressively than we intended — which is
+why it is called out rather than left implicit.
+
+It is deliberately **not locked and not fixed**:
+
+- **Not locked.** A seam fact asserting current behavior would freeze a `ref` we suspect is
+  wrong. Per the recipe, a cross-part invariant is locked only *after* a Tier-3 seed proves what
+  the correct geometry is; locking first would cement the bug.
+- **Not fixed blind.** The correct behavior is unknown without Tier 3, and the fix is not cheap:
+  a rectangular `ref` cannot represent a non-contiguous group, so a correct writer must either
+  split the group into maximal contiguous runs (each its own master, each needing the formula
+  **translated** to its new anchor — the R1C1/relative-offset machinery we do not yet have) or
+  degrade non-fill clones to standalone `<f>` cells. Both are real work; neither should be
+  attempted before the Tier-3 seed says which is even needed.
+
+**What a Tier-3 seed requires — how to confirm Excel's exact behavior.** The tier is irreducible:
+there is no local oracle for it (the schema validator passed the analogous table bug). It means,
+concretely:
+
+1. **Emit the probe file.** Write a `.xlsx` whose only shared group is non-contiguous — e.g.
+   master `B1` with clones `B2` and `D5`, so ts-xlsx produces `ref="B1:D5"` with twelve empty
+   interior cells. (`scratch-totals-probe.ts` is the kind of throwaway harness this uses.)
+2. **Open it in Excel Desktop** — the real application, not Online or a viewer, since the quirk
+   is an application acceptance rule, not a spec rule — and observe, for the twelve empty cells,
+   which of these Excel actually does:
+   - **Materializes** them (auto-fills the translated formula across the rectangle, like
+     LibreOffice) → our `ref` is actively wrong; it injects data. Fix is mandatory.
+   - **Ignores** the interior and keeps only the three written cells → the over-wide `ref` is
+     cosmetically loose but harmless in Excel; the fix is then driven by other consumers
+     (LibreOffice) rather than Excel.
+   - **Repairs** the file (the "we found a problem… recover?" dialog) → the geometry is rejected
+     outright, the highest-severity outcome, same class as the merge bug.
+3. **Cross-check the other direction:** re-save from Excel and diff the `ref` Excel itself writes
+   for the same non-contiguous group — that reveals the geometry Excel considers canonical (most
+   likely: it never emits a non-contiguous group as one shared formula at all).
+4. **Record the observed behavior** as `provenance: {source: 'excel-desktop-verification'}` on the
+   seeding case, then lock it with a seam fact whose shape *is* the corrected `ref`↔clone-set
+   relationship, so CI catches regressions without re-opening Excel.
+
+Until someone with Excel Desktop runs steps 1–3, the correct geometry is unknown, so the seam is
+recorded here rather than closed.
 
 ## Consequences
 
