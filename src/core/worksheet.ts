@@ -342,6 +342,13 @@ export class Worksheet {
     this.#rowProperties.delete(number);
   }
 
+  /** The format properties for a 1-based column index if any were set, or `undefined` — a read-only
+   * peek that never creates a record, so a serializer can render a column's attributes without
+   * fabricating an empty one for every column it visits. Use {@link getColumn} to create-on-access. */
+  columnProperties(index: number): ColumnProperties | undefined {
+    return this.#columns.get(index);
+  }
+
   /**
    * Get the mutable format properties for a 1-based column index, creating the record
    * on first access. Setting properties here does not materialise any cells.
@@ -1025,6 +1032,52 @@ export class Worksheet {
       throw new RangeError(`splice count ${count} is invalid — it must be a non-negative integer`);
     }
     this.#edits.spliceColumns(start, count, inserts);
+  }
+
+  /**
+   * Insert one column of `values` at the 1-based `pos`, shifting the columns at and right of it over
+   * by one. `values` is an array of values indexed by row (index 0 → row 1), like
+   * {@link addColumn}. Shorthand for {@link spliceColumns}`(pos, 0, values)`.
+   *
+   * @throws {RangeError} if `pos` is not a positive integer.
+   */
+  insertColumn(pos: number, values: CellValue[]): void {
+    this.spliceColumns(pos, 0, values);
+  }
+
+  /**
+   * Append a column of `values` after the last used column, returning the cells it materialised.
+   * The append point is {@link columnCount}` + 1`, so the column lands right of every column that
+   * holds data or its own formatting — never overwriting existing content, unlike {@link insertColumn},
+   * which shifts and needs a position. Unlike {@link spliceColumns}, appending shifts nothing, so it
+   * never disturbs merges or the columns to its left.
+   *
+   * `values` is an array indexed by row (index 0 → row 1); a hole or an explicit `undefined` leaves
+   * that row untouched, mirroring {@link addRow}'s positional-array shape.
+   */
+  addColumn(values: CellValue[]): Cell[] {
+    return this.addColumns([values])[0] ?? [];
+  }
+
+  /**
+   * Append several columns after the last used column in one call, returning the cells materialised
+   * for each. The columns stack in order — the first lands at {@link columnCount}` + 1`, the next
+   * directly right of it — so a later column never collides with an earlier one even when both are
+   * value-less. The bulk form of {@link addColumn}.
+   */
+  addColumns(columns: CellValue[][]): Cell[][] {
+    let index = this.columnCount;
+    return columns.map((values) => {
+      index += 1;
+      const cells: Cell[] = [];
+      values.forEach((value, i) => {
+        if (value === undefined) return;
+        const cell = this.#cellAt(i + 1, index);
+        cell.value = value;
+        cells.push(cell);
+      });
+      return cells;
+    });
   }
 
   /**

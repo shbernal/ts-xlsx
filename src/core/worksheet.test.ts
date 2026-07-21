@@ -671,6 +671,84 @@ test('spliceColumns can insert blank columns, shifting existing columns right', 
   assert.equal(sheet.getCell('G1').value, 'c5');
 });
 
+test('insertColumn shifts the columns at and right of it over by one', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'a';
+  sheet.getCell('B1').value = 'b';
+  sheet.insertColumn(2, ['inserted']);
+  assert.equal(sheet.getCell('A1').value, 'a');
+  assert.equal(sheet.getCell('B1').value, 'inserted');
+  assert.equal(sheet.getCell('C1').value, 'b', 'the column formerly at B1 shifts right to C1');
+});
+
+test('addColumn appends after the last used column and returns its cells', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'header';
+  const cells = sheet.addColumn(['a', 'b']);
+  assert.equal(sheet.getCell('B1').value, 'a', 'appended right of the header, not over it');
+  assert.equal(sheet.getCell('B2').value, 'b');
+  assert.deepEqual(
+    cells.map((cell) => cell.value),
+    ['a', 'b'],
+    'returns the materialised cells for styling',
+  );
+});
+
+test('addColumn lands right of a formatting-only column, not over it', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getColumn(3).width = 40;
+  sheet.addColumn(['tail']);
+  assert.equal(
+    sheet.getCell('D1').value,
+    'tail',
+    'the used range spans the formatting-only column at 3',
+  );
+});
+
+test('addColumns stacks each column in order, even when value-less', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'header';
+  const created = sheet.addColumns([[null], ['x'], [null]]);
+  assert.equal(created.length, 3);
+  assert.equal(
+    sheet.getCell('B1').value,
+    null,
+    'a value-less appended column still consumes its slot',
+  );
+  assert.equal(
+    sheet.getCell('C1').value,
+    'x',
+    'the next column does not collide with the value-less one before it',
+  );
+  assert.equal(sheet.getCell('D1').value, null);
+});
+
+test('addColumn skips a hole in a sparse array', () => {
+  const sheet = new Worksheet('S', 1);
+  const sparse: CellValue[] = [];
+  sparse[0] = 'a';
+  sparse[2] = 'c'; // index 1 stays a genuine array hole
+  const cells = sheet.addColumn(sparse);
+  assert.equal(sheet.hasCell(2, 1), false, 'the hole leaves row 2 unmaterialised');
+  assert.equal(sheet.getCell('A3').value, 'c');
+  assert.deepEqual(
+    cells.map((cell) => cell.value),
+    ['a', 'c'],
+    'only the visited elements become cells',
+  );
+});
+
+test('columnProperties peeks without creating a record; getColumn creates on access', () => {
+  const sheet = new Worksheet('S', 1);
+  assert.equal(
+    sheet.columnProperties(2),
+    undefined,
+    'no record fabricated for an untouched column',
+  );
+  sheet.getColumn(2).width = 12;
+  assert.equal(sheet.columnProperties(2)?.width, 12, 'the peek sees the record getColumn created');
+});
+
 test('a column-splice re-anchors a merged range lying to the right of the cut', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getCell('F1').value = 'F';

@@ -133,6 +133,7 @@ class Worksheet {
   hasCell(row: number, col: number): boolean;
   rowProperties(number: number): RowProperties | undefined;
   evictRow(number: number): void;
+  columnProperties(index: number): ColumnProperties | undefined;
   getColumn(index: number): ColumnProperties;
   getRow(number: number): RowProperties;
   get rowCount(): number;
@@ -208,6 +209,9 @@ class Worksheet {
     insert?: boolean;
 } = {}): void;
   spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void;
+  insertColumn(pos: number, values: CellValue[]): void;
+  addColumn(values: CellValue[]): Cell[];
+  addColumns(columns: CellValue[][]): Cell[][];
   get model(): WorksheetModel;
   set model(model: WorksheetModel);
   protect(password?: string, options: SheetProtectionOptions = {}): void;
@@ -234,6 +238,7 @@ class Worksheet {
 - `hasCell(row: number, col: number): boolean;` — Whether a cell has been materialised at the given 1-based position.
 - `rowProperties(number: number): RowProperties | undefined;` — The format properties for a 1-based row number if any were set, or `undefined` — a read-only peek that never creates a record, so a serializer can render a row's attributes without fabricating an empty one for every row it visits. Use `getRow` to create-on-access.
 - `evictRow(number: number): void;` — Drop a row's materialised cells and format properties, releasing its cell graph. The streaming writer calls this the moment a row is serialised so peak memory stays bounded to the rows still in flight rather than the whole sheet. Row *numbering* is the caller's concern: eviction lowers `rowCount`, so an append-driven producer must track its own high-water mark rather than lean on this sheet's used range.
+- `columnProperties(index: number): ColumnProperties | undefined;` — The format properties for a 1-based column index if any were set, or `undefined` — a read-only peek that never creates a record, so a serializer can render a column's attributes without fabricating an empty one for every column it visits. Use `getColumn` to create-on-access.
 - `getColumn(index: number): ColumnProperties;` — Get the mutable format properties for a 1-based column index, creating the record on first access. Setting properties here does not materialise any cells.
 - `getRow(number: number): RowProperties;` — Get the mutable format properties for a 1-based row number, creating the record on first access. This is row *metadata* (height, visibility, outline) — it does not materialise any cells. See `rowProperties` for a read-only peek that never creates a record.
 - `get rowCount(): number;` — The 1-based index of the last row carrying anything — data or its own formatting — or 0 for an empty sheet. Spans gaps: a value in row 5 makes this 5 even if rows 2–4 are empty. This is the used-range extent, not a populated-row tally (see `actualRowCount`).
@@ -290,6 +295,9 @@ class Worksheet {
     insert?: boolean;
 } = {}): void;` — Copy the row at the 1-based `start`, `options.count` times (default 1). With `options.insert` (the default) the copies are inserted directly after the source, shifting the rows below — and any merged range there — down by `count`; otherwise the copies overwrite the rows immediately below without shifting. Each copy is a faithful duplicate of the source's values and per-cell styles, and carries no merge of its own, so a range can be merged onto a duplicated row afterwards.
 - `spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void;` — Remove `count` columns starting at the 1-based `start`, then insert the given columns in their place — the column analog of `spliceRows`. Columns to the right shift by `inserts.length - count`, keeping their values and styles, and a merged range lying wholly to the right of the edit re-anchors to its new columns. Each inserted column is an array of values indexed by row (index 0 → row 1); an empty array inserts a blank column.
+- `insertColumn(pos: number, values: CellValue[]): void;` — Insert one column of `values` at the 1-based `pos`, shifting the columns at and right of it over by one. `values` is an array of values indexed by row (index 0 → row 1), like `addColumn`. Shorthand for `spliceColumns``(pos, 0, values)`.
+- `addColumn(values: CellValue[]): Cell[];` — Append a column of `values` after the last used column, returning the cells it materialised. The append point is `columnCount`` + 1`, so the column lands right of every column that holds data or its own formatting — never overwriting existing content, unlike `insertColumn`, which shifts and needs a position. Unlike `spliceColumns`, appending shifts nothing, so it never disturbs merges or the columns to its left. `values` is an array indexed by row (index 0 → row 1); a hole or an explicit `undefined` leaves that row untouched, mirroring `addRow`'s positional-array shape.
+- `addColumns(columns: CellValue[][]): Cell[][];` — Append several columns after the last used column in one call, returning the cells materialised for each. The columns stack in order — the first lands at `columnCount`` + 1`, the next directly right of it — so a later column never collides with an earlier one even when both are value-less. The bulk form of `addColumn`.
 - `get model(): WorksheetModel;` — A snapshot of this sheet's value and overlay content (see `WorksheetModel`). Reading it and assigning it onto another sheet — `dst.model = src.model` — reproduces the source: merges, cells and their styles, column/row metadata, tables, the autofilter, protection, and the page setup all survive, because the getter emits and the setter consumes exactly the same fields. Identity (`name`, `id`) is not part of the model and is never touched by assignment; nor are attached parts that carry workbook-level identity (images, pivots, byte-preserved charts/drawings) — see `WorksheetModel` for that boundary.
 - `protect(password?: string, options: SheetProtectionOptions = {}): void;` — Protect the sheet, making the per-cell `locked`/`hidden` flags enforceable. Without a password the protection is a soft lock any consumer can lift; with one, the password is salted and hashed on the spot (the plaintext is never retained) so lifting the protection requires re-supplying it. `options` names which operations stay available to a user while the sheet is protected; anything unspecified falls to Excel's default for that operation. Re-protecting replaces any prior protection; `unprotect` clears it.
 - `unprotect(): void;` — Remove any protection previously set by `protect`.
