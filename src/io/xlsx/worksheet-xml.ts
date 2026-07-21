@@ -1,7 +1,8 @@
-// Worksheet serialisation: a Worksheet model into its `xl/worksheets/sheetN.xml` part (and the sheet's
-// rels part and table parts). Owns the row/cell renderer the streaming writer also drives, the sheet's
+// Worksheet serialisation: a Worksheet model into its `xl/worksheets/sheetN.xml` part and the sheet's
+// rels part. Owns the row/cell renderer the streaming writer also drives, the sheet's
 // print/page/view/protection blocks, and the shared-formula planning that resolves each formula cell's
-// role before the row loop.
+// role before the row loop. Table *parts* (`xl/tables/tableN.xml`) are `tables.ts`'s concern, alongside
+// their reader — this module only wires the sheet's `<tableParts>` back-references to them.
 
 import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import type {AutoFilter, FilterColumn, FilterCriteria} from '../../core/autofilter.ts';
@@ -17,7 +18,6 @@ import type {
 } from '../../core/page-setup.ts';
 import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
 import type {Fill} from '../../core/style.ts';
-import type {Table, TableColumn, TableStyleInfo} from '../../core/table.ts';
 import {
   detectValueType,
   type FormulaResult,
@@ -563,74 +563,6 @@ export function worksheetRelsXml(
       ),
   ];
   return relationshipsPart(rels);
-}
-
-export function tableXml(table: Table, id: number): string {
-  const name = escapeAttr(table.name);
-  const displayName = escapeAttr(table.displayName);
-  // headerRowCount defaults to 1 in OOXML, so only a headerless table needs it stated.
-  const headerRowCount = table.headerRow ? '' : ' headerRowCount="0"';
-  // A present totals row implies it is shown, so it only needs the count. Without a totals row the
-  // model's tri-state totalsRowShown decides: emit the flag Excel recorded, or nothing when the
-  // source omitted it — injecting `totalsRowShown="0"` onto a table that lacked the attribute is
-  // exactly the spurious change that makes Excel treat an otherwise-valid table as corrupt.
-  let totals: string;
-  if (table.totalsRow) {
-    totals = ' totalsRowCount="1"';
-  } else if (table.totalsRowShown !== undefined) {
-    totals = ` totalsRowShown="${table.totalsRowShown ? '1' : '0'}"`;
-  } else {
-    totals = '';
-  }
-  const autoFilter =
-    table.autoFilterRef !== null ? `<autoFilter ref="${table.autoFilterRef}"/>` : '';
-  const columns = table.columns.map((column, i) => tableColumnXml(column, i + 1)).join('');
-  return (
-    XML_DECLARATION +
-    `<table xmlns="${NS.main}" id="${id}" name="${name}" displayName="${displayName}" ` +
-    `ref="${table.ref}"${headerRowCount}${totals}>` +
-    autoFilter +
-    `<tableColumns count="${table.columns.length}">${columns}</tableColumns>` +
-    tableStyleInfoXml(table.style) +
-    '</table>'
-  );
-}
-
-// Excel's default table appearance, written for a table that carries no style of its own.
-const DEFAULT_TABLE_STYLE =
-  '<tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" ' +
-  'showRowStripes="1" showColumnStripes="0"/>';
-
-// Emit `<tableStyleInfo>` from the model's style, or the default when none was captured. Each
-// attribute is written only when the model holds it, so a style read without (say) a `name` — or a
-// part that omitted a banding flag — re-emits exactly as it arrived rather than gaining an attribute.
-function tableStyleInfoXml(style: TableStyleInfo | undefined): string {
-  if (style === undefined) return DEFAULT_TABLE_STYLE;
-  let attrs = '';
-  if (style.name !== undefined) attrs += ` name="${escapeAttr(style.name)}"`;
-  attrs +=
-    boolAttr('showFirstColumn', style.showFirstColumn) +
-    boolAttr('showLastColumn', style.showLastColumn) +
-    boolAttr('showRowStripes', style.showRowStripes) +
-    boolAttr('showColumnStripes', style.showColumnStripes);
-  return `<tableStyleInfo${attrs}/>`;
-}
-
-function tableColumnXml(column: TableColumn, id: number): string {
-  let attrs = `id="${id}" name="${escapeAttr(column.name)}"`;
-  if (column.totalsRowLabel !== undefined) {
-    attrs += ` totalsRowLabel="${escapeAttr(column.totalsRowLabel)}"`;
-  }
-  if (column.totalsRowFunction !== undefined) {
-    attrs += ` totalsRowFunction="${escapeAttr(column.totalsRowFunction)}"`;
-  }
-  // A `custom` total is carried by a `<totalsRowFormula>` child rather than a built-in function, so
-  // the element is non-self-closing when one is present. The formula is stored without a leading `=`,
-  // matching how Excel writes it.
-  if (column.totalsRowFormula !== undefined) {
-    return `<tableColumn ${attrs}><totalsRowFormula>${escapeText(column.totalsRowFormula)}</totalsRowFormula></tableColumn>`;
-  }
-  return `<tableColumn ${attrs}/>`;
 }
 
 // CT_HeaderFooter child order, paired with the flag their presence gates: the even- and

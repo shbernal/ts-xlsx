@@ -41,6 +41,7 @@ import {REL, relsPartXml} from './relationships.ts';
 import {SharedStringTable} from './shared-strings.ts';
 import {THEME1_XML} from './static-parts.ts';
 import {StyleRegistry} from './styles.ts';
+import {tableXml} from './tables.ts';
 import {
   appPropsXml,
   contentTypesXml,
@@ -53,7 +54,6 @@ import {
 import {
   type FlushedSheet,
   type SheetReferences,
-  tableXml,
   worksheetRelsXml,
   worksheetXml,
 } from './worksheet-xml.ts';
