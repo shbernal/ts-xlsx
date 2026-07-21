@@ -43,7 +43,7 @@ export function tableXml(table: Table, id: number): string {
   return (
     XML_DECLARATION +
     `<table xmlns="${NS.main}" id="${id}" name="${name}" displayName="${displayName}" ` +
-    `ref="${table.ref}"${headerRowCount}${totals}>` +
+    `ref="${table.range}"${headerRowCount}${totals}>` +
     autoFilter +
     `<tableColumns count="${table.columns.length}">${columns}</tableColumns>` +
     tableStyleInfoXml(table.style) +

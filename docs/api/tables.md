@@ -22,7 +22,7 @@ class Table {
   shiftRows(start: number, count: number, delta: number): boolean;
   shiftColumns(start: number, count: number, delta: number): boolean;
   get options(): TableOptions;
-  get ref(): string;
+  get range(): string;
   get autoFilterRef(): string | null;
   get region(): TableRegion;
 }
@@ -35,7 +35,7 @@ class Table {
 - `shiftRows(start: number, count: number, delta: number): boolean;` — Re-pin the table through a row splice: `count` rows removed at the 1-based `start`, then rows inserted so surviving rows below shift by `delta`. A splice entirely above the table moves its whole range by `delta`; one landing inside grows or shrinks the data rows to absorb the change; one that deletes the table's every row removes it. Returns `false` when the table no longer has a row to occupy (the caller drops it), `true` when it survives.
 - `shiftColumns(start: number, count: number, delta: number): boolean;` — Re-pin the table through a column splice. A splice entirely to the table's left moves its anchor by `delta`; one to its right leaves it untouched. A splice landing inside the table's columns is structural surgery on named columns with no unambiguous answer, so the table's columns are left as-is (anchor unchanged) rather than fabricated or dropped. Always returns `true`.
 - `get options(): TableOptions;` — The options that reconstruct this table — the anchor as a single-cell ref (not the derived full range), the columns, and the data-row count with the header/totals flags. Feeding this back to the constructor yields an equivalent table, so a worksheet model can carry a table losslessly across an export/import round-trip.
-- `get ref(): string;` — The full A1 range the table occupies: header (if any) + data rows + totals (if any).
+- `get range(): string;` — The full A1 range the table occupies: header (if any) + data rows + totals (if any). Distinct from `TableOptions.ref` (and `options`'s own `ref`), which is only the single-cell anchor a table is constructed from — this is the anchor plus the columns/rows it has grown to cover.
 - `get autoFilterRef(): string | null;` — The autoFilter range — the header row plus the data rows, never the totals row — or `null` when the table has no autoFilter: either it is headerless (an autoFilter has nothing to anchor to and Excel treats its presence as corruption) or its `autoFilter` flag is off (a table read without one must not gain one on round-trip).
 - `get region(): TableRegion;` — The occupied rectangle, for conflict checks such as overlapping merges.
 

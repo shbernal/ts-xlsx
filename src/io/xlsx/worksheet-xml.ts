@@ -347,7 +347,7 @@ function validateMerges(sheet: Worksheet): void {
         bottom >= region.top;
       if (overlaps) {
         throw new Error(
-          `merged range ${merge} overlaps table "${table.name}" (${table.ref}) — Excel forbids a merge inside a table`,
+          `merged range ${merge} overlaps table "${table.name}" (${table.range}) — Excel forbids a merge inside a table`,
         );
       }
     }

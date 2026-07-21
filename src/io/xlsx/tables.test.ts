@@ -49,7 +49,7 @@ test('a table read back from a written package exposes its name, columns, and re
     table.columns.map((c) => c.name),
     ['Item', 'Qty'],
   );
-  assert.equal(table.ref, 'A1:B4', 'header + 3 data rows spans four rows');
+  assert.equal(table.range, 'A1:B4', 'header + 3 data rows spans four rows');
   assert.equal(table.options.ref, 'A1', 'the anchor reconstructs to the top-left cell');
 });
 
@@ -73,7 +73,7 @@ test('an empty-body table (header only) round-trips with a zero data-row count',
   });
   assert.ok(table !== undefined);
   assert.equal(table.options.rowCount, 0);
-  assert.equal(table.ref, 'A1:B1', 'a header-only table occupies a single row');
+  assert.equal(table.range, 'A1:B1', 'a header-only table occupies a single row');
 });
 
 test('a headerless table round-trips with headerRow false and no autofilter', () => {
@@ -104,7 +104,7 @@ test('a totals-row table round-trips its totals flag and per-column totals behav
   assert.ok(table !== undefined);
   assert.equal(table.options.totalsRow, true);
   assert.equal(table.options.rowCount, 2, 'the totals row is not counted as a data row');
-  assert.equal(table.ref, 'A1:B4', 'header + 2 data + totals spans four rows');
+  assert.equal(table.range, 'A1:B4', 'header + 2 data + totals spans four rows');
   assert.equal(table.columns[0]?.totalsRowLabel, 'Total');
   assert.equal(table.columns[1]?.totalsRowFunction, 'sum');
 });
@@ -263,7 +263,7 @@ test('several tables on one sheet all read back in definition order', () => {
     tables.map((t) => t.name),
     ['First', 'Second'],
   );
-  assert.equal(tables[1]?.ref, 'D1:E3');
+  assert.equal(tables[1]?.range, 'D1:E3');
 });
 
 test('tables on distinct sheets each reconstruct on their own sheet', () => {
@@ -354,7 +354,7 @@ test('a table survives a second read → write → read round-trip unchanged', (
   const table = twice.getWorksheet('S')?.tables[0];
   assert.ok(table !== undefined);
   assert.equal(table.name, 'Persist');
-  assert.equal(table.ref, 'B2:D6', 'the range is stable across two round-trips');
+  assert.equal(table.range, 'B2:D6', 'the range is stable across two round-trips');
   assert.deepEqual(
     table.columns.map((c) => c.name),
     ['One', 'Two', 'Three'],

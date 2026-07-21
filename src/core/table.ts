@@ -404,8 +404,11 @@ export class Table {
     return options;
   }
 
-  /** The full A1 range the table occupies: header (if any) + data rows + totals (if any). */
-  get ref(): string {
+  /** The full A1 range the table occupies: header (if any) + data rows + totals (if any). Distinct
+   * from {@link TableOptions.ref} (and {@link options}'s own `ref`), which is only the single-cell
+   * anchor a table is constructed from — this is the anchor plus the columns/rows it has grown to
+   * cover. */
+  get range(): string {
     return `${encodeAddress(this.#anchorCol, this.#anchorRow)}:${encodeAddress(this.#right, this.#bottom)}`;
   }
 

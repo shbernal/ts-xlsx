@@ -254,7 +254,7 @@ test('a model round-trip carries tables and sheet-level protection', () => {
 
   assert.equal(dst.tables.length, 1);
   assert.equal(dst.tables[0]?.name, 'T1');
-  assert.equal(dst.tables[0]?.ref, 'A1:A3');
+  assert.equal(dst.tables[0]?.range, 'A1:A3');
   assert.notEqual(dst.protection, undefined);
 });
 
@@ -505,7 +505,7 @@ test('inserting a row above a table shifts the table range down', () => {
   const sheet = new Worksheet('S', 1);
   sheet.addTable({name: 'T', ref: 'A3', columns: [{name: 'H1'}, {name: 'H2'}], rowCount: 2});
   sheet.insertRow(1, ['inserted']);
-  assert.equal(sheet.tables[0]?.ref, 'A4:B6');
+  assert.equal(sheet.tables[0]?.range, 'A4:B6');
 });
 
 test('getTable finds a table by name and addRow appends cells into the grid', () => {
@@ -516,7 +516,7 @@ test('getTable finds a table by name and addRow appends cells into the grid', ()
   assert.equal(table.rowCount, 2);
   table.addRow(['c', 3]); // appends at row 4 (header on row 1 + 2 data rows)
   assert.equal(table.rowCount, 3);
-  assert.equal(table.ref, 'A1:B4', 'the range grows to cover the appended row');
+  assert.equal(table.range, 'A1:B4', 'the range grows to cover the appended row');
   assert.equal(sheet.getCell('A4').value, 'c', 'the appended values land in the grid');
   assert.equal(sheet.getCell('B4').value, 3);
 });
@@ -590,7 +590,7 @@ test('addRow on a table with a totals row appends above it, moving the totals do
   table.addRow(['c', 3]);
 
   assert.equal(table.rowCount, 3, 'the data-row count grows by one');
-  assert.equal(table.ref, 'A1:B5', 'the range grows and still covers the totals row');
+  assert.equal(table.range, 'A1:B5', 'the range grows and still covers the totals row');
   assert.equal(table.totalsRow, true, 'the totals-row flag is unchanged');
   assert.equal(sheet.getCell('A4').value, 'c', 'the new data row lands where the totals row sat');
   assert.equal(sheet.getCell('B4').value, 3);
