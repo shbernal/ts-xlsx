@@ -24,6 +24,11 @@ test('a configured delimiter splits fields and numeric fields coerce', () => {
   ]);
 });
 
+test('a non-single-character delimiter is rejected rather than silently collapsing rows', () => {
+  assert.throws(() => readCsv('a,b,c', {delimiter: ''}));
+  assert.throws(() => readCsv('a::b::c', {delimiter: '::'}));
+});
+
 test('an over-precision numeric string is preserved verbatim; in-range numbers coerce', () => {
   const big = '56343416020533614003';
   assert.deepEqual(rowsOf(`${big},42\n1.5,7`), [

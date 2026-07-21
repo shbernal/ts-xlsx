@@ -31,6 +31,9 @@ export interface CsvReadOptions {
 export function readCsv(input: string | Uint8Array, options: CsvReadOptions = {}): Workbook {
   const text = stripBom(typeof input === 'string' ? input : Buffer.from(input).toString('utf8'));
   const delimiter = options.delimiter ?? ',';
+  if (delimiter.length !== 1) {
+    throw new Error(`CSV delimiter must be a single character, got ${JSON.stringify(delimiter)}`);
+  }
 
   let rows = parseCsvRows(text, delimiter);
   if (options.headers) rows = rows.slice(1);
