@@ -95,3 +95,9 @@ is unchanged for day-to-day work; emit parity is now proven by the whole corpus,
 one smoke case.
 
 Vitest and Biome remain deferred to the toolchain-standup slice.
+
+## Addendum (2026-07-21) — the deferred package name is resolved
+
+The one open human decision from the addendum above — the package name — is settled:
+`@shbernal/ts-xlsx` is final. See [ADR-0015](0015-publishing-name-semver-and-first-version.md),
+which also states the SemVer policy and confirms the first published version is `1.0.0`.
