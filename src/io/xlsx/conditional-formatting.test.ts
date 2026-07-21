@@ -244,6 +244,55 @@ test('a colorScale colour with a malformed theme attribute drops it rather than 
   assert.match(out, /<color rgb="FF00FF00"\/>/, 'the well-formed sibling colour survives');
 });
 
+test('a malformed priority is dropped on read rather than poisoning every later rule with NaN', () => {
+  const sheet1 =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
+    '<conditionalFormatting sqref="A1:A3">' +
+    '<cfRule type="duplicateValues" priority="oops"/>' +
+    '<cfRule type="duplicateValues" priority="2"/>' +
+    '</conditionalFormatting></worksheet>';
+  const xml = sheetXml(writeXlsx(readParts({sheet1})));
+
+  assert.doesNotMatch(xml, /priority="NaN"/, 'no rule re-writes with a NaN priority');
+  assert.equal(
+    [...xml.matchAll(/priority="(\d+)"/g)].length,
+    2,
+    'both rules keep a real numeric priority',
+  );
+});
+
+test('a malformed dxfId is dropped on read rather than round-tripping as NaN', () => {
+  const sheet1 =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
+    '<conditionalFormatting sqref="A1:A3">' +
+    '<cfRule type="duplicateValues" dxfId="oops" priority="1"/>' +
+    '</conditionalFormatting></worksheet>';
+  const xml = sheetXml(writeXlsx(readParts({sheet1})));
+
+  assert.doesNotMatch(xml, /dxfId="NaN"/, 'the malformed dxfId is not written as NaN');
+  assert.doesNotMatch(
+    xml,
+    /dxfId="oops"/,
+    'the malformed dxfId is not echoed back verbatim either',
+  );
+});
+
+test('a malformed rank and stdDev are dropped on read rather than round-tripping as NaN', () => {
+  const sheet1 =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
+    '<conditionalFormatting sqref="A1:A3">' +
+    '<cfRule type="top10" rank="oops" priority="1"/>' +
+    '<cfRule type="aboveAverage" stdDev="oops" priority="2"/>' +
+    '</conditionalFormatting></worksheet>';
+  const xml = sheetXml(writeXlsx(readParts({sheet1})));
+
+  assert.doesNotMatch(xml, /rank="NaN"/, 'the malformed rank is not written as NaN');
+  assert.doesNotMatch(xml, /stdDev="NaN"/, 'the malformed stdDev is not written as NaN');
+});
+
 function dataBarBook(rule: Record<string, unknown>): Workbook {
   const workbook = new Workbook();
   workbook.addWorksheet('S').addConditionalFormatting({

@@ -427,19 +427,19 @@ export function parseDxfs(stylesXml: string): string[] {
 function newDraft(attrs: Record<string, string>): RuleDraft {
   return {
     type: attrs.type ?? '',
-    priority: attrs.priority !== undefined ? Number(attrs.priority) : undefined,
+    priority: parseFiniteAttr(attrs.priority),
     stopIfTrue: boolStrict(attrs.stopIfTrue),
     operator: attrs.operator,
     text: attrs.text,
     timePeriod: attrs.timePeriod,
-    rank: attrs.rank !== undefined ? Number(attrs.rank) : undefined,
-    stdDev: attrs.stdDev !== undefined ? Number(attrs.stdDev) : undefined,
+    rank: parseFiniteAttr(attrs.rank),
+    stdDev: parseFiniteAttr(attrs.stdDev),
     percent: boolStrict(attrs.percent),
     bottom: boolStrict(attrs.bottom),
     // aboveAverage defaults to true in OOXML; only an explicit "0" means below-average.
     aboveAverage: attrs.aboveAverage === undefined ? undefined : attrs.aboveAverage !== '0',
     equalAverage: boolStrict(attrs.equalAverage),
-    dxfId: attrs.dxfId,
+    dxfId: parseIndexAttr(attrs.dxfId),
     iconSet: undefined,
     formulae: [],
     cfvo: [],
@@ -447,6 +447,24 @@ function newDraft(attrs: Record<string, string>): RuleDraft {
     color: undefined,
     x14Id: undefined,
   };
+}
+
+// priority/rank/stdDev must be finite; a malformed value is dropped rather than propagated as NaN —
+// `priority` in particular feeds the writer's running priority counter (see `ruleXml`), so one bad
+// value would otherwise poison every later rule's auto-assigned priority on the same sheet.
+function parseFiniteAttr(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+// dxfId is preserved as the raw string (not renumbered) so it keeps pointing at the same slot in the
+// dxf table on re-write; it must still be a non-negative integer, so a malformed value is dropped
+// rather than later coercing to `dxfId="NaN"` in {@link resolveDxfId}.
+function parseIndexAttr(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 0 ? value : undefined;
 }
 
 function finalizeRule(draft: RuleDraft): ConditionalFormattingRule {
