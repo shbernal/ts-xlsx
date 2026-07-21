@@ -319,6 +319,22 @@ function buildFrom(spec: CorpusApi = {}) {
       if (t.headerRow !== undefined) options.headerRow = t.headerRow;
       if (t.totalsRow !== undefined) options.totalsRow = t.totalsRow;
       sheet.addTable(options);
+
+      // Materialize the declared data rows into the grid. `rowCount` above only sizes the table's
+      // range; a body cell exists in `sheetData` only if something writes it. Excel writes the body
+      // cells and the table range as one fact, so a spec asserting over body content (column styles
+      // reaching data cells, dimension, shared strings) needs the cells actually present. Write below
+      // the header row (materialized by addTable) — anchorRow for a headerless table, one below it
+      // otherwise — and leave the totals row (if any) to its own materialization. A later `s.cells`
+      // entry still wins, since cells are applied after tables.
+      const anchor = decodeAddress(options.ref);
+      const dataTop = (anchor.row ?? 1) + (t.headerRow === false ? 0 : 1);
+      (t.rows || []).forEach((rowValues: CorpusApi, r: number) => {
+        rowValues.forEach((value: CorpusApi, c: number) => {
+          if (value === undefined || value === null) return;
+          sheet.getCell(encodeAddress((anchor.col ?? 1) + c, dataTop + r)).value = value;
+        });
+      });
     }
 
     for (const range of s.merges || []) sheet.mergeCells(range);

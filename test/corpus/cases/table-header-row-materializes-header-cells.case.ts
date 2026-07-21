@@ -97,8 +97,18 @@ export default {
       baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cellText} = (await api.inspectPackage(HEADERLESS_TABLE)).sheets.S;
-        assert.strictEqual(cellText.A1, undefined, `A1 should be empty, got ${cellText.A1}`);
-        assert.strictEqual(cellText.B1, undefined, `B1 should be empty, got ${cellText.B1}`);
+        // The first row is the data row ['x', 'y'], not the column names: a headerless table must
+        // not materialize 'Alpha'/'Beta' into the grid the way a header-bearing one does.
+        assert.strictEqual(
+          cellText.A1,
+          'x',
+          `A1 should hold the first data value, got ${cellText.A1}`,
+        );
+        assert.strictEqual(
+          cellText.B1,
+          'y',
+          `B1 should hold the first data value, got ${cellText.B1}`,
+        );
       },
     },
   ],
