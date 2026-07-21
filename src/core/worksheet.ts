@@ -10,12 +10,14 @@ import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, cellToModel, copyCellContent} from './cell.ts';
 import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
+import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
 import {overwrite, replaceContents} from './containers.ts';
 import {
   cloneDataValidation,
   type DataValidation,
   type DataValidationEntry,
 } from './data-validation.ts';
+import {DataValidationOverlay} from './data-validation-overlay.ts';
 import {GridEdits} from './grid-edits.ts';
 import {
   type AnchoredImage,
@@ -27,7 +29,7 @@ import {
   resolveAnchorPoint,
   type TwoCellAnchor,
 } from './image.ts';
-import {decodeSqrefRects, type MergeRect, rectsOverlap} from './merge.ts';
+import {type MergeRect, rectsOverlap} from './merge.ts';
 import type {HeaderFooter, PageBreak, PageMargins, PageSetup, PrintOptions} from './page-setup.ts';
 import {type ParsedPivotTable, PivotTable, type PivotTableOptions} from './pivot-table.ts';
 import type {PreservedWorksheetReference} from './preserved.ts';
@@ -258,13 +260,10 @@ export class Worksheet {
   // merges (a real cell block) get a rect; an unbounded whole-row/column merge is still declared
   // but participates in neither slave resolution nor overlap checking.
   readonly #mergeRects: MergeRect[] = [];
-  // Data validations are a sheet-level overlay keyed by range, parallel to merges: the entries carry
-  // the serialisable form, the rects the decoded ranges a cell lookup tests for containment.
-  readonly #dataValidations: DataValidationEntry[] = [];
-  readonly #dataValidationRects: {rects: readonly MergeRect[]; rule: DataValidation}[] = [];
-  // Conditional formattings are a sheet-level overlay keyed by range, like data validations: each
-  // block binds a set of rules to the area(s) it covers, layered by the rules' evaluation precedence.
-  readonly #conditionalFormattings: ConditionalFormatting[] = [];
+  // Data validations and conditional formattings are sheet-level overlays keyed by range, each owning
+  // its own storage/cloning/lookup — see DataValidationOverlay and ConditionalFormattingOverlay.
+  readonly #dataValidations = new DataValidationOverlay();
+  readonly #conditionalFormattings = new ConditionalFormattingOverlay();
   // Sheet-level protection is a single overlay switch, absent until `protect` is called.
   #protection: SheetProtection | undefined;
   // The sheet's autofilter (range plus any per-column criteria), absent until one is set. A single
@@ -801,18 +800,12 @@ export class Worksheet {
    * round-trip writes it back there instead of silently corrupting the cross-sheet reference.
    */
   addDataValidation(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void {
-    // One defensive copy, shared by the serialisable entry and the lookup index, so the getter never
-    // hands back a reference into the caller's object.
-    const stored = cloneDataValidation(rule);
-    const entry: DataValidationEntry = {sqref, rule: stored};
-    if (options.extended) entry.extended = true;
-    this.#dataValidations.push(entry);
-    this.#dataValidationRects.push({rects: decodeSqrefRects(sqref), rule: stored});
+    this.#dataValidations.add(sqref, rule, options);
   }
 
   /** The data validations on this sheet, each bound to its target range, in insertion order. */
   get dataValidations(): readonly DataValidationEntry[] {
-    return this.#dataValidations;
+    return this.#dataValidations.entries;
   }
 
   /**
@@ -822,12 +815,12 @@ export class Worksheet {
    * back a reference into the caller's object.
    */
   addConditionalFormatting(formatting: ConditionalFormatting): void {
-    this.#conditionalFormattings.push(cloneConditionalFormatting(formatting));
+    this.#conditionalFormattings.add(formatting);
   }
 
   /** The conditional formattings on this sheet, each bound to its target range, in insertion order. */
   get conditionalFormattings(): readonly ConditionalFormatting[] {
-    return this.#conditionalFormattings;
+    return this.#conditionalFormattings.entries;
   }
 
   /**
@@ -837,14 +830,7 @@ export class Worksheet {
   dataValidationAt(reference: string): DataValidation | undefined {
     const {col, row} = decodeAddress(reference);
     if (col === undefined || row === undefined) return undefined;
-    for (const {rects, rule} of this.#dataValidationRects) {
-      for (const rect of rects) {
-        if (col >= rect.left && col <= rect.right && row >= rect.top && row <= rect.bottom) {
-          return rule;
-        }
-      }
-    }
-    return undefined;
+    return this.#dataValidations.at(col, row);
   }
 
   /**
@@ -1076,12 +1062,12 @@ export class Worksheet {
       })),
       cells,
       merges: [...this.#merges],
-      dataValidations: this.#dataValidations.map(({sqref, rule, extended}) => ({
+      dataValidations: this.#dataValidations.entries.map(({sqref, rule, extended}) => ({
         sqref,
         rule: cloneDataValidation(rule),
         ...(extended ? {extended: true} : {}),
       })),
-      conditionalFormattings: this.#conditionalFormattings.map(cloneConditionalFormatting),
+      conditionalFormattings: this.#conditionalFormattings.entries.map(cloneConditionalFormatting),
       tables: this.#tables.map((table) => table.options),
       autoFilter: this.#autoFilter,
       protection: this.#protection,
@@ -1097,9 +1083,8 @@ export class Worksheet {
     this.#rowProperties.clear();
     this.#merges.length = 0;
     this.#mergeRects.length = 0;
-    this.#dataValidations.length = 0;
-    this.#dataValidationRects.length = 0;
-    this.#conditionalFormattings.length = 0;
+    this.#dataValidations.clear();
+    this.#conditionalFormattings.clear();
     this.#tables.length = 0;
   }
 
