@@ -15,6 +15,26 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `pnpm run validate:ooxml -- file.xlsx` | **.NET 10** |
 | Spec grounding | Ground a decision in the authoritative format | Learn MCP + `schemas/` + `docs/knowledge/specs/` | — |
 
+**Cost is not the only axis — authority is (ADR 0012).** These layers witness three
+different things, and a lower one cannot stand in for a higher one:
+
+- **Self-consistency** — a write→read round-trip is a fixed point of *our own* code. It
+  catches *unilateral* writer/reader bugs; it is structurally blind to *correlated* ones
+  (both halves wrong in compensating directions) and to anything spanning two package
+  parts. Sufficient only for **intra-model** claims (a value survives, a style does not bleed).
+- **Spec-conformance** — the `OpenXmlValidator` oracle and the `inspectPackage` structural
+  facts. An *independent* implementation, so it breaks the round-trip correlation — but it
+  enforces what ECMA-376 *states*, not what Excel *does*. Required for **single-part
+  conformance**.
+- **Excel behavior** — what Excel Desktop actually does. The only ground truth for cross-part
+  invariants the spec omits (e.g. a table's header cells must exist and match its column
+  names). Reached by hand, recorded as `provenance: {source: 'excel-desktop-verification'}`.
+
+For a **cross-part correspondence**, one Excel-Desktop verification *seeds* the invariant
+and a corpus fact whose shape *is* the relationship *locks* it. The `inspectPackage`
+vocabulary is partitioned by part and cannot phrase most cross-part seams yet — ADR 0012
+lists the open ones.
+
 `pnpm test` runs lint → typecheck → test:src → corpus. The **Stop hook** runs
 typecheck + test:src + corpus automatically at each turn boundary *when `src/` is
 dirty*, so you cannot end a turn green while regressing the spine. The OOXML oracle
