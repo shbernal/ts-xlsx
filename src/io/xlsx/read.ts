@@ -24,6 +24,7 @@ import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import {
   WORKBOOK_PROTECTION_CREDENTIAL_ATTRS,
   type WorkbookProtection,
+  type WorkbookProtectionCredentialAttr,
 } from '../../core/workbook-protection.ts';
 import type {Worksheet, WorksheetState} from '../../core/worksheet.ts';
 import {applyNotes, parseComments} from './comments.ts';
@@ -484,12 +485,12 @@ export function parseWorkbookProtection(xml: string): WorkbookProtection | undef
         lockStructure?: boolean;
         lockWindows?: boolean;
         lockRevision?: boolean;
-        credentials?: Record<string, string>;
+        credentials?: Partial<Record<WorkbookProtectionCredentialAttr, string>>;
       } = {};
       if (boolStrict(attrs.lockStructure)) protection.lockStructure = true;
       if (boolStrict(attrs.lockWindows)) protection.lockWindows = true;
       if (boolStrict(attrs.lockRevision)) protection.lockRevision = true;
-      const credentials: Record<string, string> = {};
+      const credentials: Partial<Record<WorkbookProtectionCredentialAttr, string>> = {};
       for (const key of WORKBOOK_PROTECTION_CREDENTIAL_ATTRS) {
         const value = attrs[key];
         if (value !== undefined) credentials[key] = value;

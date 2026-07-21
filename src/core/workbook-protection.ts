@@ -12,7 +12,7 @@
  * revisions guard (`revisions*`). The reader accepts only these names, so a hostile or unknown
  * attribute is never echoed back into the output.
  */
-export const WORKBOOK_PROTECTION_CREDENTIAL_ATTRS: readonly string[] = [
+export const WORKBOOK_PROTECTION_CREDENTIAL_ATTRS = [
   'workbookPassword',
   'workbookAlgorithmName',
   'workbookHashValue',
@@ -23,7 +23,11 @@ export const WORKBOOK_PROTECTION_CREDENTIAL_ATTRS: readonly string[] = [
   'revisionsHashValue',
   'revisionsSaltValue',
   'revisionsSpinCount',
-];
+] as const;
+
+/** One of the attribute names {@link WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} enumerates. */
+export type WorkbookProtectionCredentialAttr =
+  (typeof WORKBOOK_PROTECTION_CREDENTIAL_ATTRS)[number];
 
 /**
  * A workbook's structure/window protection. The three lock flags each default to `false` (absent),
@@ -39,5 +43,5 @@ export interface WorkbookProtection {
   /** Lock the revision-tracking state. */
   readonly lockRevision?: boolean;
   /** Preserved password/agile-hash attributes, keyed by their OOXML attribute name. */
-  readonly credentials?: Readonly<Record<string, string>>;
+  readonly credentials?: Readonly<Partial<Record<WorkbookProtectionCredentialAttr, string>>>;
 }

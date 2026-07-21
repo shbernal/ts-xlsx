@@ -134,7 +134,10 @@ export {
   Workbook,
   type WorkbookProperties,
 } from './core/workbook.ts';
-export type {WorkbookProtection} from './core/workbook-protection.ts';
+export type {
+  WorkbookProtection,
+  WorkbookProtectionCredentialAttr,
+} from './core/workbook-protection.ts';
 export {
   type CellModel,
   type ColumnProperties,

@@ -95,6 +95,18 @@ interface WorkbookProtection {
     readonly lockStructure?: boolean;
     readonly lockWindows?: boolean;
     readonly lockRevision?: boolean;
-    readonly credentials?: Readonly<Record<string, string>>;
+    readonly credentials?: Readonly<Partial<Record<WorkbookProtectionCredentialAttr, string>>>;
 }
+```
+
+---
+
+### `WorkbookProtectionCredentialAttr`
+
+<sub>type</sub>
+
+One of the attribute names `WORKBOOK_PROTECTION_CREDENTIAL_ATTRS` enumerates.
+
+```ts
+type WorkbookProtectionCredentialAttr = (typeof WORKBOOK_PROTECTION_CREDENTIAL_ATTRS)[number];
 ```
