@@ -14,17 +14,24 @@
 // An unstyled cell/row/column resolves to xf 0.
 
 import type {DifferentialStyle} from '../../core/conditional-formatting.ts';
-import type {
-  Alignment,
-  Border,
-  BorderEdge,
-  Color,
-  Fill,
-  Font,
-  GradientFill,
-  NamedCellStyle,
-  Protection,
-  UnderlineStyle,
+import {
+  type Alignment,
+  type Border,
+  type BorderEdge,
+  type Color,
+  type Fill,
+  type Font,
+  type GradientFill,
+  isBorderStyle,
+  isFillPatternType,
+  isFontScheme,
+  isFontVerticalAlignment,
+  isHorizontalAlignment,
+  isNamedUnderlineStyle,
+  isVerticalAlignment,
+  type NamedCellStyle,
+  type Protection,
+  type UnderlineStyle,
 } from '../../core/style.ts';
 import {SPREADSHEETML_NS} from './namespaces.ts';
 import {escapeAttr, XML_DECLARATION} from './xml.ts';
@@ -406,6 +413,26 @@ function cellStyleTag(entry: {name: string; builtinId?: number; xfId: number}): 
   return `<cellStyle name="${escapeAttr(entry.name)}" xfId="${entry.xfId}"${builtin}/>`;
 }
 
+// Reject an enum-typed style token the writer would otherwise emit verbatim. The public types already
+// forbid an out-of-contract value (VerticalAlignment, BorderStyle, FillPatternType, …), so this fires
+// only for a value smuggled past the types by an untyped caller — but the writer must never serialise
+// it: it would be schema-invalid OOXML that Excel silently tolerates yet the library's own reader
+// (which narrows every such token through the same guard) discards on read-back. Rejecting at the write
+// boundary keeps the writer symmetric with the reader — garbage out refused exactly as garbage in — so
+// a value the writer accepts is always one that round-trips.
+function checkedToken(
+  value: string,
+  isValid: (candidate: string) => boolean,
+  kind: string,
+): string {
+  if (!isValid(value)) {
+    throw new Error(
+      `Invalid ${kind} ${JSON.stringify(value)}: not a value the OOXML enumeration allows`,
+    );
+  }
+  return value;
+}
+
 // Serialise a cell's alignment as `<alignment>` attributes in ECMA-376 CT_CellAlignment order.
 // A facet at its default contributes nothing; an all-default alignment yields the empty string,
 // so it forces neither an <alignment> child nor a distinct xf.
@@ -413,9 +440,15 @@ function alignmentAttrs(alignment: Alignment): string {
   const parts: string[] = [];
   // `general` is the type-dependent default and is expressed by omitting the attribute.
   if (alignment.horizontal !== undefined && alignment.horizontal !== 'general') {
-    parts.push(`horizontal="${alignment.horizontal}"`);
+    parts.push(
+      `horizontal="${checkedToken(alignment.horizontal, isHorizontalAlignment, 'horizontal alignment')}"`,
+    );
   }
-  if (alignment.vertical !== undefined) parts.push(`vertical="${alignment.vertical}"`);
+  if (alignment.vertical !== undefined) {
+    parts.push(
+      `vertical="${checkedToken(alignment.vertical, isVerticalAlignment, 'vertical alignment')}"`,
+    );
+  }
   if (alignment.textRotation !== undefined && alignment.textRotation !== 0) {
     parts.push(`textRotation="${numberAttr(alignment.textRotation)}"`);
   }
@@ -469,14 +502,18 @@ export function fontXml(font: Font, nameTag: 'name' | 'rFont' = 'name'): string 
   if (font.outline) parts.push('<outline/>');
   const underline = underlineXml(font.underline);
   if (underline !== '') parts.push(underline);
-  if (font.vertAlign !== undefined) parts.push(`<vertAlign val="${font.vertAlign}"/>`);
+  if (font.vertAlign !== undefined) {
+    parts.push(
+      `<vertAlign val="${checkedToken(font.vertAlign, isFontVerticalAlignment, 'font vertical alignment')}"/>`,
+    );
+  }
   if (font.size !== undefined) parts.push(`<sz val="${numberAttr(font.size)}"/>`);
   if (font.color !== undefined) parts.push(`<color ${colorAttrs(font.color)}/>`);
   if (font.name !== undefined) parts.push(`<${nameTag} val="${escapeAttr(font.name)}"/>`);
   if (font.family !== undefined) parts.push(`<family val="${numberAttr(font.family)}"/>`);
   if (font.charset !== undefined) parts.push(`<charset val="${numberAttr(font.charset)}"/>`);
   if (font.scheme !== undefined && font.scheme !== 'none')
-    parts.push(`<scheme val="${font.scheme}"/>`);
+    parts.push(`<scheme val="${checkedToken(font.scheme, isFontScheme, 'font scheme')}"/>`);
   return parts.join('');
 }
 
@@ -530,7 +567,7 @@ function insetAttr(name: string, value: number | undefined): string {
 function underlineXml(underline: UnderlineStyle | undefined): string {
   if (underline === undefined || underline === false || underline === 'none') return '';
   if (underline === true || underline === 'single') return '<u/>';
-  return `<u val="${underline}"/>`;
+  return `<u val="${checkedToken(underline, isNamedUnderlineStyle, 'underline style')}"/>`;
 }
 
 function numberAttr(value: number): string {
@@ -561,8 +598,9 @@ function borderXml(border: Border): string {
 // optional colour child.
 function edgeXml(tag: string, edge: BorderEdge | undefined): string {
   if (edge === undefined) return `<${tag}/>`;
-  if (edge.color === undefined) return `<${tag} style="${edge.style}"/>`;
-  return `<${tag} style="${edge.style}"><color ${colorAttrs(edge.color)}/></${tag}>`;
+  const style = checkedToken(edge.style, isBorderStyle, 'border style');
+  if (edge.color === undefined) return `<${tag} style="${style}"/>`;
+  return `<${tag} style="${style}"><color ${colorAttrs(edge.color)}/></${tag}>`;
 }
 
 // A format code sits in the `formatCode` attribute; only the markup-significant characters
@@ -604,7 +642,8 @@ function patternFillXml(fill: Fill, {solidBgFallback}: {solidBgFallback: boolean
     : solidBgFallback && fill.pattern === 'solid'
       ? '<bgColor indexed="64"/>'
       : '';
-  return `<fill><patternFill patternType="${fill.pattern}">${fg}${bg}</patternFill></fill>`;
+  const pattern = checkedToken(fill.pattern, isFillPatternType, 'fill pattern');
+  return `<fill><patternFill patternType="${pattern}">${fg}${bg}</patternFill></fill>`;
 }
 
 // OOXML wants a bare 8-hex ARGB (alpha + RGB). This single choke point — through which every

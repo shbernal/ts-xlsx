@@ -9,11 +9,11 @@ import {
   type Border,
   type Color,
   type Fill,
-  type FillPatternType,
   type Font,
   type GradientFill,
   type GradientStop,
   isBorderStyle,
+  isFillPatternType,
   isFontScheme,
   isFontVerticalAlignment,
   isHorizontalAlignment,
@@ -606,10 +606,13 @@ function toFill(
   fgColor: Color | undefined,
   bgColor: Color | undefined,
 ): Fill | undefined {
-  if (pattern === '' || pattern === 'none') return undefined;
+  // `none` (and an absent patternType) is the absence of a fill; an unrecognised token is dropped the
+  // same way — like the border-edge style above — so a foreign pattern we do not model leaves the cell
+  // unfilled rather than propagating a token the writer would later re-emit unvalidated.
+  if (!isFillPatternType(pattern) || pattern === 'none') return undefined;
   return {
     type: 'pattern',
-    pattern: pattern as FillPatternType,
+    pattern,
     ...(fgColor ? {fgColor} : {}),
     ...(bgColor ? {bgColor} : {}),
   };

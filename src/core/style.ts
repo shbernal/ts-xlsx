@@ -65,6 +65,33 @@ export type FillPatternType =
   | 'lightGrid'
   | 'lightTrellis';
 
+const FILL_PATTERN_TYPES: ReadonlySet<string> = new Set<FillPatternType>([
+  'none',
+  'solid',
+  'gray125',
+  'darkGray',
+  'mediumGray',
+  'lightGray',
+  'gray0625',
+  'darkHorizontal',
+  'darkVertical',
+  'darkDown',
+  'darkUp',
+  'darkGrid',
+  'darkTrellis',
+  'lightHorizontal',
+  'lightVertical',
+  'lightDown',
+  'lightUp',
+  'lightGrid',
+  'lightTrellis',
+]);
+
+/** Narrow a raw `<patternFill patternType>` token to a known {@link FillPatternType}. */
+export function isFillPatternType(value: string): value is FillPatternType {
+  return FILL_PATTERN_TYPES.has(value);
+}
+
 /**
  * A pattern fill. For a `solid` fill the visible colour is the pattern *foreground*
  * (`fgColor`) — OOXML's counter-intuitive rule — while `bgColor` is the automatic

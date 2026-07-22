@@ -2262,6 +2262,31 @@ const impl = {
     };
   },
 
+  // Assign a vertical-alignment enum token to a cell — routed through the untyped adapter surface so a
+  // value TypeScript would reject at compile time (e.g. the ExcelJS-era "middle") reaches the writer as
+  // an untyped caller would smuggle it — then attempt a full write→read cycle → { writeThrew,
+  // writeError, readBackVertical }. Captures the writer-boundary contract: a value the writer accepts
+  // must survive read-back, so an out-of-contract token must be rejected at write or preserved, never
+  // silently serialized into a schema-invalid file the library's own reader then discards.
+  alignmentVerticalEnumReport(vertical: CorpusApi) {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    const cell = sheet.getCell('A1');
+    cell.value = 'x';
+    cell.alignment = {vertical};
+    let writeThrew = false;
+    let writeError: string | null = null;
+    let readBackVertical: string | null = null;
+    try {
+      const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!.getCell('A1').alignment;
+      readBackVertical = back?.vertical ?? null;
+    } catch (e) {
+      writeThrew = true;
+      writeError = String((e as CorpusApi)?.message || e);
+    }
+    return {writeThrew, writeError, readBackVertical};
+  },
+
   // Read a real fixture `.xlsx` and report only whether it loaded, any error, its sheet names, and
   // a couple of core properties → { ok, error, sheetNames, lastModifiedBy, creator }. The read error
   // is captured and returned as data (never propagated) so a case asserts on a crash rather than the
