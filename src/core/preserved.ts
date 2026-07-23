@@ -5,14 +5,18 @@
 
 /**
  * One outbound relationship of a {@link PreservedPart}: the id it carries inside its own rels part,
- * the relationship Type URI, and the resolved package path of the (internal) target part. Only
- * package-internal relationships are preserved — an external target (a URL) is not part of the
- * closure and is dropped.
+ * the relationship Type URI, and its target. An internal relationship's `targetPath` is the resolved
+ * package path of the part it points at (the writer re-numbers and rewires it); an `external`
+ * relationship's `targetPath` is the raw `Target` verbatim (a linked workbook's path or URL) — it is
+ * outside the package, so it is emitted unchanged with `TargetMode="External"` and never remapped.
+ * Preserving external relationships is what keeps an `externalLink` part's pointer to its source
+ * workbook alive, so a round-trip does not orphan the `[n]` external references formulas resolve through.
  */
 export interface PreservedRelationship {
   readonly id: string;
   readonly type: string;
   readonly targetPath: string;
+  readonly external?: boolean;
 }
 
 /**

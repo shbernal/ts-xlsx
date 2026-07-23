@@ -33,6 +33,25 @@ files, such that Excel resolves them on open. In `.xlsx` an external reference i
 - The cell formula then uses that **index** in brackets: `[1]Sheet1!A1`, not the filename. Writing the
   raw filename in brackets produces a formula Excel cannot bind — the reported "does nothing".
 
+## Already implemented: faithful round-trip preservation
+
+*Authoring* a new external reference is still unbuilt, but *preserving* one that a read file already
+carries is done. An `externalLink` part is captured through the workbook-level preserved-reference net
+(the same machinery that carries pivot/slicer caches and the VBA project), so a read→write round-trip
+re-emits, intact:
+
+- the `externalLink` part(s) and their content-type overrides;
+- each link's own `TargetMode="External"` relationship — the pointer to the source workbook — which
+  required teaching the preserved-part closure to retain external relationships verbatim (it previously
+  dropped every external target); and
+- the workbook's `<externalReferences>` block, re-emitted in its **original order** so every `[n]` a
+  formula or defined name resolves an external cell through still points at the same linked workbook.
+
+This closes a whole-package writer-fidelity gap: before, a no-op load→save dropped the link while
+keeping the `[n]`-using formulas, dangling the reference and prompting an Excel repair on open. Locked by
+the `external-workbook-link-survives-roundtrip` corpus case. This is byte-preservation, not a structured
+model — the reference is not yet surfaced as an inspectable value (see the Read-side open question).
+
 ## Open questions
 
 - **Public API shape:** a first-class cell value kind carrying `{path, sheet, cellOrRange,
@@ -43,12 +62,15 @@ files, such that Excel resolves them on open. In `.xlsx` an external reference i
   folder (legacy fell back to the user's Documents folder).
 - **Cached values:** write a plausible cached result so the reference displays before recalculation;
   policy when unknown.
-- **Read side:** parse existing externalLink parts + external references on import, surface them as
-  structured external-reference values, and round-trip faithfully (index remapping, rel-id
-  uniqueness).
+- **Read side:** round-tripping faithfully is **done** (see *Already implemented* above — the link,
+  its external target, and the `<externalReferences>` ordering all survive). Still open: parsing those
+  parts into *structured external-reference values* the caller can inspect and edit, rather than
+  preserving them as opaque bytes.
 - **Scope:** whole external workbooks, named ranges in external workbooks, and DDE/OLE links are
   distinct sub-features; start with cell/range references to another `.xlsx` by path.
 
 Related: `defined-name-formula-expression`, `internal-hyperlink-target-portability`,
 `formula-recalculation-expectations`, `cross-sheet-reference-preserved-in-formula-and-validation`,
-`formula-cell-value-type-minimal-required-fields`.
+`formula-cell-value-type-minimal-required-fields`, `excel-repair-on-open-structural-constraints`
+(a dropped-but-referenced part is a repair cause), `xlsm-macro-preservation` (the same preserved-part
+net).

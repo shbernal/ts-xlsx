@@ -31,12 +31,17 @@ import {Worksheet, type WorksheetState} from './worksheet.ts';
  * included). `pivotCacheId` carries the `<pivotCache cacheId>` a pivot cache is registered under in
  * the workbook's `<pivotCaches>`, so the wiring a pivot table resolves its cache through is re-emitted
  * too; it is absent for a slicer cache, which the workbook lists in an extension block instead.
+ * `externalReferenceIndex` is the 0-based position of an `externalLink` within the workbook's
+ * `<externalReferences>` — the `[n]` a formula or defined name resolves an external cell through — so
+ * the block is re-emitted in the original order and every `[n]` still points at the same linked
+ * workbook; it is absent for a pivot/slicer cache.
  */
 export interface PreservedWorkbookReference {
   readonly relType: string;
   readonly entryPath: string;
   readonly parts: readonly PreservedPart[];
   readonly pivotCacheId?: string;
+  readonly externalReferenceIndex?: number;
 }
 
 /** Document-level metadata written to the package's core properties. */

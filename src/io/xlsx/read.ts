@@ -318,10 +318,11 @@ function isPreservedSheetRelType(type: string): boolean {
 }
 
 // Capture the workbook-level references to package content the model does not interpret — pivot
-// caches (`pivotCacheDefinition`) and slicer caches (`slicerCache`) — so a round-trip re-emits them
-// instead of dropping the pivots and slicers they back. A pivot cache's `<pivotCaches>` registration
-// (its `cacheId`) is captured alongside so the wiring a pivot table resolves its cache through
-// survives too.
+// caches (`pivotCacheDefinition`), slicer caches (`slicerCache`), and external links (`externalLink`,
+// each a link to a source workbook) — so a round-trip re-emits them instead of dropping the pivots,
+// slicers, and linked-workbook references they back. A pivot cache's `<pivotCaches>` registration (its
+// `cacheId`) and an external link's `<externalReferences>` position (its `[n]` index) are captured
+// alongside so the wiring a pivot table or a formula resolves through survives too.
 function readWorkbookPreservedReferences(
   workbookXml: string,
   pkg: PackageAccessors,
@@ -332,17 +333,20 @@ function readWorkbookPreservedReferences(
   const relsXml = partText('xl/_rels/workbook.xml.rels');
   if (relsXml === undefined) return;
   const cacheIdByRelId = parsePivotCacheRegistrations(workbookXml);
+  const externalIndexByRelId = parseExternalReferenceRegistrations(workbookXml);
   for (const record of parseRelationshipRecords(relsXml)) {
     if (record.external || !isPreservedWorkbookRelType(record.type)) continue;
     const entryPath = resolveWorkbookPart(record.target);
     const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
     if (parts === undefined) continue;
     const cacheId = cacheIdByRelId.get(record.id);
+    const externalReferenceIndex = externalIndexByRelId.get(record.id);
     workbook.addPreservedReference({
       relType: record.type,
       entryPath,
       parts,
       ...(cacheId !== undefined ? {pivotCacheId: cacheId} : {}),
+      ...(externalReferenceIndex !== undefined ? {externalReferenceIndex} : {}),
     });
   }
 }
@@ -381,16 +385,19 @@ function isRegeneratedRootRelType(type: string): boolean {
 }
 
 // A workbook relationship the model does not consume but must round-trip: a pivot cache, a slicer
-// cache, or a macro-enabled workbook's VBA project. Worksheets, styles, theme, and shared strings
-// are modeled and re-serialised from the model. Preserving vbaProject here — rather than silently
-// dropping it, as an unrecognised relationship type otherwise would — is what keeps loading and
-// re-saving a .xlsm from discarding its macros; the content-type override in workbook-xml.ts is the
-// other half, so the re-emitted package still declares itself macro-enabled.
+// cache, an external link (the pointer to a linked source workbook), or a macro-enabled workbook's VBA
+// project. Worksheets, styles, theme, and shared strings are modeled and re-serialised from the model.
+// Preserving vbaProject here — rather than silently dropping it, as an unrecognised relationship type
+// otherwise would — is what keeps loading and re-saving a .xlsm from discarding its macros; the
+// content-type override in workbook-xml.ts is the other half, so the re-emitted package still declares
+// itself macro-enabled. Preserving externalLink is what keeps a formula's `[n]` external reference from
+// dangling: the link part and its `<externalReferences>` registration are both re-emitted.
 function isPreservedWorkbookRelType(type: string): boolean {
   return (
     type.endsWith('/pivotCacheDefinition') ||
     type.endsWith('/slicerCache') ||
-    type.endsWith('/vbaProject')
+    type.endsWith('/vbaProject') ||
+    type.endsWith('/externalLink')
   );
 }
 
@@ -402,6 +409,19 @@ function parsePivotCacheRegistrations(workbookXml: string): Map<string, string> 
     if (attrs['r:id'] !== undefined && attrs.cacheId !== undefined) {
       byRelId.set(attrs['r:id'], attrs.cacheId);
     }
+  }
+  return byRelId;
+}
+
+// Map each `<externalReference>` in the workbook's `<externalReferences>` to its 0-based position, keyed
+// by the relationship id it wires. That position is the `[n]` index a formula or defined name resolves
+// an external cell through (`[1]Sheet!$A$1`), so preserving it lets the writer re-emit the block in the
+// original order and keep every `[n]` pointing at the same linked workbook.
+function parseExternalReferenceRegistrations(workbookXml: string): Map<string, number> {
+  const byRelId = new Map<string, number>();
+  let index = 0;
+  for (const {attrs} of openElements(workbookXml, 'externalReference')) {
+    if (attrs['r:id'] !== undefined) byRelId.set(attrs['r:id'], index++);
   }
   return byRelId;
 }

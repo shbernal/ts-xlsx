@@ -60,10 +60,12 @@ export function relationshipsPart(relationships: readonly string[]): string {
 }
 
 export function preservedRelsXml(
-  rels: readonly {id: string; type: string; target: string}[],
+  rels: readonly {id: string; type: string; target: string; external?: boolean}[],
 ): string {
   return relationshipsPart(
-    rels.map((rel) => relationship(rel.id, rel.type, escapeAttr(rel.target))),
+    rels.map((rel) =>
+      relationship(rel.id, rel.type, escapeAttr(rel.target), rel.external ? {external: true} : {}),
+    ),
   );
 }
 

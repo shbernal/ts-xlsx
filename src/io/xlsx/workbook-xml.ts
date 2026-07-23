@@ -226,12 +226,28 @@ export function workbookXml(
     `<workbook xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
     workbookProtectionXml(workbook) +
     `<sheets>${entries}</sheets>` +
+    externalReferencesXml(preservedRels) +
     definedNamesXml(workbook) +
     calcPrXml(workbook) +
     pivotCachesXml(preservedRels, pivots) +
     workbookExtLstXml(preservedRels) +
     '</workbook>'
   );
+}
+
+// The `<externalReferences>` element registers each preserved external link (a link to a source
+// workbook), wired to the relationship reaching its `externalLink` part. It follows `<sheets>` in
+// CT_Workbook order and precedes `<definedNames>`; its child order is the `[n]` index a formula or
+// defined name resolves an external cell through, so entries are emitted by their captured
+// `externalReferenceIndex` — keeping every `[1]`, `[2]`, … pointing at the same linked workbook it did
+// before the round-trip. '' when no external link was preserved.
+function externalReferencesXml(preservedRels: readonly PreservedWorkbookRel[]): string {
+  const links = preservedRels
+    .filter((ref) => ref.externalReferenceIndex !== undefined)
+    .sort((a, b) => (a.externalReferenceIndex as number) - (b.externalReferenceIndex as number));
+  if (links.length === 0) return '';
+  const entries = links.map((ref) => `<externalReference r:id="${ref.relId}"/>`).join('');
+  return `<externalReferences>${entries}</externalReferences>`;
 }
 
 // The workbook-body `<x14:slicerCaches>` extension that registers each preserved slicer cache, wired

@@ -61,6 +61,10 @@ is the part it points at; `parts` is the transitive closure that reference reach
 included). `pivotCacheId` carries the `<pivotCache cacheId>` a pivot cache is registered under in
 the workbook's `<pivotCaches>`, so the wiring a pivot table resolves its cache through is re-emitted
 too; it is absent for a slicer cache, which the workbook lists in an extension block instead.
+`externalReferenceIndex` is the 0-based position of an `externalLink` within the workbook's
+`<externalReferences>` — the `[n]` a formula or defined name resolves an external cell through — so
+the block is re-emitted in the original order and every `[n]` still points at the same linked
+workbook; it is absent for a pivot/slicer cache.
 
 ```ts
 interface PreservedWorkbookReference {
@@ -68,6 +72,7 @@ interface PreservedWorkbookReference {
     readonly entryPath: string;
     readonly parts: readonly PreservedPart[];
     readonly pivotCacheId?: string;
+    readonly externalReferenceIndex?: number;
 }
 ```
 

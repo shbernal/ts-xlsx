@@ -108,6 +108,7 @@ export interface PreservedWorkbookReferencePlan {
   readonly relType: string;
   readonly entryPath: string;
   readonly pivotCacheId: string | undefined;
+  readonly externalReferenceIndex: number | undefined;
 }
 
 // A preserved package-root reference resolved for serialisation: its relationship Type and the new
@@ -246,6 +247,11 @@ export function planPreservedParts(
       const newPath = remap.get(part.path) as string;
       if (emitted.has(newPath)) continue;
       const rels = part.rels.flatMap((rel) => {
+        // An external relationship (a linked workbook) is emitted verbatim — its target is outside the
+        // package, so it is neither in the remap nor expressed relative to the new path.
+        if (rel.external) {
+          return [{id: rel.id, type: rel.type, target: rel.targetPath, external: true}];
+        }
         const target = remap.get(rel.targetPath);
         return target === undefined
           ? []
@@ -274,6 +280,7 @@ export function planPreservedParts(
       relType: reference.relType,
       entryPath: remap.get(reference.entryPath) as string,
       pivotCacheId: reference.pivotCacheId,
+      externalReferenceIndex: reference.externalReferenceIndex,
     }),
   );
 

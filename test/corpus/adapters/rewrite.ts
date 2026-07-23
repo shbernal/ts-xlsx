@@ -522,6 +522,7 @@ const packagePartFacts = (parts: Record<string, string>) => {
   };
   const ws1 = at(/worksheets\/sheet1\.xml$/);
   const drawing1 = at(/drawings\/drawing1\.xml$/);
+  const wb = at(/^xl\/workbook\.xml$/);
   return {
     drawings: names.filter((p) => /xl\/drawings\/drawing\d+\.xml$/.test(p)).length,
     vml: names.filter((p) => /vmlDrawing\d+\.vml$/.test(p)).length,
@@ -530,6 +531,18 @@ const packagePartFacts = (parts: Record<string, string>) => {
     pivotCache: names.filter((p) => /pivotCache\/.+\.xml$/.test(p)).length,
     slicers: names.filter((p) => /slicer/i.test(p)).length,
     comments: names.filter((p) => /comments\d+\.xml$/.test(p)).length,
+    externalLinks: names.filter((p) => /xl\/externalLinks\/externalLink\d+\.xml$/.test(p)).length,
+    // The `<externalReference>` registrations in workbook.xml — one per `[n]` a formula resolves an
+    // external cell through. Reported as a count (the rel ids are renumbered on write, the ordering and
+    // arity are what must survive).
+    externalReferenceCount: [...wb.matchAll(/<externalReference\b/g)].length,
+    // The `TargetMode="External"` source-workbook pointers carried by every externalLink's own rels —
+    // dropping these orphans the link. Sorted so the comparison is order-independent.
+    externalTargets: names
+      .filter((p) => /xl\/externalLinks\/_rels\/.+\.rels$/.test(p))
+      .flatMap((p) => [...(parts[p] ?? '').matchAll(/Target="([^"]*)"\s+TargetMode="External"/g)])
+      .map((m) => m[1])
+      .sort(),
     hasLegacyDrawingHF: /<legacyDrawingHF\b/.test(ws1),
     hasDrawingRef: /<drawing\b/.test(ws1),
     hasHeaderFooterImageToken: /&amp;G|&G/.test(ws1),

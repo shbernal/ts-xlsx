@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {strToU8} from 'fflate';
 
-import {resolveRelativePart, resolveWorkbookPart} from './read-opc.ts';
+import {
+  capturePartClosure,
+  packageAccessors,
+  resolveRelativePart,
+  resolveWorkbookPart,
+} from './read-opc.ts';
 
 // Path resolution is a hostile-input parser path: a relationship Target comes verbatim from an
 // untrusted package. These pin the OPC-legal shapes a well-formed writer never emits — absolute
@@ -53,5 +59,45 @@ test('resolveWorkbookPart strips a leading `./` before rooting under `xl/`', () 
     resolveWorkbookPart('./styles.xml'),
     'xl/styles.xml',
     'the current-directory prefix does not double the xl segment',
+  );
+});
+
+// An externalLink part points at its source workbook through a `TargetMode="External"` relationship.
+// The closure must keep that wiring verbatim — dropping it (as it once did) orphans the link and
+// dangles every `[n]` external reference a formula resolves through — while never trying to walk into
+// the out-of-package target.
+test('capturePartClosure retains an external relationship verbatim without walking it', () => {
+  const rels =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" ' +
+    'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath" ' +
+    'Target="C:\\Sources\\Linked.xlsm" TargetMode="External"/></Relationships>';
+  const files = {
+    'xl/externalLinks/externalLink1.xml': strToU8('<externalLink/>'),
+    'xl/externalLinks/_rels/externalLink1.xml.rels': strToU8(rels),
+  };
+  const {partText, partBytes} = packageAccessors(files);
+  const closure = capturePartClosure(
+    'xl/externalLinks/externalLink1.xml',
+    partText,
+    partBytes,
+    () => 'application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml',
+  );
+
+  assert.ok(closure !== undefined, 'the entry part is present');
+  assert.strictEqual(closure.length, 1, 'the external target is not visited as a package part');
+  const [entry] = closure;
+  assert.deepStrictEqual(
+    entry?.rels,
+    [
+      {
+        id: 'rId1',
+        type: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath',
+        targetPath: 'C:\\Sources\\Linked.xlsm',
+        external: true,
+      },
+    ],
+    'the external relationship is kept with its raw target and the external flag',
   );
 });

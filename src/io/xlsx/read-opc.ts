@@ -187,7 +187,12 @@ export function capturePartClosure(
     const rels: PreservedRelationship[] = [];
     if (relsXml !== undefined) {
       for (const rel of parseRelationshipRecords(relsXml)) {
-        if (rel.external) continue;
+        if (rel.external) {
+          // A linked workbook lives outside the package: keep the wiring verbatim (an externalLink
+          // part's pointer to its source), but do not walk into it — there is no package part to visit.
+          rels.push({id: rel.id, type: rel.type, targetPath: rel.target, external: true});
+          continue;
+        }
         const targetPath = resolveRelativePart(path, rel.target);
         rels.push({id: rel.id, type: rel.type, targetPath});
         queue.push(targetPath);
