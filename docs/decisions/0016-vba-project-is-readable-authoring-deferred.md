@@ -1,6 +1,11 @@
 # ADR 0016 — The VBA project is readable through a typed view; authoring stays deferred
 
-**Status:** Accepted (2026-07-22) · VBA read slice (Phase 1)
+**Status:** Accepted (2026-07-22) · VBA read slice (Phase 1) · **Amended 2026-07-23 by ADR 0017 §2.3d**
+— decisions 2 and 5 below (preservation is the *sole* emission authority; authoring is out of scope) no
+longer hold. `Workbook.setVbaProject({modules})` now synthesizes a `vbaProject.bin` from module source,
+making the workbook an emission authority for authored macros. The read view (decisions 1, 3, 4) is
+unchanged, and preservation remains the emission authority for a project that was *read* and not
+re-authored. See ADR 0017 for the authoring design and its real-Excel verification.
 
 ## Context
 

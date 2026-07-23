@@ -791,3 +791,66 @@ test('replacing the project drops a now-stale signature over the old bytes', () 
     'the replacement project decodes',
   );
 });
+
+// ── First-class authoring (§2.3d): Workbook.setVbaProject ────────────────────────────────────────────
+
+test('setVbaProject authors macros from source onto a plain workbook', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  wb.setVbaProject({
+    modules: [
+      {name: 'Module1', kind: 'procedural', source: 'Sub Run()\r\n    MsgBox "go"\r\nEnd Sub'},
+      {name: 'Widget', kind: 'class', source: 'Public Id As Long'},
+    ],
+  });
+
+  const out = unzipSync(writeXlsx(wb));
+  assert.ok(out['xl/vbaProject.bin'], 'the written package carries a synthesized vbaProject.bin');
+  assert.match(
+    new TextDecoder().decode(out['[Content_Types].xml']),
+    /macroEnabled/,
+    'the package is declared macro-enabled',
+  );
+
+  const reread = readXlsx(writeXlsx(wb));
+  assert.deepEqual(
+    reread.vbaProject?.modules.map((m) => [m.name, m.kind]),
+    [
+      ['Module1', 'procedural'],
+      ['Widget', 'class'],
+    ],
+    'the authored modules survive the package round-trip with their kinds',
+  );
+  assert.equal(reread.vbaProject?.modules[0]?.source, 'Sub Run()\r\n    MsgBox "go"\r\nEnd Sub');
+});
+
+test('setVbaProject replaces an existing project and drops its stale signature', () => {
+  const wb = readXlsx(
+    xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES), Uint8Array.from([1, 2, 3])),
+  );
+  assert.ok(unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'], 'precondition: signed');
+
+  wb.setVbaProject({modules: [{name: 'Fresh', kind: 'procedural', source: 'Sub F()\r\nEnd Sub'}]});
+
+  const out = unzipSync(writeXlsx(wb));
+  assert.equal(out['xl/vbaProjectSignature.bin'], undefined, 'the stale signature is dropped');
+  assert.deepEqual(
+    readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
+    ['Fresh'],
+  );
+});
+
+test('setVbaProject rejects an invalid spec without disturbing an existing project', () => {
+  const wb = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES)));
+  const before = wb.vbaProjectBytes;
+
+  assert.throws(
+    () => wb.setVbaProject({modules: [{name: '1nope', kind: 'procedural', source: ''}]}),
+    VbaAuthorError,
+  );
+  assert.deepEqual(
+    wb.vbaProjectBytes,
+    before,
+    'a rejected authoring call leaves the workbook untouched',
+  );
+});

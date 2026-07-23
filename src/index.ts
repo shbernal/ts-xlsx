@@ -172,8 +172,12 @@ export {
 } from './io/xlsx/write-stream.ts';
 export {
   parseVbaProject,
+  VbaAuthorError,
   type VbaModule,
   type VbaModuleKind,
+  type VbaModuleSource,
   VbaParseError,
   type VbaProject,
+  type VbaProjectSpec,
+  writeVbaProject,
 } from './vba/index.ts';

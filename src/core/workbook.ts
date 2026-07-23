@@ -11,6 +11,8 @@ import {
   VBA_PROJECT_PART_PATH,
   VBA_PROJECT_REL_TYPE,
   type VbaProject,
+  type VbaProjectSpec,
+  writeVbaProject,
 } from '../vba/index.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
@@ -232,6 +234,27 @@ export class Workbook {
     }
     this.#vbaParsed = false;
     this.#vbaProject = undefined;
+  }
+
+  /**
+   * Author this workbook's macro project from module source: synthesize a fresh `vbaProject.bin` from
+   * `spec` (module names, kinds, and VBA source) and attach it, making the written package
+   * macro-enabled. Unlike {@link vbaProjectBytes}, which attaches pre-existing bytes, this *creates* the
+   * project — the workbook becomes the source of truth for its macros, not merely a passthrough for a
+   * blob a read produced.
+   *
+   * The synthesized modules carry their source with no compiled p-code, so Excel recompiles them from
+   * source on open. Procedural (`.bas`) and class modules are supported; a synthesized project opens in
+   * Excel as a working macro book. Replaces any existing project (and drops a stale signature, as
+   * {@link vbaProjectBytes} does).
+   *
+   * @throws {@link VbaAuthorError} on an invalid or duplicate module name, an unsupported module kind,
+   *   or source a code page cannot represent.
+   */
+  setVbaProject(spec: VbaProjectSpec): void {
+    // writeVbaProject validates the spec fail-closed and throws before producing bytes; the assignment
+    // then routes through the same attach path as raw bytes, so signature-drop and re-emit are shared.
+    this.vbaProjectBytes = writeVbaProject(spec);
   }
 
   #vbaProjectEntry(): PreservedPart | undefined {

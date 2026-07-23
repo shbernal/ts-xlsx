@@ -2,6 +2,24 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `VbaAuthorError`
+
+<sub>class</sub>
+
+Thrown when authoring a VBA project (synthesizing a `vbaProject.bin` from module source) is asked to
+produce something that cannot be encoded to a well-formed container — a stream name longer than the
+[MS-CFB] 31-character limit, a duplicate stream name, or a project so large it would exceed the
+writer's single-header DIFAT bound. This is a caller-side contract violation, distinct from
+`VbaParseError` (which reports a malformed blob *read* from an untrusted file).
+
+```ts
+class VbaAuthorError extends Error {
+  override readonly name = 'VbaAuthorError';
+}
+```
+
+---
+
 ### `VbaParseError`
 
 <sub>class</sub>

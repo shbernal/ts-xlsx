@@ -31,8 +31,15 @@ Node; that needs a live Excel/automation host and is not a document-tool concern
   `Workbook.vbaProjectBytes` (a get/set accessor pair over the raw `vbaProject.bin`) — see ADR 0017.
   Setting bytes makes the written package macro-enabled and embeds them verbatim (validated fail-closed:
   a malformed blob is rejected, never half-applied); setting `undefined` demotes the workbook to a plain
-  package. Replacing or removing drops a now-stale signature over the old bytes. Synthesizing a `.bin`
-  from edited *source* (first-class authoring) is the next slice (ADR 0017 §2.3), still deferred.
+  package. Replacing or removing drops a now-stale signature over the old bytes.
+- Callers can **author a macro project from module source** through `Workbook.setVbaProject({modules})`
+  (or the standalone `writeVbaProject`) — see ADR 0017 §2.3. It synthesizes a complete `vbaProject.bin`
+  (CFB container + MS-OVBA-compressed `dir`/module streams) from a list of modules (name, kind, source);
+  the modules carry no compiled p-code, so Excel recompiles them from source on open. Procedural and
+  class modules are supported (document/designer are host-coupled and rejected fail-closed). **Verified
+  against real Excel 365:** a synthesized workbook opens clean and, re-saved macro-enabled, preserves
+  every module with its source. This makes the workbook an emission authority for authored macros — the
+  reversal of ADR 0016's read-only-view core.
 - A signed VBA project's `vbaProjectSignature` part is preserved alongside — it is a sibling part
   reached from `xl/_rels/vbaProject.bin.rels`, so the closure walk carries it through, and its
   distinct `.bin` content type is re-declared per-part (not collapsed into the `vbaProject` default,

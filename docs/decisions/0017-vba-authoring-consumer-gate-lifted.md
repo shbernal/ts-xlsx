@@ -67,8 +67,15 @@ it satisfies its underlying requirement by a different, and arguably stronger, m
        macro-enabled, comes back with every module recompiled and its source preserved byte-for-byte.
        That verdict is a recorded probe fact, not a CI test; CI locks the parse round-trip. Internal to
        `src/vba`.
-     - **§2.3d Workbook authoring surface:** the public surface wiring `writeVbaProject` into `Workbook`.
-       This is the authority shift and carries the ADR-0016 amendment.
+     - **§2.3d Workbook authoring surface (`setVbaProject`, done):** `Workbook.setVbaProject(spec)` wires
+       `writeVbaProject` into the model and onto the public barrel (with `writeVbaProject`,
+       `VbaProjectSpec`, `VbaModuleSource`, `VbaAuthorError`). It composes §2.3c synthesis with the §2.1
+       attach path — validate-and-synthesize, then route through `vbaProjectBytes`, so signature-drop and
+       re-emit are shared and a rejected spec leaves the workbook untouched. **This is the authority
+       shift: the workbook now emits macros authored from source, not only bytes a read preserved** —
+       amending ADR 0016 (decisions 2 and 5). Verified through the full public path (`setVbaProject` →
+       `writeXlsx` → Excel opens clean). The read view and the preserved-bytes emission authority for
+       *un-re-authored* projects are unchanged.
 
 3. **The read/attach path stays the safety floor.** §2.1 leaves ADR 0016's read invariant intact:
    preservation is still the sole emission authority, `vbaProjectBytes` simply lets a caller *supply*
