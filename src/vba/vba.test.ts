@@ -12,7 +12,7 @@ import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {parseVbaProject} from './project.ts';
-import {editVbaModuleSources} from './project-editor.ts';
+import {addVbaModule, addVbaReference, editVbaModuleSources} from './project-editor.ts';
 import {writeVbaProject} from './project-writer.ts';
 
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
@@ -72,6 +72,8 @@ function buildDirStream(codePage: number, modules: ModuleSpec[]): number[] {
   // PROJECTVERSION: Size=4 counts only VersionMajor; the trailing 2-byte VersionMinor is uncounted —
   // the exact record that misaligns a naive TLV walk. Its presence proves the parser skips it.
   records.push(...rec(0x0009, u32le(0x04)), ...u16le(0x000a));
+  records.push(...rec(0x000f, u16le(modules.length))); // MODULES_COUNT
+  records.push(...rec(0x0013, u16le(0xffff))); // PROJECTCOOKIE
   for (const m of modules) {
     records.push(...rec(0x0019, ascii(m.name))); // MODULENAME
     records.push(...rec(0x001a, ascii(m.name))); // MODULESTREAMNAME (MBCS)
@@ -80,6 +82,7 @@ function buildDirStream(codePage: number, modules: ModuleSpec[]): number[] {
     records.push(...rec(m.documentType ? 0x0022 : 0x0021, [])); // MODULETYPE (Reserved u32 = Size 0)
     records.push(...rec(0x002b, [])); // MODULETERMINATOR
   }
+  records.push(...rec(0x0010, [])); // dir Terminator — closes PROJECTMODULES, ends the dir stream
   return records;
 }
 
@@ -859,6 +862,16 @@ test('setVbaProject rejects an invalid spec without disturbing an existing proje
 
 // ── Edit-in-place: editVbaModuleSources ──────────────────────────────────────────────────────────────
 
+// The PROJECTwm stream pairs each module's MBCS name with its UTF-16 name, both NUL-terminated, ending
+// with an empty pair — one record per module the dir/PROJECT streams declare, so addVbaModule's splice
+// (which counts existing records against the parsed module count) has a real structure to extend.
+function buildProjectwmStream(names: readonly string[]): Uint8Array {
+  const b: number[] = [];
+  for (const name of names) b.push(...ascii(name), 0x00, ...utf16le(name), 0x00, 0x00);
+  b.push(0x00, 0x00);
+  return Uint8Array.from(b);
+}
+
 // Package a project through the *production* CFB writer so it has the navigable red-black sibling tree
 // the editor walks (buildVbaProjectBin leaves those links null — fine for the linear-scan reader, but the
 // editor rebuilds the tree). Optionally append raw dir records (e.g. a PROJECTREFERENCES entry) and a
@@ -878,7 +891,7 @@ function buildNavigableProjectBin(
   ];
   return writeCompoundFile([
     {name: 'PROJECT', data: strToU8(PROJECT_STREAM)},
-    {name: 'PROJECTwm', data: Uint8Array.from([0x00, 0x00])},
+    {name: 'PROJECTwm', data: buildProjectwmStream(modules.map((m) => m.name))},
     {name: 'VBA', children: vbaChildren},
   ]);
 }
@@ -1028,6 +1041,305 @@ test('editVbaModuleSources rejects source the code page cannot represent', () =>
 test('editVbaModuleSources with no edits returns the input unchanged', () => {
   const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
   assert.equal(editVbaModuleSources(bin, new Map()), bin);
+});
+
+// ── Structural edit: addVbaModule ────────────────────────────────────────────────────────────────────
+
+// The dir stream's MODULES_COUNT field ([MS-OVBA] 2.3.4.2.3.2) — not cross-checked by parseVbaProject
+// (which discovers modules by MODULETERMINATOR markers regardless of the count), but Excel relies on it,
+// so addVbaModule must keep it in sync. Reads it directly out of the decompressed dir bytes.
+function readModulesCount(dir: Uint8Array): number {
+  let pos = 0;
+  while (pos + 6 <= dir.length) {
+    const id = (dir[pos] as number) | ((dir[pos + 1] as number) << 8);
+    const size =
+      ((dir[pos + 2] as number) |
+        ((dir[pos + 3] as number) << 8) |
+        ((dir[pos + 4] as number) << 16) |
+        ((dir[pos + 5] as number) << 24)) >>>
+      0;
+    const dataStart = pos + 6;
+    if (id === 0x000f) return (dir[dataStart] as number) | ((dir[dataStart + 1] as number) << 8);
+    pos = dataStart + size;
+    if (id === 0x0009) pos += 2; // PROJECTVERSION's uncounted VersionMinor
+  }
+  throw new Error('MODULES_COUNT not found');
+}
+
+test('addVbaModule adds a procedural module to a from-scratch project', () => {
+  const bin = writeVbaProject({
+    modules: [{name: 'Alpha', kind: 'procedural', source: 'Sub A()\r\nEnd Sub'}],
+  });
+  const added = addVbaModule(bin, {
+    name: 'Beta',
+    kind: 'class',
+    source: 'Public V As Long',
+  });
+
+  const project = parseVbaProject(added);
+  assert.deepEqual(
+    project.modules.map((m) => [m.name, m.kind, m.source]),
+    [
+      ['Alpha', 'procedural', 'Sub A()\r\nEnd Sub'],
+      ['Beta', 'class', 'Public V As Long'],
+    ],
+  );
+  assert.deepEqual(
+    treeReachableStreams(added).sort(),
+    ['/PROJECT', '/PROJECTwm', '/VBA/Alpha', '/VBA/Beta', '/VBA/_VBA_PROJECT', '/VBA/dir'],
+    'the new module resolves under the VBA storage by tree navigation, not only by linear scan',
+  );
+});
+
+test('addVbaModule adds a module to an existing project, preserving references and untouched modules', () => {
+  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload));
+
+  const newSource = 'Sub Added()\r\n    Debug.Print "new"\r\nEnd Sub';
+  const added = addVbaModule(bin, {name: 'NewModule', kind: 'procedural', source: newSource});
+
+  const project = parseVbaProject(added);
+  assert.deepEqual(
+    project.modules.map((m) => [m.name, m.kind]),
+    [
+      ['ThisWorkbook', 'document'],
+      ['Module1', 'procedural'],
+      ['Class1', 'class'],
+      ['NewModule', 'procedural'],
+    ],
+  );
+  assert.equal(project.modules[3]!.source, newSource);
+
+  const before = new CompoundFile(bin);
+  const after = new CompoundFile(added);
+
+  // Every pre-existing module stream — p-code prefix and all — is byte-identical.
+  for (const name of ['ThisWorkbook', 'Module1', 'Class1']) {
+    assert.deepEqual(
+      after.readStream(name),
+      before.readStream(name),
+      `${name} rides through unchanged`,
+    );
+  }
+  // The new module's stream is source-only at offset 0 (no p-code).
+  assert.deepEqual(
+    decompressContainer(after.readStream('NewModule')!),
+    Uint8Array.from(ascii(newSource)),
+  );
+  // _VBA_PROJECT is reset to the recompile cookie, as for an edited module.
+  assert.deepEqual(
+    after.readStream('_VBA_PROJECT'),
+    Uint8Array.from([0xcc, 0x61, 0xff, 0xff, 0x00, 0x00, 0x00]),
+  );
+
+  const dirBefore = decompressContainer(before.readStream('dir')!);
+  const dirAfter = decompressContainer(after.readStream('dir')!);
+  assert.ok(
+    indexOfBytes(dirAfter, Uint8Array.from(refPayload)) >= 0,
+    'the PROJECTREFERENCES record is preserved',
+  );
+  assert.equal(readModulesCount(dirBefore), 3);
+  assert.equal(readModulesCount(dirAfter), 4, 'MODULES_COUNT is incremented for the new module');
+
+  // PROJECT declares the new module's kind, and PROJECTwm carries its name pair — both needed for Excel
+  // to treat it as a real module rather than orphaned bytes.
+  const projectText = strFromU8(after.readStream('PROJECT')!);
+  assert.match(projectText, /^Module=NewModule$/m);
+  assert.ok(
+    indexOfBytes(after.readStream('PROJECTwm')!, Uint8Array.from(ascii('NewModule'))) >= 0,
+    'PROJECTwm carries the new module name',
+  );
+
+  assert.deepEqual(
+    treeReachableStreams(added).sort(),
+    [
+      '/PROJECT',
+      '/PROJECTwm',
+      '/VBA/Class1',
+      '/VBA/Module1',
+      '/VBA/NewModule',
+      '/VBA/ThisWorkbook',
+      '/VBA/_VBA_PROJECT',
+      '/VBA/dir',
+    ],
+    'the new module resolves under the VBA storage by tree navigation',
+  );
+});
+
+test('addVbaModule rejects a duplicate module name, case-insensitively', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(
+    () => addVbaModule(bin, {name: 'module1', kind: 'procedural', source: 'Sub X()\r\nEnd Sub'}),
+    VbaAuthorError,
+  );
+});
+
+test('addVbaModule rejects an invalid module name', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(
+    () => addVbaModule(bin, {name: '1Bad', kind: 'procedural', source: ''}),
+    VbaAuthorError,
+  );
+  assert.throws(
+    () => addVbaModule(bin, {name: 'x'.repeat(32), kind: 'procedural', source: ''}),
+    VbaAuthorError,
+  );
+});
+
+test('addVbaModule rejects a module kind that is not yet addable', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(
+    () => addVbaModule(bin, {name: 'NewDoc', kind: 'document' as never, source: ''}),
+    VbaAuthorError,
+  );
+});
+
+test('addVbaModule rejects source the code page cannot represent', () => {
+  const bin = buildNavigableProjectBin(1252, MODULES);
+  assert.throws(
+    () => addVbaModule(bin, {name: 'NewModule', kind: 'procedural', source: 'Rem 你好'}),
+    VbaAuthorError,
+  );
+});
+
+test('addVbaModule rejects a malformed container as a parse error', () => {
+  assert.throws(
+    () =>
+      addVbaModule(Uint8Array.from([1, 2, 3, 4]), {
+        name: 'NewModule',
+        kind: 'procedural',
+        source: '',
+      }),
+    VbaParseError,
+  );
+});
+
+// ── Structural edit: addVbaReference ─────────────────────────────────────────────────────────────────
+
+// Microsoft Scripting Runtime's real GUID/path — the exact reference this splice was verified against on
+// a genuine Excel-authored project (2026-07-23, excel-gui-automation probe, ADR 0012/0013 provenance).
+const SCRIPTING_REF = {
+  name: 'Scripting',
+  displayName: 'Microsoft Scripting Runtime',
+  guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+  majorVersion: 1,
+  minorVersion: 0,
+  path: 'C:\\Windows\\System32\\scrrun.dll',
+};
+const SCRIPTING_LIBID =
+  '*\\G{420B2830-E718-11CF-893D-00A0C9054228}#1.0#0#C:\\Windows\\System32\\scrrun.dll#Microsoft Scripting Runtime';
+
+test('addVbaReference adds a registered reference to a from-scratch project without touching PROJECT/PROJECTwm', () => {
+  const bin = writeVbaProject({
+    modules: [{name: 'Alpha', kind: 'procedural', source: 'Sub A()\r\nEnd Sub'}],
+  });
+  const added = addVbaReference(bin, SCRIPTING_REF);
+
+  // Modules are unaffected — same set, same source.
+  assert.deepEqual(
+    parseVbaProject(added).modules.map((m) => [m.name, m.kind, m.source]),
+    [['Alpha', 'procedural', 'Sub A()\r\nEnd Sub']],
+  );
+
+  const before = new CompoundFile(bin);
+  const after = new CompoundFile(added);
+  const dirAfter = decompressContainer(after.readStream('dir')!);
+  assert.ok(
+    indexOfBytes(dirAfter, Uint8Array.from(ascii(SCRIPTING_LIBID))) >= 0,
+    'the assembled Libid string is present in the dir stream',
+  );
+  assert.ok(
+    indexOfBytes(dirAfter, Uint8Array.from(ascii('Scripting'))) >= 0,
+    'the REFERENCENAME name is present',
+  );
+  assert.equal(readModulesCount(dirAfter), 1, 'MODULES_COUNT is untouched by adding a reference');
+
+  // No real Excel-authored PROJECT stream carries a Reference= line for a registered library reference
+  // (verified against a genuine Excel-authored project) — so neither PROJECT nor PROJECTwm changes here.
+  assert.deepEqual(after.readStream('PROJECT'), before.readStream('PROJECT'));
+  assert.deepEqual(after.readStream('PROJECTwm'), before.readStream('PROJECTwm'));
+
+  assert.deepEqual(
+    after.readStream('_VBA_PROJECT'),
+    Uint8Array.from([0xcc, 0x61, 0xff, 0xff, 0x00, 0x00, 0x00]),
+  );
+});
+
+test('addVbaReference adds a reference to an existing project, preserving an existing reference and every module byte-for-byte', () => {
+  const existingRefPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, existingRefPayload));
+
+  const added = addVbaReference(bin, SCRIPTING_REF);
+
+  const before = new CompoundFile(bin);
+  const after = new CompoundFile(added);
+  for (const name of ['ThisWorkbook', 'Module1', 'Class1']) {
+    assert.deepEqual(
+      after.readStream(name),
+      before.readStream(name),
+      `${name} rides through unchanged`,
+    );
+  }
+
+  const dirBefore = decompressContainer(before.readStream('dir')!);
+  const dirAfter = decompressContainer(after.readStream('dir')!);
+  assert.ok(
+    indexOfBytes(dirAfter, Uint8Array.from(existingRefPayload)) >= 0,
+    'the pre-existing reference is preserved',
+  );
+  assert.ok(
+    indexOfBytes(dirAfter, Uint8Array.from(ascii(SCRIPTING_LIBID))) >= 0,
+    'the new reference is present',
+  );
+  assert.equal(readModulesCount(dirBefore), 3);
+  assert.equal(readModulesCount(dirAfter), 3, 'MODULES_COUNT is unaffected by adding a reference');
+
+  assert.deepEqual(
+    parseVbaProject(added).modules.map((m) => m.name),
+    ['ThisWorkbook', 'Module1', 'Class1'],
+    'the module set and order are unaffected',
+  );
+});
+
+test('addVbaReference rejects an invalid reference name', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(() => addVbaReference(bin, {...SCRIPTING_REF, name: '1Bad'}), VbaAuthorError);
+});
+
+test('addVbaReference rejects a malformed GUID', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(() => addVbaReference(bin, {...SCRIPTING_REF, guid: 'not-a-guid'}), VbaAuthorError);
+});
+
+test('addVbaReference rejects an out-of-range version or LCID', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(() => addVbaReference(bin, {...SCRIPTING_REF, majorVersion: -1}), VbaAuthorError);
+  assert.throws(
+    () => addVbaReference(bin, {...SCRIPTING_REF, minorVersion: 0x10000}),
+    VbaAuthorError,
+  );
+  assert.throws(() => addVbaReference(bin, {...SCRIPTING_REF, lcid: -1}), VbaAuthorError);
+});
+
+test('addVbaReference rejects an invalid path', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(() => addVbaReference(bin, {...SCRIPTING_REF, path: ''}), VbaAuthorError);
+  assert.throws(
+    () => addVbaReference(bin, {...SCRIPTING_REF, path: 'C:\\has#hash.dll'}),
+    VbaAuthorError,
+  );
+});
+
+test('addVbaReference rejects display text the code page cannot represent', () => {
+  const bin = buildNavigableProjectBin(1252, MODULES);
+  assert.throws(
+    () => addVbaReference(bin, {...SCRIPTING_REF, displayName: '你好'}),
+    VbaAuthorError,
+  );
+});
+
+test('addVbaReference rejects a malformed container as a parse error', () => {
+  assert.throws(() => addVbaReference(Uint8Array.from([1, 2, 3, 4]), SCRIPTING_REF), VbaParseError);
 });
 
 // ── Edit-in-place through the public surface: Workbook.setVbaModuleSource ─────────────────────────────

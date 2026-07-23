@@ -109,19 +109,27 @@ export function writeVbaProject(spec: VbaProjectSpec): Uint8Array {
   ]);
 }
 
-function validate(modules: readonly VbaModuleSource[], projectName: string): void {
-  if (!IDENTIFIER.test(projectName) || projectName.length > MAX_NAME_CHARS) {
+/**
+ * Validate a module or project name against the shared VBA identifier contract: a valid identifier, at
+ * most 31 characters (the CFB stream-name limit, which doubles as VBA's own module-name limit). Shared
+ * with {@link project-editor.ts | project-editor}'s structural edits, so a name is held to the same bar
+ * whether it is authored from scratch or spliced into an existing project.
+ *
+ * @throws {VbaAuthorError} if `name` is not a valid VBA identifier or exceeds 31 characters.
+ */
+export function validateVbaName(name: string, what: 'project' | 'module' | 'reference'): void {
+  if (!IDENTIFIER.test(name) || name.length > MAX_NAME_CHARS) {
     throw new VbaAuthorError(
-      `invalid project name '${projectName}' (must be a VBA identifier ≤ 31 chars)`,
+      `invalid ${what} name '${name}' (must be a VBA identifier ≤ 31 chars)`,
     );
   }
+}
+
+function validate(modules: readonly VbaModuleSource[], projectName: string): void {
+  validateVbaName(projectName, 'project');
   const seen = new Set<string>();
   for (const m of modules) {
-    if (!IDENTIFIER.test(m.name) || m.name.length > MAX_NAME_CHARS) {
-      throw new VbaAuthorError(
-        `invalid module name '${m.name}' (must be a VBA identifier ≤ 31 chars)`,
-      );
-    }
+    validateVbaName(m.name, 'module');
     const key = m.name.toUpperCase(); // VBA names are case-insensitive
     if (seen.has(key)) throw new VbaAuthorError(`duplicate module name '${m.name}'`);
     seen.add(key);
@@ -158,23 +166,34 @@ function buildDir(
   // No PROJECTREFERENCES: a reference-free project opens clean in Excel, which re-adds host defaults.
   push(r, REC.MODULES_COUNT, u16(modules.length));
   push(r, REC.PROJECTCOOKIE, u16(COOKIE_NONE));
-  for (const m of modules) {
-    const nameBytes = [...encode(m.name)];
-    const nameUnicode = utf16le(m.name);
-    push(r, REC.MODULE_NAME, nameBytes);
-    push(r, REC.MODULE_NAME_UNICODE, nameUnicode);
-    push(r, REC.MODULE_STREAMNAME, nameBytes);
-    push(r, REC.MODULE_STREAMNAME_UNICODE, nameUnicode);
-    push(r, REC.MODULE_DOCSTRING, []);
-    push(r, REC.MODULE_DOCSTRING_UNICODE, []);
-    push(r, REC.MODULE_OFFSET, u32(0)); // source at stream start, no p-code prefix → recompile
-    push(r, REC.MODULE_HELPCONTEXT, u32(0));
-    push(r, REC.MODULE_COOKIE, u16(COOKIE_NONE));
-    push(r, m.kind === 'procedural' ? REC.MODULE_TYPE_PROCEDURAL : REC.MODULE_TYPE_OTHER, []);
-    push(r, REC.MODULE_TERMINATOR, []);
-  }
+  for (const m of modules) r.push(...buildModuleDirRecord(m, encode));
   r.push(...u16(REC.TERMINATOR), ...u32(0)); // dir Terminator + Reserved
   return Uint8Array.from(r);
+}
+
+/**
+ * The [MS-OVBA] 2.3.4.2.3.2 MODULE record block for one module — name (MBCS + Unicode), stream name
+ * (MBCS + Unicode), docstring, offset (always 0: source at stream start, no p-code prefix, forcing a
+ * recompile), help context, cookie, type, and terminator. Shared by `writeVbaProject` (emitting a whole
+ * project's modules) and `project-editor.ts`'s `addVbaModule` (splicing one module block into an
+ * existing `dir` stream), so the record shape has one source of truth.
+ */
+export function buildModuleDirRecord(m: VbaModuleSource, encode: Encoder): number[] {
+  const r: number[] = [];
+  const nameBytes = [...encode(m.name)];
+  const nameUnicode = utf16le(m.name);
+  push(r, REC.MODULE_NAME, nameBytes);
+  push(r, REC.MODULE_NAME_UNICODE, nameUnicode);
+  push(r, REC.MODULE_STREAMNAME, nameBytes);
+  push(r, REC.MODULE_STREAMNAME_UNICODE, nameUnicode);
+  push(r, REC.MODULE_DOCSTRING, []);
+  push(r, REC.MODULE_DOCSTRING_UNICODE, []);
+  push(r, REC.MODULE_OFFSET, u32(0));
+  push(r, REC.MODULE_HELPCONTEXT, u32(0));
+  push(r, REC.MODULE_COOKIE, u16(COOKIE_NONE));
+  push(r, m.kind === 'procedural' ? REC.MODULE_TYPE_PROCEDURAL : REC.MODULE_TYPE_OTHER, []);
+  push(r, REC.MODULE_TERMINATOR, []);
+  return r;
 }
 
 function buildProjectStream(
@@ -212,16 +231,19 @@ function buildProjectwm(modules: readonly VbaModuleSource[], encode: Encoder): U
   return Uint8Array.from(b);
 }
 
-function push(out: number[], id: number, data: number[]): void {
+/** Append one `dir`-stream TLV record (Id, Size, data) to `out`. Shared with project-editor.ts's
+ * splices, which build the same record shapes into an existing stream rather than a fresh one. */
+export function push(out: number[], id: number, data: number[]): void {
   out.push(...u16(id), ...u32(data.length), ...data);
 }
-function u16(n: number): number[] {
+export function u16(n: number): number[] {
   return [n & 0xff, (n >> 8) & 0xff];
 }
-function u32(n: number): number[] {
+export function u32(n: number): number[] {
   return [n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, (n >> 24) & 0xff];
 }
-function utf16le(s: string): number[] {
+/** A name as NUL-free UTF-16LE code units — the encoding [MS-OVBA] uses for every "Unicode" name field. */
+export function utf16le(s: string): number[] {
   const out: number[] = [];
   for (let i = 0; i < s.length; i++) out.push(...u16(s.charCodeAt(i)));
   return out;

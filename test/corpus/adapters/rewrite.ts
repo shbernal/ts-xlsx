@@ -68,6 +68,10 @@ const {writeCompoundFile} =
   await loadModule<typeof import('../../../src/vba/cfb-writer.ts')>('vba/cfb-writer');
 const {compressContainer, decompressContainer} =
   await loadModule<typeof import('../../../src/vba/ms-ovba.ts')>('vba/ms-ovba');
+const {parseVbaProject} =
+  await loadModule<typeof import('../../../src/vba/project.ts')>('vba/project');
+const {addVbaModule, addVbaReference} =
+  await loadModule<typeof import('../../../src/vba/project-editor.ts')>('vba/project-editor');
 
 // JSZip is an independent zip implementation used only to VERIFY the streaming writer's output (CRC
 // integrity), a hostile-input posture toward our own archive — never in the production src path.
@@ -687,6 +691,8 @@ function buildVbaFixtureBin(): Uint8Array {
   const dir: number[] = [];
   dir.push(...vbaRec(0x0003, vbaU16(VBA_FIXTURE_CODE_PAGE))); // PROJECTCODEPAGE
   dir.push(...vbaRec(0x0009, vbaU32(0x04)), ...vbaU16(0x000a)); // PROJECTVERSION (uncounted minor)
+  dir.push(...vbaRec(0x000f, vbaU16(VBA_FIXTURE_MODULES.length))); // MODULES_COUNT
+  dir.push(...vbaRec(0x0013, vbaU16(0xffff))); // PROJECTCOOKIE
   for (const m of VBA_FIXTURE_MODULES) {
     dir.push(...vbaRec(0x0019, vbaAscii(m.name))); // MODULENAME
     dir.push(...vbaRec(0x001a, vbaAscii(m.name))); // MODULESTREAMNAME
@@ -695,7 +701,11 @@ function buildVbaFixtureBin(): Uint8Array {
     dir.push(...vbaRec(m.document ? 0x0022 : 0x0021, [])); // MODULETYPE
     dir.push(...vbaRec(0x002b, [])); // MODULETERMINATOR
   }
-  dir.push(...vbaRec(0x000d, vbaAscii(VBA_FIXTURE_REF_MARKER))); // REFERENCEREGISTERED
+  dir.push(...vbaRec(0x0010, [])); // dir Terminator — closes PROJECTMODULES, ends the dir stream
+  // REFERENCEREGISTERED, appended after the terminator: real Excel files put PROJECTREFERENCES before
+  // PROJECTMODULES, but the reader's uniform TLV walk doesn't care about ordering — placing it last here
+  // keeps this fixture builder additive to extend rather than requiring the whole dir array reordered.
+  dir.push(...vbaRec(0x000d, vbaAscii(VBA_FIXTURE_REF_MARKER)));
 
   const moduleStream = (m: VbaFixtureModule) => {
     const compressed = compressContainer(Uint8Array.from(m.sourceBytes));
@@ -704,9 +714,17 @@ function buildVbaFixtureBin(): Uint8Array {
     return out;
   };
 
+  // PROJECTwm pairs each module's MBCS name with its UTF-16 name, both NUL-terminated, ending with an
+  // empty pair — one record per module, matching the dir/PROJECT streams' module list.
+  const projectwm: number[] = [];
+  for (const m of VBA_FIXTURE_MODULES) {
+    projectwm.push(...vbaAscii(m.name), 0x00, ...vbaUtf16(m.name), 0x00, 0x00);
+  }
+  projectwm.push(0x00, 0x00);
+
   return writeCompoundFile([
     {name: 'PROJECT', data: strToU8(VBA_PROJECT_STREAM)},
-    {name: 'PROJECTwm', data: Uint8Array.from([0x00, 0x00])},
+    {name: 'PROJECTwm', data: Uint8Array.from(projectwm)},
     {
       name: 'VBA',
       children: [
@@ -1378,6 +1396,108 @@ const impl = {
       moduleKinds,
       editedSourcePresent,
       codePageModulePreserved,
+    };
+  },
+
+  // Add a new standard module to an existing macro project's vbaProject.bin via the project-editor
+  // primitive addVbaModule (project.ts's parseVbaProject sits in front of Workbook, not yet wired — the
+  // primitive is the surface this case locks). Adds a procedural module to the same three-module,
+  // one-reference fixture xlsmVbaEditModuleSource() uses, and asserts the new module reads back
+  // alongside the untouched ones, the hand-crafted PROJECTREFERENCES record and every pre-existing
+  // module stream survive byte-for-byte, and _VBA_PROJECT resets to the recompile cookie so Excel
+  // compiles the new module in.
+  xlsmVbaAddModule() {
+    const originalBin = buildVbaFixtureBin();
+    const newSource = 'Sub Added()\r\n    Debug.Print "new"\r\nEnd Sub';
+
+    const addedBin = addVbaModule(originalBin, {
+      name: 'AddedModule',
+      kind: 'procedural',
+      source: newSource,
+    });
+
+    const project = parseVbaProject(addedBin);
+    const moduleNames = project.modules.map((m: CorpusApi) => m.name);
+    const moduleKinds = project.modules.map((m: CorpusApi) => [m.name, m.kind]);
+    const added = project.modules.find((m: CorpusApi) => m.name === 'AddedModule');
+    const addedSourcePresent = added?.source === newSource;
+
+    const originalCfb = new CompoundFile(originalBin);
+    const addedCfb = new CompoundFile(addedBin);
+    const untouchedModuleByteIdentical =
+      vbaIndexOfBytes(addedCfb.readStream('Module1')!, originalCfb.readStream('Module1')!) === 0 &&
+      addedCfb.readStream('Module1')!.length === originalCfb.readStream('Module1')!.length;
+
+    const referencePreserved =
+      vbaIndexOfBytes(
+        decompressContainer(addedCfb.readStream('dir')!),
+        Uint8Array.from(vbaAscii(VBA_FIXTURE_REF_MARKER)),
+      ) >= 0;
+
+    const recompileCookieReset =
+      vbaIndexOfBytes(addedCfb.readStream('_VBA_PROJECT')!, VBA_RECOMPILE_COOKIE) === 0;
+
+    return {
+      moduleNames,
+      moduleKinds,
+      addedSourcePresent,
+      untouchedModuleByteIdentical,
+      referencePreserved,
+      recompileCookieReset,
+    };
+  },
+
+  // Add a registered (COM type-library) reference to an existing macro project's vbaProject.bin via the
+  // project-editor primitive addVbaReference — the structural-edit counterpart to xlsmVbaAddModule().
+  // Adds "Microsoft Scripting Runtime" (the real GUID/path, verified against a genuine Excel-authored
+  // project) to the same three-module, one-reference fixture, and asserts the new REFERENCENAME +
+  // REFERENCEREGISTERED records read back correctly, the hand-crafted pre-existing reference and every
+  // module survive byte-for-byte, PROJECT/PROJECTwm are untouched (no real Excel-authored PROJECT stream
+  // carries a Reference= line for a registered reference), and _VBA_PROJECT resets to the recompile
+  // cookie.
+  xlsmVbaAddReference() {
+    const originalBin = buildVbaFixtureBin();
+    const newRef = {
+      name: 'Scripting',
+      displayName: 'Microsoft Scripting Runtime',
+      guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+      majorVersion: 1,
+      minorVersion: 0,
+      path: 'C:\\Windows\\System32\\scrrun.dll',
+    };
+    const newLibid =
+      '*\\G{420B2830-E718-11CF-893D-00A0C9054228}#1.0#0#C:\\Windows\\System32\\scrrun.dll#Microsoft Scripting Runtime';
+
+    const addedBin = addVbaReference(originalBin, newRef);
+
+    const project = parseVbaProject(addedBin);
+    const moduleNames = project.modules.map((m: CorpusApi) => m.name);
+
+    const originalCfb = new CompoundFile(originalBin);
+    const addedCfb = new CompoundFile(addedBin);
+    const untouchedModuleByteIdentical =
+      vbaIndexOfBytes(addedCfb.readStream('Module1')!, originalCfb.readStream('Module1')!) === 0 &&
+      addedCfb.readStream('Module1')!.length === originalCfb.readStream('Module1')!.length;
+
+    const dirAfter = decompressContainer(addedCfb.readStream('dir')!);
+    const existingReferencePreserved =
+      vbaIndexOfBytes(dirAfter, Uint8Array.from(vbaAscii(VBA_FIXTURE_REF_MARKER))) >= 0;
+    const newReferencePresent = vbaIndexOfBytes(dirAfter, Uint8Array.from(vbaAscii(newLibid))) >= 0;
+
+    const projectStreamUnchanged =
+      vbaIndexOfBytes(addedCfb.readStream('PROJECT')!, originalCfb.readStream('PROJECT')!) === 0 &&
+      addedCfb.readStream('PROJECT')!.length === originalCfb.readStream('PROJECT')!.length;
+
+    const recompileCookieReset =
+      vbaIndexOfBytes(addedCfb.readStream('_VBA_PROJECT')!, VBA_RECOMPILE_COOKIE) === 0;
+
+    return {
+      moduleNames,
+      untouchedModuleByteIdentical,
+      existingReferencePreserved,
+      newReferencePresent,
+      projectStreamUnchanged,
+      recompileCookieReset,
     };
   },
 
