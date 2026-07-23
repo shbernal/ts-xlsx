@@ -13,7 +13,7 @@ import type {
   PreservedWorkbookReferencePlan,
   TablePlan,
 } from './package-plan.ts';
-import {range, relativePartPath} from './part-paths.ts';
+import {extensionOf, range, relativePartPath} from './part-paths.ts';
 import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
 import {x14Ext} from './x14-ext.ts';
 import {escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
@@ -55,10 +55,19 @@ export function contentTypesXml(
   pivots: readonly PivotPlan[],
   preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[],
 ): string {
+  // One extension→default-content-type map both halves read: the defaults render it, the overrides
+  // correct any preserved part whose own type differs from its extension's default. Sharing it is what
+  // keeps a `<Default>` and its `<Override>`s from ever disagreeing.
+  const extensionDefaults = buildExtensionDefaults(
+    commentNumbers,
+    printerSettingsNumbers,
+    mediaExtensions,
+    preservedParts,
+  );
   return (
     XML_DECLARATION +
     `<Types xmlns="${NS.contentTypes}">` +
-    contentTypeDefaults(commentNumbers, printerSettingsNumbers, mediaExtensions, preservedParts) +
+    contentTypeDefaults(extensionDefaults) +
     contentTypeOverrides(
       sheetCount,
       tables,
@@ -68,9 +77,40 @@ export function contentTypesXml(
       preservedParts,
       pivots,
       preservedWorkbookRefs,
+      extensionDefaults,
     ) +
     '</Types>'
   );
+}
+
+// The content type declared at the `<Default>` level for each file extension the package carries, in
+// emission order: the built-in rels/xml pair, the vml/bin/image kinds the writer itself generates,
+// then one default per *new* extension a preserved binary part introduces (first part of an extension
+// wins). Keys are lower-cased for case-insensitive extension matching; each value keeps the extension
+// token as it will be emitted so rendering stays byte-stable. A preserved `.xml` part is deliberately
+// left out — it always carries its own type as a per-part override, never a generic `xml` default.
+function buildExtensionDefaults(
+  commentNumbers: readonly number[],
+  printerSettingsNumbers: readonly number[],
+  mediaExtensions: readonly string[],
+  preservedParts: readonly PreservedPartPlan[],
+): Map<string, {extension: string; contentType: string}> {
+  const defaults = new Map<string, {extension: string; contentType: string}>();
+  const add = (extension: string, contentType: string): void => {
+    const key = extension.toLowerCase();
+    if (!defaults.has(key)) defaults.set(key, {extension, contentType});
+  };
+  add('rels', 'application/vnd.openxmlformats-package.relationships+xml');
+  add('xml', 'application/xml');
+  if (commentNumbers.length > 0) add('vml', CT.vml);
+  if (printerSettingsNumbers.length > 0) add('bin', CT.printerSettings);
+  for (const ext of mediaExtensions) add(ext, imageContentType(ext));
+  for (const part of preservedParts) {
+    const ext = extensionOf(part.path);
+    if (ext.toLowerCase() === 'xml') continue;
+    add(ext, part.contentType);
+  }
+  return defaults;
 }
 
 // A macro-enabled workbook's own VBA project is round-tripped as a preserved workbook reference
@@ -81,49 +121,25 @@ function isMacroEnabled(preservedWorkbookRefs: readonly PreservedWorkbookReferen
   return preservedWorkbookRefs.some((ref) => ref.relType.endsWith('/vbaProject'));
 }
 
-// The extension-level `<Default>` declarations: the built-in rels/xml pair, then the vml/bin/media
-// kinds this package actually carries, then any preserved binary part whose extension none of those
-// already cover. The raw bytes of a VML, a printer-settings blob, or an image carry no XML content
-// type of their own, so each is declared once per extension — deduped against the defaults already
-// emitted and against each other — rather than per part.
+// The extension-level `<Default>` declarations, rendered from the shared extension-default map (see
+// {@link buildExtensionDefaults}) in insertion order. The raw bytes of a VML, a printer-settings blob,
+// or an image carry no XML content type of their own, so each is declared once per extension rather
+// than per part; a preserved binary part whose type differs from its extension's default is corrected
+// by a per-part `<Override>` in {@link contentTypeOverrides}.
 function contentTypeDefaults(
-  commentNumbers: readonly number[],
-  printerSettingsNumbers: readonly number[],
-  mediaExtensions: readonly string[],
-  preservedParts: readonly PreservedPartPlan[],
+  extensionDefaults: ReadonlyMap<string, {extension: string; contentType: string}>,
 ): string {
-  const declaredExtensions = new Set<string>(['rels', 'xml']);
-  if (commentNumbers.length > 0) declaredExtensions.add('vml');
-  if (printerSettingsNumbers.length > 0) declaredExtensions.add('bin');
-  for (const ext of mediaExtensions) declaredExtensions.add(ext.toLowerCase());
-  const preservedDefaults: string[] = [];
-  for (const part of preservedParts) {
-    const ext = part.path.slice(part.path.lastIndexOf('.') + 1);
-    // A preserved part with its own XML content type is declared per-part in the overrides; a binary
-    // one falls to a per-extension default here, skipped once its extension is already covered.
-    if (ext.toLowerCase() === 'xml' || declaredExtensions.has(ext.toLowerCase())) continue;
-    declaredExtensions.add(ext.toLowerCase());
-    preservedDefaults.push(defaultType(ext, part.contentType));
-  }
-  const vmlDefault = commentNumbers.length > 0 ? defaultType('vml', CT.vml) : '';
-  const binDefault =
-    printerSettingsNumbers.length > 0 ? defaultType('bin', CT.printerSettings) : '';
-  const imageDefaults = mediaExtensions
-    .map((ext) => defaultType(ext, imageContentType(ext)))
+  return [...extensionDefaults.values()]
+    .map(({extension, contentType}) => defaultType(extension, contentType))
     .join('');
-  return (
-    defaultType('rels', 'application/vnd.openxmlformats-package.relationships+xml') +
-    defaultType('xml', 'application/xml') +
-    vmlDefault +
-    binDefault +
-    imageDefaults +
-    preservedDefaults.join('')
-  );
 }
 
 // The per-part `<Override>` declarations, in canonical package order: workbook, worksheets, tables,
 // drawings, comments, each pivot's three parts, theme, styles, the optional shared strings, the
-// doc-props pair, then any preserved part that carries its own XML content type.
+// doc-props pair, then any preserved part whose content type its extension's `<Default>` does not
+// already carry — every `.xml` part (the generic `xml` default never matches a real part type) and any
+// binary part sharing an extension with a differently-typed sibling (a `vbaProjectSignature.bin` next
+// to a `vbaProject.bin`), which a lone extension default would otherwise mis-type.
 function contentTypeOverrides(
   sheetCount: number,
   tables: readonly TablePlan[],
@@ -133,9 +149,14 @@ function contentTypeOverrides(
   preservedParts: readonly PreservedPartPlan[],
   pivots: readonly PivotPlan[],
   preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[],
+  extensionDefaults: ReadonlyMap<string, {extension: string; contentType: string}>,
 ): string {
   const preservedOverrides = preservedParts
-    .filter((part) => part.path.slice(part.path.lastIndexOf('.') + 1).toLowerCase() === 'xml')
+    .filter(
+      (part) =>
+        extensionDefaults.get(extensionOf(part.path).toLowerCase())?.contentType !==
+        part.contentType,
+    )
     .map((part) => override(`/${part.path}`, part.contentType));
   return [
     override(

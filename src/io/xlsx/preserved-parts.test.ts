@@ -375,6 +375,61 @@ test('a pivot table and its pivot cache survive read→write, cacheId wiring int
   );
 });
 
+// A macro-enabled workbook's VBA project and a *digital signature* over it: the signature is a sibling
+// package part (`xl/vbaProjectSignature.bin`) reached by a `.../vbaProjectSignature` relationship on the
+// vbaProject part's own rels, so the closure walk carries it through. It shares the `.bin` extension
+// with `vbaProject.bin` but has a DIFFERENT content type — the case a single per-extension `<Default>`
+// mis-types unless the writer emits a per-part `<Override>` for the odd one out.
+const msVbaRelationship = (id: string, type: string, target: string): string =>
+  `<Relationship Id="${id}" Type="http://schemas.microsoft.com/office/2006/relationships/${type}" Target="${target}"/>`;
+
+test('a signed VBA project keeps distinct content types for vbaProject.bin and its signature', () => {
+  const vbaBytes = Uint8Array.from([0xd0, 0xcf, 0x11, 0xe0, 1, 2, 3]);
+  const sigBytes = Uint8Array.from([0xde, 0xad, 0xbe, 0xef, 4, 5]);
+  const src = zipSync(
+    packageParts({
+      '[Content_Types].xml': contentTypes(
+        '<Override PartName="/xl/vbaProject.bin" ContentType="application/vnd.ms-office.vbaProject"/>' +
+          '<Override PartName="/xl/vbaProjectSignature.bin" ContentType="application/vnd.ms-office.vbaProjectSignature"/>',
+      ),
+      'xl/_rels/workbook.xml.rels':
+        '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        relationship('rId1', 'worksheet', 'worksheets/sheet1.xml') +
+        msVbaRelationship('rId2', 'vbaProject', 'vbaProject.bin') +
+        '</Relationships>',
+      'xl/worksheets/sheet1.xml': worksheet(''),
+      'xl/vbaProject.bin': vbaBytes,
+      'xl/_rels/vbaProject.bin.rels': rels(
+        msVbaRelationship('rId1', 'vbaProjectSignature', 'vbaProjectSignature.bin'),
+      ),
+      'xl/vbaProjectSignature.bin': sigBytes,
+    }),
+  );
+
+  const out = writeXlsx(readXlsx(src));
+
+  // Both binary parts survive byte-for-byte.
+  const files = unzipSync(out);
+  assert.deepEqual(files['xl/vbaProject.bin'], vbaBytes, 'the VBA project blob survives');
+  assert.deepEqual(files['xl/vbaProjectSignature.bin'], sigBytes, 'the signature blob survives');
+
+  const ct = partText(out, /\[Content_Types\]\.xml$/);
+  // The signature part must keep its own content type — a lone `.bin` Default would mis-type it as a
+  // second vbaProject, which Excel reads as a corrupt/duplicate project rather than a signature.
+  assert.match(
+    ct,
+    /PartName="\/xl\/vbaProjectSignature\.bin" ContentType="application\/vnd\.ms-office\.vbaProjectSignature"/,
+    'the signature part is typed as a vbaProjectSignature, not collapsed into the vbaProject default',
+  );
+  // The workbook is still declared macro-enabled and the project part still types as a vbaProject.
+  assert.match(ct, /ContentType="application\/vnd\.ms-excel\.sheet\.macroEnabled\.main\+xml"/);
+  assert.match(ct, /ContentType="application\/vnd\.ms-office\.vbaProject"/);
+
+  // Idempotent: the corrected typing survives a second round-trip.
+  const ct2 = partText(writeXlsx(readXlsx(out)), /\[Content_Types\]\.xml$/);
+  assert.match(ct2, /application\/vnd\.ms-office\.vbaProjectSignature/);
+});
+
 test('slicer and slicer-cache parts survive read→write', () => {
   const src = zipSync(
     packageParts({
