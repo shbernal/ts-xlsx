@@ -1560,6 +1560,79 @@ const impl = {
     };
   },
 
+  // Chain all three structural edits through the *public, package-level* surface — Workbook.addVbaModule,
+  // Workbook.removeVbaModule, Workbook.addVbaReference — rather than calling the project-editor primitives
+  // directly, the way xlsmVbaAddModule/xlsmVbaRemoveModule/xlsmVbaAddReference do. Those cases lock the
+  // splice primitives; this one locks that the primitives are actually wired to Workbook and survive a
+  // real readXlsx -> edit -> writeXlsx -> readXlsx package round-trip, not only a bare-bin call. Adds a
+  // module, removes the pre-existing Module1, and adds a reference to the three-module, one-reference
+  // fixture, then asserts: the final module set/kinds are as expected; the hand-crafted
+  // PROJECTREFERENCES record AND the newly added reference are both present; the untouched Class1 module
+  // survives byte-for-byte; the package stays macro-enabled; and _VBA_PROJECT resets to the recompile
+  // cookie.
+  xlsmVbaWorkbookStructuralEdits() {
+    const originalBin = buildVbaFixtureBin();
+    const pkg = buildVbaFixturePackage(originalBin);
+
+    const wb = readXlsx(pkg);
+    wb.addVbaModule({name: 'NewModule', kind: 'procedural', source: 'Sub Added()\r\nEnd Sub'});
+    wb.removeVbaModule('Module1');
+    const newLibid =
+      '*\\G{420B2830-E718-11CF-893D-00A0C9054228}#1.0#0#C:\\Windows\\System32\\scrrun.dll#Microsoft Scripting Runtime';
+    wb.addVbaReference({
+      name: 'Scripting',
+      displayName: 'Microsoft Scripting Runtime',
+      guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+      majorVersion: 1,
+      minorVersion: 0,
+      path: 'C:\\Windows\\System32\\scrrun.dll',
+    });
+
+    const written = writeXlsx(wb);
+    const rewrittenParts = unzipSync(written);
+    const rewrittenIsMacroEnabled = /macroEnabled\.main\+xml/.test(
+      strFromU8(rewrittenParts['[Content_Types].xml']!),
+    );
+
+    const reread = readXlsx(written);
+    const modules = reread.vbaProject?.modules ?? [];
+    const moduleNames = modules.map((m: CorpusApi) => m.name);
+    const moduleKinds = modules.map((m: CorpusApi) => [m.name, m.kind]);
+
+    const rewrittenBin = rewrittenParts['xl/vbaProject.bin'];
+    const rewrittenCfb = rewrittenBin ? new CompoundFile(rewrittenBin) : undefined;
+    const originalCfb = new CompoundFile(originalBin);
+    const untouchedModuleByteIdentical =
+      rewrittenCfb !== undefined &&
+      vbaIndexOfBytes(rewrittenCfb.readStream('Class1')!, originalCfb.readStream('Class1')!) ===
+        0 &&
+      rewrittenCfb.readStream('Class1')!.length === originalCfb.readStream('Class1')!.length;
+
+    const rewrittenDir = rewrittenCfb
+      ? decompressContainer(rewrittenCfb.readStream('dir')!)
+      : undefined;
+    const originalReferencePreserved =
+      rewrittenDir !== undefined &&
+      vbaIndexOfBytes(rewrittenDir, Uint8Array.from(vbaAscii(VBA_FIXTURE_REF_MARKER))) >= 0;
+    const newReferencePresent =
+      rewrittenDir !== undefined &&
+      vbaIndexOfBytes(rewrittenDir, Uint8Array.from(vbaAscii(newLibid))) >= 0;
+
+    const recompileCookieReset =
+      rewrittenCfb !== undefined &&
+      vbaIndexOfBytes(rewrittenCfb.readStream('_VBA_PROJECT')!, VBA_RECOMPILE_COOKIE) === 0;
+
+    return {
+      moduleNames,
+      moduleKinds,
+      rewrittenIsMacroEnabled,
+      untouchedModuleByteIdentical,
+      originalReferencePreserved,
+      newReferencePresent,
+      recompileCookieReset,
+    };
+  },
+
   // Anchor two images, then remove one by its media id → { supported, before, after, removedGone,
   // othersSurvive }. Removal must drop exactly the targeted image and leave the rest anchored.
   removeImageReport(range = 'A1:B2') {

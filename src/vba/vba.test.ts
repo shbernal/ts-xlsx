@@ -4,7 +4,13 @@ import {test} from 'node:test';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../core/workbook.ts';
-import {editXlsxVbaModuleSource, editXlsxVbaModuleSources} from '../io/xlsx/edit-vba.ts';
+import {
+  editXlsxVbaAddModule,
+  editXlsxVbaAddReference,
+  editXlsxVbaModuleSource,
+  editXlsxVbaModuleSources,
+  editXlsxVbaRemoveModule,
+} from '../io/xlsx/edit-vba.ts';
 import {readXlsx} from '../io/xlsx/read.ts';
 import {writeXlsx} from '../io/xlsx/write.ts';
 import {CompoundFile} from './cfb.ts';
@@ -1512,6 +1518,174 @@ test('setVbaModuleSource rejects an unknown module without disturbing the existi
   assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected edit leaves the workbook untouched');
 });
 
+// ── Structural edits through the public surface: Workbook.addVbaModule / removeVbaModule / addVbaReference
+
+test('Workbook.addVbaModule adds a module to a read workbook and preserves references end-to-end', () => {
+  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload));
+  const wb = readXlsx(xlsmPackage(bin));
+
+  wb.addVbaModule({name: 'NewModule', kind: 'procedural', source: 'Sub Added()\r\nEnd Sub'});
+
+  const reDir = decompressContainer(
+    new CompoundFile(unzipSync(writeXlsx(wb))['xl/vbaProject.bin']!).readStream('dir')!,
+  );
+  assert.ok(
+    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
+    'the PROJECTREFERENCES record survives the whole package round-trip',
+  );
+
+  const reread = readXlsx(writeXlsx(wb));
+  assert.deepEqual(
+    reread.vbaProject?.modules.map((m) => [m.name, m.kind]),
+    [
+      ['ThisWorkbook', 'document'],
+      ['Module1', 'procedural'],
+      ['Class1', 'class'],
+      ['NewModule', 'procedural'],
+    ],
+  );
+});
+
+test('Workbook.addVbaModule on a macro-free workbook throws without attaching a project', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  assert.throws(
+    () => wb.addVbaModule({name: 'Module1', kind: 'procedural', source: ''}),
+    VbaAuthorError,
+  );
+  assert.equal(wb.vbaProjectBytes, undefined, 'no project is attached by a rejected add');
+});
+
+test('Workbook.addVbaModule rejects a duplicate name without disturbing the existing project', () => {
+  const wb = readXlsx(xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES)));
+  const before = wb.vbaProjectBytes;
+
+  assert.throws(
+    () => wb.addVbaModule({name: 'module1', kind: 'procedural', source: ''}),
+    VbaAuthorError,
+  );
+  assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected add leaves the workbook untouched');
+});
+
+test('Workbook.addVbaModule drops a stale signature', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  const wb = readXlsx(xlsmPackage(bin, Uint8Array.from([1, 2, 3])));
+  assert.ok(unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'], 'precondition: signed');
+
+  wb.addVbaModule({name: 'NewModule', kind: 'procedural', source: ''});
+
+  assert.equal(
+    unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'],
+    undefined,
+    'the signature over old bytes is dropped',
+  );
+});
+
+test('Workbook.removeVbaModule removes a module from a read workbook and preserves references end-to-end', () => {
+  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload));
+  const wb = readXlsx(xlsmPackage(bin));
+
+  wb.removeVbaModule('Module1');
+
+  const reDir = decompressContainer(
+    new CompoundFile(unzipSync(writeXlsx(wb))['xl/vbaProject.bin']!).readStream('dir')!,
+  );
+  assert.ok(
+    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
+    'the PROJECTREFERENCES record survives the whole package round-trip',
+  );
+
+  const reread = readXlsx(writeXlsx(wb));
+  assert.deepEqual(
+    reread.vbaProject?.modules.map((m) => [m.name, m.kind]),
+    [
+      ['ThisWorkbook', 'document'],
+      ['Class1', 'class'],
+    ],
+  );
+});
+
+test('Workbook.removeVbaModule on a macro-free workbook throws', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  assert.throws(() => wb.removeVbaModule('Module1'), VbaAuthorError);
+});
+
+test('Workbook.removeVbaModule rejects an unknown module without disturbing the existing project', () => {
+  const wb = readXlsx(xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES)));
+  const before = wb.vbaProjectBytes;
+
+  assert.throws(() => wb.removeVbaModule('Nope'), VbaAuthorError);
+  assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected removal leaves the workbook untouched');
+});
+
+test('Workbook.removeVbaModule rejects removing a document module fail-closed', () => {
+  const wb = readXlsx(xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES)));
+  assert.throws(() => wb.removeVbaModule('ThisWorkbook'), VbaAuthorError);
+});
+
+test('Workbook.addVbaReference adds a reference to a read workbook, preserving modules', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  const wb = readXlsx(xlsmPackage(bin));
+
+  wb.addVbaReference({
+    name: 'Scripting',
+    guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+    majorVersion: 1,
+    minorVersion: 0,
+    path: 'C:\\Windows\\System32\\scrrun.dll',
+  });
+
+  const reDir = decompressContainer(
+    new CompoundFile(unzipSync(writeXlsx(wb))['xl/vbaProject.bin']!).readStream('dir')!,
+  );
+  assert.ok(
+    indexOfBytes(reDir, Uint8Array.from(ascii('Scripting'))) >= 0,
+    'the new reference is present after a full package round-trip',
+  );
+  assert.deepEqual(
+    readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
+    ['ThisWorkbook', 'Module1', 'Class1'],
+    'the module set is unaffected',
+  );
+});
+
+test('Workbook.addVbaReference on a macro-free workbook throws', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  assert.throws(
+    () =>
+      wb.addVbaReference({
+        name: 'Scripting',
+        guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+        majorVersion: 1,
+        minorVersion: 0,
+        path: 'C:\\Windows\\System32\\scrrun.dll',
+      }),
+    VbaAuthorError,
+  );
+});
+
+test('Workbook.addVbaReference rejects an invalid reference without disturbing the existing project', () => {
+  const wb = readXlsx(xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES)));
+  const before = wb.vbaProjectBytes;
+
+  assert.throws(
+    () =>
+      wb.addVbaReference({
+        name: '1Bad',
+        guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+        majorVersion: 1,
+        minorVersion: 0,
+        path: 'C:\\Windows\\System32\\scrrun.dll',
+      }),
+    VbaAuthorError,
+  );
+  assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected add leaves the workbook untouched');
+});
+
 // ── Package-preserving edit: editXlsxVbaModuleSource(s) ───────────────────────────────────────────────
 // The functional path that splices the macro into the original package bytes, so a real .xlsm's non-macro
 // content survives exactly — the highest-fidelity way to tweak an existing macro (no model round-trip).
@@ -1607,4 +1781,190 @@ test('editXlsxVbaModuleSource throws for a macro-free package', () => {
 test('editXlsxVbaModuleSource propagates VbaAuthorError for an unknown module', () => {
   const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
   assert.throws(() => editXlsxVbaModuleSource(pkg, 'Nope', 'x'), VbaAuthorError);
+});
+
+// ── Package-preserving structural edits: editXlsxVbaAddModule / editXlsxVbaRemoveModule / ──────────────
+// ── editXlsxVbaAddReference ──────────────────────────────────────────────────────────────────────────
+
+test('editXlsxVbaAddModule adds a module and preserves every other package part byte-for-byte', () => {
+  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload)));
+  const before = unzipSync(pkg);
+
+  const after = unzipSync(
+    editXlsxVbaAddModule(pkg, {
+      name: 'NewModule',
+      kind: 'procedural',
+      source: 'Sub A()\r\nEnd Sub',
+    }),
+  );
+
+  assert.deepEqual(
+    Object.keys(after).sort(),
+    Object.keys(before).sort(),
+    'no parts are added or removed',
+  );
+  for (const name of Object.keys(before)) {
+    if (name === 'xl/vbaProject.bin') continue;
+    assert.deepEqual(after[name], before[name], `${name} is preserved byte-for-byte`);
+  }
+
+  const project = parseVbaProject(after['xl/vbaProject.bin']!);
+  assert.deepEqual(
+    project.modules.map((m) => m.name),
+    ['ThisWorkbook', 'Module1', 'Class1', 'NewModule'],
+  );
+  const reDir = decompressContainer(
+    new CompoundFile(after['xl/vbaProject.bin']!).readStream('dir')!,
+  );
+  assert.ok(
+    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
+    'the PROJECTREFERENCES record survives the splice',
+  );
+});
+
+test('editXlsxVbaAddModule drops a stale signature part', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES), Uint8Array.from([1, 2, 3]));
+  assert.ok(unzipSync(pkg)['xl/vbaProjectSignature.bin'], 'precondition: the package is signed');
+
+  const after = unzipSync(
+    editXlsxVbaAddModule(pkg, {name: 'NewModule', kind: 'procedural', source: ''}),
+  );
+  assert.equal(after['xl/vbaProjectSignature.bin'], undefined, 'the signature part is dropped');
+});
+
+test('editXlsxVbaAddModule throws for a macro-free package', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  assert.throws(
+    () => editXlsxVbaAddModule(writeXlsx(wb), {name: 'M', kind: 'procedural', source: ''}),
+    VbaAuthorError,
+  );
+});
+
+test('editXlsxVbaAddModule propagates VbaAuthorError for a duplicate module name', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+  assert.throws(
+    () => editXlsxVbaAddModule(pkg, {name: 'Module1', kind: 'procedural', source: ''}),
+    VbaAuthorError,
+  );
+});
+
+test('editXlsxVbaRemoveModule removes a module and preserves every other package part byte-for-byte', () => {
+  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload)));
+  const before = unzipSync(pkg);
+
+  const after = unzipSync(editXlsxVbaRemoveModule(pkg, 'Module1'));
+
+  assert.deepEqual(
+    Object.keys(after).sort(),
+    Object.keys(before).sort(),
+    'no parts are added or removed',
+  );
+  for (const name of Object.keys(before)) {
+    if (name === 'xl/vbaProject.bin') continue;
+    assert.deepEqual(after[name], before[name], `${name} is preserved byte-for-byte`);
+  }
+
+  const project = parseVbaProject(after['xl/vbaProject.bin']!);
+  assert.deepEqual(
+    project.modules.map((m) => m.name),
+    ['ThisWorkbook', 'Class1'],
+  );
+  const reDir = decompressContainer(
+    new CompoundFile(after['xl/vbaProject.bin']!).readStream('dir')!,
+  );
+  assert.ok(
+    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
+    'the PROJECTREFERENCES record survives the splice',
+  );
+});
+
+test('editXlsxVbaRemoveModule drops a stale signature part', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES), Uint8Array.from([1, 2, 3]));
+  assert.ok(unzipSync(pkg)['xl/vbaProjectSignature.bin'], 'precondition: the package is signed');
+
+  const after = unzipSync(editXlsxVbaRemoveModule(pkg, 'Module1'));
+  assert.equal(after['xl/vbaProjectSignature.bin'], undefined, 'the signature part is dropped');
+});
+
+test('editXlsxVbaRemoveModule throws for a macro-free package', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  assert.throws(() => editXlsxVbaRemoveModule(writeXlsx(wb), 'Module1'), VbaAuthorError);
+});
+
+test('editXlsxVbaRemoveModule propagates VbaAuthorError for an unknown module', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+  assert.throws(() => editXlsxVbaRemoveModule(pkg, 'Nope'), VbaAuthorError);
+});
+
+test('editXlsxVbaRemoveModule propagates VbaAuthorError for a document module', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+  assert.throws(() => editXlsxVbaRemoveModule(pkg, 'ThisWorkbook'), VbaAuthorError);
+});
+
+test('editXlsxVbaAddReference adds a reference and preserves every other package part byte-for-byte', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+  const before = unzipSync(pkg);
+
+  const after = unzipSync(
+    editXlsxVbaAddReference(pkg, {
+      name: 'Scripting',
+      guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+      majorVersion: 1,
+      minorVersion: 0,
+      path: 'C:\\Windows\\System32\\scrrun.dll',
+    }),
+  );
+
+  for (const name of Object.keys(before)) {
+    if (name === 'xl/vbaProject.bin') continue;
+    assert.deepEqual(after[name], before[name], `${name} is preserved byte-for-byte`);
+  }
+
+  const reDir = decompressContainer(
+    new CompoundFile(after['xl/vbaProject.bin']!).readStream('dir')!,
+  );
+  assert.ok(
+    indexOfBytes(reDir, Uint8Array.from(ascii('Scripting'))) >= 0,
+    'the new reference is present in the spliced project',
+  );
+  assert.deepEqual(
+    parseVbaProject(after['xl/vbaProject.bin']!).modules.map((m) => m.name),
+    ['ThisWorkbook', 'Module1', 'Class1'],
+    'the module set is unaffected',
+  );
+});
+
+test('editXlsxVbaAddReference throws for a macro-free package', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  assert.throws(
+    () =>
+      editXlsxVbaAddReference(writeXlsx(wb), {
+        name: 'Scripting',
+        guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+        majorVersion: 1,
+        minorVersion: 0,
+        path: 'C:\\Windows\\System32\\scrrun.dll',
+      }),
+    VbaAuthorError,
+  );
+});
+
+test('editXlsxVbaAddReference propagates VbaAuthorError for an invalid reference', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+  assert.throws(
+    () =>
+      editXlsxVbaAddReference(pkg, {
+        name: '1Bad',
+        guid: '{420B2830-E718-11CF-893D-00A0C9054228}',
+        majorVersion: 1,
+        minorVersion: 0,
+        path: 'C:\\Windows\\System32\\scrrun.dll',
+      }),
+    VbaAuthorError,
+  );
 });

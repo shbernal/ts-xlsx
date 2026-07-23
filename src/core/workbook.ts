@@ -6,12 +6,17 @@
 // first place, rather than failing only at write time.
 
 import {
+  addVbaModule,
+  addVbaReference,
   editVbaModuleSources,
   parseVbaProject,
+  removeVbaModule,
   VBA_PROJECT_CONTENT_TYPE,
   VBA_PROJECT_PART_PATH,
   VBA_PROJECT_REL_TYPE,
   VbaAuthorError,
+  type VbaLibraryReference,
+  type VbaModuleSource,
   type VbaProject,
   type VbaProjectSpec,
   writeVbaProject,
@@ -289,6 +294,66 @@ export class Workbook {
     // editVbaModuleSources validates fail-closed and returns fresh bytes; the assignment then routes
     // through the same attach path as raw bytes, so signature-drop and re-emit are shared.
     this.vbaProjectBytes = editVbaModuleSources(bytes, new Map([[name, source]]));
+  }
+
+  /**
+   * Add a standard module to this workbook's existing macro project, in place. The structural
+   * counterpart to {@link setVbaModuleSource}: rather than swapping a module's source, this grows the
+   * project by one module while every existing module, reference, and host-info record rides through
+   * unchanged (see {@link addVbaModule}). Replacing the project also drops a stale signature, as
+   * {@link vbaProjectBytes} does.
+   *
+   * Only `procedural` and `class` modules can be added this way — see {@link addVbaModule} for why.
+   *
+   * @throws {@link VbaAuthorError} if the workbook has no macro project, `module.name` is not a valid VBA
+   *   identifier, collides (case-insensitively) with an existing module, or `module.source` has a
+   *   character the project's code page cannot represent.
+   * @throws {@link VbaParseError} if the attached `vbaProject.bin` is malformed.
+   */
+  addVbaModule(module: VbaModuleSource): void {
+    const bytes = this.vbaProjectBytes;
+    if (bytes === undefined) {
+      throw new VbaAuthorError('workbook has no VBA project to add a module to');
+    }
+    this.vbaProjectBytes = addVbaModule(bytes, module);
+  }
+
+  /**
+   * Remove a standard module from this workbook's existing macro project, in place. The inverse of
+   * {@link addVbaModule}: every remaining module, reference, and host-info record rides through
+   * unchanged (see {@link removeVbaModule}). Replacing the project also drops a stale signature, as
+   * {@link vbaProjectBytes} does.
+   *
+   * Only `procedural` and `class` modules can be removed this way — see {@link removeVbaModule} for why.
+   *
+   * @throws {@link VbaAuthorError} if the workbook has no macro project, or `name` is not in the project,
+   *   or names a `document`/`designer` module.
+   * @throws {@link VbaParseError} if the attached `vbaProject.bin` is malformed.
+   */
+  removeVbaModule(name: string): void {
+    const bytes = this.vbaProjectBytes;
+    if (bytes === undefined) {
+      throw new VbaAuthorError('workbook has no VBA project to remove a module from');
+    }
+    this.vbaProjectBytes = removeVbaModule(bytes, name);
+  }
+
+  /**
+   * Add a registered (COM type-library) reference to this workbook's existing macro project, in place.
+   * Every existing module, reference, and host-info record rides through unchanged (see
+   * {@link addVbaReference}). Replacing the project also drops a stale signature, as
+   * {@link vbaProjectBytes} does.
+   *
+   * @throws {@link VbaAuthorError} if the workbook has no macro project, or any field of `ref` is invalid
+   *   (see {@link VbaLibraryReference}).
+   * @throws {@link VbaParseError} if the attached `vbaProject.bin` is malformed.
+   */
+  addVbaReference(ref: VbaLibraryReference): void {
+    const bytes = this.vbaProjectBytes;
+    if (bytes === undefined) {
+      throw new VbaAuthorError('workbook has no VBA project to add a reference to');
+    }
+    this.vbaProjectBytes = addVbaReference(bytes, ref);
   }
 
   #vbaProjectEntry(): PreservedPart | undefined {
