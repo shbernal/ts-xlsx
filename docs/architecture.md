@@ -87,6 +87,7 @@ order:
 | xlsx read/write | OOXML parse and serialize; the hardest, highest-value surface |
 | streaming | bounded-memory row streaming — reads, and an incremental workbook writer |
 | csv | a thin, optional entry point, never coupled to the xlsx core |
+| vba | native read/author/edit of a macro-enabled workbook's `vbaProject.bin` (`src/vba/`) |
 
 Cell formatting is one named tuple, not six loose fields. `CellStyle` in `core/style.ts`
 holds the six OOXML direct-format facets (`fill`, `numFmt`, `font`, `border`, `alignment`,
@@ -127,6 +128,79 @@ streaming *reader*'s per-row/cell output stays inferred-structural rather than a
 commitment. The [API reference](api/README.md) is generated straight from the barrel, so it
 cannot describe a shape the compiler wouldn't accept.
 
+## The VBA subsystem
+
+Macro-enabled workbooks (`.xlsm`/`.xltm`) carry their VBA as a single opaque part,
+`vbaProject.bin` — an OLE2 / Compound File ([MS-CFB]) container holding Office
+run-length-compressed ([MS-OVBA]) module source and p-code. OOXML treats it as a binary
+blob referenced by a workbook relationship; the ZIP package is otherwise identical to a plain
+`.xlsx`. `src/vba/` is the self-contained, dependency-free subsystem that reads, authors, and
+edits that blob natively — no `fflate`, no runtime dependency, just bytes.
+
+**Preservation is the safety floor, and every VBA feature is additive over it.** Read captures
+`vbaProject.bin` (and its relationship/content-type closure, including a sibling
+`vbaProjectSignature`) as a `PreservedWorkbookReference`, and the writer re-emits those bytes
+verbatim — so a load/edit/save of an `.xlsm` keeps its macros with no VBA-specific code on the
+common path. Everything below layers onto that guarantee; none of it can desync the two
+representations, because a *read-and-not-re-authored* project is still emitted from the
+preserved bytes alone.
+
+The subsystem is built as encode/decode pairs over two formats plus a project layer:
+
+- **CFB container** — `cfb.ts` (reader) and `cfb-writer.ts` (writer). The reader walks the
+  header → FAT → directory (+ mini-FAT) and reconstructs the whole storage/stream tree so the
+  edit path can re-emit it with one stream swapped; the writer emits a v3 container whose
+  storages are the name-ordered balanced red-black tree a *navigating* host (Excel) needs, not
+  just the linear scan our own reader would accept.
+- **MS-OVBA compression** — `ms-ovba.ts` (`decompressContainer` / `compressContainer`): the
+  chunked copy-token/literal-run codec Office uses for module source and the `dir` stream (it
+  is *not* deflate). The compressor's contract is that its output re-expands byte-for-byte.
+- **Project layer** — `project.ts` decodes the `VBA/dir` and module streams into a typed view;
+  `project-writer.ts` synthesizes a fresh project from a module list; `project-editor.ts`
+  splices an existing one. `codepage.ts` handles the project code page (MBCS, not latin1) in
+  both directions, and `errors.ts` holds the two failure types.
+
+**The reader is hostile-input-facing (CLAUDE.md §3).** Every CFB sector index, chain, and
+stream size is bounds-checked and cycle-guarded; every MS-OVBA back-reference is validated and
+total output is bomb-capped. A malformed project fails closed with `VbaParseError` — never a
+crash, hang, or unbounded allocation — each guard pinned by a crafted-malformed fixture. The
+authoring/encode side is *our own* bytes, so it fails closed with `VbaAuthorError` on a
+contract violation (over-long or duplicate stream name, unrepresentable character) rather than
+emitting a silently broken container.
+
+The public surface layers by fidelity and intent, each slice fail-closed:
+
+- **Read** — `Workbook.vbaProject: VbaProject | undefined` parses the preserved bytes *lazily*
+  and memoises; modules expose `name`, `streamName`, `kind` (the full procedural / document /
+  class / designer classification), and decompressed `source`. A read never perturbs what the
+  writer emits (ADR 0016).
+- **Attach / replace / strip** — `Workbook.vbaProjectBytes` is a get/set accessor pair over the
+  raw blob; a set is validated by `parseVbaProject` *before* any state change, so a bad blob is
+  rejected whole, and replacing or removing drops the old bytes' now-stale signature (ADR 0017 §2.1).
+- **Author from source** — `Workbook.setVbaProject({modules})` (or standalone `writeVbaProject`)
+  synthesizes a complete `vbaProject.bin` with no p-code, so Excel recompiles from source on
+  open; procedural and class modules only — document/designer are host-coupled and rejected
+  (ADR 0017 §2.3).
+- **Edit an existing module in place** — a *splice*, not a re-synthesis: replace only the edited
+  module's compressed source stream, zero its `MODULEOFFSET`, reset `_VBA_PROJECT` to the
+  recompile cookie, and leave every other stream — references, host linkage, untouched modules —
+  byte-for-byte. Because host linkage is inherited rather than synthesized, this *can* edit
+  document/designer code-behinds (`ThisWorkbook`, `Sheet1`) that from-scratch authoring cannot.
+  Two surfaces at different fidelity: `Workbook.setVbaModuleSource(name, source)` (model level)
+  and `editXlsxVbaModuleSource(s)` in `src/io/xlsx/edit-vba.ts` (package level, swapping only
+  `xl/vbaProject.bin` and leaving every other part untouched). The package-level path is the
+  highest-fidelity way to edit a real workbook, because the model round-trip re-serialises the
+  whole package and can perturb parts Excel is strict about — a pre-existing, VBA-independent
+  `writeXlsx` gap, not the edit's fault (ADR 0018).
+
+Because a synthesized or spliced project claims no valid p-code, correctness here cannot be
+proven by our own reader alone — the authoring paths are **verified against real Excel 365** (the
+ADR-0013 open-verdict oracle: opens clean, re-saves with every module recompiled and its source
+preserved). Those verdicts are recorded probe facts; CI locks the parse round-trip and a
+security-cluster corpus case. *Adding or removing* modules/references is not yet in scope, and
+*executing* macros never will be — that needs a live host, and this is a document tool, not a VBA
+interpreter (ADR 0013).
+
 ## Tech decisions
 
 The stack is deliberately small and each choice is recorded as an ADR under
@@ -140,6 +214,8 @@ The stack is deliberately small and each choice is recorded as an ADR under
   on every parser path) — ADR-0003.
 - **Docs generated from the types** — ADR-0006.
 - **Spec reference** (vendored OOXML schemas + Microsoft Learn MCP) — ADR-0007.
+- **VBA subsystem** (read view; authoring in scope; edit-existing-source by splice) — ADRs
+  0016–0018; Excel as a test oracle for the authoring paths — ADR-0013.
 
 ## Working agreements
 
