@@ -1,9 +1,11 @@
 // Native VBA read and authoring: decode a macro-enabled workbook's `vbaProject.bin` into readable module
-// source, and synthesize a valid `.bin` from module source (the §2.3 authoring line — encode primitives
-// here, the public surface still landing).
+// source, synthesize a fresh `.bin` from module source, and edit an existing module's source in place by
+// splicing the original bytes (references and other modules preserved).
 //
-// The read path is a projection over bytes the model preserves opaquely on round-trip. See
-// docs/plans/vba-read-and-handling.md for the design invariant and the wider VBA feature map.
+// The read path is a projection over bytes the model preserves opaquely on round-trip. For the design
+// invariants and the wider VBA feature map see the ADRs: read view (docs/decisions/0016), authoring
+// (0017), and edit-existing-source by splice (0018), plus the spec
+// docs/knowledge/specs/xlsm-macro-preservation.md.
 
 export {
   type CfbNode,

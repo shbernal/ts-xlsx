@@ -40,16 +40,29 @@ Node; that needs a live Excel/automation host and is not a document-tool concern
   against real Excel 365:** a synthesized workbook opens clean and, re-saved macro-enabled, preserves
   every module with its source. This makes the workbook an emission authority for authored macros — the
   reversal of ADR 0016's read-only-view core.
+- Callers can **edit an existing module's source in place**, preserving the project's references,
+  host-extender info, and every other module — see ADR 0018. The edit is a *splice* over the original
+  `vbaProject.bin`: it replaces only the edited module's compressed source stream, zeroes its
+  MODULEOFFSET, and resets `_VBA_PROJECT` to recompile from source, never touching the streams that carry
+  references or other modules. Unlike from-scratch authoring, this **can edit document/designer modules**
+  (e.g. `ThisWorkbook`, `Sheet1`) because it inherits their host linkage from the preserved streams rather
+  than synthesizing it. Two surfaces: `Workbook.setVbaModuleSource(name, source)` (model level) and
+  `editXlsxVbaModuleSource(xlsx, name, source)` / `editXlsxVbaModuleSources(xlsx, edits)` (package level,
+  swapping only `xl/vbaProject.bin` and leaving every other part byte-for-byte). The package-level path is
+  the highest-fidelity way to edit a real workbook — the model round-trip re-serializes the whole package
+  and can perturb strict parts on rich files (a pre-existing, VBA-independent `writeXlsx` gap; see below).
+  **Verified against real Excel** on a genuine 10-module workbook, including editing a document code-behind
+  → opens clean and recompiles.
 - A signed VBA project's `vbaProjectSignature` part is preserved alongside — it is a sibling part
   reached from `xl/_rels/vbaProject.bin.rels`, so the closure walk carries it through, and its
   distinct `.bin` content type is re-declared per-part (not collapsed into the `vbaProject` default,
   which a single extension `<Default>` would otherwise do — locked by `preserved-parts.test.ts`).
   Editing the *project itself* legitimately invalidates the signature; editing unrelated cells does
-  not (see open questions).
-- **Out of scope:** executing/running macros (needs a live host — ADR 0013), and *editing macro
-  source* (first-class source → `.bin` synthesis is the next authoring slice — ADR 0017 §2.3).
-  Attaching/replacing a whole `.bin` at the bytes level is in scope (ADR 0017). The library is a
-  document tool, not a VBA interpreter.
+  not (see open questions). Both edit surfaces (ADR 0018) drop the now-stale signature on a source edit.
+- **Out of scope:** executing/running macros (needs a live host — ADR 0013), and *adding or removing*
+  modules/references (only editing an existing module's source is in scope — ADR 0018). Attaching or
+  replacing a whole `.bin`, authoring a project from source, and editing an existing module's source are
+  all in scope (ADRs 0017, 0018). The library is a document tool, not a VBA interpreter.
 
 ## Prior art
 
@@ -67,14 +80,16 @@ without parsing. Macro-enabled templates (.xltm) are the template analog.
 - ~~Expose the VBA project bytes to callers, or only pass them through opaquely?~~ **Decided
   (ADR 0016):** exposed as a lazy, read-only typed view (`Workbook.vbaProject`), derived from the
   preserved bytes with no write-back path.
-- ~~Let callers author macros, or only preserve what a read produced?~~ **Partly decided
-  (ADR 0017):** the forcing-consumer gate is lifted — attach-blob authoring shipped
-  (`Workbook.vbaProjectBytes` get/set: attach/replace/copy/remove a raw `.bin`, validated fail-closed).
-  First-class authoring (edited *source* → synthesized `.bin`) is the next slice and will make an
-  authoring surface an emission authority, amending ADR 0016 when it lands.
-- How strictly to handle/warn about the signature part when the workbook is mutated. (The part now
-  survives round-trip correctly typed; the *policy* on drop-vs-warn when the project is edited still
-  waits for a consumer. An `isSigned` accessor is sourceable from the preserved closure once needed.)
+- ~~Let callers author macros, or only preserve what a read produced?~~ **Decided (ADRs 0017, 0018):**
+  the forcing-consumer gate is lifted and authoring is built out. Attach-blob (`Workbook.vbaProjectBytes`),
+  from-scratch synthesis (`Workbook.setVbaProject`/`writeVbaProject`), and editing an existing module's
+  source (`Workbook.setVbaModuleSource`, `editXlsxVbaModuleSource(s)`) all shipped, each fail-closed. Only
+  *adding/removing* modules or references remains unbuilt (a future slice, no consumer yet).
+- **Signature on a source edit is dropped** (ADR 0018): editing the project invalidates any signature over
+  it, so both edit surfaces discard the stale `vbaProjectSignature` (part, relationship, content-type
+  override) rather than leave it advertising a broken signature. Editing unrelated cells still preserves
+  it (the part round-trips correctly typed). An `isSigned` accessor is still sourceable from the preserved
+  closure once a consumer needs it.
 - ~~Parse macro/toolbar-referenced `customUI`, or leave it opaque?~~ **Audited & fixed:** the ribbon
   parts (`customUI/customUI.xml`, `customUI14.xml`) hang off the *package root* `_rels/.rels`, not the
   workbook rels, so the workbook-closure net never reached them and the writer — which regenerates the
@@ -82,4 +97,6 @@ without parsing. Macro-enabled templates (.xltm) are the template analog.
   re-declared verbatim on write (locked by `preserved-parts.test.ts`). Parsing the ribbon XML into a
   model stays deferred (no consumer); it round-trips opaquely, like the rest of the preserved net.
 
-Related: `roundtrip-preserves-unmodeled-package-parts`; ADR 0016 (read view + authoring deferred).
+Related: `roundtrip-preserves-unmodeled-package-parts`; ADR 0016 (read view + authoring deferred),
+ADR 0017 (authoring in scope; attach-blob + from-scratch synthesis), ADR 0018 (editing an existing
+module's source by splice).
