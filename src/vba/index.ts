@@ -4,7 +4,13 @@
 // never re-serialises them (Workbook keeps emitting the original blob byte-for-byte). See
 // docs/plans/vba-read-and-handling.md for the design invariant and the wider VBA feature map.
 
-export {VbaParseError} from './errors.ts';
+export {
+  type CfbNode,
+  type CfbStorage,
+  type CfbStream,
+  writeCompoundFile,
+} from './cfb-writer.ts';
+export {VbaAuthorError, VbaParseError} from './errors.ts';
 export {
   parseVbaProject,
   VBA_PROJECT_CONTENT_TYPE,

@@ -37,11 +37,22 @@ it satisfies its underlying requirement by a different, and arguably stronger, m
      reference is byte-identical in shape to what the reader captures for a macro workbook, so the
      writer emits a valid macro-enabled package with **zero writer changes** — the content-type and
      rel-wiring machinery already keys off the preserved `vbaProject` reference.
-   - **§2.3 first-class authoring (next slice):** synthesize a valid `vbaProject.bin` from edited/created
-     module source — a CFB writer, the MS-OVBA compress side, the full `dir`/`PROJECT` record set, and
-     the recompile cookie. This makes `VbaProject` (or a sibling authoring surface) an **emission
+   - **§2.3 first-class authoring (in progress):** synthesize a valid `vbaProject.bin` from
+     edited/created module source. This makes `VbaProject` (or a sibling authoring surface) an **emission
      authority**, which reverses ADR 0016's "read-only view, not a source of truth" core; it therefore
-     gets its own ADR amending 0016 when it lands, not a silent extension of this one.
+     gets its own ADR amending 0016 when the *authoring surface* lands (§2.3d), not a silent extension of
+     this one. It is built as internal encode primitives first — each provable in isolation before any
+     public shape changes:
+     - **§2.3a CFB writer (`writeCompoundFile`, done):** the encode counterpart to `cfb.ts` — a
+       hierarchy of storages and streams → a v3 [MS-CFB] container. Emits each storage's children as the
+       name-ordered balanced tree a host *navigates* (not just the linear scan our own reader uses), so
+       the modules resolve under the `VBA` storage in Excel. Proven by re-encoding a real 156 KB
+       Excel-authored project stream-identical, by an independent directory-tree walk reaching every
+       entry, and by `parseVbaProject` decoding the result. Internal to `src/vba`; not on the public
+       barrel yet.
+     - **§2.3b MS-OVBA compressor, §2.3c `dir`/`PROJECT`/module synthesis, §2.3d Workbook authoring
+       surface:** the remaining primitives and the public surface, each a further green slice. §2.3d is
+       the authority shift and carries the ADR-0016 amendment.
 
 3. **The read/attach path stays the safety floor.** §2.1 leaves ADR 0016's read invariant intact:
    preservation is still the sole emission authority, `vbaProjectBytes` simply lets a caller *supply*
