@@ -1,13 +1,16 @@
 // Reader for the OLE2 / Compound File Binary format ([MS-CFB]).
 //
-// `vbaProject.bin` is a CFB container (the same "structured storage" behind legacy .doc/.xls). We only
-// read streams by name — no writing, no storage-tree navigation beyond names — so this is a deliberate
-// subset: header → FAT → directory, plus the mini-FAT for sub-cutoff streams.
+// `vbaProject.bin` is a CFB container (the same "structured storage" behind legacy .doc/.xls). We read
+// streams by name and, for the edit-in-place path, reconstruct the whole storage/stream hierarchy so it
+// can be re-emitted through the writer with one stream swapped — so this is a deliberate subset of
+// [MS-CFB]: header → FAT → directory, plus the mini-FAT for sub-cutoff streams, and the red-black
+// sibling tree each storage navigates.
 //
 // It parses an untrusted blob, so every sector index, chain, and stream size is bounds-checked against
 // the file and every chain walk is cycle-guarded. A malformed container fails closed with a
 // VbaParseError instead of reading out of bounds, looping forever, or over-allocating.
 
+import type {CfbNode} from './cfb-writer.ts';
 import {VbaParseError} from './errors.ts';
 
 interface DirEntry {
@@ -15,11 +18,22 @@ interface DirEntry {
   readonly type: number; // 0=empty 1=storage 2=stream 5=root
   readonly startSector: number;
   readonly size: number;
+  // Red-black sibling-tree links (entry indices, or a terminal marker for "none"). The reader keeps
+  // them so it can walk the tree a host navigates and rebuild the hierarchy, not merely scan names.
+  readonly left: number;
+  readonly right: number;
+  readonly child: number;
 }
 
 // Sector values 0xFFFFFFFA..0xFFFFFFFF are reserved markers (DIFSECT/FATSECT/ENDOFCHAIN/FREESECT), not
-// data-sector indices; any value at or above this is chain-terminal.
+// data-sector indices; any value at or above this is chain-terminal. Directory-tree links reuse the same
+// convention: NOSTREAM (0xFFFFFFFF) and any value at or above the ceiling mean "no such sibling/child".
 const MAX_REGULAR_SECTOR = 0xfffffffa;
+const NOSTREAM = 0xffffffff;
+const TYPE_EMPTY = 0;
+const TYPE_STORAGE = 1;
+const TYPE_STREAM = 2;
+const TYPE_ROOT = 5;
 const CFB_SIGNATURE_LO = 0xe011cfd0;
 const CFB_SIGNATURE_HI = 0xe11ab1a1;
 const DIR_ENTRY_SIZE = 128;
@@ -69,7 +83,7 @@ export class CompoundFile {
     this.#miniFat = this.#readChainValues(firstMiniFatSector);
     this.#dir = this.#readDirectory(firstDirSector);
 
-    const root = this.#dir.find((e) => e.type === 5);
+    const root = this.#dir.find((e) => e.type === TYPE_ROOT);
     if (!root) throw new VbaParseError('compound file has no root storage entry');
     // The mini-stream lives in the regular FAT, addressed from the root entry's start sector.
     this.#miniStream = this.#readViaFat(root.startSector, root.size);
@@ -77,13 +91,53 @@ export class CompoundFile {
 
   /** List every stream/storage name in the directory (order as stored). */
   names(): string[] {
-    return this.#dir.filter((e) => e.type === 2 || e.type === 1).map((e) => e.name);
+    return this.#dir
+      .filter((e) => e.type === TYPE_STREAM || e.type === TYPE_STORAGE)
+      .map((e) => e.name);
   }
 
   /** Read a stream's raw bytes by exact entry name, or `undefined` if absent. */
   readStream(name: string): Uint8Array | undefined {
-    const entry = this.#dir.find((e) => e.type === 2 && e.name === name);
+    const entry = this.#dir.find((e) => e.type === TYPE_STREAM && e.name === name);
     if (!entry) return undefined;
+    return this.#readEntryData(entry);
+  }
+
+  /**
+   * Reconstruct the container's top-level children as the writer's node shape, recursing into every
+   * storage — so a caller can swap one stream and re-emit the whole hierarchy with {@link writeCompoundFile}.
+   * Walks the red-black sibling tree each storage navigates (not the linear directory scan), so any part
+   * a host reaches is carried through. Cycle- and bounds-guarded like every other chain walk here.
+   */
+  tree(): CfbNode[] {
+    const rootIdx = this.#dir.findIndex((e) => e.type === TYPE_ROOT);
+    if (rootIdx < 0) throw new VbaParseError('compound file has no root storage entry');
+    const root = this.#dir[rootIdx] as DirEntry;
+    return this.#buildSiblings(root.child, new Set([rootIdx]));
+  }
+
+  #buildSiblings(firstChild: number, seen: Set<number>): CfbNode[] {
+    const nodes: CfbNode[] = [];
+    const walk = (idx: number): void => {
+      if (idx >= MAX_REGULAR_SECTOR) return; // NOSTREAM / terminal marker → no such sibling
+      if (idx >= this.#dir.length) throw new VbaParseError('directory sibling index out of range');
+      if (seen.has(idx)) throw new VbaParseError('cycle in directory sibling tree');
+      seen.add(idx);
+      const e = this.#dir[idx] as DirEntry;
+      if (e.type === TYPE_EMPTY) throw new VbaParseError('directory tree links an empty entry');
+      walk(e.left);
+      if (e.type === TYPE_STORAGE) {
+        nodes.push({name: e.name, children: this.#buildSiblings(e.child, seen)});
+      } else {
+        nodes.push({name: e.name, data: this.#readEntryData(e)});
+      }
+      walk(e.right);
+    };
+    walk(firstChild);
+    return nodes;
+  }
+
+  #readEntryData(entry: DirEntry): Uint8Array {
     if (entry.size >= this.#miniCutoff) return this.#readViaFat(entry.startSector, entry.size);
     return this.#readViaMiniFat(entry.startSector, entry.size);
   }
@@ -141,11 +195,32 @@ export class CompoundFile {
   #readDirectory(firstDirSector: number): DirEntry[] {
     const raw = this.#readChainFull(firstDirSector);
     const entries: DirEntry[] = [];
+    // Empty slots are kept as placeholders (not skipped) so array indices stay equal to the on-disk
+    // directory-entry ids the sibling-tree links reference — the tree walk in #buildSiblings needs them.
     for (let off = 0; off + DIR_ENTRY_SIZE <= raw.length; off += DIR_ENTRY_SIZE) {
       const type = raw[off + 66] as number;
-      if (type === 0) continue; // unused slot
-      if (type !== 1 && type !== 2 && type !== 5) {
+      if (
+        type !== TYPE_EMPTY &&
+        type !== TYPE_STORAGE &&
+        type !== TYPE_STREAM &&
+        type !== TYPE_ROOT
+      ) {
         throw new VbaParseError(`directory entry has invalid object type ${type}`);
+      }
+      const left = readU32(raw, off + 68);
+      const right = readU32(raw, off + 72);
+      const child = readU32(raw, off + 76);
+      if (type === TYPE_EMPTY) {
+        entries.push({
+          name: '',
+          type,
+          startSector: 0,
+          size: 0,
+          left: NOSTREAM,
+          right: NOSTREAM,
+          child: NOSTREAM,
+        });
+        continue;
       }
       const nameLen = readU16(raw, off + 64);
       if (nameLen > 64 || nameLen % 2 !== 0) {
@@ -154,7 +229,7 @@ export class CompoundFile {
       const name = decodeUtf16le(raw.subarray(off, off + Math.max(0, nameLen - 2)));
       const startSector = readU32(raw, off + 116);
       const size = readU32(raw, off + 120); // low 32 bits — ample for a VBA project
-      entries.push({name, type, startSector, size});
+      entries.push({name, type, startSector, size, left, right, child});
     }
     return entries;
   }

@@ -11,6 +11,7 @@ import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {parseVbaProject} from './project.ts';
+import {editVbaModuleSources} from './project-editor.ts';
 import {writeVbaProject} from './project-writer.ts';
 
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
@@ -853,4 +854,177 @@ test('setVbaProject rejects an invalid spec without disturbing an existing proje
     before,
     'a rejected authoring call leaves the workbook untouched',
   );
+});
+
+// ── Edit-in-place: editVbaModuleSources ──────────────────────────────────────────────────────────────
+
+// Package a project through the *production* CFB writer so it has the navigable red-black sibling tree
+// the editor walks (buildVbaProjectBin leaves those links null — fine for the linear-scan reader, but the
+// editor rebuilds the tree). Optionally append raw dir records (e.g. a PROJECTREFERENCES entry) and a
+// distinctive _VBA_PROJECT, so a test can prove both survive / are replaced as intended.
+function buildNavigableProjectBin(
+  codePage: number,
+  modules: ModuleSpec[],
+  extraDirRecords: number[] = [],
+): Uint8Array {
+  const dir = storeCompress(
+    Uint8Array.from([...buildDirStream(codePage, modules), ...extraDirRecords]),
+  );
+  const vbaChildren: CfbNode[] = [
+    {name: 'dir', data: dir},
+    {name: '_VBA_PROJECT', data: Uint8Array.from([0x61, 0xcc, 0x5e, 0x00, 0x00, 0x01, 0x02, 0x03])},
+    ...modules.map((m) => ({name: m.name, data: buildModuleStream(m)})),
+  ];
+  return writeCompoundFile([
+    {name: 'PROJECT', data: strToU8(PROJECT_STREAM)},
+    {name: 'PROJECTwm', data: Uint8Array.from([0x00, 0x00])},
+    {name: 'VBA', children: vbaChildren},
+  ]);
+}
+
+function indexOfBytes(haystack: Uint8Array, needle: Uint8Array): number {
+  outer: for (let i = 0; i + needle.length <= haystack.length; i++) {
+    for (let j = 0; j < needle.length; j++) if (haystack[i + j] !== needle[j]) continue outer;
+    return i;
+  }
+  return -1;
+}
+
+test('editVbaModuleSources swaps one module and re-parses with the new source', () => {
+  const bin = writeVbaProject({
+    modules: [
+      {name: 'Alpha', kind: 'procedural', source: 'Sub A()\r\nEnd Sub'},
+      {name: 'Beta', kind: 'class', source: 'Public V As Long'},
+    ],
+  });
+  const newSource = 'Sub A()\r\n    MsgBox "edited"\r\nEnd Sub';
+  const project = parseVbaProject(editVbaModuleSources(bin, new Map([['Alpha', newSource]])));
+
+  assert.deepEqual(
+    project.modules.map((m) => [m.name, m.kind]),
+    [
+      ['Alpha', 'procedural'],
+      ['Beta', 'class'],
+    ],
+    'the module set and kinds are unchanged',
+  );
+  assert.equal(project.modules[0]!.source, newSource, 'the edited module carries the new source');
+  assert.equal(project.modules[1]!.source, 'Public V As Long', 'the untouched module is unchanged');
+});
+
+test('editVbaModuleSources preserves references, host info, and untouched modules while editing a document module', () => {
+  // A distinctive PROJECTREFERENCES record the editor must carry through untouched — the whole point of
+  // editing over re-synthesizing (writeVbaProject emits no references at all).
+  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const referenceRecord = rec(0x000d, refPayload); // REFERENCEREGISTERED ([MS-OVBA] 2.3.4.2)
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, referenceRecord);
+
+  const newSource = 'Private Sub Workbook_Open()\r\n    Application.Calculate\r\nEnd Sub';
+  const edited = editVbaModuleSources(bin, new Map([['ThisWorkbook', newSource]]));
+
+  // The edited document module reads back with its new source and unchanged kind — the case
+  // writeVbaProject cannot author (document kind is host-coupled and rejected there).
+  const project = parseVbaProject(edited);
+  assert.deepEqual(
+    project.modules.map((m) => [m.name, m.kind]),
+    [
+      ['ThisWorkbook', 'document'],
+      ['Module1', 'procedural'],
+      ['Class1', 'class'],
+    ],
+  );
+  assert.equal(project.modules[0]!.source, newSource, 'the document module was edited in place');
+  assert.ok(
+    project.modules[1]!.source.includes('А'),
+    'the untouched code-page-1251 module still decodes its Cyrillic source',
+  );
+
+  const before = new CompoundFile(bin);
+  const after = new CompoundFile(edited);
+
+  // Untouched module streams — p-code prefix and all — are byte-identical.
+  assert.deepEqual(after.readStream('Module1'), before.readStream('Module1'));
+  assert.deepEqual(after.readStream('Class1'), before.readStream('Class1'));
+
+  // The edited stream is source-only at offset 0 (no p-code), decoding to the new source.
+  assert.deepEqual(
+    decompressContainer(after.readStream('ThisWorkbook')!),
+    Uint8Array.from(ascii(newSource)),
+  );
+
+  // _VBA_PROJECT is replaced with the unmatchable-version recompile cookie.
+  assert.deepEqual(
+    after.readStream('_VBA_PROJECT'),
+    Uint8Array.from([0xcc, 0x61, 0xff, 0xff, 0x00, 0x00, 0x00]),
+  );
+
+  // The dir stream differs only by zeroing the edited module's MODULEOFFSET; the reference record and
+  // every other record survive byte-for-byte.
+  const dirBefore = decompressContainer(before.readStream('dir')!);
+  const dirAfter = decompressContainer(after.readStream('dir')!);
+  assert.equal(
+    dirBefore.length,
+    dirAfter.length,
+    'no records added or removed, only a field patched',
+  );
+  const changed: number[] = [];
+  for (let i = 0; i < dirBefore.length; i++) if (dirBefore[i] !== dirAfter[i]) changed.push(i);
+  assert.ok(
+    changed.length >= 1 && changed.length <= 4,
+    `only the offset field changes (${changed.length} bytes)`,
+  );
+  for (const i of changed) assert.equal(dirAfter[i], 0, 'patched offset bytes become zero');
+  assert.ok(
+    indexOfBytes(dirAfter, Uint8Array.from(refPayload)) >= 0,
+    'the PROJECTREFERENCES record is preserved',
+  );
+});
+
+test('editVbaModuleSources edits several modules in one call, case-insensitively', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  const edited = editVbaModuleSources(
+    bin,
+    new Map([
+      ['module1', 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub'], // lower-case name resolves
+      ['Class1', 'Public Renamed As String'],
+    ]),
+  );
+  const project = parseVbaProject(edited);
+  assert.equal(project.modules[1]!.source, 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub');
+  assert.equal(project.modules[2]!.source, 'Public Renamed As String');
+  assert.match(project.modules[0]!.source, /Workbook_Open/, 'ThisWorkbook is left untouched');
+});
+
+test('editVbaModuleSources rejects an unknown module fail-closed', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(() => editVbaModuleSources(bin, new Map([['Nope', 'x']])), VbaAuthorError);
+});
+
+test('editVbaModuleSources rejects a malformed container as a parse error', () => {
+  assert.throws(
+    () => editVbaModuleSources(Uint8Array.from([1, 2, 3, 4]), new Map([['A', 'x']])),
+    VbaParseError,
+  );
+});
+
+test('editVbaModuleSources round-trips non-ASCII source through the project code page', () => {
+  const bin = buildNavigableProjectBin(1251, MODULES);
+  const edited = editVbaModuleSources(
+    bin,
+    new Map([['Module1', 'Sub T()\r\n    Rem Ж\r\nEnd Sub']]),
+  );
+  assert.ok(parseVbaProject(edited).modules[1]!.source.includes('Ж'));
+});
+
+test('editVbaModuleSources rejects source the code page cannot represent', () => {
+  const bin = buildNavigableProjectBin(1252, MODULES);
+  assert.throws(
+    () => editVbaModuleSources(bin, new Map([['Module1', 'Rem 你好']])),
+    VbaAuthorError,
+  );
+});
+
+test('editVbaModuleSources with no edits returns the input unchanged', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.equal(editVbaModuleSources(bin, new Map()), bin);
 });
