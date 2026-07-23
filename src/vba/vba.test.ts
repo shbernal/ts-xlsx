@@ -11,6 +11,7 @@ import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {parseVbaProject} from './project.ts';
+import {writeVbaProject} from './project-writer.ts';
 
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
 // These construct a genuine, spec-valid `vbaProject.bin` from scratch: an MS-OVBA "store" encoder
@@ -476,6 +477,103 @@ test('writeCompoundFile rejects duplicate sibling names', () => {
       ]),
     VbaAuthorError,
   );
+});
+
+// ── Project synthesis (§2.3c): writeVbaProject ───────────────────────────────────────────────────────
+
+// The Excel oracle recorded these synthesized projects opening clean (no repair) and surviving a
+// macro-enabled re-save with every module recompiled and its source preserved (ADR 0017 §2.3c). That
+// verdict is a probe, not CI; the durable CI check below is the parse round-trip.
+
+test('writeVbaProject round-trips procedural and class modules through parseVbaProject', () => {
+  const modules = [
+    {
+      name: 'Module1',
+      kind: 'procedural' as const,
+      source: 'Sub Hello()\r\n    MsgBox "hi"\r\nEnd Sub',
+    },
+    {
+      name: 'Class1',
+      kind: 'class' as const,
+      source: 'Public X As Long\r\nPublic Sub Reset()\r\n    X = 0\r\nEnd Sub',
+    },
+  ];
+  const project = parseVbaProject(writeVbaProject({modules}));
+
+  assert.equal(project.codePage, 1252);
+  assert.deepEqual(
+    project.modules.map((m) => [m.name, m.kind]),
+    [
+      ['Module1', 'procedural'],
+      ['Class1', 'class'],
+    ],
+  );
+  assert.equal(
+    project.modules[0]!.source,
+    modules[0]!.source,
+    'procedural source survives verbatim',
+  );
+  assert.equal(project.modules[1]!.source, modules[1]!.source, 'class source survives verbatim');
+});
+
+test('writeVbaProject nests the module and metadata streams under a VBA storage', () => {
+  const bin = writeVbaProject({
+    modules: [{name: 'Module1', kind: 'procedural', source: 'Sub A()\r\nEnd Sub'}],
+  });
+  assert.deepEqual(
+    treeReachableStreams(bin).sort(),
+    ['/PROJECT', '/PROJECTwm', '/VBA/Module1', '/VBA/_VBA_PROJECT', '/VBA/dir'],
+    'a host navigating the directory tree finds dir, _VBA_PROJECT, and the module under VBA',
+  );
+});
+
+test('a workbook with a synthesized project re-reads its macros after a full write/read cycle', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  wb.vbaProjectBytes = writeVbaProject({
+    modules: [
+      {name: 'Greeter', kind: 'procedural', source: 'Sub Greet()\r\n    MsgBox "hi"\r\nEnd Sub'},
+    ],
+  });
+
+  const reread = readXlsx(writeXlsx(wb));
+  assert.deepEqual(
+    reread.vbaProject?.modules.map((m) => m.name),
+    ['Greeter'],
+    'the synthesized project survives the package write/read round-trip',
+  );
+  const ct = new TextDecoder().decode(unzipSync(writeXlsx(wb))['[Content_Types].xml']);
+  assert.match(ct, /macroEnabled/, 'the package is declared macro-enabled');
+});
+
+test('writeVbaProject encodes non-ASCII source through the project code page', () => {
+  // Cyrillic 'Ж' (U+0416) is byte 0xC6 in windows-1251; it must survive encode → compress → parse.
+  const source = 'Sub Тест()\r\n    Rem Ж\r\nEnd Sub'.replace('Тест', 'Test'); // identifier stays ASCII
+  const project = parseVbaProject(
+    writeVbaProject({codePage: 1251, modules: [{name: 'Module1', kind: 'procedural', source}]}),
+  );
+  assert.equal(project.codePage, 1251);
+  assert.equal(project.modules[0]!.source, source);
+  assert.ok(project.modules[0]!.source.includes('Ж'));
+});
+
+test('writeVbaProject rejects invalid input fail-closed', () => {
+  const ok = {name: 'Module1', kind: 'procedural' as const, source: 'Sub A()\r\nEnd Sub'};
+  assert.throws(() => writeVbaProject({modules: [{...ok, name: '1Bad'}]}), VbaAuthorError); // not an identifier
+  assert.throws(() => writeVbaProject({modules: [{...ok, name: 'x'.repeat(32)}]}), VbaAuthorError); // too long
+  assert.throws(
+    () =>
+      writeVbaProject({
+        modules: [ok, {...ok, name: 'MODULE1'}], // duplicate, case-insensitively
+      }),
+    VbaAuthorError,
+  );
+  assert.throws(
+    () => writeVbaProject({modules: [{name: 'Doc', kind: 'document' as never, source: ''}]}),
+    VbaAuthorError,
+  );
+  // A CJK character is not representable in the default 1252 code page.
+  assert.throws(() => writeVbaProject({modules: [{...ok, source: 'Rem 你好'}]}), VbaAuthorError);
 });
 
 // ── Workbook integration + round-trip non-regression ─────────────────────────────────────────────────

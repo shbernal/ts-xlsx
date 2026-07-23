@@ -55,9 +55,20 @@ it satisfies its underlying requirement by a different, and arguably stronger, m
        fallback when a window would not shrink. Proven by round-trip at every chunk boundary, by
        run-length overlap collapsing repetitive data, and by re-expanding to the exact bytes of a real
        Excel-compressed `dir` stream (it even edges out Excel's own output on that stream). Internal.
-     - **§2.3c `dir`/`PROJECT`/module synthesis, §2.3d Workbook authoring surface:** the remaining
-       assembly layer and the public surface, each a further green slice. §2.3d is the authority shift
-       and carries the ADR-0016 amendment.
+     - **§2.3c `dir`/`PROJECT`/module synthesis (`writeVbaProject`, done):** assembles a complete
+       `vbaProject.bin` from a module list (name, kind, source) using the two primitives — the `dir`
+       record stream, `_VBA_PROJECT` version header, `PROJECT`/`PROJECTwm` text, and one compressed
+       source stream per module under a `VBA` storage. Each module carries its source at MODULEOFFSET 0
+       with no p-code, and `_VBA_PROJECT` advertises an unmatchable version, so Excel recompiles from
+       source on open (the sanctioned no-p-code authoring path). A reference-free project is emitted;
+       Excel re-adds host defaults. Procedural and class modules are supported; document/designer
+       (host-coupled) are rejected fail-closed. **Verified against real Excel 365** (the ADR-0013
+       oracle): a synthesized workbook opens with `openThrew:false, repaired:false` and, re-saved
+       macro-enabled, comes back with every module recompiled and its source preserved byte-for-byte.
+       That verdict is a recorded probe fact, not a CI test; CI locks the parse round-trip. Internal to
+       `src/vba`.
+     - **§2.3d Workbook authoring surface:** the public surface wiring `writeVbaProject` into `Workbook`.
+       This is the authority shift and carries the ADR-0016 amendment.
 
 3. **The read/attach path stays the safety floor.** §2.1 leaves ADR 0016's read invariant intact:
    preservation is still the sole emission authority, `vbaProjectBytes` simply lets a caller *supply*

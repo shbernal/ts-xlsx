@@ -22,3 +22,8 @@ export {
   type VbaModuleKind,
   type VbaProject,
 } from './project.ts';
+export {
+  type VbaModuleSource,
+  type VbaProjectSpec,
+  writeVbaProject,
+} from './project-writer.ts';
