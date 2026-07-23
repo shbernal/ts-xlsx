@@ -154,6 +154,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   }
 
   readWorkbookPreservedReferences(workbookXml, pkg, contentTypeOf, workbook);
+  readRootPreservedReferences(pkg, contentTypeOf, workbook);
 
   // Defined names follow the sheets: a scoped name's `localSheetId` indexes the sheet order, which
   // is why the names are read only once every sheet is registered.
@@ -344,6 +345,39 @@ function readWorkbookPreservedReferences(
       ...(cacheId !== undefined ? {pivotCacheId: cacheId} : {}),
     });
   }
+}
+
+// Content wired from the package's own `_rels/.rels` that the writer does not regenerate from the
+// model — the ribbon customUI parts, custom document properties, a thumbnail. The writer rebuilds the
+// root rels for the parts it models (the workbook, and core/app properties), so every other root
+// relationship's target would be dropped on write; capturing its closure here re-declares it verbatim.
+// External targets and the three regenerated relationship types are skipped.
+function readRootPreservedReferences(
+  pkg: PackageAccessors,
+  contentTypeOf: (path: string) => string,
+  workbook: Workbook,
+): void {
+  const {partText, partBytes} = pkg;
+  const relsXml = partText('_rels/.rels');
+  if (relsXml === undefined) return;
+  for (const record of parseRelationshipRecords(relsXml)) {
+    if (record.external || isRegeneratedRootRelType(record.type)) continue;
+    const entryPath = resolveRelativePart('', record.target);
+    const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
+    if (parts === undefined) continue;
+    workbook.addPreservedRootReference({relType: record.type, entryPath, parts});
+  }
+}
+
+// The three root relationships the writer regenerates from the model on every write: the office
+// document and the core/extended document properties. Every other root relationship is unmodeled and
+// is preserved verbatim by {@link readRootPreservedReferences} rather than dropped.
+function isRegeneratedRootRelType(type: string): boolean {
+  return (
+    type.endsWith('/officeDocument') ||
+    type.endsWith('/core-properties') ||
+    type.endsWith('/extended-properties')
+  );
 }
 
 // A workbook relationship the model does not consume but must round-trip: a pivot cache, a slicer

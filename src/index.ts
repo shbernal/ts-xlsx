@@ -72,6 +72,7 @@ export {
 export type {
   PreservedPart,
   PreservedRelationship,
+  PreservedRootReference,
   PreservedWorksheetReference,
 } from './core/preserved.ts';
 export type {

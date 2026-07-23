@@ -56,7 +56,11 @@ without parsing. Macro-enabled templates (.xltm) are the template analog.
 - How strictly to handle/warn about the signature part when the workbook is mutated. (The part now
   survives round-trip correctly typed; the *policy* on drop-vs-warn when the project is edited still
   waits for a consumer. An `isSigned` accessor is sourceable from the preserved closure once needed.)
-- Parse macro/toolbar-referenced `customUI`, or leave it opaque? (Audit whether it survives
-  round-trip today — likely yes via the generic preserved-parts net, but unproven.)
+- ~~Parse macro/toolbar-referenced `customUI`, or leave it opaque?~~ **Audited & fixed:** the ribbon
+  parts (`customUI/customUI.xml`, `customUI14.xml`) hang off the *package root* `_rels/.rels`, not the
+  workbook rels, so the workbook-closure net never reached them and the writer — which regenerates the
+  root rels from the model — dropped them. Now captured as package-root preserved references and
+  re-declared verbatim on write (locked by `preserved-parts.test.ts`). Parsing the ribbon XML into a
+  model stays deferred (no consumer); it round-trips opaquely, like the rest of the preserved net.
 
 Related: `roundtrip-preserves-unmodeled-package-parts`; ADR 0016 (read view + authoring deferred).

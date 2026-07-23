@@ -8,7 +8,7 @@
 import {parseVbaProject, type VbaProject} from '../vba/index.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
-import type {PreservedPart} from './preserved.ts';
+import type {PreservedPart, PreservedRootReference} from './preserved.ts';
 import type {NamedCellStyle} from './style.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
@@ -137,6 +137,22 @@ export class Workbook {
   /** The workbook-level preserved references, in the order they were read. */
   get preservedReferences(): readonly PreservedWorkbookReference[] {
     return this.#preservedReferences;
+  }
+
+  // Package-root references to unmodeled content wired from `_rels/.rels` (the ribbon customUI parts,
+  // custom document properties, a thumbnail), captured verbatim on read so a round-trip re-declares
+  // them in the regenerated root rels rather than dropping them. Empty for a workbook authored from
+  // scratch.
+  readonly #preservedRootReferences: PreservedRootReference[] = [];
+
+  /** Record a package-root preserved reference (a customUI ribbon part, custom props) read from a file. */
+  addPreservedRootReference(reference: PreservedRootReference): void {
+    this.#preservedRootReferences.push(reference);
+  }
+
+  /** The package-root preserved references, in the order they were read. */
+  get preservedRootReferences(): readonly PreservedRootReference[] {
+    return this.#preservedRootReferences;
   }
 
   // Lazily-decoded macro source. `#vbaParsed` distinguishes "not yet decoded" from a genuine "no

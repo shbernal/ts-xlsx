@@ -41,6 +41,29 @@ interface PreservedRelationship {
 
 ---
 
+### `PreservedRootReference`
+
+<sub>interface</sub>
+
+A package-root reference to content the model does not model, wired from the package's own
+`_rels/.rels` rather than the workbook part's rels — the ribbon-customisation parts
+(`customUI/customUI14.xml`), custom document properties (`docProps/custom.xml`), a thumbnail, and
+anything else hung off the root. The writer regenerates the root rels for the parts it models
+(workbook, core/app properties), so these would be dropped unless captured here and re-declared.
+`relType` is the relationship Type URI to re-emit, `entryPath` the part it targets (kept at its
+original path, since the writer generates nothing of these kinds to collide with), and `parts` the
+transitive closure the reference reaches.
+
+```ts
+interface PreservedRootReference {
+    readonly relType: string;
+    readonly entryPath: string;
+    readonly parts: readonly PreservedPart[];
+}
+```
+
+---
+
 ### `PreservedWorksheetReference`
 
 <sub>interface</sub>

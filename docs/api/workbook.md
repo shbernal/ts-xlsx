@@ -85,6 +85,8 @@ class Workbook {
   get worksheets(): readonly Worksheet[];
   addPreservedReference(reference: PreservedWorkbookReference): void;
   get preservedReferences(): readonly PreservedWorkbookReference[];
+  addPreservedRootReference(reference: PreservedRootReference): void;
+  get preservedRootReferences(): readonly PreservedRootReference[];
   get vbaProject(): VbaProject | undefined;
   restoreDifferentialStyles(fragments: readonly string[]): void;
   get differentialStyles(): readonly string[];
@@ -109,6 +111,8 @@ class Workbook {
 - `get worksheets(): readonly Worksheet[];` — The worksheets in insertion order.
 - `addPreservedReference(reference: PreservedWorkbookReference): void;` — Record a workbook-level preserved reference (a pivot or slicer cache) read from a file.
 - `get preservedReferences(): readonly PreservedWorkbookReference[];` — The workbook-level preserved references, in the order they were read.
+- `addPreservedRootReference(reference: PreservedRootReference): void;` — Record a package-root preserved reference (a customUI ribbon part, custom props) read from a file.
+- `get preservedRootReferences(): readonly PreservedRootReference[];` — The package-root preserved references, in the order they were read.
 - `get vbaProject(): VbaProject | undefined;` — The VBA project decoded from this workbook's preserved `vbaProject.bin`, or `undefined` for a workbook with no macros. This is a **read-only view** over the bytes the writer already round-trips verbatim — mutating the returned object changes nothing on write; the original macro blob is re-emitted byte-for-byte regardless. Parsed lazily on first access and memoised.
 - `restoreDifferentialStyles(fragments: readonly string[]): void;` — Reinstate the differential-style (`<dxfs>`) table read from a file — the deserialization counterpart the writer re-emits verbatim. Each entry is one `<dxf>…</dxf>` fragment, preserved as opaque XML so a conditional-formatting rule's `dxfId` (an index into this table) stays valid on re-write. Replaces any table already held.
 - `get differentialStyles(): readonly string[];` — The preserved differential-style (`<dxfs>`) fragments, in index order.

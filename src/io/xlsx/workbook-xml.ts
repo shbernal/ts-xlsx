@@ -10,6 +10,7 @@ import {SLICER_CACHES_EXT_URI} from './namespaces.ts';
 import type {
   PivotPlan,
   PreservedPartPlan,
+  PreservedRootReferencePlan,
   PreservedWorkbookReferencePlan,
   TablePlan,
 } from './package-plan.ts';
@@ -193,11 +194,18 @@ function defaultType(extension: string, contentType: string): string {
   return `<Default Extension="${extension}" ContentType="${contentType}"/>`;
 }
 
-export function rootRelsXml(): string {
+// The package root relationships: the three the writer regenerates from the model (the office
+// document and the core/app properties), followed by any preserved root references — customUI ribbon
+// parts, custom properties, a thumbnail — re-declared with fresh ids past the fixed three so a
+// round-trip keeps content wired from `_rels/.rels` that the model does not otherwise emit.
+export function rootRelsXml(rootRefs: readonly PreservedRootReferencePlan[]): string {
   return relationshipsPart([
     relationship('rId1', REL.officeDocument, 'xl/workbook.xml'),
     relationship('rId2', REL.coreProps, 'docProps/core.xml'),
     relationship('rId3', REL.extProps, 'docProps/app.xml'),
+    ...rootRefs.map((ref, i) =>
+      relationship(`rId${4 + i}`, ref.relType, escapeAttr(ref.entryPath)),
+    ),
   ]);
 }
 

@@ -110,13 +110,22 @@ export interface PreservedWorkbookReferencePlan {
   readonly pivotCacheId: string | undefined;
 }
 
+// A preserved package-root reference resolved for serialisation: its relationship Type and the new
+// path of the entry part it targets. The root-rels relationship id is assigned at emit time, following
+// the fixed root relationships (the office document and the core/app properties).
+export interface PreservedRootReferencePlan {
+  readonly relType: string;
+  readonly entryPath: string;
+}
+
 // The whole workbook's preserved content resolved for serialisation: per-sheet references (parallel to
 // the sheets) still awaiting their sheet-local relationship ids, the workbook-level reference plans,
-// and the flat, de-duplicated list of parts to emit. Kept together because the parts are numbered
-// globally while the references are sheet- or workbook-local.
+// the package-root reference plans, and the flat, de-duplicated list of parts to emit. Kept together
+// because the parts are numbered globally while the references are sheet-, workbook-, or root-local.
 export interface PreservedPlan {
   readonly perSheet: readonly (readonly ResolvedPreservedReference[])[];
   readonly workbook: readonly PreservedWorkbookReferencePlan[];
+  readonly root: readonly PreservedRootReferencePlan[];
   readonly parts: readonly PreservedPartPlan[];
 }
 
@@ -224,6 +233,7 @@ export function planPreservedParts(
   const allReferences = [
     ...sheets.flatMap((sheet) => sheet.preservedReferences),
     ...workbook.preservedReferences,
+    ...workbook.preservedRootReferences,
   ];
   for (const reference of allReferences) {
     for (const part of reference.parts) {
@@ -267,7 +277,14 @@ export function planPreservedParts(
     }),
   );
 
-  return {perSheet, workbook: workbookRefs, parts: [...emitted.values()]};
+  const rootRefs = workbook.preservedRootReferences.map(
+    (reference): PreservedRootReferencePlan => ({
+      relType: reference.relType,
+      entryPath: remap.get(reference.entryPath) as string,
+    }),
+  );
+
+  return {perSheet, workbook: workbookRefs, root: rootRefs, parts: [...emitted.values()]};
 }
 
 // The path a preserved part is emitted at. A kind the writer generates of its own — a drawing, a VML,

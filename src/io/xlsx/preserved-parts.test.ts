@@ -488,3 +488,82 @@ test('slicer and slicer-cache parts survive read→write', () => {
     'the workbook registers the slicer cache in its x14 slicerCaches extension',
   );
 });
+
+// The ribbon-customisation parts (customUI.xml / customUI14.xml — the buttons a macro workbook adds to
+// the ribbon) hang off the *package root* `_rels/.rels`, not the workbook part's rels, so the
+// workbook-rels closure walk never reaches them. Preserving them needs the root rels themselves to be
+// captured on read and re-declared on write.
+const CUSTOM_UI_2007 =
+  '<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui">' +
+  '<ribbon><tabs><tab id="t07" label="Legacy"><group id="g07" label="G">' +
+  '<button id="b07" label="Run" onAction="LegacyMacro"/></group></tab></tabs></ribbon></customUI>';
+
+const CUSTOM_UI_2009 =
+  '<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">' +
+  '<ribbon><tabs><tab id="t14" label="Macros"><group id="g14" label="G">' +
+  '<button id="b14" label="Run" onAction="MyMacro"/></group></tab></tabs></ribbon></customUI>';
+
+test('customUI ribbon parts referenced from the package root rels survive read→write', () => {
+  const src = zipSync(
+    packageParts({
+      '_rels/.rels':
+        '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+        '<Relationship Id="rId4" Type="http://schemas.microsoft.com/office/2006/relationships/ui/extensibility" Target="customUI/customUI.xml"/>' +
+        '<Relationship Id="rId5" Type="http://schemas.microsoft.com/office/2009/07/customui" Target="customUI/customUI14.xml"/>' +
+        '</Relationships>',
+      '[Content_Types].xml': contentTypes(''),
+      'xl/worksheets/sheet1.xml': worksheet(''),
+      'xl/worksheets/_rels/sheet1.xml.rels': rels(''),
+      'customUI/customUI.xml': CUSTOM_UI_2007,
+      'customUI/customUI14.xml': CUSTOM_UI_2009,
+    }),
+  );
+
+  const out = writeXlsx(readXlsx(src));
+  const names = partNames(out);
+
+  assert.ok(names.includes('customUI/customUI.xml'), 'the 2007 ribbon part survives');
+  assert.ok(names.includes('customUI/customUI14.xml'), 'the 2009 ribbon part survives');
+  assert.match(
+    partText(out, /customUI\/customUI\.xml$/),
+    /onAction="LegacyMacro"/,
+    'the 2007 ribbon body survives intact',
+  );
+  assert.match(
+    partText(out, /customUI\/customUI14\.xml$/),
+    /onAction="MyMacro"/,
+    'the 2009 ribbon body survives intact',
+  );
+
+  // Surviving as bytes is not enough — Excel only loads the ribbon through the root-rels
+  // relationships, so both must be re-declared there with their Microsoft-namespaced types.
+  const rootRels = partText(out, /^_rels\/\.rels$/);
+  assert.match(
+    rootRels,
+    /office\/2006\/relationships\/ui\/extensibility/,
+    'root rels keep the 2007 ribbon relationship',
+  );
+  assert.match(
+    rootRels,
+    /office\/2009\/07\/customui/,
+    'root rels keep the 2009 ribbon relationship',
+  );
+  assert.match(
+    rootRels,
+    /Target="customUI\/customUI\.xml"/,
+    'the 2007 relationship still targets its part',
+  );
+  assert.match(
+    rootRels,
+    /Target="customUI\/customUI14\.xml"/,
+    'the 2009 relationship still targets its part',
+  );
+
+  // Re-reading the rewritten package and writing it again must keep preserving both.
+  assert.match(
+    partText(writeXlsx(readXlsx(out)), /customUI\/customUI14\.xml$/),
+    /onAction="MyMacro"/,
+    'idempotent across a second round-trip',
+  );
+});
