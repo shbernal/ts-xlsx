@@ -27,4 +27,5 @@ its TypeScript declaration — the types are the contract.
 - **[Preserved](./preserved.md)** — [`PreservedPart`](./preserved.md#preservedpart), [`PreservedRelationship`](./preserved.md#preservedrelationship), [`PreservedRootReference`](./preserved.md#preservedrootreference), [`PreservedWorksheetReference`](./preserved.md#preservedworksheetreference)
 - **[Vba Errors](./vba-errors.md)** — [`VbaAuthorError`](./vba-errors.md#vbaauthorerror), [`VbaParseError`](./vba-errors.md#vbaparseerror)
 - **[Vba Project](./vba-project.md)** — [`parseVbaProject`](./vba-project.md#parsevbaproject), [`VbaModule`](./vba-project.md#vbamodule), [`VbaModuleKind`](./vba-project.md#vbamodulekind), [`VbaProject`](./vba-project.md#vbaproject)
+- **[Vba Project Editor](./vba-project-editor.md)** — [`editVbaModuleSources`](./vba-project-editor.md#editvbamodulesources)
 - **[Vba Project Writer](./vba-project-writer.md)** — [`VbaModuleSource`](./vba-project-writer.md#vbamodulesource), [`VbaProjectSpec`](./vba-project-writer.md#vbaprojectspec), [`writeVbaProject`](./vba-project-writer.md#writevbaproject)

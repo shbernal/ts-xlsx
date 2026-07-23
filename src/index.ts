@@ -171,6 +171,7 @@ export {
   WorksheetStreamWriter,
 } from './io/xlsx/write-stream.ts';
 export {
+  editVbaModuleSources,
   parseVbaProject,
   VbaAuthorError,
   type VbaModule,

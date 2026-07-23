@@ -6,10 +6,12 @@
 // first place, rather than failing only at write time.
 
 import {
+  editVbaModuleSources,
   parseVbaProject,
   VBA_PROJECT_CONTENT_TYPE,
   VBA_PROJECT_PART_PATH,
   VBA_PROJECT_REL_TYPE,
+  VbaAuthorError,
   type VbaProject,
   type VbaProjectSpec,
   writeVbaProject,
@@ -255,6 +257,33 @@ export class Workbook {
     // writeVbaProject validates the spec fail-closed and throws before producing bytes; the assignment
     // then routes through the same attach path as raw bytes, so signature-drop and re-emit are shared.
     this.vbaProjectBytes = writeVbaProject(spec);
+  }
+
+  /**
+   * Edit the source of a single module already in this workbook's macro project, in place. Reads the
+   * attached `vbaProject.bin`, swaps the named module's source for `source`, and re-attaches the
+   * result — the project's references, host info, project constants, and every other module ride
+   * through unchanged. `name` is the module's code name, matched case-insensitively as VBA compares
+   * names. Excel recompiles the edited module (and the rest of the project) from source on open.
+   *
+   * This is the "tweak an existing macro" path, complementary to {@link setVbaProject}, which
+   * synthesizes a fresh, reference-free project. Because host linkage is inherited from the preserved
+   * project rather than re-synthesized, this can edit a `document` or `designer` module (ThisWorkbook,
+   * a sheet, a UserForm) that {@link setVbaProject} cannot author. Replacing the project also drops a
+   * stale signature, as {@link vbaProjectBytes} does.
+   *
+   * @throws {@link VbaAuthorError} if the workbook has no macro project, the module is absent, or
+   *   `source` has a character the project's code page cannot represent.
+   * @throws {@link VbaParseError} if the attached `vbaProject.bin` is malformed.
+   */
+  setVbaModuleSource(name: string, source: string): void {
+    const bytes = this.vbaProjectBytes;
+    if (bytes === undefined) {
+      throw new VbaAuthorError('workbook has no VBA project to edit');
+    }
+    // editVbaModuleSources validates fail-closed and returns fresh bytes; the assignment then routes
+    // through the same attach path as raw bytes, so signature-drop and re-emit are shared.
+    this.vbaProjectBytes = editVbaModuleSources(bytes, new Map([[name, source]]));
   }
 
   #vbaProjectEntry(): PreservedPart | undefined {

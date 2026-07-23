@@ -1028,3 +1028,79 @@ test('editVbaModuleSources with no edits returns the input unchanged', () => {
   const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
   assert.equal(editVbaModuleSources(bin, new Map()), bin);
 });
+
+// ── Edit-in-place through the public surface: Workbook.setVbaModuleSource ─────────────────────────────
+
+test('setVbaModuleSource edits a document module in a read workbook and preserves references end-to-end', () => {
+  // A PROJECTREFERENCES record only editing can preserve — the whole reason this path exists alongside
+  // setVbaProject, which would synthesize a reference-free project instead.
+  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload));
+  const wb = readXlsx(xlsmPackage(bin));
+
+  const newSource = 'Private Sub Workbook_Open()\r\n    Application.Calculate\r\nEnd Sub';
+  wb.setVbaModuleSource('ThisWorkbook', newSource);
+
+  const out = unzipSync(writeXlsx(wb));
+  assert.match(
+    new TextDecoder().decode(out['[Content_Types].xml']!),
+    /vbaProject/,
+    'the package is still macro-enabled',
+  );
+  const reDir = decompressContainer(new CompoundFile(out['xl/vbaProject.bin']!).readStream('dir')!);
+  assert.ok(
+    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
+    'the PROJECTREFERENCES record survives the whole package round-trip',
+  );
+
+  const reread = readXlsx(writeXlsx(wb));
+  assert.deepEqual(
+    reread.vbaProject?.modules.map((m) => [m.name, m.kind]),
+    [
+      ['ThisWorkbook', 'document'],
+      ['Module1', 'procedural'],
+      ['Class1', 'class'],
+    ],
+    'the module set and kinds are unchanged — a document module was edited in place',
+  );
+  assert.equal(reread.vbaProject?.modules[0]?.source, newSource, 'the new source round-trips');
+  assert.ok(
+    reread.vbaProject?.modules[1]?.source.includes('А'),
+    'the untouched code-page-1251 module still decodes its Cyrillic source',
+  );
+});
+
+test('setVbaModuleSource on a macro-free workbook throws without attaching a project', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  assert.throws(() => wb.setVbaModuleSource('Module1', 'Sub X()\r\nEnd Sub'), VbaAuthorError);
+  assert.equal(wb.vbaProjectBytes, undefined, 'no project is attached by a rejected edit');
+});
+
+test('setVbaModuleSource drops a stale signature', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  const wb = readXlsx(xlsmPackage(bin, Uint8Array.from([1, 2, 3])));
+  assert.ok(unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'], 'precondition: signed');
+
+  wb.setVbaModuleSource('Module1', 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub');
+
+  const out = unzipSync(writeXlsx(wb));
+  assert.equal(
+    out['xl/vbaProjectSignature.bin'],
+    undefined,
+    'the signature over old bytes is dropped',
+  );
+  assert.match(
+    readXlsx(writeXlsx(wb)).vbaProject?.modules[1]?.source ?? '',
+    /Debug\.Print 1/,
+    'the edit is in the re-emitted package',
+  );
+});
+
+test('setVbaModuleSource rejects an unknown module without disturbing the existing project', () => {
+  const wb = readXlsx(xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES)));
+  const before = wb.vbaProjectBytes;
+
+  assert.throws(() => wb.setVbaModuleSource('Nope', 'x'), VbaAuthorError);
+  assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected edit leaves the workbook untouched');
+});
