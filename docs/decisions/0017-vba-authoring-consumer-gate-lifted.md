@@ -50,9 +50,14 @@ it satisfies its underlying requirement by a different, and arguably stronger, m
        Excel-authored project stream-identical, by an independent directory-tree walk reaching every
        entry, and by `parseVbaProject` decoding the result. Internal to `src/vba`; not on the public
        barrel yet.
-     - **§2.3b MS-OVBA compressor, §2.3c `dir`/`PROJECT`/module synthesis, §2.3d Workbook authoring
-       surface:** the remaining primitives and the public surface, each a further green slice. §2.3d is
-       the authority shift and carries the ADR-0016 amendment.
+     - **§2.3b MS-OVBA compressor (`compressContainer`, done):** the encode inverse of
+       `decompressContainer` — the copy-token/literal run compression Excel emits, with a raw-chunk
+       fallback when a window would not shrink. Proven by round-trip at every chunk boundary, by
+       run-length overlap collapsing repetitive data, and by re-expanding to the exact bytes of a real
+       Excel-compressed `dir` stream (it even edges out Excel's own output on that stream). Internal.
+     - **§2.3c `dir`/`PROJECT`/module synthesis, §2.3d Workbook authoring surface:** the remaining
+       assembly layer and the public surface, each a further green slice. §2.3d is the authority shift
+       and carries the ADR-0016 amendment.
 
 3. **The read/attach path stays the safety floor.** §2.1 leaves ADR 0016's read invariant intact:
    preservation is still the sole emission authority, `vbaProjectBytes` simply lets a caller *supply*

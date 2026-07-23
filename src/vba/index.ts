@@ -1,7 +1,8 @@
-// Native VBA read: decode a macro-enabled workbook's `vbaProject.bin` into readable module source.
+// Native VBA read and authoring: decode a macro-enabled workbook's `vbaProject.bin` into readable module
+// source, and synthesize a valid `.bin` from module source (the §2.3 authoring line — encode primitives
+// here, the public surface still landing).
 //
-// This is a read-only projection over bytes the model already preserves opaquely on round-trip; it
-// never re-serialises them (Workbook keeps emitting the original blob byte-for-byte). See
+// The read path is a projection over bytes the model preserves opaquely on round-trip. See
 // docs/plans/vba-read-and-handling.md for the design invariant and the wider VBA feature map.
 
 export {
@@ -11,6 +12,7 @@ export {
   writeCompoundFile,
 } from './cfb-writer.ts';
 export {VbaAuthorError, VbaParseError} from './errors.ts';
+export {compressContainer, decompressContainer} from './ms-ovba.ts';
 export {
   parseVbaProject,
   VBA_PROJECT_CONTENT_TYPE,

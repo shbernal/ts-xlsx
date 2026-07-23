@@ -9,7 +9,7 @@ import {writeXlsx} from '../io/xlsx/write.ts';
 import {CompoundFile} from './cfb.ts';
 import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
-import {decompressContainer} from './ms-ovba.ts';
+import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {parseVbaProject} from './project.ts';
 
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
@@ -248,6 +248,64 @@ test('decompressContainer rejects a bad signature byte', () => {
 test('decompressContainer caps output to guard a decompression bomb', () => {
   const data = new Uint8Array(4096);
   assert.throws(() => decompressContainer(storeCompress(data), 0, 1024), VbaParseError);
+});
+
+// ── Compressor (§2.3b): compressContainer ────────────────────────────────────────────────────────────
+
+test('compressContainer round-trips arbitrary data across the chunk boundary', () => {
+  // Sizes straddling the 4096-byte chunk window and the 8-token flag group catch off-by-one framing.
+  for (const n of [0, 1, 2, 3, 7, 8, 9, 100, 4095, 4096, 4097, 5000, 12000]) {
+    const data = new Uint8Array(n).map((_, i) => (i * 131 + 7) & 0xff);
+    assert.deepEqual(
+      decompressContainer(compressContainer(data)),
+      data,
+      `round-trip failed at n=${n}`,
+    );
+  }
+});
+
+test('compressContainer emits copy tokens, shrinking repetitive data via run-length overlap', () => {
+  const runs = new Uint8Array(4096).fill(0x41); // one byte repeated → a single overlapping back-reference
+  const packed = compressContainer(runs);
+  assert.ok(
+    packed.length < 32,
+    `4096 identical bytes should collapse to a tiny container, got ${packed.length}`,
+  );
+  assert.deepEqual(decompressContainer(packed), runs);
+
+  const abab = Uint8Array.from({length: 6000}, (_, i) => (i % 2 ? 0x62 : 0x61));
+  assert.ok(compressContainer(abab).length < abab.length / 4);
+  assert.deepEqual(decompressContainer(compressContainer(abab)), abab);
+});
+
+test('compressContainer output re-parses as a real module through the whole pipeline', () => {
+  // Compress genuine VBA source, wrap it as a module stream at offset 0, and read it back through the
+  // production CFB writer + parser — the compressor feeding the reader end to end, no store-mode fixture.
+  const source = 'Sub Demo()\r\n    MsgBox "hi"\r\n    MsgBox "hi"\r\nEnd Sub';
+  const compressed = compressContainer(strToU8(source));
+  const dir = compressContainer(
+    Uint8Array.from(
+      buildDirStream(1252, [
+        {name: 'Demo', documentType: false, sourceBytes: [], pcodePrefixLen: 0},
+      ]),
+    ),
+  );
+  const bin = writeCompoundFile([
+    {name: 'PROJECT', data: strToU8('Module=Demo\r\n')},
+    {
+      name: 'VBA',
+      children: [
+        {name: 'dir', data: dir},
+        {name: 'Demo', data: compressed},
+      ],
+    },
+  ]);
+  const project = parseVbaProject(bin);
+  assert.equal(
+    project.modules[0]!.source,
+    source,
+    'the module source survives compress → write → parse',
+  );
 });
 
 // ── CFB reader: malformed inputs fail closed ─────────────────────────────────────────────────────────

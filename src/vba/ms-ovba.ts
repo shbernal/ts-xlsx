@@ -1,16 +1,24 @@
-// MS-OVBA §2.4.1 — decompression of a "CompressedContainer".
+// MS-OVBA §2.4.1 — compression and decompression of a "CompressedContainer".
 //
 // VBA module source and the project `dir` stream are stored in Office's own run-length compression,
 // NOT deflate. A container is a 0x01 signature byte followed by one or more chunks; each chunk
 // decompresses to at most 4096 bytes and is either a raw 4096-byte copy or a stream of literal/copy
-// tokens. Reference: [MS-OVBA] 2.4.1.3.6 (decompressing a CompressedContainer) and 2.4.1.3.19.3 (the
-// CopyToken bit-packing).
+// tokens. Reference: [MS-OVBA] 2.4.1.3.6 (decompressing a CompressedContainer), 2.4.1.3.19.3 (the
+// CopyToken bit-packing), and 2.4.1.3.7 (compressing a chunk).
 //
-// This is a hostile-input parser: the container comes from an untrusted file, so every length and
-// back-reference is bounds-checked and the total output is capped. A malformed container fails closed
-// with a VbaParseError rather than over-allocating, looping, or reading out of bounds.
+// The decompressor is a hostile-input parser: the container comes from an untrusted file, so every
+// length and back-reference is bounds-checked and the total output is capped. A malformed container
+// fails closed with a VbaParseError rather than over-allocating, looping, or reading out of bounds. The
+// compressor is the authoring inverse — it is fed our own bytes, and its output re-expands to the input
+// byte-for-byte (the round-trip is the correctness contract).
 
 import {VbaParseError} from './errors.ts';
+
+// A decompressed chunk covers at most 4096 bytes; both directions honour this window ([MS-OVBA]
+// 2.4.1.3.6). The chunk header's bits 12-14 carry a fixed 0b011 signature, bit 15 the compressed flag.
+const MAX_CHUNK_DECOMPRESSED = 4096;
+const CHUNK_SIGNATURE = 0b011 << 12;
+const CHUNK_COMPRESSED_FLAG = 0x8000;
 
 // A single VBA project is well under a megabyte; 64 MiB is far above any legitimate container yet
 // bounds a decompression bomb (a small container that expands without limit) to a survivable size.
@@ -94,6 +102,80 @@ export function decompressContainer(
   }
 
   return Uint8Array.from(out);
+}
+
+/**
+ * Compress `data` into an MS-OVBA CompressedContainer — the inverse of {@link decompressContainer}.
+ * Every 4096-decompressed-byte window is emitted as a compressed chunk of literal and copy tokens, or
+ * stored verbatim when compression would not shrink it (so the encoded chunk never exceeds the 12-bit
+ * size field). The result re-expands to `data` byte-for-byte.
+ */
+export function compressContainer(data: Uint8Array): Uint8Array {
+  const out: number[] = [0x01]; // container signature; an empty input yields just this byte
+  for (let start = 0; start < data.length; start += MAX_CHUNK_DECOMPRESSED) {
+    const chunk = data.subarray(start, Math.min(start + MAX_CHUNK_DECOMPRESSED, data.length));
+    const tokens = compressChunk(chunk);
+    // Prefer the token stream only when it is strictly smaller; otherwise store the chunk raw. Both
+    // encode their exact length in the header, so the decompressor reconstructs the window either way.
+    const compressed = tokens.length < chunk.length;
+    const body = compressed ? tokens : chunk;
+    const header =
+      (compressed ? CHUNK_COMPRESSED_FLAG : 0) | CHUNK_SIGNATURE | ((body.length - 1) & 0x0fff);
+    out.push(header & 0xff, (header >> 8) & 0xff);
+    for (const b of body) out.push(b);
+  }
+  return Uint8Array.from(out);
+}
+
+// Encode one decompressed chunk (≤ 4096 bytes) as a sequence of MS-OVBA token groups: a flag byte whose
+// bits mark the next up-to-8 tokens as literal (0) or copy (1). A copy token replaces a run of 3+ bytes
+// that recurs earlier in the *same* chunk; matches may overlap the current position (run-length growth),
+// which the decompressor reproduces byte-by-byte. The bit split between the offset and length fields
+// widens as the chunk fills, exactly as the decoder computes it, so both agree on every token's shape.
+function compressChunk(chunk: Uint8Array): number[] {
+  const tokens: number[] = [];
+  let pos = 0;
+  while (pos < chunk.length) {
+    const flagIndex = tokens.length;
+    tokens.push(0);
+    let flags = 0;
+    for (let bit = 0; bit < 8 && pos < chunk.length; bit++) {
+      const {lengthMask, bitCount} = copyTokenHelp(pos);
+      const maxLength = lengthMask + 3;
+      const windowStart = Math.max(0, pos - (1 << bitCount));
+
+      let bestLength = 0;
+      let bestOffset = 0;
+      // Scan nearest-first so equal-length matches keep the smallest offset (a marginally cheaper token).
+      for (let cand = pos - 1; cand >= windowStart; cand--) {
+        let len = 0;
+        while (
+          len < maxLength &&
+          pos + len < chunk.length &&
+          chunk[cand + len] === chunk[pos + len]
+        ) {
+          len++;
+        }
+        if (len > bestLength) {
+          bestLength = len;
+          bestOffset = pos - cand;
+          if (bestLength === maxLength) break; // cannot improve
+        }
+      }
+
+      if (bestLength >= 3) {
+        const token = ((bestOffset - 1) << (16 - bitCount)) | (bestLength - 3);
+        tokens.push(token & 0xff, (token >> 8) & 0xff);
+        flags |= 1 << bit;
+        pos += bestLength;
+      } else {
+        tokens.push(chunk[pos] as number);
+        pos++;
+      }
+    }
+    tokens[flagIndex] = flags;
+  }
+  return tokens;
 }
 
 function guardOutput(size: number, maxOutput: number): void {
