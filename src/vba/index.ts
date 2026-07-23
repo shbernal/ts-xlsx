@@ -1,7 +1,7 @@
 // Native VBA read and authoring: decode a macro-enabled workbook's `vbaProject.bin` into readable module
 // source, synthesize a fresh `.bin` from module source, edit an existing module's source in place by
-// splicing the original bytes (references and other modules preserved), and add a new module to an
-// existing project the same way.
+// splicing the original bytes (references and other modules preserved), and add or remove a module or a
+// library reference from an existing project the same way.
 //
 // The read path is a projection over bytes the model preserves opaquely on round-trip. For the design
 // invariants and the wider VBA feature map see the ADRs: read view (docs/decisions/0016), authoring
@@ -29,6 +29,7 @@ export {
   addVbaModule,
   addVbaReference,
   editVbaModuleSources,
+  removeVbaModule,
   type VbaLibraryReference,
 } from './project-editor.ts';
 export {

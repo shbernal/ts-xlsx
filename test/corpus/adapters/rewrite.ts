@@ -70,7 +70,7 @@ const {compressContainer, decompressContainer} =
   await loadModule<typeof import('../../../src/vba/ms-ovba.ts')>('vba/ms-ovba');
 const {parseVbaProject} =
   await loadModule<typeof import('../../../src/vba/project.ts')>('vba/project');
-const {addVbaModule, addVbaReference} =
+const {addVbaModule, addVbaReference, removeVbaModule} =
   await loadModule<typeof import('../../../src/vba/project-editor.ts')>('vba/project-editor');
 
 // JSZip is an independent zip implementation used only to VERIFY the streaming writer's output (CRC
@@ -1497,6 +1497,65 @@ const impl = {
       existingReferencePreserved,
       newReferencePresent,
       projectStreamUnchanged,
+      recompileCookieReset,
+    };
+  },
+
+  // Remove a standard module from an existing macro project's vbaProject.bin via the project-editor
+  // primitive removeVbaModule — the inverse structural edit of xlsmVbaAddModule(). Removes the procedural
+  // Module1 from the same three-module, one-reference fixture, and asserts: Module1 is gone from the
+  // module list; the untouched document module (ThisWorkbook) and the hand-crafted PROJECTREFERENCES
+  // record survive byte-for-byte; Module1's declaration line is gone from PROJECT while the other
+  // modules' lines survive; Module1's name pair is gone from PROJECTwm; and _VBA_PROJECT resets to the
+  // recompile cookie so Excel recompiles the remaining modules.
+  xlsmVbaRemoveModule() {
+    const originalBin = buildVbaFixtureBin();
+
+    const removedBin = removeVbaModule(originalBin, 'Module1');
+
+    const project = parseVbaProject(removedBin);
+    const moduleNames = project.modules.map((m: CorpusApi) => m.name);
+    const moduleKinds = project.modules.map((m: CorpusApi) => [m.name, m.kind]);
+
+    const originalCfb = new CompoundFile(originalBin);
+    const removedCfb = new CompoundFile(removedBin);
+    const untouchedModuleByteIdentical =
+      vbaIndexOfBytes(
+        removedCfb.readStream('ThisWorkbook')!,
+        originalCfb.readStream('ThisWorkbook')!,
+      ) === 0 &&
+      removedCfb.readStream('ThisWorkbook')!.length ===
+        originalCfb.readStream('ThisWorkbook')!.length;
+    const removedModuleStreamGone = removedCfb.readStream('Module1') === undefined;
+
+    const referencePreserved =
+      vbaIndexOfBytes(
+        decompressContainer(removedCfb.readStream('dir')!),
+        Uint8Array.from(vbaAscii(VBA_FIXTURE_REF_MARKER)),
+      ) >= 0;
+
+    const projectText = strFromU8(removedCfb.readStream('PROJECT')!);
+    const removedDeclLineGone = !/^Module=Module1$/m.test(projectText);
+    const otherDeclLinesSurvive =
+      /^Document=ThisWorkbook\/&H00000000$/m.test(projectText) &&
+      /^Class=Class1$/m.test(projectText);
+
+    const projectwmNoLongerHasModule1 =
+      vbaIndexOfBytes(removedCfb.readStream('PROJECTwm')!, Uint8Array.from(vbaAscii('Module1'))) <
+      0;
+
+    const recompileCookieReset =
+      vbaIndexOfBytes(removedCfb.readStream('_VBA_PROJECT')!, VBA_RECOMPILE_COOKIE) === 0;
+
+    return {
+      moduleNames,
+      moduleKinds,
+      untouchedModuleByteIdentical,
+      removedModuleStreamGone,
+      referencePreserved,
+      removedDeclLineGone,
+      otherDeclLinesSurvive,
+      projectwmNoLongerHasModule1,
       recompileCookieReset,
     };
   },

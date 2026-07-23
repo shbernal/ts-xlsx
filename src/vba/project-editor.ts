@@ -17,7 +17,7 @@
 import {CompoundFile} from './cfb.ts';
 import type {CfbNode, CfbStream} from './cfb-writer.ts';
 import {writeCompoundFile} from './cfb-writer.ts';
-import {decoderForCodePage, type Encoder, encoderForCodePage} from './codepage.ts';
+import {type Decoder, decoderForCodePage, type Encoder, encoderForCodePage} from './codepage.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {parseVbaProject} from './project.ts';
@@ -39,6 +39,7 @@ const VBA_STORAGE = 'VBA';
 
 // `dir`-record ids this splice reads to locate a module's offset field ([MS-OVBA] 2.3.4.2); every other
 // record is preserved verbatim.
+const REC_MODULE_NAME = 0x0019;
 const REC_MODULE_STREAMNAME = 0x001a;
 const REC_MODULE_OFFSET = 0x0031;
 const REC_MODULE_TERMINATOR = 0x002b;
@@ -200,6 +201,81 @@ export function addVbaModule(bin: Uint8Array, module: VbaModuleSource): Uint8Arr
   const newTree = insertIntoStorage(withReplacements, VBA_STORAGE, moduleNode, inserted);
   if (!inserted.has(VBA_STORAGE)) {
     throw new VbaParseError(`VBA project has no '${VBA_STORAGE}' storage to add the module to`);
+  }
+
+  return writeCompoundFile(newTree);
+}
+
+/**
+ * Remove a standard module from an existing `vbaProject.bin`, returning new bytes that carry every
+ * remaining module, reference, and host-info record unchanged. The inverse of {@link addVbaModule}: it
+ * drops the module's `VBA/<name>` stream, its MODULE record block in `dir` (decrementing
+ * `MODULES_COUNT`), and its `Module=`/`Class=` + workspace lines in `PROJECT`/`PROJECTwm`.
+ *
+ * Only `procedural` and `class` modules can be removed this way — removing a `document` module (e.g.
+ * `ThisWorkbook`) or a `designer` module (a UserForm) would leave the host referencing code that no
+ * longer exists, since their names are tied to a worksheet/workbook `codeName` or a designer storage
+ * this project-level primitive has no visibility into (the same reason {@link addVbaModule} can't
+ * author them).
+ *
+ * @throws {VbaParseError} if `bin` is not a parseable VBA project (validated before any edit).
+ * @throws {VbaAuthorError} if `name` is not in the project, or names a `document`/`designer` module.
+ */
+export function removeVbaModule(bin: Uint8Array, name: string): Uint8Array {
+  // Parse fail-closed first: validates the container and resolves the module's kind/stream name, so
+  // nothing is mutated on a bad input or an unsupported module kind.
+  const project = parseVbaProject(bin);
+  const nameKey = name.toUpperCase(); // VBA names are case-insensitive
+  const module = project.modules.find((m) => m.name.toUpperCase() === nameKey);
+  if (!module) throw new VbaAuthorError(`module '${name}' is not in the VBA project`);
+  if (module.kind !== 'procedural' && module.kind !== 'class') {
+    throw new VbaAuthorError(
+      `cannot remove module '${name}': its kind '${module.kind}' is tied to host linkage this ` +
+        'primitive cannot verify',
+    );
+  }
+
+  const cfb = new CompoundFile(bin);
+
+  const dirCompressed = cfb.readStream(DIR_STREAM);
+  if (!dirCompressed) throw new VbaParseError("VBA project has no 'dir' stream");
+  const patchedDir = removeModuleDirRecord(
+    decompressContainer(dirCompressed),
+    module.streamName,
+    project.codePage,
+  );
+
+  const replacements = new Map<string, Uint8Array>([[DIR_STREAM, compressContainer(patchedDir)]]);
+  if (cfb.readStream(VBA_PROJECT_STREAM)) replacements.set(VBA_PROJECT_STREAM, RECOMPILE_HEADER);
+
+  const decoder = decoderForCodePage(project.codePage);
+  const encode = encoderForCodePage(project.codePage);
+  const projectText = cfb.readStream(PROJECT_STREAM);
+  if (projectText) {
+    replacements.set(
+      PROJECT_STREAM,
+      encode(removeProjectStreamLines(decoder.decode(projectText), module.name, module.kind)),
+    );
+  }
+  const projectwm = cfb.readStream(PROJECTWM_STREAM);
+  if (projectwm) {
+    replacements.set(
+      PROJECTWM_STREAM,
+      removeProjectwmRecord(projectwm, project.modules.length, module.name, decoder),
+    );
+  }
+
+  const applied = new Set<string>();
+  const withReplacements = replaceStreams(cfb.tree(), replacements, applied);
+  if (!applied.has(DIR_STREAM))
+    throw new VbaParseError("VBA project 'dir' stream is not in the container tree");
+
+  const removed = new Set<string>();
+  const newTree = removeFromStorage(withReplacements, VBA_STORAGE, module.streamName, removed);
+  if (!removed.has(VBA_STORAGE)) {
+    throw new VbaParseError(
+      `module stream '${module.streamName}' is not in the '${VBA_STORAGE}' storage`,
+    );
   }
 
   return writeCompoundFile(newTree);
@@ -401,6 +477,151 @@ function insertIntoStorage(
     if (n.name === storageName && !applied.has(storageName)) {
       applied.add(storageName);
       return {name: n.name, children: [...children, node]};
+    }
+    return {name: n.name, children};
+  });
+}
+
+// Remove one module's MODULE record block from a decompressed `dir` stream, and decrement MODULES_COUNT.
+// A block runs from its MODULE_NAME record (which always opens the block — mirrors buildModuleDirRecord's
+// emission order) through its own MODULE_TERMINATOR, identified by matching MODULE_STREAMNAME against
+// `streamName`. Every other record — PROJECTREFERENCES, other modules, project-level fields — is carried
+// through untouched.
+function removeModuleDirRecord(dir: Uint8Array, streamName: string, codePage: number): Uint8Array {
+  const decoder = decoderForCodePage(codePage);
+  let countAt = -1;
+  let blockStart = -1;
+  let removeStart = -1;
+  let removeEnd = -1;
+  let currentStream: string | undefined;
+  let pos = 0;
+  while (pos + 6 <= dir.length) {
+    const recordStart = pos;
+    const id = readU16(dir, pos);
+    const size = readU32(dir, pos + 2);
+    const dataStart = pos + 6;
+    if (dataStart + size > dir.length) {
+      throw new VbaParseError(`dir record 0x${id.toString(16)} overruns while removing a module`);
+    }
+    pos = dataStart + size;
+    if (id === REC_PROJECT_VERSION) pos += 2; // uncounted VersionMinor (u16)
+
+    if (id === REC_MODULES_COUNT) {
+      if (size < 2) throw new VbaParseError('PROJECTMODULES MODULES_COUNT record is malformed');
+      countAt = dataStart;
+    } else if (id === REC_MODULE_NAME) {
+      blockStart = recordStart;
+    } else if (id === REC_MODULE_STREAMNAME) {
+      currentStream = decoder.decode(dir.subarray(dataStart, dataStart + size));
+    } else if (id === REC_MODULE_TERMINATOR) {
+      if (currentStream === streamName) {
+        removeStart = blockStart;
+        removeEnd = pos;
+      }
+      currentStream = undefined;
+      blockStart = -1;
+    }
+  }
+  if (countAt < 0) throw new VbaParseError('dir stream is missing MODULES_COUNT');
+  if (removeStart < 0 || removeEnd < 0) {
+    throw new VbaParseError(`module stream '${streamName}' not found in the dir stream`);
+  }
+
+  // MODULES_COUNT always precedes every module block, so countAt is unaffected by removing bytes after it.
+  const out = new Uint8Array(dir.length - (removeEnd - removeStart));
+  out.set(dir.subarray(0, removeStart), 0);
+  out.set(dir.subarray(removeEnd), removeStart);
+  const newCount = readU16(out, countAt) - 1;
+  out[countAt] = newCount & 0xff;
+  out[countAt + 1] = (newCount >> 8) & 0xff;
+  return out;
+}
+
+// Remove a module's declaration line (`Module=`/`Class=`) and its workspace line from the `PROJECT` text
+// stream — the inverse of insertProjectStreamLines. Every other line is left exactly as it was.
+function removeProjectStreamLines(
+  text: string,
+  name: string,
+  kind: 'procedural' | 'class',
+): string {
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const lines = text.split(/\r\n|\r|\n/);
+  const declLine = `${kind === 'procedural' ? 'Module' : 'Class'}=${name}`;
+  const declIndex = lines.indexOf(declLine);
+  if (declIndex >= 0) lines.splice(declIndex, 1);
+
+  const wsIndex = lines.findIndex((l) => l.trim() === '[Workspace]');
+  if (wsIndex >= 0) {
+    for (let i = wsIndex + 1; i < lines.length; i++) {
+      const l = lines[i] as string;
+      if (l.trim() === '' || l.startsWith('[')) break;
+      if (l.startsWith(`${name}=`)) {
+        lines.splice(i, 1);
+        break;
+      }
+    }
+  }
+
+  return lines.join(eol);
+}
+
+// Remove a module's (MBCS name, UTF-16 name) pair from the binary PROJECTwm stream — the inverse of
+// insertProjectwmRecord. `existingModuleCount` (from the already fail-closed-parsed project, before
+// removal) bounds the walk to the module records, so it never mistakes the terminator for a record.
+function removeProjectwmRecord(
+  wm: Uint8Array,
+  existingModuleCount: number,
+  name: string,
+  decoder: Decoder,
+): Uint8Array {
+  let pos = 0;
+  let removeStart = -1;
+  let removeEnd = -1;
+  for (let i = 0; i < existingModuleCount; i++) {
+    const recordStart = pos;
+    const mbcsEnd = wm.indexOf(0x00, pos);
+    if (mbcsEnd < 0)
+      throw new VbaParseError('PROJECTwm record is missing its MBCS name terminator');
+    const mbcsName = decoder.decode(wm.subarray(pos, mbcsEnd));
+    pos = mbcsEnd + 1;
+    let utf16End = pos;
+    while (utf16End + 1 < wm.length && (wm[utf16End] !== 0 || wm[utf16End + 1] !== 0))
+      utf16End += 2;
+    if (utf16End + 1 >= wm.length) {
+      throw new VbaParseError('PROJECTwm record is missing its Unicode name terminator');
+    }
+    pos = utf16End + 2;
+    if (mbcsName === name) {
+      removeStart = recordStart;
+      removeEnd = pos;
+    }
+  }
+  if (removeStart < 0 || removeEnd < 0) {
+    throw new VbaParseError(`module '${name}' not found in the PROJECTwm stream`);
+  }
+
+  const out = new Uint8Array(wm.length - (removeEnd - removeStart));
+  out.set(wm.subarray(0, removeStart), 0);
+  out.set(wm.subarray(removeEnd), removeStart);
+  return out;
+}
+
+// Remove the first direct child stream named `streamName` from the first storage named `storageName`
+// found in the tree (depth-first), marking `storageName` in `removed` once done. The inverse of
+// insertIntoStorage.
+function removeFromStorage(
+  nodes: readonly CfbNode[],
+  storageName: string,
+  streamName: string,
+  removed: Set<string>,
+): CfbNode[] {
+  return nodes.map((n) => {
+    if ('data' in n) return n;
+    const children = removeFromStorage(n.children, storageName, streamName, removed);
+    if (n.name === storageName && !removed.has(storageName)) {
+      const filtered = children.filter((c) => !('data' in c && c.name === streamName));
+      if (filtered.length !== children.length) removed.add(storageName);
+      return {name: n.name, children: filtered};
     }
     return {name: n.name, children};
   });

@@ -12,7 +12,12 @@ import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {parseVbaProject} from './project.ts';
-import {addVbaModule, addVbaReference, editVbaModuleSources} from './project-editor.ts';
+import {
+  addVbaModule,
+  addVbaReference,
+  editVbaModuleSources,
+  removeVbaModule,
+} from './project-editor.ts';
 import {writeVbaProject} from './project-writer.ts';
 
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
@@ -1212,6 +1217,95 @@ test('addVbaModule rejects a malformed container as a parse error', () => {
       }),
     VbaParseError,
   );
+});
+
+// ── Structural edit: removeVbaModule ────────────────────────────────────────────────────────────────
+
+test('removeVbaModule removes a procedural module, preserving references and untouched modules', () => {
+  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload));
+
+  const removed = removeVbaModule(bin, 'Module1');
+
+  const project = parseVbaProject(removed);
+  assert.deepEqual(
+    project.modules.map((m) => [m.name, m.kind]),
+    [
+      ['ThisWorkbook', 'document'],
+      ['Class1', 'class'],
+    ],
+    'Module1 is gone; the other modules and their order survive',
+  );
+
+  const before = new CompoundFile(bin);
+  const after = new CompoundFile(removed);
+  for (const name of ['ThisWorkbook', 'Class1']) {
+    assert.deepEqual(
+      after.readStream(name),
+      before.readStream(name),
+      `${name} rides through unchanged`,
+    );
+  }
+  assert.equal(after.readStream('Module1'), undefined, "Module1's stream is gone");
+
+  // _VBA_PROJECT is reset to the recompile cookie, as for an added/edited module.
+  assert.deepEqual(
+    after.readStream('_VBA_PROJECT'),
+    Uint8Array.from([0xcc, 0x61, 0xff, 0xff, 0x00, 0x00, 0x00]),
+  );
+
+  const dirBefore = decompressContainer(before.readStream('dir')!);
+  const dirAfter = decompressContainer(after.readStream('dir')!);
+  assert.ok(
+    indexOfBytes(dirAfter, Uint8Array.from(refPayload)) >= 0,
+    'the PROJECTREFERENCES record is preserved',
+  );
+  assert.equal(readModulesCount(dirBefore), 3);
+  assert.equal(
+    readModulesCount(dirAfter),
+    2,
+    'MODULES_COUNT is decremented for the removed module',
+  );
+
+  const projectText = strFromU8(after.readStream('PROJECT')!);
+  assert.doesNotMatch(projectText, /^Module=Module1$/m, "Module1's declaration line is gone");
+  assert.match(projectText, /^Document=ThisWorkbook\/&H00000000$/m, 'ThisWorkbook line survives');
+  assert.match(projectText, /^Class=Class1$/m, 'Class1 line survives');
+
+  assert.equal(
+    indexOfBytes(after.readStream('PROJECTwm')!, Uint8Array.from(ascii('Module1'))),
+    -1,
+    'PROJECTwm no longer carries the removed module name',
+  );
+
+  assert.deepEqual(
+    treeReachableStreams(removed).sort(),
+    ['/PROJECT', '/PROJECTwm', '/VBA/Class1', '/VBA/ThisWorkbook', '/VBA/_VBA_PROJECT', '/VBA/dir'],
+    'the removed module no longer resolves under the VBA storage by tree navigation',
+  );
+});
+
+test('removeVbaModule matches the module name case-insensitively', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  const removed = removeVbaModule(bin, 'module1');
+  assert.deepEqual(
+    parseVbaProject(removed).modules.map((m) => m.name),
+    ['ThisWorkbook', 'Class1'],
+  );
+});
+
+test('removeVbaModule rejects an unknown module name', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(() => removeVbaModule(bin, 'NoSuchModule'), VbaAuthorError);
+});
+
+test('removeVbaModule rejects removing a document module fail-closed', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
+  assert.throws(() => removeVbaModule(bin, 'ThisWorkbook'), VbaAuthorError);
+});
+
+test('removeVbaModule rejects a malformed container as a parse error', () => {
+  assert.throws(() => removeVbaModule(Uint8Array.from([1, 2, 3, 4]), 'Module1'), VbaParseError);
 });
 
 // ── Structural edit: addVbaReference ─────────────────────────────────────────────────────────────────
