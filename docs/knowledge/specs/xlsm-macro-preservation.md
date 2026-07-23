@@ -27,14 +27,22 @@ Node; that needs a live Excel/automation host and is not a document-tool concern
 - Callers can **read** the macro source through a lazy, read-only typed view
   (`Workbook.vbaProject`), derived from the preserved bytes without a write-back path — see
   ADR 0016. Reading never perturbs what the writer emits.
+- Callers can **attach, replace, copy, or remove** a macro project at the bytes level through
+  `Workbook.vbaProjectBytes` (a get/set accessor pair over the raw `vbaProject.bin`) — see ADR 0017.
+  Setting bytes makes the written package macro-enabled and embeds them verbatim (validated fail-closed:
+  a malformed blob is rejected, never half-applied); setting `undefined` demotes the workbook to a plain
+  package. Replacing or removing drops a now-stale signature over the old bytes. Synthesizing a `.bin`
+  from edited *source* (first-class authoring) is the next slice (ADR 0017 §2.3), still deferred.
 - A signed VBA project's `vbaProjectSignature` part is preserved alongside — it is a sibling part
   reached from `xl/_rels/vbaProject.bin.rels`, so the closure walk carries it through, and its
   distinct `.bin` content type is re-declared per-part (not collapsed into the `vbaProject` default,
   which a single extension `<Default>` would otherwise do — locked by `preserved-parts.test.ts`).
   Editing the *project itself* legitimately invalidates the signature; editing unrelated cells does
   not (see open questions).
-- **Out of scope:** executing/running macros, and *authoring/editing* VBA (read-only for now — see
-  ADR 0016). The library is a document tool, not a VBA interpreter.
+- **Out of scope:** executing/running macros (needs a live host — ADR 0013), and *editing macro
+  source* (first-class source → `.bin` synthesis is the next authoring slice — ADR 0017 §2.3).
+  Attaching/replacing a whole `.bin` at the bytes level is in scope (ADR 0017). The library is a
+  document tool, not a VBA interpreter.
 
 ## Prior art
 
@@ -51,8 +59,12 @@ without parsing. Macro-enabled templates (.xltm) are the template analog.
   option?
 - ~~Expose the VBA project bytes to callers, or only pass them through opaquely?~~ **Decided
   (ADR 0016):** exposed as a lazy, read-only typed view (`Workbook.vbaProject`), derived from the
-  preserved bytes with no write-back path. Authoring (source → bytes) stays deferred pending a
-  forcing consumer.
+  preserved bytes with no write-back path.
+- ~~Let callers author macros, or only preserve what a read produced?~~ **Partly decided
+  (ADR 0017):** the forcing-consumer gate is lifted — attach-blob authoring shipped
+  (`Workbook.vbaProjectBytes` get/set: attach/replace/copy/remove a raw `.bin`, validated fail-closed).
+  First-class authoring (edited *source* → synthesized `.bin`) is the next slice and will make an
+  authoring surface an emission authority, amending ADR 0016 when it lands.
 - How strictly to handle/warn about the signature part when the workbook is mutated. (The part now
   survives round-trip correctly typed; the *policy* on drop-vs-warn when the project is edited still
   waits for a consumer. An `isSigned` accessor is sourceable from the preserved closure once needed.)

@@ -88,6 +88,8 @@ class Workbook {
   addPreservedRootReference(reference: PreservedRootReference): void;
   get preservedRootReferences(): readonly PreservedRootReference[];
   get vbaProject(): VbaProject | undefined;
+  get vbaProjectBytes(): Uint8Array | undefined;
+  set vbaProjectBytes(bytes: Uint8Array | undefined);
   restoreDifferentialStyles(fragments: readonly string[]): void;
   get differentialStyles(): readonly string[];
   restoreIndexedColors(fragments: readonly string[]): void;
@@ -114,6 +116,7 @@ class Workbook {
 - `addPreservedRootReference(reference: PreservedRootReference): void;` — Record a package-root preserved reference (a customUI ribbon part, custom props) read from a file.
 - `get preservedRootReferences(): readonly PreservedRootReference[];` — The package-root preserved references, in the order they were read.
 - `get vbaProject(): VbaProject | undefined;` — The VBA project decoded from this workbook's preserved `vbaProject.bin`, or `undefined` for a workbook with no macros. This is a **read-only view** over the bytes the writer already round-trips verbatim — mutating the returned object changes nothing on write; the original macro blob is re-emitted byte-for-byte regardless. Parsed lazily on first access and memoised.
+- `get vbaProjectBytes(): Uint8Array | undefined;` — The raw `vbaProject.bin` bytes attached to this workbook — the exact macro blob the writer will embed — or `undefined` for a workbook with no macros. The getter returns a defensive copy, so mutating it changes nothing on write. Assigning bytes attaches (or replaces) the macro project: the written package becomes macro-enabled and re-embeds these bytes verbatim. The bytes must be a well-formed VBA container (a CFB holding a `dir` stream); a malformed blob is rejected with `VbaParseError` rather than written out to produce a package Excel would flag for repair. This is the attach-blob path: copy a project between workbooks with `dst.vbaProjectBytes = src.vbaProjectBytes`, or import a `.bin` produced by another tool. Assigning `undefined` removes the project, reverting the workbook to a plain (non-macro) package. Replacing or removing the project also drops any digital signature the previous blob carried — a signature over the old bytes cannot validate new ones — so the result never advertises a broken signature.
 - `restoreDifferentialStyles(fragments: readonly string[]): void;` — Reinstate the differential-style (`<dxfs>`) table read from a file — the deserialization counterpart the writer re-emits verbatim. Each entry is one `<dxf>…</dxf>` fragment, preserved as opaque XML so a conditional-formatting rule's `dxfId` (an index into this table) stays valid on re-write. Replaces any table already held.
 - `get differentialStyles(): readonly string[];` — The preserved differential-style (`<dxfs>`) fragments, in index order.
 - `restoreIndexedColors(fragments: readonly string[]): void;` — Reinstate the custom indexed-color palette (`<colors><indexedColors>`) read from a file — each entry a verbatim `<rgbColor rgb="…"/>` fragment — so a colour referenced by `indexed="…"` keeps its intended RGB on re-write instead of the palette being dropped and the colour shifting to a default-palette entry. Replaces any palette already held.

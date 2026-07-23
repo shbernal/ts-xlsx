@@ -3,6 +3,7 @@ import {test} from 'node:test';
 
 import {strToU8, unzipSync, zipSync} from 'fflate';
 
+import {Workbook} from '../core/workbook.ts';
 import {readXlsx} from '../io/xlsx/read.ts';
 import {writeXlsx} from '../io/xlsx/write.ts';
 import {CompoundFile} from './cfb.ts';
@@ -293,14 +294,21 @@ test('parseVbaProject throws VbaParseError on a corrupt dir stream', () => {
 
 // ── Workbook integration + round-trip non-regression ─────────────────────────────────────────────────
 
-function xlsmPackage(vbaBin: Uint8Array): Uint8Array {
-  const rel = 'http://schemas.microsoft.com/office/2006/relationships/vbaProject';
-  return zipSync({
+// A minimal macro-enabled package around a vbaProject.bin. Pass `sig` to additionally wire a digital
+// signature over the project — a sibling `vbaProjectSignature.bin` reached from the project part's own
+// rels, the shape an authoring replace must invalidate (a signature over old bytes cannot vouch for new
+// ones).
+function xlsmPackage(vbaBin: Uint8Array, sig?: Uint8Array): Uint8Array {
+  const ms = 'http://schemas.microsoft.com/office/2006/relationships';
+  const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(
       '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
         '<Default Extension="xml" ContentType="application/xml"/>' +
         '<Override PartName="/xl/vbaProject.bin" ContentType="application/vnd.ms-office.vbaProject"/>' +
+        (sig
+          ? '<Override PartName="/xl/vbaProjectSignature.bin" ContentType="application/vnd.ms-office.vbaProjectSignature"/>'
+          : '') +
         '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
         '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
         '</Types>',
@@ -318,14 +326,23 @@ function xlsmPackage(vbaBin: Uint8Array): Uint8Array {
     'xl/_rels/workbook.xml.rels': strToU8(
       '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
-        `<Relationship Id="rId2" Type="${rel}" Target="vbaProject.bin"/>` +
+        `<Relationship Id="rId2" Type="${ms}/vbaProject" Target="vbaProject.bin"/>` +
         '</Relationships>',
     ),
     'xl/worksheets/sheet1.xml': strToU8(
       '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>',
     ),
     'xl/vbaProject.bin': vbaBin,
-  });
+  };
+  if (sig) {
+    files['xl/_rels/vbaProject.bin.rels'] = strToU8(
+      '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        `<Relationship Id="rId1" Type="${ms}/vbaProjectSignature" Target="vbaProjectSignature.bin"/>` +
+        '</Relationships>',
+    );
+    files['xl/vbaProjectSignature.bin'] = sig;
+  }
+  return zipSync(files);
 }
 
 test('Workbook.vbaProject decodes macros from a read .xlsm and memoises', () => {
@@ -365,5 +382,128 @@ test('reading vbaProject does not regress byte-for-byte macro preservation on wr
   assert.deepEqual(
     readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
     ['ThisWorkbook', 'Module1', 'Class1'],
+  );
+});
+
+// ── Attach-blob authoring (§2.1): Workbook.vbaProjectBytes get/set ───────────────────────────────────
+
+test('attaching vbaProjectBytes turns a plain workbook macro-enabled and embeds the blob verbatim', () => {
+  const bin = buildVbaProjectBin(CODE_PAGE, MODULES);
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  wb.vbaProjectBytes = bin;
+
+  const out = unzipSync(writeXlsx(wb));
+  assert.ok(out['xl/vbaProject.bin'], 'the written package carries a vbaProject.bin');
+  assert.deepEqual(out['xl/vbaProject.bin'], bin, 'the attached blob is embedded byte-for-byte');
+
+  const ct = new TextDecoder().decode(out['[Content_Types].xml']);
+  assert.match(
+    ct,
+    /application\/vnd\.ms-excel\.sheet\.macroEnabled\.main\+xml/,
+    'the workbook part is declared macro-enabled',
+  );
+  assert.match(ct, /application\/vnd\.ms-office\.vbaProject/, 'the .bin is typed as a vbaProject');
+
+  // The re-read package exposes the same macros.
+  assert.deepEqual(
+    readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
+    ['ThisWorkbook', 'Module1', 'Class1'],
+  );
+});
+
+test('vbaProjectBytes copies a macro project from one workbook to another', () => {
+  const source = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES)));
+  const target = new Workbook();
+  target.addWorksheet('Sheet1');
+
+  const bytes = source.vbaProjectBytes;
+  assert.ok(bytes, 'the source workbook exposes its raw macro blob');
+  target.vbaProjectBytes = bytes;
+
+  assert.deepEqual(
+    readXlsx(writeXlsx(target)).vbaProject?.modules.map((m) => m.name),
+    ['ThisWorkbook', 'Module1', 'Class1'],
+    'the copied project decodes from the target package',
+  );
+});
+
+test('the vbaProjectBytes getter returns a defensive copy', () => {
+  const wb = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES)));
+  const first = wb.vbaProjectBytes;
+  assert.ok(first);
+  first.fill(0); // scribble on the returned copy
+  const second = wb.vbaProjectBytes;
+  assert.ok(second);
+  assert.notDeepEqual(second, first, 'mutating a returned copy does not corrupt the stored blob');
+  // The stored blob still round-trips and parses.
+  assert.ok(readXlsx(writeXlsx(wb)).vbaProject);
+});
+
+test('assigning undefined removes the macro project, reverting to a plain package', () => {
+  const wb = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES)));
+  assert.ok(wb.vbaProject, 'precondition: the workbook has macros');
+  wb.vbaProjectBytes = undefined;
+
+  assert.equal(wb.vbaProject, undefined, 'the read view reflects the removal');
+  assert.equal(wb.vbaProjectBytes, undefined, 'no blob remains attached');
+
+  const out = unzipSync(writeXlsx(wb));
+  assert.equal(
+    out['xl/vbaProject.bin'],
+    undefined,
+    'the package no longer carries a vbaProject.bin',
+  );
+  const ct = new TextDecoder().decode(out['[Content_Types].xml']);
+  assert.doesNotMatch(ct, /macroEnabled/, 'the workbook is no longer declared macro-enabled');
+});
+
+test('attaching a malformed blob is rejected fail-closed and leaves the workbook untouched', () => {
+  const wb = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES)));
+  const original = wb.vbaProjectBytes;
+
+  assert.throws(() => {
+    wb.vbaProjectBytes = Uint8Array.from([1, 2, 3, 4]); // not a CFB container
+  }, VbaParseError);
+
+  // The reject happens before the old project is cleared, so the workbook is unchanged.
+  assert.deepEqual(
+    wb.vbaProjectBytes,
+    original,
+    'a rejected attach does not disturb the existing blob',
+  );
+});
+
+test('replacing the project drops a now-stale signature over the old bytes', () => {
+  const oldBin = buildVbaProjectBin(CODE_PAGE, MODULES);
+  const sig = Uint8Array.from([0xde, 0xad, 0xbe, 0xef]);
+  const wb = readXlsx(xlsmPackage(oldBin, sig));
+  // Precondition: the signature part is present in the read package.
+  assert.ok(
+    unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'],
+    'signature present before replace',
+  );
+
+  const newBin = buildVbaProjectBin(1252, [
+    {
+      name: 'Module1',
+      documentType: false,
+      sourceBytes: ascii('Sub Fresh()\r\nEnd Sub'),
+      pcodePrefixLen: 8,
+    },
+  ]);
+  wb.vbaProjectBytes = newBin;
+
+  const out = unzipSync(writeXlsx(wb));
+  assert.deepEqual(out['xl/vbaProject.bin'], newBin, 'the new blob is embedded');
+  assert.equal(
+    out['xl/vbaProjectSignature.bin'],
+    undefined,
+    'the stale signature over the old bytes is dropped, not left to advertise a broken signature',
+  );
+  assert.deepEqual(
+    readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
+    ['Module1'],
+    'the replacement project decodes',
   );
 });

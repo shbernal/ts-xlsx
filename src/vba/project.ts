@@ -32,6 +32,15 @@ export interface VbaProject {
   readonly modules: readonly VbaModule[];
 }
 
+// The OPC packaging identity of a workbook's VBA project — the relationship Type URI Excel wires it
+// under, the content type its `.bin` part declares, and the canonical package path. These are the
+// facts an authoring path needs to attach a macro blob so the writer emits a valid macro-enabled
+// package; the reader matches the same relationship type by suffix (`isPreservedWorkbookRelType`).
+export const VBA_PROJECT_REL_TYPE =
+  'http://schemas.microsoft.com/office/2006/relationships/vbaProject';
+export const VBA_PROJECT_CONTENT_TYPE = 'application/vnd.ms-office.vbaProject';
+export const VBA_PROJECT_PART_PATH = 'xl/vbaProject.bin';
+
 // `dir`-stream record ids we consume ([MS-OVBA] 2.3.4.2). Every other record is skipped by the uniform
 // TLV walk; its Size field already accounts for its payload, so skipping is just advancing past it.
 const REC_PROJECT_CODEPAGE = 0x0003;

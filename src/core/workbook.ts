@@ -5,7 +5,13 @@
 // of the characters Excel forbids — so an invalid book cannot be constructed in the
 // first place, rather than failing only at write time.
 
-import {parseVbaProject, type VbaProject} from '../vba/index.ts';
+import {
+  parseVbaProject,
+  VBA_PROJECT_CONTENT_TYPE,
+  VBA_PROJECT_PART_PATH,
+  VBA_PROJECT_REL_TYPE,
+  type VbaProject,
+} from '../vba/index.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
@@ -170,12 +176,67 @@ export class Workbook {
    */
   get vbaProject(): VbaProject | undefined {
     if (!this.#vbaParsed) {
-      const ref = this.#preservedReferences.find((r) => r.relType.endsWith('/vbaProject'));
-      const entry = ref?.parts.find((p) => p.path === ref.entryPath);
-      this.#vbaProject = entry ? parseVbaProject(entry.bytes) : undefined;
+      const bytes = this.#vbaProjectEntry()?.bytes;
+      this.#vbaProject = bytes ? parseVbaProject(bytes) : undefined;
       this.#vbaParsed = true;
     }
     return this.#vbaProject;
+  }
+
+  /**
+   * The raw `vbaProject.bin` bytes attached to this workbook — the exact macro blob the writer will
+   * embed — or `undefined` for a workbook with no macros. The getter returns a defensive copy, so
+   * mutating it changes nothing on write.
+   *
+   * Assigning bytes attaches (or replaces) the macro project: the written package becomes
+   * macro-enabled and re-embeds these bytes verbatim. The bytes must be a well-formed VBA container
+   * (a CFB holding a `dir` stream); a malformed blob is rejected with {@link VbaParseError} rather
+   * than written out to produce a package Excel would flag for repair. This is the attach-blob path:
+   * copy a project between workbooks with `dst.vbaProjectBytes = src.vbaProjectBytes`, or import a
+   * `.bin` produced by another tool. Assigning `undefined` removes the project, reverting the workbook
+   * to a plain (non-macro) package.
+   *
+   * Replacing or removing the project also drops any digital signature the previous blob carried — a
+   * signature over the old bytes cannot validate new ones — so the result never advertises a broken
+   * signature.
+   */
+  get vbaProjectBytes(): Uint8Array | undefined {
+    return this.#vbaProjectEntry()?.bytes.slice();
+  }
+
+  set vbaProjectBytes(bytes: Uint8Array | undefined) {
+    // Validate before touching any state: a malformed blob must fail closed and leave the existing
+    // project intact, never half-remove it. Only past this point do we mutate.
+    if (bytes !== undefined) parseVbaProject(bytes);
+
+    // Drop any existing project; its whole closure goes, taking a now-stale signature part with it. A
+    // fresh reference then mirrors exactly what the reader captures for a macro workbook, so the writer
+    // emits a byte-identical macro-enabled package with no writer changes.
+    replaceContents(
+      this.#preservedReferences,
+      this.#preservedReferences.filter((r) => !r.relType.endsWith('/vbaProject')),
+    );
+    if (bytes !== undefined) {
+      this.#preservedReferences.push({
+        relType: VBA_PROJECT_REL_TYPE,
+        entryPath: VBA_PROJECT_PART_PATH,
+        parts: [
+          {
+            path: VBA_PROJECT_PART_PATH,
+            contentType: VBA_PROJECT_CONTENT_TYPE,
+            bytes: bytes.slice(),
+            rels: [],
+          },
+        ],
+      });
+    }
+    this.#vbaParsed = false;
+    this.#vbaProject = undefined;
+  }
+
+  #vbaProjectEntry(): PreservedPart | undefined {
+    const ref = this.#preservedReferences.find((r) => r.relType.endsWith('/vbaProject'));
+    return ref?.parts.find((p) => p.path === ref.entryPath);
   }
 
   /**
