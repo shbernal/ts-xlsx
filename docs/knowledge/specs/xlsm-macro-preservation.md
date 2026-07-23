@@ -18,14 +18,23 @@ Node; that needs a live Excel/automation host and is not a document-tool concern
 ## Desired behavior
 
 - On reading an .xlsm, the library **retains the VBA project part** (`vbaProject.bin`) and its
-  associated relationships and content-type declarations **opaquely** — no VBA parsing.
+  associated relationships and content-type declarations for **byte-faithful round-trip** — the
+  preserved bytes stay the sole thing the writer emits.
 - On writing, if the source carried a VBA project (or the caller explicitly requests macro-enabled
   output), the package is emitted with the correct macro-enabled content type and the
   `vbaProject.bin` part **re-embedded byte-for-byte** — so a round-trip that only edits cell values
   yields a file Excel still treats as macro-enabled with functioning macros.
-- A signed VBA project's `vbaProjectSignature` part is preserved alongside; note that editing the
-  workbook may legitimately invalidate the signature (see open questions).
-- **Out of scope:** executing/running macros. The library is a document tool, not a VBA interpreter.
+- Callers can **read** the macro source through a lazy, read-only typed view
+  (`Workbook.vbaProject`), derived from the preserved bytes without a write-back path — see
+  ADR 0016. Reading never perturbs what the writer emits.
+- A signed VBA project's `vbaProjectSignature` part is preserved alongside — it is a sibling part
+  reached from `xl/_rels/vbaProject.bin.rels`, so the closure walk carries it through, and its
+  distinct `.bin` content type is re-declared per-part (not collapsed into the `vbaProject` default,
+  which a single extension `<Default>` would otherwise do — locked by `preserved-parts.test.ts`).
+  Editing the *project itself* legitimately invalidates the signature; editing unrelated cells does
+  not (see open questions).
+- **Out of scope:** executing/running macros, and *authoring/editing* VBA (read-only for now — see
+  ADR 0016). The library is a document tool, not a VBA interpreter.
 
 ## Prior art
 
@@ -40,8 +49,14 @@ without parsing. Macro-enabled templates (.xltm) are the template analog.
   explicit flag when writing?
 - Output-format choice (.xlsx vs .xlsm): infer from source, from filename extension, or an explicit
   option?
-- Expose the VBA project bytes to callers, or only pass them through opaquely?
-- How strictly to handle/warn about the signature part when the workbook is mutated.
-- Parse macro/toolbar-referenced `customUI`, or leave it opaque?
+- ~~Expose the VBA project bytes to callers, or only pass them through opaquely?~~ **Decided
+  (ADR 0016):** exposed as a lazy, read-only typed view (`Workbook.vbaProject`), derived from the
+  preserved bytes with no write-back path. Authoring (source → bytes) stays deferred pending a
+  forcing consumer.
+- How strictly to handle/warn about the signature part when the workbook is mutated. (The part now
+  survives round-trip correctly typed; the *policy* on drop-vs-warn when the project is edited still
+  waits for a consumer. An `isSigned` accessor is sourceable from the preserved closure once needed.)
+- Parse macro/toolbar-referenced `customUI`, or leave it opaque? (Audit whether it survives
+  round-trip today — likely yes via the generic preserved-parts net, but unproven.)
 
-Related: `roundtrip-preserves-unmodeled-package-parts`.
+Related: `roundtrip-preserves-unmodeled-package-parts`; ADR 0016 (read view + authoring deferred).

@@ -169,3 +169,10 @@ export {
   type WorkbookStreamWriterOptions,
   WorksheetStreamWriter,
 } from './io/xlsx/write-stream.ts';
+export {
+  parseVbaProject,
+  type VbaModule,
+  type VbaModuleKind,
+  VbaParseError,
+  type VbaProject,
+} from './vba/index.ts';

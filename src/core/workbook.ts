@@ -5,6 +5,7 @@
 // of the characters Excel forbids — so an invalid book cannot be constructed in the
 // first place, rather than failing only at write time.
 
+import {parseVbaProject, type VbaProject} from '../vba/index.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {PreservedPart} from './preserved.ts';
@@ -136,6 +137,29 @@ export class Workbook {
   /** The workbook-level preserved references, in the order they were read. */
   get preservedReferences(): readonly PreservedWorkbookReference[] {
     return this.#preservedReferences;
+  }
+
+  // Lazily-decoded macro source. `#vbaParsed` distinguishes "not yet decoded" from a genuine "no
+  // macros" (`undefined`) result, so a macro-free workbook is not re-probed on every access.
+  #vbaParsed = false;
+  #vbaProject: VbaProject | undefined = undefined;
+
+  /**
+   * The VBA project decoded from this workbook's preserved `vbaProject.bin`, or `undefined` for a
+   * workbook with no macros. This is a **read-only view** over the bytes the writer already round-trips
+   * verbatim — mutating the returned object changes nothing on write; the original macro blob is
+   * re-emitted byte-for-byte regardless. Parsed lazily on first access and memoised.
+   *
+   * @throws {@link VbaParseError} if a macro project is present but its `vbaProject.bin` is malformed.
+   */
+  get vbaProject(): VbaProject | undefined {
+    if (!this.#vbaParsed) {
+      const ref = this.#preservedReferences.find((r) => r.relType.endsWith('/vbaProject'));
+      const entry = ref?.parts.find((p) => p.path === ref.entryPath);
+      this.#vbaProject = entry ? parseVbaProject(entry.bytes) : undefined;
+      this.#vbaParsed = true;
+    }
+    return this.#vbaProject;
   }
 
   /**

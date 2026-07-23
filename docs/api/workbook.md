@@ -85,6 +85,7 @@ class Workbook {
   get worksheets(): readonly Worksheet[];
   addPreservedReference(reference: PreservedWorkbookReference): void;
   get preservedReferences(): readonly PreservedWorkbookReference[];
+  get vbaProject(): VbaProject | undefined;
   restoreDifferentialStyles(fragments: readonly string[]): void;
   get differentialStyles(): readonly string[];
   restoreIndexedColors(fragments: readonly string[]): void;
@@ -108,6 +109,7 @@ class Workbook {
 - `get worksheets(): readonly Worksheet[];` — The worksheets in insertion order.
 - `addPreservedReference(reference: PreservedWorkbookReference): void;` — Record a workbook-level preserved reference (a pivot or slicer cache) read from a file.
 - `get preservedReferences(): readonly PreservedWorkbookReference[];` — The workbook-level preserved references, in the order they were read.
+- `get vbaProject(): VbaProject | undefined;` — The VBA project decoded from this workbook's preserved `vbaProject.bin`, or `undefined` for a workbook with no macros. This is a **read-only view** over the bytes the writer already round-trips verbatim — mutating the returned object changes nothing on write; the original macro blob is re-emitted byte-for-byte regardless. Parsed lazily on first access and memoised.
 - `restoreDifferentialStyles(fragments: readonly string[]): void;` — Reinstate the differential-style (`<dxfs>`) table read from a file — the deserialization counterpart the writer re-emits verbatim. Each entry is one `<dxf>…</dxf>` fragment, preserved as opaque XML so a conditional-formatting rule's `dxfId` (an index into this table) stays valid on re-write. Replaces any table already held.
 - `get differentialStyles(): readonly string[];` — The preserved differential-style (`<dxfs>`) fragments, in index order.
 - `restoreIndexedColors(fragments: readonly string[]): void;` — Reinstate the custom indexed-color palette (`<colors><indexedColors>`) read from a file — each entry a verbatim `<rgbColor rgb="…"/>` fragment — so a colour referenced by `indexed="…"` keeps its intended RGB on re-write instead of the palette being dropped and the colour shifting to a default-palette entry. Replaces any palette already held.
