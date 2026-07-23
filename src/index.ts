@@ -154,6 +154,7 @@ export {
 } from './core/worksheet.ts';
 export {type CsvReadOptions, readCsv} from './io/csv/read.ts';
 export {type CsvWriteOptions, writeCsv, writeCsvText} from './io/csv/write.ts';
+export {editXlsxVbaModuleSource, editXlsxVbaModuleSources} from './io/xlsx/edit-vba.ts';
 export {type ReadXlsxOptions, readXlsx} from './io/xlsx/read.ts';
 // The streaming reader's entry points are public; the granular per-row/cell/sheet output shapes
 // (`StreamedRow`/`StreamedCell`/`StreamedSheet`) are intentionally left as inferred structural types

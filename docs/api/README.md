@@ -29,3 +29,4 @@ its TypeScript declaration — the types are the contract.
 - **[Vba Project](./vba-project.md)** — [`parseVbaProject`](./vba-project.md#parsevbaproject), [`VbaModule`](./vba-project.md#vbamodule), [`VbaModuleKind`](./vba-project.md#vbamodulekind), [`VbaProject`](./vba-project.md#vbaproject)
 - **[Vba Project Editor](./vba-project-editor.md)** — [`editVbaModuleSources`](./vba-project-editor.md#editvbamodulesources)
 - **[Vba Project Writer](./vba-project-writer.md)** — [`VbaModuleSource`](./vba-project-writer.md#vbamodulesource), [`VbaProjectSpec`](./vba-project-writer.md#vbaprojectspec), [`writeVbaProject`](./vba-project-writer.md#writevbaproject)
+- **[Xlsx Edit Vba](./xlsx-edit-vba.md)** — [`editXlsxVbaModuleSource`](./xlsx-edit-vba.md#editxlsxvbamodulesource), [`editXlsxVbaModuleSources`](./xlsx-edit-vba.md#editxlsxvbamodulesources)

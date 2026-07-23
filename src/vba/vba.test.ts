@@ -1,9 +1,10 @@
 import {strict as assert} from 'node:assert';
 import {test} from 'node:test';
 
-import {strToU8, unzipSync, zipSync} from 'fflate';
+import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../core/workbook.ts';
+import {editXlsxVbaModuleSource, editXlsxVbaModuleSources} from '../io/xlsx/edit-vba.ts';
 import {readXlsx} from '../io/xlsx/read.ts';
 import {writeXlsx} from '../io/xlsx/write.ts';
 import {CompoundFile} from './cfb.ts';
@@ -1103,4 +1104,101 @@ test('setVbaModuleSource rejects an unknown module without disturbing the existi
 
   assert.throws(() => wb.setVbaModuleSource('Nope', 'x'), VbaAuthorError);
   assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected edit leaves the workbook untouched');
+});
+
+// ── Package-preserving edit: editXlsxVbaModuleSource(s) ───────────────────────────────────────────────
+// The functional path that splices the macro into the original package bytes, so a real .xlsm's non-macro
+// content survives exactly — the highest-fidelity way to tweak an existing macro (no model round-trip).
+
+test('editXlsxVbaModuleSource swaps a module and preserves every other package part byte-for-byte', () => {
+  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload)));
+  const before = unzipSync(pkg);
+
+  const newSource = 'Private Sub Workbook_Open()\r\n    Application.Calculate\r\nEnd Sub';
+  const after = unzipSync(editXlsxVbaModuleSource(pkg, 'ThisWorkbook', newSource));
+
+  assert.deepEqual(
+    Object.keys(after).sort(),
+    Object.keys(before).sort(),
+    'no parts are added or removed',
+  );
+  for (const name of Object.keys(before)) {
+    if (name === 'xl/vbaProject.bin') continue;
+    assert.deepEqual(after[name], before[name], `${name} is preserved byte-for-byte`);
+  }
+
+  const project = parseVbaProject(after['xl/vbaProject.bin']!);
+  assert.equal(
+    project.modules.find((m) => m.name === 'ThisWorkbook')?.source,
+    newSource,
+    'the edited document module carries the new source',
+  );
+  const reDir = decompressContainer(
+    new CompoundFile(after['xl/vbaProject.bin']!).readStream('dir')!,
+  );
+  assert.ok(
+    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
+    'the PROJECTREFERENCES record survives the splice',
+  );
+});
+
+test('editXlsxVbaModuleSource drops a stale signature part, its relationship, and content-type override', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES), Uint8Array.from([1, 2, 3]));
+  assert.ok(unzipSync(pkg)['xl/vbaProjectSignature.bin'], 'precondition: the package is signed');
+
+  const after = unzipSync(
+    editXlsxVbaModuleSource(pkg, 'Module1', 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub'),
+  );
+
+  assert.equal(after['xl/vbaProjectSignature.bin'], undefined, 'the signature part is dropped');
+  assert.ok(after['xl/vbaProject.bin'], 'the project itself survives');
+  const binRels = after['xl/_rels/vbaProject.bin.rels'];
+  if (binRels) {
+    assert.ok(!strFromU8(binRels).includes('Signature'), 'the signature relationship is removed');
+  }
+  assert.ok(
+    !strFromU8(after['[Content_Types].xml']!).includes('vbaProjectSignature'),
+    'the signature content-type override is removed',
+  );
+  assert.match(
+    readXlsx(zipSync(after)).vbaProject?.modules[1]?.source ?? '',
+    /Debug\.Print 1/,
+    'the edit landed in the surviving project',
+  );
+});
+
+test('editXlsxVbaModuleSources edits several modules and no-ops on empty edits', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+
+  const edited = editXlsxVbaModuleSources(
+    pkg,
+    new Map([
+      ['Module1', 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub'],
+      ['Class1', 'Public Y As Long'],
+    ]),
+  );
+  const byName = new Map(readXlsx(edited).vbaProject?.modules.map((m) => [m.name, m.source]));
+  assert.match(byName.get('Module1') ?? '', /Debug\.Print 1/);
+  assert.equal(byName.get('Class1'), 'Public Y As Long');
+
+  assert.equal(
+    editXlsxVbaModuleSources(pkg, new Map()),
+    pkg,
+    'empty edits returns the input package',
+  );
+});
+
+test('editXlsxVbaModuleSource throws for a macro-free package', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  assert.throws(
+    () => editXlsxVbaModuleSource(writeXlsx(wb), 'Module1', 'Sub X()\r\nEnd Sub'),
+    VbaAuthorError,
+  );
+});
+
+test('editXlsxVbaModuleSource propagates VbaAuthorError for an unknown module', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+  assert.throws(() => editXlsxVbaModuleSource(pkg, 'Nope', 'x'), VbaAuthorError);
 });
