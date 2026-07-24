@@ -215,6 +215,8 @@ implementation is shaped. Current vocabulary:
 | `dateNumFmtValueReport(kind?)` | Put a single cell with a date number format over a value of kind `invalidDate`/`string`/`null`, write → `{hasNaN, hasInvalidDate, reloadOk, cellXml}` — for asserting a non-numeric value under a date numFmt never serializes `NaN`/`Invalid Date` into the sheet XML. |
 | `streamReadMergesReport()` | Write a worksheet with merged ranges, read it back through the streaming and buffered readers → `{eagerMerges, streamedMerges, error}` — for asserting the streaming reader surfaces the same merge geometry as the buffered reader rather than dropping it. |
 | `pivotCacheSpecialCharsReport()` | Author a pivot table over source data with `&<>"'` and a null field value, write → `{ok, writeError, cacheWellFormed, hasRawUnescapedAmp}` — for asserting pivot-cache shared-item strings are entity-escaped into well-formed XML. |
+| `classifyReadInput(kind)` | Read an input of a given format family (`'xlsx'`/`'xls'`/`'xlsb'`/`'garbage'`/`'corrupt-zip'`) → `{threw, errorName, format, message, leaksZipInternals, leaksAbsolutePath}` — for asserting a non-`.xlsx` blob fails with a clear, catchable, format-tagged error (`UnsupportedFormatError` carrying `.format`) rather than a raw zip crash or a leaked filesystem path, while a genuine `.xlsx` still reads. |
+| `classifyStreamReadInput(kind)` | The same classification driven through the STREAMING reader → same shape — for asserting the streaming entry point enforces the identical typed-error contract. |
 
 `inspectPackage`'s per-sheet fact also carries `elementOrder` (raw positions of `drawing` /
 `legacyDrawing` / `tableParts` plus the `legacyBeforeTableParts` etc. adjacency invariants) so a

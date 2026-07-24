@@ -29,3 +29,4 @@ its TypeScript declaration — the types are the contract.
 - **[Vba Project](./vba-project.md)** — [`parseVbaProject`](./vba-project.md#parsevbaproject), [`VbaModule`](./vba-project.md#vbamodule), [`VbaModuleKind`](./vba-project.md#vbamodulekind), [`VbaProject`](./vba-project.md#vbaproject)
 - **[Vba Project Editor](./vba-project-editor.md)** — [`addVbaReference`](./vba-project-editor.md#addvbareference), [`removeVbaModule`](./vba-project-editor.md#removevbamodule), [`VbaLibraryReference`](./vba-project-editor.md#vbalibraryreference)
 - **[Xlsx Edit Vba](./xlsx-edit-vba.md)** — [`editXlsxVbaAddReference`](./xlsx-edit-vba.md#editxlsxvbaaddreference), [`editXlsxVbaRemoveModule`](./xlsx-edit-vba.md#editxlsxvbaremovemodule)
+- **[Xlsx Errors](./xlsx-errors.md)** — [`UnsupportedFormat`](./xlsx-errors.md#unsupportedformat), [`UnsupportedFormatError`](./xlsx-errors.md#unsupportedformaterror)

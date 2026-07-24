@@ -5,6 +5,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import type {Fill} from '../../core/style.ts';
 import {isFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {UnsupportedFormatError} from './errors.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
@@ -968,7 +969,13 @@ test('the inflate bound rejects a part whose declared size is over the cap', () 
 
 test('a zip that is not an xlsx (no workbook part) is rejected, not misread', () => {
   const bogus = zipSync({'hello.txt': strToU8('not a spreadsheet')});
-  assert.throws(() => readXlsx(bogus), /xl\/workbook\.xml is missing/);
+  assert.throws(
+    () => readXlsx(bogus),
+    (err: unknown) =>
+      err instanceof UnsupportedFormatError &&
+      err.format === 'unknown' &&
+      /not a valid \.xlsx package/.test(err.message),
+  );
 });
 
 test('a t="s" shared-string cell resolves against the shared table', () => {

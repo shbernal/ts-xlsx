@@ -158,6 +158,7 @@ export {
   editXlsxVbaAddReference,
   editXlsxVbaRemoveModule,
 } from './io/xlsx/edit-vba.ts';
+export {type UnsupportedFormat, UnsupportedFormatError} from './io/xlsx/errors.ts';
 export {type ReadXlsxOptions, readXlsx} from './io/xlsx/read.ts';
 // The streaming reader's entry points are public; the granular per-row/cell/sheet output shapes
 // (`StreamedRow`/`StreamedCell`/`StreamedSheet`) are intentionally left as inferred structural types

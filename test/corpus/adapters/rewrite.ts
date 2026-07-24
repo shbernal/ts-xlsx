@@ -786,8 +786,74 @@ function vbaBytesIdentical(a: Uint8Array, b: Uint8Array): boolean {
   return a.length === b.length && vbaIndexOfBytes(a, b) === 0;
 }
 
+// Build a reader input of a given format family, to probe the reader's typed-error classification: a
+// genuine `.xlsx` (the control that must still read), a legacy `.xls` (an OLE2/CFB compound file, via the
+// production CFB writer), a binary `.xlsb` (a real ZIP whose office document is `xl/workbook.bin`),
+// non-ZIP text (a CSV handed to the wrong reader), and a ZIP-headed-but-corrupt archive.
+function buildReadInput(kind: CorpusApi): Uint8Array {
+  switch (kind) {
+    case 'xlsx':
+      return writeXlsx(buildFrom({sheets: [{name: 'S', cells: [{ref: 'A1', value: 42}]}]}));
+    case 'xls':
+      return writeCompoundFile([{name: 'Workbook', data: strToU8('legacy biff bytes')}]);
+    case 'xlsb':
+      return zipSync({
+        '[Content_Types].xml': strToU8(
+          '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+            '<Override PartName="/xl/workbook.bin" ContentType="application/vnd.ms-excel.sheet.binary.macroEnabled.main"/>' +
+            '</Types>',
+        ),
+        'xl/workbook.bin': Uint8Array.of(0, 1, 2, 3),
+      });
+    case 'garbage':
+      return strToU8('name,amount\nwidget,10\n');
+    case 'corrupt-zip':
+      return Uint8Array.of(0x50, 0x4b, 0x03, 0x04, 0xff, 0xff, 0xff, 0xff, 0x00, 0x11, 0x22);
+    default:
+      throw new Error(`unknown read-input kind: ${kind}`);
+  }
+}
+
+// Turn a reader call into JSON-serializable classification facts: whether it threw, the error's `name`
+// and `format` branch fields (the typed contract a caller keys on), and whether the message leaks the
+// zip layer's internals or an absolute filesystem path (the anti-leak contract).
+function classifyReadError(run: () => void): CorpusApi {
+  try {
+    run();
+    return {threw: false, errorName: null, format: null, message: null};
+  } catch (e) {
+    const err = e as CorpusApi;
+    const message = String(err?.message ?? '');
+    return {
+      threw: true,
+      errorName: err?.name ?? null,
+      format: err?.format ?? null,
+      message,
+      leaksZipInternals: /central directory|is this a zip/i.test(message),
+      leaksAbsolutePath: /[A-Za-z]:\\|\/(?:Users|home)\//.test(message),
+    };
+  }
+}
+
 const impl = {
   name: 'rewrite',
+
+  // Classify a reader input by format family and report the typed error (or success) it produces —
+  // `{threw, errorName, format, message, leaksZipInternals, leaksAbsolutePath}` — for asserting a
+  // non-`.xlsx` blob fails with a clear, catchable, format-tagged error rather than a raw zip crash.
+  classifyReadInput(kind: CorpusApi) {
+    return classifyReadError(() => {
+      readXlsx(buildReadInput(kind));
+    });
+  },
+
+  // The same classification through the STREAMING reader, driven far enough to open the package — for
+  // asserting the streaming entry point is wired to the identical typed-error contract.
+  classifyStreamReadInput(kind: CorpusApi) {
+    return classifyReadError(() => {
+      for (const _sheet of readWorkbookStream(buildReadInput(kind))) break;
+    });
+  },
 
   decodeAddress(reference: CorpusApi) {
     return decodeAddress(reference);

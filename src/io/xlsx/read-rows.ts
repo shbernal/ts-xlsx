@@ -22,7 +22,6 @@ import {MAX_COLUMN} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';
-import {inflatePackage} from './inflate.ts';
 import {
   DEFAULT_MAX_UNCOMPRESSED,
   parseRelationships,
@@ -35,6 +34,7 @@ import {
 } from './read.ts';
 import {packageAccessors} from './read-opc.ts';
 import {parseSharedStrings} from './shared-strings-read.ts';
+import {inflateXlsxPackage, unsupportedWorkbookPart} from './sniff-format.ts';
 import {boolStrict, closeEmptyElements, localName, xmlEvents} from './xml-read.ts';
 
 export interface ReadSheetRowsOptions extends ReadXlsxOptions {
@@ -102,8 +102,10 @@ export interface StreamedSheet {
  *
  * @param data The raw `.xlsx` bytes.
  * @param options Sheet selector and the inflate bound (see {@link ReadSheetRowsOptions}).
- * @throws {Error} if the archive is malformed, exceeds the inflate bound, or names no worksheet —
- *   or if `options.sheet` selects a sheet that does not exist.
+ * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package (a legacy `.xls`, a
+ *   binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
+ * @throws {Error} if the archive exceeds the inflate bound, or if `options.sheet` selects a sheet that
+ *   does not exist.
  */
 export function* readSheetRows(
   data: Uint8Array,
@@ -125,7 +127,9 @@ export function* readSheetRows(
  *
  * @param data The raw `.xlsx` bytes.
  * @param options The inflate bound (see {@link ReadXlsxOptions}).
- * @throws {Error} if the archive is malformed or exceeds the inflate bound.
+ * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package (a legacy `.xls`, a
+ *   binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
+ * @throws {Error} if the archive exceeds the inflate bound.
  */
 export function* readWorkbookStream(
   data: Uint8Array,
@@ -153,10 +157,10 @@ interface OpenPackage {
 
 function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined): OpenPackage {
   const cap = maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  const {partText: text} = packageAccessors(inflatePackage(data, cap));
+  const {partText: text} = packageAccessors(inflateXlsxPackage(data, cap));
 
   const workbookXml = text('xl/workbook.xml');
-  if (workbookXml === undefined) throw new Error('not an xlsx package: xl/workbook.xml is missing');
+  if (workbookXml === undefined) throw unsupportedWorkbookPart(text);
 
   const sheets = parseWorkbookSheets(workbookXml);
   const rels = parseRelationships(text('xl/_rels/workbook.xml.rels') ?? '');

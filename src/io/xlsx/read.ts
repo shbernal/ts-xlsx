@@ -36,7 +36,6 @@ import {
 } from './data-validation.ts';
 import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
-import {inflatePackage} from './inflate.ts';
 import {extensionOf} from './part-paths.ts';
 import {parsePivotTable} from './pivot-read.ts';
 import {
@@ -56,6 +55,7 @@ import {
 import {parseStyleTable} from './read-styles.ts';
 import {parseWorksheet} from './read-worksheet.ts';
 import {parseSharedStrings} from './shared-strings-read.ts';
+import {inflateXlsxPackage, unsupportedWorkbookPart} from './sniff-format.ts';
 import {parseIndexedColors} from './styles.ts';
 import {parseTable} from './tables.ts';
 import {boolStrict, localName, openElements, parseXml} from './xml-read.ts';
@@ -80,16 +80,17 @@ export const DEFAULT_MAX_UNCOMPRESSED = 512 * 1024 * 1024;
 /**
  * Read an `.xlsx` package into a {@link Workbook}.
  *
- * @throws {Error} if the archive is malformed, exceeds the inflate bound, or names no
- *   worksheet parts (a workbook with no sheets is not a valid package).
+ * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package — a legacy `.xls`
+ *   (`.format === 'xls'`), a binary `.xlsb` (`'xlsb'`), or an unrecognised/non-ZIP blob (`'unknown'`).
+ * @throws {Error} if the archive exceeds the inflate bound (a probable zip bomb).
  */
 export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
   const cap = options.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  const pkg = packageAccessors(inflatePackage(data, cap));
+  const pkg = packageAccessors(inflateXlsxPackage(data, cap));
   const {partText} = pkg;
 
   const workbookXml = partText('xl/workbook.xml');
-  if (workbookXml === undefined) throw new Error('not an xlsx package: xl/workbook.xml is missing');
+  if (workbookXml === undefined) throw unsupportedWorkbookPart(partText);
 
   // A part's content type is needed to faithfully re-declare any part preserved verbatim for
   // round-tripping (a vector-shape drawing, a header/footer image and its VML). Resolve it the way

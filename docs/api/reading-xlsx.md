@@ -12,8 +12,9 @@ Read an `.xlsx` package into a `Workbook`.
 function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook;
 ```
 
-**Throws** — if the archive is malformed, exceeds the inflate bound, or names no
-worksheet parts (a workbook with no sheets is not a valid package).
+**Throws** — if the input is not a readable `.xlsx` package — a legacy `.xls`
+(`.format === 'xls'`), a binary `.xlsb` (`'xlsb'`), or an unrecognised/non-ZIP blob (`'unknown'`).
+**Throws** — if the archive exceeds the inflate bound (a probable zip bomb).
 
 ---
 
