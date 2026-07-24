@@ -41,6 +41,45 @@ export const VBA_PROJECT_REL_TYPE =
 export const VBA_PROJECT_CONTENT_TYPE = 'application/vnd.ms-office.vbaProject';
 export const VBA_PROJECT_PART_PATH = 'xl/vbaProject.bin';
 
+/**
+ * Which generation of VBA project signature a part is — Office emits up to three sibling signature
+ * parts off `vbaProject.bin`'s own rels over the same project bytes ([MS-OFFMACRO2]): the original
+ * `legacy` signature, the `agile` (V2) successor, and the `v3` scheme that closes a tampering hole
+ * the earlier two left open (KB5000676). All three can coexist in one package.
+ */
+export type VbaProjectSignatureKind = 'legacy' | 'agile' | 'v3';
+
+/** One digital signature over a workbook's VBA project — its generation and its raw signature bytes. */
+export interface VbaProjectSignature {
+  readonly kind: VbaProjectSignatureKind;
+  /**
+   * The raw signature part bytes (a PKCS#7/CMS blob), passed through verbatim — this library does not
+   * parse or cryptographically verify them. Their presence means "a signature is attached," never
+   * "this signature is valid."
+   */
+  readonly bytes: Uint8Array;
+}
+
+// A signature part is matched by the FINAL segment of its relationship Type, not the whole URI: the
+// segment (`vbaProjectSignature{,Agile,V3}`) names the generation, while the year the URI carries
+// (2006 / 2014 / 2020) is incidental and varies. The closure walk already carries any such part
+// through verbatim regardless of type, so recognising the generation token is all detection needs —
+// no exact URI to pin, and a future scheme this map does not know stays preserved but unreported.
+const SIGNATURE_KIND_BY_REL_SEGMENT: Readonly<Record<string, VbaProjectSignatureKind>> = {
+  vbaProjectSignature: 'legacy',
+  vbaProjectSignatureAgile: 'agile',
+  vbaProjectSignatureV3: 'v3',
+};
+
+/**
+ * The VBA-signature generation a relationship Type names, or `undefined` if it is not a signature
+ * relationship. Keys off the Type's final path segment, so it is independent of the year the URI
+ * carries (`.../office/2006/...` vs `.../2014/...` vs `.../2020/...`).
+ */
+export function vbaProjectSignatureKind(relType: string): VbaProjectSignatureKind | undefined {
+  return SIGNATURE_KIND_BY_REL_SEGMENT[relType.slice(relType.lastIndexOf('/') + 1)];
+}
+
 // `dir`-stream record ids we consume ([MS-OVBA] 2.3.4.2). Every other record is skipped by the uniform
 // TLV walk; its Size field already accounts for its payload, so skipping is just advancing past it.
 const REC_PROJECT_CODEPAGE = 0x0003;

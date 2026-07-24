@@ -88,8 +88,14 @@ without parsing. Macro-enabled templates (.xltm) are the template analog.
 - **Signature on a project edit is dropped**: editing the project invalidates any signature over
   it, so every project-mutating surface discards the stale `vbaProjectSignature` (part, relationship,
   content-type override) rather than leave it advertising a broken signature. Editing unrelated cells still preserves
-  it (the part round-trips correctly typed). An `isSigned` accessor is still sourceable from the preserved
-  closure once a consumer needs it.
+  it (the part round-trips correctly typed). ~~An `isSigned` accessor is still sourceable from the preserved
+  closure once a consumer needs it.~~ **Built (ADR 0021):** `Workbook.vbaProjectSigned` (boolean) and
+  `Workbook.vbaProjectSignatures` (raw bytes + generation) read the presence of a signature over the
+  preserved closure — a **read** with no cryptographic verification, so the drop behavior above is now
+  observable in-memory (a replaced project reads unsigned). Detection keys off the relationship Type's
+  final segment, so all three generations (legacy 2006, agile 2014, V3 2020) are recognised regardless
+  of the year the URI carries; the closure walk already preserves each part. CMS/PKCS#7 parsing, cert-
+  chain validation, and signer identity stay out of scope.
 - ~~Parse macro/toolbar-referenced `customUI`, or leave it opaque?~~ **Audited & fixed:** the ribbon
   parts (`customUI/customUI.xml`, `customUI14.xml`) hang off the *package root* `_rels/.rels`, not the
   workbook rels, so the workbook-closure net never reached them and the writer — which regenerates the

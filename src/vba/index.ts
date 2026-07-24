@@ -25,6 +25,9 @@ export {
   type VbaModule,
   type VbaModuleKind,
   type VbaProject,
+  type VbaProjectSignature,
+  type VbaProjectSignatureKind,
+  vbaProjectSignatureKind,
 } from './project.ts';
 export {
   addVbaReference,

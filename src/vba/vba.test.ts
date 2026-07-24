@@ -485,11 +485,39 @@ test('writeCompoundFile rejects duplicate sibling names', () => {
 
 // ── Workbook integration + round-trip non-regression ─────────────────────────────────────────────────
 
-// A minimal macro-enabled package around a vbaProject.bin. Pass `sig` to additionally wire a digital
-// signature over the project — a sibling `vbaProjectSignature.bin` reached from the project part's own
-// rels, the shape an authoring replace must invalidate (a signature over old bytes cannot vouch for new
-// ones).
-function xlsmPackage(vbaBin: Uint8Array, sig?: Uint8Array): Uint8Array {
+// One VBA-signature generation to wire into a package: the full relationship Type (carrying the year
+// segment the generation really uses — 2006 legacy, 2014 agile, 2020 V3), the sibling part's file name
+// and content type, and its raw bytes. Office attaches up to three of these over one project.
+interface SignatureGeneration {
+  readonly relType: string;
+  readonly fileName: string;
+  readonly contentType: string;
+  readonly bytes: Uint8Array;
+}
+
+const legacySignature = (bytes: Uint8Array): SignatureGeneration => ({
+  relType: 'http://schemas.microsoft.com/office/2006/relationships/vbaProjectSignature',
+  fileName: 'vbaProjectSignature.bin',
+  contentType: 'application/vnd.ms-office.vbaProjectSignature',
+  bytes,
+});
+const agileSignature = (bytes: Uint8Array): SignatureGeneration => ({
+  relType: 'http://schemas.microsoft.com/office/2014/relationships/vbaProjectSignatureAgile',
+  fileName: 'vbaProjectSignatureAgile.bin',
+  contentType: 'application/vnd.ms-office.vbaProjectSignatureAgile',
+  bytes,
+});
+const v3Signature = (bytes: Uint8Array): SignatureGeneration => ({
+  relType: 'http://schemas.microsoft.com/office/2020/relationships/vbaProjectSignatureV3',
+  fileName: 'vbaProjectSignatureV3.bin',
+  contentType: 'application/vnd.ms-office.vbaProjectSignatureV3',
+  bytes,
+});
+
+// A minimal macro-enabled package around a vbaProject.bin. Pass one or more `sigs` to additionally wire
+// digital signatures over the project — sibling parts reached from the project part's own rels, the
+// shape an authoring replace must invalidate (a signature over old bytes cannot vouch for new ones).
+function xlsmPackage(vbaBin: Uint8Array, sigs: readonly SignatureGeneration[] = []): Uint8Array {
   const ms = 'http://schemas.microsoft.com/office/2006/relationships';
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(
@@ -497,9 +525,9 @@ function xlsmPackage(vbaBin: Uint8Array, sig?: Uint8Array): Uint8Array {
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
         '<Default Extension="xml" ContentType="application/xml"/>' +
         '<Override PartName="/xl/vbaProject.bin" ContentType="application/vnd.ms-office.vbaProject"/>' +
-        (sig
-          ? '<Override PartName="/xl/vbaProjectSignature.bin" ContentType="application/vnd.ms-office.vbaProjectSignature"/>'
-          : '') +
+        sigs
+          .map((s) => `<Override PartName="/xl/${s.fileName}" ContentType="${s.contentType}"/>`)
+          .join('') +
         '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
         '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
         '</Types>',
@@ -525,13 +553,17 @@ function xlsmPackage(vbaBin: Uint8Array, sig?: Uint8Array): Uint8Array {
     ),
     'xl/vbaProject.bin': vbaBin,
   };
-  if (sig) {
+  if (sigs.length > 0) {
     files['xl/_rels/vbaProject.bin.rels'] = strToU8(
       '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        `<Relationship Id="rId1" Type="${ms}/vbaProjectSignature" Target="vbaProjectSignature.bin"/>` +
+        sigs
+          .map(
+            (s, i) => `<Relationship Id="rId${i + 1}" Type="${s.relType}" Target="${s.fileName}"/>`,
+          )
+          .join('') +
         '</Relationships>',
     );
-    files['xl/vbaProjectSignature.bin'] = sig;
+    for (const s of sigs) files[`xl/${s.fileName}`] = s.bytes;
   }
   return zipSync(files);
 }
@@ -668,12 +700,13 @@ test('attaching a malformed blob is rejected fail-closed and leaves the workbook
 test('replacing the project drops a now-stale signature over the old bytes', () => {
   const oldBin = buildVbaProjectBin(CODE_PAGE, MODULES);
   const sig = Uint8Array.from([0xde, 0xad, 0xbe, 0xef]);
-  const wb = readXlsx(xlsmPackage(oldBin, sig));
+  const wb = readXlsx(xlsmPackage(oldBin, [legacySignature(sig)]));
   // Precondition: the signature part is present in the read package.
   assert.ok(
     unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'],
     'signature present before replace',
   );
+  assert.equal(wb.vbaProjectSigned, true, 'the accessor sees the signature before replace');
 
   const newBin = buildVbaProjectBin(1252, [
     {
@@ -692,10 +725,70 @@ test('replacing the project drops a now-stale signature over the old bytes', () 
     undefined,
     'the stale signature over the old bytes is dropped, not left to advertise a broken signature',
   );
+  assert.equal(
+    wb.vbaProjectSigned,
+    false,
+    'the drop is visible through the accessor: a replaced project reads unsigned',
+  );
+  assert.deepEqual(wb.vbaProjectSignatures, [], 'no signatures remain after replace');
   assert.deepEqual(
     readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
     ['Module1'],
     'the replacement project decodes',
+  );
+});
+
+test('Workbook.vbaProjectSigned reports a signed project and exposes the raw signature bytes', () => {
+  const sig = Uint8Array.from([0xde, 0xad, 0xbe, 0xef, 4, 5]);
+  const wb = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES), [legacySignature(sig)]));
+
+  assert.equal(wb.vbaProjectSigned, true);
+  assert.equal(wb.vbaProjectSignatures.length, 1);
+  const only = wb.vbaProjectSignatures[0];
+  assert.ok(only);
+  assert.equal(only.kind, 'legacy');
+  assert.deepEqual(only.bytes, sig, 'the raw signature blob is passed through verbatim');
+
+  // The getter hands back a defensive copy; mutating it must not corrupt the preserved bytes.
+  only.bytes[0] = 0;
+  assert.equal(
+    wb.vbaProjectSignatures[0]?.bytes[0],
+    0xde,
+    'the stored signature bytes are unchanged',
+  );
+});
+
+test('Workbook.vbaProjectSigned reads false for an unsigned macro project', () => {
+  const wb = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES)));
+  assert.equal(wb.vbaProjectSigned, false);
+  assert.deepEqual(wb.vbaProjectSignatures, []);
+});
+
+test('Workbook.vbaProjectSigned reads false for a workbook with no macros', () => {
+  const wb = new Workbook();
+  assert.equal(wb.vbaProjectSigned, false);
+  assert.deepEqual(wb.vbaProjectSignatures, []);
+});
+
+test('Workbook.vbaProjectSignatures reports every generation, across the years each URI carries', () => {
+  const wb = readXlsx(
+    xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES), [
+      legacySignature(Uint8Array.from([1])),
+      agileSignature(Uint8Array.from([2])),
+      v3Signature(Uint8Array.from([3])),
+    ]),
+  );
+
+  assert.equal(wb.vbaProjectSigned, true);
+  // Detection keys off the relationship Type's final segment, so all three are found even though their
+  // URIs carry different year segments (2006 / 2014 / 2020); the closure walk preserves each part.
+  assert.deepEqual(
+    wb.vbaProjectSignatures.map((s) => s.kind),
+    ['legacy', 'agile', 'v3'],
+  );
+  assert.deepEqual(
+    wb.vbaProjectSignatures.map((s) => [...s.bytes]),
+    [[1], [2], [3]],
   );
 });
 
@@ -1117,7 +1210,9 @@ test('editXlsxVbaRemoveModule removes a module and preserves every other package
 });
 
 test('editXlsxVbaRemoveModule drops a stale signature part', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES), Uint8Array.from([1, 2, 3]));
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES), [
+    legacySignature(Uint8Array.from([1, 2, 3])),
+  ]);
   assert.ok(unzipSync(pkg)['xl/vbaProjectSignature.bin'], 'precondition: the package is signed');
 
   const after = unzipSync(editXlsxVbaRemoveModule(pkg, 'Module1'));

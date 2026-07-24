@@ -16,6 +16,8 @@ import {
   VbaAuthorError,
   type VbaLibraryReference,
   type VbaProject,
+  type VbaProjectSignature,
+  vbaProjectSignatureKind,
 } from '../vba/index.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
@@ -275,6 +277,55 @@ export class Workbook {
   }
 
   /**
+   * Whether this workbook's VBA project carries a digital signature — `true` if any signature part is
+   * attached, `false` for an unsigned project or a workbook with no macros.
+   *
+   * This reflects the **presence** of a signature blob, not its cryptographic validity: the library
+   * neither parses the PKCS#7/CMS structure nor validates the certificate chain or signer. A `true`
+   * here means "a signature is attached," never "this signature is valid." Replacing or editing the
+   * project drops its signatures (a signature over the old bytes cannot validate new ones), so this
+   * reads `false` again after {@link vbaProjectBytes}, {@link removeVbaModule}, or
+   * {@link addVbaReference} mutates the project. See {@link vbaProjectSignatures} for the raw bytes and
+   * which generation(s) are present.
+   */
+  get vbaProjectSigned(): boolean {
+    return this.#vbaSignatures().length > 0;
+  }
+
+  /**
+   * The digital signatures attached to this workbook's VBA project, in the order their relationships
+   * are wired off `vbaProject.bin` — up to three generations (legacy, agile, V3) can coexist over the
+   * same project bytes. Empty for an unsigned project or a workbook with no macros.
+   *
+   * Each entry's `bytes` are the raw signature blob passed through verbatim; the library does not parse
+   * or verify them (see {@link vbaProjectSigned} on presence-vs-validity). Hand a blob to an external
+   * verifier if you need cryptographic validation — that is deliberately out of this library's scope.
+   */
+  get vbaProjectSignatures(): readonly VbaProjectSignature[] {
+    return this.#vbaSignatures();
+  }
+
+  // Walk the VBA project's preserved closure for its signature parts — each reached by a signature
+  // relationship off `vbaProject.bin`. Computed on each access rather than memoised: the closure is
+  // small and already in memory, and recomputing sidesteps a cache that a signature-dropping mutation
+  // (`vbaProjectBytes` replace, module remove, reference add) would otherwise have to invalidate.
+  #vbaSignatures(): readonly VbaProjectSignature[] {
+    const ref = this.#vbaProjectRef();
+    const entry = ref?.parts.find((p) => p.path === ref.entryPath);
+    if (ref === undefined || entry === undefined) return [];
+    const partByPath = new Map(ref.parts.map((p) => [p.path, p]));
+    const signatures: VbaProjectSignature[] = [];
+    for (const rel of entry.rels) {
+      const kind = vbaProjectSignatureKind(rel.type);
+      const part = kind === undefined ? undefined : partByPath.get(rel.targetPath);
+      if (kind !== undefined && part !== undefined) {
+        signatures.push({kind, bytes: part.bytes.slice()});
+      }
+    }
+    return signatures;
+  }
+
+  /**
    * Remove a standard module from this workbook's existing macro project, in place — a structural splice
    * that leaves every remaining module's compiled p-code untouched (see {@link removeVbaModule}).
    * Replacing the project also drops a stale signature, as {@link vbaProjectBytes} does.
@@ -313,8 +364,12 @@ export class Workbook {
     this.vbaProjectBytes = addVbaReference(bytes, ref);
   }
 
+  #vbaProjectRef(): PreservedWorkbookReference | undefined {
+    return this.#preservedReferences.find((r) => r.relType.endsWith('/vbaProject'));
+  }
+
   #vbaProjectEntry(): PreservedPart | undefined {
-    const ref = this.#preservedReferences.find((r) => r.relType.endsWith('/vbaProject'));
+    const ref = this.#vbaProjectRef();
     return ref?.parts.find((p) => p.path === ref.entryPath);
   }
 

@@ -201,4 +201,6 @@ export {
   type VbaModuleKind,
   VbaParseError,
   type VbaProject,
+  type VbaProjectSignature,
+  type VbaProjectSignatureKind,
 } from './vba/index.ts';
