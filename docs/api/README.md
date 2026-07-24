@@ -27,6 +27,5 @@ its TypeScript declaration — the types are the contract.
 - **[Preserved](./preserved.md)** — [`PreservedPart`](./preserved.md#preservedpart), [`PreservedRelationship`](./preserved.md#preservedrelationship), [`PreservedRootReference`](./preserved.md#preservedrootreference), [`PreservedWorksheetReference`](./preserved.md#preservedworksheetreference)
 - **[Vba Errors](./vba-errors.md)** — [`VbaAuthorError`](./vba-errors.md#vbaauthorerror), [`VbaParseError`](./vba-errors.md#vbaparseerror)
 - **[Vba Project](./vba-project.md)** — [`parseVbaProject`](./vba-project.md#parsevbaproject), [`VbaModule`](./vba-project.md#vbamodule), [`VbaModuleKind`](./vba-project.md#vbamodulekind), [`VbaProject`](./vba-project.md#vbaproject)
-- **[Vba Project Editor](./vba-project-editor.md)** — [`editVbaModuleSources`](./vba-project-editor.md#editvbamodulesources)
-- **[Vba Project Writer](./vba-project-writer.md)** — [`VbaModuleSource`](./vba-project-writer.md#vbamodulesource), [`VbaProjectSpec`](./vba-project-writer.md#vbaprojectspec), [`writeVbaProject`](./vba-project-writer.md#writevbaproject)
-- **[Xlsx Edit Vba](./xlsx-edit-vba.md)** — [`editXlsxVbaModuleSource`](./xlsx-edit-vba.md#editxlsxvbamodulesource), [`editXlsxVbaModuleSources`](./xlsx-edit-vba.md#editxlsxvbamodulesources)
+- **[Vba Project Editor](./vba-project-editor.md)** — [`addVbaReference`](./vba-project-editor.md#addvbareference), [`removeVbaModule`](./vba-project-editor.md#removevbamodule), [`VbaLibraryReference`](./vba-project-editor.md#vbalibraryreference)
+- **[Xlsx Edit Vba](./xlsx-edit-vba.md)** — [`editXlsxVbaAddReference`](./xlsx-edit-vba.md#editxlsxvbaaddreference), [`editXlsxVbaRemoveModule`](./xlsx-edit-vba.md#editxlsxvbaremovemodule)

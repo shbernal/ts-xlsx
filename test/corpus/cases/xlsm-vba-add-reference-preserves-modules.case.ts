@@ -7,9 +7,8 @@
 // through untouched while the new reference is spliced in. A naive "rebuild the project" strategy would
 // drop the existing reference and force every module to be re-emitted (and re-verified) even though
 // nothing about them changed — so adding a reference must SPLICE a new REFERENCENAME + REFERENCEREGISTERED
-// record pair into the dir stream's original bytes, mirroring how adding a module or editing a module's
-// source already do (see xlsm-vba-add-module-preserves-references,
-// xlsm-vba-edit-module-source-preserves-references).
+// record pair into the dir stream's original bytes, mirroring how removing a module already does (see
+// xlsm-vba-remove-module-preserves-references).
 //
 // A non-obvious wrinkle, confirmed against a genuine Excel-authored project (not guessed from the spec
 // alone): the plain-text PROJECT stream carries NO "Reference=" line for a registered library reference —
@@ -18,9 +17,11 @@
 //
 // The surface under test is the project-editor primitive addVbaReference(bin, ref): it parses the
 // existing project fail-closed, assembles the [MS-OVBA] LibidReference string
-// (`*\G{GUID}#Major.Minor#LCID#Path#Name`), inserts REFERENCENAME + REFERENCEREGISTERED into the dir
-// stream immediately before MODULES_COUNT (references have no count field of their own), and resets
-// _VBA_PROJECT to the recompile cookie.
+// (`*\G{GUID}#Major.Minor#LCID#Path#Name`), and inserts REFERENCENAME + REFERENCEREGISTERED into the dir
+// stream immediately before MODULES_COUNT (references have no count field of their own). It leaves
+// _VBA_PROJECT completely untouched: Excel runs each module's existing compiled p-code, and resetting the
+// stream to an "unmatchable version" cookie does not force a recompile from source — on a project that
+// carries real p-code it actively crashes the load (ADR 0019).
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -32,7 +33,7 @@ export default {
     'Adding a registered library reference to an existing VBA project via addVbaReference must land ' +
     'the new REFERENCENAME/REFERENCEREGISTERED pair in the dir stream, while an existing reference and ' +
     'every module (byte-for-byte) are preserved, the PROJECT stream is left untouched, and ' +
-    '_VBA_PROJECT is reset to the recompile cookie.',
+    '_VBA_PROJECT is preserved untouched.',
 
   behavior: [
     {
@@ -86,14 +87,15 @@ export default {
       },
     },
     {
-      name: 'the recompile cookie is set',
+      name: '_VBA_PROJECT is preserved untouched',
       baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {recompileCookieReset} = await api.xlsmVbaAddReference();
+        const {vbaProjectStreamPreserved} = await api.xlsmVbaAddReference();
         assert.strictEqual(
-          recompileCookieReset,
+          vbaProjectStreamPreserved,
           true,
-          '_VBA_PROJECT must be reset so Excel recompiles the project cleanly with the new reference wired in',
+          '_VBA_PROJECT must be left byte-for-byte unchanged — Excel runs the modules’ existing p-code, ' +
+            'and resetting the cookie would crash the load',
         );
       },
     },

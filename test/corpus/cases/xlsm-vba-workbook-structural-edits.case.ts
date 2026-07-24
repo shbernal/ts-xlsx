@@ -1,18 +1,17 @@
 // Cluster: security
 //
 // Real-world scenario: a caller reads an existing macro-enabled workbook and wants to shape its macro
-// project — add a helper module, drop one that's no longer needed, wire up a COM reference — using the
-// public Workbook API, not the low-level project-editor primitives. Workbook.addVbaModule/removeVbaModule/
-// addVbaReference exist precisely so a caller never has to reach past the model into raw vbaProject.bin
-// bytes for this. Each method must inherit the same splice guarantees the underlying primitive proved in
-// isolation (see xlsm-vba-add-module-preserves-references, xlsm-vba-remove-module-preserves-references,
-// xlsm-vba-add-reference-preserves-modules) once routed through readXlsx -> Workbook -> writeXlsx: a real
-// package round-trip, not just a bare-bin call.
+// project — drop a module that's no longer needed, wire up a COM reference — using the public Workbook
+// API, not the low-level project-editor primitives. Workbook.removeVbaModule/addVbaReference exist
+// precisely so a caller never has to reach past the model into raw vbaProject.bin bytes for this. Each
+// method must inherit the same splice guarantees the underlying primitive proved in isolation (see
+// xlsm-vba-remove-module-preserves-references, xlsm-vba-add-reference-preserves-modules) once routed
+// through readXlsx -> Workbook -> writeXlsx: a real package round-trip, not just a bare-bin call.
 //
-// This case chains all three edits on one workbook and asserts the result survives a full
+// This case chains both edits on one workbook and asserts the result survives a full
 // readXlsx/writeXlsx/readXlsx cycle: the final module set and kinds are correct, the pre-existing
 // PROJECTREFERENCES record and the newly added reference both survive, an untouched module rides through
-// byte-for-byte, the package stays declared macro-enabled, and _VBA_PROJECT is reset so Excel recompiles.
+// byte-for-byte, the package stays declared macro-enabled, and _VBA_PROJECT is preserved untouched.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -21,25 +20,24 @@ export default {
   cluster: 'security',
   provenance: {},
   description:
-    'Workbook.addVbaModule/removeVbaModule/addVbaReference, chained on a workbook read from a real ' +
-    'package, must survive a full readXlsx/writeXlsx round-trip: the module set lands correctly, the ' +
+    'Workbook.removeVbaModule/addVbaReference, chained on a workbook read from a real package, must ' +
+    'survive a full readXlsx/writeXlsx round-trip: the module set lands correctly, the ' +
     "project's reference and an untouched module survive, and the package stays macro-enabled.",
 
   behavior: [
     {
-      name: 'the final module set and kinds reflect the add and the remove',
+      name: 'the final module set and kinds reflect the remove',
       baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {moduleNames, moduleKinds} = await api.xlsmVbaWorkbookStructuralEdits();
-        assert.deepEqual(moduleNames, ['ThisWorkbook', 'Class1', 'NewModule']);
+        assert.deepEqual(moduleNames, ['ThisWorkbook', 'Class1']);
         assert.deepEqual(
           moduleKinds,
           [
             ['ThisWorkbook', 'document'],
             ['Class1', 'class'],
-            ['NewModule', 'procedural'],
           ],
-          'Module1 is gone; ThisWorkbook and Class1 keep their kinds; the new module is procedural',
+          'Module1 is gone; ThisWorkbook and Class1 keep their kinds',
         );
       },
     },
@@ -52,7 +50,7 @@ export default {
         assert.strictEqual(
           originalReferencePreserved,
           true,
-          'the hand-crafted PROJECTREFERENCES record must survive three chained edits, not just one',
+          'the hand-crafted PROJECTREFERENCES record must survive both chained edits, not just one',
         );
         assert.strictEqual(newReferencePresent, true, 'the newly added reference must be present');
       },
@@ -70,10 +68,10 @@ export default {
       },
     },
     {
-      name: 'the package stays macro-enabled and the recompile cookie is set',
+      name: 'the package stays macro-enabled and _VBA_PROJECT is preserved untouched',
       baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {rewrittenIsMacroEnabled, recompileCookieReset} =
+        const {rewrittenIsMacroEnabled, vbaProjectStreamPreserved} =
           await api.xlsmVbaWorkbookStructuralEdits();
         assert.strictEqual(
           rewrittenIsMacroEnabled,
@@ -81,9 +79,10 @@ export default {
           'the rewritten workbook part must still declare the macro-enabled content type',
         );
         assert.strictEqual(
-          recompileCookieReset,
+          vbaProjectStreamPreserved,
           true,
-          '_VBA_PROJECT must be reset so Excel recompiles the remaining/added modules',
+          '_VBA_PROJECT must be left byte-for-byte unchanged — Excel runs the remaining modules’ ' +
+            'existing p-code, and resetting the cookie would crash the load',
         );
       },
     },

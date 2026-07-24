@@ -4,13 +4,7 @@ import {test} from 'node:test';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {Workbook} from '../core/workbook.ts';
-import {
-  editXlsxVbaAddModule,
-  editXlsxVbaAddReference,
-  editXlsxVbaModuleSource,
-  editXlsxVbaModuleSources,
-  editXlsxVbaRemoveModule,
-} from '../io/xlsx/edit-vba.ts';
+import {editXlsxVbaAddReference, editXlsxVbaRemoveModule} from '../io/xlsx/edit-vba.ts';
 import {readXlsx} from '../io/xlsx/read.ts';
 import {writeXlsx} from '../io/xlsx/write.ts';
 import {CompoundFile} from './cfb.ts';
@@ -18,13 +12,7 @@ import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {parseVbaProject} from './project.ts';
-import {
-  addVbaModule,
-  addVbaReference,
-  editVbaModuleSources,
-  removeVbaModule,
-} from './project-editor.ts';
-import {writeVbaProject} from './project-writer.ts';
+import {addVbaReference, removeVbaModule} from './project-editor.ts';
 
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
 // These construct a genuine, spec-valid `vbaProject.bin` from scratch: an MS-OVBA "store" encoder
@@ -495,103 +483,6 @@ test('writeCompoundFile rejects duplicate sibling names', () => {
   );
 });
 
-// ── Project synthesis (§2.3c): writeVbaProject ───────────────────────────────────────────────────────
-
-// The Excel oracle recorded these synthesized projects opening clean (no repair) and surviving a
-// macro-enabled re-save with every module recompiled and its source preserved (ADR 0017 §2.3c). That
-// verdict is a probe, not CI; the durable CI check below is the parse round-trip.
-
-test('writeVbaProject round-trips procedural and class modules through parseVbaProject', () => {
-  const modules = [
-    {
-      name: 'Module1',
-      kind: 'procedural' as const,
-      source: 'Sub Hello()\r\n    MsgBox "hi"\r\nEnd Sub',
-    },
-    {
-      name: 'Class1',
-      kind: 'class' as const,
-      source: 'Public X As Long\r\nPublic Sub Reset()\r\n    X = 0\r\nEnd Sub',
-    },
-  ];
-  const project = parseVbaProject(writeVbaProject({modules}));
-
-  assert.equal(project.codePage, 1252);
-  assert.deepEqual(
-    project.modules.map((m) => [m.name, m.kind]),
-    [
-      ['Module1', 'procedural'],
-      ['Class1', 'class'],
-    ],
-  );
-  assert.equal(
-    project.modules[0]!.source,
-    modules[0]!.source,
-    'procedural source survives verbatim',
-  );
-  assert.equal(project.modules[1]!.source, modules[1]!.source, 'class source survives verbatim');
-});
-
-test('writeVbaProject nests the module and metadata streams under a VBA storage', () => {
-  const bin = writeVbaProject({
-    modules: [{name: 'Module1', kind: 'procedural', source: 'Sub A()\r\nEnd Sub'}],
-  });
-  assert.deepEqual(
-    treeReachableStreams(bin).sort(),
-    ['/PROJECT', '/PROJECTwm', '/VBA/Module1', '/VBA/_VBA_PROJECT', '/VBA/dir'],
-    'a host navigating the directory tree finds dir, _VBA_PROJECT, and the module under VBA',
-  );
-});
-
-test('a workbook with a synthesized project re-reads its macros after a full write/read cycle', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('Sheet1');
-  wb.vbaProjectBytes = writeVbaProject({
-    modules: [
-      {name: 'Greeter', kind: 'procedural', source: 'Sub Greet()\r\n    MsgBox "hi"\r\nEnd Sub'},
-    ],
-  });
-
-  const reread = readXlsx(writeXlsx(wb));
-  assert.deepEqual(
-    reread.vbaProject?.modules.map((m) => m.name),
-    ['Greeter'],
-    'the synthesized project survives the package write/read round-trip',
-  );
-  const ct = new TextDecoder().decode(unzipSync(writeXlsx(wb))['[Content_Types].xml']);
-  assert.match(ct, /macroEnabled/, 'the package is declared macro-enabled');
-});
-
-test('writeVbaProject encodes non-ASCII source through the project code page', () => {
-  // Cyrillic 'Ж' (U+0416) is byte 0xC6 in windows-1251; it must survive encode → compress → parse.
-  const source = 'Sub Тест()\r\n    Rem Ж\r\nEnd Sub'.replace('Тест', 'Test'); // identifier stays ASCII
-  const project = parseVbaProject(
-    writeVbaProject({codePage: 1251, modules: [{name: 'Module1', kind: 'procedural', source}]}),
-  );
-  assert.equal(project.codePage, 1251);
-  assert.equal(project.modules[0]!.source, source);
-  assert.ok(project.modules[0]!.source.includes('Ж'));
-});
-
-test('writeVbaProject rejects invalid input fail-closed', () => {
-  const ok = {name: 'Module1', kind: 'procedural' as const, source: 'Sub A()\r\nEnd Sub'};
-  assert.throws(() => writeVbaProject({modules: [{...ok, name: '1Bad'}]}), VbaAuthorError); // not an identifier
-  assert.throws(() => writeVbaProject({modules: [{...ok, name: 'x'.repeat(32)}]}), VbaAuthorError); // too long
-  assert.throws(
-    () =>
-      writeVbaProject({
-        modules: [ok, {...ok, name: 'MODULE1'}], // duplicate, case-insensitively
-      }),
-    VbaAuthorError,
-  );
-  assert.throws(
-    () => writeVbaProject({modules: [{name: 'Doc', kind: 'document' as never, source: ''}]}),
-    VbaAuthorError,
-  );
-  // A CJK character is not representable in the default 1252 code page.
-  assert.throws(() => writeVbaProject({modules: [{...ok, source: 'Rem 你好'}]}), VbaAuthorError);
-});
-
 // ── Workbook integration + round-trip non-regression ─────────────────────────────────────────────────
 
 // A minimal macro-enabled package around a vbaProject.bin. Pass `sig` to additionally wire a digital
@@ -808,74 +699,11 @@ test('replacing the project drops a now-stale signature over the old bytes', () 
   );
 });
 
-// ── First-class authoring (§2.3d): Workbook.setVbaProject ────────────────────────────────────────────
-
-test('setVbaProject authors macros from source onto a plain workbook', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('Sheet1');
-  wb.setVbaProject({
-    modules: [
-      {name: 'Module1', kind: 'procedural', source: 'Sub Run()\r\n    MsgBox "go"\r\nEnd Sub'},
-      {name: 'Widget', kind: 'class', source: 'Public Id As Long'},
-    ],
-  });
-
-  const out = unzipSync(writeXlsx(wb));
-  assert.ok(out['xl/vbaProject.bin'], 'the written package carries a synthesized vbaProject.bin');
-  assert.match(
-    new TextDecoder().decode(out['[Content_Types].xml']),
-    /macroEnabled/,
-    'the package is declared macro-enabled',
-  );
-
-  const reread = readXlsx(writeXlsx(wb));
-  assert.deepEqual(
-    reread.vbaProject?.modules.map((m) => [m.name, m.kind]),
-    [
-      ['Module1', 'procedural'],
-      ['Widget', 'class'],
-    ],
-    'the authored modules survive the package round-trip with their kinds',
-  );
-  assert.equal(reread.vbaProject?.modules[0]?.source, 'Sub Run()\r\n    MsgBox "go"\r\nEnd Sub');
-});
-
-test('setVbaProject replaces an existing project and drops its stale signature', () => {
-  const wb = readXlsx(
-    xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES), Uint8Array.from([1, 2, 3])),
-  );
-  assert.ok(unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'], 'precondition: signed');
-
-  wb.setVbaProject({modules: [{name: 'Fresh', kind: 'procedural', source: 'Sub F()\r\nEnd Sub'}]});
-
-  const out = unzipSync(writeXlsx(wb));
-  assert.equal(out['xl/vbaProjectSignature.bin'], undefined, 'the stale signature is dropped');
-  assert.deepEqual(
-    readXlsx(writeXlsx(wb)).vbaProject?.modules.map((m) => m.name),
-    ['Fresh'],
-  );
-});
-
-test('setVbaProject rejects an invalid spec without disturbing an existing project', () => {
-  const wb = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES)));
-  const before = wb.vbaProjectBytes;
-
-  assert.throws(
-    () => wb.setVbaProject({modules: [{name: '1nope', kind: 'procedural', source: ''}]}),
-    VbaAuthorError,
-  );
-  assert.deepEqual(
-    wb.vbaProjectBytes,
-    before,
-    'a rejected authoring call leaves the workbook untouched',
-  );
-});
-
-// ── Edit-in-place: editVbaModuleSources ──────────────────────────────────────────────────────────────
+// ── Shared fixtures for structural edits: removeVbaModule / addVbaReference ────────────────────────────
 
 // The PROJECTwm stream pairs each module's MBCS name with its UTF-16 name, both NUL-terminated, ending
-// with an empty pair — one record per module the dir/PROJECT streams declare, so addVbaModule's splice
-// (which counts existing records against the parsed module count) has a real structure to extend.
+// with an empty pair — one record per module the dir/PROJECT streams declare, so removeVbaModule's
+// splice (which counts existing records against the parsed module count) has a real structure to shrink.
 function buildProjectwmStream(names: readonly string[]): Uint8Array {
   const b: number[] = [];
   for (const name of names) b.push(...ascii(name), 0x00, ...utf16le(name), 0x00, 0x00);
@@ -884,9 +712,10 @@ function buildProjectwmStream(names: readonly string[]): Uint8Array {
 }
 
 // Package a project through the *production* CFB writer so it has the navigable red-black sibling tree
-// the editor walks (buildVbaProjectBin leaves those links null — fine for the linear-scan reader, but the
-// editor rebuilds the tree). Optionally append raw dir records (e.g. a PROJECTREFERENCES entry) and a
-// distinctive _VBA_PROJECT, so a test can prove both survive / are replaced as intended.
+// the removeVbaModule/addVbaReference editors walk (buildVbaProjectBin leaves those links null — fine for
+// the linear-scan reader, but the editors rebuild the tree). Optionally append raw dir records (e.g. a
+// PROJECTREFERENCES entry) and a distinctive _VBA_PROJECT, so a test can prove both survive / are
+// replaced as intended.
 function buildNavigableProjectBin(
   codePage: number,
   modules: ModuleSpec[],
@@ -915,150 +744,9 @@ function indexOfBytes(haystack: Uint8Array, needle: Uint8Array): number {
   return -1;
 }
 
-test('editVbaModuleSources swaps one module and re-parses with the new source', () => {
-  const bin = writeVbaProject({
-    modules: [
-      {name: 'Alpha', kind: 'procedural', source: 'Sub A()\r\nEnd Sub'},
-      {name: 'Beta', kind: 'class', source: 'Public V As Long'},
-    ],
-  });
-  const newSource = 'Sub A()\r\n    MsgBox "edited"\r\nEnd Sub';
-  const project = parseVbaProject(editVbaModuleSources(bin, new Map([['Alpha', newSource]])));
-
-  assert.deepEqual(
-    project.modules.map((m) => [m.name, m.kind]),
-    [
-      ['Alpha', 'procedural'],
-      ['Beta', 'class'],
-    ],
-    'the module set and kinds are unchanged',
-  );
-  assert.equal(project.modules[0]!.source, newSource, 'the edited module carries the new source');
-  assert.equal(project.modules[1]!.source, 'Public V As Long', 'the untouched module is unchanged');
-});
-
-test('editVbaModuleSources preserves references, host info, and untouched modules while editing a document module', () => {
-  // A distinctive PROJECTREFERENCES record the editor must carry through untouched — the whole point of
-  // editing over re-synthesizing (writeVbaProject emits no references at all).
-  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
-  const referenceRecord = rec(0x000d, refPayload); // REFERENCEREGISTERED ([MS-OVBA] 2.3.4.2)
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, referenceRecord);
-
-  const newSource = 'Private Sub Workbook_Open()\r\n    Application.Calculate\r\nEnd Sub';
-  const edited = editVbaModuleSources(bin, new Map([['ThisWorkbook', newSource]]));
-
-  // The edited document module reads back with its new source and unchanged kind — the case
-  // writeVbaProject cannot author (document kind is host-coupled and rejected there).
-  const project = parseVbaProject(edited);
-  assert.deepEqual(
-    project.modules.map((m) => [m.name, m.kind]),
-    [
-      ['ThisWorkbook', 'document'],
-      ['Module1', 'procedural'],
-      ['Class1', 'class'],
-    ],
-  );
-  assert.equal(project.modules[0]!.source, newSource, 'the document module was edited in place');
-  assert.ok(
-    project.modules[1]!.source.includes('А'),
-    'the untouched code-page-1251 module still decodes its Cyrillic source',
-  );
-
-  const before = new CompoundFile(bin);
-  const after = new CompoundFile(edited);
-
-  // Untouched module streams — p-code prefix and all — are byte-identical.
-  assert.deepEqual(after.readStream('Module1'), before.readStream('Module1'));
-  assert.deepEqual(after.readStream('Class1'), before.readStream('Class1'));
-
-  // The edited stream is source-only at offset 0 (no p-code), decoding to the new source.
-  assert.deepEqual(
-    decompressContainer(after.readStream('ThisWorkbook')!),
-    Uint8Array.from(ascii(newSource)),
-  );
-
-  // _VBA_PROJECT is replaced with the unmatchable-version recompile cookie.
-  assert.deepEqual(
-    after.readStream('_VBA_PROJECT'),
-    Uint8Array.from([0xcc, 0x61, 0xff, 0xff, 0x00, 0x00, 0x00]),
-  );
-
-  // The dir stream differs only by zeroing the edited module's MODULEOFFSET; the reference record and
-  // every other record survive byte-for-byte.
-  const dirBefore = decompressContainer(before.readStream('dir')!);
-  const dirAfter = decompressContainer(after.readStream('dir')!);
-  assert.equal(
-    dirBefore.length,
-    dirAfter.length,
-    'no records added or removed, only a field patched',
-  );
-  const changed: number[] = [];
-  for (let i = 0; i < dirBefore.length; i++) if (dirBefore[i] !== dirAfter[i]) changed.push(i);
-  assert.ok(
-    changed.length >= 1 && changed.length <= 4,
-    `only the offset field changes (${changed.length} bytes)`,
-  );
-  for (const i of changed) assert.equal(dirAfter[i], 0, 'patched offset bytes become zero');
-  assert.ok(
-    indexOfBytes(dirAfter, Uint8Array.from(refPayload)) >= 0,
-    'the PROJECTREFERENCES record is preserved',
-  );
-});
-
-test('editVbaModuleSources edits several modules in one call, case-insensitively', () => {
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
-  const edited = editVbaModuleSources(
-    bin,
-    new Map([
-      ['module1', 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub'], // lower-case name resolves
-      ['Class1', 'Public Renamed As String'],
-    ]),
-  );
-  const project = parseVbaProject(edited);
-  assert.equal(project.modules[1]!.source, 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub');
-  assert.equal(project.modules[2]!.source, 'Public Renamed As String');
-  assert.match(project.modules[0]!.source, /Workbook_Open/, 'ThisWorkbook is left untouched');
-});
-
-test('editVbaModuleSources rejects an unknown module fail-closed', () => {
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
-  assert.throws(() => editVbaModuleSources(bin, new Map([['Nope', 'x']])), VbaAuthorError);
-});
-
-test('editVbaModuleSources rejects a malformed container as a parse error', () => {
-  assert.throws(
-    () => editVbaModuleSources(Uint8Array.from([1, 2, 3, 4]), new Map([['A', 'x']])),
-    VbaParseError,
-  );
-});
-
-test('editVbaModuleSources round-trips non-ASCII source through the project code page', () => {
-  const bin = buildNavigableProjectBin(1251, MODULES);
-  const edited = editVbaModuleSources(
-    bin,
-    new Map([['Module1', 'Sub T()\r\n    Rem Ж\r\nEnd Sub']]),
-  );
-  assert.ok(parseVbaProject(edited).modules[1]!.source.includes('Ж'));
-});
-
-test('editVbaModuleSources rejects source the code page cannot represent', () => {
-  const bin = buildNavigableProjectBin(1252, MODULES);
-  assert.throws(
-    () => editVbaModuleSources(bin, new Map([['Module1', 'Rem 你好']])),
-    VbaAuthorError,
-  );
-});
-
-test('editVbaModuleSources with no edits returns the input unchanged', () => {
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
-  assert.equal(editVbaModuleSources(bin, new Map()), bin);
-});
-
-// ── Structural edit: addVbaModule ────────────────────────────────────────────────────────────────────
-
 // The dir stream's MODULES_COUNT field ([MS-OVBA] 2.3.4.2.3.2) — not cross-checked by parseVbaProject
 // (which discovers modules by MODULETERMINATOR markers regardless of the count), but Excel relies on it,
-// so addVbaModule must keep it in sync. Reads it directly out of the decompressed dir bytes.
+// so removeVbaModule must keep it in sync. Reads it directly out of the decompressed dir bytes.
 function readModulesCount(dir: Uint8Array): number {
   let pos = 0;
   while (pos + 6 <= dir.length) {
@@ -1076,154 +764,6 @@ function readModulesCount(dir: Uint8Array): number {
   }
   throw new Error('MODULES_COUNT not found');
 }
-
-test('addVbaModule adds a procedural module to a from-scratch project', () => {
-  const bin = writeVbaProject({
-    modules: [{name: 'Alpha', kind: 'procedural', source: 'Sub A()\r\nEnd Sub'}],
-  });
-  const added = addVbaModule(bin, {
-    name: 'Beta',
-    kind: 'class',
-    source: 'Public V As Long',
-  });
-
-  const project = parseVbaProject(added);
-  assert.deepEqual(
-    project.modules.map((m) => [m.name, m.kind, m.source]),
-    [
-      ['Alpha', 'procedural', 'Sub A()\r\nEnd Sub'],
-      ['Beta', 'class', 'Public V As Long'],
-    ],
-  );
-  assert.deepEqual(
-    treeReachableStreams(added).sort(),
-    ['/PROJECT', '/PROJECTwm', '/VBA/Alpha', '/VBA/Beta', '/VBA/_VBA_PROJECT', '/VBA/dir'],
-    'the new module resolves under the VBA storage by tree navigation, not only by linear scan',
-  );
-});
-
-test('addVbaModule adds a module to an existing project, preserving references and untouched modules', () => {
-  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload));
-
-  const newSource = 'Sub Added()\r\n    Debug.Print "new"\r\nEnd Sub';
-  const added = addVbaModule(bin, {name: 'NewModule', kind: 'procedural', source: newSource});
-
-  const project = parseVbaProject(added);
-  assert.deepEqual(
-    project.modules.map((m) => [m.name, m.kind]),
-    [
-      ['ThisWorkbook', 'document'],
-      ['Module1', 'procedural'],
-      ['Class1', 'class'],
-      ['NewModule', 'procedural'],
-    ],
-  );
-  assert.equal(project.modules[3]!.source, newSource);
-
-  const before = new CompoundFile(bin);
-  const after = new CompoundFile(added);
-
-  // Every pre-existing module stream — p-code prefix and all — is byte-identical.
-  for (const name of ['ThisWorkbook', 'Module1', 'Class1']) {
-    assert.deepEqual(
-      after.readStream(name),
-      before.readStream(name),
-      `${name} rides through unchanged`,
-    );
-  }
-  // The new module's stream is source-only at offset 0 (no p-code).
-  assert.deepEqual(
-    decompressContainer(after.readStream('NewModule')!),
-    Uint8Array.from(ascii(newSource)),
-  );
-  // _VBA_PROJECT is reset to the recompile cookie, as for an edited module.
-  assert.deepEqual(
-    after.readStream('_VBA_PROJECT'),
-    Uint8Array.from([0xcc, 0x61, 0xff, 0xff, 0x00, 0x00, 0x00]),
-  );
-
-  const dirBefore = decompressContainer(before.readStream('dir')!);
-  const dirAfter = decompressContainer(after.readStream('dir')!);
-  assert.ok(
-    indexOfBytes(dirAfter, Uint8Array.from(refPayload)) >= 0,
-    'the PROJECTREFERENCES record is preserved',
-  );
-  assert.equal(readModulesCount(dirBefore), 3);
-  assert.equal(readModulesCount(dirAfter), 4, 'MODULES_COUNT is incremented for the new module');
-
-  // PROJECT declares the new module's kind, and PROJECTwm carries its name pair — both needed for Excel
-  // to treat it as a real module rather than orphaned bytes.
-  const projectText = strFromU8(after.readStream('PROJECT')!);
-  assert.match(projectText, /^Module=NewModule$/m);
-  assert.ok(
-    indexOfBytes(after.readStream('PROJECTwm')!, Uint8Array.from(ascii('NewModule'))) >= 0,
-    'PROJECTwm carries the new module name',
-  );
-
-  assert.deepEqual(
-    treeReachableStreams(added).sort(),
-    [
-      '/PROJECT',
-      '/PROJECTwm',
-      '/VBA/Class1',
-      '/VBA/Module1',
-      '/VBA/NewModule',
-      '/VBA/ThisWorkbook',
-      '/VBA/_VBA_PROJECT',
-      '/VBA/dir',
-    ],
-    'the new module resolves under the VBA storage by tree navigation',
-  );
-});
-
-test('addVbaModule rejects a duplicate module name, case-insensitively', () => {
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
-  assert.throws(
-    () => addVbaModule(bin, {name: 'module1', kind: 'procedural', source: 'Sub X()\r\nEnd Sub'}),
-    VbaAuthorError,
-  );
-});
-
-test('addVbaModule rejects an invalid module name', () => {
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
-  assert.throws(
-    () => addVbaModule(bin, {name: '1Bad', kind: 'procedural', source: ''}),
-    VbaAuthorError,
-  );
-  assert.throws(
-    () => addVbaModule(bin, {name: 'x'.repeat(32), kind: 'procedural', source: ''}),
-    VbaAuthorError,
-  );
-});
-
-test('addVbaModule rejects a module kind that is not yet addable', () => {
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
-  assert.throws(
-    () => addVbaModule(bin, {name: 'NewDoc', kind: 'document' as never, source: ''}),
-    VbaAuthorError,
-  );
-});
-
-test('addVbaModule rejects source the code page cannot represent', () => {
-  const bin = buildNavigableProjectBin(1252, MODULES);
-  assert.throws(
-    () => addVbaModule(bin, {name: 'NewModule', kind: 'procedural', source: 'Rem 你好'}),
-    VbaAuthorError,
-  );
-});
-
-test('addVbaModule rejects a malformed container as a parse error', () => {
-  assert.throws(
-    () =>
-      addVbaModule(Uint8Array.from([1, 2, 3, 4]), {
-        name: 'NewModule',
-        kind: 'procedural',
-        source: '',
-      }),
-    VbaParseError,
-  );
-});
 
 // ── Structural edit: removeVbaModule ────────────────────────────────────────────────────────────────
 
@@ -1254,11 +794,9 @@ test('removeVbaModule removes a procedural module, preserving references and unt
   }
   assert.equal(after.readStream('Module1'), undefined, "Module1's stream is gone");
 
-  // _VBA_PROJECT is reset to the recompile cookie, as for an added/edited module.
-  assert.deepEqual(
-    after.readStream('_VBA_PROJECT'),
-    Uint8Array.from([0xcc, 0x61, 0xff, 0xff, 0x00, 0x00, 0x00]),
-  );
+  // _VBA_PROJECT is preserved untouched — Excel runs the modules' existing p-code, and resetting the
+  // cookie would crash the load.
+  assert.deepEqual(after.readStream('_VBA_PROJECT'), before.readStream('_VBA_PROJECT'));
 
   const dirBefore = decompressContainer(before.readStream('dir')!);
   const dirAfter = decompressContainer(after.readStream('dir')!);
@@ -1329,16 +867,14 @@ const SCRIPTING_REF = {
 const SCRIPTING_LIBID =
   '*\\G{420B2830-E718-11CF-893D-00A0C9054228}#1.0#0#C:\\Windows\\System32\\scrrun.dll#Microsoft Scripting Runtime';
 
-test('addVbaReference adds a registered reference to a from-scratch project without touching PROJECT/PROJECTwm', () => {
-  const bin = writeVbaProject({
-    modules: [{name: 'Alpha', kind: 'procedural', source: 'Sub A()\r\nEnd Sub'}],
-  });
+test('addVbaReference adds a registered reference to a project with no existing reference, without touching PROJECT/PROJECTwm', () => {
+  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
   const added = addVbaReference(bin, SCRIPTING_REF);
 
-  // Modules are unaffected — same set, same source.
+  // Modules are unaffected — same set, same order.
   assert.deepEqual(
-    parseVbaProject(added).modules.map((m) => [m.name, m.kind, m.source]),
-    [['Alpha', 'procedural', 'Sub A()\r\nEnd Sub']],
+    parseVbaProject(added).modules.map((m) => m.name),
+    ['ThisWorkbook', 'Module1', 'Class1'],
   );
 
   const before = new CompoundFile(bin);
@@ -1352,17 +888,16 @@ test('addVbaReference adds a registered reference to a from-scratch project with
     indexOfBytes(dirAfter, Uint8Array.from(ascii('Scripting'))) >= 0,
     'the REFERENCENAME name is present',
   );
-  assert.equal(readModulesCount(dirAfter), 1, 'MODULES_COUNT is untouched by adding a reference');
+  assert.equal(readModulesCount(dirAfter), 3, 'MODULES_COUNT is untouched by adding a reference');
 
   // No real Excel-authored PROJECT stream carries a Reference= line for a registered library reference
   // (verified against a genuine Excel-authored project) — so neither PROJECT nor PROJECTwm changes here.
   assert.deepEqual(after.readStream('PROJECT'), before.readStream('PROJECT'));
   assert.deepEqual(after.readStream('PROJECTwm'), before.readStream('PROJECTwm'));
 
-  assert.deepEqual(
-    after.readStream('_VBA_PROJECT'),
-    Uint8Array.from([0xcc, 0x61, 0xff, 0xff, 0x00, 0x00, 0x00]),
-  );
+  // _VBA_PROJECT is preserved untouched — Excel runs the modules' existing p-code, and resetting the
+  // cookie would crash the load.
+  assert.deepEqual(after.readStream('_VBA_PROJECT'), before.readStream('_VBA_PROJECT'));
 });
 
 test('addVbaReference adds a reference to an existing project, preserving an existing reference and every module byte-for-byte', () => {
@@ -1442,145 +977,7 @@ test('addVbaReference rejects a malformed container as a parse error', () => {
   assert.throws(() => addVbaReference(Uint8Array.from([1, 2, 3, 4]), SCRIPTING_REF), VbaParseError);
 });
 
-// ── Edit-in-place through the public surface: Workbook.setVbaModuleSource ─────────────────────────────
-
-test('setVbaModuleSource edits a document module in a read workbook and preserves references end-to-end', () => {
-  // A PROJECTREFERENCES record only editing can preserve — the whole reason this path exists alongside
-  // setVbaProject, which would synthesize a reference-free project instead.
-  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload));
-  const wb = readXlsx(xlsmPackage(bin));
-
-  const newSource = 'Private Sub Workbook_Open()\r\n    Application.Calculate\r\nEnd Sub';
-  wb.setVbaModuleSource('ThisWorkbook', newSource);
-
-  const out = unzipSync(writeXlsx(wb));
-  assert.match(
-    new TextDecoder().decode(out['[Content_Types].xml']!),
-    /vbaProject/,
-    'the package is still macro-enabled',
-  );
-  const reDir = decompressContainer(new CompoundFile(out['xl/vbaProject.bin']!).readStream('dir')!);
-  assert.ok(
-    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
-    'the PROJECTREFERENCES record survives the whole package round-trip',
-  );
-
-  const reread = readXlsx(writeXlsx(wb));
-  assert.deepEqual(
-    reread.vbaProject?.modules.map((m) => [m.name, m.kind]),
-    [
-      ['ThisWorkbook', 'document'],
-      ['Module1', 'procedural'],
-      ['Class1', 'class'],
-    ],
-    'the module set and kinds are unchanged — a document module was edited in place',
-  );
-  assert.equal(reread.vbaProject?.modules[0]?.source, newSource, 'the new source round-trips');
-  assert.ok(
-    reread.vbaProject?.modules[1]?.source.includes('А'),
-    'the untouched code-page-1251 module still decodes its Cyrillic source',
-  );
-});
-
-test('setVbaModuleSource on a macro-free workbook throws without attaching a project', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('Sheet1');
-  assert.throws(() => wb.setVbaModuleSource('Module1', 'Sub X()\r\nEnd Sub'), VbaAuthorError);
-  assert.equal(wb.vbaProjectBytes, undefined, 'no project is attached by a rejected edit');
-});
-
-test('setVbaModuleSource drops a stale signature', () => {
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
-  const wb = readXlsx(xlsmPackage(bin, Uint8Array.from([1, 2, 3])));
-  assert.ok(unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'], 'precondition: signed');
-
-  wb.setVbaModuleSource('Module1', 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub');
-
-  const out = unzipSync(writeXlsx(wb));
-  assert.equal(
-    out['xl/vbaProjectSignature.bin'],
-    undefined,
-    'the signature over old bytes is dropped',
-  );
-  assert.match(
-    readXlsx(writeXlsx(wb)).vbaProject?.modules[1]?.source ?? '',
-    /Debug\.Print 1/,
-    'the edit is in the re-emitted package',
-  );
-});
-
-test('setVbaModuleSource rejects an unknown module without disturbing the existing project', () => {
-  const wb = readXlsx(xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES)));
-  const before = wb.vbaProjectBytes;
-
-  assert.throws(() => wb.setVbaModuleSource('Nope', 'x'), VbaAuthorError);
-  assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected edit leaves the workbook untouched');
-});
-
-// ── Structural edits through the public surface: Workbook.addVbaModule / removeVbaModule / addVbaReference
-
-test('Workbook.addVbaModule adds a module to a read workbook and preserves references end-to-end', () => {
-  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload));
-  const wb = readXlsx(xlsmPackage(bin));
-
-  wb.addVbaModule({name: 'NewModule', kind: 'procedural', source: 'Sub Added()\r\nEnd Sub'});
-
-  const reDir = decompressContainer(
-    new CompoundFile(unzipSync(writeXlsx(wb))['xl/vbaProject.bin']!).readStream('dir')!,
-  );
-  assert.ok(
-    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
-    'the PROJECTREFERENCES record survives the whole package round-trip',
-  );
-
-  const reread = readXlsx(writeXlsx(wb));
-  assert.deepEqual(
-    reread.vbaProject?.modules.map((m) => [m.name, m.kind]),
-    [
-      ['ThisWorkbook', 'document'],
-      ['Module1', 'procedural'],
-      ['Class1', 'class'],
-      ['NewModule', 'procedural'],
-    ],
-  );
-});
-
-test('Workbook.addVbaModule on a macro-free workbook throws without attaching a project', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('Sheet1');
-  assert.throws(
-    () => wb.addVbaModule({name: 'Module1', kind: 'procedural', source: ''}),
-    VbaAuthorError,
-  );
-  assert.equal(wb.vbaProjectBytes, undefined, 'no project is attached by a rejected add');
-});
-
-test('Workbook.addVbaModule rejects a duplicate name without disturbing the existing project', () => {
-  const wb = readXlsx(xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES)));
-  const before = wb.vbaProjectBytes;
-
-  assert.throws(
-    () => wb.addVbaModule({name: 'module1', kind: 'procedural', source: ''}),
-    VbaAuthorError,
-  );
-  assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected add leaves the workbook untouched');
-});
-
-test('Workbook.addVbaModule drops a stale signature', () => {
-  const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
-  const wb = readXlsx(xlsmPackage(bin, Uint8Array.from([1, 2, 3])));
-  assert.ok(unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'], 'precondition: signed');
-
-  wb.addVbaModule({name: 'NewModule', kind: 'procedural', source: ''});
-
-  assert.equal(
-    unzipSync(writeXlsx(wb))['xl/vbaProjectSignature.bin'],
-    undefined,
-    'the signature over old bytes is dropped',
-  );
-});
+// ── Structural edits through the public surface: Workbook.removeVbaModule / addVbaReference ───────────
 
 test('Workbook.removeVbaModule removes a module from a read workbook and preserves references end-to-end', () => {
   const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
@@ -1686,169 +1083,7 @@ test('Workbook.addVbaReference rejects an invalid reference without disturbing t
   assert.deepEqual(wb.vbaProjectBytes, before, 'a rejected add leaves the workbook untouched');
 });
 
-// ── Package-preserving edit: editXlsxVbaModuleSource(s) ───────────────────────────────────────────────
-// The functional path that splices the macro into the original package bytes, so a real .xlsm's non-macro
-// content survives exactly — the highest-fidelity way to tweak an existing macro (no model round-trip).
-
-test('editXlsxVbaModuleSource swaps a module and preserves every other package part byte-for-byte', () => {
-  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload)));
-  const before = unzipSync(pkg);
-
-  const newSource = 'Private Sub Workbook_Open()\r\n    Application.Calculate\r\nEnd Sub';
-  const after = unzipSync(editXlsxVbaModuleSource(pkg, 'ThisWorkbook', newSource));
-
-  assert.deepEqual(
-    Object.keys(after).sort(),
-    Object.keys(before).sort(),
-    'no parts are added or removed',
-  );
-  for (const name of Object.keys(before)) {
-    if (name === 'xl/vbaProject.bin') continue;
-    assert.deepEqual(after[name], before[name], `${name} is preserved byte-for-byte`);
-  }
-
-  const project = parseVbaProject(after['xl/vbaProject.bin']!);
-  assert.equal(
-    project.modules.find((m) => m.name === 'ThisWorkbook')?.source,
-    newSource,
-    'the edited document module carries the new source',
-  );
-  const reDir = decompressContainer(
-    new CompoundFile(after['xl/vbaProject.bin']!).readStream('dir')!,
-  );
-  assert.ok(
-    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
-    'the PROJECTREFERENCES record survives the splice',
-  );
-});
-
-test('editXlsxVbaModuleSource drops a stale signature part, its relationship, and content-type override', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES), Uint8Array.from([1, 2, 3]));
-  assert.ok(unzipSync(pkg)['xl/vbaProjectSignature.bin'], 'precondition: the package is signed');
-
-  const after = unzipSync(
-    editXlsxVbaModuleSource(pkg, 'Module1', 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub'),
-  );
-
-  assert.equal(after['xl/vbaProjectSignature.bin'], undefined, 'the signature part is dropped');
-  assert.ok(after['xl/vbaProject.bin'], 'the project itself survives');
-  const binRels = after['xl/_rels/vbaProject.bin.rels'];
-  if (binRels) {
-    assert.ok(!strFromU8(binRels).includes('Signature'), 'the signature relationship is removed');
-  }
-  assert.ok(
-    !strFromU8(after['[Content_Types].xml']!).includes('vbaProjectSignature'),
-    'the signature content-type override is removed',
-  );
-  assert.match(
-    readXlsx(zipSync(after)).vbaProject?.modules[1]?.source ?? '',
-    /Debug\.Print 1/,
-    'the edit landed in the surviving project',
-  );
-});
-
-test('editXlsxVbaModuleSources edits several modules and no-ops on empty edits', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
-
-  const edited = editXlsxVbaModuleSources(
-    pkg,
-    new Map([
-      ['Module1', 'Sub Test()\r\n    Debug.Print 1\r\nEnd Sub'],
-      ['Class1', 'Public Y As Long'],
-    ]),
-  );
-  const byName = new Map(readXlsx(edited).vbaProject?.modules.map((m) => [m.name, m.source]));
-  assert.match(byName.get('Module1') ?? '', /Debug\.Print 1/);
-  assert.equal(byName.get('Class1'), 'Public Y As Long');
-
-  assert.equal(
-    editXlsxVbaModuleSources(pkg, new Map()),
-    pkg,
-    'empty edits returns the input package',
-  );
-});
-
-test('editXlsxVbaModuleSource throws for a macro-free package', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('Sheet1');
-  assert.throws(
-    () => editXlsxVbaModuleSource(writeXlsx(wb), 'Module1', 'Sub X()\r\nEnd Sub'),
-    VbaAuthorError,
-  );
-});
-
-test('editXlsxVbaModuleSource propagates VbaAuthorError for an unknown module', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
-  assert.throws(() => editXlsxVbaModuleSource(pkg, 'Nope', 'x'), VbaAuthorError);
-});
-
-// ── Package-preserving structural edits: editXlsxVbaAddModule / editXlsxVbaRemoveModule / ──────────────
-// ── editXlsxVbaAddReference ──────────────────────────────────────────────────────────────────────────
-
-test('editXlsxVbaAddModule adds a module and preserves every other package part byte-for-byte', () => {
-  const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES, rec(0x000d, refPayload)));
-  const before = unzipSync(pkg);
-
-  const after = unzipSync(
-    editXlsxVbaAddModule(pkg, {
-      name: 'NewModule',
-      kind: 'procedural',
-      source: 'Sub A()\r\nEnd Sub',
-    }),
-  );
-
-  assert.deepEqual(
-    Object.keys(after).sort(),
-    Object.keys(before).sort(),
-    'no parts are added or removed',
-  );
-  for (const name of Object.keys(before)) {
-    if (name === 'xl/vbaProject.bin') continue;
-    assert.deepEqual(after[name], before[name], `${name} is preserved byte-for-byte`);
-  }
-
-  const project = parseVbaProject(after['xl/vbaProject.bin']!);
-  assert.deepEqual(
-    project.modules.map((m) => m.name),
-    ['ThisWorkbook', 'Module1', 'Class1', 'NewModule'],
-  );
-  const reDir = decompressContainer(
-    new CompoundFile(after['xl/vbaProject.bin']!).readStream('dir')!,
-  );
-  assert.ok(
-    indexOfBytes(reDir, Uint8Array.from(refPayload)) >= 0,
-    'the PROJECTREFERENCES record survives the splice',
-  );
-});
-
-test('editXlsxVbaAddModule drops a stale signature part', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES), Uint8Array.from([1, 2, 3]));
-  assert.ok(unzipSync(pkg)['xl/vbaProjectSignature.bin'], 'precondition: the package is signed');
-
-  const after = unzipSync(
-    editXlsxVbaAddModule(pkg, {name: 'NewModule', kind: 'procedural', source: ''}),
-  );
-  assert.equal(after['xl/vbaProjectSignature.bin'], undefined, 'the signature part is dropped');
-});
-
-test('editXlsxVbaAddModule throws for a macro-free package', () => {
-  const wb = new Workbook();
-  wb.addWorksheet('Sheet1');
-  assert.throws(
-    () => editXlsxVbaAddModule(writeXlsx(wb), {name: 'M', kind: 'procedural', source: ''}),
-    VbaAuthorError,
-  );
-});
-
-test('editXlsxVbaAddModule propagates VbaAuthorError for a duplicate module name', () => {
-  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
-  assert.throws(
-    () => editXlsxVbaAddModule(pkg, {name: 'Module1', kind: 'procedural', source: ''}),
-    VbaAuthorError,
-  );
-});
+// ── Package-preserving structural edits: editXlsxVbaRemoveModule / editXlsxVbaAddReference ─────────────
 
 test('editXlsxVbaRemoveModule removes a module and preserves every other package part byte-for-byte', () => {
   const refPayload = ascii('*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42');

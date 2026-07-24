@@ -1,12 +1,13 @@
-// Native VBA read and authoring: decode a macro-enabled workbook's `vbaProject.bin` into readable module
-// source, synthesize a fresh `.bin` from module source, edit an existing module's source in place by
-// splicing the original bytes (references and other modules preserved), and add or remove a module or a
-// library reference from an existing project the same way.
+// Native VBA read, plus pure-TS structural edits: decode a macro-enabled workbook's `vbaProject.bin`
+// into readable module source, and remove a module or add a library reference from an existing project
+// by splicing the original bytes (every module's compiled p-code preserved untouched).
 //
-// The read path is a projection over bytes the model preserves opaquely on round-trip. For the design
-// invariants and the wider VBA feature map see the ADRs: read view (docs/decisions/0016), authoring
-// (0017), and edit-existing-source by splice (0018), plus the spec
-// docs/knowledge/specs/xlsm-macro-preservation.md.
+// Authoring or editing module SOURCE is NOT here. Excel runs a module's compiled p-code, not its source,
+// and only a real Excel can produce source-matched p-code — so that lives in the offline
+// `tools/vba-compiler` (VBIDE), whose output is attached via `Workbook.vbaProjectBytes`. The read path
+// is a projection over bytes the model preserves opaquely on round-trip. For the design invariants and
+// the wider VBA feature map see the ADRs: read view (docs/decisions/0016), authoring (0017/0019), and
+// structural edits (0018/0019), plus docs/knowledge/specs/xlsm-macro-preservation.md.
 
 export {
   type CfbNode,
@@ -26,14 +27,7 @@ export {
   type VbaProject,
 } from './project.ts';
 export {
-  addVbaModule,
   addVbaReference,
-  editVbaModuleSources,
   removeVbaModule,
   type VbaLibraryReference,
 } from './project-editor.ts';
-export {
-  type VbaModuleSource,
-  type VbaProjectSpec,
-  writeVbaProject,
-} from './project-writer.ts';

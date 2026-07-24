@@ -1,7 +1,11 @@
 # ADR 0017 — VBA authoring is in scope; the consumer gate is lifted
 
-**Status:** Accepted (2026-07-23) · supersedes the "deferred pending a forcing consumer" clause of
-ADR 0016 (and the parallel gate in ADR 0014) for the VBA feature line.
+**Status:** **Retracted (2026-07-24) by [ADR 0019](0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md)** —
+the §2.3c "no p-code + unmatchable-version cookie forces recompile" mechanism does not work (Excel does
+not recompile from source on open), and its "Verified against real Excel 365" claim never exercised the
+compile/load step. From-scratch source authoring now lives in the offline `tools/vba-compiler`. Retained
+here for historical context. · Originally Accepted (2026-07-23) · superseded the "deferred pending a
+forcing consumer" clause of ADR 0016 (and the parallel gate in ADR 0014) for the VBA feature line.
 
 ## Context
 

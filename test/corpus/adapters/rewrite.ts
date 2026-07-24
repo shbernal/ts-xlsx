@@ -70,7 +70,7 @@ const {compressContainer, decompressContainer} =
   await loadModule<typeof import('../../../src/vba/ms-ovba.ts')>('vba/ms-ovba');
 const {parseVbaProject} =
   await loadModule<typeof import('../../../src/vba/project.ts')>('vba/project');
-const {addVbaModule, addVbaReference, removeVbaModule} =
+const {addVbaReference, removeVbaModule} =
   await loadModule<typeof import('../../../src/vba/project-editor.ts')>('vba/project-editor');
 
 // JSZip is an independent zip implementation used only to VERIFY the streaming writer's output (CRC
@@ -677,7 +677,6 @@ const VBA_FIXTURE_CODE_PAGE = 1251;
 // A REFERENCEREGISTERED record ([MS-OVBA] 2.3.4.2). Its distinctive marker must survive the edit
 // verbatim — the writer emits no references at all, so its presence proves splice-not-resynthesize.
 const VBA_FIXTURE_REF_MARKER = '*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42';
-const VBA_RECOMPILE_COOKIE = Uint8Array.from([0xcc, 0x61, 0xff, 0xff, 0x00, 0x00, 0x00]);
 
 const VBA_PROJECT_STREAM = [
   'ID="{00000000-0000-0000-0000-000000000000}"',
@@ -777,6 +776,14 @@ function vbaIndexOfBytes(haystack: Uint8Array, needle: Uint8Array): number {
     return i;
   }
   return -1;
+}
+
+// Whole-stream byte equality — used to assert a structural VBA edit leaves `_VBA_PROJECT` completely
+// untouched (removeVbaModule/addVbaReference no longer reset it to the recompile cookie; Excel runs the
+// project's existing p-code as-is, and resetting the cookie on a project that carries real p-code
+// actively crashes the load — ADR 0019).
+function vbaBytesIdentical(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && vbaIndexOfBytes(a, b) === 0;
 }
 
 const impl = {
@@ -1333,128 +1340,14 @@ const impl = {
     return {originalHasVba, reloadedPreservedCount, rewrittenHasVba, rewrittenIsMacroEnabled};
   },
 
-  // Read a macro-enabled package, edit ONE VBA module's source in place via Workbook.setVbaModuleSource,
-  // write it back, and re-read → facts proving the "tweak an existing macro" path preserves what
-  // re-synthesis cannot. The edited module is the ThisWorkbook *document* code-behind (the writer refuses
-  // to author document modules; splice-editing inherits their host linkage). Asserts: the edit lands and
-  // survives a full package round-trip; the project's other modules — including a code-page-1251 one —
-  // ride through byte-for-byte; the hand-crafted project reference survives; the workbook stays
-  // macro-enabled; and _VBA_PROJECT is reset to the recompile cookie so Excel rebuilds from the new source.
-  xlsmVbaEditModuleSource() {
-    const originalBin = buildVbaFixtureBin();
-    const pkg = buildVbaFixturePackage(originalBin);
-
-    const wb = readXlsx(pkg);
-    const originalModuleNames = (wb.vbaProject?.modules ?? []).map((m: CorpusApi) => m.name);
-
-    const newSource = 'Private Sub Workbook_Open()\r\n    Application.Calculate\r\nEnd Sub';
-    wb.setVbaModuleSource('ThisWorkbook', newSource);
-
-    const written = writeXlsx(wb);
-    const rewrittenParts = unzipSync(written);
-    const rewrittenIsMacroEnabled = /macroEnabled\.main\+xml/.test(
-      strFromU8(rewrittenParts['[Content_Types].xml']!),
-    );
-
-    const rewrittenBin = rewrittenParts['xl/vbaProject.bin'];
-    const rewrittenHasVba = rewrittenBin !== undefined;
-    const rewrittenCfb = rewrittenBin ? new CompoundFile(rewrittenBin) : undefined;
-    const originalCfb = new CompoundFile(originalBin);
-
-    const rewrittenDir = rewrittenCfb
-      ? decompressContainer(rewrittenCfb.readStream('dir')!)
-      : undefined;
-    const referencePreserved =
-      rewrittenDir !== undefined &&
-      vbaIndexOfBytes(rewrittenDir, Uint8Array.from(vbaAscii(VBA_FIXTURE_REF_MARKER))) >= 0;
-
-    const untouchedModuleByteIdentical =
-      rewrittenCfb !== undefined &&
-      vbaIndexOfBytes(rewrittenCfb.readStream('Module1')!, originalCfb.readStream('Module1')!) ===
-        0 &&
-      rewrittenCfb.readStream('Module1')!.length === originalCfb.readStream('Module1')!.length;
-
-    const recompileCookieReset =
-      rewrittenCfb !== undefined &&
-      vbaIndexOfBytes(rewrittenCfb.readStream('_VBA_PROJECT')!, VBA_RECOMPILE_COOKIE) === 0;
-
-    const reread = readXlsx(written);
-    const modules = reread.vbaProject?.modules ?? [];
-    const moduleKinds = modules.map((m: CorpusApi) => [m.name, m.kind]);
-    const edited = modules.find((m: CorpusApi) => m.name === 'ThisWorkbook');
-    const untouched = modules.find((m: CorpusApi) => m.name === 'Module1');
-    const editedSourcePresent = edited?.source === newSource;
-    const codePageModulePreserved = untouched?.source?.includes('А') ?? false;
-
-    return {
-      originalModuleNames,
-      rewrittenIsMacroEnabled,
-      rewrittenHasVba,
-      referencePreserved,
-      untouchedModuleByteIdentical,
-      recompileCookieReset,
-      moduleKinds,
-      editedSourcePresent,
-      codePageModulePreserved,
-    };
-  },
-
-  // Add a new standard module to an existing macro project's vbaProject.bin via the project-editor
-  // primitive addVbaModule (project.ts's parseVbaProject sits in front of Workbook, not yet wired — the
-  // primitive is the surface this case locks). Adds a procedural module to the same three-module,
-  // one-reference fixture xlsmVbaEditModuleSource() uses, and asserts the new module reads back
-  // alongside the untouched ones, the hand-crafted PROJECTREFERENCES record and every pre-existing
-  // module stream survive byte-for-byte, and _VBA_PROJECT resets to the recompile cookie so Excel
-  // compiles the new module in.
-  xlsmVbaAddModule() {
-    const originalBin = buildVbaFixtureBin();
-    const newSource = 'Sub Added()\r\n    Debug.Print "new"\r\nEnd Sub';
-
-    const addedBin = addVbaModule(originalBin, {
-      name: 'AddedModule',
-      kind: 'procedural',
-      source: newSource,
-    });
-
-    const project = parseVbaProject(addedBin);
-    const moduleNames = project.modules.map((m: CorpusApi) => m.name);
-    const moduleKinds = project.modules.map((m: CorpusApi) => [m.name, m.kind]);
-    const added = project.modules.find((m: CorpusApi) => m.name === 'AddedModule');
-    const addedSourcePresent = added?.source === newSource;
-
-    const originalCfb = new CompoundFile(originalBin);
-    const addedCfb = new CompoundFile(addedBin);
-    const untouchedModuleByteIdentical =
-      vbaIndexOfBytes(addedCfb.readStream('Module1')!, originalCfb.readStream('Module1')!) === 0 &&
-      addedCfb.readStream('Module1')!.length === originalCfb.readStream('Module1')!.length;
-
-    const referencePreserved =
-      vbaIndexOfBytes(
-        decompressContainer(addedCfb.readStream('dir')!),
-        Uint8Array.from(vbaAscii(VBA_FIXTURE_REF_MARKER)),
-      ) >= 0;
-
-    const recompileCookieReset =
-      vbaIndexOfBytes(addedCfb.readStream('_VBA_PROJECT')!, VBA_RECOMPILE_COOKIE) === 0;
-
-    return {
-      moduleNames,
-      moduleKinds,
-      addedSourcePresent,
-      untouchedModuleByteIdentical,
-      referencePreserved,
-      recompileCookieReset,
-    };
-  },
-
   // Add a registered (COM type-library) reference to an existing macro project's vbaProject.bin via the
-  // project-editor primitive addVbaReference — the structural-edit counterpart to xlsmVbaAddModule().
-  // Adds "Microsoft Scripting Runtime" (the real GUID/path, verified against a genuine Excel-authored
-  // project) to the same three-module, one-reference fixture, and asserts the new REFERENCENAME +
-  // REFERENCEREGISTERED records read back correctly, the hand-crafted pre-existing reference and every
-  // module survive byte-for-byte, PROJECT/PROJECTwm are untouched (no real Excel-authored PROJECT stream
-  // carries a Reference= line for a registered reference), and _VBA_PROJECT resets to the recompile
-  // cookie.
+  // project-editor primitive addVbaReference. Adds "Microsoft Scripting Runtime" (the real GUID/path,
+  // verified against a genuine Excel-authored project) to the three-module, one-reference fixture, and
+  // asserts the new REFERENCENAME + REFERENCEREGISTERED records read back correctly, the hand-crafted
+  // pre-existing reference and every module survive byte-for-byte, PROJECT/PROJECTwm are untouched (no
+  // real Excel-authored PROJECT stream carries a Reference= line for a registered reference), and
+  // _VBA_PROJECT is left byte-for-byte unchanged — Excel runs the modules' existing p-code, so resetting
+  // the cookie would crash the load (ADR 0019).
   xlsmVbaAddReference() {
     const originalBin = buildVbaFixtureBin();
     const newRef = {
@@ -1488,8 +1381,10 @@ const impl = {
       vbaIndexOfBytes(addedCfb.readStream('PROJECT')!, originalCfb.readStream('PROJECT')!) === 0 &&
       addedCfb.readStream('PROJECT')!.length === originalCfb.readStream('PROJECT')!.length;
 
-    const recompileCookieReset =
-      vbaIndexOfBytes(addedCfb.readStream('_VBA_PROJECT')!, VBA_RECOMPILE_COOKIE) === 0;
+    const vbaProjectStreamPreserved = vbaBytesIdentical(
+      addedCfb.readStream('_VBA_PROJECT')!,
+      originalCfb.readStream('_VBA_PROJECT')!,
+    );
 
     return {
       moduleNames,
@@ -1497,17 +1392,17 @@ const impl = {
       existingReferencePreserved,
       newReferencePresent,
       projectStreamUnchanged,
-      recompileCookieReset,
+      vbaProjectStreamPreserved,
     };
   },
 
   // Remove a standard module from an existing macro project's vbaProject.bin via the project-editor
-  // primitive removeVbaModule — the inverse structural edit of xlsmVbaAddModule(). Removes the procedural
-  // Module1 from the same three-module, one-reference fixture, and asserts: Module1 is gone from the
-  // module list; the untouched document module (ThisWorkbook) and the hand-crafted PROJECTREFERENCES
-  // record survive byte-for-byte; Module1's declaration line is gone from PROJECT while the other
-  // modules' lines survive; Module1's name pair is gone from PROJECTwm; and _VBA_PROJECT resets to the
-  // recompile cookie so Excel recompiles the remaining modules.
+  // primitive removeVbaModule. Removes the procedural Module1 from the three-module, one-reference
+  // fixture, and asserts: Module1 is gone from the module list; the untouched document module
+  // (ThisWorkbook) and the hand-crafted PROJECTREFERENCES record survive byte-for-byte; Module1's
+  // declaration line is gone from PROJECT while the other modules' lines survive; Module1's name pair is
+  // gone from PROJECTwm; and _VBA_PROJECT is left byte-for-byte unchanged — Excel runs the surviving
+  // modules' existing p-code, so resetting the cookie would crash the load (ADR 0019).
   xlsmVbaRemoveModule() {
     const originalBin = buildVbaFixtureBin();
 
@@ -1544,8 +1439,10 @@ const impl = {
       vbaIndexOfBytes(removedCfb.readStream('PROJECTwm')!, Uint8Array.from(vbaAscii('Module1'))) <
       0;
 
-    const recompileCookieReset =
-      vbaIndexOfBytes(removedCfb.readStream('_VBA_PROJECT')!, VBA_RECOMPILE_COOKIE) === 0;
+    const vbaProjectStreamPreserved = vbaBytesIdentical(
+      removedCfb.readStream('_VBA_PROJECT')!,
+      originalCfb.readStream('_VBA_PROJECT')!,
+    );
 
     return {
       moduleNames,
@@ -1556,26 +1453,25 @@ const impl = {
       removedDeclLineGone,
       otherDeclLinesSurvive,
       projectwmNoLongerHasModule1,
-      recompileCookieReset,
+      vbaProjectStreamPreserved,
     };
   },
 
-  // Chain all three structural edits through the *public, package-level* surface — Workbook.addVbaModule,
-  // Workbook.removeVbaModule, Workbook.addVbaReference — rather than calling the project-editor primitives
-  // directly, the way xlsmVbaAddModule/xlsmVbaRemoveModule/xlsmVbaAddReference do. Those cases lock the
-  // splice primitives; this one locks that the primitives are actually wired to Workbook and survive a
-  // real readXlsx -> edit -> writeXlsx -> readXlsx package round-trip, not only a bare-bin call. Adds a
-  // module, removes the pre-existing Module1, and adds a reference to the three-module, one-reference
-  // fixture, then asserts: the final module set/kinds are as expected; the hand-crafted
-  // PROJECTREFERENCES record AND the newly added reference are both present; the untouched Class1 module
-  // survives byte-for-byte; the package stays macro-enabled; and _VBA_PROJECT resets to the recompile
-  // cookie.
+  // Chain the two structural edits through the *public, package-level* surface — Workbook.removeVbaModule,
+  // Workbook.addVbaReference — rather than calling the project-editor primitives directly, the way
+  // xlsmVbaRemoveModule/xlsmVbaAddReference do. Those cases lock the splice primitives; this one locks
+  // that the primitives are actually wired to Workbook and survive a real readXlsx -> edit -> writeXlsx ->
+  // readXlsx package round-trip, not only a bare-bin call. Removes the pre-existing Module1 and adds a
+  // reference to the three-module, one-reference fixture, then asserts: the final module set/kinds are as
+  // expected; the hand-crafted PROJECTREFERENCES record AND the newly added reference are both present;
+  // the untouched Class1 module survives byte-for-byte; the package stays macro-enabled; and
+  // _VBA_PROJECT is left byte-for-byte unchanged — Excel runs the surviving modules' existing p-code, so
+  // resetting the cookie would crash the load (ADR 0019).
   xlsmVbaWorkbookStructuralEdits() {
     const originalBin = buildVbaFixtureBin();
     const pkg = buildVbaFixturePackage(originalBin);
 
     const wb = readXlsx(pkg);
-    wb.addVbaModule({name: 'NewModule', kind: 'procedural', source: 'Sub Added()\r\nEnd Sub'});
     wb.removeVbaModule('Module1');
     const newLibid =
       '*\\G{420B2830-E718-11CF-893D-00A0C9054228}#1.0#0#C:\\Windows\\System32\\scrrun.dll#Microsoft Scripting Runtime';
@@ -1618,9 +1514,12 @@ const impl = {
       rewrittenDir !== undefined &&
       vbaIndexOfBytes(rewrittenDir, Uint8Array.from(vbaAscii(newLibid))) >= 0;
 
-    const recompileCookieReset =
+    const vbaProjectStreamPreserved =
       rewrittenCfb !== undefined &&
-      vbaIndexOfBytes(rewrittenCfb.readStream('_VBA_PROJECT')!, VBA_RECOMPILE_COOKIE) === 0;
+      vbaBytesIdentical(
+        rewrittenCfb.readStream('_VBA_PROJECT')!,
+        originalCfb.readStream('_VBA_PROJECT')!,
+      );
 
     return {
       moduleNames,
@@ -1629,7 +1528,7 @@ const impl = {
       untouchedModuleByteIdentical,
       originalReferencePreserved,
       newReferencePresent,
-      recompileCookieReset,
+      vbaProjectStreamPreserved,
     };
   },
 

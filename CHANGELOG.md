@@ -11,3 +11,26 @@ This file tracks changes from its introduction forward. Earlier history — the 
 ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](docs/decisions/).
 
 ## [Unreleased]
+
+### Removed
+
+- **BREAKING: the pure-TS VBA source-authoring API is gone.** `writeVbaProject`,
+  `Workbook.setVbaProject`, `editVbaModuleSources`, `Workbook.setVbaModuleSource`,
+  `editXlsxVbaModuleSource`, `editXlsxVbaModuleSources`, `addVbaModule`, `Workbook.addVbaModule`, and
+  `editXlsxVbaAddModule` are removed, along with the `VbaModuleSource`/`VbaProjectSpec` types. They
+  emitted modules with no compiled p-code on the theory that Excel recompiles from source on open —
+  which it does not: such files either fail to load ("Invalid data format") or silently run stale code.
+  See [ADR 0019](docs/decisions/0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md).
+
+### Added
+
+- **`tools/vba-compiler`** — an offline build tool that produces genuinely compiled, source-matched VBA
+  p-code by driving a real headless Excel (VBIDE). Emits a `vbaProject.bin` (attach via
+  `Workbook.vbaProjectBytes`) or a whole edited `.xlsm`. Windows + licensed Excel only; never in CI.
+
+### Changed
+
+- `removeVbaModule` and `addVbaReference` (and their `Workbook`/`editXlsxVba*` wrappers) no longer reset
+  the `_VBA_PROJECT` stream — that reset crashed the VBA load on a project with real p-code. They now
+  leave it byte-for-byte untouched; the `dir` stream carries the structural change. These edits are
+  retained precisely because they never touch a module's compiled p-code.

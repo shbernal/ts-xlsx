@@ -23,6 +23,7 @@ Three cheaper oracles come first; reach here only for what they structurally can
 | `validate-ooxml` skill (OpenXmlValidator) | Is the XML ECMA-376 conformant? | Whether *Excel* accepts it - Excel tolerates many invalid files and rejects some valid ones. |
 | `tools/excel-oracle` (headless COM) | Formula recalc, canonical re-save, model readback; *detects* that a repair happened. | The **interactive** repair experience - `DisplayAlerts=$false` suppresses the modal, so it never reproduces the dialog or captures the repair log. |
 | **this skill** (interactive GUI) | The open verdict a user actually sees; the repair log; no-COM-surface authoring; visual render. | Nothing fast, deterministic, or CI-able - see below. |
+| **this skill** (`execute-verdict.ps1`) | Whether an authored/edited VBA module actually LOADS and RUNS its source once macros are enabled (Workflow C). | Same PROBE contract - never CI. |
 
 **This is a PROBE, not a test** - same contract as `tools/excel-oracle` (ADR 0012,
 seed+lock split). Its output is a *recorded fact that seeds a corpus case*. **Never
@@ -96,6 +97,44 @@ The classifier keys off Excel's English-locale dialog strings (encoded as regexe
 at the top of `open-verdict.ps1`). On first real run, if a verdict comes back
 `timeout` or `unknown` when the screenshot clearly shows a dialog, dump the real
 text and widen the patterns - do not assume the wording.
+
+> **`open-verdict.ps1` is structurally BLIND to VBA-authoring defects.** It never
+> enables macros, so it only catches package-level (structural) repair - never a
+> module that fails to compile, or one that loads clean but silently runs the
+> wrong (stale) p-code, once macros are on. For anything that authors/edits VBA,
+> use **Workflow C** below, not this one. (Verified 2026-07-24: a from-scratch VBA
+> project passed `open-verdict.ps1` "clean" yet threw "Invalid data format" the
+> instant Enable Content was clicked; another loaded clean but ran stale p-code
+> from an unrelated module.)
+
+## Workflow C - the VBA execute verdict (does the authored macro actually run?)
+
+The verdict that proves a VBA-authoring feature works: not "opens clean" but "runs
+the authored source." `execute-verdict.ps1` opens the file on a private, headless
+Excel COM instance with `AutomationSecurity = Low` (the automation equivalent of a
+user clicking Enable Content: the VBA project is loaded and COMPILED on open), then
+runs a known macro and reports its result.
+
+```
+pwsh -File .claude\skills\excel-gui-automation\scripts\execute-verdict.ps1 `
+    -Path .\authored.xlsm -RunMacro AddThem -RunArgs 4,5 -ExpectResult 9 -ReadModule Module1
+```
+
+- **`passed: true` with the expected `runResult`** - the authored source is live
+  and correct.
+- **`runError: "...macro may not be available..."`** - the module did not
+  load/compile (bad p-code), or Excel is running stale p-code lacking that macro.
+- **`openThrew: true`** - Excel rejected the file structurally on open.
+
+Rules that matter:
+- **Always pass `-RunMacro`.** `AutomationSecurity=Low` + `DisplayAlerts=$false`
+  suppresses the interactive "Invalid data format" modal, so brokenness surfaces
+  as a Run failure, NOT a popup. "Opened without error" alone proves nothing.
+- **Pick a no-UI `Function`** (deterministic return, no `MsgBox`). A `MsgBox`
+  blocks `Run` indefinitely and hangs the probe.
+- Runs under pwsh 7 or Windows PowerShell (only needs `New-Object -ComObject`; no
+  GetActiveObject, no UI Automation), and leaves no Trusted-Documents residue, so
+  it is safely repeatable. Seed a corpus case from the recorded `passed`/`runResult`.
 
 ## Workflow B - author a fixture for a feature with no COM surface
 
@@ -185,6 +224,13 @@ tree directly and bypass it - that is the only reliable path (`uia-lib.ps1`).
 - `scripts/open-verdict.ps1` - **the headline tool:** launch a file in
   interactive Excel, classify open verdict, screenshot, optionally accept the
   repair + capture the log, emit JSON. Read-only unless `-AcceptRepair`.
+  **Blind to VBA-authoring defects** (never enables macros) - use
+  `execute-verdict.ps1` for those.
+- `scripts/execute-verdict.ps1` - **the VBA verdict (Workflow C):** open with
+  macros enabled (headless COM, `AutomationSecurity=Low`), run a known authored
+  macro, emit JSON `{openThrew, ran, runResult, runError, moduleLines, passed}`.
+  The only oracle that proves an authored/edited module actually LOADS and RUNS
+  its source. Runs under pwsh or Windows PowerShell.
 - `scripts/foreground-and-shoot.ps1` - sanity check / "just look at current state".
 - `scripts/drive-ribbon.ps1` - ribbon driver: KeyTips -> UIA menu invoke ->
   optional dump/toggle/button-invoke -> screenshot. See its comment-based help.

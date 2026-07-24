@@ -134,8 +134,10 @@ Macro-enabled workbooks (`.xlsm`/`.xltm`) carry their VBA as a single opaque par
 `vbaProject.bin` — an OLE2 / Compound File ([MS-CFB]) container holding Office
 run-length-compressed ([MS-OVBA]) module source and p-code. OOXML treats it as a binary
 blob referenced by a workbook relationship; the ZIP package is otherwise identical to a plain
-`.xlsx`. `src/vba/` is the self-contained, dependency-free subsystem that reads, authors, and
-edits that blob natively — no `fflate`, no runtime dependency, just bytes.
+`.xlsx`. `src/vba/` is the self-contained, dependency-free subsystem that reads that blob and
+applies pure-TS structural edits natively — no `fflate`, no runtime dependency, just bytes.
+Authoring or editing module *source* is not here: it needs genuinely compiled p-code only a real
+Excel can emit, so it lives in the offline `tools/vba-compiler` (see below, and ADR 0019).
 
 **Preservation is the safety floor, and every VBA feature is additive over it.** Read captures
 `vbaProject.bin` (and its relationship/content-type closure, including a sibling
@@ -156,9 +158,11 @@ The subsystem is built as encode/decode pairs over two formats plus a project la
   chunked copy-token/literal-run codec Office uses for module source and the `dir` stream (it
   is *not* deflate). The compressor's contract is that its output re-expands byte-for-byte.
 - **Project layer** — `project.ts` decodes the `VBA/dir` and module streams into a typed view;
-  `project-writer.ts` synthesizes a fresh project from a module list; `project-editor.ts`
-  splices an existing one. `codepage.ts` handles the project code page (MBCS, not latin1) in
-  both directions, and `errors.ts` holds the two failure types.
+  `project-editor.ts` splices structural edits (remove module, add reference) into an existing
+  project; `vba-encoding.ts` holds the shared `dir`-record TLV encoders and VBA name validation.
+  `codepage.ts` handles the project code page (MBCS, not latin1) in both directions, and
+  `errors.ts` holds the two failure types. (There is deliberately no from-source synthesizer —
+  see below.)
 
 **The reader is hostile-input-facing (CLAUDE.md §3).** Every CFB sector index, chain, and
 stream size is bounds-checked and cycle-guarded; every MS-OVBA back-reference is validated and
@@ -176,30 +180,30 @@ The public surface layers by fidelity and intent, each slice fail-closed:
   writer emits (ADR 0016).
 - **Attach / replace / strip** — `Workbook.vbaProjectBytes` is a get/set accessor pair over the
   raw blob; a set is validated by `parseVbaProject` *before* any state change, so a bad blob is
-  rejected whole, and replacing or removing drops the old bytes' now-stale signature (ADR 0017 §2.1).
-- **Author from source** — `Workbook.setVbaProject({modules})` (or standalone `writeVbaProject`)
-  synthesizes a complete `vbaProject.bin` with no p-code, so Excel recompiles from source on
-  open; procedural and class modules only — document/designer are host-coupled and rejected
-  (ADR 0017 §2.3).
-- **Edit an existing module in place** — a *splice*, not a re-synthesis: replace only the edited
-  module's compressed source stream, zero its `MODULEOFFSET`, reset `_VBA_PROJECT` to the
-  recompile cookie, and leave every other stream — references, host linkage, untouched modules —
-  byte-for-byte. Because host linkage is inherited rather than synthesized, this *can* edit
-  document/designer code-behinds (`ThisWorkbook`, `Sheet1`) that from-scratch authoring cannot.
-  Two surfaces at different fidelity: `Workbook.setVbaModuleSource(name, source)` (model level)
-  and `editXlsxVbaModuleSource(s)` in `src/io/xlsx/edit-vba.ts` (package level, swapping only
-  `xl/vbaProject.bin` and leaving every other part untouched). The package-level path is the
-  highest-fidelity way to edit a real workbook, because the model round-trip re-serialises the
-  whole package and can perturb parts Excel is strict about — a pre-existing, VBA-independent
-  `writeXlsx` gap, not the edit's fault (ADR 0018).
+  rejected whole, and replacing or removing drops the old bytes' now-stale signature. This is also
+  how an authored project is installed: the offline `tools/vba-compiler` produces a compiled
+  `vbaProject.bin`, and a consumer attaches it here — pure TS, no Office at runtime.
+- **Structural edits (pure TS)** — `removeVbaModule` and `addVbaReference` (with their `Workbook`
+  and package-level `editXlsxVba*` wrappers) splice the original `.bin`: they edit only the `dir`
+  stream (and, for a removal, `PROJECT`/`PROJECTwm`) and leave every module stream and
+  `_VBA_PROJECT` byte-for-byte. They are safe *precisely because* they never touch a module's
+  compiled p-code — the `dir` stream, authoritative for the module/reference list, carries the
+  change (ADR 0018/0019).
+- **Author / edit module source (offline, not in the shipped library)** — done by
+  `tools/vba-compiler`, which drives a real headless Excel through the VBIDE object model to emit
+  genuinely compiled, source-matched p-code (a `vbaProject.bin`, or a whole edited `.xlsm` for
+  document code-behind). It is a Windows+Excel build tool, never in CI, whose output seeds
+  committed fixtures (ADR 0019).
 
-Because a synthesized or spliced project claims no valid p-code, correctness here cannot be
-proven by our own reader alone — the authoring paths are **verified against real Excel 365** (the
-ADR-0013 open-verdict oracle: opens clean, re-saves with every module recompiled and its source
-preserved). Those verdicts are recorded probe facts; CI locks the parse round-trip and a
-security-cluster corpus case. *Adding or removing* modules/references is not yet in scope, and
-*executing* macros never will be — that needs a live host, and this is a document tool, not a VBA
-interpreter (ADR 0013).
+**Why source authoring cannot be pure TS.** Excel does **not** recompile VBA from source on open —
+a module runs the compiled p-code (PerformanceCache) it ships, and the source is only recompiled
+when a human opens the VBE. A `vbaProject.bin` synthesized from source alone (no/mismatched p-code)
+either throws "Invalid data format" or *silently runs stale code* — "opens clean" is not proof of
+correctness. Only a real Excel can produce runnable p-code; hence the offline compiler. Authoring
+artifacts are verified with `execute-verdict.ps1` (opens with macros enabled and *runs* a known
+authored macro), not merely by an open verdict (ADR 0019). *Executing* macros in-process is still
+out of scope forever — that needs a live host; this is a document tool, not a VBA interpreter
+(ADR 0013).
 
 ## Tech decisions
 
@@ -214,8 +218,10 @@ The stack is deliberately small and each choice is recorded as an ADR under
   on every parser path) — ADR-0003.
 - **Docs generated from the types** — ADR-0006.
 - **Spec reference** (vendored OOXML schemas + Microsoft Learn MCP) — ADR-0007.
-- **VBA subsystem** (read view; authoring in scope; edit-existing-source by splice) — ADRs
-  0016–0018; Excel as a test oracle for the authoring paths — ADR-0013.
+- **VBA subsystem** (read view — ADR-0016; pure-TS structural edits — ADR-0018/0019; source
+  authoring moved to the offline `tools/vba-compiler` after the "recompile cookie" premise was
+  retracted — ADR-0019; ADRs 0017/0018's from-source mechanism is retracted). Excel as a test
+  oracle — ADR-0013.
 
 ## Working agreements
 

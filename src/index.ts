@@ -155,10 +155,7 @@ export {
 export {type CsvReadOptions, readCsv} from './io/csv/read.ts';
 export {type CsvWriteOptions, writeCsv, writeCsvText} from './io/csv/write.ts';
 export {
-  editXlsxVbaAddModule,
   editXlsxVbaAddReference,
-  editXlsxVbaModuleSource,
-  editXlsxVbaModuleSources,
   editXlsxVbaRemoveModule,
 } from './io/xlsx/edit-vba.ts';
 export {type ReadXlsxOptions, readXlsx} from './io/xlsx/read.ts';
@@ -178,18 +175,13 @@ export {
   WorksheetStreamWriter,
 } from './io/xlsx/write-stream.ts';
 export {
-  addVbaModule,
   addVbaReference,
-  editVbaModuleSources,
   parseVbaProject,
   removeVbaModule,
   VbaAuthorError,
   type VbaLibraryReference,
   type VbaModule,
   type VbaModuleKind,
-  type VbaModuleSource,
   VbaParseError,
   type VbaProject,
-  type VbaProjectSpec,
-  writeVbaProject,
 } from './vba/index.ts';

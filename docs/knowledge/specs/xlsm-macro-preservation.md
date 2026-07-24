@@ -32,37 +32,36 @@ Node; that needs a live Excel/automation host and is not a document-tool concern
   Setting bytes makes the written package macro-enabled and embeds them verbatim (validated fail-closed:
   a malformed blob is rejected, never half-applied); setting `undefined` demotes the workbook to a plain
   package. Replacing or removing drops a now-stale signature over the old bytes.
-- Callers can **author a macro project from module source** through `Workbook.setVbaProject({modules})`
-  (or the standalone `writeVbaProject`) — see ADR 0017 §2.3. It synthesizes a complete `vbaProject.bin`
-  (CFB container + MS-OVBA-compressed `dir`/module streams) from a list of modules (name, kind, source);
-  the modules carry no compiled p-code, so Excel recompiles them from source on open. Procedural and
-  class modules are supported (document/designer are host-coupled and rejected fail-closed). **Verified
-  against real Excel 365:** a synthesized workbook opens clean and, re-saved macro-enabled, preserves
-  every module with its source. This makes the workbook an emission authority for authored macros — the
-  reversal of ADR 0016's read-only-view core.
-- Callers can **edit an existing module's source in place**, preserving the project's references,
-  host-extender info, and every other module — see ADR 0018. The edit is a *splice* over the original
-  `vbaProject.bin`: it replaces only the edited module's compressed source stream, zeroes its
-  MODULEOFFSET, and resets `_VBA_PROJECT` to recompile from source, never touching the streams that carry
-  references or other modules. Unlike from-scratch authoring, this **can edit document/designer modules**
-  (e.g. `ThisWorkbook`, `Sheet1`) because it inherits their host linkage from the preserved streams rather
-  than synthesizing it. Two surfaces: `Workbook.setVbaModuleSource(name, source)` (model level) and
-  `editXlsxVbaModuleSource(xlsx, name, source)` / `editXlsxVbaModuleSources(xlsx, edits)` (package level,
-  swapping only `xl/vbaProject.bin` and leaving every other part byte-for-byte). The package-level path is
-  the highest-fidelity way to edit a real workbook — the model round-trip re-serializes the whole package
-  and can perturb strict parts on rich files (a pre-existing, VBA-independent `writeXlsx` gap; see below).
-  **Verified against real Excel** on a genuine 10-module workbook, including editing a document code-behind
-  → opens clean and recompiles.
+- Callers can **author or edit a macro project's module source** — but this needs genuinely compiled,
+  source-matched p-code that **only a real Excel can produce**, so it is done by the offline
+  `tools/vba-compiler` build tool (VBIDE), not in the shipped library — see ADR 0019. It emits either a
+  `vbaProject.bin` (attach via `Workbook.vbaProjectBytes`) or a whole edited `.xlsm` (in-place, for
+  document/designer code-behind). **The earlier pure-TS "author/edit from source" surface
+  (`writeVbaProject`/`setVbaProject`, `editVbaModuleSources`/`setVbaModuleSource`/`editXlsxVbaModuleSource`,
+  `addVbaModule`) has been removed:** it emitted modules with no/zeroed p-code and reset `_VBA_PROJECT` to
+  an "unmatchable version cookie" on the theory that Excel recompiles from source on open. Excel does
+  **not** — a module runs the compiled p-code it ships — so those files either threw "Invalid data format"
+  or silently ran stale code (ADR 0019 retracts ADRs 0017 §2.3c and 0018). The prior "Verified against
+  real Excel" claims never exercised the compile/load step (macros were force-disabled, or Enable Content
+  was never clicked).
+- Callers can still apply **pure-TS structural edits** that never touch a module's p-code: `removeVbaModule`
+  and `addVbaReference`, with `Workbook.removeVbaModule`/`addVbaReference` (model level) and
+  `editXlsxVbaRemoveModule`/`editXlsxVbaAddReference` (package level, swapping only `xl/vbaProject.bin` and
+  leaving every other part byte-for-byte). These splice the original `.bin`, editing only the `dir` stream
+  (and, for a removal, `PROJECT`/`PROJECTwm`) and leaving every module stream and `_VBA_PROJECT`
+  untouched — the `dir` stream is authoritative for the module/reference list. Verified with
+  `execute-verdict.ps1` (opens with macros enabled, runs a surviving macro).
 - A signed VBA project's `vbaProjectSignature` part is preserved alongside — it is a sibling part
   reached from `xl/_rels/vbaProject.bin.rels`, so the closure walk carries it through, and its
   distinct `.bin` content type is re-declared per-part (not collapsed into the `vbaProject` default,
   which a single extension `<Default>` would otherwise do — locked by `preserved-parts.test.ts`).
   Editing the *project itself* legitimately invalidates the signature; editing unrelated cells does
-  not (see open questions). Both edit surfaces (ADR 0018) drop the now-stale signature on a source edit.
-- **Out of scope:** executing/running macros (needs a live host — ADR 0013), and *adding or removing*
-  modules/references (only editing an existing module's source is in scope — ADR 0018). Attaching or
-  replacing a whole `.bin`, authoring a project from source, and editing an existing module's source are
-  all in scope (ADRs 0017, 0018). The library is a document tool, not a VBA interpreter.
+  not (see open questions). Every project-mutating surface drops the now-stale signature.
+- **Out of scope:** executing/running macros (needs a live host — ADR 0013), and authoring/editing module
+  *source* inside the shipped library (needs real compiled p-code; done by the offline `tools/vba-compiler`
+  instead — ADR 0019). In scope in pure TS: attaching/replacing a whole `.bin`
+  (`Workbook.vbaProjectBytes`), and structural edits that don't touch p-code — remove a module, add a
+  reference (ADRs 0018/0019). The library is a document tool, not a VBA interpreter.
 
 ## Prior art
 
@@ -80,14 +79,15 @@ without parsing. Macro-enabled templates (.xltm) are the template analog.
 - ~~Expose the VBA project bytes to callers, or only pass them through opaquely?~~ **Decided
   (ADR 0016):** exposed as a lazy, read-only typed view (`Workbook.vbaProject`), derived from the
   preserved bytes with no write-back path.
-- ~~Let callers author macros, or only preserve what a read produced?~~ **Decided (ADRs 0017, 0018):**
-  the forcing-consumer gate is lifted and authoring is built out. Attach-blob (`Workbook.vbaProjectBytes`),
-  from-scratch synthesis (`Workbook.setVbaProject`/`writeVbaProject`), and editing an existing module's
-  source (`Workbook.setVbaModuleSource`, `editXlsxVbaModuleSource(s)`) all shipped, each fail-closed. Only
-  *adding/removing* modules or references remains unbuilt (a future slice, no consumer yet).
-- **Signature on a source edit is dropped** (ADR 0018): editing the project invalidates any signature over
-  it, so both edit surfaces discard the stale `vbaProjectSignature` (part, relationship, content-type
-  override) rather than leave it advertising a broken signature. Editing unrelated cells still preserves
+- ~~Let callers author macros, or only preserve what a read produced?~~ **Decided (ADRs 0017–0019):**
+  authoring is supported, but **source authoring/editing needs a real Excel** (only it emits runnable
+  p-code), so it lives in the offline `tools/vba-compiler` — the pure-TS from-source surface tried in ADRs
+  0017/0018 was retracted (ADR 0019) because Excel does not recompile from source on open. In the shipped
+  library: attach-blob (`Workbook.vbaProjectBytes`) and pure-TS structural edits (`removeVbaModule`,
+  `addVbaReference` + their wrappers) are shipped, each fail-closed.
+- **Signature on a project edit is dropped**: editing the project invalidates any signature over
+  it, so every project-mutating surface discards the stale `vbaProjectSignature` (part, relationship,
+  content-type override) rather than leave it advertising a broken signature. Editing unrelated cells still preserves
   it (the part round-trips correctly typed). An `isSigned` accessor is still sourceable from the preserved
   closure once a consumer needs it.
 - ~~Parse macro/toolbar-referenced `customUI`, or leave it opaque?~~ **Audited & fixed:** the ribbon

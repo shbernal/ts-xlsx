@@ -1,7 +1,12 @@
 # ADR 0018 — Editing an existing macro's source is done by splicing the original `.bin`, not re-synthesizing it
 
-**Status:** Accepted (2026-07-23) · extends ADR 0017 (VBA authoring in scope) with the *edit-existing*
-case · amends nothing in ADR 0016's read view.
+**Status:** **Retracted (2026-07-24) by [ADR 0019](0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md)** —
+the edit-source-by-splice mechanism (write source at `MODULEOFFSET 0`, zero the offset, reset
+`_VBA_PROJECT` to the recompile cookie) does not work: Excel runs a module's compiled p-code, not its
+source, so a spliced module either fails to load or silently runs stale code. Its "clean" GUI verdict
+never clicked Enable Content. Editing an existing module's source now lives in the offline
+`tools/vba-compiler` (in-place mode). Retained here for historical context. · Originally Accepted
+(2026-07-23) · extended ADR 0017 with the *edit-existing* case · amends nothing in ADR 0016's read view.
 
 ## Context
 

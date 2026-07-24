@@ -1,7 +1,7 @@
-// Edit a macro in an existing `.xlsm` at the *package* level: swap module source, add or remove a
-// module, or add a reference, returning new package bytes with every other part preserved byte-for-byte.
-// Only `xl/vbaProject.bin` is rewritten (plus dropping a now-stale signature); worksheets, styles,
-// drawings, and every other part ride through untouched.
+// Structurally edit an existing `.xlsm` at the *package* level: remove a module, or add a reference,
+// returning new package bytes with every other part preserved byte-for-byte. Only `xl/vbaProject.bin` is
+// rewritten (plus dropping a now-stale signature); worksheets, styles, drawings, and every other part
+// ride through untouched.
 //
 // This is the highest-fidelity way to tweak an existing macro project. The alternative — `readXlsx` →
 // the matching `Workbook` method → `writeXlsx` — rebuilds the whole package from the parsed model, which
@@ -9,18 +9,19 @@
 // workbook that round-trip can perturb parts Excel is strict about; splicing the original bytes cannot,
 // because it never re-authors anything but the macro project. Use this when the input is a real file
 // whose non-macro content must be preserved exactly.
+//
+// Authoring or editing module SOURCE is not here: Excel runs a module's compiled p-code, not its source,
+// so that needs the offline `tools/vba-compiler` (VBIDE), which can produce a whole edited `.xlsm`
+// directly (ADR 0019).
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
 import {VbaAuthorError} from '../../vba/errors.ts';
 import {
-  addVbaModule,
   addVbaReference,
-  editVbaModuleSources,
   removeVbaModule,
   type VbaLibraryReference,
 } from '../../vba/project-editor.ts';
-import type {VbaModuleSource} from '../../vba/project-writer.ts';
 import {
   parseRelationshipRecords,
   relationshipTargetByType,
@@ -36,63 +37,10 @@ const VBA_PROJECT_REL = 'vbaProject';
 const VBA_SIGNATURE_REL_INFIX = 'vbaProjectSignature';
 
 /**
- * Edit one existing VBA module's source in a macro-enabled package, preserving every other part exactly.
- * A convenience over {@link editXlsxVbaModuleSources} for the common single-module case.
- *
- * @throws {VbaAuthorError} if the package carries no VBA project, the module is absent, or the new
- *   source has a character the project's code page cannot represent.
- * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
- */
-export function editXlsxVbaModuleSource(
-  xlsx: Uint8Array,
-  name: string,
-  source: string,
-): Uint8Array {
-  return editXlsxVbaModuleSources(xlsx, new Map([[name, source]]));
-}
-
-/**
- * Edit the source of one or more existing VBA modules in a macro-enabled `.xlsm` package, returning new
- * package bytes. Every part but `xl/vbaProject.bin` is preserved byte-for-byte; the macro project is
- * spliced in place (references, host info, and untouched modules kept — see
- * {@link editVbaModuleSources}), and any digital signature over the old project is dropped because it
- * cannot validate the new bytes. `edits` maps a module's code name (case-insensitively, as VBA compares
- * them) to its replacement source.
- *
- * Unlike a `readXlsx`/`writeXlsx` round-trip, this does not re-serialise the workbook from a model, so
- * the non-macro content of a real-world file survives exactly.
- *
- * @throws {VbaAuthorError} if the package carries no VBA project, a named module is absent, or a new
- *   source has a character the project's code page cannot represent.
- * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
- */
-export function editXlsxVbaModuleSources(
-  xlsx: Uint8Array,
-  edits: ReadonlyMap<string, string>,
-): Uint8Array {
-  if (edits.size === 0) return xlsx;
-  return applyToVbaProjectPart(xlsx, (bin) => editVbaModuleSources(bin, edits));
-}
-
-/**
- * Add a standard module to an existing macro-enabled package's VBA project, returning new package bytes.
- * The package-level splice counterpart to {@link editXlsxVbaModuleSources}: every part but
- * `xl/vbaProject.bin` is preserved byte-for-byte (see {@link addVbaModule} for what changes within it),
- * and any digital signature over the old project is dropped because it cannot validate the new bytes.
- *
- * @throws {VbaAuthorError} if the package carries no VBA project, `module.name` is invalid or collides
- *   with an existing module, or `module.source` has a character the project's code page cannot represent.
- * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
- */
-export function editXlsxVbaAddModule(xlsx: Uint8Array, module: VbaModuleSource): Uint8Array {
-  return applyToVbaProjectPart(xlsx, (bin) => addVbaModule(bin, module));
-}
-
-/**
  * Remove a standard module from an existing macro-enabled package's VBA project, returning new package
- * bytes. The inverse of {@link editXlsxVbaAddModule}: every part but `xl/vbaProject.bin` is preserved
- * byte-for-byte (see {@link removeVbaModule} for what changes within it), and any digital signature over
- * the old project is dropped because it cannot validate the new bytes.
+ * bytes. Every part but `xl/vbaProject.bin` is preserved byte-for-byte (see {@link removeVbaModule} for
+ * what changes within it), and any digital signature over the old project is dropped because it cannot
+ * validate the new bytes.
  *
  * @throws {VbaAuthorError} if the package carries no VBA project, `name` is not in the project, or names
  *   a `document`/`designer` module.

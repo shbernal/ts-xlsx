@@ -7,18 +7,21 @@
 // modules whose bytes (p-code prefix included) must ride through untouched. A naive "rebuild the project"
 // strategy would drop the reference and force every untouched module to be re-emitted (and thus
 // re-verified) even though only one module actually left — so removing a module must SPLICE it out of the
-// original bytes, the inverse of how adding a module already does (see
-// xlsm-vba-add-module-preserves-references).
+// original bytes, mirroring how adding a reference already does (see
+// xlsm-vba-add-reference-preserves-modules).
 //
 // The surface under test is the project-editor primitive removeVbaModule(bin, name): it parses the
 // existing project fail-closed, resolves the module's kind and stream name, drops its MODULE record block
-// from the dir stream (decrementing MODULES_COUNT), drops its declaration from PROJECT/PROJECTwm, drops
-// its compressed source stream from the VBA storage, and resets _VBA_PROJECT to the recompile cookie so
-// Excel recompiles the modules that remain. Only procedural/class modules can be removed this way —
+// from the dir stream (decrementing MODULES_COUNT), drops its declaration from PROJECT/PROJECTwm, and
+// drops its compressed source stream from the VBA storage. It leaves _VBA_PROJECT completely untouched:
+// Excel runs the surviving modules' existing compiled p-code, and resetting the stream to an "unmatchable
+// version" cookie does not force a recompile from source — on a project that carries real p-code it
+// actively crashes the load (ADR 0019). Only procedural/class modules can be removed this way —
 // removing a document module (ThisWorkbook) or a designer module would break host linkage the primitive
-// has no visibility into, so it is rejected fail-closed (mirroring addVbaModule's own kind restriction).
+// has no visibility into, so it is rejected fail-closed.
 // This case asserts the removed module is gone from every stream it touched, the hand-crafted
-// PROJECTREFERENCES record and an untouched module survive byte-for-byte, and the project recompiles.
+// PROJECTREFERENCES record and an untouched module survive byte-for-byte, and _VBA_PROJECT is preserved
+// untouched.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -29,7 +32,7 @@ export default {
   description:
     'Removing a standard module from an existing VBA project via removeVbaModule must drop it from ' +
     'every stream it touched, while the project’s reference and its other modules (byte-for-byte) are ' +
-    'preserved and _VBA_PROJECT is reset to the recompile cookie.',
+    'preserved and _VBA_PROJECT is preserved untouched.',
 
   behavior: [
     {
@@ -97,14 +100,15 @@ export default {
       },
     },
     {
-      name: 'the recompile cookie is set so Excel recompiles the remaining modules',
+      name: '_VBA_PROJECT is preserved untouched',
       baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {recompileCookieReset} = await api.xlsmVbaRemoveModule();
+        const {vbaProjectStreamPreserved} = await api.xlsmVbaRemoveModule();
         assert.strictEqual(
-          recompileCookieReset,
+          vbaProjectStreamPreserved,
           true,
-          '_VBA_PROJECT must be reset so Excel recompiles the remaining modules',
+          '_VBA_PROJECT must be left byte-for-byte unchanged — Excel runs the surviving modules’ ' +
+            'existing p-code, and resetting the cookie would crash the load',
         );
       },
     },
