@@ -94,9 +94,15 @@ without parsing. Macro-enabled templates (.xltm) are the template analog.
   parts (`customUI/customUI.xml`, `customUI14.xml`) hang off the *package root* `_rels/.rels`, not the
   workbook rels, so the workbook-closure net never reached them and the writer — which regenerates the
   root rels from the model — dropped them. Now captured as package-root preserved references and
-  re-declared verbatim on write (locked by `preserved-parts.test.ts`). Parsing the ribbon XML into a
-  model stays deferred (no consumer); it round-trips opaquely, like the rest of the preserved net.
+  re-declared verbatim on write (locked by `preserved-parts.test.ts`). **A typed read view now sits on
+  top** (ADR 0020): `Workbook.customUI` parses the `<ribbon>` subtree (tabs → groups → controls +
+  callback names) of each part, lazily and memoised, keying dialect off the `<customUI>` namespace. It
+  is strictly additive — preservation stays the sole emission authority, so the bytes still round-trip
+  opaquely; the reader just projects a view over them, exactly as `Workbook.vbaProject` does. Backstage
+  / QAT / contextualTabs / commands and ribbon *authoring* stay deferred (no consumer). Fixing this
+  surfaced a latent wrong fact: the round-trip fixture had used the customUI14 *namespace* as its
+  relationship *type* — corrected to the real `.../office/2007/relationships/ui/extensibility`.
 
-Related: `roundtrip-preserves-unmodeled-package-parts`; ADR 0016 (read view + authoring deferred),
-ADR 0017 (authoring in scope; attach-blob + from-scratch synthesis), ADR 0018 (editing an existing
-module's source by splice).
+Related: `roundtrip-preserves-unmodeled-package-parts`; ADR 0016 (VBA read view + authoring deferred),
+ADR 0017 (VBA authoring in scope; attach-blob + from-scratch synthesis), ADR 0018 (editing an existing
+module's source by splice), ADR 0020 (customUI ribbon read view; authoring deferred).

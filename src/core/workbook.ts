@@ -5,6 +5,7 @@
 // of the characters Excel forbids — so an invalid book cannot be constructed in the
 // first place, rather than failing only at write time.
 
+import {type CustomUiDocument, isCustomUiRelType, parseCustomUi} from '../customui/index.ts';
 import {
   addVbaReference,
   parseVbaProject,
@@ -168,6 +169,36 @@ export class Workbook {
   /** The package-root preserved references, in the order they were read. */
   get preservedRootReferences(): readonly PreservedRootReference[] {
     return this.#preservedRootReferences;
+  }
+
+  // Lazily-parsed customUI ribbon view. `#customUiParsed` distinguishes "not yet parsed" from a genuine
+  // "no ribbon parts" (an empty array), so a ribbon-free workbook is not re-scanned on every access.
+  #customUiParsed = false;
+  #customUI: readonly CustomUiDocument[] = [];
+
+  /**
+   * The ribbon customisations decoded from this workbook's `customUI` parts — `customUI.xml` (Office
+   * 2007) and/or `customUI14.xml` (Office 2010+), in the order their root relationships were read. Each
+   * {@link CustomUiDocument} is tagged with its dialect and exposes the parsed `<ribbon>` tree. Empty
+   * for a workbook that customises no ribbon.
+   *
+   * This is a **read-only view** over parts the writer already round-trips verbatim — mutating the
+   * returned objects changes nothing on write; the original `customUI` XML is re-emitted byte-for-byte
+   * regardless. Parsed lazily on first access and memoised.
+   *
+   * @throws {@link CustomUiParseError} if a `customUI` part is present but its XML is malformed.
+   */
+  get customUI(): readonly CustomUiDocument[] {
+    if (!this.#customUiParsed) {
+      this.#customUI = this.#preservedRootReferences
+        .filter((ref) => isCustomUiRelType(ref.relType))
+        .flatMap((ref) => {
+          const bytes = ref.parts.find((part) => part.path === ref.entryPath)?.bytes;
+          return bytes === undefined ? [] : [parseCustomUi(bytes)];
+        });
+      this.#customUiParsed = true;
+    }
+    return this.#customUI;
   }
 
   // Lazily-decoded macro source. `#vbaParsed` distinguishes "not yet decoded" from a genuine "no

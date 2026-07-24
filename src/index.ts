@@ -152,6 +152,22 @@ export {
   type WorksheetProperties,
   type WorksheetState,
 } from './core/worksheet.ts';
+export {
+  CUSTOMUI_2006_NAMESPACE,
+  CUSTOMUI_2007_REL_TYPE,
+  CUSTOMUI_2009_NAMESPACE,
+  CUSTOMUI_2010_REL_TYPE,
+  type CustomUiDocument,
+  CustomUiParseError,
+  isCustomUiRelType,
+  parseCustomUi,
+  type Ribbon,
+  type RibbonControl,
+  type RibbonControlKind,
+  type RibbonDialect,
+  type RibbonGroup,
+  type RibbonTab,
+} from './customui/index.ts';
 export {type CsvReadOptions, readCsv} from './io/csv/read.ts';
 export {type CsvWriteOptions, writeCsv, writeCsvText} from './io/csv/write.ts';
 export {

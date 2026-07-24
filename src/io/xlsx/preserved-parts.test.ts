@@ -510,7 +510,7 @@ test('customUI ribbon parts referenced from the package root rels survive readâ†
         '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
         '<Relationship Id="rId4" Type="http://schemas.microsoft.com/office/2006/relationships/ui/extensibility" Target="customUI/customUI.xml"/>' +
-        '<Relationship Id="rId5" Type="http://schemas.microsoft.com/office/2009/07/customui" Target="customUI/customUI14.xml"/>' +
+        '<Relationship Id="rId5" Type="http://schemas.microsoft.com/office/2007/relationships/ui/extensibility" Target="customUI/customUI14.xml"/>' +
         '</Relationships>',
       '[Content_Types].xml': contentTypes(''),
       'xl/worksheets/sheet1.xml': worksheet(''),
@@ -546,8 +546,8 @@ test('customUI ribbon parts referenced from the package root rels survive readâ†
   );
   assert.match(
     rootRels,
-    /office\/2009\/07\/customui/,
-    'root rels keep the 2009 ribbon relationship',
+    /office\/2007\/relationships\/ui\/extensibility/,
+    'root rels keep the 2010 (customUI14) ribbon relationship',
   );
   assert.match(
     rootRels,
