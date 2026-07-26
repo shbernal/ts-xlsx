@@ -107,6 +107,11 @@ that is not done — it is in progress.
   them. `docs/agent-correctness-playbook.md` is the dispatch table — *what you are
   doing* → *the check that proves it correct* → *the exact command* — so you never
   have to rebuild that decision tree.
+- **Scratch goes in `.tmp/`.** Throwaway probes, dumps, generated workbooks, screenshots —
+  everything regenerable — lives in the repo's `.tmp/` (also exported as `$SCRATCH`, and as
+  `$TMPDIR` for shells that would otherwise find it unset). Never the repo root, never an
+  absolute system temp path: in-repo keeps it inspectable and already git-ignored, and
+  relative keeps the command short enough to reuse.
 - **When you must ask, batch it and make it count.** Only escalate to the human for
   decisions that are genuinely theirs: irreversible/outward-facing actions
   (publishing, naming/branding, license), or a true fork-in-the-road where the

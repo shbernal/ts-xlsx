@@ -34,6 +34,10 @@ docs/knowledge/backlog/attachments/
 tools/ooxml-validator/bin/
 tools/ooxml-validator/obj/
 
-# GUI-automation scratch (screenshots, extracted packages) — see the
-# excel-gui-automation skill. Windows/Excel-bound probe output, never committed.
-.tmp/
+# THE scratch directory: throwaway probes, dumps, round-trip artefacts, GUI-automation
+# screenshots, and derived state like the verify stamp. Anything here is regenerable and
+# never committed. .gitkeep is tracked so a fresh clone can write here immediately —
+# see the scratch rule in CLAUDE.md. (Contents, not the directory: git cannot re-include a
+# file whose parent directory is itself excluded.)
+.tmp/*
+!.tmp/.gitkeep

@@ -1,5 +1,9 @@
 {
   "enabledMcpjsonServers": ["microsoft-learn"],
+  "env": {
+    "SCRATCH": ".tmp",
+    "TMPDIR": ".tmp"
+  },
   "hooks": {
     "Stop": [
       {
