@@ -8,6 +8,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import type JSZipType from 'jszip';
+import {resolveValidator} from '../../scripts/ooxml-validator.ts';
 import {Workbook} from '../../src/core/workbook.ts';
 import {writeXlsx} from '../../src/io/xlsx/write.ts';
 import {WorkbookStreamWriter} from '../../src/io/xlsx/write-stream.ts';
@@ -40,7 +41,7 @@ interface ValidationReport {
  * an entry is a *known-open* writer bug we've chosen to track, never a mute button for a new one. */
 type Baseline = Readonly<Record<string, readonly ValidationFingerprint[]>>;
 
-/** The captured outcome of one `dotnet run` invocation. */
+/** The captured outcome of one validator invocation. */
 interface DotnetRun {
   readonly code: number | null;
   readonly stdout: string;
@@ -52,7 +53,9 @@ const JSZip = require('jszip') as typeof JSZipType;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
-const PROJECT = path.join(ROOT, 'tools', 'ooxml-validator', 'OoxmlValidator.csproj');
+// Built once for the whole run, and by the same resolver `validate:ooxml` uses, so the gate
+// and the ad-hoc command can never disagree about which assembly is authoritative.
+const VALIDATOR = await resolveValidator();
 const BASELINE = JSON.parse(
   await readFile(path.join(HERE, 'allowed-errors.json'), 'utf8'),
 ) as Baseline;
@@ -67,18 +70,7 @@ function runDotnet(
   files: readonly string[],
   {format = 'Microsoft365'}: {format?: string} = {},
 ): Promise<DotnetRun> {
-  const args = [
-    'run',
-    '--project',
-    PROJECT,
-    '--configuration',
-    'Release',
-    '--no-restore',
-    '--',
-    '--format',
-    format,
-    ...files,
-  ];
+  const args = [VALIDATOR, '--format', format, ...files];
 
   return new Promise<DotnetRun>((resolve, reject) => {
     const child = spawn('dotnet', args, {

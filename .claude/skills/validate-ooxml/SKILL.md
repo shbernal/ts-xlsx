@@ -22,8 +22,12 @@ workflow run the oracle on your PR. See `docs/agent-correctness-playbook.md`.
 ## Validate a file you already have
 
 ```bash
-pnpm run validate:ooxml -- path/to/workbook.xlsx another.xlsx
+node scripts/ooxml-validator.ts path/to/workbook.xlsx another.xlsx
 ```
+
+It builds the .NET assembly only when its sources changed, then invokes it directly (~0.9 s
+warm). Pass every file you want checked in one call — startup dominates. `pnpm run
+validate:ooxml -- …` reaches the same script, ~1.2 s slower for the package-manager wrapper.
 
 Deterministic JSON to stdout. Exit codes: **0** every input clean · **1** validation or
 package-open errors found · **2** the tool could not run (bad args / internal failure).
@@ -36,10 +40,10 @@ Node 24 runs the `.ts` sources directly, so a repro imports straight from `src`.
 one that exercises the feature you changed, then point the validator at it:
 
 ```js
-// /tmp/repro.mjs
+// .tmp/repro.mjs
 import {writeFileSync} from 'node:fs';
-import {Workbook} from './src/core/workbook.ts';
-import {writeXlsx} from './src/io/xlsx/write.ts';
+import {Workbook} from '../src/core/workbook.ts';
+import {writeXlsx} from '../src/io/xlsx/write.ts';
 
 const wb = new Workbook();
 const ws = wb.addWorksheet('Data');
@@ -47,11 +51,11 @@ ws.addRow(['Name', 'Value']);
 ws.addRow(['alpha', 42]);
 // …exercise the exact path you touched: styles, tables, formulas, images, CF…
 
-writeFileSync('/tmp/repro.xlsx', writeXlsx(wb));   // writeXlsx → Uint8Array
+writeFileSync('.tmp/repro.xlsx', writeXlsx(wb));   // writeXlsx → Uint8Array; cwd is the repo root
 ```
 
 ```bash
-node /tmp/repro.mjs && pnpm run validate:ooxml -- /tmp/repro.xlsx
+node .tmp/repro.mjs && node scripts/ooxml-validator.ts .tmp/repro.xlsx
 ```
 
 For the streaming writer, use `WorkbookStreamWriter` (`src/io/xlsx/write-stream.ts`) and

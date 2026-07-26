@@ -12,7 +12,7 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | Types + unit | The code compiles under strict TS and units pass | `pnpm run typecheck && pnpm run test:src` | Node 24 |
 | Lint | Style/format/floating-promise/console gates | `pnpm run lint` | Node 24 |
 | **Corpus** | Well-formed XML, package structure, and no behavior regression — the **spine** | `pnpm run corpus` | Node 24 |
-| **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `pnpm run validate:ooxml -- file.xlsx` | **.NET 10** |
+| **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `node scripts/ooxml-validator.ts file.xlsx` | **.NET 10** |
 | Spec grounding | Ground a decision in the authoritative format | Learn MCP + `schemas/` + `docs/knowledge/specs/` | — |
 
 **`lint:fix` needs no confirming `lint` pass.** `biome check --write` applies what it can and
@@ -111,8 +111,11 @@ enforced before merge even when you can't run it locally.
 
 ## The schema oracle, and what to do without .NET
 
-`OpenXmlValidator` (the `validate:ooxml` / `test:ooxml` scripts, ADR-0002) is the
-**single authoritative** schema/semantic check. It needs .NET 10. Exit codes:
+`OpenXmlValidator` (`scripts/ooxml-validator.ts`, also reachable as the `validate:ooxml` /
+`test:ooxml` scripts, ADR-0002) is the **single authoritative** schema/semantic check. It
+builds the .NET assembly on demand and then invokes it directly, so a warm call costs ~0.9 s
+rather than the ~2–6 s `dotnet run` spends re-evaluating the project; validate several files
+in one call. It needs .NET 10. Exit codes:
 `0` = every input clean, `1` = validation/package errors found, `2` = the tool could
 not run. Known, tracked errors are baselined in
 `test/ooxml-validation/allowed-errors.json`; a *new* error fails the gate and a *stale*
