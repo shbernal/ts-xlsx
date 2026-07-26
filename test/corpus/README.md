@@ -19,8 +19,17 @@ test/corpus/
 Run it:
 
 ```
-node test/corpus/run.ts [--adapter rewrite]
+node test/corpus/run.ts [--adapter rewrite] [--target src|dist]
+                        [--case <glob>]… [--verbose | --quiet] [--json]
 ```
+
+An unfiltered run prints only the behaviors that need attention plus the summary line;
+`--verbose` lists every behavior. `--case <glob>` narrows to the cases whose `id` **or**
+`cluster` matches (`*`/`?` wildcards, repeatable, unioned) — a whole-corpus run is ~10 s,
+one case is well under a second — and implies `--verbose`, since filtering to a case
+means wanting to read it. A pattern that matches nothing is an error, never a green run.
+`--json` emits one report object (`cases`, `tally`, `summary`, `ok`) and nothing else on
+stdout. The summary reaches stdout in every mode, so no invocation can hide the tally.
 
 ## A case
 
