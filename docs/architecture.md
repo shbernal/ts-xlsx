@@ -232,6 +232,25 @@ The stack is deliberately small and each choice is recorded as an ADR under
 - **Security- and correctness-first.** Every parser path is hostile-input-facing: no
   unbounded allocation, no zip-bomb naïveté. Entities are decoded but never expanded;
   inflation is bounded by a running output counter, not any declared size.
+- **On a round-tripping surface, ask whether input is safe to *write back*.** Bounding what a
+  parser will hold is only half of it: what the reader accepts, the writer re-emits, so a value
+  a foreign part carries can leave *our* output invalid — and one invalid attribute is enough for
+  Excel to offer to repair the feature away. A wire bound therefore lives in the parser, the
+  authoring verb, *and* the serialiser, so the serialiser cannot emit an illegal value however the
+  model was populated (`MENTION_OFFSET_MAX` is the worked example; see
+  `knowledge/specs/threaded-comments-and-the-legacy-fallback.md`).
+- **Two parts that are two halves of one representation derive from one variable.** Some features
+  are only coherent as a pair — a threaded comment's conversation part and the legacy fallback
+  `<comment>` that binds a cell to it are each *invisible in Excel* without the other, even though
+  either alone validates clean. The writer computes such a pair from a single source (`write.ts`
+  derives both from one `threads` value) so neither can be emitted without the other by
+  construction, rather than by a rule someone has to remember.
+- **A part family graduates from preserved to modeled in one change, never both at once.**
+  Byte preservation (`core/preserved.ts`) is the sole emission authority for what it covers, so a
+  *read view* over preserved bytes is safely additive (`Workbook.vbaProject`, `Workbook.customUI`,
+  `loadedPivotTables`) — but the moment a serialiser emits a part from the model, that rel type
+  must leave `isPreservedSheetRelType`/`isPreservedWorkbookRelType` in the same commit or the
+  package carries it twice.
 - **Narrow foreign tokens; never trust them into the model.** An enumerated attribute
   read from a file is admitted only through a type guard that recognises the known union
   members (the pattern is `isCustomFilterOperator` in `core/autofilter.ts`); an

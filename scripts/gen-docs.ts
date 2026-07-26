@@ -121,7 +121,12 @@ function printSignature(node: ts.Node, sourceFile: ts.SourceFile): string {
     .replace(/^export (?:default )?/, '');
 }
 
-/** Turn TSDoc `{@link Target}` / `{@link Target | label}` into a plain code span. */
+/**
+ * Turn TSDoc `{@link Target}` / `{@link Target | label}` into a plain code span.
+ *
+ * Only the pipe form carries a label. TSDoc also permits `{@link Target label}` (space, no pipe), which
+ * falls through here and renders as the whole string — so write the pipe, or write a bare target.
+ */
 function resolveLinks(text: string): string {
   return text.replace(
     /\{@link(?:code|plain)?\s+([^}|]+?)(?:\s*\|\s*([^}]+))?\}/g,
@@ -129,6 +134,9 @@ function resolveLinks(text: string): string {
   );
 }
 
+// A bare `@word` mid-sentence silently truncates the rendered summary: TypeScript's JSDoc parser reads
+// it as the start of an unknown tag and drops everything after it. Prose about, say, an `@mention` has
+// to wrap it in backticks — the summary comes from the compiler, so this cannot be fixed downstream.
 function docText(symbol: ts.Symbol, checker: ts.TypeChecker): string {
   return resolveLinks(ts.displayPartsToString(symbol.getDocumentationComment(checker)).trim());
 }
