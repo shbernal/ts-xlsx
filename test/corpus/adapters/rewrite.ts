@@ -514,6 +514,13 @@ function partMapOf(buffer: Uint8Array) {
   return out;
 }
 
+// Total matches of `pattern` across every part whose name matches `inParts` — for facts that live in
+// the part's content rather than in the package's shape.
+const countIn = (parts: Record<string, string>, inParts: RegExp, pattern: RegExp) =>
+  Object.keys(parts)
+    .filter((p) => inParts.test(p))
+    .reduce((n, p) => n + [...(parts[p] ?? '').matchAll(pattern)].length, 0);
+
 // Package-part facts a passthrough round-trip must preserve — the mirror of the oracle's
 // `packageFactsFromZip`: counts of part families the reader does not fully model (drawings, VML,
 // media, pivot tables/caches, comments) plus the worksheet/drawing reference flags that wire
@@ -541,6 +548,46 @@ const packagePartFacts = (parts: Record<string, string>) => {
     threadedComments: names.filter((p) => /threadedComments\/threadedComment\d+\.xml$/.test(p))
       .length,
     persons: names.filter((p) => /xl\/persons\/person\d*\.xml$/.test(p)).length,
+    // The conversation *inside* those parts, so preservation is asserted on content and not merely on
+    // a part existing: one `<threadedComment>` per message (replies carry `parentId`), a thread head
+    // marked resolved by `done`, and the `<person>` registry entries the `personId`s resolve through.
+    // The distinct personId set is what proves a multi-author thread keeps each message's author —
+    // reported sorted, since only membership is meaningful.
+    threadedCommentMessages: countIn(parts, /threadedComments\//, /<threadedComment\b/g),
+    threadedCommentReplies: countIn(
+      parts,
+      /threadedComments\//,
+      /<threadedComment\b[^>]*\bparentId=/g,
+    ),
+    resolvedThreadHeads: countIn(
+      parts,
+      /threadedComments\//,
+      /<threadedComment\b[^>]*\bdone="(?:1|true)"/g,
+    ),
+    threadedCommentAuthorIds: [
+      ...new Set(
+        names
+          .filter((p) => /threadedComments\//.test(p))
+          .flatMap((p) => [...(parts[p] ?? '').matchAll(/personId="([^"]*)"/g)])
+          .map((m) => m[1]),
+      ),
+    ].sort(),
+    personEntries: countIn(parts, /xl\/persons\/person\d*\.xml$/, /<person\b/g),
+    // How Excel binds a thread to the legacy fallback `<comment>` it writes beside it: the fallback's
+    // author is a synthetic `tc={headThreadId}` entry in the comments part's `<authors>`, and the
+    // `<comment>` itself carries `xr:uid="{headThreadId}"`. Lose either and Excel stops recognising the
+    // cell as threaded — it renders an ordinary note and ignores the thread part, however intact that
+    // part still is. So these are the load-bearing halves of "the conversation survived", not trivia.
+    commentFallbackThreadAuthors: countIn(
+      parts,
+      /comments\d+\.xml$/,
+      /<author>tc=\{[^}]*\}<\/author>/g,
+    ),
+    commentUids: names
+      .filter((p) => /comments\d+\.xml$/.test(p))
+      .flatMap((p) => [...(parts[p] ?? '').matchAll(/<comment\b[^>]*\bxr:uid="([^"]*)"/g)])
+      .map((m) => m[1])
+      .sort(),
     externalLinks: names.filter((p) => /xl\/externalLinks\/externalLink\d+\.xml$/.test(p)).length,
     // The `<externalReference>` registrations in workbook.xml — one per `[n]` a formula resolves an
     // external cell through. Reported as a count (the rel ids are renumbered on write, the ordering and
