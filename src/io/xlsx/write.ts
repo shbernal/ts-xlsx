@@ -35,6 +35,7 @@ import {
   planPreservedParts,
   SheetRelIds,
   type TablePlan,
+  type ThreadedCommentPlan,
 } from './package-plan.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {REL, relsPartXml} from './relationships.ts';
@@ -42,6 +43,7 @@ import {SharedStringTable} from './shared-strings.ts';
 import {THEME1_XML} from './static-parts.ts';
 import {StyleRegistry} from './styles.ts';
 import {tableXml} from './tables.ts';
+import {personsXml, threadedCommentsXml} from './threaded-comments.ts';
 import {
   appPropsXml,
   contentTypesXml,
@@ -137,6 +139,7 @@ interface SheetPlan {
   readonly tables: TablePlan[];
   readonly drawing: DrawingPlan | null;
   readonly comments: CommentPlan | null;
+  readonly threadedComments: ThreadedCommentPlan | null;
   readonly printerSettings: PrinterSettingsPlan | null;
   readonly hyperlinks: HyperlinkPlan[];
   readonly background: BackgroundPlan | null;
@@ -236,15 +239,14 @@ export function buildPackageParts(
       drawing = {number: ++drawingNumber, relId: rels.next(), images};
     }
 
-    // A conversation's legacy fallback is only emitted beside the `threadedComment` part it shadows —
-    // and today that part reaches the package by byte-preservation, so the preserved references are what
-    // decide. Verified against desktop Excel: a `tc=` fallback whose thread part is absent shows as
-    // neither a thread nor a note, so a fallback without one would make the text vanish rather than
-    // degrade. When the writer serialises the thread parts from the model, this becomes that condition.
-    const carriesThreads = (preserved.perSheet[i] ?? []).some((reference) =>
-      reference.relType.endsWith('/threadedComment'),
-    );
-    const sheetComments = collectComments(sheet, carriesThreads ? sheet.commentThreads : []);
+    // A conversation and the legacy fallback `<comment>` that binds its cell to it are two halves of one
+    // representation, so both are derived from this single list and neither can be emitted without the
+    // other. Verified against desktop Excel: a `tc=` fallback whose thread part is absent shows as neither
+    // a thread nor a note — the text disappears rather than degrading — and a thread part whose fallback is
+    // absent is ignored, leaving the cell blank. A thread with no messages is not one of them: it has
+    // nothing to say, and no head id for its replies or its fallback to hang off.
+    const threads = sheet.commentThreads.filter((thread) => thread.comments.length > 0);
+    const sheetComments = collectComments(sheet, threads);
     const comments: CommentPlan | null =
       sheetComments.length === 0
         ? null
@@ -254,6 +256,8 @@ export function buildPackageParts(
             vmlRelId: rels.next(),
             commentsRelId: rels.next(),
           };
+    const threadedComments: ThreadedCommentPlan | null =
+      threads.length === 0 ? null : {number: i + 1, threads, relId: rels.next()};
 
     const printerData = sheet.pageSetup.printerSettings;
     const printerSettings: PrinterSettingsPlan | null =
@@ -291,6 +295,7 @@ export function buildPackageParts(
       tables,
       drawing,
       comments,
+      threadedComments,
       printerSettings,
       hyperlinks,
       background,
@@ -337,12 +342,24 @@ export function buildPackageParts(
     .map((plan) => plan.printerSettings)
     .filter((p): p is PrinterSettingsPlan => p !== null)
     .map((p) => p.number);
+  const threadedCommentNumbers = perSheet
+    .map((plan) => plan.threadedComments)
+    .filter((t): t is ThreadedCommentPlan => t !== null)
+    .map((t) => t.number);
+
+  // The identity registry is emitted only beside the thread parts that point into it. With no conversation
+  // in the package nothing can reference a `<person>`, so the part would be a workbook-level relationship
+  // to dead weight — and it is the messages, not the registry, that make an identity worth carrying.
+  const persons = threadedCommentNumbers.length === 0 ? [] : workbook.persons;
 
   // A preserved workbook reference's relationship id follows the modeled workbook rels — the sheets,
-  // styles, theme, and (when emitted) shared strings — so adding one never renumbers an id already
-  // used. The workbook body and its rels part are wired from the same assignment, so a pivot cache's
-  // `<pivotCaches>` registration and its relationship agree on the id.
-  const workbookRelBase = sheets.length + FIXED_WORKBOOK_REL_COUNT + (hasSharedStrings ? 1 : 0);
+  // styles, theme, and (when emitted) shared strings and the threaded-comment person registry — so adding
+  // one never renumbers an id already used. The workbook body and its rels part are wired from the same
+  // assignment, so a pivot cache's `<pivotCaches>` registration and its relationship agree on the id.
+  const modeledWorkbookRelCount =
+    sheets.length + FIXED_WORKBOOK_REL_COUNT + (hasSharedStrings ? 1 : 0);
+  const personsRelId = persons.length === 0 ? null : `rId${modeledWorkbookRelCount + 1}`;
+  const workbookRelBase = modeledWorkbookRelCount + (personsRelId === null ? 0 : 1);
   const preservedWorkbookRels = preserved.workbook.map((ref, i) => ({
     ...ref,
     relId: `rId${workbookRelBase + 1 + i}`,
@@ -366,6 +383,8 @@ export function buildPackageParts(
         preserved.parts,
         allPivots,
         preservedWorkbookRels,
+        threadedCommentNumbers,
+        persons.length > 0,
       ),
     ),
     '_rels/.rels': strToU8(rootRelsXml(preserved.root)),
@@ -373,7 +392,13 @@ export function buildPackageParts(
     'docProps/app.xml': strToU8(appPropsXml()),
     'xl/workbook.xml': strToU8(workbookXml(workbook, preservedWorkbookRels, allPivots)),
     'xl/_rels/workbook.xml.rels': strToU8(
-      workbookRelsXml(sheets.length, hasSharedStrings, preservedWorkbookRels, allPivots),
+      workbookRelsXml(
+        sheets.length,
+        hasSharedStrings,
+        personsRelId,
+        preservedWorkbookRels,
+        allPivots,
+      ),
     ),
     'xl/styles.xml': strToU8(styles.toXml()),
     'xl/theme/theme1.xml': strToU8(THEME1_XML),
@@ -381,6 +406,8 @@ export function buildPackageParts(
   if (hasSharedStrings) {
     files['xl/sharedStrings.xml'] = strToU8((sharedStrings as SharedStringTable).toXml());
   }
+  // Singular and unnumbered, unlike the per-sheet thread parts: one registry serves the whole workbook.
+  if (persons.length > 0) files['xl/persons/person.xml'] = strToU8(personsXml(persons));
   for (const part of media.parts) {
     files[`xl/media/image${part.number}.${part.extension}`] = part.data;
   }
@@ -411,6 +438,7 @@ function emitSheetParts(
       tables,
       drawing,
       comments,
+      threadedComments,
       printerSettings,
       background,
       hyperlinks,
@@ -423,6 +451,7 @@ function emitSheetParts(
       tables.length > 0 ||
       drawing !== null ||
       comments !== null ||
+      threadedComments !== null ||
       printerSettings !== null ||
       background !== null ||
       hasExternalHyperlink ||
@@ -434,6 +463,7 @@ function emitSheetParts(
           tables,
           drawing,
           comments,
+          threadedComments,
           printerSettings,
           background,
           hyperlinks,
@@ -459,6 +489,11 @@ function emitSheetParts(
       files[`xl/comments${comments.number}.xml`] = strToU8(commentsXml(comments.comments));
       files[`xl/drawings/vmlDrawing${comments.number}.vml`] = strToU8(
         vmlDrawingXml(comments.comments),
+      );
+    }
+    if (threadedComments !== null) {
+      files[`xl/threadedComments/threadedComment${threadedComments.number}.xml`] = strToU8(
+        threadedCommentsXml(threadedComments.threads),
       );
     }
   });

@@ -33,6 +33,14 @@ export const MARKUP_COMPATIBILITY_NS =
  */
 export const REVISION_NS = 'http://schemas.microsoft.com/office/spreadsheetml/2014/revision';
 
+/**
+ * The 2018 threaded-comments namespace, shared by both parts of the feature — a sheet's
+ * `threadedComment{n}.xml` and the workbook's `person.xml`. Note the plural `threadedcomments`, all
+ * lower-case: Excel matches the URI exactly and reads neither part under any other spelling.
+ */
+export const THREADED_COMMENTS_NS =
+  'http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments';
+
 /** DrawingML shared graphics namespace (`a:`). */
 export const DRAWINGML_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
 

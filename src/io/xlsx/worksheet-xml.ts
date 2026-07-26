@@ -38,6 +38,7 @@ import type {
   PreservedReferencePlan,
   PrinterSettingsPlan,
   TablePlan,
+  ThreadedCommentPlan,
 } from './package-plan.ts';
 import {numberText, relativePartPath} from './part-paths.ts';
 import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
@@ -381,6 +382,7 @@ export function worksheetRelsXml(
   tables: readonly TablePlan[],
   drawing: DrawingPlan | null,
   comments: CommentPlan | null,
+  threadedComments: ThreadedCommentPlan | null,
   printerSettings: PrinterSettingsPlan | null,
   background: BackgroundPlan | null,
   hyperlinks: readonly HyperlinkPlan[],
@@ -412,6 +414,17 @@ export function worksheetRelsXml(
             `../drawings/vmlDrawing${comments.number}.vml`,
           ),
           relationship(comments.commentsRelId, REL.comments, `../comments${comments.number}.xml`),
+        ]),
+    // A threaded-comment part, like a pivot table, is reached by relationship alone — no worksheet element
+    // names it, so this relationship is the only thing that makes Excel look for the conversation.
+    ...(threadedComments === null
+      ? []
+      : [
+          relationship(
+            threadedComments.relId,
+            REL.threadedComment,
+            `../threadedComments/threadedComment${threadedComments.number}.xml`,
+          ),
         ]),
     ...(printerSettings === null
       ? []

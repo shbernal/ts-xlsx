@@ -129,8 +129,8 @@ const threadOn = (
   comments: texts.map((text, i) => ({id: i === 0 ? head : `{reply-${i}}`, text, mentions: []})),
 });
 
-// The conversations the package will carry, which is what the writer passes: on the read→write path they
-// are the sheet's own, since the `threadedComment` part rides through byte-preservation beside them.
+// The conversations the package will carry, which is what the writer passes — always the sheet's own, since
+// the writer serialises the `threadedComment` part from the very same list.
 const shadowing = (sheet: Worksheet) => collectComments(sheet, sheet.commentThreads);
 
 test('a thread is written as a fallback comment bound to its head by a tc= author and an xr:uid', () => {
@@ -173,18 +173,48 @@ test('a conversation with no note beside it still gets a comments part and a VML
   );
 });
 
-test('a conversation the package will not carry gets no fallback, so nothing vanishes in Excel', () => {
-  // Verified against desktop Excel: a `tc=` fallback whose `threadedComment` part is absent is shown as
-  // neither a thread NOR a note — the text disappears. So a thread with no part to shadow contributes no
-  // comment, and a sheet holding only such threads writes no comments part at all. Reachable today only
-  // by restoring threads onto a sheet with no preserved thread part, which is what this does.
+test('a conversation is never written half-emitted: the fallback and its thread part come together', () => {
+  // Verified against desktop Excel, in both directions: a `tc=` fallback whose `threadedComment` part is
+  // absent is shown as neither a thread NOR a note (the text simply disappears), and a thread part whose
+  // fallback is absent is ignored (the cell reads blank). The two are
+  // halves of one representation, so the writer derives both from the same list and a package can never
+  // carry one alone.
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
   ws.getCell('B1').value = 12;
-  ws.restoreCommentThreads([threadOn('B1', ['invisible if we shadowed it'])]);
+  ws.addCommentThread(threadOn('B1', ['Is this gross or net of tax?']));
   const names = Object.keys(unzipSync(writeXlsx(wb)));
-  assert.ok(!names.some((n) => /comments\d+\.xml$/.test(n)));
-  assert.ok(!names.some((n) => /\.vml$/.test(n)));
+  assert.ok(names.includes('xl/threadedComments/threadedComment1.xml'), 'the conversation itself');
+  assert.ok(names.includes('xl/comments1.xml'), 'the fallback a pre-2018 reader renders');
+  assert.ok(names.includes('xl/drawings/vmlDrawing1.vml'), 'and a box for it to render into');
+});
+
+test('each sheet numbers its own thread part, leaving a gap where a sheet has no conversation', () => {
+  // Part numbers follow the sheet index, so a workbook whose first sheet has only notes writes
+  // `threadedComment2.xml` with no `threadedComment1.xml` beside it. That gap is fine — nothing addresses
+  // these parts by number; each sheet reaches its own through a relationship. Verified with desktop Excel,
+  // which reads all three sheets back correctly from exactly this shape.
+  const wb = new Workbook();
+  wb.addPerson({id: HEAD, displayName: 'Ada Lovelace', providerId: 'AD'});
+  wb.addWorksheet('NotesOnly').getCell('A1').note = 'just a note';
+  wb.addWorksheet('Threads').addCommentThread(threadOn('C3', ['second sheet'], HEAD));
+  const both = wb.addWorksheet('Both');
+  both.getCell('A1').note = 'note here';
+  both.addCommentThread(threadOn('B2', ['third sheet'], OTHER_HEAD));
+  const names = Object.keys(unzipSync(writeXlsx(wb)));
+  assert.deepStrictEqual(names.filter((n) => n.startsWith('xl/threadedComments/')).sort(), [
+    'xl/threadedComments/threadedComment2.xml',
+    'xl/threadedComments/threadedComment3.xml',
+  ]);
+  assert.deepStrictEqual(
+    names.filter((n) => /^xl\/comments\d+\.xml$/.test(n)).sort(),
+    ['xl/comments1.xml', 'xl/comments2.xml', 'xl/comments3.xml'],
+    'the notes-only sheet still gets a comments part; the thread sheets get theirs for the fallback',
+  );
+  assert.ok(
+    names.includes('xl/persons/person.xml'),
+    'one registry for the whole workbook, however many sheets carry conversations',
+  );
 });
 
 test('notes and fallbacks share one comments part, ordered by cell, each pointing at its own author', () => {

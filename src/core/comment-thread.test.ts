@@ -19,10 +19,19 @@ const GRACE_MENTIONED: Person = {
   providerId: 'PeoplePicker',
 };
 
+// A distinct id per thread, in the only spelling the format accepts: brace-wrapped, upper-case, `8-4-4-4-12`
+// hex. A readable placeholder like `{HEAD-B2}` is not a legal id and the authoring path rejects it.
+let nextThread = 0;
 const threadAt = (ref: string): CommentThread => ({
   ref,
   resolved: false,
-  comments: [{id: `{HEAD-${ref}}`, text: `about ${ref}`, mentions: []}],
+  comments: [
+    {
+      id: `{${String(++nextThread).padStart(8, '0')}-0000-4000-8000-000000000000}`,
+      text: `about ${ref}`,
+      mentions: [],
+    },
+  ],
 });
 
 test('the person registry keeps both entries of one human, since only the id identifies one', () => {
@@ -31,6 +40,24 @@ test('the person registry keeps both entries of one human, since only the id ide
   assert.equal(wb.persons.length, 2);
   assert.equal(wb.getPerson(GRACE_AUTHOR.id)?.providerId, 'AD');
   assert.equal(wb.getPerson(GRACE_MENTIONED.id)?.providerId, 'PeoplePicker');
+});
+
+test('registering the same id twice replaces the entry, since the id is the identity', () => {
+  const wb = new Workbook();
+  wb.addPerson(GRACE_AUTHOR);
+  wb.addPerson({...GRACE_AUTHOR, displayName: 'Rear Admiral Grace Hopper'});
+  assert.equal(wb.persons.length, 1);
+  assert.equal(wb.getPerson(GRACE_AUTHOR.id)?.displayName, 'Rear Admiral Grace Hopper');
+});
+
+test('registering one human under two ids keeps both, which is what Excel itself writes', () => {
+  const wb = new Workbook();
+  wb.addPerson(GRACE_AUTHOR);
+  wb.addPerson(GRACE_MENTIONED);
+  assert.deepEqual(
+    wb.persons.map((person) => person.providerId),
+    ['AD', 'PeoplePicker'],
+  );
 });
 
 test('an id the registry does not hold resolves to nothing rather than a near match', () => {
@@ -87,4 +114,102 @@ test('commentThreadAt rejects a reference that is not a single cell', () => {
   const sheet = new Workbook().addWorksheet('S');
   assert.throws(() => sheet.commentThreadAt('A'), /not a single-cell reference/);
   assert.throws(() => sheet.commentThreadAt('2'), /not a single-cell reference/);
+});
+
+test('an authored thread keeps the conversation but canonicalises its anchor', () => {
+  // The anchor is compared as a plain string by both `commentThreadAt` and the writer's fallback comment,
+  // so `$B$2` and `B2` must not become two anchors for one cell.
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.addCommentThread({...threadAt('$B$2'), resolved: true});
+  const [thread] = sheet.commentThreads;
+  assert.equal(thread?.ref, 'B2');
+  assert.equal(thread?.resolved, true);
+  assert.deepEqual(
+    thread?.comments.map((comment) => comment.text),
+    ['about $B$2'],
+  );
+  assert.equal(sheet.commentThreadAt('B2')?.ref, 'B2');
+});
+
+test('authoring accumulates threads rather than replacing them, unlike reader restoration', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.addCommentThread(threadAt('B1'));
+  sheet.addCommentThread(threadAt('C3'));
+  assert.deepEqual(
+    sheet.commentThreads.map((thread) => thread.ref),
+    ['B1', 'C3'],
+  );
+});
+
+test('an authored id is normalised to the one spelling the format accepts', () => {
+  // Verified against the OOXML schema: `person/@id`, a message's `id`/`personId`/`parentId` and a mention's
+  // `mentionpersonId`/`mentionId` are each pinned to `\{[0-9A-F]{8}-…\}`. A bare GUID is rejected and so is
+  // a lower-case one — which is exactly what `crypto.randomUUID()` returns, so the authoring path
+  // normalises rather than refusing the one obvious way to make an id in JavaScript.
+  const wb = new Workbook();
+  wb.addPerson({id: 'aaaaaaaa-1111-2222-3333-444444444444', displayName: 'Ada'});
+  assert.deepEqual(
+    wb.persons.map((person) => person.id),
+    ['{AAAAAAAA-1111-2222-3333-444444444444}'],
+  );
+  assert.ok(
+    wb.getPerson('{AAAAAAAA-1111-2222-3333-444444444444}'),
+    'found under the normalised id',
+  );
+
+  const sheet = wb.addWorksheet('S');
+  sheet.addCommentThread({
+    ref: 'A1',
+    resolved: false,
+    comments: [
+      {
+        id: 'bbbbbbbb-1111-2222-3333-444444444444',
+        personId: 'aaaaaaaa-1111-2222-3333-444444444444',
+        text: '@Ada who owns this?',
+        mentions: [
+          {
+            personId: 'aaaaaaaa-1111-2222-3333-444444444444',
+            mentionId: '{cccccccc-1111-2222-3333-444444444444}',
+            startIndex: 0,
+            length: 4,
+          },
+        ],
+      },
+    ],
+  });
+  const [comment] = sheet.commentThreads[0]?.comments ?? [];
+  assert.equal(comment?.id, '{BBBBBBBB-1111-2222-3333-444444444444}');
+  assert.equal(comment?.personId, '{AAAAAAAA-1111-2222-3333-444444444444}');
+  assert.equal(comment?.mentions[0]?.personId, '{AAAAAAAA-1111-2222-3333-444444444444}');
+  assert.equal(comment?.mentions[0]?.mentionId, '{CCCCCCCC-1111-2222-3333-444444444444}');
+});
+
+test('authoring rejects an id that is not a GUID, rather than writing a file Excel repairs', () => {
+  const wb = new Workbook();
+  assert.throws(() => wb.addPerson({id: 'ada@example.com', displayName: 'Ada'}), /must be a GUID/);
+  const sheet = wb.addWorksheet('S');
+  const thread = threadAt('A1');
+  assert.throws(
+    () => sheet.addCommentThread({...thread, comments: [{...thread.comments[0]!, id: 'thread-1'}]}),
+    /a comment id must be a GUID/,
+  );
+  assert.throws(
+    () =>
+      sheet.addCommentThread({
+        ...thread,
+        comments: [{...thread.comments[0]!, personId: 'Ada Lovelace'}],
+      }),
+    /a comment's author id must be a GUID/,
+  );
+  assert.deepEqual(sheet.commentThreads, [], 'nothing half-added survives a rejection');
+});
+
+test('a thread cannot be anchored to anything but a single cell', () => {
+  // A range, a bare column, or a bare row names no one cell to hang the conversation off — and the writer
+  // would have nothing to anchor its legacy fallback comment or VML shape to.
+  const sheet = new Workbook().addWorksheet('S');
+  for (const ref of ['A1:B2', 'A', '2', 'nonsense']) {
+    assert.throws(() => sheet.addCommentThread(threadAt(ref)), SyntaxError, ref);
+  }
+  assert.deepEqual(sheet.commentThreads, []);
 });

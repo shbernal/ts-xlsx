@@ -19,6 +19,10 @@ export const NS = {
   xsi: 'http://www.w3.org/2001/XMLSchema-instance',
 } as const;
 
+// The Office extension relationships namespace the 2018 threaded-comment feature wires both of its parts
+// through. Local to this table: nothing outside it needs the base URI.
+const MS_OFFICE_2017_RELS_NS = 'http://schemas.microsoft.com/office/2017/10/relationships';
+
 export const REL = {
   worksheet: `${NS.docRels}/worksheet`,
   styles: `${NS.docRels}/styles`,
@@ -37,6 +41,10 @@ export const REL = {
   pivotTable: `${NS.docRels}/pivotTable`,
   pivotCacheDefinition: `${NS.docRels}/pivotCacheDefinition`,
   pivotCacheRecords: `${NS.docRels}/pivotCacheRecords`,
+  // Threaded comments are a Microsoft extension, so both types live under the 2017/10 Office
+  // relationships namespace rather than the standard officeDocument one.
+  threadedComment: `${MS_OFFICE_2017_RELS_NS}/threadedComment`,
+  person: `${MS_OFFICE_2017_RELS_NS}/person`,
 } as const;
 
 // A single `<Relationship>`. An `external` target lives outside the package (a hyperlink URL), so the

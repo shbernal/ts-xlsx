@@ -19,7 +19,7 @@ import {
   type VbaProjectSignature,
   vbaProjectSignatureKind,
 } from '../vba/index.ts';
-import type {Person} from './comment-thread.ts';
+import {commentThreadGuid, type Person} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
@@ -433,10 +433,28 @@ export class Workbook {
    * beside that person's `providerId="AD"` authoring entry — same `displayName`, same `userId`, a
    * different id — and points the mention at the new one. Collapsing entries by name or `userId` would
    * merge those two and silently re-point every mention at the wrong identity.
+   *
+   * Reader restoration; {@link addPerson} is the authoring verb.
    */
   restorePersons(persons: readonly Person[]): void {
     this.#persons.clear();
     for (const person of persons) this.#persons.set(person.id, person);
+  }
+
+  /**
+   * Register an identity a threaded comment can name — an author, or someone `@mentioned` in a message.
+   * A message reaches it by {@link Comment.personId}, a mention by {@link Mention.personId}.
+   *
+   * Keyed by {@link Person.id} alone, so registering the same id twice replaces the entry rather than
+   * adding a second: the id is the identity. Registering the same human twice under *different* ids is
+   * legitimate and is what Excel itself does — see {@link restorePersons}. The id is normalised to the
+   * brace-wrapped upper-case GUID form the format requires, so a `crypto.randomUUID()` is accepted as-is.
+   *
+   * @throws {SyntaxError} if the id is not a GUID.
+   */
+  addPerson(person: Person): void {
+    const id = commentThreadGuid(person.id, 'a person id');
+    this.#persons.set(id, {...person, id});
   }
 
   /**

@@ -530,6 +530,61 @@ const notesOf = (sheet: CorpusApi) => {
   return notes;
 };
 
+// The modern threaded conversations a workbook holds → the person registry plus, per sheet, each thread's
+// anchor/resolved state and its messages in order (author resolved through the registry, the raw author id
+// alongside so an unresolved one is visible, and each @mention's resolved identity + text span). `refs`
+// additionally probes the per-cell lookup, reporting the anchor of the thread found at each reference (null
+// for none) — so a case can assert a noted cell is not mistaken for a threaded one.
+//
+// Persons are sorted by id because the registry's order is meaningless: Excel re-sorts the part by person
+// id whenever it saves, so only membership is a fact.
+const commentThreadFacts = (wb: CorpusApi, refs: CorpusApi = []) => {
+  const identity = (person: CorpusApi) =>
+    person == null
+      ? null
+      : {
+          id: person.id,
+          displayName: person.displayName,
+          userId: person.userId ?? null,
+          providerId: person.providerId ?? null,
+        };
+  return {
+    persons: wb.persons
+      .map(identity)
+      .sort((a: CorpusApi, b: CorpusApi) => String(a?.id).localeCompare(String(b?.id))),
+    sheets: wb.worksheets.map((sheet: CorpusApi) => ({
+      name: sheet.name,
+      threads: sheet.commentThreads.map((thread: CorpusApi) => ({
+        ref: thread.ref,
+        resolved: thread.resolved,
+        comments: thread.comments.map((comment: CorpusApi) => ({
+          id: comment.id,
+          author: identity(comment.author),
+          authorId: comment.personId ?? null,
+          date: comment.date ?? null,
+          text: comment.text,
+          mentions: comment.mentions.map((mention: CorpusApi) => ({
+            person: identity(mention.person),
+            personId: mention.personId,
+            startIndex: mention.startIndex,
+            length: mention.length,
+            // The exact run of text the mention chip covers — the only check that proves the span was not
+            // shifted, since the offsets alone are just numbers.
+            span: comment.text.slice(mention.startIndex, mention.startIndex + mention.length),
+          })),
+        })),
+      })),
+      at: Object.fromEntries(
+        (refs as string[]).map((ref) => [ref, sheet.commentThreadAt(ref)?.ref ?? null]),
+      ),
+      // Every legacy note the sheet reads back as `{<ref>: <text>}`. Reported alongside the threads because
+      // the interesting fact is what is NOT here: Excel writes a boilerplate fallback comment beside every
+      // thread, and surfacing that as a note would hand the caller garbage.
+      notes: notesOf(sheet),
+    })),
+  };
+};
+
 // Every legacy fallback `<comment>` a comments part carries, paired with the thread it binds to: the
 // comments whose `xr:uid` also appears as a `tc={guid}` author. Excel writes exactly one per threaded
 // conversation and fills it with the boilerplate a pre-2018 reader shows in place of the conversation,
@@ -584,9 +639,10 @@ const packagePartFacts = (parts: Record<string, string>) => {
     pivotCache: names.filter((p) => /pivotCache\/.+\.xml$/.test(p)).length,
     slicers: names.filter((p) => /slicer/i.test(p)).length,
     comments: names.filter((p) => /comments\d+\.xml$/.test(p)).length,
-    // Modern threaded comments (2018): the per-sheet thread parts and the workbook-level author
-    // registry (`xl/persons/person.xml`). Unmodeled today, so a passthrough round-trip must preserve
-    // both or the conversation and its authors are dropped.
+    // Modern threaded comments (2018): the per-sheet thread parts and the workbook-level author registry
+    // (`xl/persons/person.xml`, singular and unnumbered). Both are serialised from the model, so a missing
+    // one means the conversation or its authors were dropped, and a doubled one means something is emitting
+    // a part twice.
     threadedComments: names.filter((p) => /threadedComments\/threadedComment\d+\.xml$/.test(p))
       .length,
     persons: names.filter((p) => /xl\/persons\/person\d*\.xml$/.test(p)).length,
@@ -3744,60 +3800,72 @@ const impl = {
     };
   },
 
-  // Read a fixture and report the modern threaded conversations the reader reconstructs → the person
-  // registry plus, per sheet, each thread's anchor/resolved state and its messages in order (author
-  // resolved through the registry, the raw author id alongside so an unresolved one is visible, and
-  // each @mention's resolved identity + text span). `refs` additionally probes the per-cell lookup,
-  // reporting the anchor of the thread found at each reference (null for none) — so a case can assert
-  // a noted cell is not mistaken for a threaded one.
-  //
-  // Persons are sorted by id because the registry's order is meaningless: Excel re-sorts the part by
-  // person id whenever it saves, so only membership is a fact.
+  // Read a fixture and report the modern threaded conversations the reader reconstructs — see
+  // {@link commentThreadFacts} for the shape.
   readFixtureCommentThreads(rel: CorpusApi, refs: CorpusApi = []) {
-    const wb = readFixture(rel);
-    const identity = (person: CorpusApi) =>
-      person == null
-        ? null
-        : {
-            id: person.id,
-            displayName: person.displayName,
-            userId: person.userId ?? null,
-            providerId: person.providerId ?? null,
-          };
+    return commentThreadFacts(readFixture(rel), refs);
+  },
+
+  // Author a conversation in the MODEL — never read from a file — write it, and read the package back:
+  // → { parts, deterministic, model }. Nothing here comes from preserved bytes, so this is what proves the
+  // writer serialises the feature rather than merely carrying it: the thread part, the workbook person
+  // registry, and the legacy fallback comment are all built from the model on the way out and reassembled
+  // into threads on the way in. `deterministic` re-writes the same model and compares the bytes — the
+  // writer holds no clock and no id generator, so every guid and timestamp comes from the caller.
+  //
+  // The conversation deliberately mixes every facet at once (a reply by a second author, an @mention
+  // resolving through a third registry entry, a resolved thread, and a genuine legacy note on another
+  // cell) because those are the facets that interact: the fallback text folds the reply in, the mention
+  // spans the message text, and the note must not be mistaken for the thread's fallback.
+  authoredCommentThreadRoundtrip() {
+    const ADA = '{39236F6F-643D-4654-8264-DD21C8472F7F}';
+    const GRACE = '{1B2C3D4E-5F60-4A71-8B92-0C1D2E3F4A5B}';
+    const GRACE_MENTIONED = '{BA397017-DD76-4496-AA75-59ADB199950C}';
+    const workbook = new Workbook();
+    workbook.addPerson({id: ADA, displayName: 'Ada Lovelace', providerId: 'AD'});
+    workbook.addPerson({id: GRACE, displayName: 'Grace Hopper', providerId: 'AD'});
+    // The same human as GRACE under a second id — how Excel registers a *mentioned* identity.
+    workbook.addPerson({
+      id: GRACE_MENTIONED,
+      displayName: 'Grace Hopper',
+      providerId: 'PeoplePicker',
+    });
+    const sheet = workbook.addWorksheet('Review');
+    sheet.getCell('B2').value = 1234;
+    sheet.getCell('D4').note = 'an ordinary note beside the conversation';
+    sheet.addCommentThread({
+      // Absolute on purpose: the anchor is canonicalised, so `$B$2` and `B2` are one cell.
+      ref: '$B$2',
+      resolved: true,
+      comments: [
+        {
+          id: '{11111111-2222-3333-4444-555555555555}',
+          personId: ADA,
+          date: '2026-07-26T12:00:00.00',
+          text: '@Grace Hopper is this gross or net?',
+          mentions: [
+            {
+              personId: GRACE_MENTIONED,
+              mentionId: '{3F2C1A9E-5B84-4D67-9C2E-71A0D4E8B531}',
+              startIndex: 0,
+              length: 13,
+            },
+          ],
+        },
+        {
+          id: '{66666666-7777-8888-9999-AAAAAAAAAAAA}',
+          personId: GRACE,
+          date: '2026-07-26T12:05:00.00',
+          text: 'Gross. Confirmed with finance.',
+          mentions: [],
+        },
+      ],
+    });
+    const bytes = writeXlsx(workbook);
     return {
-      persons: wb.persons
-        .map(identity)
-        .sort((a: CorpusApi, b: CorpusApi) => String(a?.id).localeCompare(String(b?.id))),
-      sheets: wb.worksheets.map((sheet: CorpusApi) => ({
-        name: sheet.name,
-        threads: sheet.commentThreads.map((thread: CorpusApi) => ({
-          ref: thread.ref,
-          resolved: thread.resolved,
-          comments: thread.comments.map((comment: CorpusApi) => ({
-            id: comment.id,
-            author: identity(comment.author),
-            authorId: comment.personId ?? null,
-            date: comment.date ?? null,
-            text: comment.text,
-            mentions: comment.mentions.map((mention: CorpusApi) => ({
-              person: identity(mention.person),
-              personId: mention.personId,
-              startIndex: mention.startIndex,
-              length: mention.length,
-              // The exact run of text the mention chip covers — the only check that proves the span
-              // was not shifted, since the offsets alone are just numbers.
-              span: comment.text.slice(mention.startIndex, mention.startIndex + mention.length),
-            })),
-          })),
-        })),
-        at: Object.fromEntries(
-          (refs as string[]).map((ref) => [ref, sheet.commentThreadAt(ref)?.ref ?? null]),
-        ),
-        // Every legacy note the sheet reads back as `{<ref>: <text>}`. Reported alongside the threads
-        // because the interesting fact is what is NOT here: Excel writes a boilerplate fallback comment
-        // beside every thread, and surfacing that as a note would hand the caller garbage.
-        notes: notesOf(sheet),
-      })),
+      parts: packagePartFacts(partMapOf(bytes)),
+      deterministic: Buffer.compare(Buffer.from(bytes), Buffer.from(writeXlsx(workbook))) === 0,
+      model: commentThreadFacts(readXlsx(bytes), ['B2', '$B$2', 'D4']),
     };
   },
 

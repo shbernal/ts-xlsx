@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
+import {
+  buildCommentThreads,
+  parsePersons,
+  parseThreadedComments,
+  personsXml,
+  threadedCommentsXml,
+} from './threaded-comments.ts';
 
 // The part bodies below are verbatim from the Excel-authored corpus fixtures under
 // `test/corpus/fixtures/threaded-comment-parts-survive-roundtrip/`, so these tests read the real
@@ -427,4 +433,170 @@ test('a thread whose anchor names no single cell is dropped rather than left una
     threads.map((thread) => thread.ref),
     ['D4'],
   );
+});
+
+// ── Serialisation ────────────────────────────────────────────────────────────────────────────────────
+
+test('a conversation is written flat: the head first, then its replies naming it as their parent', () => {
+  const xml = threadedCommentsXml([
+    {
+      ref: 'B1',
+      resolved: false,
+      comments: [
+        {
+          id: '{HEAD}',
+          personId: ADA,
+          date: '2026-07-26T10:54:00.01',
+          text: 'Gross or net?',
+          mentions: [],
+        },
+        {id: '{R1}', personId: GRACE, date: '2026-07-26T10:54:00.04', text: 'Gross.', mentions: []},
+      ],
+    },
+  ]);
+  assert.ok(
+    xml.includes(
+      `<threadedComment ref="B1" dT="2026-07-26T10:54:00.01" personId="${ADA}" id="{HEAD}">` +
+        '<text>Gross or net?</text></threadedComment>',
+    ),
+    'the head carries no parentId — that is what makes it the head',
+  );
+  assert.ok(
+    xml.includes(
+      `<threadedComment ref="B1" dT="2026-07-26T10:54:00.04" personId="${GRACE}" id="{R1}" ` +
+        'parentId="{HEAD}"><text>Gross.</text></threadedComment>',
+    ),
+    'the reply repeats the anchor and names the head, so the thread is reconstructible',
+  );
+});
+
+test('done marks the head alone, and an open thread says nothing rather than done="0"', () => {
+  const head = {id: '{HEAD}', text: 'q', mentions: []};
+  const reply = {id: '{R1}', text: 'a', mentions: []};
+  const resolved = threadedCommentsXml([{ref: 'A1', resolved: true, comments: [head, reply]}]);
+  assert.strictEqual(
+    (resolved.match(/\bdone="1"/g) ?? []).length,
+    1,
+    'exactly one done, on the head',
+  );
+  assert.match(resolved, /id="\{HEAD\}" done="1"/);
+  const open = threadedCommentsXml([{ref: 'A1', resolved: false, comments: [head, reply]}]);
+  assert.ok(!open.includes('done='), 'Excel omits the attribute entirely on an open thread');
+});
+
+test('an authored conversation round-trips through the parser as itself', () => {
+  // The two halves are inverses, so writing the model and reading it back is the strongest single check
+  // that neither invents nor drops a field.
+  const threads = buildCommentThreads(parseThreadedComments(THREADED_COMMENTS), NO_PERSONS);
+  assert.deepStrictEqual(
+    buildCommentThreads(parseThreadedComments(threadedCommentsXml(threads)), NO_PERSONS),
+    threads,
+  );
+});
+
+test('a message that names nobody writes no mentions block at all', () => {
+  const xml = threadedCommentsXml([
+    {ref: 'A1', resolved: false, comments: [{id: '{H}', text: 'plain', mentions: []}]},
+  ]);
+  assert.ok(!xml.includes('<mentions'));
+});
+
+test('a mention is written with all four attributes Excel requires, lower-case p included', () => {
+  const xml = threadedCommentsXml([
+    {
+      ref: 'B2',
+      resolved: false,
+      comments: [
+        {
+          id: '{H}',
+          text: '@Grace Hopper Where does this figure come from?',
+          mentions: [{personId: MENTION_PERSON, mentionId: MENTION_ID, startIndex: 0, length: 13}],
+        },
+      ],
+    },
+  ]);
+  assert.ok(
+    xml.includes(
+      `<mentions><mention mentionpersonId="${MENTION_PERSON}" mentionId="${MENTION_ID}" ` +
+        'startIndex="0" length="13"/></mentions>',
+    ),
+  );
+  assert.match(
+    xml,
+    /<text>[^<]*<\/text><mentions>/,
+    'mentions follow text, as the schema sequences them',
+  );
+});
+
+test('a mention with no id of its own is dropped, but the text it named is not', () => {
+  // All four attributes are required (each one dropped in turn gives Sch_MissRequiredAttribute), and the
+  // writer has no id generator — so an invalid part would risk Excel repairing the whole conversation
+  // away, where dropping the chip costs only the highlight. Excel always writes the id; this needs a
+  // foreign generator.
+  const xml = threadedCommentsXml([
+    {
+      ref: 'B2',
+      resolved: false,
+      comments: [
+        {
+          id: '{H}',
+          text: '@Grace Hopper who owns this?',
+          mentions: [{personId: MENTION_PERSON, startIndex: 0, length: 13}],
+        },
+      ],
+    },
+  ]);
+  assert.ok(!xml.includes('<mention'));
+  assert.ok(xml.includes('<text>@Grace Hopper who owns this?</text>'));
+});
+
+test('a thread with no messages writes nothing, having neither text nor a head to reply to', () => {
+  const xml = threadedCommentsXml([{ref: 'A1', resolved: true, comments: []}]);
+  assert.ok(!xml.includes('<threadedComment'));
+  assert.match(xml, /<ThreadedComments xmlns="[^"]*threadedcomments"><\/ThreadedComments>$/);
+});
+
+test('markup-significant characters in a message and its ids are escaped', () => {
+  const xml = threadedCommentsXml([
+    {
+      ref: 'A1',
+      resolved: false,
+      comments: [
+        {id: '{"&<>}', personId: 'p"&', date: '"&', text: '5 < 6 & "quoted"', mentions: []},
+      ],
+    },
+  ]);
+  assert.ok(!/&(?!amp;|lt;|gt;|quot;|apos;|#)/.test(xml), 'no raw ampersand survives');
+  assert.ok(xml.includes('<text>5 &lt; 6 &amp; "quoted"</text>'));
+  assert.ok(
+    xml.includes('id="{&quot;&amp;&lt;&gt;}"'),
+    'an untrusted id cannot break out of its attribute',
+  );
+});
+
+test('the person registry round-trips through the parser as itself, order and all', () => {
+  const persons = parsePersons(MENTION_PERSONS);
+  assert.deepStrictEqual(parsePersons(personsXml(persons)), persons);
+  assert.deepStrictEqual(
+    parsePersons(personsXml(persons)).map((person) => person.providerId),
+    ['AD', 'AD', 'PeoplePicker'],
+    'the mentioned identity stays its own entry rather than merging into its author twin',
+  );
+});
+
+test('a person writes only the identity attributes the model holds', () => {
+  const xml = personsXml([{id: '{A}', displayName: 'Anon'}]);
+  assert.ok(xml.includes('<person displayName="Anon" id="{A}"/>'));
+  assert.ok(!xml.includes('userId='), 'an absent handle is omitted, not written empty');
+  assert.ok(!xml.includes('providerId='));
+});
+
+test('a display name carrying markup cannot reshape the registry', () => {
+  const xml = personsXml([{id: '{A}', displayName: 'Ada "&" <Lovelace>', userId: 'S::a&b'}]);
+  assert.ok(!/&(?!amp;|lt;|gt;|quot;|apos;|#)/.test(xml));
+  assert.ok(xml.includes('displayName="Ada &quot;&amp;&quot; &lt;Lovelace&gt;"'));
+});
+
+test('an empty registry still writes a well-formed part rather than a stub', () => {
+  assert.match(personsXml([]), /<personList xmlns="[^"]*threadedcomments"><\/personList>$/);
 });

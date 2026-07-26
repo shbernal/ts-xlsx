@@ -1,5 +1,5 @@
-// Modern threaded comments — the review-style conversations Excel has written since 2018, read from
-// their two parts: `xl/threadedComments/threadedComment{n}.xml` (per sheet) and
+// Modern threaded comments — the review-style conversations Excel has written since 2018, read from and
+// written to their two parts: `xl/threadedComments/threadedComment{n}.xml` (per sheet) and
 // `xl/persons/person.xml` (per workbook, the author registry).
 //
 // These are a Microsoft extension, not base ECMA-376, and they are a *separate* feature from legacy
@@ -19,9 +19,16 @@
 // {@link buildCommentThreads} turns the flat message list into the model's threads, resolving each
 // author and mention against the workbook's person registry. That grouping is deliberately not the
 // parsers' job: they stay faithful to the part, one function per wire form.
+//
+// The writers are the exact inverse and carry no clock and no id generator: every guid and every
+// timestamp is written from the model, verbatim, so the same workbook always serialises to the same
+// bytes. A conversation Excel wrote round-trips as itself; one authored in the model carries whatever
+// ids and dates the caller supplied.
 
 import {type CellAddress, decodeAddress} from '../../core/address.ts';
 import type {Comment, CommentThread, Mention, Person} from '../../core/comment-thread.ts';
+import {THREADED_COMMENTS_NS} from './namespaces.ts';
+import {escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
 import {boolStrict, localName, parseXml, type XmlAttributes} from './xml-read.ts';
 
 /** A registered author of threaded comments — one `<person>` of `xl/persons/person.xml`. */
@@ -282,4 +289,89 @@ function mentionOf(
     ...(person !== undefined ? {person} : {}),
     ...(mention.mentionId !== undefined ? {mentionId: mention.mentionId} : {}),
   };
+}
+
+/**
+ * Serialise one sheet's conversations into its `xl/threadedComments/threadedComment{n}.xml` part.
+ *
+ * Messages are written flat, in thread order with each thread's replies after its head — the shape
+ * {@link parseThreadedComments} reads back. The head/reply distinction the model holds as array position
+ * becomes `parentId` on every reply but the head, and `done="1"` goes on the head alone: only the head
+ * carries the flag on the wire, so a reply can never contradict the thread it belongs to. An open thread
+ * omits `done` entirely rather than writing `done="0"`, exactly as Excel does.
+ *
+ * A thread with no messages writes nothing: it has neither text to say nor a head id for its replies and
+ * its legacy fallback to hang off.
+ */
+export function threadedCommentsXml(threads: readonly CommentThread[]): string {
+  const messages = threads.flatMap((thread) => {
+    const [head, ...replies] = thread.comments;
+    if (head === undefined) return [];
+    return [
+      threadedCommentXml(thread.ref, head, thread.resolved ? ' done="1"' : ''),
+      ...replies.map((reply) =>
+        threadedCommentXml(thread.ref, reply, ` parentId="${escapeAttr(head.id)}"`),
+      ),
+    ];
+  });
+  return (
+    XML_DECLARATION +
+    `<ThreadedComments xmlns="${THREADED_COMMENTS_NS}">${messages.join('')}</ThreadedComments>`
+  );
+}
+
+// One `<threadedComment>`. `tail` is the attribute that distinguishes the message's role — `done` for a
+// resolved head, `parentId` for a reply, nothing for an open head. A `dT` or `personId` the model never
+// held is omitted rather than written empty, so "the file did not say" stays distinguishable from "the
+// file said nothing". Every value is escaped: an authored message's text and a foreign file's ids alike
+// are untrusted, and an unescaped `"` would end the attribute and reshape the part.
+function threadedCommentXml(ref: string, comment: Comment, tail: string): string {
+  const date = comment.date === undefined ? '' : ` dT="${escapeAttr(comment.date)}"`;
+  const person =
+    comment.personId === undefined ? '' : ` personId="${escapeAttr(comment.personId)}"`;
+  return (
+    `<threadedComment ref="${escapeAttr(ref)}"${date}${person} id="${escapeAttr(comment.id)}"${tail}>` +
+    `<text>${escapeText(comment.text)}</text>` +
+    mentionsXml(comment.mentions) +
+    '</threadedComment>'
+  );
+}
+
+// The `<mentions>` block, which follows `<text>` in the message. All four `<mention>` attributes are
+// required — verified by dropping each in turn and getting `Sch_MissRequiredAttribute` — so a mention the
+// model holds without a `mentionId` cannot be written at all. It is dropped rather than given an invented
+// id: the `@name` stays in the text and only the chip is lost, whereas an invalid part risks Excel
+// repairing the whole conversation away. (Excel always writes the id, so this needs a foreign generator.)
+function mentionsXml(mentions: readonly Mention[]): string {
+  const entries = mentions.flatMap((mention) =>
+    mention.mentionId === undefined
+      ? []
+      : [
+          `<mention mentionpersonId="${escapeAttr(mention.personId)}"` +
+            ` mentionId="${escapeAttr(mention.mentionId)}"` +
+            ` startIndex="${mention.startIndex}" length="${mention.length}"/>`,
+        ],
+  );
+  return entries.length === 0 ? '' : `<mentions>${entries.join('')}</mentions>`;
+}
+
+/**
+ * Serialise the workbook's identity registry into `xl/persons/person.xml` — singular and unnumbered,
+ * unlike the per-sheet thread parts.
+ *
+ * Entries are written in registry order, which carries no meaning: Excel re-sorts the list by person id
+ * whenever it saves, so this only has to be deterministic, not canonical. `userId`/`providerId` are
+ * written when the model holds them; a registry read from a file holds whatever that file stated.
+ */
+export function personsXml(persons: readonly Person[]): string {
+  const entries = persons.map((person) => {
+    const userId = person.userId === undefined ? '' : ` userId="${escapeAttr(person.userId)}"`;
+    const providerId =
+      person.providerId === undefined ? '' : ` providerId="${escapeAttr(person.providerId)}"`;
+    return (
+      `<person displayName="${escapeAttr(person.displayName)}"` +
+      ` id="${escapeAttr(person.id)}"${userId}${providerId}/>`
+    );
+  });
+  return `${XML_DECLARATION}<personList xmlns="${THREADED_COMMENTS_NS}">${entries.join('')}</personList>`;
 }

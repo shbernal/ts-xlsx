@@ -9,7 +9,7 @@
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, cellToModel, copyCellContent} from './cell.ts';
-import type {CommentThread} from './comment-thread.ts';
+import {type CommentThread, commentThreadGuid} from './comment-thread.ts';
 import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
 import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
 import {overwrite, replaceContents} from './containers.ts';
@@ -246,10 +246,10 @@ export class Worksheet {
   // (#preservedReferences), which stays its sole emission authority; this collection is never emitted,
   // so exposing it cannot double-emit. Empty for a sheet authored from scratch.
   readonly #loadedPivotTables: ParsedPivotTable[] = [];
-  // Threaded conversations reconstructed from a loaded package (see io/xlsx/threaded-comments.ts) — a
-  // read-only view, like #loadedPivotTables: a thread round-trips by byte-preservation
-  // (#preservedReferences), which stays its sole emission authority, so exposing it cannot double-emit.
-  // Empty for a sheet with no threaded comments.
+  // The sheet's threaded conversations (see io/xlsx/threaded-comments.ts) — unlike #loadedPivotTables, the
+  // authority the writer serialises from: both the sheet's threadedComment part and the legacy fallback
+  // comment that binds each cell to its conversation are derived from this list. Empty for a sheet with no
+  // threaded comments.
   readonly #commentThreads: CommentThread[] = [];
   readonly #merges: string[] = [];
   readonly #images: AnchoredImage[] = [];
@@ -615,13 +615,48 @@ export class Worksheet {
   }
 
   /**
-   * Reinstate the threaded conversations read from a file, in the order the reader found them. Replaces
-   * any already held.
+   * Anchor a threaded conversation to a cell — Excel's modern review comment: an opening message, its
+   * replies, and whether the discussion was marked resolved. Distinct from a cell's legacy note
+   * ({@link Cell.note}), and mutually exclusive with one: Excel refuses to put both on one cell, and a
+   * cell carrying both is written back as the conversation alone.
    *
-   * Their authors and mentioned people are already resolved against the workbook registry
-   * ({@link Workbook.restorePersons}), so a thread is self-contained. Like
-   * {@link loadedPivotTables}, this is an inspection view: the threads round-trip by byte-preservation
-   * and reinstating them here never changes what the writer emits.
+   * Every message supplies its own {@link Comment.id} and {@link Comment.date}, and names its author by
+   * {@link Comment.personId} into the workbook registry ({@link Workbook.addPerson}) — the writer has no
+   * clock and no id generator, so nothing here is invented and the same workbook always serialises to the
+   * same bytes. Each message id must be unique within the sheet's conversations, since a reply finds its
+   * thread by it. Every id is normalised to the brace-wrapped upper-case GUID form the format requires, so
+   * a `crypto.randomUUID()` is accepted as-is.
+   *
+   * @throws {SyntaxError} if the anchor does not resolve to a single cell, or if any id is not a GUID.
+   */
+  addCommentThread(thread: CommentThread): void {
+    this.#commentThreads.push({
+      ...thread,
+      ref: this.#anchorRef(thread.ref),
+      comments: thread.comments.map((comment) => ({
+        ...comment,
+        id: commentThreadGuid(comment.id, 'a comment id'),
+        ...(comment.personId !== undefined
+          ? {personId: commentThreadGuid(comment.personId, "a comment's author id")}
+          : {}),
+        mentions: comment.mentions.map((mention) => ({
+          ...mention,
+          personId: commentThreadGuid(mention.personId, "a mention's person id"),
+          ...(mention.mentionId !== undefined
+            ? {mentionId: commentThreadGuid(mention.mentionId, 'a mention id')}
+            : {}),
+        })),
+      })),
+    });
+  }
+
+  /**
+   * Reinstate the threaded conversations read from a file, in the order the reader found them, replacing
+   * any already held. Their authors and mentioned people are already resolved against the workbook
+   * registry ({@link Workbook.restorePersons}), so a thread arrives self-contained.
+   *
+   * Reader restoration, not authoring — use {@link addCommentThread} for that, which validates the anchor.
+   * These threads are what a re-write emits, so what the reader hands over is what the file will say.
    */
   restoreCommentThreads(threads: readonly CommentThread[]): void {
     replaceContents(this.#commentThreads, threads);
@@ -629,11 +664,24 @@ export class Worksheet {
 
   /**
    * The threaded conversations on this sheet — Excel's modern review comments (author, timestamp,
-   * replies, resolved state, `@mentions`), as read from a file. Empty for a sheet with none, and for a
-   * sheet authored from scratch. Distinct from a cell's legacy note ({@link Cell.note}).
+   * replies, resolved state, `@mentions`). Empty for a sheet with none. Distinct from a cell's legacy note
+   * ({@link Cell.note}).
    */
   get commentThreads(): readonly CommentThread[] {
     return this.#commentThreads;
+  }
+
+  // The canonical A1 form of a conversation's anchor. A thread hangs off one cell, and both the writer's
+  // fallback comment and {@link commentThreadAt} compare anchors as plain strings, so `$B$2` and `B2` must
+  // not be two anchors.
+  #anchorRef(reference: string): string {
+    const {col, row} = decodeAddress(reference);
+    if (col === undefined || row === undefined) {
+      throw new SyntaxError(
+        `"${reference}" is not a single-cell reference — it omits a column or row`,
+      );
+    }
+    return encodeAddress(col, row);
   }
 
   /**
@@ -644,13 +692,7 @@ export class Worksheet {
    * @throws {SyntaxError} if the reference does not resolve to a single cell.
    */
   commentThreadAt(reference: string): CommentThread | undefined {
-    const {col, row} = decodeAddress(reference);
-    if (col === undefined || row === undefined) {
-      throw new SyntaxError(
-        `"${reference}" is not a single-cell reference — it omits a column or row`,
-      );
-    }
-    const anchor = encodeAddress(col, row);
+    const anchor = this.#anchorRef(reference);
     return this.#commentThreads.find((thread) => thread.ref === anchor);
   }
 

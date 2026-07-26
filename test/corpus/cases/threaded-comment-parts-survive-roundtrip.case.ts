@@ -1,20 +1,24 @@
 // Cluster: comment
 //
-// Real-world scenario: a workbook carries Excel's modern threaded comments (the 2018 review-style
-// conversations — author, timestamp, replies). Those live in per-sheet
-// `xl/threadedComments/threadedComment{n}.xml` parts wired by a
+// Real-world scenario: a fill-and-save workflow loads a workbook carrying Excel's modern threaded comments
+// (the 2018 review-style conversations — author, timestamp, replies) and writes it back out. Those live in
+// per-sheet `xl/threadedComments/threadedComment{n}.xml` parts wired by a
 // `.../2017/10/relationships/threadedComment` sheet relationship, with the authors in a workbook-level
-// `xl/persons/person.xml` registry wired by a `.../relationships/person` relationship. Neither part is
-// modeled yet, so before this preservation a no-op load→save dropped both — the conversation and its
-// authors vanished from a fill-and-save workflow. Until the full thread model exists, these unmodeled
-// parts must survive a round-trip.
+// `xl/persons/person.xml` registry wired by a `.../relationships/person` relationship. A round-trip must
+// hand back every conversation, every author and every mention it was given.
 //
-// Preserving the parts turned out to be necessary but not sufficient, which is what the last three
-// behaviors are about. Excel also writes a legacy fallback `<comment>` (the "[Threaded comment] Your
-// version of Excel..." boilerplate) into `comments{n}.xml`, and it binds a cell to its thread through
-// that comment's synthetic `tc={headId}` author and `xr:uid` — so re-serialising the fallback as an
-// ordinary note left every preserved thread orphaned and invisible in the app. The fallback is therefore
-// owned: suppressed on read, and rebuilt from the thread model on write.
+// This case grew through the three stages of getting that right, and each stage left its behaviors behind.
+// First the parts were merely carried through byte-for-byte, which stopped the load→save that used to drop
+// them outright. That turned out to be necessary but not sufficient: Excel binds a cell to its thread
+// through the legacy fallback `<comment>` it writes beside it (the "[Threaded comment] Your version of
+// Excel..." boilerplate) — specifically through that comment's synthetic `tc={headId}` author and its
+// `xr:uid` — so re-serialising the fallback as an ordinary note left every carried-through thread orphaned
+// and invisible in the app. The fallback is therefore owned: suppressed on read, rebuilt from the model on
+// write. And now both parts are serialised from the model too, so what these behaviors measure is our own
+// output rather than the input's bytes — the conversation is not preserved, it is understood and rewritten.
+//
+// The sibling case `threaded-comment-authored-in-model-round-trips` covers the other direction, where there
+// is no input file to carry anything through.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -41,11 +45,12 @@ export default {
   provenance: {source: 'excel-desktop-verification'},
   cluster: 'comment',
   description:
-    'A no-op load→save preserves modern threaded-comment parts (per-sheet threadedComment parts and ' +
-    'the workbook-level persons author registry) rather than dropping them — a threaded-comment-bearing ' +
-    'workbook survives a fill-and-save. Preservation is asserted on the conversation itself too: message ' +
-    'count, reply structure, resolved (`done`) state, and each author of a multi-author thread. Interim ' +
-    'preservation, ahead of the full thread model.',
+    'A no-op load→save hands back every modern threaded comment it was given — the per-sheet ' +
+    'threadedComment parts and the workbook-level persons author registry, re-serialised from the model — ' +
+    'so a threaded-comment-bearing workbook survives a fill-and-save. Asserted on the conversation itself ' +
+    'and not merely on the parts: message count, reply structure, resolved (`done`) state, each author of ' +
+    'a multi-author thread, each @mention with the text span it highlights, and the legacy fallback ' +
+    'comment whose `tc=` author and `xr:uid` are how Excel binds a cell to its thread.',
 
   behavior: [
     {

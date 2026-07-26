@@ -84,4 +84,7 @@ export type CommentThreadContracts = [
   Expect<Equal<Workbook['persons'], readonly Person[]>>,
   Expect<Equal<ReturnType<Worksheet['commentThreadAt']>, CommentThread | undefined>>,
   Expect<Equal<Worksheet['commentThreads'], readonly CommentThread[]>>,
+  // Authoring takes the model's own shapes — no wire-level surrogate a caller has to translate into.
+  Expect<Equal<Parameters<Worksheet['addCommentThread']>, [CommentThread]>>,
+  Expect<Equal<Parameters<Workbook['addPerson']>, [Person]>>,
 ];

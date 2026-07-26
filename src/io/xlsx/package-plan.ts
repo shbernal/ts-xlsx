@@ -2,6 +2,7 @@
 // cross-referenced set of parts an `.xlsx` package needs — media, preserved (verbatim-carried) parts,
 // and the sheet-/workbook-local relationship ids that wire them — before any XML is serialised.
 
+import type {CommentThread} from '../../core/comment-thread.ts';
 import type {PivotTable} from '../../core/pivot-table.ts';
 import type {Table} from '../../core/table.ts';
 import type {Workbook} from '../../core/workbook.ts';
@@ -12,8 +13,8 @@ import {extensionOf, relativePartPath, relsPathForPart} from './part-paths.ts';
 import {preservedRelsXml} from './relationships.ts';
 
 // A sheet's relationship-id allocator: hands out `rId1`, `rId2`, … in the one canonical order the
-// package wires a sheet's parts (tables, drawing, comments, printer settings, external hyperlinks,
-// background, preserved references, pivot tables). Every sheet-local id is drawn from here in
+// package wires a sheet's parts (tables, drawing, comments, threaded comments, printer settings, external
+// hyperlinks, background, preserved references, pivot tables). Every sheet-local id is drawn from here in
 // sequence, so no plan step re-derives its starting offset by summing the counts of the steps before
 // it — the arithmetic that, open-coded once per step with subtly different prefixes, could silently
 // hand two parts the same id and corrupt the package. Monotonic by construction, so collisions cannot
@@ -46,6 +47,16 @@ export interface CommentPlan {
   readonly comments: readonly CommentCell[];
   readonly vmlRelId: string;
   readonly commentsRelId: string;
+}
+
+// A sheet's threaded conversations paired with the part number naming its
+// `threadedComments/threadedComment{n}.xml` and the sheet-local relationship id reaching it. No worksheet
+// element points at that part — Excel discovers it by scanning the sheet's relationships, the way it
+// finds a pivot table — so the relationship is the whole of the wiring.
+export interface ThreadedCommentPlan {
+  readonly number: number;
+  readonly threads: readonly CommentThread[];
+  readonly relId: string;
 }
 
 // A sheet's opaque printer-settings blob paired with the part number naming its `.bin` part and the
@@ -88,8 +99,8 @@ export interface PreservedPartPlan {
 // carries by relationship alone), the relationship Type, and the new path of the entry part it
 // targets. The id is assigned by the caller from the sheet's {@link SheetRelIds} allocator, at the
 // reference's canonical position in the sheet-local id sequence (after tables/drawing/comments/
-// printer-settings/external-hyperlinks/background) — so a preserved reference never renumbers an id
-// already threaded into the sheet XML.
+// threaded-comments/printer-settings/external-hyperlinks/background) — so a preserved reference never
+// renumbers an id already threaded into the sheet XML.
 export interface ResolvedPreservedReference {
   readonly element: 'drawing' | 'legacyDrawingHF' | undefined;
   readonly relType: string;

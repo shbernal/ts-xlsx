@@ -38,6 +38,10 @@ const CT = {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheDefinition+xml',
   pivotCacheRecords:
     'application/vnd.openxmlformats-officedocument.spreadsheetml.pivotCacheRecords+xml',
+  // Both threaded-comment parts are Microsoft extensions, hence the `vnd.ms-excel` vendor prefix rather
+  // than the `openxmlformats-officedocument` one every standard part carries.
+  threadedComments: 'application/vnd.ms-excel.threadedcomments+xml',
+  person: 'application/vnd.ms-excel.person+xml',
 } as const;
 
 // A preserved workbook reference with the relationship id assigned for emission (see the body and
@@ -55,6 +59,8 @@ export function contentTypesXml(
   preservedParts: readonly PreservedPartPlan[],
   pivots: readonly PivotPlan[],
   preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[],
+  threadedCommentNumbers: readonly number[],
+  hasPersons: boolean,
 ): string {
   // One extension→default-content-type map both halves read: the defaults render it, the overrides
   // correct any preserved part whose own type differs from its extension's default. Sharing it is what
@@ -79,6 +85,8 @@ export function contentTypesXml(
       pivots,
       preservedWorkbookRefs,
       extensionDefaults,
+      threadedCommentNumbers,
+      hasPersons,
     ) +
     '</Types>'
   );
@@ -136,11 +144,12 @@ function contentTypeDefaults(
 }
 
 // The per-part `<Override>` declarations, in canonical package order: workbook, worksheets, tables,
-// drawings, comments, each pivot's three parts, theme, styles, the optional shared strings, the
-// doc-props pair, then any preserved part whose content type its extension's `<Default>` does not
-// already carry — every `.xml` part (the generic `xml` default never matches a real part type) and any
-// binary part sharing an extension with a differently-typed sibling (a `vbaProjectSignature.bin` next
-// to a `vbaProject.bin`), which a lone extension default would otherwise mis-type.
+// drawings, comments, the threaded-comment parts, each pivot's three parts, theme, styles, the optional
+// shared strings and threaded-comment person registry, the doc-props pair, then any preserved part whose
+// content type its extension's `<Default>` does not already carry — every `.xml` part (the generic `xml`
+// default never matches a real part type) and any binary part sharing an extension with a differently-typed
+// sibling (a `vbaProjectSignature.bin` next to a `vbaProject.bin`), which a lone extension default would
+// otherwise mis-type.
 function contentTypeOverrides(
   sheetCount: number,
   tables: readonly TablePlan[],
@@ -151,6 +160,8 @@ function contentTypeOverrides(
   pivots: readonly PivotPlan[],
   preservedWorkbookRefs: readonly PreservedWorkbookReferencePlan[],
   extensionDefaults: ReadonlyMap<string, {extension: string; contentType: string}>,
+  threadedCommentNumbers: readonly number[],
+  hasPersons: boolean,
 ): string {
   const preservedOverrides = preservedParts
     .filter(
@@ -168,6 +179,9 @@ function contentTypeOverrides(
     ...tables.map(({number}) => override(`/xl/tables/table${number}.xml`, CT.table)),
     ...drawingNumbers.map((number) => override(`/xl/drawings/drawing${number}.xml`, CT.drawing)),
     ...commentNumbers.map((number) => override(`/xl/comments${number}.xml`, CT.comments)),
+    ...threadedCommentNumbers.map((number) =>
+      override(`/xl/threadedComments/threadedComment${number}.xml`, CT.threadedComments),
+    ),
     ...pivots.map(({number}) => override(`/xl/pivotTables/pivotTable${number}.xml`, CT.pivotTable)),
     ...pivots.map(({number}) =>
       override(`/xl/pivotCache/pivotCacheDefinition${number}.xml`, CT.pivotCacheDefinition),
@@ -178,6 +192,7 @@ function contentTypeOverrides(
     override('/xl/theme/theme1.xml', CT.theme),
     override('/xl/styles.xml', CT.styles),
     ...(hasSharedStrings ? [override('/xl/sharedStrings.xml', CT.sharedStrings)] : []),
+    ...(hasPersons ? [override('/xl/persons/person.xml', CT.person)] : []),
     override('/docProps/core.xml', CT.core),
     override('/docProps/app.xml', CT.app),
     ...preservedOverrides,
@@ -371,14 +386,16 @@ function quoteSheetName(name: string): string {
 }
 
 // The relationships the workbook part always carries after its per-sheet rels: `styles.xml` and
-// `theme/theme1.xml`. Their count anchors every downstream rel id — `sharedStrings.xml` (when
-// present) and the preserved/pivot caches all follow — so `write.ts` derives its `workbookRelBase`
-// from this same constant rather than repeating the literal and risking drift.
+// `theme/theme1.xml`. Their count anchors every downstream rel id — `sharedStrings.xml` and the
+// threaded-comment person registry (when present), then the preserved/pivot caches — so `write.ts`
+// derives its `workbookRelBase` from this same constant rather than repeating the literal and risking
+// drift.
 export const FIXED_WORKBOOK_REL_COUNT = 2;
 
 export function workbookRelsXml(
   sheetCount: number,
   hasSharedStrings: boolean,
+  personsRelId: string | null,
   preservedRels: readonly PreservedWorkbookRel[],
   pivots: readonly PivotPlan[],
 ): string {
@@ -397,6 +414,11 @@ export function workbookRelsXml(
           ),
         ]
       : []),
+    // The threaded-comment identity registry every conversation on every sheet resolves its authors and
+    // @mentions through. Workbook-level and singular, so this one relationship serves all the sheets.
+    ...(personsRelId === null
+      ? []
+      : [relationship(personsRelId, REL.person, 'persons/person.xml')]),
     // A preserved cache's target is package-absolute; express it relative to the workbook part.
     ...preservedRels.map((ref) =>
       relationship(

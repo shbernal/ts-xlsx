@@ -77,6 +77,35 @@ export interface Comment {
   readonly mentions: readonly Mention[];
 }
 
+// A GUID in any of the spellings a caller plausibly has one in — braced or bare, upper or lower case.
+// `crypto.randomUUID()` produces the bare lower-case form, so accepting only the canonical spelling would
+// reject the one obvious way to make an id in JavaScript.
+const GUID = /^\{?([0-9a-f]{8})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{4})-([0-9a-f]{12})\}?$/i;
+
+/**
+ * The one spelling every threaded-comment identifier must take on the wire: brace-wrapped, upper-case hex.
+ *
+ * Verified against the OOXML schema, which pins `person/@id`, a message's `id`/`personId`/`parentId`, and a
+ * mention's `mentionpersonId`/`mentionId` to exactly `\{[0-9A-F]{8}-…\}` — a bare GUID and a lower-case one
+ * are each rejected outright. So this normalises rather than merely checking: a caller passing
+ * `crypto.randomUUID()` gets a valid file instead of one Excel offers to repair.
+ *
+ * The authoring path alone goes through here. A file's own ids are re-emitted as the file wrote them, since
+ * a reader that rewrote them would break every reference pointing at them.
+ *
+ * @throws {SyntaxError} if the value is not a GUID in any spelling.
+ */
+export function commentThreadGuid(value: string, what: string): string {
+  const match = GUID.exec(value.trim());
+  if (match === null) {
+    throw new SyntaxError(
+      `${what} must be a GUID — Excel writes threaded-comment ids as ` +
+        `"{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}" — but got "${value}"`,
+    );
+  }
+  return `{${match.slice(1).join('-').toUpperCase()}}`;
+}
+
 /** A conversation anchored to one cell: what was asked, every reply, and whether it was resolved. */
 export interface CommentThread {
   /**
