@@ -106,6 +106,37 @@ export function commentThreadGuid(value: string, what: string): string {
   return `{${match.slice(1).join('-').toUpperCase()}}`;
 }
 
+/**
+ * The largest value a mention offset can take on the wire. Verified against the OOXML schema: both
+ * `startIndex` and `length` are `xsd:unsignedInt`, so `4294967295` validates and `4294967296` is rejected
+ * as "not a valid 'UInt32' value".
+ *
+ * Wildly beyond any real message, and that is the point — the ceiling exists so a value from a hostile
+ * part can never reach the serialiser. JavaScript spells a large enough number in exponent form
+ * (`String(1e21)` is `"1e+21"`), which is not a numeric literal any schema accepts, and one invalid
+ * attribute is enough for Excel to offer to repair the whole conversation away.
+ */
+export const MENTION_OFFSET_MAX = 0xffff_ffff;
+
+/**
+ * A mention offset as the wire accepts it: a whole number within {@link MENTION_OFFSET_MAX}.
+ *
+ * The authoring path alone throws. A file's own mentions are read leniently — one carrying an unusable
+ * offset is dropped, keeping the message text and losing only the chip — because a foreign generator's
+ * arithmetic is not something a caller can fix, whereas their own is.
+ *
+ * @throws {SyntaxError} if the value is negative, fractional, or beyond the wire's ceiling.
+ */
+export function commentThreadOffset(value: number, what: string): number {
+  if (!Number.isInteger(value) || value < 0 || value > MENTION_OFFSET_MAX) {
+    throw new SyntaxError(
+      `${what} must be a whole number between 0 and ${MENTION_OFFSET_MAX} — a mention's span is ` +
+        `written as an unsigned 32-bit integer — but got ${value}`,
+    );
+  }
+  return value;
+}
+
 /** A conversation anchored to one cell: what was asked, every reply, and whether it was resolved. */
 export interface CommentThread {
   /**

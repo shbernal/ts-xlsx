@@ -9,7 +9,7 @@
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, cellToModel, copyCellContent} from './cell.ts';
-import {type CommentThread, commentThreadGuid} from './comment-thread.ts';
+import {type CommentThread, commentThreadGuid, commentThreadOffset} from './comment-thread.ts';
 import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
 import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
 import {overwrite, replaceContents} from './containers.ts';
@@ -623,31 +623,52 @@ export class Worksheet {
    * Every message supplies its own {@link Comment.id} and {@link Comment.date}, and names its author by
    * {@link Comment.personId} into the workbook registry ({@link Workbook.addPerson}) — the writer has no
    * clock and no id generator, so nothing here is invented and the same workbook always serialises to the
-   * same bytes. Each message id must be unique within the sheet's conversations, since a reply finds its
-   * thread by it. Every id is normalised to the brace-wrapped upper-case GUID form the format requires, so
-   * a `crypto.randomUUID()` is accepted as-is.
+   * same bytes. Every id is normalised to the brace-wrapped upper-case GUID form the format requires, so a
+   * `crypto.randomUUID()` is accepted as-is.
    *
-   * @throws {SyntaxError} if the anchor does not resolve to a single cell, or if any id is not a GUID.
+   * Message ids must be unique **within this sheet**, because that is the scope in which they mean
+   * anything: a reply names its thread by the head's id inside the sheet's own part, and the legacy
+   * fallback comment binds its cell by the same id inside the sheet's own comments part. Two sheets reusing
+   * one id is therefore harmless and is not rejected — Excel's ids happen to be globally unique, but
+   * nothing resolves across a part boundary.
+   *
+   * @throws {SyntaxError} if the anchor does not resolve to a single cell, if any id is not a GUID, if a
+   * message id is already used on this sheet, or if a mention's span is not a whole number the wire can
+   * express.
    */
   addCommentThread(thread: CommentThread): void {
-    this.#commentThreads.push({
-      ...thread,
-      ref: this.#anchorRef(thread.ref),
-      comments: thread.comments.map((comment) => ({
+    const taken = new Set(
+      this.#commentThreads.flatMap((held) => held.comments.map((comment) => comment.id)),
+    );
+    // Every message is validated before any of it is stored, so a rejection leaves the sheet untouched
+    // rather than half-carrying a conversation whose remaining messages were refused.
+    const comments = thread.comments.map((comment) => {
+      const id = commentThreadGuid(comment.id, 'a comment id');
+      if (taken.has(id)) {
+        throw new SyntaxError(
+          `a comment id must be unique within a sheet, but "${id}" is already used on "${this.name}" — ` +
+            'a reply and the legacy fallback comment both find their thread by it',
+        );
+      }
+      taken.add(id);
+      return {
         ...comment,
-        id: commentThreadGuid(comment.id, 'a comment id'),
+        id,
         ...(comment.personId !== undefined
           ? {personId: commentThreadGuid(comment.personId, "a comment's author id")}
           : {}),
         mentions: comment.mentions.map((mention) => ({
           ...mention,
           personId: commentThreadGuid(mention.personId, "a mention's person id"),
+          startIndex: commentThreadOffset(mention.startIndex, "a mention's startIndex"),
+          length: commentThreadOffset(mention.length, "a mention's length"),
           ...(mention.mentionId !== undefined
             ? {mentionId: commentThreadGuid(mention.mentionId, 'a mention id')}
             : {}),
         })),
-      })),
+      };
     });
+    this.#commentThreads.push({...thread, ref: this.#anchorRef(thread.ref), comments});
   }
 
   /**

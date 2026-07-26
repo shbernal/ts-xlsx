@@ -26,7 +26,13 @@
 // ids and dates the caller supplied.
 
 import {type CellAddress, decodeAddress} from '../../core/address.ts';
-import type {Comment, CommentThread, Mention, Person} from '../../core/comment-thread.ts';
+import {
+  type Comment,
+  type CommentThread,
+  MENTION_OFFSET_MAX,
+  type Mention,
+  type Person,
+} from '../../core/comment-thread.ts';
 import {THREADED_COMMENTS_NS} from './namespaces.ts';
 import {escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
 import {boolStrict, localName, parseXml, type XmlAttributes} from './xml-read.ts';
@@ -191,6 +197,11 @@ function threadedCommentFrom(
 // A mention without a target person or a usable span cannot be resolved or rendered, so it is dropped
 // rather than carried as a mention over nothing — a `length` of 0 would be an invisible chip, and a
 // negative or non-numeric offset would place it outside the text it is supposed to cover.
+//
+// The upper bound is what makes this a hostile-input guard rather than a tidiness check: an offset the
+// wire cannot express would be re-emitted by the writer as an invalid attribute — and JavaScript spells a
+// large enough number in exponent form (`1e+21`), which no schema accepts at all — costing the reader's
+// leniency the entire conversation when Excel repairs the part. Dropping the chip costs a highlight.
 function mentionFrom(attrs: XmlAttributes): ParsedMention | undefined {
   const personId = attrs.mentionpersonId;
   const startIndex = integerAttribute(attrs.startIndex);
@@ -198,6 +209,7 @@ function mentionFrom(attrs: XmlAttributes): ParsedMention | undefined {
   if (personId === undefined || startIndex === undefined || length === undefined) return undefined;
   // A negative offset points outside the text and a zero length spans nothing, so neither could render.
   if (startIndex < 0 || length <= 0) return undefined;
+  if (startIndex > MENTION_OFFSET_MAX || length > MENTION_OFFSET_MAX) return undefined;
   return {
     personId,
     startIndex,
@@ -339,20 +351,30 @@ function threadedCommentXml(ref: string, comment: Comment, tail: string): string
 
 // The `<mentions>` block, which follows `<text>` in the message. All four `<mention>` attributes are
 // required — verified by dropping each in turn and getting `Sch_MissRequiredAttribute` — so a mention the
-// model holds without a `mentionId` cannot be written at all. It is dropped rather than given an invented
-// id: the `@name` stays in the text and only the chip is lost, whereas an invalid part risks Excel
-// repairing the whole conversation away. (Excel always writes the id, so this needs a foreign generator.)
+// model holds without a `mentionId`, or with a span the wire cannot express, cannot be written at all. It
+// is dropped rather than given an invented id or a clamped span: the `@name` stays in the text and only
+// the chip is lost, whereas an invalid part risks Excel repairing the whole conversation away.
+//
+// The bounds check is deliberately here as well as in the reader. Both the authoring verb and the parser
+// already refuse an out-of-range offset, so nothing should reach this — but `restoreCommentThreads` takes
+// a model wholesale, and a serialiser that *cannot* emit `length="1e+21"` beats one that merely is not
+// currently handed one.
 function mentionsXml(mentions: readonly Mention[]): string {
-  const entries = mentions.flatMap((mention) =>
-    mention.mentionId === undefined
-      ? []
-      : [
-          `<mention mentionpersonId="${escapeAttr(mention.personId)}"` +
-            ` mentionId="${escapeAttr(mention.mentionId)}"` +
-            ` startIndex="${mention.startIndex}" length="${mention.length}"/>`,
-        ],
-  );
+  const entries = mentions.flatMap(({personId, mentionId, startIndex, length}) => {
+    if (mentionId === undefined) return [];
+    // A zero-length span is in range but renders nothing, so it is no more writable than one out of range.
+    if (!writableOffset(startIndex) || !writableOffset(length) || length === 0) return [];
+    return [
+      `<mention mentionpersonId="${escapeAttr(personId)}" mentionId="${escapeAttr(mentionId)}"` +
+        ` startIndex="${startIndex}" length="${length}"/>`,
+    ];
+  });
   return entries.length === 0 ? '' : `<mentions>${entries.join('')}</mentions>`;
+}
+
+// An offset the wire can express: a whole number within the schema's UInt32 ceiling.
+function writableOffset(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value <= MENTION_OFFSET_MAX;
 }
 
 /**

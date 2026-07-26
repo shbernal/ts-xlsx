@@ -600,3 +600,134 @@ test('a display name carrying markup cannot reshape the registry', () => {
 test('an empty registry still writes a well-formed part rather than a stub', () => {
   assert.match(personsXml([]), /<personList xmlns="[^"]*threadedcomments"><\/personList>$/);
 });
+
+// ── Hostile input ────────────────────────────────────────────────────────────────────────────────────
+// Both parts come from an untrusted file. The SAX layer already bounds the shapes that would otherwise
+// need guarding here — it is a single non-recursive O(n) pass, and it decodes entities without ever
+// expanding them, so neither nesting depth nor a billion-laughs payload can reach these parsers — and the
+// package's inflate ceiling bounds the bytes. What is left is this reader's own arithmetic and state
+// machine, and the fact that what it accepts, the writer re-emits.
+
+test('a mention offset beyond what the wire can express is dropped, chip lost and text kept', () => {
+  // Verified against the OOXML schema: `startIndex` and `length` are both UInt32, so 4294967295 is the
+  // last valid value and 4294967296 fails as "not a valid 'UInt32' value". This is the guard that matters
+  // most, because accepting such a value would put it in OUR output: `String(1e21)` is `"1e+21"`, which is
+  // not a numeric literal any schema accepts, and one invalid attribute is enough for Excel to offer to
+  // repair the conversation away entirely.
+  const mention = (startIndex: string, length: string) =>
+    `<mention mentionpersonId="${MENTION_PERSON}" mentionId="${MENTION_ID}"` +
+    ` startIndex="${startIndex}" length="${length}"/>`;
+  const [message] = parseThreadedComments(
+    '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>@x over the ceiling</text><mentions>' +
+      mention('4294967296', '2') +
+      mention('0', '4294967296') +
+      mention('1e21', '2') +
+      mention('4294967295', '2') +
+      '</mentions></threadedComment></ThreadedComments>',
+  );
+  assert.deepStrictEqual(
+    message?.mentions.map((m) => [m.startIndex, m.length]),
+    [[4294967295, 2]],
+    'only the offset the wire can express survives',
+  );
+  assert.strictEqual(message.text, '@x over the ceiling', 'the message itself is untouched');
+});
+
+test('the writer cannot emit an out-of-range span even from a model that was handed one', () => {
+  // `restoreCommentThreads` takes a model wholesale, so the serialiser refuses the span itself rather
+  // than trusting that every path into the model already checked it.
+  const xml = threadedCommentsXml([
+    {
+      ref: 'A1',
+      resolved: false,
+      comments: [
+        {
+          id: '{H}',
+          text: '@x hi',
+          mentions: [
+            {personId: MENTION_PERSON, mentionId: MENTION_ID, startIndex: 0, length: 1e21},
+            {personId: MENTION_PERSON, mentionId: MENTION_ID, startIndex: 1.5, length: 2},
+          ],
+        },
+      ],
+    },
+  ]);
+  assert.ok(!xml.includes('<mention'), 'neither span is written');
+  assert.ok(!xml.includes('e+'), 'so no exponent-form number reaches the part');
+  assert.ok(xml.includes('<text>@x hi</text>'), 'and the message survives without its chips');
+});
+
+test('an entity a part declares itself is not expanded, so a nested-entity payload stays inert', () => {
+  // Not merely bounded — structurally impossible: the scanner skips markup declarations without reading
+  // them and decodes only the five predefined entities, so `&lol;` resolves to nothing to expand.
+  const xml =
+    '<?xml version="1.0"?><!DOCTYPE ThreadedComments [<!ENTITY lol "haha">' +
+    '<!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">]>' +
+    '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>&lol2;</text></threadedComment>' +
+    '</ThreadedComments>';
+  const [message] = parseThreadedComments(xml);
+  assert.strictEqual(message?.text, '&lol2;', 'the reference is carried verbatim, never expanded');
+});
+
+test('a message nested inside another is not fabricated into a thread of its own', () => {
+  // A shape no producer emits and the schema forbids. The parser holds one open message at a time, so the
+  // inner close commits and the outer one finds nothing left to commit — the damage costs a message, not
+  // a crash and not a duplicate.
+  const messages = parseThreadedComments(
+    '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>outer</text>' +
+      '<threadedComment ref="A2" id="{B}"><text>inner</text></threadedComment>' +
+      '</threadedComment></ThreadedComments>',
+  );
+  assert.deepStrictEqual(
+    messages.map((m) => [m.id, m.text]),
+    [['{B}', 'inner']],
+  );
+});
+
+test('a mention outside any message is discarded rather than attaching to the next one', () => {
+  const messages = parseThreadedComments(
+    '<ThreadedComments>' +
+      `<mention mentionpersonId="${MENTION_PERSON}" mentionId="${MENTION_ID}" startIndex="0" length="2"/>` +
+      '<threadedComment ref="A1" id="{A}"><text>plain</text></threadedComment></ThreadedComments>',
+  );
+  assert.deepStrictEqual(
+    messages.map((m) => m.mentions.length),
+    [0],
+  );
+});
+
+test('a stray text element outside a message cannot leak into the next message', () => {
+  const messages = parseThreadedComments(
+    '<ThreadedComments><text>orphaned</text>' +
+      '<threadedComment ref="A1" id="{A}"><text>mine</text></threadedComment></ThreadedComments>',
+  );
+  assert.deepStrictEqual(
+    messages.map((m) => m.text),
+    ['mine'],
+  );
+});
+
+test('a truncated part fails loudly rather than yielding a half-read conversation', () => {
+  // A truncated tag is unrecoverable — anything after it is unparsed bytes, and guessing where the element
+  // ended would invent structure. The throw propagates out of the whole read, as it does for any malformed
+  // part (verified): a corrupt package is a hard error here, never a silently halved conversation. That is
+  // a different failure from an *unreachable* part, which is tolerated because nothing is ambiguous about
+  // it — see the `threaded-comment-rel-empty-target-tolerated` corpus case.
+  assert.throws(
+    () => parseThreadedComments('<ThreadedComments><threadedComment ref="A1" id="{A"'),
+    SyntaxError,
+  );
+});
+
+test('a person entry repeated in the registry is parsed as written, leaving precedence to the caller', () => {
+  // The parser is faithful to the part; the workbook registry is what collapses ids (last wins). A parser
+  // that de-duplicated here would hide a foreign generator's damage from anything trying to diagnose it.
+  const persons = parsePersons(
+    `<personList><person id="${MENTION_PERSON}" displayName="First"/>` +
+      `<person id="${MENTION_PERSON}" displayName="Second"/></personList>`,
+  );
+  assert.deepStrictEqual(
+    persons.map((person) => person.displayName),
+    ['First', 'Second'],
+  );
+});

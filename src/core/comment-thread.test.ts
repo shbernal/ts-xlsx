@@ -204,6 +204,81 @@ test('authoring rejects an id that is not a GUID, rather than writing a file Exc
   assert.deepEqual(sheet.commentThreads, [], 'nothing half-added survives a rejection');
 });
 
+test('a message id already used on the sheet is rejected, since a reply finds its thread by it', () => {
+  // Two threads sharing a head id is not a survivable shape: on re-read the second thread's replies would
+  // join whichever head was seen last, and the legacy fallback comments would both claim the same
+  // `tc={id}` author and `xr:uid`. Excel's own ids happen to be globally unique.
+  const sheet = new Workbook().addWorksheet('S');
+  const first = threadAt('B1');
+  sheet.addCommentThread(first);
+  assert.throws(
+    () => sheet.addCommentThread({...first, ref: 'C3'}),
+    /must be unique within a sheet/,
+  );
+  const head = first.comments[0]!;
+  assert.throws(
+    () =>
+      sheet.addCommentThread({
+        ref: 'D4',
+        resolved: false,
+        comments: [{...head, id: '{99999999-0000-4000-8000-000000000000}'}, {...head}],
+      }),
+    /must be unique within a sheet/,
+    'including a duplicate inside the incoming thread itself',
+  );
+  assert.deepStrictEqual(
+    sheet.commentThreads.map((thread) => thread.ref),
+    ['B1'],
+    'nothing half-added survives either rejection',
+  );
+});
+
+test('two sheets may reuse one message id, since nothing resolves across a part boundary', () => {
+  // The scope in which an id means anything is the sheet: a reply names its head inside the sheet's own
+  // thread part, and the fallback binds its cell inside the sheet's own comments part. Rejecting this
+  // would forbid a shape that cannot break.
+  const wb = new Workbook();
+  const thread = threadAt('B1');
+  wb.addWorksheet('One').addCommentThread(thread);
+  wb.addWorksheet('Two').addCommentThread(thread);
+  assert.deepStrictEqual(
+    wb.worksheets.map((sheet) => sheet.commentThreads.length),
+    [1, 1],
+  );
+});
+
+test("a mention's span must be a whole number the wire can express", () => {
+  // Verified against the OOXML schema: `startIndex` and `length` are UInt32, so 4294967295 is the last
+  // legal value. Authoring rejects rather than clamps — a clamped span silently highlights the wrong words
+  // — while a *file's* unusable mention is dropped on read, keeping the message text.
+  const sheet = new Workbook().addWorksheet('S');
+  const thread = threadAt('B1');
+  const withSpan = (startIndex: number, length: number): CommentThread => ({
+    ...thread,
+    comments: [
+      {
+        ...thread.comments[0]!,
+        mentions: [{personId: GRACE_MENTIONED.id, startIndex, length}],
+      },
+    ],
+  });
+  assert.throws(() => sheet.addCommentThread(withSpan(0, 1e21)), /must be a whole number/);
+  assert.throws(() => sheet.addCommentThread(withSpan(-1, 4)), /startIndex must be a whole number/);
+  assert.throws(
+    () => sheet.addCommentThread(withSpan(1.5, 4)),
+    /startIndex must be a whole number/,
+  );
+  assert.throws(() => sheet.addCommentThread(withSpan(0, 4294967296)), /length must be a whole/);
+  assert.strictEqual(sheet.commentThreads.length, 0, 'nothing is stored from a rejected span');
+
+  sheet.addCommentThread(withSpan(4294967295, 1));
+  assert.deepStrictEqual(
+    sheet.commentThreads[0]?.comments[0]?.mentions.map((m) => [m.startIndex, m.length]),
+    [[4294967295, 1]],
+    'the ceiling itself is accepted',
+  );
+});
+
 test('a thread cannot be anchored to anything but a single cell', () => {
   // A range, a bare column, or a bare row names no one cell to hang the conversation off — and the writer
   // would have nothing to anchor its legacy fallback comment or VML shape to.
