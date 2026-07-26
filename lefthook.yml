@@ -19,20 +19,13 @@ pre-commit:
 # Full source-correctness gate, mirroring .github/workflows/corpus.yml. Runs on
 # the whole tree (not just staged files) because a push may carry commits made
 # with --no-verify. This is exactly what CI will check, run before the round-trip.
+#
+# One job, because scripts/verify.ts already defines the gate set and schedules it.
+# Re-listing the gates here would be a second definition of "everything" to keep in
+# sync — and the one that silently drifts, since a hook is the copy nobody reads.
+# (CI keeps its own per-gate steps on purpose: it wants one annotation per gate.)
+# `node …` rather than `pnpm run verify` skips ~0.84 s of package-manager wrapper.
 pre-push:
-  parallel: true
   jobs:
-    - name: lint
-      run: pnpm run lint
-    - name: typecheck
-      run: pnpm run typecheck
-    - name: typecheck:test
-      run: pnpm run typecheck:test
-    - name: test:src
-      run: pnpm run test:src
-    - name: corpus
-      run: pnpm run corpus
-    - name: docs:check
-      run: pnpm run docs:check
-    - name: constitution:check
-      run: pnpm run constitution:check
+    - name: verify
+      run: node scripts/verify.ts --full

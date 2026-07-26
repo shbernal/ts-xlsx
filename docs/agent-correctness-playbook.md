@@ -36,7 +36,16 @@ and a corpus fact whose shape *is* the relationship *locks* it. The `inspectPack
 vocabulary is partitioned by part and cannot phrase most cross-part seams yet — ADR 0012
 lists the open ones.
 
-`pnpm test` runs lint → typecheck → test:src → corpus. The **Stop hook** runs
+**To run the whole net at once, use `node scripts/verify.ts`** — every gate above plus
+`docs:check` and `constitution:check`, run concurrently, reported as one table with
+per-gate timing (~20 s wall against ~30 s of serial work). Prefer it over assembling the
+chain by hand, which is how `docs:check` and `constitution:check` get silently dropped.
+`--quick` is the inner loop: types, unit tests, and lint scoped to your changed files, no
+corpus (~10 s) — faster, but **not** a substitute for the full run. Invoke it with `node`,
+not `pnpm run`, to skip ~0.84 s of package-manager wrapper. `pnpm test` and lefthook's
+`pre-push` hook are both the full run.
+
+The **Stop hook** runs
 typecheck + test:src + corpus automatically at each turn boundary *when `src/` is
 dirty*, so you cannot end a turn green while regressing the spine. The OOXML oracle
 is **not** in the hook (it needs .NET and is slower); invoke it yourself — see below.
