@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {parsePersons, parseThreadedComments} from './threaded-comments.ts';
+import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
 
 // The part bodies below are verbatim from the Excel-authored corpus fixtures under
 // `test/corpus/fixtures/threaded-comment-parts-survive-roundtrip/`, so these tests read the real
@@ -37,18 +37,18 @@ const THREADED_COMMENTS =
   '</threadedComment></ThreadedComments>';
 
 // Values verbatim from `mention-in-thread.xlsx` (markup trimmed to the one message under test), whose
-// mention Excel itself re-resolved and re-emitted on save. Excel
-// renders `@Grace Hopper` as a mention chip over exactly the span `startIndex="0" length="13"` names, so
-// `startIndex` is a 0-based character offset into the message text and `length` includes the leading `@`.
-// `<mentions>` is not parsed yet — these tests pin that it cannot corrupt the message that carries it.
+// mention Excel itself re-resolved and re-emitted on save. Excel renders `@Grace Hopper` as a mention
+// chip over exactly the span `startIndex="0" length="13"` names, so `startIndex` is a 0-based character
+// offset into the message text and `length` includes the leading `@`.
 const MENTION_PERSON = '{BA397017-DD76-4496-AA75-59ADB199950C}';
+const MENTION_ID = '{3F2C1A9E-5B84-4D67-9C2E-71A0D4E8B531}';
 const MENTION_MESSAGE =
   '<ThreadedComments xmlns="http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments">' +
   `<threadedComment ref="B2" dT="2026-07-26T10:54:00.04" personId="${ADA}" ` +
   'id="{08B3B787-8F24-49B6-8D78-A5F335591EEA}">' +
   '<text>@Grace Hopper Where does this figure come from?</text>' +
   `<mentions><mention mentionpersonId="${MENTION_PERSON}" ` +
-  'mentionId="{3F2C1A9E-5B84-4D67-9C2E-71A0D4E8B531}" startIndex="0" length="13"/></mentions>' +
+  `mentionId="${MENTION_ID}" startIndex="0" length="13"/></mentions>` +
   '</threadedComment></ThreadedComments>';
 
 // The same file's registry. Excel interns a *mentioned* identity as its own entry — note the third
@@ -189,6 +189,156 @@ test('a message that @mentions someone keeps its text intact around the mention'
   assert.strictEqual(message.personId, ADA, 'the author is unaffected by the mention it contains');
 });
 
+test('a mention is parsed with the person it names and the span it highlights', () => {
+  const [message] = parseThreadedComments(MENTION_MESSAGE);
+  assert.deepStrictEqual(message?.mentions, [
+    {personId: MENTION_PERSON, mentionId: MENTION_ID, startIndex: 0, length: 13},
+  ]);
+  assert.strictEqual(
+    message.text.slice(0, 13),
+    '@Grace Hopper',
+    'the span lands on the mentioned name, leading @ included',
+  );
+});
+
+test('a message that mentions nobody reports an empty list, never an absent one', () => {
+  const [message] = parseThreadedComments(THREADED_COMMENTS);
+  assert.deepStrictEqual(message?.mentions, []);
+});
+
+test('a mention with no target person or no usable span is dropped, not left pointing nowhere', () => {
+  // Hand-written: Excel requires all four attributes and rejects a file missing any (including the
+  // capitalised `mentionPersonId` below — not a declared attribute), so every entry but the last is a
+  // shape only a foreign generator produces. A chip over nothing would highlight the wrong text.
+  const [message] = parseThreadedComments(
+    '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>@Someone hi</text><mentions>' +
+      `<mention mentionPersonId="${MENTION_PERSON}" startIndex="0" length="8"/>` +
+      `<mention mentionpersonId="${MENTION_PERSON}" startIndex="" length="8"/>` +
+      `<mention mentionpersonId="${MENTION_PERSON}" startIndex="-1" length="8"/>` +
+      `<mention mentionpersonId="${MENTION_PERSON}" startIndex="0" length="0"/>` +
+      `<mention mentionpersonId="${MENTION_PERSON}" startIndex="0" length="8"/>` +
+      '</mentions></threadedComment></ThreadedComments>',
+  );
+  assert.deepStrictEqual(message?.mentions, [{personId: MENTION_PERSON, startIndex: 0, length: 8}]);
+});
+
+test('mentions do not bleed from one message into the next', () => {
+  const messages = parseThreadedComments(
+    '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>@x</text><mentions>' +
+      `<mention mentionpersonId="${MENTION_PERSON}" mentionId="{M}" startIndex="0" length="2"/>` +
+      '</mentions></threadedComment>' +
+      '<threadedComment ref="A2" id="{B}"><text>plain</text></threadedComment></ThreadedComments>',
+  );
+  assert.deepStrictEqual(
+    messages.map((m) => m.mentions.length),
+    [1, 0],
+  );
+});
+
+// A lookup over a parsed registry, the shape `buildCommentThreads` resolves identities through (the
+// reader hands it `Workbook.getPerson`).
+const lookupOver = (personsXml: string) => {
+  const byId = new Map(parsePersons(personsXml).map((person) => [person.id, person]));
+  return (id: string) => byId.get(id);
+};
+const NO_PERSONS = () => undefined;
+
+test('messages group into one thread per head, each reply following the head it answers', () => {
+  const threads = buildCommentThreads(
+    parseThreadedComments(THREADED_COMMENTS),
+    lookupOver(PERSONS),
+  );
+  assert.deepStrictEqual(
+    threads.map((thread) => [thread.ref, thread.comments.map((comment) => comment.text)]),
+    [
+      ['B1', ['Is this gross or net of tax?', 'Gross. Confirmed with finance.']],
+      ['B2', ['Where does this figure come from?']],
+    ],
+  );
+});
+
+test("a thread's resolved state is its head's, so its reply cannot contradict it", () => {
+  const [resolved, open] = buildCommentThreads(
+    parseThreadedComments(THREADED_COMMENTS),
+    lookupOver(PERSONS),
+  );
+  assert.strictEqual(resolved?.resolved, true, 'the head carried done="1"');
+  assert.strictEqual(resolved.comments.length, 2, 'including the reply, which carries no done');
+  assert.strictEqual(open?.resolved, false, 'an open thread says nothing, rather than done="0"');
+});
+
+test('every message resolves its author through the registry, keeping its timestamp verbatim', () => {
+  const [thread] = buildCommentThreads(
+    parseThreadedComments(THREADED_COMMENTS),
+    lookupOver(PERSONS),
+  );
+  assert.deepStrictEqual(
+    thread?.comments.map((comment) => [comment.author?.displayName, comment.date]),
+    [
+      ['Ada Lovelace', '2026-07-26T10:54:00.01'],
+      ['Grace Hopper', '2026-07-26T10:54:00.04'],
+    ],
+  );
+});
+
+test('an author the registry does not hold leaves the id readable instead of blanking it', () => {
+  const [thread] = buildCommentThreads(parseThreadedComments(THREADED_COMMENTS), NO_PERSONS);
+  const head = thread?.comments[0];
+  assert.strictEqual(head?.author, undefined, 'nothing is fabricated for a missing entry');
+  assert.strictEqual(head?.personId, ADA, 'but who was meant stays recoverable');
+});
+
+test('a mention resolves to the entry it names — the PeoplePicker one, not its author twin', () => {
+  const [thread] = buildCommentThreads(
+    parseThreadedComments(MENTION_MESSAGE),
+    lookupOver(MENTION_PERSONS),
+  );
+  const [mention] = thread?.comments[0]?.mentions ?? [];
+  assert.strictEqual(mention?.person?.id, MENTION_PERSON);
+  assert.strictEqual(mention.person?.displayName, 'Grace Hopper');
+  assert.strictEqual(
+    mention.person?.providerId,
+    'PeoplePicker',
+    'the same human also has an AD authoring entry; resolving by name would have picked that one',
+  );
+  assert.deepStrictEqual(
+    [mention.startIndex, mention.length],
+    [0, 13],
+    'the span survives resolution unchanged',
+  );
+});
+
+test('an unresolvable mention keeps its span and its target id rather than vanishing', () => {
+  const [thread] = buildCommentThreads(parseThreadedComments(MENTION_MESSAGE), NO_PERSONS);
+  assert.deepStrictEqual(thread?.comments[0]?.mentions, [
+    {personId: MENTION_PERSON, mentionId: MENTION_ID, startIndex: 0, length: 13},
+  ]);
+});
+
+test('a reply whose parent is unknown opens its own thread rather than being dropped', () => {
+  // Hand-written: Excel writes a reply after the head it belongs to, so a dangling parentId is foreign
+  // damage. Losing the thread's shape is recoverable; losing the message is not.
+  const threads = buildCommentThreads(
+    parseThreadedComments(
+      '<ThreadedComments><threadedComment ref="A1" id="{A}" parentId="{GONE}">' +
+        '<text>orphaned reply</text></threadedComment></ThreadedComments>',
+    ),
+    NO_PERSONS,
+  );
+  assert.deepStrictEqual(
+    threads.map((thread) => [thread.ref, thread.comments.map((comment) => comment.text)]),
+    [['A1', ['orphaned reply']]],
+  );
+});
+
+test('a part with no messages yields no threads', () => {
+  assert.deepStrictEqual(buildCommentThreads([], NO_PERSONS), []);
+  assert.deepStrictEqual(
+    buildCommentThreads(parseThreadedComments('<ThreadedComments/>'), NO_PERSONS),
+    [],
+  );
+});
+
 test('parts that prefix the extension namespace instead of defaulting it still parse', () => {
   // Hand-written: Excel defaults the namespace, but a foreign generator may bind it to a prefix.
   const messages = parseThreadedComments(
@@ -196,7 +346,9 @@ test('parts that prefix the extension namespace instead of defaulting it still p
       '<tc:threadedComment ref="A1" id="{A}" done="1"><tc:text>prefixed</tc:text>' +
       '</tc:threadedComment></tc:ThreadedComments>',
   );
-  assert.deepStrictEqual(messages, [{ref: 'A1', id: '{A}', text: 'prefixed', done: true}]);
+  assert.deepStrictEqual(messages, [
+    {ref: 'A1', id: '{A}', text: 'prefixed', done: true, mentions: []},
+  ]);
 });
 
 test('a message with no text element parses as empty rather than being dropped', () => {
@@ -231,7 +383,7 @@ test('a message keeps an absent author and timestamp absent', () => {
     '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>anon</text>' +
       '</threadedComment></ThreadedComments>',
   );
-  assert.deepStrictEqual(message, {ref: 'A1', id: '{A}', text: 'anon', done: false});
+  assert.deepStrictEqual(message, {ref: 'A1', id: '{A}', text: 'anon', done: false, mentions: []});
 });
 
 test('an empty part parses as no messages and no authors', () => {

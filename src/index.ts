@@ -24,6 +24,7 @@ export type {
   ValuesFilter,
 } from './core/autofilter.ts';
 export {Cell} from './core/cell.ts';
+export type {Comment, CommentThread, Mention, Person} from './core/comment-thread.ts';
 export type {
   CfValueObject,
   ConditionalFormatting,

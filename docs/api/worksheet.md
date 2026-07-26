@@ -155,6 +155,9 @@ class Worksheet {
   get pivotTables(): readonly PivotTable[];
   addLoadedPivotTable(pivot: ParsedPivotTable): void;
   get loadedPivotTables(): readonly ParsedPivotTable[];
+  restoreCommentThreads(threads: readonly CommentThread[]): void;
+  get commentThreads(): readonly CommentThread[];
+  commentThreadAt(reference: string): CommentThread | undefined;
   addImage(imageId: number, anchor: {
     readonly tl: AnchorPoint;
     readonly br: AnchorPoint;
@@ -260,6 +263,9 @@ class Worksheet {
 - `get pivotTables(): readonly PivotTable[];` — The pivot tables hosted on this sheet, in definition order.
 - `addLoadedPivotTable(pivot: ParsedPivotTable): void;` — Register a pivot table reconstructed from a loaded package — the reader's counterpart to `addPivotTable`. This records an inspectable, read-only view of a pivot the reader parsed from its OOXML parts; the pivot itself round-trips by byte-preservation, so registering it here only makes it visible via `loadedPivotTables` and never affects what the writer emits.
 - `get loadedPivotTables(): readonly ParsedPivotTable[];` — Pivot tables reconstructed from a loaded package, in the order the reader found them — a read-only inspection view (source range, field roles, value field, aggregation). A pivot authored on this sheet via `addPivotTable` does not appear here; a pivot loaded from a file does not appear in `pivotTables`. The loaded pivots re-emit verbatim through byte-preservation, so this collection is never itself serialised.
+- `restoreCommentThreads(threads: readonly CommentThread[]): void;` — Reinstate the threaded conversations read from a file, in the order the reader found them. Replaces any already held. Their authors and mentioned people are already resolved against the workbook registry (`Workbook.restorePersons`), so a thread is self-contained. Like `loadedPivotTables`, this is an inspection view: the threads round-trip by byte-preservation and reinstating them here never changes what the writer emits.
+- `get commentThreads(): readonly CommentThread[];` — The threaded conversations on this sheet — Excel's modern review comments (author, timestamp, replies, resolved state, `@mentions`), as read from a file. Empty for a sheet with none, and for a sheet authored from scratch. Distinct from a cell's legacy note (`Cell.note`).
+- `commentThreadAt(reference: string): CommentThread | undefined;` — The conversation anchored to a cell, or `undefined` when that cell carries none. The reference is canonicalized, so an absolute `"$B$2"` finds the same thread as `"B2"`; it names the *anchor* cell, so a cell merely covered by the anchor's merged region is not a match.
 - `addImage(imageId: number, anchor: {
     readonly tl: AnchorPoint;
     readonly br: AnchorPoint;

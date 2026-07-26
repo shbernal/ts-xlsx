@@ -18,6 +18,7 @@
 // the parser (ADR 0004) never expands entities.
 
 import {decodeRange} from '../../core/address.ts';
+import type {CommentThread} from '../../core/comment-thread.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
@@ -58,6 +59,7 @@ import {parseSharedStrings} from './shared-strings-read.ts';
 import {inflateXlsxPackage, unsupportedWorkbookPart} from './sniff-format.ts';
 import {parseIndexedColors} from './styles.ts';
 import {parseTable} from './tables.ts';
+import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
 import {boolStrict, localName, openElements, parseXml} from './xml-read.ts';
 
 // Re-exported for the streaming reader (`./read-rows.ts`) and the public barrel, which import these
@@ -97,7 +99,8 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // OPC does: an explicit `<Override>` for the exact part, else the `<Default>` for its extension.
   const contentTypeOf = contentTypeResolver(partText('[Content_Types].xml') ?? '');
 
-  const rels = parseRelationships(partText('xl/_rels/workbook.xml.rels') ?? '');
+  const workbookRelsXml = partText('xl/_rels/workbook.xml.rels') ?? '';
+  const rels = parseRelationships(workbookRelsXml);
   const sharedStrings = parseSharedStrings(partText('xl/sharedStrings.xml') ?? '');
   // The style table resolves a cell/row/column style index to its facets (fill, number
   // format); a package without one (a hand-rolled foreign file) yields an empty table and
@@ -118,6 +121,10 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   const core = partText('docProps/core.xml');
   if (core !== undefined) applyCoreProperties(workbook, core);
   workbook.protection = parseWorkbookProtection(workbookXml);
+  // The threaded-comment author registry is workbook-level, and every conversation on every sheet
+  // resolves its authors and @mentions through it — so it is restored before the sheet loop that reads
+  // those conversations, not alongside the other workbook-level parts below.
+  readWorkbookPersons(workbookRelsXml, pkg, workbook);
 
   // A picture used on more than one sheet is one media part; caching by media path keeps it a single
   // workbook image so a re-write does not duplicate the bytes.
@@ -142,6 +149,8 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
       }
       const notes = readSheetNotes(path, pkg);
       if (notes !== undefined) applyNotes(sheet, notes);
+      const threads = readSheetCommentThreads(path, pkg, workbook);
+      if (threads.length > 0) sheet.restoreCommentThreads(threads);
       readSheetImages(path, pkg, workbook, sheet, imageIdByMediaPath);
       readSheetBackground(path, pkg, workbook, sheet, imageIdByMediaPath);
       if (sheetXml !== undefined) {
@@ -174,6 +183,40 @@ function readSheetNotes(sheetPath: string, pkg: PackageAccessors): Map<string, s
   const commentsXml = pkg.partText(commentsPath);
   if (commentsXml === undefined) return undefined;
   return parseComments(commentsXml);
+}
+
+// The workbook's threaded-comment identity registry: a relationship of type `.../person` names
+// `xl/persons/person.xml`, whose entries every message's `personId` and every mention's
+// `mentionpersonId` resolve through. A workbook with no threaded comments declares no such
+// relationship and keeps an empty registry.
+function readWorkbookPersons(
+  workbookRelsXml: string,
+  pkg: PackageAccessors,
+  workbook: Workbook,
+): void {
+  const target = relationshipTargetByType(workbookRelsXml, 'person');
+  const xml = target === undefined ? undefined : pkg.partText(resolveWorkbookPart(target));
+  if (xml !== undefined) workbook.restorePersons(parsePersons(xml));
+}
+
+// A sheet's threaded conversations live in a `xl/threadedComments/threadedComment{n}.xml` part reached
+// through a relationship of type `.../threadedComment` on the sheet's own rels — the same discovery
+// shape as the notes part above, and deliberately separate from it: a thread and a legacy note are
+// different features that happen to share a sheet. The messages are grouped into threads and their
+// authors resolved against the workbook registry, so each thread lands self-contained.
+//
+// This is a read-only view. The parts still round-trip by byte-preservation (see
+// `isPreservedSheetRelType`), which remains their sole emission authority — so reading them into the
+// model cannot double-emit them, and cannot yet make Excel see a thread it currently misses.
+function readSheetCommentThreads(
+  sheetPath: string,
+  pkg: PackageAccessors,
+  workbook: Workbook,
+): CommentThread[] {
+  const path = sheetRelTarget(sheetPath, pkg.partText, 'threadedComment');
+  const xml = path === undefined ? undefined : pkg.partText(path);
+  if (xml === undefined) return [];
+  return buildCommentThreads(parseThreadedComments(xml), (id) => workbook.getPerson(id));
 }
 
 // A sheet's printer-settings blob is an opaque binary part linked from `<pageSetup r:id>`: the sheet

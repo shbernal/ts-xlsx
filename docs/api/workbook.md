@@ -106,6 +106,9 @@ class Workbook {
   get indexedColors(): readonly string[];
   restoreNamedStyles(styles: readonly NamedCellStyle[]): void;
   get namedStyles(): readonly NamedCellStyle[];
+  restorePersons(persons: readonly Person[]): void;
+  get persons(): readonly Person[];
+  getPerson(id: string): Person | undefined;
   addImage(options: AddImageOptions): number;
   get media(): readonly WorkbookImage[];
   getImage(id: number): WorkbookImage | undefined;
@@ -138,6 +141,9 @@ class Workbook {
 - `get indexedColors(): readonly string[];` — The preserved custom indexed-color palette, in index order; empty when the default palette rules.
 - `restoreNamedStyles(styles: readonly NamedCellStyle[]): void;` — Reinstate the named cell styles (`cellStyleXfs`/`cellStyles`) read from a file, index for index, so a cell's link to a named style (its `xfId`) stays valid on re-write. Index 0 is the Normal default. Replaces any table already held.
 - `get namedStyles(): readonly NamedCellStyle[];` — The named cell styles, in index order (index 0 is Normal); empty when only the default exists.
+- `restorePersons(persons: readonly Person[]): void;` — Reinstate the threaded-comment identity registry (`xl/persons/person.xml`) read from a file — the authors and mentioned people a comment thread's messages point at. Replaces any registry already held. Entries are keyed by `Person.id` and by nothing else. A single human legitimately owns several entries: Excel interns a *mentioned* identity as its own `providerId="PeoplePicker"` entry beside that person's `providerId="AD"` authoring entry — same `displayName`, same `userId`, a different id — and points the mention at the new one. Collapsing entries by name or `userId` would merge those two and silently re-point every mention at the wrong identity.
+- `get persons(): readonly Person[];` — The registered threaded-comment identities, in the order they were read. That order carries no meaning — Excel re-sorts the registry by person id when it saves — so nothing may depend on it.
+- `getPerson(id: string): Person | undefined;` — Look up a registered identity by its `Person.id`, or `undefined` if the registry has none.
 - `addImage(options: AddImageOptions): number;` — Register a picture on the workbook and return its numeric id. Pass the id to `Worksheet.addImage` to anchor the picture to a sheet; the same id may be anchored on any number of sheets and positions, and the bytes are still stored only once.
 - `get media(): readonly WorkbookImage[];` — The registered images, indexed by the id `addImage` returned.
 - `getImage(id: number): WorkbookImage | undefined;` — Look up a registered image by its id, or `undefined` if no image carries that id.

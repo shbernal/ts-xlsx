@@ -19,6 +19,7 @@ import {
   type VbaProjectSignature,
   vbaProjectSignatureKind,
 } from '../vba/index.ts';
+import type {Person} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
@@ -141,6 +142,11 @@ export class Workbook {
   // caches), captured verbatim on read so a round-trip re-emits them rather than dropping the pivots
   // and slicers they back. Empty for a workbook authored from scratch.
   readonly #preservedReferences: PreservedWorkbookReference[] = [];
+
+  // The threaded-comment identity registry (`xl/persons/person.xml`), the workbook-level table every
+  // message resolves its author through and every @mention its target. Keyed by person id — see
+  // `restorePersons` for why nothing else will do. Empty for a workbook with no threaded comments.
+  readonly #persons = new Map<string, Person>();
 
   /** The worksheets in insertion order. */
   get worksheets(): readonly Worksheet[] {
@@ -415,6 +421,35 @@ export class Workbook {
   /** The named cell styles, in index order (index 0 is Normal); empty when only the default exists. */
   get namedStyles(): readonly NamedCellStyle[] {
     return this.#namedStyles;
+  }
+
+  /**
+   * Reinstate the threaded-comment identity registry (`xl/persons/person.xml`) read from a file — the
+   * authors and mentioned people a comment thread's messages point at. Replaces any registry already
+   * held.
+   *
+   * Entries are keyed by {@link Person.id} and by nothing else. A single human legitimately owns
+   * several entries: Excel interns a *mentioned* identity as its own `providerId="PeoplePicker"` entry
+   * beside that person's `providerId="AD"` authoring entry — same `displayName`, same `userId`, a
+   * different id — and points the mention at the new one. Collapsing entries by name or `userId` would
+   * merge those two and silently re-point every mention at the wrong identity.
+   */
+  restorePersons(persons: readonly Person[]): void {
+    this.#persons.clear();
+    for (const person of persons) this.#persons.set(person.id, person);
+  }
+
+  /**
+   * The registered threaded-comment identities, in the order they were read. That order carries no
+   * meaning — Excel re-sorts the registry by person id when it saves — so nothing may depend on it.
+   */
+  get persons(): readonly Person[] {
+    return [...this.#persons.values()];
+  }
+
+  /** Look up a registered identity by its {@link Person.id}, or `undefined` if the registry has none. */
+  getPerson(id: string): Person | undefined {
+    return this.#persons.get(id);
   }
 
   /**

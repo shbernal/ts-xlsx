@@ -8,12 +8,16 @@ import type {
   AutoFilter,
   CellAddress,
   CellValue,
+  Comment,
+  CommentThread,
   DefinedName,
   decodeAddress,
   FilterColumn,
   FilterCriteria,
+  Mention,
   PageBreak,
   PageSetup,
+  Person,
   PrintOptions,
   readXlsx,
   SheetView,
@@ -64,4 +68,20 @@ export type FeatureSurface = [
   Expect<Extends<SheetView, SheetView>>,
   Expect<Extends<DefinedName, DefinedName>>,
   Expect<Extends<AddImageOptions, AddImageOptions>>,
+];
+
+// Threaded comments read back as a fully-resolved, immutable tree: a thread's messages and a message's
+// mentions are readonly arrays (an inspection view, not an authoring handle), `resolved` is the
+// thread's own boolean, and an identity lookup is partial — a message may name a person the registry
+// does not hold, which is why `Comment.author`/`Mention.person` stay optional.
+export type CommentThreadContracts = [
+  Expect<Equal<CommentThread['comments'], readonly Comment[]>>,
+  Expect<Equal<CommentThread['resolved'], boolean>>,
+  Expect<Equal<Comment['mentions'], readonly Mention[]>>,
+  Expect<Equal<Comment['author'], Person | undefined>>,
+  Expect<Equal<Mention['person'], Person | undefined>>,
+  Expect<Equal<ReturnType<Workbook['getPerson']>, Person | undefined>>,
+  Expect<Equal<Workbook['persons'], readonly Person[]>>,
+  Expect<Equal<ReturnType<Worksheet['commentThreadAt']>, CommentThread | undefined>>,
+  Expect<Equal<Worksheet['commentThreads'], readonly CommentThread[]>>,
 ];

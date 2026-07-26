@@ -3696,6 +3696,59 @@ const impl = {
     };
   },
 
+  // Read a fixture and report the modern threaded conversations the reader reconstructs → the person
+  // registry plus, per sheet, each thread's anchor/resolved state and its messages in order (author
+  // resolved through the registry, the raw author id alongside so an unresolved one is visible, and
+  // each @mention's resolved identity + text span). `refs` additionally probes the per-cell lookup,
+  // reporting the anchor of the thread found at each reference (null for none) — so a case can assert
+  // a noted cell is not mistaken for a threaded one.
+  //
+  // Persons are sorted by id because the registry's order is meaningless: Excel re-sorts the part by
+  // person id whenever it saves, so only membership is a fact.
+  readFixtureCommentThreads(rel: CorpusApi, refs: CorpusApi = []) {
+    const wb = readFixture(rel);
+    const identity = (person: CorpusApi) =>
+      person == null
+        ? null
+        : {
+            id: person.id,
+            displayName: person.displayName,
+            userId: person.userId ?? null,
+            providerId: person.providerId ?? null,
+          };
+    return {
+      persons: wb.persons
+        .map(identity)
+        .sort((a: CorpusApi, b: CorpusApi) => String(a?.id).localeCompare(String(b?.id))),
+      sheets: wb.worksheets.map((sheet: CorpusApi) => ({
+        name: sheet.name,
+        threads: sheet.commentThreads.map((thread: CorpusApi) => ({
+          ref: thread.ref,
+          resolved: thread.resolved,
+          comments: thread.comments.map((comment: CorpusApi) => ({
+            id: comment.id,
+            author: identity(comment.author),
+            authorId: comment.personId ?? null,
+            date: comment.date ?? null,
+            text: comment.text,
+            mentions: comment.mentions.map((mention: CorpusApi) => ({
+              person: identity(mention.person),
+              personId: mention.personId,
+              startIndex: mention.startIndex,
+              length: mention.length,
+              // The exact run of text the mention chip covers — the only check that proves the span
+              // was not shifted, since the offsets alone are just numbers.
+              span: comment.text.slice(mention.startIndex, mention.startIndex + mention.length),
+            })),
+          })),
+        })),
+        at: Object.fromEntries(
+          (refs as string[]).map((ref) => [ref, sheet.commentThreadAt(ref)?.ref ?? null]),
+        ),
+      })),
+    };
+  },
+
   // Read a fixture and report every hyperlink cell as { <addr>: { hyperlink, text } }, with a rich
   // display label flattened to its concatenated text — for asserting a foreign file's links (and the
   // rejoining of an external URL's fragment carried in the location attribute) are read faithfully.

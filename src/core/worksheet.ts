@@ -9,6 +9,7 @@
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, cellToModel, copyCellContent} from './cell.ts';
+import type {CommentThread} from './comment-thread.ts';
 import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
 import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
 import {overwrite, replaceContents} from './containers.ts';
@@ -245,6 +246,11 @@ export class Worksheet {
   // (#preservedReferences), which stays its sole emission authority; this collection is never emitted,
   // so exposing it cannot double-emit. Empty for a sheet authored from scratch.
   readonly #loadedPivotTables: ParsedPivotTable[] = [];
+  // Threaded conversations reconstructed from a loaded package (see io/xlsx/threaded-comments.ts) — a
+  // read-only view, like #loadedPivotTables: a thread round-trips by byte-preservation
+  // (#preservedReferences), which stays its sole emission authority, so exposing it cannot double-emit.
+  // Empty for a sheet with no threaded comments.
+  readonly #commentThreads: CommentThread[] = [];
   readonly #merges: string[] = [];
   readonly #images: AnchoredImage[] = [];
   // A sheet background is a single workbook image tiled behind the grid — distinct from an anchored
@@ -606,6 +612,46 @@ export class Worksheet {
    */
   get loadedPivotTables(): readonly ParsedPivotTable[] {
     return this.#loadedPivotTables;
+  }
+
+  /**
+   * Reinstate the threaded conversations read from a file, in the order the reader found them. Replaces
+   * any already held.
+   *
+   * Their authors and mentioned people are already resolved against the workbook registry
+   * ({@link Workbook.restorePersons}), so a thread is self-contained. Like
+   * {@link loadedPivotTables}, this is an inspection view: the threads round-trip by byte-preservation
+   * and reinstating them here never changes what the writer emits.
+   */
+  restoreCommentThreads(threads: readonly CommentThread[]): void {
+    replaceContents(this.#commentThreads, threads);
+  }
+
+  /**
+   * The threaded conversations on this sheet — Excel's modern review comments (author, timestamp,
+   * replies, resolved state, `@mentions`), as read from a file. Empty for a sheet with none, and for a
+   * sheet authored from scratch. Distinct from a cell's legacy note ({@link Cell.note}).
+   */
+  get commentThreads(): readonly CommentThread[] {
+    return this.#commentThreads;
+  }
+
+  /**
+   * The conversation anchored to a cell, or `undefined` when that cell carries none. The reference is
+   * canonicalized, so an absolute `"$B$2"` finds the same thread as `"B2"`; it names the *anchor* cell,
+   * so a cell merely covered by the anchor's merged region is not a match.
+   *
+   * @throws {SyntaxError} if the reference does not resolve to a single cell.
+   */
+  commentThreadAt(reference: string): CommentThread | undefined {
+    const {col, row} = decodeAddress(reference);
+    if (col === undefined || row === undefined) {
+      throw new SyntaxError(
+        `"${reference}" is not a single-cell reference — it omits a column or row`,
+      );
+    }
+    const anchor = encodeAddress(col, row);
+    return this.#commentThreads.find((thread) => thread.ref === anchor);
   }
 
   /**
