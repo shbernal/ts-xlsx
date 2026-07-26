@@ -15,6 +15,10 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `pnpm run validate:ooxml -- file.xlsx` | **.NET 10** |
 | Spec grounding | Ground a decision in the authoritative format | Learn MCP + `schemas/` + `docs/knowledge/specs/` | — |
 
+**`lint:fix` needs no confirming `lint` pass.** `biome check --write` applies what it can and
+*still exits non-zero* if any diagnostic survives, so a green `lint:fix` already is the proof.
+Re-running `lint` after it only re-checks a tree you have been told is clean.
+
 **Cost is not the only axis — authority is (ADR 0012).** These layers witness three
 different things, and a lower one cannot stand in for a higher one:
 
