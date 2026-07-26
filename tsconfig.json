@@ -23,7 +23,11 @@
     "allowImportingTsExtensions": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+
+    "incremental": true,
+    "tsBuildInfoFile": "node_modules/.cache/ts-xlsx/src.tsbuildinfo"
   },
+  "//incremental": "The gate runs on every turn, so re-elaborating an unchanged src/ every time is the largest avoidable cost in the inner loop. The buildinfo lives under node_modules/.cache because it is a derived artifact whose loss costs only one cold run — and node_modules/ is already ignored, so no ignore rule can drift away from it. Every config that extends this one MUST name its own tsBuildInfoFile: an inherited relative path resolves against THIS directory, so two projects would otherwise share one buildinfo and each would invalidate the other's.",
   "include": ["src/**/*.ts"]
 }
