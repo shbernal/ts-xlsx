@@ -49,10 +49,13 @@ corpus (~10 s) — faster, but **not** a substitute for the full run. Invoke it 
 not `pnpm run`, to skip ~0.84 s of package-manager wrapper. `pnpm test` and lefthook's
 `pre-push` hook are both the full run.
 
-The **Stop hook** runs
-typecheck + test:src + corpus automatically at each turn boundary *when `src/` is
-dirty*, so you cannot end a turn green while regressing the spine. The OOXML oracle
-is **not** in the hook (it needs .NET and is slower); invoke it yourself — see below.
+The **Stop hook** runs `verify --full --cached` at each turn boundary, so you cannot end a
+turn green while regressing the spine. `--cached` exits immediately when the working tree
+is byte-for-byte what it was the last time this gate set passed — a *hit means proven*, not
+skipped, because the key is the HEAD commit plus the full diff and every untracked file. A
+turn that changed nothing verifiable costs ~0.3 s; one that changed anything pays the real
+~13 s. The OOXML oracle is **not** in the hook (it needs .NET and is slower); invoke it
+yourself — see below.
 
 ## Situation → check
 
@@ -104,8 +107,8 @@ Do not guess — the format is full of surprises. In order:
 The dev/test loop runs *stripped* `src/` `.ts`; consumers run *`tsc`-emitted* `dist/` JS — two artifacts that can diverge. `pnpm run build && pnpm run corpus:dist` runs the full behavioral corpus against the emitted JS (`CORPUS_TARGET=dist`), not just the `smoke:dist` round-trip. CI's `build` workflow does this on every PR; run it locally when you touch anything emit-shaped.
 
 **You are about to finish a turn / open a PR.**
-The Stop hook covers typecheck + test:src + corpus. For full CI parity also run
-`pnpm run lint` and, if you have .NET 10, `pnpm run test:ooxml`. CI runs all three
+The Stop hook covers every gate `verify --full` runs. For full CI parity add the one it
+cannot: if you have .NET 10, `node test/ooxml-validation/run.ts`. CI runs all three
 workflows (`build`, `corpus`, `ooxml-validation`) regardless, so the oracle is always
 enforced before merge even when you can't run it locally.
 

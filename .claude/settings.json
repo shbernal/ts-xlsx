@@ -6,9 +6,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -z \"$(git status --porcelain -- src 2>/dev/null)\" ] && exit 0; out=$(pnpm run typecheck 2>&1 && pnpm run test:src 2>&1 && pnpm run corpus 2>&1) || { echo \"$out\" >&2; exit 2; }",
-            "statusMessage": "Running gates (typecheck + test:src + corpus)",
-            "timeout": 180
+            "command": "out=$(node scripts/verify.ts --full --cached 2>&1) || { echo \"$out\" >&2; exit 2; }",
+            "statusMessage": "Verifying (cached if the tree is unchanged)",
+            "timeout": 300
           }
         ]
       }

@@ -8,7 +8,7 @@
 // are the two that rarely fail.
 //
 // Usage:
-//   node scripts/verify.ts [--full | --quick] [--jobs <n>] [--list]
+//   node scripts/verify.ts [--full | --quick] [--jobs <n>] [--list] [--cached]
 //
 //   --full        every gate — the same set lefthook runs pre-push and CI enforces.
 //                 The default, because a bare invocation must never quietly skip the spine.
@@ -16,15 +16,20 @@
 //                 have actually touched. No corpus, so it is not a substitute for --full.
 //   --jobs <n>    how many gates to run at once (default 2; see runPool).
 //   --list        print this mode's gate names and exit, without running them.
+//   --cached      exit 0 immediately if this exact tree already passed this mode
+//                 (see treeKey); otherwise run, and record the pass on success.
 //
 // Call this directly with `node`, not through `pnpm run`: the package-manager wrapper
 // costs ~0.84 s per invocation, which is a tenth of the whole --quick budget.
 
 import {spawn} from 'node:child_process';
-import {dirname, resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import {mkdir, readFile, writeFile} from 'node:fs/promises';
+import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const STAMP = join(ROOT, '.tmp', 'verify-stamp.json');
 
 // Tools are invoked as node scripts against their package entrypoints rather than via
 // node_modules/.bin, because a .bin entry on Windows is a .cmd shim that would force
@@ -74,15 +79,17 @@ interface Args {
   mode: Mode;
   list: boolean;
   jobs: number;
+  cached: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = {mode: 'full', list: false, jobs: DEFAULT_JOBS};
+  const args: Args = {mode: 'full', list: false, jobs: DEFAULT_JOBS, cached: false};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--full') args.mode = 'full';
     else if (arg === '--quick') args.mode = 'quick';
     else if (arg === '--list') args.list = true;
+    else if (arg === '--cached') args.cached = true;
     else if (arg === '--jobs') {
       const value = Number(argv[++i]);
       if (!Number.isInteger(value) || value < 1) {
@@ -91,7 +98,7 @@ function parseArgs(argv: string[]): Args {
       args.jobs = value;
     } else {
       throw new UsageError(
-        `unrecognized argument: ${arg} (expected --full, --quick, --jobs, --list)`,
+        `unrecognized argument: ${arg} (expected --full, --quick, --jobs, --list, --cached)`,
       );
     }
   }
@@ -250,8 +257,85 @@ async function runGate(gate: Gate): Promise<Result> {
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 
+/**
+ * A fingerprint of every byte the gates read that could change their verdict: the commit
+ * the tree stands on, the whole working-tree diff against it, and the content of every
+ * untracked file git would show. `--binary` so an edited .xlsx fixture contributes its
+ * actual bytes rather than a "Binary files differ" placeholder: the key is then complete by
+ * construction, and does not rest on reasoning about which diff shapes carry a blob hash.
+ *
+ * This is what makes a cache hit a *proof* rather than a skip: same key means the gates
+ * would be handed the same input, so their answer is already known. Returns undefined when
+ * git cannot answer, which disables caching rather than guessing.
+ */
+async function treeKey(mode: Mode): Promise<string | undefined> {
+  const [head, diff, untracked] = await Promise.all([
+    run({command: 'git', args: ['rev-parse', 'HEAD']}),
+    run({command: 'git', args: ['diff', 'HEAD', '--binary']}),
+    run({command: 'git', args: ['ls-files', '--others', '--exclude-standard']}),
+  ]);
+  if (head.exit !== 0 || diff.exit !== 0 || untracked.exit !== 0) return undefined;
+
+  const hash = createHash('sha256').update(mode).update(head.output).update(diff.output);
+  const paths = untracked.output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .sort();
+  for (const path of paths) {
+    hash.update(path);
+    // A file that vanished between listing and reading is a race, not a verdict: fold in
+    // nothing and let the next run — which will see a different tree — decide.
+    hash.update(await readFile(resolve(ROOT, path)).catch(() => Buffer.alloc(0)));
+  }
+  return hash.digest('hex');
+}
+
+interface Pass {
+  key: string;
+  at: string;
+}
+
+/** Per-mode, so alternating `--quick --cached` and `--full --cached` don't evict each other. */
+async function readPass(mode: Mode): Promise<Pass | undefined> {
+  try {
+    const parsed: unknown = JSON.parse(await readFile(STAMP, 'utf8'));
+    if (typeof parsed !== 'object' || parsed === null) return undefined;
+    const pass: unknown = (parsed as Record<string, unknown>)[mode];
+    if (typeof pass !== 'object' || pass === null) return undefined;
+    const {key, at} = pass as Record<string, unknown>;
+    return typeof key === 'string' && typeof at === 'string' ? {key, at} : undefined;
+  } catch {
+    // Absent or unreadable is a cache miss, never an error: the stamp is derived state.
+    return undefined;
+  }
+}
+
+async function recordPass(mode: Mode, key: string): Promise<void> {
+  let stamp: Record<string, Pass> = {};
+  try {
+    const parsed: unknown = JSON.parse(await readFile(STAMP, 'utf8'));
+    if (typeof parsed === 'object' && parsed !== null) stamp = parsed as Record<string, Pass>;
+  } catch {
+    /* rewritten from scratch */
+  }
+  stamp[mode] = {key, at: new Date().toISOString()};
+  await mkdir(dirname(STAMP), {recursive: true});
+  await writeFile(STAMP, `${JSON.stringify(stamp, null, 2)}\n`);
+}
+
 async function main() {
-  const {mode, list, jobs} = parseArgs(process.argv.slice(2));
+  const {mode, list, jobs, cached} = parseArgs(process.argv.slice(2));
+
+  const key = cached ? await treeKey(mode) : undefined;
+  if (key !== undefined) {
+    const pass = await readPass(mode);
+    if (pass?.key === key) {
+      console.log(`verify --${mode}: this tree already passed at ${pass.at} — nothing changed`);
+      return;
+    }
+  }
+
   const gates = await gateSet(mode);
 
   if (list) {
@@ -286,6 +370,7 @@ async function main() {
   }
 
   if (failed.length === 0) {
+    if (key !== undefined) await recordPass(mode, key);
     console.log(
       `\nverify: ${gates.length} gates green in ${seconds(wall)} (${seconds(serial)} serial)`,
     );
