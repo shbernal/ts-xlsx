@@ -36,6 +36,33 @@ const THREADED_COMMENTS =
   'id="{08B3B787-8F24-49B6-8D78-A5F335591EEA}"><text>Where does this figure come from?</text>' +
   '</threadedComment></ThreadedComments>';
 
+// Values verbatim from `mention-in-thread.xlsx` (markup trimmed to the one message under test), whose
+// mention Excel itself re-resolved and re-emitted on save. Excel
+// renders `@Grace Hopper` as a mention chip over exactly the span `startIndex="0" length="13"` names, so
+// `startIndex` is a 0-based character offset into the message text and `length` includes the leading `@`.
+// `<mentions>` is not parsed yet — these tests pin that it cannot corrupt the message that carries it.
+const MENTION_PERSON = '{BA397017-DD76-4496-AA75-59ADB199950C}';
+const MENTION_MESSAGE =
+  '<ThreadedComments xmlns="http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments">' +
+  `<threadedComment ref="B2" dT="2026-07-26T10:54:00.04" personId="${ADA}" ` +
+  'id="{08B3B787-8F24-49B6-8D78-A5F335591EEA}">' +
+  '<text>@Grace Hopper Where does this figure come from?</text>' +
+  `<mentions><mention mentionpersonId="${MENTION_PERSON}" ` +
+  'mentionId="{3F2C1A9E-5B84-4D67-9C2E-71A0D4E8B531}" startIndex="0" length="13"/></mentions>' +
+  '</threadedComment></ThreadedComments>';
+
+// The same file's registry. Excel interns a *mentioned* identity as its own entry — note the third
+// `<person>`: same displayName and userId as the second, different id, `providerId="PeoplePicker"`.
+const MENTION_PERSONS =
+  '<personList xmlns="http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments">' +
+  `<person displayName="Ada Lovelace" id="${ADA}" ` +
+  'userId="S::ada@example.com::00000000-0000-0000-0000-000000000000" providerId="AD"/>' +
+  `<person displayName="Grace Hopper" id="${GRACE}" ` +
+  'userId="S::grace@example.com::00000000-0000-0000-0000-000000000000" providerId="AD"/>' +
+  `<person displayName="Grace Hopper" id="${MENTION_PERSON}" ` +
+  'userId="S::grace@example.com::00000000-0000-0000-0000-000000000000" providerId="PeoplePicker"/>' +
+  '</personList>';
+
 test('every registered person is parsed with the identity attributes the file carried', () => {
   assert.deepStrictEqual(parsePersons(PERSONS), [
     {
@@ -61,6 +88,23 @@ test('the personList root is not mistaken for a person entry', () => {
 test('a person keeps optional identity attributes absent rather than empty', () => {
   const [person] = parsePersons('<personList><person displayName="Anon" id="{A}"/></personList>');
   assert.deepStrictEqual(person, {id: '{A}', displayName: 'Anon'});
+});
+
+test('two registry entries for the same human are both kept, since only the id identifies one', () => {
+  // Excel registers a mentioned identity separately from the same person's authoring entry, so the
+  // registry legitimately holds duplicates by name and userId. Deduplicating on either would drop an
+  // entry a mention points at; the id is the only key.
+  const persons = parsePersons(MENTION_PERSONS);
+  const graces = persons.filter((p) => p.displayName === 'Grace Hopper');
+  assert.strictEqual(graces.length, 2, 'both Grace entries survive');
+  assert.deepStrictEqual(
+    graces.map((p) => [p.id, p.providerId]),
+    [
+      [GRACE, 'AD'],
+      [MENTION_PERSON, 'PeoplePicker'],
+    ],
+    'they differ only by id and the provider that registered them',
+  );
 });
 
 test('a person with no id is skipped, since no message could reference it', () => {
@@ -139,15 +183,10 @@ test('message text is entity-decoded and keeps its line breaks', () => {
   assert.strictEqual(message?.text, '5 < 6 & "quoted"\nsecond line');
 });
 
-test('a mentions sibling does not leak into the message text', () => {
-  // Hand-written: no fixture carries a mention yet, so `<mentions>` is unparsed — but it must not
-  // corrupt the text of the message that holds it.
-  const [message] = parseThreadedComments(
-    '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>@Ada please check</text>' +
-      '<mentions><mention mentionpersonId="{P}" mentionId="{M}" startIndex="0" length="4"/>' +
-      '</mentions></threadedComment></ThreadedComments>',
-  );
-  assert.strictEqual(message?.text, '@Ada please check');
+test('a message that @mentions someone keeps its text intact around the mention', () => {
+  const [message] = parseThreadedComments(MENTION_MESSAGE);
+  assert.strictEqual(message?.text, '@Grace Hopper Where does this figure come from?');
+  assert.strictEqual(message.personId, ADA, 'the author is unaffected by the mention it contains');
 });
 
 test('parts that prefix the extension namespace instead of defaulting it still parse', () => {

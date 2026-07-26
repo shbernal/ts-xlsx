@@ -573,6 +573,40 @@ const packagePartFacts = (parts: Record<string, string>) => {
       ),
     ].sort(),
     personEntries: countIn(parts, /xl\/persons\/person\d*\.xml$/, /<person\b/g),
+    // An @mention inside a message: `<mention>` names the mentioned person and pins the span of text
+    // that renders as the mention chip. Verified against desktop Excel (2026-07-26): `startIndex` is a
+    // 0-based character offset and `length` COVERS the leading `@`, so the offsets are only meaningful
+    // against the exact message text — drop or shift either and Excel highlights the wrong words.
+    threadedCommentMentions: countIn(parts, /threadedComments\//, /<mention\b/g),
+    threadedCommentMentionSpans: names
+      .filter((p) => /threadedComments\//.test(p))
+      .flatMap((p) => [
+        ...(parts[p] ?? '').matchAll(
+          /<mention\b[^>]*\bstartIndex="([^"]*)"[^>]*\blength="([^"]*)"/g,
+        ),
+      ])
+      .map((m) => `${m[1]}:${m[2]}`)
+      .sort(),
+    threadedCommentMentionPersonIds: [
+      ...new Set(
+        names
+          .filter((p) => /threadedComments\//.test(p))
+          .flatMap((p) => [...(parts[p] ?? '').matchAll(/\bmentionpersonId="([^"]*)"/g)])
+          .map((m) => m[1]),
+      ),
+    ].sort(),
+    // Excel interns a mentioned identity as its OWN `<person>` entry with `providerId="PeoplePicker"`,
+    // separate from the same human's `providerId="AD"` authoring entry (verified: Excel rewrote an
+    // injected mention to point at a new person id it added on save). So the registry legitimately holds
+    // several entries per human, distinguished only by id — collapsing them by name or userId corrupts it.
+    personProviderIds: [
+      ...new Set(
+        names
+          .filter((p) => /xl\/persons\/person\d*\.xml$/.test(p))
+          .flatMap((p) => [...(parts[p] ?? '').matchAll(/\bproviderId="([^"]*)"/g)])
+          .map((m) => m[1]),
+      ),
+    ].sort(),
     // How Excel binds a thread to the legacy fallback `<comment>` it writes beside it: the fallback's
     // author is a synthetic `tc={headThreadId}` entry in the comments part's `<authors>`, and the
     // `<comment>` itself carries `xr:uid="{headThreadId}"`. Lose either and Excel stops recognising the

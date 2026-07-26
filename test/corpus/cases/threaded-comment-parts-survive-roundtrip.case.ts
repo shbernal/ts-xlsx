@@ -27,6 +27,15 @@ const FIXTURE = 'threaded-comment-parts-survive-roundtrip/sample.xlsx';
 // two synthetic `tc={guid}` thread fallbacks with one real note author.
 const RESOLVED_MULTI_AUTHOR = 'threaded-comment-parts-survive-roundtrip/resolved-multi-author.xlsx';
 
+// A third shape: a message that @mentions someone. A mention is not decoration — it carries the
+// mentioned person's id plus the character span of the message text that renders as the mention chip, so
+// dropping it loses who was asked and shifting it highlights the wrong words. Excel's own save is what
+// produced this file: an injected mention was re-resolved by Excel, which re-pointed it at a NEW person
+// entry it added with `providerId="PeoplePicker"` (the same human as an existing `providerId="AD"`
+// author, but a separate registry entry), then rendered `@Grace Hopper` as a chip over exactly the
+// 13 characters `startIndex="0" length="13"` names — the leading `@` included.
+const MENTION_IN_THREAD = 'threaded-comment-parts-survive-roundtrip/mention-in-thread.xlsx';
+
 export default {
   id: 'threaded-comment-parts-survive-roundtrip',
   provenance: {source: 'excel-desktop-verification'},
@@ -113,6 +122,71 @@ export default {
           rewritten.threadedCommentAuthorIds,
           source.threadedCommentAuthorIds,
           'every message still resolves to the same person id, so no author is re-pointed or orphaned',
+        );
+      },
+    },
+    {
+      name: 'an @mention inside a message survives the round-trip with its mentioned person',
+      baseline: 'pass',
+      async expect(api: CorpusApi, assert: Assert) {
+        const {source, rewritten} = await api.roundtripFixturePackageParts(MENTION_IN_THREAD);
+        assert.strictEqual(source.threadedCommentMentions, 1, 'precondition: one mention');
+        assert.strictEqual(
+          source.threadedCommentMentionPersonIds.length,
+          1,
+          'precondition: the mention names a person',
+        );
+        assert.strictEqual(
+          rewritten.threadedCommentMentions,
+          source.threadedCommentMentions,
+          'the mention is not dropped, so who was asked is not lost',
+        );
+        assert.deepStrictEqual(
+          rewritten.threadedCommentMentionPersonIds,
+          source.threadedCommentMentionPersonIds,
+          'the mention still points at the same person, so it is not re-pointed or orphaned',
+        );
+      },
+    },
+    {
+      name: 'the mention keeps the text span it highlights, so it stays over the mentioned name',
+      baseline: 'pass',
+      async expect(api: CorpusApi, assert: Assert) {
+        const {source, rewritten} = await api.roundtripFixturePackageParts(MENTION_IN_THREAD);
+        // `@Grace Hopper` is 13 characters at offset 0 — Excel renders the chip over exactly this span,
+        // so the pair is asserted literally rather than only compared before/after.
+        assert.deepStrictEqual(source.threadedCommentMentionSpans, ['0:13'], 'precondition: span');
+        assert.deepStrictEqual(
+          rewritten.threadedCommentMentionSpans,
+          source.threadedCommentMentionSpans,
+          'startIndex and length are unchanged, so the chip does not slide onto the wrong words',
+        );
+      },
+    },
+    {
+      name: 'the separate PeoplePicker person entry a mention resolves through survives',
+      baseline: 'pass',
+      async expect(api: CorpusApi, assert: Assert) {
+        const {source, rewritten} = await api.roundtripFixturePackageParts(MENTION_IN_THREAD);
+        assert.strictEqual(
+          source.personEntries,
+          3,
+          'precondition: two authors plus the mentioned identity Excel interned separately',
+        );
+        assert.deepStrictEqual(
+          source.personProviderIds,
+          ['AD', 'PeoplePicker'],
+          'precondition: the mentioned identity is registered by a different provider than the authors',
+        );
+        assert.strictEqual(
+          rewritten.personEntries,
+          source.personEntries,
+          'all three entries survive — the mentioned identity is not merged into its author twin',
+        );
+        assert.deepStrictEqual(
+          rewritten.personProviderIds,
+          source.personProviderIds,
+          'each entry keeps its providerId, so the mention still resolves through the right one',
         );
       },
     },
