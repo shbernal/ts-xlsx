@@ -390,3 +390,41 @@ test('an empty part parses as no messages and no authors', () => {
   assert.deepStrictEqual(parseThreadedComments('<ThreadedComments/>'), []);
   assert.deepStrictEqual(parsePersons('<personList></personList>'), []);
 });
+
+test('a thread anchor is canonicalised, so an absolute reference names the same cell as a relative one', () => {
+  // Excel writes a plain `B2`, but a foreign generator may anchor with `$` signs. Canonicalising in the
+  // builder is what lets every later consumer compare anchors as plain strings — and what lets the
+  // writer place the thread's legacy fallback without re-parsing the reference.
+  const threads = buildCommentThreads(
+    parseThreadedComments(
+      '<ThreadedComments><threadedComment ref="$B$2" id="{A}"><text>absolute</text>' +
+        '</threadedComment></ThreadedComments>',
+    ),
+    NO_PERSONS,
+  );
+  assert.deepStrictEqual(
+    threads.map((thread) => thread.ref),
+    ['B2'],
+  );
+});
+
+test('a thread whose anchor names no single cell is dropped rather than left unanchorable', () => {
+  // A range, a bare column, a bare row, and outright garbage: none of them anchors a conversation, and
+  // carrying one would hand the writer a reference it cannot place a fallback comment on.
+  const threads = buildCommentThreads(
+    parseThreadedComments(
+      '<ThreadedComments>' +
+        '<threadedComment ref="A1:B2" id="{A}"><text>range</text></threadedComment>' +
+        '<threadedComment ref="C" id="{B}"><text>column</text></threadedComment>' +
+        '<threadedComment ref="7" id="{C}"><text>row</text></threadedComment>' +
+        '<threadedComment ref="not a ref" id="{D}"><text>garbage</text></threadedComment>' +
+        '<threadedComment ref="D4" id="{E}"><text>kept</text></threadedComment>' +
+        '</ThreadedComments>',
+    ),
+    NO_PERSONS,
+  );
+  assert.deepStrictEqual(
+    threads.map((thread) => thread.ref),
+    ['D4'],
+  );
+});

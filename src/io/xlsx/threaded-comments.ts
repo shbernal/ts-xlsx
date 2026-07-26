@@ -20,6 +20,7 @@
 // author and mention against the workbook's person registry. That grouping is deliberately not the
 // parsers' job: they stay faithful to the part, one function per wire form.
 
+import {type CellAddress, decodeAddress} from '../../core/address.ts';
 import type {Comment, CommentThread, Mention, Person} from '../../core/comment-thread.ts';
 import {boolStrict, localName, parseXml, type XmlAttributes} from './xml-read.ts';
 
@@ -230,12 +231,28 @@ export function buildCommentThreads(
       siblings.push(comment);
       continue;
     }
+    const ref = anchorRef(message.ref);
+    if (ref === undefined) continue;
     const comments = [comment];
     commentsByHeadId.set(message.id, comments);
     // Resolved is the head's flag: a reply never carries `done`, so it never contradicts its thread.
-    threads.push({ref: message.ref, resolved: message.done, comments});
+    threads.push({ref, resolved: message.done, comments});
   }
   return threads;
+}
+
+// The canonical A1 form of a thread's anchor, or undefined when the file wrote something that cannot
+// anchor one — a range, a bare row or column, or outright garbage. Canonicalising here is what lets
+// every later consumer compare anchors as plain strings (`$B$2` and `B2` are one cell) and keeps a
+// foreign file's malformed reference out of the writer, which anchors the thread's legacy fallback by it.
+function anchorRef(reference: string): string | undefined {
+  let decoded: CellAddress;
+  try {
+    decoded = decodeAddress(reference);
+  } catch {
+    return undefined;
+  }
+  return decoded.col === undefined || decoded.row === undefined ? undefined : decoded.address;
 }
 
 function commentFrom(

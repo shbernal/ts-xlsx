@@ -20,6 +20,19 @@ export const RELATIONSHIPS_NS =
 /** The `xmlns` of every `.rels` package relationships part. */
 export const PKG_RELS_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
 
+/**
+ * Markup-compatibility namespace (`mc:`), whose `mc:Ignorable` attribute lists the prefixes a
+ * consumer that does not know them may skip rather than reject the part over.
+ */
+export const MARKUP_COMPATIBILITY_NS =
+  'http://schemas.openxmlformats.org/markup-compatibility/2006';
+
+/**
+ * The 2014 revision namespace (`xr:`), which scopes the `xr:uid` Excel stamps on a comment. Declared
+ * `mc:Ignorable` wherever it appears, so a consumer that ignores it still reads the part.
+ */
+export const REVISION_NS = 'http://schemas.microsoft.com/office/spreadsheetml/2014/revision';
+
 /** DrawingML shared graphics namespace (`a:`). */
 export const DRAWINGML_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
 

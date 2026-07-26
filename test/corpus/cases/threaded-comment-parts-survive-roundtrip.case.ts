@@ -9,12 +9,12 @@
 // authors vanished from a fill-and-save workflow. Until the full thread model exists, these unmodeled
 // parts must survive a round-trip.
 //
-// NOTE: this is the interim safety net only, and preserving the parts is necessary but NOT sufficient —
-// see the known-open behavior at the end. Excel also writes a legacy fallback `<comment>` (the
-// "[Threaded comment] Your version of Excel..." boilerplate) into `comments{n}.xml`, which today still
-// surfaces as a garbage `cell.note`; re-serialising it as a plain note destroys the `tc=`/`xr:uid`
-// binding, so Excel itself no longer recognises the preserved threads. Both halves — suppressing the
-// fallback on read and owning it on write — belong to the read-model phase, not here.
+// Preserving the parts turned out to be necessary but not sufficient, which is what the last three
+// behaviors are about. Excel also writes a legacy fallback `<comment>` (the "[Threaded comment] Your
+// version of Excel..." boilerplate) into `comments{n}.xml`, and it binds a cell to its thread through
+// that comment's synthetic `tc={headId}` author and `xr:uid` — so re-serialising the fallback as an
+// ordinary note left every preserved thread orphaned and invisible in the app. The fallback is therefore
+// owned: suppressed on read, and rebuilt from the thread model on write.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -191,18 +191,18 @@ export default {
       },
     },
     {
-      // KNOWN-OPEN, and the reason preserving the parts is necessary but not yet sufficient: verified
-      // against desktop Excel (2026-07-26) on this fixture's round-tripped output. Excel read back ZERO
-      // threaded comments and three ordinary notes, even though threadedComment1.xml, person.xml, both
-      // relationships and both content-type overrides all survived intact and the package validates
-      // clean against OpenXmlValidator. The break is in `comments{n}.xml`, which is re-serialised from
-      // the note model: the `<authors>` list collapses to one empty `<author/>` (the synthetic
-      // `tc={headId}` entries are gone) and every `<comment>` loses its `xr:uid`. Those are exactly the
-      // two things Excel matches on, so the thread part is orphaned and the conversation is invisible in
-      // the app. Flipping this behavior green is the read model's job (it must own the fallback rather
-      // than round-tripping it as a plain note); until then the bytes survive for us but not for Excel.
+      // The behavior that makes preservation mean something *in Excel*, and the one this case was long
+      // open on. Verified against desktop Excel: before this, our round-tripped output was read back as
+      // ZERO threaded comments and three ordinary notes — even though threadedComment1.xml, person.xml,
+      // both relationships and both content-type overrides all survived intact and the package validated
+      // clean. The break was in `comments{n}.xml`, re-serialised from the note model: the `<authors>`
+      // list collapsed to one empty `<author/>` (losing the synthetic `tc={headId}` entries) and every
+      // `<comment>` lost its `xr:uid`. Excel matches a cell to its thread on exactly those two, so the
+      // thread part was orphaned and the conversation invisible in the app. Re-verified after the fix on
+      // this fixture's own round-tripped output: two threaded comments, B1 resolved with its reply, B2
+      // open, and D4 still an ordinary note.
       name: 'the fallback comments keep the tc= authors and xr:uids that bind them to their threads',
-      baseline: 'fail',
+      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(RESOLVED_MULTI_AUTHOR);
         assert.strictEqual(
@@ -216,9 +216,50 @@ export default {
           'each thread head keeps its tc= fallback author, so Excel still sees the cell as threaded',
         );
         assert.deepStrictEqual(
-          rewritten.commentUids,
-          source.commentUids,
+          rewritten.commentFallbackUids,
+          source.commentFallbackUids,
           'each fallback comment keeps the xr:uid that points at its thread head',
+        );
+      },
+    },
+    {
+      name: 'the text a pre-2018 reader sees for a conversation is regenerated word for word',
+      baseline: 'pass',
+      async expect(api: CorpusApi, assert: Assert) {
+        // The fallback is not carried through — it is rebuilt from the thread model — so matching Excel
+        // is a claim about our own wording and reply layout, not about copying bytes. Excel folds a whole
+        // conversation into one comment: fixed boilerplate, `Comment:` and the opening message, then a
+        // repeated `Reply:` per reply, each body indented four spaces. Compared after the line-end
+        // normalisation every XML reader performs, since Excel writes CRLF where we write LF and no
+        // consumer can tell the two apart.
+        const {source, rewritten} = await api.roundtripFixturePackageParts(RESOLVED_MULTI_AUTHOR);
+        assert.strictEqual(source.commentFallbackTexts.length, 2, 'precondition: two fallbacks');
+        assert.match(
+          source.commentFallbackTexts[0],
+          /^\[Threaded comment\]\n\nYour version of Excel/,
+          'precondition: the boilerplate Excel actually writes',
+        );
+        assert.deepStrictEqual(
+          rewritten.commentFallbackTexts,
+          source.commentFallbackTexts,
+          'every fallback reads back identically, replies and indentation included',
+        );
+      },
+    },
+    {
+      name: 'a conversation does not multiply into extra comments, and every comment keeps its shape',
+      baseline: 'pass',
+      async expect(api: CorpusApi, assert: Assert) {
+        // Two threads plus one genuine note is three comments and three VML shapes. Re-emitting the
+        // fallback as well as a note per threaded cell would inflate both counts, and a comment without
+        // its shape reads as text but renders nothing at all.
+        const {source, rewritten} = await api.roundtripFixturePackageParts(RESOLVED_MULTI_AUTHOR);
+        assert.strictEqual(source.commentEntries, 3, 'precondition: two fallbacks and one note');
+        assert.strictEqual(rewritten.commentEntries, source.commentEntries);
+        assert.strictEqual(
+          rewritten.commentVmlShapes,
+          rewritten.commentEntries,
+          'one VML shape per comment, so each still has a box to render into',
         );
       },
     },

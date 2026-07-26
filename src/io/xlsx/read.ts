@@ -28,7 +28,7 @@ import {
   type WorkbookProtectionCredentialAttr,
 } from '../../core/workbook-protection.ts';
 import type {Worksheet, WorksheetState} from '../../core/worksheet.ts';
-import {applyNotes, parseComments} from './comments.ts';
+import {applyNotes, type ParsedComment, parseComments} from './comments.ts';
 import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
 import {
   applyDataValidations,
@@ -147,10 +147,12 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
         ]);
         for (const cf of parseConditionalFormattings(sheetXml)) sheet.addConditionalFormatting(cf);
       }
-      const notes = readSheetNotes(path, pkg);
-      if (notes !== undefined) applyNotes(sheet, notes);
+      // Threads before notes: a threaded cell's comments-part entry is the thread's legacy fallback, not
+      // a note, and `applyNotes` reads the sheet's restored threads to tell the two apart.
       const threads = readSheetCommentThreads(path, pkg, workbook);
       if (threads.length > 0) sheet.restoreCommentThreads(threads);
+      const comments = readSheetComments(path, pkg);
+      if (comments !== undefined) applyNotes(sheet, comments);
       readSheetImages(path, pkg, workbook, sheet, imageIdByMediaPath);
       readSheetBackground(path, pkg, workbook, sheet, imageIdByMediaPath);
       if (sheetXml !== undefined) {
@@ -174,10 +176,13 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   return workbook;
 }
 
-// A sheet's notes live in a comments part reached through the sheet's own relationships: the sheet
+// A sheet's comments live in a comments part reached through the sheet's own relationships: the sheet
 // declares a relationship of type `.../comments` whose target resolves (relative to the sheet's
 // directory) to the comments part. A sheet with no rels part or no such relationship simply has none.
-function readSheetNotes(sheetPath: string, pkg: PackageAccessors): Map<string, string> | undefined {
+function readSheetComments(
+  sheetPath: string,
+  pkg: PackageAccessors,
+): Map<string, ParsedComment> | undefined {
   const commentsPath = sheetRelTarget(sheetPath, pkg.partText, 'comments');
   if (commentsPath === undefined) return undefined;
   const commentsXml = pkg.partText(commentsPath);
@@ -205,9 +210,11 @@ function readWorkbookPersons(
 // different features that happen to share a sheet. The messages are grouped into threads and their
 // authors resolved against the workbook registry, so each thread lands self-contained.
 //
-// This is a read-only view. The parts still round-trip by byte-preservation (see
-// `isPreservedSheetRelType`), which remains their sole emission authority — so reading them into the
-// model cannot double-emit them, and cannot yet make Excel see a thread it currently misses.
+// The thread parts themselves still round-trip by byte-preservation (see `isPreservedSheetRelType`),
+// which remains their sole emission authority, so reading them into the model cannot double-emit them.
+// The model is nonetheless load-bearing on write: the legacy fallback `<comment>` that binds each cell to
+// its thread is regenerated from these threads (see `comments.ts`), which is what keeps Excel able to
+// find the conversation in a package we re-wrote.
 function readSheetCommentThreads(
   sheetPath: string,
   pkg: PackageAccessors,

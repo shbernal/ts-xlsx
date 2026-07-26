@@ -19,7 +19,7 @@ import {strToU8, zipSync} from 'fflate';
 import type {WorkbookImage} from '../../core/image.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {collectNotes, commentsXml, vmlDrawingXml} from './comments.ts';
+import {collectComments, commentsXml, vmlDrawingXml} from './comments.ts';
 import {collectHyperlinks, type HyperlinkPlan, planHyperlinks} from './hyperlinks.ts';
 import {drawingRelsXml, drawingXml} from './images.ts';
 import {
@@ -236,11 +236,24 @@ export function buildPackageParts(
       drawing = {number: ++drawingNumber, relId: rels.next(), images};
     }
 
-    const notes = collectNotes(sheet);
+    // A conversation's legacy fallback is only emitted beside the `threadedComment` part it shadows —
+    // and today that part reaches the package by byte-preservation, so the preserved references are what
+    // decide. Verified against desktop Excel: a `tc=` fallback whose thread part is absent shows as
+    // neither a thread nor a note, so a fallback without one would make the text vanish rather than
+    // degrade. When the writer serialises the thread parts from the model, this becomes that condition.
+    const carriesThreads = (preserved.perSheet[i] ?? []).some((reference) =>
+      reference.relType.endsWith('/threadedComment'),
+    );
+    const sheetComments = collectComments(sheet, carriesThreads ? sheet.commentThreads : []);
     const comments: CommentPlan | null =
-      notes.length === 0
+      sheetComments.length === 0
         ? null
-        : {number: i + 1, notes, vmlRelId: rels.next(), commentsRelId: rels.next()};
+        : {
+            number: i + 1,
+            comments: sheetComments,
+            vmlRelId: rels.next(),
+            commentsRelId: rels.next(),
+          };
 
     const printerData = sheet.pageSetup.printerSettings;
     const printerSettings: PrinterSettingsPlan | null =
@@ -443,9 +456,9 @@ function emitSheetParts(
       );
     }
     if (comments !== null) {
-      files[`xl/comments${comments.number}.xml`] = strToU8(commentsXml(comments.notes));
+      files[`xl/comments${comments.number}.xml`] = strToU8(commentsXml(comments.comments));
       files[`xl/drawings/vmlDrawing${comments.number}.vml`] = strToU8(
-        vmlDrawingXml(comments.notes),
+        vmlDrawingXml(comments.comments),
       );
     }
   });

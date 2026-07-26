@@ -521,6 +521,48 @@ const countIn = (parts: Record<string, string>, inParts: RegExp, pattern: RegExp
     .filter((p) => inParts.test(p))
     .reduce((n, p) => n + [...(parts[p] ?? '').matchAll(pattern)].length, 0);
 
+// A sheet's legacy notes as `{<ref>: <text>}`, in row-major order.
+const notesOf = (sheet: CorpusApi) => {
+  const notes: Record<string, string> = {};
+  for (const {cells} of sheet.rows()) {
+    for (const cell of cells) if (cell.note !== undefined) notes[cell.address] = cell.note;
+  }
+  return notes;
+};
+
+// Every legacy fallback `<comment>` a comments part carries, paired with the thread it binds to: the
+// comments whose `xr:uid` also appears as a `tc={guid}` author. Excel writes exactly one per threaded
+// conversation and fills it with the boilerplate a pre-2018 reader shows in place of the conversation,
+// so both the binding and that rendered text are observable facts. Sorted by uid, since order in the
+// part follows cell position and carries no meaning here.
+const threadFallbackComments = (parts: Record<string, string>) => {
+  const found: Array<{uid: string; text: string}> = [];
+  for (const name of Object.keys(parts).filter((p) => /comments\d+\.xml$/.test(p))) {
+    const xml = parts[name] ?? '';
+    const threadAuthors = new Set(
+      [...xml.matchAll(/<author>tc=([^<]*)<\/author>/g)].map((m) => m[1]),
+    );
+    for (const block of xml.matchAll(/<comment\b([^>]*)>([\s\S]*?)<\/comment>/g)) {
+      const uid = (/\bxr:uid="([^"]*)"/.exec(block[1] ?? '') ?? [])[1];
+      if (uid === undefined || !threadAuthors.has(uid)) continue;
+      const text = [...(block[2] ?? '').matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)]
+        .map((m) => m[1] ?? '')
+        .join('')
+        // `&amp;` last, so an escaped entity (`&amp;lt;`) decodes to the entity and not to `<`.
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        // Line-end normalisation, which XML 1.0 §2.11 requires of every processor before the
+        // application sees the text: a literal CRLF in element content IS a lone LF as far as any
+        // reader is concerned. Excel writes the boilerplate with CRLF, we write LF, and no consumer can
+        // tell — so doing it here keeps the comparison about wording instead of about line endings.
+        .replace(/\r\n?/g, '\n');
+      found.push({uid, text});
+    }
+  }
+  return found.sort((a, b) => a.uid.localeCompare(b.uid));
+};
+
 // Package-part facts a passthrough round-trip must preserve — the mirror of the oracle's
 // `packageFactsFromZip`: counts of part families the reader does not fully model (drawings, VML,
 // media, pivot tables/caches, comments) plus the worksheet/drawing reference flags that wire
@@ -617,11 +659,17 @@ const packagePartFacts = (parts: Record<string, string>) => {
       /comments\d+\.xml$/,
       /<author>tc=\{[^}]*\}<\/author>/g,
     ),
-    commentUids: names
-      .filter((p) => /comments\d+\.xml$/.test(p))
-      .flatMap((p) => [...(parts[p] ?? '').matchAll(/<comment\b[^>]*\bxr:uid="([^"]*)"/g)])
-      .map((m) => m[1])
-      .sort(),
+    commentFallbackUids: threadFallbackComments(parts).map((fallback) => fallback.uid),
+    // The text a pre-2018 reader renders for a thread: fixed boilerplate, then the opening message and
+    // each reply. It is regenerated from the thread model rather than carried through, so comparing it
+    // is what proves the regeneration matches Excel's own wording and reply layout instead of merely
+    // producing something.
+    commentFallbackTexts: threadFallbackComments(parts).map((fallback) => fallback.text),
+    // Every `<comment>` of the comments part, and every VML shape backing one. A comment with no shape
+    // reads as text but renders nothing, so the two counts must agree — and a thread's fallback must
+    // not turn into a *second* comment beside a note on the same cell.
+    commentEntries: countIn(parts, /comments\d+\.xml$/, /<comment\b/g),
+    commentVmlShapes: countIn(parts, /vmlDrawing\d+\.vml$/, /<v:shape\b/g),
     externalLinks: names.filter((p) => /xl\/externalLinks\/externalLink\d+\.xml$/.test(p)).length,
     // The `<externalReference>` registrations in workbook.xml — one per `[n]` a formula resolves an
     // external cell through. Reported as a count (the rel ids are renumbered on write, the ordering and
@@ -3745,6 +3793,10 @@ const impl = {
         at: Object.fromEntries(
           (refs as string[]).map((ref) => [ref, sheet.commentThreadAt(ref)?.ref ?? null]),
         ),
+        // Every legacy note the sheet reads back as `{<ref>: <text>}`. Reported alongside the threads
+        // because the interesting fact is what is NOT here: Excel writes a boilerplate fallback comment
+        // beside every thread, and surfacing that as a note would hand the caller garbage.
+        notes: notesOf(sheet),
       })),
     };
   },

@@ -9,11 +9,10 @@
 // So this locks the reconstruction: threads with their replies in place, authors and @mentions resolved
 // to real identities, and the resolved state read from where it is actually written.
 //
-// NOTE: this is the READ model. The threads still round-trip by byte-preservation (see
-// `threaded-comment-parts-survive-roundtrip`), which stays their sole emission authority, so nothing
-// here changes what is written — including the fact that Excel still cannot see the threads in our
-// output, and that the "[Threaded comment] Your version of Excel..." fallback still surfaces as a
-// garbage `cell.note` on a threaded cell. Both belong to the write half.
+// The reader also has to tell a conversation apart from a note. Excel writes a legacy fallback
+// `<comment>` beside every thread — fixed boilerplate wrapping a copy of the conversation — so a reader
+// that takes the comments part at face value reports a garbage note on every threaded cell. What that
+// fallback becomes on the way back out is asserted by `threaded-comment-parts-survive-roundtrip`.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -190,6 +189,30 @@ export default {
         // conflated the two features would answer this question wrong in both directions.
         const {sheets} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR, ['B1', 'D4', 'A5']);
         assert.deepStrictEqual(sheets[0].at, {B1: 'B1', D4: null, A5: null});
+      },
+    },
+    {
+      name: 'a threaded cell reads back with no note, and the genuine note beside it is untouched',
+      baseline: 'pass',
+      expect(api: CorpusApi, assert: Assert) {
+        // Excel writes a legacy fallback `<comment>` beside every thread so a pre-2018 reader sees
+        // something: boilerplate ("[Threaded comment] Your version of Excel allows you to read...")
+        // wrapping a copy of the conversation. It is not an annotation anybody wrote, so it must not
+        // surface as one — a caller iterating notes would otherwise get that paragraph on B1 and B2
+        // while the real conversation sat elsewhere. D4's note is a real one and stays.
+        const {sheets} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR);
+        assert.deepStrictEqual(sheets[0].notes, {D4: 'A genuine legacy note.'});
+      },
+    },
+    {
+      name: 'a sheet whose only comments are conversations reads back with no notes at all',
+      baseline: 'pass',
+      expect(api: CorpusApi, assert: Assert) {
+        // Every comment in this fixture is a thread fallback, so nothing at all survives as a note.
+        // The pair matters: suppressing per *cell* satisfies both, while suppressing the whole part
+        // whenever a sheet has threads satisfies this one and loses D4 above.
+        const {sheets} = api.readFixtureCommentThreads(SAMPLE);
+        assert.deepStrictEqual(sheets[0].notes, {});
       },
     },
   ],

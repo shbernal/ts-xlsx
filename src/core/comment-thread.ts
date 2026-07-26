@@ -79,7 +79,11 @@ export interface Comment {
 
 /** A conversation anchored to one cell: what was asked, every reply, and whether it was resolved. */
 export interface CommentThread {
-  /** A1 reference of the cell the conversation hangs off. */
+  /**
+   * A1 reference of the single cell the conversation hangs off, canonicalised — no `$` anchors, always
+   * a column and a row — so two anchors compare as plain strings and a writer can resolve it without
+   * re-validating it.
+   */
   readonly ref: string;
   /**
    * Whether the conversation was marked resolved. A property of the *thread*: only the head carries

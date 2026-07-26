@@ -6,7 +6,7 @@ import type {PivotTable} from '../../core/pivot-table.ts';
 import type {Table} from '../../core/table.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import type {NoteCell} from './comments.ts';
+import type {CommentCell} from './comments.ts';
 import type {DrawingImage} from './images.ts';
 import {extensionOf, relativePartPath, relsPathForPart} from './part-paths.ts';
 import {preservedRelsXml} from './relationships.ts';
@@ -38,11 +38,12 @@ export interface PivotPlan {
   workbookRelId: string;
 }
 
-// A sheet's notes paired with the part number and sheet-local relationship ids that link the sheet
-// to its comments part (by type) and its VML drawing (by the `<legacyDrawing>` element).
+// A sheet's comments — its cells' notes and one legacy fallback per threaded conversation — paired with
+// the part number and sheet-local relationship ids that link the sheet to its comments part (by type)
+// and its VML drawing (by the `<legacyDrawing>` element).
 export interface CommentPlan {
   readonly number: number;
-  readonly notes: readonly NoteCell[];
+  readonly comments: readonly CommentCell[];
   readonly vmlRelId: string;
   readonly commentsRelId: string;
 }
