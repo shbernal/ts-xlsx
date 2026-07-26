@@ -50,7 +50,7 @@ assertion signatures reject contextually-typed call targets (TS2775).
 
 ### The adapter binds to `src` — the real prize
 
-`test/corpus/adapters/rewrite.ts` loads `src` modules through a generic
+The `rewrite` adapter (today `test/corpus/adapters/rewrite/runtime.ts`) loads `src` modules through a generic
 `loadModule<T>()` typed by `typeof import('../../../src/…')`, so the adapter is now
 type-checked against the source API: a signature change in `src` becomes a compile
 error in the corpus. The dist retarget (`CORPUS_TARGET=dist`) still works — dist

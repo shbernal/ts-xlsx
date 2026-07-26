@@ -19,6 +19,12 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 *still exits non-zero* if any diagnostic survives, so a green `lint:fix` already is the proof.
 Re-running `lint` after it only re-checks a tree you have been told is clean.
 
+**Run one corpus case, not 265, while you iterate.** `node test/corpus/run.ts --case
+<id-or-cluster-glob>` is well under a second against ~13 s for the whole corpus, and prints the
+case in full. `--json` gives one machine-readable report object. The summary line reaches stdout
+in *every* mode — never pipe a run through `grep` to find a case, and never run the corpus twice
+to get both the detail and the tally.
+
 **Cost is not the only axis — authority is (ADR 0012).** These layers witness three
 different things, and a lower one cannot stand in for a higher one:
 
@@ -42,12 +48,13 @@ lists the open ones.
 
 **To run the whole net at once, use `node scripts/verify.ts`** — every gate above plus
 `docs:check` and `constitution:check`, run concurrently, reported as one table with
-per-gate timing (~20 s wall against ~30 s of serial work). Prefer it over assembling the
+per-gate timing (~14 s wall against ~27 s of serial work). Prefer it over assembling the
 chain by hand, which is how `docs:check` and `constitution:check` get silently dropped.
 `--quick` is the inner loop: types, unit tests, and lint scoped to your changed files, no
-corpus (~10 s) — faster, but **not** a substitute for the full run. Invoke it with `node`,
-not `pnpm run`, to skip ~0.84 s of package-manager wrapper. `pnpm test` and lefthook's
-`pre-push` hook are both the full run.
+corpus (~5 s) — faster, but **not** a substitute for the full run. Invoke it with `node`,
+not `pnpm run`, to skip ~1 s of package-manager wrapper. `pnpm test` and lefthook's
+`pre-push` hook are both the full run. Why it is shaped this way — the pool width, the
+cache key, the incremental-`tsc` traps — is [ADR 0022](./decisions/0022-verification-is-one-cached-parallel-entrypoint.md).
 
 The **Stop hook** runs `verify --full --cached` at each turn boundary, so you cannot end a
 turn green while regressing the spine. `--cached` exits immediately when the working tree
@@ -56,6 +63,11 @@ skipped, because the key is the HEAD commit plus the full diff and every untrack
 turn that changed nothing verifiable costs ~0.3 s; one that changed anything pays the real
 ~13 s. The OOXML oracle is **not** in the hook (it needs .NET and is slower); invoke it
 yourself — see below.
+
+**Write scratch to `.tmp/`** — probes, dumps, generated workbooks, anything regenerable
+(`$SCRATCH` and `$TMPDIR` both point there; CLAUDE.md makes it the rule). It is git-ignored,
+so probing leaves `git status` clean *and* costs nothing at the turn boundary: an untracked
+file anywhere else is part of the cache key and buys you a full re-verify.
 
 ## Situation → check
 

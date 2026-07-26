@@ -1,0 +1,115 @@
+# ADR 0022 — Verification is one cached, parallel entrypoint
+
+**Status:** Accepted (2026-07-27) · implements the dispatch table of [ADR 0010](./0010-agent-correctness-dispatch.md) over the toolchain of [ADR 0002](./0002-toolchain-standup.md)
+
+## Context
+
+The gate set is cheap per gate and expensive per session. Nothing named "the gates" —
+agents assembled the chain by hand each time, spelled it differently each time, and
+sometimes dropped `docs:check` or `constitution:check` from it; the turn-boundary hook
+then re-ran a subset of the same work seconds later. Measured over one long session,
+verification took roughly half of all shell wall time to produce fewer than a dozen
+genuine checkpoints.
+
+The fix is not weaker gates. It is one name for the gate set, run concurrently, and
+never re-run against a tree already proven green.
+
+## Decision
+
+### One entrypoint, two depths
+
+`scripts/verify.ts` owns the gate set. `--full` **is** the definition — `pnpm test`,
+lefthook's `pre-push`, and the Stop hook are all that same command, so they cannot
+disagree. `--quick` (types, unit tests, lint scoped to changed files) is the inner loop
+and is explicitly **not** a substitute: it has no corpus. The granular `package.json`
+scripts stay, because CI wants one annotation per gate.
+
+Gates are spawned from `node_modules/.bin` directly. `pnpm run <script>` costs ~1 s of
+pure wrapper per invocation, which is why the docs tell agents to call `node
+scripts/verify.ts` rather than `pnpm run verify`.
+
+### Concurrency is bounded at two, and that is not core starvation
+
+The gates are not single-core jobs: `node --test` forks a process per test file and
+Biome saturates every core. Running all of them at once inflated each gate about 2× and
+produced a *worse* wall than two at a time. Measured on a 14-core box: jobs=1 29.8 s,
+jobs=2 20.7 s, jobs=3 19.6 s, jobs=7 19.2 s (±25 % run to run) — everything past two is
+inside the noise. Two `tsc` runs racing cost 1.87 s against 1.57 s alone, so the
+contention is filesystem and scheduler, not CPU count. `--jobs` overrides for anyone who
+wants to re-measure on different hardware; do not replace the constant with a
+core-count heuristic without doing so.
+
+The two typecheck configs are **one gate with two sequential steps**, not two gates:
+they both re-read all of `src/` and were the worst-contending pair.
+
+### Incremental typecheck, but not `composite`
+
+Both configs set `incremental` with buildinfo under `node_modules/.cache/` (halves a warm
+`tsc`). `composite` + `references` — which would let the harness project consume src's
+declarations instead of re-elaborating them — **is not available here**: a referenced
+project may not disable emit (`TS6310`), and these configs exist to gate a tree that is
+never built ([ADR 0001](./0001-rewrite-runtime-and-toolchain.md)). Do not revisit without
+also giving up the build-free dev path.
+
+Two traps this laid, both now pinned by comments at the site:
+
+- `tsconfig.build.json` extends the gate config and so inherited `incremental`. Buildinfo
+  lives outside `dist/`, so after `clean` tsc concluded the unchanged sources needed no
+  emit — and said nothing: **158 files, then 0 files, exit 0 both times.** It pins
+  `incremental: false`.
+- A diagnostic *replayed* from buildinfo exits `1`; a fresh elaboration exits `2`.
+  Everything here tests for non-zero. Anything that keys on `2` would break.
+
+### Lint is scoped by explicit file list, and needs no confirming pass
+
+`--quick` passes Biome the changed files (`git diff`, `--cached`, untracked), filtered to
+the lint roots: ~0.5 s against ~6.5 s whole-tree, falling back to the whole tree past 100
+files. **`biome check --changed --since` is not the way** — measured at 5.3 s, the git
+walk eats the saving. And `biome check --write` still exits non-zero when a diagnostic
+survives, so a green `lint:fix` is already the proof and the confirming `lint` run is
+waste.
+
+### A cache hit is a proof, not a skip
+
+`--cached` records a stamp under `.tmp/` keyed by the HEAD sha, the full `git diff HEAD
+--binary`, and the path and content of every untracked file. Same key means the gates
+would be handed the same bytes, so their verdict is already known — this is why the Stop
+hook can be fast without becoming advisory.
+
+The key is content-derived with **no path allow-list**: an unrelated edit costs one extra
+run, which is the safe direction to be wrong in. A failing run records nothing, so a
+regression cannot be cached green.
+
+The hook runs `--full --cached`, not `--quick`. Pointing it at `--quick` would drop the
+corpus and with it the "cannot end a turn green while regressing the spine" property the
+playbook advertises — the hook must get its speed from the cache, never from a smaller
+gate set. It now checks *more* than the hand-rolled chain it replaced (six gates instead
+of three, and it fires on any dirty path rather than only `src/`) at less wall time.
+
+Deliberately outside the cache: lefthook's `pre-push`, which runs once per push and is the
+last check before code leaves the machine. Not covered by the key: a `node_modules` change
+with no lockfile change.
+
+### The OOXML validator builds on demand and is then invoked as an assembly
+
+`dotnet run --project` re-evaluates the project on every call — ~2–6 s for a tool whose
+actual work is under a second. `scripts/ooxml-validator.ts` compares the DLL's mtime
+against the newest source beside the project, builds only if stale, and otherwise hands
+`dotnet` the assembly path. `resolveValidator()` is exported so the baseline harness
+resolves the same assembly rather than keeping a second copy of the staleness rule.
+
+The locked restore is folded in as `-p:RestoreLockedMode=true` on that build, which is
+sound only because `packages.lock.json` is itself a staleness input. When it fails it
+fails loudly: **MSBuild reports its errors on stdout**, which this process reserves for
+report JSON, so build stdout is captured and replayed to stderr rather than discarded.
+
+## Consequences
+
+- **Positive:** one name for the gate set, so the hook, the hook's human, CI's intent and
+  lefthook cannot drift apart. A clean-tree `--full` is ~14 s against ~27 s of serial
+  work; a turn that changed nothing verifiable costs ~0.3 s.
+- **Known second definition:** `.github/workflows/corpus.yml` still enumerates the gates
+  itself, deliberately, to get one annotation per gate. Nothing enforces that it agrees
+  with `verify --full`; `verify --list` makes a drift check trivial if it ever bites.
+- **Revisit `composite` when** the dev/test loop stops being build-free — not before, and
+  not without reproducing `TS6310` first.

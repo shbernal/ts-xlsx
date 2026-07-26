@@ -13,6 +13,7 @@ test/corpus/
   case.ts              the shared Case/Behavior/CorpusApi types every case imports
   cases/*.case.ts      one harvested behavior cluster, implementation-blind
   adapters/<name>.ts   binds the contract vocabulary to a concrete implementation
+  adapters/<name>/     its capability modules, one per concern, assembled by the above
   run.ts               discovers cases, runs them against an adapter, reports red/green
 ```
 
@@ -253,6 +254,13 @@ Add capabilities only as cases demand them, and add them to **every** adapter.
   the reference implementation. Node 24 runs the `.ts` sources directly
   (type-stripping), so the adapter imports them with no build step; the adapter is
   itself type-checked against `src` by `pnpm run typecheck:test` (see ADR 0011).
+
+`rewrite.ts` is the assembly point, not the implementation: the capabilities live in
+`adapters/rewrite/`, one module per concern (comments, styles, streaming, …), spread into
+one object behind the same default export. Add a capability to the module that owns its
+concern; nothing closes over anything, so a capability can move between modules without any
+case noticing. `runtime.ts` is the single place the implementation under test is loaded —
+that is what makes the `CORPUS_TARGET` switch one decision rather than fourteen.
 
 Run it: `node test/corpus/run.ts` (default `rewrite`, wired as `pnpm run corpus`).
 

@@ -34,3 +34,12 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   the `_VBA_PROJECT` stream — that reset crashed the VBA load on a project with real p-code. They now
   leave it byte-for-byte untouched; the `dir` stream carries the structural change. These edits are
   retained precisely because they never touch a module's compiled p-code.
+
+- **Contributor tooling: the gate set has one name.** `node scripts/verify.ts` runs every gate
+  concurrently and is what `pnpm test`, lefthook's `pre-push` and the turn-boundary hook all
+  invoke; `--quick` is the inner loop and `--cached` exits immediately when the working tree is
+  byte-for-byte the one that last passed. The corpus runner gained `--case`/`--json` and now
+  prints only what needs attention (`--verbose` for the old listing), and the OOXML validator
+  builds on demand instead of paying `dotnet run`'s project re-evaluation per call. Nothing in
+  the published package changes. See
+  [ADR 0022](docs/decisions/0022-verification-is-one-cached-parallel-entrypoint.md).
