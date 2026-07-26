@@ -535,6 +535,12 @@ const packagePartFacts = (parts: Record<string, string>) => {
     pivotCache: names.filter((p) => /pivotCache\/.+\.xml$/.test(p)).length,
     slicers: names.filter((p) => /slicer/i.test(p)).length,
     comments: names.filter((p) => /comments\d+\.xml$/.test(p)).length,
+    // Modern threaded comments (2018): the per-sheet thread parts and the workbook-level author
+    // registry (`xl/persons/person.xml`). Unmodeled today, so a passthrough round-trip must preserve
+    // both or the conversation and its authors are dropped.
+    threadedComments: names.filter((p) => /threadedComments\/threadedComment\d+\.xml$/.test(p))
+      .length,
+    persons: names.filter((p) => /xl\/persons\/person\d*\.xml$/.test(p)).length,
     externalLinks: names.filter((p) => /xl\/externalLinks\/externalLink\d+\.xml$/.test(p)).length,
     // The `<externalReference>` registrations in workbook.xml — one per `[n]` a formula resolves an
     // external cell through. Reported as a count (the rel ids are renumbered on write, the ordering and

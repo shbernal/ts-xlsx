@@ -311,11 +311,16 @@ function readSheetPreservedReferences(
   }
 }
 
-// A sheet relationship the model does not consume but must round-trip: a pivot table or a slicer.
-// The other sheet rel kinds (drawing, printerSettings, table, comments, hyperlinks, background image,
-// the comment VML) are modeled and re-serialised from the model, so they are not preserved here.
+// A sheet relationship the model does not consume but must round-trip: a pivot table, a slicer, or a
+// modern threaded-comment part (`xl/threadedComments/threadedComment{n}.xml`, the 2018 review-style
+// conversations). The other sheet rel kinds (drawing, printerSettings, table, comments, hyperlinks,
+// background image, the comment VML) are modeled and re-serialised from the model, so they are not
+// preserved here. Preserving threadedComment keeps a load→save from silently dropping the conversation;
+// it is the interim safety net until the thread model lands and re-serialises these from the model.
 function isPreservedSheetRelType(type: string): boolean {
-  return type.endsWith('/pivotTable') || type.endsWith('/slicer');
+  return (
+    type.endsWith('/pivotTable') || type.endsWith('/slicer') || type.endsWith('/threadedComment')
+  );
 }
 
 // Capture the workbook-level references to package content the model does not interpret — pivot
@@ -387,18 +392,23 @@ function isRegeneratedRootRelType(type: string): boolean {
 
 // A workbook relationship the model does not consume but must round-trip: a pivot cache, a slicer
 // cache, an external link (the pointer to a linked source workbook), or a macro-enabled workbook's VBA
-// project. Worksheets, styles, theme, and shared strings are modeled and re-serialised from the model.
-// Preserving vbaProject here — rather than silently dropping it, as an unrecognised relationship type
-// otherwise would — is what keeps loading and re-saving a .xlsm from discarding its macros; the
-// content-type override in workbook-xml.ts is the other half, so the re-emitted package still declares
-// itself macro-enabled. Preserving externalLink is what keeps a formula's `[n]` external reference from
-// dangling: the link part and its `<externalReferences>` registration are both re-emitted.
+// project, or the modern threaded-comment person registry (`xl/persons/person.xml`, the authors a
+// threadedComment part's `personId` resolves through). Worksheets, styles, theme, and shared strings are
+// modeled and re-serialised from the model. Preserving vbaProject here — rather than silently dropping
+// it, as an unrecognised relationship type otherwise would — is what keeps loading and re-saving a .xlsm
+// from discarding its macros; the content-type override in workbook-xml.ts is the other half, so the
+// re-emitted package still declares itself macro-enabled. Preserving externalLink is what keeps a
+// formula's `[n]` external reference from dangling: the link part and its `<externalReferences>`
+// registration are both re-emitted. Preserving person keeps a load→save from orphaning every threaded
+// comment's author; it pairs with the sheet-level threadedComment preservation and, like it, is the
+// interim safety net until the thread model re-serialises persons from the model.
 function isPreservedWorkbookRelType(type: string): boolean {
   return (
     type.endsWith('/pivotCacheDefinition') ||
     type.endsWith('/slicerCache') ||
     type.endsWith('/vbaProject') ||
-    type.endsWith('/externalLink')
+    type.endsWith('/externalLink') ||
+    type.endsWith('/person')
   );
 }
 
