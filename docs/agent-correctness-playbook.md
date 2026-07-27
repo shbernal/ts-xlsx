@@ -86,6 +86,19 @@ schema/semantic oracle on a representative file — use the **`validate-ooxml` s
 which emits a workbook and runs `pnpm run validate:ooxml` for you. New behavior ships
 with a corpus case in the same change (use the **`write-corpus-case` skill**).
 
+**A generated file's *content* is right but its *layout* opens wrong** — a frozen header
+row unpainted until you click it, a missing outline bar, no sheet selected.
+Suspect an omitted **view-initialisation** fact before you suspect the data or the styles.
+Excel writes `<bookViews><workbookView/>`, `tabSelected="1"` on exactly one `<sheetView>`,
+and `outlineLevelCol`/`outlineLevelRow` on `<sheetFormatPr>` into every file it saves;
+consumers lay the pane geometry and the outline bars out against them, so omitting them
+leaves that layout uninitialised. Such a package is still schema-valid and still opens
+without a repair prompt — **neither the oracle nor `open-verdict.ps1` will flag it**. The
+writer emits all three unconditionally now (`DEFAULT_WORKBOOK_VIEW`, `src/core/workbook.ts`).
+The general move for this whole class: round-trip your output through Excel's own `SaveAs`
+over COM and diff the two packages. What Excel adds unprompted is what a consumer expects
+to find.
+
 **You added or changed a reader path (parsing foreign XML).**
 Treat all input as hostile (ADR-0004): no unbounded allocation, no entity expansion,
 inflation bounded by output counted, unrecognized tokens dropped — never cast with
