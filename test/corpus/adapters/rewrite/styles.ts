@@ -737,6 +737,89 @@ export const styles = {
     };
   },
 
+  // Register custom table styles on a workbook (optionally one read from a fixture), point a table at
+  // one of them, write, and report the cross-part wiring that has to hold → { definitions, elements,
+  // elementDxfs, nameOnTable, resolves, dxfCount, styleCount }. The claim a table style makes spans
+  // three parts — the table names a style, the styles part defines it, the dxf table backs each
+  // element — so the facts are reported *resolved* rather than as raw indices.
+  authorTableStyleReport({fixture = null, styles: authored = [], tableStyle = null}: CorpusApi) {
+    const workbook = fixture === null ? new Workbook() : readFixture(fixture);
+    if (fixture === null) {
+      // A two-column, two-data-row table with no cell-level formatting at all, so anything the
+      // written package says about its appearance can only have come from the style.
+      const sheet = workbook.addWorksheet('Data');
+      const rows = [
+        ['Port', 'Tonnage'],
+        ['Bilbao', 4120],
+        ['Gdansk', 3380],
+      ];
+      rows.forEach((cells, r) => {
+        cells.forEach((value, c) => {
+          sheet.getCell(`${String.fromCharCode(65 + c)}${r + 1}`).value = value;
+        });
+      });
+      sheet.addTable({
+        name: 'Cargo',
+        ref: 'A1',
+        rowCount: 2,
+        columns: [{name: 'Port'}, {name: 'Tonnage'}],
+        // A table declares the style it wants when it is created; a fixture's table already names
+        // its own, so `tableStyle` only applies to the from-scratch path.
+        ...(tableStyle === null ? {} : {style: tableStyle}),
+      });
+    }
+    for (const style of authored) workbook.addTableStyle(style);
+    const parts = partMapOf(writeXlsx(workbook));
+    const stylesXml = parts['xl/styles.xml'] ?? '';
+    const block = (name: string) =>
+      new RegExp(`<${name}\\b[^>]*/>|<${name}\\b[^>]*>[\\s\\S]*?</${name}>`).exec(stylesXml)?.[0] ??
+      '';
+    const tableStyles = block('tableStyles');
+    const dxfs = [...block('dxfs').matchAll(/<dxf\b[^>]*\/>|<dxf\b[^>]*>[\s\S]*?<\/dxf>/g)].map(
+      (m) => m[0] as string,
+    );
+    const definitions = [...tableStyles.matchAll(/<tableStyle\b(?!s)[^>]*\bname="([^"]*)"/g)].map(
+      (m) => m[1] as string,
+    );
+    const elements = [...tableStyles.matchAll(/<tableStyleElement\b[^>]*\/>/g)].map((m) => {
+      const tag = m[0] as string;
+      const size = /\bsize="(\d+)"/.exec(tag)?.[1];
+      const dxfId = /\bdxfId="(\d+)"/.exec(tag)?.[1];
+      return {
+        type: /\btype="([^"]*)"/.exec(tag)?.[1] ?? null,
+        size: size === undefined ? null : Number(size),
+        dxfId: dxfId === undefined ? null : Number(dxfId),
+      };
+    });
+    const tablePart = Object.keys(parts)
+      .filter((p) => /^xl\/tables\/table\d+\.xml$/.test(p))
+      .sort()[0];
+    const nameOnTable =
+      tablePart === undefined
+        ? null
+        : (/<tableStyleInfo\b[^>]*\bname="([^"]*)"/.exec(parts[tablePart] ?? '')?.[1] ?? null);
+    return {
+      definitions,
+      elements,
+      // Each element's dxf, resolved — the half that makes the style actually paint anything.
+      elementDxfs: elements.map(({dxfId}) => (dxfId === null ? null : (dxfs[dxfId] ?? null))),
+      nameOnTable,
+      resolves: nameOnTable === null ? null : definitions.includes(nameOnTable),
+      declaredCount: Number(/<tableStyles\b[^>]*\bcount="(\d+)"/.exec(tableStyles)?.[1] ?? -1),
+      dxfCount: dxfs.length,
+    };
+  },
+
+  // Register a table style the library must refuse → the error message, or null if it was accepted.
+  authorInvalidTableStyle(style: CorpusApi) {
+    try {
+      new Workbook().addTableStyle(style);
+      return null;
+    } catch (error) {
+      return (error as Error).message;
+    }
+  },
+
   // Author a theme colour the library must refuse → the error message, or null if it was accepted.
   // A malformed theme colour does not error in Excel: the slot renders as flat black.
   authorInvalidThemeColor(value: CorpusApi) {

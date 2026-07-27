@@ -121,6 +121,14 @@ export {
   type TableStyleInfo,
 } from './core/table.ts';
 export {
+  isTableStyleElementType,
+  STRIPE_ELEMENT_TYPES,
+  TABLE_STYLE_ELEMENT_TYPES,
+  type TableStyle,
+  type TableStyleElement,
+  type TableStyleElementType,
+} from './core/table-style.ts';
+export {
   DEFAULT_THEME_COLOR_SCHEME,
   DEFAULT_THEME_FONTS,
   parseThemeColorScheme,

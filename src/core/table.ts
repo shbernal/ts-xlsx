@@ -40,7 +40,17 @@ export type TableRowInserter = (row: number) => void;
  * whose part carries no `<tableStyleInfo>` at all leaves {@link TableOptions.style} undefined.
  */
 export interface TableStyleInfo {
-  /** Named table style to apply (e.g. `"TableStyleMedium2"`, or a workbook-defined custom name). */
+  /**
+   * Named table style to apply — one of the built-in gallery (`"TableStyleMedium2"`, …) or a custom
+   * one the workbook defines with {@link Workbook.addTableStyle}.
+   *
+   * **Not validated.** A name that matches nothing renders the table unstyled, silently — but this
+   * library must not be the thing that rejects it. A reader has to accept a name from a newer Excel
+   * than the gallery list it was built with, and a writer that threw would make round-tripping such a
+   * file impossible; there is also no diagnostics channel to warn through, so the only options were
+   * "throw" and "accept". Accepting is the one that never makes a readable file unreadable. If a
+   * warning channel is ever added, this is the first thing that should use it.
+   */
   readonly name?: string;
   /** Emphasise the first column. */
   readonly showFirstColumn?: boolean;

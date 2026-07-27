@@ -1,0 +1,60 @@
+{
+  "invariant": "authored-table-style-renders",
+  "description": "Does Excel actually render a table style this library authored, or open the file clean and ignore it? Neither the schema oracle nor a round-trip of our own can tell: a table style is a cross-part correspondence — the table part names a style, the styles part defines it, and the dxf table backs each of its elements — and every part can be individually valid while the whole says nothing to Excel. Probed by opening a workbook whose only formatting is the style and reading DisplayFormat, which reflects the *effective* format (direct formatting plus table style plus conditional formatting) rather than what is set on the cells.",
+  "probe": ".tmp/table-style-render-probe.ps1 over .tmp/authored-table-style.xlsx (one-off)",
+  "authoredStyle": {
+    "name": "Harbour",
+    "elements": {
+      "wholeTable": "thin top and bottom border",
+      "headerRow": "bold, white text, solid FFBB2649",
+      "firstRowStripe": "solid FFF6E7EB, size 2"
+    }
+  },
+  "excel": {
+    "version": "16.0",
+    "build": 20131
+  },
+  "capturedAt": "2026-07-27",
+  "openClass": "automation-open (DisplayAlerts=false, AutomationSecurity=ForceDisable)",
+  "open": {
+    "threw": false,
+    "repairedMarker": false,
+    "workbookName": "authored-table-style.xlsx"
+  },
+  "observations": {
+    "galleryHasAuthoredStyle": true,
+    "listObjectName": "Cargo",
+    "cells": [
+      {
+        "address": "A1",
+        "directBold": false,
+        "displayedBold": true,
+        "displayedFill": "BB2649",
+        "displayedFont": "FFFFFF"
+      },
+      {
+        "address": "B1",
+        "directBold": false,
+        "displayedBold": true,
+        "displayedFill": "BB2649",
+        "displayedFont": "FFFFFF"
+      },
+      {
+        "address": "A2",
+        "directBold": false,
+        "displayedBold": false,
+        "displayedFill": "F6E7EB",
+        "displayedFont": "000000"
+      },
+      {
+        "address": "A3",
+        "directBold": false,
+        "displayedBold": false,
+        "displayedFill": "F6E7EB",
+        "displayedFont": "000000"
+      }
+    ]
+  },
+  "verdict": "Excel renders the authored style. It registers \"Harbour\" in the workbook's own table-style gallery, paints the header row from the style (displayedBold true while directBold is false, so the formatting comes from the style and not from the cells), and applies firstRowStripe with size=\"2\" across both data rows — which also confirms the band width is honoured. The file opens without a repair.",
+  "locks": "Seeded here; locked in CI by the structural half of `authored-custom-table-style-renders` — the table's style name resolving to an emitted definition whose every element resolves to a real dxf. Tier-3, one Excel build, one host (ADR 0013)."
+}

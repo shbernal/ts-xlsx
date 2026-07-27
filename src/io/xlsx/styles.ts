@@ -35,9 +35,10 @@ import {
   type TableStyleTable,
   type UnderlineStyle,
 } from '../../core/style.ts';
+import {TABLE_STYLE_ELEMENT_TYPES, type TableStyle} from '../../core/table-style.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 import {escapeAttr, XML_DECLARATION} from './xml.ts';
-import {openElements} from './xml-read.ts';
+import {decodeEntities, openElements} from './xml-read.ts';
 
 // Excel reserves fill ids 0 and 1 for the "none" and "gray125" patterns it always emits;
 // custom fills are numbered from 2 so a foreign reader's built-in assumptions still hold.
@@ -162,6 +163,11 @@ export class StyleRegistry {
   // even when it declares no custom style at all.
   #tableStyles: TableStyleTable = {styles: []};
 
+  // Table styles authored on the workbook, serialised on registration and keyed by name so a second
+  // definition of the same name replaces the first — as does one that overrides a preserved
+  // definition, since two `<tableStyle>` elements sharing a name leave a table's reference ambiguous.
+  readonly #authoredTableStyles = new Map<string, string>();
+
   /**
    * The `<cellXfs>` index for a composed cell/row/column style. A style with no facet needs
    * no entry and resolves to the default xf 0, so its owner emits no `s` attribute at all.
@@ -278,6 +284,37 @@ export class StyleRegistry {
    */
   seedTableStyles(table: TableStyleTable): void {
     this.#tableStyles = table;
+  }
+
+  /**
+   * Serialise a table style authored on the workbook, interning each element's formatting into the
+   * differential-style table and emitting the `dxfId` that reaches it. Call after
+   * {@link seedTableStyles}, whose preserved definitions these append after.
+   *
+   * A definition here **replaces** a preserved one of the same name. Two `<tableStyle>` elements
+   * sharing a name is ambiguous — a table's `tableStyleInfo/@name` would reach whichever a consumer
+   * happened to index first — so authoring a name the source already used is read as overriding it,
+   * which is what asking for it means.
+   */
+  addTableStyle(style: TableStyle): void {
+    const elements = TABLE_STYLE_ELEMENT_TYPES.flatMap((type) => {
+      const element = style.elements[type];
+      if (element === undefined) return [];
+      // `size` defaults to 1, so it is written only when a band is genuinely wider than one row.
+      const size =
+        element.size !== undefined && element.size !== 1 ? ` size="${element.size}"` : '';
+      return [
+        `<tableStyleElement type="${type}"${size} dxfId="${this.differentialStyleId(element)}"/>`,
+      ];
+    });
+    // `pivot`/`table` default to true, so each is written only when the caller opts a style out.
+    const flags =
+      (style.pivot === false ? ' pivot="0"' : '') + (style.table === false ? ' table="0"' : '');
+    this.#authoredTableStyles.set(
+      style.name,
+      `<tableStyle name="${escapeAttr(style.name)}"${flags} count="${elements.length}">` +
+        `${elements.join('')}</tableStyle>`,
+    );
   }
 
   /**
@@ -400,12 +437,20 @@ export class StyleRegistry {
   }
 
   // <tableStyles> sits between <dxfs> and <colors> in CT_Stylesheet's child sequence. It is emitted
-  // only when a source file carried one — either a custom style definition or a nominated default —
-  // so a workbook authored from scratch leaves every table on the built-in gallery and writes nothing.
-  // `count` counts the definitions, not the attributes, so a container that only nominates defaults
-  // (the shape Excel writes into nearly every file) is self-closing with count="0".
+  // only when the workbook has something to say there — a preserved or authored style definition, or
+  // a nominated default — so a workbook that authors none leaves every table on the built-in gallery
+  // and writes nothing. `count` counts the definitions, not the attributes, so a container that only
+  // nominates defaults (the shape Excel writes into nearly every file) is self-closing with count="0".
+  //
+  // Preserved definitions come first and authored ones after, except that an authored style replaces
+  // the preserved definition it shares a name with — see {@link addTableStyle}.
   #tableStylesXml(): string {
-    const {styles, defaultTableStyle, defaultPivotStyle} = this.#tableStyles;
+    const {defaultTableStyle, defaultPivotStyle} = this.#tableStyles;
+    const authored = this.#authoredTableStyles;
+    const preserved = this.#tableStyles.styles.filter(
+      (fragment) => !authored.has(tableStyleName(fragment)),
+    );
+    const styles = [...preserved, ...authored.values()];
     if (styles.length === 0 && defaultTableStyle === undefined && defaultPivotStyle === undefined) {
       return '';
     }
@@ -659,6 +704,14 @@ function fragmentNamespaces(
       uri: declared.get(prefix) as string,
       ignorable: ignorable.has(prefix),
     }));
+}
+
+// The `name` a `<tableStyle>` fragment declares — the key a table's `tableStyleInfo/@name` matches
+// and, here, the key an authored definition overrides a preserved one by. Read out of the fragment
+// rather than stored beside it, so the two cannot drift; `name` is required by CT_TableStyle, and a
+// fragment without one is unreachable anyway and so can never collide.
+function tableStyleName(fragment: string): string {
+  return decodeEntities(/<tableStyle\b[^>]*\bname="([^"]*)"/.exec(fragment)?.[1] ?? '');
 }
 
 // The verbatim child fragments of a container element — the shape every preserved styles sub-table

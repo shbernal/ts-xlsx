@@ -135,6 +135,9 @@ export function createStyleRegistry(workbook: Workbook): StyleRegistry {
   // Seed the custom table-style definitions so a table's `styleName` still names a real definition and
   // each element's dxfId still indexes the differential-style table seeded above at its original index.
   styles.seedTableStyles(workbook.tableStyles);
+  // Authored styles append after the preserved ones, and intern their elements' formatting after the
+  // seeded dxfs — the ordering that keeps every preserved dxfId pointing where it did.
+  for (const style of workbook.customTableStyles) styles.addTableStyle(style);
   return styles;
 }
 

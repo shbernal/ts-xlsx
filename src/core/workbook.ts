@@ -25,6 +25,7 @@ import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
 import type {Color, NamedCellStyle, TableStyleTable} from './style.ts';
+import {checkTableStyle, type TableStyle} from './table-style.ts';
 import {
   applyThemeOverrides,
   DEFAULT_THEME_COLOR_SCHEME,
@@ -553,6 +554,47 @@ export class Workbook {
   /** The preserved `<tableStyles>` block; `styles` is empty when the file declared no custom style. */
   get tableStyles(): TableStyleTable {
     return this.#tableStyles;
+  }
+
+  // Table styles authored on this workbook, keyed by name so registering the same name twice replaces
+  // rather than duplicates — two definitions sharing a name leave a table's reference ambiguous.
+  readonly #customTableStyles = new Map<string, TableStyle>();
+
+  /**
+   * Register a custom table style — a named look a table applies to itself by putting that name in
+   * {@link TableStyleInfo.name}, exactly as it would name one of Excel's built-in gallery styles.
+   *
+   * ```ts
+   * workbook.addTableStyle({
+   *   name: 'Harbour',
+   *   elements: {
+   *     wholeTable: {border: {top: {style: 'thin'}, bottom: {style: 'thin'}}},
+   *     headerRow: {font: {bold: true, color: {argb: 'FFFFFFFF'}},
+   *                 fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFBB2649'}}},
+   *     firstRowStripe: {fill: {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFF6E7EB'}}},
+   *   },
+   * });
+   * sheet.addTable({name: 'Cargo', ref: 'A1:B3', columns, style: {name: 'Harbour'}});
+   * ```
+   *
+   * Each element's formatting is interned into the workbook's shared differential-style table, so two
+   * elements — or a conditional-formatting rule — that paint the same way share one entry.
+   *
+   * Registering a name a source file already defined **overrides** that definition rather than adding
+   * a second one beside it.
+   *
+   * @throws {Error} if the name is empty, or an element carries a `size` outside the four stripe
+   *   types, or a `size` is not a positive integer — see {@link checkTableStyle} for why those are
+   *   refused here rather than silently dropped.
+   */
+  addTableStyle(style: TableStyle): void {
+    checkTableStyle(style);
+    this.#customTableStyles.set(style.name, style);
+  }
+
+  /** The table styles authored on this workbook, in registration order. */
+  get customTableStyles(): readonly TableStyle[] {
+    return [...this.#customTableStyles.values()];
   }
 
   /**

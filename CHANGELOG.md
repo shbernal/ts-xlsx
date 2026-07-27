@@ -30,6 +30,23 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **`Workbook.addTableStyle({name, elements})` — custom table styles are authorable.** A workbook can
+  now define its own named table styles beside Excel's built-in gallery, and a table reaches one by
+  putting that name in `TableStyleInfo.name`. Each element names a region (`wholeTable`, `headerRow`,
+  `firstRowStripe`, … — all 28 of `ST_TableStyleType`) and carries a `DifferentialStyle`, interned into
+  the same shared `<dxfs>` table conditional formatting uses, so two elements painted alike cost one
+  entry. A stripe may set its band width with `size`. Authoring a name a source file already defined
+  overrides that definition rather than adding an ambiguous second one.
+
+  Verified against Excel Desktop, not just the schema: a table style is a cross-part correspondence
+  every part of which can be valid while the table still renders unstyled. Excel registers the
+  authored style in the workbook's gallery and paints from it — see
+  `docs/knowledge/specs/custom-table-styles.md`.
+
+  An unnamed style, or a `size` outside the four stripe types, throws — both otherwise produce a file
+  Excel opens cleanly and then ignores. `TableStyleInfo.name` itself stays unvalidated, deliberately;
+  the type documents why.
+
 - **`Workbook.setTheme({colors, fonts})` — the workbook's palette is authorable.** A colour picked
   from a spreadsheet's theme row is written as `theme="4"`, a reference resolved at render time, so
   setting `accent1` restyles every cell, chart and table style that follows the theme at once — the
