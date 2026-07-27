@@ -14,7 +14,7 @@ import type {
   PreservedWorkbookReferencePlan,
   TablePlan,
 } from './package-plan.ts';
-import {extensionOf, range, relativePartPath} from './part-paths.ts';
+import {extensionOf, range, relativePartPath, THEME_PART_PATH} from './part-paths.ts';
 import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
 import {x14Ext} from './x14-ext.ts';
 import {escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
@@ -164,6 +164,11 @@ function contentTypeOverrides(
   hasPersons: boolean,
 ): string {
   const preservedOverrides = preservedParts
+    // A preserved theme lands at the fixed theme path, whose override is already in the list below —
+    // and OPC forbids declaring the same PartName twice. The fixed declaration is the right one to
+    // keep: the part reached the model through a `.../theme` relationship, so its type is the theme
+    // type whatever the source package happened to declare.
+    .filter((part) => part.path !== THEME_PART_PATH)
     .filter(
       (part) =>
         extensionDefaults.get(extensionOf(part.path).toLowerCase())?.contentType !==
@@ -189,7 +194,7 @@ function contentTypeOverrides(
     ...pivots.map(({number}) =>
       override(`/xl/pivotCache/pivotCacheRecords${number}.xml`, CT.pivotCacheRecords),
     ),
-    override('/xl/theme/theme1.xml', CT.theme),
+    override(`/${THEME_PART_PATH}`, CT.theme),
     override('/xl/styles.xml', CT.styles),
     ...(hasSharedStrings ? [override('/xl/sharedStrings.xml', CT.sharedStrings)] : []),
     ...(hasPersons ? [override('/xl/persons/person.xml', CT.person)] : []),
@@ -424,7 +429,11 @@ export function workbookRelsXml(
       relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`),
     ),
     relationship(`rId${sheetCount + 1}`, REL.styles, 'styles.xml'),
-    relationship(`rId${sheetCount + FIXED_WORKBOOK_REL_COUNT}`, REL.theme, 'theme/theme1.xml'),
+    relationship(
+      `rId${sheetCount + FIXED_WORKBOOK_REL_COUNT}`,
+      REL.theme,
+      relativePartPath('xl/workbook.xml', THEME_PART_PATH),
+    ),
     ...(hasSharedStrings
       ? [
           relationship(

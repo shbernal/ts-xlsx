@@ -49,6 +49,24 @@ export interface PreservedWorkbookReference {
 }
 
 /**
+ * The workbook's theme part, captured verbatim from a source package — the `<clrScheme>`,
+ * `<fontScheme>`, and `<fmtScheme>` every `theme="n"` colour reference and every `scheme="major|minor"`
+ * font in the file resolves against.
+ *
+ * Held opaquely, like {@link Workbook.restoreDifferentialStyles}'s `<dxf>` fragments: the model does
+ * not interpret the theme, it only refuses to destroy it. `entryPath` is where the source package held
+ * the part (reached through the workbook's `.../theme` relationship, so not necessarily
+ * `xl/theme/theme1.xml`), and `parts` is the transitive closure it reaches — the entry included. The
+ * closure matters because a theme can carry its own relationships: a picture used as a themed fill is
+ * wired by an `r:embed` into the theme's rels part, and re-emitting the theme without it would leave
+ * that reference dangling.
+ */
+export interface PreservedTheme {
+  readonly entryPath: string;
+  readonly parts: readonly PreservedPart[];
+}
+
+/**
  * The workbook's saved window state — OOXML's `<workbookView>`, the single entry of `<bookViews>`.
  *
  * This is the rect a consumer restores the document window to, and the layout every pane geometry is
@@ -190,6 +208,12 @@ export class Workbook {
   // keeps its intended RGB across a round-trip instead of resolving to a different default-palette
   // entry. Empty for a workbook that never overrode the palette.
   readonly #indexedColors: string[] = [];
+
+  // The theme part read from a file, kept verbatim with the closure of parts it reaches. The writer
+  // emits its own default theme for a workbook that has none, so without this a branded theme would be
+  // overwritten by that default and every `theme="n"` colour in the file would silently re-render.
+  // Undefined for a workbook authored from scratch, or read from a package declaring no theme.
+  #theme: PreservedTheme | undefined;
 
   // Workbook-level references to package content the model does not interpret (pivot caches, slicer
   // caches), captured verbatim on read so a round-trip re-emits them rather than dropping the pivots
@@ -474,6 +498,21 @@ export class Workbook {
   /** The preserved custom indexed-color palette, in index order; empty when the default palette rules. */
   get indexedColors(): readonly string[] {
     return this.#indexedColors;
+  }
+
+  /**
+   * Reinstate the theme part read from a file — opaque preserved XML plus the closure of parts it
+   * reaches (see {@link PreservedTheme}) — so a workbook's colour and font schemes survive a re-write
+   * instead of being replaced by the library's default Office theme. Replaces any theme already held;
+   * passing `undefined` drops back to that default.
+   */
+  restoreThemePart(theme: PreservedTheme | undefined): void {
+    this.#theme = theme;
+  }
+
+  /** The preserved theme part, or undefined when the workbook rides the library's default theme. */
+  get themePart(): PreservedTheme | undefined {
+    return this.#theme;
   }
 
   /**

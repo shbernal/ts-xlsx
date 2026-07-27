@@ -37,6 +37,7 @@ import {
   type TablePlan,
   type ThreadedCommentPlan,
 } from './package-plan.ts';
+import {THEME_PART_PATH} from './part-paths.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {REL, relsPartXml} from './relationships.ts';
 import {SharedStringTable} from './shared-strings.ts';
@@ -405,8 +406,11 @@ export function buildPackageParts(
       ),
     ),
     'xl/styles.xml': strToU8(styles.toXml()),
-    'xl/theme/theme1.xml': strToU8(THEME1_XML),
   };
+  // A theme read from a source package is emitted through the preserved-part path, closure and all;
+  // only a workbook without one gets the library's default theme, which the stylesheet's `theme="1"`
+  // default font still needs something to resolve against.
+  if (!preserved.themeEmitted) files[THEME_PART_PATH] = strToU8(THEME1_XML);
   if (hasSharedStrings) {
     files['xl/sharedStrings.xml'] = strToU8((sharedStrings as SharedStringTable).toXml());
   }

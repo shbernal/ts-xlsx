@@ -28,6 +28,17 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   p-code by driving a real headless Excel (VBIDE). Emits a `vbaProject.bin` (attach via
   `Workbook.vbaProjectBytes`) or a whole edited `.xlsm`. Windows + licensed Excel only; never in CI.
 
+### Fixed
+
+- **A workbook's theme part is no longer destroyed on round-trip.** Reading a file and writing it
+  straight back replaced its theme with the default Office one, so every `theme="n"` colour and
+  `scheme="major|minor"` font in the file silently re-rendered in the wrong brand — a branded
+  workbook came back in Office blue. The source theme is now preserved verbatim, reached through the
+  workbook's `.../theme` relationship rather than the conventional `xl/theme/theme1.xml` path, and
+  re-emitted with the parts it references (a picture used as a themed fill) so its `r:embed` does not
+  dangle. Exposed on the model as `Workbook.themePart` / `restoreThemePart`, opaque preserved XML in
+  the same spirit as `restoreDifferentialStyles`.
+
 ### Changed
 
 - `removeVbaModule` and `addVbaReference` (and their `Workbook`/`editXlsxVba*` wrappers) no longer reset

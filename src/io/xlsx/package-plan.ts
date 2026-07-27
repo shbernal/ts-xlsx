@@ -9,7 +9,7 @@ import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import type {CommentCell} from './comments.ts';
 import type {DrawingImage} from './images.ts';
-import {extensionOf, relativePartPath, relsPathForPart} from './part-paths.ts';
+import {extensionOf, relativePartPath, relsPathForPart, THEME_PART_PATH} from './part-paths.ts';
 import {preservedRelsXml} from './relationships.ts';
 
 // A sheet's relationship-id allocator: hands out `rId1`, `rId2`, … in the one canonical order the
@@ -140,6 +140,12 @@ export interface PreservedPlan {
   readonly workbook: readonly PreservedWorkbookReferencePlan[];
   readonly root: readonly PreservedRootReferencePlan[];
   readonly parts: readonly PreservedPartPlan[];
+  /**
+   * Whether a source theme rides in {@link parts} at {@link THEME_PART_PATH}. The theme relationship
+   * and content-type override are emitted unconditionally either way; this only tells the writer
+   * whether to *also* generate its default theme body, which would otherwise clobber the preserved one.
+   */
+  readonly themeEmitted: boolean;
 }
 
 // A sheet's drawing part: its workbook-global number, the sheet-local relationship id linking the
@@ -243,10 +249,19 @@ export function planPreservedParts(
   // (a pivot cache reached both from its pivot table and from the workbook) is numbered once and
   // emitted once, so overlapping closures collapse instead of duplicating parts.
   const remap = new Map<string, string>();
+  // A preserved theme rides the same closure machinery as every other verbatim part — it can carry
+  // relationships of its own (a picture used as a themed fill) that need the same renumbering and
+  // rewiring. Its entry is pinned to the fixed theme path rather than left to {@link preservedPartPath},
+  // because the workbook's theme relationship and the content-type override name that path
+  // unconditionally; a source package that called its part `theme2.xml` would otherwise land it
+  // somewhere neither points.
+  const theme = workbook.themePart;
+  if (theme !== undefined) remap.set(theme.entryPath, THEME_PART_PATH);
   const allReferences = [
     ...sheets.flatMap((sheet) => sheet.preservedReferences),
     ...workbook.preservedReferences,
     ...workbook.preservedRootReferences,
+    ...(theme === undefined ? [] : [theme]),
   ];
   for (const reference of allReferences) {
     for (const part of reference.parts) {
@@ -303,7 +318,13 @@ export function planPreservedParts(
     }),
   );
 
-  return {perSheet, workbook: workbookRefs, root: rootRefs, parts: [...emitted.values()]};
+  return {
+    perSheet,
+    workbook: workbookRefs,
+    root: rootRefs,
+    parts: [...emitted.values()],
+    themeEmitted: theme !== undefined,
+  };
 }
 
 // The path a preserved part is emitted at. A kind the writer generates of its own — a drawing, a VML,

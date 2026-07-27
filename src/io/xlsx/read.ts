@@ -115,6 +115,9 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // Preserve a custom indexed-color palette verbatim so an `indexed="…"` colour reference keeps its
   // intended RGB across a re-write instead of resolving to a different default-palette entry.
   workbook.restoreIndexedColors(parseIndexedColors(stylesXml));
+  // Preserve the theme part so a branded colour/font scheme is not overwritten by the default theme
+  // the writer emits for a workbook that has none.
+  readWorkbookTheme(workbookRelsXml, pkg, contentTypeOf, workbook);
   // Preserve the named cell-style layer only when a file declares one beyond the Normal default, so an
   // ordinary workbook keeps an empty named-style table and emits just the default on write.
   if (namedStyles.length > 1) workbook.restoreNamedStyles(namedStyles);
@@ -203,6 +206,29 @@ function readWorkbookPersons(
   const target = relationshipTargetByType(workbookRelsXml, 'person');
   const xml = target === undefined ? undefined : pkg.partText(resolveWorkbookPart(target));
   if (xml !== undefined) workbook.restorePersons(parsePersons(xml));
+}
+
+// The workbook's theme part: the `<clrScheme>`/`<fontScheme>`/`<fmtScheme>` every `theme="n"` colour
+// and every `scheme="major|minor"` font in the package resolves against. It is reached through the
+// workbook's `.../theme` relationship rather than assumed at `xl/theme/theme1.xml`, because the target
+// is rel-relative and a foreign package is free to name the part anything.
+//
+// Captured with its transitive part closure, not as a lone string: a theme can carry its own
+// relationships (a picture used as a themed fill, wired by an `r:embed` into the theme's rels part),
+// and re-emitting the theme body without them would leave that reference dangling — which Excel
+// reports as a package needing repair. A package that declares no theme leaves the workbook on the
+// library's default, which is also what a dangling relationship target degrades to.
+function readWorkbookTheme(
+  workbookRelsXml: string,
+  pkg: PackageAccessors,
+  contentTypeOf: (path: string) => string,
+  workbook: Workbook,
+): void {
+  const target = relationshipTargetByType(workbookRelsXml, 'theme');
+  if (target === undefined) return;
+  const entryPath = resolveWorkbookPart(target);
+  const parts = capturePartClosure(entryPath, pkg.partText, pkg.partBytes, contentTypeOf);
+  if (parts !== undefined) workbook.restoreThemePart({entryPath, parts});
 }
 
 // A sheet's threaded conversations live in a `xl/threadedComments/threadedComment{n}.xml` part reached

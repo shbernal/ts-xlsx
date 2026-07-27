@@ -507,6 +507,72 @@ export const styles = {
     return {source, rewritten: facts(after, partMapOf(buffer)['xl/styles.xml'] || '')};
   },
 
+  // Read a fixture, write it straight back, and report the theme part on each side →
+  // { source, rewritten }, each { name, colors, majorFont, minorFont, relTargets, relTargetsResolve }.
+  // The theme is what every `theme="n"` colour and `scheme="major|minor"` font in the package
+  // resolves against, so a no-op round-trip that substitutes a different theme silently re-renders
+  // the whole file. Read from the part bytes rather than through the model: the claim is about what
+  // the package carries, and the model holds the theme opaquely by design.
+  //
+  // `relTargets` are the theme's own outbound relationship targets (a picture used as a themed fill)
+  // and `relTargetsResolve` whether each one names a part the package actually holds — a theme
+  // re-emitted without its closure would leave that `r:embed` dangling, which is worse than dropping
+  // the theme outright.
+  roundtripFixtureThemeFacts(rel: CorpusApi) {
+    // The theme is reached the way OPC reaches it — through the workbook's `.../theme` relationship,
+    // whose target is relative to `xl/` — not by assuming the conventional `theme1.xml` name.
+    const themePathOf = (parts: Record<string, string>) => {
+      const rels = parts['xl/_rels/workbook.xml.rels'] ?? '';
+      for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) {
+        const tag = m[0];
+        if (!/Type="[^"]*\/theme"/.test(tag)) continue;
+        const target = /Target="([^"]*)"/.exec(tag)?.[1];
+        if (target !== undefined) return `xl/${target.replace(/^\.?\//, '')}`;
+      }
+      return null;
+    };
+    const facts = (parts: Record<string, string>) => {
+      const themePath = themePathOf(parts);
+      const theme = themePath === null ? '' : (parts[themePath] ?? '');
+      const scheme = (slot: string) =>
+        new RegExp(`<a:${slot}>\\s*<a:(?:srgbClr|sysClr)[^>]*?(?:val|lastClr)="([^"]*)"`).exec(
+          theme,
+        )?.[1] ?? null;
+      const face = (slot: string) =>
+        new RegExp(`<a:${slot}>\\s*<a:latin typeface="([^"]*)"`).exec(theme)?.[1] ?? null;
+      const relsPath = themePath === null ? null : themePath.replace(/([^/]+)$/, '_rels/$1.rels');
+      const relsXml = relsPath === null ? '' : (parts[relsPath] ?? '');
+      const relTargets = [...relsXml.matchAll(/Target="([^"]*)"/g)].map((m) => m[1] as string);
+      return {
+        path: themePath,
+        present: themePath !== null && themePath in parts,
+        name: /<a:theme[^>]*\sname="([^"]*)"/.exec(theme)?.[1] ?? null,
+        colors: Object.fromEntries(
+          ['dk2', 'lt2', 'accent1', 'accent2', 'accent6', 'hlink', 'folHlink'].map((slot) => [
+            slot,
+            scheme(slot),
+          ]),
+        ),
+        majorFont: face('majorFont'),
+        minorFont: face('minorFont'),
+        relTargets,
+        // A target is stated relative to the theme part's own directory, so `../media/x.png` on
+        // `xl/theme/theme1.xml` resolves to `xl/media/x.png`.
+        relTargetsResolve: relTargets.every((target) => {
+          const segments = (themePath ?? '').split('/').slice(0, -1);
+          for (const segment of target.split('/')) {
+            if (segment === '..') segments.pop();
+            else if (segment !== '.') segments.push(segment);
+          }
+          return segments.join('/') in parts;
+        }),
+      };
+    };
+    const bytes = fixtureBytes(rel);
+    const rewritten = writeXlsx(readXlsx(bytes));
+    return {source: facts(partMapOf(bytes)), rewritten: facts(partMapOf(rewritten))};
+  },
+
   // Assign one base style object to two cells, then spread-reassign one cell's font color →
   // { a1Color, a2Color, bled }. The sibling given the same base must keep its original font.
   sharedBaseStyleFontMutation() {

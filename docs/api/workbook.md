@@ -124,6 +124,8 @@ class Workbook {
   get differentialStyles(): readonly string[];
   restoreIndexedColors(fragments: readonly string[]): void;
   get indexedColors(): readonly string[];
+  restoreThemePart(theme: PreservedTheme | undefined): void;
+  get themePart(): PreservedTheme | undefined;
   restoreNamedStyles(styles: readonly NamedCellStyle[]): void;
   get namedStyles(): readonly NamedCellStyle[];
   restorePersons(persons: readonly Person[]): void;
@@ -162,6 +164,8 @@ class Workbook {
 - `get differentialStyles(): readonly string[];` — The preserved differential-style (`<dxfs>`) fragments, in index order.
 - `restoreIndexedColors(fragments: readonly string[]): void;` — Reinstate the custom indexed-color palette (`<colors><indexedColors>`) read from a file — each entry a verbatim `<rgbColor rgb="…"/>` fragment — so a colour referenced by `indexed="…"` keeps its intended RGB on re-write instead of the palette being dropped and the colour shifting to a default-palette entry. Replaces any palette already held.
 - `get indexedColors(): readonly string[];` — The preserved custom indexed-color palette, in index order; empty when the default palette rules.
+- `restoreThemePart(theme: PreservedTheme | undefined): void;` — Reinstate the theme part read from a file — opaque preserved XML plus the closure of parts it reaches (see `PreservedTheme`) — so a workbook's colour and font schemes survive a re-write instead of being replaced by the library's default Office theme. Replaces any theme already held; passing `undefined` drops back to that default.
+- `get themePart(): PreservedTheme | undefined;` — The preserved theme part, or undefined when the workbook rides the library's default theme.
 - `restoreNamedStyles(styles: readonly NamedCellStyle[]): void;` — Reinstate the named cell styles (`cellStyleXfs`/`cellStyles`) read from a file, index for index, so a cell's link to a named style (its `xfId`) stays valid on re-write. Index 0 is the Normal default. Replaces any table already held.
 - `get namedStyles(): readonly NamedCellStyle[];` — The named cell styles, in index order (index 0 is Normal); empty when only the default exists.
 - `restorePersons(persons: readonly Person[]): void;` — Reinstate the threaded-comment identity registry (`xl/persons/person.xml`) read from a file — the authors and mentioned people a comment thread's messages point at. Replaces any registry already held. Entries are keyed by `Person.id` and by nothing else. A single human legitimately owns several entries: Excel interns a *mentioned* identity as its own `providerId="PeoplePicker"` entry beside that person's `providerId="AD"` authoring entry — same `displayName`, same `userId`, a different id — and points the mention at the new one. Collapsing entries by name or `userId` would merge those two and silently re-point every mention at the wrong identity. Reader restoration; `addPerson` is the authoring verb.

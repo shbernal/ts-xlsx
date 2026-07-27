@@ -1,6 +1,11 @@
 // Small pure helpers for OPC part paths and numeric serialisation, shared across the writer's
 // module cluster.
 
+// Where the writer always puts the theme part. The workbook's theme relationship and the package's
+// content-type override both name this path unconditionally, so a theme preserved from a source
+// package that called its part something else is re-emitted here rather than at its original name.
+export const THEME_PART_PATH = 'xl/theme/theme1.xml';
+
 // The extension of a part path (`xl/media/image1.jpeg` → `jpeg`), or '' when it carries none.
 export function extensionOf(partPath: string): string {
   const dot = partPath.lastIndexOf('.');
