@@ -240,6 +240,7 @@ export function workbookXml(
     XML_DECLARATION +
     `<workbook xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
     workbookProtectionXml(workbook) +
+    bookViewsXml(workbook) +
     `<sheets>${entries}</sheets>` +
     externalReferencesXml(preservedRels) +
     definedNamesXml(workbook) +
@@ -248,6 +249,25 @@ export function workbookXml(
     workbookExtLstXml(preservedRels) +
     '</workbook>'
   );
+}
+
+// `<bookViews>` follows `<workbookProtection>` and precedes `<sheets>` in CT_Workbook order. Unlike
+// every other optional block here it is emitted unconditionally: a consumer restores the document
+// window from this rect and lays the sheet's panes out inside it, so a package without one leaves a
+// frozen split measured against an uninitialised window (see `DEFAULT_WORKBOOK_VIEW`). The
+// visibility and minimised flags are written only when they differ from the schema default, and
+// `activeTab` only for a non-first sheet — exactly the shape Excel writes for an ordinary window.
+function bookViewsXml(workbook: Workbook): string {
+  const view = workbook.view;
+  const activeTab = workbook.activeTabIndex;
+  const attrs =
+    (view.visibility !== undefined && view.visibility !== 'visible'
+      ? ` visibility="${view.visibility}"`
+      : '') +
+    (view.minimized ? ' minimized="1"' : '') +
+    ` xWindow="${view.x}" yWindow="${view.y}" windowWidth="${view.width}" windowHeight="${view.height}"` +
+    (activeTab === 0 ? '' : ` activeTab="${activeTab}"`);
+  return `<bookViews><workbookView${attrs}/></bookViews>`;
 }
 
 // The `<externalReferences>` element registers each preserved external link (a link to a source

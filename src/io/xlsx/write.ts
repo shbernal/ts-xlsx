@@ -321,6 +321,10 @@ export function buildPackageParts(
       resolveSheetReferences(plan),
       plan.hyperlinks,
       sharedStrings,
+      // Exactly one sheet is marked selected; the model resolves which, so no package can ship with
+      // none selected (no view initialised on open) or with several (an accidental group selection,
+      // where an edit to one sheet lands on all of them).
+      i === workbook.activeTabIndex,
       options.flushed?.get(sheet),
     );
   });

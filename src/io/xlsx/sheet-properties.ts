@@ -23,11 +23,17 @@ import {attr, boolAttr, escapeAttr, escapeText} from './xml.ts';
 // view carries neither, so unfreezing leaves no leftover `<pane>` that would trip a repair prompt.
 // The active pane is whichever scrolling region the freeze creates: bottom-right when both axes are
 // frozen, else top-right (columns only) or bottom-left (rows only).
-export function sheetViewsXml(view: SheetView): string {
+//
+// `active` marks this sheet as the one selected on open (`tabSelected`). Exactly one sheet in a
+// workbook carries it — with none, the consumer opens with no sheet view initialised; with several,
+// the sheets form a *group selection*, where an edit to one is applied to all of them. The caller
+// (`worksheetXml`, fed from `Workbook.activeTabIndex`) is what guarantees the "exactly one".
+export function sheetViewsXml(view: SheetView, active: boolean): string {
+  const selected = active ? ' tabSelected="1"' : '';
   const xSplit = view.xSplit ?? 0;
   const ySplit = view.ySplit ?? 0;
   if (view.state !== 'frozen' || (xSplit === 0 && ySplit === 0)) {
-    return '<sheetViews><sheetView workbookViewId="0"/></sheetViews>';
+    return `<sheetViews><sheetView${selected} workbookViewId="0"/></sheetViews>`;
   }
   const topLeftCell = view.topLeftCell ?? encodeAddress(xSplit + 1, ySplit + 1);
   const activePane =
@@ -38,7 +44,7 @@ export function sheetViewsXml(view: SheetView): string {
     (ySplit > 0 ? ` ySplit="${ySplit}"` : '') +
     ` topLeftCell="${escapeAttr(topLeftCell)}" activePane="${activePane}" state="frozen"/>`;
   const selection = `<selection pane="${activePane}" activeCell="${escapeAttr(topLeftCell)}" sqref="${escapeAttr(topLeftCell)}"/>`;
-  return `<sheetViews><sheetView workbookViewId="0">${pane}${selection}</sheetView></sheetViews>`;
+  return `<sheetViews><sheetView${selected} workbookViewId="0">${pane}${selection}</sheetView></sheetViews>`;
 }
 
 // `<sheetPr>` carries the sheet's appearance properties: the tab colour, the outline

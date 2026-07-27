@@ -439,6 +439,21 @@ test('a fully committed streamed sheet holds no live cells at commit — every r
   assert.equal(reread.getCell('B1').value, 'v1');
 });
 
+test('a streamed sheet reports the outline depth of rows already evicted', async () => {
+  const writer = new WorkbookStreamWriter();
+  const sheet = writer.addWorksheet('S');
+  sheet.addRow(['summary']).commit();
+  const detail = sheet.addRow(['detail']);
+  sheet.model.getRow(2).outlineLevel = 2;
+  detail.commit();
+  // <sheetFormatPr> is written at commit, long after both rows were flushed and freed — the depth has
+  // to have been carried across the eviction rather than re-read off the model.
+  assert.match(
+    partText(await writer.commit(), 'xl/worksheets/sheet1.xml'),
+    /<sheetFormatPr [^>]*\boutlineLevelRow="2"/,
+  );
+});
+
 test('with useSharedStrings a streamed row stays live until commit — the shared pool defeats bounding', async () => {
   const writer = new WorkbookStreamWriter({useSharedStrings: true});
   const sheet = writer.addWorksheet('S');

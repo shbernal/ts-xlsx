@@ -143,6 +143,7 @@ export class WorksheetStreamWriter {
   #columnDefaults: ReadonlyMap<number, ColumnProperties> | undefined;
   readonly #flushedRows: {number: number; xml: string}[] = [];
   readonly #extent = new Extent();
+  #maxRowOutlineLevel = 0;
 
   constructor(sheet: Worksheet, eager: boolean, styles: StyleRegistry) {
     this.#sheet = sheet;
@@ -215,8 +216,13 @@ export class WorksheetStreamWriter {
       }
     }
     this.#columnDefaults ??= buildColumnDefaults(this.#sheet);
+    const properties = this.#sheet.rowProperties(number);
+    // The row's outline depth is read off here because eviction is about to take its properties with
+    // it, and `<sheetFormatPr outlineLevelRow>` — written long after, once every row is flushed —
+    // reports the deepest level on the whole sheet.
+    this.#maxRowOutlineLevel = Math.max(this.#maxRowOutlineLevel, properties?.outlineLevel ?? 0);
     const {xml, minCol, maxCol} = renderRow(
-      {number, cells, properties: this.#sheet.rowProperties(number)},
+      {number, cells, properties},
       {
         columnDefaults: this.#columnDefaults,
         styles: this.#styles,
@@ -235,7 +241,11 @@ export class WorksheetStreamWriter {
   // The rows this writer flushed, or undefined if none — handed to buildPackageParts at commit.
   flushedSheet(): FlushedSheet | undefined {
     if (this.#flushedRows.length === 0) return undefined;
-    return {rows: this.#flushedRows, extent: this.#extent};
+    return {
+      rows: this.#flushedRows,
+      extent: this.#extent,
+      maxRowOutlineLevel: this.#maxRowOutlineLevel,
+    };
   }
 
   /** Address a cell by its A1 reference to read or style it before the sheet is committed. */

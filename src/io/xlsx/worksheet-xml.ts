@@ -107,6 +107,12 @@ export class Extent {
 export interface FlushedSheet {
   readonly rows: ReadonlyArray<{readonly number: number; readonly xml: string}>;
   readonly extent: Extent;
+  /**
+   * The deepest row outline level among the flushed rows. Carried across the eviction because
+   * `<sheetFormatPr outlineLevelRow>` is derived from every row on the sheet, and a flushed row's
+   * properties are gone from the model by the time the header is serialised.
+   */
+  readonly maxRowOutlineLevel: number;
 }
 
 // The sheet-local relationship ids that wire a worksheet's tail elements to their parts, gathered into
@@ -129,6 +135,7 @@ export function worksheetXml(
   references: SheetReferences,
   hyperlinks: readonly HyperlinkPlan[],
   sharedStrings: SharedStringTable | null,
+  active: boolean,
   flushed?: FlushedSheet,
 ): string {
   // A merge overlapping a table is Excel-invalid geometry; reject it before serialising
@@ -144,8 +151,10 @@ export function worksheetXml(
   const sharedRoles = planSharedFormulas(sheet);
 
   // A fully-hidden outline group's collapse toggle belongs on its summary row; derive that set once
-  // so the row loop can stamp it even onto a summary row that carries no properties of its own.
-  const collapsedSummaries = collapsedSummaryRows(sheet);
+  // so the row loop can stamp it even onto a summary row that carries no properties of its own. The
+  // same pass yields the sheet's deepest row outline level for `<sheetFormatPr>`.
+  const rowOutline = scanRowOutline(sheet);
+  const collapsedSummaries = rowOutline.collapsedSummaries;
 
   const context: RowRenderContext = {
     columnDefaults,
@@ -184,8 +193,13 @@ export function worksheetXml(
     `<worksheet xmlns="${NS.main}" xmlns:r="${NS.docRels}">` +
     sheetPrXml(sheet) +
     `<dimension ref="${dimensionRef}"/>` +
-    sheetViewsXml(sheet.view) +
-    sheetFormatPr(sheet.properties) +
+    sheetViewsXml(sheet.view, active) +
+    sheetFormatPr(sheet.properties, {
+      col: maxColumnOutlineLevel(sheet),
+      // A streamed sheet's flushed rows are gone from the model; their deepest level rides along on
+      // the flush record so the header still reports the whole sheet's outline.
+      row: Math.max(rowOutline.maxLevel, flushed?.maxRowOutlineLevel ?? 0),
+    }) +
     colsXml(sheet, styles) +
     sheetData +
     sheetProtectionXml(sheet.protection) +
@@ -470,7 +484,15 @@ export function worksheetRelsXml(
 // override it so a reader sees the same baseline Excel would write.
 const DEFAULT_ROW_HEIGHT = 15;
 
-function sheetFormatPr(properties: WorksheetProperties): string {
+// `<sheetFormatPr>` carries the sheet's grid defaults and, when the sheet groups anything, the depth
+// of its deepest outline. A consumer sizes the outline bars from those depths — the strips that sit
+// above the column headers and left of the row headers — so a grouped sheet that omits them lays its
+// grid out with no room reserved for a bar it then has to draw. Both are omitted at zero, as Excel
+// does, so an ungrouped sheet stays byte-clean.
+function sheetFormatPr(
+  properties: WorksheetProperties,
+  outlineLevel: {readonly col: number; readonly row: number},
+): string {
   const rowHeight = properties.defaultRowHeight ?? DEFAULT_ROW_HEIGHT;
   let attrs = ` defaultRowHeight="${numberText(rowHeight)}"`;
   if (properties.defaultColWidth !== undefined) {
@@ -478,7 +500,21 @@ function sheetFormatPr(properties: WorksheetProperties): string {
   }
   // A non-standard default row height is only honoured by Excel when customHeight is set.
   if (properties.defaultRowHeight !== undefined) attrs += ' customHeight="1"';
+  if (outlineLevel.col > 0) attrs += ` outlineLevelCol="${outlineLevel.col}"`;
+  if (outlineLevel.row > 0) attrs += ` outlineLevelRow="${outlineLevel.row}"`;
   return `<sheetFormatPr${attrs}/>`;
+}
+
+// The deepest column outline level the sheet declares — the `outlineLevelCol` its `<sheetFormatPr>`
+// reports. A column past XFD contributes nothing: {@link colsXml} drops it as out-of-range, so its
+// group would have no `<col>` to sit on.
+function maxColumnOutlineLevel(sheet: Worksheet): number {
+  let max = 0;
+  for (const {index, properties} of sheet.columns()) {
+    if (index > MAX_COLUMN) continue;
+    max = Math.max(max, properties.outlineLevel ?? 0);
+  }
+  return max;
 }
 
 function colsXml(sheet: Worksheet, styles: StyleRegistry): string {
@@ -570,6 +606,15 @@ function rowAttrs(
   return attrs;
 }
 
+// The two row-outline facts the serialiser needs, from one walk over the rows: which summary rows
+// terminate a fully-collapsed group, and how deep the sheet's grouping goes. They share a pass
+// because the pass is the expensive part — the streaming writer must not be made to traverse rows
+// twice just to fill in a header attribute.
+interface RowOutline {
+  readonly collapsedSummaries: Set<number>;
+  readonly maxLevel: number;
+}
+
 // A collapsed outline group is two coordinated facts: its detail rows carry outlineLevel and are
 // hidden, AND the summary row that terminates the group carries `collapsed`. Authors typically set
 // only outlineLevel + hidden on the detail rows, so the summary flag is derived here rather than
@@ -577,16 +622,19 @@ function rowAttrs(
 // higher-outline-level rows on the summary side — is non-empty and every row in it is hidden.
 // Placement follows the sheet's summaryBelow flag (Excel's default is summary below the detail); the
 // walk stops at the first row of level <= the summary's own, so a gap or a boundary ends the group.
-function collapsedSummaryRows(sheet: Worksheet): Set<number> {
+function scanRowOutline(sheet: Worksheet): RowOutline {
   const level = new Map<number, number>();
   const hidden = new Map<number, boolean>();
+  let maxLevel = 0;
   for (const {number, properties} of sheet.rows()) {
-    level.set(number, properties?.outlineLevel ?? 0);
+    const rowLevel = properties?.outlineLevel ?? 0;
+    level.set(number, rowLevel);
     hidden.set(number, properties?.hidden ?? false);
+    if (rowLevel > maxLevel) maxLevel = rowLevel;
   }
   const levelOf = (row: number): number => level.get(row) ?? 0;
   const step = sheet.outline.summaryBelow === false ? 1 : -1;
-  const summaries = new Set<number>();
+  const collapsedSummaries = new Set<number>();
   for (const [summary, summaryLevel] of level) {
     let detail = summary + step;
     let sawDetail = false;
@@ -596,9 +644,9 @@ function collapsedSummaryRows(sheet: Worksheet): Set<number> {
       if (!hidden.get(detail)) allHidden = false;
       detail += step;
     }
-    if (sawDetail && allHidden) summaries.add(summary);
+    if (sawDetail && allHidden) collapsedSummaries.add(summary);
   }
-  return summaries;
+  return {collapsedSummaries, maxLevel};
 }
 
 // A valid Date — whether the cell's own value or a formula's cached result — with no format of its

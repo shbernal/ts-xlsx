@@ -355,6 +355,95 @@ test('an unset default row height falls back to 15 with no customHeight', () => 
   assert.match(xml, /<sheetFormatPr defaultRowHeight="15"\/>/);
 });
 
+test('grouped columns report their depth as outlineLevelCol', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.getColumn(2).outlineLevel = 1;
+  s.getColumn(3).outlineLevel = 2;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<sheetFormatPr [^>]*\boutlineLevelCol="2"/);
+  assert.doesNotMatch(xml, /outlineLevelRow/);
+});
+
+test('grouped rows report their depth as outlineLevelRow', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'summary';
+  s.getCell('A2').value = 'detail';
+  s.getRow(2).outlineLevel = 1;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<sheetFormatPr [^>]*\boutlineLevelRow="1"/);
+  assert.doesNotMatch(xml, /outlineLevelCol/);
+});
+
+test('an ungrouped sheet emits neither outline level', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.doesNotMatch(xml, /outlineLevel/);
+});
+
+test('the workbook always declares a window view, defaulting to the first tab', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const xml = partsOf(wb)['xl/workbook.xml'] as string;
+  assert.match(
+    xml,
+    /<bookViews><workbookView xWindow="-110" yWindow="-110" windowWidth="19420" windowHeight="12220"\/><\/bookViews>/,
+  );
+  // CT_Workbook order: <bookViews> precedes <sheets>.
+  assert.ok(xml.indexOf('<bookViews>') < xml.indexOf('<sheets>'), 'bookViews must precede sheets');
+});
+
+test('a customised window view is written verbatim and survives a round-trip', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('One').getCell('A1').value = 1;
+  wb.addWorksheet('Two').getCell('A1').value = 2;
+  wb.view.x = 240;
+  wb.view.y = 120;
+  wb.view.width = 15000;
+  wb.view.height = 9000;
+  wb.view.activeTab = 1;
+  const xml = partsOf(wb)['xl/workbook.xml'] as string;
+  assert.match(
+    xml,
+    /<workbookView xWindow="240" yWindow="120" windowWidth="15000" windowHeight="9000" activeTab="1"\/>/,
+  );
+  const reread = readXlsx(writeXlsx(wb));
+  assert.deepEqual(reread.view, {x: 240, y: 120, width: 15000, height: 9000, activeTab: 1});
+});
+
+test('exactly one sheet is marked selected, and it is the active tab', () => {
+  const wb = new Workbook();
+  for (const name of ['One', 'Two', 'Three']) wb.addWorksheet(name).getCell('A1').value = name;
+  wb.view.activeTab = 2;
+  const parts = partsOf(wb);
+  const selected = [1, 2, 3].filter((n) =>
+    (parts[`xl/worksheets/sheet${n}.xml`] as string).includes('tabSelected="1"'),
+  );
+  assert.deepEqual(selected, [3], 'only the active sheet carries tabSelected');
+});
+
+test('an out-of-range active tab still selects a sheet rather than none', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Only').getCell('A1').value = 'x';
+  wb.view.activeTab = 7;
+  const parts = partsOf(wb);
+  assert.match(parts['xl/worksheets/sheet1.xml'] as string, /<sheetView tabSelected="1"/);
+  // The written activeTab is clamped with it, so the two can never disagree.
+  assert.doesNotMatch(parts['xl/workbook.xml'] as string, /activeTab/);
+});
+
+test('a frozen sheet carries tabSelected alongside its pane', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'header';
+  s.freeze(1);
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1"/);
+});
+
 test('setting a subset of margins emits all six pageMargins attributes', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');
