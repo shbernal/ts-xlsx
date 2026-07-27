@@ -24,6 +24,13 @@ export type {
   ValuesFilter,
 } from './core/autofilter.ts';
 export {Cell} from './core/cell.ts';
+export {
+  applyTint,
+  type ColorResolutionContext,
+  DEFAULT_INDEXED_COLORS,
+  resolveColor,
+  SYSTEM_INDEXED_COLORS,
+} from './core/color-resolution.ts';
 export type {Comment, CommentThread, Mention, Person} from './core/comment-thread.ts';
 export type {
   CfValueObject,
@@ -113,6 +120,13 @@ export {
   type TableRegion,
   type TableStyleInfo,
 } from './core/table.ts';
+export {
+  DEFAULT_THEME_COLOR_SCHEME,
+  parseThemeColorScheme,
+  THEME_COLOR_SLOTS,
+  type ThemeColorScheme,
+  type ThemeColorSlot,
+} from './core/theme.ts';
 export {
   type CellValue,
   coerceCellValue,

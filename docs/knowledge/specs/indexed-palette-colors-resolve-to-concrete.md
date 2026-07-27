@@ -12,10 +12,9 @@ over from the old BIFF/`.xls` format — and the library hands back the raw inde
 resolving it. Files produced by older tools, or by converters that emit the legacy palette, are full
 of these.
 
-> Spec note, not a corpus case: the underlying report is a support question with no bug or fixture,
-> but it names a real gap in the color model. The durable value is the resolution contract; a concrete
-> assertion becomes possible once the model resolves indexed colors (a fixture using an `indexed`
-> fill, asserted to expose a concrete color), building on the existing indexed-palette round-trip case.
+> **Shipped.** `Workbook.resolveColor` resolves `indexed`, `theme`, and `tint` against the workbook's
+> own palette and theme; `theme-and-indexed-colors-resolve-to-concrete` locks it. What follows is the
+> contract as it was specified, annotated with how each point was answered.
 
 ## Desired behavior
 
@@ -32,14 +31,29 @@ of these.
 - **A workbook-level custom indexed palette is honored.** When the styles part declares its own
   `<indexedColors>`, those entries override the defaults for that workbook on both read and write.
 
-## Open questions
+## How it shipped
 
-- The public shape of a resolved color: always expose `argb` plus an optional `{indexed}`/`{theme,tint}`
-  origin, or a discriminated union the caller narrows? The types are the docs — this must be precise.
-- Whether writing a color the caller supplied as ARGB should ever be down-converted to an indexed entry
-  (probably never — indexed is a read-tolerance and round-trip-fidelity concern, not an authoring one).
-- How this composes with theme-color resolution (same "resolve but remember the origin" principle) and
-  the `indexed="64"` automatic/system-color special cases.
+- **The public shape.** Resolution is a *method*, not a field: `Workbook.resolveColor(color)` returns
+  an 8-hex ARGB or `undefined`. `Color` is untouched, so "resolved ARGB" and "original encoding" cannot
+  drift apart and there is no union for a caller to narrow. Choosing a method over a `.argb` getter on
+  `Color` also keeps the resolution *context* — which workbook's theme and palette — explicit, since
+  the same `Color` value resolves differently in two workbooks.
+- **A custom palette replaces the built-in one wholesale**, rather than overlaying it: that is what
+  `<indexedColors>` means, and Excel writes all 64 entries whenever it writes any. An index past the
+  end of a short custom palette therefore resolves to nothing rather than falling through to a
+  built-in entry the workbook explicitly overrode away.
+- **`indexed="64"`/`65` resolve to `undefined`.** They name the system foreground and background,
+  which have no fixed value; `64` sits on the `bgColor` of essentially every solid fill Excel writes,
+  so resolving it to black would repaint them all. What "automatic" should look like is the consumer's
+  decision.
+- **Alpha.** The spec tabulates each palette entry with a leading `00`. That byte is an artefact of the
+  32-bit colour records the palette came from, not transparency, so a resolved `indexed`/`theme` colour
+  comes back fully opaque. An explicit `rgb` keeps whatever alpha the file stated.
+- **Never down-converted on write.** Nothing converts an authored ARGB into a palette entry. Indexed
+  is a read-tolerance and round-trip-fidelity concern only.
+- **Theme resolution composes on the same principle** — and carries its own trap, which has its own
+  note: see `theme-color-index-order.md`. `tint` is applied last, on whatever the base resolved to.
 
-Related: `custom-indexed-color-palette-roundtrip`, `theme-color-font-backed-by-theme-part`,
+Related: `custom-indexed-color-palette-roundtrip`, `theme-and-indexed-colors-resolve-to-concrete`,
+`theme-color-index-order.md`, `theme-color-font-backed-by-theme-part`,
 `public-type-surface-matches-runtime`.

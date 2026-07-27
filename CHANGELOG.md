@@ -28,6 +28,22 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   p-code by driving a real headless Excel (VBIDE). Emits a `vbaProject.bin` (attach via
   `Workbook.vbaProjectBytes`) or a whole edited `.xlsm`. Windows + licensed Excel only; never in CI.
 
+### Added
+
+- **`Workbook.resolveColor(color)` — a themed or indexed colour now resolves to a concrete ARGB.**
+  A `Color` read from a file often carries no colour at all, only a reference: `{theme: 4}` into the
+  workbook theme's scheme, or `{indexed: 2}` into the legacy 64-entry palette, either optionally with
+  a `tint`. Resolution follows the workbook's *own* theme and its own custom `<indexedColors>` when it
+  declares one, and applies the tint last. `Workbook.themeColors` exposes the scheme it resolves
+  against. Two things it deliberately does not do: `indexed="64"`/`65` (the system foreground and
+  background) resolve to `undefined` rather than to invented black and white, and nothing is written
+  back into the model — the `Color` keeps the encoding its file used, so a round-trip still emits
+  `theme="4" tint="0.4"` and the cell keeps its link to the theme.
+
+  Note the index order: `theme="0"` is `lt1` and `theme="1"` is `dk1`, which is *not* the order the
+  slots appear in the theme part. Verified against Excel Desktop; see
+  `docs/knowledge/specs/theme-color-index-order.md`.
+
 ### Fixed
 
 - **A workbook's theme part is no longer destroyed on round-trip.** Reading a file and writing it

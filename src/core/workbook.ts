@@ -19,11 +19,18 @@ import {
   type VbaProjectSignature,
   vbaProjectSignatureKind,
 } from '../vba/index.ts';
+import {resolveColor} from './color-resolution.ts';
 import {commentThreadGuid, type Person} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
-import type {NamedCellStyle, TableStyleTable} from './style.ts';
+import type {Color, NamedCellStyle, TableStyleTable} from './style.ts';
+import {
+  DEFAULT_THEME_COLOR_SCHEME,
+  parseThemeColorScheme,
+  THEME_COLOR_SLOTS,
+  type ThemeColorScheme,
+} from './theme.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
 
@@ -549,11 +556,69 @@ export class Workbook {
    */
   restoreThemePart(theme: PreservedTheme | undefined): void {
     this.#theme = theme;
+    this.#themeColors = undefined;
   }
 
   /** The preserved theme part, or undefined when the workbook rides the library's default theme. */
   get themePart(): PreservedTheme | undefined {
     return this.#theme;
+  }
+
+  // The theme's colour scheme, decoded from the preserved part on first use. Cached because resolving
+  // a colour is a per-cell operation and the part is otherwise held as bytes; invalidated whenever the
+  // theme is replaced.
+  #themeColors: ThemeColorScheme | undefined;
+
+  /**
+   * The colour scheme every `theme="n"` reference in this workbook resolves against — the preserved
+   * theme's `<a:clrScheme>`, or the Office default when the workbook carries no theme of its own.
+   *
+   * Note the slot *order*: `theme="0"` is `lt1` and `theme="1"` is `dk1`, which is not the order the
+   * slots appear in the theme part. See {@link THEME_COLOR_SLOTS}.
+   */
+  get themeColors(): ThemeColorScheme {
+    if (this.#themeColors === undefined) {
+      const xml = this.#themeXml();
+      // A theme that declares no scheme (or none this reader decodes) falls back to the Office
+      // default rather than resolving nothing: the file still renders against *some* scheme, and the
+      // default is the one the writer would have shipped.
+      const parsed = xml === undefined ? {} : parseThemeColorScheme(xml);
+      this.#themeColors = Object.keys(parsed).length === 0 ? DEFAULT_THEME_COLOR_SCHEME : parsed;
+    }
+    return this.#themeColors;
+  }
+
+  // The preserved theme part's text, decoded from the entry part of its closure.
+  #themeXml(): string | undefined {
+    const theme = this.#theme;
+    if (theme === undefined) return undefined;
+    const entry = theme.parts.find((part) => part.path === theme.entryPath);
+    return entry === undefined ? undefined : new TextDecoder().decode(entry.bytes);
+  }
+
+  /**
+   * Resolve a colour reference to a concrete 8-hex ARGB string, or `undefined` when it does not
+   * resolve to a fixed colour — an `auto` colour, one of the two system indexed colours, or a theme
+   * slot this workbook's scheme does not declare.
+   *
+   * This is a *derived* view, not a rewrite: the {@link Color} stays exactly as its file encoded it,
+   * so a round-trip re-emits `theme="4" tint="0.4"` rather than a literal ARGB. Resolving into the
+   * model would sever every cell's link to the theme, so recolouring the workbook would stop working,
+   * and would inflate the styles table with one distinct colour per shade.
+   *
+   * A `theme` reference resolves through {@link themeColors}; an `indexed` one through the workbook's
+   * custom `<indexedColors>` palette when it declares one, else the built-in legacy palette. A `tint`
+   * is applied last.
+   */
+  resolveColor(color: Color): string | undefined {
+    return resolveColor(color, {theme: this.themeColors, indexed: this.#indexedPalette()});
+  }
+
+  // The workbook's custom palette as plain ARGB strings. `#indexedColors` holds verbatim
+  // `<rgbColor rgb="…"/>` fragments — the form the writer re-emits — so the value is read out here
+  // rather than stored twice in two shapes that could drift.
+  #indexedPalette(): readonly string[] {
+    return this.#indexedColors.map((fragment) => /\brgb="([^"]*)"/.exec(fragment)?.[1] ?? '');
   }
 
   /**

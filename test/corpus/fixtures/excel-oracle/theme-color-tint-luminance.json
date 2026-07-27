@@ -1,0 +1,230 @@
+{
+  "invariant": "theme-color-tint-luminance",
+  "description": "ECMA-376 §18.3.1.15 gives the tint formula as a luminance shift in HLS but does not pin the rounding either side of the RGB<->HLS conversion, so an implementation cannot be checked against the prose alone. Thirty-six cells (three theme slots x twelve TintAndShade values) were given a themed fill, saved by Excel, reopened, and their Interior.Color read back — the colour Excel actually renders for each (base, tint) pair.",
+  "probe": ".tmp/tint-probe.ps1 (one-off; not a committed harness probe)",
+  "excel": {
+    "version": "16.0",
+    "build": 20131
+  },
+  "capturedAt": "2026-07-27",
+  "openClass": "automation-open (DisplayAlerts=false)",
+  "samples": [
+    {
+      "cell": "A1",
+      "baseRgb": "156082",
+      "tint": -1,
+      "renderedRgb": "000000"
+    },
+    {
+      "cell": "B1",
+      "baseRgb": "156082",
+      "tint": -0.75,
+      "renderedRgb": "05171F"
+    },
+    {
+      "cell": "C1",
+      "baseRgb": "156082",
+      "tint": -0.5,
+      "renderedRgb": "0B3040"
+    },
+    {
+      "cell": "D1",
+      "baseRgb": "156082",
+      "tint": -0.25,
+      "renderedRgb": "104861"
+    },
+    {
+      "cell": "E1",
+      "baseRgb": "156082",
+      "tint": -0.05,
+      "renderedRgb": "145B7A"
+    },
+    {
+      "cell": "F1",
+      "baseRgb": "156082",
+      "tint": 0,
+      "renderedRgb": "156082"
+    },
+    {
+      "cell": "G1",
+      "baseRgb": "156082",
+      "tint": 0.05,
+      "renderedRgb": "176C91"
+    },
+    {
+      "cell": "H1",
+      "baseRgb": "156082",
+      "tint": 0.25,
+      "renderedRgb": "229ACE"
+    },
+    {
+      "cell": "I1",
+      "baseRgb": "156082",
+      "tint": 0.5,
+      "renderedRgb": "64BEE6"
+    },
+    {
+      "cell": "J1",
+      "baseRgb": "156082",
+      "tint": 0.75,
+      "renderedRgb": "B0DEF2"
+    },
+    {
+      "cell": "K1",
+      "baseRgb": "156082",
+      "tint": 0.9,
+      "renderedRgb": "E0F2FA"
+    },
+    {
+      "cell": "L1",
+      "baseRgb": "156082",
+      "tint": 1,
+      "renderedRgb": "FFFFFF"
+    },
+    {
+      "cell": "A2",
+      "baseRgb": "E97132",
+      "tint": -1,
+      "renderedRgb": "000000"
+    },
+    {
+      "cell": "B2",
+      "baseRgb": "E97132",
+      "tint": -0.75,
+      "renderedRgb": "401B06"
+    },
+    {
+      "cell": "C2",
+      "baseRgb": "E97132",
+      "tint": -0.5,
+      "renderedRgb": "7E350E"
+    },
+    {
+      "cell": "D2",
+      "baseRgb": "E97132",
+      "tint": -0.25,
+      "renderedRgb": "BE5014"
+    },
+    {
+      "cell": "E2",
+      "baseRgb": "E97132",
+      "tint": -0.05,
+      "renderedRgb": "E86824"
+    },
+    {
+      "cell": "F2",
+      "baseRgb": "E97132",
+      "tint": 0,
+      "renderedRgb": "E97132"
+    },
+    {
+      "cell": "G2",
+      "baseRgb": "E97132",
+      "tint": 0.05,
+      "renderedRgb": "EA783C"
+    },
+    {
+      "cell": "H2",
+      "baseRgb": "E97132",
+      "tint": 0.25,
+      "renderedRgb": "EE9564"
+    },
+    {
+      "cell": "I2",
+      "baseRgb": "E97132",
+      "tint": 0.5,
+      "renderedRgb": "F3B898"
+    },
+    {
+      "cell": "J2",
+      "baseRgb": "E97132",
+      "tint": 0.75,
+      "renderedRgb": "FADBCB"
+    },
+    {
+      "cell": "K2",
+      "baseRgb": "E97132",
+      "tint": 0.9,
+      "renderedRgb": "FDF0EA"
+    },
+    {
+      "cell": "L2",
+      "baseRgb": "E97132",
+      "tint": 1,
+      "renderedRgb": "FFFFFF"
+    },
+    {
+      "cell": "A3",
+      "baseRgb": "E8E8E8",
+      "tint": -1,
+      "renderedRgb": "000000"
+    },
+    {
+      "cell": "B3",
+      "baseRgb": "E8E8E8",
+      "tint": -0.75,
+      "renderedRgb": "393939"
+    },
+    {
+      "cell": "C3",
+      "baseRgb": "E8E8E8",
+      "tint": -0.5,
+      "renderedRgb": "747474"
+    },
+    {
+      "cell": "D3",
+      "baseRgb": "E8E8E8",
+      "tint": -0.25,
+      "renderedRgb": "ADADAD"
+    },
+    {
+      "cell": "E3",
+      "baseRgb": "E8E8E8",
+      "tint": -0.05,
+      "renderedRgb": "DCDCDC"
+    },
+    {
+      "cell": "F3",
+      "baseRgb": "E8E8E8",
+      "tint": 0,
+      "renderedRgb": "E8E8E8"
+    },
+    {
+      "cell": "G3",
+      "baseRgb": "E8E8E8",
+      "tint": 0.05,
+      "renderedRgb": "E9E9E9"
+    },
+    {
+      "cell": "H3",
+      "baseRgb": "E8E8E8",
+      "tint": 0.25,
+      "renderedRgb": "EDEDED"
+    },
+    {
+      "cell": "I3",
+      "baseRgb": "E8E8E8",
+      "tint": 0.5,
+      "renderedRgb": "F3F3F3"
+    },
+    {
+      "cell": "J3",
+      "baseRgb": "E8E8E8",
+      "tint": 0.75,
+      "renderedRgb": "F9F9F9"
+    },
+    {
+      "cell": "K3",
+      "baseRgb": "E8E8E8",
+      "tint": 0.9,
+      "renderedRgb": "FCFCFC"
+    },
+    {
+      "cell": "L3",
+      "baseRgb": "E8E8E8",
+      "tint": 1,
+      "renderedRgb": "FFFFFF"
+    }
+  ],
+  "verdict": "The plain float HSL implementation in src/core/color-resolution.ts lands within 2/255 per channel of every one of these 36 samples. Closing that last gap would mean reproducing one Excel build's fixed-point HLS rounding; the difference is not visible."
+}

@@ -1,0 +1,100 @@
+{
+  "invariant": "theme-color-index-order",
+  "description": "Which <a:clrScheme> slot does SpreadsheetML's theme=\"n\" index? ISO/IEC 29500 §20.1.6.2 tabulates the clrScheme child sequence as dk1, lt1, dk2, lt2, accent1..6, hlink, folHlink, and that is the order the theme part is written in — but it is not the order theme=\"n\" indexes. Excel was asked directly: twelve cells were given Interior.ThemeColor = MsoThemeColorIndex 1..12, Excel saved the file, and the emitted theme=\"n\" was read back from styles.xml; the same cells were then reopened and Interior.Color read, giving the concrete RGB Excel renders each index as. The RGB is the decisive half — the object model's own \"Dark 1\"/\"Light 1\" naming is itself swapped relative to the theme part's dk1/lt1 elements, so naming alone settles nothing.",
+  "probe": ".tmp/theme-index-probe.ps1 + .tmp/theme-rgb-probe.ps1 (one-off; not a committed harness probe)",
+  "excel": {
+    "version": "16.0",
+    "build": 20131
+  },
+  "capturedAt": "2026-07-27",
+  "openClass": "automation-open (DisplayAlerts=false)",
+  "themeInProbeWorkbook": {
+    "lt1": "FFFFFF",
+    "dk1": "000000",
+    "lt2": "E8E8E8",
+    "dk2": "0E2841",
+    "accent1": "156082",
+    "accent2": "E97132",
+    "accent3": "196B24",
+    "accent4": "0F9ED5",
+    "accent5": "A02B93",
+    "accent6": "4EA72E",
+    "hlink": "467886",
+    "folHlink": "96607D"
+  },
+  "observations": [
+    {
+      "onDiskThemeIndex": 0,
+      "renderedRgb": "FFFFFF",
+      "schemeSlot": "lt1",
+      "writtenForMsoThemeColorIndex": 1
+    },
+    {
+      "onDiskThemeIndex": 1,
+      "renderedRgb": "000000",
+      "schemeSlot": "dk1",
+      "writtenForMsoThemeColorIndex": 2
+    },
+    {
+      "onDiskThemeIndex": 2,
+      "renderedRgb": "E8E8E8",
+      "schemeSlot": "lt2",
+      "writtenForMsoThemeColorIndex": 3
+    },
+    {
+      "onDiskThemeIndex": 3,
+      "renderedRgb": "0E2841",
+      "schemeSlot": "dk2",
+      "writtenForMsoThemeColorIndex": 4
+    },
+    {
+      "onDiskThemeIndex": 4,
+      "renderedRgb": "156082",
+      "schemeSlot": "accent1",
+      "writtenForMsoThemeColorIndex": 5
+    },
+    {
+      "onDiskThemeIndex": 5,
+      "renderedRgb": "E97132",
+      "schemeSlot": "accent2",
+      "writtenForMsoThemeColorIndex": 6
+    },
+    {
+      "onDiskThemeIndex": 6,
+      "renderedRgb": "196B24",
+      "schemeSlot": "accent3",
+      "writtenForMsoThemeColorIndex": 7
+    },
+    {
+      "onDiskThemeIndex": 7,
+      "renderedRgb": "0F9ED5",
+      "schemeSlot": "accent4",
+      "writtenForMsoThemeColorIndex": 8
+    },
+    {
+      "onDiskThemeIndex": 8,
+      "renderedRgb": "A02B93",
+      "schemeSlot": "accent5",
+      "writtenForMsoThemeColorIndex": 9
+    },
+    {
+      "onDiskThemeIndex": 9,
+      "renderedRgb": "4EA72E",
+      "schemeSlot": "accent6",
+      "writtenForMsoThemeColorIndex": 10
+    },
+    {
+      "onDiskThemeIndex": 10,
+      "renderedRgb": "467886",
+      "schemeSlot": "hlink",
+      "writtenForMsoThemeColorIndex": 11
+    },
+    {
+      "onDiskThemeIndex": 11,
+      "renderedRgb": "96607D",
+      "schemeSlot": "folHlink",
+      "writtenForMsoThemeColorIndex": 12
+    }
+  ],
+  "verdict": "theme=\"n\" indexes lt1, dk1, lt2, dk2, accent1..6, hlink, folHlink — each dark/light pair swapped relative to the clrScheme child sequence. Reading the ISO sequence order instead inverts text against background on every workbook."
+}

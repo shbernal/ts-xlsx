@@ -652,6 +652,36 @@ export const styles = {
     return {source: facts(partMapOf(bytes)), rewritten: facts(partMapOf(rewritten))};
   },
 
+  // Read a fixture and report, per requested cell, the raw colour encodings its fill/font carry
+  // alongside what the workbook resolves each one to → { <ref>: {fill, fillResolved, font,
+  // fontResolved}, themeColors }. An `indexed="n"` or `theme="n"` reference means nothing on its own;
+  // resolution is what turns it into a colour a caller can render. The raw encoding is reported
+  // beside the resolved value on purpose: resolution is a derived view, so the model must still be
+  // holding the original reference.
+  fixtureColorResolution(rel: CorpusApi, cells: CorpusApi = []) {
+    const workbook = readFixture(rel);
+    const sheet = workbook.worksheets[0];
+    const out: Record<string, CorpusApi> = {};
+    for (const ref of cells) {
+      const cell = sheet ? sheet.getCell(ref) : null;
+      const fill = cell?.fill && cell.fill.type === 'pattern' ? (cell.fill.fgColor ?? null) : null;
+      const font = cell?.font?.color ?? null;
+      out[ref] = {
+        fill: fill ? {...fill} : null,
+        fillResolved: fill ? (workbook.resolveColor(fill) ?? null) : null,
+        font: font ? {...font} : null,
+        fontResolved: font ? (workbook.resolveColor(font) ?? null) : null,
+      };
+    }
+    return {cells: out, themeColors: {...workbook.themeColors}};
+  },
+
+  // Resolve a colour reference against a workbook built from scratch → the 8-hex ARGB, or null. For
+  // the claims that need no fixture: the built-in indexed palette, the system sentinels, tint.
+  resolveColorOnEmptyWorkbook(color: CorpusApi) {
+    return new Workbook().resolveColor(color) ?? null;
+  },
+
   // Assign one base style object to two cells, then spread-reassign one cell's font color →
   // { a1Color, a2Color, bled }. The sibling given the same base must keep its original font.
   sharedBaseStyleFontMutation() {
