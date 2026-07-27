@@ -373,3 +373,42 @@ export type NamedCellStyle = Readonly<CellStyle> & {
   readonly name?: string;
   readonly builtinId?: number;
 };
+
+/**
+ * The `<tableStyles>` block of a styles part: the custom table/pivot style definitions a file
+ * declares, and the two gallery names it nominates as the default for a new table and a new pivot.
+ *
+ * Each entry of {@link styles} is one `<tableStyle>…</tableStyle>` fragment kept verbatim, for the
+ * same reason a `<dxf>` is: a `tableStyleElement`'s `dxfId` indexes the differential-style table,
+ * which the writer re-emits **at its original indices**, so the references stay valid without
+ * reparsing anything. That index-stability is load-bearing — renumbering the dxf table would
+ * silently re-point every preserved table style at a different format.
+ *
+ * The two default names are ordinary strings, not fragments: they are re-escaped on write, so they
+ * are held decoded.
+ */
+export interface TableStyleTable {
+  readonly styles: readonly string[];
+  readonly defaultTableStyle?: string | undefined;
+  readonly defaultPivotStyle?: string | undefined;
+  /**
+   * The namespace prefixes the verbatim {@link styles} fragments use, mapped to their URI and to
+   * whether the source marked the prefix ignorable (`mc:Ignorable`).
+   *
+   * Carrying a fragment verbatim carries its *prefixes* too. Excel stamps a revision id
+   * (`xr9:uid="{…}"`) on every `<tableStyle>` it writes, so a fragment re-emitted under a
+   * `<styleSheet>` that declares only the default namespace is not namespace-well-formed — no
+   * consumer can parse the part at all, which is a far louder failure than the dropped table style
+   * this preservation exists to prevent. The writer re-declares each prefix on `<styleSheet>` and
+   * re-states the ignorable ones, exactly as the source did.
+   */
+  readonly namespaces?: readonly TableStyleNamespace[];
+}
+
+/** One namespace declaration a preserved `<tableStyle>` fragment depends on. */
+export interface TableStyleNamespace {
+  readonly prefix: string;
+  readonly uri: string;
+  /** Whether the source listed this prefix in the stylesheet's `mc:Ignorable`. */
+  readonly ignorable: boolean;
+}

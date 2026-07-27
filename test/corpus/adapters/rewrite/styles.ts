@@ -573,6 +573,85 @@ export const styles = {
     return {source: facts(partMapOf(bytes)), rewritten: facts(partMapOf(rewritten))};
   },
 
+  // Read a fixture, write it straight back, and report the tail blocks of styles.xml on each side →
+  // { source, rewritten }. Those blocks — `<dxfs>`, `<tableStyles>`, `<colors>` — are the ones a
+  // regenerating writer drops most easily, and they reference each other: a `tableStyleElement`'s
+  // `dxfId` indexes the dxf table, and a table part's `tableStyleInfo/@name` names a `<tableStyle>`
+  // by name. So the facts are reported *resolved*: `elementDxfs` is the dxf fragment each element's
+  // `dxfId` actually lands on, and `tableStyleOnTableResolves` says whether the name the table asks
+  // for is one the stylesheet still defines.
+  //
+  // `undeclaredPrefixes` guards the hazard of verbatim preservation: a fragment carries its namespace
+  // prefixes with it, and one the re-emitted root never declares makes the whole part unparseable.
+  roundtripFixtureStylesTailFacts(rel: CorpusApi) {
+    const facts = (parts: Record<string, string>) => {
+      const xml = parts['xl/styles.xml'] ?? '';
+      const block = (name: string) =>
+        new RegExp(`<${name}\\b[^>]*/>|<${name}\\b[^>]*>[\\s\\S]*?</${name}>`).exec(xml)?.[0] ?? '';
+      const tableStyles = block('tableStyles');
+      const colors = block('colors');
+      const dxfs = [...block('dxfs').matchAll(/<dxf\b[^>]*\/>|<dxf\b[^>]*>[\s\S]*?<\/dxf>/g)].map(
+        (m) => m[0] as string,
+      );
+      const elements = [...tableStyles.matchAll(/<tableStyleElement\b[^>]*\/>/g)].map((m) => {
+        const tag = m[0] as string;
+        const dxfId = /\bdxfId="(\d+)"/.exec(tag)?.[1];
+        return {
+          type: /\btype="([^"]*)"/.exec(tag)?.[1] ?? null,
+          dxfId: dxfId === undefined ? null : Number(dxfId),
+        };
+      });
+      // The name the first table part asks its style by — the reference that dangles when the
+      // definition is dropped.
+      const tablePart = Object.keys(parts)
+        .filter((p) => /^xl\/tables\/table\d+\.xml$/.test(p))
+        .sort()[0];
+      const nameOnTable =
+        tablePart === undefined
+          ? null
+          : (/<tableStyleInfo\b[^>]*\bname="([^"]*)"/.exec(parts[tablePart] ?? '')?.[1] ?? null);
+      const definedNames = [...tableStyles.matchAll(/<tableStyle\b[^>]*\bname="([^"]*)"/g)].map(
+        (m) => m[1] as string,
+      );
+      const declared = new Set(
+        [...xml.matchAll(/xmlns:([A-Za-z_][\w.-]*)\s*=/g)].map((m) => m[1] as string),
+      );
+      const usedPrefixes = new Set<string>();
+      for (const tag of xml.matchAll(/<[^!?][^>]*>/g)) {
+        for (const m of (tag[0] as string).matchAll(/[\s</]([A-Za-z_][\w.-]*):[A-Za-z_]/g)) {
+          if (m[1] !== 'xmlns') usedPrefixes.add(m[1] as string);
+        }
+      }
+      return {
+        defaultTableStyle:
+          /<tableStyles\b[^>]*\bdefaultTableStyle="([^"]*)"/.exec(xml)?.[1] ?? null,
+        defaultPivotStyle:
+          /<tableStyles\b[^>]*\bdefaultPivotStyle="([^"]*)"/.exec(xml)?.[1] ?? null,
+        definedNames,
+        elements,
+        // Resolve each element's dxfId through the dxf table so a renumbered table shows up as a
+        // changed fragment rather than as an unchanged index.
+        elementDxfs: elements.map(({dxfId}) => (dxfId === null ? null : (dxfs[dxfId] ?? null))),
+        dxfCount: dxfs.length,
+        nameOnTable,
+        tableStyleOnTableResolves: nameOnTable === null ? null : definedNames.includes(nameOnTable),
+        mruColors: [...colors.matchAll(/<color\b[^>]*\brgb="([0-9a-fA-F]+)"/g)].map(
+          (m) => m[1] as string,
+        ),
+        indexedColorCount: [...colors.matchAll(/<rgbColor\b/g)].length,
+        // CT_Colors orders indexedColors before mruColors; a writer emitting them the other way round
+        // produces a schema-invalid part.
+        colorsChildren: [...colors.matchAll(/<(indexedColors|mruColors)\b/g)].map(
+          (m) => m[1] as string,
+        ),
+        undeclaredPrefixes: [...usedPrefixes].filter((p) => !declared.has(p)),
+      };
+    };
+    const bytes = fixtureBytes(rel);
+    const rewritten = writeXlsx(readXlsx(bytes));
+    return {source: facts(partMapOf(bytes)), rewritten: facts(partMapOf(rewritten))};
+  },
+
   // Assign one base style object to two cells, then spread-reassign one cell's font color →
   // { a1Color, a2Color, bled }. The sibling given the same base must keep its original font.
   sharedBaseStyleFontMutation() {

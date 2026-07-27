@@ -57,7 +57,7 @@ import {parseStyleTable} from './read-styles.ts';
 import {parseWorksheet} from './read-worksheet.ts';
 import {parseSharedStrings} from './shared-strings-read.ts';
 import {inflateXlsxPackage, unsupportedWorkbookPart} from './sniff-format.ts';
-import {parseIndexedColors} from './styles.ts';
+import {parseIndexedColors, parseMruColors, parseTableStyles} from './styles.ts';
 import {parseTable} from './tables.ts';
 import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
 import {boolStrict, localName, openElements, parseXml} from './xml-read.ts';
@@ -115,6 +115,12 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // Preserve a custom indexed-color palette verbatim so an `indexed="…"` colour reference keeps its
   // intended RGB across a re-write instead of resolving to a different default-palette entry.
   workbook.restoreIndexedColors(parseIndexedColors(stylesXml));
+  // Preserve the author's "Recent Colors" swatches, which the model never reads but re-writing would
+  // otherwise discard.
+  workbook.restoreMruColors(parseMruColors(stylesXml));
+  // Preserve the custom table-style definitions so a table referencing one by name still resolves to
+  // a real definition after a re-write instead of rendering unstyled.
+  workbook.restoreTableStyles(parseTableStyles(stylesXml));
   // Preserve the theme part so a branded colour/font scheme is not overwritten by the default theme
   // the writer emits for a workbook that has none.
   readWorkbookTheme(workbookRelsXml, pkg, contentTypeOf, workbook);

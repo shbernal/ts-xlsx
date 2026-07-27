@@ -39,6 +39,16 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   dangle. Exposed on the model as `Workbook.themePart` / `restoreThemePart`, opaque preserved XML in
   the same spirit as `restoreDifferentialStyles`.
 
+- **Custom table styles and recent-colour swatches are no longer dropped on round-trip.** A workbook's
+  `<tableStyles>` definitions and the default table/pivot styles it nominates were discarded when the
+  stylesheet was regenerated, so a table asking for a custom style by name was left referencing
+  nothing and rendered completely unstyled — a file that opens clean and looks wrong.
+  `<colors><mruColors>` (the "Recent Colors" swatches) went the same way. Both are now preserved
+  verbatim and exposed as `Workbook.tableStyles` / `restoreTableStyles` and `Workbook.mruColors` /
+  `restoreMruColors`. Each `tableStyleElement`'s `dxfId` keeps resolving because the differential-style
+  table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
+  (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
+
 ### Changed
 
 - `removeVbaModule` and `addVbaReference` (and their `Workbook`/`editXlsxVba*` wrappers) no longer reset

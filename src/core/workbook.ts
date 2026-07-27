@@ -23,7 +23,7 @@ import {commentThreadGuid, type Person} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
-import type {NamedCellStyle} from './style.ts';
+import type {NamedCellStyle, TableStyleTable} from './style.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
 
@@ -208,6 +208,17 @@ export class Workbook {
   // keeps its intended RGB across a round-trip instead of resolving to a different default-palette
   // entry. Empty for a workbook that never overrode the palette.
   readonly #indexedColors: string[] = [];
+
+  // The most-recently-used colour swatches (`<colors><mruColors>` in styles.xml), each a verbatim
+  // `<color rgb="…"/>` fragment. The author's own working set of colours; dropping it on a re-write
+  // quietly resets a habit. Empty for a workbook that never picked a custom colour.
+  readonly #mruColors: string[] = [];
+
+  // The custom table-style definitions (`<tableStyles>` in styles.xml), each `<tableStyle>` kept
+  // verbatim, plus the gallery names the file nominates as the default for a new table and pivot. A
+  // table's `tableStyleInfo/@name` can name one of these definitions, so dropping the block leaves
+  // that reference dangling and the table renders unstyled.
+  #tableStyles: TableStyleTable = {styles: []};
 
   // The theme part read from a file, kept verbatim with the closure of parts it reaches. The writer
   // emits its own default theme for a workbook that has none, so without this a branded theme would be
@@ -498,6 +509,36 @@ export class Workbook {
   /** The preserved custom indexed-color palette, in index order; empty when the default palette rules. */
   get indexedColors(): readonly string[] {
     return this.#indexedColors;
+  }
+
+  /**
+   * Reinstate the most-recently-used colour swatches (`<colors><mruColors>`) read from a file, each
+   * entry a verbatim `<color rgb="…"/>` fragment — the "Recent Colors" row a spreadsheet application
+   * offers, which is the author's own working set rather than anything the model interprets. Replaces
+   * any list already held.
+   */
+  restoreMruColors(fragments: readonly string[]): void {
+    replaceContents(this.#mruColors, fragments);
+  }
+
+  /** The preserved most-recently-used colour swatches, in order; empty when the file declared none. */
+  get mruColors(): readonly string[] {
+    return this.#mruColors;
+  }
+
+  /**
+   * Reinstate the custom table-style definitions (`<tableStyles>`) read from a file — see
+   * {@link TableStyleTable} — so a table whose `styleName` names a custom style still resolves to a
+   * real definition on re-write instead of dangling, and the file's nominated default table/pivot
+   * styles survive. Replaces any block already held.
+   */
+  restoreTableStyles(table: TableStyleTable): void {
+    this.#tableStyles = table;
+  }
+
+  /** The preserved `<tableStyles>` block; `styles` is empty when the file declared no custom style. */
+  get tableStyles(): TableStyleTable {
+    return this.#tableStyles;
   }
 
   /**

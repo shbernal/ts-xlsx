@@ -31,10 +31,13 @@ import {
   isVerticalAlignment,
   type NamedCellStyle,
   type Protection,
+  type TableStyleNamespace,
+  type TableStyleTable,
   type UnderlineStyle,
 } from '../../core/style.ts';
-import {SPREADSHEETML_NS} from './namespaces.ts';
+import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 import {escapeAttr, XML_DECLARATION} from './xml.ts';
+import {openElements} from './xml-read.ts';
 
 // Excel reserves fill ids 0 and 1 for the "none" and "gray125" patterns it always emits;
 // custom fills are numbered from 2 so a foreign reader's built-in assumptions still hold.
@@ -146,6 +149,19 @@ export class StyleRegistry {
   // colour to a different default-palette entry. Empty for a workbook that never overrode the palette.
   readonly #indexedColors: string[] = [];
 
+  // The most-recently-used colour swatches (`<colors><mruColors>`) read from a file, each entry a
+  // verbatim `<color rgb="…"/>` fragment. Purely a UI convenience — the palette Excel offers under
+  // "Recent Colors" — but it is the author's own working set, so dropping it on a re-write quietly
+  // resets a habit. Empty for a workbook that never picked a custom colour.
+  readonly #mruColors: string[] = [];
+
+  // The custom table/pivot style definitions (`<tableStyles>`) read from a file, kept verbatim, plus
+  // the gallery names it nominates as defaults. A table's `tableStyleInfo/@name` can point at one of
+  // these definitions, so dropping the block leaves that reference dangling and the table renders
+  // unstyled. Excel writes the container (with both default attributes) into essentially every file
+  // even when it declares no custom style at all.
+  #tableStyles: TableStyleTable = {styles: []};
+
   /**
    * The `<cellXfs>` index for a composed cell/row/column style. A style with no facet needs
    * no entry and resolves to the default xf 0, so its owner emits no `s` attribute at all.
@@ -237,6 +253,25 @@ export class StyleRegistry {
     this.#indexedColors.push(...fragments);
   }
 
+  /**
+   * Seed the most-recently-used colour swatches (`<colors><mruColors>`) read from a file, each entry a
+   * verbatim `<color rgb="…"/>` fragment. An empty list emits no `<mruColors>` element.
+   */
+  seedMruColors(fragments: readonly string[]): void {
+    this.#mruColors.length = 0;
+    this.#mruColors.push(...fragments);
+  }
+
+  /**
+   * Seed the custom table-style definitions (`<tableStyles>`) read from a file, each `<tableStyle>`
+   * kept verbatim so a table's `tableStyleInfo/@name` still resolves and each element's `dxfId` still
+   * indexes the differential-style table {@link seedDifferentialStyles} preserves at its original
+   * indices. Replaces any block already held.
+   */
+  seedTableStyles(table: TableStyleTable): void {
+    this.#tableStyles = table;
+  }
+
   /** Intern a differential style authored on a rule, returning its `<dxfs>` index for the cfRule's
    * `dxfId`. Identical styles collapse to one entry. */
   differentialStyleId(style: DifferentialStyle): number {
@@ -315,7 +350,7 @@ export class StyleRegistry {
     const borders = DEFAULT_BORDER + this.#borderXml.join('');
     return (
       XML_DECLARATION +
-      `<styleSheet xmlns="${SPREADSHEETML_NS}">` +
+      `<styleSheet xmlns="${SPREADSHEETML_NS}"${this.#foreignNamespaceAttrs()}>` +
       this.#numFmtsXml() +
       `<fonts count="${fontCount}">${fonts}</fonts>` +
       `<fills count="${fillCount}">${fills}</fills>` +
@@ -324,17 +359,66 @@ export class StyleRegistry {
       `<cellXfs count="${this.#formats.length}">${cellXfs}</cellXfs>` +
       `<cellStyles count="${this.#cellStyleNames.length}">${cellStyles}</cellStyles>` +
       this.#dxfsXml() +
+      this.#tableStylesXml() +
       this.#colorsXml() +
       '</styleSheet>'
     );
   }
 
-  // <colors> (holding the custom <indexedColors> palette) is a late child of <styleSheet>, after
-  // <dxfs> and <tableStyles>. It is emitted only when a file overrode the default palette, so an
-  // ordinary workbook stays on the built-in indexed colours and writes no <colors> element.
+  // The `xmlns:…` declarations a preserved `<tableStyle>` fragment depends on, plus the
+  // markup-compatibility attributes that tell a consumer to ignore what it does not understand. A
+  // workbook carrying no such fragment emits nothing, so the ordinary stylesheet root is unchanged.
+  //
+  // This is the cost of verbatim preservation: a fragment carries its prefixes with it, and a prefix
+  // no ancestor declares makes the whole part unparseable — a much louder failure than the dropped
+  // table style the preservation exists to prevent. See {@link TableStyleTable.namespaces}.
+  #foreignNamespaceAttrs(): string {
+    const namespaces = this.#tableStyles.namespaces ?? [];
+    if (namespaces.length === 0) return '';
+    const declarations = namespaces.map((ns) => ` xmlns:${ns.prefix}="${escapeAttr(ns.uri)}"`);
+    const ignorable = namespaces.filter((ns) => ns.ignorable).map((ns) => ns.prefix);
+    const compatibility =
+      ignorable.length === 0
+        ? ''
+        : ` xmlns:mc="${MARKUP_COMPATIBILITY_NS}" mc:Ignorable="${escapeAttr(ignorable.join(' '))}"`;
+    return declarations.join('') + compatibility;
+  }
+
+  // <tableStyles> sits between <dxfs> and <colors> in CT_Stylesheet's child sequence. It is emitted
+  // only when a source file carried one — either a custom style definition or a nominated default —
+  // so a workbook authored from scratch leaves every table on the built-in gallery and writes nothing.
+  // `count` counts the definitions, not the attributes, so a container that only nominates defaults
+  // (the shape Excel writes into nearly every file) is self-closing with count="0".
+  #tableStylesXml(): string {
+    const {styles, defaultTableStyle, defaultPivotStyle} = this.#tableStyles;
+    if (styles.length === 0 && defaultTableStyle === undefined && defaultPivotStyle === undefined) {
+      return '';
+    }
+    const attrs =
+      ` count="${styles.length}"` +
+      (defaultTableStyle === undefined
+        ? ''
+        : ` defaultTableStyle="${escapeAttr(defaultTableStyle)}"`) +
+      (defaultPivotStyle === undefined
+        ? ''
+        : ` defaultPivotStyle="${escapeAttr(defaultPivotStyle)}"`);
+    if (styles.length === 0) return `<tableStyles${attrs}/>`;
+    return `<tableStyles${attrs}>${styles.join('')}</tableStyles>`;
+  }
+
+  // <colors> is the last modelled child of <styleSheet>, after <dxfs> and <tableStyles>. It holds the
+  // custom <indexedColors> palette and then the <mruColors> swatch list, in that CT_Colors order. It
+  // is emitted only when a file carried one of them, so an ordinary workbook stays on the built-in
+  // indexed colours and writes no <colors> element.
   #colorsXml(): string {
-    if (this.#indexedColors.length === 0) return '';
-    return `<colors><indexedColors>${this.#indexedColors.join('')}</indexedColors></colors>`;
+    const indexed =
+      this.#indexedColors.length === 0
+        ? ''
+        : `<indexedColors>${this.#indexedColors.join('')}</indexedColors>`;
+    const mru =
+      this.#mruColors.length === 0 ? '' : `<mruColors>${this.#mruColors.join('')}</mruColors>`;
+    if (indexed === '' && mru === '') return '';
+    return `<colors>${indexed}${mru}</colors>`;
   }
 
   // <dxfs> holds the differential styles conditional formatting references by index. An empty table
@@ -481,12 +565,97 @@ function protectionAttrs(protection: Protection): string {
  * source file declared survive a round-trip and every `indexed="…"` reference keeps its RGB.
  */
 export function parseIndexedColors(stylesXml: string): string[] {
-  const block = /<indexedColors\b[^>]*>([\s\S]*?)<\/indexedColors>/.exec(stylesXml);
+  return elementFragments(stylesXml, 'indexedColors', 'rgbColor');
+}
+
+/**
+ * Extract the most-recently-used colour swatches (`<colors><mruColors>`) from styles.xml as verbatim
+ * `<color .../>` fragments, or an empty list when the file declares none. Kept raw for the same reason
+ * the indexed palette is: the list is the author's own working set of colours and the model has no
+ * use for its contents, only for not losing them.
+ */
+export function parseMruColors(stylesXml: string): string[] {
+  return elementFragments(stylesXml, 'mruColors', 'color');
+}
+
+/**
+ * Extract the `<tableStyles>` block from styles.xml: each `<tableStyle>` definition verbatim, plus the
+ * container's nominated `defaultTableStyle`/`defaultPivotStyle`. See {@link TableStyleTable} for why
+ * the definitions stay raw while the two names are decoded.
+ *
+ * A file with no such block — or with the self-closing `count="0"` container Excel writes when it has
+ * only defaults to state — yields an empty {@link TableStyleTable.styles} and whichever names it did
+ * carry.
+ */
+export function parseTableStyles(stylesXml: string): TableStyleTable {
+  const styles = elementFragments(stylesXml, 'tableStyles', 'tableStyle');
+  const table: {
+    styles: string[];
+    defaultTableStyle?: string;
+    defaultPivotStyle?: string;
+    namespaces?: TableStyleNamespace[];
+  } = {styles};
+  for (const {attrs} of openElements(stylesXml, 'tableStyles')) {
+    if (attrs.defaultTableStyle !== undefined) table.defaultTableStyle = attrs.defaultTableStyle;
+    if (attrs.defaultPivotStyle !== undefined) table.defaultPivotStyle = attrs.defaultPivotStyle;
+    break;
+  }
+  const namespaces = fragmentNamespaces(stylesXml, styles);
+  if (namespaces.length > 0) table.namespaces = namespaces;
+  return table;
+}
+
+// The namespace declarations the verbatim `<tableStyle>` fragments depend on, resolved against the
+// stylesheet root that scoped them. Only prefixes a fragment actually uses are carried, so an
+// ordinary file (whose fragments use none) adds nothing to the re-emitted root; a prefix a fragment
+// uses but the root never declared is skipped, because there is no URI to re-declare it with — the
+// source was already unparseable there and inventing a URI would not repair it.
+//
+// `ignorable` is copied from the source's own `mc:Ignorable` rather than assumed: a prefix the source
+// did *not* mark ignorable carries meaning the consumer must not skip, and marking it here would tell
+// every consumer to throw that meaning away.
+function fragmentNamespaces(
+  stylesXml: string,
+  fragments: readonly string[],
+): TableStyleNamespace[] {
+  if (fragments.length === 0) return [];
+  const declared = new Map<string, string>();
+  const ignorable = new Set<string>();
+  for (const {attrs} of openElements(stylesXml, 'styleSheet')) {
+    for (const [name, value] of Object.entries(attrs)) {
+      if (name.startsWith('xmlns:')) declared.set(name.slice('xmlns:'.length), value);
+    }
+    for (const prefix of (attrs['mc:Ignorable'] ?? '').split(/\s+/)) {
+      if (prefix !== '') ignorable.add(prefix);
+    }
+    break;
+  }
+  const used = new Set<string>();
+  for (const fragment of fragments) {
+    // A prefix appears either on an element (`<p:tag`, `</p:tag`) or on an attribute (` p:attr=`).
+    for (const match of fragment.matchAll(/[\s</]([A-Za-z_][\w.-]*):[A-Za-z_]/g)) {
+      used.add(match[1] as string);
+    }
+  }
+  return [...used]
+    .filter((prefix) => declared.has(prefix))
+    .map((prefix) => ({
+      prefix,
+      uri: declared.get(prefix) as string,
+      ignorable: ignorable.has(prefix),
+    }));
+}
+
+// The verbatim child fragments of a container element — the shape every preserved styles sub-table
+// takes. Scanning the container's inner text rather than the whole part is what keeps a `<color>` in
+// `<mruColors>` from being confused with the many other `<color>` elements a stylesheet carries, and
+// the `\b` after the child's name is what keeps `<tableStyles>` from matching as a `<tableStyle>`.
+function elementFragments(xml: string, container: string, child: string): string[] {
+  const block = new RegExp(`<${container}\\b[^>]*>([\\s\\S]*?)</${container}>`).exec(xml);
   if (block === null) return [];
   const inner = block[1] ?? '';
-  return [...inner.matchAll(/<rgbColor\b[^>]*\/>|<rgbColor\b[^>]*>[\s\S]*?<\/rgbColor>/g)].map(
-    (m) => m[0] ?? '',
-  );
+  const pattern = new RegExp(`<${child}\\b[^>]*/>|<${child}\\b[^>]*>[\\s\\S]*?</${child}>`, 'g');
+  return [...inner.matchAll(pattern)].map((m) => m[0] ?? '');
 }
 
 // Serialise the facets a font overrides, in ECMA-376 child order. A boolean flag is emitted only

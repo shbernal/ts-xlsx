@@ -130,6 +130,11 @@ export function createStyleRegistry(workbook: Workbook): StyleRegistry {
   // Seed the custom indexed-color palette so it re-emits verbatim and an `indexed="…"` colour keeps
   // its intended RGB; a workbook that never overrode the palette seeds nothing and writes no <colors>.
   styles.seedIndexedColors(workbook.indexedColors);
+  // Seed the author's "Recent Colors" swatches so they re-emit unchanged rather than being reset.
+  styles.seedMruColors(workbook.mruColors);
+  // Seed the custom table-style definitions so a table's `styleName` still names a real definition and
+  // each element's dxfId still indexes the differential-style table seeded above at its original index.
+  styles.seedTableStyles(workbook.tableStyles);
   return styles;
 }
 

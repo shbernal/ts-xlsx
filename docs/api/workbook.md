@@ -124,6 +124,10 @@ class Workbook {
   get differentialStyles(): readonly string[];
   restoreIndexedColors(fragments: readonly string[]): void;
   get indexedColors(): readonly string[];
+  restoreMruColors(fragments: readonly string[]): void;
+  get mruColors(): readonly string[];
+  restoreTableStyles(table: TableStyleTable): void;
+  get tableStyles(): TableStyleTable;
   restoreThemePart(theme: PreservedTheme | undefined): void;
   get themePart(): PreservedTheme | undefined;
   restoreNamedStyles(styles: readonly NamedCellStyle[]): void;
@@ -164,6 +168,10 @@ class Workbook {
 - `get differentialStyles(): readonly string[];` — The preserved differential-style (`<dxfs>`) fragments, in index order.
 - `restoreIndexedColors(fragments: readonly string[]): void;` — Reinstate the custom indexed-color palette (`<colors><indexedColors>`) read from a file — each entry a verbatim `<rgbColor rgb="…"/>` fragment — so a colour referenced by `indexed="…"` keeps its intended RGB on re-write instead of the palette being dropped and the colour shifting to a default-palette entry. Replaces any palette already held.
 - `get indexedColors(): readonly string[];` — The preserved custom indexed-color palette, in index order; empty when the default palette rules.
+- `restoreMruColors(fragments: readonly string[]): void;` — Reinstate the most-recently-used colour swatches (`<colors><mruColors>`) read from a file, each entry a verbatim `<color rgb="…"/>` fragment — the "Recent Colors" row a spreadsheet application offers, which is the author's own working set rather than anything the model interprets. Replaces any list already held.
+- `get mruColors(): readonly string[];` — The preserved most-recently-used colour swatches, in order; empty when the file declared none.
+- `restoreTableStyles(table: TableStyleTable): void;` — Reinstate the custom table-style definitions (`<tableStyles>`) read from a file — see `TableStyleTable` — so a table whose `styleName` names a custom style still resolves to a real definition on re-write instead of dangling, and the file's nominated default table/pivot styles survive. Replaces any block already held.
+- `get tableStyles(): TableStyleTable;` — The preserved `<tableStyles>` block; `styles` is empty when the file declared no custom style.
 - `restoreThemePart(theme: PreservedTheme | undefined): void;` — Reinstate the theme part read from a file — opaque preserved XML plus the closure of parts it reaches (see `PreservedTheme`) — so a workbook's colour and font schemes survive a re-write instead of being replaced by the library's default Office theme. Replaces any theme already held; passing `undefined` drops back to that default.
 - `get themePart(): PreservedTheme | undefined;` — The preserved theme part, or undefined when the workbook rides the library's default theme.
 - `restoreNamedStyles(styles: readonly NamedCellStyle[]): void;` — Reinstate the named cell styles (`cellStyleXfs`/`cellStyles`) read from a file, index for index, so a cell's link to a named style (its `xfId`) stays valid on re-write. Index 0 is the Normal default. Replaces any table already held.
