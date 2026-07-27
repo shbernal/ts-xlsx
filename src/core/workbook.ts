@@ -48,6 +48,51 @@ export interface PreservedWorkbookReference {
   readonly externalReferenceIndex?: number;
 }
 
+/**
+ * The workbook's saved window state — OOXML's `<workbookView>`, the single entry of `<bookViews>`.
+ *
+ * This is the rect a consumer restores the document window to, and the layout every pane geometry is
+ * computed against: a frozen split is positioned within it. `activeTab` names the sheet whose tab is
+ * selected on open.
+ *
+ * The position and size are in twips (1/20 of a point), Excel's window unit. A slightly negative
+ * `x`/`y` is normal and is what Excel itself writes — a maximised window's frame sits just outside the
+ * work area.
+ */
+export interface WorkbookView {
+  /** Left edge of the document window, in twips. */
+  x: number;
+  /** Top edge of the document window, in twips. */
+  y: number;
+  /** Window width, in twips. */
+  width: number;
+  /** Window height, in twips. */
+  height: number;
+  /** 0-based index into {@link Workbook.worksheets} of the sheet selected on open. */
+  activeTab: number;
+  /** Window visibility; omit for a normally visible window. */
+  visibility?: 'visible' | 'hidden' | 'veryHidden';
+  /** Whether the document window opens minimised; omit for a restored window. */
+  minimized?: boolean;
+}
+
+/**
+ * The window geometry a workbook starts from — the values desktop Excel writes for its own default
+ * window.
+ *
+ * A default is emitted rather than the element left out because Excel writes `<bookViews>` into every
+ * file it saves and consumers lay panes out against that rect. With no view at all the frozen-pane
+ * split is computed against an uninitialised window, and the frozen region can stay unpainted until
+ * some later event forces a relayout.
+ */
+export const DEFAULT_WORKBOOK_VIEW = {
+  x: -110,
+  y: -110,
+  width: 19420,
+  height: 12220,
+  activeTab: 0,
+} as const satisfies WorkbookView;
+
 /** Document-level metadata written to the package's core properties. */
 export interface WorkbookProperties {
   creator?: string;
@@ -94,6 +139,14 @@ const INVALID_SHEET_NAME_CHARS = /[*?:\\/[\]]/;
 
 export class Workbook {
   readonly properties: WorkbookProperties = {};
+
+  /**
+   * The workbook's window state — position, size, and the selected sheet. Always present (see
+   * {@link DEFAULT_WORKBOOK_VIEW} for why it is defaulted rather than left unset) and always written.
+   * Reading a file replaces it with that file's saved geometry, so a round-trip restores the window
+   * the author left rather than stamping ours over it.
+   */
+  readonly view: WorkbookView = {...DEFAULT_WORKBOOK_VIEW};
 
   /**
    * Ask consuming spreadsheet apps to recalculate every formula when the file is opened, rather than
@@ -151,6 +204,20 @@ export class Workbook {
   /** The worksheets in insertion order. */
   get worksheets(): readonly Worksheet[] {
     return this.#worksheets;
+  }
+
+  /**
+   * The 0-based index of the active sheet: {@link WorkbookView.activeTab} resolved against the sheets
+   * that actually exist. Exactly one sheet is always active — an out-of-range tab (a caller's stale
+   * index, or a file whose sheet was removed after the view was saved) falls back to the first sheet
+   * rather than to none, because a package where no sheet is selected gives the consumer no view to
+   * initialise on open.
+   */
+  get activeTabIndex(): number {
+    const {activeTab} = this.view;
+    return Number.isInteger(activeTab) && activeTab > 0 && activeTab < this.#worksheets.length
+      ? activeTab
+      : 0;
   }
 
   /** Record a workbook-level preserved reference (a pivot or slicer cache) read from a file. */

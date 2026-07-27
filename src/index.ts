@@ -132,10 +132,12 @@ export {
 export {
   type AddImageOptions,
   type AddWorksheetOptions,
+  DEFAULT_WORKBOOK_VIEW,
   type DefinedName,
   type PreservedWorkbookReference,
   Workbook,
   type WorkbookProperties,
+  type WorkbookView,
 } from './core/workbook.ts';
 export type {
   WorkbookProtection,

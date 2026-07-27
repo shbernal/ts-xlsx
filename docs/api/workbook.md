@@ -29,6 +29,24 @@ interface AddWorksheetOptions {
 
 ---
 
+### `DEFAULT_WORKBOOK_VIEW`
+
+<sub>const</sub>
+
+The window geometry a workbook starts from — the values desktop Excel writes for its own default
+window.
+
+A default is emitted rather than the element left out because Excel writes `<bookViews>` into every
+file it saves and consumers lay panes out against that rect. With no view at all the frozen-pane
+split is computed against an uninitialised window, and the frozen region can stay unpainted until
+some later event forces a relayout.
+
+```ts
+const DEFAULT_WORKBOOK_VIEW: { readonly x: -110; readonly y: -110; readonly width: 19420; readonly height: 12220; readonly activeTab: 0; }
+```
+
+---
+
 ### `DefinedName`
 
 <sub>interface</sub>
@@ -85,9 +103,11 @@ interface PreservedWorkbookReference {
 ```ts
 class Workbook {
   readonly properties: WorkbookProperties = {};
+  readonly view: WorkbookView = { ...DEFAULT_WORKBOOK_VIEW };
   fullCalcOnLoad = false;
   protection: WorkbookProtection | undefined = undefined;
   get worksheets(): readonly Worksheet[];
+  get activeTabIndex(): number;
   addPreservedReference(reference: PreservedWorkbookReference): void;
   get preservedReferences(): readonly PreservedWorkbookReference[];
   addPreservedRootReference(reference: PreservedRootReference): void;
@@ -122,9 +142,11 @@ class Workbook {
 
 **Members**
 
+- `readonly view: WorkbookView = { ...DEFAULT_WORKBOOK_VIEW };` — The workbook's window state — position, size, and the selected sheet. Always present (see `DEFAULT_WORKBOOK_VIEW` for why it is defaulted rather than left unset) and always written. Reading a file replaces it with that file's saved geometry, so a round-trip restores the window the author left rather than stamping ours over it.
 - `fullCalcOnLoad = false;` — Ask consuming spreadsheet apps to recalculate every formula when the file is opened, rather than trusting the cached results stored with each formula cell. Set this when the producer cannot compute formula results itself — the OOXML `fullCalcOnLoad` flag. Off by default, so a workbook whose cached results are authoritative stays unmarked.
 - `protection: WorkbookProtection | undefined = undefined;` — Workbook-level structure/window protection — the OOXML `<workbookProtection>` element. Absent by default (an unprotected workbook). Set it to lock the workbook shell, or leave it as read from a file so a protected workbook stays locked across a passthrough save rather than being silently unlocked. Distinct from a worksheet's own `protect()`, which guards a single sheet's cells.
 - `get worksheets(): readonly Worksheet[];` — The worksheets in insertion order.
+- `get activeTabIndex(): number;` — The 0-based index of the active sheet: `WorkbookView.activeTab` resolved against the sheets that actually exist. Exactly one sheet is always active — an out-of-range tab (a caller's stale index, or a file whose sheet was removed after the view was saved) falls back to the first sheet rather than to none, because a package where no sheet is selected gives the consumer no view to initialise on open.
 - `addPreservedReference(reference: PreservedWorkbookReference): void;` — Record a workbook-level preserved reference (a pivot or slicer cache) read from a file.
 - `get preservedReferences(): readonly PreservedWorkbookReference[];` — The workbook-level preserved references, in the order they were read.
 - `addPreservedRootReference(reference: PreservedRootReference): void;` — Record a package-root preserved reference (a customUI ribbon part, custom props) read from a file.
@@ -168,5 +190,33 @@ interface WorkbookProperties {
     lastModifiedBy?: string;
     created?: Date;
     modified?: Date;
+}
+```
+
+---
+
+### `WorkbookView`
+
+<sub>interface</sub>
+
+The workbook's saved window state — OOXML's `<workbookView>`, the single entry of `<bookViews>`.
+
+This is the rect a consumer restores the document window to, and the layout every pane geometry is
+computed against: a frozen split is positioned within it. `activeTab` names the sheet whose tab is
+selected on open.
+
+The position and size are in twips (1/20 of a point), Excel's window unit. A slightly negative
+`x`/`y` is normal and is what Excel itself writes — a maximised window's frame sits just outside the
+work area.
+
+```ts
+interface WorkbookView {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    activeTab: number;
+    visibility?: 'visible' | 'hidden' | 'veryHidden';
+    minimized?: boolean;
 }
 ```

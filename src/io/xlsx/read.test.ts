@@ -4,9 +4,9 @@ import {test} from 'node:test';
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import type {Fill} from '../../core/style.ts';
 import {isFormulaValue} from '../../core/value.ts';
-import {Workbook} from '../../core/workbook.ts';
+import {DEFAULT_WORKBOOK_VIEW, Workbook} from '../../core/workbook.ts';
 import {UnsupportedFormatError} from './errors.ts';
-import {readXlsx} from './read.ts';
+import {applyWorkbookView, readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
 /** Write a workbook and read it straight back — the round-trip under test. */
@@ -18,6 +18,49 @@ function roundtrip(workbook: Workbook): Workbook {
 function fillFgArgb(fill: Fill | undefined): string | undefined {
   return fill?.type === 'pattern' ? fill.fgColor?.argb : undefined;
 }
+
+test('a saved window view is read off <bookViews>, flags and all', () => {
+  const view = {...DEFAULT_WORKBOOK_VIEW};
+  applyWorkbookView(
+    view,
+    '<workbook><bookViews><workbookView visibility="hidden" minimized="1" xWindow="0" ' +
+      'yWindow="480" windowWidth="9000" windowHeight="6000" activeTab="2"/></bookViews></workbook>',
+  );
+  assert.deepEqual(view, {
+    x: 0,
+    y: 480,
+    width: 9000,
+    height: 6000,
+    activeTab: 2,
+    visibility: 'hidden',
+    minimized: true,
+  });
+});
+
+test('a workbook with no <bookViews> keeps the default window view', () => {
+  const view = {...DEFAULT_WORKBOOK_VIEW};
+  applyWorkbookView(view, '<workbook><sheets/></workbook>');
+  assert.deepEqual(view, {...DEFAULT_WORKBOOK_VIEW});
+});
+
+test('an unusable window attribute falls back to the default rather than a NaN geometry', () => {
+  const view = {...DEFAULT_WORKBOOK_VIEW};
+  applyWorkbookView(
+    view,
+    '<bookViews><workbookView xWindow="wide" windowWidth="8000"/></bookViews>',
+  );
+  assert.equal(view.x, DEFAULT_WORKBOOK_VIEW.x);
+  assert.equal(view.width, 8000);
+});
+
+test('only the first <workbookView> is read — the model carries one window', () => {
+  const view = {...DEFAULT_WORKBOOK_VIEW};
+  applyWorkbookView(
+    view,
+    '<bookViews><workbookView windowWidth="100"/><workbookView windowWidth="200"/></bookViews>',
+  );
+  assert.equal(view.width, 100);
+});
 
 test('scalar cell values survive the round-trip with their types', () => {
   const wb = new Workbook();

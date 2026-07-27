@@ -21,7 +21,7 @@ import {decodeRange} from '../../core/address.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
-import {type DefinedName, Workbook} from '../../core/workbook.ts';
+import {type DefinedName, Workbook, type WorkbookView} from '../../core/workbook.ts';
 import {
   WORKBOOK_PROTECTION_CREDENTIAL_ATTRS,
   type WorkbookProtection,
@@ -121,6 +121,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   const core = partText('docProps/core.xml');
   if (core !== undefined) applyCoreProperties(workbook, core);
   workbook.protection = parseWorkbookProtection(workbookXml);
+  applyWorkbookView(workbook.view, workbookXml);
   // The threaded-comment author registry is workbook-level, and every conversation on every sheet
   // resolves its authors and @mentions through it — so it is restored before the sheet loop that reads
   // those conversations, not alongside the other workbook-level parts below.
@@ -606,6 +607,35 @@ export function parseWorkbookProtection(xml: string): WorkbookProtection | undef
     },
   });
   return result;
+}
+
+// Restore the workbook's saved window state from `<bookViews><workbookView/>` onto the model's view,
+// so a round-trip hands back the geometry and active tab the author left rather than stamping the
+// library's defaults over them. Only the first `<workbookView>` is read — the model carries one view,
+// which is all Excel writes and all a single consuming window can restore.
+//
+// Each attribute is applied only when the source carried a usable value; an absent or non-numeric one
+// leaves the default in place, so a truncated or hostile element degrades to a valid window rather
+// than a NaN geometry that would serialise as garbage.
+export function applyWorkbookView(view: WorkbookView, xml: string): void {
+  for (const {attrs} of openElements(xml, 'workbookView')) {
+    applyViewNumber(attrs.xWindow, (value) => (view.x = value));
+    applyViewNumber(attrs.yWindow, (value) => (view.y = value));
+    applyViewNumber(attrs.windowWidth, (value) => (view.width = value));
+    applyViewNumber(attrs.windowHeight, (value) => (view.height = value));
+    applyViewNumber(attrs.activeTab, (value) => (view.activeTab = value));
+    if (attrs.visibility === 'hidden' || attrs.visibility === 'veryHidden') {
+      view.visibility = attrs.visibility;
+    }
+    if (boolStrict(attrs.minimized)) view.minimized = true;
+    return;
+  }
+}
+
+function applyViewNumber(raw: string | undefined, assign: (value: number) => void): void {
+  if (raw === undefined) return;
+  const value = Number(raw);
+  if (Number.isFinite(value)) assign(Math.trunc(value));
 }
 
 // Reconstruct the workbook's defined names. Each `<definedName>` carries its name (and optional
