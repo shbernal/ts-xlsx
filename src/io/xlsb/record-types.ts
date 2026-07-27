@@ -64,6 +64,7 @@ export const BRT = {
   // Worksheet structure.
   WsProp: 147,
   WsDim: 148,
+  WsFmtInfo: 485,
   BeginSheetData: 145,
   EndSheetData: 146,
 } as const;

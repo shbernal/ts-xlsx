@@ -85,6 +85,7 @@ order:
 | --- | --- |
 | core model | `Workbook` / `Worksheet` / `Row` / `Cell`, addresses, styles — the in-memory document |
 | xlsx read/write | OOXML parse and serialize; the hardest, highest-value surface |
+| xlsb read | the binary BIFF12 serialisation of the same model, read-only so far (`src/io/xlsb/`) |
 | streaming | bounded-memory row streaming — reads, and an incremental workbook writer |
 | csv | a thin, optional entry point, never coupled to the xlsx core |
 | vba | native read/author/edit of a macro-enabled workbook's `vbaProject.bin` (`src/vba/`) |
@@ -111,6 +112,24 @@ monolith, split along the OOXML package's own seams so a change touches one part
   and `worksheet-xml.ts` (the serialisers), `part-paths.ts` and `relationships.ts` (shared
   OPC primitives), with `write.ts` keeping `writeXlsx` and the `buildPackageParts`
   orchestrator.
+
+## Two serialisations, one model
+
+`.xlsb` is not a second library bolted on; it is a second **codec** over the same `Workbook`. The two
+formats share an OPC/ZIP container, a relationship graph, and a style model, and differ only in how the
+office-document parts are spelled — XML in `.xlsx`, BIFF12 record streams in `.xlsb`. The code follows
+that seam exactly: the bounded inflater and magic-byte probe (`sniff-format.ts`), the OPC/relationship
+resolution (`read-opc.ts`), the resolved-format table (`XfStyle`, its built-in number formats, and
+`applyXfToCell` in `read-styles.ts`) are one implementation both codecs use, and only the part parsers
+live apart in `src/io/xlsb/` — `record-stream.ts` (the record framing), `primitives.ts` (RkNumber,
+length-prefixed strings, colours), then a per-part parser mirroring its XML counterpart.
+
+`readXlsx` detects which serialisation a package holds and dispatches, so a caller never branches on
+format. The property that keeps the two honest is asserted, not assumed: the corpus reads one workbook
+Excel saved in *both* forms and requires the two models to be identical. Anything the binary states
+that XML omits — a bottom vertical alignment, a locked cell, a row restating the sheet's default
+height, a hatch fill's automatic-colour sentinels — must therefore be dropped on the binary side, which
+is where most of the subtlety in that reader lives.
 
 Namespace URIs and ext-URI GUIDs are registered once in `namespaces.ts`. Sheet-local
 relationship ids are handed out by a single monotonic `SheetRelIds` allocator: id prefixes

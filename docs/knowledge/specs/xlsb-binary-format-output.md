@@ -11,10 +11,11 @@ on disk and faster to parse and emit for large datasets. The request is for an a
 serialization format (write, and by extension read), not a bug: "produce a valid `.xlsb` that
 Excel opens, and read one back."
 
-> Spec note, not a corpus case: this is a new capability with no failing behavior to assert yet. It
-> becomes assertable — round-trip a binary workbook and inspect its records/values — once a codec
-> exists. The durable value is the format's shape, the architectural constraint it places on the
-> rebuild, and the scoping decisions it forces.
+> **Status: read is implemented; write is not.** The read half is now assertable and asserted — see the
+> corpus case `xlsb-binary-workbook-reads-like-its-xlsx-twin`, whose fixtures are one workbook Excel
+> saved in *both* forms so the XML twin is an independent oracle for what the binary must decode to.
+> The write half remains a spec note. The decisions taken while implementing read are recorded under
+> "Scope decisions" below.
 
 ## Desired behavior
 
@@ -42,22 +43,54 @@ Excel opens, and read one back."
 
 ## Scope decisions
 
-- **Read before write.** Reading foreign `.xlsb` files is higher-value and lower-risk than writing
-  them and could ship first; the motivating large-workbook use case then pairs write support with
+- **Read before write.** *Taken.* Reading foreign `.xlsb` files is higher-value and lower-risk than
+  writing them, and shipped first; the motivating large-workbook use case then pairs write support with
   the streaming writer (binary record streams stream well).
-- **Feature subset first:** values + shared strings + basic styles for read, deferring
+- **Feature subset first:** *taken.* Values + shared strings + styles for read, deferring
   formulas / tables / pivots / rich formatting.
+- **The container layer is shared, not duplicated.** *Taken.* `.xlsb` and `.xlsx` are the same OPC/ZIP
+  package with the same relationship graph, so the bounded inflater, the magic-byte probe, the OPC/rel
+  resolution, and the resolved-style-table shape are one implementation used by both codecs
+  (`src/io/xlsx/sniff-format.ts`, `read-opc.ts`, `read-styles.ts`). Only the part parsers differ
+  (`src/io/xlsb/`).
+- **One public entry, auto-detecting.** *Taken.* `readXlsx` detects the serialisation from the package
+  (which office-document part is present), not from a file extension, and dispatches — so a caller
+  handed a file never branches on its format. `readXlsb` is also exported for a caller that already
+  knows what it holds. The `UnsupportedFormatError` `'xlsb'` branch survives only where a *particular*
+  entry point still cannot take one: the row streamer, which is built on the XML worksheet parser.
+- **Style parity in the first cut is full, not partial.** *Taken.* Number formats, fonts, fills,
+  borders, alignment and protection all decode, because the records are fixed-layout and stopping
+  halfway would have cost more in explanation than in code. The one exception is the gradient fill: its
+  stop array is the only `BrtFill` field with no Excel-authored sample to check against, so it is
+  dropped rather than guessed.
+- **Where the binary states what XML omits, the binary reading drops it.** *Taken, and load-bearing.*
+  BIFF12 writes every field on every record — a bottom vertical alignment, a locked cell, a General
+  number format, a row's height, a pattern fill's automatic colour sentinels — where XML writes only
+  what differs from the default. A reader that carries all of it through produces a *similar* model,
+  not the *same* one. The rule is that each such field is compared against its default and dropped when
+  it matches, which is what makes the corpus case's model-equality assertion hold.
 
 ## Open questions
 
-- Is XLSB in scope for the fork's first stable surface, or a later add-on? Full BIFF12 record
-  coverage plus Ptg encode/decode is a large, self-contained sub-project.
-- Formulas: decode Ptg tokens to text (and re-encode on write), store opaquely, or recompute? Full
-  Ptg round-tripping is the hard part.
-- **Security:** binary record parsing of untrusted input needs the same bounded-allocation and
-  zip-bomb defenses as the XML path (see `bounded-memory-large-workbook-read`,
-  `lean-zip-container-strategy`), plus per-record length sanity checks specific to BIFF12 — a
-  malformed record length must never drive an unbounded allocation.
+- **Formulas.** A BIFF12 formula is a `Ptg` token stream, not text. The read path currently surfaces
+  the cached result a `BrtFmla*` record carries — the same value the XML reader takes from `<v>` —
+  without the formula beside it. Decoding Ptg → text is the next slice, and the one that also unblocks
+  **defined names**, whose targets are Ptg streams too (so an `.xlsb`'s defined names are not read yet).
+  Options remain: decode to text on read (favoured), store opaquely, or recompute.
+- **Rich text.** A pooled `RichStr`'s per-run formatting is skipped; the flattened text is read. The
+  runs are `{character index, font index}` pairs over the style sheet's font table, so this is a small
+  slice once the rich-text model is wired to it.
+- **Row streaming.** `readSheetRows`/`readWorkbookStream` are XML-only. The binary cell table streams
+  at least as well — it is already a flat record run — but the streaming reader's state machine is
+  built on XML events.
+- **Write.** Untouched. Full BIFF12 record coverage plus Ptg *encode* is a large, self-contained
+  sub-project.
+- **Security:** *addressed for read.* Binary record parsing of untrusted input carries the same
+  bounded-allocation and zip-bomb defenses as the XML path (see `bounded-memory-large-workbook-read`,
+  `lean-zip-container-strategy`), plus the per-record length check specific to BIFF12: a record's
+  payload is a *view* onto the already-inflate-capped part, never a buffer sized from the declared
+  length, and a length that overruns the part is rejected rather than clamped. Length-prefixed strings
+  check their byte count against the record before materialising a character.
 
 Related: `bounded-memory-large-workbook-read`, `lean-zip-container-strategy`,
 `unified-streaming-and-buffered-io`, `unsupported-input-format-typed-error`.

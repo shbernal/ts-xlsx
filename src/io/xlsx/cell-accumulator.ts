@@ -6,7 +6,6 @@
 // rich string. Value *decoding* stays in `cell-value.ts`; this class only gathers the raw pieces.
 
 import {decodeAddress, encodeAddress} from '../../core/address.ts';
-import {applyCellStyle, type Cell} from '../../core/cell.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {CellValue, DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
@@ -16,7 +15,7 @@ import {
   type RawCell,
   type SharedString,
 } from './cell-value.ts';
-import type {XfStyle} from './read-styles.ts';
+import {applyXfToCell, type XfStyle} from './read-styles.ts';
 import {RunAccumulator} from './rich-runs.ts';
 import {boolPresent, type XmlAttributes} from './xml-read.ts';
 
@@ -205,15 +204,4 @@ export class CellAccumulator {
     };
     return decodeCellContent(raw, sharedStrings, style?.numFmt);
   }
-}
-
-// Applies a resolved xf's non-value facets to a cell. Shared by the ordinary cell path and the
-// shared-formula clone path, so a styled clone (fill/font/border/alignment/protection) keeps its
-// look on read rather than surviving as value-only. The six cell-style facets go through the shared
-// {@link applyCellStyle}; the xf-only links (`quotePrefix`, the named-style `xfId`) are applied here.
-function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
-  if (style === undefined) return;
-  applyCellStyle(cell, style);
-  if (style.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
-  if (style.xfId !== undefined) cell.namedStyleId = style.xfId;
 }

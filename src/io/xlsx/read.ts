@@ -28,6 +28,7 @@ import {
   type WorkbookProtectionCredentialAttr,
 } from '../../core/workbook-protection.ts';
 import type {Worksheet, WorksheetState} from '../../core/worksheet.ts';
+import {readXlsbPackage, XLSB_WORKBOOK_PART} from '../xlsb/read.ts';
 import {applyNotes, type ParsedComment, parseComments} from './comments.ts';
 import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
 import {
@@ -35,6 +36,7 @@ import {
   parseDataValidations,
   parseExtendedDataValidations,
 } from './data-validation.ts';
+import {UnsupportedFormatError} from './errors.ts';
 import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
 import {extensionOf} from './part-paths.ts';
@@ -53,10 +55,11 @@ import {
   resolveWorkbookPart,
   sheetRelTarget,
 } from './read-opc.ts';
+import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from './read-options.ts';
 import {parseStyleTable} from './read-styles.ts';
 import {parseWorksheet} from './read-worksheet.ts';
 import {parseSharedStrings} from './shared-strings-read.ts';
-import {inflateXlsxPackage, unsupportedWorkbookPart} from './sniff-format.ts';
+import {inflateSpreadsheetPackage} from './sniff-format.ts';
 import {parseIndexedColors, parseMruColors, parseTableStyles} from './styles.ts';
 import {parseTable} from './tables.ts';
 import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
@@ -65,34 +68,39 @@ import {boolStrict, localName, openElements, parseXml} from './xml-read.ts';
 // Re-exported for the streaming reader (`./read-rows.ts`) and the public barrel, which import these
 // from here: the split into per-part parsers is internal, so the reader's import surface is stable.
 export {parseRelationships, resolveWorkbookPart} from './read-opc.ts';
+// The inflate bound and its option bag are shared with the `.xlsb` reader and the row streamer, so
+// they are declared apart from all three; they stay reachable here because this is the entry point
+// callers reach for.
+export {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from './read-options.ts';
 export {parseStyleTable, type StyleTable, type XfStyle} from './read-styles.ts';
 
-export interface ReadXlsxOptions {
-  /**
-   * Maximum total uncompressed output, in bytes, produced while inflating the package.
-   * The bound is enforced by a running counter as bytes are decompressed — never read from
-   * the archive's (untrusted, forgeable) size headers — so a zip bomb that lies about its
-   * uncompressed size is rejected all the same. Defaults to 512 MiB.
-   */
-  readonly maxUncompressedBytes?: number;
-}
-
-export const DEFAULT_MAX_UNCOMPRESSED = 512 * 1024 * 1024;
-
 /**
- * Read an `.xlsx` package into a {@link Workbook}.
+ * Read a spreadsheet package into a {@link Workbook}.
  *
- * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package — a legacy `.xls`
- *   (`.format === 'xls'`), a binary `.xlsb` (`'xlsb'`), or an unrecognised/non-ZIP blob (`'unknown'`).
+ * Both OOXML serialisations are accepted: an XML `.xlsx`, and a binary `.xlsb` (BIFF12), which is the
+ * same OPC container with binary office-document parts. The two are auto-detected from the package
+ * itself rather than from a file extension, so a caller never branches on which form it holds — and
+ * the model produced is the same either way. See `../xlsb/read.ts` for what the binary path does not
+ * yet decode.
+ *
+ * @throws {UnsupportedFormatError} if the input is neither — a legacy `.xls` (`.format === 'xls'`) or
+ *   an unrecognised/non-ZIP blob (`'unknown'`).
+ * @throws {XlsbParseError} if a binary `.xlsb` part is malformed.
  * @throws {Error} if the archive exceeds the inflate bound (a probable zip bomb).
  */
 export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
   const cap = options.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  const pkg = packageAccessors(inflateXlsxPackage(data, cap));
+  const files = inflateSpreadsheetPackage(data, cap);
+  const pkg = packageAccessors(files);
   const {partText} = pkg;
 
   const workbookXml = partText('xl/workbook.xml');
-  if (workbookXml === undefined) throw unsupportedWorkbookPart(partText);
+  if (workbookXml === undefined) {
+    // No XML office document. A binary one means this is an `.xlsb`, which reads through the BIFF12
+    // codec over the very same model — the package is already inflated, so it is handed over as-is.
+    if (files[XLSB_WORKBOOK_PART] !== undefined) return readXlsbPackage(files);
+    throw new UnsupportedFormatError('unknown');
+  }
 
   // A part's content type is needed to faithfully re-declare any part preserved verbatim for
   // round-tripping (a vector-shape drawing, a header/footer image and its VML). Resolve it the way

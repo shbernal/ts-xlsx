@@ -34,7 +34,7 @@ import {
 } from './read.ts';
 import {packageAccessors} from './read-opc.ts';
 import {parseSharedStrings} from './shared-strings-read.ts';
-import {inflateXlsxPackage, unsupportedWorkbookPart} from './sniff-format.ts';
+import {inflateSpreadsheetPackage, unsupportedWorkbookPart} from './sniff-format.ts';
 import {boolStrict, closeEmptyElements, localName, xmlEvents} from './xml-read.ts';
 
 export interface ReadSheetRowsOptions extends ReadXlsxOptions {
@@ -157,10 +157,18 @@ interface OpenPackage {
 
 function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined): OpenPackage {
   const cap = maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;
-  const {partText: text} = packageAccessors(inflateXlsxPackage(data, cap));
+  const {partText: text} = packageAccessors(inflateSpreadsheetPackage(data, cap));
 
   const workbookXml = text('xl/workbook.xml');
-  if (workbookXml === undefined) throw unsupportedWorkbookPart(text);
+  // A binary `.xlsb` is a workbook this library *can* read — just not through here. Row streaming is
+  // built on the XML worksheet parser, so the binary cell table has no streaming path yet; say so,
+  // rather than reporting the format as unreadable when `readXlsx` would take the very same bytes.
+  if (workbookXml === undefined) {
+    throw unsupportedWorkbookPart(
+      text,
+      'the binary .xlsb format (BIFF12) cannot be row-streamed yet; read it with readXlsx or readXlsb',
+    );
+  }
 
   const sheets = parseWorkbookSheets(workbookXml);
   const rels = parseRelationships(text('xl/_rels/workbook.xml.rels') ?? '');

@@ -200,6 +200,10 @@ export {
 } from './customui/index.ts';
 export {type CsvReadOptions, readCsv} from './io/csv/read.ts';
 export {type CsvWriteOptions, writeCsv, writeCsvText} from './io/csv/write.ts';
+export {XlsbParseError} from './io/xlsb/errors.ts';
+// `readXlsx` auto-detects and reads a binary `.xlsb` too, so most callers never name this; it is
+// public for the caller that holds bytes it already knows to be `.xlsb` and wants to say so.
+export {readXlsb} from './io/xlsb/read.ts';
 export {
   editXlsxVbaAddReference,
   editXlsxVbaRemoveModule,

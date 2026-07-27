@@ -35,14 +35,29 @@ export default {
       },
     },
     {
-      name: 'a binary .xlsb is rejected as an UnsupportedFormatError with format "xlsb"',
+      name: 'a package whose office document is a binary workbook is parsed as one, not rejected',
       baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
+        // The reader classifies this as an `.xlsb` and hands it to the BIFF12 codec, so the failure
+        // it reports for a deliberately unparseable binary workbook is a *parse* error — the format
+        // was recognised. (That a well-formed `.xlsb` reads into the same model its `.xlsx` twin does
+        // is the subject of `xlsb-binary-workbook-reads-like-its-xlsx-twin`.)
         const result = api.classifyReadInput('xlsb');
+        assert.equal(result.threw, true);
+        assert.equal(result.errorName, 'XlsbParseError');
+        assert.equal(result.format, null);
+      },
+    },
+    {
+      name: 'the row streamer reports a binary .xlsb as a format it cannot take, naming one that can',
+      baseline: 'pass',
+      expect(api: CorpusApi, assert: Assert) {
+        const result = api.classifyStreamReadInput('xlsb');
         assert.equal(result.threw, true);
         assert.equal(result.errorName, 'UnsupportedFormatError');
         assert.equal(result.format, 'xlsb');
         assert.match(result.message, /\.xlsb/);
+        assert.match(result.message, /readXlsx|readXlsb/);
       },
     },
     {

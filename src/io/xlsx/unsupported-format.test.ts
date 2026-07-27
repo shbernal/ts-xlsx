@@ -5,6 +5,7 @@ import {strToU8, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
 import {writeCompoundFile} from '../../vba/cfb-writer.ts';
+import {XlsbParseError} from '../xlsb/errors.ts';
 import {UnsupportedFormatError} from './errors.ts';
 import {readXlsx} from './read.ts';
 import {readWorkbookStream} from './read-rows.ts';
@@ -75,11 +76,24 @@ test('a legacy .xls (CFB) throws UnsupportedFormatError with format "xls"', () =
   assert.match(err.message, /\.xls/);
 });
 
-test('a binary .xlsb throws UnsupportedFormatError with format "xlsb"', () => {
+test('a binary .xlsb is dispatched to the BIFF12 codec, not rejected as unreadable', () => {
+  // The classification stands — this *is* an `.xlsb` — but `readXlsx` now reads one, so what a
+  // deliberately malformed binary workbook must produce is a parse failure, not a format failure.
   const err = catchError(() => readXlsx(xlsbBlob()));
+  assert.ok(err instanceof XlsbParseError);
+  assert.ok(!(err instanceof UnsupportedFormatError));
+});
+
+test('the row streamer still reports a binary .xlsb as a format it cannot take', () => {
+  // Row streaming is built on the XML worksheet parser, so it has no binary path yet. It must say so
+  // in terms of the format — and point at the entry point that does read one.
+  const err = catchError(() => {
+    for (const _sheet of readWorkbookStream(xlsbBlob())) break;
+  });
   assert.ok(err instanceof UnsupportedFormatError);
   assert.equal(err.format, 'xlsb');
   assert.match(err.message, /\.xlsb/);
+  assert.match(err.message, /readXlsx|readXlsb/);
 });
 
 test('non-ZIP input throws UnsupportedFormatError with format "unknown"', () => {

@@ -37,6 +37,8 @@ export const {writeCsv, writeCsvText} =
   await loadModule<typeof import('../../../../src/io/csv/write.ts')>('io/csv/write');
 export const {readXlsx} =
   await loadModule<typeof import('../../../../src/io/xlsx/read.ts')>('io/xlsx/read');
+export const {readXlsb} =
+  await loadModule<typeof import('../../../../src/io/xlsb/read.ts')>('io/xlsb/read');
 export const {readWorkbookStream} =
   await loadModule<typeof import('../../../../src/io/xlsx/read-rows.ts')>('io/xlsx/read-rows');
 export const {writeXlsx} =

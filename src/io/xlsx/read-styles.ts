@@ -2,7 +2,13 @@
 // single streaming pass over the shared sub-tables (`<numFmts>`, `<fills>`, `<fonts>`, `<borders>`)
 // and the two xf tables (`<cellXfs>`, `<cellStyleXfs>`), flattening the id-indirection so a cell's
 // `s` index maps straight to its facets. A construct it does not recognise is skipped, never guessed.
+//
+// The *shape* here — `XfStyle`, the built-in number formats, and applying an xf to a cell — is a
+// property of the OOXML style model, not of its XML spelling, so the `.xlsb` style reader
+// (`../xlsb/read-styles.ts`) builds the same table from BIFF12 records and shares this module's
+// resolution rules. Only the parsing above is XML-specific.
 
+import {applyCellStyle, type Cell} from '../../core/cell.ts';
 import {
   type Alignment,
   assignStyleFacets,
@@ -595,10 +601,33 @@ function resolveNumFmt(
   raw: string | undefined,
   custom: ReadonlyMap<number, string>,
 ): string | undefined {
-  if (raw === undefined) return undefined;
-  const id = Number(raw);
+  return raw === undefined ? undefined : numFmtCodeFor(Number(raw), custom);
+}
+
+/**
+ * The format code a number-format id denotes: the file's own `<numFmt>`/`BrtFmt` declaration if it
+ * has one, else the built-in Excel defines for that id. Id 0 is General — the absence of a format —
+ * and resolves to nothing so an ordinary cell carries no `numFmt`.
+ */
+export function numFmtCodeFor(id: number, custom: ReadonlyMap<number, string>): string | undefined {
   if (!Number.isInteger(id) || id === 0) return undefined;
   return custom.get(id) ?? BUILTIN_NUMFMTS.get(id);
+}
+
+/**
+ * Apply a resolved xf's non-value facets to a cell — the six {@link CellStyle} facets through the
+ * shared {@link applyCellStyle}, plus the two links that live on the xf itself rather than in the
+ * facet tuple (`quotePrefix`, and the `xfId` pointer into the named-style layer).
+ *
+ * Shared by every path that commits a cell: the XML reader's ordinary and shared-formula-clone paths,
+ * and the BIFF12 reader — so a styled cell keeps its look regardless of which serialisation it came
+ * from, and the two cannot drift on what "applying a style" means.
+ */
+export function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
+  if (style === undefined) return;
+  applyCellStyle(cell, style);
+  if (style.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
+  if (style.xfId !== undefined) cell.namedStyleId = style.xfId;
 }
 
 function toFill(

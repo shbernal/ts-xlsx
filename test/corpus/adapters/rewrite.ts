@@ -38,6 +38,7 @@ import {styles} from './rewrite/styles.ts';
 import {tables} from './rewrite/tables.ts';
 import {validation} from './rewrite/validation.ts';
 import {vba} from './rewrite/vba.ts';
+import {xlsb} from './rewrite/xlsb.ts';
 
 const impl = {
   name: 'rewrite',
@@ -55,6 +56,7 @@ const impl = {
   ...tables,
   ...validation,
   ...vba,
+  ...xlsb,
 };
 
 export default new Proxy(impl, {
