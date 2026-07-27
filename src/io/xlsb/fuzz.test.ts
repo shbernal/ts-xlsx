@@ -1,0 +1,148 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import path from 'node:path';
+import {test} from 'node:test';
+import {fileURLToPath} from 'node:url';
+
+import {unzipSync, zipSync} from 'fflate';
+
+import {UnsupportedFormatError} from '../xlsx/errors.ts';
+import {XlsbParseError} from './errors.ts';
+import {readXlsb} from './read.ts';
+
+// An adversarial pass over the BIFF12 reader.
+//
+// The contract under test is not "these mutations produce these workbooks" — a mutated file has no
+// correct reading. It is the *hostile-input* contract: whatever the bytes say, the reader either
+// produces a model or fails closed with a typed error, in bounded time and bounded memory. Two
+// failure shapes are called out specifically because each is a bug wearing a crash's clothes:
+//
+// - a `TypeError` or `RangeError` escaping means an index or a length reached the model unchecked
+//   (`undefined` folded into arithmetic, an address outside the grid handed to the encoder);
+// - a run that does not finish means a count taken from the file became a loop bound.
+//
+// The corpus fixture is the seed rather than random noise, so every mutation lands inside a structure
+// real enough to reach deep into the parsers instead of being rejected at the first record.
+
+const FIXTURE = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../test/corpus/fixtures/xlsb-binary-workbook-reads-like-its-xlsx-twin/source.xlsb',
+);
+
+// The binary parts — the only ones this reader parses, and so the only ones worth mutating.
+const BINARY_PARTS = [
+  'xl/workbook.bin',
+  'xl/worksheets/sheet1.bin',
+  'xl/worksheets/sheet2.bin',
+  'xl/worksheets/sheet3.bin',
+  'xl/styles.bin',
+  'xl/sharedStrings.bin',
+];
+
+// xorshift32: a deterministic generator, so a failing case is reproducible from its seed alone rather
+// than being a flake someone has to reproduce by luck.
+function random(seed: number): () => number {
+  let state = seed | 0 || 1;
+  return () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return state >>> 0;
+  };
+}
+
+/** Read a mutated package, asserting only that it fails the way a reader is allowed to fail. */
+function readOrFailClosed(archive: Uint8Array, label: string): void {
+  try {
+    readXlsb(archive);
+  } catch (error) {
+    if (error instanceof XlsbParseError || error instanceof UnsupportedFormatError) return;
+    // A model-level rejection (a sheet name a mutation made invalid or duplicated) is a legitimate
+    // closed failure too — it is the model refusing bad data, not the parser losing its footing.
+    assert.ok(
+      error instanceof Error && !(error instanceof TypeError) && !(error instanceof RangeError),
+      `${label}: expected a typed, closed failure but got ${String(error)}`,
+    );
+  }
+}
+
+test('single-byte mutations anywhere in the binary parts never escape the typed failure modes', () => {
+  const parts = unzipSync(readFileSync(FIXTURE));
+  const next = random(0x5eed1);
+  for (let round = 0; round < 300; round++) {
+    const partName = BINARY_PARTS[next() % BINARY_PARTS.length] ?? '';
+    const original = parts[partName];
+    assert.ok(original, `fixture is missing ${partName}`);
+    const mutated = Uint8Array.from(original);
+    const offset = next() % mutated.length;
+    mutated[offset] = next() & 0xff;
+    readOrFailClosed(
+      zipSync({...parts, [partName]: mutated}),
+      `${partName}@${offset} round ${round}`,
+    );
+  }
+});
+
+test('a part truncated at any point fails closed rather than reading half a workbook into a crash', () => {
+  const parts = unzipSync(readFileSync(FIXTURE));
+  const next = random(0x7ac6);
+  for (let round = 0; round < 200; round++) {
+    const partName = BINARY_PARTS[next() % BINARY_PARTS.length] ?? '';
+    const original = parts[partName];
+    assert.ok(original);
+    const cut = next() % original.length;
+    readOrFailClosed(
+      zipSync({...parts, [partName]: original.subarray(0, cut)}),
+      `${partName} cut at ${cut}`,
+    );
+  }
+});
+
+test('a record length inflated to the maximum is rejected, not allocated', () => {
+  // The direct expression of the attack the framing guard exists for: every plausible size prefix
+  // rewritten to the largest the encoding can express, one record at a time.
+  const parts = unzipSync(readFileSync(FIXTURE));
+  for (const partName of BINARY_PARTS) {
+    const original = parts[partName];
+    assert.ok(original);
+    // Every other byte: a size prefix is at least two bytes wide once inflated, so a stride of two
+    // still lands on each record's prefix while halving a pass that is otherwise the slowest here.
+    for (let offset = 0; offset < Math.min(original.length, 300); offset += 2) {
+      const mutated = Uint8Array.from(original);
+      mutated[offset] = 0xff;
+      mutated[offset + 1] = 0xff;
+      mutated[offset + 2] = 0xff;
+      mutated[offset + 3] = 0x7f;
+      readOrFailClosed(zipSync({...parts, [partName]: mutated}), `${partName}@${offset}`);
+    }
+  }
+});
+
+test('a cell, row, or column addressed outside the grid is dropped, not encoded', () => {
+  // Positional fields are the one place a lying number cannot simply be believed: an address beyond
+  // Excel's grid has no representation, and a column *run* beyond it is a loop bound. Both are driven
+  // to their extreme here — every 32-bit positional field set to its maximum.
+  const parts = unzipSync(readFileSync(FIXTURE));
+  const sheet = parts['xl/worksheets/sheet2.bin'];
+  assert.ok(sheet);
+  // Stride 3 against 4-byte fields, so every positional field is struck at more than one alignment.
+  for (let offset = 0; offset + 4 <= sheet.length; offset += 3) {
+    const mutated = Uint8Array.from(sheet);
+    mutated[offset] = 0xff;
+    mutated[offset + 1] = 0xff;
+    mutated[offset + 2] = 0xff;
+    mutated[offset + 3] = 0x0f;
+    readOrFailClosed(zipSync({...parts, 'xl/worksheets/sheet2.bin': mutated}), `grid@${offset}`);
+  }
+});
+
+test('a deeply repeated collection marker does not accumulate unbounded state', () => {
+  // The style sheet's Begin/End collection markers are the reader's only nesting-shaped state. A file
+  // that repeats one a hundred thousand times must cost a hundred thousand cheap assignments, not a
+  // hundred thousand stack frames or a growing stack of contexts.
+  const parts = unzipSync(readFileSync(FIXTURE));
+  const beginFonts = Uint8Array.of(0xeb, 0x04, 0x04, 0x01, 0x00, 0x00, 0x00);
+  const flood = new Uint8Array(beginFonts.length * 100_000);
+  for (let index = 0; index < 100_000; index++) flood.set(beginFonts, index * beginFonts.length);
+  readOrFailClosed(zipSync({...parts, 'xl/styles.bin': flood}), 'repeated BrtBeginFonts');
+});

@@ -13,7 +13,7 @@
 // without the `<f>` text beside it. A stated gap, not a silent one; see
 // `docs/knowledge/specs/xlsb-binary-format-output.md`.
 
-import {encodeAddress} from '../../core/address.ts';
+import {encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import {isDateFormat, serialToDate} from '../../core/date.ts';
 import {assignStyleFacets} from '../../core/style.ts';
 import type {CellValue} from '../../core/value.ts';
@@ -76,11 +76,14 @@ export function parseWorksheet(
       rowStyle = header.styleIndex;
     } else if (record.type === BRT.MergeCell) {
       const {rowFirst, rowLast, colFirst, colLast} = reader.range();
-      sheet.mergeCells(
-        `${encodeAddress(colFirst + 1, rowFirst + 1)}:${encodeAddress(colLast + 1, rowLast + 1)}`,
-      );
+      if (inGrid(colFirst, rowFirst) && inGrid(colLast, rowLast)) {
+        sheet.mergeCells(
+          `${encodeAddress(colFirst + 1, rowFirst + 1)}:${encodeAddress(colLast + 1, rowLast + 1)}`,
+        );
+      }
     } else if (CELL_RECORDS.has(record.type) && row > 0) {
       const {column, styleIndex} = reader.cell();
+      if (!inGrid(column, row - 1)) continue;
       // A cell's own format wins, then its row's, then its column's — the order Excel applies.
       // Index 0 is the default xf, which BIFF12 writes where XML simply omits `s`, so it means
       // "no format of my own" and lets the row/column default through.
@@ -92,6 +95,19 @@ export function parseWorksheet(
       cell.value = decodeCell(record.type, reader, sharedStrings, style?.numFmt);
     }
   }
+}
+
+// Excel's grid bounds, zero-based as the binary format counts. [MS-XLSB] states them as MUST
+// constraints, which is exactly why a reader has to check them: a damaged or hostile file states
+// whatever it likes, and an address beyond the grid has nowhere to go. Everything positional funnels
+// through here before it reaches the model, so an out-of-grid record is dropped rather than turned
+// into an unrepresentable address (which the address encoder would reject) or, worse, a column loop
+// four billion iterations long.
+const MAX_ROW_INDEX = 1048575;
+const MAX_COLUMN_INDEX = MAX_COLUMN - 1;
+
+function inGrid(column: number, row: number): boolean {
+  return column >= 0 && column <= MAX_COLUMN_INDEX && row >= 0 && row <= MAX_ROW_INDEX;
 }
 
 // Decode a cell record's payload — the reader is positioned just past the shared `Cell` header, so
@@ -148,12 +164,15 @@ function applyRow(
   sheet: Worksheet,
   defaultRowHeight: number,
 ): {row: number; styleIndex: number} {
-  const row = reader.u32() + 1;
+  const index = reader.u32();
   const styleIndex = reader.u32();
   const height = reader.u16();
   reader.skip(1); // fExtraAsc/fExtraDsc: border padding, a rendering hint the model does not carry.
   const flags = reader.u8();
+  // A row beyond the grid closes the open row without opening another, so its cells are dropped too.
+  if (index > MAX_ROW_INDEX) return {row: -1, styleIndex: -1};
 
+  const row = index + 1;
   const properties = sheet.getRow(row);
   // Every row header restates a height; only a row whose height is its *own* has one to record. That
   // is a row the user sized by hand, or one Excel auto-fitted to a taller font or wrapped text — both
@@ -202,7 +221,11 @@ function applyColumn(
   ) {
     return;
   }
-  for (let index = first; index <= last; index++) {
+  // The loop bound comes from the file, so it is clamped to the grid before it is one: an unclamped
+  // run declaring four billion columns is a denial of service, not a wide sheet.
+  const lastInGrid = Math.min(last, MAX_COLUMN_INDEX);
+  if (first > lastInGrid) return;
+  for (let index = first; index <= lastInGrid; index++) {
     const properties = sheet.getColumn(index + 1);
     // The stored width is taken whether or not the file marks it user-set, matching the XML reader:
     // a `<col>`/`BrtColInfo` exists only for a column that differs from the sheet default in *some*
