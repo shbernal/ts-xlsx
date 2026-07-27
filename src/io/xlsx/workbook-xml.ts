@@ -2,7 +2,7 @@
 // parts, `xl/workbook.xml` (sheets, defined names, calc/protection settings, pivot-cache and slicer
 // registrations), and the `docProps` core/app property parts.
 
-import {mangleFormula} from '../../core/formula.ts';
+import {mangleFormula, quoteSheetName} from '../../core/formula.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
 import {imageContentType} from './images.ts';
@@ -400,14 +400,6 @@ function definedNamesXml(workbook: Workbook): string {
 function filterDatabaseRefersTo(sheetName: string, range: string): string {
   const absolute = range.replace(/([A-Z]+)(\d+)/g, '$$$1$$$2');
   return `${quoteSheetName(sheetName)}!${absolute}`;
-}
-
-// Quote a sheet name for use in a reference exactly when Excel would: a name that is not a plain
-// identifier (or that looks like a cell address) is wrapped in single quotes with internal quotes
-// doubled; a simple name is left bare so the output matches what Excel writes.
-function quoteSheetName(name: string): string {
-  const bare = /^[A-Za-z_][A-Za-z0-9_.]*$/.test(name) && !/^[A-Za-z]{1,3}\d+$/.test(name);
-  return bare ? name : `'${name.replace(/'/g, "''")}'`;
 }
 
 // The relationships the workbook part always carries after its per-sheet rels: `styles.xml` and

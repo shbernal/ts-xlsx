@@ -27,6 +27,29 @@ import {MODERN_FUNCTIONS} from './modern-functions.ts';
 const XLFN = '_xlfn.';
 const XLPM = '_xlpm.';
 
+/**
+ * Quote a sheet name for use in a reference exactly when Excel would: a name that is not a plain
+ * identifier — or that would read as a cell address — is wrapped in single quotes with its internal
+ * quotes doubled, and a simple name is left bare. Shared by everything that *builds* a qualified
+ * reference: the `_FilterDatabase` name the writer derives from an autofilter, and the `.xlsb`
+ * reader's Ptg decoder, which has only a sheet index to work from and must spell the prefix itself.
+ *
+ * `last` names the far end of a 3-D span (`Data:More!A1`). A span is quoted as a whole or not at all,
+ * because the quotes delimit the sheet *reference* rather than either name — so one awkward endpoint
+ * puts both inside the quotes.
+ */
+export function quoteSheetName(name: string, last?: string): string {
+  const names = last === undefined ? [name] : [name, last];
+  const joined = names.join(':');
+  // A sheet name cannot itself contain a colon, so joining first and quoting the result is
+  // unambiguous.
+  return names.every(isBareSheetName) ? joined : `'${joined.replace(/'/g, "''")}'`;
+}
+
+function isBareSheetName(name: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_.]*$/.test(name) && !/^[A-Za-z]{1,3}\d+$/.test(name);
+}
+
 // LET and LAMBDA are the only functions that bind names. Their parameter identifiers are persisted
 // under an `_xlpm.` prefix — at the declaration site and at every in-body reference — exactly as the
 // modern functions themselves carry `_xlfn.`. The prefix is scoped: a name bound by one LET/LAMBDA

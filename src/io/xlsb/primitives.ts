@@ -77,6 +77,16 @@ export class RecordReader {
     this.#take(count);
   }
 
+  /**
+   * The next `count` bytes as a **view**, for a field whose own decoding happens elsewhere — a formula
+   * token stream, whose meaning depends on workbook tables this record knows nothing about. A view
+   * rather than a copy for the same reason a record's payload is one: the declared length comes from
+   * the file, so it must bound a read, never an allocation.
+   */
+  bytes(count: number): Uint8Array {
+    return this.#data.subarray(this.#take(count), this.#offset);
+  }
+
   u8(): number {
     return this.#view.getUint8(this.#take(1));
   }
@@ -120,6 +130,15 @@ export class RecordReader {
   /** An `XLWideString` ([MS-XLSB] 2.5.169): a 4-byte character count then that many UTF-16LE units. */
   wideString(): string {
     return this.#characters(this.u32());
+  }
+
+  /**
+   * A UTF-16 string whose character count is 16-bit rather than 32-bit — the form used *inside* a
+   * formula token stream (`PtgStr`, and the string elements of an array constant), where a 4-byte
+   * count on every literal would be pure overhead.
+   */
+  shortString(): string {
+    return this.#characters(this.u16());
   }
 
   /** An `XLNullableWideString` ([MS-XLSB] 2.5.166): an {@link wideString} that can also be absent. */

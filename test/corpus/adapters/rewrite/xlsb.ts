@@ -5,9 +5,10 @@
 import {strToU8, zipSync} from 'fflate';
 
 import type {CorpusApi} from '../../case.ts';
-import {fixtureBytes, readXlsb, readXlsx} from './runtime.ts';
+import {encodeAddress, fixtureBytes, readXlsb, readXlsx} from './runtime.ts';
 
 const FIXTURE = 'xlsb-binary-workbook-reads-like-its-xlsx-twin';
+const FORMULAS = 'xlsb-formula-token-streams-decode-to-formula-text';
 
 export const xlsb = {
   // Read the same workbook from its binary and its XML serialisation and report whether the two
@@ -15,9 +16,8 @@ export const xlsb = {
   // column geometry; merges. On disagreement, name the first field that differs so a failure is
   // legible without a debugger.
   //
-  // Formula *text* is projected away on both sides: a BIFF12 formula is a Ptg token stream this
-  // reader does not decode yet, so the binary side has the cached result where the XML side has
-  // `{formula, result}`. Everything else is compared strictly.
+  // Formula text is compared like everything else; only the shared-formula *grouping* is projected
+  // away, because the binary form does not record it (see `xlsbFilledFormulaColumn`).
   xlsbModelMatchesXlsxTwin() {
     const binary = snapshot(readXlsx(fixtureBytes(`${FIXTURE}/source.xlsb`)));
     const xml = snapshot(readXlsx(fixtureBytes(`${FIXTURE}/source.xlsx`)));
@@ -53,6 +53,7 @@ export const xlsb = {
     return {
       found: true,
       value: normalize(cell.value),
+      formula: formulaOf(cell.value),
       type: typeof cell.value,
       numFmt: cell.numFmt ?? null,
       font: cell.font ?? null,
@@ -75,6 +76,47 @@ export const xlsb = {
       rows: model.rows,
       merges: model.merges,
     };
+  },
+
+  // Every formula cell of the binary reading, compared against the same cell of its XML twin — where
+  // the formula is *text* rather than a token stream. Reports each disagreement, so a failure names
+  // the token class that broke rather than a count.
+  xlsbFormulaTextMatchesXlsxTwin() {
+    const binary = formulaTexts(readXlsb(fixtureBytes(`${FORMULAS}/source.xlsb`)));
+    const xml = formulaTexts(readXlsx(fixtureBytes(`${FORMULAS}/source.xlsx`)));
+    const addresses = [...new Set([...binary.keys(), ...xml.keys()])].sort();
+    return {
+      compared: xml.size,
+      differences: addresses
+        .filter((address) => binary.get(address) !== xml.get(address))
+        .map((address) => `${address}: xlsb ${binary.get(address)} | xlsx ${xml.get(address)}`),
+    };
+  },
+
+  // One formula cell of the binary reading: the decoded text and the result Excel cached beside it.
+  xlsbFormula(sheetName: CorpusApi, reference: CorpusApi) {
+    const sheet = readXlsb(fixtureBytes(`${FORMULAS}/source.xlsb`)).getWorksheet(sheetName);
+    const value = sheet?.getCell(reference).value;
+    return {formula: formulaOf(value), result: normalize(value)};
+  },
+
+  // The defined names the binary workbook part declares.
+  xlsbDefinedNames() {
+    return readXlsb(fixtureBytes(`${FORMULAS}/source.xlsb`)).definedNames;
+  },
+
+  // A column filled with one formula, as the binary reading sees it: address, formula text, and
+  // whether the cell claims membership of a shared-formula group.
+  xlsbFilledFormulaColumn() {
+    const sheet = readXlsb(fixtureBytes(`${FORMULAS}/source.xlsb`)).getWorksheet('Calc');
+    return ['D1', 'D2', 'D3', 'D4', 'D5'].map((address) => {
+      const value = sheet?.getCell(address).value as CorpusApi;
+      return {
+        address,
+        formula: formulaOf(value),
+        shared: value !== null && typeof value === 'object' && 'sharedFormula' in value,
+      };
+    });
   },
 
   // A ZIP whose office document is a binary workbook that does not conform to the record framing:
@@ -102,14 +144,45 @@ export const xlsb = {
   },
 };
 
-// A Date is not JSON-serializable in a way a case can compare, and a formula value is a shape the
-// binary reader does not produce yet; both are flattened the same way on either side of a comparison.
+// A Date is not JSON-serializable in a way a case can compare, and a formula cell's *value* is the
+// result it computed; both are flattened the same way on either side of a comparison.
 function normalize(value: CorpusApi): CorpusApi {
   if (value instanceof Date) return value.toISOString();
   if (value !== null && typeof value === 'object' && 'formula' in value) {
     return normalize(value.result ?? null);
   }
   return value;
+}
+
+// A cell value as the two serialisations can honestly be compared: formula text and cached result
+// both kept, but the shared-formula *grouping* dropped. A spreadsheet fills a formula down a column
+// by storing it once and marking the rest as clones; the XML form records that grouping and the
+// binary form does not — Excel writes each cell's own formula out in full. So a clone reads back with
+// the same formula text either way, and only the `sharedFormula` pointer back to the master differs.
+function comparable(value: CorpusApi): CorpusApi {
+  const formula = formulaOf(value);
+  if (formula === null) return normalize(value);
+  return {formula, result: normalize(value.result ?? null)};
+}
+
+// The formula text a cell carries, or null for a cell that is not a formula.
+function formulaOf(value: CorpusApi): CorpusApi {
+  return value !== null && typeof value === 'object' && typeof value.formula === 'string'
+    ? value.formula
+    : null;
+}
+
+// Every formula cell of a workbook, keyed `Sheet!A1`.
+function formulaTexts(workbook: CorpusApi): Map<string, CorpusApi> {
+  const texts = new Map<string, CorpusApi>();
+  for (const sheet of workbook.worksheets) {
+    for (const cell of sheet.model.cells) {
+      const formula = formulaOf(cell.value);
+      if (formula !== null)
+        texts.set(`${sheet.name}!${encodeAddress(cell.col, cell.row)}`, formula);
+    }
+  }
+  return texts;
 }
 
 // A stable, order-independent rendering of everything a worksheet holds. Key order is an artefact of
@@ -125,7 +198,7 @@ function snapshot(workbook: CorpusApi): string {
           columns: model.columns,
           rows: model.rows,
           merges: model.merges,
-          cells: model.cells.map((cell: CorpusApi) => ({...cell, value: normalize(cell.value)})),
+          cells: model.cells.map((cell: CorpusApi) => ({...cell, value: comparable(cell.value)})),
         };
       }),
     ),

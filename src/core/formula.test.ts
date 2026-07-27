@@ -5,6 +5,7 @@ import {
   mangleFormula,
   mangleFunctions,
   mangleParams,
+  quoteSheetName,
   translateFormula,
   unmangleFunctions,
 } from './formula.ts';
@@ -247,4 +248,22 @@ test('translateFormula shifts a sheet-qualified cell but not the sheet name', ()
 
 test('translateFormula copies a string literal verbatim, references outside it still move', () => {
   assert.equal(translateFormula('IF(A1>0,"A1 is B2",B2)', 0, 1), 'IF(A2>0,"A1 is B2",B3)');
+});
+
+test('quoteSheetName leaves a plain identifier bare and quotes anything else', () => {
+  assert.equal(quoteSheetName('Data'), 'Data');
+  assert.equal(quoteSheetName('_totals.2024'), '_totals.2024');
+  assert.equal(quoteSheetName('Odd Name'), "'Odd Name'");
+  assert.equal(quoteSheetName('2024'), "'2024'");
+  // A name that would read as a cell address has to be quoted, or `A1!A1` is ambiguous.
+  assert.equal(quoteSheetName('A1'), "'A1'");
+  assert.equal(quoteSheetName("Bob's"), "'Bob''s'");
+});
+
+test('quoteSheetName quotes a 3-D span as a whole or not at all', () => {
+  // The quotes delimit the sheet reference, not either endpoint — so one awkward name puts both
+  // inside them, which is how Excel spells `'Odd Name:More'!A1`.
+  assert.equal(quoteSheetName('Data', 'More'), 'Data:More');
+  assert.equal(quoteSheetName('Odd Name', 'More'), "'Odd Name:More'");
+  assert.equal(quoteSheetName('Data', 'Odd Name'), "'Data:Odd Name'");
 });

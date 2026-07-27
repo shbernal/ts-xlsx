@@ -60,6 +60,14 @@ export const BRT = {
   BundleSh: 156,
   BeginBundleShs: 143,
   EndBundleShs: 144,
+  Name: 39,
+
+  // The externals block: which workbooks a formula can reach, and which sheets of them each `ixti` a
+  // 3-D reference carries names. `SupSelf` declares a supporting book that is *this* workbook.
+  BeginExternals: 353,
+  EndExternals: 354,
+  SupSelf: 357,
+  ExternSheet: 362,
 
   // Worksheet structure.
   WsProp: 147,
@@ -67,4 +75,5 @@ export const BRT = {
   WsFmtInfo: 485,
   BeginSheetData: 145,
   EndSheetData: 146,
+  ArrFmla: 426,
 } as const;

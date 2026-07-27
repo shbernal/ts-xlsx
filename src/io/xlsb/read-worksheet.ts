@@ -7,24 +7,32 @@
 // what makes the binary form quick to parse: there is no `t=` attribute to interpret, the record
 // number *is* the type.
 //
-// **A formula cell surfaces its cached result, not its formula.** A BIFF12 formula is a `Ptg` token
-// stream rather than text, and decoding it is a self-contained sub-project; until then a `BrtFmla*`
-// record reads as the value Excel last computed — the same value the XML reader takes from `<v>`,
-// without the `<f>` text beside it. A stated gap, not a silent one; see
-// `docs/knowledge/specs/xlsb-binary-format-output.md`.
+// A formula cell carries both halves of what the XML form spells in `<f>` and `<v>`: a `Ptg` token
+// stream, decoded back to text by `./formula.ts`, and the result Excel last computed. The two are
+// filled independently — a formula whose stream uses a token this reader does not decode still
+// surfaces its cached value, which is exactly what the reader could see before the decoder existed.
+//
+// One shape needs a second look at the sheet. An array formula's member cells hold a `PtgExp`
+// pointing at the group's top-left, and the `BrtArrFmla` record carrying the group's actual formula
+// comes *after* those cells in the stream. Those cells are therefore parked and resolved once the
+// whole part has been read.
 
 import {encodeAddress, MAX_COLUMN} from '../../core/address.ts';
+import type {Cell} from '../../core/cell.ts';
 import {isDateFormat, serialToDate} from '../../core/date.ts';
+import {unmangleFunctions} from '../../core/formula.ts';
 import {assignStyleFacets} from '../../core/style.ts';
-import type {CellValue} from '../../core/value.ts';
+import type {CellValue, FormulaResult} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {applyXfToCell, type XfStyle} from '../xlsx/read-styles.ts';
+import {decodeFormula, type FormulaScope, formulaAnchor} from './formula.ts';
 import {errorCodeFor, RecordReader} from './primitives.ts';
 import {readRecords} from './record-stream.ts';
 import {BRT} from './record-types.ts';
 
-// Every record that carries a cell. Membership drives the dispatch below, so a record type absent
-// from this set is skipped whole rather than being mistaken for a cell and consuming the reader.
+// Every record that carries a plain cell — one whose payload is a value and nothing else. Membership
+// drives the dispatch below, so a record type absent from both this set and {@link FORMULA_RECORDS}
+// is skipped whole rather than being mistaken for a cell and consuming the reader.
 const CELL_RECORDS: ReadonlySet<number> = new Set([
   BRT.CellBlank,
   BRT.CellRk,
@@ -34,21 +42,39 @@ const CELL_RECORDS: ReadonlySet<number> = new Set([
   BRT.CellSt,
   BRT.CellIsst,
   BRT.CellRString,
+]);
+
+// Every record that carries a formula: a cached result of the record's own kind, then the token
+// stream that produced it.
+const FORMULA_RECORDS: ReadonlySet<number> = new Set([
   BRT.FmlaString,
   BRT.FmlaNum,
   BRT.FmlaBool,
   BRT.FmlaError,
 ]);
 
+// A cell whose formula defers to a group's top-left, held until the record naming that group's
+// formula has been read.
+interface DeferredFormula {
+  readonly cell: Cell;
+  readonly row: number;
+  readonly column: number;
+  readonly anchorRow: number;
+  readonly anchorColumn: number;
+  readonly result: FormulaResult | undefined;
+}
+
 /**
  * Read a worksheet part into `sheet`: its column and row geometry, its merged ranges, and every
- * non-empty cell with the style its index resolves to in `xfStyles`.
+ * non-empty cell with the style its index resolves to in `xfStyles` and, for a formula cell, the text
+ * its token stream decodes to through `scope`.
  */
 export function parseWorksheet(
   part: Uint8Array,
   sheet: Worksheet,
   sharedStrings: readonly string[],
   xfStyles: ReadonlyArray<XfStyle>,
+  scope: FormulaScope,
 ): void {
   // The open row, one-based as the model counts them. -1 means none is open, which a cell record
   // arriving before any row header (a malformed sheet) is dropped against rather than guessed at.
@@ -62,6 +88,10 @@ export function parseWorksheet(
   // row has one of its own, so the default is what tells the two apart — see {@link applyRow}.
   // `BrtWsFmtInfo` precedes the cell table, so it is always known by the time a row is read.
   let defaultRowHeight = -1;
+  // The formula of each array-formula group, keyed by the group's top-left cell, and the member cells
+  // waiting on one. Both are needed because `BrtArrFmla` follows the cells it speaks for.
+  const groups = new Map<string, {rgce: Uint8Array; rgcb: Uint8Array}>();
+  const deferred: DeferredFormula[] = [];
 
   for (const record of readRecords(part)) {
     const reader = new RecordReader(record.data);
@@ -81,7 +111,14 @@ export function parseWorksheet(
           `${encodeAddress(colFirst + 1, rowFirst + 1)}:${encodeAddress(colLast + 1, rowLast + 1)}`,
         );
       }
-    } else if (CELL_RECORDS.has(record.type) && row > 0) {
+    } else if (record.type === BRT.ArrFmla) {
+      const {rowFirst, colFirst} = reader.range();
+      reader.skip(1); // fAlwaysCalc: a recalculation hint, not part of the formula.
+      groups.set(groupKey(rowFirst, colFirst), {
+        rgce: reader.bytes(reader.u32()),
+        rgcb: reader.bytes(reader.u32()),
+      });
+    } else if ((CELL_RECORDS.has(record.type) || FORMULA_RECORDS.has(record.type)) && row > 0) {
       const {column, styleIndex} = reader.cell();
       if (!inGrid(column, row - 1)) continue;
       // A cell's own format wins, then its row's, then its column's — the order Excel applies.
@@ -92,8 +129,76 @@ export function parseWorksheet(
       const style = resolved >= 0 ? xfStyles[resolved] : xfStyles[0];
       const cell = sheet.getCell(encodeAddress(column + 1, row));
       applyXfToCell(cell, style);
-      cell.value = decodeCell(record.type, reader, sharedStrings, style?.numFmt);
+      if (!FORMULA_RECORDS.has(record.type)) {
+        cell.value = decodeCell(record.type, reader, sharedStrings, style?.numFmt);
+        continue;
+      }
+      const result = cachedResult(record.type, reader, style?.numFmt);
+      reader.skip(2); // grbitFlags: per-cell recalculation hints the model does not carry.
+      const rgce = reader.bytes(reader.u32());
+      const rgcb = reader.bytes(reader.u32());
+      const anchor = formulaAnchor(rgce, rgcb);
+      if (anchor === undefined) {
+        cell.value = formulaValue(decodeFormula(rgce, rgcb, scope), result);
+      } else {
+        deferred.push({
+          cell,
+          row: row - 1,
+          column,
+          anchorRow: anchor.row,
+          anchorColumn: anchor.column,
+          result,
+        });
+      }
     }
+  }
+
+  for (const member of deferred) {
+    // Only the group's top-left cell states the formula; the rest carry the value it produced, which
+    // is exactly what the XML form writes for them.
+    const group = groups.get(groupKey(member.anchorRow, member.anchorColumn));
+    const own = member.row === member.anchorRow && member.column === member.anchorColumn;
+    member.cell.value =
+      group === undefined || !own
+        ? (member.result ?? null)
+        : formulaValue(decodeFormula(group.rgce, group.rgcb, scope), member.result);
+  }
+}
+
+function groupKey(row: number, column: number): string {
+  return `${row}:${column}`;
+}
+
+// Pair a decoded formula with its cached result, in the shape the XML reader produces for the same
+// cell. A formula the decoder could not read leaves the value alone: the cached result is still true,
+// and is what this reader surfaced before formulas were decoded at all.
+function formulaValue(formula: string | undefined, result: FormulaResult | undefined): CellValue {
+  if (formula === undefined) return result ?? null;
+  // Strip the `_xlfn.`/`_xlpm.` on-disk mangling, as the XML reader does, so the model never holds it.
+  const stored = unmangleFunctions(formula);
+  return result === undefined ? {formula: stored} : {formula: stored, result};
+}
+
+// The result a formula record cached, decoded by the record's own kind — the binary counterpart of
+// reading `<v>` under the `t` attribute.
+function cachedResult(
+  type: number,
+  reader: RecordReader,
+  numFmt: string | undefined,
+): FormulaResult | undefined {
+  switch (type) {
+    case BRT.FmlaNum:
+      // A formula's cached numeric result honours the cell's date format exactly as a bare number
+      // does, so a date-valued formula reads back as a Date rather than a serial.
+      return asNumberOrDate(reader.f64(), numFmt);
+    case BRT.FmlaBool:
+      return reader.u8() !== 0;
+    case BRT.FmlaError: {
+      const error = errorCodeFor(reader.u8());
+      return error === undefined ? undefined : {error};
+    }
+    default:
+      return reader.wideString();
   }
 }
 
@@ -122,23 +227,16 @@ function decodeCell(
     case BRT.CellRk:
       return asNumberOrDate(reader.rk(), numFmt);
     case BRT.CellReal:
-    case BRT.FmlaNum:
-      // A formula's cached numeric result honours the cell's date format exactly as a bare number
-      // does, so a date-valued formula reads back as a Date rather than a serial.
       return asNumberOrDate(reader.f64(), numFmt);
     case BRT.CellBool:
-    case BRT.FmlaBool:
       return reader.u8() !== 0;
-    case BRT.CellError:
-    case BRT.FmlaError: {
-      const code = reader.u8();
+    case BRT.CellError: {
       // An unrecognised error byte keeps the cell non-empty without inventing an error the model
       // does not define; there is no text form to fall back to as there is in XML.
-      const error = errorCodeFor(code);
+      const error = errorCodeFor(reader.u8());
       return error === undefined ? null : {error};
     }
     case BRT.CellSt:
-    case BRT.FmlaString:
       return reader.wideString();
     case BRT.CellRString:
       // Rich runs are not modelled in this cut; the flattened text is what a consumer sees.
@@ -153,7 +251,7 @@ function decodeCell(
 
 // A number stored under a date format is a date serial — surface it as a Date so a date read from an
 // `.xlsb` is the same value the `.xlsx` twin yields, not a bare number.
-function asNumberOrDate(value: number, numFmt: string | undefined): CellValue {
+function asNumberOrDate(value: number, numFmt: string | undefined): number | Date {
   return numFmt !== undefined && isDateFormat(numFmt) ? serialToDate(value) : value;
 }
 
