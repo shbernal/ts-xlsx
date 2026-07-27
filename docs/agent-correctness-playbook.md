@@ -19,6 +19,12 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 *still exits non-zero* if any diagnostic survives, so a green `lint:fix` already is the proof.
 Re-running `lint` after it only re-checks a tree you have been told is clean.
 
+**A warning fails the gate** — every Biome invocation here passes `--error-on-warnings`, because
+Biome exits 0 on warnings and most of the `style` group (`noNonNullAssertion` among them) is a
+warning. When one fires, fix the code, do not reach for the autofix: `?.` on an assertion that was
+load-bearing turns a crash into silent wrong output. Non-null assertions are usually a signal that
+an index is being carried where the object itself could be — see `src/vba/cfb-writer.ts`.
+
 **Run one corpus case, not 265, while you iterate.** `node test/corpus/run.ts --case
 <id-or-cluster-glob>` is well under a second against ~13 s for the whole corpus, and prints the
 case in full. `--json` gives one machine-readable report object. The summary line reaches stdout

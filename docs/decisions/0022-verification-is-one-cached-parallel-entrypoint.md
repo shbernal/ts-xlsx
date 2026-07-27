@@ -60,6 +60,13 @@ Two traps this laid, both now pinned by comments at the site:
 - A diagnostic *replayed* from buildinfo exits `1`; a fresh elaboration exits `2`.
   Everything here tests for non-zero. Anything that keys on `2` would break.
 
+### Lint fails on warnings, or most of the rule set is enforced by nothing
+
+Biome exits `0` when every diagnostic is a warning, and most of its `style` group — including
+`noNonNullAssertion` — is a warning by default. The gate was therefore green on a tree carrying
+18 of them, against CLAUDE.md §2's "No warnings". Every gate that runs Biome passes
+`--error-on-warnings`, so severity is a presentation choice and never an enforcement one.
+
 ### Lint is scoped by explicit file list, and needs no confirming pass
 
 `--quick` passes Biome the changed files (`git diff`, `--cached`, untracked), filtered to

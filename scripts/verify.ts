@@ -40,6 +40,9 @@ const TSC = resolve(ROOT, 'node_modules/typescript/bin/tsc');
 
 /** The directories `lint` covers; must stay in step with the `lint` package script. */
 const LINT_ROOTS = ['src', 'scripts', 'test', 'tools'];
+// CLAUDE.md §2 admits no warnings, but Biome exits 0 on them: without this a rule demoted to a
+// warning (most of `style`, including noNonNullAssertion) is enforced by nothing at all.
+const LINT_STRICT = '--error-on-warnings';
 const LINTABLE = /\.(?:ts|js|mjs|cjs|json|jsonc)$/;
 // Past this many changed files, an explicit list stops being cheaper than a whole-tree
 // pass and starts crowding the OS argument limit. A codemod pays the 2 s.
@@ -146,7 +149,10 @@ async function changedLintTargets(): Promise<string[]> {
 }
 
 function wholeTreeLint(): Gate {
-  return {name: 'lint', steps: [{command: NODE, args: [BIOME, 'check', ...LINT_ROOTS]}]};
+  return {
+    name: 'lint',
+    steps: [{command: NODE, args: [BIOME, 'check', LINT_STRICT, ...LINT_ROOTS]}],
+  };
 }
 
 function scopedLint(changed: string[]): Gate {
@@ -162,6 +168,7 @@ function scopedLint(changed: string[]): Gate {
         args: [
           BIOME,
           'check',
+          LINT_STRICT,
           '--no-errors-on-unmatched',
           '--files-ignore-unknown=true',
           ...changed,

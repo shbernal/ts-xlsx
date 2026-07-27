@@ -53,6 +53,12 @@ function isStream(node: CfbNode): node is CfbStream {
 }
 
 interface DirEntry {
+  /**
+   * Position in the directory stream. Sibling and child links are stored as these indices, so an
+   * entry carries its own — the alternative is looking the object back up in `entries`, which under
+   * `noUncheckedIndexedAccess` yields `DirEntry | undefined` at every use site.
+   */
+  readonly index: number;
   name: string;
   type: number;
   startSector: number;
@@ -60,6 +66,13 @@ interface DirEntry {
   left: number;
   right: number;
   child: number;
+}
+
+/** A stream too large for the mini stream: it owns whole sectors, placed during layout. */
+interface BigStream {
+  entry: DirEntry;
+  data: Uint8Array;
+  sectors: number;
 }
 
 /**
@@ -71,43 +84,41 @@ interface DirEntry {
  *   project is so large it would need more than 109 FAT sectors (~7 MB — far beyond any real project).
  */
 export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
-  const entries: DirEntry[] = [
-    {
-      name: 'Root Entry',
-      type: TYPE_ROOT,
-      startSector: ENDOFCHAIN,
+  const entries: DirEntry[] = [];
+  const addEntry = (name: string, type: number, startSector: number): DirEntry => {
+    const entry: DirEntry = {
+      index: entries.length,
+      name,
+      type,
+      startSector,
       size: 0,
       left: NOSTREAM,
       right: NOSTREAM,
       child: NOSTREAM,
-    },
-  ];
-  const childIndices = new Map<number, number[]>([[0, []]]);
+    };
+    entries.push(entry);
+    return entry;
+  };
+
+  const rootEntry = addEntry('Root Entry', TYPE_ROOT, ENDOFCHAIN);
 
   // Sub-cutoff stream bytes accumulate into the mini stream (chained in the mini-FAT); larger streams
   // are laid out later directly in the regular FAT. Depth-first walk fixes a deterministic layout.
   const miniBytes: number[] = [];
   const miniFat: number[] = [];
-  const bigStreams: {entryIndex: number; data: Uint8Array}[] = [];
+  const bigStreams: BigStream[] = [];
 
-  const addNode = (node: CfbNode, parentIndex: number): void => {
-    const idx = entries.length;
-    childIndices.get(parentIndex)!.push(idx);
+  // `siblings` is the parent's child list itself rather than its index, so a child is appended to an
+  // array we hold — no lookup that could come back empty.
+  const addNode = (node: CfbNode, siblings: DirEntry[]): void => {
     if (isStream(node)) {
-      const entry: DirEntry = {
-        name: node.name,
-        type: TYPE_STREAM,
-        startSector: ENDOFCHAIN,
-        size: node.data.length,
-        left: NOSTREAM,
-        right: NOSTREAM,
-        child: NOSTREAM,
-      };
-      entries.push(entry);
+      const entry = addEntry(node.name, TYPE_STREAM, ENDOFCHAIN);
+      entry.size = node.data.length;
+      siblings.push(entry);
       if (node.data.length === 0) {
         // an empty stream owns no sectors
       } else if (node.data.length >= MINI_CUTOFF) {
-        bigStreams.push({entryIndex: idx, data: node.data});
+        bigStreams.push({entry, data: node.data, sectors: Math.ceil(node.data.length / SECTOR)});
       } else {
         const startMini = miniBytes.length / MINI_SECTOR;
         const numMini = Math.ceil(node.data.length / MINI_SECTOR);
@@ -120,27 +131,19 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
         entry.startSector = startMini;
       }
     } else {
-      entries.push({
-        name: node.name,
-        type: TYPE_STORAGE,
-        startSector: 0,
-        size: 0,
-        left: NOSTREAM,
-        right: NOSTREAM,
-        child: NOSTREAM,
-      });
-      childIndices.set(idx, []);
-      for (const c of node.children) addNode(c, idx);
+      const entry = addEntry(node.name, TYPE_STORAGE, 0);
+      siblings.push(entry);
+      const kids: DirEntry[] = [];
+      for (const c of node.children) addNode(c, kids);
+      // Each storage (Root included) links its children as a balanced search tree the host navigates.
+      linkChildren(entry, kids);
     }
   };
 
   validateSiblingNames('Root Entry', root);
-  for (const n of root) addNode(n, 0);
-
-  // Each storage (Root included) links its children as a balanced search tree the host navigates.
-  for (const [storageIndex, kids] of childIndices) {
-    buildSiblingTree(entries, storageIndex, kids);
-  }
+  const rootKids: DirEntry[] = [];
+  for (const n of root) addNode(n, rootKids);
+  linkChildren(rootEntry, rootKids);
 
   // ── Sector layout ─────────────────────────────────────────────────────────────────────────────────
   // Physical order: directory, mini-FAT, mini stream, each big stream, FAT, DIFAT. Region starts are
@@ -149,9 +152,11 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   const miniFatSectors =
     miniFat.length > 0 ? Math.ceil((miniFat.length * 4) / FAT_ENTRIES_PER_SECTOR) : 0;
   const miniStreamSectors = Math.ceil(miniBytes.length / SECTOR);
-  const bigSectorCounts = bigStreams.map((b) => Math.ceil(b.data.length / SECTOR));
   const baseSectors =
-    dirSectors + miniFatSectors + miniStreamSectors + bigSectorCounts.reduce((a, b) => a + b, 0);
+    dirSectors +
+    miniFatSectors +
+    miniStreamSectors +
+    bigStreams.reduce((total, big) => total + big.sectors, 0);
 
   let fatSectors = 0;
   let difatSectors = 0;
@@ -180,9 +185,9 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   cursor += miniFatSectors;
   const miniStreamStart = miniStreamSectors > 0 ? cursor : ENDOFCHAIN;
   cursor += miniStreamSectors;
-  for (let i = 0; i < bigStreams.length; i++) {
-    entries[bigStreams[i]!.entryIndex]!.startSector = cursor;
-    cursor += bigSectorCounts[i]!;
+  for (const big of bigStreams) {
+    big.entry.startSector = cursor;
+    cursor += big.sectors;
   }
   const fatStart = cursor;
   cursor += fatSectors;
@@ -190,8 +195,8 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   cursor += difatSectors;
   const totalSectors = cursor;
 
-  entries[0]!.startSector = miniStreamStart;
-  entries[0]!.size = miniBytes.length;
+  rootEntry.startSector = miniStreamStart;
+  rootEntry.size = miniBytes.length;
 
   // ── FAT ─────────────────────────────────────────────────────────────────────────────────────────
   const fat = new Array<number>(fatSectors * FAT_ENTRIES_PER_SECTOR).fill(FREESECT);
@@ -201,8 +206,7 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   chainRegion(dirStart, dirSectors);
   if (miniFatSectors > 0) chainRegion(miniFatStart, miniFatSectors);
   if (miniStreamSectors > 0) chainRegion(miniStreamStart, miniStreamSectors);
-  for (let i = 0; i < bigStreams.length; i++)
-    chainRegion(entries[bigStreams[i]!.entryIndex]!.startSector, bigSectorCounts[i]!);
+  for (const big of bigStreams) chainRegion(big.entry.startSector, big.sectors);
   for (let k = 0; k < fatSectors; k++) fat[fatStart + k] = FATSECT;
   for (let k = 0; k < difatSectors; k++) fat[difatStart + k] = DIFSECT;
 
@@ -221,16 +225,16 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
     fatStart,
   });
 
-  entries.forEach((e, i) => {
-    writeDirEntry(dv, at(dirStart) + i * DIR_ENTRY_SIZE, e);
-  });
+  for (const e of entries) writeDirEntry(dv, at(dirStart) + e.index * DIR_ENTRY_SIZE, e);
 
   for (let i = 0; i < miniFatSectors * FAT_ENTRIES_PER_SECTOR; i++) {
     dv.setUint32(at(miniFatStart) + i * 4, miniFat[i] ?? FREESECT, true);
   }
-  for (let i = 0; i < miniBytes.length; i++) buf[at(miniStreamStart) + i] = miniBytes[i]!;
-  for (const b of bigStreams) buf.set(b.data, at(entries[b.entryIndex]!.startSector));
-  for (let i = 0; i < fat.length; i++) dv.setUint32(at(fatStart) + i * 4, fat[i]!, true);
+  // Guarded rather than looped-and-skipped: with no mini stream, miniStreamStart is ENDOFCHAIN and
+  // `at()` of it is far outside the buffer, which a zero-length `set` would still reject.
+  if (miniBytes.length > 0) buf.set(Uint8Array.from(miniBytes), at(miniStreamStart));
+  for (const big of bigStreams) buf.set(big.data, at(big.entry.startSector));
+  for (const [i, sector] of fat.entries()) dv.setUint32(at(fatStart) + i * 4, sector, true);
 
   // DIFAT sectors carry FAT-sector pointers 110.. (unreachable under the enforced bound, but the layout
   // is honoured: each DIFAT sector's tail points to the next, the last to ENDOFCHAIN).
@@ -273,17 +277,19 @@ function validateSiblingNames(storageName: string, siblings: readonly CfbNode[])
 // uppercased UTF-16 code units) and link them as a balanced binary tree. A host locates a child by
 // walking this tree from the storage's `child` pointer, so the ordering and links must form a valid
 // search tree.
-function buildSiblingTree(entries: DirEntry[], storageIndex: number, kids: number[]): void {
-  const sorted = [...kids].sort((a, b) => compareNames(entries[a]!.name, entries[b]!.name));
-  const build = (lo: number, hi: number): number => {
-    if (lo > hi) return NOSTREAM;
-    const mid = (lo + hi) >> 1;
-    const idx = sorted[mid]!;
-    entries[idx]!.left = build(lo, mid - 1);
-    entries[idx]!.right = build(mid + 1, hi);
-    return idx;
+//
+// The recursion halves a slice rather than a lo/hi index pair, which makes "the slice is empty" and
+// "there is no midpoint entry" the same observable fact: the `undefined` check *is* the base case.
+function linkChildren(storage: DirEntry, kids: readonly DirEntry[]): void {
+  const build = (nodes: readonly DirEntry[]): number => {
+    const mid = nodes.length >> 1;
+    const node = nodes[mid];
+    if (node === undefined) return NOSTREAM;
+    node.left = build(nodes.slice(0, mid));
+    node.right = build(nodes.slice(mid + 1));
+    return node.index;
   };
-  entries[storageIndex]!.child = build(0, sorted.length - 1);
+  storage.child = build([...kids].sort((a, b) => compareNames(a.name, b.name)));
 }
 
 function compareNames(a: string, b: string): number {
