@@ -113,6 +113,9 @@ Excel opens, and read one back."
 - **Whitespace inside a formula is dropped.** Excel records the spaces an author typed around a token
   as a `PtgAttr` hint. Reattaching one to the right operand is not something a postfix walk can do, so
   the formula reads back without it — Excel redisplays it identically either way.
+- **Features beyond values, styles and formulas.** Tables, pivots, conditional formatting and images
+  are read from `.xlsx` and not yet from `.xlsb`; each is its own record family to decode, and each
+  should extend the twin-comparison corpus case rather than assert against a hand-written expectation.
 - **Rich text.** A pooled `RichStr`'s per-run formatting is skipped; the flattened text is read. The
   runs are `{character index, font index}` pairs over the style sheet's font table, so this is a small
   slice once the rich-text model is wired to it.

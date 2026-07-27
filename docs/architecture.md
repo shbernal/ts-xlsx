@@ -122,7 +122,9 @@ that seam exactly: the bounded inflater and magic-byte probe (`sniff-format.ts`)
 resolution (`read-opc.ts`), the resolved-format table (`XfStyle`, its built-in number formats, and
 `applyXfToCell` in `read-styles.ts`) are one implementation both codecs use, and only the part parsers
 live apart in `src/io/xlsb/` — `record-stream.ts` (the record framing), `primitives.ts` (RkNumber,
-length-prefixed strings, colours), then a per-part parser mirroring its XML counterpart.
+length-prefixed strings, colours), `formula.ts` and `ptg-functions.ts` (the Ptg token stream a binary
+formula is stored as, decoded to the text `<f>` would have carried), then a per-part parser mirroring
+its XML counterpart.
 
 `readXlsx` detects which serialisation a package holds and dispatches, so a caller never branches on
 format. The property that keeps the two honest is asserted, not assumed: the corpus reads one workbook
