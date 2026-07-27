@@ -70,19 +70,3 @@ interface ConditionalFormattingRule {
     timePeriod?: string;
 }
 ```
-
----
-
-### `DifferentialStyle`
-
-<sub>type</sub>
-
-A differential style (OOXML CT_Dxf): the facets a matching rule lays over a cell's own formatting.
-Only the facets present override; the rest of the cell's style shows through. This is the format a
-`highlight`/`cellIs`/`expression` rule applies, distinct from the colour/anchor scale a
-`dataBar`/`colorScale`/`iconSet` rule renders. It carries the subset of the cell-style facets
-(see `CellStyle`) that a `<dxf>` overrides — font, number format, fill, and border.
-
-```ts
-type DifferentialStyle = Pick<CellStyle, 'font' | 'numFmt' | 'fill' | 'border'>;
-```

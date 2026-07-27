@@ -375,6 +375,25 @@ export type NamedCellStyle = Readonly<CellStyle> & {
 };
 
 /**
+ * A differential style (OOXML CT_Dxf): formatting laid *over* whatever a cell already carries. Only
+ * the facets present override; the rest of the cell's own style shows through. It carries the subset
+ * of the cell-style facets (see {@link CellStyle}) a `<dxf>` can express — font, number format, fill,
+ * and border.
+ *
+ * Differential styles live in one workbook-level table (`<dxfs>`) that several features index into:
+ * a conditional-formatting rule's highlight format, and a table style's per-element formatting
+ * (`<tableStyleElement dxfId="…">`). They are interned and shared, so two features asking for the
+ * same formatting land on one entry.
+ *
+ * Not every facet reaches every consumer. As a **table style element**, Excel applies only the font,
+ * fill, and border: its own object model exposes `Font`, `Interior`, and `Borders` on a table style
+ * element and nothing for a number format, so a `numFmt` set here is carried faithfully through a
+ * round-trip but has no visible effect. The type is left whole rather than split, because the same
+ * value is legitimately reused across both consumers and narrowing it would only move the surprise.
+ */
+export type DifferentialStyle = Pick<CellStyle, 'font' | 'numFmt' | 'fill' | 'border'>;
+
+/**
  * The `<tableStyles>` block of a styles part: the custom table/pivot style definitions a file
  * declares, and the two gallery names it nominates as the default for a new table and a new pivot.
  *

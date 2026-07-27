@@ -13,12 +13,12 @@
 // into its own id table, and an aligned/protected xf carries them as body children in that order.
 // An unstyled cell/row/column resolves to xf 0.
 
-import type {DifferentialStyle} from '../../core/conditional-formatting.ts';
 import {
   type Alignment,
   type Border,
   type BorderEdge,
   type Color,
+  type DifferentialStyle,
   type Fill,
   type Font,
   type GradientFill,
@@ -230,8 +230,16 @@ export class StyleRegistry {
 
   /**
    * Seed the differential-style table with fragments read from a file, keeping each `<dxf>…</dxf>`
-   * verbatim and at its original index so a conditional-formatting rule's `dxfId` still resolves. Call
-   * once before any {@link differentialStyleId}; authored styles append after these.
+   * verbatim and at its original index. Call once before any {@link differentialStyleId}; authored
+   * styles append after these.
+   *
+   * **Index stability is a contract, not an implementation detail.** A `dxfId` is an index into this
+   * one table, and more than one preserved construct resolves through it: a conditional-formatting
+   * rule's `dxfId`, and every `<tableStyleElement dxfId="…">` inside a preserved `<tableStyle>` (see
+   * {@link seedTableStyles}). Those constructs are carried as opaque XML precisely *because* the
+   * indices they name do not move. Renumbering, reordering, or de-duplicating the seeded entries
+   * would silently re-point every one of them at a different format — a change no schema check and no
+   * round-trip of our own can catch, because the file stays perfectly valid and merely renders wrong.
    */
   seedDifferentialStyles(fragments: readonly string[]): void {
     for (const fragment of fragments) {
@@ -272,8 +280,15 @@ export class StyleRegistry {
     this.#tableStyles = table;
   }
 
-  /** Intern a differential style authored on a rule, returning its `<dxfs>` index for the cfRule's
-   * `dxfId`. Identical styles collapse to one entry. */
+  /**
+   * Intern an authored differential style, returning the `<dxfs>` index that references it — a
+   * conditional-formatting rule's `dxfId`, or a table style element's. Identical styles collapse to
+   * one entry, whichever feature asked for them, so a highlight rule and a table style's header row
+   * painted the same way share a single `<dxf>`.
+   *
+   * Authored entries append after the seeded ones ({@link seedDifferentialStyles}), which is what
+   * keeps every preserved reference pointing where it did.
+   */
   differentialStyleId(style: DifferentialStyle): number {
     const fragment = dxfXml(style);
     let index = this.#dxfIndexByFragment.get(fragment);

@@ -29,7 +29,6 @@ export type {
   CfValueObject,
   ConditionalFormatting,
   ConditionalFormattingRule,
-  DifferentialStyle,
 } from './core/conditional-formatting.ts';
 export type {
   DataValidation,
@@ -89,6 +88,7 @@ export type {
   BorderStyle,
   CellStyle,
   Color,
+  DifferentialStyle,
   Fill,
   FillPatternType,
   Font,
@@ -100,6 +100,8 @@ export type {
   NamedCellStyle,
   PatternFill,
   Protection,
+  TableStyleNamespace,
+  TableStyleTable,
   UnderlineStyle,
   VerticalAlignment,
 } from './core/style.ts';

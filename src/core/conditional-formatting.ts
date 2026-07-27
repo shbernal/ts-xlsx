@@ -7,16 +7,7 @@
 // the library does not interpret in depth still round-trips its `type`, `priority`, `operator`,
 // `formulae`, and differential-style reference — so a read/write cycle never silently drops a rule.
 
-import type {CellStyle, Color} from './style.ts';
-
-/**
- * A differential style (OOXML CT_Dxf): the facets a matching rule lays over a cell's own formatting.
- * Only the facets present override; the rest of the cell's style shows through. This is the format a
- * `highlight`/`cellIs`/`expression` rule applies, distinct from the colour/anchor scale a
- * `dataBar`/`colorScale`/`iconSet` rule renders. It carries the subset of the cell-style facets
- * (see {@link CellStyle}) that a `<dxf>` overrides — font, number format, fill, and border.
- */
-export type DifferentialStyle = Pick<CellStyle, 'font' | 'numFmt' | 'fill' | 'border'>;
+import type {Color, DifferentialStyle} from './style.ts';
 
 /**
  * One anchor of a colour-scale, data-bar, or icon-set scale — a "conditional format value object".

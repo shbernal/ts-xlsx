@@ -119,6 +119,32 @@ interface Color {
 
 ---
 
+### `DifferentialStyle`
+
+<sub>type</sub>
+
+A differential style (OOXML CT_Dxf): formatting laid *over* whatever a cell already carries. Only
+the facets present override; the rest of the cell's own style shows through. It carries the subset
+of the cell-style facets (see `CellStyle`) a `<dxf>` can express — font, number format, fill,
+and border.
+
+Differential styles live in one workbook-level table (`<dxfs>`) that several features index into:
+a conditional-formatting rule's highlight format, and a table style's per-element formatting
+(`<tableStyleElement dxfId="…">`). They are interned and shared, so two features asking for the
+same formatting land on one entry.
+
+Not every facet reaches every consumer. As a **table style element**, Excel applies only the font,
+fill, and border: its own object model exposes `Font`, `Interior`, and `Borders` on a table style
+element and nothing for a number format, so a `numFmt` set here is carried faithfully through a
+round-trip but has no visible effect. The type is left whole rather than split, because the same
+value is legitimately reused across both consumers and narrowing it would only move the surprise.
+
+```ts
+type DifferentialStyle = Pick<CellStyle, 'font' | 'numFmt' | 'fill' | 'border'>;
+```
+
+---
+
 ### `Fill`
 
 <sub>type</sub>
@@ -304,6 +330,49 @@ protected sheet. A cell that never set either flag reads back with neither.
 interface Protection {
     readonly locked?: boolean;
     readonly hidden?: boolean;
+}
+```
+
+---
+
+### `TableStyleNamespace`
+
+<sub>interface</sub>
+
+One namespace declaration a preserved `<tableStyle>` fragment depends on.
+
+```ts
+interface TableStyleNamespace {
+    readonly prefix: string;
+    readonly uri: string;
+    readonly ignorable: boolean;
+}
+```
+
+---
+
+### `TableStyleTable`
+
+<sub>interface</sub>
+
+The `<tableStyles>` block of a styles part: the custom table/pivot style definitions a file
+declares, and the two gallery names it nominates as the default for a new table and a new pivot.
+
+Each entry of `styles` is one `<tableStyle>…</tableStyle>` fragment kept verbatim, for the
+same reason a `<dxf>` is: a `tableStyleElement`'s `dxfId` indexes the differential-style table,
+which the writer re-emits **at its original indices**, so the references stay valid without
+reparsing anything. That index-stability is load-bearing — renumbering the dxf table would
+silently re-point every preserved table style at a different format.
+
+The two default names are ordinary strings, not fragments: they are re-escaped on write, so they
+are held decoded.
+
+```ts
+interface TableStyleTable {
+    readonly styles: readonly string[];
+    readonly defaultTableStyle?: string | undefined;
+    readonly defaultPivotStyle?: string | undefined;
+    readonly namespaces?: readonly TableStyleNamespace[];
 }
 ```
 
