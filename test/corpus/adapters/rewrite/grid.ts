@@ -125,6 +125,50 @@ export const grid = {
     };
   },
 
+  // Author the shape a generated report has — a frozen top row above grouped, hidden columns, on the
+  // first of two sheets — write it, and report the view-initialisation facts of the written package →
+  // { bookViewCount, bookViewsBeforeSheets, windowWidth, windowHeight, selectedSheets,
+  // outlineLevelCol, paneEmitted }. A consumer restores the document window from the workbook view
+  // and lays the frozen pane and the column-outline bar out inside it; omitting those facts leaves
+  // the top pane measured against an uninitialised window.
+  frozenHeaderViewStateReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('Report');
+    sheet.getCell('A1').value = 'header';
+    sheet.getCell('A2').value = 'body';
+    for (const index of [2, 3]) {
+      sheet.getColumn(index).outlineLevel = 1;
+      sheet.getColumn(index).hidden = true;
+    }
+    sheet.freeze(1);
+    wb.addWorksheet('Notes').getCell('A1').value = 'notes';
+
+    const parts = partMapOf(writeXlsx(wb));
+    const workbookXml = parts['xl/workbook.xml'] || '';
+    const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
+    const bookView = (workbookXml.match(/<workbookView\b[^>]*\/>/) || [''])[0] || '';
+    const attrNumber = (tag: string, name: string): number | null => {
+      const found = tag.match(new RegExp(`\\b${name}="(-?\\d+(?:\\.\\d+)?)"`));
+      return found ? Number(found[1]) : null;
+    };
+    const selectedSheets = ['Report', 'Notes'].filter((_, i) =>
+      /<sheetView\b[^>]*\btabSelected="1"/.test(parts[`xl/worksheets/sheet${i + 1}.xml`] || ''),
+    );
+    const sheetFormat = (sheetXml.match(/<sheetFormatPr\b[^>]*\/>/) || [''])[0] || '';
+    return {
+      bookViewCount: (workbookXml.match(/<workbookView\b/g) || []).length,
+      bookViewsBeforeSheets:
+        workbookXml.indexOf('<bookViews>') >= 0 &&
+        workbookXml.indexOf('<bookViews>') < workbookXml.indexOf('<sheets>'),
+      windowWidth: attrNumber(bookView, 'windowWidth'),
+      windowHeight: attrNumber(bookView, 'windowHeight'),
+      selectedSheets,
+      outlineLevelCol: attrNumber(sheetFormat, 'outlineLevelCol'),
+      outlineLevelRow: attrNumber(sheetFormat, 'outlineLevelRow'),
+      paneEmitted: /<pane\b[^>]*ySplit="1"[^>]*state="frozen"/.test(sheetXml),
+    };
+  },
+
   // Freeze a view, then unfreeze it, and report the pane presence in each written form plus a reload
   // → { frozenHasPane, normalHasPane, reloadedState, reloadedHasSplit }. Unfreezing must leave no
   // leftover <pane> (which triggers Excel's repair prompt) and reload as a normal, unsplit view.
