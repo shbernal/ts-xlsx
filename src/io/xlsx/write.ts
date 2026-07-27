@@ -17,6 +17,7 @@
 import {strToU8, zipSync} from 'fflate';
 
 import type {WorkbookImage} from '../../core/image.ts';
+import {DEFAULT_THEME_XML} from '../../core/theme.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {collectComments, commentsXml, vmlDrawingXml} from './comments.ts';
@@ -41,7 +42,6 @@ import {THEME_PART_PATH} from './part-paths.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
 import {REL, relsPartXml} from './relationships.ts';
 import {SharedStringTable} from './shared-strings.ts';
-import {THEME1_XML} from './static-parts.ts';
 import {StyleRegistry} from './styles.ts';
 import {tableXml} from './tables.ts';
 import {personsXml, threadedCommentsXml} from './threaded-comments.ts';
@@ -412,10 +412,13 @@ export function buildPackageParts(
     ),
     'xl/styles.xml': strToU8(styles.toXml()),
   };
-  // A theme read from a source package is emitted through the preserved-part path, closure and all;
-  // only a workbook without one gets the library's default theme, which the stylesheet's `theme="1"`
-  // default font still needs something to resolve against.
-  if (!preserved.themeEmitted) files[THEME_PART_PATH] = strToU8(THEME1_XML);
+  // A theme read from a source package is emitted through the preserved-part path, closure and all —
+  // with any authored overrides already spliced into its entry part by the planner. A workbook without
+  // one gets its authored theme, or the library's default, which the stylesheet's `theme="1"` default
+  // font still needs something to resolve against.
+  if (!preserved.themeEmitted) {
+    files[THEME_PART_PATH] = strToU8(workbook.authoredThemeXml() ?? DEFAULT_THEME_XML);
+  }
   if (hasSharedStrings) {
     files['xl/sharedStrings.xml'] = strToU8((sharedStrings as SharedStringTable).toXml());
   }

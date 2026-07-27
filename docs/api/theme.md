@@ -14,6 +14,18 @@ const DEFAULT_THEME_COLOR_SCHEME: Readonly<Partial<Record<"lt1" | "dk1" | "lt2" 
 
 ---
 
+### `DEFAULT_THEME_FONTS`
+
+<sub>const</sub>
+
+The Office default typefaces, matching the theme part the writer emits for a workbook with none.
+
+```ts
+const DEFAULT_THEME_FONTS: ThemeFontScheme
+```
+
+---
+
 ### `parseThemeColorScheme`
 
 <sub>function</sub>
@@ -77,4 +89,36 @@ One slot of a theme's colour scheme.
 
 ```ts
 type ThemeColorSlot = (typeof THEME_COLOR_SLOTS)[number];
+```
+
+---
+
+### `ThemeFontScheme`
+
+<sub>interface</sub>
+
+The two typefaces a theme nominates: the `major` face headings use and the `minor` face body text
+uses. A cell's font reaches them by `scheme="major"`/`scheme="minor"` instead of naming a typeface,
+so changing these restyles every such cell at once.
+
+```ts
+interface ThemeFontScheme {
+    readonly major?: string | undefined;
+    readonly minor?: string | undefined;
+}
+```
+
+---
+
+### `ThemeOverrides`
+
+<sub>interface</sub>
+
+What a caller can author on a workbook's theme: any subset of the colour slots and typefaces.
+
+```ts
+interface ThemeOverrides {
+    readonly colors?: Readonly<Partial<Record<ThemeColorSlot, string>>> | undefined;
+    readonly fonts?: ThemeFontScheme | undefined;
+}
 ```

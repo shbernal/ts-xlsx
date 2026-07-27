@@ -682,6 +682,72 @@ export const styles = {
     return new Workbook().resolveColor(color) ?? null;
   },
 
+  // Author theme colours/fonts on a workbook — from scratch, or over a fixture's own theme — write
+  // it, and report what the emitted theme part carries → { scheme, fonts, schemeName, keptFmtScheme,
+  // hasThemeRels, mediaParts, resolvedThemeColor, reReadScheme }. Authoring a palette has to reach
+  // three places at once: the theme part, the cells that reference it by `theme="n"`, and whatever the
+  // source theme already carried and must not lose.
+  authorThemeReport({fixture = null, colors = {}, fonts = {}}: CorpusApi) {
+    const workbook = fixture === null ? new Workbook() : readFixture(fixture);
+    if (fixture === null) {
+      const sheet = workbook.addWorksheet('Brand');
+      const cell = sheet.getCell('A1');
+      cell.value = 'themed';
+      cell.fill = {type: 'pattern', pattern: 'solid', fgColor: {theme: 4}};
+    }
+    workbook.setTheme({colors, fonts});
+    const buffer = writeXlsx(workbook);
+    const parts = partMapOf(buffer);
+    const theme = parts['xl/theme/theme1.xml'] ?? '';
+    const clrScheme = /<a:clrScheme\b[\s\S]*?<\/a:clrScheme>/.exec(theme)?.[0] ?? '';
+    const slotValue = (slot: string) =>
+      new RegExp(`<a:${slot}>\\s*<a:(?:srgbClr|sysClr)[^>]*?(?:val|lastClr)="([^"]*)"`).exec(
+        clrScheme,
+      )?.[1] ?? null;
+    const face = (which: string) =>
+      new RegExp(`<a:${which}>\\s*<a:latin typeface="([^"]*)"`).exec(theme)?.[1] ?? null;
+    // A slot left unauthored must keep the *encoding* the source used, not just its value: dk1/lt1
+    // are `<a:sysClr>` so they follow the viewer's window colours, and rewriting them as srgbClr
+    // would pin them to one machine.
+    const slotEncoding = (slot: string) =>
+      new RegExp(`<a:${slot}>\\s*<a:(srgbClr|sysClr)`).exec(clrScheme)?.[1] ?? null;
+    return {
+      schemeName: /<a:clrScheme[^>]*\sname="([^"]*)"/.exec(theme)?.[1] ?? null,
+      scheme: Object.fromEntries(
+        ['dk1', 'lt1', 'dk2', 'lt2', 'accent1', 'accent2', 'accent3', 'accent6', 'hlink'].map(
+          (slot) => [slot, slotValue(slot)],
+        ),
+      ),
+      encodings: {
+        dk1: slotEncoding('dk1'),
+        lt1: slotEncoding('lt1'),
+        accent1: slotEncoding('accent1'),
+      },
+      fonts: {major: face('majorFont'), minor: face('minorFont')},
+      // The format scheme is a designer's work, not something an API regenerates; it must ride
+      // through an authored theme untouched.
+      keptFmtScheme: /<a:fmtScheme\b/.test(theme),
+      fmtSchemeGradientStops: [...theme.matchAll(/<a:gs\b/g)].length,
+      hasThemeRels: 'xl/theme/_rels/theme1.xml.rels' in parts,
+      mediaParts: Object.keys(parts).filter((p) => p.startsWith('xl/media/')).length,
+      // The cell-facing half: a `theme="n"` reference must now resolve to the authored colour.
+      resolvedThemeColor: workbook.resolveColor({theme: 4}) ?? null,
+      // And the written package must say so too, not just the in-memory model.
+      reReadScheme: {...readXlsx(buffer).themeColors},
+    };
+  },
+
+  // Author a theme colour the library must refuse → the error message, or null if it was accepted.
+  // A malformed theme colour does not error in Excel: the slot renders as flat black.
+  authorInvalidThemeColor(value: CorpusApi) {
+    try {
+      new Workbook().setTheme({colors: {accent1: value}});
+      return null;
+    } catch (error) {
+      return (error as Error).message;
+    }
+  },
+
   // Assign one base style object to two cells, then spread-reassign one cell's font color →
   // { a1Color, a2Color, bled }. The sibling given the same base must keep its original font.
   sharedBaseStyleFontMutation() {

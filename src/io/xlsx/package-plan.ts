@@ -284,9 +284,14 @@ export function planPreservedParts(
           ? []
           : [{id: rel.id, type: rel.type, target: relativePartPath(newPath, target)}];
       });
+      // The one preserved part whose *bytes* can change: a theme the caller authored over is
+      // regenerated from the source part (see `Workbook.authoredThemeXml`) rather than carried
+      // verbatim, so the format scheme, the unauthored slots' encoding, and the relationships below
+      // all still ride through — only the authored elements differ.
+      const authoredTheme = newPath === THEME_PART_PATH ? workbook.authoredThemeXml() : undefined;
       emitted.set(newPath, {
         path: newPath,
-        bytes: part.bytes,
+        bytes: authoredTheme === undefined ? part.bytes : new TextEncoder().encode(authoredTheme),
         contentType: part.contentType,
         relsPath: rels.length === 0 ? null : relsPathForPart(newPath),
         relsXml: rels.length === 0 ? null : preservedRelsXml(rels),

@@ -26,10 +26,17 @@ import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
 import type {Color, NamedCellStyle, TableStyleTable} from './style.ts';
 import {
+  applyThemeOverrides,
   DEFAULT_THEME_COLOR_SCHEME,
+  DEFAULT_THEME_FONTS,
+  DEFAULT_THEME_XML,
   parseThemeColorScheme,
+  parseThemeFontScheme,
   THEME_COLOR_SLOTS,
   type ThemeColorScheme,
+  type ThemeColorSlot,
+  type ThemeFontScheme,
+  type ThemeOverrides,
 } from './theme.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
@@ -564,14 +571,49 @@ export class Workbook {
     return this.#theme;
   }
 
-  // The theme's colour scheme, decoded from the preserved part on first use. Cached because resolving
-  // a colour is a per-cell operation and the part is otherwise held as bytes; invalidated whenever the
-  // theme is replaced.
+  // The theme's colour scheme, decoded from the preserved part (and merged with any authored
+  // overrides) on first use. Cached because resolving a colour is a per-cell operation and the part is
+  // otherwise held as bytes; invalidated whenever the theme is replaced or authored.
   #themeColors: ThemeColorScheme | undefined;
 
+  // Colour slots and typefaces the caller authored, merged over whatever the workbook already had.
+  #authoredTheme: {colors: {-readonly [K in ThemeColorSlot]?: string}; fonts: ThemeFontScheme} = {
+    colors: {},
+    fonts: {},
+  };
+
   /**
-   * The colour scheme every `theme="n"` reference in this workbook resolves against — the preserved
-   * theme's `<a:clrScheme>`, or the Office default when the workbook carries no theme of its own.
+   * Author the workbook's theme: any subset of the twelve colour-scheme slots, and either of the two
+   * typefaces. Merges into what the workbook already has, so branding one accent leaves the other
+   * eleven slots alone, and calling it twice accumulates.
+   *
+   * This is the workbook-wide palette. A cell that names a colour as `theme="4"` — which is what Excel
+   * writes whenever a user picks from the theme row of the colour picker — follows `accent1` here, so
+   * one call restyles every such cell, chart and table style at once. Colours are `RRGGBB`; a leading
+   * `#` and an 8-hex ARGB are both accepted and reduced, and anything else throws rather than writing
+   * a value Excel silently renders as flat black.
+   *
+   * What it does **not** touch: the theme's format scheme — the gradient, line and effect styles that
+   * give a theme its texture. Those ride through from the source theme (or the library's default)
+   * untouched, because nobody hand-authors gradient stops from a spreadsheet API and regenerating them
+   * would replace a designer's work with the Office default. For the same reason a slot left
+   * unauthored keeps the source's own encoding, including the `<a:sysClr>` form Excel uses for
+   * `dk1`/`lt1` so they follow the viewer's window colours.
+   *
+   * @throws {Error} if a colour is not 6 or 8 hexadecimal digits.
+   */
+  setTheme(overrides: ThemeOverrides): void {
+    // Validated eagerly, by running the generation the writer will later run: a colour rejected at
+    // write time would surface far from the call that supplied it.
+    applyThemeOverrides(this.#baseThemeXml(), overrides);
+    Object.assign(this.#authoredTheme.colors, overrides.colors ?? {});
+    this.#authoredTheme.fonts = {...this.#authoredTheme.fonts, ...(overrides.fonts ?? {})};
+    this.#themeColors = undefined;
+  }
+
+  /**
+   * The colour scheme every `theme="n"` reference in this workbook resolves against — anything
+   * {@link setTheme} authored, over the preserved theme's `<a:clrScheme>`, over the Office default.
    *
    * Note the slot *order*: `theme="0"` is `lt1` and `theme="1"` is `dk1`, which is not the order the
    * slots appear in the theme part. See {@link THEME_COLOR_SLOTS}.
@@ -583,9 +625,38 @@ export class Workbook {
       // default rather than resolving nothing: the file still renders against *some* scheme, and the
       // default is the one the writer would have shipped.
       const parsed = xml === undefined ? {} : parseThemeColorScheme(xml);
-      this.#themeColors = Object.keys(parsed).length === 0 ? DEFAULT_THEME_COLOR_SCHEME : parsed;
+      const base = Object.keys(parsed).length === 0 ? DEFAULT_THEME_COLOR_SCHEME : parsed;
+      this.#themeColors = {...base, ...this.#authoredTheme.colors};
     }
     return this.#themeColors;
+  }
+
+  /** The theme's major (heading) and minor (body) typefaces, authored values over the source's. */
+  get themeFonts(): ThemeFontScheme {
+    const xml = this.#themeXml();
+    const parsed = xml === undefined ? {} : parseThemeFontScheme(xml);
+    const base = Object.keys(parsed).length === 0 ? DEFAULT_THEME_FONTS : parsed;
+    return {...base, ...this.#authoredTheme.fonts};
+  }
+
+  /**
+   * The theme part text this workbook should write, or `undefined` when nothing was authored and the
+   * source theme (or the writer's default) should ride through untouched.
+   *
+   * Authoring generates *over* the existing part rather than from scratch — see
+   * {@link applyThemeOverrides} — so a preserved theme keeps its format scheme, its unauthored slots'
+   * exact encoding, and the relationships it carries.
+   */
+  authoredThemeXml(): string | undefined {
+    const {colors, fonts} = this.#authoredTheme;
+    if (Object.keys(colors).length === 0 && Object.keys(fonts).length === 0) return undefined;
+    return applyThemeOverrides(this.#baseThemeXml(), {colors, fonts});
+  }
+
+  // The part authored overrides are applied on top of: the preserved source theme, else the default
+  // one the writer would otherwise have emitted.
+  #baseThemeXml(): string {
+    return this.#themeXml() ?? DEFAULT_THEME_XML;
   }
 
   // The preserved theme part's text, decoded from the entry part of its closure.

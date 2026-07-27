@@ -122,10 +122,13 @@ export {
 } from './core/table.ts';
 export {
   DEFAULT_THEME_COLOR_SCHEME,
+  DEFAULT_THEME_FONTS,
   parseThemeColorScheme,
   THEME_COLOR_SLOTS,
   type ThemeColorScheme,
   type ThemeColorSlot,
+  type ThemeFontScheme,
+  type ThemeOverrides,
 } from './core/theme.ts';
 export {
   type CellValue,

@@ -30,6 +30,19 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **`Workbook.setTheme({colors, fonts})` — the workbook's palette is authorable.** A colour picked
+  from a spreadsheet's theme row is written as `theme="4"`, a reference resolved at render time, so
+  setting `accent1` restyles every cell, chart and table style that follows the theme at once — the
+  only way to recolour a workbook without touching a cell. Any subset of the twelve colour-scheme
+  slots and either of the two typefaces can be set, and calls merge.
+
+  It generates *over* the existing theme rather than replacing it. The format scheme — the gradient,
+  line and effect styles a designer authored — rides through untouched, a slot left unnamed keeps its
+  source encoding (`dk1`/`lt1` stay `<a:sysClr>`, so they still follow the viewer's window colours),
+  and a theme that references a picture keeps that relationship. `Workbook.themeColors` and
+  `themeFonts` report the effective theme. A malformed colour throws at the setter, because Excel does
+  not report one — it renders the slot as flat black.
+
 - **`Workbook.resolveColor(color)` — a themed or indexed colour now resolves to a concrete ARGB.**
   A `Color` read from a file often carries no colour at all, only a reference: `{theme: 4}` into the
   workbook theme's scheme, or `{indexed: 2}` into the legacy 64-entry palette, either optionally with
