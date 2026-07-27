@@ -95,6 +95,11 @@ consumers lay the pane geometry and the outline bars out against them, so omitti
 leaves that layout uninitialised. Such a package is still schema-valid and still opens
 without a repair prompt — **neither the oracle nor `open-verdict.ps1` will flag it**. The
 writer emits all three unconditionally now (`DEFAULT_WORKBOOK_VIEW`, `src/core/workbook.ts`).
+That they were omitted is certain; that any *one* of them causes a given paint glitch is
+inference from the diff — the single-variable A/B that would isolate it was never run, and
+the original report only ever reproduced under a window geometry we could not recreate. So
+if this class of symptom recurs with all three present, the cause is elsewhere: reopen the
+investigation rather than assuming it regressed here.
 The general move for this whole class: round-trip your output through Excel's own `SaveAs`
 over COM and diff the two packages. What Excel adds unprompted is what a consumer expects
 to find.
