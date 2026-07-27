@@ -27,25 +27,12 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Lint + format gate over the authored tree (Biome) — see
-      # docs/decisions/0002-toolchain-standup.md.
-      - run: pnpm run lint
-      # Strict type-safety gate for the rewrite tree (src/). Also runs the
-      # src/type-tests/ compile-time API assertions.
-      - run: pnpm run typecheck
-      # Strict type-safety gate for the harness tree (test/ + scripts/), held to
-      # the same bar as src/: the regression corpus cases, its adapters, the corpus
-      # runner, and the tooling scripts. See ADR 0011.
-      - run: pnpm run typecheck:test
-      # Rewrite unit tests (native node --test on .ts).
-      - run: pnpm run test:src
-      # Regression corpus vs the rewrite — every behavior must pass; a pass→fail is
-      # a real regression.
-      - run: pnpm run corpus
-      # The public API reference is generated from the types; fail if the committed
-      # pages have drifted from a fresh generation — see ADR-0006.
-      - run: pnpm run docs:check
-      # CLAUDE.md and AGENTS.md are one document. They were a symlink until Windows
-      # (where symlinks need admin) silently turned AGENTS.md into a 9-byte stub; the
-      # duplication is now guarded by a check instead of by the filesystem.
-      - run: pnpm run constitution:check
+      # The whole gate set, from its single definition in scripts/verify.ts — lint,
+      # both typecheck configs, unit tests, the regression corpus, docs:check and
+      # constitution:check, run concurrently. This step deliberately does NOT list
+      # them: an enumeration here would be a second definition of "everything" that
+      # nothing keeps in step with verify --full (ADR 0022). A failing gate still
+      # names itself in the Checks UI — verify emits a GitHub annotation per gate.
+      #
+      # `node …` rather than `pnpm run test` skips the package-manager wrapper.
+      - run: node scripts/verify.ts --full

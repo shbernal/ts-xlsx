@@ -23,7 +23,7 @@ pre-commit:
 # One job, because scripts/verify.ts already defines the gate set and schedules it.
 # Re-listing the gates here would be a second definition of "everything" to keep in
 # sync — and the one that silently drifts, since a hook is the copy nobody reads.
-# (CI keeps its own per-gate steps on purpose: it wants one annotation per gate.)
+# CI runs the same single command, for the same reason.
 # `node …` rather than `pnpm run verify` skips ~0.84 s of package-manager wrapper.
 pre-push:
   jobs:

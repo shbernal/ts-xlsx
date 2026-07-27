@@ -58,8 +58,9 @@ per-gate timing (~14 s wall against ~27 s of serial work). Prefer it over assemb
 chain by hand, which is how `docs:check` and `constitution:check` get silently dropped.
 `--quick` is the inner loop: types, unit tests, and lint scoped to your changed files, no
 corpus (~5 s) — faster, but **not** a substitute for the full run. Invoke it with `node`,
-not `pnpm run`, to skip ~1 s of package-manager wrapper. `pnpm test` and lefthook's
-`pre-push` hook are both the full run. Why it is shaped this way — the pool width, the
+not `pnpm run`, to skip ~1 s of package-manager wrapper. `pnpm test`, lefthook's `pre-push`
+hook and CI's `corpus.yml` are all the same full run — there is no second list of gates to
+keep in step, so adding one here is a one-line change that CI picks up. Why it is shaped this way — the pool width, the
 cache key, the incremental-`tsc` traps — is [ADR 0022](./decisions/0022-verification-is-one-cached-parallel-entrypoint.md).
 
 The **Stop hook** runs `verify --full --cached` at each turn boundary, so you cannot end a

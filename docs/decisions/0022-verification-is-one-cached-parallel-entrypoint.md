@@ -19,10 +19,17 @@ never re-run against a tree already proven green.
 ### One entrypoint, two depths
 
 `scripts/verify.ts` owns the gate set. `--full` **is** the definition — `pnpm test`,
-lefthook's `pre-push`, and the Stop hook are all that same command, so they cannot
-disagree. `--quick` (types, unit tests, lint scoped to changed files) is the inner loop
-and is explicitly **not** a substitute: it has no corpus. The granular `package.json`
-scripts stay, because CI wants one annotation per gate.
+lefthook's `pre-push`, CI's `corpus.yml`, and the Stop hook are all that same command, so
+they cannot disagree. `--quick` (types, unit tests, lint scoped to changed files) is the
+inner loop and is explicitly **not** a substitute: it has no corpus. The granular
+`package.json` scripts stay as the way to run *one* gate by hand; nothing automated
+composes them into a set.
+
+CI enumerated the gates as one step each for a single real benefit — a failing gate naming
+itself in the Checks UI rather than hiding in the log — and paid for it with a second
+definition that nothing kept in step. Workflow commands buy the annotation without the
+copy: under `GITHUB_ACTIONS`, verify emits `::error title=verify: <gate>::` per failure
+with the diagnostics in a collapsed `::group::`. The enumeration is gone.
 
 Gates are spawned from `node_modules/.bin` directly. `pnpm run <script>` costs ~1 s of
 pure wrapper per invocation, which is why the docs tell agents to call `node
@@ -115,8 +122,11 @@ report JSON, so build stdout is captured and replayed to stderr rather than disc
 - **Positive:** one name for the gate set, so the hook, the hook's human, CI's intent and
   lefthook cannot drift apart. A clean-tree `--full` is ~14 s against ~27 s of serial
   work; a turn that changed nothing verifiable costs ~0.3 s.
-- **Known second definition:** `.github/workflows/corpus.yml` still enumerates the gates
-  itself, deliberately, to get one annotation per gate. Nothing enforces that it agrees
-  with `verify --full`; `verify --list` makes a drift check trivial if it ever bites.
+- **No second definition left to drift:** `corpus.yml` is one `node scripts/verify.ts --full`
+  step. Adding a gate is a one-line change in one file and CI picks it up. `build.yml` still
+  enumerates its own steps, which is not the same duplication: it gates the *emitted* package
+  (build → smoke → corpus-on-dist → size budget), a set `verify` does not contain.
+- **`--jobs` is not tuned for the runner.** The default of 2 was measured on a 14-core box; a
+  2-core GitHub runner is a different machine. Measure before assuming it is optimal there.
 - **Revisit `composite` when** the dev/test loop stops being build-free — not before, and
   not without reproducing `TS6310` first.

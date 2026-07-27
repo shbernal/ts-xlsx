@@ -265,6 +265,30 @@ async function runGate(gate: Gate): Promise<Result> {
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 
 /**
+ * CI used to enumerate the gates as one workflow step each, purely so a failure named itself in the
+ * Checks UI instead of hiding inside a wall of log. That bought one annotation per gate at the price
+ * of a second definition of the gate set that nothing kept in step. Workflow commands buy the same
+ * annotation from the single definition: an `::error` titled with the gate, and its diagnostics in a
+ * collapsed `::group::`. Off outside Actions, where the markers would be noise.
+ *
+ * @see https://docs.github.com/actions/reference/workflow-commands-for-github-actions
+ */
+const IN_ACTIONS = process.env.GITHUB_ACTIONS === 'true';
+
+function reportFailure(result: Result): void {
+  // Annotation messages are single-line; the escape for a newline is %0A, so the detail goes in the
+  // group and the annotation stays a title plus one clause.
+  if (IN_ACTIONS) {
+    console.error(
+      `::error title=verify: ${result.gate.name}::gate failed (exit ${result.exit ?? 'spawn error'})`,
+    );
+    console.error(`::group::${result.gate.name}`);
+  }
+  console.error(`\n─── ${result.gate.name} ───\n${result.output.trimEnd()}`);
+  if (IN_ACTIONS) console.error('::endgroup::');
+}
+
+/**
  * A fingerprint of every byte the gates read that could change their verdict: the commit
  * the tree stands on, the whole working-tree diff against it, and the content of every
  * untracked file git would show. `--binary` so an edited .xlsx fixture contributes its
@@ -372,9 +396,7 @@ async function main() {
   const serial = results.reduce((total, result) => total + result.ms, 0);
 
   const failed = results.filter((result) => !result.ok);
-  for (const result of failed) {
-    console.error(`\n─── ${result.gate.name} ───\n${result.output.trimEnd()}`);
-  }
+  for (const result of failed) reportFailure(result);
 
   if (failed.length === 0) {
     if (key !== undefined) await recordPass(mode, key);
