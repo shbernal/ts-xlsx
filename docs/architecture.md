@@ -111,6 +111,17 @@ consumer to honour. Applying a style splits by target: `applyCellStyle` drives a
 per-property setters, `assignStyleFacets` copies plain records — two helpers because a cell and a
 bag of fields have different write surfaces.
 
+The same pattern governs a sheet's snapshot one level up. `WorksheetModel` is what
+`dst.model = src.model` carries, and a field the getter emits but the setter ignores loses data
+silently — the merge-loss failure that contract exists to prevent. Both directions are therefore
+driven from one table, `WORKSHEET_MODEL_FACETS` in `core/worksheet-model.ts`, where each field
+declares its read and its write side by side along with the clone strategy that field needs
+(`{...spread}`, `replaceContents`, replay through the authoring API). Declaration order is the
+order a model assignment applies: cells are placed before any merge exists, so a covered cell's
+value lands where the model says instead of being routed to a region master mid-load. The registry
+is proved exhaustive over `keyof WorksheetModel` at compile time, so a field added without a facet
+is a build error that names the field.
+
 The two largest surfaces — the xlsx reader and writer — are each a **cluster**, not a
 monolith, split along the OOXML package's own seams so a change touches one part:
 

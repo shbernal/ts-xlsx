@@ -8,16 +8,12 @@
 
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
-import {applyCellStyle, Cell, cellToModel, copyCellContent} from './cell.ts';
+import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
 import {type CommentThread, commentThreadGuid, commentThreadOffset} from './comment-thread.ts';
-import {type ConditionalFormatting, cloneConditionalFormatting} from './conditional-formatting.ts';
+import type {ConditionalFormatting} from './conditional-formatting.ts';
 import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
-import {overwrite, replaceContents} from './containers.ts';
-import {
-  cloneDataValidation,
-  type DataValidation,
-  type DataValidationEntry,
-} from './data-validation.ts';
+import {replaceContents} from './containers.ts';
+import type {DataValidation, DataValidationEntry} from './data-validation.ts';
 import {DataValidationOverlay} from './data-validation-overlay.ts';
 import {GridEdits} from './grid-edits.ts';
 import {
@@ -44,6 +40,7 @@ import {
 import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions, TOTALS_ROW_SUBTOTAL_CODE} from './table.ts';
 import type {CellValue} from './value.ts';
+import {WORKSHEET_MODEL_FACETS} from './worksheet-model.ts';
 
 export interface WorksheetState {
   /** Sheet visibility, as Excel models it. Defaults to `visible`. */
@@ -139,7 +136,9 @@ export interface CellModel extends CellStyle {
  * formattings, tables, the autofilter, protection). {@link Worksheet.model} exports one; assigning
  * it back reproduces that content. The getter and setter cover exactly the same fields, so a
  * `dst.model = src.model` round-trip drops none of it — an export field the import ignored would
- * silently lose data, the historical merge-loss failure this contract exists to prevent.
+ * silently lose data, the historical merge-loss failure this contract exists to prevent. Both
+ * directions are driven from one field table (`core/worksheet-model.ts`), which the compiler proves
+ * covers every field below, so adding a field here without wiring it fails the build.
  *
  * Out of scope by design: content that carries workbook-level identity rather than pure sheet
  * state — anchored and background images (their bytes live on the {@link Workbook}), pivot tables
@@ -1157,41 +1156,11 @@ export class Worksheet {
    * {@link WorksheetModel} for that boundary.
    */
   get model(): WorksheetModel {
-    const cells: CellModel[] = [];
-    for (const cols of this.#rows.values()) {
-      for (const cell of cols.values()) cells.push(cellToModel(cell));
-    }
-    return {
-      state: this.state,
-      tabColor: this.tabColor,
-      properties: {...this.properties},
-      outline: {...this.outline},
-      pageSetup: {...this.pageSetup},
-      printOptions: {...this.printOptions},
-      pageMargins: {...this.pageMargins},
-      headerFooter: {...this.headerFooter},
-      rowBreaks: this.rowBreaks.map((brk) => ({...brk})),
-      columnBreaks: this.columnBreaks.map((brk) => ({...brk})),
-      columns: [...this.#columns].map(([index, properties]) => ({
-        index,
-        properties: {...properties},
-      })),
-      rows: [...this.#rowProperties].map(([number, properties]) => ({
-        number,
-        properties: {...properties},
-      })),
-      cells,
-      merges: [...this.#merges],
-      dataValidations: this.#dataValidations.entries.map(({sqref, rule, extended}) => ({
-        sqref,
-        rule: cloneDataValidation(rule),
-        ...(extended ? {extended: true} : {}),
-      })),
-      conditionalFormattings: this.#conditionalFormattings.entries.map(cloneConditionalFormatting),
-      tables: this.#tables.map((table) => table.options),
-      autoFilter: this.#autoFilter,
-      protection: this.#protection,
-    };
+    const model: Record<string, unknown> = {};
+    for (const facet of WORKSHEET_MODEL_FACETS) model[facet.key] = facet.read(this);
+    // TypeScript cannot follow an object built key by key; what makes this sound is that the
+    // registry is proved exhaustive over `keyof WorksheetModel` — see the type assertion beside it.
+    return model as unknown as WorksheetModel;
   }
 
   // Empty every collection the model round-trips, so a subsequent replay leaves no residue from
@@ -1209,45 +1178,11 @@ export class Worksheet {
   }
 
   // Assigning a model replaces this sheet's content wholesale — the sheet becomes the model, with no
-  // residue from whatever it held before. Cells are placed at their exact positions (bypassing merge
-  // resolution) and merges re-applied after, so a slave's value cannot be misrouted during the load.
+  // residue from whatever it held before. The registry's declaration order is the application order,
+  // and it is load-bearing: see WORKSHEET_MODEL_FACETS.
   set model(model: WorksheetModel) {
     this.#resetContent();
-    this.state = model.state;
-    this.tabColor = model.tabColor;
-    overwrite(this.properties, model.properties);
-    overwrite(this.outline, model.outline);
-    overwrite(this.pageSetup, model.pageSetup);
-    overwrite(this.printOptions, model.printOptions);
-    overwrite(this.pageMargins, model.pageMargins);
-    overwrite(this.headerFooter, model.headerFooter);
-    replaceContents(
-      this.rowBreaks,
-      model.rowBreaks.map((brk) => ({...brk})),
-    );
-    replaceContents(
-      this.columnBreaks,
-      model.columnBreaks.map((brk) => ({...brk})),
-    );
-
-    this.#protection = model.protection;
-
-    for (const {index, properties} of model.columns)
-      Object.assign(this.getColumn(index), properties);
-    for (const {number, properties} of model.rows) Object.assign(this.getRow(number), properties);
-    for (const cellModel of model.cells) {
-      copyCellContent(cellModel, this.#cellAt(cellModel.row, cellModel.col));
-    }
-    for (const range of model.merges) this.mergeCells(range);
-    for (const {sqref, rule, extended} of model.dataValidations) {
-      this.addDataValidation(sqref, rule, extended ? {extended: true} : {});
-    }
-    for (const formatting of model.conditionalFormattings)
-      this.addConditionalFormatting(formatting);
-    for (const options of model.tables) this.addTable(options);
-    // Assigning through the setter (rather than the private field) re-canonicalises and, on undefined,
-    // clears any autofilter the destination held — the wholesale-replace contract, no residue.
-    this.autoFilter = model.autoFilter;
+    for (const facet of WORKSHEET_MODEL_FACETS) facet.write(this, model);
   }
 
   /**
@@ -1327,12 +1262,14 @@ export class Worksheet {
     restoreProtection: (protection) => {
       this.#protection = protection;
     },
+    cellAt: (row, col) => this.#cellAt(row, col),
   };
 }
 
 /**
- * What a codec may do to a `Worksheet` that an author may not: reinstate state read from a file, and
- * release a row the streaming writer has finished with. Reached as `sheet[INTERNAL]`; see
+ * What the library's own machinery may do to a `Worksheet` that an author may not: reinstate state
+ * read from a file, place a cell where a file or model says rather than where addressing would put
+ * it, and release a row the streaming writer has finished with. Reached as `sheet[INTERNAL]`; see
  * `core/internal.ts`.
  */
 export interface WorksheetInternals {
@@ -1378,4 +1315,13 @@ export interface WorksheetInternals {
    * restores that credential verbatim rather than re-hashing.
    */
   restoreProtection(protection: SheetProtection): void;
+
+  /**
+   * Materialise the cell at an exact 1-based position, creating it on first access. Unlike
+   * {@link Worksheet.getCell} this performs no merge resolution: the cell returned is the one at
+   * `(row, col)` even when a merged region covers it. Loading content is where that matters — a
+   * model or a parsed file states where each value sits, and routing a covered value to its region
+   * master mid-load would move it.
+   */
+  cellAt(row: number, col: number): Cell;
 }

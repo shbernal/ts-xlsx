@@ -313,7 +313,9 @@ the column/row/page metadata, and the sheet-level overlays (merges, data validat
 formattings, tables, the autofilter, protection). `Worksheet.model` exports one; assigning
 it back reproduces that content. The getter and setter cover exactly the same fields, so a
 `dst.model = src.model` round-trip drops none of it — an export field the import ignored would
-silently lose data, the historical merge-loss failure this contract exists to prevent.
+silently lose data, the historical merge-loss failure this contract exists to prevent. Both
+directions are driven from one field table (`core/worksheet-model.ts`), which the compiler proves
+covers every field below, so adding a field here without wiring it fails the build.
 
 Out of scope by design: content that carries workbook-level identity rather than pure sheet
 state — anchored and background images (their bytes live on the `Workbook`), pivot tables
