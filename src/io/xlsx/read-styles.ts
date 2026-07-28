@@ -3,12 +3,11 @@
 // and the two xf tables (`<cellXfs>`, `<cellStyleXfs>`), flattening the id-indirection so a cell's
 // `s` index maps straight to its facets. A construct it does not recognise is skipped, never guessed.
 //
-// The *shape* here — `XfStyle`, the built-in number formats, and applying an xf to a cell — is a
-// property of the OOXML style model, not of its XML spelling, so the `.xlsb` style reader
-// (`../xlsb/read-styles.ts`) builds the same table from BIFF12 records and shares this module's
-// resolution rules. Only the parsing above is XML-specific.
+// Only the parsing is XML-specific. What an xf resolves *to* — `XfStyle`, the built-in number
+// formats, applying an xf to a cell — is a property of the OOXML style model rather than of its
+// spelling, and lives above both codecs in `../style/xf-style.ts`; the `.xlsb` style reader builds
+// the same table from BIFF12 records.
 
-import {applyCellStyle, type Cell} from '../../core/cell.ts';
 import {
   type Alignment,
   assignStyleFacets,
@@ -28,7 +27,6 @@ import {
   type NamedCellStyle,
   type Protection,
 } from '../../core/style.ts';
-import {parseColor} from './styles.ts';
 import {
   boolPresent,
   boolStrict,
@@ -37,21 +35,9 @@ import {
   type XmlAttributes,
   type XmlEvent,
   xmlEvents,
-} from './xml-read.ts';
-
-// The style facets an xf resolves to. Absent facets stay undefined, matching the contract
-// that an unset facet is simply not present on the reconstructed cell.
-export interface XfStyle {
-  readonly fill?: Fill;
-  readonly numFmt?: string;
-  readonly font?: Font;
-  readonly border?: Border;
-  readonly alignment?: Alignment;
-  readonly protection?: Protection;
-  readonly quotePrefix?: boolean;
-  /** The `xfId` link into the named-style layer (`cellStyleXfs`); absent for the Normal default (0). */
-  readonly xfId?: number;
-}
+} from '../../xml/xml-read.ts';
+import {numFmtCodeFor, type StyleTable, type XfStyle} from '../style/xf-style.ts';
+import {parseColor} from './styles.ts';
 
 // A mutable xf accumulator while an <xf> element streams in: its facet ids resolve on open, but
 // the <alignment>/<protection> children (when present) arrive before the element closes, so the
@@ -94,77 +80,11 @@ const STYLE_EMPTY_CLOSES: ReadonlySet<string> = new Set([
   ...BORDER_EDGES,
 ]);
 
-// ECMA-376 reserves numFmt ids below 164 for formats every consumer knows implicitly, so a
-// foreign file may name one with no <numFmt> entry. This maps the standard ids to their
-// codes; id 0 (General) and any unknown id resolve to no format. The writer never emits
-// these — it always defines a custom id — but reading them keeps foreign files faithful.
-const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
-  [1, '0'],
-  [2, '0.00'],
-  [3, '#,##0'],
-  [4, '#,##0.00'],
-  [9, '0%'],
-  [10, '0.00%'],
-  [11, '0.00E+00'],
-  [12, '# ?/?'],
-  [13, '# ??/??'],
-  [14, 'mm-dd-yy'],
-  [15, 'd-mmm-yy'],
-  [16, 'd-mmm'],
-  [17, 'mmm-yy'],
-  [18, 'h:mm AM/PM'],
-  [19, 'h:mm:ss AM/PM'],
-  [20, 'h:mm'],
-  [21, 'h:mm:ss'],
-  [22, 'm/d/yy h:mm'],
-  [37, '#,##0 ;(#,##0)'],
-  [38, '#,##0 ;[Red](#,##0)'],
-  [39, '#,##0.00;(#,##0.00)'],
-  [40, '#,##0.00;[Red](#,##0.00)'],
-  [45, 'mm:ss'],
-  [46, '[h]:mm:ss'],
-  [47, 'mmss.0'],
-  [48, '##0.0E+0'],
-  [49, '@'],
-  // Ids 27..36 and 50..58 are reserved for locale-specific built-in East Asian date/time formats;
-  // a file authored in a CJK locale styles date cells with them and, being built-ins, emits no
-  // <numFmt>. The exact code is locale-defined — these are the representative Excel forms — but what
-  // matters for reading is that each resolves to a non-empty date/time code so the serial reads as a
-  // date rather than a bare number.
-  [27, '[$-404]e/m/d'],
-  [28, '[$-404]e"年"m"月"d"日"'],
-  [29, '[$-404]e"年"m"月"d"日"'],
-  [30, '[$-404]m/d/yy'],
-  [31, '[$-404]yyyy"年"m"月"d"日"'],
-  [32, '[$-404]h"時"mm"分"'],
-  [33, '[$-404]h"時"mm"分"ss"秒"'],
-  [34, '上午/下午h"時"mm"分"'],
-  [35, '上午/下午h"時"mm"分"ss"秒"'],
-  [36, '[$-404]e/m/d'],
-  [50, '[$-404]e/m/d'],
-  [51, '[$-404]e"年"m"月"d"日"'],
-  [52, '[$-404]yyyy"年"m"月"'],
-  [53, '[$-404]m"月"d"日"'],
-  [54, '[$-404]e"年"m"月"d"日"'],
-  [55, '上午/下午h"時"mm"分"'],
-  [56, '上午/下午h"時"mm"分"ss"秒"'],
-  [57, '[$-404]yyyy"年"m"月"'],
-  [58, '[$-404]m"月"d"日"'],
-]);
-
 // styles.xml is a shared table: <numFmts> defines custom format codes by id, <fills> lists
 // the fills, and <cellXfs> lists the cell formats, each naming a fill and a number format by
 // id. We flatten that indirection into one array — cellXfs index → resolved {fill, numFmt} —
 // so a cell/row/column style index maps straight to its facets. The schema orders <numFmts>
 // and <fills> before <cellXfs>, so both lookups are complete before an xf references them.
-/** The parsed style table: the cell formats a cell/row/column `s` indexes, plus the named cell-style
- * layer a cell's `xfId` links into. Each cellXfs entry is already merged with its named style, so a
- * cell reading its `s` sees the effective facets; the `xfId` link is carried through for re-write. */
-export interface StyleTable {
-  readonly cellXfs: ReadonlyArray<XfStyle>;
-  readonly namedStyles: ReadonlyArray<NamedCellStyle>;
-}
-
 export function parseStyleTable(xml: string): StyleTable {
   if (xml === '') return {cellXfs: [], namedStyles: []};
   let fills: ReadonlyArray<Fill | undefined> = [];
@@ -602,32 +522,6 @@ function resolveNumFmt(
   custom: ReadonlyMap<number, string>,
 ): string | undefined {
   return raw === undefined ? undefined : numFmtCodeFor(Number(raw), custom);
-}
-
-/**
- * The format code a number-format id denotes: the file's own `<numFmt>`/`BrtFmt` declaration if it
- * has one, else the built-in Excel defines for that id. Id 0 is General — the absence of a format —
- * and resolves to nothing so an ordinary cell carries no `numFmt`.
- */
-export function numFmtCodeFor(id: number, custom: ReadonlyMap<number, string>): string | undefined {
-  if (!Number.isInteger(id) || id === 0) return undefined;
-  return custom.get(id) ?? BUILTIN_NUMFMTS.get(id);
-}
-
-/**
- * Apply a resolved xf's non-value facets to a cell — the six {@link CellStyle} facets through the
- * shared {@link applyCellStyle}, plus the two links that live on the xf itself rather than in the
- * facet tuple (`quotePrefix`, and the `xfId` pointer into the named-style layer).
- *
- * Shared by every path that commits a cell: the XML reader's ordinary and shared-formula-clone paths,
- * and the BIFF12 reader — so a styled cell keeps its look regardless of which serialisation it came
- * from, and the two cannot drift on what "applying a style" means.
- */
-export function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
-  if (style === undefined) return;
-  applyCellStyle(cell, style);
-  if (style.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
-  if (style.xfId !== undefined) cell.namedStyleId = style.xfId;
 }
 
 function toFill(

@@ -20,6 +20,9 @@
 
 import {MAX_COLUMN} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
+import {boolStrict, closeEmptyElements, localName, xmlEvents} from '../../xml/xml-read.ts';
+import {packageAccessors} from '../opc/read-opc.ts';
+import {inflateSpreadsheetPackage, unsupportedWorkbookPart} from '../opc/sniff-format.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';
 import {
@@ -32,10 +35,7 @@ import {
   type SheetEntry,
   type XfStyle,
 } from './read.ts';
-import {packageAccessors} from './read-opc.ts';
 import {parseSharedStrings} from './shared-strings-read.ts';
-import {inflateSpreadsheetPackage, unsupportedWorkbookPart} from './sniff-format.ts';
-import {boolStrict, closeEmptyElements, localName, xmlEvents} from './xml-read.ts';
 
 export interface ReadSheetRowsOptions extends ReadXlsxOptions {
   /**

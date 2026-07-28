@@ -200,6 +200,7 @@ export {
 } from './customui/index.ts';
 export {type CsvReadOptions, readCsv} from './io/csv/read.ts';
 export {type CsvWriteOptions, writeCsv, writeCsvText} from './io/csv/write.ts';
+export {type UnsupportedFormat, UnsupportedFormatError} from './io/opc/errors.ts';
 export {XlsbParseError} from './io/xlsb/errors.ts';
 // `readXlsx` auto-detects and reads a binary `.xlsb` too, so most callers never name this; it is
 // public for the caller that holds bytes it already knows to be `.xlsb` and wants to say so.
@@ -208,7 +209,6 @@ export {
   editXlsxVbaAddReference,
   editXlsxVbaRemoveModule,
 } from './io/xlsx/edit-vba.ts';
-export {type UnsupportedFormat, UnsupportedFormatError} from './io/xlsx/errors.ts';
 export {type ReadXlsxOptions, readXlsx} from './io/xlsx/read.ts';
 // The streaming reader's entry points are public; the granular per-row/cell/sheet output shapes
 // (`StreamedRow`/`StreamedCell`/`StreamedSheet`) are intentionally left as inferred structural types

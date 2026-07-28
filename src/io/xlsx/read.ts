@@ -28,19 +28,9 @@ import {
   type WorkbookProtectionCredentialAttr,
 } from '../../core/workbook-protection.ts';
 import type {Worksheet, WorksheetState} from '../../core/worksheet.ts';
-import {readXlsbPackage, XLSB_WORKBOOK_PART} from '../xlsb/read.ts';
-import {applyNotes, type ParsedComment, parseComments} from './comments.ts';
-import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
-import {
-  applyDataValidations,
-  parseDataValidations,
-  parseExtendedDataValidations,
-} from './data-validation.ts';
-import {UnsupportedFormatError} from './errors.ts';
-import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
-import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
-import {extensionOf} from './part-paths.ts';
-import {parsePivotTable} from './pivot-read.ts';
+import {boolStrict, localName, openElements, parseXml} from '../../xml/xml-read.ts';
+import {UnsupportedFormatError} from '../opc/errors.ts';
+import {extensionOf, relsPathFor} from '../opc/part-paths.ts';
 import {
   capturePartClosure,
   contentTypeResolver,
@@ -50,29 +40,39 @@ import {
   parseRelationships,
   relationshipTargetByType,
   relationshipTargetsByType,
-  relsPathFor,
   resolveRelativePart,
   resolveWorkbookPart,
   sheetRelTarget,
-} from './read-opc.ts';
-import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from './read-options.ts';
+} from '../opc/read-opc.ts';
+import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
+import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
+import {readXlsbPackage, XLSB_WORKBOOK_PART} from '../xlsb/read.ts';
+import {applyNotes, type ParsedComment, parseComments} from './comments.ts';
+import {parseConditionalFormattings, parseDxfs} from './conditional-formatting.ts';
+import {
+  applyDataValidations,
+  parseDataValidations,
+  parseExtendedDataValidations,
+} from './data-validation.ts';
+import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
+import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
+import {parsePivotTable} from './pivot-read.ts';
 import {parseStyleTable} from './read-styles.ts';
 import {parseWorksheet} from './read-worksheet.ts';
 import {parseSharedStrings} from './shared-strings-read.ts';
-import {inflateSpreadsheetPackage} from './sniff-format.ts';
 import {parseIndexedColors, parseMruColors, parseTableStyles} from './styles.ts';
 import {parseTable} from './tables.ts';
 import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
-import {boolStrict, localName, openElements, parseXml} from './xml-read.ts';
 
 // Re-exported for the streaming reader (`./read-rows.ts`) and the public barrel, which import these
 // from here: the split into per-part parsers is internal, so the reader's import surface is stable.
-export {parseRelationships, resolveWorkbookPart} from './read-opc.ts';
+export {parseRelationships, resolveWorkbookPart} from '../opc/read-opc.ts';
 // The inflate bound and its option bag are shared with the `.xlsb` reader and the row streamer, so
 // they are declared apart from all three; they stay reachable here because this is the entry point
 // callers reach for.
-export {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from './read-options.ts';
-export {parseStyleTable, type StyleTable, type XfStyle} from './read-styles.ts';
+export {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
+export type {StyleTable, XfStyle} from '../style/xf-style.ts';
+export {parseStyleTable} from './read-styles.ts';
 
 /**
  * Read a spreadsheet package into a {@link Workbook}.

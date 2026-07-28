@@ -7,8 +7,8 @@
 
 import type {Font} from '../../core/style.ts';
 import type {RichTextRun} from '../../core/value.ts';
+import type {XmlAttributes} from '../../xml/xml-read.ts';
 import {applyFontChild, type FontDraft} from './read-styles.ts';
-import type {XmlAttributes} from './xml-read.ts';
 
 export class RunAccumulator {
   #runs: RichTextRun[] = [];

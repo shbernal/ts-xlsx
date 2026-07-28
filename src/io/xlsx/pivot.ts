@@ -8,8 +8,9 @@
 
 import {encodeAddress} from '../../core/address.ts';
 import type {PivotItem, PivotMetric, PivotRecordCell, PivotTable} from '../../core/pivot-table.ts';
-import {RELATIONSHIPS_NS, SPREADSHEETML_NS} from './namespaces.ts';
-import {escapeAttr, XML_DECLARATION} from './xml.ts';
+import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
+import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
+import {SPREADSHEETML_NS} from './namespaces.ts';
 
 // Excel's default caption prefix for each aggregation ("Sum of Amount", "Average of Amount"). A
 // metric's name is also its `subtotal` value, which is why the record key equals the enum member.

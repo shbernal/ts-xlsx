@@ -16,9 +16,9 @@ import {
   type TableStyleInfo,
   type TotalsRowFunction,
 } from '../../core/table.ts';
+import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
+import {localName, parseXml} from '../../xml/xml-read.ts';
 import {NS} from './relationships.ts';
-import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
-import {localName, parseXml} from './xml-read.ts';
 
 export function tableXml(table: Table, id: number): string {
   const name = escapeAttr(table.name);

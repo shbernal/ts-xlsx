@@ -1,4 +1,4 @@
-# Xlsx Read Options
+# Opc Read Options
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 

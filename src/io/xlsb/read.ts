@@ -4,7 +4,7 @@
 // workbook part points at its sheets, its shared strings, and its style sheet through ordinary
 // `.rels` XML. Only the office-document parts differ: `xl/workbook.bin`, `xl/worksheets/sheetN.bin`
 // and friends are BIFF12 record streams instead of XML. So this module reuses the container layer
-// wholesale (`../xlsx/read-opc.ts`, the bounded inflater) and swaps only the part parsers, which is
+// wholesale (`../opc/`, the bounded inflater) and swaps only the part parsers, which is
 // exactly the "two codecs over one model" shape the format note argues for.
 //
 // The model produced is the one `readXlsx` produces, not a parallel one: the same `Workbook`, the
@@ -17,10 +17,10 @@
 import {unmangleFunctions} from '../../core/formula.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {WorksheetState} from '../../core/worksheet.ts';
-import {UnsupportedFormatError} from '../xlsx/errors.ts';
-import {packageAccessors, parseRelationships, resolveWorkbookPart} from '../xlsx/read-opc.ts';
-import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../xlsx/read-options.ts';
-import {inflateSpreadsheetPackage} from '../xlsx/sniff-format.ts';
+import {UnsupportedFormatError} from '../opc/errors.ts';
+import {packageAccessors, parseRelationships, resolveWorkbookPart} from '../opc/read-opc.ts';
+import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
+import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
 import {decodeFormula, type ExternSheetRef, type FormulaScope} from './formula.ts';
 import {RecordReader} from './primitives.ts';
 import {parseSharedStrings} from './read-shared-strings.ts';

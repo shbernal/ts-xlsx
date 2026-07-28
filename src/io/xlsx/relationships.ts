@@ -1,13 +1,16 @@
-// The OOXML/OPC namespace URIs, relationship-type URIs, and `.rels` part envelopes shared by the
-// writer's serialisers. The canonical namespace set lives in `namespaces.ts`; the writer-local
-// groupings here (the props vocabularies, the content-types namespace, and the rel-type URIs derived
-// from them) are plumbing every part of the writer references.
+// The relationship-type URIs and namespace groupings the writer's serialisers reference. The
+// canonical namespace set lives in `namespaces.ts`; the writer-local groupings here (the props
+// vocabularies, the content-types namespace, and the rel-type URIs derived from them) are plumbing
+// every part of the writer references.
+//
+// The `.rels` part envelope these types are written into is container-level, not SpreadsheetML, and
+// lives in `../opc/rels.ts`.
 
-import {PKG_RELS_NS, RELATIONSHIPS_NS, SPREADSHEETML_NS} from './namespaces.ts';
-import {escapeAttr, XML_DECLARATION} from './xml.ts';
+import {CONTENT_TYPES_NS, PKG_RELS_NS, RELATIONSHIPS_NS} from '../opc/namespaces.ts';
+import {SPREADSHEETML_NS} from './namespaces.ts';
 
 export const NS = {
-  contentTypes: 'http://schemas.openxmlformats.org/package/2006/content-types',
+  contentTypes: CONTENT_TYPES_NS,
   packageRels: PKG_RELS_NS,
   main: SPREADSHEETML_NS,
   docRels: RELATIONSHIPS_NS,
@@ -46,39 +49,3 @@ export const REL = {
   threadedComment: `${MS_OFFICE_2017_RELS_NS}/threadedComment`,
   person: `${MS_OFFICE_2017_RELS_NS}/person`,
 } as const;
-
-// A single `<Relationship>`. An `external` target lives outside the package (a hyperlink URL), so the
-// element carries `TargetMode="External"`; a package-internal target (the default) omits it. The caller
-// escapes the target when it is not a writer-controlled package path.
-export function relationship(
-  id: string,
-  type: string,
-  target: string,
-  options?: {external?: boolean},
-): string {
-  const mode = options?.external ? ' TargetMode="External"' : '';
-  return `<Relationship Id="${id}" Type="${type}" Target="${target}"${mode}/>`;
-}
-
-// Wrap a part's `<Relationship>` elements in the OPC `.rels` envelope (XML declaration + the namespaced
-// `<Relationships>` root). Every `.rels` part the writer emits shares this envelope; only the elements
-// inside differ, so each caller builds its own list of {@link relationship} strings and hands them here.
-export function relationshipsPart(relationships: readonly string[]): string {
-  return `${XML_DECLARATION}<Relationships xmlns="${NS.packageRels}">${relationships.join('')}</Relationships>`;
-}
-
-export function preservedRelsXml(
-  rels: readonly {id: string; type: string; target: string; external?: boolean}[],
-): string {
-  return relationshipsPart(
-    rels.map((rel) =>
-      relationship(rel.id, rel.type, escapeAttr(rel.target), rel.external ? {external: true} : {}),
-    ),
-  );
-}
-
-// A `.rels` part for a generated part chain (pivot table → cache definition → cache records). Targets
-// are writer-controlled package paths, so no attribute escaping is needed.
-export function relsPartXml(rels: readonly {id: string; type: string; target: string}[]): string {
-  return relationshipsPart(rels.map((rel) => relationship(rel.id, rel.type, rel.target)));
-}

@@ -10,10 +10,11 @@ import {
   type ImageEditAs,
   isOneCellAnchor,
 } from '../../core/image.ts';
-import {DRAWINGML_NS, RELATIONSHIPS_NS, XDR_NS} from './namespaces.ts';
-import {relationship, relationshipsPart} from './relationships.ts';
-import {XML_DECLARATION} from './xml.ts';
-import {localName, parseXml} from './xml-read.ts';
+import {XML_DECLARATION} from '../../xml/xml.ts';
+import {localName, parseXml} from '../../xml/xml-read.ts';
+import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
+import {relationship, relationshipsPart} from '../opc/rels.ts';
+import {DRAWINGML_NS, XDR_NS} from './namespaces.ts';
 
 const IMAGE_REL_TYPE = `${RELATIONSHIPS_NS}/image`;
 

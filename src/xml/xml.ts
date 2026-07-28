@@ -81,4 +81,15 @@ export function attr(name: string, value: number | undefined): string {
   return value === undefined ? '' : ` ${name}="${value}"`;
 }
 
+/**
+ * A finite number serialises as its shortest round-trippable decimal; a non-finite one
+ * has no OOXML numeric representation, so the writer refuses it rather than emit `NaN`.
+ */
+export function numberText(value: number): string {
+  if (!Number.isFinite(value)) {
+    throw new Error(`cannot write a non-finite number (${value}) — it has no OOXML representation`);
+  }
+  return String(value);
+}
+
 export const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';

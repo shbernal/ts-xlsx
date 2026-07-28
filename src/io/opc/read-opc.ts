@@ -6,8 +6,8 @@
 import {strFromU8} from 'fflate';
 
 import type {PreservedPart, PreservedRelationship} from '../../core/preserved.ts';
-import {extensionOf} from './part-paths.ts';
-import {openElements, type XmlAttributes} from './xml-read.ts';
+import {openElements, type XmlAttributes} from '../../xml/xml-read.ts';
+import {extensionOf, relsPathFor} from './part-paths.ts';
 
 // The two ways a reader reaches into an inflated package: a part's UTF-8-decoded text, or its raw
 // bytes. Built once per read (see {@link packageAccessors}) so the buffered and streaming readers
@@ -29,14 +29,6 @@ export function packageAccessors(files: Record<string, Uint8Array>): PackageAcce
     },
     partBytes: (path: string): Uint8Array | undefined => files[path],
   };
-}
-
-// The relationships for `dir/name.ext` live at `dir/_rels/name.ext.rels`.
-export function relsPathFor(partPath: string): string {
-  const slash = partPath.lastIndexOf('/');
-  const dir = slash === -1 ? '' : partPath.slice(0, slash + 1);
-  const base = slash === -1 ? partPath : partPath.slice(slash + 1);
-  return `${dir}_rels/${base}.rels`;
 }
 
 // Whether a <Relationship> carries a resolvable Target and its Type ends with `/<suffix>` (a

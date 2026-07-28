@@ -26,6 +26,9 @@ import type {
   Worksheet,
   WorksheetProperties,
 } from '../../core/worksheet.ts';
+import {escapeAttr, escapeText, numberText, textElement, XML_DECLARATION} from '../../xml/xml.ts';
+import {relativePartPath} from '../opc/part-paths.ts';
+import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
 import {dataValidationsExtXml, dataValidationsXml} from './data-validation.ts';
 import {type HyperlinkPlan, hyperlinksXml} from './hyperlinks.ts';
@@ -40,8 +43,7 @@ import type {
   TablePlan,
   ThreadedCommentPlan,
 } from './package-plan.ts';
-import {numberText, relativePartPath} from './part-paths.ts';
-import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
+import {NS, REL} from './relationships.ts';
 import {richTextRunsXml} from './rich-text.ts';
 import {planSharedFormulas, type SharedFormulaRole} from './shared-formulas.ts';
 import type {SharedStringTable} from './shared-strings.ts';
@@ -58,7 +60,6 @@ import {
 } from './sheet-properties.ts';
 import type {CellStyle, StyleRegistry} from './styles.ts';
 import {x14Ext} from './x14-ext.ts';
-import {escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
 
 /**
  * The used-cell extent of a sheet — the top-left/bottom-right grid bounds that fold into the

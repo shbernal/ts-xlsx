@@ -11,9 +11,9 @@
 // rich text round-trips its formatting rather than flattening to text.
 
 import type {RichTextValue} from '../../core/value.ts';
+import {textElement, XML_DECLARATION} from '../../xml/xml.ts';
 import {SPREADSHEETML_NS} from './namespaces.ts';
 import {richTextRunsXml} from './rich-text.ts';
-import {textElement, XML_DECLARATION} from './xml.ts';
 
 /**
  * Interns cell string values into the shared-strings pool. {@link intern} returns the index a

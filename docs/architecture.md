@@ -84,11 +84,22 @@ order:
 | Area | Role |
 | --- | --- |
 | core model | `Workbook` / `Worksheet` / `Row` / `Cell`, addresses, styles — the in-memory document |
+| xml | escaping, emission and a hostile-input-safe SAX reader (`src/xml/`) — no spreadsheet knowledge |
+| opc container | ZIP inflation under a bound, magic-byte sniffing, the relationship graph and part paths (`src/io/opc/`) |
+| resolved format | `XfStyle` and what applying an xf to a cell means, shared by both codecs (`src/io/style/`) |
 | xlsx read/write | OOXML parse and serialize; the hardest, highest-value surface |
 | xlsb read | the binary BIFF12 serialisation of the same model, read-only so far (`src/io/xlsb/`) |
 | streaming | bounded-memory row streaming — reads, and an incremental workbook writer |
 | csv | a thin, optional entry point, never coupled to the xlsx core |
 | vba | native read/author/edit of a macro-enabled workbook's `vbaProject.bin` (`src/vba/`) |
+
+That order is a real constraint, not a description: `scripts/check-layering.ts` (a gate in
+`verify --full`) fails the build on an import that runs up it. The rules it carries are that
+`src/xml/` reaches nothing, `src/core/` never reaches a serialisation, `src/io/opc/` and
+`src/io/style/` sit below every codec, and the two codecs are peers — `src/io/xlsb/` may not
+import `src/io/xlsx/`. Co-located tests are exempt, since a test import is not a dependency of
+the graph we ship. Shared code that tempts a codec to reach sideways belongs in `opc` or `style`;
+that is what those directories are for.
 
 Cell formatting is one named tuple, not six loose fields. `CellStyle` in `core/style.ts`
 holds the six OOXML direct-format facets (`fill`, `numFmt`, `font`, `border`, `alignment`,
@@ -103,24 +114,30 @@ bag of fields have different write surfaces.
 The two largest surfaces — the xlsx reader and writer — are each a **cluster**, not a
 monolith, split along the OOXML package's own seams so a change touches one part:
 
-- **read** (`src/io/xlsx/`): `read-opc.ts` (the OPC/relationship layer), `read-styles.ts`
-  (`styles.xml`), `read-worksheet.ts` (one sheet), with `read.ts` keeping `readXlsx` and
-  the workbook-level wiring. `rich-runs.ts` owns the `<r>`/`<rPr>`/`<t>` run accumulator
-  the worksheet and shared-strings parsers share; `cell-accumulator.ts` owns the per-cell
-  gathering state machine the buffered and streaming readers both drive (ADR-0004).
+- **read** (`src/io/xlsx/`): `read-styles.ts` (`styles.xml`), `read-worksheet.ts` (one sheet),
+  with `read.ts` keeping `readXlsx` and the workbook-level wiring. `rich-runs.ts` owns the
+  `<r>`/`<rPr>`/`<t>` run accumulator the worksheet and shared-strings parsers share;
+  `cell-accumulator.ts` owns the per-cell gathering state machine the buffered and streaming
+  readers both drive (ADR-0004).
 - **write** (`src/io/xlsx/`): `package-plan.ts` (the part-graph plan layer), `workbook-xml.ts`
-  and `worksheet-xml.ts` (the serialisers), `part-paths.ts` and `relationships.ts` (shared
-  OPC primitives), with `write.ts` keeping `writeXlsx` and the `buildPackageParts`
-  orchestrator.
+  and `worksheet-xml.ts` (the serialisers), `relationships.ts` (the SpreadsheetML relationship-type
+  vocabulary), with `write.ts` keeping `writeXlsx` and the `buildPackageParts` orchestrator.
+
+Neither cluster owns the container it rides in. `src/io/opc/` holds what is true of *any* OOXML
+package — `inflate.ts` (the bounded inflater), `sniff-format.ts` (the magic-byte probe and the
+typed rejection), `read-opc.ts` (resolving relationships and walking a part closure), `rels.ts`
+(emitting a `.rels` part), `part-paths.ts`, and the package namespaces — and `src/xml/` holds
+escaping, emission and the SAX reader beneath even that.
 
 ## Two serialisations, one model
 
 `.xlsb` is not a second library bolted on; it is a second **codec** over the same `Workbook`. The two
 formats share an OPC/ZIP container, a relationship graph, and a style model, and differ only in how the
 office-document parts are spelled — XML in `.xlsx`, BIFF12 record streams in `.xlsb`. The code follows
-that seam exactly: the bounded inflater and magic-byte probe (`sniff-format.ts`), the OPC/relationship
-resolution (`read-opc.ts`), the resolved-format table (`XfStyle`, its built-in number formats, and
-`applyXfToCell` in `read-styles.ts`) are one implementation both codecs use, and only the part parsers
+that seam exactly, and the directory layout states it: the bounded inflater, magic-byte probe and
+OPC/relationship resolution live in `src/io/opc/`, the resolved-format table (`XfStyle`, its built-in
+number formats, and `applyXfToCell`) in `src/io/style/` — both *above* the codecs rather than inside
+either — and only the part parsers
 live apart in `src/io/xlsb/` — `record-stream.ts` (the record framing), `primitives.ts` (RkNumber,
 length-prefixed strings, colours), `formula.ts` and `ptg-functions.ts` (the Ptg token stream a binary
 formula is stored as, decoded to the text `<f>` would have carried), then a per-part parser mirroring
@@ -133,7 +150,10 @@ that XML omits — a bottom vertical alignment, a locked cell, a row restating t
 height, a hatch fill's automatic-colour sentinels — must therefore be dropped on the binary side, which
 is where most of the subtlety in that reader lives.
 
-Namespace URIs and ext-URI GUIDs are registered once in `namespaces.ts`. Sheet-local
+Namespace URIs and ext-URI GUIDs are registered once, split by which layer owns them: the
+package-level URIs (`.rels`, content types, the relationship vocabulary) in
+`src/io/opc/namespaces.ts`, the SpreadsheetML and extension ones in `src/io/xlsx/namespaces.ts`.
+Sheet-local
 relationship ids are handed out by a single monotonic `SheetRelIds` allocator: id prefixes
 were once re-derived by hand-summing every prior part's count, which silently collides two
 parts onto one id when a prefix drifts — ids are now unique by construction and never

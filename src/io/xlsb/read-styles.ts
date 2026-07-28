@@ -26,7 +26,7 @@ import type {
   VerticalAlignment,
 } from '../../core/style.ts';
 import {assignStyleFacets} from '../../core/style.ts';
-import {numFmtCodeFor, type StyleTable, type XfStyle} from '../xlsx/read-styles.ts';
+import {numFmtCodeFor, type StyleTable, type XfStyle} from '../style/xf-style.ts';
 import {RecordReader} from './primitives.ts';
 import {readRecords} from './record-stream.ts';
 import {BRT} from './record-types.ts';

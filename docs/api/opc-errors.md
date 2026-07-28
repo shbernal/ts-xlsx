@@ -1,4 +1,4 @@
-# Xlsx Errors
+# Opc Errors
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 

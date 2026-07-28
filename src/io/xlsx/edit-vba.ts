@@ -22,13 +22,13 @@ import {
   removeVbaModule,
   type VbaLibraryReference,
 } from '../../vba/project-editor.ts';
+import {relsPathFor} from '../opc/part-paths.ts';
 import {
   parseRelationshipRecords,
   relationshipTargetByType,
-  relsPathFor,
   resolveRelativePart,
   resolveWorkbookPart,
-} from './read-opc.ts';
+} from '../opc/read-opc.ts';
 
 const OFFICE_DOCUMENT_REL = 'officeDocument';
 const VBA_PROJECT_REL = 'vbaProject';

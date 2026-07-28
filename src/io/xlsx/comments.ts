@@ -22,9 +22,9 @@
 import {decodeAddress} from '../../core/address.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {escapeAttr, escapeText, textElement, XML_DECLARATION} from '../../xml/xml.ts';
+import {localName, parseXml} from '../../xml/xml-read.ts';
 import {MARKUP_COMPATIBILITY_NS, REVISION_NS, SPREADSHEETML_NS} from './namespaces.ts';
-import {escapeAttr, escapeText, textElement, XML_DECLARATION} from './xml.ts';
-import {localName, parseXml} from './xml-read.ts';
 
 /** A comment bound for `comments{n}.xml`, paired with the coordinates the VML anchor needs. */
 export interface CommentCell {

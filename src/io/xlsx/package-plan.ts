@@ -7,10 +7,10 @@ import type {PivotTable} from '../../core/pivot-table.ts';
 import type {Table} from '../../core/table.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {extensionOf, relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
+import {preservedRelsXml} from '../opc/rels.ts';
 import type {CommentCell} from './comments.ts';
 import type {DrawingImage} from './images.ts';
-import {extensionOf, relativePartPath, relsPathForPart, THEME_PART_PATH} from './part-paths.ts';
-import {preservedRelsXml} from './relationships.ts';
 
 // A sheet's relationship-id allocator: hands out `rId1`, `rId2`, … in the one canonical order the
 // package wires a sheet's parts (tables, drawing, comments, threaded comments, printer settings, external
@@ -293,7 +293,7 @@ export function planPreservedParts(
         path: newPath,
         bytes: authoredTheme === undefined ? part.bytes : new TextEncoder().encode(authoredTheme),
         contentType: part.contentType,
-        relsPath: rels.length === 0 ? null : relsPathForPart(newPath),
+        relsPath: rels.length === 0 ? null : relsPathFor(newPath),
         relsXml: rels.length === 0 ? null : preservedRelsXml(rels),
       });
     }

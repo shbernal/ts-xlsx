@@ -2,9 +2,9 @@
 // Split out of read.ts beside its sibling parsers (read-styles.ts, rich-runs.ts) so read.ts stays
 // orchestration; the run structure it decodes is owned by RunAccumulator, shared with inline strings.
 
+import {localName, parseXml} from '../../xml/xml-read.ts';
 import type {SharedString} from './cell-value.ts';
 import {RunAccumulator} from './rich-runs.ts';
-import {localName, parseXml} from './xml-read.ts';
 
 // Shared strings resolve `t="s"` cells. Each `<si>` is one entry: a plain `<si><t>…</t>` decodes to a
 // string, while a rich `<si><r><rPr>…</rPr><t>…</t></r>…` decodes to a {@link RichTextValue} whose runs

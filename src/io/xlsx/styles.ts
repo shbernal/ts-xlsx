@@ -36,9 +36,9 @@ import {
   type UnderlineStyle,
 } from '../../core/style.ts';
 import {TABLE_STYLE_ELEMENT_TYPES, type TableStyle} from '../../core/table-style.ts';
+import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
+import {decodeEntities, openElements} from '../../xml/xml-read.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
-import {escapeAttr, XML_DECLARATION} from './xml.ts';
-import {decodeEntities, openElements} from './xml-read.ts';
 
 // Excel reserves fill ids 0 and 1 for the "none" and "gray125" patterns it always emits;
 // custom fills are numbered from 2 so a foreign reader's built-in assumptions still hold.

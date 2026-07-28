@@ -9,15 +9,15 @@ import {decodeAddress, encodeAddress} from '../../core/address.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {CellValue, DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {boolPresent, type XmlAttributes} from '../../xml/xml-read.ts';
+import {applyXfToCell, type XfStyle} from '../style/xf-style.ts';
 import {
   decodeCellContent,
   decodeFormulaResult,
   type RawCell,
   type SharedString,
 } from './cell-value.ts';
-import {applyXfToCell, type XfStyle} from './read-styles.ts';
 import {RunAccumulator} from './rich-runs.ts';
-import {boolPresent, type XmlAttributes} from './xml-read.ts';
 
 // The declaration attributes of a `<f t="dataTable">`, held from the `<f>` open until the cell
 // finalises. A data-table formula is preserved by declaration, not evaluated.

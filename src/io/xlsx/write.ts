@@ -20,6 +20,8 @@ import type {WorkbookImage} from '../../core/image.ts';
 import {DEFAULT_THEME_XML} from '../../core/theme.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {THEME_PART_PATH} from '../opc/part-paths.ts';
+import {relsPartXml} from '../opc/rels.ts';
 import {collectComments, commentsXml, vmlDrawingXml} from './comments.ts';
 import {collectHyperlinks, type HyperlinkPlan, planHyperlinks} from './hyperlinks.ts';
 import {drawingRelsXml, drawingXml} from './images.ts';
@@ -38,9 +40,8 @@ import {
   type TablePlan,
   type ThreadedCommentPlan,
 } from './package-plan.ts';
-import {THEME_PART_PATH} from './part-paths.ts';
 import {pivotCacheDefinitionXml, pivotCacheRecordsXml, pivotTableXml} from './pivot.ts';
-import {REL, relsPartXml} from './relationships.ts';
+import {REL} from './relationships.ts';
 import {SharedStringTable} from './shared-strings.ts';
 import {StyleRegistry} from './styles.ts';
 import {tableXml} from './tables.ts';

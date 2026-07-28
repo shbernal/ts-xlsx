@@ -24,7 +24,7 @@ import {unmangleFunctions} from '../../core/formula.ts';
 import {assignStyleFacets} from '../../core/style.ts';
 import type {CellValue, FormulaResult} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {applyXfToCell, type XfStyle} from '../xlsx/read-styles.ts';
+import {applyXfToCell, type XfStyle} from '../style/xf-style.ts';
 import {decodeFormula, type FormulaScope, formulaAnchor} from './formula.ts';
 import {errorCodeFor, RecordReader} from './primitives.ts';
 import {readRecords} from './record-stream.ts';

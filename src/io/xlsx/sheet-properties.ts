@@ -14,9 +14,8 @@ import type {
 } from '../../core/page-setup.ts';
 import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
 import type {OutlineProperties, SheetView, Worksheet} from '../../core/worksheet.ts';
-import {numberText} from './part-paths.ts';
+import {attr, boolAttr, escapeAttr, escapeText, numberText} from '../../xml/xml.ts';
 import {colorAttrs} from './styles.ts';
-import {attr, boolAttr, escapeAttr, escapeText} from './xml.ts';
 
 // `<sheetViews>` holds the sheet's single view. A frozen view adds a `<pane>` recording the split
 // and a `<selection>` naming the pane the split activates, exactly as Excel writes it — a normal

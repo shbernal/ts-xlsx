@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 import {strToU8, unzipSync, zipSync} from 'fflate';
 
-import {UnsupportedFormatError} from '../xlsx/errors.ts';
+import {UnsupportedFormatError} from '../opc/errors.ts';
 import {readXlsx} from '../xlsx/read.ts';
 import {XlsbParseError} from './errors.ts';
 import {readXlsb} from './read.ts';

@@ -5,7 +5,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import type {Fill} from '../../core/style.ts';
 import {isFormulaValue} from '../../core/value.ts';
 import {DEFAULT_WORKBOOK_VIEW, Workbook} from '../../core/workbook.ts';
-import {UnsupportedFormatError} from './errors.ts';
+import {UnsupportedFormatError} from '../opc/errors.ts';
 import {applyWorkbookView, readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 

@@ -1,10 +1,13 @@
 /**
- * Canonical OOXML namespace URIs and well-known extension GUIDs.
+ * Canonical SpreadsheetML namespace URIs and well-known extension GUIDs.
  *
  * These are wire-format constants: Excel keys its parsing off the exact URI or
  * GUID, so a producer must reproduce each one byte-for-byte. Centralizing them
  * keeps the writer and reader from drifting apart and retires the
  * `NS_MAIN`/`MAIN_NS`/`main` naming fork that had grown across the io modules.
+ *
+ * The package-level URIs (`.rels`, content types, the relationship vocabulary) describe the
+ * container rather than the spreadsheet inside it, and live in `../opc/namespaces.ts`.
  */
 
 /**
@@ -12,13 +15,6 @@
  * worksheet, styles, sharedStrings, comments, table and pivot parts.
  */
 export const SPREADSHEETML_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
-
-/** Scopes `r:id` relationship references carried inside a part's body. */
-export const RELATIONSHIPS_NS =
-  'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-
-/** The `xmlns` of every `.rels` package relationships part. */
-export const PKG_RELS_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
 
 /**
  * Markup-compatibility namespace (`mc:`), whose `mc:Ignorable` attribute lists the prefixes a

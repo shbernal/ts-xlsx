@@ -20,7 +20,7 @@ import {
   type PivotSourceKind,
   pivotMetricFromSubtotal,
 } from '../../core/pivot-table.ts';
-import {localName, parseXml} from './xml-read.ts';
+import {localName, parseXml} from '../../xml/xml-read.ts';
 
 /** Reconstruct a pivot's semantic model from its two definition parts. The records part is not
  * consulted: the cache's field catalogue and the table's field roles fully describe the pivot's

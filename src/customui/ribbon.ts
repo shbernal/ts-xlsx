@@ -17,7 +17,7 @@
 // half-built tree.
 
 import {strFromU8} from 'fflate';
-import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../io/xlsx/xml-read.ts';
+import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../xml/xml-read.ts';
 import {CustomUiParseError} from './errors.ts';
 
 /** The `customUI` schema a part is written against — the read model keys off this, not the (frequently

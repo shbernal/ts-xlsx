@@ -216,8 +216,13 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
         ],
       },
       {
-        name: 'constitution:check',
-        steps: [{command: NODE, args: ['scripts/check-constitution.ts']}],
+        // Two cheap invariant checks that share a gate because neither is worth a process slot of
+        // its own: both finish in well under a second.
+        name: 'invariants',
+        steps: [
+          {command: NODE, args: ['scripts/check-constitution.ts']},
+          {command: NODE, args: ['scripts/check-layering.ts']},
+        ],
       },
     );
   }

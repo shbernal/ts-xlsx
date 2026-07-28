@@ -1,5 +1,6 @@
-// Small pure helpers for OPC part paths and numeric serialisation, shared across the writer's
-// module cluster.
+// The path algebra of an OPC package: a part's extension, where its relationships live, and how one
+// part names another. Pure string work over package-absolute paths, with no notion of what any part
+// contains — so the XML and BIFF12 codecs, and the readers and writers within each, share it.
 
 // Where the writer always puts the theme part. The workbook's theme relationship and the package's
 // content-type override both name this path unconditionally, so a theme preserved from a source
@@ -14,7 +15,7 @@ export function extensionOf(partPath: string): string {
 }
 
 // The relationships part path for `dir/name.ext` → `dir/_rels/name.ext.rels`.
-export function relsPathForPart(partPath: string): string {
+export function relsPathFor(partPath: string): string {
   const slash = partPath.lastIndexOf('/');
   const dir = slash === -1 ? '' : partPath.slice(0, slash + 1);
   const base = slash === -1 ? partPath : partPath.slice(slash + 1);
@@ -37,17 +38,4 @@ export function relativePartPath(fromPath: string, toPath: string): string {
   }
   const up = fromDir.length - common;
   return [...Array<string>(up).fill('..'), ...toSegments.slice(common)].join('/');
-}
-
-// A finite number serialises as its shortest round-trippable decimal; a non-finite one
-// has no OOXML numeric representation, so the writer refuses it rather than emit `NaN`.
-export function numberText(value: number): string {
-  if (!Number.isFinite(value)) {
-    throw new Error(`cannot write a non-finite number (${value}) — it has no OOXML representation`);
-  }
-  return String(value);
-}
-
-export function range(n: number): number[] {
-  return Array.from({length: n}, (_, i) => i);
 }

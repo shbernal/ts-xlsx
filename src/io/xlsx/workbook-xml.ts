@@ -5,6 +5,9 @@
 import {mangleFormula, quoteSheetName} from '../../core/formula.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
+import {escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
+import {extensionOf, relativePartPath, THEME_PART_PATH} from '../opc/part-paths.ts';
+import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {imageContentType} from './images.ts';
 import {SLICER_CACHES_EXT_URI} from './namespaces.ts';
 import type {
@@ -14,10 +17,8 @@ import type {
   PreservedWorkbookReferencePlan,
   TablePlan,
 } from './package-plan.ts';
-import {extensionOf, range, relativePartPath, THEME_PART_PATH} from './part-paths.ts';
-import {NS, REL, relationship, relationshipsPart} from './relationships.ts';
+import {NS, REL} from './relationships.ts';
 import {x14Ext} from './x14-ext.ts';
-import {escapeAttr, escapeText, XML_DECLARATION} from './xml.ts';
 
 const CT = {
   workbook: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml',
@@ -180,7 +181,9 @@ function contentTypeOverrides(
       '/xl/workbook.xml',
       isMacroEnabled(preservedWorkbookRefs) ? CT.macroEnabledWorkbook : CT.workbook,
     ),
-    ...range(sheetCount).map((i) => override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet)),
+    ...Array.from({length: sheetCount}, (_, i) =>
+      override(`/xl/worksheets/sheet${i + 1}.xml`, CT.worksheet),
+    ),
     ...tables.map(({number}) => override(`/xl/tables/table${number}.xml`, CT.table)),
     ...drawingNumbers.map((number) => override(`/xl/drawings/drawing${number}.xml`, CT.drawing)),
     ...commentNumbers.map((number) => override(`/xl/comments${number}.xml`, CT.comments)),
@@ -417,7 +420,7 @@ export function workbookRelsXml(
   pivots: readonly PivotPlan[],
 ): string {
   return relationshipsPart([
-    ...range(sheetCount).map((i) =>
+    ...Array.from({length: sheetCount}, (_, i) =>
       relationship(`rId${i + 1}`, REL.worksheet, `worksheets/sheet${i + 1}.xml`),
     ),
     relationship(`rId${sheetCount + 1}`, REL.styles, 'styles.xml'),

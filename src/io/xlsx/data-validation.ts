@@ -22,13 +22,13 @@ import type {
   DataValidationType,
 } from '../../core/data-validation.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {escapeAttr, escapeText, stripFormulaEquals} from '../../xml/xml.ts';
+import {boolStrict, coerceNumericLiteral, localName, parseXml} from '../../xml/xml-read.ts';
 // The x14/xm extension namespaces and `DATA_VALIDATION_EXT_URI` are declared inline on the elements
 // that need them, exactly as Excel writes them, so the block is self-contained and the worksheet root
 // needs no extra namespace declaration.
 import {DATA_VALIDATION_EXT_URI, XM_NS} from './namespaces.ts';
 import {x14Ext} from './x14-ext.ts';
-import {escapeAttr, escapeText, stripFormulaEquals} from './xml.ts';
-import {boolStrict, coerceNumericLiteral, localName, parseXml} from './xml-read.ts';
 
 // The typed validations whose literal operands are numbers; `list`/`custom` operands stay strings.
 const TYPED = new Set<string>(['whole', 'decimal', 'date', 'time', 'textLength']);

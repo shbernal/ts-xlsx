@@ -19,10 +19,6 @@ import {
 } from '../../core/protection.ts';
 import {assignStyleFacets} from '../../core/style.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {CellAccumulator} from './cell-accumulator.ts';
-import type {SharedString} from './cell-value.ts';
-import type {XfStyle} from './read-styles.ts';
-import {parseColor} from './styles.ts';
 import {
   boolPresent,
   boolStrict,
@@ -30,7 +26,11 @@ import {
   localName,
   parseXml,
   type XmlAttributes,
-} from './xml-read.ts';
+} from '../../xml/xml-read.ts';
+import type {XfStyle} from '../style/xf-style.ts';
+import {CellAccumulator} from './cell-accumulator.ts';
+import type {SharedString} from './cell-value.ts';
+import {parseColor} from './styles.ts';
 
 const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
 

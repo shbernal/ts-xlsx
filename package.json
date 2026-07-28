@@ -42,6 +42,7 @@
     "docs": "node scripts/gen-docs.ts",
     "docs:check": "node scripts/gen-docs.ts && git add --intent-to-add -- docs/api && git diff --exit-code -- docs/api",
     "constitution:check": "node scripts/check-constitution.ts",
+    "layering:check": "node scripts/check-layering.ts",
     "lint": "biome check --error-on-warnings src scripts test tools",
     "lint:fix": "biome check --write --error-on-warnings src scripts test tools",
     "format": "biome format --write src scripts test tools",

@@ -14,7 +14,7 @@ import {
   type RichTextRun,
   type RichTextValue,
 } from '../../core/value.ts';
-import {boolStrict} from './xml-read.ts';
+import {boolStrict} from '../../xml/xml-read.ts';
 
 /**
  * One entry of the shared-strings pool. A `<si>` built from a bare `<t>` is a plain string; a `<si>`
