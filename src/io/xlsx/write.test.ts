@@ -3,6 +3,7 @@ import {test} from 'node:test';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
+import {INTERNAL, NAMED_STYLE_ID} from '../../core/internal.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
@@ -1069,14 +1070,14 @@ test('a cell with no quote-prefix flag does not gain one on read', () => {
 test('a cell linking to a named cell style keeps its fill and xfId link across a round-trip', () => {
   const wb = new Workbook();
   // A yellow fill supplied only through the "Accent" named style; the cell's direct format is empty.
-  wb.restoreNamedStyles([
+  wb[INTERNAL].restoreNamedStyles([
     {name: 'Normal', builtinId: 0},
     {name: 'Accent', fill: {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFFFF00'}}},
   ]);
   const sheet = wb.addWorksheet('S');
   const cell = sheet.getCell('A1');
   cell.value = 'x';
-  cell.namedStyleId = 1;
+  cell[NAMED_STYLE_ID] = 1;
 
   const styles = partsOf(wb)['xl/styles.xml'] ?? '';
   assert.match(styles, /<cellStyleXfs count="2"/, 'the named-style layer is emitted');
@@ -1090,7 +1091,7 @@ test('a cell linking to a named cell style keeps its fill and xfId link across a
   );
   assert.equal(fill.pattern, 'solid', 'the named-style fill resolves onto the cell on read');
   assert.equal(fill.fgColor?.argb, 'FFFFFF00', 'the resolved fill is the named-style yellow');
-  assert.equal(a1?.namedStyleId, 1, 'the cell keeps its link to the named style');
+  assert.equal(a1?.[NAMED_STYLE_ID], 1, 'the cell keeps its link to the named style');
 });
 
 test('manual row breaks are emitted as <rowBreaks> and round-trip', () => {

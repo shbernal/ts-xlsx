@@ -20,6 +20,7 @@
 import {decodeRange} from '../../core/address.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
+import {INTERNAL} from '../../core/internal.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
 import {type DefinedName, Workbook, type WorkbookView} from '../../core/workbook.ts';
 import {
@@ -119,22 +120,22 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   const workbook = new Workbook();
   // Preserve the differential-style table verbatim so conditional formatting's dxfId references stay
   // valid — and a foreign dxf's number format stays a real format code — across a re-write.
-  workbook.restoreDifferentialStyles(parseDxfs(stylesXml));
+  workbook[INTERNAL].restoreDifferentialStyles(parseDxfs(stylesXml));
   // Preserve a custom indexed-color palette verbatim so an `indexed="…"` colour reference keeps its
   // intended RGB across a re-write instead of resolving to a different default-palette entry.
-  workbook.restoreIndexedColors(parseIndexedColors(stylesXml));
+  workbook[INTERNAL].restoreIndexedColors(parseIndexedColors(stylesXml));
   // Preserve the author's "Recent Colors" swatches, which the model never reads but re-writing would
   // otherwise discard.
-  workbook.restoreMruColors(parseMruColors(stylesXml));
+  workbook[INTERNAL].restoreMruColors(parseMruColors(stylesXml));
   // Preserve the custom table-style definitions so a table referencing one by name still resolves to
   // a real definition after a re-write instead of rendering unstyled.
-  workbook.restoreTableStyles(parseTableStyles(stylesXml));
+  workbook[INTERNAL].restoreTableStyles(parseTableStyles(stylesXml));
   // Preserve the theme part so a branded colour/font scheme is not overwritten by the default theme
   // the writer emits for a workbook that has none.
   readWorkbookTheme(workbookRelsXml, pkg, contentTypeOf, workbook);
   // Preserve the named cell-style layer only when a file declares one beyond the Normal default, so an
   // ordinary workbook keeps an empty named-style table and emits just the default on write.
-  if (namedStyles.length > 1) workbook.restoreNamedStyles(namedStyles);
+  if (namedStyles.length > 1) workbook[INTERNAL].restoreNamedStyles(namedStyles);
   const core = partText('docProps/core.xml');
   if (core !== undefined) applyCoreProperties(workbook, core);
   workbook.protection = parseWorkbookProtection(workbookXml);
@@ -168,7 +169,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
       // Threads before notes: a threaded cell's comments-part entry is the thread's legacy fallback, not
       // a note, and `applyNotes` reads the sheet's restored threads to tell the two apart.
       const threads = readSheetCommentThreads(path, pkg, workbook);
-      if (threads.length > 0) sheet.restoreCommentThreads(threads);
+      if (threads.length > 0) sheet[INTERNAL].restoreCommentThreads(threads);
       const comments = readSheetComments(path, pkg);
       if (comments !== undefined) applyNotes(sheet, comments);
       readSheetImages(path, pkg, workbook, sheet, imageIdByMediaPath);
@@ -219,7 +220,7 @@ function readWorkbookPersons(
 ): void {
   const target = relationshipTargetByType(workbookRelsXml, 'person');
   const xml = target === undefined ? undefined : pkg.partText(resolveWorkbookPart(target));
-  if (xml !== undefined) workbook.restorePersons(parsePersons(xml));
+  if (xml !== undefined) workbook[INTERNAL].restorePersons(parsePersons(xml));
 }
 
 // The workbook's theme part: the `<clrScheme>`/`<fontScheme>`/`<fmtScheme>` every `theme="n"` colour
@@ -242,7 +243,7 @@ function readWorkbookTheme(
   if (target === undefined) return;
   const entryPath = resolveWorkbookPart(target);
   const parts = capturePartClosure(entryPath, pkg.partText, pkg.partBytes, contentTypeOf);
-  if (parts !== undefined) workbook.restoreThemePart({entryPath, parts});
+  if (parts !== undefined) workbook[INTERNAL].restoreThemePart({entryPath, parts});
 }
 
 // A sheet's threaded conversations live in a `xl/threadedComments/threadedComment{n}.xml` part reached
@@ -377,7 +378,8 @@ function readSheetPreservedReferences(
   ): void => {
     const entryPath = resolveRelativePart(sheetPath, target);
     const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
-    if (parts !== undefined) sheet.addPreservedReference({element, relType, entryPath, parts});
+    if (parts !== undefined)
+      sheet[INTERNAL].addPreservedReference({element, relType, entryPath, parts});
   };
 
   // Element-wired references: a `<drawing>`/`<legacyDrawingHF>` names its part by an `r:id` in the
@@ -433,7 +435,7 @@ function readWorkbookPreservedReferences(
     if (parts === undefined) continue;
     const cacheId = cacheIdByRelId.get(record.id);
     const externalReferenceIndex = externalIndexByRelId.get(record.id);
-    workbook.addPreservedReference({
+    workbook[INTERNAL].addPreservedReference({
       relType: record.type,
       entryPath,
       parts,
@@ -461,7 +463,7 @@ function readRootPreservedReferences(
     const entryPath = resolveRelativePart('', record.target);
     const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
     if (parts === undefined) continue;
-    workbook.addPreservedRootReference({relType: record.type, entryPath, parts});
+    workbook[INTERNAL].addPreservedRootReference({relType: record.type, entryPath, parts});
   }
 }
 
@@ -572,7 +574,7 @@ function readSheetPivotTables(sheetPath: string, pkg: PackageAccessors, sheet: W
       cacheTarget === undefined
         ? ''
         : (partText(resolveRelativePart(tablePath, cacheTarget)) ?? '');
-    sheet.addLoadedPivotTable(parsePivotTable(tableXml, cacheXml));
+    sheet[INTERNAL].addLoadedPivotTable(parsePivotTable(tableXml, cacheXml));
   }
 }
 

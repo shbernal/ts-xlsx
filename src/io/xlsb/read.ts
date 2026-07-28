@@ -15,6 +15,7 @@
 // and conditional formatting.
 
 import {unmangleFunctions} from '../../core/formula.ts';
+import {INTERNAL} from '../../core/internal.ts';
 import {type DefinedName, Workbook} from '../../core/workbook.ts';
 import type {WorksheetState} from '../../core/worksheet.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
@@ -67,7 +68,7 @@ export function readXlsbPackage(files: Record<string, Uint8Array>): Workbook {
   const workbook = new Workbook();
   // As in the XML reader, the named-style layer is restored only when a file declares more than the
   // Normal default, so an ordinary workbook keeps an empty table and writes just that default back.
-  if (namedStyles.length > 1) workbook.restoreNamedStyles(namedStyles);
+  if (namedStyles.length > 1) workbook[INTERNAL].restoreNamedStyles(namedStyles);
 
   const declaration = readWorkbookPart(workbookPart);
   const scope: FormulaScope = {

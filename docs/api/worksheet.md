@@ -132,7 +132,6 @@ class Worksheet {
   getCell(reference: string): Cell;
   hasCell(row: number, col: number): boolean;
   rowProperties(number: number): RowProperties | undefined;
-  evictRow(number: number): void;
   columnProperties(index: number): ColumnProperties | undefined;
   getColumn(index: number): ColumnProperties;
   getRow(number: number): RowProperties;
@@ -153,10 +152,8 @@ class Worksheet {
   getTable(name: string): Table | undefined;
   addPivotTable(options: PivotTableOptions): PivotTable;
   get pivotTables(): readonly PivotTable[];
-  addLoadedPivotTable(pivot: ParsedPivotTable): void;
   get loadedPivotTables(): readonly ParsedPivotTable[];
   addCommentThread(thread: CommentThread): void;
-  restoreCommentThreads(threads: readonly CommentThread[]): void;
   get commentThreads(): readonly CommentThread[];
   commentThreadAt(reference: string): CommentThread | undefined;
   addImage(imageId: number, anchor: {
@@ -188,7 +185,6 @@ class Worksheet {
   addBackgroundImage(imageId: number): void;
   removeBackgroundImage(): void;
   get backgroundImageId(): number | undefined;
-  addPreservedReference(reference: PreservedWorksheetReference): void;
   get preservedReferences(): readonly PreservedWorksheetReference[];
   mergeCells(range: string): void;
   get merges(): readonly string[];
@@ -220,7 +216,6 @@ class Worksheet {
   set model(model: WorksheetModel);
   protect(password?: string, options: SheetProtectionOptions = {}): void;
   unprotect(): void;
-  restoreProtection(protection: SheetProtection): void;
   get protection(): SheetProtection | undefined;
 }
 ```
@@ -241,7 +236,6 @@ class Worksheet {
 - `getCell(reference: string): Cell;` — Get the cell at an A1 reference, creating it on first access. The reference must name both a column and a row (`"B3"`); a whole-row or whole-column reference is not a cell and is rejected. Addressing a cell covered by a merged region resolves to that region's master (top-left) cell, mirroring how a spreadsheet treats the merge as one cell: a value or style written through a covered address lands on the master, and reading a covered address returns the master's. Only the master ever holds an independent value, so the serialized sheet stays well-formed (no stray value on a covered cell).
 - `hasCell(row: number, col: number): boolean;` — Whether a cell has been materialised at the given 1-based position.
 - `rowProperties(number: number): RowProperties | undefined;` — The format properties for a 1-based row number if any were set, or `undefined` — a read-only peek that never creates a record, so a serializer can render a row's attributes without fabricating an empty one for every row it visits. Use `getRow` to create-on-access.
-- `evictRow(number: number): void;` — Drop a row's materialised cells and format properties, releasing its cell graph. The streaming writer calls this the moment a row is serialised so peak memory stays bounded to the rows still in flight rather than the whole sheet. Row *numbering* is the caller's concern: eviction lowers `rowCount`, so an append-driven producer must track its own high-water mark rather than lean on this sheet's used range.
 - `columnProperties(index: number): ColumnProperties | undefined;` — The format properties for a 1-based column index if any were set, or `undefined` — a read-only peek that never creates a record, so a serializer can render a column's attributes without fabricating an empty one for every column it visits. Use `getColumn` to create-on-access.
 - `getColumn(index: number): ColumnProperties;` — Get the mutable format properties for a 1-based column index, creating the record on first access. Setting properties here does not materialise any cells.
 - `getRow(number: number): RowProperties;` — Get the mutable format properties for a 1-based row number, creating the record on first access. This is row *metadata* (height, visibility, outline) — it does not materialise any cells. See `rowProperties` for a read-only peek that never creates a record.
@@ -262,10 +256,8 @@ class Worksheet {
 - `getTable(name: string): Table | undefined;` — The table with the given name (case-sensitive, the identifier Excel uses), or `undefined`. A table read back from a file is fully hydrated — its rows can be read and appended to.
 - `addPivotTable(options: PivotTableOptions): PivotTable;` — Add a pivot table to this (destination) sheet, summarising a source sheet's data. The source is read once, now, so the pivot is a snapshot: later edits to the source do not change it. The supported shape (one summed value field, at least one row and column field) is enforced here.
 - `get pivotTables(): readonly PivotTable[];` — The pivot tables hosted on this sheet, in definition order.
-- `addLoadedPivotTable(pivot: ParsedPivotTable): void;` — Register a pivot table reconstructed from a loaded package — the reader's counterpart to `addPivotTable`. This records an inspectable, read-only view of a pivot the reader parsed from its OOXML parts; the pivot itself round-trips by byte-preservation, so registering it here only makes it visible via `loadedPivotTables` and never affects what the writer emits.
 - `get loadedPivotTables(): readonly ParsedPivotTable[];` — Pivot tables reconstructed from a loaded package, in the order the reader found them — a read-only inspection view (source range, field roles, value field, aggregation). A pivot authored on this sheet via `addPivotTable` does not appear here; a pivot loaded from a file does not appear in `pivotTables`. The loaded pivots re-emit verbatim through byte-preservation, so this collection is never itself serialised.
 - `addCommentThread(thread: CommentThread): void;` — Anchor a threaded conversation to a cell — Excel's modern review comment: an opening message, its replies, and whether the discussion was marked resolved. Distinct from a cell's legacy note (`Cell.note`), and mutually exclusive with one: Excel refuses to put both on one cell, and a cell carrying both is written back as the conversation alone. Every message supplies its own `Comment.id` and `Comment.date`, and names its author by `Comment.personId` into the workbook registry (`Workbook.addPerson`) — the writer has no clock and no id generator, so nothing here is invented and the same workbook always serialises to the same bytes. Every id is normalised to the brace-wrapped upper-case GUID form the format requires, so a `crypto.randomUUID()` is accepted as-is. Message ids must be unique **within this sheet**, because that is the scope in which they mean anything: a reply names its thread by the head's id inside the sheet's own part, and the legacy fallback comment binds its cell by the same id inside the sheet's own comments part. Two sheets reusing one id is therefore harmless and is not rejected — Excel's ids happen to be globally unique, but nothing resolves across a part boundary.
-- `restoreCommentThreads(threads: readonly CommentThread[]): void;` — Reinstate the threaded conversations read from a file, in the order the reader found them, replacing any already held. Their authors and mentioned people are already resolved against the workbook registry (`Workbook.restorePersons`), so a thread arrives self-contained. Reader restoration, not authoring — use `addCommentThread` for that, which validates the anchor. These threads are what a re-write emits, so what the reader hands over is what the file will say.
 - `get commentThreads(): readonly CommentThread[];` — The threaded conversations on this sheet — Excel's modern review comments (author, timestamp, replies, resolved state, `@mentions`). Empty for a sheet with none. Distinct from a cell's legacy note (`Cell.note`).
 - `commentThreadAt(reference: string): CommentThread | undefined;` — The conversation anchored to a cell, or `undefined` when that cell carries none. The reference is canonicalized, so an absolute `"$B$2"` finds the same thread as `"B2"`; it names the *anchor* cell, so a cell merely covered by the anchor's merged region is not a match.
 - `addImage(imageId: number, anchor: {
@@ -279,7 +271,6 @@ class Worksheet {
 - `addBackgroundImage(imageId: number): void;` — Set this sheet's background image to a workbook image (the id `Workbook.addImage` returned). The picture tiles behind the whole grid; it is not anchored to any cell. Passing a new id replaces the previous background.
 - `removeBackgroundImage(): void;` — Remove this sheet's background image, if any. The image stays registered on the workbook.
 - `get backgroundImageId(): number | undefined;` — The workbook image id set as this sheet's background, or `undefined` when it has none.
-- `addPreservedReference(reference: PreservedWorksheetReference): void;` — Record a worksheet-level reference to package content the model does not interpret, so the writer re-emits it verbatim. Called by the reader when it meets a `<drawing>` holding only vector shapes or a `<legacyDrawingHF>` header/footer image; not part of the authoring surface.
 - `get preservedReferences(): readonly PreservedWorksheetReference[];` — The worksheet-level references to unmodeled package content preserved for round-tripping.
 - `mergeCells(range: string): void;` — Merge a range of cells (`"A1:B2"`). A range that overlaps an already-merged region is rejected — Excel forbids overlapping merges and writes such geometry as a corrupt file. Whole-row/column ranges (`"A:A"`) are unbounded, carry no rectangle, and are not overlap-checked. Any value already sitting in a covered non-anchor cell is discarded, keeping only the top-left anchor's — exactly how Excel collapses a range on merge. Leaving it would emit a populated `<c>` under the `<mergeCell>` ref, the geometry Excel opens with a repair prompt. Covered-cell styles survive (a border spanning the merge is legal), so only the conflicting value is cleared.
 - `get merges(): readonly string[];` — The merged ranges on this sheet, in the order they were added.
@@ -309,7 +300,6 @@ class Worksheet {
 - `get model(): WorksheetModel;` — A snapshot of this sheet's value and overlay content (see `WorksheetModel`). Reading it and assigning it onto another sheet — `dst.model = src.model` — reproduces the source: merges, cells and their styles, column/row metadata, tables, the autofilter, protection, and the page setup all survive, because the getter emits and the setter consumes exactly the same fields. Identity (`name`, `id`) is not part of the model and is never touched by assignment; nor are attached parts that carry workbook-level identity (images, pivots, byte-preserved charts/drawings) — see `WorksheetModel` for that boundary.
 - `protect(password?: string, options: SheetProtectionOptions = {}): void;` — Protect the sheet, making the per-cell `locked`/`hidden` flags enforceable. Without a password the protection is a soft lock any consumer can lift; with one, the password is salted and hashed on the spot (the plaintext is never retained) so lifting the protection requires re-supplying it. `options` names which operations stay available to a user while the sheet is protected; anything unspecified falls to Excel's default for that operation. Re-protecting replaces any prior protection; `unprotect` clears it.
 - `unprotect(): void;` — Remove any protection previously set by `protect`.
-- `restoreProtection(protection: SheetProtection): void;` — Reinstate an already-derived protection state — the deserialization counterpart to `protect`. A loaded `<sheetProtection>` carries its credential in finished agile form (algorithm, hash, salt, spin count) with no recoverable plaintext password, so the reader restores that credential verbatim rather than re-hashing. Use `protect` to protect from a plaintext password; use this only to carry a parsed protection back into the model.
 - `get protection(): SheetProtection | undefined;` — The sheet's protection, or `undefined` if the sheet is unprotected.
 
 ---

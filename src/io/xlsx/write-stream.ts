@@ -36,6 +36,7 @@ import type {Cell} from '../../core/cell.ts';
 import type {ConditionalFormatting} from '../../core/conditional-formatting.ts';
 import type {DataValidation} from '../../core/data-validation.ts';
 import type {AnchorPoint} from '../../core/image.ts';
+import {INTERNAL} from '../../core/internal.ts';
 import type {SheetProtectionOptions} from '../../core/protection.ts';
 import {type CellValue, isSharedFormulaValue} from '../../core/value.ts';
 import {type AddImageOptions, type AddWorksheetOptions, Workbook} from '../../core/workbook.ts';
@@ -235,7 +236,7 @@ export class WorksheetStreamWriter {
       this.#flushedRows.push({number, xml});
       this.#extent.add(number, minCol, maxCol);
     }
-    this.#sheet.evictRow(number);
+    this.#sheet[INTERNAL].evictRow(number);
   }
 
   // The rows this writer flushed, or undefined if none — handed to buildPackageParts at commit.

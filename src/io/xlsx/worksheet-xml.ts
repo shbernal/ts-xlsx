@@ -9,6 +9,7 @@ import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import {DEFAULT_DATE_NUMFMT, dateToSerial} from '../../core/date.ts';
 import {mangleFormula} from '../../core/formula.ts';
+import {NAMED_STYLE_ID} from '../../core/internal.ts';
 import type {Fill} from '../../core/style.ts';
 import {
   detectValueType,
@@ -324,7 +325,7 @@ function composeCellStyle(
     quotePrefix: cell.quotePrefix,
     // Preserved so a round-trip keeps the cell tied to its named style rather than flattening it into
     // a purely-direct format.
-    xfId: cell.namedStyleId,
+    xfId: cell[NAMED_STYLE_ID],
   };
 }
 
@@ -741,7 +742,7 @@ function hasOwnStyle(cell: Cell): boolean {
     cell.alignment !== undefined ||
     cell.protection !== undefined ||
     cell.quotePrefix === true ||
-    cell.namedStyleId !== undefined
+    cell[NAMED_STYLE_ID] !== undefined
   );
 }
 

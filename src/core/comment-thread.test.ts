@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import type {CommentThread, Person} from './comment-thread.ts';
+import {INTERNAL} from './internal.ts';
 import {Workbook} from './workbook.ts';
 
 // The two entries Excel writes for one human: an authoring identity, and the separate one it interns
@@ -36,7 +37,7 @@ const threadAt = (ref: string): CommentThread => ({
 
 test('the person registry keeps both entries of one human, since only the id identifies one', () => {
   const wb = new Workbook();
-  wb.restorePersons([GRACE_AUTHOR, GRACE_MENTIONED]);
+  wb[INTERNAL].restorePersons([GRACE_AUTHOR, GRACE_MENTIONED]);
   assert.equal(wb.persons.length, 2);
   assert.equal(wb.getPerson(GRACE_AUTHOR.id)?.providerId, 'AD');
   assert.equal(wb.getPerson(GRACE_MENTIONED.id)?.providerId, 'PeoplePicker');
@@ -62,7 +63,7 @@ test('registering one human under two ids keeps both, which is what Excel itself
 
 test('an id the registry does not hold resolves to nothing rather than a near match', () => {
   const wb = new Workbook();
-  wb.restorePersons([GRACE_AUTHOR]);
+  wb[INTERNAL].restorePersons([GRACE_AUTHOR]);
   assert.equal(wb.getPerson('{NOT-REGISTERED}'), undefined);
 });
 
@@ -72,8 +73,8 @@ test('a workbook with no threaded comments has an empty person registry', () => 
 
 test('restoring the registry replaces it, never accumulating a stale identity', () => {
   const wb = new Workbook();
-  wb.restorePersons([GRACE_AUTHOR]);
-  wb.restorePersons([GRACE_MENTIONED]);
+  wb[INTERNAL].restorePersons([GRACE_AUTHOR]);
+  wb[INTERNAL].restorePersons([GRACE_MENTIONED]);
   assert.deepEqual(
     wb.persons.map((person) => person.id),
     [GRACE_MENTIONED.id],
@@ -83,7 +84,7 @@ test('restoring the registry replaces it, never accumulating a stale identity', 
 
 test('a sheet exposes its threads in the order they were read', () => {
   const sheet = new Workbook().addWorksheet('S');
-  sheet.restoreCommentThreads([threadAt('B1'), threadAt('B2')]);
+  sheet[INTERNAL].restoreCommentThreads([threadAt('B1'), threadAt('B2')]);
   assert.deepEqual(
     sheet.commentThreads.map((thread) => thread.ref),
     ['B1', 'B2'],
@@ -96,7 +97,7 @@ test('a sheet with no threaded comments has no threads', () => {
 
 test('a thread is found by its anchor, absolute reference or not', () => {
   const sheet = new Workbook().addWorksheet('S');
-  sheet.restoreCommentThreads([threadAt('B2')]);
+  sheet[INTERNAL].restoreCommentThreads([threadAt('B2')]);
   assert.equal(sheet.commentThreadAt('B2')?.ref, 'B2');
   assert.equal(sheet.commentThreadAt('$B$2')?.ref, 'B2');
   assert.equal(sheet.commentThreadAt('C3'), undefined);

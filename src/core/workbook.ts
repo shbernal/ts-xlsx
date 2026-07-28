@@ -23,6 +23,7 @@ import {resolveColor} from './color-resolution.ts';
 import {commentThreadGuid, type Person} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
+import {INTERNAL} from './internal.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
 import type {Color, NamedCellStyle, TableStyleTable} from './style.ts';
 import {checkTableStyle, type TableStyle} from './table-style.ts';
@@ -270,11 +271,6 @@ export class Workbook {
       : 0;
   }
 
-  /** Record a workbook-level preserved reference (a pivot or slicer cache) read from a file. */
-  addPreservedReference(reference: PreservedWorkbookReference): void {
-    this.#preservedReferences.push(reference);
-  }
-
   /** The workbook-level preserved references, in the order they were read. */
   get preservedReferences(): readonly PreservedWorkbookReference[] {
     return this.#preservedReferences;
@@ -285,11 +281,6 @@ export class Workbook {
   // them in the regenerated root rels rather than dropping them. Empty for a workbook authored from
   // scratch.
   readonly #preservedRootReferences: PreservedRootReference[] = [];
-
-  /** Record a package-root preserved reference (a customUI ribbon part, custom props) read from a file. */
-  addPreservedRootReference(reference: PreservedRootReference): void {
-    this.#preservedRootReferences.push(reference);
-  }
 
   /** The package-root preserved references, in the order they were read. */
   get preservedRootReferences(): readonly PreservedRootReference[] {
@@ -496,29 +487,9 @@ export class Workbook {
     return ref?.parts.find((p) => p.path === ref.entryPath);
   }
 
-  /**
-   * Reinstate the differential-style (`<dxfs>`) table read from a file — the deserialization
-   * counterpart the writer re-emits verbatim. Each entry is one `<dxf>…</dxf>` fragment, preserved as
-   * opaque XML so a conditional-formatting rule's `dxfId` (an index into this table) stays valid on
-   * re-write. Replaces any table already held.
-   */
-  restoreDifferentialStyles(fragments: readonly string[]): void {
-    replaceContents(this.#dxfs, fragments);
-  }
-
   /** The preserved differential-style (`<dxfs>`) fragments, in index order. */
   get differentialStyles(): readonly string[] {
     return this.#dxfs;
-  }
-
-  /**
-   * Reinstate the custom indexed-color palette (`<colors><indexedColors>`) read from a file — each
-   * entry a verbatim `<rgbColor rgb="…"/>` fragment — so a colour referenced by `indexed="…"` keeps
-   * its intended RGB on re-write instead of the palette being dropped and the colour shifting to a
-   * default-palette entry. Replaces any palette already held.
-   */
-  restoreIndexedColors(fragments: readonly string[]): void {
-    replaceContents(this.#indexedColors, fragments);
   }
 
   /** The preserved custom indexed-color palette, in index order; empty when the default palette rules. */
@@ -526,29 +497,9 @@ export class Workbook {
     return this.#indexedColors;
   }
 
-  /**
-   * Reinstate the most-recently-used colour swatches (`<colors><mruColors>`) read from a file, each
-   * entry a verbatim `<color rgb="…"/>` fragment — the "Recent Colors" row a spreadsheet application
-   * offers, which is the author's own working set rather than anything the model interprets. Replaces
-   * any list already held.
-   */
-  restoreMruColors(fragments: readonly string[]): void {
-    replaceContents(this.#mruColors, fragments);
-  }
-
   /** The preserved most-recently-used colour swatches, in order; empty when the file declared none. */
   get mruColors(): readonly string[] {
     return this.#mruColors;
-  }
-
-  /**
-   * Reinstate the custom table-style definitions (`<tableStyles>`) read from a file — see
-   * {@link TableStyleTable} — so a table whose `styleName` names a custom style still resolves to a
-   * real definition on re-write instead of dangling, and the file's nominated default table/pivot
-   * styles survive. Replaces any block already held.
-   */
-  restoreTableStyles(table: TableStyleTable): void {
-    this.#tableStyles = table;
   }
 
   /** The preserved `<tableStyles>` block; `styles` is empty when the file declared no custom style. */
@@ -595,17 +546,6 @@ export class Workbook {
   /** The table styles authored on this workbook, in registration order. */
   get customTableStyles(): readonly TableStyle[] {
     return [...this.#customTableStyles.values()];
-  }
-
-  /**
-   * Reinstate the theme part read from a file — opaque preserved XML plus the closure of parts it
-   * reaches (see {@link PreservedTheme}) — so a workbook's colour and font schemes survive a re-write
-   * instead of being replaced by the library's default Office theme. Replaces any theme already held;
-   * passing `undefined` drops back to that default.
-   */
-  restoreThemePart(theme: PreservedTheme | undefined): void {
-    this.#theme = theme;
-    this.#themeColors = undefined;
   }
 
   /** The preserved theme part, or undefined when the workbook rides the library's default theme. */
@@ -734,36 +674,9 @@ export class Workbook {
     return this.#indexedColors.map((fragment) => /\brgb="([^"]*)"/.exec(fragment)?.[1] ?? '');
   }
 
-  /**
-   * Reinstate the named cell styles (`cellStyleXfs`/`cellStyles`) read from a file, index for index,
-   * so a cell's link to a named style (its `xfId`) stays valid on re-write. Index 0 is the Normal
-   * default. Replaces any table already held.
-   */
-  restoreNamedStyles(styles: readonly NamedCellStyle[]): void {
-    replaceContents(this.#namedStyles, styles);
-  }
-
   /** The named cell styles, in index order (index 0 is Normal); empty when only the default exists. */
   get namedStyles(): readonly NamedCellStyle[] {
     return this.#namedStyles;
-  }
-
-  /**
-   * Reinstate the threaded-comment identity registry (`xl/persons/person.xml`) read from a file — the
-   * authors and mentioned people a comment thread's messages point at. Replaces any registry already
-   * held.
-   *
-   * Entries are keyed by {@link Person.id} and by nothing else. A single human legitimately owns
-   * several entries: Excel interns a *mentioned* identity as its own `providerId="PeoplePicker"` entry
-   * beside that person's `providerId="AD"` authoring entry — same `displayName`, same `userId`, a
-   * different id — and points the mention at the new one. Collapsing entries by name or `userId` would
-   * merge those two and silently re-point every mention at the wrong identity.
-   *
-   * Reader restoration; {@link addPerson} is the authoring verb.
-   */
-  restorePersons(persons: readonly Person[]): void {
-    this.#persons.clear();
-    for (const person of persons) this.#persons.set(person.id, person);
   }
 
   /**
@@ -884,4 +797,116 @@ export class Workbook {
       throw new Error(`a worksheet named "${name}" already exists (names are case-insensitive)`);
     }
   }
+
+  /**
+   * The codec's channel into this workbook — see `core/internal.ts` for why these are not public
+   * methods. Declared last so every private field it closes over is already in scope.
+   */
+  readonly [INTERNAL]: WorkbookInternals = {
+    addPreservedReference: (reference) => {
+      this.#preservedReferences.push(reference);
+    },
+    addPreservedRootReference: (reference) => {
+      this.#preservedRootReferences.push(reference);
+    },
+    restoreDifferentialStyles: (fragments) => {
+      replaceContents(this.#dxfs, fragments);
+    },
+    restoreIndexedColors: (fragments) => {
+      replaceContents(this.#indexedColors, fragments);
+    },
+    restoreMruColors: (fragments) => {
+      replaceContents(this.#mruColors, fragments);
+    },
+    restoreTableStyles: (table) => {
+      this.#tableStyles = table;
+    },
+    restoreThemePart: (theme) => {
+      this.#theme = theme;
+      this.#themeColors = undefined;
+    },
+    restoreNamedStyles: (styles) => {
+      replaceContents(this.#namedStyles, styles);
+    },
+    restorePersons: (persons) => {
+      this.#persons.clear();
+      for (const person of persons) this.#persons.set(person.id, person);
+    },
+  };
+}
+
+/**
+ * What a codec may do to a `Workbook` that an author may not: reinstate state read from a file, in
+ * the finished form the file stated it. Reached as `workbook[INTERNAL]`; see `core/internal.ts`.
+ *
+ * Every operation replaces what it restores rather than merging, because a reader states a table
+ * whole — a half-restored `<dxfs>` would leave existing `dxfId` references pointing into a mix of
+ * two files.
+ */
+export interface WorkbookInternals {
+  /** Record a workbook-level preserved reference (a pivot or slicer cache) read from a file. */
+  addPreservedReference(reference: PreservedWorkbookReference): void;
+
+  /** Record a package-root preserved reference (a customUI ribbon part, custom props) read from a file. */
+  addPreservedRootReference(reference: PreservedRootReference): void;
+
+  /**
+   * Reinstate the differential-style (`<dxfs>`) table read from a file — the deserialization
+   * counterpart the writer re-emits verbatim. Each entry is one `<dxf>…</dxf>` fragment, preserved as
+   * opaque XML so a conditional-formatting rule's `dxfId` (an index into this table) stays valid on
+   * re-write.
+   */
+  restoreDifferentialStyles(fragments: readonly string[]): void;
+
+  /**
+   * Reinstate the custom indexed-color palette (`<colors><indexedColors>`) read from a file — each
+   * entry a verbatim `<rgbColor rgb="…"/>` fragment — so a colour referenced by `indexed="…"` keeps
+   * its intended RGB on re-write instead of the palette being dropped and the colour shifting to a
+   * default-palette entry.
+   */
+  restoreIndexedColors(fragments: readonly string[]): void;
+
+  /**
+   * Reinstate the most-recently-used colour swatches (`<colors><mruColors>`) read from a file, each
+   * entry a verbatim `<color rgb="…"/>` fragment — the "Recent Colors" row a spreadsheet application
+   * offers, which is the author's own working set rather than anything the model interprets.
+   */
+  restoreMruColors(fragments: readonly string[]): void;
+
+  /**
+   * Reinstate the custom table-style definitions (`<tableStyles>`) read from a file — see
+   * {@link TableStyleTable} — so a table whose `styleName` names a custom style still resolves to a
+   * real definition on re-write instead of dangling, and the file's nominated default table/pivot
+   * styles survive.
+   */
+  restoreTableStyles(table: TableStyleTable): void;
+
+  /**
+   * Reinstate the theme part read from a file — opaque preserved XML plus the closure of parts it
+   * reaches (see {@link PreservedTheme}) — so a workbook's colour and font schemes survive a re-write
+   * instead of being replaced by the library's default Office theme. Passing `undefined` drops back
+   * to that default.
+   */
+  restoreThemePart(theme: PreservedTheme | undefined): void;
+
+  /**
+   * Reinstate the named cell styles (`cellStyleXfs`/`cellStyles`) read from a file, index for index,
+   * so a cell's link to a named style (its `xfId`) stays valid on re-write. Index 0 is the Normal
+   * default.
+   */
+  restoreNamedStyles(styles: readonly NamedCellStyle[]): void;
+
+  /**
+   * Reinstate the threaded-comment identity registry (`xl/persons/person.xml`) read from a file — the
+   * authors and mentioned people a comment thread's messages point at.
+   *
+   * Entries are keyed by {@link Person.id} and by nothing else. A single human legitimately owns
+   * several entries: Excel interns a *mentioned* identity as its own `providerId="PeoplePicker"` entry
+   * beside that person's `providerId="AD"` authoring entry — same `displayName`, same `userId`, a
+   * different id — and points the mention at the new one. Collapsing entries by name or `userId` would
+   * merge those two and silently re-point every mention at the wrong identity.
+   *
+   * {@link Workbook.addPerson} is the authoring verb.
+   */
+  restorePersons(persons: readonly Person[]): void;
 }

@@ -30,6 +30,7 @@ import {
   resolveAnchorPoint,
   type TwoCellAnchor,
 } from './image.ts';
+import {INTERNAL} from './internal.ts';
 import {type MergeRect, rectsOverlap} from './merge.ts';
 import type {HeaderFooter, PageBreak, PageMargins, PageSetup, PrintOptions} from './page-setup.ts';
 import {type ParsedPivotTable, PivotTable, type PivotTableOptions} from './pivot-table.ts';
@@ -336,18 +337,6 @@ export class Worksheet {
     return this.#rowProperties.get(number);
   }
 
-  /**
-   * Drop a row's materialised cells and format properties, releasing its cell graph. The streaming
-   * writer calls this the moment a row is serialised so peak memory stays bounded to the rows still
-   * in flight rather than the whole sheet. Row *numbering* is the caller's concern: eviction lowers
-   * {@link rowCount}, so an append-driven producer must track its own high-water mark rather than
-   * lean on this sheet's used range.
-   */
-  evictRow(number: number): void {
-    this.#rows.delete(number);
-    this.#rowProperties.delete(number);
-  }
-
   /** The format properties for a 1-based column index if any were set, or `undefined` — a read-only
    * peek that never creates a record, so a serializer can render a column's attributes without
    * fabricating an empty one for every column it visits. Use {@link getColumn} to create-on-access. */
@@ -594,16 +583,6 @@ export class Worksheet {
   }
 
   /**
-   * Register a pivot table reconstructed from a loaded package — the reader's counterpart to
-   * {@link addPivotTable}. This records an inspectable, read-only view of a pivot the reader parsed
-   * from its OOXML parts; the pivot itself round-trips by byte-preservation, so registering it here
-   * only makes it visible via {@link loadedPivotTables} and never affects what the writer emits.
-   */
-  addLoadedPivotTable(pivot: ParsedPivotTable): void {
-    this.#loadedPivotTables.push(pivot);
-  }
-
-  /**
    * Pivot tables reconstructed from a loaded package, in the order the reader found them — a
    * read-only inspection view (source range, field roles, value field, aggregation). A pivot
    * authored on this sheet via {@link addPivotTable} does not appear here; a pivot loaded from a
@@ -669,18 +648,6 @@ export class Worksheet {
       };
     });
     this.#commentThreads.push({...thread, ref: this.#anchorRef(thread.ref), comments});
-  }
-
-  /**
-   * Reinstate the threaded conversations read from a file, in the order the reader found them, replacing
-   * any already held. Their authors and mentioned people are already resolved against the workbook
-   * registry ({@link Workbook.restorePersons}), so a thread arrives self-contained.
-   *
-   * Reader restoration, not authoring — use {@link addCommentThread} for that, which validates the anchor.
-   * These threads are what a re-write emits, so what the reader hands over is what the file will say.
-   */
-  restoreCommentThreads(threads: readonly CommentThread[]): void {
-    replaceContents(this.#commentThreads, threads);
   }
 
   /**
@@ -804,15 +771,6 @@ export class Worksheet {
   /** The workbook image id set as this sheet's background, or `undefined` when it has none. */
   get backgroundImageId(): number | undefined {
     return this.#backgroundImageId;
-  }
-
-  /**
-   * Record a worksheet-level reference to package content the model does not interpret, so the writer
-   * re-emits it verbatim. Called by the reader when it meets a `<drawing>` holding only vector shapes
-   * or a `<legacyDrawingHF>` header/footer image; not part of the authoring surface.
-   */
-  addPreservedReference(reference: PreservedWorksheetReference): void {
-    this.#preservedReferences.push(reference);
   }
 
   /** The worksheet-level references to unmodeled package content preserved for round-tripping. */
@@ -1317,17 +1275,6 @@ export class Worksheet {
     this.#protection = undefined;
   }
 
-  /**
-   * Reinstate an already-derived protection state — the deserialization counterpart to
-   * {@link protect}. A loaded `<sheetProtection>` carries its credential in finished agile form
-   * (algorithm, hash, salt, spin count) with no recoverable plaintext password, so the reader
-   * restores that credential verbatim rather than re-hashing. Use {@link protect} to protect from
-   * a plaintext password; use this only to carry a parsed protection back into the model.
-   */
-  restoreProtection(protection: SheetProtection): void {
-    this.#protection = protection;
-  }
-
   /** The sheet's protection, or `undefined` if the sheet is unprotected. */
   get protection(): SheetProtection | undefined {
     return this.#protection;
@@ -1358,4 +1305,77 @@ export class Worksheet {
     }
     return cell;
   }
+
+  /**
+   * The codec's channel into this sheet — see `core/internal.ts` for why these are not public
+   * methods. Declared last so every private field it closes over is already in scope.
+   */
+  readonly [INTERNAL]: WorksheetInternals = {
+    evictRow: (number) => {
+      this.#rows.delete(number);
+      this.#rowProperties.delete(number);
+    },
+    addLoadedPivotTable: (pivot) => {
+      this.#loadedPivotTables.push(pivot);
+    },
+    restoreCommentThreads: (threads) => {
+      replaceContents(this.#commentThreads, threads);
+    },
+    addPreservedReference: (reference) => {
+      this.#preservedReferences.push(reference);
+    },
+    restoreProtection: (protection) => {
+      this.#protection = protection;
+    },
+  };
+}
+
+/**
+ * What a codec may do to a `Worksheet` that an author may not: reinstate state read from a file, and
+ * release a row the streaming writer has finished with. Reached as `sheet[INTERNAL]`; see
+ * `core/internal.ts`.
+ */
+export interface WorksheetInternals {
+  /**
+   * Drop a row's materialised cells and format properties, releasing its cell graph. The streaming
+   * writer calls this the moment a row is serialised so peak memory stays bounded to the rows still
+   * in flight rather than the whole sheet. Row *numbering* is the caller's concern: eviction lowers
+   * {@link Worksheet.rowCount}, so an append-driven producer must track its own high-water mark
+   * rather than lean on this sheet's used range.
+   */
+  evictRow(number: number): void;
+
+  /**
+   * Register a pivot table reconstructed from a loaded package — the reader's counterpart to
+   * {@link Worksheet.addPivotTable}. This records an inspectable, read-only view of a pivot the
+   * reader parsed from its OOXML parts; the pivot itself round-trips by byte-preservation, so
+   * registering it here only makes it visible via {@link Worksheet.loadedPivotTables} and never
+   * affects what the writer emits.
+   */
+  addLoadedPivotTable(pivot: ParsedPivotTable): void;
+
+  /**
+   * Reinstate the threaded conversations read from a file, in the order the reader found them,
+   * replacing any already held. Their authors and mentioned people are already resolved against the
+   * workbook registry, so a thread arrives self-contained.
+   *
+   * Not authoring — {@link Worksheet.addCommentThread} is that, and validates the anchor. These
+   * threads are what a re-write emits, so what the reader hands over is what the file will say.
+   */
+  restoreCommentThreads(threads: readonly CommentThread[]): void;
+
+  /**
+   * Record a worksheet-level reference to package content the model does not interpret, so the writer
+   * re-emits it verbatim. Called by the reader when it meets a `<drawing>` holding only vector shapes
+   * or a `<legacyDrawingHF>` header/footer image.
+   */
+  addPreservedReference(reference: PreservedWorksheetReference): void;
+
+  /**
+   * Reinstate an already-derived protection state — the deserialization counterpart to
+   * {@link Worksheet.protect}. A loaded `<sheetProtection>` carries its credential in finished agile
+   * form (algorithm, hash, salt, spin count) with no recoverable plaintext password, so the reader
+   * restores that credential verbatim rather than re-hashing.
+   */
+  restoreProtection(protection: SheetProtection): void;
 }

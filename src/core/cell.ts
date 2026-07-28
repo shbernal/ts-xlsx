@@ -6,6 +6,7 @@
 // through the value model so the cell's `type` is always consistent with what it holds.
 
 import {encodeAddress} from './address.ts';
+import {NAMED_STYLE_ID} from './internal.ts';
 import {
   type Alignment,
   assignStyleFacets,
@@ -183,17 +184,21 @@ export class Cell {
   }
 
   /**
-   * The index of the {@link Workbook.namedStyles named cell style} this cell links to (its OOXML
-   * `xfId`), or `undefined` when the cell references no named style beyond the default. The cell
-   * inherits any facet its own direct format leaves unset from that named style; the reader resolves
-   * the effective look onto the cell's own facets, and this link is preserved so a round-trip keeps
-   * the cell tied to its named style rather than flattening it away.
+   * The index of the named cell style this cell links to (its OOXML `xfId`), or `undefined` when the
+   * cell references no named style beyond the default. The cell inherits any facet its own direct
+   * format leaves unset from that named style; the reader resolves the effective look onto the cell's
+   * own facets, and this link is preserved so a round-trip keeps the cell tied to its named style
+   * rather than flattening it away.
+   *
+   * Codec-only: an index is meaningful only against the workbook's `namedStyles` table as the reader
+   * built it, and a value naming no entry leaves the cell pointing at nothing. Authors set the facets
+   * they want directly.
    */
-  get namedStyleId(): number | undefined {
+  get [NAMED_STYLE_ID](): number | undefined {
     return this.#namedStyleId;
   }
 
-  set namedStyleId(namedStyleId: number | undefined) {
+  set [NAMED_STYLE_ID](namedStyleId: number | undefined) {
     this.#namedStyleId = namedStyleId;
   }
 

@@ -8,6 +8,7 @@
 // each hands back the same {@link StyleTable}.
 
 import {applyCellStyle, type Cell} from '../../core/cell.ts';
+import {NAMED_STYLE_ID} from '../../core/internal.ts';
 import type {CellStyle, NamedCellStyle} from '../../core/style.ts';
 
 /**
@@ -114,5 +115,5 @@ export function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
   if (style === undefined) return;
   applyCellStyle(cell, style);
   if (style.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
-  if (style.xfId !== undefined) cell.namedStyleId = style.xfId;
+  if (style.xfId !== undefined) cell[NAMED_STYLE_ID] = style.xfId;
 }

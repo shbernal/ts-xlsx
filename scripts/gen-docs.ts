@@ -177,6 +177,11 @@ function kindLabel(node: ts.Node): string {
 
 function isPublicMember(member: ts.ClassElement): boolean {
   if (member.name && ts.isPrivateIdentifier(member.name)) return false;
+  // A computed name is the codec's back channel (`src/core/internal.ts`), keyed by a symbol that
+  // never leaves the package. Reachable only by a holder of that symbol, so it is no more public
+  // than a `#private` field — and rendering it would dump the whole channel, initializer included,
+  // into the reference a caller reads.
+  if (member.name && ts.isComputedPropertyName(member.name)) return false;
   const mods = ts.canHaveModifiers(member) ? ts.getModifiers(member) : undefined;
   if (mods?.some((m) => m.kind === ts.SyntaxKind.PrivateKeyword)) return false;
   if (mods?.some((m) => m.kind === ts.SyntaxKind.ProtectedKeyword)) return false;

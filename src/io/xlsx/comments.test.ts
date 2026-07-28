@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import {strFromU8, unzipSync} from 'fflate';
 
 import type {CommentThread} from '../../core/comment-thread.ts';
+import {INTERNAL} from '../../core/internal.ts';
 import {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {
@@ -136,7 +137,7 @@ const shadowing = (sheet: Worksheet) => collectComments(sheet, sheet.commentThre
 test('a thread is written as a fallback comment bound to its head by a tc= author and an xr:uid', () => {
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
-  ws.restoreCommentThreads([threadOn('B1', ['Is this gross or net of tax?'])]);
+  ws[INTERNAL].restoreCommentThreads([threadOn('B1', ['Is this gross or net of tax?'])]);
   const xml = commentsXml(shadowing(ws));
   assert.ok(xml.includes(`<authors><author>tc=${HEAD}</author></authors>`));
   assert.ok(xml.includes(`<comment ref="B1" authorId="0" xr:uid="${HEAD}">`));
@@ -150,7 +151,9 @@ test('a thread is written as a fallback comment bound to its head by a tc= autho
 test('the fallback text is the boilerplate, the opening message, then one Reply: per reply', () => {
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
-  ws.restoreCommentThreads([threadOn('A1', ['Head question?', 'First reply.', 'Second reply.'])]);
+  ws[INTERNAL].restoreCommentThreads([
+    threadOn('A1', ['Head question?', 'First reply.', 'Second reply.']),
+  ]);
   const [fallback] = shadowing(ws);
   // Verified against desktop Excel for a thread with three replies: `Reply:` repeats per reply rather
   // than the replies being joined under one heading, and every body is indented four spaces.
@@ -163,7 +166,7 @@ test('the fallback text is the boilerplate, the opening message, then one Reply:
 test('a conversation with no note beside it still gets a comments part and a VML shape of its own', () => {
   const wb = new Workbook();
   const ws = wb.addWorksheet('S');
-  ws.restoreCommentThreads([threadOn('B1', ['a conversation'])]);
+  ws[INTERNAL].restoreCommentThreads([threadOn('B1', ['a conversation'])]);
   const comments = shadowing(ws);
   assert.strictEqual(comments.length, 1, 'the fallback is the whole comments part');
   assert.strictEqual(
@@ -222,7 +225,7 @@ test('notes and fallbacks share one comments part, ordered by cell, each pointin
   const ws = wb.addWorksheet('S');
   ws.getCell('A1').note = 'a real note';
   ws.getCell('D4').note = 'another real note';
-  ws.restoreCommentThreads([threadOn('B2', ['head'])]);
+  ws[INTERNAL].restoreCommentThreads([threadOn('B2', ['head'])]);
   const xml = commentsXml(shadowing(ws));
   assert.deepStrictEqual(
     [...xml.matchAll(/<comment ref="([^"]*)" authorId="(\d+)"/g)].map((m) => [m[1], m[2]]),
@@ -246,7 +249,7 @@ test('a note-only sheet keeps the minimal comments root, declaring no namespace 
 
 test('a threaded cell reads back with no note, while a genuine note beside it is untouched', () => {
   const ws = new Workbook().addWorksheet('S');
-  ws.restoreCommentThreads([
+  ws[INTERNAL].restoreCommentThreads([
     threadOn('B1', ['Is this gross or net of tax?', 'Gross.'], HEAD, true),
   ]);
   applyNotes(
@@ -273,7 +276,7 @@ test('a fallback whose thread is missing is kept as a note rather than silently 
 
 test('a fallback is suppressed only for the thread it actually names', () => {
   const ws = new Workbook().addWorksheet('S');
-  ws.restoreCommentThreads([threadOn('B1', ['live thread'])]);
+  ws[INTERNAL].restoreCommentThreads([threadOn('B1', ['live thread'])]);
   applyNotes(
     ws,
     new Map([

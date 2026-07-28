@@ -35,8 +35,6 @@ class Cell {
   set protection(protection: Protection | undefined);
   get quotePrefix(): boolean | undefined;
   set quotePrefix(quotePrefix: boolean | undefined);
-  get namedStyleId(): number | undefined;
-  set namedStyleId(namedStyleId: number | undefined);
   get note(): string | undefined;
   set note(note: string | undefined);
 }
@@ -57,5 +55,4 @@ class Cell {
 - `get alignment(): Alignment | undefined;` — The cell's alignment — how its content sits within the cell, plus the wrap/shrink flags — or `undefined` when it uses the defaults. The boolean flags are off unless explicitly set, so a cell that never enabled wrapping never reads back wrapped.
 - `get protection(): Protection | undefined;` — The cell's protection — its locked/hidden flags, enforced only once the sheet is protected — or `undefined` when the cell carries neither. `locked` defaults to on in OOXML, so a cell that never touched protection is implicitly locked and reads back as `undefined`, not as `{locked: true}`; the flag only becomes explicit when a cell is unlocked.
 - `get quotePrefix(): boolean | undefined;` — The quote-prefix flag: when set, a spreadsheet stores the cell's content as literal text even when it looks like a formula or number, and shows a leading apostrophe in the formula bar without that apostrophe being part of the stored value. `undefined` (or `false`) when unset. It is a cell-format flag — an attribute on the cell's `xf` record — so it composes independently of the value.
-- `get namedStyleId(): number | undefined;` — The index of the `Workbook.namedStyles named cell style` this cell links to (its OOXML `xfId`), or `undefined` when the cell references no named style beyond the default. The cell inherits any facet its own direct format leaves unset from that named style; the reader resolves the effective look onto the cell's own facets, and this link is preserved so a round-trip keeps the cell tied to its named style rather than flattening it away.
 - `get note(): string | undefined;` — The cell's note (comment) as plain text, or `undefined` when it carries none. A note is metadata anchored to the cell, independent of its value: a cell can hold a note while empty, and clearing the value leaves the note intact. A structural edit that shifts the cell carries the note along to its new position.

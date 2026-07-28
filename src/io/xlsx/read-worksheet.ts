@@ -10,6 +10,7 @@ import {
   type FilterCriteria,
   isCustomFilterOperator,
 } from '../../core/autofilter.ts';
+import {INTERNAL} from '../../core/internal.ts';
 import type {PageBreak, PageMargins, PageSetup, PrintOptions} from '../../core/page-setup.ts';
 import {
   SHEET_PROTECTION_FLAGS,
@@ -320,7 +321,7 @@ export function parseWorksheet(
             break;
           case 'sheetProtection': {
             const protection = parseSheetProtection(attrs);
-            if (protection !== undefined) sheet.restoreProtection(protection);
+            if (protection !== undefined) sheet[INTERNAL].restoreProtection(protection);
             break;
           }
           case 'autoFilter':
