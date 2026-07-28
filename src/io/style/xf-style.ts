@@ -8,17 +8,18 @@
 // each hands back the same {@link StyleTable}.
 
 import {applyCellStyle, type Cell} from '../../core/cell.ts';
-import type {Alignment, Border, Fill, Font, NamedCellStyle, Protection} from '../../core/style.ts';
+import type {CellStyle, NamedCellStyle} from '../../core/style.ts';
 
-// The style facets an xf resolves to. Absent facets stay undefined, matching the contract
-// that an unset facet is simply not present on the reconstructed cell.
-export interface XfStyle {
-  readonly fill?: Fill;
-  readonly numFmt?: string;
-  readonly font?: Font;
-  readonly border?: Border;
-  readonly alignment?: Alignment;
-  readonly protection?: Protection;
+/**
+ * What an xf resolves to: the {@link CellStyle} facet tuple, plus the two flags an xf carries that
+ * are not facets. Absent facets stay undefined, matching the contract that an unset facet is simply
+ * not present on the reconstructed cell.
+ *
+ * It *derives* the facets rather than listing them, so a seventh facet added to `CellStyle` reaches
+ * both readers the moment it joins. Re-declaring them here — the shape this replaced — meant a new
+ * facet silently stopped at the model and never appeared in a file we read back.
+ */
+export interface XfStyle extends CellStyle {
   readonly quotePrefix?: boolean;
   /** The `xfId` link into the named-style layer (`cellStyleXfs`); absent for the Normal default (0). */
   readonly xfId?: number;
