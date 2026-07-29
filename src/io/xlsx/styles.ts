@@ -45,7 +45,8 @@ import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 // custom fills are numbered from 2 so a foreign reader's built-in assumptions still hold.
 const RESERVED_FILL_COUNT = 2;
 
-// Font id 0 is the always-present default font (Calibri 11); custom fonts are numbered from 1.
+// Font id 0 is the always-present default font — the workbook's, not an assumed one; custom fonts
+// are numbered from 1.
 const RESERVED_FONT_COUNT = 1;
 
 // numFmt ids below 164 are reserved by ECMA-376 for the built-in formats every consumer
@@ -55,13 +56,12 @@ const CUSTOM_NUMFMT_BASE = 164;
 // Border id 0 is the always-present empty border (every edge absent); custom borders from 1.
 const RESERVED_BORDER_COUNT = 1;
 
-// The default font's inner fragment, in the exact child order `fontXml` emits. The reader
-// surfaces this face on every otherwise-unstyled cell (font id 0 is a real font, not an
-// absence), so a cell carrying exactly the default must intern back to id 0 rather than a
-// redundant custom entry — keeping a read→write round-trip byte-stable.
+// The Office default font's inner fragment, in the exact child order `fontXml` emits — the font 0 a
+// registry built without a workbook falls back to. A registry built *with* one derives font 0 from
+// its `defaultFont` instead, and for a plain `new Workbook()` that derivation lands on exactly this
+// string; `styles.test.ts` guards the two against drifting.
 const DEFAULT_FONT_BODY =
   '<sz val="11"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/>';
-const DEFAULT_FONT = `<font>${DEFAULT_FONT_BODY}</font>`;
 // The empty border: all five edges present but styleless. A border that overrides no edge
 // serialises to exactly this, so it interns to the default border id 0 rather than a new one.
 const DEFAULT_BORDER = '<border><left/><right/><top/><bottom/><diagonal/></border>';
@@ -110,7 +110,47 @@ const DEFAULT_FORMAT: CellFormat = {
   xfId: 0,
 };
 
+/** What a {@link StyleRegistry} needs from its workbook before any style is interned. */
+export interface StyleRegistryOptions {
+  /**
+   * The font every cell naming none of its own renders in — emitted as id 0. Take it from
+   * {@link Workbook.defaultFont}, which resolves the authored/declared/theme chain and guarantees a
+   * complete entry. Omitted, the registry falls back to the Office default.
+   */
+  readonly defaultFont?: Font;
+
+  /**
+   * The default font the *source package* declared, when a workbook was read
+   * ({@link Workbook.declaredDefaultFont}). It also interns to id 0, which is what lets an authored
+   * default font reach cells the reader had already resolved.
+   *
+   * The reader flattens font 0 onto every xf that names it, so a cell that merely inherited the
+   * file's default arrives carrying it as a concrete face. That face is an artefact of reading, not
+   * an authored intent — in the source file the cell said nothing about its font — so it must
+   * collapse back to id 0 and follow the new default rather than pin itself to the old one through a
+   * custom entry.
+   */
+  readonly declaredDefaultFont?: Font;
+}
+
 export class StyleRegistry {
+  // The `<font>` body emitted as id 0.
+  readonly #defaultFontBody: string;
+
+  // Every serialised font body that means "id 0" — the emitted default, plus the one a source file
+  // declared. See {@link StyleRegistryOptions.declaredDefaultFont} for why the second belongs here.
+  readonly #font0Bodies: ReadonlySet<string>;
+
+  constructor(options: StyleRegistryOptions = {}) {
+    this.#defaultFontBody =
+      options.defaultFont === undefined ? DEFAULT_FONT_BODY : fontXml(options.defaultFont);
+    this.#font0Bodies = new Set(
+      options.declaredDefaultFont === undefined
+        ? [this.#defaultFontBody]
+        : [this.#defaultFontBody, fontXml(options.declaredDefaultFont)],
+    );
+  }
+
   // Custom fill xml fragments, in id order; the emitted id is RESERVED_FILL_COUNT + index.
   readonly #fillXml: string[] = [];
   readonly #fillIdBySignature = new Map<string, number>();
@@ -363,7 +403,7 @@ export class StyleRegistry {
   // and maps to font id 0; otherwise its serialised form is interned and dedup'd like a fill.
   #internFont(font: Font): number {
     const xml = fontXml(font);
-    if (xml === '' || xml === DEFAULT_FONT_BODY) return 0;
+    if (xml === '' || this.#font0Bodies.has(xml)) return 0;
     let id = this.#fontIdBySignature.get(xml);
     if (id === undefined) {
       id = RESERVED_FONT_COUNT + this.#fontXml.length;
@@ -398,7 +438,7 @@ export class StyleRegistry {
     const cellStyleXfs = this.#cellStyleXfs.map((format) => xfXml(format, null)).join('');
     const cellStyles = this.#cellStyleNames.map(cellStyleTag).join('');
     const fontCount = RESERVED_FONT_COUNT + this.#fontXml.length;
-    const fonts = DEFAULT_FONT + this.#fontXml.join('');
+    const fonts = `<font>${this.#defaultFontBody}</font>` + this.#fontXml.join('');
     const borderCount = RESERVED_BORDER_COUNT + this.#borderXml.length;
     const borders = DEFAULT_BORDER + this.#borderXml.join('');
     return (

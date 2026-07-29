@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import type {Fill} from '../../core/style.ts';
+import type {Fill, Font} from '../../core/style.ts';
+import {Workbook} from '../../core/workbook.ts';
 import {parseIndexedColors, StyleRegistry} from './styles.ts';
 
 const solid = (argb: string): Fill => ({type: 'pattern', pattern: 'solid', fgColor: {argb}});
@@ -535,4 +536,61 @@ test('with no named styles the default cellStyleXfs and cellStyles layer is emit
     xml,
     /<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"\/><\/cellStyles>/,
   );
+});
+
+test('font 0 is the workbook default the registry was built with, not an assumed Calibri', () => {
+  const styles = new StyleRegistry({
+    defaultFont: {size: 11, color: {theme: 1}, name: 'Aptos Narrow', family: 2, scheme: 'minor'},
+  });
+  assert.match(
+    styles.toXml(),
+    /<fonts count="1"><font><sz val="11"\/><color theme="1"\/><name val="Aptos Narrow"\/><family val="2"\/><scheme val="minor"\/><\/font><\/fonts>/,
+  );
+});
+
+test('a registry built with no workbook still emits the Office default font 0', () => {
+  // ~40 call sites in this file construct a registry bare; the fallback is what keeps them meaning
+  // what they did, and what keeps a plain `new Workbook()` emitting the bytes it always has.
+  assert.match(
+    new StyleRegistry().toXml(),
+    /<fonts count="1"><font><sz val="11"\/><color theme="1"\/><name val="Calibri"\/><family val="2"\/><scheme val="minor"\/><\/font><\/fonts>/,
+  );
+});
+
+test("the Office fallback is exactly what a plain workbook's resolved default font serialises to", () => {
+  // The constant and the model's resolution are two statements of one fact, and only this holds them
+  // together: drift would make a bare registry and a workbook-built one disagree on font 0.
+  assert.equal(
+    new StyleRegistry({defaultFont: new Workbook().defaultFont}).toXml(),
+    new StyleRegistry().toXml(),
+  );
+});
+
+test('a cell carrying the workbook default font interns to id 0, adding no redundant entry', () => {
+  const defaultFont: Font = {size: 11, color: {theme: 1}, name: 'Aptos Narrow', scheme: 'minor'};
+  const styles = new StyleRegistry({defaultFont});
+  assert.equal(styles.styleId({font: defaultFont}), 0, 'it needs no cellXfs entry either');
+  assert.match(styles.toXml(), /<fonts count="1">/);
+});
+
+test('a cell carrying the *source* default font also interns to id 0, so it follows a new default', () => {
+  // The reader flattens font 0 onto every xf that names it, so a cell that merely inherited the
+  // file's default arrives carrying it as a concrete face. Treating that as an authored intent would
+  // pin the cell to the old face through a custom entry while its unstyled neighbours moved.
+  const declaredDefaultFont: Font = {size: 11, name: 'Aptos Narrow'};
+  const styles = new StyleRegistry({
+    defaultFont: {size: 11, name: 'Georgia'},
+    declaredDefaultFont,
+  });
+  assert.equal(styles.styleId({font: declaredDefaultFont}), 0);
+  assert.match(styles.toXml(), /<fonts count="1"><font><sz val="11"\/><name val="Georgia"\/>/);
+});
+
+test('a font that is neither default is still interned as a custom entry', () => {
+  const styles = new StyleRegistry({
+    defaultFont: {size: 11, name: 'Georgia'},
+    declaredDefaultFont: {size: 11, name: 'Aptos Narrow'},
+  });
+  assert.equal(styles.styleId({font: {size: 11, name: 'Courier New'}}), 1);
+  assert.match(styles.toXml(), /<fonts count="2">/);
 });

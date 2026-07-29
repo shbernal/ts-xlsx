@@ -154,7 +154,15 @@ export async function writeXlsxAsync(
  * same thing whichever writer emits it.
  */
 export function createStyleRegistry(workbook: Workbook): StyleRegistry {
-  const styles = new StyleRegistry();
+  // Font id 0 is the workbook's own default face, resolved from what it declared, what was authored,
+  // and its theme's body typeface — never an assumed Calibri, which would re-face every empty cell
+  // and change the metric every character-unit column width is expressed in.
+  const styles = new StyleRegistry({
+    defaultFont: workbook.defaultFont,
+    ...(workbook.declaredDefaultFont === undefined
+      ? {}
+      : {declaredDefaultFont: workbook.declaredDefaultFont}),
+  });
   // Seed the differential-style table with the fragments read from a source file so conditional
   // formatting's dxfId references stay valid; styles authored on rules append after them.
   styles.seedDifferentialStyles(workbook.differentialStyles);

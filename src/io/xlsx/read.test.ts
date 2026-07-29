@@ -1554,3 +1554,80 @@ test('an unknown attribute on <workbookProtection> is dropped, not echoed back o
   assert.match(wbXml, /lockStructure="1"/);
   assert.doesNotMatch(wbXml, /bogusAttr/);
 });
+
+// --- the workbook default font, end to end ------------------------------------------------------
+
+// The `<fonts>` table of a written package, as one string.
+function fontsBlockOf(workbook: Workbook): string {
+  const styles = strFromU8(unzipSync(writeXlsx(workbook))['xl/styles.xml'] ?? new Uint8Array());
+  return styles.match(/<fonts\b[^>]*>[\s\S]*?<\/fonts>/)?.[0] ?? '';
+}
+
+test("an authored theme's body face reaches font 0, so it reaches every unstyled cell", () => {
+  // The reported symptom: setTheme wrote the theme part correctly while styles.xml went on claiming
+  // `scheme="minor"` *and* naming Calibri outright. Excel resolves the explicit name, so every
+  // unstyled cell rendered Calibri and callers had to set `font` on every column to work around it.
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'plain';
+  wb.setTheme({fonts: {major: 'Aptos Display', minor: 'Aptos'}});
+
+  assert.equal(
+    fontsBlockOf(wb),
+    '<fonts count="1"><font><sz val="11"/><color theme="1"/>' +
+      '<name val="Aptos"/><family val="2"/><scheme val="minor"/></font></fonts>',
+    'font 0 names the theme body face and its scheme claim is true',
+  );
+});
+
+test('a foreign non-Calibri font 0 survives a round-trip without gaining a duplicate', () => {
+  // Read→write used to replace the declared default with Calibri and re-add the real face as a
+  // redundant custom entry: populated cells kept it via that entry, while empty cells — and any
+  // consumer reading font 0 as "the workbook default" — silently got Calibri.
+  const seed = new Workbook();
+  seed.addWorksheet('S').getCell('A1').value = 'plain';
+  const pkg = unzipSync(writeXlsx(seed));
+  pkg['xl/styles.xml'] = strToU8(
+    strFromU8(pkg['xl/styles.xml'] ?? new Uint8Array()).replace(
+      '<name val="Calibri"/>',
+      '<name val="Aptos"/>',
+    ),
+  );
+
+  const back = readXlsx(zipSync(pkg));
+  assert.equal(
+    back.declaredDefaultFont?.name,
+    'Aptos',
+    'the declared face is surfaced on the model',
+  );
+  assert.equal(
+    fontsBlockOf(back),
+    '<fonts count="1"><font><sz val="11"/><color theme="1"/>' +
+      '<name val="Aptos"/><family val="2"/><scheme val="minor"/></font></fonts>',
+    'one entry, still Aptos — no Calibri, no duplicate',
+  );
+});
+
+test('an authored default font moves the cells that only inherited the file’s, not those that named a face', () => {
+  const seed = new Workbook();
+  const seedSheet = seed.addWorksheet('S');
+  seedSheet.getCell('A1').value = 'inherits the default';
+  // A fill forces a real xf that still names font 0 — so the reader flattens the default face onto
+  // this cell even though the source file never said anything about its font.
+  seedSheet.getCell('A2').value = 'filled, but says nothing about its font';
+  seedSheet.getCell('A2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFEEEEEE'}};
+  seedSheet.getCell('A3').value = 'names a face outright';
+  seedSheet.getCell('A3').font = {name: 'Courier New', size: 9};
+
+  const back = readXlsx(writeXlsx(seed));
+  back.setDefaultFont({name: 'Georgia', size: 12});
+
+  const fonts = fontsBlockOf(back);
+  assert.match(fonts, /<font><sz val="12"\/><color theme="1"\/><name val="Georgia"\/><\/font>/);
+  // Georgia is not the theme body face, so the `scheme="minor"` claim is dropped rather than left to
+  // contradict the name it sits beside.
+  assert.doesNotMatch(fonts, /scheme/);
+  // The filled cell inherited; it must follow the new default rather than pin itself to the old face.
+  assert.doesNotMatch(fonts, /Calibri/);
+  // The cell that named a face keeps it: that was an authored intent, not an inherited default.
+  assert.match(fonts, /<name val="Courier New"\/>/);
+});
