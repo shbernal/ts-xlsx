@@ -8,6 +8,72 @@ import {applyStyle, buildFrom} from './spec-model.ts';
 import {reloadPatched} from './xml-probes.ts';
 
 export const styles = {
+  // Resolve a workbook's default font — optionally over a fixture, optionally after authoring a theme
+  // body face and/or a default font — write it, and report what the package now says about font id 0
+  // and the theme it claims to follow → { declared, resolved, font0, fontCount, themeMinor,
+  // agreesWithTheme, reReadDeclared, cellFonts }.
+  //
+  // Font 0 is a claim spanning two parts: `<scheme val="minor"/>` says "I am the theme's body face",
+  // while `<name>` says which face that is. The facts are therefore reported from the *written*
+  // package with both parts read back, because the failure this guards is precisely the two
+  // disagreeing while each part is individually well-formed.
+  defaultFontReport({
+    fixture = null,
+    themeFonts = null,
+    defaultFont = null,
+    cells = [],
+  }: CorpusApi) {
+    const workbook = fixture === null ? new Workbook() : readFixture(fixture);
+    const declared = workbook.declaredDefaultFont ?? null;
+    if (fixture === null) workbook.addWorksheet('S').getCell('A1').value = 'plain';
+    const sheet = workbook.worksheets[0]!;
+    // Each entry styles one cell, so a case can state what a cell said about its own font and check
+    // which cells an authored default reaches.
+    for (const {address, font = null, fill = null} of cells as CorpusApi[]) {
+      const cell = sheet.getCell(address);
+      cell.value = address;
+      if (font !== null) cell.font = font;
+      if (fill !== null) cell.fill = fill;
+    }
+    if (themeFonts !== null) workbook.setTheme({fonts: themeFonts});
+    if (defaultFont !== null) workbook.setDefaultFont(defaultFont);
+    const resolved = {...workbook.defaultFont};
+
+    const buffer = writeXlsx(workbook);
+    const parts = partMapOf(buffer);
+    const stylesXml = parts['xl/styles.xml'] ?? '';
+    const fontsBlock = /<fonts\b[^>]*>[\s\S]*?<\/fonts>/.exec(stylesXml)?.[0] ?? '';
+    const font0 = /<font>[\s\S]*?<\/font>/.exec(fontsBlock)?.[0] ?? '';
+    const themePath = Object.keys(parts).find((p) => /^xl\/theme\/theme\d+\.xml$/.test(p));
+    const theme = themePath === undefined ? '' : (parts[themePath] ?? '');
+    const themeMinor = /<a:minorFont>\s*<a:latin[^>]*\btypeface="([^"]*)"/.exec(theme)?.[1] ?? null;
+    const font0Name = /<name val="([^"]*)"/.exec(font0)?.[1] ?? null;
+    const reread = readXlsx(buffer);
+    const rereadSheet = reread.worksheets[0];
+    return {
+      declared,
+      resolved,
+      font0,
+      font0Name,
+      font0Scheme: /<scheme val="([^"]*)"/.exec(font0)?.[1] ?? null,
+      // A count above one after a plain re-write is the redundant-duplicate failure: the declared
+      // default replaced by an assumed one and re-added beside it as a custom entry.
+      fontCount: [...fontsBlock.matchAll(/<font>/g)].length,
+      themeMinor,
+      // The claim `scheme="minor"` makes, checked rather than trusted.
+      agreesWithTheme: font0Name !== null && font0Name === themeMinor,
+      reReadDeclared: reread.declaredDefaultFont ?? null,
+      // What each styled cell resolves to after the round-trip, so a case can tell a cell that named
+      // a face from one that merely inherited the file's default.
+      cellFonts: Object.fromEntries(
+        (cells as CorpusApi[]).map(({address}) => [
+          address,
+          rereadSheet?.getCell(address).font?.name ?? null,
+        ]),
+      ),
+    };
+  },
+
   // Assign a valid format-code string (alongside font/alignment/protection) to one cell and a
   // structured OBJECT (a parsed `{id, formatCode}` shape) to another, write, and report the string's
   // survival plus whether the styles part was corrupted → { controlNumFmtReload, stylesHasObjectObject }.
