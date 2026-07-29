@@ -24,6 +24,18 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **Seven subpath entry points, and `"sideEffects": false`.** `@shbernal/ts-xlsx/core`, `/xlsx`,
+  `/xlsb`, `/csv`, `/vba`, `/customui` and `/errors` are published alongside the bare package name,
+  which still exports everything it did. Additive — nothing moves or breaks. With a bundler the
+  bare name remains the right default (`sideEffects: false` now lets it prune per symbol, which
+  beats any subpath); reach for a subpath when there is no bundler, or when the module graph should
+  state the dependency. `/errors` carries every error class the library throws and costs 12 KB, so
+  classifying a failure never loads a parser; `/core` is 299 KB against the package's 863 KB.
+  `/xlsx` is only marginally cheaper than everything, because `readXlsx` sniffs the bytes and
+  dispatches a binary package to the BIFF12 reader — see the table in the README, and
+  [ADR-0023](docs/decisions/0023-subpath-entry-points-and-disjoint-barrels.md) for why the split
+  is shaped this way.
+
 - **`tools/vba-compiler`** — an offline build tool that produces genuinely compiled, source-matched VBA
   p-code by driving a real headless Excel (VBIDE). Emits a `vbaProject.bin` (attach via
   `Workbook.vbaProjectBytes`) or a whole edited `.xlsm`. Windows + licensed Excel only; never in CI.
