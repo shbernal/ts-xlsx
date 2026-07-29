@@ -5,7 +5,7 @@ name: Build
 # and round-trips as a consumer would import it, and stays under the size budget.
 #
 # Node 24 for the toolchain (type-stripping dev workflow + tsc emit). The emitted
-# artifact itself targets ES2022 and supports Node >=18, per package.json engines.
+# artifact itself targets ES2022; the supported floor is Node >=24, per package.json engines.
 
 on:
   push:
