@@ -2,6 +2,20 @@
 
 Cluster: styles
 
+> **Resolved at the workbook level; the worksheet level is deliberately deferred.** `Workbook`
+> now carries `setDefaultFont` / `defaultFont` / `declaredDefaultFont`, the writer emits the resolved
+> font as styles-part font 0, and the theme's body face reaches it by derivation — see ADR-0025 for
+> the precedence chain and the reasoning, and the
+> `workbook-default-font-is-declared-not-assumed` corpus case for the locked behaviour. The scenario
+> below turned out to describe a **correctness bug** rather than only an ergonomics gap: the writer
+> spliced a Calibri constant into `<fonts>` with no workbook input, so a file's own font 0 was
+> replaced on every save. That half is the sibling note,
+> `default-font-must-not-be-assumed-for-column-widths`.
+>
+> Every open question below is answered in ADR-0025 except the worksheet-level override, which stays
+> open by choice: OOXML has no per-sheet default font, so it can only be sugar that stamps every
+> column, and nothing about the workbook level constrains how that sugar should look.
+
 ## Scenario
 
 A user building a workbook wants every cell to inherit a chosen base font (family, size, color)

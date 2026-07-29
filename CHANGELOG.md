@@ -47,7 +47,36 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   attributes likewise leaves nothing behind, which is the honest reading of an element that says
   nothing.
 
+- **The workbook's default font is a first-class part of the model.** `Workbook.setDefaultFont`
+  authors the face, size and colour every cell with no font of its own renders in — **empty cells
+  included** — merging like `setTheme`, so `setDefaultFont({size: 14})` keeps the resolved face.
+  `Workbook.defaultFont` reports the resolved, complete result, and `Workbook.declaredDefaultFont`
+  reports what a source package stated (`undefined` when it stated nothing).
+
 ### Changed
+
+- **BREAKING: the styles part's font 0 is the workbook's own default font, not an assumed Calibri.**
+  The writer used to splice a `Calibri 11` constant into `<fonts>` with no workbook input, and two
+  things followed from that.
+
+  A themed workbook rendered every unstyled cell in the wrong face: `setTheme({fonts: {minor}})`
+  wrote the theme part correctly and could not reach a cell, because font 0 went on claiming
+  `scheme="minor"` — *I am the theme's body face* — while naming Calibri outright, and Excel resolves
+  the explicit name. Working around it meant setting `font` on every column and naming the face in
+  every rich-text run. And reading a package whose font 0 was Aptos Narrow and writing it back
+  *unmodified* replaced the declared default with Calibri, re-adding the real face as a redundant
+  custom entry — so populated cells still rendered right while empty cells, and the metric every
+  character-unit `<col width>` is expressed in, quietly changed.
+
+  Font 0 now resolves from the workbook: an authored default font, else an authored theme body face,
+  else the file's own font 0, else the theme's. `scheme` and `family` are derived rather than
+  copied — carried while the resolved face really is the theme's body face and dropped when it is
+  not, which is what Excel itself writes — and the emitted entry always states a size and a colour,
+  the absence foreign readers report as a "missing default font".
+
+  What breaks: a workbook with an authored theme font, or read from a package whose font 0 was not
+  Calibri, now emits different bytes. A plain `new Workbook()` is byte-identical.
+  [ADR-0025](docs/decisions/0025-the-default-font-is-declared-not-assumed.md).
 
 - **BREAKING: a corrupt or truncated package is a `PackageReadError`, not an unsupported format.** A
   `PK`-headed archive the zip layer rejects used to surface as `UnsupportedFormatError` with format
