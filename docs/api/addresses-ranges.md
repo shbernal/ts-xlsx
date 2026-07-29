@@ -83,6 +83,18 @@ const MAX_COLUMN: 16384
 
 ---
 
+### `MAX_ROW`
+
+<sub>const</sub>
+
+Excel's row bound: 1 through 1048576. The other axis of `MAX_COLUMN`.
+
+```ts
+const MAX_ROW: 1048576
+```
+
+---
+
 ### `numberToColumn`
 
 <sub>function</sub>

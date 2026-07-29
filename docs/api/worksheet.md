@@ -133,6 +133,9 @@ class Worksheet {
   hasCell(row: number, col: number): boolean;
   getColumn(index: number): Column;
   getRow(number: number): Row;
+  getRange(reference: string): Range;
+  getRange(top: number, left: number, bottom: number, right: number): Range;
+  getRange(referenceOrTop: string | number, left?: number, bottom?: number, right?: number): Range;
   get rowCount(): number;
   get actualRowCount(): number;
   get columnCount(): number;
@@ -228,6 +231,7 @@ class Worksheet {
 - `hasCell(row: number, col: number): boolean;` — Whether a cell has been materialised at the given 1-based position.
 - `getColumn(index: number): Column;` — A handle on a 1-based column: its formatting, its cells, and its values. Cheap and stateless — it creates neither cells nor a format record, so asking about a column costs nothing and does not extend the used range. Writing through it (`getColumn(2).width = 12`) is what materialises the record.
 - `getRow(number: number): Row;` — A handle on a 1-based row: its formatting, its cells, and its values. Cheap and stateless — it creates neither cells nor a format record, so asking about a row costs nothing and does not extend the used range. Writing through it (`getRow(3).height = 20`) is what materialises the record.
+- `getRange(reference: string): Range;` — A handle on a rectangular block of cells — `getRange('B2:D5')`, or the same block by its inclusive corners as `getRange(2, 2, 5, 4)`. Cheap and stateless like `getRow` and `getColumn`: it creates no cells and does not extend the used range. Corners are stated **first and last, inclusive**, in either order, never as a start and a count. That is the convention for every range-shaped accessor here, so the three axes cannot disagree about what a pair of numbers means. A whole-row (`'1:1'`) or whole-column (`'A:A'`) reference is refused rather than accepted as a million-cell block: OOXML states a whole-axis default in one attribute, and `getRow` / `getColumn` are how you write it.
 - `get rowCount(): number;` — The 1-based index of the last row carrying anything — data or its own formatting — or 0 for an empty sheet. Spans gaps: a value in row 5 makes this 5 even if rows 2–4 are empty. This is the used-range extent, not a populated-row tally (see `actualRowCount`).
 - `get actualRowCount(): number;` — The number of rows that hold at least one non-empty cell, ignoring gaps and formatting-only rows.
 - `get columnCount(): number;` — The 1-based index of the last column carrying anything — a non-empty cell or its own format properties — or 0 for an empty sheet. The used-range width, mirroring `rowCount` for the other axis: a value in column E makes this 5 even if columns B–D are empty.

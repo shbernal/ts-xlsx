@@ -39,6 +39,7 @@ import {
   type SheetProtectionCredential,
   type SheetProtectionOptions,
 } from './protection.ts';
+import {Range, rangeFrom} from './range.ts';
 import {Row} from './row.ts';
 import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions, TOTALS_ROW_SUBTOTAL_CODE} from './table.ts';
@@ -354,6 +355,30 @@ export class Worksheet {
    */
   getRow(number: number): Row {
     return new Row(this, number);
+  }
+
+  /**
+   * A handle on a rectangular block of cells — `getRange('B2:D5')`, or the same block by its
+   * inclusive corners as `getRange(2, 2, 5, 4)`. Cheap and stateless like {@link getRow} and
+   * {@link getColumn}: it creates no cells and does not extend the used range.
+   *
+   * Corners are stated **first and last, inclusive**, in either order, never as a start and a count.
+   * That is the convention for every range-shaped accessor here, so the three axes cannot disagree
+   * about what a pair of numbers means.
+   *
+   * A whole-row (`'1:1'`) or whole-column (`'A:A'`) reference is refused rather than accepted as a
+   * million-cell block: OOXML states a whole-axis default in one attribute, and {@link getRow} /
+   * {@link getColumn} are how you write it.
+   *
+   * @throws {SyntaxError} if the reference is unparseable, names another worksheet, or leaves an
+   *   axis unbounded.
+   * @throws {RangeError} if a numeric corner is not a positive integer within the sheet's bounds.
+   */
+  getRange(reference: string): Range;
+  getRange(top: number, left: number, bottom: number, right: number): Range;
+  getRange(referenceOrTop: string | number, left?: number, bottom?: number, right?: number): Range {
+    if (typeof referenceOrTop === 'string') return rangeFrom(this, referenceOrTop);
+    return new Range(this, referenceOrTop, left ?? 0, bottom ?? 0, right ?? 0);
   }
 
   /**

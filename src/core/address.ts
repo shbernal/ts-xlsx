@@ -14,6 +14,9 @@
 /** Excel's column bounds: `A` (1) through `XFD` (16384). */
 export const MAX_COLUMN = 16384;
 
+/** Excel's row bound: 1 through 1048576. The other axis of {@link MAX_COLUMN}. */
+export const MAX_ROW = 1048576;
+
 /** A decoded single-cell reference. An axis the reference omits is `undefined`. */
 export interface CellAddress {
   /** Canonical A1 form with `$` anchors stripped — e.g. `"B2"`, `"1"`, `"A"`. */

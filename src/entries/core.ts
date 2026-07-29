@@ -12,6 +12,7 @@ export {
   decodeRange,
   encodeAddress,
   MAX_COLUMN,
+  MAX_ROW,
   numberToColumn,
   type RangeAddress,
 } from '../core/address.ts';
@@ -90,6 +91,7 @@ export type {
   SheetProtectionFlags,
   SheetProtectionOptions,
 } from '../core/protection.ts';
+export {Range} from '../core/range.ts';
 export {Row} from '../core/row.ts';
 export type {
   Alignment,
