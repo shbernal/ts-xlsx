@@ -1,0 +1,128 @@
+name: Environment
+
+# The gate that guards publishing, as code rather than click-ops.
+#
+# `publish.yml` names the `npm-publish` deployment environment, which is where the human
+# approval and the tags-only restriction live. Those settings are repo *settings* — invisible
+# in a diff, unreviewable, and silently reconstructible by anyone with admin. This workflow
+# makes them a file: run it, and the environment is whatever this says it is.
+#
+# Run it from the Actions tab (Run workflow) after changing anything here. It is idempotent —
+# re-running reconciles rather than duplicating — and it prints the effective configuration it
+# read back, so a green run is evidence of the end state, not just of the request.
+#
+# It needs `ENV_ADMIN_TOKEN`: a fine-grained PAT on this repository with **Administration:
+# read and write**. The built-in GITHUB_TOKEN cannot do this — `administration` is not among
+# the permissions a workflow may request for it, and the environments API is an administration
+# endpoint. That token is deliberately not used for anything else: publishing itself carries
+# no credential at all (see publish.yml).
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to provision
+        type: string
+        default: npm-publish
+      reviewer:
+        description: GitHub login that must approve a deployment to it
+        type: string
+        default: shbernal
+
+# Nothing here reads the tree; the administration rights come from ENV_ADMIN_TOKEN, not from
+# the job's own token, which is left with the minimum.
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    name: Provision ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the administration token
+        env:
+          GH_TOKEN: ${{ secrets.ENV_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::error::ENV_ADMIN_TOKEN is not set"
+            echo "Create a fine-grained PAT on this repository with Administration: read and"
+            echo "write, and add it as the repository secret ENV_ADMIN_TOKEN. The built-in"
+            echo "GITHUB_TOKEN cannot manage environments."
+            exit 1
+          fi
+
+      - name: Create or reconcile the environment
+        env:
+          GH_TOKEN: ${{ secrets.ENV_ADMIN_TOKEN }}
+          ENV_NAME: ${{ inputs.environment }}
+          REVIEWER: ${{ inputs.reviewer }}
+        run: |
+          set -euo pipefail
+
+          reviewer_id=$(gh api "/users/${REVIEWER}" --jq .id)
+
+          # prevent_self_review stays false deliberately: this is a single-maintainer project,
+          # and forbidding the releaser from approving their own deployment would not add a
+          # second pair of eyes — it would deadlock every release.
+          #
+          # custom_branch_policies with protected_branches false is what lets the tag rule below
+          # exist at all; the two are one setting expressed in two calls.
+          cat > /tmp/environment.json <<JSON
+          {
+            "wait_timer": 0,
+            "prevent_self_review": false,
+            "reviewers": [{"type": "User", "id": ${reviewer_id}}],
+            "deployment_branch_policy": {
+              "protected_branches": false,
+              "custom_branch_policies": true
+            }
+          }
+          JSON
+
+          gh api -X PUT "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}" \
+            --input /tmp/environment.json > /dev/null
+          echo "environment ${ENV_NAME} reconciled"
+
+      - name: Restrict deployments to release tags
+        env:
+          GH_TOKEN: ${{ secrets.ENV_ADMIN_TOKEN }}
+          ENV_NAME: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+
+          policies="/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}/deployment-branch-policies"
+
+          # A publish must come from a tagged release and nothing else. Without this, anything
+          # able to name the environment — a branch, a fork's workflow file — could reach the
+          # OIDC identity that publishes to npm.
+          if gh api "${policies}" --jq '.branch_policies[] | select(.name == "v*")' | grep -q .; then
+            echo "tag policy v* already present"
+          else
+            gh api -X POST "${policies}" -f name='v*' -f type=tag > /dev/null
+            echo "tag policy v* created"
+          fi
+
+      - name: Read back the effective configuration
+        env:
+          GH_TOKEN: ${{ secrets.ENV_ADMIN_TOKEN }}
+          ENV_NAME: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+
+          # Every field is read through a list-and-default rather than a bare stream: a rule
+          # that is absent must print as absent, not silently drop the line that would have
+          # reported it.
+          gh api "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}" --jq '
+            [.protection_rules[] | select(.type == "required_reviewers")] as $review |
+            "environment:      \(.name)",
+            "wait timer:       \([.protection_rules[] | select(.type == "wait_timer") | .wait_timer] | first // 0) min",
+            "reviewers:        \([$review[].reviewers[].reviewer.login] | join(", ") | if . == "" then "none — anyone can deploy" else . end)",
+            "self-review:      \(if ([$review[].prevent_self_review] | first // false) then "blocked" else "allowed" end)",
+            "protected branch: \(.deployment_branch_policy.protected_branches)",
+            "custom policies:  \(.deployment_branch_policy.custom_branch_policies)"
+          '
+
+          gh api "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}/deployment-branch-policies" \
+            --jq '"deploys from:     " + ([.branch_policies[] | "\(.type) \(.name)"] | join(", "))'

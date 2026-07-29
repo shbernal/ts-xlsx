@@ -1,0 +1,180 @@
+name: Publish
+
+# Publishing a GitHub release publishes the package to npm.
+#
+# There is no npm credential anywhere in this repository. npm mints a short-lived token from
+# this workflow's OIDC identity (trusted publishing), which is why `id-token: write` is here
+# and no secret is: the identity is the job, the tag it ran from, and this file's name — all
+# three of which npm checks against the trusted publisher configured on the package. The same
+# exchange produces the provenance attestation, so the registry can state which commit and
+# which run built what it serves.
+#
+# The gate set is *not* re-listed here. `npm publish` runs `prepublishOnly` — build, the full
+# verify, smoke:dist and the size budgets — which is the same enumeration problem corpus.yml
+# already solved by refusing to have two definitions of "everything". A publish that skipped
+# the gates would be one `--ignore-scripts` away, and it is not written here.
+#
+# Rehearsing: dispatch it manually with a tag and dry_run left on. That runs every step
+# including the environment approval and `npm publish --dry-run`, and stops short of the write.
+# The dispatch must run from a ref the `npm-publish` environment admits — that is release tags
+# only, so rehearse from a `v*` tag that contains this file. A release publish always satisfies
+# this by construction: its event ref *is* the tag.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish or rehearse (e.g. v1.0.0)
+        type: string
+        required: true
+      dry_run:
+        description: Rehearse everything except the registry write
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: npm publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The human approval and the tags-only restriction live here, provisioned by
+    # environment.yml. npm's trusted publisher config names this environment too, so a job
+    # that is not this one cannot borrow the identity.
+    environment:
+      name: npm-publish
+      url: https://www.npmjs.com/package/@shbernal/ts-xlsx
+    steps:
+      - name: Resolve what is being published
+        id: target
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          tag="${RELEASE_TAG:-${INPUT_TAG}}"
+          [ -n "${tag}" ] || { echo "::error::no tag to publish"; exit 1; }
+
+          # A dispatch carries no release payload, so the tag's own shape decides: SemVer
+          # spells a pre-release with a hyphen, and one must never take the `latest` dist-tag
+          # out from under `npm install`.
+          case "${RELEASE_PRERELEASE:-}" in
+            true) prerelease=true ;;
+            false) prerelease=false ;;
+            *) case "${tag}" in *-*) prerelease=true ;; *) prerelease=false ;; esac ;;
+          esac
+
+          {
+            echo "tag=${tag}"
+            echo "prerelease=${prerelease}"
+            echo "dry_run=${DRY_RUN:-false}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "tag=${tag} prerelease=${prerelease} dry_run=${DRY_RUN:-false}"
+
+      - uses: actions/checkout@v4
+        with:
+          # The tag, never the branch the release was cut from: master moves on, and what
+          # ships must be the commit the release names.
+          ref: ${{ steps.target.outputs.tag }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm >= 11.5.1; Node 24 does not yet ship one that new.
+      # Pinned to the major that implements the OIDC exchange, not to `latest`, so a future
+      # npm 12 cannot change how a release publishes without this line changing first.
+      - name: Use an npm that can exchange an OIDC token
+        run: |
+          set -euo pipefail
+          npm install -g npm@11
+          npm --version
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: The tag and the version must be the same claim
+        env:
+          TAG: ${{ steps.target.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          version=$(node -p "require('./package.json').version")
+          if [ "v${version}" != "${TAG}" ]; then
+            echo "::error::tag ${TAG} does not match package.json version ${version}"
+            echo "The release names a version the tagged commit does not declare. Fix the"
+            echo "version in package.json and re-tag, rather than publishing the mismatch."
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "${TAG} declares ${version}"
+        id: version
+
+      - name: Stop if this version is already on the registry
+        id: existing
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          name=$(node -p "require('./package.json').name")
+          # A version is immutable once published, so re-running this workflow — a re-published
+          # release, a retried run — must be a no-op rather than a red X on a release that is
+          # in fact fine.
+          if npm view "${name}@${VERSION}" version > /dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::${name}@${VERSION} is already published — nothing to do"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "${name}@${VERSION} is not on the registry yet"
+          fi
+
+      - name: Publish
+        if: steps.existing.outputs.published == 'false'
+        env:
+          DRY_RUN: ${{ steps.target.outputs.dry_run }}
+          PRERELEASE: ${{ steps.target.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          args=""
+          [ "${PRERELEASE}" = "true" ] && args="--tag next"
+          [ "${DRY_RUN}" = "true" ] && args="${args} --dry-run"
+
+          # No NODE_AUTH_TOKEN: npm reaches for the OIDC identity when the registry asks who
+          # this is. Provenance comes with that exchange and needs no flag.
+          echo "npm publish ${args}"
+          npm publish ${args}
+
+      - name: Confirm the registry serves it
+        if: steps.existing.outputs.published == 'false' && steps.target.outputs.dry_run != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          name=$(node -p "require('./package.json').name")
+          for attempt in 1 2 3 4 5; do
+            if npm view "${name}@${VERSION}" version > /dev/null 2>&1; then
+              echo "${name}@${VERSION} is live"
+              npm view "${name}@${VERSION}" dist.attestations || echo "::warning::no provenance attestation recorded"
+              exit 0
+            fi
+            echo "not visible yet (attempt ${attempt}); the registry is eventually consistent"
+            sleep 10
+          done
+          echo "::error::${name}@${VERSION} did not become visible after publishing"
+          exit 1
