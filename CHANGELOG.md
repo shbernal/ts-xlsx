@@ -12,6 +12,28 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING: `Row` and `Column` are real classes, and `getRow`/`getColumn` return them.** They were
+  formatting bags: `sheet.getRow(2)` handed back a `RowProperties` record with no way to reach the
+  row's cells, so every row-oriented consumer hand-wrote an address-encoding loop, and `getRow` and
+  `addRow` disagreed about what a row even was. A handle now carries both — `row.getCell('B')`,
+  `row.cells`, `row.values` alongside `row.height`/`hidden`/`outlineLevel`/`collapsed`/`fill`, and the
+  column equivalent including `key`, `width` and the six style facets it defaults for its cells.
+
+  Formatting reads and writes exactly as before (`sheet.getRow(2).height = 20`,
+  `Object.assign(sheet.getColumn(1), {key, width})`), and destructuring the iterators is unchanged
+  (`for (const {number, cells} of sheet.rows())`). What breaks: the declared return type,
+  `sheet.rowProperties(n)` / `sheet.columnProperties(n)` (use `getRow(n).properties` /
+  `getColumn(n).properties`, which no longer fabricate either), and spreading a handle —
+  `{...sheet.getRow(2)}` is no longer that row's properties.
+
+- **`getRow` and `getColumn` no longer extend the used range.** They created a format record on
+  access, so merely *asking* about row 500 made `rowCount` 500 and put an empty record in the
+  worksheet model. The record is now created on first write. Reading a `<row r="5"/>` that states no
+  attributes likewise leaves nothing behind, which is the honest reading of an element that says
+  nothing.
+
 ### Removed
 
 - **BREAKING: the pure-TS VBA source-authoring API is gone.** `writeVbaProject`,

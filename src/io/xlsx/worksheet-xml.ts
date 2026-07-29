@@ -249,7 +249,10 @@ export function worksheetXml(
  */
 export function buildColumnDefaults(sheet: Worksheet): Map<number, ColumnProperties> {
   const columnDefaults = new Map<number, ColumnProperties>();
-  for (const {index, properties} of sheet.columns()) columnDefaults.set(index, properties);
+  // `columns()` yields only columns that carry a format record, so the fallback is unreachable —
+  // it is here because the handle's `properties` is honestly optional, not because a defined
+  // column can lack one.
+  for (const {index, properties} of sheet.columns()) columnDefaults.set(index, properties ?? {});
   return columnDefaults;
 }
 
@@ -513,9 +516,9 @@ function sheetFormatPr(
 // group would have no `<col>` to sit on.
 function maxColumnOutlineLevel(sheet: Worksheet): number {
   let max = 0;
-  for (const {index, properties} of sheet.columns()) {
-    if (index > MAX_COLUMN) continue;
-    max = Math.max(max, properties.outlineLevel ?? 0);
+  for (const column of sheet.columns()) {
+    if (column.index > MAX_COLUMN) continue;
+    max = Math.max(max, column.outlineLevel ?? 0);
   }
   return max;
 }
@@ -530,8 +533,9 @@ function colsXml(sheet: Worksheet, styles: StyleRegistry): string {
     // OOXML has no column past XFD (16384); a definition beyond it is corrupt to Excel,
     // so drop it rather than emit an out-of-range <col> range.
     if (index > MAX_COLUMN) continue;
-    const body = colBody(properties, styles);
-    // A <col> with no width, visibility, or style says nothing; omit it entirely.
+    const body = colBody(properties ?? {}, styles);
+    // A <col> with no width, visibility, or style says nothing; omit it entirely. That also covers
+    // the column with no format record at all, which `columns()` does not in fact yield.
     if (body === null) continue;
     const last = runs[runs.length - 1];
     if (last !== undefined && last.max === index - 1 && last.body === body) {

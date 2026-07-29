@@ -738,15 +738,15 @@ test('addColumn skips a hole in a sparse array', () => {
   );
 });
 
-test('columnProperties peeks without creating a record; getColumn creates on access', () => {
+test('a column handle fabricates no record until something is written through it', () => {
   const sheet = new Worksheet('S', 1);
   assert.equal(
-    sheet.columnProperties(2),
+    sheet.getColumn(2).properties,
     undefined,
     'no record fabricated for an untouched column',
   );
   sheet.getColumn(2).width = 12;
-  assert.equal(sheet.columnProperties(2)?.width, 12, 'the peek sees the record getColumn created');
+  assert.equal(sheet.getColumn(2).properties?.width, 12, 'the write created the record');
 });
 
 test('a column-splice re-anchors a merged range lying to the right of the cut', () => {

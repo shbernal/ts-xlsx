@@ -84,7 +84,7 @@ order:
 | Area | Role |
 | --- | --- |
 | errors | the failure taxonomy every layer throws through (`src/errors.ts`) — below all of them |
-| core model | `Workbook` / `Worksheet` / `Row` / `Cell`, addresses, styles — the in-memory document |
+| core model | `Workbook` / `Worksheet` / `Row` / `Column` / `Cell`, addresses, styles — the in-memory document |
 | xml | escaping, emission and a hostile-input-safe SAX reader (`src/xml/`) — no spreadsheet knowledge |
 | opc container | ZIP inflation under a bound, magic-byte sniffing, the relationship graph and part paths (`src/io/opc/`) |
 | resolved format | `XfStyle` and what applying an xf to a cell means, shared by both codecs (`src/io/style/`) |
@@ -123,6 +123,24 @@ order a model assignment applies: cells are placed before any merge exists, so a
 value lands where the model says instead of being routed to a region master mid-load. The registry
 is proved exhaustive over `keyof WorksheetModel` at compile time, so a field added without a facet
 is a build error that names the field.
+
+`Row` and `Column` (`core/row.ts`, `core/column.ts`) are **handles, not records**. `Worksheet`
+keeps the authoritative stores — the row-major cell grid and the two sparse maps of per-line
+formatting — and a handle holds nothing but the sheet and a position, reading and writing straight
+through. That is deliberate: a row object that copied its cells out would be the shape of the
+merge-loss bug the model contract exists to prevent, and two handles on the same number could
+disagree. Position is fixed at construction, the rule `Cell` already follows — a splice that moves
+content past `sheet.getRow(3)` does not carry the handle along, any more than it re-points a `Cell`.
+Formatting is created on write and never on read, so `getRow(500)` costs nothing and does not extend
+the used range; the format record appears when a value is set. The handles reach the stores through
+`sheet[INTERNAL]`, which is the same channel the codecs use.
+
+Each handle mirrors its record's fields as accessors — five for a row, eleven for a column (the
+geometry plus the six inherited `CellStyle` facets) — so `row.height = 20` is the flat, discoverable
+path rather than a hop through a properties bag. That mirror is proved complete at compile time the
+same way the model registry is: a field added to `RowProperties` or `ColumnProperties` with no
+accessor fails the build naming the field, because otherwise the record would carry it, the codecs
+would read and write it, and the public handle would simply never mention it.
 
 The two largest surfaces — the xlsx reader and writer — are each a **cluster**, not a
 monolith, split along the OOXML package's own seams so a change touches one part:

@@ -131,22 +131,13 @@ class Worksheet {
   readonly columnBreaks: PageBreak[] = [];
   getCell(reference: string): Cell;
   hasCell(row: number, col: number): boolean;
-  rowProperties(number: number): RowProperties | undefined;
-  columnProperties(index: number): ColumnProperties | undefined;
-  getColumn(index: number): ColumnProperties;
-  getRow(number: number): RowProperties;
+  getColumn(index: number): Column;
+  getRow(number: number): Row;
   get rowCount(): number;
   get actualRowCount(): number;
   get columnCount(): number;
-  *columns(): IterableIterator<{
-    readonly index: number;
-    readonly properties: ColumnProperties;
-}>;
-  *rows(): IterableIterator<{
-    readonly number: number;
-    readonly cells: readonly Cell[];
-    readonly properties: RowProperties | undefined;
-}>;
+  *columns(): IterableIterator<Column>;
+  *rows(): IterableIterator<Row>;
   addTable(options: TableOptions): Table;
   get tables(): readonly Table[];
   getTable(name: string): Table | undefined;
@@ -235,22 +226,13 @@ class Worksheet {
 - `readonly columnBreaks: PageBreak[] = [];` — Manual vertical page breaks (`<colBreaks>`): each break's `id` is a column the print layout splits before. Mutate in place: `sheet.columnBreaks.push({id: 3})`. Empty means no manual column breaks and the writer emits no `<colBreaks>` element.
 - `getCell(reference: string): Cell;` — Get the cell at an A1 reference, creating it on first access. The reference must name both a column and a row (`"B3"`); a whole-row or whole-column reference is not a cell and is rejected. Addressing a cell covered by a merged region resolves to that region's master (top-left) cell, mirroring how a spreadsheet treats the merge as one cell: a value or style written through a covered address lands on the master, and reading a covered address returns the master's. Only the master ever holds an independent value, so the serialized sheet stays well-formed (no stray value on a covered cell).
 - `hasCell(row: number, col: number): boolean;` — Whether a cell has been materialised at the given 1-based position.
-- `rowProperties(number: number): RowProperties | undefined;` — The format properties for a 1-based row number if any were set, or `undefined` — a read-only peek that never creates a record, so a serializer can render a row's attributes without fabricating an empty one for every row it visits. Use `getRow` to create-on-access.
-- `columnProperties(index: number): ColumnProperties | undefined;` — The format properties for a 1-based column index if any were set, or `undefined` — a read-only peek that never creates a record, so a serializer can render a column's attributes without fabricating an empty one for every column it visits. Use `getColumn` to create-on-access.
-- `getColumn(index: number): ColumnProperties;` — Get the mutable format properties for a 1-based column index, creating the record on first access. Setting properties here does not materialise any cells.
-- `getRow(number: number): RowProperties;` — Get the mutable format properties for a 1-based row number, creating the record on first access. This is row *metadata* (height, visibility, outline) — it does not materialise any cells. See `rowProperties` for a read-only peek that never creates a record.
+- `getColumn(index: number): Column;` — A handle on a 1-based column: its formatting, its cells, and its values. Cheap and stateless — it creates neither cells nor a format record, so asking about a column costs nothing and does not extend the used range. Writing through it (`getColumn(2).width = 12`) is what materialises the record.
+- `getRow(number: number): Row;` — A handle on a 1-based row: its formatting, its cells, and its values. Cheap and stateless — it creates neither cells nor a format record, so asking about a row costs nothing and does not extend the used range. Writing through it (`getRow(3).height = 20`) is what materialises the record.
 - `get rowCount(): number;` — The 1-based index of the last row carrying anything — data or its own formatting — or 0 for an empty sheet. Spans gaps: a value in row 5 makes this 5 even if rows 2–4 are empty. This is the used-range extent, not a populated-row tally (see `actualRowCount`).
 - `get actualRowCount(): number;` — The number of rows that hold at least one non-empty cell, ignoring gaps and formatting-only rows.
 - `get columnCount(): number;` — The 1-based index of the last column carrying anything — a non-empty cell or its own format properties — or 0 for an empty sheet. The used-range width, mirroring `rowCount` for the other axis: a value in column E makes this 5 even if columns B–D are empty.
-- `*columns(): IterableIterator<{
-    readonly index: number;
-    readonly properties: ColumnProperties;
-}>;` — The defined columns in ascending index order, each with its format properties.
-- `*rows(): IterableIterator<{
-    readonly number: number;
-    readonly cells: readonly Cell[];
-    readonly properties: RowProperties | undefined;
-}>;` — The rows to serialise, in ascending row order: the union of rows holding cells and rows holding only metadata (a hidden or grouped row need carry no data). Each yields its materialised cells in ascending column order and its format properties, if any. Mirrors how OOXML serialises (`<row>` wrapping `<c>`) and is the writer's row surface.
+- `*columns(): IterableIterator<Column>;` — The columns carrying format properties, as handles, in ascending index order.
+- `*rows(): IterableIterator<Row>;` — The rows to serialise, as handles, in ascending row order: the union of rows holding cells and rows holding only metadata (a hidden or grouped row need carry no data). Mirrors how OOXML serialises (`<row>` wrapping `<c>`) and is the writer's row surface. A handle yields its cells only when asked, so a pass that reads nothing but row attributes never assembles a cell array it will not look at.
 - `addTable(options: TableOptions): Table;` — Define a table over a range of this sheet. The table's shape invariants (a legal name, at least one column, at least one row) are enforced here; conflicts with the rest of the sheet (e.g. an overlapping merge) are the writer's concern.
 - `get tables(): readonly Table[];` — The tables defined on this sheet, in definition order.
 - `getTable(name: string): Table | undefined;` — The table with the given name (case-sensitive, the identifier Excel uses), or `undefined`. A table read back from a file is fully hydrated — its rows can be read and appended to.

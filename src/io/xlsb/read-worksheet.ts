@@ -271,18 +271,18 @@ function applyRow(
   if (index > MAX_ROW_INDEX) return {row: -1, styleIndex: -1};
 
   const row = index + 1;
-  const properties = sheet.getRow(row);
+  const handle = sheet.getRow(row);
   // Every row header restates a height; only a row whose height is its *own* has one to record. That
   // is a row the user sized by hand, or one Excel auto-fitted to a taller font or wrapped text — both
   // differ from the sheet default, which is exactly when XML emits `ht`. A row merely restating the
   // default carries no height, so it must not read back with one.
   if ((flags & ROW_CUSTOM_HEIGHT) !== 0 || height !== defaultRowHeight) {
-    properties.height = height / TWIPS_PER_POINT;
+    handle.height = height / TWIPS_PER_POINT;
   }
-  if ((flags & ROW_HIDDEN) !== 0) properties.hidden = true;
+  if ((flags & ROW_HIDDEN) !== 0) handle.hidden = true;
   const outlineLevel = flags & ROW_OUTLINE_LEVEL;
-  if (outlineLevel > 0) properties.outlineLevel = outlineLevel;
-  if ((flags & ROW_COLLAPSED) !== 0) properties.collapsed = true;
+  if (outlineLevel > 0) handle.outlineLevel = outlineLevel;
+  if ((flags & ROW_COLLAPSED) !== 0) handle.collapsed = true;
   // The row's format applies only when it says so, mirroring XML's `customFormat="1"` gate.
   return {row, styleIndex: (flags & ROW_CUSTOM_FORMAT) !== 0 ? styleIndex : -1};
 }
@@ -324,15 +324,15 @@ function applyColumn(
   const lastInGrid = Math.min(last, MAX_COLUMN_INDEX);
   if (first > lastInGrid) return;
   for (let index = first; index <= lastInGrid; index++) {
-    const properties = sheet.getColumn(index + 1);
+    const column = sheet.getColumn(index + 1);
     // The stored width is taken whether or not the file marks it user-set, matching the XML reader:
     // a `<col>`/`BrtColInfo` exists only for a column that differs from the sheet default in *some*
     // way, and it always states the width that column actually has.
-    properties.width = width / COLUMN_WIDTH_UNITS;
-    if ((flags & COLUMN_HIDDEN) !== 0) properties.hidden = true;
-    if (outlineLevel > 0) properties.outlineLevel = outlineLevel;
-    if ((flags & COLUMN_COLLAPSED) !== 0) properties.collapsed = true;
-    if (style !== undefined) assignStyleFacets(properties, style);
+    column.width = width / COLUMN_WIDTH_UNITS;
+    if ((flags & COLUMN_HIDDEN) !== 0) column.hidden = true;
+    if (outlineLevel > 0) column.outlineLevel = outlineLevel;
+    if ((flags & COLUMN_COLLAPSED) !== 0) column.collapsed = true;
+    if (style !== undefined) assignStyleFacets(column, style);
     if (styleIndex > 0) columnStyle.set(index, styleIndex);
   }
 }

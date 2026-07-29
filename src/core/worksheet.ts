@@ -10,6 +10,7 @@ import {AuthoringError} from '../errors.ts';
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
+import {Column} from './column.ts';
 import {type CommentThread, commentThreadGuid, commentThreadOffset} from './comment-thread.ts';
 import type {ConditionalFormatting} from './conditional-formatting.ts';
 import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
@@ -38,6 +39,7 @@ import {
   type SheetProtectionCredential,
   type SheetProtectionOptions,
 } from './protection.ts';
+import {Row} from './row.ts';
 import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions, TOTALS_ROW_SUBTOTAL_CODE} from './table.ts';
 import type {CellValue} from './value.ts';
@@ -330,56 +332,28 @@ export class Worksheet {
     return this.#rows.get(row)?.has(col) ?? false;
   }
 
-  /** The format properties for a 1-based row number if any were set, or `undefined` — a read-only
-   * peek that never creates a record, so a serializer can render a row's attributes without
-   * fabricating an empty one for every row it visits. Use {@link getRow} to create-on-access. */
-  rowProperties(number: number): RowProperties | undefined {
-    return this.#rowProperties.get(number);
-  }
-
-  /** The format properties for a 1-based column index if any were set, or `undefined` — a read-only
-   * peek that never creates a record, so a serializer can render a column's attributes without
-   * fabricating an empty one for every column it visits. Use {@link getColumn} to create-on-access. */
-  columnProperties(index: number): ColumnProperties | undefined {
-    return this.#columns.get(index);
-  }
-
   /**
-   * Get the mutable format properties for a 1-based column index, creating the record
-   * on first access. Setting properties here does not materialise any cells.
+   * A handle on a 1-based column: its formatting, its cells, and its values. Cheap and stateless —
+   * it creates neither cells nor a format record, so asking about a column costs nothing and does
+   * not extend the used range. Writing through it (`getColumn(2).width = 12`) is what materialises
+   * the record.
    *
    * @throws {RangeError} if the index is not a positive integer.
    */
-  getColumn(index: number): ColumnProperties {
-    if (!Number.isInteger(index) || index < 1) {
-      throw new RangeError(`column ${index} is out of bounds — columns start at 1`);
-    }
-    let properties = this.#columns.get(index);
-    if (properties === undefined) {
-      properties = {};
-      this.#columns.set(index, properties);
-    }
-    return properties;
+  getColumn(index: number): Column {
+    return new Column(this, index);
   }
 
   /**
-   * Get the mutable format properties for a 1-based row number, creating the record on
-   * first access. This is row *metadata* (height, visibility, outline) — it does not
-   * materialise any cells. See {@link rowProperties} for a read-only peek that never
-   * creates a record.
+   * A handle on a 1-based row: its formatting, its cells, and its values. Cheap and stateless — it
+   * creates neither cells nor a format record, so asking about a row costs nothing and does not
+   * extend the used range. Writing through it (`getRow(3).height = 20`) is what materialises the
+   * record.
    *
    * @throws {RangeError} if the number is not a positive integer.
    */
-  getRow(number: number): RowProperties {
-    if (!Number.isInteger(number) || number < 1) {
-      throw new RangeError(`row ${number} is out of bounds — rows start at 1`);
-    }
-    let properties = this.#rowProperties.get(number);
-    if (properties === undefined) {
-      properties = {};
-      this.#rowProperties.set(number, properties);
-    }
-    return properties;
+  getRow(number: number): Row {
+    return new Row(this, number);
   }
 
   /**
@@ -444,29 +418,25 @@ export class Worksheet {
     return last;
   }
 
-  /** The defined columns in ascending index order, each with its format properties. */
-  *columns(): IterableIterator<{readonly index: number; readonly properties: ColumnProperties}> {
-    for (const [index, properties] of [...this.#columns].sort(([a], [b]) => a - b)) {
-      yield {index, properties};
+  /** The columns carrying format properties, as handles, in ascending index order. */
+  *columns(): IterableIterator<Column> {
+    for (const index of [...this.#columns.keys()].sort((a, b) => a - b)) {
+      yield new Column(this, index);
     }
   }
 
   /**
-   * The rows to serialise, in ascending row order: the union of rows holding cells and
-   * rows holding only metadata (a hidden or grouped row need carry no data). Each yields
-   * its materialised cells in ascending column order and its format properties, if any.
-   * Mirrors how OOXML serialises (`<row>` wrapping `<c>`) and is the writer's row surface.
+   * The rows to serialise, as handles, in ascending row order: the union of rows holding cells and
+   * rows holding only metadata (a hidden or grouped row need carry no data). Mirrors how OOXML
+   * serialises (`<row>` wrapping `<c>`) and is the writer's row surface.
+   *
+   * A handle yields its cells only when asked, so a pass that reads nothing but row attributes
+   * never assembles a cell array it will not look at.
    */
-  *rows(): IterableIterator<{
-    readonly number: number;
-    readonly cells: readonly Cell[];
-    readonly properties: RowProperties | undefined;
-  }> {
+  *rows(): IterableIterator<Row> {
     const numbers = new Set<number>([...this.#rows.keys(), ...this.#rowProperties.keys()]);
     for (const number of [...numbers].sort((a, b) => a - b)) {
-      const cols = this.#rows.get(number);
-      const cells = cols ? [...cols].sort(([a], [b]) => a - b).map(([, cell]) => cell) : [];
-      yield {number, cells, properties: this.#rowProperties.get(number)};
+      yield new Row(this, number);
     }
   }
 
@@ -1266,6 +1236,36 @@ export class Worksheet {
       this.#protection = protection;
     },
     cellAt: (row, col) => this.#cellAt(row, col),
+    rowPropertiesOf: (number) => this.#rowProperties.get(number),
+    ensureRowProperties: (number) => {
+      let properties = this.#rowProperties.get(number);
+      if (properties === undefined) {
+        properties = {};
+        this.#rowProperties.set(number, properties);
+      }
+      return properties;
+    },
+    rowCells: (number) => {
+      const cols = this.#rows.get(number);
+      return cols ? [...cols].sort(([a], [b]) => a - b).map(([, cell]) => cell) : [];
+    },
+    columnPropertiesOf: (index) => this.#columns.get(index),
+    ensureColumnProperties: (index) => {
+      let properties = this.#columns.get(index);
+      if (properties === undefined) {
+        properties = {};
+        this.#columns.set(index, properties);
+      }
+      return properties;
+    },
+    columnCells: (index) => {
+      const cells: Cell[] = [];
+      for (const number of [...this.#rows.keys()].sort((a, b) => a - b)) {
+        const cell = this.#rows.get(number)?.get(index);
+        if (cell !== undefined) cells.push(cell);
+      }
+      return cells;
+    },
   };
 }
 
@@ -1327,4 +1327,20 @@ export interface WorksheetInternals {
    * master mid-load would move it.
    */
   cellAt(row: number, col: number): Cell;
+
+  /**
+   * The store behind a {@link Row} or {@link Column} handle. These six exist because the handles are
+   * views rather than records: they hold a sheet and a position, and every read and write goes
+   * through here to the one authoritative map. `…PropertiesOf` never fabricates, so reading a row
+   * cannot extend the used range; `ensure…` is what a write calls, so the record appears exactly
+   * when a value is set.
+   */
+  rowPropertiesOf(number: number): RowProperties | undefined;
+  ensureRowProperties(number: number): RowProperties;
+  /** The row's materialised cells in ascending column order. */
+  rowCells(number: number): Cell[];
+  columnPropertiesOf(index: number): ColumnProperties | undefined;
+  ensureColumnProperties(index: number): ColumnProperties;
+  /** The column's materialised cells in ascending row order. */
+  columnCells(index: number): Cell[];
 }

@@ -469,16 +469,16 @@ function applyColumn(
   // column model so `getColumn(i)` reflects the declared default, not just its number format.
   const style = styleIndex >= 0 ? xfStyles[styleIndex] : undefined;
   for (let index = min; index <= max; index++) {
-    const properties = sheet.getColumn(index);
+    const column = sheet.getColumn(index);
     if (width !== undefined && Number.isFinite(width) && attrs.customWidth !== '0')
-      properties.width = width;
-    if (hidden) properties.hidden = true;
+      column.width = width;
+    if (hidden) column.hidden = true;
     if (attrs.outlineLevel !== undefined) {
       const level = Number(attrs.outlineLevel);
-      if (Number.isInteger(level) && level > 0) properties.outlineLevel = level;
+      if (Number.isInteger(level) && level > 0) column.outlineLevel = level;
     }
-    if (boolStrict(attrs.collapsed)) properties.collapsed = true;
-    if (style !== undefined) assignStyleFacets(properties, style);
+    if (boolStrict(attrs.collapsed)) column.collapsed = true;
+    if (style !== undefined) assignStyleFacets(column, style);
     // Record the column's style so a bare cell in it can inherit the full column format on read.
     if (styleIndex >= 0) columnStyle.set(index, styleIndex);
   }
@@ -487,17 +487,21 @@ function applyColumn(
 function applyRow(sheet: Worksheet, attrs: XmlAttributes): void {
   const number = Number(attrs.r);
   if (!Number.isInteger(number) || number < 1) return;
-  const properties = sheet.getRow(number);
+  // A `<row>` that states no attribute at all leaves no format record behind — the handle creates
+  // one only when something is written through it. That is the right reading: a bare `<row r="5"/>`
+  // carries no formatting to round-trip, and fabricating an empty record for it would put row 5 in
+  // the used range on the strength of an element that says nothing.
+  const row = sheet.getRow(number);
   if (attrs.ht !== undefined && attrs.customHeight !== '0') {
     const height = Number(attrs.ht);
-    if (Number.isFinite(height)) properties.height = height;
+    if (Number.isFinite(height)) row.height = height;
   }
-  if (boolStrict(attrs.hidden)) properties.hidden = true;
+  if (boolStrict(attrs.hidden)) row.hidden = true;
   if (attrs.outlineLevel !== undefined) {
     const level = Number(attrs.outlineLevel);
-    if (Number.isInteger(level) && level > 0) properties.outlineLevel = level;
+    if (Number.isInteger(level) && level > 0) row.outlineLevel = level;
   }
-  if (boolStrict(attrs.collapsed)) properties.collapsed = true;
+  if (boolStrict(attrs.collapsed)) row.collapsed = true;
 }
 
 // Read the `<printOptions>` boolean toggles back onto the model, storing only the ones the source

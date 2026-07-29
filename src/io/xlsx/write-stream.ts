@@ -216,7 +216,7 @@ export class WorksheetStreamWriter {
       }
     }
     this.#columnDefaults ??= buildColumnDefaults(this.#sheet);
-    const properties = this.#sheet.rowProperties(number);
+    const properties = this.#sheet.getRow(number).properties;
     // The row's outline depth is read off here because eviction is about to take its properties with
     // it, and `<sheetFormatPr outlineLevelRow>` — written long after, once every row is flushed —
     // reports the deepest level on the whole sheet.

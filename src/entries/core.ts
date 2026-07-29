@@ -32,6 +32,7 @@ export {
   resolveColor,
   SYSTEM_INDEXED_COLORS,
 } from '../core/color-resolution.ts';
+export {Column} from '../core/column.ts';
 export type {Comment, CommentThread, Mention, Person} from '../core/comment-thread.ts';
 export type {
   CfValueObject,
@@ -89,6 +90,7 @@ export type {
   SheetProtectionFlags,
   SheetProtectionOptions,
 } from '../core/protection.ts';
+export {Row} from '../core/row.ts';
 export type {
   Alignment,
   Border,

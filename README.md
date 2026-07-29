@@ -83,10 +83,30 @@ const wb2 = readXlsx(readFileSync('people.xlsx')); // a Buffer is a Uint8Array
 - **`Workbook`** — the document. `addWorksheet(name)`, `getWorksheet(nameOrId)`,
   `worksheets`, defined names, images, and workbook-level properties.
 - **`Worksheet`** — a sheet. `getCell('B3')`, `addRow(values)`, `addTable(...)`,
-  `mergeCells('A1:B2')`, column/row properties, page setup, and print options.
+  `mergeCells('A1:B2')`, `getRow(n)` / `getColumn(n)`, `rows()` / `columns()`, page setup,
+  and print options.
+- **`Row`** / **`Column`** — one line of the grid. Formatting is flat (`row.height = 20`,
+  `column.width = 12`, `column.key = 'name'`), and cells are reachable from it:
+  `row.getCell('B')`, `row.cells`, `row.values`.
 - **`Cell`** — one cell. `cell.value` is the whole story: a `number`, `string`,
   `boolean`, `Date`, `null` (empty), a formula (`{formula, result}`), rich text, a
   hyperlink, or an error — all precisely typed as [`CellValue`](docs/api/cell-values.md).
+
+```ts
+sheet.getRow(1).height = 20;
+sheet.getRow(1).values = ['Name', 'Joined'];
+sheet.getColumn(1).width = 24;
+sheet.getRow(2).getCell('B').value = new Date('2026-01-01');
+
+for (const row of sheet.rows()) {
+  console.log(row.number, row.values);
+}
+```
+
+`Row` and `Column` are *handles*, not snapshots: they read and write straight through to the
+sheet, so two handles on the same line always agree, and reading one creates nothing — asking
+about row 500 costs nothing and does not extend the used range. Position is fixed, exactly as a
+`Cell`'s is: after a splice, `getRow(3)` still means row 3, now holding whatever moved there.
 
 Addresses are honest: an axis a reference doesn't mention is `undefined`, never a
 sentinel — see [`decodeAddress`](docs/api/addresses-ranges.md).
