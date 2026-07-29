@@ -104,6 +104,17 @@ The general move for this whole class: round-trip your output through Excel's ow
 over COM and diff the two packages. What Excel adds unprompted is what a consumer expects
 to find.
 
+**You are cutting a release.**
+Bump `version` in `package.json`, cut `CHANGELOG.md`'s `## [Unreleased]` into the new
+version's section, commit, and push — then let CI go green *before* tagging, because the
+tag is what the release names and a tag that fails its own gates is the one thing you
+cannot quietly redo. Tag `vX.Y.Z`, push it, and publish a GitHub release on it: that
+release event is what publishes to npm (ADR-0026), authenticated by OIDC with no
+credential in the repository. Rehearse first if you want — dispatch `publish.yml` from the
+tag with `dry_run` on — but note the rehearsal reaches `npm publish --dry-run` only for a
+version the registry does not already serve. If the publish job fails the "tag and version
+must be the same claim" step, fix `package.json` and re-tag; do not weaken the check.
+
 **You added or changed a reader path (parsing foreign XML).**
 Treat all input as hostile (ADR-0004): no unbounded allocation, no entity expansion,
 inflation bounded by output counted, unrecognized tokens dropped — never cast with
