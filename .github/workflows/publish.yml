@@ -19,6 +19,11 @@ name: Publish
 # The dispatch must run from a ref the `npm-publish` environment admits — that is release tags
 # only, so rehearse from a `v*` tag that contains this file. A release publish always satisfies
 # this by construction: its event ref *is* the tag.
+#
+# A rehearsal only reaches the publish step for a version that is not on the registry yet,
+# which is the state before every real release. Rehearsing a version that is already out
+# stops at the no-op check, because `--dry-run` still asks the registry and the registry
+# still refuses to hear about a version it already serves.
 
 on:
   release:
@@ -89,11 +94,15 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      # Deliberately no `registry-url`. It looks like the right thing and is a trap here: it
+      # writes an .npmrc pointing `_authToken` at $NODE_AUTH_TOKEN and defaults that variable
+      # to the literal placeholder `XXXXX-XXXXX-XXXXX-XXXXX`, so npm believes it holds a
+      # credential, sends the placeholder, and never attempts the OIDC exchange. registry.npmjs.org
+      # is npm's default anyway, so naming it buys nothing and costs the whole auth mechanism.
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       # Trusted publishing needs npm >= 11.5.1; Node 24 does not yet ship one that new.
       # Pinned to the major that implements the OIDC exchange, not to `latest`, so a future
@@ -143,9 +152,10 @@ jobs:
           fi
 
       - name: Publish
-        # A rehearsal is not skipped for an already-published version: rehearsing the version
-        # that is currently out is the normal case, and `--dry-run` cannot overwrite it.
-        if: steps.existing.outputs.published == 'false' || steps.target.outputs.dry_run == 'true'
+        # Including for a dry run: `npm publish --dry-run` is not local. It builds the tarball
+        # and then asks the registry, which refuses a version that already exists — so a
+        # rehearsal of a published version would fail on a workflow that is perfectly correct.
+        if: steps.existing.outputs.published == 'false'
         env:
           DRY_RUN: ${{ steps.target.outputs.dry_run }}
           PRERELEASE: ${{ steps.target.outputs.prerelease }}
