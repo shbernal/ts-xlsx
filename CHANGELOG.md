@@ -12,6 +12,22 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-07-29
+
+### Changed
+
+- **Nothing in the library. This release exists to prove the release path.** `src/` is
+  byte-identical to 1.0.0 — `npm diff` between the two will show only the version field.
+  What changed is how a release reaches you: publishing a GitHub release now publishes the
+  package, authenticated by a short-lived token minted from the workflow's OIDC identity
+  rather than by any credential stored in the repository, and the result carries a
+  provenance attestation tying it to the commit and the run that built it. 1.0.0 was
+  published by hand and has no such attestation.
+
+  A patch bump with no behavior change is the honest way to exercise that path end to end:
+  the alternative is discovering a broken publish on a release that actually matters. See
+  [ADR-0026](docs/decisions/0026-releasing-is-a-github-release-and-npm-follows.md).
+
 ## [1.0.0] — 2026-07-29
 
 The first published release. `ts-xlsx` is an independent hard fork of ExcelJS, rebuilt from
@@ -261,5 +277,6 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/shbernal/ts-xlsx/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/shbernal/ts-xlsx/releases/tag/v1.0.0
