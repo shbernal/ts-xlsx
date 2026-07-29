@@ -16,7 +16,13 @@ import {
   type Font,
   type Protection,
 } from './style.ts';
-import {type CellValue, coerceCellValue, detectValueType, type ValueType} from './value.ts';
+import {
+  type CellValue,
+  coerceCellValue,
+  detectValueType,
+  type RichTextRun,
+  type ValueType,
+} from './value.ts';
 import type {CellModel} from './worksheet.ts';
 
 /**
@@ -70,6 +76,35 @@ export class Cell {
   /** The observable {@link ValueType} of the current value. */
   get type(): ValueType {
     return detectValueType(this.#value);
+  }
+
+  /**
+   * Assign rich text whose runs **inherit this cell's font**, so a run needs to state only what it
+   * changes: `setRichText([{text: 'Note:', font: {bold: true}}, {text: ' the rest'}])` keeps the
+   * cell's typeface, size and colour throughout and bolds the first run.
+   *
+   * This exists because a run's format element does **not** inherit anything. A `<rPr>` is a
+   * *complete* character format, and any facet it omits falls back to the workbook default font
+   * ({@link Workbook.defaultFont}) — not to the cell's. Verified against Excel: a cell set to
+   * Courier New 16 whose first run carries only `<b/>` renders that run in the workbook default face
+   * at the default size, bold, while the rest of the cell renders Courier New 16. So a run authored
+   * as `{bold: true}` beside a styled cell silently loses the face, which is the format's rule rather
+   * than a bug — and the reason this is a helper rather than a change to how runs are written.
+   *
+   * Composition is per facet: a facet the run names wins, one it omits comes from the cell. Assigning
+   * `value` directly stays the bare path, for a caller who wants a run that deliberately falls back
+   * to the workbook default.
+   *
+   * A cell that names no font of its own needs no composition — an omitted facet already falls back
+   * to the workbook default, which is exactly what such a cell renders in — so the runs pass through
+   * unchanged.
+   */
+  setRichText(runs: readonly RichTextRun[]): void {
+    const base = this.#font;
+    this.#value =
+      base === undefined
+        ? {richText: [...runs]}
+        : {richText: runs.map((run) => ({...run, font: {...base, ...run.font}}))};
   }
 
   /**

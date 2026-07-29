@@ -47,6 +47,18 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   attributes likewise leaves nothing behind, which is the honest reading of an element that says
   nothing.
 
+- **`Cell.setRichText` — rich-text runs that inherit the cell's font.** A run's `<rPr>` is a
+  *complete* character format: a facet it omits falls back to the workbook default font, **not** to
+  the cell's. Verified against Excel — a cell set to Courier New 16 whose first run carries only
+  `<b/>` renders that run in the workbook default face at the default size. So authoring
+  `{bold: true}` on a run beside a styled cell silently loses the typeface, and the only fix was to
+  restate the whole font on every run.
+
+  `cell.setRichText([{text: 'Note:', font: {bold: true}}, {text: ' the rest'}])` composes each run
+  over the cell's own font, per facet. Assigning `cell.value` directly is unchanged and stays the
+  bare path, for a caller who wants a run that deliberately falls back to the workbook default —
+  which is the format's rule, so the writer still emits exactly the facets a run carries.
+
 - **`Range` — style a rectangular block in one call.** `sheet.getRange('A2:A33').border = {...}`, or
   `getRange(2, 1, 33, 1)` by inclusive corners. The third handle beside `Row` and `Column`, with the
   same contract: constructing one creates nothing, `addresses()` walks the block as a generator, and

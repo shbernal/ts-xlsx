@@ -19,6 +19,7 @@ class Cell {
   get value(): CellValue;
   set value(value: CellValue | undefined);
   get type(): ValueType;
+  setRichText(runs: readonly RichTextRun[]): void;
   get style(): CellStyle;
   set style(style: Readonly<CellStyle>);
   get fill(): Fill | undefined;
@@ -47,6 +48,7 @@ class Cell {
 - `get address(): string;` — Canonical A1 address of this cell (`"B3"`).
 - `get value(): CellValue;` — The cell's value; `null` when empty. Assigning `undefined` clears it.
 - `get type(): ValueType;` — The observable `ValueType` of the current value.
+- `setRichText(runs: readonly RichTextRun[]): void;` — Assign rich text whose runs **inherit this cell's font**, so a run needs to state only what it changes: `setRichText([{text: 'Note:', font: {bold: true}}, {text: ' the rest'}])` keeps the cell's typeface, size and colour throughout and bolds the first run. This exists because a run's format element does **not** inherit anything. A `<rPr>` is a *complete* character format, and any facet it omits falls back to the workbook default font (`Workbook.defaultFont`) — not to the cell's. Verified against Excel: a cell set to Courier New 16 whose first run carries only `<b/>` renders that run in the workbook default face at the default size, bold, while the rest of the cell renders Courier New 16. So a run authored as `{bold: true}` beside a styled cell silently loses the face, which is the format's rule rather than a bug — and the reason this is a helper rather than a change to how runs are written. Composition is per facet: a facet the run names wins, one it omits comes from the cell. Assigning `value` directly stays the bare path, for a caller who wants a run that deliberately falls back to the workbook default. A cell that names no font of its own needs no composition — an omitted facet already falls back to the workbook default, which is exactly what such a cell renders in — so the runs pass through unchanged.
 - `get style(): CellStyle;` — The cell's full style — fill, number format, font, border, alignment, and protection — as one `CellStyle`, for restyling a cell wholesale without importing `applyCellStyle` separately (mirrors `Worksheet.model`'s getter/setter pair for the whole sheet). The getter carries only the facets this cell has set (the same shape `cellToModel` emits); the setter lays each facet `style` carries onto this cell — like every per-facet setter, it replaces that facet outright but leaves a facet `style` omits untouched, so `cell.style = {...}` composes with prior per-facet sets rather than clearing them wholesale.
 - `get fill(): Fill | undefined;` — The cell's background fill, or `undefined` when it has none.
 - `get numFmt(): string | undefined;` — The cell's number-format code (`"0.00%"`, a custom accounting format, …), or `undefined` for the General format. Stored verbatim: the invariant form Excel persists — `.` decimal, `,` grouping, `/` date separator — is neither localized nor rewritten, so the code round-trips character-for-character. A cell that also carries a column-level format keeps both, so overriding one facet never drops the other.

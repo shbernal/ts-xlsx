@@ -43,4 +43,7 @@ assumption that layout can be set per run.
   character formatting on each run, with no phantom per-run alignment.
 
 Related: `rich-text-cell-value-writer-robustness`, `hyperlink-display-text-can-be-rich-text`,
-`html-fragment-to-rich-text-cell-value`, `public-type-surface-matches-runtime`.
+`html-fragment-to-rich-text-cell-value`, `public-type-surface-matches-runtime`,
+`rich-text-run-font-is-all-or-nothing` — the *font* half of the same "what does a run inherit from
+its cell" question, and it answers differently: alignment lives on the cell and reaches the whole
+value, while a run's font inherits nothing at all.

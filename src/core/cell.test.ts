@@ -29,3 +29,46 @@ test('style setter composes with prior per-facet sets rather than clearing them 
     'the facet style omits is untouched, not cleared',
   );
 });
+
+// --- rich-text runs inheriting the cell font ------------------------------------------------------
+
+test('setRichText composes each run over the cell font, so a run states only what it changes', () => {
+  // A run's <rPr> is a complete character format: a facet it omits falls back to the workbook
+  // default font, NOT to the cell's. Verified against Excel — a cell set to Courier New 16 whose
+  // first run carries only <b/> renders that run in the workbook default face. So authoring
+  // `{bold: true}` beside a styled cell silently loses the face unless the face is composed in.
+  const cell = new Cell(1, 1);
+  cell.font = {name: 'Courier New', size: 16, color: {theme: 1}};
+  cell.setRichText([{text: 'Note:', font: {bold: true}}, {text: ' the rest'}]);
+
+  assert.deepEqual(cell.value, {
+    richText: [
+      {text: 'Note:', font: {name: 'Courier New', size: 16, color: {theme: 1}, bold: true}},
+      {text: ' the rest', font: {name: 'Courier New', size: 16, color: {theme: 1}}},
+    ],
+  });
+});
+
+test('a facet the run names wins over the cell’s', () => {
+  const cell = new Cell(1, 1);
+  cell.font = {name: 'Courier New', size: 16};
+  cell.setRichText([{text: 'big', font: {size: 24}}]);
+  assert.deepEqual(cell.value, {richText: [{text: 'big', font: {name: 'Courier New', size: 24}}]});
+});
+
+test('a cell with no font of its own passes its runs through unchanged', () => {
+  // Nothing to compose: an omitted facet already falls back to the workbook default, which is
+  // exactly what such a cell renders in.
+  const cell = new Cell(1, 1);
+  cell.setRichText([{text: 'plain'}, {text: 'bold', font: {bold: true}}]);
+  assert.deepEqual(cell.value, {
+    richText: [{text: 'plain'}, {text: 'bold', font: {bold: true}}],
+  });
+});
+
+test('assigning value directly still writes bare runs, for a caller who wants the fallback', () => {
+  const cell = new Cell(1, 1);
+  cell.font = {name: 'Courier New', size: 16};
+  cell.value = {richText: [{text: 'bare', font: {bold: true}}]};
+  assert.deepEqual(cell.value, {richText: [{text: 'bare', font: {bold: true}}]});
+});
