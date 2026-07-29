@@ -47,6 +47,22 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   attributes likewise leaves nothing behind, which is the honest reading of an element that says
   nothing.
 
+### Changed
+
+- **BREAKING: a corrupt or truncated package is a `PackageReadError`, not an unsupported format.** A
+  `PK`-headed archive the zip layer rejects used to surface as `UnsupportedFormatError` with format
+  `'unknown'`, whose message reads *"not a valid .xlsx package: no OOXML workbook part was found"* —
+  a check that never ran, since nothing inflated. It now carries `code: 'malformed-input'` alongside
+  the zip-bomb refusal, which is what the taxonomy already said it was: the container is the right
+  kind of thing and we cannot unpack it. Code branching on `format === 'unknown'` for a truncated
+  file must catch `PackageReadError` instead.
+
+  Two messages get honest with it. A non-ZIP blob now says the input is not a ZIP rather than blaming
+  a missing part, and *"no OOXML workbook part was found"* is left to the one case where it is true —
+  a package that inflated and carries neither `xl/workbook.xml` nor `xl/workbook.bin`. Unchanged: the
+  zip library's own text is discarded, never folded into the message and never attached as `cause`,
+  because it can name internals or an absolute filesystem path.
+
 ### Removed
 
 - **BREAKING: the pure-TS VBA source-authoring API is gone.** `writeVbaProject`,

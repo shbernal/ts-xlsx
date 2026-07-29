@@ -117,29 +117,38 @@ export function buildReadInput(kind: CorpusApi): Uint8Array {
       });
     case 'garbage':
       return strToU8('name,amount\nwidget,10\n');
-    case 'corrupt-zip':
-      return Uint8Array.of(0x50, 0x4b, 0x03, 0x04, 0xff, 0xff, 0xff, 0xff, 0x00, 0x11, 0x22);
+    case 'corrupt-zip': {
+      // A genuine package cut off mid-stream — a half-downloaded file, which is what a corrupt archive
+      // looks like in the wild. The bytes a zip layer actually rejects are the point: a few hand-made
+      // `PK` bytes are quietly skipped by a streaming unzip rather than reported as a failure.
+      const good = writeXlsx(buildFrom({sheets: [{name: 'S', cells: [{ref: 'A1', value: 42}]}]}));
+      return good.subarray(0, good.length >> 1);
+    }
     default:
       throw new Error(`unknown read-input kind: ${kind}`);
   }
 }
 
-// Turn a reader call into JSON-serializable classification facts: whether it threw, the error's `name`
-// and `format` branch fields (the typed contract a caller keys on), and whether the message leaks the
-// zip layer's internals or an absolute filesystem path (the anti-leak contract).
+// Turn a reader call into JSON-serializable classification facts: whether it threw, the error's `name`,
+// `code` and `format` branch fields (the typed contract a caller keys on — `code` says what kind of
+// failure it is, `format` which unsupported input it was), and whether the message leaks the zip
+// layer's internals or an absolute filesystem path (the anti-leak contract).
 export function classifyReadError(run: () => void): CorpusApi {
   try {
     run();
-    return {threw: false, errorName: null, format: null, message: null};
+    return {threw: false, errorName: null, code: null, format: null, message: null};
   } catch (e) {
     const err = e as CorpusApi;
     const message = String(err?.message ?? '');
     return {
       threw: true,
       errorName: err?.name ?? null,
+      code: err?.code ?? null,
       format: err?.format ?? null,
       message,
-      leaksZipInternals: /central directory|is this a zip/i.test(message),
+      leaksZipInternals: /central directory|is this a zip|invalid zip data|unexpected EOF/i.test(
+        message,
+      ),
       leaksAbsolutePath: /[A-Za-z]:\\|\/(?:Users|home)\//.test(message),
     };
   }

@@ -18,8 +18,8 @@ import {buildReadInput, classifyReadError} from './xml-probes.ts';
 
 export const core = {
   // Classify a reader input by format family and report the typed error (or success) it produces —
-  // `{threw, errorName, format, message, leaksZipInternals, leaksAbsolutePath}` — for asserting a
-  // non-`.xlsx` blob fails with a clear, catchable, format-tagged error rather than a raw zip crash.
+  // `{threw, errorName, code, format, message, leaksZipInternals, leaksAbsolutePath}` — for asserting a
+  // non-`.xlsx` blob fails with a clear, catchable, typed error rather than a raw zip crash.
   classifyReadInput(kind: CorpusApi) {
     return classifyReadError(() => {
       readXlsx(buildReadInput(kind));

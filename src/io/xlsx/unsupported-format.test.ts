@@ -5,7 +5,7 @@ import {strToU8, zipSync} from 'fflate';
 
 import {Workbook} from '../../core/workbook.ts';
 import {writeCompoundFile} from '../../vba/cfb-writer.ts';
-import {UnsupportedFormatError} from '../opc/errors.ts';
+import {PackageReadError, UnsupportedFormatError} from '../opc/errors.ts';
 import {sniffContainer} from '../opc/sniff-format.ts';
 import {XlsbParseError} from '../xlsb/errors.ts';
 import {readXlsx} from './read.ts';
@@ -41,8 +41,18 @@ function nonZipBlob(): Uint8Array {
   return strToU8('name,amount\nwidget,10\n');
 }
 
-/** A blob that opens with the ZIP magic but is not a parseable archive — corrupt or truncated. */
-function corruptZipBlob(): Uint8Array {
+/**
+ * A genuine package cut off mid-stream — a half-downloaded or truncated file, which is what a corrupt
+ * archive looks like in the wild. The bytes fflate actually chokes on are the point: a few hand-made
+ * `PK` bytes are quietly skipped by a streaming unzip rather than rejected (see {@link zipStubBlob}).
+ */
+function truncatedZipBlob(): Uint8Array {
+  const good = validXlsx();
+  return good.subarray(0, good.length >> 1);
+}
+
+/** Four `PK` bytes and junk: ZIP-headed, no entry a streaming unzip can even see, let alone reject. */
+function zipStubBlob(): Uint8Array {
   return Uint8Array.of(0x50, 0x4b, 0x03, 0x04, 0xff, 0xff, 0xff, 0xff, 0x00, 0x11, 0x22);
 }
 
@@ -101,15 +111,48 @@ test('non-ZIP input throws UnsupportedFormatError with format "unknown"', () => 
   assert.ok(err instanceof UnsupportedFormatError);
   assert.equal(err.format, 'unknown');
   assert.match(err.message, /not a valid \.xlsx package/);
+  // The sniff refused before any part was looked for, so the message must not blame a missing part.
+  assert.doesNotMatch(err.message, /workbook part/);
 });
 
-test('a ZIP-headed but corrupt archive fails typed, never leaking raw zip internals', () => {
-  const err = catchError(() => readXlsx(corruptZipBlob()));
-  assert.ok(err instanceof UnsupportedFormatError);
-  assert.equal(err.format, 'unknown');
-  // The fflate failure ("… end of central directory …") must never surface, nor any filesystem path.
-  assert.doesNotMatch(err.message, /central directory|is this a zip/i);
-  assert.doesNotMatch(err.message, /[A-Za-z]:\\|\/(?:Users|home)\//);
+test('a ZIP that inflates but carries no workbook part keeps the "no workbook part" message', () => {
+  // The one case where that message is the truth: the archive unpacked, and the part search that ran
+  // over it came up empty. A ZIP-headed stub with no visible entry lands here too — a streaming unzip
+  // skips it silently rather than reporting a failure, so nothing is left to report but the absence.
+  for (const blob of [zipSync({'not-a-workbook.txt': strToU8('hello')}), zipStubBlob()]) {
+    const err = catchError(() => readXlsx(blob));
+    assert.ok(err instanceof UnsupportedFormatError);
+    assert.equal(err.format, 'unknown');
+    assert.match(err.message, /no OOXML workbook part was found/);
+  }
+});
+
+test('a truncated archive is a PackageReadError, not an unsupported format', () => {
+  // Nothing inflated, so no part search ever ran: this is the right *kind* of container that cannot
+  // be unpacked — `malformed-input`, not `unsupported-format`.
+  const err = catchError(() => readXlsx(truncatedZipBlob()));
+  assert.ok(err instanceof PackageReadError);
+  assert.equal(err.code, 'malformed-input');
+  assert.ok(!(err instanceof UnsupportedFormatError));
+  assert.match(err.message, /corrupt or truncated/);
+});
+
+test('a truncated archive leaks neither raw zip internals nor a filesystem path', () => {
+  const err = catchError(() => readXlsx(truncatedZipBlob()));
+  assert.ok(err instanceof PackageReadError);
+  // The fflate failure ("… end of central directory …", "invalid zip data") must never surface, nor
+  // any filesystem path — neither in the message nor through a `cause` chain a logger would print.
+  const text = `${err.message} ${String(err.cause ?? '')}`;
+  assert.doesNotMatch(text, /central directory|is this a zip|invalid zip|unexpected EOF/i);
+  assert.doesNotMatch(text, /[A-Za-z]:\\|\/(?:Users|home)\//);
+  assert.equal(err.cause, undefined);
+});
+
+test('the row streamer classifies a truncated archive the same way', () => {
+  const err = catchError(() => {
+    for (const _sheet of readWorkbookStream(truncatedZipBlob())) break;
+  });
+  assert.ok(err instanceof PackageReadError);
 });
 
 test('the streaming reader raises the same typed error for a non-.xlsx input', () => {

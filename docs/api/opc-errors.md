@@ -6,17 +6,18 @@
 
 <sub>class</sub>
 
-Thrown when the input *is* a ZIP container but reading it is refused — today, when inflation would
-push total uncompressed output past the caller's bound, which is how a zip bomb presents.
+Thrown when the input *is* a ZIP container but it cannot be unpacked: the archive is corrupt or
+truncated, or inflating it would push total uncompressed output past the caller's bound (which is
+how a zip bomb presents).
 
 The neighbouring `UnsupportedFormatError` says the input is a different *kind* of thing; this
 one says it is the right kind and we will not (or cannot) unpack it. Keeping them apart is what
 lets a caller answer "should I try another reader, or reject this file?" — and it is what replaced
-the message-prefix match this refusal used to be recognised by.
+the message-prefix match the bomb refusal used to be recognised by.
 
-A zip-library failure underneath is *not* re-thrown as this type: its text can name internals, so
-it is still classified as an unrecognised package rather than surfaced. Should that change, the
-original belongs on `cause`, never folded into the message.
+The zip library's own failure text never survives into either the message or `cause`: it can name
+internals — or an absolute filesystem path — from the layer below, and this type carries the
+classification precisely so no lower-layer string has to.
 
 ```ts
 class PackageReadError extends XlsxError {

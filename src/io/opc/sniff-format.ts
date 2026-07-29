@@ -5,8 +5,13 @@
 // error rather than a raw fflate crash. A cheap magic-byte sniff runs *before* the zip layer (so a
 // legacy `.xls` compound file or non-ZIP garbage fails fast, before fflate throws its opaque "end of
 // central directory" error — which can also leak an absolute path from below), and a malformed ZIP is
-// translated after it. Both funnel into {@link UnsupportedFormatError} so callers branch on `.format`,
-// never on message text.
+// translated after it.
+//
+// The two outcomes are deliberately different types, because they answer different questions. A blob
+// the sniff rejects is the *wrong kind of thing* — {@link UnsupportedFormatError}, branchable on
+// `.format`. A `PK`-headed blob the zip layer then chokes on is the right kind of thing we cannot
+// unpack — {@link PackageReadError}. Whichever it is, the message states the check that actually ran,
+// and callers branch on the type, never on message text.
 //
 // The `.xlsx` and `.xlsb` serialisations share this whole layer — same container, same bound, same
 // rejections — so it is stated once here and neither reader owns it.
@@ -44,14 +49,15 @@ function startsWith(data: Uint8Array, magic: Uint8Array): boolean {
 
 /**
  * Inflate a spreadsheet package (`.xlsx` or `.xlsb` — the container is the same), translating input
- * that is neither into a typed {@link UnsupportedFormatError} before or instead of a raw zip failure:
- * - a legacy `.xls` (CFB) blob → `'xls'`, caught by the magic sniff so fflate never runs on it;
- * - a non-ZIP blob → `'unknown'`, likewise caught before inflation;
- * - a `PK`-headed blob that fflate then rejects as malformed → `'unknown'`, with the underlying zip
- *   message discarded so no internals (or path) leak.
+ * that is neither into a typed error before or instead of a raw zip failure:
+ * - a legacy `.xls` (CFB) blob → {@link UnsupportedFormatError} `'xls'`, caught by the magic sniff so
+ *   fflate never runs on it;
+ * - a non-ZIP blob → {@link UnsupportedFormatError} `'unknown'`, likewise caught before inflation;
+ * - a `PK`-headed blob that fflate then rejects as malformed → {@link PackageReadError}, with the
+ *   underlying zip message discarded so no internals (or path) leak.
  *
- * The bounded-inflation guard (a probable zip bomb) is a legitimate, informative failure and is
- * re-thrown unchanged — it is not a format-classification error.
+ * The bounded-inflation guard (a probable zip bomb) already raises {@link PackageReadError} with its
+ * own informative message, and is re-thrown unchanged.
  */
 export function inflateSpreadsheetPackage(
   data: Uint8Array,
@@ -59,14 +65,25 @@ export function inflateSpreadsheetPackage(
 ): Record<string, Uint8Array> {
   const container = sniffContainer(data);
   if (container === 'cfb') throw new UnsupportedFormatError('xls');
-  if (container === 'other') throw new UnsupportedFormatError('unknown');
+  // Not the default message: nothing here has looked for a workbook part, and saying so would point
+  // an investigation a layer past the one that actually refused.
+  if (container === 'other') {
+    throw new UnsupportedFormatError(
+      'unknown',
+      'not a valid .xlsx package: the input is not a ZIP',
+    );
+  }
   try {
     return inflatePackage(data, cap);
   } catch (err) {
-    // The bomb guard's own refusal is clean and intended — surface it. Anything else is fflate
-    // reporting a malformed archive; replace it wholesale so its raw text never reaches the caller.
+    // The bomb guard already throws the right type with a better message — surface it. Anything else
+    // is fflate reporting a malformed archive: same classification (a ZIP we cannot unpack), but its
+    // raw text is replaced wholesale rather than wrapped or attached as `cause`, because it comes from
+    // a layer whose strings may name internals — or an absolute path — that must not reach a caller.
     if (err instanceof PackageReadError) throw err;
-    throw new UnsupportedFormatError('unknown');
+    throw new PackageReadError(
+      'not a readable .xlsx package: the ZIP container is corrupt or truncated and could not be inflated',
+    );
   }
 }
 

@@ -27,21 +27,29 @@ zip layer.
 - The error is a **distinct, catchable type/category** (e.g. `UnsupportedFormatError` vs
   `CorruptPackageError`) so callers can branch programmatically, and it **does not expose absolute
   local filesystem paths** from the zip layer.
+- A **corrupt or truncated ZIP** is a different answer from an unrecognised one. The container is the
+  right kind of thing; it simply cannot be unpacked. That is `PackageReadError` /
+  `'malformed-input'`, alongside the zip-bomb refusal — not `'unsupported-format'`.
 
-## Known gap: a malformed ZIP is misreported
+## Every message names the check that actually ran
 
-A `PK`-headed blob that the zip layer then rejects as malformed is classified
-`UnsupportedFormatError('unknown')`, whose default message reads *"not a valid .xlsx package: no
-OOXML workbook part was found"* (`io/opc/sniff-format.ts`). No part search ever ran — the archive
-did not inflate at all — so the message describes a check that did not happen, and points an
-investigation at the wrong layer.
+The classification is only useful if the message points at the layer that refused. Three sites, three
+answers (`io/opc/sniff-format.ts`, `io/xlsx/read.ts`):
 
-The classification looks wrong too, by the taxonomy's own words: `PackageReadError` is documented as
-"the input is the right kind of thing and we will not, or cannot, unpack it", which is exactly this.
-Left unchanged deliberately, because it moves every truncated or corrupt package from code
-`unsupported-format` to `malformed-input` — a behaviour change that wants its own corpus case and
-its own commit, not a drive-by. What must not change with it: the underlying zip text stays
-discarded rather than wrapped, since it can name an absolute filesystem path.
+| Input | Error | What the message may say |
+| --- | --- | --- |
+| Not a ZIP at all (CSV, `.xls`) | `UnsupportedFormatError` (`'unknown'` / `'xls'`) | the input is not a ZIP — *not* that a workbook part is missing, since none was looked for |
+| `PK`-headed, the zip layer rejects it | `PackageReadError` | the container is corrupt or truncated |
+| Inflated fine, no `xl/workbook.xml` or `.bin` | `UnsupportedFormatError('unknown')` | no OOXML workbook part was found — the one place that sentence is true |
+
+Note the middle row is narrower than "any corrupt-looking `PK` blob": a streaming unzip silently
+*skips* a stub it cannot make an entry out of rather than failing, so a few hand-made `PK` bytes
+inflate to zero parts and land in the third row. The fixture that exercises the real path is a
+genuine package cut off mid-stream — which is also what a corrupt file looks like in the wild.
+
+The underlying zip text is discarded, never wrapped and never attached as `cause`: it can name
+internals, or an absolute filesystem path, and `cause` is printed by default for an uncaught error.
+The typed classification exists precisely so no lower-layer string has to travel.
 
 ## Open questions
 

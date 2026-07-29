@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 import {unzipSync, zipSync} from 'fflate';
 
-import {UnsupportedFormatError} from '../opc/errors.ts';
+import {PackageReadError, UnsupportedFormatError} from '../opc/errors.ts';
 import {XlsbParseError} from './errors.ts';
 import {readXlsb} from './read.ts';
 
@@ -56,7 +56,15 @@ function readOrFailClosed(archive: Uint8Array, label: string): void {
   try {
     readXlsb(archive);
   } catch (error) {
-    if (error instanceof XlsbParseError || error instanceof UnsupportedFormatError) return;
+    // A mutation inside a compressed part can break the deflate stream itself, so the archive failing
+    // to unpack (`PackageReadError`) is as legitimate a closed failure as a part failing to parse.
+    if (
+      error instanceof XlsbParseError ||
+      error instanceof UnsupportedFormatError ||
+      error instanceof PackageReadError
+    ) {
+      return;
+    }
     // A model-level rejection (a sheet name a mutation made invalid or duplicated) is a legitimate
     // closed failure too — it is the model refusing bad data, not the parser losing its footing.
     assert.ok(
