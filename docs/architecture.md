@@ -124,6 +124,25 @@ value lands where the model says instead of being routed to a region master mid-
 is proved exhaustive over `keyof WorksheetModel` at compile time, so a field added without a facet
 is a build error that names the field.
 
+Not everything the codecs need to do to the model belongs in its public API. Pushing preserved bytes
+back into a `Workbook`, restoring a loaded sheet's hashed protection credential, placing a cell at an
+exact position without resolving merges, evicting a row the streaming writer has already serialised —
+about fifteen operations exist for a codec's benefit and put the model in states no authoring path can
+produce. They were public members: they shipped in the `.d.ts`, they appeared in the generated
+reference, and the model class *was* the codec's mutation interface. They now hang off one symbol key
+in `core/internal.ts` (`sheet[INTERNAL].restoreProtection(…)`), which no entry barrel exports, so the
+boundary is the module graph rather than a naming convention. No layering rule guards who may import
+that module: `package.json` maps only the seven subpaths, so the symbol is already unreachable from
+outside the package, and a rule would only police `src/core` against itself.
+
+The channel takes two shapes on purpose. `Workbook` and `Worksheet` carry a symbol-keyed *object* of
+operations — one allocation per book or sheet, which is nothing. `Cell` gets a symbol-keyed accessor
+*pair* instead, because a per-instance channel object on the one class allocated in the millions is a
+real cost for state most cells never carry. Despite the origin it is not the *codec* channel: the
+model's own `dst.model = src.model` setter reaches through it for exact-position cell placement, and
+`Row`/`Column` reach through it for the per-line stores. It is the internal channel, and core is
+allowed to use it.
+
 `Row` and `Column` (`core/row.ts`, `core/column.ts`) are **handles, not records**. `Worksheet`
 keeps the authoritative stores — the row-major cell grid and the two sparse maps of per-line
 formatting — and a handle holds nothing but the sheet and a position, reading and writing straight
@@ -252,6 +271,18 @@ one of those numbers and leaves the package total untouched. `scripts/smoke-dist
 every subpath through the package name — self-reference, the only thing in the repo that
 exercises the `exports` map at all — and asserts `/core` reaches no serialisation and `/errors`
 reaches nothing but itself.
+
+Those numbers say one thing about the model that is worth stating rather than leaving to be
+rediscovered: roughly half of `/core`'s weight is the VBA codec and the ribbon parser, because
+`core/workbook.ts` imports `parseVbaProject`, `addVbaReference` and `removeVbaModule` at *value*
+level. The layering rule permits that deliberately — a workbook models a VBA project and its ribbon,
+so those types are part of the document — and the measurement is what shows the price of letting the
+operations live there too. It is left alone knowingly. Removing it means a seam the model does not
+import at value level, which breaks `Workbook`'s VBA methods, and it would pay off only for a
+consumer importing `/core` with no bundler at all; with a bundler, `sideEffects: false` already
+prunes what such a consumer never calls. Revisit it when that consumer turns out to exist rather
+than on the strength of the number alone — and until then `./core`'s budget is what notices the
+weight growing further.
 
 The [API reference](api/README.md) is generated straight from the root barrel, so it cannot
 describe a shape the compiler wouldn't accept.

@@ -111,6 +111,33 @@ inflation bounded by output counted, unrecognized tokens dropped — never cast 
 about (`test/corpus/fixtures/<case>/…`), then `pnpm run corpus`. A round-trip case
 (write → read) is the strongest reader proof.
 
+**You just wrote an assertion that guards an invariant — prove it can fail.**
+A test that cannot fail is worse than no test: it reports a guarantee nobody is holding. Break the
+thing on purpose, watch the assertion fire, restore. This has caught real theatre more than once —
+an archive-length check meant to pin two writers to the same compression level passed happily at
+level 9, because below roughly 200 rows every level compresses a fixture identically; a
+compile-time exhaustiveness proof is only a proof once you have added a field and seen it named in
+the error. Applies to every mechanism in this repo that exists to catch a future mistake: the facet
+registries, the entry/layering gates, the size budgets. Cheap, and it is the difference between a
+check and a comment.
+
+**You are about to claim something is faster, or that it stops blocking the event loop.**
+Measure, and distrust the first number — a bad measurement will talk you out of a correct change.
+Three traps, all hit in one sitting while sizing `writeXlsxAsync`:
+- **One process per case.** Running the baseline and the candidate in the same process loads the
+  second with the first's GC pressure. On a ~42 MB payload that alone made the faster path look
+  slower. Pass the case in on `argv` and run the script twice.
+- **Never hand-roll a `setInterval` watcher for loop blocking.** It reports timer coalescing as
+  blocking, and it reports `max = 0` when the loop is blocked so hard the callback never fires
+  *once* — so the worst case reads as flawless. `perf_hooks.monitorEventLoopDelay` measures the
+  actual thing.
+- **Responsiveness and throughput are two claims.** Moving work to a worker can leave wall-clock
+  untouched while cutting the longest stall from seconds to milliseconds. Say which one you
+  measured; a change often buys one and not the other.
+
+Probes go in `.tmp/`. Put the numbers in the commit or the ADR — the next agent should not have to
+re-derive them to know whether the trade still holds.
+
 **You are fixing a bug.**
 Test-first. Write an implementation-blind corpus case that reproduces it
 (`write-corpus-case` skill), set its `baseline` to what the code does *today*, watch it

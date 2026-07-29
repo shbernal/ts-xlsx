@@ -23,6 +23,12 @@ interface ModelFacet<K extends keyof WorksheetModel = keyof WorksheetModel> {
    * Apply the field to a sheet whose content has already been reset. Takes the whole model rather
    * than the field so that a loop over the registry needs no correlation between `key` and the
    * field's type — {@link facet} does that projection once, where the key is still a single type.
+   *
+   * The obvious shape, `write(sheet, value: WorksheetModel[K])` stored as-is, cannot be called from
+   * a loop: over a union of `ModelFacet<K>` the parameter is contravariant under
+   * `strictFunctionTypes`, which breaks the correlation. Declaring `write` with method syntax makes
+   * it compile — by making the position bivariant, which buys the call back by switching the check
+   * off. Projecting inside the helper is correlated *and* sound; do not "simplify" it back.
    */
   readonly write: (sheet: Worksheet, model: WorksheetModel) => void;
 }

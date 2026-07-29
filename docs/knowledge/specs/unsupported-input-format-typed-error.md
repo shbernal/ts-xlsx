@@ -28,6 +28,21 @@ zip layer.
   `CorruptPackageError`) so callers can branch programmatically, and it **does not expose absolute
   local filesystem paths** from the zip layer.
 
+## Known gap: a malformed ZIP is misreported
+
+A `PK`-headed blob that the zip layer then rejects as malformed is classified
+`UnsupportedFormatError('unknown')`, whose default message reads *"not a valid .xlsx package: no
+OOXML workbook part was found"* (`io/opc/sniff-format.ts`). No part search ever ran — the archive
+did not inflate at all — so the message describes a check that did not happen, and points an
+investigation at the wrong layer.
+
+The classification looks wrong too, by the taxonomy's own words: `PackageReadError` is documented as
+"the input is the right kind of thing and we will not, or cannot, unpack it", which is exactly this.
+Left unchanged deliberately, because it moves every truncated or corrupt package from code
+`unsupported-format` to `malformed-input` — a behaviour change that wants its own corpus case and
+its own commit, not a drive-by. What must not change with it: the underlying zip text stays
+discarded rather than wrapped, since it can name an absolute filesystem path.
+
 ## Open questions
 
 - How much format sniffing is in scope beyond `.xls` — detect `.xlsb` (a ZIP but binary-parts),
