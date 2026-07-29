@@ -14,6 +14,19 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **`writeXlsxAsync` — the same package, deflated off the calling thread.** `writeXlsx` spends the
+  whole cost of DEFLATE on the caller's thread, which on a large workbook means the event loop does
+  not tick for seconds. The async writer shares part-building with the sync one and differs only in
+  handing the part map to `fflate`'s worker-backed zip: every part compresses to identical bytes.
+  Measured on a ~42 MB part map, a single large sheet takes the same wall-clock but the longest stall
+  falls from the entire write to ~17 ms, and a twenty-sheet workbook finishes ~2.4× sooner because
+  its parts deflate in parallel.
+
+  There is deliberately no `readXlsxAsync` to match: reading is dominated by XML parsing and model
+  building, which no worker can take, and the reader's zip-bomb ceiling depends on counting output
+  between synchronous input slices. The asymmetry is the decision, not an omission —
+  [ADR-0024](docs/decisions/0024-async-is-one-writer-not-a-mirrored-pair.md).
+
 - **BREAKING: `Row` and `Column` are real classes, and `getRow`/`getColumn` return them.** They were
   formatting bags: `sheet.getRow(2)` handed back a `RowProperties` record with no way to reach the
   row's cells, so every row-oriented consumer hand-wrote an address-encoding loop, and `getRow` and

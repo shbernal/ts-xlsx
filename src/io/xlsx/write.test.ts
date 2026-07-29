@@ -6,7 +6,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import {INTERNAL, NAMED_STYLE_ID} from '../../core/internal.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
-import {writeXlsx} from './write.ts';
+import {writeXlsx, writeXlsxAsync} from './write.ts';
 
 function partsOf(workbook: Workbook): Record<string, string> {
   const unzipped = unzipSync(writeXlsx(workbook));
@@ -1201,4 +1201,65 @@ test('a sheet with no manual column breaks emits no <colBreaks> element', () => 
   wb.addWorksheet('S').getCell('A1').value = 'x';
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] ?? '';
   assert.doesNotMatch(xml, /<colBreaks/, 'an empty column-break list fabricates nothing');
+});
+
+test('the async writer produces the same package the sync one does', async () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  // Big enough that the deflater's level actually changes the output size — below roughly 200 rows
+  // every level compresses this identically, and the size assertion below could not fail.
+  for (let row = 1; row <= 300; row++) {
+    sheet.getCell(`A${row}`).value = `label ${row % 37} value`;
+    sheet.getCell(`B${row}`).value = row * 7;
+  }
+  sheet.getCell('C1').value = {formula: 'SUM(B1:B300)', result: 315_000};
+  sheet.getRow(1).height = 20;
+  wb.addWorksheet('T').getCell('A1').value = true;
+
+  const [sync, async] = [writeXlsx(wb), await writeXlsxAsync(wb)];
+  const [inflatedSync, inflatedAsync] = [unzipSync(sync), unzipSync(async)];
+
+  assert.deepEqual(
+    Object.keys(inflatedAsync).sort(),
+    Object.keys(inflatedSync).sort(),
+    'both paths emit the same part set',
+  );
+  for (const [name, bytes] of Object.entries(inflatedSync)) {
+    assert.deepEqual(
+      strFromU8(inflatedAsync[name] as Uint8Array),
+      strFromU8(bytes),
+      `${name} is identical across the two writers`,
+    );
+  }
+  // Deliberately not asserting byte-equality of the two archives: fflate stamps each entry with the
+  // current time, so two calls straddling a DOS-time two-second bucket differ in the header alone.
+  // Length is stable across that, though — the timestamp is fixed-width — so it still pins the two
+  // paths to the same compression settings, which inflated content alone would not notice.
+  assert.equal(async.length, sync.length, 'both paths deflate at the same level');
+});
+
+test('the async writer honours WriteOptions the same way', async () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('S');
+  sheet.getCell('A1').value = 'repeated';
+  sheet.getCell('A2').value = 'repeated';
+
+  const pooled = unzipSync(await writeXlsxAsync(wb, {useSharedStrings: true}));
+  const inline = unzipSync(await writeXlsxAsync(wb));
+  assert.ok(pooled['xl/sharedStrings.xml'], 'pooling emits the shared-strings part');
+  assert.equal(inline['xl/sharedStrings.xml'], undefined, 'the default keeps strings inline');
+});
+
+test('a package written asynchronously reads back through readXlsx', async () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'round trip';
+
+  const back = readXlsx(await writeXlsxAsync(wb));
+  assert.equal(back.getWorksheet('S')?.getCell('A1').value, 'round trip');
+});
+
+test('the async writer rejects rather than throwing where the sync one throws', async () => {
+  const call = writeXlsxAsync(new Workbook());
+  assert.ok(call instanceof Promise, 'part-building failures surface as a rejection, not a throw');
+  await assert.rejects(call, /no worksheets/);
 });

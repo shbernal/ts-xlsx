@@ -19,7 +19,7 @@ export {
   readSheetRows,
   readWorkbookStream,
 } from '../io/xlsx/read-rows.ts';
-export {type WriteOptions, writeXlsx} from '../io/xlsx/write.ts';
+export {type WriteOptions, writeXlsx, writeXlsxAsync} from '../io/xlsx/write.ts';
 export {
   type CalcProperties,
   StreamedRow,

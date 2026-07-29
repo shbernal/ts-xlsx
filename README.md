@@ -45,7 +45,7 @@ Requires Node ≥ 24 (or any modern browser bundler). ESM only.
 
 ## Quick start
 
-Everything is synchronous. `writeXlsx` returns the file bytes; `readXlsx` takes them back.
+The buffered path is synchronous. `writeXlsx` returns the file bytes; `readXlsx` takes them back.
 
 ```ts
 import {Workbook, writeXlsx, readXlsx} from '@shbernal/ts-xlsx';
@@ -145,6 +145,30 @@ The streaming writer is asynchronous where the buffered path is synchronous: `co
 resolves to the package bytes and simultaneously pipes them through `writer.stream` (a Node
 `Readable`), so `writer.stream.pipe(res)` streams a workbook straight to an HTTP response.
 
+## Writing without blocking the event loop
+
+`writeXlsx` spends the whole cost of DEFLATE on the calling thread — seconds, for a large
+workbook, during which a server answers nothing. `writeXlsxAsync` produces the same package
+with the compression handed to worker threads:
+
+```ts
+import {writeXlsxAsync} from '@shbernal/ts-xlsx';
+
+const bytes = await writeXlsxAsync(wb); // same package, event loop stays live
+```
+
+Measured on a ~42 MB part map: one large sheet takes the same wall-clock either way, but the
+longest event-loop stall drops from the entire write to ~17 ms; a twenty-sheet workbook also
+finishes about 2.4× sooner, because its parts deflate in parallel. Expect responsiveness
+always and speed only when there is more than one substantial part.
+
+There is deliberately **no `readXlsxAsync`**. Reading is dominated by XML parsing and model
+building, which no worker can take off the calling thread, so it would advertise a
+non-blocking read and then block for most of its duration — and the reader's zip-bomb ceiling
+is enforced by counting output between synchronous input slices, a guarantee that weakens the
+moment inflation moves to a worker. If you need a non-blocking read, run the whole read in a
+worker. See [ADR-0024](docs/decisions/0024-async-is-one-writer-not-a-mirrored-pair.md).
+
 The reader decodes untrusted input defensively — entities are decoded but never
 expanded, and inflation is bounded by a running output counter rather than any declared
 size, so a malformed or hostile package can't exhaust memory.
@@ -160,7 +184,7 @@ on — a Lambda with no bundler, a service that only classifies failures:
 | --- | --- | --- |
 | `@shbernal/ts-xlsx` | everything | 863 KB |
 | `@shbernal/ts-xlsx/core` | `Workbook`, `Worksheet`, `Cell`, styles, values, addresses | 299 KB |
-| `@shbernal/ts-xlsx/xlsx` | `readXlsx`, `writeXlsx`, the streaming pair, VBA part edits | 848 KB |
+| `@shbernal/ts-xlsx/xlsx` | `readXlsx`, `writeXlsx`/`writeXlsxAsync`, the streaming pair, VBA part edits | 848 KB |
 | `@shbernal/ts-xlsx/xlsb` | `readXlsb` | 435 KB |
 | `@shbernal/ts-xlsx/csv` | `readCsv`, `writeCsv`, `writeCsvText` | 308 KB |
 | `@shbernal/ts-xlsx/vba` | `parseVbaProject`, `addVbaReference`, `removeVbaModule` | 73 KB |
