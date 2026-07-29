@@ -23,9 +23,11 @@ column accessor should follow the same shape so the two axes are consistent.
 
 ## Open questions
 
-- **Signature:** `(start, count)` vs `(firstCol, lastCol)`. For symmetry the column accessor
-  should match whichever convention the row-range accessor settles on, and the two must agree.
-  Pick one and document it; do not ship two overlapping overloads.
+- ~~**Signature:** `(start, count)` vs `(firstCol, lastCol)`~~ **Settled by precedent: first and
+  last, inclusive.** `Worksheet.getRange` takes `(top, left, bottom, right)` as inclusive corners in
+  either order, and states that convention as binding on every range-shaped accessor here — so a
+  columns accessor must be `(firstCol, lastCol)`, and a rows one `(firstRow, lastRow)`. One reading
+  of a pair of numbers across all three axes; no start-and-count overload beside it.
 - **Column identity:** accept 1-based numeric indices and/or letter references consistently with
   the single-column accessor.
 - **Out-of-range / non-positive count:** define whether an empty array, `undefined`, or an error

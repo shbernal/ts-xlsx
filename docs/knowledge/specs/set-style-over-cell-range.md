@@ -2,6 +2,12 @@
 
 Cluster: styles
 
+> **Resolved.** `Worksheet.getRange` hands back a `Range` handle carrying the six style facets plus a
+> composing `style` accessor and a `clearStyle()` verb — see `src/core/range.ts`, and the
+> `range-styling-covers-empty-cells-and-still-dedups` corpus case for the locked behaviour. Every
+> open question below is answered; the answers, and where they differ from this note's leanings, are
+> recorded under each.
+
 ## Scenario
 
 A user wants to apply a fill (or any style facet) uniformly to a rectangular block of cells — shading
@@ -31,20 +37,29 @@ cell in the block silently stays unstyled).
 
 ## Open questions
 
-- Surface shape: `worksheet.getRange("B2:D5").style = {...}`, a `worksheet.setRangeStyle(range, style,
-  {mode})`, or both? Does a `Range` object become a first-class model type (enabling range-scoped
-  values/formulas later) or is this a one-shot helper?
-- Merge-vs-replace default: compose (least-surprise for "add a fill") vs. replace (matches assigning
-  `cell.style`). This note leans compose-by-default.
-- Empty-cell materialization: create styled empty cells across the whole block eagerly, or lazily via
-  a column/row style so a 10,000-row block does not instantiate 10,000 cell objects?
-- Interaction with column/row-level styles and with merged ranges that partially overlap the target.
-- Address-iteration primitive: legacy exposes a `Range.forEachAddress(cb)` that walks every cell
-  address in the block, and the documented workaround for range styling is
-  `range.forEachAddress(addr => ws.getCell(addr).style = {...style})`. If `Range` becomes a first-class
-  type, is per-address iteration part of its public surface (typed, so no `@ts-ignore`), and is a bulk
-  `setRangeStyle` just sugar over it? Iterating addresses and materializing a cell object per address is
-  the eager-materialization cost this note already flags for large blocks.
+- ~~Surface shape~~ **Answered: a first-class `Range`**, the third handle beside `Row` and `Column`,
+  with the same live-view contract. There is no `setRangeStyle` helper beside it — one surface, not
+  two — and having a real type is what leaves room for range-scoped values and formulas later.
+- ~~Merge-vs-replace default~~ **Answered: the same semantics `Cell` already has**, which turned out
+  to settle the question rather than trade it off. `cell.style = {...}` *already* composes facet by
+  facet (it lays on each facet named and leaves the rest), while `cell.fill = x` replaces that facet.
+  `Range` mirrors both exactly, so there is no second convention to learn and no mode flag. Wholesale
+  replace is `clearStyle()` then assign.
+- ~~Empty-cell materialization~~ **Answered: eager, and the cost cliff is closed off at the door.**
+  A styled-but-valueless cell is the only way an empty cell renders with a fill, so the holes have to
+  be filled. The 10,000-row worry is answered by *refusing* the shape that causes it: `getRange` takes
+  only a bounded rectangle, and `A:A`/`1:1` throw, pointing at `getColumn`/`getRow` — which say the
+  same thing in one `<col style>`/`<row s>` attribute. `Range.cellCount` is the exact number of cells
+  a write will create, before it creates them.
+- ~~Interaction with column/row-level styles and merged ranges~~ **Answered.** The column/row layer is
+  where whole-axis defaults belong and is now the *only* way to state one, so the two cannot compete.
+  A block overlapping a merge resolves each address through `getCell`, which lands on the region's
+  master — so the master is restyled and no covered position gains a cell whose style the serializer
+  would then have to drop.
+- ~~Address-iteration primitive~~ **Answered: yes, typed and public.** `Range.addresses()` is a
+  generator, so walking a block materializes nothing and can be abandoned part-way — the eager cost
+  this note flagged is a property of *styling*, not of iterating. The facet setters do not go through
+  it as sugar; they materialize directly.
 
 Related: `shared-styles-deduplicated-in-written-package`, `per-cell-fill-isolation`,
 `per-cell-font-isolation`, `column-level-value-type`, `worksheet-get-columns-range-accessor`,

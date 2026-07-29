@@ -11,7 +11,16 @@
 // materialise its cells eagerly without a cost cliff hiding behind an innocuous-looking call.
 
 import {decodeRange, encodeAddress, MAX_COLUMN, MAX_ROW} from './address.ts';
-import type {Cell} from './cell.ts';
+import {applyCellStyle, type Cell} from './cell.ts';
+import {
+  type Alignment,
+  type Border,
+  CELL_STYLE_FACETS,
+  type CellStyle,
+  type Fill,
+  type Font,
+  type Protection,
+} from './style.ts';
 import type {Worksheet} from './worksheet.ts';
 
 /**
@@ -112,6 +121,163 @@ export class Range {
     }
     return cells;
   }
+
+  /**
+   * The block's style, facet by facet — the counterpart of {@link Cell.style} over a rectangle, with
+   * the same semantics in both directions.
+   *
+   * **Reading** reports a facet only when *every* position in the block carries a structurally
+   * identical one, and `undefined` when they differ or any position is still empty. A block styled
+   * through this handle therefore reads back what was written; a block whose cells disagree says so
+   * rather than picking a corner's answer and passing it off as the whole.
+   *
+   * **Writing** lays each facet the payload names onto every cell, leaving facets it omits untouched
+   * — exactly what `cell.style = {...}` does, so this composes with prior styling instead of clearing
+   * it. Use {@link clearStyle} first for a wholesale replace.
+   *
+   * Writing **materialises** every position in the block, because a styled-but-valueless cell is the
+   * only way an empty cell renders with a fill: skipping the holes would leave gaps in a header band.
+   * The cost is bounded by construction — a range is always a bounded rectangle, and whole-axis
+   * styling belongs to {@link Worksheet.getColumn}/{@link Worksheet.getRow} instead. {@link cellCount}
+   * is the exact number of cells a write will create.
+   */
+  get style(): CellStyle {
+    const style: CellStyle = {};
+    for (const facet of CELL_STYLE_FACETS) this.#collectShared(style, facet);
+    return style;
+  }
+
+  set style(style: Readonly<CellStyle>) {
+    for (const cell of this.#materialise()) applyCellStyle(cell, style);
+  }
+
+  /**
+   * Strip every style facet from every cell in the block, leaving values untouched. Assigning
+   * {@link style} composes, so this is how a wholesale replace is said: `clearStyle()` then assign.
+   * Materialises nothing — a cell that does not exist carries no style to clear.
+   */
+  clearStyle(): void {
+    for (const cell of this.cells) {
+      for (const facet of CELL_STYLE_FACETS) setFacet(cell, facet, undefined);
+    }
+  }
+
+  /** Fill applied to every cell in the block; `undefined` when they do not all agree. */
+  get fill(): Fill | undefined {
+    return this.#sharedFacet('fill');
+  }
+  set fill(fill: Fill | undefined) {
+    this.#writeFacet('fill', fill);
+  }
+
+  /** Number format applied to every cell in the block; `undefined` when they do not all agree. */
+  get numFmt(): string | undefined {
+    return this.#sharedFacet('numFmt');
+  }
+  set numFmt(numFmt: string | undefined) {
+    this.#writeFacet('numFmt', numFmt);
+  }
+
+  /** Font applied to every cell in the block; `undefined` when they do not all agree. */
+  get font(): Font | undefined {
+    return this.#sharedFacet('font');
+  }
+  set font(font: Font | undefined) {
+    this.#writeFacet('font', font);
+  }
+
+  /** Border applied to every cell in the block; `undefined` when they do not all agree. */
+  get border(): Border | undefined {
+    return this.#sharedFacet('border');
+  }
+  set border(border: Border | undefined) {
+    this.#writeFacet('border', border);
+  }
+
+  /** Alignment applied to every cell in the block; `undefined` when they do not all agree. */
+  get alignment(): Alignment | undefined {
+    return this.#sharedFacet('alignment');
+  }
+  set alignment(alignment: Alignment | undefined) {
+    this.#writeFacet('alignment', alignment);
+  }
+
+  /** Protection flags applied to every cell in the block; `undefined` when they do not all agree. */
+  get protection(): Protection | undefined {
+    return this.#sharedFacet('protection');
+  }
+  set protection(protection: Protection | undefined) {
+    this.#writeFacet('protection', protection);
+  }
+
+  // Every cell in the block, created where it does not exist yet. An address covered by a merge
+  // resolves to that region's master, so a block overlapping a merge restyles the master rather than
+  // stranding a style on a covered cell the serializer would then have to drop.
+  #materialise(): Cell[] {
+    return [...this.addresses()].map((address) => this.#sheet.getCell(address));
+  }
+
+  // Assigning a facet replaces that facet on every cell — the block-wide reading of `cell.fill = x`.
+  // Clearing one (`undefined`) touches only the cells that exist: there is nothing to clear on a hole,
+  // and materialising the block to write nothing onto it would be pure cost.
+  #writeFacet<K extends keyof CellStyle>(facet: K, value: CellStyle[K]): void {
+    const cells = value === undefined ? this.cells : this.#materialise();
+    for (const cell of cells) setFacet(cell, facet, value);
+  }
+
+  // One facet of the block-wide style onto the record being assembled. Narrowed to a single key for
+  // the same reason {@link setFacet} is — see there.
+  #collectShared<K extends keyof CellStyle>(target: CellStyle, facet: K): void {
+    const shared = this.#sharedFacet(facet);
+    if (shared !== undefined) target[facet] = shared;
+  }
+
+  // A facet's value when every position in the block carries a structurally identical one, else
+  // undefined. A hole counts as "no facet", so a partly-styled block is reported as disagreeing —
+  // which it does, since the empty positions render unstyled.
+  #sharedFacet<K extends keyof CellStyle>(facet: K): CellStyle[K] {
+    let first: CellStyle[K] | undefined;
+    let firstKey: string | undefined;
+    let seen = 0;
+    for (let row = this.top; row <= this.bottom; row++) {
+      for (let col = this.left; col <= this.right; col++) {
+        const value = this.#sheet.hasCell(row, col)
+          ? this.#sheet.getCell(encodeAddress(col, row))[facet]
+          : undefined;
+        const key = facetKey(value);
+        if (seen === 0) {
+          first = value;
+          firstKey = key;
+        } else if (key !== firstKey) {
+          return undefined;
+        }
+        seen++;
+      }
+    }
+    return first;
+  }
+}
+
+// Write one facet through a `Cell`'s own setter. Narrowed to a single key — rather than assigning
+// `cell[facet]` with `facet` still a union — for the same reason `style.ts`'s `copyFacet` is: the
+// compiler cannot correlate a union key with its value type across two object types, and a cast here
+// would be the one place a facet could be written to the wrong slot without anything noticing.
+function setFacet<K extends keyof CellStyle>(cell: Cell, facet: K, value: CellStyle[K]): void {
+  const target: CellStyle = cell;
+  target[facet] = value;
+}
+
+// A canonical string for a facet value, so two structurally identical records compare equal whatever
+// order their keys were written in. Sound here and nowhere near a general deep-equal: every facet is
+// a plain data record of strings, numbers, booleans and nested records — no functions, no cycles, no
+// class instances — which is exactly the shape JSON round-trips faithfully.
+function facetKey(value: unknown): string {
+  if (value === undefined) return ' ';
+  return JSON.stringify(value, (_key, inner: unknown) =>
+    inner !== null && typeof inner === 'object' && !Array.isArray(inner)
+      ? Object.fromEntries(Object.entries(inner as object).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : inner,
+  );
 }
 
 function checkBound(axis: 'row' | 'column', value: number, max: number): void {

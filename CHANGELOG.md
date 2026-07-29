@@ -47,6 +47,20 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   attributes likewise leaves nothing behind, which is the honest reading of an element that says
   nothing.
 
+- **`Range` — style a rectangular block in one call.** `sheet.getRange('A2:A33').border = {...}`, or
+  `getRange(2, 1, 33, 1)` by inclusive corners. The third handle beside `Row` and `Column`, with the
+  same contract: constructing one creates nothing, `addresses()` walks the block as a generator, and
+  `cells` reports only what already exists. The six style facets plus a composing `style` accessor and
+  `clearStyle()` mirror `Cell`'s semantics exactly — assigning a facet replaces that facet, assigning
+  `style` composes facet by facet — so there is no second convention to learn.
+
+  Writing materialises every position in the block, because a styled-but-valueless cell is the only
+  way an empty cell renders with a fill; a uniformly styled block still collapses to one shared style
+  entry. The cost is bounded by construction: `A:A` and `1:1` are refused, pointing at
+  `getColumn`/`getRow`, which state a whole-axis default in one attribute instead of a million cells.
+  A block overlapping a merged region restyles the region's master rather than stranding a style on a
+  covered cell.
+
 - **The workbook's default font is a first-class part of the model.** `Workbook.setDefaultFont`
   authors the face, size and colour every cell with no font of its own renders in — **empty cells
   included** — merging like `setTheme`, so `setDefaultFont({size: 14})` keeps the resolved face.

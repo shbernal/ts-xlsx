@@ -74,6 +74,52 @@ export const styles = {
     };
   },
 
+  // Style rectangular blocks through the range handle, write, and report what the package shows →
+  // { cellXfs, styledCells, distinctStyleIds, styledAddresses, reloadedStyles, sharedFacet,
+  //   materialisedInBlock, outsideBlock }.
+  //
+  // Two claims a per-cell loop makes silently and a range must keep: an empty cell inside the block
+  // renders styled (so it has to be materialised, not skipped), and a uniformly styled block still
+  // collapses to one shared cellXfs entry rather than one per cell.
+  rangeStyleReport({blocks = [], values = [], probe = null}: CorpusApi) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    for (const {address, value} of values as CorpusApi[]) sheet.getCell(address).value = value;
+    for (const {ref, style = null, facet = null, value = null} of blocks as CorpusApi[]) {
+      const range = sheet.getRange(ref);
+      if (style !== null) range.style = style;
+      if (facet !== null) (range as CorpusApi)[facet] = value;
+    }
+    const sharedFacet =
+      probe === null ? null : ((sheet.getRange(probe.ref) as CorpusApi)[probe.facet] ?? null);
+    const materialisedInBlock = probe === null ? null : sheet.getRange(probe.ref).cells.length;
+
+    const buffer = writeXlsx(workbook);
+    const parts = partMapOf(buffer);
+    const stylesXml = parts['xl/styles.xml'] ?? '';
+    const sheetXml = parts['xl/worksheets/sheet1.xml'] ?? '';
+    const styled = [...sheetXml.matchAll(/<c r="([A-Z]+\d+)"[^>]*\ss="(\d+)"/g)];
+    const reread = readXlsx(buffer).worksheets[0];
+    return {
+      cellXfs: Number(/<cellXfs count="(\d+)"/.exec(stylesXml)?.[1] ?? 0),
+      styledCells: styled.length,
+      // A uniform block must not mint one entry per cell — the historical performance cliff, and the
+      // reason the style table is interned at all.
+      distinctStyleIds: [...new Set(styled.map((m) => m[2]))].length,
+      styledAddresses: styled.map((m) => m[1]),
+      sharedFacet,
+      materialisedInBlock,
+      // The facets survive the round-trip on a cell that was empty when it was styled.
+      reloadedStyles: Object.fromEntries(
+        (probe === null ? [] : [...sheet.getRange(probe.ref).addresses()]).map((address) => [
+          address,
+          reread?.getCell(address).fill ?? reread?.getCell(address).font ?? null,
+        ]),
+      ),
+      outsideBlock: probe === null ? null : (reread?.getCell(probe.outside).fill ?? null),
+    };
+  },
+
   // Assign a valid format-code string (alongside font/alignment/protection) to one cell and a
   // structured OBJECT (a parsed `{id, formatCode}` shape) to another, write, and report the string's
   // survival plus whether the styles part was corrupted → { controlNumFmtReload, stylesHasObjectObject }.
