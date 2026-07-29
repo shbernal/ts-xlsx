@@ -12,7 +12,22 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
-## [1.0.1] — 2026-07-29
+## [1.0.2] — 2026-07-29
+
+### Changed
+
+- **Still nothing in the library — `src/` remains byte-identical to 1.0.0.** 1.0.1 was
+  tagged and released on GitHub but **never reached npm**: the publish workflow failed
+  `ENEEDAUTH`, having dropped `setup-node`'s `registry-url` on the incorrect theory that it
+  would make npm send a placeholder token instead of exchanging an OIDC one. It is in fact
+  what tells npm which registry to authenticate against, and without it the exchange never
+  starts. Restored, and 1.0.2 is the version that actually publishes from CI, with
+  provenance.
+
+  The tag and release for 1.0.1 are left standing rather than rewritten: a published claim
+  that turned out to be wrong is corrected in the open, not deleted. Install 1.0.2.
+
+## [1.0.1] — 2026-07-29 · never published to npm
 
 ### Changed
 
@@ -277,6 +292,7 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/shbernal/ts-xlsx/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/shbernal/ts-xlsx/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/shbernal/ts-xlsx/releases/tag/v1.0.0

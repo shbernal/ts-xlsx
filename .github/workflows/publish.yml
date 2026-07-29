@@ -94,15 +94,19 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
-      # Deliberately no `registry-url`. It looks like the right thing and is a trap here: it
-      # writes an .npmrc pointing `_authToken` at $NODE_AUTH_TOKEN and defaults that variable
-      # to the literal placeholder `XXXXX-XXXXX-XXXXX-XXXXX`, so npm believes it holds a
-      # credential, sends the placeholder, and never attempts the OIDC exchange. registry.npmjs.org
-      # is npm's default anyway, so naming it buys nothing and costs the whole auth mechanism.
+      # `registry-url` is required, not optional, and not merely a default being restated: it
+      # writes the .npmrc entry that tells npm which registry this publish authenticates
+      # against, and without it npm never starts the OIDC exchange at all — it fails
+      # ENEEDAUTH having asked nobody. The `NODE_AUTH_TOKEN` placeholder this also sets is
+      # harmless, because publishing does not read it; that variable is for *installing*
+      # private dependencies.
+      #
+      # No dependency cache: a release build should resolve everything from the lockfile
+      # rather than from whatever a previous run left behind.
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
+          registry-url: https://registry.npmjs.org
 
       # Trusted publishing needs npm >= 11.5.1; Node 24 does not yet ship one that new.
       # Pinned to the major that implements the OIDC exchange, not to `latest`, so a future

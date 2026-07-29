@@ -54,13 +54,22 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
   `publish.yml` breaks publishing until npm is updated to match. `environment.yml` needs a
   PAT, which is the one long-lived credential left; it can only reconfigure an environment,
   never publish.
-- **Verified, not assumed:** dispatching the workflow found two faults that reading it did
-  not. `setup-node`'s `registry-url` writes an `.npmrc` pointing `_authToken` at
-  `$NODE_AUTH_TOKEN` and defaults that variable to the literal `XXXXX-XXXXX-XXXXX-XXXXX`,
-  which would have made npm send a placeholder and never attempt the OIDC exchange — so
-  the option is deliberately absent. And `npm publish --dry-run` is not local: it asks the
-  registry, which refuses a version it already serves, so a rehearsal reaches the publish
-  step only for a version that is not out yet.
+- **Verified, not assumed** — and the verification corrected the design twice, once against
+  a mistake of ours.
+
+  `npm publish --dry-run` is not local. It builds the tarball and then asks the registry,
+  which refuses a version it already serves, so a rehearsal reaches the publish step only
+  for a version that is not out yet.
+
+  `setup-node`'s `registry-url` is **required**. It sets `NODE_AUTH_TOKEN` to the literal
+  placeholder `XXXXX-XXXXX-XXXXX-XXXXX`, from which we inferred that npm would send that
+  placeholder instead of exchanging an OIDC token, and dropped the option. That inference
+  was wrong, and 1.0.1 failed `ENEEDAUTH` proving it: `registry-url` writes the .npmrc
+  entry naming the registry this publish authenticates against, and without it npm does not
+  begin the exchange at all. The placeholder is genuinely unused — that variable is read
+  when *installing* private dependencies, not when publishing. The lesson generalises: a
+  plausible reading of an observed value is not evidence, and the release path is one place
+  where the difference is a burned version number.
 - **Revisit when:** npm changes the trusted-publishing contract, or a second package ships
   from this repository (the environment and the publisher config are both single-package
   shaped today).
