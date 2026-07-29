@@ -143,7 +143,9 @@ jobs:
           fi
 
       - name: Publish
-        if: steps.existing.outputs.published == 'false'
+        # A rehearsal is not skipped for an already-published version: rehearsing the version
+        # that is currently out is the normal case, and `--dry-run` cannot overwrite it.
+        if: steps.existing.outputs.published == 'false' || steps.target.outputs.dry_run == 'true'
         env:
           DRY_RUN: ${{ steps.target.outputs.dry_run }}
           PRERELEASE: ${{ steps.target.outputs.prerelease }}
