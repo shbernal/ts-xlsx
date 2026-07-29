@@ -12,6 +12,21 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-29
+
+The first published release. `ts-xlsx` is an independent hard fork of ExcelJS, rebuilt from
+the ground up in strict TypeScript; it carries no backwards-compatibility guarantee with its
+ancestor — see [migrating from ExcelJS](docs/migrating-from-exceljs.md). The **BREAKING**
+markers below describe changes made against the unreleased development line while this
+section accumulated, not against any previously published version; there is no earlier
+release of this package to break. From here forward the project follows
+[SemVer](https://semver.org/) strictly — see
+[ADR-0015](docs/decisions/0015-publishing-name-semver-and-first-version.md).
+
+Charts, vector shapes, slicers and legacy form controls are **round-trip-only** in 1.0: a
+workbook carrying them survives a load/edit/save byte-faithfully, but there is no API to
+author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round-trip-only-for-1-0.md)).
+
 ### Added
 
 - **`writeXlsxAsync` — the same package, deflated off the calling thread.** `writeXlsx` spends the
@@ -79,56 +94,6 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   `Workbook.defaultFont` reports the resolved, complete result, and `Workbook.declaredDefaultFont`
   reports what a source package stated (`undefined` when it stated nothing).
 
-### Changed
-
-- **BREAKING: the styles part's font 0 is the workbook's own default font, not an assumed Calibri.**
-  The writer used to splice a `Calibri 11` constant into `<fonts>` with no workbook input, and two
-  things followed from that.
-
-  A themed workbook rendered every unstyled cell in the wrong face: `setTheme({fonts: {minor}})`
-  wrote the theme part correctly and could not reach a cell, because font 0 went on claiming
-  `scheme="minor"` — *I am the theme's body face* — while naming Calibri outright, and Excel resolves
-  the explicit name. Working around it meant setting `font` on every column and naming the face in
-  every rich-text run. And reading a package whose font 0 was Aptos Narrow and writing it back
-  *unmodified* replaced the declared default with Calibri, re-adding the real face as a redundant
-  custom entry — so populated cells still rendered right while empty cells, and the metric every
-  character-unit `<col width>` is expressed in, quietly changed.
-
-  Font 0 now resolves from the workbook: an authored default font, else an authored theme body face,
-  else the file's own font 0, else the theme's. `scheme` and `family` are derived rather than
-  copied — carried while the resolved face really is the theme's body face and dropped when it is
-  not, which is what Excel itself writes — and the emitted entry always states a size and a colour,
-  the absence foreign readers report as a "missing default font".
-
-  What breaks: a workbook with an authored theme font, or read from a package whose font 0 was not
-  Calibri, now emits different bytes. A plain `new Workbook()` is byte-identical.
-  [ADR-0025](docs/decisions/0025-the-default-font-is-declared-not-assumed.md).
-
-- **BREAKING: a corrupt or truncated package is a `PackageReadError`, not an unsupported format.** A
-  `PK`-headed archive the zip layer rejects used to surface as `UnsupportedFormatError` with format
-  `'unknown'`, whose message reads *"not a valid .xlsx package: no OOXML workbook part was found"* —
-  a check that never ran, since nothing inflated. It now carries `code: 'malformed-input'` alongside
-  the zip-bomb refusal, which is what the taxonomy already said it was: the container is the right
-  kind of thing and we cannot unpack it. Code branching on `format === 'unknown'` for a truncated
-  file must catch `PackageReadError` instead.
-
-  Two messages get honest with it. A non-ZIP blob now says the input is not a ZIP rather than blaming
-  a missing part, and *"no OOXML workbook part was found"* is left to the one case where it is true —
-  a package that inflated and carries neither `xl/workbook.xml` nor `xl/workbook.bin`. Unchanged: the
-  zip library's own text is discarded, never folded into the message and never attached as `cause`,
-  because it can name internals or an absolute filesystem path.
-
-### Removed
-
-- **BREAKING: the pure-TS VBA source-authoring API is gone.** `writeVbaProject`,
-  `Workbook.setVbaProject`, `editVbaModuleSources`, `Workbook.setVbaModuleSource`,
-  `editXlsxVbaModuleSource`, `editXlsxVbaModuleSources`, `addVbaModule`, `Workbook.addVbaModule`, and
-  `editXlsxVbaAddModule` are removed, along with the `VbaModuleSource`/`VbaProjectSpec` types. They
-  emitted modules with no compiled p-code on the theory that Excel recompiles from source on open —
-  which it does not: such files either fail to load ("Invalid data format") or silently run stale code.
-  See [ADR 0019](docs/decisions/0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md).
-
-### Added
 
 - **Seven subpath entry points, and `"sideEffects": false`.** `@shbernal/ts-xlsx/core`, `/xlsx`,
   `/xlsb`, `/csv`, `/vba`, `/customui` and `/errors` are published alongside the bare package name,
@@ -136,7 +101,7 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   bare name remains the right default (`sideEffects: false` now lets it prune per symbol, which
   beats any subpath); reach for a subpath when there is no bundler, or when the module graph should
   state the dependency. `/errors` carries every error class the library throws and costs 12 KB, so
-  classifying a failure never loads a parser; `/core` is 299 KB against the package's 863 KB.
+  classifying a failure never loads a parser; `/core` is 332 KB against the package's 902 KB.
   `/xlsx` is only marginally cheaper than everything, because `readXlsx` sniffs the bytes and
   dispatches a binary package to the BIFF12 reader — see the table in the README, and
   [ADR-0023](docs/decisions/0023-subpath-entry-points-and-disjoint-barrels.md) for why the split
@@ -146,7 +111,6 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   p-code by driving a real headless Excel (VBIDE). Emits a `vbaProject.bin` (attach via
   `Workbook.vbaProjectBytes`) or a whole edited `.xlsm`. Windows + licensed Excel only; never in CI.
 
-### Added
 
 - **BREAKING: every deliberate failure now descends from one `XlsxError`, and carries a `code`.**
   `catch (e) { if (e instanceof XlsxError) … }` is the whole answer to "was that this library?" —
@@ -212,6 +176,70 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   slots appear in the theme part. Verified against Excel Desktop; see
   `docs/knowledge/specs/theme-color-index-order.md`.
 
+### Changed
+
+- **BREAKING: the styles part's font 0 is the workbook's own default font, not an assumed Calibri.**
+  The writer used to splice a `Calibri 11` constant into `<fonts>` with no workbook input, and two
+  things followed from that.
+
+  A themed workbook rendered every unstyled cell in the wrong face: `setTheme({fonts: {minor}})`
+  wrote the theme part correctly and could not reach a cell, because font 0 went on claiming
+  `scheme="minor"` — *I am the theme's body face* — while naming Calibri outright, and Excel resolves
+  the explicit name. Working around it meant setting `font` on every column and naming the face in
+  every rich-text run. And reading a package whose font 0 was Aptos Narrow and writing it back
+  *unmodified* replaced the declared default with Calibri, re-adding the real face as a redundant
+  custom entry — so populated cells still rendered right while empty cells, and the metric every
+  character-unit `<col width>` is expressed in, quietly changed.
+
+  Font 0 now resolves from the workbook: an authored default font, else an authored theme body face,
+  else the file's own font 0, else the theme's. `scheme` and `family` are derived rather than
+  copied — carried while the resolved face really is the theme's body face and dropped when it is
+  not, which is what Excel itself writes — and the emitted entry always states a size and a colour,
+  the absence foreign readers report as a "missing default font".
+
+  What breaks: a workbook with an authored theme font, or read from a package whose font 0 was not
+  Calibri, now emits different bytes. A plain `new Workbook()` is byte-identical.
+  [ADR-0025](docs/decisions/0025-the-default-font-is-declared-not-assumed.md).
+
+- **BREAKING: a corrupt or truncated package is a `PackageReadError`, not an unsupported format.** A
+  `PK`-headed archive the zip layer rejects used to surface as `UnsupportedFormatError` with format
+  `'unknown'`, whose message reads *"not a valid .xlsx package: no OOXML workbook part was found"* —
+  a check that never ran, since nothing inflated. It now carries `code: 'malformed-input'` alongside
+  the zip-bomb refusal, which is what the taxonomy already said it was: the container is the right
+  kind of thing and we cannot unpack it. Code branching on `format === 'unknown'` for a truncated
+  file must catch `PackageReadError` instead.
+
+  Two messages get honest with it. A non-ZIP blob now says the input is not a ZIP rather than blaming
+  a missing part, and *"no OOXML workbook part was found"* is left to the one case where it is true —
+  a package that inflated and carries neither `xl/workbook.xml` nor `xl/workbook.bin`. Unchanged: the
+  zip library's own text is discarded, never folded into the message and never attached as `cause`,
+  because it can name internals or an absolute filesystem path.
+
+
+- `removeVbaModule` and `addVbaReference` (and their `Workbook`/`editXlsxVba*` wrappers) no longer reset
+  the `_VBA_PROJECT` stream — that reset crashed the VBA load on a project with real p-code. They now
+  leave it byte-for-byte untouched; the `dir` stream carries the structural change. These edits are
+  retained precisely because they never touch a module's compiled p-code.
+
+- **Contributor tooling: the gate set has one name.** `node scripts/verify.ts` runs every gate
+  concurrently and is what `pnpm test`, lefthook's `pre-push` and the turn-boundary hook all
+  invoke; `--quick` is the inner loop and `--cached` exits immediately when the working tree is
+  byte-for-byte the one that last passed. The corpus runner gained `--case`/`--json` and now
+  prints only what needs attention (`--verbose` for the old listing), and the OOXML validator
+  builds on demand instead of paying `dotnet run`'s project re-evaluation per call. Nothing in
+  the published package changes. See
+  [ADR 0022](docs/decisions/0022-verification-is-one-cached-parallel-entrypoint.md).
+
+### Removed
+
+- **BREAKING: the pure-TS VBA source-authoring API is gone.** `writeVbaProject`,
+  `Workbook.setVbaProject`, `editVbaModuleSources`, `Workbook.setVbaModuleSource`,
+  `editXlsxVbaModuleSource`, `editXlsxVbaModuleSources`, `addVbaModule`, `Workbook.addVbaModule`, and
+  `editXlsxVbaAddModule` are removed, along with the `VbaModuleSource`/`VbaProjectSpec` types. They
+  emitted modules with no compiled p-code on the theory that Excel recompiles from source on open —
+  which it does not: such files either fail to load ("Invalid data format") or silently run stale code.
+  See [ADR 0019](docs/decisions/0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md).
+
 ### Fixed
 
 - **A workbook's theme part is no longer destroyed on round-trip.** Reading a file and writing it
@@ -233,18 +261,5 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-### Changed
-
-- `removeVbaModule` and `addVbaReference` (and their `Workbook`/`editXlsxVba*` wrappers) no longer reset
-  the `_VBA_PROJECT` stream — that reset crashed the VBA load on a project with real p-code. They now
-  leave it byte-for-byte untouched; the `dir` stream carries the structural change. These edits are
-  retained precisely because they never touch a module's compiled p-code.
-
-- **Contributor tooling: the gate set has one name.** `node scripts/verify.ts` runs every gate
-  concurrently and is what `pnpm test`, lefthook's `pre-push` and the turn-boundary hook all
-  invoke; `--quick` is the inner loop and `--cached` exits immediately when the working tree is
-  byte-for-byte the one that last passed. The corpus runner gained `--case`/`--json` and now
-  prints only what needs attention (`--verbose` for the old listing), and the OOXML validator
-  builds on demand instead of paying `dotnet run`'s project re-evaluation per call. Nothing in
-  the published package changes. See
-  [ADR 0022](docs/decisions/0022-verification-is-one-cached-parallel-entrypoint.md).
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/shbernal/ts-xlsx/releases/tag/v1.0.0

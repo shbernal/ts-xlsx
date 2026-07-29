@@ -1,6 +1,6 @@
 {
   "name": "@shbernal/ts-xlsx",
-  "version": "0.0.0-dev",
+  "version": "1.0.0",
   "description": "A TypeScript-first library for reading and writing xlsx (OOXML) spreadsheets.",
   "license": "MIT",
   "author": "shbernal",

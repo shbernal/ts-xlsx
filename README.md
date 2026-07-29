@@ -3,11 +3,12 @@
 A TypeScript-first library for reading and writing spreadsheet documents
 (`.xlsx` / OOXML, and CSV) — synchronous, `Uint8Array`-native, and dependency-lean.
 
-> **Status — an independent rebuild in progress.**
+> **Status — 1.0.0, the first release.**
 > `ts-xlsx` began as a hard fork of [ExcelJS](https://github.com/exceljs/exceljs)
-> and is being rebuilt from the ground up into a modern, strict-TypeScript library.
+> and has been rebuilt from the ground up into a modern, strict-TypeScript library.
 > **It carries no backwards-compatibility guarantee with ExcelJS** — the API below is
-> its own, not a drop-in.
+> its own, not a drop-in. From 1.0.0 onward it follows
+> [SemVer](https://semver.org/) against *itself*; see the [changelog](CHANGELOG.md).
 > See [`CLAUDE.md`](CLAUDE.md) for the goals and [`docs/architecture.md`](docs/architecture.md)
 > for the design, and [migrating from ExcelJS](docs/migrating-from-exceljs.md) if you are coming across.
 
@@ -182,11 +183,11 @@ on — a Lambda with no bundler, a service that only classifies failures:
 
 | Import from | You get | It loads |
 | --- | --- | --- |
-| `@shbernal/ts-xlsx` | everything | 863 KB |
-| `@shbernal/ts-xlsx/core` | `Workbook`, `Worksheet`, `Cell`, styles, values, addresses | 299 KB |
-| `@shbernal/ts-xlsx/xlsx` | `readXlsx`, `writeXlsx`/`writeXlsxAsync`, the streaming pair, VBA part edits | 848 KB |
-| `@shbernal/ts-xlsx/xlsb` | `readXlsb` | 435 KB |
-| `@shbernal/ts-xlsx/csv` | `readCsv`, `writeCsv`, `writeCsvText` | 308 KB |
+| `@shbernal/ts-xlsx` | everything | 902 KB |
+| `@shbernal/ts-xlsx/core` | `Workbook`, `Worksheet`, `Cell`, styles, values, addresses | 332 KB |
+| `@shbernal/ts-xlsx/xlsx` | `readXlsx`, `writeXlsx`/`writeXlsxAsync`, the streaming pair, VBA part edits | 887 KB |
+| `@shbernal/ts-xlsx/xlsb` | `readXlsb` | 469 KB |
+| `@shbernal/ts-xlsx/csv` | `readCsv`, `writeCsv`, `writeCsvText` | 341 KB |
 | `@shbernal/ts-xlsx/vba` | `parseVbaProject`, `addVbaReference`, `removeVbaModule` | 73 KB |
 | `@shbernal/ts-xlsx/customui` | `parseCustomUi` and the ribbon types | 26 KB |
 | `@shbernal/ts-xlsx/errors` | every error class the library throws | 12 KB |

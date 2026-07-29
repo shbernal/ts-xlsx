@@ -61,3 +61,24 @@ published yet; this ADR settles the policy so it is ready the moment it is.
 - **Revisit when:** the project is actually ready to publish (at which point this
   ADR's decision 4 is executed, not reopened) or a concrete need for a pre-1.0
   `0.x` signal emerges (none is anticipated).
+
+---
+
+## Addendum (2026-07-29) — decision 4 executed, and the tag namespace reclaimed
+
+The project released. Decision 4 was executed rather than reopened: `package.json`'s
+`version` went from `0.0.0-dev` straight to `1.0.0`, `CHANGELOG.md`'s `## [Unreleased]`
+section was cut into `## [1.0.0]`, and the release was published on GitHub. **npm publish
+did not happen in the same step** — the GitHub release is the artifact today, and
+`npm publish` remains the separate, human-triggered action this ADR always said it was
+(it needs credentials and a `@shbernal` scope that only the human can grant).
+
+One thing this ADR did not anticipate: the fork inherited ExcelJS's ~190 git tags
+(`v0.0.1` … `v4.4.1`) on both the local clone and `origin`, so the `v1.0.0` name decision 3
+chose was **already taken** — by an ExcelJS commit that is not in our history. The
+inherited tags were deleted from `origin` and locally rather than versioning around them.
+Deleting is the choice consistent with CLAUDE.md §1's clean break: those tags mark releases
+of a different library, they collide with every version we will ship between 1.0.0 and
+4.4.1, and keeping them would leave the tag list unable to say whose release a `v2.0.0`
+names. Nothing is lost — `exceljs/exceljs` still holds every one of them, and
+`git fetch upstream --tags` restores them if we ever want them back.
