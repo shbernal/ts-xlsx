@@ -3,6 +3,7 @@ import {test} from 'node:test';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
+import {PackageReadError} from './errors.ts';
 import {inflatePackage} from './inflate.ts';
 
 /** A deterministic, near-incompressible byte pattern — large enough to span several input
@@ -47,6 +48,7 @@ test('a part whose data spans several input slices is reassembled byte-for-byte'
 test('the running counter rejects output that exceeds the cap', () => {
   // 1 MiB of zeros compresses to a fraction of a kilobyte but inflates well past a 4 KiB cap.
   const archive = zipSync({'bomb.bin': new Uint8Array(1024 * 1024)});
+  assert.throws(() => inflatePackage(archive, 4096), PackageReadError);
   assert.throws(() => inflatePackage(archive, 4096), /possible zip bomb/);
 });
 

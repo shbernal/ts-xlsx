@@ -21,4 +21,4 @@ function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook;
 **Throws** — if the input is neither — a legacy `.xls` (`.format === 'xls'`) or
 an unrecognised/non-ZIP blob (`'unknown'`).
 **Throws** — if a binary `.xlsb` part is malformed.
-**Throws** — if the archive exceeds the inflate bound (a probable zip bomb).
+**Throws** — {

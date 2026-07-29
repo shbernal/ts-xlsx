@@ -36,6 +36,7 @@ import {
   type UnderlineStyle,
 } from '../../core/style.ts';
 import {TABLE_STYLE_ELEMENT_TYPES, type TableStyle} from '../../core/table-style.ts';
+import {AuthoringError} from '../../errors.ts';
 import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import {decodeEntities, openElements} from '../../xml/xml-read.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
@@ -570,7 +571,7 @@ function checkedToken(
   kind: string,
 ): string {
   if (!isValid(value)) {
-    throw new Error(
+    throw new AuthoringError(
       `Invalid ${kind} ${JSON.stringify(value)}: not a value the OOXML enumeration allows`,
     );
   }
@@ -809,7 +810,7 @@ function underlineXml(underline: UnderlineStyle | undefined): string {
 
 function numberAttr(value: number): string {
   if (!Number.isFinite(value)) {
-    throw new Error(`cannot serialise a non-finite font metric (${value})`);
+    throw new AuthoringError(`cannot serialise a non-finite font metric (${value})`);
   }
   return String(value);
 }
@@ -895,7 +896,7 @@ function normalizeArgb(argb: string): string {
   const hex = argb.startsWith('#') ? argb.slice(1) : argb;
   const rgb = hex.length === 6 ? `FF${hex}` : hex;
   if (!/^[0-9a-fA-F]{8}$/.test(rgb)) {
-    throw new Error(
+    throw new AuthoringError(
       `Invalid ARGB colour ${JSON.stringify(argb)}: expected 6 or 8 hexadecimal digits`,
     );
   }

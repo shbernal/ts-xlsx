@@ -1,3 +1,4 @@
+import {AuthoringError} from '../errors.ts';
 import {decodeRange} from './address.ts';
 
 /**
@@ -83,7 +84,7 @@ export function canonicalizeAutoFilter(input: string | AutoFilter): AutoFilter {
   const ref = typeof input === 'string' ? input : input.ref;
   const {top, left, bottom, right, dimensions} = decodeRange(ref);
   if (top === undefined || left === undefined || bottom === undefined || right === undefined) {
-    throw new Error(`autofilter range "${ref}" must be a bounded rectangle`);
+    throw new AuthoringError(`autofilter range "${ref}" must be a bounded rectangle`);
   }
   if (typeof input === 'string') return {ref: dimensions, columns: []};
   const width = right - left + 1;
@@ -95,12 +96,12 @@ export function canonicalizeAutoFilter(input: string | AutoFilter): AutoFilter {
 
 function canonicalizeColumn(column: FilterColumn, width: number): FilterColumn {
   if (!Number.isInteger(column.colId) || column.colId < 0 || column.colId >= width) {
-    throw new Error(`autofilter colId ${column.colId} is outside the filter range`);
+    throw new AuthoringError(`autofilter colId ${column.colId} is outside the filter range`);
   }
   if (column.criteria.kind === 'custom') {
     const count = column.criteria.predicates.length;
     if (count < 1 || count > 2) {
-      throw new Error(`a custom filter needs one or two predicates, got ${count}`);
+      throw new AuthoringError(`a custom filter needs one or two predicates, got ${count}`);
     }
   }
   return column;

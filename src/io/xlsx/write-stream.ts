@@ -27,9 +27,7 @@
 
 import {createWriteStream} from 'node:fs';
 import {PassThrough, type Readable, type Writable} from 'node:stream';
-
 import {Zip, ZipDeflate} from 'fflate';
-
 import {encodeAddress} from '../../core/address.ts';
 import type {AutoFilter} from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
@@ -41,6 +39,7 @@ import type {SheetProtectionOptions} from '../../core/protection.ts';
 import {type CellValue, isSharedFormulaValue} from '../../core/value.ts';
 import {type AddImageOptions, type AddWorksheetOptions, Workbook} from '../../core/workbook.ts';
 import type {ColumnProperties, Worksheet} from '../../core/worksheet.ts';
+import {AuthoringError} from '../../errors.ts';
 import type {StyleRegistry} from './styles.ts';
 import {
   buildColumnDefaults,
@@ -203,13 +202,13 @@ export class WorksheetStreamWriter {
    * {@link StreamedRow.commit}; the row's `<row>` XML is retained (interned into the workbook's live
    * style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
    *
-   * @throws {Error} if the row carries a shared-formula cell — a finished row cannot join the
+   * @throws {@link AuthoringError} if the row carries a shared-formula cell — a finished row cannot join the
    *   whole-sheet formula planning, so shared formulas must be authored through {@link getCell}.
    */
   flushRow(number: number, cells: readonly Cell[]): void {
     for (const cell of cells) {
       if (isSharedFormulaValue(cell.value)) {
-        throw new Error(
+        throw new AuthoringError(
           `row ${number} of streamed sheet "${this.#sheet.name}" carries a shared-formula cell; a ` +
             'committed row is finalised before the sheet is planned, so author shared formulas through ' +
             'getCell (leaving the row uncommitted) instead',
@@ -327,7 +326,7 @@ export class WorksheetStreamWriter {
 
   #assertOpen(): void {
     if (this.#committed) {
-      throw new Error(
+      throw new AuthoringError(
         `worksheet "${this.#sheet.name}" is already committed — its rows are finalised and no more can be added`,
       );
     }
@@ -362,7 +361,9 @@ export class WorkbookStreamWriter {
     this.#eager = !this.#writeOptions.useSharedStrings;
     this.#styles = createStyleRegistry(this.#workbook);
     if (options.stream && options.filename) {
-      throw new Error('provide either a stream or a filename to the streaming writer, not both');
+      throw new AuthoringError(
+        'provide either a stream or a filename to the streaming writer, not both',
+      );
     }
     this.#sink =
       options.stream ?? (options.filename ? createWriteStream(options.filename) : undefined);
@@ -391,7 +392,9 @@ export class WorkbookStreamWriter {
    */
   addImage(options: AddImageOptions): number {
     if (this.#committed) {
-      throw new Error('the workbook is already committed — no more images can be registered');
+      throw new AuthoringError(
+        'the workbook is already committed — no more images can be registered',
+      );
     }
     return this.#workbook.addImage(options);
   }
@@ -399,7 +402,9 @@ export class WorkbookStreamWriter {
   /** Create a worksheet and append it to the workbook. */
   addWorksheet(name: string, options: AddWorksheetOptions = {}): WorksheetStreamWriter {
     if (this.#committed) {
-      throw new Error('the workbook is already committed — no more worksheets can be added');
+      throw new AuthoringError(
+        'the workbook is already committed — no more worksheets can be added',
+      );
     }
     const sheet = new WorksheetStreamWriter(
       this.#workbook.addWorksheet(name, options),
@@ -417,7 +422,7 @@ export class WorkbookStreamWriter {
    */
   async commit(): Promise<Uint8Array> {
     if (this.#committed) {
-      throw new Error('the workbook is already committed');
+      throw new AuthoringError('the workbook is already committed');
     }
     this.#committed = true;
     for (const sheet of this.#sheets) sheet.commit();

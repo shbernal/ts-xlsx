@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {XmlParseError} from '../../xml/errors.ts';
 
 import {
   buildCommentThreads,
@@ -715,7 +716,7 @@ test('a truncated part fails loudly rather than yielding a half-read conversatio
   // it — see the `threaded-comment-rel-empty-target-tolerated` corpus case.
   assert.throws(
     () => parseThreadedComments('<ThreadedComments><threadedComment ref="A1" id="{A"'),
-    SyntaxError,
+    XmlParseError,
   );
 });
 

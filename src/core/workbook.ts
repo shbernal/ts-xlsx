@@ -6,6 +6,7 @@
 // first place, rather than failing only at write time.
 
 import {type CustomUiDocument, isCustomUiRelType, parseCustomUi} from '../customui/index.ts';
+import {AuthoringError} from '../errors.ts';
 import {
   addVbaReference,
   parseVbaProject,
@@ -534,7 +535,7 @@ export class Workbook {
    * Registering a name a source file already defined **overrides** that definition rather than adding
    * a second one beside it.
    *
-   * @throws {Error} if the name is empty, or an element carries a `size` outside the four stripe
+   * @throws {@link AuthoringError} if the name is empty, or an element carries a `size` outside the four stripe
    *   types, or a `size` is not a positive integer — see {@link checkTableStyle} for why those are
    *   refused here rather than silently dropped.
    */
@@ -582,7 +583,7 @@ export class Workbook {
    * unauthored keeps the source's own encoding, including the `<a:sysClr>` form Excel uses for
    * `dk1`/`lt1` so they follow the viewer's window colours.
    *
-   * @throws {Error} if a colour is not 6 or 8 hexadecimal digits.
+   * @throws {@link AuthoringError} if a colour is not 6 or 8 hexadecimal digits.
    */
   setTheme(overrides: ThemeOverrides): void {
     // Validated eagerly, by running the generation the writer will later run: a colour rejected at
@@ -739,15 +740,15 @@ export class Workbook {
   /**
    * Register a defined name on the workbook.
    *
-   * @throws {Error} if the name is empty, or if a {@link DefinedName.scope} is given that names no
+   * @throws {@link AuthoringError} if the name is empty, or if a {@link DefinedName.scope} is given that names no
    *   existing worksheet — a scoped name must target a sheet that is already part of the workbook.
    */
   defineName(definedName: DefinedName): void {
     if (definedName.name.length === 0) {
-      throw new Error('a defined name cannot be empty');
+      throw new AuthoringError('a defined name cannot be empty');
     }
     if (definedName.scope !== undefined && this.getWorksheet(definedName.scope) === undefined) {
-      throw new Error(
+      throw new AuthoringError(
         `defined name "${definedName.name}" is scoped to unknown worksheet "${definedName.scope}"`,
       );
     }
@@ -757,7 +758,7 @@ export class Workbook {
   /**
    * Create a worksheet and append it to the workbook.
    *
-   * @throws {Error} if the name is empty, too long, contains a forbidden character,
+   * @throws {@link AuthoringError} if the name is empty, too long, contains a forbidden character,
    *   or collides (case-insensitively) with an existing sheet.
    */
   addWorksheet(name: string, options: AddWorksheetOptions = {}): Worksheet {
@@ -778,23 +779,25 @@ export class Workbook {
 
   #assertValidSheetName(name: string): void {
     if (name.length === 0) {
-      throw new Error('worksheet name cannot be empty');
+      throw new AuthoringError('worksheet name cannot be empty');
     }
     if (name.length > MAX_SHEET_NAME_LENGTH) {
-      throw new Error(
+      throw new AuthoringError(
         `worksheet name "${name}" exceeds the ${MAX_SHEET_NAME_LENGTH}-character limit`,
       );
     }
     if (INVALID_SHEET_NAME_CHARS.test(name)) {
-      throw new Error(
+      throw new AuthoringError(
         `worksheet name "${name}" contains a character Excel forbids (* ? : \\ / [ ])`,
       );
     }
     if (name.startsWith("'") || name.endsWith("'")) {
-      throw new Error(`worksheet name "${name}" cannot start or end with an apostrophe`);
+      throw new AuthoringError(`worksheet name "${name}" cannot start or end with an apostrophe`);
     }
     if (this.getWorksheet(name) !== undefined) {
-      throw new Error(`a worksheet named "${name}" already exists (names are case-insensitive)`);
+      throw new AuthoringError(
+        `a worksheet named "${name}" already exists (names are case-insensitive)`,
+      );
     }
   }
 

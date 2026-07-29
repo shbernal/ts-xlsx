@@ -14,6 +14,7 @@
 
 import type {CellValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {AuthoringError} from '../../errors.ts';
 
 export interface CsvReadOptions {
   /** Field separator; defaults to a comma. A single character. */
@@ -32,7 +33,9 @@ export function readCsv(input: string | Uint8Array, options: CsvReadOptions = {}
   const text = stripBom(typeof input === 'string' ? input : Buffer.from(input).toString('utf8'));
   const delimiter = options.delimiter ?? ',';
   if (delimiter.length !== 1) {
-    throw new Error(`CSV delimiter must be a single character, got ${JSON.stringify(delimiter)}`);
+    throw new AuthoringError(
+      `CSV delimiter must be a single character, got ${JSON.stringify(delimiter)}`,
+    );
   }
 
   let rows = parseCsvRows(text, delimiter);

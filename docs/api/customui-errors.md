@@ -16,7 +16,8 @@ The parser treats the part as hostile input (a spreadsheet library parses untrus
 malformed structure fails closed with this error rather than yielding a half-built tree.
 
 ```ts
-class CustomUiParseError extends Error {
+class CustomUiParseError extends XlsxError {
   override readonly name = 'CustomUiParseError';
+  override readonly code = 'malformed-input';
 }
 ```

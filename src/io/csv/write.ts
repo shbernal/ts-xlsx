@@ -22,6 +22,7 @@ import {
 } from '../../core/value.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {AuthoringError} from '../../errors.ts';
 
 export interface CsvWriteOptions {
   /** Which worksheet to write; defaults to the first. A name matching no sheet throws rather than
@@ -90,11 +91,11 @@ export function writeCsv(workbook: Workbook, options: CsvWriteOptions = {}): Uin
 function selectSheet(workbook: Workbook, name: string | undefined): Worksheet {
   if (name === undefined) {
     const first = workbook.worksheets[0];
-    if (first === undefined) throw new Error('workbook has no worksheet to write as CSV');
+    if (first === undefined) throw new AuthoringError('workbook has no worksheet to write as CSV');
     return first;
   }
   const sheet = workbook.getWorksheet(name);
-  if (sheet === undefined) throw new Error(`no worksheet named "${name}" to write as CSV`);
+  if (sheet === undefined) throw new AuthoringError(`no worksheet named "${name}" to write as CSV`);
   return sheet;
 }
 

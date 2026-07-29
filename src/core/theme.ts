@@ -5,6 +5,8 @@
 // needs. Everything else in a theme (the format scheme's gradients, line and effect styles) is
 // nobody's business here.
 
+import {AuthoringError} from '../errors.ts';
+
 /**
  * The twelve colour-scheme slots **in the order a `theme="n"` attribute indexes them**.
  *
@@ -214,7 +216,7 @@ function normalizeSchemeValue(value: string): string {
   const hex = value.startsWith('#') ? value.slice(1) : value;
   const rgb = hex.length === 8 ? hex.slice(2) : hex;
   if (!/^[0-9a-fA-F]{6}$/.test(rgb)) {
-    throw new Error(
+    throw new AuthoringError(
       `Invalid theme colour ${JSON.stringify(value)}: expected 6 hexadecimal digits (RRGGBB)`,
     );
   }

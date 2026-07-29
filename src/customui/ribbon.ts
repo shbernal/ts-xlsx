@@ -189,7 +189,7 @@ export function parseCustomUi(input: string | Uint8Array): CustomUiDocument {
   } catch (error) {
     if (error instanceof CustomUiParseError) throw error;
     const detail = error instanceof Error ? error.message : String(error);
-    throw new CustomUiParseError(`malformed customUI XML: ${detail}`);
+    throw new CustomUiParseError(`malformed customUI XML: ${detail}`, {cause: error});
   }
 
   const customUi = findChild(root, 'customUI');

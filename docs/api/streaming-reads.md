@@ -19,8 +19,10 @@ function* readSheetRows(data: Uint8Array, options: ReadSheetRowsOptions = {}): G
 - `options` — Sheet selector and the inflate bound (see `ReadSheetRowsOptions`).
 **Throws** — if the input is not a readable `.xlsx` package (a legacy `.xls`, a
 binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
-**Throws** — if the archive exceeds the inflate bound, or if `options.sheet` selects a sheet that
-does not exist.
+**Throws** — {
+**Throws** — {
+**Throws** — / `AuthoringError` if `options.sheet` selects a position, or a name,
+that no worksheet has.
 
 ---
 
@@ -53,4 +55,4 @@ function* readWorkbookStream(data: Uint8Array, options: ReadXlsxOptions = {}): G
 - `options` — The inflate bound (see `ReadXlsxOptions`).
 **Throws** — if the input is not a readable `.xlsx` package (a legacy `.xls`, a
 binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
-**Throws** — if the archive exceeds the inflate bound.
+**Throws** — {

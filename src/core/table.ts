@@ -7,6 +7,7 @@
 // the OOXML gatekeeper for serialization; this model owns the invariants Excel enforces
 // on the *shape* itself: a legal name, at least one column, and at least one row.
 
+import {AuthoringError} from '../errors.ts';
 import {decodeAddress, encodeAddress} from './address.ts';
 import type {CellStyle} from './style.ts';
 import type {CellValue} from './value.ts';
@@ -217,10 +218,12 @@ export function disambiguateColumnNames(columns: readonly TableColumn[]): TableC
 
 function validateTableName(name: string): void {
   if (name.length === 0 || name.length > 255) {
-    throw new Error(`table name ${JSON.stringify(name)} must be between 1 and 255 characters`);
+    throw new AuthoringError(
+      `table name ${JSON.stringify(name)} must be between 1 and 255 characters`,
+    );
   }
   if (!IDENTIFIER.test(name)) {
-    throw new Error(
+    throw new AuthoringError(
       `table name ${JSON.stringify(name)} is not a valid Excel identifier — it must start with a letter, ` +
         'underscore, or backslash and contain only letters, digits, periods, and underscores',
     );
@@ -263,7 +266,7 @@ export class Table {
   constructor(options: TableOptions, writeCell?: TableCellWriter, insertRow?: TableRowInserter) {
     validateTableName(options.name);
     if (options.columns.length === 0) {
-      throw new Error(`table "${options.name}" must declare at least one column`);
+      throw new AuthoringError(`table "${options.name}" must declare at least one column`);
     }
     if (!Number.isInteger(options.rowCount) || options.rowCount < 0) {
       throw new RangeError(
@@ -292,7 +295,7 @@ export class Table {
     this.#insertRow = insertRow;
 
     if (this.#rowSpan < 1) {
-      throw new Error(
+      throw new AuthoringError(
         `table "${this.name}" has no rows — it needs a header row or at least one data row`,
       );
     }
@@ -331,7 +334,7 @@ export class Table {
 
     if (this.totalsRow) {
       if (this.#insertRow === undefined) {
-        throw new Error(
+        throw new AuthoringError(
           `table "${this.name}" is not attached to a worksheet — cannot relocate its totals row to append a data row`,
         );
       }
@@ -346,7 +349,7 @@ export class Table {
 
     if (values.length > 0) {
       if (this.#writeCell === undefined) {
-        throw new Error(
+        throw new AuthoringError(
           `table "${this.name}" is not attached to a worksheet — cannot write appended row values`,
         );
       }

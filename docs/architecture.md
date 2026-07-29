@@ -83,6 +83,7 @@ order:
 
 | Area | Role |
 | --- | --- |
+| errors | the failure taxonomy every layer throws through (`src/errors.ts`) — below all of them |
 | core model | `Workbook` / `Worksheet` / `Row` / `Cell`, addresses, styles — the in-memory document |
 | xml | escaping, emission and a hostile-input-safe SAX reader (`src/xml/`) — no spreadsheet knowledge |
 | opc container | ZIP inflation under a bound, magic-byte sniffing, the relationship graph and part paths (`src/io/opc/`) |
@@ -95,7 +96,8 @@ order:
 
 That order is a real constraint, not a description: `scripts/check-layering.ts` (a gate in
 `verify --full`) fails the build on an import that runs up it. The rules it carries are that
-`src/xml/` reaches nothing, `src/core/` never reaches a serialisation, `src/io/opc/` and
+`src/errors.ts` reaches nothing, `src/xml/` reaches nothing above it, `src/core/` never reaches a
+serialisation, `src/io/opc/` and
 `src/io/style/` sit below every codec, and the two codecs are peers — `src/io/xlsb/` may not
 import `src/io/xlsx/`. Co-located tests are exempt, since a test import is not a dependency of
 the graph we ship. Shared code that tempts a codec to reach sideways belongs in `opc` or `style`;
@@ -139,6 +141,33 @@ package — `inflate.ts` (the bounded inflater), `sniff-format.ts` (the magic-by
 typed rejection), `read-opc.ts` (resolving relationships and walking a part closure), `rels.ts`
 (emitting a `.rels` part), `part-paths.ts`, and the package namespaces — and `src/xml/` holds
 escaping, emission and the SAX reader beneath even that.
+
+## How a failure is reported
+
+Every error the library raises deliberately descends from `XlsxError` (`src/errors.ts`), so one
+`catch` clause answers "was that us?" without naming a class. Two levels of branch sit under it,
+chosen so neither is redundant with the other: `code` is the *kind* of failure, `name` (and
+`instanceof`) is exactly which one. Several classes share a code on purpose — a code in 1:1
+correspondence with the classes would carry nothing the class did not already carry.
+
+| code | what the caller does about it | classes |
+| --- | --- | --- |
+| `unsupported-format` | try a different reader, or reject the input | `UnsupportedFormatError` (its `format` field says *which* unsupported input) |
+| `malformed-input` | reject the file — it is broken, or hostile | `PackageReadError`, `XmlParseError`, `XlsxParseError`, `XlsbParseError`, `VbaParseError`, `CustomUiParseError` |
+| `authoring` | fix the calling code — it described a document that cannot exist | `AuthoringError`, `VbaAuthorError` |
+| `internal` | report it — an invariant of ours did not hold | `InternalError` |
+
+Scalar argument validation stays outside the taxonomy: an index out of range, an unparseable
+reference, a value of the wrong type are native `RangeError` / `SyntaxError` / `TypeError`, because
+that is what those types are for. The line is composite vs. scalar — `getColumn(0)` is a
+`RangeError`; a table that names a column twice is an `AuthoringError`. A layer that wraps a
+lower-level failure passes it as `cause` rather than flattening it into the message, except where
+the lower layer's text is itself the hazard (a zip library's message can name an absolute path, so
+`sniff-format.ts` replaces rather than wraps it).
+
+There is deliberately no "not implemented yet" code: every candidate turned out to be an
+unreachable exhaustiveness guard, and the one real feature gap — a binary `.xlsb` cannot be
+row-streamed — is already reported through `UnsupportedFormatError`'s `format` branch.
 
 ## Two serialisations, one model
 

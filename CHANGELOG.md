@@ -30,6 +30,26 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **BREAKING: every deliberate failure now descends from one `XlsxError`, and carries a `code`.**
+  `catch (e) { if (e instanceof XlsxError) … }` is the whole answer to "was that this library?" —
+  previously five typed classes shared no ancestor, and the model's own validation threw bare `Error`
+  distinguishable only by string-matching the message. `error.code` is the coarse branch
+  (`'unsupported-format'` | `'malformed-input'` | `'authoring'` | `'internal'`); `error.name` and
+  `instanceof` remain the exact one. See "How a failure is reported" in
+  [docs/architecture.md](docs/architecture.md).
+
+  New classes: `AuthoringError` (a document that cannot exist — 50 sites that used to throw bare
+  `Error`), `PackageReadError` (a refused inflate, previously recognised by a message prefix),
+  `XmlParseError` (malformed markup, previously a native `SyntaxError` that escaped `readXlsx`
+  indistinguishable from a caller's own), `XlsxParseError`, and `InternalError` (an invariant of ours
+  that did not hold). The five existing classes — `UnsupportedFormatError`, `XlsbParseError`,
+  `VbaParseError`, `VbaAuthorError`, `CustomUiParseError` — keep their names, messages and fields and
+  gain the ancestry.
+
+  What did **not** change: scalar argument validation stays native `RangeError` / `SyntaxError` /
+  `TypeError`, and every error message is byte-identical. The break is the *type* of a caught error,
+  which matters if you catch `SyntaxError` around XML parsing or switch on `constructor`.
+
 - **`Workbook.addTableStyle({name, elements})` — custom table styles are authorable.** A workbook can
   now define its own named table styles beside Excel's built-in gallery, and a table reaches one by
   putting that name in `TableStyleInfo.name`. Each element names a region (`wholeTable`, `headerRow`,

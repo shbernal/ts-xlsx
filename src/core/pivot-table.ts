@@ -10,6 +10,7 @@
 // The source data is captured when the pivot is added — the model reads the source sheet's cells
 // once, here, so the pivot is a stable snapshot independent of later edits to the source.
 
+import {AuthoringError, InternalError} from '../errors.ts';
 import {encodeAddress} from './address.ts';
 import {
   type CellValue,
@@ -170,7 +171,7 @@ export class PivotTable {
   constructor(options: PivotTableOptions) {
     const metric = options.metric ?? 'sum';
     if (!PIVOT_METRICS.has(metric)) {
-      throw new Error(
+      throw new AuthoringError(
         `unsupported pivot metric "${metric}" — expected one of ${[...PIVOT_METRICS].join(', ')}`,
       );
     }
@@ -180,7 +181,7 @@ export class PivotTable {
     const columnCount = source.columnCount;
     const lastRow = source.rowCount;
     if (columnCount < 1 || lastRow < 2) {
-      throw new Error('a pivot source needs a header row and at least one data row');
+      throw new AuthoringError('a pivot source needs a header row and at least one data row');
     }
 
     // Every non-blank header cell in row 1 defines a field, in ascending column order.
@@ -189,21 +190,24 @@ export class PivotTable {
       const name = textOf(scalarOf(source.getCell(encodeAddress(col, 1)).value));
       if (name !== '') fields.push({name, col});
     }
-    if (fields.length === 0) throw new Error('the pivot source header row is empty');
+    if (fields.length === 0) throw new AuthoringError('the pivot source header row is empty');
 
     const resolve = (role: string, name: string): number => {
       const index = fields.findIndex((field) => field.name === name);
       if (index < 0) {
-        throw new Error(`pivot ${role} field "${name}" is not a column header in the source sheet`);
+        throw new AuthoringError(
+          `pivot ${role} field "${name}" is not a column header in the source sheet`,
+        );
       }
       return index;
     };
-    if (options.rows.length === 0) throw new Error('a pivot table needs at least one row field');
+    if (options.rows.length === 0)
+      throw new AuthoringError('a pivot table needs at least one row field');
     if (options.columns.length === 0)
-      throw new Error('a pivot table needs at least one column field');
+      throw new AuthoringError('a pivot table needs at least one column field');
     const [valueName, ...extraValues] = options.values;
     if (valueName === undefined || extraValues.length > 0) {
-      throw new Error('a pivot table needs exactly one value field');
+      throw new AuthoringError('a pivot table needs exactly one value field');
     }
 
     this.rowFields = options.rows.map((name) => resolve('row', name));
@@ -215,7 +219,7 @@ export class PivotTable {
     const firstField = fields[0];
     const lastField = fields[fields.length - 1];
     if (firstField === undefined || lastField === undefined) {
-      throw new Error('the pivot source header row is empty');
+      throw new AuthoringError('the pivot source header row is empty');
     }
     this.sourceSheetName = source.name;
     this.sourceRef = `${encodeAddress(firstField.col, 1)}:${encodeAddress(lastField.col, lastRow)}`;
@@ -257,7 +261,7 @@ export class PivotTable {
         fields.map((_field, fieldIndex): PivotRecordCell => {
           const scalar = scalarsForField(columnScalars, fieldIndex)[row];
           if (scalar === undefined) {
-            throw new Error(
+            throw new InternalError(
               `pivot record row ${row} is out of range for field ${fieldIndex} — every column was ` +
                 'scanned for the same dataRowCount above, so this index is always in range',
             );
@@ -266,7 +270,8 @@ export class PivotTable {
           if (!catalogue) return scalar;
           // Every scalar was catalogued in the shared-items pass above, so this always hits.
           const index = catalogue.get(itemKey(scalar));
-          if (index === undefined) throw new Error('pivot record references an uncatalogued item');
+          if (index === undefined)
+            throw new InternalError('pivot record references an uncatalogued item');
           return {kind: 'index', index};
         }),
       );
@@ -278,7 +283,7 @@ export class PivotTable {
   get valueFieldName(): string {
     const field = this.cacheFields[this.valueField];
     if (field === undefined) {
-      throw new Error(
+      throw new InternalError(
         `pivot valueField index ${this.valueField} is out of range — resolve() validated it against ` +
           'the same fields array cacheFields was built from',
       );
@@ -296,7 +301,7 @@ function scalarsForField(
 ): readonly PivotItem[] {
   const scalars = columnScalars[fieldIndex];
   if (scalars === undefined) {
-    throw new Error(
+    throw new InternalError(
       `pivot field index ${fieldIndex} is out of range for columnScalars — it was built from the same fields array`,
     );
   }

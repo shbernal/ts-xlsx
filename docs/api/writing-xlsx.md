@@ -26,5 +26,4 @@ Serialise a workbook into an `.xlsx` package.
 function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array;
 ```
 
-**Throws** — if the workbook has no worksheets (a zero-sheet package is corrupt),
-or holds a value the writer cannot yet represent.
+**Throws** — {

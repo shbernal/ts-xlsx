@@ -1,3 +1,5 @@
+import {XlsxError} from '../errors.ts';
+
 /**
  * Thrown when a VBA project (`vbaProject.bin`) is present but cannot be parsed — a malformed
  * compound file, a corrupt compressed stream, or a `dir` record that does not conform to [MS-OVBA].
@@ -6,8 +8,9 @@
  * The parser treats the blob as hostile input (a spreadsheet library parses untrusted files), so every
  * malformed structure fails closed with this error rather than crashing, hanging, or over-allocating.
  */
-export class VbaParseError extends Error {
+export class VbaParseError extends XlsxError {
   override readonly name = 'VbaParseError';
+  override readonly code = 'malformed-input';
 }
 
 /**
@@ -17,6 +20,7 @@ export class VbaParseError extends Error {
  * writer's single-header DIFAT bound. This is a caller-side contract violation, distinct from
  * {@link VbaParseError} (which reports a malformed blob *read* from an untrusted file).
  */
-export class VbaAuthorError extends Error {
+export class VbaAuthorError extends XlsxError {
   override readonly name = 'VbaAuthorError';
+  override readonly code = 'authoring';
 }

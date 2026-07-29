@@ -198,9 +198,21 @@ export {
   type RibbonGroup,
   type RibbonTab,
 } from './customui/index.ts';
+// The failure taxonomy. `XlsxError` is the one-line answer to "was that us?"; `XlsxErrorCode` is the
+// kind of failure, shared across classes on purpose (see `src/errors.ts`).
+export {
+  AuthoringError,
+  InternalError,
+  XlsxError,
+  type XlsxErrorCode,
+} from './errors.ts';
 export {type CsvReadOptions, readCsv} from './io/csv/read.ts';
 export {type CsvWriteOptions, writeCsv, writeCsvText} from './io/csv/write.ts';
-export {type UnsupportedFormat, UnsupportedFormatError} from './io/opc/errors.ts';
+export {
+  PackageReadError,
+  type UnsupportedFormat,
+  UnsupportedFormatError,
+} from './io/opc/errors.ts';
 export {XlsbParseError} from './io/xlsb/errors.ts';
 // `readXlsx` auto-detects and reads a binary `.xlsb` too, so most callers never name this; it is
 // public for the caller that holds bytes it already knows to be `.xlsb` and wants to say so.
@@ -209,6 +221,7 @@ export {
   editXlsxVbaAddReference,
   editXlsxVbaRemoveModule,
 } from './io/xlsx/edit-vba.ts';
+export {XlsxParseError} from './io/xlsx/errors.ts';
 export {type ReadXlsxOptions, readXlsx} from './io/xlsx/read.ts';
 // The streaming reader's entry points are public; the granular per-row/cell/sheet output shapes
 // (`StreamedRow`/`StreamedCell`/`StreamedSheet`) are intentionally left as inferred structural types
@@ -238,3 +251,4 @@ export {
   type VbaProjectSignature,
   type VbaProjectSignatureKind,
 } from './vba/index.ts';
+export {XmlParseError} from './xml/errors.ts';

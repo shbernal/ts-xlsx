@@ -14,6 +14,7 @@
 // to one slice's expansion — not the whole (possibly enormous) stream.
 
 import {type FlateError, Unzip, type UnzipFile, UnzipInflate} from 'fflate';
+import {PackageReadError} from './errors.ts';
 
 // Compressed input is pushed in slices this size so decompressed output arrives in
 // increments the running counter can check. Small enough that the worst-case overshoot
@@ -29,8 +30,11 @@ const INPUT_SLICE = 1 << 14;
  * @param cap  Maximum total uncompressed output, in bytes, across all parts. Enforced
  *   against bytes actually produced, never against the archive's declared sizes.
  * @returns A map of part path to inflated bytes.
- * @throws {Error} if inflation would exceed `cap` (a probable zip bomb), if the archive is
- *   malformed, or if a part uses an unsupported compression method.
+ * @throws {@link PackageReadError} if inflation would exceed `cap` — a probable zip bomb.
+ * @throws {Error} raised by the zip layer if the archive is malformed or a part uses an unsupported
+ *   compression method. Callers reach this through {@link inflateSpreadsheetPackage}, which is where
+ *   those are classified; the raw error is deliberately not re-typed here, because its text is the
+ *   one thing that must not reach a caller unfiltered.
  */
 export function inflatePackage(data: Uint8Array, cap: number): Record<string, Uint8Array> {
   const files: Record<string, Uint8Array> = {};
@@ -48,7 +52,7 @@ export function inflatePackage(data: Uint8Array, cap: number): Record<string, Ui
       }
       total += chunk.length;
       if (total > cap) {
-        failure = new Error(
+        failure = new PackageReadError(
           `refusing to inflate: uncompressed output exceeds ${cap} bytes (possible zip bomb)`,
         );
         return;

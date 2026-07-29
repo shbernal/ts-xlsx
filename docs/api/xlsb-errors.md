@@ -16,7 +16,8 @@ from `UnsupportedFormatError`, which reports that the *container* is not a forma
 all; by the time this is raised the input has already been recognised as an `.xlsb`.
 
 ```ts
-class XlsbParseError extends Error {
+class XlsbParseError extends XlsxError {
   override readonly name = 'XlsbParseError';
+  override readonly code = 'malformed-input';
 }
 ```

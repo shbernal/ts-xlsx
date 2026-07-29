@@ -6,6 +6,7 @@
 // the cell grid, because a column or row can carry formatting while holding no cells.
 // Merges and views layer on in later slices.
 
+import {AuthoringError} from '../errors.ts';
 import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
@@ -474,7 +475,7 @@ export class Worksheet {
    * name, at least one column, at least one row) are enforced here; conflicts with the
    * rest of the sheet (e.g. an overlapping merge) are the writer's concern.
    *
-   * @throws {Error} if the name, columns, or geometry are invalid.
+   * @throws {@link AuthoringError} if the name, columns, or geometry are invalid.
    */
   addTable(options: TableOptions): Table {
     const table = new Table(
@@ -568,7 +569,7 @@ export class Worksheet {
    * read once, now, so the pivot is a snapshot: later edits to the source do not change it. The
    * supported shape (one summed value field, at least one row and column field) is enforced here.
    *
-   * @throws {Error} if the metric, fields, or source shape are unsupported.
+   * @throws {@link AuthoringError} if the metric, fields, or source shape are unsupported.
    */
   addPivotTable(options: PivotTableOptions): PivotTable {
     const pivot = new PivotTable(options);
@@ -793,7 +794,7 @@ export class Worksheet {
       const rect: MergeRect = {top, left, bottom, right};
       const clash = this.#mergeRects.find((existing) => rectsOverlap(existing, rect));
       if (clash) {
-        throw new Error(`merged range "${range}" overlaps an existing merged region`);
+        throw new AuthoringError(`merged range "${range}" overlaps an existing merged region`);
       }
       this.#mergeRects.push(rect);
       this.#clearCoveredValues(rect);
@@ -1039,7 +1040,9 @@ export class Worksheet {
     for (const [index, properties] of this.#columns) {
       if (properties.key === key) return index;
     }
-    throw new Error(`no column is keyed ${JSON.stringify(key)} — set getColumn(n).key first`);
+    throw new AuthoringError(
+      `no column is keyed ${JSON.stringify(key)} — set getColumn(n).key first`,
+    );
   }
 
   /**

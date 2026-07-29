@@ -15,11 +15,11 @@
 // unchanged.
 
 import {strToU8, zipSync} from 'fflate';
-
 import type {WorkbookImage} from '../../core/image.ts';
 import {DEFAULT_THEME_XML} from '../../core/theme.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {AuthoringError} from '../../errors.ts';
 import {THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relsPartXml} from '../opc/rels.ts';
 import {collectComments, commentsXml, vmlDrawingXml} from './comments.ts';
@@ -107,7 +107,7 @@ export interface InternalWriteOptions extends WriteOptions {
 /**
  * Serialise a workbook into an `.xlsx` package.
  *
- * @throws {Error} if the workbook has no worksheets (a zero-sheet package is corrupt),
+ * @throws {@link AuthoringError} if the workbook has no worksheets (a zero-sheet package is corrupt),
  *   or holds a value the writer cannot yet represent.
  */
 export function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array {
@@ -186,7 +186,7 @@ function resolveSheetReferences(plan: SheetPlan): SheetReferences {
  * streaming writer can drive the identical parts through a streamed zip container rather than
  * `zipSync`. Neither writer duplicates a byte of serialisation.
  *
- * @throws {Error} if the workbook has no worksheets, or holds a value the writer cannot represent.
+ * @throws {@link AuthoringError} if the workbook has no worksheets, or holds a value the writer cannot represent.
  */
 export function buildPackageParts(
   workbook: Workbook,
@@ -194,7 +194,7 @@ export function buildPackageParts(
 ): Record<string, Uint8Array> {
   const sheets = workbook.worksheets;
   if (sheets.length === 0) {
-    throw new Error(
+    throw new AuthoringError(
       'cannot write a workbook with no worksheets — a zero-sheet package is corrupt to Excel',
     );
   }
@@ -279,7 +279,7 @@ export function buildPackageParts(
     if (sheet.backgroundImageId !== undefined) {
       const registered = workbook.getImage(sheet.backgroundImageId);
       if (registered === undefined) {
-        throw new Error(
+        throw new AuthoringError(
           `sheet "${sheet.name}" sets background image id ${sheet.backgroundImageId}, which is not registered on the workbook`,
         );
       }

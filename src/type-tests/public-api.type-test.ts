@@ -5,25 +5,38 @@
 
 import type {
   AddImageOptions,
+  AuthoringError,
   AutoFilter,
   CellAddress,
   CellValue,
   Comment,
   CommentThread,
+  CustomUiParseError,
   DefinedName,
   decodeAddress,
   FilterColumn,
   FilterCriteria,
+  InternalError,
   Mention,
+  PackageReadError,
   PageBreak,
   PageSetup,
   Person,
   PrintOptions,
   readXlsx,
   SheetView,
+  UnsupportedFormat,
+  UnsupportedFormatError,
+  VbaAuthorError,
+  VbaParseError,
   Workbook,
   Worksheet,
   writeXlsx,
+  XlsbParseError,
+  XlsxError,
+  XlsxErrorCode,
+  XlsxParseError,
+  XmlParseError,
 } from '../index.ts';
 import type {Equal, Expect, Extends} from './expect.ts';
 
@@ -87,4 +100,29 @@ export type CommentThreadContracts = [
   // Authoring takes the model's own shapes — no wire-level surrogate a caller has to translate into.
   Expect<Equal<Parameters<Worksheet['addCommentThread']>, [CommentThread]>>,
   Expect<Equal<Parameters<Workbook['addPerson']>, [Person]>>,
+];
+
+// The failure taxonomy is a discriminated union over `code`, not a bag of unrelated classes: each
+// subclass pins `code` to a literal, so narrowing an `XlsxError` on it narrows the *type*, and a
+// class that widened its `code` back to `XlsxErrorCode` would break these rather than silently make
+// every branch reachable. The `Extends` rows are the ancestry contract — one `catch` clause answers
+// "was that us?" for every class the barrel exports.
+export type ErrorTaxonomyContracts = [
+  Expect<Equal<AuthoringError['code'], 'authoring'>>,
+  Expect<Equal<InternalError['code'], 'internal'>>,
+  Expect<Equal<UnsupportedFormatError['code'], 'unsupported-format'>>,
+  Expect<Equal<XmlParseError['code'], 'malformed-input'>>,
+  Expect<Equal<XlsxParseError['code'], 'malformed-input'>>,
+  Expect<Equal<XlsbParseError['code'], 'malformed-input'>>,
+  Expect<Equal<PackageReadError['code'], 'malformed-input'>>,
+  Expect<Equal<CustomUiParseError['code'], 'malformed-input'>>,
+  Expect<Equal<VbaParseError['code'], 'malformed-input'>>,
+  Expect<Equal<VbaAuthorError['code'], 'authoring'>>,
+  Expect<Equal<XlsxError['code'], XlsxErrorCode>>,
+  Expect<Extends<AuthoringError, XlsxError>>,
+  Expect<Extends<UnsupportedFormatError, XlsxError>>,
+  Expect<Extends<XlsxError, Error>>,
+  // `format` survives the move onto the base — it is the branch for *which* unsupported input,
+  // where `code` is only the branch for what kind of failure.
+  Expect<Equal<UnsupportedFormatError['format'], UnsupportedFormat>>,
 ];

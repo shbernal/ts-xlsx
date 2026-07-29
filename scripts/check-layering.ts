@@ -20,7 +20,7 @@ import {fileURLToPath} from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 interface Rule {
-  /** Modules under this directory… */
+  /** Modules under this directory — or the single module at this exact path… */
   readonly layer: string;
   /** …may not import modules under any of these. */
   readonly forbidden: readonly string[];
@@ -29,6 +29,11 @@ interface Rule {
 }
 
 const RULES: readonly Rule[] = [
+  {
+    layer: 'src/errors.ts',
+    forbidden: ['src/core', 'src/io', 'src/xml', 'src/vba', 'src/customui'],
+    because: 'the failure taxonomy is below every layer that throws through it',
+  },
   {
     layer: 'src/xml',
     forbidden: ['src/core', 'src/io', 'src/vba', 'src/customui'],
@@ -89,7 +94,9 @@ function importedPaths(file: string): string[] {
 
 const violations: string[] = [];
 for (const file of sourceFiles('src')) {
-  const rule = RULES.find((candidate) => file.startsWith(`${candidate.layer}/`));
+  const rule = RULES.find(
+    (candidate) => file === candidate.layer || file.startsWith(`${candidate.layer}/`),
+  );
   if (rule === undefined) continue;
   for (const target of importedPaths(file)) {
     const crossed = rule.forbidden.find((layer) => target.startsWith(`${layer}/`));

@@ -11,6 +11,8 @@
 // definitions are skipped, so entity-expansion (billion-laughs) and external-entity
 // (XXE) attacks are structurally impossible here, not merely mitigated.
 
+import {XmlParseError} from './errors.ts';
+
 export interface XmlAttributes {
   readonly [name: string]: string;
 }
@@ -108,7 +110,7 @@ function findTagEnd(source: string, start: number): number {
       return i;
     }
   }
-  throw new SyntaxError('unterminated tag: missing ">"');
+  throw new XmlParseError('unterminated tag: missing ">"');
 }
 
 // A `<!DOCTYPE …>` may contain a bracketed internal subset with its own `>`; balance the
@@ -121,7 +123,7 @@ function skipDeclaration(source: string, start: number): number {
     else if (ch === ']') depth--;
     else if (ch === '>' && depth <= 0) return i + 1;
   }
-  throw new SyntaxError('unterminated markup declaration: missing ">"');
+  throw new XmlParseError('unterminated markup declaration: missing ">"');
 }
 
 /**
@@ -130,7 +132,7 @@ function skipDeclaration(source: string, start: number): number {
  * consumer that must produce output incrementally (the streaming row reader) pulls events and
  * yields as it goes, holding only its own running state — a push callback cannot.
  *
- * Throws {@link SyntaxError} on malformed markup.
+ * Throws {@link XmlParseError} on malformed markup.
  */
 export function* xmlEvents(source: string): Generator<XmlEvent> {
   const length = source.length;
@@ -150,20 +152,20 @@ export function* xmlEvents(source: string): Generator<XmlEvent> {
 
     if (source.startsWith('<!--', lt)) {
       const end = source.indexOf('-->', lt + 4);
-      if (end === -1) throw new SyntaxError('unterminated comment');
+      if (end === -1) throw new XmlParseError('unterminated comment');
       i = end + 3;
       continue;
     }
     if (source.startsWith('<![CDATA[', lt)) {
       const end = source.indexOf(']]>', lt + 9);
-      if (end === -1) throw new SyntaxError('unterminated CDATA section');
+      if (end === -1) throw new XmlParseError('unterminated CDATA section');
       yield {kind: 'text', text: source.slice(lt + 9, end)};
       i = end + 3;
       continue;
     }
     if (source.startsWith('<?', lt)) {
       const end = source.indexOf('?>', lt + 2);
-      if (end === -1) throw new SyntaxError('unterminated processing instruction');
+      if (end === -1) throw new XmlParseError('unterminated processing instruction');
       i = end + 2;
       continue;
     }
@@ -203,7 +205,7 @@ export interface OpenElement {
  * through a {@link parseXml} `onOpen` closure. With no names every start is yielded; with one or more,
  * only starts whose namespace-stripped name matches one. Text and close events are skipped.
  *
- * Throws {@link SyntaxError} on malformed markup.
+ * Throws {@link XmlParseError} on malformed markup.
  */
 export function* openElements(source: string, ...localNames: string[]): Generator<OpenElement> {
   const filter = localNames.length > 0 ? new Set(localNames) : undefined;
@@ -252,7 +254,7 @@ export interface ParseXmlOptions {
 /**
  * Parse an XML document, dispatching SAX events to `handlers`. A thin push adapter over
  * {@link xmlEvents} — one scanning core serves both the callback and the pull consumers.
- * Throws {@link SyntaxError} on malformed markup.
+ * Throws {@link XmlParseError} on malformed markup.
  */
 export function parseXml(source: string, handlers: SaxHandlers, options?: ParseXmlOptions): void {
   const events = options?.closeEmptyElements

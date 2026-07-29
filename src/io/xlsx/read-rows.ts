@@ -20,11 +20,13 @@
 
 import {MAX_COLUMN} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
+import {AuthoringError} from '../../errors.ts';
 import {boolStrict, closeEmptyElements, localName, xmlEvents} from '../../xml/xml-read.ts';
 import {packageAccessors} from '../opc/read-opc.ts';
 import {inflateSpreadsheetPackage, unsupportedWorkbookPart} from '../opc/sniff-format.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';
+import {XlsxParseError} from './errors.ts';
 import {
   DEFAULT_MAX_UNCOMPRESSED,
   parseRelationships,
@@ -104,8 +106,10 @@ export interface StreamedSheet {
  * @param options Sheet selector and the inflate bound (see {@link ReadSheetRowsOptions}).
  * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package (a legacy `.xls`, a
  *   binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
- * @throws {Error} if the archive exceeds the inflate bound, or if `options.sheet` selects a sheet that
- *   does not exist.
+ * @throws {@link PackageReadError} if the archive exceeds the inflate bound (a probable zip bomb).
+ * @throws {@link XlsxParseError} if the package's workbook part declares no worksheets.
+ * @throws {RangeError} / {@link AuthoringError} if `options.sheet` selects a position, or a name,
+ *   that no worksheet has.
  */
 export function* readSheetRows(
   data: Uint8Array,
@@ -129,7 +133,7 @@ export function* readSheetRows(
  * @param options The inflate bound (see {@link ReadXlsxOptions}).
  * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package (a legacy `.xls`, a
  *   binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
- * @throws {Error} if the archive exceeds the inflate bound.
+ * @throws {@link PackageReadError} if the archive exceeds the inflate bound (a probable zip bomb).
  */
 export function* readWorkbookStream(
   data: Uint8Array,
@@ -192,7 +196,7 @@ function pickSheet(
   selector: string | number | undefined,
 ): SheetEntry {
   const first = sheets[0];
-  if (first === undefined) throw new Error('workbook names no worksheets');
+  if (first === undefined) throw new XlsxParseError('workbook names no worksheets');
   if (selector === undefined) return first;
   if (typeof selector === 'number') {
     const sheet = sheets[selector - 1];
@@ -200,7 +204,8 @@ function pickSheet(
     return sheet;
   }
   const sheet = sheets.find((candidate) => candidate.name === selector);
-  if (sheet === undefined) throw new Error(`no worksheet named ${JSON.stringify(selector)}`);
+  if (sheet === undefined)
+    throw new AuthoringError(`no worksheet named ${JSON.stringify(selector)}`);
   return sheet;
 }
 

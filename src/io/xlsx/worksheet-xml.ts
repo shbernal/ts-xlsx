@@ -27,6 +27,7 @@ import type {
   Worksheet,
   WorksheetProperties,
 } from '../../core/worksheet.ts';
+import {AuthoringError, InternalError} from '../../errors.ts';
 import {escapeAttr, escapeText, numberText, textElement, XML_DECLARATION} from '../../xml/xml.ts';
 import {relativePartPath} from '../opc/part-paths.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
@@ -365,7 +366,7 @@ function validateMerges(sheet: Worksheet): void {
         top <= region.bottom &&
         bottom >= region.top;
       if (overlaps) {
-        throw new Error(
+        throw new AuthoringError(
           `merged range ${merge} overlaps table "${table.name}" (${table.range}) — Excel forbids a merge inside a table`,
         );
       }
@@ -727,7 +728,11 @@ function cellXml(
   // A null value only reaches here for a formatted-but-empty cell (the row loop keeps it for its
   // style); emit the styled cell with no <v>, exactly how Excel stores a formatted blank.
   if (value === null) return `<c r="${ref}"${s}/>`;
-  throw new Error(`writing a ${detectValueType(value)} cell value is not implemented yet`);
+  // Every ValueType kind is served by an arm above (a formula routes through its own writer), so
+  // this is unreachable — it exists because the union is not exhaustively narrowed here.
+  throw new InternalError(
+    `writing a ${detectValueType(value)} cell value has no arm — every CellValue kind is handled above`,
+  );
 }
 
 // Whether a cell carries any style facet of its own — the reason to serialise it even when empty.
@@ -826,5 +831,7 @@ function formulaBodyXml(
     return `<c r="${ref}"${s}>${f}<v>${numberText(dateToSerial(result))}</v></c>`;
   }
   // Every FormulaResult kind is handled above; this guards a value that reached here past the model.
-  throw new Error('writing a non-primitive formula result is not implemented yet');
+  throw new InternalError(
+    'writing a non-primitive formula result has no arm — every FormulaResult kind is handled above',
+  );
 }

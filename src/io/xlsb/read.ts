@@ -39,7 +39,7 @@ export const XLSB_WORKBOOK_PART = 'xl/workbook.bin';
  * @throws {UnsupportedFormatError} if the input is not an `.xlsb` package — a legacy `.xls`
  *   (`.format === 'xls'`), an XML `.xlsx` or unrecognised blob (`'unknown'`).
  * @throws {XlsbParseError} if a binary part is malformed.
- * @throws {Error} if the archive exceeds the inflate bound (a probable zip bomb).
+ * @throws {@link PackageReadError} if the archive exceeds the inflate bound (a probable zip bomb).
  */
 export function readXlsb(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
   const cap = options.maxUncompressedBytes ?? DEFAULT_MAX_UNCOMPRESSED;

@@ -7,6 +7,7 @@ import type {PivotTable} from '../../core/pivot-table.ts';
 import type {Table} from '../../core/table.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {AuthoringError} from '../../errors.ts';
 import {extensionOf, relativePartPath, relsPathFor, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {preservedRelsXml} from '../opc/rels.ts';
 import type {CommentCell} from './comments.ts';
@@ -209,7 +210,7 @@ export function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): Med
   usedIds.forEach((id, i) => {
     const image = workbook.getImage(id);
     if (image === undefined) {
-      throw new Error(
+      throw new AuthoringError(
         `a worksheet anchors image id ${id}, which is not registered on the workbook`,
       );
     }

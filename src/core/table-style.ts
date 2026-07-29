@@ -6,6 +6,7 @@
 // its own joins the gallery for that file, and a table reaches it by name through
 // `TableStyleInfo.name`.
 
+import {AuthoringError} from '../errors.ts';
 import type {DifferentialStyle} from './style.ts';
 
 /**
@@ -112,30 +113,32 @@ export interface TableStyle {
  * `size` outside a stripe is ignored — neither shows up as a repair prompt or a schema error, so the
  * only place to catch them is the call that made them.
  *
- * @throws {Error} if the name is empty, or a non-stripe element carries a `size`, or a `size` is not
+ * @throws {@link AuthoringError} if the name is empty, or a non-stripe element carries a `size`, or a `size` is not
  *   a positive integer.
  */
 export function checkTableStyle(style: TableStyle): void {
   if (style.name === '') {
-    throw new Error('a table style needs a name: a table references its style by name');
+    throw new AuthoringError('a table style needs a name: a table references its style by name');
   }
   for (const [type, element] of Object.entries(style.elements)) {
     if (element === undefined) continue;
     if (!isTableStyleElementType(type)) {
-      throw new Error(
+      throw new AuthoringError(
         `Invalid table style element ${JSON.stringify(type)}: not a value the OOXML enumeration allows`,
       );
     }
     const {size} = element;
     if (size === undefined) continue;
     if (!STRIPE_ELEMENT_TYPES.has(type)) {
-      throw new Error(
+      throw new AuthoringError(
         `table style element "${type}" cannot carry a size: band width applies only to ` +
           `${[...STRIPE_ELEMENT_TYPES].join(', ')}`,
       );
     }
     if (!Number.isInteger(size) || size < 1) {
-      throw new Error(`Invalid table style band size ${size}: expected a positive integer`);
+      throw new AuthoringError(
+        `Invalid table style band size ${size}: expected a positive integer`,
+      );
     }
   }
 }

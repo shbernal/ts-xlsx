@@ -11,7 +11,7 @@
 // The `.xlsx` and `.xlsb` serialisations share this whole layer — same container, same bound, same
 // rejections — so it is stated once here and neither reader owns it.
 
-import {UnsupportedFormatError} from './errors.ts';
+import {PackageReadError, UnsupportedFormatError} from './errors.ts';
 import {inflatePackage} from './inflate.ts';
 
 // The OLE2 / Compound File Binary signature ([MS-CFB] 2.2) that opens every legacy `.xls` (and the
@@ -65,7 +65,7 @@ export function inflateSpreadsheetPackage(
   } catch (err) {
     // The bomb guard's own refusal is clean and intended — surface it. Anything else is fflate
     // reporting a malformed archive; replace it wholesale so its raw text never reaches the caller.
-    if (err instanceof Error && err.message.startsWith('refusing to inflate')) throw err;
+    if (err instanceof PackageReadError) throw err;
     throw new UnsupportedFormatError('unknown');
   }
 }

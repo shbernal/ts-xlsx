@@ -6,6 +6,8 @@
 // `&`, or `"` produces a malformed package a consumer rejects — so it lives here,
 // audited once, rather than sprinkled through the part emitters.
 
+import {AuthoringError} from '../errors.ts';
+
 const TEXT_ESCAPES: Record<string, string> = {
   '&': '&amp;',
   '<': '&lt;',
@@ -87,7 +89,9 @@ export function attr(name: string, value: number | undefined): string {
  */
 export function numberText(value: number): string {
   if (!Number.isFinite(value)) {
-    throw new Error(`cannot write a non-finite number (${value}) — it has no OOXML representation`);
+    throw new AuthoringError(
+      `cannot write a non-finite number (${value}) — it has no OOXML representation`,
+    );
   }
   return String(value);
 }

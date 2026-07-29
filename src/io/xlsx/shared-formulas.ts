@@ -5,6 +5,7 @@ import {encodeAddress} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import {isFormulaValue, isSharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
+import {AuthoringError} from '../../errors.ts';
 
 // A cell's role in an OOXML shared-formula group. A master carries the source formula plus the `ref`
 // range the group spans; a clone (no `ref`) references the master's formula by the shared index `si`.
@@ -36,7 +37,7 @@ export function planSharedFormulas(sheet: Worksheet): Map<string, SharedFormulaR
     const master = sheet.getCell(masterAddress);
     if (!isFormulaValue(master.value)) {
       const offender = clones[0] as Cell;
-      throw new Error(
+      throw new AuthoringError(
         `shared-formula clone ${offender.address} names master ${masterAddress}, which holds no formula`,
       );
     }
@@ -44,7 +45,7 @@ export function planSharedFormulas(sheet: Worksheet): Map<string, SharedFormulaR
     let maxRow = master.row;
     for (const clone of clones) {
       if (clone.col < master.col || clone.row < master.row) {
-        throw new Error(
+        throw new AuthoringError(
           `shared-formula master ${masterAddress} must sit above and/or left of clone ${clone.address}`,
         );
       }

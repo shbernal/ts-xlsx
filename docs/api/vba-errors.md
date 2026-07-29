@@ -13,8 +13,9 @@ writer's single-header DIFAT bound. This is a caller-side contract violation, di
 `VbaParseError` (which reports a malformed blob *read* from an untrusted file).
 
 ```ts
-class VbaAuthorError extends Error {
+class VbaAuthorError extends XlsxError {
   override readonly name = 'VbaAuthorError';
+  override readonly code = 'authoring';
 }
 ```
 
@@ -32,7 +33,8 @@ The parser treats the blob as hostile input (a spreadsheet library parses untrus
 malformed structure fails closed with this error rather than crashing, hanging, or over-allocating.
 
 ```ts
-class VbaParseError extends Error {
+class VbaParseError extends XlsxError {
   override readonly name = 'VbaParseError';
+  override readonly code = 'malformed-input';
 }
 ```
