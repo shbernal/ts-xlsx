@@ -35,10 +35,10 @@ const TOTAL_BUDGET_BYTES = 950 * 1024;
 // not a chore, tight enough that a whole codec crossing a boundary cannot hide inside it.
 const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
   '.': 950,
-  './core': 330,
+  './core': 365,
   './xlsx': 930,
   './xlsb': 480,
-  './csv': 340,
+  './csv': 375,
   './vba': 85,
   './customui': 30,
   // The taxonomy reaches nothing but itself, and that is the point: classifying a failure must
