@@ -158,7 +158,10 @@ export function parseStyleTable(xml: string): StyleTable {
     return style;
   });
 
-  return {cellXfs, namedStyles};
+  // Font 0 is the workbook's declared default, so it is carried out whole as well as flattened onto
+  // the xfs that name it — see {@link StyleTable.defaultFont}.
+  const defaultFont = fonts[0];
+  return defaultFont === undefined ? {cellXfs, namedStyles} : {cellXfs, namedStyles, defaultFont};
 }
 
 // A <cellStyle> label: the name/builtinId a cellStyleXfs entry carries, keyed by its xfId (its index).

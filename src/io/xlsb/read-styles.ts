@@ -141,7 +141,10 @@ export function parseStyleTable(part: Uint8Array | undefined): StyleTable {
     return style;
   });
 
-  return {cellXfs, namedStyles};
+  // Font 0 is the workbook's declared default, carried out whole as well as flattened onto the xfs
+  // that name it — see {@link StyleTable.defaultFont}. The XML reader does the same.
+  const defaultFont = fonts[0];
+  return defaultFont === undefined ? {cellXfs, namedStyles} : {cellXfs, namedStyles, defaultFont};
 }
 
 // The shared sub-tables an XF resolves its facet indices against.

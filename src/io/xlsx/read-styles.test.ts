@@ -60,6 +60,30 @@ test('a valid vertAlign and scheme pass through verbatim', () => {
   assert.equal(table.cellXfs[0]?.font?.scheme, 'minor');
 });
 
+test('font 0 is surfaced as the declared default font, whatever face it names', () => {
+  const table = parseStyleTable(
+    '<styleSheet><fonts count="2">' +
+      '<font><sz val="11"/><color theme="1"/><name val="Aptos Narrow"/><family val="2"/><scheme val="minor"/></font>' +
+      '<font><b/><sz val="18"/></font>' +
+      '</fonts><cellXfs count="1"><xf fontId="1"/></cellXfs></styleSheet>',
+  );
+  assert.deepEqual(table.defaultFont, {
+    size: 11,
+    color: {theme: 1},
+    name: 'Aptos Narrow',
+    family: 2,
+    scheme: 'minor',
+  });
+});
+
+test('a file declaring no font table declares no default font', () => {
+  // Distinct from declaring Calibri: the library must not fabricate a declaration a file never made,
+  // because doing so would let a re-write state a default the source never had.
+  const table = parseStyleTable('<styleSheet><cellXfs count="1"><xf/></cellXfs></styleSheet>');
+  assert.equal(table.defaultFont, undefined);
+  assert.equal(parseStyleTable('').defaultFont, undefined);
+});
+
 test('an unrecognised alignment token is dropped; a valid one is kept', () => {
   const bad = parseStyleTable(
     '<styleSheet><cellXfs count="1">' +

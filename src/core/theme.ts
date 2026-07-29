@@ -108,8 +108,19 @@ export interface ThemeFontScheme {
   readonly minor?: string | undefined;
 }
 
+/**
+ * The body typeface a workbook falls back to when neither its theme nor its styles part names one —
+ * the face the default theme nominates, and so the face every `scheme="minor"` font resolves to.
+ * Named rather than inlined because it is also the last resort of the default-font chain
+ * ({@link Workbook.defaultFont}), and the two must not drift.
+ */
+export const OFFICE_BODY_FACE = 'Calibri';
+
 /** The Office default typefaces, matching the theme part the writer emits for a workbook with none. */
-export const DEFAULT_THEME_FONTS: ThemeFontScheme = {major: 'Calibri Light', minor: 'Calibri'};
+export const DEFAULT_THEME_FONTS: ThemeFontScheme = {
+  major: 'Calibri Light',
+  minor: OFFICE_BODY_FACE,
+};
 
 /** Extract the major/minor latin typefaces from a theme part's `<a:fontScheme>`. */
 export function parseThemeFontScheme(themeXml: string): ThemeFontScheme {

@@ -116,7 +116,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // format); a package without one (a hand-rolled foreign file) yields an empty table and
   // every index reads as unstyled.
   const stylesXml = partText('xl/styles.xml') ?? '';
-  const {cellXfs: xfStyles, namedStyles} = parseStyleTable(stylesXml);
+  const {cellXfs: xfStyles, namedStyles, defaultFont} = parseStyleTable(stylesXml);
 
   const workbook = new Workbook();
   // Preserve the differential-style table verbatim so conditional formatting's dxfId references stay
@@ -137,6 +137,10 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // Preserve the named cell-style layer only when a file declares one beyond the Normal default, so an
   // ordinary workbook keeps an empty named-style table and emits just the default on write.
   if (namedStyles.length > 1) workbook[INTERNAL].restoreNamedStyles(namedStyles);
+  // Preserve the declared default font (font id 0) so a re-write emits the face the file itself named
+  // rather than an assumed Calibri — which would change every empty cell and the metric every
+  // character-unit column width is expressed in.
+  workbook[INTERNAL].restoreDefaultFont(defaultFont);
   const core = partText('docProps/core.xml');
   if (core !== undefined) applyCoreProperties(workbook, core);
   workbook.protection = parseWorkbookProtection(workbookXml);

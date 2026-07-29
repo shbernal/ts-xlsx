@@ -26,13 +26,14 @@ import {replaceContents} from './containers.ts';
 import {normalizeImageExtension, type WorkbookImage} from './image.ts';
 import {INTERNAL} from './internal.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
-import type {Color, NamedCellStyle, TableStyleTable} from './style.ts';
+import type {Color, Font, NamedCellStyle, TableStyleTable} from './style.ts';
 import {checkTableStyle, type TableStyle} from './table-style.ts';
 import {
   applyThemeOverrides,
   DEFAULT_THEME_COLOR_SCHEME,
   DEFAULT_THEME_FONTS,
   DEFAULT_THEME_XML,
+  OFFICE_BODY_FACE,
   parseThemeColorScheme,
   parseThemeFontScheme,
   THEME_COLOR_SLOTS,
@@ -622,6 +623,105 @@ export class Workbook {
     return {...base, ...this.#authoredTheme.fonts};
   }
 
+  // Font id 0 exactly as a source file declared it, before anything was authored over it. Held apart
+  // from the authored layer because the two answer different questions and only their separation makes
+  // the round-trip faithful: a file's font 0 must ride through untouched, while an authored one must
+  // win. Undefined for a workbook built from scratch, or read from a package with no styles part.
+  #declaredDefaultFont: Font | undefined;
+
+  // The facets {@link setDefaultFont} has accumulated, merged in call order. Undefined until a caller
+  // authors one, which is what tells {@link defaultFont} it may re-derive rather than pass through.
+  #authoredDefaultFont: Font | undefined;
+
+  /**
+   * The default font as the source package declared it — font id 0 of its styles part, the face every
+   * cell that names no font of its own renders in. `undefined` for a workbook authored from scratch or
+   * read from a package carrying no styles part: nothing was declared, and the library does not
+   * fabricate a declaration on the file's behalf.
+   *
+   * This is the *round-trip* surface. {@link defaultFont} is what the workbook actually renders in,
+   * which is this once anything has been authored over it.
+   */
+  get declaredDefaultFont(): Font | undefined {
+    return this.#declaredDefaultFont;
+  }
+
+  /**
+   * Author the workbook's default font — the face, size and colour every cell with no font of its own
+   * renders in, **empty cells included**. Merges into whatever the workbook already had, so
+   * `setDefaultFont({size: 14})` keeps the resolved face and changes only the size, and calling it
+   * twice accumulates. This is the one knob that reaches a cell no row or column default can: an
+   * untouched cell in an unformatted column.
+   *
+   * It writes the styles part's font 0 and **nothing else** — in particular it does not rewrite the
+   * theme's body typeface. The dependency runs the other way: with no default font authored, font 0
+   * follows {@link themeFonts}'s minor face, so `setTheme({fonts: {minor}})` already reaches every
+   * unstyled cell and needs no second call here. See {@link defaultFont} for the full chain.
+   *
+   * @throws {@link AuthoringError} if `size` is not a positive finite number, or `name` is empty — both
+   *   produce a styles part Excel renders from some other font without ever reporting why.
+   */
+  setDefaultFont(font: Font): void {
+    if (font.size !== undefined && !(Number.isFinite(font.size) && font.size > 0)) {
+      throw new AuthoringError(`default font size must be a positive number, not ${font.size}`);
+    }
+    if (font.name !== undefined && font.name === '') {
+      throw new AuthoringError('default font name cannot be empty');
+    }
+    this.#authoredDefaultFont = {...this.#authoredDefaultFont, ...font};
+  }
+
+  /**
+   * The font every cell that names none of its own renders in, resolved and complete — what the writer
+   * emits as font id 0. Never `undefined`: a workbook always renders in *some* face, and the chain
+   * below always reaches one.
+   *
+   * ```
+   * authored default font  >  authored theme body face  >  the source file's font 0  >  theme body face
+   * ```
+   *
+   * The two authored levels outrank the file because authoring is an explicit act; between them
+   * {@link setDefaultFont} wins on the face because it names font 0 outright while
+   * {@link setTheme} names it only by implication. With **nothing** authored the file's own font 0
+   * passes through verbatim — deliberately, because a producer resolves that face by script and we do
+   * not: Excel writes `等线` as font 0 under a theme whose latin body face is `Calibri`, and
+   * re-deriving would silently rewrite it.
+   *
+   * `family` and `scheme` describe the *theme's* body face, so they are carried exactly while the
+   * resolved face still is that face and dropped when a caller names another — which is also what
+   * Excel writes: a font 0 naming a non-theme face carries no `<scheme>` at all. Either may be stated
+   * outright, in which case the caller's word stands.
+   */
+  get defaultFont(): Font {
+    const declared = this.#declaredDefaultFont;
+    const authored = this.#authoredDefaultFont;
+    const authoredFace = this.#authoredTheme.fonts.minor;
+    if (declared !== undefined && authored === undefined && authoredFace === undefined) {
+      return declared;
+    }
+    const bodyFace = this.themeFonts.minor ?? OFFICE_BODY_FACE;
+    const face = authored?.name ?? authoredFace ?? declared?.name ?? bodyFace;
+    // Size and colour are completed rather than merely merged: a font 0 that states neither is the
+    // "missing default font" foreign readers warn about, so the emitted entry always carries both.
+    const font: {-readonly [K in keyof Font]?: Font[K]} = {
+      size: 11,
+      color: {theme: 1},
+      ...declared,
+      ...authored,
+      name: face,
+    };
+    const followsTheme = face === bodyFace;
+    if (authored?.family === undefined) {
+      if (followsTheme) font.family = 2;
+      else delete font.family;
+    }
+    if (authored?.scheme === undefined) {
+      if (followsTheme) font.scheme = 'minor';
+      else delete font.scheme;
+    }
+    return font;
+  }
+
   /**
    * The theme part text this workbook should write, or `undefined` when nothing was authored and the
    * source theme (or the writer's default) should ride through untouched.
@@ -831,6 +931,9 @@ export class Workbook {
     restoreNamedStyles: (styles) => {
       replaceContents(this.#namedStyles, styles);
     },
+    restoreDefaultFont: (font) => {
+      this.#declaredDefaultFont = font;
+    },
     restorePersons: (persons) => {
       this.#persons.clear();
       for (const person of persons) this.#persons.set(person.id, person);
@@ -898,6 +1001,16 @@ export interface WorkbookInternals {
    * default.
    */
   restoreNamedStyles(styles: readonly NamedCellStyle[]): void;
+
+  /**
+   * Reinstate font id 0 as a file declared it — the face its unstyled cells render in, and the metric
+   * its column widths are expressed in character units of. Restored rather than assumed because the
+   * library must not inject its own default ahead of one a file already states: doing so replaces the
+   * declared face on every empty cell and silently changes what every `<col width>` means.
+   *
+   * {@link Workbook.setDefaultFont} is the authoring verb; this is only the file's own word.
+   */
+  restoreDefaultFont(font: Font | undefined): void;
 
   /**
    * Reinstate the threaded-comment identity registry (`xl/persons/person.xml`) read from a file — the

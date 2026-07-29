@@ -64,12 +64,15 @@ export function readXlsbPackage(files: Record<string, Uint8Array>): Workbook {
 
   const rels = parseRelationships(partText('xl/_rels/workbook.bin.rels') ?? '');
   const sharedStrings = parseSharedStrings(partBytes('xl/sharedStrings.bin'));
-  const {cellXfs, namedStyles} = parseStyleTable(partBytes('xl/styles.bin'));
+  const {cellXfs, namedStyles, defaultFont} = parseStyleTable(partBytes('xl/styles.bin'));
 
   const workbook = new Workbook();
   // As in the XML reader, the named-style layer is restored only when a file declares more than the
   // Normal default, so an ordinary workbook keeps an empty table and writes just that default back.
   if (namedStyles.length > 1) workbook[INTERNAL].restoreNamedStyles(namedStyles);
+  // As in the XML reader, font 0 is the workbook's declared default and must survive a re-write; an
+  // assumed Calibri in its place changes every empty cell and every character-unit column width.
+  workbook[INTERNAL].restoreDefaultFont(defaultFont);
 
   const declaration = readWorkbookPart(workbookPart);
   const scope: FormulaScope = {
