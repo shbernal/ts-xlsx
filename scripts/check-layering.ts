@@ -64,6 +64,15 @@ const RULES: readonly Rule[] = [
   },
 ];
 
+/**
+ * The entry barrels are the package's public faces, not modules to build on. Only the root barrel
+ * composes them; an internal import of one would route a dependency through the public surface —
+ * the module graph's shape would then follow what we chose to export, and a cycle would be one
+ * re-export away. Their own contents are checked by `scripts/check-entries.ts`.
+ */
+const ENTRIES = 'src/entries';
+const ENTRY_COMPOSER = 'src/index.ts';
+
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = `${dir}/${name}`;
@@ -76,7 +85,11 @@ function sourceFiles(dir: string): string[] {
 // Only relative specifiers can cross a layer — a bare specifier is a dependency, not a layer.
 function importedPaths(file: string): string[] {
   const source = readFileSync(join(ROOT, file), 'utf8');
-  const specifiers = [...source.matchAll(/\bfrom\s+'(\.[^']*)'/g)].map(
+  // Both spellings: `… from '…'`, and the bare `import '…'` that has no `from` to anchor on. The
+  // bare form should never appear — the package declares `"sideEffects": false`, so an import kept
+  // only for its effect is a lie to every bundler — but a rule that cannot see it would say the
+  // graph is clean while a layer was being crossed by the one import form it was blind to.
+  const specifiers = [...source.matchAll(/\b(?:from|import)\s+'(\.[^']*)'/g)].map(
     (match) => match[1] as string,
   );
   const dir = file.slice(0, file.lastIndexOf('/'));
@@ -94,6 +107,15 @@ function importedPaths(file: string): string[] {
 
 const violations: string[] = [];
 for (const file of sourceFiles('src')) {
+  if (file !== ENTRY_COMPOSER && !file.startsWith(`${ENTRIES}/`)) {
+    for (const target of importedPaths(file)) {
+      if (target.startsWith(`${ENTRIES}/`)) {
+        violations.push(
+          `  ${file}\n    imports ${target}\n    only ${ENTRY_COMPOSER} may compose the entry barrels — import the module that declares the symbol`,
+        );
+      }
+    }
+  }
   const rule = RULES.find(
     (candidate) => file === candidate.layer || file.startsWith(`${candidate.layer}/`),
   );
@@ -109,7 +131,7 @@ for (const file of sourceFiles('src')) {
 }
 
 if (violations.length === 0) {
-  console.log(`layering: ${RULES.length} rules hold across src/`);
+  console.log(`layering: ${RULES.length} rules + the entry-barrel rule hold across src/`);
 } else {
   console.error(`\nlayering: ${violations.length} import(s) cross a layer boundary.\n`);
   console.error(`${violations.join('\n\n')}\n`);

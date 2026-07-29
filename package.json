@@ -17,11 +17,41 @@
     "node": ">=24"
   },
   "packageManager": "pnpm@11.11.0",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./core": {
+      "types": "./dist/entries/core.d.ts",
+      "default": "./dist/entries/core.js"
+    },
+    "./xlsx": {
+      "types": "./dist/entries/xlsx.d.ts",
+      "default": "./dist/entries/xlsx.js"
+    },
+    "./xlsb": {
+      "types": "./dist/entries/xlsb.d.ts",
+      "default": "./dist/entries/xlsb.js"
+    },
+    "./csv": {
+      "types": "./dist/entries/csv.d.ts",
+      "default": "./dist/entries/csv.js"
+    },
+    "./vba": {
+      "types": "./dist/entries/vba.d.ts",
+      "default": "./dist/entries/vba.js"
+    },
+    "./customui": {
+      "types": "./dist/entries/customui.d.ts",
+      "default": "./dist/entries/customui.js"
+    },
+    "./errors": {
+      "types": "./dist/entries/errors.d.ts",
+      "default": "./dist/entries/errors.js"
+    },
+    "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -43,6 +73,7 @@
     "docs:check": "node scripts/gen-docs.ts && git add --intent-to-add -- docs/api && git diff --exit-code -- docs/api",
     "constitution:check": "node scripts/check-constitution.ts",
     "layering:check": "node scripts/check-layering.ts",
+    "entries:check": "node scripts/check-entries.ts",
     "lint": "biome check --error-on-warnings src scripts test tools",
     "lint:fix": "biome check --write --error-on-warnings src scripts test tools",
     "format": "biome format --write src scripts test tools",

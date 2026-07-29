@@ -143,6 +143,21 @@ Do not guess — the format is full of surprises. In order:
 **You changed the build/emit path (`tsconfig.build.json`, import specifiers, a runtime reference type-stripping tolerates).**
 The dev/test loop runs *stripped* `src/` `.ts`; consumers run *`tsc`-emitted* `dist/` JS — two artifacts that can diverge. `pnpm run build && pnpm run corpus:dist` runs the full behavioral corpus against the emitted JS (`CORPUS_TARGET=dist`), not just the `smoke:dist` round-trip. CI's `build` workflow does this on every PR; run it locally when you touch anything emit-shaped.
 
+**You added, removed or moved a public export.**
+Symbols live in exactly one entry barrel under `src/entries/`, and `src/index.ts` is `export *`
+over all seven — so adding a name in two places does not conflict, it makes the name *vanish* from
+the root specifier with no error anywhere. `node scripts/check-entries.ts` (already in
+`verify --full`) is what catches that, along with an entry `package.json` forgot to publish. Then
+`pnpm run docs` — the reference is generated from the root barrel, so a symbol missing from the
+diff is a symbol that fell out of the union. Error classes go in `src/entries/errors.ts` and
+nowhere else (ADR-0023).
+
+**You changed what a module imports, and it crossed a directory.**
+`node scripts/check-layering.ts` proves the graph's direction still holds. If the import turned a
+`import type` into a value import, also run `pnpm run build && pnpm run size`: the per-entry
+closures are the only measurement that notices a codec joining an entry's graph — the package
+total does not move when a boundary is crossed, only when something new is written.
+
 **You are about to finish a turn / open a PR.**
 The Stop hook covers every gate `verify --full` runs. For full CI parity add the one it
 cannot: if you have .NET 10, `node test/ooxml-validation/run.ts`. CI runs all three

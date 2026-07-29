@@ -129,6 +129,33 @@ The reader decodes untrusted input defensively — entities are decoded but neve
 expanded, and inflation is bounded by a running output counter rather than any declared
 size, so a malformed or hostile package can't exhaust memory.
 
+## Entry points
+
+The bare package name gives you everything, and with a bundler that is the right default:
+`"sideEffects": false` is declared, so anything you don't reference is dropped. The subpaths
+are for when you'd rather the module graph itself said which half of the library you depend
+on — a Lambda with no bundler, a service that only classifies failures:
+
+| Import from | You get | It loads |
+| --- | --- | --- |
+| `@shbernal/ts-xlsx` | everything | 863 KB |
+| `@shbernal/ts-xlsx/core` | `Workbook`, `Worksheet`, `Cell`, styles, values, addresses | 299 KB |
+| `@shbernal/ts-xlsx/xlsx` | `readXlsx`, `writeXlsx`, the streaming pair, VBA part edits | 848 KB |
+| `@shbernal/ts-xlsx/xlsb` | `readXlsb` | 435 KB |
+| `@shbernal/ts-xlsx/csv` | `readCsv`, `writeCsv`, `writeCsvText` | 308 KB |
+| `@shbernal/ts-xlsx/vba` | `parseVbaProject`, `addVbaReference`, `removeVbaModule` | 73 KB |
+| `@shbernal/ts-xlsx/customui` | `parseCustomUi` and the ribbon types | 26 KB |
+| `@shbernal/ts-xlsx/errors` | every error class the library throws | 12 KB |
+
+Every error class lives in `/errors` and nowhere else, because a container-level failure
+belongs to no single codec — `readXlsx` and `readXlsb` both raise `UnsupportedFormatError`.
+Catching and classifying therefore costs 12 KB, not a parser.
+
+`/xlsx` is barely cheaper than the whole package, and that is honest rather than a defect:
+`readXlsx` sniffs the bytes and hands a binary package to the BIFF12 reader, so the `.xlsb`
+codec is not optional on that path. The numbers above are the static-import closure of each
+entry, measured by `pnpm run size` — a bundler can only shrink them further.
+
 ## API reference
 
 The full reference is generated from the public types — it cannot drift from what the

@@ -222,6 +222,7 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
         steps: [
           {command: NODE, args: ['scripts/check-constitution.ts']},
           {command: NODE, args: ['scripts/check-layering.ts']},
+          {command: NODE, args: ['scripts/check-entries.ts']},
         ],
       },
     );

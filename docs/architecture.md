@@ -199,15 +199,44 @@ were once re-derived by hand-summing every prior part's count, which silently co
 parts onto one id when a prefix drifts — ids are now unique by construction and never
 recomputed by arithmetic.
 
-The public surface is a single curated barrel, [`src/index.ts`](../src/index.ts). It is
-curated, not exhaustive: modelled core-feature types (autofilter, page setup, sheet views,
-defined names, image options) are public, and internal helper functions stay off the barrel.
-The two halves of the streaming API are symmetric in reach but asymmetric in what needed
-naming: the streaming *writer*'s whole surface is public (its workbook/worksheet/row handles
-are classes, its options are interfaces — nothing structural is left un-named), while the
-streaming *reader*'s per-row/cell output stays inferred-structural rather than a named
-commitment. The [API reference](api/README.md) is generated straight from the barrel, so it
-cannot describe a shape the compiler wouldn't accept.
+The public surface is seven curated entry barrels under [`src/entries/`](../src/entries/), one
+per subpath the package publishes — `/core`, `/xlsx`, `/xlsb`, `/csv`, `/vba`, `/customui`,
+`/errors` — and [`src/index.ts`](../src/index.ts), which unions them so the bare package name
+still carries everything. Each symbol is listed in exactly one entry, so the root barrel is a
+union of `export *` lines rather than a second list to keep in step.
+
+That disjointness is load-bearing rather than tidy: `export *` does not report an ambiguous
+re-export, it silently drops the name, so a symbol exported from two entries would vanish from
+the root specifier with no diagnostic anywhere. `scripts/check-entries.ts` (a gate in
+`verify --full`) fails the build on a duplicate, on an entry `package.json` does not publish, and
+on a published subpath whose module is gone. It is also why the *whole* failure taxonomy is
+exported from `/errors` and nowhere else: a container-level failure belongs to no single codec —
+`readXlsx` and `readXlsb` both raise `UnsupportedFormatError` — so putting the classes with the
+codecs would have forced exactly the duplication the union cannot survive. That entry costs 12 KB,
+so classifying a failure never loads a parser.
+
+The barrels are curated, not exhaustive: modelled core-feature types (autofilter, page setup,
+sheet views, defined names, image options) are public, and internal helper functions stay off
+them. `src/vba/index.ts` and `src/customui/index.ts` are *internal* barrels that the model and
+the codecs import; the public `/vba` and `/customui` faces are deliberately narrower. The two
+halves of the streaming API are symmetric in reach but asymmetric in what needed naming: the
+streaming *writer*'s whole surface is public (its workbook/worksheet/row handles are classes, its
+options are interfaces — nothing structural is left un-named), while the streaming *reader*'s
+per-row/cell output stays inferred-structural rather than a named commitment. Streaming is not
+its own subpath: measured, it reaches every module `/xlsx` does plus three, and an entry that
+costs what the codec costs is an alias rather than a boundary.
+
+`"sideEffects": false` is declared, and it is true — no module in `src/` mutates anything at
+import time, so a bundler may drop an unused one whole. `scripts/size-budget.ts` measures each
+subpath's static-import closure against its own budget, which is what notices a boundary being
+crossed: a codec acquiring a value-import of something it previously needed only as a type moves
+one of those numbers and leaves the package total untouched. `scripts/smoke-dist.ts` resolves
+every subpath through the package name — self-reference, the only thing in the repo that
+exercises the `exports` map at all — and asserts `/core` reaches no serialisation and `/errors`
+reaches nothing but itself.
+
+The [API reference](api/README.md) is generated straight from the root barrel, so it cannot
+describe a shape the compiler wouldn't accept.
 
 ## The VBA subsystem
 
