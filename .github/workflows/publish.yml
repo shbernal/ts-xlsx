@@ -163,6 +163,10 @@ jobs:
         env:
           DRY_RUN: ${{ steps.target.outputs.dry_run }}
           PRERELEASE: ${{ steps.target.outputs.prerelease }}
+          # setup-node's .npmrc points `_authToken` at this variable and defaults it to a
+          # placeholder string. Emptied so npm sees no credential and reaches for the OIDC
+          # identity instead of sending a token that was never real.
+          NODE_AUTH_TOKEN: ''
         run: |
           set -euo pipefail
 
@@ -170,10 +174,11 @@ jobs:
           [ "${PRERELEASE}" = "true" ] && args="--tag next"
           [ "${DRY_RUN}" = "true" ] && args="${args} --dry-run"
 
-          # No NODE_AUTH_TOKEN: npm reaches for the OIDC identity when the registry asks who
-          # this is. Provenance comes with that exchange and needs no flag.
+          # Verbose because this is the one step whose failure mode is opaque: npm reports a
+          # rejected identity as a 404, indistinguishable from a package that does not exist.
+          # The verbose log names the trusted-publishing exchange, which is the difference.
           echo "npm publish ${args}"
-          npm publish ${args}
+          npm publish ${args} --loglevel verbose
 
       - name: Confirm the registry serves it
         if: steps.existing.outputs.published == 'false' && steps.target.outputs.dry_run != 'true'
