@@ -21,8 +21,14 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   `ENEEDAUTH`, having dropped `setup-node`'s `registry-url` on the incorrect theory that it
   would make npm send a placeholder token instead of exchanging an OIDC one. It is in fact
   what tells npm which registry to authenticate against, and without it the exchange never
-  starts. Restored, and 1.0.2 is the version that actually publishes from CI, with
-  provenance.
+  starts. Restored.
+
+  1.0.2's own first attempt then failed too, for a second and unrelated reason — this one
+  outside the repository. The trusted publisher configured on npmjs.com named
+  `environment.yml`, the workflow that *provisions* the deployment environment, where it had
+  to name the environment itself, `npm-publish`. npm answers a rejected identity with a 404,
+  which reads as "no such package" and hides which claim failed to match. With the publisher
+  corrected on npm, this tag publishes on a re-run; nothing here changed for it.
 
   The tag and release for 1.0.1 are left standing rather than rewritten: a published claim
   that turned out to be wrong is corrected in the open, not deleted. Install 1.0.2.

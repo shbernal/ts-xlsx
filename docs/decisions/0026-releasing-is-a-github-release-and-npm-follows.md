@@ -50,12 +50,14 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
 - **Positive:** a release is one action with one approval; the published package carries
   provenance; no credential exists to steal; and who may publish is a file, not a memory.
 - **Negative / deferred:** the trusted publisher must be configured once on npmjs.com
-  before CI can publish at all, and it pins the workflow *filename* — renaming
-  `publish.yml` breaks publishing until npm is updated to match. `environment.yml` needs a
+  before CI can publish at all, and it pins three names that live outside this repository's
+  review: the repository, the workflow *filename*, and the *environment*. Renaming
+  `publish.yml` or the `npm-publish` environment breaks publishing until npm is updated to
+  match, and npm reports any of the three disagreeing identically. `environment.yml` needs a
   PAT, which is the one long-lived credential left; it can only reconfigure an environment,
   never publish.
-- **Verified, not assumed** — and the verification corrected the design twice, once against
-  a mistake of ours.
+- **Verified, not assumed** — and the verification corrected the design twice and the
+  npm-side configuration once, each against a mistake of ours.
 
   `npm publish --dry-run` is not local. It builds the tarball and then asks the registry,
   which refuses a version it already serves, so a rehearsal reaches the publish step only
@@ -70,6 +72,16 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
   when *installing* private dependencies, not when publishing. The lesson generalises: a
   plausible reading of an observed value is not evidence, and the release path is one place
   where the difference is a burned version number.
+
+  The publisher's **environment** field was then wrong on npm, and being wrong looked like
+  nothing. It named `environment.yml` — the workflow that *provisions* the deployment
+  environment — where it had to name the environment itself, `npm-publish`. npm answers a
+  rejected identity with a 404, which reads as "no such package" and says nothing about
+  which of the three claims failed to match, so 1.0.2 failed against a workflow that was
+  already correct and the two commits after its tag sharpened the error message rather than
+  the cause. The general rule that falls out: a publish that 404s on a package that
+  demonstrably exists is an identity mismatch, and the thing to read is the trusted
+  publisher on npmjs.com, not this repository.
 - **Revisit when:** npm changes the trusted-publishing contract, or a second package ships
   from this repository (the environment and the publisher config are both single-package
   shaped today).
