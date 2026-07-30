@@ -163,9 +163,11 @@ jobs:
         env:
           DRY_RUN: ${{ steps.target.outputs.dry_run }}
           PRERELEASE: ${{ steps.target.outputs.prerelease }}
-          # setup-node's .npmrc points `_authToken` at this variable and defaults it to a
-          # placeholder string. Emptied so npm sees no credential and reaches for the OIDC
-          # identity instead of sending a token that was never real.
+          # setup-node's .npmrc points `_authToken` at this variable and defaults it to the
+          # literal `XXXXX-XXXXX-XXXXX-XXXXX`. npm attempts the OIDC exchange either way, but
+          # when that exchange fails it falls back to whatever token it holds — and publishing
+          # with a placeholder gets a 404 from the registry, which reads as "no such package"
+          # and hides the real cause. Emptied so a failed exchange fails as a failed exchange.
           NODE_AUTH_TOKEN: ''
         run: |
           set -euo pipefail
