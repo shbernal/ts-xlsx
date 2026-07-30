@@ -1,5 +1,11 @@
 # ts-xlsx
 
+[![npm](https://img.shields.io/npm/v/%40shbernal%2Fts-xlsx)](https://www.npmjs.com/package/@shbernal/ts-xlsx)
+[![weekly downloads](https://img.shields.io/npm/dw/%40shbernal%2Fts-xlsx.svg?label=npm%20downloads&logo=npm)](https://www.npmjs.com/package/@shbernal/ts-xlsx)
+[![total downloads](https://img.shields.io/npm/dt/%40shbernal%2Fts-xlsx.svg?label=npm%20total%20downloads&logo=npm)](https://www.npmjs.com/package/@shbernal/ts-xlsx)
+[![CI](https://github.com/shbernal/ts-xlsx/actions/workflows/build.yml/badge.svg)](https://github.com/shbernal/ts-xlsx/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A TypeScript-first library for reading and writing spreadsheet documents
 (`.xlsx` / OOXML, and CSV) — synchronous, `Uint8Array`-native, and dependency-lean.
 
