@@ -1,0 +1,112 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+
+  // Dependency updates are a bot's job, and CI is the reviewer.
+  //
+  // A rotting transitive dependency tree is one of the reasons this fork exists, so the
+  // freshness of that tree is not something to rediscover once a year — it is a standing
+  // machine task. The operating principle is the constitution's: green checks are the
+  // guarantor of correctness, so an update that survives `verify --full`, the corpus on both
+  // src/ and the emitted artifact, the size budget and the OOXML oracle has already been
+  // reviewed by the only reviewer that does not get bored. Those it cannot judge — anything
+  // consumers install, anything that moves a supported floor, anything that changes the
+  // oracle rather than the code — stop and wait for a human.
+  //
+  // JSON5 because this file is an argument, not a table, and Renovate reads the comments.
+  // See docs/decisions/0027-dependencies-are-updated-by-a-bot-and-ci-is-the-reviewer.md.
+
+  extends: [
+    'config:recommended',
+
+    // Pin every GitHub Action to a commit digest. A tag is mutable, and an action tag is
+    // code that runs with the workflow's identity — in publish.yml, an identity npm will
+    // exchange for a token that can publish this package. Renovate opens the pinning PR
+    // itself and then keeps the digests current, which is the only reason pinning is
+    // sustainable: pinned-and-stale is worse than unpinned.
+    'helpers:pinGitHubActionDigests',
+  ],
+
+  // Every schedule here is machine-facing — nobody is waiting at a screen for a bot PR — so
+  // it is stated in UTC rather than in whatever timezone the maintainer is in this month.
+  timezone: 'UTC',
+
+  // The repo's history is conventional-commit shaped; `config:recommended` makes a runtime
+  // dependency bump `fix(deps):` and everything else `chore(deps):`, which is the honest
+  // split for a library: only the former can reach a consumer's install.
+  semanticCommits: 'enabled',
+
+  // Preset definitions drift; let the bot rewrite this file when they do, as a reviewable PR
+  // rather than as silent behavior change under a name that no longer means what it did.
+  configMigration: true,
+
+  // A cooldown, not a delay for its own sake: the window in which a compromised or
+  // immediately-yanked release is most likely to be caught is the first days after it is
+  // published, and automerge would otherwise land one within minutes. Vulnerability fixes are
+  // exempt by Renovate's own defaults — `vulnerabilityAlerts` clears both this and any
+  // schedule — which is the correct asymmetry, because a known CVE is a worse risk than a bad
+  // release.
+  minimumReleaseAge: '3 days',
+
+  // Alert from the OSV database directly rather than waiting to be told by GitHub's
+  // Dependabot alerts, which are a repository setting and therefore invisible in a diff.
+  osvVulnerabilityAlerts: true,
+
+  // `^` ranges mean most updates never leave their declared range, so without this the
+  // lockfile — the thing CI actually installs from with `--frozen-lockfile` — would quietly
+  // age while package.json looked current. One PR a week that moves it, automerged when the
+  // gates pass.
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ['before 6am on monday'],
+    automerge: true,
+  },
+
+  packageRules: [
+    // The declared devDependency version should be the version the gates actually ran
+    // against, so the toolchain range moves with the update. `dependencies` is deliberately
+    // left on the default replace-only strategy: narrowing the range consumers must satisfy
+    // is a cost paid by everyone who installs this package, for a benefit that is entirely
+    // ours.
+    {
+      matchDepTypes: ['devDependencies'],
+      rangeStrategy: 'bump',
+    },
+
+    // The two automerge grants. Everything not named here — the runtime dependency, every
+    // major, the .NET oracle, the packageManager — opens a PR and waits, which is the
+    // default and is why it is not restated below.
+    {
+      matchDepTypes: ['devDependencies'],
+      matchUpdateTypes: ['minor', 'patch'],
+      automerge: true,
+    },
+    {
+      // Including digests: the pinning above only pays off if the pins move on their own.
+      matchManagers: ['github-actions'],
+      matchUpdateTypes: ['minor', 'patch', 'digest'],
+      automerge: true,
+    },
+
+    // The supported Node floor is a decision, not a dependency bump — ADR-0001 sets it and
+    // package.json `engines`, .nvmrc and every workflow state it together. A bot may raise
+    // the subject; it may not raise the floor, and it certainly may not raise it in one of
+    // the three places. Dashboard approval keeps the update visible without opening a PR
+    // that would have to be closed.
+    //
+    // @types/node rides along for the same reason: typing src/ against a Node 25 API surface
+    // would silently promise consumers on the declared floor something they do not have.
+    {
+      matchManagers: ['nvm'],
+      dependencyDashboardApproval: true,
+    },
+    {
+      matchDepTypes: ['engines'],
+      dependencyDashboardApproval: true,
+    },
+    {
+      matchPackageNames: ['@types/node'],
+      matchUpdateTypes: ['major'],
+      dependencyDashboardApproval: true,
+    },
+  ],
+}
