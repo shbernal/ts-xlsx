@@ -9,7 +9,7 @@ Drives the real, visible desktop Excel window: foreground control, ribbon
 KeyTips over SendKeys, and UI Automation (`InvokePattern`/`TogglePattern`) for
 anything keyboard and synthetic mouse can't reach. The foreground/screenshot/
 KeyTip/UIA machinery is a port of the **verified** PowerPoint equivalent
-(`pptxgenjs/.agents/skills/powerpoint-gui-automation`); the Excel-specific
+(`ts-pptx/.agents/skills/powerpoint-gui-automation`); the Excel-specific
 `open-verdict.ps1` and the repair-dialog patterns are **new and unverified until
 their first real run** - treat the timings and English-locale dialog strings in
 the scripts as starting points to confirm with `-Dump`, not gospel.
