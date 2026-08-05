@@ -271,8 +271,12 @@ function setFacet<K extends keyof CellStyle>(cell: Cell, facet: K, value: CellSt
 // order their keys were written in. Sound here and nowhere near a general deep-equal: every facet is
 // a plain data record of strings, numbers, booleans and nested records — no functions, no cycles, no
 // class instances — which is exactly the shape JSON round-trips faithfully.
+//
+// `undefined` needs a sentinel because `JSON.stringify` answers it with `undefined` rather than a
+// string. NUL is the one that cannot collide: a defined value stringifies to `"`, `{`, `[`, a digit,
+// or a bare `true`/`false`/`null`, and a NUL *inside* a string comes back as a six-char escape.
 function facetKey(value: unknown): string {
-  if (value === undefined) return ' ';
+  if (value === undefined) return '\u0000';
   return JSON.stringify(value, (_key, inner: unknown) =>
     inner !== null && typeof inner === 'object' && !Array.isArray(inner)
       ? Object.fromEntries(Object.entries(inner as object).sort(([a], [b]) => (a < b ? -1 : 1)))

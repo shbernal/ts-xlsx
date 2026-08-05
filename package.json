@@ -74,6 +74,7 @@
     "constitution:check": "node scripts/check-constitution.ts",
     "layering:check": "node scripts/check-layering.ts",
     "entries:check": "node scripts/check-entries.ts",
+    "source-text:check": "node scripts/check-source-text.ts",
     "lint": "biome check --error-on-warnings src scripts test tools",
     "lint:fix": "biome check --write --error-on-warnings src scripts test tools",
     "format": "biome format --write src scripts test tools",
