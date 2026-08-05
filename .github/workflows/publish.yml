@@ -15,7 +15,7 @@ name: Publish
 # the gates would be one `--ignore-scripts` away, and it is not written here.
 #
 # Rehearsing: dispatch it manually with a tag and dry_run left on. That runs every step
-# including the environment approval and `npm publish --dry-run`, and stops short of the write.
+# including `npm publish --dry-run`, and stops short of the write.
 # A rehearsal also fails on a rejected OIDC identity, which `--dry-run` alone reports as a
 # warning and a zero exit — so a green rehearsal means the tag would really publish.
 # The dispatch must run from a ref the `npm-publish` environment admits — that is release tags
@@ -50,9 +50,10 @@ jobs:
     name: npm publish
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # The human approval and the tags-only restriction live here, provisioned by
-    # environment.yml. npm's trusted publisher config names this environment too, so a job
-    # that is not this one cannot borrow the identity.
+    # The tags-only restriction lives here, provisioned by environment.yml — and is the whole
+    # gate, since there is no required reviewer: a release publishes unattended. npm's trusted
+    # publisher config names this environment too, so a job that is not this one cannot borrow
+    # the identity.
     environment:
       name: npm-publish
       url: https://www.npmjs.com/package/@shbernal/ts-xlsx

@@ -12,6 +12,18 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Changed
+
+- **A release now publishes unattended.** The `npm-publish` deployment environment required a
+  human to approve the job before it could reach the registry. On a single-maintainer project
+  that was never a second pair of eyes — the only login that could approve was the one that had
+  just cut the release — so it delayed every publish to re-ask a decision already made. Removed
+  in `environment.yml`; deployments are still restricted to `v*` tags, which is now the whole
+  gate. Nothing about the published package changes, and the OIDC trusted-publishing identity is
+  untouched: authentication was never what the approval provided. See
+  [ADR-0026](docs/decisions/0026-releasing-is-a-github-release-and-npm-follows.md) for what that
+  trades away.
+
 ## [1.0.3] — 2026-08-05
 
 Nothing in the library's behaviour changed: `src/` differs from 1.0.2 only in doc comments.

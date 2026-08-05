@@ -70,8 +70,11 @@ automate the updates; it is **who reviews them**, given that the answer cannot u
   coverage that a human reviewer might have caught by reading a changelog now merges
   silently, so the honest reading of this ADR is that it raises the cost of a weak test
   rather than lowering the cost of a dependency. It also grants a bot write access to
-  `master`; the blast radius is bounded by ADR-0026 — publishing needs a tag, an
-  environment and a human approval, none of which Renovate can supply.
+  `master`; the blast radius is bounded by ADR-0026 — publishing needs a `v*` tag and a
+  published release, neither of which Renovate can supply. That bound got tighter to state
+  and thinner in fact on 2026-08-05, when the environment's required reviewer was removed:
+  a merge to `master` still publishes nothing, but nothing downstream of a tag asks a human
+  any more.
 - **Watch for:** NuGet lockfile updates. `tools/ooxml-validator` restores in locked mode, so
   a `.csproj` bump whose `packages.lock.json` was not regenerated fails the build. That
   failure is loud and lands on a PR nobody has merged, which is the acceptable version of

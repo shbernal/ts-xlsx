@@ -30,11 +30,18 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
    and which run built what it serves. There is nothing to leak and nothing to rotate.
 
 3. **The publish job runs in the `npm-publish` environment, and that environment is
-   code.** `.github/workflows/environment.yml` provisions it — a required reviewer, and
-   deployments only from `v*` **tags** — so the gate guarding a publish is reviewable in a
+   code.** `.github/workflows/environment.yml` provisions it — deployments only from `v*`
+   **tags**, and no required reviewer — so the gate guarding a publish is reviewable in a
    diff instead of being a settings page nobody reads. It needs a PAT with Administration
    rights, because `administration` is not among the permissions a workflow may request
    for `GITHUB_TOKEN`; the environments API is deliberately out of that token's reach.
+
+   The environment carried a required reviewer through 1.0.3 and no longer does
+   (**amended 2026-08-05**). On a single-maintainer project it was never a second pair of
+   eyes: the only login that could approve was the one that had just cut the release, so it
+   asked the releaser to confirm a decision they had made one command earlier. Consent that
+   only the decider can give is a delay, not a control. What it genuinely stopped was an
+   *accidental* publish — see the consequences below for what now carries that.
 
 4. **The workflow enumerates no gates.** `npm publish` runs `prepublishOnly` — build,
    `verify --full`, `smoke:dist`, the size budgets — which is the single definition of
@@ -47,8 +54,17 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
 
 ## Consequences
 
-- **Positive:** a release is one action with one approval; the published package carries
+- **Positive:** a release is one action and nothing else; the published package carries
   provenance; no credential exists to steal; and who may publish is a file, not a memory.
+- **The blast radius of a `v*` tag is now the whole gate.** With no reviewer, pushing a tag
+  and publishing a release is the entire path to the registry, so anything holding push
+  access — a leaked token, an agent given more rope than intended, a mistyped tag on the
+  wrong commit — publishes unattended, and a version number cannot be taken back. Two
+  things still stand between a mistake and npm: the tag-name/version agreement check, which
+  refuses a tag whose commit declares a different version, and `prepublishOnly`, which
+  refuses a tree that fails its gates. Neither catches a *correct* publish of something
+  nobody meant to release. Rehearse (`dry_run`) when a release is in any way unusual;
+  that habit is the replacement for the click, and unlike the click it can actually fail.
 - **Negative / deferred:** the trusted publisher must be configured once on npmjs.com
   before CI can publish at all, and it pins three names that live outside this repository's
   review: the repository, the workflow *filename*, and the *environment*. Renaming

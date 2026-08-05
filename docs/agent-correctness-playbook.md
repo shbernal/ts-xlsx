@@ -110,9 +110,11 @@ version's section, commit, and push — then let CI go green *before* tagging, b
 tag is what the release names and a tag that fails its own gates is the one thing you
 cannot quietly redo. Tag `vX.Y.Z`, push it, and publish a GitHub release on it: that
 release event is what publishes to npm (ADR-0026), authenticated by OIDC with no
-credential in the repository. Rehearse first if you want — dispatch `publish.yml` from the
-tag with `dry_run` on — but note the rehearsal reaches `npm publish --dry-run` only for a
-version the registry does not already serve. A green rehearsal does mean the identity was
+credential in the repository. **Publishing that release is the point of no return** — there
+is no reviewer holding the job any more, so it goes to the registry unattended and a version
+number cannot be reused. Rehearse when anything about the release is unusual — dispatch
+`publish.yml` from the tag with `dry_run` on — but note the rehearsal reaches
+`npm publish --dry-run` only for a version the registry does not already serve. A green rehearsal does mean the identity was
 accepted: `--dry-run` alone reports a rejected one as a warning and exits `0`, so the job
 checks the exchange itself rather than trusting npm's exit code. If the publish job fails the "tag and version
 must be the same claim" step, fix `package.json` and re-tag; do not weaken the check. If it
