@@ -1,7 +1,9 @@
-# Git hooks, managed by lefthook. Installed automatically on `pnpm install`
-# (see the `prepare` script). These mirror the CI gates so a failure surfaces
-# locally instead of on the runner — the same "green checks are the moat"
-# contract from CLAUDE.md, enforced one step earlier.
+# Git hooks, managed by lefthook. Installed automatically on `pnpm install` by
+# the `prepare` script — except where `core.hooksPath` points outside this repo,
+# which `scripts/install-hooks.ts` reports and steps around rather than failing
+# the install. These mirror the CI gates so a failure surfaces locally instead of
+# on the runner — the same "green checks are the moat" contract from CLAUDE.md,
+# enforced one step earlier.
 #
 # Bypass a hook when you genuinely must: `git commit --no-verify` /
 # `git push --no-verify`, or `LEFTHOOK=0 git …` to disable all hooks.
