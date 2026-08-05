@@ -92,16 +92,50 @@ function printSignature(node: ast.Node, sourceFile: ast.SourceFile): string {
   return body ? `${text};` : text;
 }
 
+/** Where a `{@link}` target lives in the reference, or `undefined` if the reference does not document it. */
+type LinkResolver = (target: string) => string | undefined;
+
+/** The resolver for prose rendered before the link index exists — the index's own entries. */
+const NO_LINKS: LinkResolver = () => undefined;
+
 /**
- * Turn TSDoc `{@link Target}` / `{@link Target | label}` into a plain code span.
+ * A link target's URL.
+ *
+ * `{@link addRow}` written inside `Worksheet`'s own prose means `Worksheet.addRow` — the author had
+ * the class in scope and wrote what they would say aloud — so a scoped lookup runs first. A
+ * qualified target with no block of its own falls back to its container: `DefinedName.scope` is an
+ * interface property, which renders inside the interface's signature rather than under a heading,
+ * and the interface is where a reader finds it.
+ */
+function linkResolver(targets: ReadonlyMap<string, string>, scope?: string): LinkResolver {
+  return (target) => {
+    const scoped = scope === undefined ? undefined : targets.get(`${scope}.${target}`);
+    if (scoped !== undefined) return scoped;
+    const direct = targets.get(target);
+    if (direct !== undefined) return direct;
+    const dot = target.indexOf('.');
+    return dot > 0 ? targets.get(target.slice(0, dot)) : undefined;
+  };
+}
+
+/**
+ * Turn TSDoc `{@link Target}` / `{@link Target | label}` into a code span, linked when the reference
+ * documents the target and left bare when it does not.
+ *
+ * Bare rather than dropped for an unresolved target: plenty of prose links to something deliberately
+ * internal, and a reader is better served by the name than by a link to nothing.
  *
  * Only the pipe form carries a label. TSDoc also permits `{@link Target label}` (space, no pipe), which
  * falls through here and renders as the whole string — so write the pipe, or write a bare target.
  */
-function resolveLinks(text: string): string {
+function resolveLinks(text: string, href: LinkResolver = NO_LINKS): string {
   return text.replace(
     /\{@link(?:code|plain)?\s+([^}|]+?)(?:\s*\|\s*([^}]+))?\}/g,
-    (_m: string, target: string, label: string | undefined) => `\`${(label ?? target).trim()}\``,
+    (_m: string, target: string, label: string | undefined) => {
+      const span = `\`${(label ?? target).trim()}\``;
+      const url = href(target.trim());
+      return url === undefined ? span : `[${span}](${url})`;
+    },
   );
 }
 
@@ -127,8 +161,8 @@ function jsDocOf(node: ast.Node): ast.JSDoc | undefined {
  * the start of an unknown tag and drops everything after it. Prose about, say, an `@mention` has to
  * wrap it in backticks — the parse happens upstream of here, so this cannot be fixed downstream.
  */
-function docText(node: ast.Node): string {
-  return resolveLinks((ast.getTextOfJSDocComment(jsDocOf(node)?.comment) ?? '').trim());
+function docText(node: ast.Node, href: LinkResolver = NO_LINKS): string {
+  return resolveLinks((ast.getTextOfJSDocComment(jsDocOf(node)?.comment) ?? '').trim(), href);
 }
 
 /** A bare type name, possibly qualified — what the brace slot of a `@throws` is allowed to hold. */
@@ -158,7 +192,7 @@ function splitThrows(raw: string, symbolName: string): {errorType: string; prose
 }
 
 /** Render `@throws`, `@param`, `@returns`, `@example` tags into Markdown, in a stable order. */
-function docTags(symbol: TypeSymbol, checker: Checker): string[] {
+function docTags(symbol: TypeSymbol, checker: Checker, href: LinkResolver = NO_LINKS): string[] {
   const order: Record<string, number> = {param: 0, returns: 1, throws: 2, example: 3};
   const tags = symbol
     .getJsDocTags(checker)
@@ -167,7 +201,7 @@ function docTags(symbol: TypeSymbol, checker: Checker): string[] {
   const lines: string[] = [];
   for (const tag of tags) {
     const raw = (tag.text ?? '').trim();
-    const text = resolveLinks(raw);
+    const text = resolveLinks(raw, href);
     if (tag.name === 'example') {
       lines.push('', '```ts', text, '```');
     } else if (tag.name === 'param') {
@@ -179,7 +213,9 @@ function docTags(symbol: TypeSymbol, checker: Checker): string[] {
       // The type slot is the tag's subject — which error — so it leads the line. Dropping it, as
       // this once did, left the reader told that a throw happens but never told what is thrown.
       const {errorType, prose} = splitThrows(raw, symbol.name);
-      lines.push(`**Throws** — \`${errorType}\`${prose ? ` ${resolveLinks(prose)}` : ''}`);
+      const named = href(errorType);
+      const subject = named === undefined ? `\`${errorType}\`` : `[\`${errorType}\`](${named})`;
+      lines.push(`**Throws** — ${subject}${prose ? ` ${resolveLinks(prose, href)}` : ''}`);
     }
   }
   return lines;
@@ -265,6 +301,42 @@ function shownSignatures(group: readonly NamedMember[]): readonly NamedMember[] 
   return group.filter((member) => !bodyOf(member));
 }
 
+/** One member name that earns a block: which declarations to show, and which one is documented. */
+type DocumentedMember = {
+  name: string;
+  signatures: readonly NamedMember[];
+  symbol: TypeSymbol | undefined;
+  documenting: NamedMember;
+};
+
+/**
+ * The members that get a block of their own: those with prose, tags, or both. A member carrying
+ * neither is left to the signature overview, which already lists it — a heading over a bare
+ * signature says nothing the overview did not.
+ *
+ * The link index and the renderer both go through here rather than each deciding for itself. When
+ * they decided separately the index advertised anchors for members the renderer had skipped, and
+ * the reference shipped links to headings that were never written.
+ */
+function documentedMembers(
+  node: ast.ClassDeclaration,
+  sourceFile: ast.SourceFile,
+  checker: Checker,
+): {sigs: string[]; members: DocumentedMember[]} {
+  const {sigs, groups} = groupMembersByName(node, sourceFile);
+  const members: DocumentedMember[] = [];
+  for (const [name, group] of groups) {
+    const documenting = group.find((member) => docText(member) !== '') ?? group[0];
+    if (!documenting) continue;
+    const symbol = checker.getSymbolAtLocation(documenting.name);
+    const documented =
+      docText(documenting) !== '' || (symbol && docTags(symbol, checker).length > 0);
+    if (!documented) continue;
+    members.push({name, signatures: shownSignatures(group), symbol, documenting});
+  }
+  return {sigs, members};
+}
+
 /**
  * A class renders as a signature overview (every public member) followed by one block per
  * documented member — signature, summary, and the same `@throws`/`@param`/`@returns` rendering a
@@ -281,25 +353,66 @@ function renderClassMembers(
   sourceFile: ast.SourceFile,
   className: string,
   checker: Checker,
+  href: LinkResolver,
 ): {sigs: string[]; docs: string[]} {
-  const {sigs, groups} = groupMembersByName(node, sourceFile);
+  const {sigs, members} = documentedMembers(node, sourceFile, checker);
   const docs: string[] = [];
-  for (const [name, group] of groups) {
-    const documenting = group.find((member) => docText(member) !== '') ?? group[0];
-    if (!documenting) continue;
-    const summary = docText(documenting);
-    const symbol = checker.getSymbolAtLocation(documenting.name);
-    const tagLines = symbol ? docTags(symbol, checker) : [];
-    if (!summary && tagLines.length === 0) continue;
-    const signatures = shownSignatures(group).map((member) =>
-      printSignature(member, sourceFile).trim(),
-    );
-    docs.push(`#### \`${className}.${name}\``, '', '```ts', ...signatures, '```', '');
+  for (const {name, signatures, symbol, documenting} of members) {
+    const summary = docText(documenting, href);
+    const tagLines = symbol ? docTags(symbol, checker, href) : [];
+    const printed = signatures.map((member) => printSignature(member, sourceFile).trim());
+    docs.push(`#### \`${className}.${name}\``, '', '```ts', ...printed, '```', '');
     if (summary) docs.push(summary, '');
     if (tagLines.length > 0) docs.push(...tagLines, '');
   }
   while (docs.at(-1) === '') docs.pop();
   return {sigs, docs};
+}
+
+/** Every heading a page emits, as the anchor a reader's browser will resolve. */
+function anchorsIn(body: string): Set<string> {
+  const found = new Set<string>();
+  let fenced = false;
+  for (const line of body.split('\n')) {
+    if (line.startsWith('```')) fenced = !fenced;
+    // A fence holds source text, and a signature's own JSDoc rides along in it — `#` there starts
+    // no heading, and `{@link}` there is never rewritten into a link.
+    if (fenced) continue;
+    const heading = /^#{1,6}\s+(.*)$/.exec(line);
+    if (heading?.[1] !== undefined) found.add(anchor(heading[1]));
+  }
+  return found;
+}
+
+/**
+ * Refuse to write a reference that links to a heading it does not contain.
+ *
+ * The link index and the renderer derive their member lists from one function so they cannot
+ * disagree — but they did disagree once, when the index advertised every member and the renderer
+ * gave a block only to the documented ones, and the result was four links to headings that were
+ * never written. Nothing about the output looked wrong; the anchors simply went nowhere. This is
+ * the check that makes that failure loud, and it costs one pass over text already in memory.
+ */
+function checkLinks(bodies: ReadonlyMap<string, string>): void {
+  const anchors = new Map([...bodies].map(([file, body]) => [file, anchorsIn(body)]));
+  const dangling: string[] = [];
+  for (const [file, body] of bodies) {
+    let fenced = false;
+    for (const [i, line] of body.split('\n').entries()) {
+      if (line.startsWith('```')) fenced = !fenced;
+      if (fenced) continue;
+      for (const [, target, frag] of line.matchAll(/\]\(\.\/([a-z0-9-]+\.md)#([a-z0-9]+)\)/g)) {
+        if (target !== undefined && frag !== undefined && !anchors.get(target)?.has(frag)) {
+          dangling.push(`  ${file}:${i + 1} → ${target}#${frag}`);
+        }
+      }
+    }
+  }
+  if (dangling.length > 0) {
+    throw new Error(
+      `the reference links to ${dangling.length} missing heading(s):\n${dangling.join('\n')}`,
+    );
+  }
 }
 
 function main(project: Project) {
@@ -314,6 +427,15 @@ function main(project: Project) {
   type Entry = {name: string; block: string};
   type Page = {title: string; key: string; entries: Entry[]};
   const pages = new Map<string, Page>();
+
+  type Exported = {
+    symbol: TypeSymbol;
+    decl: ast.Node;
+    sourceFile: ast.SourceFile;
+    name: string;
+    page: Page;
+  };
+  const walked: Exported[] = [];
 
   for (const exported of checker.getExportsOfModule(moduleSymbol)) {
     const symbol =
@@ -336,11 +458,29 @@ function main(project: Project) {
       page = {title, key: groupKey, entries: []};
       pages.set(pageId, page);
     }
+    walked.push({symbol, decl, sourceFile, name: exported.name, page});
+  }
 
-    const name = exported.name;
+  // Every target has to be known before the first block renders: prose links forward as freely as
+  // it links back, and a symbol's page is only settled once the walk that assigns pages has ended.
+  // Hence the split — walk, index, then render.
+  const targets = new Map<string, string>();
+  for (const {decl, sourceFile, name, page} of walked) {
+    const slug = slugify(page.title);
+    targets.set(name, `./${slug}.md#${anchor(name)}`);
+    if (!ast.isClassDeclaration(decl)) continue;
+    for (const member of documentedMembers(decl, sourceFile, checker).members) {
+      const qualified = `${name}.${member.name}`;
+      targets.set(qualified, `./${slug}.md#${anchor(qualified)}`);
+    }
+  }
+
+  for (const {symbol, decl, sourceFile, name, page} of walked) {
     const kind = kindLabel(decl);
-    const summary = docText(decl);
-    const tagLines = docTags(symbol, checker);
+    // A class scopes its own prose: inside `Worksheet`, a bare `{@link addRow}` is `Worksheet.addRow`.
+    const href = linkResolver(targets, ast.isClassDeclaration(decl) ? name : undefined);
+    const summary = docText(decl, href);
+    const tagLines = docTags(symbol, checker, href);
 
     const block = [`### \`${name}\``, '', `<sub>${kind}</sub>`, ''];
     if (summary) block.push(summary, '');
@@ -348,7 +488,7 @@ function main(project: Project) {
     let signature: string;
     let memberDocs: string[] = [];
     if (ast.isClassDeclaration(decl)) {
-      const {sigs, docs} = renderClassMembers(decl, sourceFile, name, checker);
+      const {sigs, docs} = renderClassMembers(decl, sourceFile, name, checker, href);
       const heritage = decl.heritageClauses?.map((h) => h.getText(sourceFile)).join(' ');
       signature = `class ${name}${heritage ? ` ${heritage}` : ''} {\n${sigs.join('\n')}\n}`;
       memberDocs = docs;
@@ -390,11 +530,8 @@ function main(project: Project) {
     return oa - ob || a.title.localeCompare(b.title);
   });
 
-  rmSync(OUT_DIR, {recursive: true, force: true});
-  mkdirSync(OUT_DIR, {recursive: true});
-
+  const bodies = new Map<string, string>();
   for (const page of ordered) {
-    const slug = slugify(page.title);
     const body = [
       `# ${page.title}`,
       '',
@@ -403,8 +540,13 @@ function main(project: Project) {
       page.entries.map((e) => e.block).join('\n\n---\n\n'),
       '',
     ].join('\n');
-    writeFileSync(join(OUT_DIR, `${slug}.md`), body);
+    bodies.set(`${slugify(page.title)}.md`, body);
   }
+  checkLinks(bodies);
+
+  rmSync(OUT_DIR, {recursive: true, force: true});
+  mkdirSync(OUT_DIR, {recursive: true});
+  for (const [file, body] of bodies) writeFileSync(join(OUT_DIR, file), body);
 
   const index = [
     '# API reference',

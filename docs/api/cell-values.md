@@ -29,8 +29,8 @@ type CellValue =
 
 <sub>function</sub>
 
-Normalise a raw assignment into a stored `CellValue`. `undefined` becomes the
-empty cell (`null`); every other kind is validated by `detectValueType`. The
+Normalise a raw assignment into a stored [`CellValue`](./cell-values.md#cellvalue). `undefined` becomes the
+empty cell (`null`); every other kind is validated by [`detectValueType`](./cell-values.md#detectvaluetype). The
 model never rewrites one value *kind* into another (a numeric-looking string stays a
 string) — the single exception is formula text, which is canonicalised to the OOXML
 stored form (no leading `=`) so round-trips are idempotent regardless of how the
@@ -76,8 +76,8 @@ interface DataTableFormulaValue {
 
 <sub>function</sub>
 
-Classify a value into its observable `ValueType`. This is total over
-`CellValue`: every legal value has exactly one type. A `Date` is a date even
+Classify a value into its observable [`ValueType`](./cell-values.md#valuetype). This is total over
+[`CellValue`](./cell-values.md#cellvalue): every legal value has exactly one type. A `Date` is a date even
 when its time is `NaN` (an invalid date is still a date-typed cell); serialization,
 not the model, decides what to do with it.
 
@@ -231,7 +231,7 @@ interface RichTextValue {
 
 A cell that participates in a shared formula — a clone of a master formula cell filled across a
 range. `sharedFormula` is the master cell's address (e.g. `'B1'`); the master itself is a plain
-`FormulaValue`. On read, the clone's own formula is the master's translated to the clone's
+[`FormulaValue`](./cell-values.md#formulavalue). On read, the clone's own formula is the master's translated to the clone's
 position and `result` is the clone's cached value; on write, the clones of a master collapse into
 OOXML's shared-formula grouping.
 

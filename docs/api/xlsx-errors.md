@@ -9,8 +9,8 @@
 Thrown when an `.xlsx` package's XML content is well-formed but does not describe a workbook this
 library can act on — a `xl/workbook.xml` that declares no worksheets, say.
 
-It sits between two neighbours. `XmlParseError` reports that the *markup* did not parse;
-`UnsupportedFormatError` reports that the *container* is not one we read at all. This one
+It sits between two neighbours. [`XmlParseError`](./xml-errors.md#xmlparseerror) reports that the *markup* did not parse;
+[`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) reports that the *container* is not one we read at all. This one
 fires when both of those were fine and the document itself is nonetheless not a workbook.
 
 The reader is deliberately lenient about content it does not recognise — an unknown element is

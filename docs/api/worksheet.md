@@ -6,7 +6,7 @@
 
 <sub>interface</sub>
 
-One materialised cell in a `WorksheetModel`: its position, value, and per-cell style facets.
+One materialised cell in a [`WorksheetModel`](./worksheet.md#worksheetmodel): its position, value, and per-cell style facets.
 
 ```ts
 interface CellModel extends CellStyle {
@@ -26,7 +26,7 @@ interface CellModel extends CellStyle {
 Per-column formatting. A column may exist purely to carry these, with no cells. The style
 facets are *defaults* for the column's cells: a cell that sets a facet of its own wins, but
 one that leaves a facet unset inherits the column's — the same precedence Excel applies, and
-symmetric with how a `RowProperties` fill defaults a row's cells.
+symmetric with how a [`RowProperties`](./worksheet.md#rowproperties) fill defaults a row's cells.
 
 ```ts
 interface ColumnProperties extends CellStyle {
@@ -68,8 +68,8 @@ interface OutlineProperties {
 
 <sub>type</sub>
 
-A row handed to `Worksheet.addRow`: a positional array of cell values (a hole or `undefined`
-leaves that column untouched), or an object keyed by column `ColumnProperties.key` whose
+A row handed to [`Worksheet.addRow`](./worksheet.md#worksheetaddrow): a positional array of cell values (a hole or `undefined`
+leaves that column untouched), or an object keyed by column [`ColumnProperties.key`](./worksheet.md#columnproperties) whose
 values land under the matching columns.
 
 ```ts
@@ -234,7 +234,7 @@ readonly id: number;
 tabColor: Color | undefined;
 ```
 
-Colour of the sheet's tab, as an ARGB/theme `Color`. `undefined` leaves the tab its
+Colour of the sheet's tab, as an ARGB/theme [`Color`](./styles.md#color). `undefined` leaves the tab its
 default colour; the writer emits no `<tabColor>` for an uncoloured sheet, so a round-trip
 never fabricates one.
 
@@ -261,8 +261,8 @@ means unset — the writer emits no `<outlinePr>` and a round-trip never fabrica
 readonly view: SheetView = {};
 ```
 
-The sheet's frozen-pane view. Empty (a normal view) emits no `<pane>`. Use `freeze` and
-`unfreeze` for the common cases, or mutate in place for finer control.
+The sheet's frozen-pane view. Empty (a normal view) emits no `<pane>`. Use [`freeze`](./worksheet.md#worksheetfreeze) and
+[`unfreeze`](./worksheet.md#worksheetunfreeze) for the common cases, or mutate in place for finer control.
 
 #### `Worksheet.pageSetup`
 
@@ -380,16 +380,16 @@ getRange(top: number, left: number, bottom: number, right: number): Range;
 ```
 
 A handle on a rectangular block of cells — `getRange('B2:D5')`, or the same block by its
-inclusive corners as `getRange(2, 2, 5, 4)`. Cheap and stateless like `getRow` and
-`getColumn`: it creates no cells and does not extend the used range.
+inclusive corners as `getRange(2, 2, 5, 4)`. Cheap and stateless like [`getRow`](./worksheet.md#worksheetgetrow) and
+[`getColumn`](./worksheet.md#worksheetgetcolumn): it creates no cells and does not extend the used range.
 
 Corners are stated **first and last, inclusive**, in either order, never as a start and a count.
 That is the convention for every range-shaped accessor here, so the three axes cannot disagree
 about what a pair of numbers means.
 
 A whole-row (`'1:1'`) or whole-column (`'A:A'`) reference is refused rather than accepted as a
-million-cell block: OOXML states a whole-axis default in one attribute, and `getRow` /
-`getColumn` are how you write it.
+million-cell block: OOXML states a whole-axis default in one attribute, and [`getRow`](./worksheet.md#worksheetgetrow) /
+[`getColumn`](./worksheet.md#worksheetgetcolumn) are how you write it.
 
 **Throws** — `SyntaxError` if the reference is unparseable, names another worksheet, or leaves an
 axis unbounded.
@@ -404,7 +404,7 @@ get rowCount(): number;
 The 1-based index of the last row carrying anything — data or its own formatting —
 or 0 for an empty sheet. Spans gaps: a value in row 5 makes this 5 even if rows 2–4
 are empty. This is the used-range extent, not a populated-row tally (see
-`actualRowCount`).
+[`actualRowCount`](./worksheet.md#worksheetactualrowcount)).
 
 #### `Worksheet.actualRowCount`
 
@@ -421,7 +421,7 @@ get columnCount(): number;
 ```
 
 The 1-based index of the last column carrying anything — a non-empty cell or its own format
-properties — or 0 for an empty sheet. The used-range width, mirroring `rowCount` for the
+properties — or 0 for an empty sheet. The used-range width, mirroring [`rowCount`](./worksheet.md#worksheetrowcount) for the
 other axis: a value in column E makes this 5 even if columns B–D are empty.
 
 #### `Worksheet.columns`
@@ -455,7 +455,7 @@ Define a table over a range of this sheet. The table's shape invariants (a legal
 name, at least one column, at least one row) are enforced here; conflicts with the
 rest of the sheet (e.g. an overlapping merge) are the writer's concern.
 
-**Throws** — `AuthoringError` if the name, columns, or geometry are invalid.
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the name, columns, or geometry are invalid.
 
 #### `Worksheet.tables`
 
@@ -484,7 +484,7 @@ Add a pivot table to this (destination) sheet, summarising a source sheet's data
 read once, now, so the pivot is a snapshot: later edits to the source do not change it. The
 supported shape (one summed value field, at least one row and column field) is enforced here.
 
-**Throws** — `AuthoringError` if the metric, fields, or source shape are unsupported.
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the metric, fields, or source shape are unsupported.
 
 #### `Worksheet.pivotTables`
 
@@ -502,8 +502,8 @@ get loadedPivotTables(): readonly ParsedPivotTable[];
 
 Pivot tables reconstructed from a loaded package, in the order the reader found them — a
 read-only inspection view (source range, field roles, value field, aggregation). A pivot
-authored on this sheet via `addPivotTable` does not appear here; a pivot loaded from a
-file does not appear in `pivotTables`. The loaded pivots re-emit verbatim through
+authored on this sheet via [`addPivotTable`](./worksheet.md#worksheetaddpivottable) does not appear here; a pivot loaded from a
+file does not appear in [`pivotTables`](./worksheet.md#worksheetpivottables). The loaded pivots re-emit verbatim through
 byte-preservation, so this collection is never itself serialised.
 
 #### `Worksheet.addCommentThread`
@@ -514,11 +514,11 @@ addCommentThread(thread: CommentThread): void;
 
 Anchor a threaded conversation to a cell — Excel's modern review comment: an opening message, its
 replies, and whether the discussion was marked resolved. Distinct from a cell's legacy note
-(`Cell.note`), and mutually exclusive with one: Excel refuses to put both on one cell, and a
+([`Cell.note`](./cell.md#cellnote)), and mutually exclusive with one: Excel refuses to put both on one cell, and a
 cell carrying both is written back as the conversation alone.
 
-Every message supplies its own `Comment.id` and `Comment.date`, and names its author by
-`Comment.personId` into the workbook registry (`Workbook.addPerson`) — the writer has no
+Every message supplies its own [`Comment.id`](./comment-thread.md#comment) and [`Comment.date`](./comment-thread.md#comment), and names its author by
+[`Comment.personId`](./comment-thread.md#comment) into the workbook registry ([`Workbook.addPerson`](./workbook.md#workbookaddperson)) — the writer has no
 clock and no id generator, so nothing here is invented and the same workbook always serialises to the
 same bytes. Every id is normalised to the brace-wrapped upper-case GUID form the format requires, so a
 `crypto.randomUUID()` is accepted as-is.
@@ -541,7 +541,7 @@ get commentThreads(): readonly CommentThread[];
 
 The threaded conversations on this sheet — Excel's modern review comments (author, timestamp,
 replies, resolved state, `@mentions`). Empty for a sheet with none. Distinct from a cell's legacy note
-(`Cell.note`).
+([`Cell.note`](./cell.md#cellnote)).
 
 #### `Worksheet.commentThreadAt`
 
@@ -571,7 +571,7 @@ addImage(
   ): void;
 ```
 
-Anchor a workbook image (the id returned by `Workbook.addImage`) to this sheet. Two shapes:
+Anchor a workbook image (the id returned by [`Workbook.addImage`](./workbook.md#workbookaddimage)) to this sheet. Two shapes:
 
 - **Two-cell**: `{tl, br}` spans the rectangle from the top-left grid point to the bottom-right,
   reflowing as the spanned cells resize. `editAs` (`oneCell` by default) tunes how it follows.
@@ -588,7 +588,7 @@ addImageAnchor(imageId: number, anchor: ImageAnchor): void;
 ```
 
 Anchor an image with a pre-built model anchor in the model's own units (EMUs). This is the
-low-level primitive `addImage` builds on and the reader uses to re-pin an image parsed from
+low-level primitive [`addImage`](./worksheet.md#worksheetaddimage) builds on and the reader uses to re-pin an image parsed from
 a drawing part without a lossy pixel round-trip.
 
 #### `Worksheet.removeImage`
@@ -615,7 +615,7 @@ The images anchored to this sheet, in the order they were added.
 addBackgroundImage(imageId: number): void;
 ```
 
-Set this sheet's background image to a workbook image (the id `Workbook.addImage` returned).
+Set this sheet's background image to a workbook image (the id [`Workbook.addImage`](./workbook.md#workbookaddimage) returned).
 The picture tiles behind the whole grid; it is not anchored to any cell. Passing a new id replaces
 the previous background.
 
@@ -679,7 +679,7 @@ the writer emits both the sheet's `<autoFilter>` element and the hidden `_Filter
 name Excel derives from it. Setting `undefined` clears the filter.
 
 A bare range string is the ergonomic common case — `sheet.autoFilter = 'A1:C10'` for dropdowns
-with no active criteria; pass an `AutoFilter` object to narrow columns. Either way the
+with no active criteria; pass an [`AutoFilter`](./autofilter.md#autofilter) object to narrow columns. Either way the
 value is normalised on assignment (range to canonical `A1:C10` form) and the getter returns the
 structured object. The range must be a bounded rectangle — a whole-row/column reference is not a
 filterable region and is rejected.
@@ -690,9 +690,9 @@ filterable region and is rejected.
 unmergeCells(range: string): boolean;
 ```
 
-Remove a merged range previously added with `mergeCells`, returning whether a merge with
+Remove a merged range previously added with [`mergeCells`](./worksheet.md#worksheetmergecells), returning whether a merge with
 that exact range string existed. The covering rectangle is dropped alongside it, so a cell the
-merge had masked addresses independently again. The inverse of `mergeCells`.
+merge had masked addresses independently again. The inverse of [`mergeCells`](./worksheet.md#worksheetmergecells).
 
 #### `Worksheet.addDataValidation`
 
@@ -703,7 +703,7 @@ addDataValidation(sqref: string, rule: DataValidation, options: {extended?: bool
 Attach a data validation to a target range (`"B2:B20"`, a whole column `"B2:B1048576"`, or a
 space-separated `sqref` of several ranges). The rule is stored once against the range, not copied
 per covered cell, so a whole-column dropdown stays a single entry. A cell inside the range reports
-the rule through `dataValidationAt`.
+the rule through [`dataValidationAt`](./worksheet.md#worksheetdatavalidationat).
 
 Pass `{extended: true}` to mark a rule that belongs in the 2009 extension form
 (`<x14:dataValidation>`) — the carrier Excel uses for a list source on another sheet and other
@@ -755,8 +755,8 @@ spliceRows(start: number, count: number, ...inserts: RowInput[]): void;
 Remove `count` rows starting at the 1-based `start`, then insert the given rows in their place.
 Rows below the edit shift by `inserts.length - count`: a delete pulls the tail up, an insert
 pushes it down, and doing both at once is a replace. Each inserted row takes either
-`RowInput` shape — a positional array from column A, or a key-addressed object — exactly
-like `addRow`. A `count` larger than the rows present simply clears the tail — it never
+[`RowInput`](./worksheet.md#rowinput) shape — a positional array from column A, or a key-addressed object — exactly
+like [`addRow`](./worksheet.md#worksheetaddrow). A `count` larger than the rows present simply clears the tail — it never
 silently becomes a no-op. Cells carry their full style to the shifted position, and merged ranges
 shift with the rows they cover.
 
@@ -769,8 +769,8 @@ insertRow(pos: number, values: RowInput): void;
 ```
 
 Insert one row of `values` at the 1-based `pos`, shifting the rows at and below it down by one.
-`values` takes either `RowInput` shape (positional array or keyed object), like
-`addRow`. Shorthand for `spliceRows``(pos, 0, values)`.
+`values` takes either [`RowInput`](./worksheet.md#rowinput) shape (positional array or keyed object), like
+[`addRow`](./worksheet.md#worksheetaddrow). Shorthand for [`spliceRows`](./worksheet.md#worksheetsplicerows)`(pos, 0, values)`.
 
 **Throws** — `RangeError` if `pos` is not a positive integer.
 
@@ -781,14 +781,14 @@ addRow(values: RowInput): Cell[];
 ```
 
 Append a row of `values` after the last used row, returning the cells it materialised.
-The append point is `rowCount`` + 1`, so the row lands below every row that holds
-data or its own formatting — never overwriting existing content, unlike `insertRow`,
-which shifts and needs a position. Unlike `spliceRows`, appending shifts nothing, so
+The append point is [`rowCount`](./worksheet.md#worksheetrowcount)` + 1`, so the row lands below every row that holds
+data or its own formatting — never overwriting existing content, unlike [`insertRow`](./worksheet.md#worksheetinsertrow),
+which shifts and needs a position. Unlike [`spliceRows`](./worksheet.md#worksheetsplicerows), appending shifts nothing, so
 it never disturbs merges or the rows above.
 
 A row takes either shape: a positional array whose values map to columns from A — a hole in a
 sparse array (`['a', , 'c']`) leaves that column untouched — or a keyed object whose values
-land under the columns carrying the matching `ColumnProperties.key`.
+land under the columns carrying the matching [`ColumnProperties.key`](./worksheet.md#columnproperties).
 
 #### `Worksheet.addRows`
 
@@ -797,10 +797,10 @@ addRows(rows: RowInput[]): Cell[][];
 ```
 
 Append several rows after the last used row in one call, returning the cells materialised
-for each. The rows stack in order — the first lands at `rowCount`` + 1`, the next
+for each. The rows stack in order — the first lands at [`rowCount`](./worksheet.md#worksheetrowcount)` + 1`, the next
 directly below it — so a later row never collides with an earlier one even when both are
 value-less. Each row is an array or a keyed object independently, so a mixed batch is fine.
-The bulk form of `addRow`.
+The bulk form of [`addRow`](./worksheet.md#worksheetaddrow).
 
 #### `Worksheet.freeze`
 
@@ -810,7 +810,7 @@ freeze(ySplit = 1, xSplit = 0): void;
 
 Freeze the top `ySplit` rows and left `xSplit` columns in place; the rest of the sheet scrolls
 beneath them. `freeze(1)` pins a header row; `freeze(0, 1)` pins the first column. Passing both
-zero clears the freeze (equivalent to `unfreeze`).
+zero clears the freeze (equivalent to [`unfreeze`](./worksheet.md#worksheetunfreeze)).
 
 **Throws** — `RangeError` if either split is a negative or non-integer count.
 
@@ -843,7 +843,7 @@ spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void;
 ```
 
 Remove `count` columns starting at the 1-based `start`, then insert the given columns in their
-place — the column analog of `spliceRows`. Columns to the right shift by
+place — the column analog of [`spliceRows`](./worksheet.md#worksheetsplicerows). Columns to the right shift by
 `inserts.length - count`, keeping their values and styles, and a merged range lying wholly to
 the right of the edit re-anchors to its new columns. Each inserted column is an array of values
 indexed by row (index 0 → row 1); an empty array inserts a blank column.
@@ -858,7 +858,7 @@ insertColumn(pos: number, values: CellValue[]): void;
 
 Insert one column of `values` at the 1-based `pos`, shifting the columns at and right of it over
 by one. `values` is an array of values indexed by row (index 0 → row 1), like
-`addColumn`. Shorthand for `spliceColumns``(pos, 0, values)`.
+[`addColumn`](./worksheet.md#worksheetaddcolumn). Shorthand for [`spliceColumns`](./worksheet.md#worksheetsplicecolumns)`(pos, 0, values)`.
 
 **Throws** — `RangeError` if `pos` is not a positive integer.
 
@@ -869,13 +869,13 @@ addColumn(values: CellValue[]): Cell[];
 ```
 
 Append a column of `values` after the last used column, returning the cells it materialised.
-The append point is `columnCount`` + 1`, so the column lands right of every column that
-holds data or its own formatting — never overwriting existing content, unlike `insertColumn`,
-which shifts and needs a position. Unlike `spliceColumns`, appending shifts nothing, so it
+The append point is [`columnCount`](./worksheet.md#worksheetcolumncount)` + 1`, so the column lands right of every column that
+holds data or its own formatting — never overwriting existing content, unlike [`insertColumn`](./worksheet.md#worksheetinsertcolumn),
+which shifts and needs a position. Unlike [`spliceColumns`](./worksheet.md#worksheetsplicecolumns), appending shifts nothing, so it
 never disturbs merges or the columns to its left.
 
 `values` is an array indexed by row (index 0 → row 1); a hole or an explicit `undefined` leaves
-that row untouched, mirroring `addRow`'s positional-array shape.
+that row untouched, mirroring [`addRow`](./worksheet.md#worksheetaddrow)'s positional-array shape.
 
 #### `Worksheet.addColumns`
 
@@ -884,9 +884,9 @@ addColumns(columns: CellValue[][]): Cell[][];
 ```
 
 Append several columns after the last used column in one call, returning the cells materialised
-for each. The columns stack in order — the first lands at `columnCount`` + 1`, the next
+for each. The columns stack in order — the first lands at [`columnCount`](./worksheet.md#worksheetcolumncount)` + 1`, the next
 directly right of it — so a later column never collides with an earlier one even when both are
-value-less. The bulk form of `addColumn`.
+value-less. The bulk form of [`addColumn`](./worksheet.md#worksheetaddcolumn).
 
 #### `Worksheet.model`
 
@@ -895,13 +895,13 @@ get model(): WorksheetModel;
 set model(model: WorksheetModel);
 ```
 
-A snapshot of this sheet's value and overlay content (see `WorksheetModel`). Reading it and
+A snapshot of this sheet's value and overlay content (see [`WorksheetModel`](./worksheet.md#worksheetmodel)). Reading it and
 assigning it onto another sheet — `dst.model = src.model` — reproduces the source: merges, cells
 and their styles, column/row metadata, tables, the autofilter, protection, and the page setup all
 survive, because the getter emits and the setter consumes exactly the same fields. Identity
 (`name`, `id`) is not part of the model and is never touched by assignment; nor are attached parts
 that carry workbook-level identity (images, pivots, byte-preserved charts/drawings) — see
-`WorksheetModel` for that boundary.
+[`WorksheetModel`](./worksheet.md#worksheetmodel) for that boundary.
 
 #### `Worksheet.protect`
 
@@ -915,7 +915,7 @@ salted and hashed on the spot (the plaintext is never retained) so lifting the p
 requires re-supplying it. `options` names which operations stay available to a user while
 the sheet is protected; anything unspecified falls to Excel's default for that operation.
 
-Re-protecting replaces any prior protection; `unprotect` clears it.
+Re-protecting replaces any prior protection; [`unprotect`](./worksheet.md#worksheetunprotect) clears it.
 
 #### `Worksheet.unprotect`
 
@@ -923,7 +923,7 @@ Re-protecting replaces any prior protection; `unprotect` clears it.
 unprotect(): void;
 ```
 
-Remove any protection previously set by `protect`.
+Remove any protection previously set by [`protect`](./worksheet.md#worksheetprotect).
 
 #### `Worksheet.protection`
 
@@ -941,7 +941,7 @@ The sheet's protection, or `undefined` if the sheet is unprotected.
 
 A serialisable snapshot of a worksheet's value and overlay content — its cells and their styles,
 the column/row/page metadata, and the sheet-level overlays (merges, data validations, conditional
-formattings, tables, the autofilter, protection). `Worksheet.model` exports one; assigning
+formattings, tables, the autofilter, protection). [`Worksheet.model`](./worksheet.md#worksheetmodel) exports one; assigning
 it back reproduces that content. The getter and setter cover exactly the same fields, so a
 `dst.model = src.model` round-trip drops none of it — an export field the import ignored would
 silently lose data, the historical merge-loss failure this contract exists to prevent. Both
@@ -949,7 +949,7 @@ directions are driven from one field table (`core/worksheet-model.ts`), which th
 covers every field below, so adding a field here without wiring it fails the build.
 
 Out of scope by design: content that carries workbook-level identity rather than pure sheet
-state — anchored and background images (their bytes live on the `Workbook`), pivot tables
+state — anchored and background images (their bytes live on the [`Workbook`](./workbook.md#workbook)), pivot tables
 (their source references a live worksheet), and byte-preserved parts (charts, vector drawings,
 slicers) kept verbatim for round-tripping. These stay with their source sheet; a model assignment
 neither copies nor clears them.

@@ -6,7 +6,7 @@
 
 <sub>const</sub>
 
-The `customUI` root namespaces, one per `RibbonDialect`.
+The `customUI` root namespaces, one per [`RibbonDialect`](./customui-ribbon.md#ribbondialect).
 
 ```ts
 const CUSTOMUI_2006_NAMESPACE: "http://schemas.microsoft.com/office/2006/01/customui"
@@ -78,13 +78,13 @@ function isCustomUiRelType(type: string): boolean;
 
 <sub>function</sub>
 
-Parse a `customUI` part (raw UTF-8 bytes or its decoded text) into a `CustomUiDocument`.
+Parse a `customUI` part (raw UTF-8 bytes or its decoded text) into a [`CustomUiDocument`](./customui-ribbon.md#customuidocument).
 
 ```ts
 function parseCustomUi(input: string | Uint8Array): CustomUiDocument;
 ```
 
-**Throws** — `CustomUiParseError` if the XML is malformed, the root is not a `<customUI>` element in
+**Throws** — [`CustomUiParseError`](./customui-errors.md#customuiparseerror) if the XML is malformed, the root is not a `<customUI>` element in
 a recognised namespace, or the tree nests beyond `MAX_DEPTH`.
 
 ---
@@ -111,7 +111,7 @@ interface Ribbon {
 <sub>interface</sub>
 
 A control element inside a ribbon group. `kind` is the element's local name, narrowed to the closed
-set of RibbonX control elements (`RibbonControlKind`); an element outside that set is surfaced
+set of RibbonX control elements ([`RibbonControlKind`](./customui-ribbon.md#ribboncontrolkind)); an element outside that set is surfaced
 as `unknown` rather than dropped. The three identity attributes (`id` a document-defined control,
 `idQ` a qualified id, `idMso` a built-in control) and the two most-consulted display/behaviour
 attributes (`label`, `onAction`) are lifted out as typed conveniences; every attribute the element

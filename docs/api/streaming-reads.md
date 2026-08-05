@@ -19,13 +19,13 @@ function* readSheetRows(
 ```
 
 - `data` — The raw `.xlsx` bytes.
-- `options` — Sheet selector and the inflate bound (see `ReadSheetRowsOptions`).
-**Throws** — `UnsupportedFormatError` if the input is not a readable `.xlsx` package (a legacy `.xls`, a
+- `options` — Sheet selector and the inflate bound (see [`ReadSheetRowsOptions`](./streaming-reads.md#readsheetrowsoptions)).
+**Throws** — [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is not a readable `.xlsx` package (a legacy `.xls`, a
 binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
-**Throws** — `PackageReadError` if the input is a ZIP that cannot be unpacked — a corrupt or
+**Throws** — [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked — a corrupt or
 truncated archive, or one exceeding the inflate bound (a probable zip bomb).
-**Throws** — `XlsxParseError` if the package's workbook part declares no worksheets.
-**Throws** — `RangeError` / `AuthoringError` if `options.sheet` selects a position, or a name,
+**Throws** — [`XlsxParseError`](./xlsx-errors.md#xlsxparseerror) if the package's workbook part declares no worksheets.
+**Throws** — `RangeError` / [`AuthoringError`](./errors.md#authoringerror) if `options.sheet` selects a position, or a name,
 that no worksheet has.
 
 ---
@@ -63,8 +63,8 @@ function* readWorkbookStream(
 ```
 
 - `data` — The raw `.xlsx` bytes.
-- `options` — The inflate bound (see `ReadXlsxOptions`).
-**Throws** — `UnsupportedFormatError` if the input is not a readable `.xlsx` package (a legacy `.xls`, a
+- `options` — The inflate bound (see [`ReadXlsxOptions`](./opc-read-options.md#readxlsxoptions)).
+**Throws** — [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is not a readable `.xlsx` package (a legacy `.xls`, a
 binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
-**Throws** — `PackageReadError` if the input is a ZIP that cannot be unpacked — a corrupt or
+**Throws** — [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked — a corrupt or
 truncated archive, or one exceeding the inflate bound (a probable zip bomb).

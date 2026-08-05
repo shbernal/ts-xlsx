@@ -7,7 +7,7 @@
 <sub>interface</sub>
 
 A worksheet's autofilter: the filtered region plus any per-column criteria narrowing it. A bare
-range (no columns) is just the header-row dropdowns Excel draws; adding `FilterColumn`s
+range (no columns) is just the header-row dropdowns Excel draws; adding [`FilterColumn`](./autofilter.md#filtercolumn)s
 records the criteria a column is actively filtered by.
 
 ```ts

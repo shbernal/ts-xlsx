@@ -26,7 +26,7 @@ interface PreservedPart {
 
 <sub>interface</sub>
 
-One outbound relationship of a `PreservedPart`: the id it carries inside its own rels part,
+One outbound relationship of a [`PreservedPart`](./preserved.md#preservedpart): the id it carries inside its own rels part,
 the relationship Type URI, and its target. An internal relationship's `targetPath` is the resolved
 package path of the part it points at (the writer re-numbers and rewires it); an `external`
 relationship's `targetPath` is the raw `Target` verbatim (a linked workbook's path or URL) — it is

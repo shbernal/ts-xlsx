@@ -10,7 +10,7 @@ Thrown when the input *is* a ZIP container but it cannot be unpacked: the archiv
 truncated, or inflating it would push total uncompressed output past the caller's bound (which is
 how a zip bomb presents).
 
-The neighbouring `UnsupportedFormatError` says the input is a different *kind* of thing; this
+The neighbouring [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) says the input is a different *kind* of thing; this
 one says it is the right kind and we will not (or cannot) unpack it. Keeping them apart is what
 lets a caller answer "should I try another reader, or reject this file?" — and it is what replaced
 the message-prefix match the bomb refusal used to be recognised by.
@@ -58,7 +58,7 @@ The message never carries a filesystem path or the underlying zip library's inte
 point of the type is that the classification, not a leaked lower-layer string, is what the caller sees.
 
 `format` stays the branch for *which* unsupported input this was; the inherited
-`XlsxError.code` answers the coarser question of what kind of failure it is.
+[`XlsxError.code`](./errors.md#xlsxerror) answers the coarser question of what kind of failure it is.
 
 ```ts
 class UnsupportedFormatError extends XlsxError {

@@ -6,7 +6,7 @@
 
 <sub>interface</sub>
 
-Options controlling how `writeXlsx` serialises a workbook.
+Options controlling how [`writeXlsx`](./writing-xlsx.md#writexlsx) serialises a workbook.
 
 ```ts
 interface WriteOptions {
@@ -32,7 +32,7 @@ Serialise a workbook into an `.xlsx` package.
 function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array;
 ```
 
-**Throws** — `AuthoringError` if the workbook has no worksheets (a zero-sheet package is corrupt),
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the workbook has no worksheets (a zero-sheet package is corrupt),
 or holds a value the writer cannot yet represent.
 
 ---
@@ -43,8 +43,8 @@ or holds a value the writer cannot yet represent.
 
 Serialise a workbook into an `.xlsx` package, deflating off the calling thread.
 
-Produces the same package `writeXlsx` does — every part compresses to identical bytes — and
-exists for one reason: DEFLATE dominates the cost of writing a large workbook, and `writeXlsx`
+Produces the same package [`writeXlsx`](./writing-xlsx.md#writexlsx) does — every part compresses to identical bytes — and
+exists for one reason: DEFLATE dominates the cost of writing a large workbook, and [`writeXlsx`](./writing-xlsx.md#writexlsx)
 spends all of it on the caller's thread. Here `fflate` deflates each part in a worker, so the event
 loop keeps turning (stalls drop from the whole write to tens of milliseconds) and parts compress in
 parallel, which on a multi-sheet workbook also finishes sooner. On a single-sheet workbook there is
@@ -62,7 +62,7 @@ async function writeXlsxAsync(
 ): Promise<Uint8Array>;
 ```
 
-**Throws** — `AuthoringError` — as a rejection — under the same conditions as `writeXlsx`;
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) — as a rejection — under the same conditions as [`writeXlsx`](./writing-xlsx.md#writexlsx);
 the part-building it shares happens before any worker is involved. A failure raised by the zip
 layer itself (including an environment that cannot spawn a worker) propagates unwrapped, exactly
-as it does from `writeXlsx`.
+as it does from [`writeXlsx`](./writing-xlsx.md#writexlsx).

@@ -82,7 +82,7 @@ The cell's value; `null` when empty. Assigning `undefined` clears it.
 get type(): ValueType;
 ```
 
-The observable `ValueType` of the current value.
+The observable [`ValueType`](./cell-values.md#valuetype) of the current value.
 
 #### `Cell.setRichText`
 
@@ -96,7 +96,7 @@ cell's typeface, size and colour throughout and bolds the first run.
 
 This exists because a run's format element does **not** inherit anything. A `<rPr>` is a
 *complete* character format, and any facet it omits falls back to the workbook default font
-(`Workbook.defaultFont`) — not to the cell's. Verified against Excel: a cell set to
+([`Workbook.defaultFont`](./workbook.md#workbookdefaultfont)) — not to the cell's. Verified against Excel: a cell set to
 Courier New 16 whose first run carries only `<b/>` renders that run in the workbook default face
 at the default size, bold, while the rest of the cell renders Courier New 16. So a run authored
 as `{bold: true}` beside a styled cell silently loses the face, which is the format's rule rather
@@ -118,8 +118,8 @@ set style(style: Readonly<CellStyle>);
 ```
 
 The cell's full style — fill, number format, font, border, alignment, and protection — as one
-`CellStyle`, for restyling a cell wholesale without importing `applyCellStyle`
-separately (mirrors `Worksheet.model`'s getter/setter pair for the whole sheet). The
+[`CellStyle`](./styles.md#cellstyle), for restyling a cell wholesale without importing `applyCellStyle`
+separately (mirrors [`Worksheet.model`](./worksheet.md#worksheetmodel)'s getter/setter pair for the whole sheet). The
 getter carries only the facets this cell has set (the same shape `cellToModel` emits);
 the setter lays each facet `style` carries onto this cell — like every per-facet setter, it
 replaces that facet outright but leaves a facet `style` omits untouched, so `cell.style = {...}`

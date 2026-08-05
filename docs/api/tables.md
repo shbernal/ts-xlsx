@@ -95,7 +95,7 @@ get range(): string;
 ```
 
 The full A1 range the table occupies: header (if any) + data rows + totals (if any). Distinct
-from `TableOptions.ref` (and `options`'s own `ref`), which is only the single-cell
+from [`TableOptions.ref`](./tables.md#tableoptions) (and [`options`](./tables.md#tableoptions)'s own `ref`), which is only the single-cell
 anchor a table is constructed from — this is the anchor plus the columns/rows it has grown to
 cover.
 
@@ -156,7 +156,7 @@ interface TableColumn {
 <sub>type</sub>
 
 A per-column cell format applied to a table's body cells — the facets Excel's table-column style
-bakes into the cells rather than storing as table metadata. Every facet (`CellStyle`) is
+bakes into the cells rather than storing as table metadata. Every facet ([`CellStyle`](./styles.md#cellstyle)) is
 optional; only the ones set are applied, leaving the rest of each cell's style untouched.
 
 ```ts
@@ -230,7 +230,7 @@ interface TableRegion {
 A table's visual style (`<tableStyleInfo>`): the named style to apply plus the banding/highlight
 toggles. Every field is a tri-state so a round-trip stays faithful — a value present in the source
 re-emits, one the source omitted stays omitted rather than being defaulted to `"0"`. A workbook
-whose part carries no `<tableStyleInfo>` at all leaves `TableOptions.style` undefined.
+whose part carries no `<tableStyleInfo>` at all leaves [`TableOptions.style`](./tables.md#tableoptions) undefined.
 
 ```ts
 interface TableStyleInfo {

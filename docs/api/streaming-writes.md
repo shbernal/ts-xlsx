@@ -6,7 +6,7 @@
 
 <sub>interface</sub>
 
-Calculation settings applied to the streamed workbook. Mirrors the `Workbook` flags.
+Calculation settings applied to the streamed workbook. Mirrors the [`Workbook`](./workbook.md#workbook) flags.
 
 ```ts
 interface CalcProperties {
@@ -21,8 +21,8 @@ interface CalcProperties {
 
 <sub>class</sub>
 
-A row appended to a `WorksheetStreamWriter`. Style its cells through `cells`, then call
-`commit` to mark it finished. In an eager (inline-strings) writer, committing serialises the
+A row appended to a [`WorksheetStreamWriter`](./streaming-writes.md#worksheetstreamwriter). Style its cells through [`cells`](./streaming-writes.md#streamedrowcells), then call
+[`commit`](./streaming-writes.md#streamedrowcommit) to mark it finished. In an eager (inline-strings) writer, committing serialises the
 row and frees its cells from the model, bounding peak memory; with `useSharedStrings` on it is a
 no-op and the row stays live until the workbook commits.
 
@@ -59,8 +59,8 @@ Committing twice is harmless — the second call does nothing rather than re-emi
 <sub>class</sub>
 
 A workbook written incrementally to a Node stream. Add worksheets, append their rows, commit each
-sheet, then `commit` the workbook to assemble and stream the package. The produced bytes are
-available both as the resolved value of `commit()` and through `stream` (a Node `Readable`
+sheet, then [`commit`](./streaming-writes.md#workbookstreamwritercommit) the workbook to assemble and stream the package. The produced bytes are
+available both as the resolved value of `commit()` and through [`stream`](./streaming-writes.md#workbookstreamwriterstream) (a Node `Readable`
 that a caller can `pipe`).
 
 ```ts
@@ -110,7 +110,7 @@ addImage(options: AddImageOptions): number;
 ```
 
 Register a picture's bytes on the workbook's shared media registry and return its id, to anchor
-on any sheet with `WorksheetStreamWriter.addImage`. Mirrors `Workbook.addImage`: one
+on any sheet with [`WorksheetStreamWriter.addImage`](./streaming-writes.md#worksheetstreamwriteraddimage). Mirrors [`Workbook.addImage`](./workbook.md#workbookaddimage): one
 media part backs an image anchored on several sheets. Rejected once the workbook is committed.
 
 #### `WorkbookStreamWriter.addWorksheet`
@@ -127,7 +127,7 @@ Create a worksheet and append it to the workbook.
 async commit(): Promise<Uint8Array>;
 ```
 
-Assemble the workbook into its package, stream the bytes through `stream`, and resolve with
+Assemble the workbook into its package, stream the bytes through [`stream`](./streaming-writes.md#workbookstreamwriterstream), and resolve with
 the same bytes. Every sheet is frozen first, so a row added after this rejects legibly. Idempotent
 only in that a second call throws rather than re-emitting.
 
@@ -155,8 +155,8 @@ type WorkbookStreamWriterOptions = SinkOptions & {
 
 <sub>class</sub>
 
-A worksheet being written incrementally. Append rows with `addRow`/`addRows`, style
-cells through `getCell`, then `commit` to freeze it — after which any further mutation
+A worksheet being written incrementally. Append rows with [`addRow`](./streaming-writes.md#worksheetstreamwriteraddrow)/[`addRows`](./streaming-writes.md#worksheetstreamwriteraddrows), style
+cells through [`getCell`](./streaming-writes.md#worksheetstreamwritergetcell), then [`commit`](./streaming-writes.md#worksheetstreamwritercommit) to freeze it — after which any further mutation
 is rejected with a legible error rather than silently accepted or crashing.
 
 ```ts
@@ -222,11 +222,11 @@ flushRow(number: number, cells: readonly Cell[]): void;
 ```
 
 Serialise an eagerly-committed row and release its cells from the model. Called by
-`StreamedRow.commit`; the row's `<row>` XML is retained (interned into the workbook's live
+[`StreamedRow.commit`](./streaming-writes.md#streamedrowcommit); the row's `<row>` XML is retained (interned into the workbook's live
 style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
 
-**Throws** — `AuthoringError` if the row carries a shared-formula cell — a finished row cannot join the
-whole-sheet formula planning, so shared formulas must be authored through `getCell`.
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the row carries a shared-formula cell — a finished row cannot join the
+whole-sheet formula planning, so shared formulas must be authored through [`getCell`](./streaming-writes.md#worksheetstreamwritergetcell).
 
 #### `WorksheetStreamWriter.getCell`
 
@@ -262,7 +262,7 @@ it lands in its schema-mandated slot — after `<mergeCells>`, before `<dataVali
 addImage(imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint}): void;
 ```
 
-Anchor a workbook image (the id from `WorkbookStreamWriter.addImage`) to this sheet,
+Anchor a workbook image (the id from [`WorkbookStreamWriter.addImage`](./streaming-writes.md#workbookstreamwriteraddimage)) to this sheet,
 spanning the rectangle from the top-left grid point `tl` to the bottom-right `br`. The streamed
 package emits the drawing part, its media relationship, and the sheet's `<drawing>` reference
 exactly as a buffered write does — both writers share `buildPackageParts`.
@@ -274,7 +274,7 @@ set autoFilter(filter: string | AutoFilter | undefined);
 get autoFilter(): AutoFilter | undefined;
 ```
 
-Apply the sheet's autofilter before it is committed; mirrors `Worksheet.autoFilter`. The
+Apply the sheet's autofilter before it is committed; mirrors [`Worksheet.autoFilter`](./worksheet.md#worksheetautofilter). The
 streamed package emits `<autoFilter>` in its CT_Worksheet slot — after `<sheetProtection>` — and
 contributes the hidden `_FilterDatabase` defined name, exactly as a buffered write does.
 
@@ -284,7 +284,7 @@ contributes the hidden `_FilterDatabase` defined name, exactly as a buffered wri
 protect(password?: string, options: SheetProtectionOptions = {}): void;
 ```
 
-Apply sheet-level protection before the sheet is committed; mirrors `Worksheet.protect`. The
+Apply sheet-level protection before the sheet is committed; mirrors [`Worksheet.protect`](./worksheet.md#worksheetprotect). The
 shared serializer places `<sheetProtection>` ahead of `<autoFilter>` per CT_Worksheet, so a
 streamed sheet carrying both stays valid rather than corrupt.
 

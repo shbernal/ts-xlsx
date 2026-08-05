@@ -16,7 +16,7 @@ function isTableStyleElementType(value: string): value is TableStyleElementType;
 
 <sub>const</sub>
 
-The four element types banded across several rows or columns — the only ones `TableStyleElement.size` means anything on.
+The four element types banded across several rows or columns — the only ones [`TableStyleElement.size`](./table-style.md#tablestyleelement) means anything on.
 
 ```ts
 const STRIPE_ELEMENT_TYPES: ReadonlySet<"blankRow" | "firstColumn" | "firstColumnStripe" | "firstColumnSubheading" | "firstHeaderCell" | "firstRowStripe" | "firstRowSubheading" | "firstSubtotalColumn" | "firstSubtotalRow" | "firstTotalCell" | "headerRow" | "lastColumn" | "lastHeaderCell" | "lastTotalCell" | "pageFieldLabels" | "pageFieldValues" | "secondColumnStripe" | "secondColumnSubheading" | "secondRowStripe" | "secondRowSubheading" | "secondSubtotalColumn" | "secondSubtotalRow" | "thirdColumnSubheading" | "thirdRowSubheading" | "thirdSubtotalColumn" | "thirdSubtotalRow" | "totalRow" | "wholeTable">
@@ -47,7 +47,7 @@ const TABLE_STYLE_ELEMENT_TYPES: readonly ["wholeTable", "headerRow", "totalRow"
 <sub>interface</sub>
 
 A custom table style, ready to be registered on a workbook and named by a table's
-`TableStyleInfo.name`.
+[`TableStyleInfo.name`](./tables.md#tablestyleinfo).
 
 Elements are applied in the order ECMA-376 fixes, not the order they are written here: whole table,
 then the column stripes, then the row stripes, then last/first column, header row, total row, and
@@ -73,12 +73,12 @@ interface TableStyle {
 
 <sub>interface</sub>
 
-How one region of a table is formatted: a `DifferentialStyle` laid over whatever the cells
+How one region of a table is formatted: a [`DifferentialStyle`](./styles.md#differentialstyle) laid over whatever the cells
 already carry, plus — for a stripe — how many rows or columns wide one band is.
 
 A `numFmt` here is carried faithfully but has no visible effect: Excel's own table-style element
 exposes a font, an interior and borders, and nothing for a number format. See
-`DifferentialStyle`.
+[`DifferentialStyle`](./styles.md#differentialstyle).
 
 ```ts
 interface TableStyleElement extends DifferentialStyle {

@@ -77,7 +77,7 @@ class XlsxError extends Error {
 
 <sub>type</sub>
 
-What kind of failure an `XlsxError` reports. This is the branch most callers want, and it is
+What kind of failure an [`XlsxError`](./errors.md#xlsxerror) reports. This is the branch most callers want, and it is
 deliberately coarse: the four answers are the four different things a caller would *do* next.
 
 - `'unsupported-format'` — the input is not a container this library reads at all (a legacy `.xls`,
@@ -90,7 +90,7 @@ deliberately coarse: the four answers are the four different things a caller wou
 
 There is deliberately no "not implemented yet" code. Every candidate for one turned out to be an
 unreachable exhaustiveness guard (so: `'internal'`), and the one genuine feature gap — a binary
-`.xlsb` cannot be row-streamed — is already reported by `UnsupportedFormatError`'s `format`
+`.xlsb` cannot be row-streamed — is already reported by [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror)'s `format`
 branch. A code with no throw site would be a promise the library does not keep.
 
 ```ts

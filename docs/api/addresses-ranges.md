@@ -90,7 +90,7 @@ const MAX_COLUMN: 16384
 
 <sub>const</sub>
 
-Excel's row bound: 1 through 1048576. The other axis of `MAX_COLUMN`.
+Excel's row bound: 1 through 1048576. The other axis of [`MAX_COLUMN`](./addresses-ranges.md#maxcolumn).
 
 ```ts
 const MAX_ROW: 1048576

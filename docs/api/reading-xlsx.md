@@ -6,7 +6,7 @@
 
 <sub>function</sub>
 
-Read a spreadsheet package into a `Workbook`.
+Read a spreadsheet package into a [`Workbook`](./workbook.md#workbook).
 
 Both OOXML serialisations are accepted: an XML `.xlsx`, and a binary `.xlsb` (BIFF12), which is the
 same OPC container with binary office-document parts. The two are auto-detected from the package
@@ -18,8 +18,8 @@ yet decode.
 function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook;
 ```
 
-**Throws** — `UnsupportedFormatError` if the input is neither — a legacy `.xls` (`.format === 'xls'`) or
+**Throws** — [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is neither — a legacy `.xls` (`.format === 'xls'`) or
 an unrecognised/non-ZIP blob (`'unknown'`).
-**Throws** — `XlsbParseError` if a binary `.xlsb` part is malformed.
-**Throws** — `PackageReadError` if the input is a ZIP that cannot be unpacked — a corrupt or
+**Throws** — [`XlsbParseError`](./xlsb-errors.md#xlsbparseerror) if a binary `.xlsb` part is malformed.
+**Throws** — [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked — a corrupt or
 truncated archive, or one exceeding the inflate bound (a probable zip bomb).

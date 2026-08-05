@@ -73,7 +73,7 @@ interface SheetProtectionFlags {
 
 <sub>interface</sub>
 
-`SheetProtectionFlags` plus the password-hardening knob accepted by `protect`.
+[`SheetProtectionFlags`](./protection.md#sheetprotectionflags) plus the password-hardening knob accepted by `protect`.
 
 ```ts
 interface SheetProtectionOptions extends SheetProtectionFlags {

@@ -98,7 +98,7 @@ and protection. Every facet is optional and independent: a cell sets only the fa
 and inherits the rest. This one tuple is the unit of style throughout the library, so the
 interfaces that carry a cell's formatting compose it rather than re-listing the fields — a column,
 table column, or named style whose facets *default* the cells that leave them unset (see
-`ColumnProperties`, `NamedCellStyle`), and a cell's own resolved format. Because they
+[`ColumnProperties`](./worksheet.md#columnproperties), [`NamedCellStyle`](./styles.md#namedcellstyle)), and a cell's own resolved format. Because they
 share this type, "add a facet" is a single edit here and the compiler enforces that no read/write
 path silently drops one — the round-trip symmetry the merge-loss contract depends on.
 
@@ -143,7 +143,7 @@ interface Color {
 
 A differential style (OOXML CT_Dxf): formatting laid *over* whatever a cell already carries. Only
 the facets present override; the rest of the cell's own style shows through. It carries the subset
-of the cell-style facets (see `CellStyle`) a `<dxf>` can express — font, number format, fill,
+of the cell-style facets (see [`CellStyle`](./styles.md#cellstyle)) a `<dxf>` can express — font, number format, fill,
 and border.
 
 Differential styles live in one workbook-level table (`<dxfs>`) that several features index into:
@@ -213,7 +213,7 @@ type FillPatternType =
 <sub>interface</sub>
 
 A font, as it applies to a cell or a single rich-text run. Every facet is optional and
-independent, like `Border`/`Alignment`/`Protection` — a font sets only the
+independent, like [`Border`](./styles.md#border)/[`Alignment`](./styles.md#alignment)/[`Protection`](./styles.md#protection) — a font sets only the
 facets it overrides (Excel's own default font backs the rest), so no consumer ever holds every
 field populated at once.
 
@@ -331,7 +331,7 @@ type HorizontalAlignment =
 A named cell style — the OOXML `cellStyleXfs`/`cellStyles` layer. A spreadsheet applies a built-in
 or custom style (e.g. "Normal", "Accent1") whose visual facets live in this shared, named layer
 rather than on each cell's direct format; a cell links to it and inherits any facet the direct
-format leaves unset. The facets are a cell's own (see `CellStyle`); `name` is the style's
+format leaves unset. The facets are a cell's own (see [`CellStyle`](./styles.md#cellstyle)); `name` is the style's
 display name and `builtinId` its Excel gallery index when it is a built-in style.
 
 ```ts

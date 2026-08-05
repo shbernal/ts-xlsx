@@ -18,8 +18,8 @@ Excel-authored project).
 function addVbaReference(bin: Uint8Array, ref: VbaLibraryReference): Uint8Array;
 ```
 
-**Throws** — `VbaParseError` if `bin` is not a parseable VBA project (validated before any edit).
-**Throws** — `VbaAuthorError` if any field of `ref` is invalid (see `VbaLibraryReference`), or the
+**Throws** — [`VbaParseError`](./vba-errors.md#vbaparseerror) if `bin` is not a parseable VBA project (validated before any edit).
+**Throws** — [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if any field of `ref` is invalid (see [`VbaLibraryReference`](./vba-project-editor.md#vbalibraryreference)), or the
 assembled reference text has a character the project's code page cannot represent.
 
 ---
@@ -43,8 +43,8 @@ the offline `tools/vba-compiler` (in-place mode), which drives the real host.
 function removeVbaModule(bin: Uint8Array, name: string): Uint8Array;
 ```
 
-**Throws** — `VbaParseError` if `bin` is not a parseable VBA project (validated before any edit).
-**Throws** — `VbaAuthorError` if `name` is not in the project, or names a `document`/`designer` module.
+**Throws** — [`VbaParseError`](./vba-errors.md#vbaparseerror) if `bin` is not a parseable VBA project (validated before any edit).
+**Throws** — [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if `name` is not in the project, or names a `document`/`designer` module.
 
 ---
 
@@ -55,7 +55,7 @@ function removeVbaModule(bin: Uint8Array, name: string): Uint8Array;
 A registered (COM Automation type-library) reference to add to an existing VBA project — the shape of
 a real "add a reference to Microsoft Scripting Runtime" call. Project references (to another VBA
 project) and control references (to an ActiveX control library) are out of scope — see
-`addVbaReference`.
+[`addVbaReference`](./vba-project-editor.md#addvbareference).
 
 ```ts
 interface VbaLibraryReference {

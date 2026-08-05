@@ -45,7 +45,7 @@ get properties(): Readonly<RowProperties> | undefined;
 
 The row's format record if it has one, else `undefined` — a read that never fabricates, so a
 serializer can ask every row it visits whether there are attributes to emit without giving each
-one an empty record. Read-only on purpose: `height` and its siblings are how a row is
+one an empty record. Read-only on purpose: [`height`](./row.md#rowheight) and its siblings are how a row is
 formatted, and they create the record on first write.
 
 #### `Row.height`
@@ -102,7 +102,7 @@ getCell(column: number | string): Cell;
 The cell at a column in this row, creating it on first access. The column is a 1-based index
 (`row.getCell(2)`) or its letters (`row.getCell('B')`).
 
-Resolves through merges exactly as `Worksheet.getCell` does: addressing a cell covered by
+Resolves through merges exactly as [`Worksheet.getCell`](./worksheet.md#worksheetgetcell) does: addressing a cell covered by
 a merged region yields that region's master.
 
 **Throws** — `RangeError` if the column is not a positive integer.
@@ -125,12 +125,12 @@ get values(): (CellValue | undefined)[];
 set values(values: (CellValue | undefined)[]);
 ```
 
-The row's values by position, index 0 being column A. Sparse in the same way `cells` is:
+The row's values by position, index 0 being column A. Sparse in the same way [`cells`](./row.md#rowcells) is:
 a column with no cell is a hole, which is what distinguishes "never written" from a cell
 holding `null`.
 
 Assigning places each value it names and leaves every other column untouched — a hole or an
 explicit `undefined` skips that column, and a shorter array does not clear the tail. These are
-`Worksheet.addRow`'s rules, deliberately: `values` is that same row shape addressed by
+[`Worksheet.addRow`](./worksheet.md#worksheetaddrow)'s rules, deliberately: `values` is that same row shape addressed by
 number rather than appended. To *replace* a row, including clearing what it held, splice it —
 `sheet.spliceRows(n, 1, values)`.

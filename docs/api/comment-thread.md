@@ -6,7 +6,7 @@
 
 <sub>interface</sub>
 
-One message of a `CommentThread` — what a single person wrote, once.
+One message of a [`CommentThread`](./comment-thread.md#commentthread) — what a single person wrote, once.
 
 ```ts
 interface Comment {
@@ -64,7 +64,7 @@ interface CommentThread {
 
 <sub>interface</sub>
 
-An `@mention` inside a message: who was named, and the run of `Comment.text` that renders as the
+An `@mention` inside a message: who was named, and the run of [`Comment.text`](./comment-thread.md#comment) that renders as the
 mention chip.
 
 The offsets are only meaningful against that exact text — shift either and a spreadsheet app
@@ -101,7 +101,7 @@ message. One `<person>` of the workbook's `xl/persons/person.xml` registry.
 A single human legitimately has **several** entries: Excel registers a mentioned identity separately
 from that person's authoring identity, with the same `displayName` and `userId` but a
 different `id` and a different `providerId`. The id is therefore the only identity —
-see `Workbook.getPerson`.
+see [`Workbook.getPerson`](./workbook.md#workbookgetperson).
 
 ```ts
 interface Person {

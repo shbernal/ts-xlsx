@@ -45,7 +45,7 @@ interface AnchorPoint {
 <sub>interface</sub>
 
 A fixed image size in EMUs — the extent of a one-cell anchor, which pixel dimensions convert into
-via `PX_TO_EMU`.
+via [`PX_TO_EMU`](./images.md#pxtoemu).
 
 ```ts
 interface Extent {
@@ -86,7 +86,7 @@ type ImageEditAs = 'oneCell' | 'twoCell' | 'absolute';
 
 <sub>function</sub>
 
-Narrow an anchor to its one-cell (fixed-extent) form; the complement is `TwoCellAnchor`.
+Narrow an anchor to its one-cell (fixed-extent) form; the complement is [`TwoCellAnchor`](./images.md#twocellanchor).
 
 ```ts
 function isOneCellAnchor(anchor: ImageAnchor): anchor is OneCellAnchor;

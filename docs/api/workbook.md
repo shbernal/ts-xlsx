@@ -164,7 +164,7 @@ readonly view: WorkbookView = {...DEFAULT_WORKBOOK_VIEW};
 ```
 
 The workbook's window state — position, size, and the selected sheet. Always present (see
-`DEFAULT_WORKBOOK_VIEW` for why it is defaulted rather than left unset) and always written.
+[`DEFAULT_WORKBOOK_VIEW`](./workbook.md#defaultworkbookview) for why it is defaulted rather than left unset) and always written.
 Reading a file replaces it with that file's saved geometry, so a round-trip restores the window
 the author left rather than stamping ours over it.
 
@@ -204,7 +204,7 @@ The worksheets in insertion order.
 get activeTabIndex(): number;
 ```
 
-The 0-based index of the active sheet: `WorkbookView.activeTab` resolved against the sheets
+The 0-based index of the active sheet: [`WorkbookView.activeTab`](./workbook.md#workbookview) resolved against the sheets
 that actually exist. Exactly one sheet is always active — an out-of-range tab (a caller's stale
 index, or a file whose sheet was removed after the view was saved) falls back to the first sheet
 rather than to none, because a package where no sheet is selected gives the consumer no view to
@@ -234,14 +234,14 @@ get customUI(): readonly CustomUiDocument[];
 
 The ribbon customisations decoded from this workbook's `customUI` parts — `customUI.xml` (Office
 2007) and/or `customUI14.xml` (Office 2010+), in the order their root relationships were read. Each
-`CustomUiDocument` is tagged with its dialect and exposes the parsed `<ribbon>` tree. Empty
+[`CustomUiDocument`](./customui-ribbon.md#customuidocument) is tagged with its dialect and exposes the parsed `<ribbon>` tree. Empty
 for a workbook that customises no ribbon.
 
 This is a **read-only view** over parts the writer already round-trips verbatim — mutating the
 returned objects changes nothing on write; the original `customUI` XML is re-emitted byte-for-byte
 regardless. Parsed lazily on first access and memoised.
 
-**Throws** — `CustomUiParseError` if a `customUI` part is present but its XML is malformed.
+**Throws** — [`CustomUiParseError`](./customui-errors.md#customuiparseerror) if a `customUI` part is present but its XML is malformed.
 
 #### `Workbook.vbaProject`
 
@@ -254,7 +254,7 @@ workbook with no macros. This is a **read-only view** over the bytes the writer 
 verbatim — mutating the returned object changes nothing on write; the original macro blob is
 re-emitted byte-for-byte regardless. Parsed lazily on first access and memoised.
 
-**Throws** — `VbaParseError` if a macro project is present but its `vbaProject.bin` is malformed.
+**Throws** — [`VbaParseError`](./vba-errors.md#vbaparseerror) if a macro project is present but its `vbaProject.bin` is malformed.
 
 #### `Workbook.vbaProjectBytes`
 
@@ -269,7 +269,7 @@ mutating it changes nothing on write.
 
 Assigning bytes attaches (or replaces) the macro project: the written package becomes
 macro-enabled and re-embeds these bytes verbatim. The bytes must be a well-formed VBA container
-(a CFB holding a `dir` stream); a malformed blob is rejected with `VbaParseError` rather
+(a CFB holding a `dir` stream); a malformed blob is rejected with [`VbaParseError`](./vba-errors.md#vbaparseerror) rather
 than written out to produce a package Excel would flag for repair. This is the attach-blob path:
 copy a project between workbooks with `dst.vbaProjectBytes = src.vbaProjectBytes`, or import a
 `.bin` produced by another tool. Assigning `undefined` removes the project, reverting the workbook
@@ -292,8 +292,8 @@ This reflects the **presence** of a signature blob, not its cryptographic validi
 neither parses the PKCS#7/CMS structure nor validates the certificate chain or signer. A `true`
 here means "a signature is attached," never "this signature is valid." Replacing or editing the
 project drops its signatures (a signature over the old bytes cannot validate new ones), so this
-reads `false` again after `vbaProjectBytes`, `removeVbaModule`, or
-`addVbaReference` mutates the project. See `vbaProjectSignatures` for the raw bytes and
+reads `false` again after [`vbaProjectBytes`](./workbook.md#workbookvbaprojectbytes), [`removeVbaModule`](./workbook.md#workbookremovevbamodule), or
+[`addVbaReference`](./workbook.md#workbookaddvbareference) mutates the project. See [`vbaProjectSignatures`](./workbook.md#workbookvbaprojectsignatures) for the raw bytes and
 which generation(s) are present.
 
 #### `Workbook.vbaProjectSignatures`
@@ -307,7 +307,7 @@ are wired off `vbaProject.bin` — up to three generations (legacy, agile, V3) c
 same project bytes. Empty for an unsigned project or a workbook with no macros.
 
 Each entry's `bytes` are the raw signature blob passed through verbatim; the library does not parse
-or verify them (see `vbaProjectSigned` on presence-vs-validity). Hand a blob to an external
+or verify them (see [`vbaProjectSigned`](./workbook.md#workbookvbaprojectsigned) on presence-vs-validity). Hand a blob to an external
 verifier if you need cryptographic validation — that is deliberately out of this library's scope.
 
 #### `Workbook.removeVbaModule`
@@ -317,16 +317,16 @@ removeVbaModule(name: string): void;
 ```
 
 Remove a standard module from this workbook's existing macro project, in place — a structural splice
-that leaves every remaining module's compiled p-code untouched (see `removeVbaModule`).
-Replacing the project also drops a stale signature, as `vbaProjectBytes` does.
+that leaves every remaining module's compiled p-code untouched (see [`removeVbaModule`](./workbook.md#workbookremovevbamodule)).
+Replacing the project also drops a stale signature, as [`vbaProjectBytes`](./workbook.md#workbookvbaprojectbytes) does.
 
-Only `procedural` and `class` modules can be removed this way — see `removeVbaModule` for why.
+Only `procedural` and `class` modules can be removed this way — see [`removeVbaModule`](./workbook.md#workbookremovevbamodule) for why.
 To author or edit module *source* (which needs real compiled p-code), use the offline
-`tools/vba-compiler`, then attach its output via `vbaProjectBytes`.
+`tools/vba-compiler`, then attach its output via [`vbaProjectBytes`](./workbook.md#workbookvbaprojectbytes).
 
-**Throws** — `VbaAuthorError` if the workbook has no macro project, or `name` is not in the project,
+**Throws** — [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if the workbook has no macro project, or `name` is not in the project,
 or names a `document`/`designer` module.
-**Throws** — `VbaParseError` if the attached `vbaProject.bin` is malformed.
+**Throws** — [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
 
 #### `Workbook.addVbaReference`
 
@@ -336,12 +336,12 @@ addVbaReference(ref: VbaLibraryReference): void;
 
 Add a registered (COM type-library) reference to this workbook's existing macro project, in place.
 Every existing module, reference, and host-info record rides through unchanged (see
-`addVbaReference`). Replacing the project also drops a stale signature, as
-`vbaProjectBytes` does.
+[`addVbaReference`](./workbook.md#workbookaddvbareference)). Replacing the project also drops a stale signature, as
+[`vbaProjectBytes`](./workbook.md#workbookvbaprojectbytes) does.
 
-**Throws** — `VbaAuthorError` if the workbook has no macro project, or any field of `ref` is invalid
-(see `VbaLibraryReference`).
-**Throws** — `VbaParseError` if the attached `vbaProject.bin` is malformed.
+**Throws** — [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if the workbook has no macro project, or any field of `ref` is invalid
+(see [`VbaLibraryReference`](./vba-project-editor.md#vbalibraryreference)).
+**Throws** — [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
 
 #### `Workbook.differentialStyles`
 
@@ -382,7 +382,7 @@ addTableStyle(style: TableStyle): void;
 ```
 
 Register a custom table style — a named look a table applies to itself by putting that name in
-`TableStyleInfo.name`, exactly as it would name one of Excel's built-in gallery styles.
+[`TableStyleInfo.name`](./tables.md#tablestyleinfo), exactly as it would name one of Excel's built-in gallery styles.
 
 ```ts
 workbook.addTableStyle({
@@ -403,7 +403,7 @@ elements — or a conditional-formatting rule — that paint the same way share 
 Registering a name a source file already defined **overrides** that definition rather than adding
 a second one beside it.
 
-**Throws** — `AuthoringError` if the name is empty, or an element carries a `size` outside the four stripe
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the name is empty, or an element carries a `size` outside the four stripe
 types, or a `size` is not a positive integer — see `checkTableStyle` for why those are
 refused here rather than silently dropped.
 
@@ -446,7 +446,7 @@ would replace a designer's work with the Office default. For the same reason a s
 unauthored keeps the source's own encoding, including the `<a:sysClr>` form Excel uses for
 `dk1`/`lt1` so they follow the viewer's window colours.
 
-**Throws** — `AuthoringError` if a colour is not 6 or 8 hexadecimal digits.
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if a colour is not 6 or 8 hexadecimal digits.
 
 #### `Workbook.themeColors`
 
@@ -455,10 +455,10 @@ get themeColors(): ThemeColorScheme;
 ```
 
 The colour scheme every `theme="n"` reference in this workbook resolves against — anything
-`setTheme` authored, over the preserved theme's `<a:clrScheme>`, over the Office default.
+[`setTheme`](./workbook.md#workbooksettheme) authored, over the preserved theme's `<a:clrScheme>`, over the Office default.
 
 Note the slot *order*: `theme="0"` is `lt1` and `theme="1"` is `dk1`, which is not the order the
-slots appear in the theme part. See `THEME_COLOR_SLOTS`.
+slots appear in the theme part. See [`THEME_COLOR_SLOTS`](./theme.md#themecolorslots).
 
 #### `Workbook.themeFonts`
 
@@ -479,7 +479,7 @@ cell that names no font of its own renders in. `undefined` for a workbook author
 read from a package carrying no styles part: nothing was declared, and the library does not
 fabricate a declaration on the file's behalf.
 
-This is the *round-trip* surface. `defaultFont` is what the workbook actually renders in,
+This is the *round-trip* surface. [`defaultFont`](./workbook.md#workbookdefaultfont) is what the workbook actually renders in,
 which is this once anything has been authored over it.
 
 #### `Workbook.setDefaultFont`
@@ -496,10 +496,10 @@ untouched cell in an unformatted column.
 
 It writes the styles part's font 0 and **nothing else** — in particular it does not rewrite the
 theme's body typeface. The dependency runs the other way: with no default font authored, font 0
-follows `themeFonts`'s minor face, so `setTheme({fonts: {minor}})` already reaches every
-unstyled cell and needs no second call here. See `defaultFont` for the full chain.
+follows [`themeFonts`](./workbook.md#workbookthemefonts)'s minor face, so `setTheme({fonts: {minor}})` already reaches every
+unstyled cell and needs no second call here. See [`defaultFont`](./workbook.md#workbookdefaultfont) for the full chain.
 
-**Throws** — `AuthoringError` if `size` is not a positive finite number, or `name` is empty — both
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if `size` is not a positive finite number, or `name` is empty — both
 produce a styles part Excel renders from some other font without ever reporting why.
 
 #### `Workbook.defaultFont`
@@ -517,8 +517,8 @@ authored default font  >  authored theme body face  >  the source file's font 0 
 ```
 
 The two authored levels outrank the file because authoring is an explicit act; between them
-`setDefaultFont` wins on the face because it names font 0 outright while
-`setTheme` names it only by implication. With **nothing** authored the file's own font 0
+[`setDefaultFont`](./workbook.md#workbooksetdefaultfont) wins on the face because it names font 0 outright while
+[`setTheme`](./workbook.md#workbooksettheme) names it only by implication. With **nothing** authored the file's own font 0
 passes through verbatim — deliberately, because a producer resolves that face by script and we do
 not: Excel writes `等线` as font 0 under a theme whose latin body face is `Calibri`, and
 re-deriving would silently rewrite it.
@@ -551,12 +551,12 @@ Resolve a colour reference to a concrete 8-hex ARGB string, or `undefined` when 
 resolve to a fixed colour — an `auto` colour, one of the two system indexed colours, or a theme
 slot this workbook's scheme does not declare.
 
-This is a *derived* view, not a rewrite: the `Color` stays exactly as its file encoded it,
+This is a *derived* view, not a rewrite: the [`Color`](./styles.md#color) stays exactly as its file encoded it,
 so a round-trip re-emits `theme="4" tint="0.4"` rather than a literal ARGB. Resolving into the
 model would sever every cell's link to the theme, so recolouring the workbook would stop working,
 and would inflate the styles table with one distinct colour per shade.
 
-A `theme` reference resolves through `themeColors`; an `indexed` one through the workbook's
+A `theme` reference resolves through [`themeColors`](./workbook.md#workbookthemecolors); an `indexed` one through the workbook's
 custom `<indexedColors>` palette when it declares one, else the built-in legacy palette. A `tint`
 is applied last.
 
@@ -575,9 +575,9 @@ addPerson(person: Person): void;
 ```
 
 Register an identity a threaded comment can name — an author, or someone `@mentioned` in a message.
-A message reaches it by `Comment.personId`, a mention by `Mention.personId`.
+A message reaches it by [`Comment.personId`](./comment-thread.md#comment), a mention by [`Mention.personId`](./comment-thread.md#mention).
 
-Keyed by `Person.id` alone, so registering the same id twice replaces the entry rather than
+Keyed by [`Person.id`](./comment-thread.md#person) alone, so registering the same id twice replaces the entry rather than
 adding a second: the id is the identity. Registering the same human twice under *different* ids is
 legitimate and is what Excel itself does — see `restorePersons`. The id is normalised to the
 brace-wrapped upper-case GUID form the format requires, so a `crypto.randomUUID()` is accepted as-is.
@@ -599,7 +599,7 @@ meaning — Excel re-sorts the registry by person id when it saves — so nothin
 getPerson(id: string): Person | undefined;
 ```
 
-Look up a registered identity by its `Person.id`, or `undefined` if the registry has none.
+Look up a registered identity by its [`Person.id`](./comment-thread.md#person), or `undefined` if the registry has none.
 
 #### `Workbook.addImage`
 
@@ -608,7 +608,7 @@ addImage(options: AddImageOptions): number;
 ```
 
 Register a picture on the workbook and return its numeric id. Pass the id to
-`Worksheet.addImage` to anchor the picture to a sheet; the same id may be anchored on any
+[`Worksheet.addImage`](./worksheet.md#worksheetaddimage) to anchor the picture to a sheet; the same id may be anchored on any
 number of sheets and positions, and the bytes are still stored only once.
 
 #### `Workbook.media`
@@ -617,7 +617,7 @@ number of sheets and positions, and the bytes are still stored only once.
 get media(): readonly WorkbookImage[];
 ```
 
-The registered images, indexed by the id `addImage` returned.
+The registered images, indexed by the id [`addImage`](./workbook.md#workbookaddimage) returned.
 
 #### `Workbook.getImage`
 
@@ -643,7 +643,7 @@ defineName(definedName: DefinedName): void;
 
 Register a defined name on the workbook.
 
-**Throws** — `AuthoringError` if the name is empty, or if a `DefinedName.scope` is given that names no
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the name is empty, or if a [`DefinedName.scope`](./workbook.md#definedname) is given that names no
 existing worksheet — a scoped name must target a sheet that is already part of the workbook.
 
 #### `Workbook.addWorksheet`
@@ -654,7 +654,7 @@ addWorksheet(name: string, options: AddWorksheetOptions = {}): Worksheet;
 
 Create a worksheet and append it to the workbook.
 
-**Throws** — `AuthoringError` if the name is empty, too long, contains a forbidden character,
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the name is empty, too long, contains a forbidden character,
 or collides (case-insensitively) with an existing sheet.
 
 #### `Workbook.getWorksheet`

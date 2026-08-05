@@ -51,11 +51,11 @@ The built-in indexed colour palette (ECMA-376 §18.8.27), by index. Entries 0–
 redundancy the spec preserves for backwards compatibility with the legacy formats this palette came
 from — and the table is only 64 long: indices 64 and 65 are the *system* foreground and background,
 which name whatever the operating system's window colours are and therefore have no fixed value at
-all (see `SYSTEM_INDEXED_COLORS`).
+all (see [`SYSTEM_INDEXED_COLORS`](./color-resolution.md#systemindexedcolors)).
 
 The spec writes each entry with a leading `00`. That byte is not an alpha channel — a palette of
 fully transparent colours would be absurd — it is an artefact of the 32-bit colour records these
-values were lifted from, which is why `resolveColor` returns them fully opaque.
+values were lifted from, which is why [`resolveColor`](./color-resolution.md#resolvecolor) returns them fully opaque.
 
 ```ts
 const DEFAULT_INDEXED_COLORS: readonly string[]
@@ -75,7 +75,7 @@ Precedence follows what the encodings mean: an explicit `argb` is already concre
 `theme`, then `indexed`. A `tint` applies to whatever the base resolved to.
 
 Alpha: a resolved `theme`/`indexed` colour comes back fully opaque, because neither the theme scheme
-nor the palette carries a meaningful alpha (see `DEFAULT_INDEXED_COLORS`). An explicit `argb`
+nor the palette carries a meaningful alpha (see [`DEFAULT_INDEXED_COLORS`](./color-resolution.md#defaultindexedcolors)). An explicit `argb`
 keeps the alpha the file stated.
 
 ```ts

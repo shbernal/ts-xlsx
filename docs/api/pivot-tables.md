@@ -158,7 +158,7 @@ type PivotRecordCell = {readonly kind: 'index'; readonly index: number} | PivotI
 <sub>type</sub>
 
 The kind of data a pivot cache draws from, mirroring OOXML's `ST_SourceType`. Only `worksheet`
-carries a `ParsedPivotSource.sheet`/`ParsedPivotSource.ref`; every other kind draws from
+carries a [`ParsedPivotSource.sheet`](./pivot-tables.md#parsedpivotsource)/[`ParsedPivotSource.ref`](./pivot-tables.md#parsedpivotsource); every other kind draws from
 data the reader does not model (an external connection, a range consolidation, or a scenario), and
 `unknown` covers a `type` the file declares that is none of these.
 

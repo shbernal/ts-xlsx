@@ -12,7 +12,7 @@ to [MS-XLSB].
 
 The record streams are hostile input (a spreadsheet library parses untrusted files), so a malformed
 part fails closed with this error rather than crashing, hanging, or over-allocating. It is distinct
-from `UnsupportedFormatError`, which reports that the *container* is not a format we read at
+from [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror), which reports that the *container* is not a format we read at
 all; by the time this is raised the input has already been recognised as an `.xlsb`.
 
 ```ts

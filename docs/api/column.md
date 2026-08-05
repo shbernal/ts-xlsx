@@ -56,7 +56,7 @@ readonly index: number;
 get letter(): string;
 ```
 
-The column's letters (`"B"`) — the spreadsheet-facing name for `index`.
+The column's letters (`"B"`) — the spreadsheet-facing name for [`index`](./column.md#columnindex).
 
 #### `Column.properties`
 
@@ -66,7 +66,7 @@ get properties(): Readonly<ColumnProperties> | undefined;
 
 The column's format record if it has one, else `undefined` — a read that never fabricates, so a
 serializer can ask every column it visits whether there are attributes to emit without giving
-each one an empty record. Read-only on purpose: `width` and its siblings are how a column
+each one an empty record. Read-only on purpose: [`width`](./column.md#columnwidth) and its siblings are how a column
 is formatted, and they create the record on first write.
 
 #### `Column.key`
@@ -76,7 +76,7 @@ get key(): string | undefined;
 set key(key: string | undefined);
 ```
 
-Stable key naming this column so a keyed-object row (see `Worksheet.addRow`) can place a
+Stable key naming this column so a keyed-object row (see [`Worksheet.addRow`](./worksheet.md#worksheetaddrow)) can place a
 value under it by name rather than position. In-memory only — never serialized to OOXML.
 
 #### `Column.width`
@@ -176,7 +176,7 @@ getCell(row: number): Cell;
 ```
 
 The cell at a 1-based row number in this column, creating it on first access. Resolves through
-merges exactly as `Worksheet.getCell` does.
+merges exactly as [`Worksheet.getCell`](./worksheet.md#worksheetgetcell) does.
 
 **Throws** — `RangeError` if the row is not a positive integer.
 
@@ -196,10 +196,10 @@ get values(): (CellValue | undefined)[];
 set values(values: (CellValue | undefined)[]);
 ```
 
-The column's values by position, index 0 being row 1. Sparse in the same way `cells` is:
+The column's values by position, index 0 being row 1. Sparse in the same way [`cells`](./column.md#columncells) is:
 a row with no cell in this column is a hole, which is what distinguishes "never written" from a
 cell holding `null`.
 
 Assigning places each value it names and leaves every other row untouched, mirroring
-`Row.values` — a hole or an explicit `undefined` skips that row, and a shorter array does
+[`Row.values`](./row.md#rowvalues) — a hole or an explicit `undefined` skips that row, and a shorter array does
 not clear the tail.
