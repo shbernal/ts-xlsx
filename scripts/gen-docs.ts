@@ -131,6 +131,32 @@ function docText(node: ast.Node): string {
   return resolveLinks((ast.getTextOfJSDocComment(jsDocOf(node)?.comment) ?? '').trim());
 }
 
+/** A bare type name, possibly qualified — what the brace slot of a `@throws` is allowed to hold. */
+const ERROR_TYPE = /^[A-Za-z_$][\w$.]*$/;
+
+/**
+ * The error type a `@throws` names, and the prose after it.
+ *
+ * `@throws {ErrorType}` is the only spelling that survives the parse. TypeScript reads the braces
+ * after `@throws` as a *type expression*, and `{@link Target}` is not one: the parse runs past the
+ * close brace and consumes the rest of the comment, so the tag arrives here as the bare string `{`
+ * with its prose already gone — from editor hovers too, not just from this generator. Nothing
+ * downstream can recover it, so a slot that is not a type name fails the run rather than
+ * publishing the truncation as if it were the whole sentence.
+ */
+function splitThrows(raw: string, symbolName: string): {errorType: string; prose: string} {
+  const close = raw.startsWith('{') ? raw.indexOf('}') : -1;
+  const errorType = close === -1 ? '' : raw.slice(1, close).trim();
+  if (!ERROR_TYPE.test(errorType)) {
+    throw new Error(
+      `${symbolName}: write \`@throws {ErrorType} prose\`, not \`@throws ${raw}\` — ` +
+        "a `{@link …}` in the brace slot is swallowed by TypeScript's JSDoc type-expression " +
+        'parse, and takes the description with it. Links mid-sentence are fine.',
+    );
+  }
+  return {errorType, prose: raw.slice(close + 1).trim()};
+}
+
 /** Render `@throws`, `@param`, `@returns`, `@example` tags into Markdown, in a stable order. */
 function docTags(symbol: TypeSymbol, checker: Checker): string[] {
   const order: Record<string, number> = {param: 0, returns: 1, throws: 2, example: 3};
@@ -140,7 +166,8 @@ function docTags(symbol: TypeSymbol, checker: Checker): string[] {
     .sort((a, b) => (order[a.name] ?? 0) - (order[b.name] ?? 0));
   const lines: string[] = [];
   for (const tag of tags) {
-    const text = resolveLinks((tag.text ?? '').trim());
+    const raw = (tag.text ?? '').trim();
+    const text = resolveLinks(raw);
     if (tag.name === 'example') {
       lines.push('', '```ts', text, '```');
     } else if (tag.name === 'param') {
@@ -149,7 +176,10 @@ function docTags(symbol: TypeSymbol, checker: Checker): string[] {
     } else if (tag.name === 'returns') {
       lines.push(`**Returns** — ${text}`);
     } else if (tag.name === 'throws') {
-      lines.push(`**Throws** — ${text.replace(/^\{[^}]*\}\s*/, '')}`);
+      // The type slot is the tag's subject — which error — so it leads the line. Dropping it, as
+      // this once did, left the reader told that a throw happens but never told what is thrown.
+      const {errorType, prose} = splitThrows(raw, symbol.name);
+      lines.push(`**Throws** — \`${errorType}\`${prose ? ` ${resolveLinks(prose)}` : ''}`);
     }
   }
   return lines;

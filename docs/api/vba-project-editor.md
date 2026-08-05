@@ -18,8 +18,8 @@ Excel-authored project).
 function addVbaReference(bin: Uint8Array, ref: VbaLibraryReference): Uint8Array;
 ```
 
-**Throws** — if `bin` is not a parseable VBA project (validated before any edit).
-**Throws** — if any field of `ref` is invalid (see `VbaLibraryReference`), or the
+**Throws** — `VbaParseError` if `bin` is not a parseable VBA project (validated before any edit).
+**Throws** — `VbaAuthorError` if any field of `ref` is invalid (see `VbaLibraryReference`), or the
 assembled reference text has a character the project's code page cannot represent.
 
 ---
@@ -43,8 +43,8 @@ the offline `tools/vba-compiler` (in-place mode), which drives the real host.
 function removeVbaModule(bin: Uint8Array, name: string): Uint8Array;
 ```
 
-**Throws** — if `bin` is not a parseable VBA project (validated before any edit).
-**Throws** — if `name` is not in the project, or names a `document`/`designer` module.
+**Throws** — `VbaParseError` if `bin` is not a parseable VBA project (validated before any edit).
+**Throws** — `VbaAuthorError` if `name` is not in the project, or names a `document`/`designer` module.
 
 ---
 

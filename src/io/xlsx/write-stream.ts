@@ -202,7 +202,7 @@ export class WorksheetStreamWriter {
    * {@link StreamedRow.commit}; the row's `<row>` XML is retained (interned into the workbook's live
    * style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
    *
-   * @throws {@link AuthoringError} if the row carries a shared-formula cell — a finished row cannot join the
+   * @throws {AuthoringError} if the row carries a shared-formula cell — a finished row cannot join the
    *   whole-sheet formula planning, so shared formulas must be authored through {@link getCell}.
    */
   flushRow(number: number, cells: readonly Cell[]): void {

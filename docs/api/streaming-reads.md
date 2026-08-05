@@ -20,11 +20,12 @@ function* readSheetRows(
 
 - `data` — The raw `.xlsx` bytes.
 - `options` — Sheet selector and the inflate bound (see `ReadSheetRowsOptions`).
-**Throws** — if the input is not a readable `.xlsx` package (a legacy `.xls`, a
+**Throws** — `UnsupportedFormatError` if the input is not a readable `.xlsx` package (a legacy `.xls`, a
 binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
-**Throws** — {
-**Throws** — {
-**Throws** — / `AuthoringError` if `options.sheet` selects a position, or a name,
+**Throws** — `PackageReadError` if the input is a ZIP that cannot be unpacked — a corrupt or
+truncated archive, or one exceeding the inflate bound (a probable zip bomb).
+**Throws** — `XlsxParseError` if the package's workbook part declares no worksheets.
+**Throws** — `RangeError` / `AuthoringError` if `options.sheet` selects a position, or a name,
 that no worksheet has.
 
 ---
@@ -63,6 +64,7 @@ function* readWorkbookStream(
 
 - `data` — The raw `.xlsx` bytes.
 - `options` — The inflate bound (see `ReadXlsxOptions`).
-**Throws** — if the input is not a readable `.xlsx` package (a legacy `.xls`, a
+**Throws** — `UnsupportedFormatError` if the input is not a readable `.xlsx` package (a legacy `.xls`, a
 binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
-**Throws** — {
+**Throws** — `PackageReadError` if the input is a ZIP that cannot be unpacked — a corrupt or
+truncated archive, or one exceeding the inflate bound (a probable zip bomb).

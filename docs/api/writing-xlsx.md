@@ -32,7 +32,8 @@ Serialise a workbook into an `.xlsx` package.
 function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array;
 ```
 
-**Throws** — {
+**Throws** — `AuthoringError` if the workbook has no worksheets (a zero-sheet package is corrupt),
+or holds a value the writer cannot yet represent.
 
 ---
 
@@ -61,4 +62,7 @@ async function writeXlsxAsync(
 ): Promise<Uint8Array>;
 ```
 
-**Throws** — {
+**Throws** — `AuthoringError` — as a rejection — under the same conditions as `writeXlsx`;
+the part-building it shares happens before any worker is involved. A failure raised by the zip
+layer itself (including an environment that cannot spawn a worker) propagates unwrapped, exactly
+as it does from `writeXlsx`.

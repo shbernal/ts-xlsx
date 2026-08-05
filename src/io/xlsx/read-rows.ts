@@ -106,9 +106,9 @@ export interface StreamedSheet {
  * @param options Sheet selector and the inflate bound (see {@link ReadSheetRowsOptions}).
  * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package (a legacy `.xls`, a
  *   binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
- * @throws {@link PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
+ * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
- * @throws {@link XlsxParseError} if the package's workbook part declares no worksheets.
+ * @throws {XlsxParseError} if the package's workbook part declares no worksheets.
  * @throws {RangeError} / {@link AuthoringError} if `options.sheet` selects a position, or a name,
  *   that no worksheet has.
  */
@@ -134,7 +134,7 @@ export function* readSheetRows(
  * @param options The inflate bound (see {@link ReadXlsxOptions}).
  * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package (a legacy `.xls`, a
  *   binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
- * @throws {@link PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
+ * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function* readWorkbookStream(

@@ -177,7 +177,7 @@ interface RawElement {
 /**
  * Parse a `customUI` part (raw UTF-8 bytes or its decoded text) into a {@link CustomUiDocument}.
  *
- * @throws {@link CustomUiParseError} if the XML is malformed, the root is not a `<customUI>` element in
+ * @throws {CustomUiParseError} if the XML is malformed, the root is not a `<customUI>` element in
  *   a recognised namespace, or the tree nests beyond {@link MAX_DEPTH}.
  */
 export function parseCustomUi(input: string | Uint8Array): CustomUiDocument {

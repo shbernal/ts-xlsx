@@ -87,7 +87,7 @@ export {parseStyleTable} from './read-styles.ts';
  * @throws {UnsupportedFormatError} if the input is neither — a legacy `.xls` (`.format === 'xls'`) or
  *   an unrecognised/non-ZIP blob (`'unknown'`).
  * @throws {XlsbParseError} if a binary `.xlsb` part is malformed.
- * @throws {@link PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
+ * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {

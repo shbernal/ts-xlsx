@@ -84,7 +84,8 @@ Parse a `customUI` part (raw UTF-8 bytes or its decoded text) into a `CustomUiDo
 function parseCustomUi(input: string | Uint8Array): CustomUiDocument;
 ```
 
-**Throws** — {
+**Throws** — `CustomUiParseError` if the XML is malformed, the root is not a `<customUI>` element in
+a recognised namespace, or the tree nests beyond `MAX_DEPTH`.
 
 ---
 

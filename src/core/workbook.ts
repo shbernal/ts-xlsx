@@ -304,7 +304,7 @@ export class Workbook {
    * returned objects changes nothing on write; the original `customUI` XML is re-emitted byte-for-byte
    * regardless. Parsed lazily on first access and memoised.
    *
-   * @throws {@link CustomUiParseError} if a `customUI` part is present but its XML is malformed.
+   * @throws {CustomUiParseError} if a `customUI` part is present but its XML is malformed.
    */
   get customUI(): readonly CustomUiDocument[] {
     if (!this.#customUiParsed) {
@@ -330,7 +330,7 @@ export class Workbook {
    * verbatim — mutating the returned object changes nothing on write; the original macro blob is
    * re-emitted byte-for-byte regardless. Parsed lazily on first access and memoised.
    *
-   * @throws {@link VbaParseError} if a macro project is present but its `vbaProject.bin` is malformed.
+   * @throws {VbaParseError} if a macro project is present but its `vbaProject.bin` is malformed.
    */
   get vbaProject(): VbaProject | undefined {
     if (!this.#vbaParsed) {
@@ -450,9 +450,9 @@ export class Workbook {
    * To author or edit module *source* (which needs real compiled p-code), use the offline
    * `tools/vba-compiler`, then attach its output via {@link vbaProjectBytes}.
    *
-   * @throws {@link VbaAuthorError} if the workbook has no macro project, or `name` is not in the project,
+   * @throws {VbaAuthorError} if the workbook has no macro project, or `name` is not in the project,
    *   or names a `document`/`designer` module.
-   * @throws {@link VbaParseError} if the attached `vbaProject.bin` is malformed.
+   * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
    */
   removeVbaModule(name: string): void {
     const bytes = this.vbaProjectBytes;
@@ -468,9 +468,9 @@ export class Workbook {
    * {@link addVbaReference}). Replacing the project also drops a stale signature, as
    * {@link vbaProjectBytes} does.
    *
-   * @throws {@link VbaAuthorError} if the workbook has no macro project, or any field of `ref` is invalid
+   * @throws {VbaAuthorError} if the workbook has no macro project, or any field of `ref` is invalid
    *   (see {@link VbaLibraryReference}).
-   * @throws {@link VbaParseError} if the attached `vbaProject.bin` is malformed.
+   * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
    */
   addVbaReference(ref: VbaLibraryReference): void {
     const bytes = this.vbaProjectBytes;
@@ -536,7 +536,7 @@ export class Workbook {
    * Registering a name a source file already defined **overrides** that definition rather than adding
    * a second one beside it.
    *
-   * @throws {@link AuthoringError} if the name is empty, or an element carries a `size` outside the four stripe
+   * @throws {AuthoringError} if the name is empty, or an element carries a `size` outside the four stripe
    *   types, or a `size` is not a positive integer — see {@link checkTableStyle} for why those are
    *   refused here rather than silently dropped.
    */
@@ -584,7 +584,7 @@ export class Workbook {
    * unauthored keeps the source's own encoding, including the `<a:sysClr>` form Excel uses for
    * `dk1`/`lt1` so they follow the viewer's window colours.
    *
-   * @throws {@link AuthoringError} if a colour is not 6 or 8 hexadecimal digits.
+   * @throws {AuthoringError} if a colour is not 6 or 8 hexadecimal digits.
    */
   setTheme(overrides: ThemeOverrides): void {
     // Validated eagerly, by running the generation the writer will later run: a colour rejected at
@@ -658,7 +658,7 @@ export class Workbook {
    * follows {@link themeFonts}'s minor face, so `setTheme({fonts: {minor}})` already reaches every
    * unstyled cell and needs no second call here. See {@link defaultFont} for the full chain.
    *
-   * @throws {@link AuthoringError} if `size` is not a positive finite number, or `name` is empty — both
+   * @throws {AuthoringError} if `size` is not a positive finite number, or `name` is empty — both
    *   produce a styles part Excel renders from some other font without ever reporting why.
    */
   setDefaultFont(font: Font): void {
@@ -840,7 +840,7 @@ export class Workbook {
   /**
    * Register a defined name on the workbook.
    *
-   * @throws {@link AuthoringError} if the name is empty, or if a {@link DefinedName.scope} is given that names no
+   * @throws {AuthoringError} if the name is empty, or if a {@link DefinedName.scope} is given that names no
    *   existing worksheet — a scoped name must target a sheet that is already part of the workbook.
    */
   defineName(definedName: DefinedName): void {
@@ -858,7 +858,7 @@ export class Workbook {
   /**
    * Create a worksheet and append it to the workbook.
    *
-   * @throws {@link AuthoringError} if the name is empty, too long, contains a forbidden character,
+   * @throws {AuthoringError} if the name is empty, too long, contains a forbidden character,
    *   or collides (case-insensitively) with an existing sheet.
    */
   addWorksheet(name: string, options: AddWorksheetOptions = {}): Worksheet {

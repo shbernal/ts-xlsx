@@ -470,7 +470,7 @@ export class Worksheet {
    * name, at least one column, at least one row) are enforced here; conflicts with the
    * rest of the sheet (e.g. an overlapping merge) are the writer's concern.
    *
-   * @throws {@link AuthoringError} if the name, columns, or geometry are invalid.
+   * @throws {AuthoringError} if the name, columns, or geometry are invalid.
    */
   addTable(options: TableOptions): Table {
     const table = new Table(
@@ -564,7 +564,7 @@ export class Worksheet {
    * read once, now, so the pivot is a snapshot: later edits to the source do not change it. The
    * supported shape (one summed value field, at least one row and column field) is enforced here.
    *
-   * @throws {@link AuthoringError} if the metric, fields, or source shape are unsupported.
+   * @throws {AuthoringError} if the metric, fields, or source shape are unsupported.
    */
   addPivotTable(options: PivotTableOptions): PivotTable {
     const pivot = new PivotTable(options);

@@ -15,9 +15,9 @@ dropped because it cannot validate the new bytes.
 function editXlsxVbaAddReference(xlsx: Uint8Array, ref: VbaLibraryReference): Uint8Array;
 ```
 
-**Throws** — if the package carries no VBA project, or any field of `ref` is invalid (see
+**Throws** — `VbaAuthorError` if the package carries no VBA project, or any field of `ref` is invalid (see
 `VbaLibraryReference`).
-**Throws** — if the attached `vbaProject.bin` is malformed.
+**Throws** — `VbaParseError` if the attached `vbaProject.bin` is malformed.
 
 ---
 
@@ -34,6 +34,6 @@ validate the new bytes.
 function editXlsxVbaRemoveModule(xlsx: Uint8Array, name: string): Uint8Array;
 ```
 
-**Throws** — if the package carries no VBA project, `name` is not in the project, or names
+**Throws** — `VbaAuthorError` if the package carries no VBA project, `name` is not in the project, or names
 a `document`/`designer` module.
-**Throws** — if the attached `vbaProject.bin` is malformed.
+**Throws** — `VbaParseError` if the attached `vbaProject.bin` is malformed.

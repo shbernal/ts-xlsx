@@ -25,6 +25,18 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Fixed
 
+- **The API reference now says what each documented error is, and no longer truncates the
+  description.** Every `**Throws**` line in `docs/api/` was missing its error type: the generator
+  matched the `{ErrorType}` slot only to strip it, so the reader was told a throw happens but
+  never told what is thrown. Separately, 25 tags across 10 modules were written
+  `@throws {@link SomeError}` — TypeScript parses the braces after `@throws` as a type
+  expression, a `{@link …}` is not one, and the parse ran past the close brace and ate the rest
+  of the comment. Those descriptions were missing from editor hovers too, not only from the
+  generated pages; six of them rendered as the bare text `{`. The tags now use the brace-slot
+  spelling the other 45 already used, the type is rendered rather than discarded, and `gen-docs`
+  fails the build on a slot that is not a type name so the shape cannot return. Links
+  mid-sentence were never affected and are unchanged.
+
 - **A publish rehearsal now fails on a rejected identity.** `npm publish --dry-run` demotes a
   failed OIDC token exchange to a warning and exits `0`, so the rehearsal reported success for
   the one failure it exists to catch. That is not hypothetical: the 2026-07-30 rehearsal went

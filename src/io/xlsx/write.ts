@@ -107,7 +107,7 @@ export interface InternalWriteOptions extends WriteOptions {
 /**
  * Serialise a workbook into an `.xlsx` package.
  *
- * @throws {@link AuthoringError} if the workbook has no worksheets (a zero-sheet package is corrupt),
+ * @throws {AuthoringError} if the workbook has no worksheets (a zero-sheet package is corrupt),
  *   or holds a value the writer cannot yet represent.
  */
 export function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array {
@@ -129,7 +129,7 @@ export function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8
  * no worker can take, and the reader's zip-bomb ceiling is enforced by counting output between
  * synchronous input slices. See ADR-0024.
  *
- * @throws {@link AuthoringError} — as a rejection — under the same conditions as {@link writeXlsx};
+ * @throws {AuthoringError} — as a rejection — under the same conditions as {@link writeXlsx};
  *   the part-building it shares happens before any worker is involved. A failure raised by the zip
  *   layer itself (including an environment that cannot spawn a worker) propagates unwrapped, exactly
  *   as it does from {@link writeXlsx}.
@@ -227,7 +227,7 @@ function resolveSheetReferences(plan: SheetPlan): SheetReferences {
  * streaming writer can drive the identical parts through a streamed zip container rather than
  * `zipSync`. Neither writer duplicates a byte of serialisation.
  *
- * @throws {@link AuthoringError} if the workbook has no worksheets, or holds a value the writer cannot represent.
+ * @throws {AuthoringError} if the workbook has no worksheets, or holds a value the writer cannot represent.
  */
 export function buildPackageParts(
   workbook: Workbook,

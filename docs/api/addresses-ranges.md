@@ -44,7 +44,7 @@ Decode a single cell/row/column reference into `{address, col, row}`. Anchoring
 function decodeAddress(reference: string): CellAddress;
 ```
 
-**Throws** — if the reference mentions neither a column nor a row.
+**Throws** — `SyntaxError` if the reference mentions neither a column nor a row.
 
 ---
 
