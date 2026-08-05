@@ -59,12 +59,29 @@ project) and control references (to an ActiveX control library) are out of scope
 
 ```ts
 interface VbaLibraryReference {
-    readonly name: string;
-    readonly displayName?: string;
-    readonly guid: string;
-    readonly majorVersion: number;
-    readonly minorVersion: number;
-    readonly lcid?: number;
-    readonly path: string;
+  /**
+   * The reference's namespace name in the VBA editor — what a qualified reference like
+   * `Scripting.Dictionary` resolves through. Must be a valid VBA identifier, at most 31 characters, as
+   * real type libraries use (e.g. `Scripting`, `Office`, `stdole`).
+   */
+  readonly name: string;
+  /**
+   * The friendly name shown in the References dialog, e.g. `Microsoft Scripting Runtime`. Real projects
+   * usually keep this distinct from {@link name}; defaults to {@link name} if omitted.
+   */
+  readonly displayName?: string;
+  /** The type library's GUID, e.g. `{420B2830-E718-11CF-893D-00A0C9054228}` (braces optional). */
+  readonly guid: string;
+  /** The type library's major version — an integer in `[0, 0xFFFF]` ([MS-OVBA] `LibidMajorVersion`). */
+  readonly majorVersion: number;
+  /** The type library's minor version — an integer in `[0, 0xFFFF]` ([MS-OVBA] `LibidMinorVersion`). */
+  readonly minorVersion: number;
+  /**
+   * The type library's LCID — an integer in `[0, 0xFFFFFFFF]`. Defaults to `0` (locale-neutral), the
+   * overwhelming common case (every reference in a real project observed while building this had `0`).
+   */
+  readonly lcid?: number;
+  /** Absolute Windows path to the type library file, e.g. `C:\Windows\System32\scrrun.dll`. */
+  readonly path: string;
 }
 ```

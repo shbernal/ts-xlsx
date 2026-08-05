@@ -10,8 +10,11 @@ A picture registered on the workbook, ready to be anchored to a worksheet.
 
 ```ts
 interface AddImageOptions {
-    readonly buffer: Uint8Array;
-    readonly extension?: string;
+  /** The image bytes. */
+  readonly buffer: Uint8Array;
+  /** The file kind — `"png"`, `"jpeg"`/`"jpg"`, `"gif"`, … A leading dot or a URL query string is
+   * tolerated and stripped; omit it entirely to infer the kind from the bytes' magic number. */
+  readonly extension?: string;
 }
 ```
 
@@ -23,7 +26,7 @@ interface AddImageOptions {
 
 ```ts
 interface AddWorksheetOptions {
-    readonly state?: WorksheetState['state'];
+  readonly state?: WorksheetState['state'];
 }
 ```
 
@@ -58,11 +61,16 @@ which restricts it to that sheet and lets another sheet reuse the same name inde
 
 ```ts
 interface DefinedName {
-    readonly name: string;
-    readonly refersTo: string;
-    readonly scope?: string;
-    readonly comment?: string;
-    readonly hidden?: boolean;
+  /** The name as typed in a formula, e.g. `"TaxRate"`. Built-in names carry an `_xlnm.` prefix. */
+  readonly name: string;
+  /** The formula the name resolves to, e.g. `"Sheet1!$A$1:$B$2"`. */
+  readonly refersTo: string;
+  /** The sheet the name is scoped to; omit for a workbook-global name. */
+  readonly scope?: string;
+  /** A human note shown beside the name in Excel's Name Manager. */
+  readonly comment?: string;
+  /** Hide the name from the Name Manager UI without removing it. */
+  readonly hidden?: boolean;
 }
 ```
 
@@ -86,11 +94,11 @@ workbook; it is absent for a pivot/slicer cache.
 
 ```ts
 interface PreservedWorkbookReference {
-    readonly relType: string;
-    readonly entryPath: string;
-    readonly parts: readonly PreservedPart[];
-    readonly pivotCacheId?: string;
-    readonly externalReferenceIndex?: number;
+  readonly relType: string;
+  readonly entryPath: string;
+  readonly parts: readonly PreservedPart[];
+  readonly pivotCacheId?: string;
+  readonly externalReferenceIndex?: number;
 }
 ```
 
@@ -103,7 +111,7 @@ interface PreservedWorkbookReference {
 ```ts
 class Workbook {
   readonly properties: WorkbookProperties = {};
-  readonly view: WorkbookView = { ...DEFAULT_WORKBOOK_VIEW };
+  readonly view: WorkbookView = {...DEFAULT_WORKBOOK_VIEW};
   fullCalcOnLoad = false;
   protection: WorkbookProtection | undefined = undefined;
   get worksheets(): readonly Worksheet[];
@@ -149,7 +157,7 @@ class Workbook {
 
 **Members**
 
-- `readonly view: WorkbookView = { ...DEFAULT_WORKBOOK_VIEW };` — The workbook's window state — position, size, and the selected sheet. Always present (see `DEFAULT_WORKBOOK_VIEW` for why it is defaulted rather than left unset) and always written. Reading a file replaces it with that file's saved geometry, so a round-trip restores the window the author left rather than stamping ours over it.
+- `readonly view: WorkbookView = {...DEFAULT_WORKBOOK_VIEW};` — The workbook's window state — position, size, and the selected sheet. Always present (see `DEFAULT_WORKBOOK_VIEW` for why it is defaulted rather than left unset) and always written. Reading a file replaces it with that file's saved geometry, so a round-trip restores the window the author left rather than stamping ours over it.
 - `fullCalcOnLoad = false;` — Ask consuming spreadsheet apps to recalculate every formula when the file is opened, rather than trusting the cached results stored with each formula cell. Set this when the producer cannot compute formula results itself — the OOXML `fullCalcOnLoad` flag. Off by default, so a workbook whose cached results are authoritative stays unmarked.
 - `protection: WorkbookProtection | undefined = undefined;` — Workbook-level structure/window protection — the OOXML `<workbookProtection>` element. Absent by default (an unprotected workbook). Set it to lock the workbook shell, or leave it as read from a file so a protected workbook stays locked across a passthrough save rather than being silently unlocked. Distinct from a worksheet's own `protect()`, which guards a single sheet's cells.
 - `get worksheets(): readonly Worksheet[];` — The worksheets in insertion order.
@@ -200,10 +208,10 @@ Document-level metadata written to the package's core properties.
 
 ```ts
 interface WorkbookProperties {
-    creator?: string;
-    lastModifiedBy?: string;
-    created?: Date;
-    modified?: Date;
+  creator?: string;
+  lastModifiedBy?: string;
+  created?: Date;
+  modified?: Date;
 }
 ```
 
@@ -225,12 +233,19 @@ work area.
 
 ```ts
 interface WorkbookView {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    activeTab: number;
-    visibility?: 'visible' | 'hidden' | 'veryHidden';
-    minimized?: boolean;
+  /** Left edge of the document window, in twips. */
+  x: number;
+  /** Top edge of the document window, in twips. */
+  y: number;
+  /** Window width, in twips. */
+  width: number;
+  /** Window height, in twips. */
+  height: number;
+  /** 0-based index into {@link Workbook.worksheets} of the sheet selected on open. */
+  activeTab: number;
+  /** Window visibility; omit for a normally visible window. */
+  visibility?: 'visible' | 'hidden' | 'veryHidden';
+  /** Whether the document window opens minimised; omit for a restored window. */
+  minimized?: boolean;
 }
 ```

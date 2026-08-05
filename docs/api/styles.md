@@ -13,13 +13,13 @@ takes Excel's default for it. The boolean flags default to off — a cell that n
 
 ```ts
 interface Alignment {
-    readonly horizontal?: HorizontalAlignment;
-    readonly vertical?: VerticalAlignment;
-    readonly textRotation?: number;
-    readonly wrapText?: boolean;
-    readonly indent?: number;
-    readonly shrinkToFit?: boolean;
-    readonly readingOrder?: number;
+  readonly horizontal?: HorizontalAlignment;
+  readonly vertical?: VerticalAlignment;
+  readonly textRotation?: number;
+  readonly wrapText?: boolean;
+  readonly indent?: number;
+  readonly shrinkToFit?: boolean;
+  readonly readingOrder?: number;
 }
 ```
 
@@ -36,13 +36,13 @@ present diagonal edge runs.
 
 ```ts
 interface Border {
-    readonly left?: BorderEdge;
-    readonly right?: BorderEdge;
-    readonly top?: BorderEdge;
-    readonly bottom?: BorderEdge;
-    readonly diagonal?: BorderEdge;
-    readonly diagonalUp?: boolean;
-    readonly diagonalDown?: boolean;
+  readonly left?: BorderEdge;
+  readonly right?: BorderEdge;
+  readonly top?: BorderEdge;
+  readonly bottom?: BorderEdge;
+  readonly diagonal?: BorderEdge;
+  readonly diagonalUp?: boolean;
+  readonly diagonalDown?: boolean;
 }
 ```
 
@@ -56,8 +56,8 @@ One edge of a cell border: its line style, and optionally the line colour.
 
 ```ts
 interface BorderEdge {
-    readonly style: BorderStyle;
-    readonly color?: Color;
+  readonly style: BorderStyle;
+  readonly color?: Color;
 }
 ```
 
@@ -71,7 +71,20 @@ Line styles a cell border edge can take, as OOXML's `ST_BorderStyle` enumerates 
 `none` is the absence of an edge and is expressed by omitting the edge, not by this value.
 
 ```ts
-type BorderStyle = 'thin' | 'medium' | 'thick' | 'dashed' | 'dotted' | 'double' | 'hair' | 'mediumDashed' | 'dashDot' | 'mediumDashDot' | 'dashDotDot' | 'mediumDashDotDot' | 'slantDashDot';
+type BorderStyle =
+  | 'thin'
+  | 'medium'
+  | 'thick'
+  | 'dashed'
+  | 'dotted'
+  | 'double'
+  | 'hair'
+  | 'mediumDashed'
+  | 'dashDot'
+  | 'mediumDashDot'
+  | 'dashDotDot'
+  | 'mediumDashDotDot'
+  | 'slantDashDot';
 ```
 
 ---
@@ -91,12 +104,12 @@ path silently drops one — the round-trip symmetry the merge-loss contract depe
 
 ```ts
 interface CellStyle {
-    fill?: Fill | undefined;
-    numFmt?: string | undefined;
-    font?: Font | undefined;
-    border?: Border | undefined;
-    alignment?: Alignment | undefined;
-    protection?: Protection | undefined;
+  fill?: Fill | undefined;
+  numFmt?: string | undefined;
+  font?: Font | undefined;
+  border?: Border | undefined;
+  alignment?: Alignment | undefined;
+  protection?: Protection | undefined;
 }
 ```
 
@@ -110,10 +123,15 @@ A colour, expressed as an ARGB hex string (`"FF0000FF"`) or an indexed theme col
 
 ```ts
 interface Color {
-    readonly argb?: string;
-    readonly theme?: number;
-    readonly tint?: number;
-    readonly indexed?: number;
+  /** 8-digit ARGB hex, uppercase, no leading `#`. */
+  readonly argb?: string;
+  /** Index into the workbook theme's colour scheme. */
+  readonly theme?: number;
+  /** Tint applied to the theme colour, in `[-1, 1]`. */
+  readonly tint?: number;
+  /** Index into the legacy indexed colour palette. In a solid fill, `bgColor` is the
+   *  automatic placeholder `indexed="64"`; the visible colour lives on `fgColor`. */
+  readonly indexed?: number;
 }
 ```
 
@@ -166,7 +184,26 @@ absence of a fill; `solid` paints the whole cell with the foreground colour (the
 common case). The remaining hatch patterns are carried for fidelity on read.
 
 ```ts
-type FillPatternType = 'none' | 'solid' | 'gray125' | 'darkGray' | 'mediumGray' | 'lightGray' | 'gray0625' | 'darkHorizontal' | 'darkVertical' | 'darkDown' | 'darkUp' | 'darkGrid' | 'darkTrellis' | 'lightHorizontal' | 'lightVertical' | 'lightDown' | 'lightUp' | 'lightGrid' | 'lightTrellis';
+type FillPatternType =
+  | 'none'
+  | 'solid'
+  | 'gray125'
+  | 'darkGray'
+  | 'mediumGray'
+  | 'lightGray'
+  | 'gray0625'
+  | 'darkHorizontal'
+  | 'darkVertical'
+  | 'darkDown'
+  | 'darkUp'
+  | 'darkGrid'
+  | 'darkTrellis'
+  | 'lightHorizontal'
+  | 'lightVertical'
+  | 'lightDown'
+  | 'lightUp'
+  | 'lightGrid'
+  | 'lightTrellis';
 ```
 
 ---
@@ -182,18 +219,18 @@ field populated at once.
 
 ```ts
 interface Font {
-    readonly name?: string;
-    readonly size?: number;
-    readonly family?: number;
-    readonly scheme?: FontScheme;
-    readonly charset?: number;
-    readonly color?: Color;
-    readonly bold?: boolean;
-    readonly italic?: boolean;
-    readonly underline?: UnderlineStyle;
-    readonly strike?: boolean;
-    readonly outline?: boolean;
-    readonly vertAlign?: FontVerticalAlignment;
+  readonly name?: string;
+  readonly size?: number;
+  readonly family?: number;
+  readonly scheme?: FontScheme;
+  readonly charset?: number;
+  readonly color?: Color;
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly underline?: UnderlineStyle;
+  readonly strike?: boolean;
+  readonly outline?: boolean;
+  readonly vertAlign?: FontVerticalAlignment;
 }
 ```
 
@@ -235,14 +272,16 @@ place colours along the axis; a well-formed gradient names at least two.
 
 ```ts
 interface GradientFill {
-    readonly type: 'gradient';
-    readonly gradient: 'linear' | 'path';
-    readonly degree?: number;
-    readonly left?: number;
-    readonly right?: number;
-    readonly top?: number;
-    readonly bottom?: number;
-    readonly stops: readonly GradientStop[];
+  readonly type: 'gradient';
+  readonly gradient: 'linear' | 'path';
+  /** Rotation of a `linear` gradient, in degrees. Absent (and meaningless) for `path`. */
+  readonly degree?: number;
+  /** Inner-rectangle insets of a `path` gradient, each a fraction in `[0, 1]`. */
+  readonly left?: number;
+  readonly right?: number;
+  readonly top?: number;
+  readonly bottom?: number;
+  readonly stops: readonly GradientStop[];
 }
 ```
 
@@ -256,8 +295,8 @@ A colour stop in a gradient, at a fractional `position` in `[0, 1]` along the gr
 
 ```ts
 interface GradientStop {
-    readonly position: number;
-    readonly color: Color;
+  readonly position: number;
+  readonly color: Color;
 }
 ```
 
@@ -272,7 +311,15 @@ enumerates it. `general` is the type-dependent default (text left, numbers right
 back as no explicit horizontal alignment.
 
 ```ts
-type HorizontalAlignment = 'general' | 'left' | 'center' | 'right' | 'fill' | 'justify' | 'centerContinuous' | 'distributed';
+type HorizontalAlignment =
+  | 'general'
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'fill'
+  | 'justify'
+  | 'centerContinuous'
+  | 'distributed';
 ```
 
 ---
@@ -289,8 +336,8 @@ display name and `builtinId` its Excel gallery index when it is a built-in style
 
 ```ts
 type NamedCellStyle = Readonly<CellStyle> & {
-    readonly name?: string;
-    readonly builtinId?: number;
+  readonly name?: string;
+  readonly builtinId?: number;
 };
 ```
 
@@ -306,10 +353,10 @@ indexed placeholder.
 
 ```ts
 interface PatternFill {
-    readonly type: 'pattern';
-    readonly pattern: FillPatternType;
-    readonly fgColor?: Color;
-    readonly bgColor?: Color;
+  readonly type: 'pattern';
+  readonly pattern: FillPatternType;
+  readonly fgColor?: Color;
+  readonly bgColor?: Color;
 }
 ```
 
@@ -328,8 +375,8 @@ protected sheet. A cell that never set either flag reads back with neither.
 
 ```ts
 interface Protection {
-    readonly locked?: boolean;
-    readonly hidden?: boolean;
+  readonly locked?: boolean;
+  readonly hidden?: boolean;
 }
 ```
 
@@ -343,9 +390,10 @@ One namespace declaration a preserved `<tableStyle>` fragment depends on.
 
 ```ts
 interface TableStyleNamespace {
-    readonly prefix: string;
-    readonly uri: string;
-    readonly ignorable: boolean;
+  readonly prefix: string;
+  readonly uri: string;
+  /** Whether the source listed this prefix in the stylesheet's `mc:Ignorable`. */
+  readonly ignorable: boolean;
 }
 ```
 
@@ -369,10 +417,21 @@ are held decoded.
 
 ```ts
 interface TableStyleTable {
-    readonly styles: readonly string[];
-    readonly defaultTableStyle?: string | undefined;
-    readonly defaultPivotStyle?: string | undefined;
-    readonly namespaces?: readonly TableStyleNamespace[];
+  readonly styles: readonly string[];
+  readonly defaultTableStyle?: string | undefined;
+  readonly defaultPivotStyle?: string | undefined;
+  /**
+   * The namespace prefixes the verbatim {@link styles} fragments use, mapped to their URI and to
+   * whether the source marked the prefix ignorable (`mc:Ignorable`).
+   *
+   * Carrying a fragment verbatim carries its *prefixes* too. Excel stamps a revision id
+   * (`xr9:uid="{…}"`) on every `<tableStyle>` it writes, so a fragment re-emitted under a
+   * `<styleSheet>` that declares only the default namespace is not namespace-well-formed — no
+   * consumer can parse the part at all, which is a far louder failure than the dropped table style
+   * this preservation exists to prevent. The writer re-declares each prefix on `<styleSheet>` and
+   * re-states the ignorable ones, exactly as the source did.
+   */
+  readonly namespaces?: readonly TableStyleNamespace[];
 }
 ```
 
@@ -385,7 +444,13 @@ interface TableStyleTable {
 Underline can be a plain flag or one of Excel's named underline styles.
 
 ```ts
-type UnderlineStyle = boolean | 'none' | 'single' | 'double' | 'singleAccounting' | 'doubleAccounting';
+type UnderlineStyle =
+  | boolean
+  | 'none'
+  | 'single'
+  | 'double'
+  | 'singleAccounting'
+  | 'doubleAccounting';
 ```
 
 ---

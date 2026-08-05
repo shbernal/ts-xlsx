@@ -29,8 +29,15 @@ What a colour reference is resolved against: the workbook's theme scheme and ind
 
 ```ts
 interface ColorResolutionContext {
-    readonly theme?: ThemeColorScheme | undefined;
-    readonly indexed?: readonly string[] | undefined;
+  /** The theme's colour scheme; the Office default when the workbook carries no theme of its own. */
+  readonly theme?: ThemeColorScheme | undefined;
+  /**
+   * The workbook's custom indexed palette, by index, each entry an ARGB string. Empty or absent means
+   * the workbook rides {@link DEFAULT_INDEXED_COLORS}. A custom palette replaces the built-in one
+   * wholesale — that is what `<indexedColors>` means — so a short custom palette leaves the indices
+   * past its end unresolved rather than falling through to the built-in entry.
+   */
+  readonly indexed?: readonly string[] | undefined;
 }
 ```
 
@@ -72,7 +79,10 @@ nor the palette carries a meaningful alpha (see `DEFAULT_INDEXED_COLORS`). An ex
 keeps the alpha the file stated.
 
 ```ts
-function resolveColor(color: Color, context: ColorResolutionContext = {}): string | undefined;
+function resolveColor(
+  color: Color,
+  context: ColorResolutionContext = {},
+): string | undefined;
 ```
 
 ---

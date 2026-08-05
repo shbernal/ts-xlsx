@@ -56,10 +56,14 @@ formatting — worth knowing when a stripe colour appears not to take.
 
 ```ts
 interface TableStyle {
-    readonly name: string;
-    readonly elements: Readonly<Partial<Record<TableStyleElementType, TableStyleElement>>>;
-    readonly table?: boolean | undefined;
-    readonly pivot?: boolean | undefined;
+  /** The name a table references, and the name Excel shows in its style gallery. */
+  readonly name: string;
+  /** The regions this style formats. An element left out is not styled by it. */
+  readonly elements: Readonly<Partial<Record<TableStyleElementType, TableStyleElement>>>;
+  /** Whether the style is offered for tables. Defaults to true. */
+  readonly table?: boolean | undefined;
+  /** Whether the style is offered for pivot tables. Defaults to true. */
+  readonly pivot?: boolean | undefined;
 }
 ```
 
@@ -78,7 +82,16 @@ exposes a font, an interior and borders, and nothing for a number format. See
 
 ```ts
 interface TableStyleElement extends DifferentialStyle {
-    readonly size?: number | undefined;
+  /**
+   * The band width, in rows or columns, for a striped element — `2` makes each band two rows deep.
+   * Defaults to 1.
+   *
+   * Meaningful **only** on the four stripe types ({@link STRIPE_ELEMENT_TYPES}); ECMA-376 says so and
+   * Excel ignores it elsewhere. Setting it on any other element is rejected rather than silently
+   * dropped: a caller who wrote it meant something by it, and a value that vanishes into a file that
+   * still opens cleanly is the kind of bug nobody finds.
+   */
+  readonly size?: number | undefined;
 }
 ```
 

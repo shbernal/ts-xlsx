@@ -8,10 +8,15 @@
 
 ```ts
 interface CsvReadOptions {
-    readonly delimiter?: string;
-    readonly headers?: boolean;
-    readonly map?: (value: string, index: number) => CellValue;
-    readonly sheetName?: string;
+  /** Field separator; defaults to a comma. A single character. */
+  readonly delimiter?: string;
+  /** Treat the first line as a header and drop it, leaving only data rows. */
+  readonly headers?: boolean;
+  /** Per-field transform replacing the default type coercion; receives the raw string and its
+   * 0-based column index. */
+  readonly map?: (value: string, index: number) => CellValue;
+  /** Name for the single worksheet produced; defaults to `"Sheet1"`. */
+  readonly sheetName?: string;
 }
 ```
 
@@ -23,14 +28,26 @@ interface CsvReadOptions {
 
 ```ts
 interface CsvWriteOptions {
-    readonly sheetName?: string;
-    readonly delimiter?: string;
-    readonly rowDelimiter?: string;
-    readonly dateFormat?: string;
-    readonly dateUTC?: boolean;
-    readonly encoding?: BufferEncoding;
-    readonly bom?: boolean;
-    readonly map?: (value: CellValue, index: number) => string;
+  /** Which worksheet to write; defaults to the first. A name matching no sheet throws rather than
+   * silently emitting an empty file. */
+  readonly sheetName?: string;
+  /** Field separator; defaults to a comma. */
+  readonly delimiter?: string;
+  /** Line separator between rows; defaults to `"\n"`. */
+  readonly rowDelimiter?: string;
+  /** A token format (e.g. `"MM/DD/YYYY"`) for Date cells; without it a Date renders as a full
+   * ISO-8601 timestamp. */
+  readonly dateFormat?: string;
+  /** Render Date cells in UTC rather than the runner's local time. */
+  readonly dateUTC?: boolean;
+  /** Byte encoding for {@link writeCsv}; defaults to `"utf8"`. */
+  readonly encoding?: BufferEncoding;
+  /** Prepend a UTF-8 byte-order mark (applies only to UTF-8); defaults to `true` for UTF-8. */
+  readonly bom?: boolean;
+  /** Per-field transform replacing the default value rendering; receives the cell's value (`null`
+   * for an unpopulated column) and its 0-based column index. Quoting (commas, quotes, newlines) is
+   * still applied to the returned text. */
+  readonly map?: (value: CellValue, index: number) => string;
 }
 ```
 

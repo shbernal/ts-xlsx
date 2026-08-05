@@ -10,10 +10,10 @@ One materialised cell in a `WorksheetModel`: its position, value, and per-cell s
 
 ```ts
 interface CellModel extends CellStyle {
-    readonly row: number;
-    readonly col: number;
-    value: CellValue;
-    note?: string | undefined;
+  readonly row: number;
+  readonly col: number;
+  value: CellValue;
+  note?: string | undefined;
 }
 ```
 
@@ -30,11 +30,17 @@ symmetric with how a `RowProperties` fill defaults a row's cells.
 
 ```ts
 interface ColumnProperties extends CellStyle {
-    key?: string;
-    width?: number;
-    hidden?: boolean;
-    outlineLevel?: number;
-    collapsed?: boolean;
+  /** Stable key naming the column so a keyed-object row (see {@link Worksheet.addRow}) can place a
+   * value under it by name rather than position. In-memory only — it is not serialized to OOXML. */
+  key?: string;
+  /** Column width in character units. */
+  width?: number;
+  /** Whether the column is hidden. */
+  hidden?: boolean;
+  /** Outline (grouping) depth; 0 or absent means ungrouped. */
+  outlineLevel?: number;
+  /** Whether this column is the collapsed summary of an outline group. */
+  collapsed?: boolean;
 }
 ```
 
@@ -51,8 +57,8 @@ author who groups upward gets a file that honours it. An unset flag is omitted f
 
 ```ts
 interface OutlineProperties {
-    summaryBelow?: boolean;
-    summaryRight?: boolean;
+  summaryBelow?: boolean;
+  summaryRight?: boolean;
 }
 ```
 
@@ -80,11 +86,16 @@ Per-row formatting. A row may exist purely to carry these, with no cells.
 
 ```ts
 interface RowProperties {
-    height?: number;
-    hidden?: boolean;
-    outlineLevel?: number;
-    collapsed?: boolean;
-    fill?: Fill;
+  /** Row height in points. */
+  height?: number;
+  /** Whether the row is hidden. */
+  hidden?: boolean;
+  /** Outline (grouping) depth; 0 or absent means ungrouped. */
+  outlineLevel?: number;
+  /** Whether this row is the collapsed summary of an outline group. */
+  collapsed?: boolean;
+  /** Background fill applied to the row's cells that carry no fill of their own. */
+  fill?: Fill;
 }
 ```
 
@@ -101,10 +112,14 @@ prompt. An empty object is a normal view.
 
 ```ts
 interface SheetView {
-    state?: 'normal' | 'frozen';
-    xSplit?: number;
-    ySplit?: number;
-    topLeftCell?: string;
+  /** Freeze state. Absent or `'normal'` means no split. */
+  state?: 'normal' | 'frozen';
+  /** Number of columns frozen at the left; `0`/absent freezes no columns. */
+  xSplit?: number;
+  /** Number of rows frozen at the top; `0`/absent freezes no rows. */
+  ySplit?: number;
+  /** The cell anchoring the bottom-right scrolling pane; defaults to the first unfrozen cell. */
+  topLeftCell?: string;
 }
 ```
 
@@ -150,29 +165,23 @@ class Worksheet {
   addCommentThread(thread: CommentThread): void;
   get commentThreads(): readonly CommentThread[];
   commentThreadAt(reference: string): CommentThread | undefined;
-  addImage(imageId: number, anchor: {
-    readonly tl: AnchorPoint;
-    readonly br: AnchorPoint;
-    readonly editAs?: ImageEditAs;
-}): void;
-  addImage(imageId: number, anchor: {
-    readonly tl: AnchorPoint;
-    readonly ext: {
-        readonly width: number;
-        readonly height: number;
-    };
-}): void;
-  addImage(imageId: number, anchor: {
-    readonly tl: AnchorPoint;
-    readonly br: AnchorPoint;
-    readonly editAs?: ImageEditAs;
-} | {
-    readonly tl: AnchorPoint;
-    readonly ext: {
-        readonly width: number;
-        readonly height: number;
-    };
-}): void;
+  addImage(
+    imageId: number,
+    anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs},
+  ): void;
+  addImage(
+    imageId: number,
+    anchor: {
+      readonly tl: AnchorPoint;
+      readonly ext: {readonly width: number; readonly height: number};
+    },
+  ): void;
+  addImage(
+    imageId: number,
+    anchor:
+      | {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs}
+      | {readonly tl: AnchorPoint; readonly ext: {readonly width: number; readonly height: number}},
+  ): void;
   addImageAnchor(imageId: number, anchor: ImageAnchor): void;
   removeImage(imageId: number): void;
   get images(): readonly AnchoredImage[];
@@ -185,9 +194,7 @@ class Worksheet {
   get autoFilter(): AutoFilter | undefined;
   set autoFilter(filter: string | AutoFilter | undefined);
   unmergeCells(range: string): boolean;
-  addDataValidation(sqref: string, rule: DataValidation, options: {
-    extended?: boolean;
-} = {}): void;
+  addDataValidation(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void;
   get dataValidations(): readonly DataValidationEntry[];
   addConditionalFormatting(formatting: ConditionalFormatting): void;
   get conditionalFormattings(): readonly ConditionalFormatting[];
@@ -198,10 +205,7 @@ class Worksheet {
   addRows(rows: RowInput[]): Cell[][];
   freeze(ySplit = 1, xSplit = 0): void;
   unfreeze(): void;
-  duplicateRow(start: number, options: {
-    count?: number;
-    insert?: boolean;
-} = {}): void;
+  duplicateRow(start: number, options: {count?: number; insert?: boolean} = {}): void;
   spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void;
   insertColumn(pos: number, values: CellValue[]): void;
   addColumn(values: CellValue[]): Cell[];
@@ -246,11 +250,7 @@ class Worksheet {
 - `addCommentThread(thread: CommentThread): void;` — Anchor a threaded conversation to a cell — Excel's modern review comment: an opening message, its replies, and whether the discussion was marked resolved. Distinct from a cell's legacy note (`Cell.note`), and mutually exclusive with one: Excel refuses to put both on one cell, and a cell carrying both is written back as the conversation alone. Every message supplies its own `Comment.id` and `Comment.date`, and names its author by `Comment.personId` into the workbook registry (`Workbook.addPerson`) — the writer has no clock and no id generator, so nothing here is invented and the same workbook always serialises to the same bytes. Every id is normalised to the brace-wrapped upper-case GUID form the format requires, so a `crypto.randomUUID()` is accepted as-is. Message ids must be unique **within this sheet**, because that is the scope in which they mean anything: a reply names its thread by the head's id inside the sheet's own part, and the legacy fallback comment binds its cell by the same id inside the sheet's own comments part. Two sheets reusing one id is therefore harmless and is not rejected — Excel's ids happen to be globally unique, but nothing resolves across a part boundary.
 - `get commentThreads(): readonly CommentThread[];` — The threaded conversations on this sheet — Excel's modern review comments (author, timestamp, replies, resolved state, `@mentions`). Empty for a sheet with none. Distinct from a cell's legacy note (`Cell.note`).
 - `commentThreadAt(reference: string): CommentThread | undefined;` — The conversation anchored to a cell, or `undefined` when that cell carries none. The reference is canonicalized, so an absolute `"$B$2"` finds the same thread as `"B2"`; it names the *anchor* cell, so a cell merely covered by the anchor's merged region is not a match.
-- `addImage(imageId: number, anchor: {
-    readonly tl: AnchorPoint;
-    readonly br: AnchorPoint;
-    readonly editAs?: ImageEditAs;
-}): void;` — Anchor a workbook image (the id returned by `Workbook.addImage`) to this sheet. Two shapes: - **Two-cell**: `{tl, br}` spans the rectangle from the top-left grid point to the bottom-right, reflowing as the spanned cells resize. `editAs` (`oneCell` by default) tunes how it follows. - **One-cell**: `{tl, ext}` pins the image at `tl` at a fixed pixel size that the grid never resizes. `ext` is in pixels and converts to EMUs internally. Grid points are 0-based (`{col: 0, row: 0}` is cell A1). A later row/column splice re-pins the anchor to the same logical position.
+- `addImage( imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs}, ): void;` — Anchor a workbook image (the id returned by `Workbook.addImage`) to this sheet. Two shapes: - **Two-cell**: `{tl, br}` spans the rectangle from the top-left grid point to the bottom-right, reflowing as the spanned cells resize. `editAs` (`oneCell` by default) tunes how it follows. - **One-cell**: `{tl, ext}` pins the image at `tl` at a fixed pixel size that the grid never resizes. `ext` is in pixels and converts to EMUs internally. Grid points are 0-based (`{col: 0, row: 0}` is cell A1). A later row/column splice re-pins the anchor to the same logical position.
 - `addImageAnchor(imageId: number, anchor: ImageAnchor): void;` — Anchor an image with a pre-built model anchor in the model's own units (EMUs). This is the low-level primitive `addImage` builds on and the reader uses to re-pin an image parsed from a drawing part without a lossy pixel round-trip.
 - `removeImage(imageId: number): void;` — Drop every anchor of the given workbook image from this sheet. The image stays registered on the workbook — another sheet may still show it — so only this sheet's anchors are removed; the writer then omits any media no sheet anchors any longer.
 - `get images(): readonly AnchoredImage[];` — The images anchored to this sheet, in the order they were added.
@@ -262,9 +262,7 @@ class Worksheet {
 - `get merges(): readonly string[];` — The merged ranges on this sheet, in the order they were added.
 - `get autoFilter(): AutoFilter | undefined;` — The sheet's autofilter — its range plus any per-column criteria — or `undefined` when the sheet carries none. Setting one turns on the header-row filter dropdowns Excel draws over the range; the writer emits both the sheet's `<autoFilter>` element and the hidden `_FilterDatabase` defined name Excel derives from it. Setting `undefined` clears the filter. A bare range string is the ergonomic common case — `sheet.autoFilter = 'A1:C10'` for dropdowns with no active criteria; pass an `AutoFilter` object to narrow columns. Either way the value is normalised on assignment (range to canonical `A1:C10` form) and the getter returns the structured object. The range must be a bounded rectangle — a whole-row/column reference is not a filterable region and is rejected.
 - `unmergeCells(range: string): boolean;` — Remove a merged range previously added with `mergeCells`, returning whether a merge with that exact range string existed. The covering rectangle is dropped alongside it, so a cell the merge had masked addresses independently again. The inverse of `mergeCells`.
-- `addDataValidation(sqref: string, rule: DataValidation, options: {
-    extended?: boolean;
-} = {}): void;` — Attach a data validation to a target range (`"B2:B20"`, a whole column `"B2:B1048576"`, or a space-separated `sqref` of several ranges). The rule is stored once against the range, not copied per covered cell, so a whole-column dropdown stays a single entry. A cell inside the range reports the rule through `dataValidationAt`. Pass `{extended: true}` to mark a rule that belongs in the 2009 extension form (`<x14:dataValidation>`) — the carrier Excel uses for a list source on another sheet and other shapes the standard element cannot express. The reader sets it for a rule found in that form so a round-trip writes it back there instead of silently corrupting the cross-sheet reference.
+- `addDataValidation(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void;` — Attach a data validation to a target range (`"B2:B20"`, a whole column `"B2:B1048576"`, or a space-separated `sqref` of several ranges). The rule is stored once against the range, not copied per covered cell, so a whole-column dropdown stays a single entry. A cell inside the range reports the rule through `dataValidationAt`. Pass `{extended: true}` to mark a rule that belongs in the 2009 extension form (`<x14:dataValidation>`) — the carrier Excel uses for a list source on another sheet and other shapes the standard element cannot express. The reader sets it for a rule found in that form so a round-trip writes it back there instead of silently corrupting the cross-sheet reference.
 - `get dataValidations(): readonly DataValidationEntry[];` — The data validations on this sheet, each bound to its target range, in insertion order.
 - `addConditionalFormatting(formatting: ConditionalFormatting): void;` — Attach a conditional formatting to a target range. `formatting.ref` is an OOXML `sqref` — one range (`"A1:A10"`), a whole column, or several space-separated areas (`"A1:C1 A3:C3"`) sharing one rule set. The block is stored once against the range, defensively copied so the getter never hands back a reference into the caller's object.
 - `get conditionalFormattings(): readonly ConditionalFormatting[];` — The conditional formattings on this sheet, each bound to its target range, in insertion order.
@@ -275,10 +273,7 @@ class Worksheet {
 - `addRows(rows: RowInput[]): Cell[][];` — Append several rows after the last used row in one call, returning the cells materialised for each. The rows stack in order — the first lands at `rowCount`` + 1`, the next directly below it — so a later row never collides with an earlier one even when both are value-less. Each row is an array or a keyed object independently, so a mixed batch is fine. The bulk form of `addRow`.
 - `freeze(ySplit = 1, xSplit = 0): void;` — Freeze the top `ySplit` rows and left `xSplit` columns in place; the rest of the sheet scrolls beneath them. `freeze(1)` pins a header row; `freeze(0, 1)` pins the first column. Passing both zero clears the freeze (equivalent to `unfreeze`).
 - `unfreeze(): void;` — Clear any frozen split, returning the sheet to a normal (fully scrolling) view.
-- `duplicateRow(start: number, options: {
-    count?: number;
-    insert?: boolean;
-} = {}): void;` — Copy the row at the 1-based `start`, `options.count` times (default 1). With `options.insert` (the default) the copies are inserted directly after the source, shifting the rows below — and any merged range there — down by `count`; otherwise the copies overwrite the rows immediately below without shifting. Each copy is a faithful duplicate of the source's values and per-cell styles, and carries no merge of its own, so a range can be merged onto a duplicated row afterwards.
+- `duplicateRow(start: number, options: {count?: number; insert?: boolean} = {}): void;` — Copy the row at the 1-based `start`, `options.count` times (default 1). With `options.insert` (the default) the copies are inserted directly after the source, shifting the rows below — and any merged range there — down by `count`; otherwise the copies overwrite the rows immediately below without shifting. Each copy is a faithful duplicate of the source's values and per-cell styles, and carries no merge of its own, so a range can be merged onto a duplicated row afterwards.
 - `spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void;` — Remove `count` columns starting at the 1-based `start`, then insert the given columns in their place — the column analog of `spliceRows`. Columns to the right shift by `inserts.length - count`, keeping their values and styles, and a merged range lying wholly to the right of the edit re-anchors to its new columns. Each inserted column is an array of values indexed by row (index 0 → row 1); an empty array inserts a blank column.
 - `insertColumn(pos: number, values: CellValue[]): void;` — Insert one column of `values` at the 1-based `pos`, shifting the columns at and right of it over by one. `values` is an array of values indexed by row (index 0 → row 1), like `addColumn`. Shorthand for `spliceColumns``(pos, 0, values)`.
 - `addColumn(values: CellValue[]): Cell[];` — Append a column of `values` after the last used column, returning the cells it materialised. The append point is `columnCount`` + 1`, so the column lands right of every column that holds data or its own formatting — never overwriting existing content, unlike `insertColumn`, which shifts and needs a position. Unlike `spliceColumns`, appending shifts nothing, so it never disturbs merges or the columns to its left. `values` is an array indexed by row (index 0 → row 1); a hole or an explicit `undefined` leaves that row untouched, mirroring `addRow`'s positional-array shape.
@@ -311,31 +306,25 @@ neither copies nor clears them.
 
 ```ts
 interface WorksheetModel {
-    state: WorksheetState['state'];
-    tabColor: Color | undefined;
-    properties: WorksheetProperties;
-    outline: OutlineProperties;
-    pageSetup: PageSetup;
-    printOptions: PrintOptions;
-    pageMargins: PageMargins;
-    headerFooter: HeaderFooter;
-    rowBreaks: PageBreak[];
-    columnBreaks: PageBreak[];
-    columns: {
-        index: number;
-        properties: ColumnProperties;
-    }[];
-    rows: {
-        number: number;
-        properties: RowProperties;
-    }[];
-    cells: CellModel[];
-    merges: string[];
-    dataValidations: DataValidationEntry[];
-    conditionalFormattings: ConditionalFormatting[];
-    tables: TableOptions[];
-    autoFilter: AutoFilter | undefined;
-    protection: SheetProtection | undefined;
+  state: WorksheetState['state'];
+  tabColor: Color | undefined;
+  properties: WorksheetProperties;
+  outline: OutlineProperties;
+  pageSetup: PageSetup;
+  printOptions: PrintOptions;
+  pageMargins: PageMargins;
+  headerFooter: HeaderFooter;
+  rowBreaks: PageBreak[];
+  columnBreaks: PageBreak[];
+  columns: {index: number; properties: ColumnProperties}[];
+  rows: {number: number; properties: RowProperties}[];
+  cells: CellModel[];
+  merges: string[];
+  dataValidations: DataValidationEntry[];
+  conditionalFormattings: ConditionalFormatting[];
+  tables: TableOptions[];
+  autoFilter: AutoFilter | undefined;
+  protection: SheetProtection | undefined;
 }
 ```
 
@@ -349,8 +338,10 @@ Format defaults applied to every row/column that carries no explicit override.
 
 ```ts
 interface WorksheetProperties {
-    defaultRowHeight?: number;
-    defaultColWidth?: number;
+  /** Height, in points, for rows with no explicit height. */
+  defaultRowHeight?: number;
+  /** Width, in character units, for columns with no explicit width. */
+  defaultColWidth?: number;
 }
 ```
 
@@ -362,6 +353,7 @@ interface WorksheetProperties {
 
 ```ts
 interface WorksheetState {
-    readonly state: 'visible' | 'hidden' | 'veryHidden';
+  /** Sheet visibility, as Excel models it. Defaults to `visible`. */
+  readonly state: 'visible' | 'hidden' | 'veryHidden';
 }
 ```

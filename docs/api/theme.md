@@ -103,8 +103,8 @@ so changing these restyles every such cell at once.
 
 ```ts
 interface ThemeFontScheme {
-    readonly major?: string | undefined;
-    readonly minor?: string | undefined;
+  readonly major?: string | undefined;
+  readonly minor?: string | undefined;
 }
 ```
 
@@ -118,7 +118,7 @@ What a caller can author on a workbook's theme: any subset of the colour slots a
 
 ```ts
 interface ThemeOverrides {
-    readonly colors?: Readonly<Partial<Record<ThemeColorSlot, string>>> | undefined;
-    readonly fonts?: ThemeFontScheme | undefined;
+  readonly colors?: Readonly<Partial<Record<ThemeColorSlot, string>>> | undefined;
+  readonly fonts?: ThemeFontScheme | undefined;
 }
 ```

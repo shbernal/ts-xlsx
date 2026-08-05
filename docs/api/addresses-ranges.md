@@ -10,9 +10,12 @@ A decoded single-cell reference. An axis the reference omits is `undefined`.
 
 ```ts
 interface CellAddress {
-    readonly address: string;
-    readonly col: number | undefined;
-    readonly row: number | undefined;
+  /** Canonical A1 form with `$` anchors stripped — e.g. `"B2"`, `"1"`, `"A"`. */
+  readonly address: string;
+  /** 1-based column, or `undefined` for a row-only reference (`$1`). */
+  readonly col: number | undefined;
+  /** 1-based row, or `undefined` for a column-only reference (`$A`). */
+  readonly row: number | undefined;
 }
 ```
 
@@ -117,13 +120,15 @@ an axis neither endpoint mentions (a whole-row or whole-column range) is
 
 ```ts
 interface RangeAddress {
-    readonly top: number | undefined;
-    readonly left: number | undefined;
-    readonly bottom: number | undefined;
-    readonly right: number | undefined;
-    readonly sheetName?: string;
-    readonly tl: CellAddress;
-    readonly br: CellAddress;
-    readonly dimensions: string;
+  readonly top: number | undefined;
+  readonly left: number | undefined;
+  readonly bottom: number | undefined;
+  readonly right: number | undefined;
+  /** The originating sheet, present only when the reference carried one. */
+  readonly sheetName?: string;
+  readonly tl: CellAddress;
+  readonly br: CellAddress;
+  /** Canonical `tl:br` form — `"A1:B2"`, `"1:1"` (rows), `"A:A"` (columns). */
+  readonly dimensions: string;
 }
 ```

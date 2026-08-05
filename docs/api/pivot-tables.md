@@ -10,7 +10,7 @@ One field in a loaded pivot's cache catalogue, in declared order; the pivot refe
 
 ```ts
 interface ParsedPivotField {
-    readonly name: string;
+  readonly name: string;
 }
 ```
 
@@ -27,9 +27,9 @@ parse (the former reports its `kind`, the latter stays `worksheet` with empty co
 
 ```ts
 interface ParsedPivotSource {
-    readonly kind: PivotSourceKind;
-    readonly sheet: string;
-    readonly ref: string;
+  readonly kind: PivotSourceKind;
+  readonly sheet: string;
+  readonly ref: string;
 }
 ```
 
@@ -48,16 +48,18 @@ loaded pivot from its preserved parts, not from this model, so exposing it never
 
 ```ts
 interface ParsedPivotTable {
-    readonly name: string;
-    readonly cacheId: string;
-    readonly source: ParsedPivotSource;
-    readonly fields: readonly ParsedPivotField[];
-    readonly rowFields: readonly number[];
-    readonly columnFields: readonly number[];
-    readonly valueField: number;
-    readonly valueFieldName: string;
-    readonly valueCaption: string;
-    readonly metric: PivotMetric;
+  readonly name: string;
+  readonly cacheId: string;
+  readonly source: ParsedPivotSource;
+  readonly fields: readonly ParsedPivotField[];
+  readonly rowFields: readonly number[];
+  readonly columnFields: readonly number[];
+  /** Index into {@link fields} of the aggregated field, or -1 when no `<dataField>` was declared. */
+  readonly valueField: number;
+  readonly valueFieldName: string;
+  /** The `<dataField>`'s own caption ("Average of Amount"), which Excel shows on the data column. */
+  readonly valueCaption: string;
+  readonly metric: PivotMetric;
 }
 ```
 
@@ -73,10 +75,10 @@ are all numeric, describes them with a `numeric` summary.
 
 ```ts
 interface PivotCacheField {
-    readonly name: string;
-    readonly sharedItems: readonly PivotItem[] | null;
-    readonly numeric: PivotNumericSummary | null;
-    readonly containsBlank: boolean;
+  readonly name: string;
+  readonly sharedItems: readonly PivotItem[] | null;
+  readonly numeric: PivotNumericSummary | null;
+  readonly containsBlank: boolean;
 }
 ```
 
@@ -90,15 +92,10 @@ One distinct value in a cache field's shared-items catalogue, or an inline recor
 `blank` is a missing source value, serialised as `<m/>` rather than an empty string.
 
 ```ts
-type PivotItem = {
-    readonly kind: 'string';
-    readonly value: string;
-} | {
-    readonly kind: 'number';
-    readonly value: number;
-} | {
-    readonly kind: 'blank';
-};
+type PivotItem =
+  | {readonly kind: 'string'; readonly value: string}
+  | {readonly kind: 'number'; readonly value: number}
+  | {readonly kind: 'blank'};
 ```
 
 ---
@@ -112,7 +109,18 @@ names verbatim, so a metric doubles as its `<dataField subtotal="…">` value. E
 aggregation itself on refresh; the writer only records which function to apply.
 
 ```ts
-type PivotMetric = 'sum' | 'count' | 'countNums' | 'average' | 'max' | 'min' | 'product' | 'stdDev' | 'stdDevp' | 'var' | 'varp';
+type PivotMetric =
+  | 'sum'
+  | 'count'
+  | 'countNums'
+  | 'average'
+  | 'max'
+  | 'min'
+  | 'product'
+  | 'stdDev'
+  | 'stdDevp'
+  | 'var'
+  | 'varp';
 ```
 
 ---
@@ -125,9 +133,9 @@ The numeric summary Excel expects on a non-shared field whose every present valu
 
 ```ts
 interface PivotNumericSummary {
-    readonly allInteger: boolean;
-    readonly min: number;
-    readonly max: number;
+  readonly allInteger: boolean;
+  readonly min: number;
+  readonly max: number;
 }
 ```
 
@@ -140,10 +148,7 @@ interface PivotNumericSummary {
 One cell of a cache record: an index into a shared-items catalogue, or an inline value.
 
 ```ts
-type PivotRecordCell = {
-    readonly kind: 'index';
-    readonly index: number;
-} | PivotItem;
+type PivotRecordCell = {readonly kind: 'index'; readonly index: number} | PivotItem;
 ```
 
 ---
@@ -205,10 +210,10 @@ How a pivot table is authored: a source sheet and the header names that drive ea
 
 ```ts
 interface PivotTableOptions {
-    readonly source: Worksheet;
-    readonly rows: readonly string[];
-    readonly columns: readonly string[];
-    readonly values: readonly string[];
-    readonly metric?: PivotMetric;
+  readonly source: Worksheet;
+  readonly rows: readonly string[];
+  readonly columns: readonly string[];
+  readonly values: readonly string[];
+  readonly metric?: PivotMetric;
 }
 ```

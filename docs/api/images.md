@@ -10,8 +10,9 @@ An image pinned to a worksheet: which workbook media it shows (`imageId`) and wh
 
 ```ts
 interface AnchoredImage {
-    readonly imageId: number;
-    readonly anchor: ImageAnchor;
+  /** Index into the workbook's media registry (the id {@link Workbook.addImage} returned). */
+  readonly imageId: number;
+  readonly anchor: ImageAnchor;
 }
 ```
 
@@ -26,10 +27,14 @@ The offsets default to zero, pinning the point to the cell's top-left corner.
 
 ```ts
 interface AnchorPoint {
-    readonly col: number;
-    readonly row: number;
-    readonly colOff?: number;
-    readonly rowOff?: number;
+  /** 0-based column index (column A is 0). */
+  readonly col: number;
+  /** 0-based row index (row 1 is 0). */
+  readonly row: number;
+  /** Horizontal offset into the cell, in EMUs (914400 per inch). Defaults to 0. */
+  readonly colOff?: number;
+  /** Vertical offset into the cell, in EMUs. Defaults to 0. */
+  readonly rowOff?: number;
 }
 ```
 
@@ -44,8 +49,8 @@ via `PX_TO_EMU`.
 
 ```ts
 interface Extent {
-    readonly cx: number;
-    readonly cy: number;
+  readonly cx: number;
+  readonly cy: number;
 }
 ```
 
@@ -99,9 +104,10 @@ no place here.
 
 ```ts
 interface OneCellAnchor {
-    readonly from: AnchorPoint;
-    readonly ext: Extent;
-    readonly rotation?: number;
+  readonly from: AnchorPoint;
+  readonly ext: Extent;
+  /** Clockwise rotation in 1/60000 of a degree (`2700000` = 45°), preserved from a loaded file. */
+  readonly rotation?: number;
 }
 ```
 
@@ -130,10 +136,11 @@ selects how strictly it follows.
 
 ```ts
 interface TwoCellAnchor {
-    readonly from: AnchorPoint;
-    readonly to: AnchorPoint;
-    readonly editAs?: ImageEditAs;
-    readonly rotation?: number;
+  readonly from: AnchorPoint;
+  readonly to: AnchorPoint;
+  readonly editAs?: ImageEditAs;
+  /** Clockwise rotation in 1/60000 of a degree (`2700000` = 45°), preserved from a loaded file. */
+  readonly rotation?: number;
 }
 ```
 
@@ -147,7 +154,9 @@ A picture's bytes and its file kind, as held in the workbook's media registry.
 
 ```ts
 interface WorkbookImage {
-    readonly extension: string;
-    readonly data: Uint8Array;
+  /** Lower-case file extension without a dot — `"png"`, `"jpeg"`, `"gif"`. Drives the media part's
+   * name and content type. */
+  readonly extension: string;
+  readonly data: Uint8Array;
 }
 ```

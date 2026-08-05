@@ -12,17 +12,17 @@ its verbatim string.
 
 ```ts
 interface DataValidation {
-    type: DataValidationType;
-    operator?: DataValidationOperator;
-    formulae?: (string | number)[];
-    allowBlank?: boolean;
-    showInputMessage?: boolean;
-    showErrorMessage?: boolean;
-    errorStyle?: DataValidationErrorStyle;
-    error?: string;
-    errorTitle?: string;
-    prompt?: string;
-    promptTitle?: string;
+  type: DataValidationType;
+  operator?: DataValidationOperator;
+  formulae?: (string | number)[];
+  allowBlank?: boolean;
+  showInputMessage?: boolean;
+  showErrorMessage?: boolean;
+  errorStyle?: DataValidationErrorStyle;
+  error?: string;
+  errorTitle?: string;
+  prompt?: string;
+  promptTitle?: string;
 }
 ```
 
@@ -41,9 +41,9 @@ standard element (which would corrupt a cross-sheet reference).
 
 ```ts
 interface DataValidationEntry {
-    sqref: string;
-    rule: DataValidation;
-    extended?: boolean;
+  sqref: string;
+  rule: DataValidation;
+  extended?: boolean;
 }
 ```
 
@@ -69,7 +69,15 @@ How a typed validation compares its operand(s). Absent on a `list`/`custom` rule
 `between` on a typed rule (the value Excel omits from the XML).
 
 ```ts
-type DataValidationOperator = 'between' | 'notBetween' | 'equal' | 'notEqual' | 'greaterThan' | 'lessThan' | 'greaterThanOrEqual' | 'lessThanOrEqual';
+type DataValidationOperator =
+  | 'between'
+  | 'notBetween'
+  | 'equal'
+  | 'notEqual'
+  | 'greaterThan'
+  | 'lessThan'
+  | 'greaterThanOrEqual'
+  | 'lessThanOrEqual';
 ```
 
 ---
@@ -82,5 +90,12 @@ The kind of constraint a validation enforces. `list` is a dropdown; `custom` is 
 boolean formula; the rest bound a typed value (`whole`/`decimal`/`date`/`time`/`textLength`).
 
 ```ts
-type DataValidationType = 'list' | 'whole' | 'decimal' | 'date' | 'time' | 'textLength' | 'custom';
+type DataValidationType =
+  | 'list'
+  | 'whole'
+  | 'decimal'
+  | 'date'
+  | 'time'
+  | 'textLength'
+  | 'custom';
 ```

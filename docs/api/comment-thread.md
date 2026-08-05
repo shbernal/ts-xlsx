@@ -10,12 +10,25 @@ One message of a `CommentThread` — what a single person wrote, once.
 
 ```ts
 interface Comment {
-    readonly id: string;
-    readonly author?: Person;
-    readonly personId?: string;
-    readonly date?: string;
-    readonly text: string;
-    readonly mentions: readonly Mention[];
+  /** Brace-wrapped GUID identifying this message, preserved verbatim from the file. */
+  readonly id: string;
+  /**
+   * Who wrote it, resolved through the workbook registry. Absent when the file recorded no author or
+   * named an id the registry does not hold; {@link personId} distinguishes those two cases.
+   */
+  readonly author?: Person;
+  /** The author's {@link Person.id} exactly as written; absent when the file recorded no author. */
+  readonly personId?: string;
+  /**
+   * When it was written, verbatim. Excel writes local wall-clock with fractional seconds and no
+   * timezone (`2026-07-24T10:56:41.72`), which is not a round-trippable instant — keeping the string
+   * spares the reader from inventing a zone the file never stated.
+   */
+  readonly date?: string;
+  /** The message body as plain text. Mention chips are part of it; {@link mentions} spans it. */
+  readonly text: string;
+  /** The `@mentions` this message carries, in document order. Empty for a message that names no one. */
+  readonly mentions: readonly Mention[];
 }
 ```
 
@@ -29,9 +42,19 @@ A conversation anchored to one cell: what was asked, every reply, and whether it
 
 ```ts
 interface CommentThread {
-    readonly ref: string;
-    readonly resolved: boolean;
-    readonly comments: readonly Comment[];
+  /**
+   * A1 reference of the single cell the conversation hangs off, canonicalised — no `$` anchors, always
+   * a column and a row — so two anchors compare as plain strings and a writer can resolve it without
+   * re-validating it.
+   */
+  readonly ref: string;
+  /**
+   * Whether the conversation was marked resolved. A property of the *thread*: only the head carries
+   * the flag on the wire, so a reply never disagrees with the thread it belongs to.
+   */
+  readonly resolved: boolean;
+  /** The opening message first, then its replies in the order they were written. Never empty. */
+  readonly comments: readonly Comment[];
 }
 ```
 
@@ -49,11 +72,20 @@ highlights the wrong words.
 
 ```ts
 interface Mention {
-    readonly person?: Person;
-    readonly personId: string;
-    readonly mentionId?: string;
-    readonly startIndex: number;
-    readonly length: number;
+  /**
+   * The mentioned identity, resolved through the workbook registry. Absent when the file names an id
+   * the registry does not hold (a mention left dangling by a foreign generator); {@link personId}
+   * still says who was meant.
+   */
+  readonly person?: Person;
+  /** The mentioned {@link Person.id} exactly as written, so a dangling mention stays diagnosable. */
+  readonly personId: string;
+  /** Excel's own id for this mention, preserved so re-emitting it does not invent a new one. */
+  readonly mentionId?: string;
+  /** 0-based character offset into {@link Comment.text} where the mention starts. */
+  readonly startIndex: number;
+  /** Length of the mention in characters, **counting the leading `@`** (`@Grace Hopper` is 13). */
+  readonly length: number;
 }
 ```
 
@@ -73,9 +105,14 @@ see `Workbook.getPerson`.
 
 ```ts
 interface Person {
-    readonly id: string;
-    readonly displayName: string;
-    readonly userId?: string;
-    readonly providerId?: string;
+  /** Brace-wrapped GUID this identity is referenced by. The only field that identifies it. */
+  readonly id: string;
+  /** The name a spreadsheet app shows — not unique, and not an identity. */
+  readonly displayName: string;
+  /** Identity-provider handle, `S::<email>::<tenant-guid>` for an AzureAD account. */
+  readonly userId?: string;
+  /** The provider that registered this entry — `AD` for a directory account, `PeoplePicker` for an
+   * identity interned by being mentioned. */
+  readonly providerId?: string;
 }
 ```

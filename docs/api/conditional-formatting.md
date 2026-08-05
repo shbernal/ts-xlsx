@@ -12,8 +12,8 @@ One anchor of a colour-scale, data-bar, or icon-set scale — a "conditional for
 
 ```ts
 interface CfValueObject {
-    type: 'num' | 'percent' | 'max' | 'min' | 'percentile' | 'formula';
-    value?: number | string;
+  type: 'num' | 'percent' | 'max' | 'min' | 'percentile' | 'formula';
+  value?: number | string;
 }
 ```
 
@@ -29,8 +29,8 @@ several non-contiguous selections at once.
 
 ```ts
 interface ConditionalFormatting {
-    ref: string;
-    rules: ConditionalFormattingRule[];
+  ref: string;
+  rules: ConditionalFormattingRule[];
 }
 ```
 
@@ -46,27 +46,48 @@ still preserves `type`, `priority`, `operator`, `formulae`, and `dxfId` across a
 
 ```ts
 interface ConditionalFormattingRule {
-    type: string;
-    priority?: number;
-    stopIfTrue?: boolean;
-    operator?: string;
-    formulae?: (string | number)[];
-    text?: string;
-    style?: DifferentialStyle;
-    dxfId?: string;
-    cfvo?: CfValueObject[];
-    color?: Color;
-    colors?: Color[];
-    gradient?: boolean;
-    negativeFillColor?: Color;
-    axisColor?: Color;
-    iconSet?: string;
-    rank?: number;
-    percent?: boolean;
-    bottom?: boolean;
-    aboveAverage?: boolean;
-    equalAverage?: boolean;
-    stdDev?: number;
-    timePeriod?: string;
+  type: string;
+  /** Evaluation precedence; lower wins. Excel requires one — the writer supplies it when absent. */
+  priority?: number;
+  /** Halt evaluation of lower-priority rules on any cell this rule matches. */
+  stopIfTrue?: boolean;
+  /** cellIs / text comparison operator (`greaterThan`, `between`, `beginsWith`, …). */
+  operator?: string;
+  /** Formula operands: cellIs bounds, an expression predicate, a containsText target formula, … */
+  formulae?: (string | number)[];
+  /** The literal a containsText / beginsWith / endsWith rule searches for. */
+  text?: string;
+  /** A differential style authored inline, serialised into `<dxfs>` and referenced by the cfRule. */
+  style?: DifferentialStyle;
+  /** A differential-style reference by `<dxfs>` index, as read from a file (kept verbatim). */
+  dxfId?: string;
+  /** colorScale / dataBar / iconSet scale anchors, in order. */
+  cfvo?: CfValueObject[];
+  /** A dataBar's bar colour. */
+  color?: Color;
+  /** A colorScale's colours, one per {@link cfvo}. */
+  colors?: Color[];
+  /** A dataBar's gradient-fill flag. Lives only in the x14 extension, not the classic element. */
+  gradient?: boolean;
+  /** A dataBar's fill colour for negative values. An x14 extension property. */
+  negativeFillColor?: Color;
+  /** A dataBar's axis colour (the zero line between positive and negative bars). An x14 property. */
+  axisColor?: Color;
+  /** An iconSet's named icon family (e.g. `3TrafficLights1`). */
+  iconSet?: string;
+  /** top10 rank cutoff. */
+  rank?: number;
+  /** top10: the rank is a percentage rather than a count. */
+  percent?: boolean;
+  /** top10: rank from the bottom rather than the top. */
+  bottom?: boolean;
+  /** aboveAverage: match above (default) or below the average. */
+  aboveAverage?: boolean;
+  /** aboveAverage: include cells equal to the average. */
+  equalAverage?: boolean;
+  /** aboveAverage: match beyond this many standard deviations. */
+  stdDev?: number;
+  /** timePeriod window (`today`, `lastWeek`, …). */
+  timePeriod?: string;
 }
 ```

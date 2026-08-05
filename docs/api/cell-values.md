@@ -9,7 +9,18 @@
 Everything a cell's value can be. `null` is the empty cell.
 
 ```ts
-type CellValue = null | number | string | boolean | Date | ErrorValue | FormulaValue | SharedFormulaValue | DataTableFormulaValue | RichTextValue | HyperlinkValue;
+type CellValue =
+  | null
+  | number
+  | string
+  | boolean
+  | Date
+  | ErrorValue
+  | FormulaValue
+  | SharedFormulaValue
+  | DataTableFormulaValue
+  | RichTextValue
+  | HyperlinkValue;
 ```
 
 ---
@@ -44,13 +55,18 @@ rather than silently dropping the data-table kind.
 
 ```ts
 interface DataTableFormulaValue {
-    readonly shareType: 'dataTable';
-    readonly ref: string;
-    readonly dataTable2D?: boolean;
-    readonly dataTableRow?: boolean;
-    readonly r1?: string;
-    readonly r2?: string;
-    readonly result?: FormulaResult;
+  readonly shareType: 'dataTable';
+  /** The range the data table fills, e.g. `'B2:B5'`. */
+  readonly ref: string;
+  /** Whether the table substitutes two inputs (a 2-D data table) rather than one. */
+  readonly dataTable2D?: boolean;
+  /** For a 1-D table, whether the input runs along the row rather than down the column. */
+  readonly dataTableRow?: boolean;
+  /** The first (row) input-cell reference. */
+  readonly r1?: string;
+  /** The second (column) input-cell reference, present for a 2-D table. */
+  readonly r2?: string;
+  readonly result?: FormulaResult;
 }
 ```
 
@@ -101,7 +117,7 @@ An in-cell error, e.g. `{error: '#REF!'}`.
 
 ```ts
 interface ErrorValue {
-    readonly error: ErrorCode;
+  readonly error: ErrorCode;
 }
 ```
 
@@ -127,8 +143,8 @@ A cell whose value is computed by its own formula.
 
 ```ts
 interface FormulaValue {
-    readonly formula: string;
-    readonly result?: FormulaResult;
+  readonly formula: string;
+  readonly result?: FormulaResult;
 }
 ```
 
@@ -142,10 +158,13 @@ A hyperlink cell: a URL plus the text (plain or rich) shown in the cell.
 
 ```ts
 interface HyperlinkValue {
-    readonly hyperlink: string;
-    readonly text: string | RichTextValue;
-    readonly tooltip?: string;
-    readonly range?: string;
+  readonly hyperlink: string;
+  readonly text: string | RichTextValue;
+  readonly tooltip?: string;
+  /** The clickable extent (`'D1:H1'`) when the link spans a range whose top-left corner is this
+   * cell. Absent for an ordinary single-cell link. The destination and label live on the top-left
+   * cell; `range` records how far Excel highlights the clickable area so it survives a round-trip. */
+  readonly range?: string;
 }
 ```
 
@@ -171,8 +190,8 @@ One formatted run of a rich-text value.
 
 ```ts
 interface RichTextRun {
-    readonly text: string;
-    readonly font?: Font;
+  readonly text: string;
+  readonly font?: Font;
 }
 ```
 
@@ -200,7 +219,7 @@ A value composed of independently-formatted text runs.
 
 ```ts
 interface RichTextValue {
-    readonly richText: readonly RichTextRun[];
+  readonly richText: readonly RichTextRun[];
 }
 ```
 
@@ -218,9 +237,11 @@ OOXML's shared-formula grouping.
 
 ```ts
 interface SharedFormulaValue {
-    readonly sharedFormula: string;
-    readonly formula?: string;
-    readonly result?: FormulaResult;
+  readonly sharedFormula: string;
+  /** The master's formula translated to this cell's position. Filled in on read; a clone assigned by
+   * a caller carries only `sharedFormula`, and the writer recovers the formula from the master. */
+  readonly formula?: string;
+  readonly result?: FormulaResult;
 }
 ```
 

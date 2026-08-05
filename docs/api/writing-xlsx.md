@@ -10,7 +10,13 @@ Options controlling how `writeXlsx` serialises a workbook.
 
 ```ts
 interface WriteOptions {
-    readonly useSharedStrings?: boolean;
+  /**
+   * Pool plain string cell values into a shared-strings table (`xl/sharedStrings.xml`) that cells
+   * reference by index, rather than storing each string inline in its cell. Deduplicates repeated
+   * text and matches Excel's own storage; off by default, which keeps strings inline and omits the
+   * part. Rich-text values stay inline regardless, so their run formatting is unaffected.
+   */
+  readonly useSharedStrings?: boolean;
 }
 ```
 
@@ -49,7 +55,10 @@ no worker can take, and the reader's zip-bomb ceiling is enforced by counting ou
 synchronous input slices. See ADR-0024.
 
 ```ts
-async function writeXlsxAsync(workbook: Workbook, options: WriteOptions = {}): Promise<Uint8Array>;
+async function writeXlsxAsync(
+  workbook: Workbook,
+  options: WriteOptions = {},
+): Promise<Uint8Array>;
 ```
 
 **Throws** — {

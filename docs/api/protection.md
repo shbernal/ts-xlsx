@@ -10,8 +10,8 @@ A sheet's protection: which operations stay allowed, and the optional password g
 
 ```ts
 interface SheetProtection {
-    readonly flags: SheetProtectionFlags;
-    readonly credential?: SheetProtectionCredential;
+  readonly flags: SheetProtectionFlags;
+  readonly credential?: SheetProtectionCredential;
 }
 ```
 
@@ -27,10 +27,10 @@ needs to verify a supplied password without the password ever being stored.
 
 ```ts
 interface SheetProtectionCredential {
-    readonly algorithmName: string;
-    readonly hashValue: string;
-    readonly saltValue: string;
-    readonly spinCount: number;
+  readonly algorithmName: string;
+  readonly hashValue: string;
+  readonly saltValue: string;
+  readonly spinCount: number;
 }
 ```
 
@@ -47,21 +47,23 @@ forbidden once a sheet is protected; selecting cells defaults to permitted).
 
 ```ts
 interface SheetProtectionFlags {
-    readonly selectLockedCells?: boolean;
-    readonly selectUnlockedCells?: boolean;
-    readonly formatCells?: boolean;
-    readonly formatColumns?: boolean;
-    readonly formatRows?: boolean;
-    readonly insertColumns?: boolean;
-    readonly insertRows?: boolean;
-    readonly insertHyperlinks?: boolean;
-    readonly deleteColumns?: boolean;
-    readonly deleteRows?: boolean;
-    readonly sort?: boolean;
-    readonly autoFilter?: boolean;
-    readonly pivotTables?: boolean;
-    readonly objects?: boolean;
-    readonly scenarios?: boolean;
+  /** Select locked cells (Excel permits this by default). */
+  readonly selectLockedCells?: boolean;
+  /** Select unlocked cells (permitted by default). */
+  readonly selectUnlockedCells?: boolean;
+  readonly formatCells?: boolean;
+  readonly formatColumns?: boolean;
+  readonly formatRows?: boolean;
+  readonly insertColumns?: boolean;
+  readonly insertRows?: boolean;
+  readonly insertHyperlinks?: boolean;
+  readonly deleteColumns?: boolean;
+  readonly deleteRows?: boolean;
+  readonly sort?: boolean;
+  readonly autoFilter?: boolean;
+  readonly pivotTables?: boolean;
+  readonly objects?: boolean;
+  readonly scenarios?: boolean;
 }
 ```
 
@@ -75,7 +77,11 @@ interface SheetProtectionFlags {
 
 ```ts
 interface SheetProtectionOptions extends SheetProtectionFlags {
-    readonly spinCount?: number;
+  /**
+   * Iteration count for the password hash. Higher is slower to brute-force; Excel writes
+   * 100000 by default. Ignored when no password is given.
+   */
+  readonly spinCount?: number;
 }
 ```
 
@@ -92,10 +98,14 @@ only refuses to lose one.
 
 ```ts
 interface WorkbookProtection {
-    readonly lockStructure?: boolean;
-    readonly lockWindows?: boolean;
-    readonly lockRevision?: boolean;
-    readonly credentials?: Readonly<Partial<Record<WorkbookProtectionCredentialAttr, string>>>;
+  /** Lock the workbook structure — no adding, deleting, reordering, or unhiding sheets. */
+  readonly lockStructure?: boolean;
+  /** Lock the workbook window geometry. */
+  readonly lockWindows?: boolean;
+  /** Lock the revision-tracking state. */
+  readonly lockRevision?: boolean;
+  /** Preserved password/agile-hash attributes, keyed by their OOXML attribute name. */
+  readonly credentials?: Readonly<Partial<Record<WorkbookProtectionCredentialAttr, string>>>;
 }
 ```
 
@@ -108,5 +118,6 @@ interface WorkbookProtection {
 One of the attribute names `WORKBOOK_PROTECTION_CREDENTIAL_ATTRS` enumerates.
 
 ```ts
-type WorkbookProtectionCredentialAttr = (typeof WORKBOOK_PROTECTION_CREDENTIAL_ATTRS)[number];
+type WorkbookProtectionCredentialAttr =
+  (typeof WORKBOOK_PROTECTION_CREDENTIAL_ATTRS)[number];
 ```

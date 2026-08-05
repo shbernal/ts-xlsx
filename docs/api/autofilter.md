@@ -12,8 +12,11 @@ records the criteria a column is actively filtered by.
 
 ```ts
 interface AutoFilter {
-    readonly ref: string;
-    readonly columns: readonly FilterColumn[];
+  /** The filtered region in canonical `A1:C10` form; its top row is the header the dropdowns sit on. */
+  readonly ref: string;
+  /** The columns actively narrowed, each addressed by its offset from the range's left edge. Empty
+   *  when the filter only draws dropdowns without hiding any row. */
+  readonly columns: readonly FilterColumn[];
 }
 ```
 
@@ -28,9 +31,9 @@ AND-combined when `and` is set, else OR-combined; Excel permits at most two.
 
 ```ts
 interface CustomFilter {
-    readonly kind: 'custom';
-    readonly and: boolean;
-    readonly predicates: readonly CustomFilterPredicate[];
+  readonly kind: 'custom';
+  readonly and: boolean;
+  readonly predicates: readonly CustomFilterPredicate[];
 }
 ```
 
@@ -41,7 +44,13 @@ interface CustomFilter {
 <sub>type</sub>
 
 ```ts
-type CustomFilterOperator = 'equal' | 'notEqual' | 'lessThan' | 'lessThanOrEqual' | 'greaterThan' | 'greaterThanOrEqual';
+type CustomFilterOperator =
+  | 'equal'
+  | 'notEqual'
+  | 'lessThan'
+  | 'lessThanOrEqual'
+  | 'greaterThan'
+  | 'greaterThanOrEqual';
 ```
 
 ---
@@ -52,8 +61,9 @@ type CustomFilterOperator = 'equal' | 'notEqual' | 'lessThan' | 'lessThanOrEqual
 
 ```ts
 interface CustomFilterPredicate {
-    readonly operator: CustomFilterOperator;
-    readonly val: string;
+  readonly operator: CustomFilterOperator;
+  /** The comparison operand, kept as its raw string form (a number, or wildcard text like `a*`). */
+  readonly val: string;
 }
 ```
 
@@ -67,8 +77,8 @@ One filtered column, addressed by its 0-based offset (`colId`) from the filter r
 
 ```ts
 interface FilterColumn {
-    readonly colId: number;
-    readonly criteria: FilterCriteria;
+  readonly colId: number;
+  readonly criteria: FilterCriteria;
 }
 ```
 
@@ -96,8 +106,8 @@ A row survives when its cell in this column matches one of `values` (or is blank
 
 ```ts
 interface ValuesFilter {
-    readonly kind: 'values';
-    readonly values: readonly string[];
-    readonly blank: boolean;
+  readonly kind: 'values';
+  readonly values: readonly string[];
+  readonly blank: boolean;
 }
 ```

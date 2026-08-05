@@ -42,83 +42,38 @@ const GROUPS: ReadonlyArray<readonly [string, string]> = [
   ['csv/write', 'CSV'],
 ];
 
-/** A TS transform that drops function/method bodies so a declaration prints as a signature. */
-function stripBodies(context: ts.TransformationContext): ts.Transformer<ts.Node> {
-  const visit: ts.Visitor = (node) => {
-    const n = ts.visitEachChild(node, visit, context);
-    if (ts.isFunctionDeclaration(n) && n.body) {
-      return ts.factory.updateFunctionDeclaration(
-        n,
-        dropExport(n.modifiers),
-        n.asteriskToken,
-        n.name,
-        n.typeParameters,
-        n.parameters,
-        n.type,
-        undefined,
-      );
-    }
-    if (ts.isMethodDeclaration(n) && n.body) {
-      return ts.factory.updateMethodDeclaration(
-        n,
-        n.modifiers,
-        n.asteriskToken,
-        n.name,
-        n.questionToken,
-        n.typeParameters,
-        n.parameters,
-        n.type,
-        undefined,
-      );
-    }
-    if (ts.isConstructorDeclaration(n) && n.body) {
-      return ts.factory.updateConstructorDeclaration(n, n.modifiers, n.parameters, undefined);
-    }
-    if (ts.isGetAccessorDeclaration(n) && n.body) {
-      return ts.factory.updateGetAccessorDeclaration(
-        n,
-        n.modifiers,
-        n.name,
-        n.parameters,
-        n.type,
-        undefined,
-      );
-    }
-    if (ts.isSetAccessorDeclaration(n) && n.body) {
-      return ts.factory.updateSetAccessorDeclaration(
-        n,
-        n.modifiers,
-        n.name,
-        n.parameters,
-        undefined,
-      );
-    }
-    return n;
-  };
-  return (node) => ts.visitNode(node, visit) as ts.Node;
+/** The body-bearing declarations — the ones whose signature ends where their body begins. */
+function bodyOf(node: ts.Node): ts.Node | undefined {
+  if (
+    ts.isFunctionDeclaration(node) ||
+    ts.isMethodDeclaration(node) ||
+    ts.isConstructorDeclaration(node) ||
+    ts.isGetAccessorDeclaration(node) ||
+    ts.isSetAccessorDeclaration(node)
+  ) {
+    return node.body;
+  }
+  return undefined;
 }
 
-/** Strip the `export`/`default`/`declare` modifiers a standalone signature shouldn't carry. */
-function dropExport(
-  modifiers: ts.NodeArray<ts.ModifierLike> | undefined,
-): ts.ModifierLike[] | undefined {
-  if (!modifiers) return undefined;
-  const kept = modifiers.filter(
-    (m) =>
-      m.kind !== ts.SyntaxKind.ExportKeyword &&
-      m.kind !== ts.SyntaxKind.DefaultKeyword &&
-      m.kind !== ts.SyntaxKind.DeclareKeyword,
-  );
-  return kept.length > 0 ? kept : undefined;
-}
-
-const printer = ts.createPrinter({removeComments: true});
-
+/**
+ * Render a declaration as a signature by slicing its own source text, cut at the body when it
+ * has one.
+ *
+ * Source text rather than a compiler re-print: the reference then shows the shape the author
+ * wrote — parameter line breaks and all — instead of the printer's normalization, and the
+ * generator needs no emit machinery. Starting at `getStart` drops leading trivia, so the JSDoc
+ * above a declaration stays out of the code block that renders it.
+ */
 function printSignature(node: ts.Node, sourceFile: ts.SourceFile): string {
-  const stripped = ts.transform(node, [stripBodies]).transformed[0] ?? node;
-  return printer
-    .printNode(ts.EmitHint.Unspecified, stripped, sourceFile)
+  const body = bodyOf(node);
+  const text = sourceFile.text
+    .slice(node.getStart(sourceFile), body ? body.getStart(sourceFile) : node.getEnd())
+    .trimEnd()
     .replace(/^export (?:default )?/, '');
+  // Cutting the body leaves the signature unterminated; `;` restores the `.d.ts` shape a reader
+  // expects. Declarations that keep their text (interfaces, type aliases) already carry their own.
+  return body ? `${text};` : text;
 }
 
 /**
@@ -213,7 +168,9 @@ function renderClassMembers(
     const summary = sym ? docText(sym, checker) : '';
     if (summary) {
       documented.add(name);
-      docs.push(`- \`${sig}\` — ${summary.replace(/\s+/g, ' ')}`);
+      // The overview block above renders a signature as the author wrote it, line breaks and
+      // all; this list puts one in an inline code span, which cannot survive them.
+      docs.push(`- \`${sig.replace(/\s+/g, ' ')}\` — ${summary.replace(/\s+/g, ' ')}`);
     }
   }
   return {sigs, docs};

@@ -10,7 +10,8 @@ Calculation settings applied to the streamed workbook. Mirrors the `Workbook` fl
 
 ```ts
 interface CalcProperties {
-    fullCalcOnLoad?: boolean;
+  /** Ask the consumer to recalculate every formula on open — the OOXML `fullCalcOnLoad` flag. */
+  fullCalcOnLoad?: boolean;
 }
 ```
 
@@ -78,7 +79,11 @@ Options fixed at construction that shape the whole streamed package.
 
 ```ts
 type WorkbookStreamWriterOptions = SinkOptions & {
-    readonly useSharedStrings?: boolean;
+  /**
+   * Pool plain string cell values into a shared-strings table rather than storing each inline — the
+   * same {@link WriteOptions.useSharedStrings} the buffered writer exposes. Off by default.
+   */
+  readonly useSharedStrings?: boolean;
 };
 ```
 
@@ -101,14 +106,9 @@ class WorksheetStreamWriter {
   flushRow(number: number, cells: readonly Cell[]): void;
   flushedSheet(): FlushedSheet | undefined;
   getCell(reference: string): Cell;
-  addDataValidation(sqref: string, rule: DataValidation, options: {
-    extended?: boolean;
-} = {}): void;
+  addDataValidation(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void;
   addConditionalFormatting(formatting: ConditionalFormatting): void;
-  addImage(imageId: number, anchor: {
-    readonly tl: AnchorPoint;
-    readonly br: AnchorPoint;
-}): void;
+  addImage(imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint}): void;
   set autoFilter(filter: string | AutoFilter | undefined);
   get autoFilter(): AutoFilter | undefined;
   protect(password?: string, options: SheetProtectionOptions = {}): void;
@@ -126,14 +126,9 @@ class WorksheetStreamWriter {
 - `addRows(rows: CellValue[][]): StreamedRow[];` — Append a batch of rows in one call, each landing directly below the previous.
 - `flushRow(number: number, cells: readonly Cell[]): void;` — Serialise an eagerly-committed row and release its cells from the model. Called by `StreamedRow.commit`; the row's `<row>` XML is retained (interned into the workbook's live style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
 - `getCell(reference: string): Cell;` — Address a cell by its A1 reference to read or style it before the sheet is committed.
-- `addDataValidation(sqref: string, rule: DataValidation, options: {
-    extended?: boolean;
-} = {}): void;` — Attach a data validation to a range before the sheet is committed. Delegates to the model, so the streamed package emits the `<dataValidations>` block in its CT_Worksheet position — before `<hyperlinks>` — because both writers share one worksheet serializer.
+- `addDataValidation(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void;` — Attach a data validation to a range before the sheet is committed. Delegates to the model, so the streamed package emits the `<dataValidations>` block in its CT_Worksheet position — before `<hyperlinks>` — because both writers share one worksheet serializer.
 - `addConditionalFormatting(formatting: ConditionalFormatting): void;` — Attach a conditional formatting to a range before the sheet is committed. Like every other block, it lands in its schema-mandated slot — after `<mergeCells>`, before `<dataValidations>` and `<hyperlinks>` — since the streamed sheet is serialized through the same path as a buffered write.
-- `addImage(imageId: number, anchor: {
-    readonly tl: AnchorPoint;
-    readonly br: AnchorPoint;
-}): void;` — Anchor a workbook image (the id from `WorkbookStreamWriter.addImage`) to this sheet, spanning the rectangle from the top-left grid point `tl` to the bottom-right `br`. The streamed package emits the drawing part, its media relationship, and the sheet's `<drawing>` reference exactly as a buffered write does — both writers share `buildPackageParts`.
+- `addImage(imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint}): void;` — Anchor a workbook image (the id from `WorkbookStreamWriter.addImage`) to this sheet, spanning the rectangle from the top-left grid point `tl` to the bottom-right `br`. The streamed package emits the drawing part, its media relationship, and the sheet's `<drawing>` reference exactly as a buffered write does — both writers share `buildPackageParts`.
 - `set autoFilter(filter: string | AutoFilter | undefined);` — Apply the sheet's autofilter before it is committed; mirrors `Worksheet.autoFilter`. The streamed package emits `<autoFilter>` in its CT_Worksheet slot — after `<sheetProtection>` — and contributes the hidden `_FilterDatabase` defined name, exactly as a buffered write does.
 - `protect(password?: string, options: SheetProtectionOptions = {}): void;` — Apply sheet-level protection before the sheet is committed; mirrors `Worksheet.protect`. The shared serializer places `<sheetProtection>` ahead of `<autoFilter>` per CT_Worksheet, so a streamed sheet carrying both stays valid rather than corrupt.
 - `commit(): void;` — Freeze the sheet: no more rows or edits may be added after this.

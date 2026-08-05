@@ -18,10 +18,14 @@ function parseVbaProject(bin: Uint8Array): VbaProject;
 
 ```ts
 interface VbaModule {
-    readonly name: string;
-    readonly streamName: string;
-    readonly kind: VbaModuleKind;
-    readonly source: string;
+  /** The module's code name as seen in the VBA editor, e.g. `ThisWorkbook`, `JsonConverter`. */
+  readonly name: string;
+  /** The CFB stream the module's bytes live in — usually equal to {@link name}. */
+  readonly streamName: string;
+  /** Procedural (`.bas`), document code-behind, class module, or designer (UserForm). */
+  readonly kind: VbaModuleKind;
+  /** The decompressed VBA source (p-code and PerformanceCache are not included). */
+  readonly source: string;
 }
 ```
 
@@ -45,8 +49,10 @@ type VbaModuleKind = 'procedural' | 'document' | 'class' | 'designer';
 
 ```ts
 interface VbaProject {
-    readonly codePage: number;
-    readonly modules: readonly VbaModule[];
+  /** The project code page (`PROJECTCODEPAGE`) used to decode module names and source. */
+  readonly codePage: number;
+  /** The project's modules, in declaration order. */
+  readonly modules: readonly VbaModule[];
 }
 ```
 
@@ -60,8 +66,13 @@ One digital signature over a workbook's VBA project — its generation and its r
 
 ```ts
 interface VbaProjectSignature {
-    readonly kind: VbaProjectSignatureKind;
-    readonly bytes: Uint8Array;
+  readonly kind: VbaProjectSignatureKind;
+  /**
+   * The raw signature part bytes (a PKCS#7/CMS blob), passed through verbatim — this library does not
+   * parse or cryptographically verify them. Their presence means "a signature is attached," never
+   * "this signature is valid."
+   */
+  readonly bytes: Uint8Array;
 }
 ```
 

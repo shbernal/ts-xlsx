@@ -55,8 +55,8 @@ extend this with `backstage`/`qat` without changing the shape callers already de
 
 ```ts
 interface CustomUiDocument {
-    readonly dialect: RibbonDialect;
-    readonly ribbon?: Ribbon;
+  readonly dialect: RibbonDialect;
+  readonly ribbon?: Ribbon;
 }
 ```
 
@@ -97,8 +97,9 @@ The parsed `<ribbon>` element: whether it starts from a blank ribbon, and its cu
 
 ```ts
 interface Ribbon {
-    readonly startFromScratch: boolean;
-    readonly tabs: readonly RibbonTab[];
+  /** `startFromScratch="true"` reduces the built-in ribbon to a minimal set before custom tabs apply. */
+  readonly startFromScratch: boolean;
+  readonly tabs: readonly RibbonTab[];
 }
 ```
 
@@ -119,14 +120,22 @@ is preserved verbatim in `attributes`, so nothing is lost. Container controls (a
 
 ```ts
 interface RibbonControl {
-    readonly kind: RibbonControlKind;
-    readonly id?: string;
-    readonly idQ?: string;
-    readonly idMso?: string;
-    readonly label?: string;
-    readonly onAction?: string;
-    readonly attributes: Readonly<Record<string, string>>;
-    readonly children?: readonly RibbonControl[];
+  readonly kind: RibbonControlKind;
+  /** A document-defined control id. */
+  readonly id?: string;
+  /** A namespace-qualified control id (`idQ`), used to reference a control across add-ins. */
+  readonly idQ?: string;
+  /** The id of a built-in (Microsoft-defined) control this element repurposes or places against. */
+  readonly idMso?: string;
+  /** The static label, when the element carries one (a dynamic label uses `getLabel`, in {@link attributes}). */
+  readonly label?: string;
+  /** The callback procedure name invoked on activation — the macro a click runs. */
+  readonly onAction?: string;
+  /** Every attribute on the element, verbatim and entity-decoded. The typed fields above are lifted from
+   * here; this map is the complete record, including attributes this model does not lift out. */
+  readonly attributes: Readonly<Record<string, string>>;
+  /** Nested controls or items, for a container control; absent for a leaf control. */
+  readonly children?: readonly RibbonControl[];
 }
 ```
 
@@ -140,7 +149,26 @@ The RibbonX control elements this reader recognises. `item` is a `dropDown`/`gal
 entry; `unknown` is the fallback for any element outside this set (never silently dropped).
 
 ```ts
-type RibbonControlKind = 'button' | 'toggleButton' | 'checkBox' | 'editBox' | 'dropDown' | 'comboBox' | 'gallery' | 'menu' | 'dynamicMenu' | 'splitButton' | 'buttonGroup' | 'box' | 'labelControl' | 'separator' | 'menuSeparator' | 'dialogBoxLauncher' | 'control' | 'item' | 'unknown';
+type RibbonControlKind =
+  | 'button'
+  | 'toggleButton'
+  | 'checkBox'
+  | 'editBox'
+  | 'dropDown'
+  | 'comboBox'
+  | 'gallery'
+  | 'menu'
+  | 'dynamicMenu'
+  | 'splitButton'
+  | 'buttonGroup'
+  | 'box'
+  | 'labelControl'
+  | 'separator'
+  | 'menuSeparator'
+  | 'dialogBoxLauncher'
+  | 'control'
+  | 'item'
+  | 'unknown';
 ```
 
 ---
@@ -167,12 +195,13 @@ A `<group>` within a ribbon tab: its identity/label attributes and the controls 
 
 ```ts
 interface RibbonGroup {
-    readonly id?: string;
-    readonly idQ?: string;
-    readonly idMso?: string;
-    readonly label?: string;
-    readonly attributes: Readonly<Record<string, string>>;
-    readonly controls: readonly RibbonControl[];
+  readonly id?: string;
+  readonly idQ?: string;
+  readonly idMso?: string;
+  readonly label?: string;
+  /** Every attribute on the `<group>`, verbatim. */
+  readonly attributes: Readonly<Record<string, string>>;
+  readonly controls: readonly RibbonControl[];
 }
 ```
 
@@ -186,11 +215,12 @@ A `<tab>` within the ribbon: its identity/label attributes and the groups it con
 
 ```ts
 interface RibbonTab {
-    readonly id?: string;
-    readonly idQ?: string;
-    readonly idMso?: string;
-    readonly label?: string;
-    readonly attributes: Readonly<Record<string, string>>;
-    readonly groups: readonly RibbonGroup[];
+  readonly id?: string;
+  readonly idQ?: string;
+  readonly idMso?: string;
+  readonly label?: string;
+  /** Every attribute on the `<tab>`, verbatim. */
+  readonly attributes: Readonly<Record<string, string>>;
+  readonly groups: readonly RibbonGroup[];
 }
 ```

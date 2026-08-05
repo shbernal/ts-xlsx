@@ -13,10 +13,10 @@ fresh, collision-proof path and rewires `rels` accordingly, but never touches `b
 
 ```ts
 interface PreservedPart {
-    readonly path: string;
-    readonly contentType: string;
-    readonly bytes: Uint8Array;
-    readonly rels: readonly PreservedRelationship[];
+  readonly path: string;
+  readonly contentType: string;
+  readonly bytes: Uint8Array;
+  readonly rels: readonly PreservedRelationship[];
 }
 ```
 
@@ -36,10 +36,10 @@ workbook alive, so a round-trip does not orphan the `[n]` external references fo
 
 ```ts
 interface PreservedRelationship {
-    readonly id: string;
-    readonly type: string;
-    readonly targetPath: string;
-    readonly external?: boolean;
+  readonly id: string;
+  readonly type: string;
+  readonly targetPath: string;
+  readonly external?: boolean;
 }
 ```
 
@@ -60,9 +60,9 @@ transitive closure the reference reaches.
 
 ```ts
 interface PreservedRootReference {
-    readonly relType: string;
-    readonly entryPath: string;
-    readonly parts: readonly PreservedPart[];
+  readonly relType: string;
+  readonly entryPath: string;
+  readonly parts: readonly PreservedPart[];
 }
 ```
 
@@ -83,9 +83,9 @@ rewired.
 
 ```ts
 interface PreservedWorksheetReference {
-    readonly element: 'drawing' | 'legacyDrawingHF' | undefined;
-    readonly relType: string;
-    readonly entryPath: string;
-    readonly parts: readonly PreservedPart[];
+  readonly element: 'drawing' | 'legacyDrawingHF' | undefined;
+  readonly relType: string;
+  readonly entryPath: string;
+  readonly parts: readonly PreservedPart[];
 }
 ```

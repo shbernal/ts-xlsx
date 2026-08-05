@@ -12,7 +12,10 @@ non-empty cells — a blank or style-only cell contributes nothing, matching the
 read.
 
 ```ts
-function* readSheetRows(data: Uint8Array, options: ReadSheetRowsOptions = {}): Generator<StreamedRow>;
+function* readSheetRows(
+  data: Uint8Array,
+  options: ReadSheetRowsOptions = {},
+): Generator<StreamedRow>;
 ```
 
 - `data` — The raw `.xlsx` bytes.
@@ -32,7 +35,11 @@ that no worksheet has.
 
 ```ts
 interface ReadSheetRowsOptions extends ReadXlsxOptions {
-    readonly sheet?: string | number;
+  /**
+   * Which worksheet to stream: its name, or its 1-based position in the workbook. Defaults to the
+   * first sheet.
+   */
+  readonly sheet?: string | number;
 }
 ```
 
@@ -48,7 +55,10 @@ stream that sheet's rows and read its hidden-column and merge summaries — the 
 of walking `readXlsx(data).worksheets`.
 
 ```ts
-function* readWorkbookStream(data: Uint8Array, options: ReadXlsxOptions = {}): Generator<StreamedSheet>;
+function* readWorkbookStream(
+  data: Uint8Array,
+  options: ReadXlsxOptions = {},
+): Generator<StreamedSheet>;
 ```
 
 - `data` — The raw `.xlsx` bytes.
