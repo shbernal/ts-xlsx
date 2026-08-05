@@ -30,14 +30,93 @@ class Table {
 
 **Members**
 
-- `get rowCount(): number;` — The number of data rows (excludes the header and totals rows). Always defined — a table loaded from a file derives it from the stored range, so reading the height never throws.
-- `addRow(values: readonly CellValue[] = []): void;` — Append a data row to the bottom of the table, growing its range by one row and writing `values` left-to-right across its columns. A loaded table exposes its rows the same as a freshly-authored one, so this works identically whether the table was built in memory or read from a file. A table carrying a totals row appends above it: the new data row lands where the totals row sat, and the totals row (with any sheet content below) shifts down by one — exactly what inserting a worksheet row does. That relocation lives in the grid, so a totals-row table not attached to a worksheet throws, as does passing `values` on any detached table — there is nowhere to put them.
-- `shiftRows(start: number, count: number, delta: number): boolean;` — Re-pin the table through a row splice: `count` rows removed at the 1-based `start`, then rows inserted so surviving rows below shift by `delta`. A splice entirely above the table moves its whole range by `delta`; one landing inside grows or shrinks the data rows to absorb the change; one that deletes the table's every row removes it. Returns `false` when the table no longer has a row to occupy (the caller drops it), `true` when it survives.
-- `shiftColumns(start: number, count: number, delta: number): boolean;` — Re-pin the table through a column splice. A splice entirely to the table's left moves its anchor by `delta`; one to its right leaves it untouched. A splice landing inside the table's columns is structural surgery on named columns with no unambiguous answer, so the table's columns are left as-is (anchor unchanged) rather than fabricated or dropped. Always returns `true`.
-- `get options(): TableOptions;` — The options that reconstruct this table — the anchor as a single-cell ref (not the derived full range), the columns, and the data-row count with the header/totals flags. Feeding this back to the constructor yields an equivalent table, so a worksheet model can carry a table losslessly across an export/import round-trip.
-- `get range(): string;` — The full A1 range the table occupies: header (if any) + data rows + totals (if any). Distinct from `TableOptions.ref` (and `options`'s own `ref`), which is only the single-cell anchor a table is constructed from — this is the anchor plus the columns/rows it has grown to cover.
-- `get autoFilterRef(): string | undefined;` — The autoFilter range — the header row plus the data rows, never the totals row — or `undefined` when the table has no autoFilter: either it is headerless (an autoFilter has nothing to anchor to and Excel treats its presence as corruption) or its `autoFilter` flag is off (a table read without one must not gain one on round-trip).
-- `get region(): TableRegion;` — The occupied rectangle, for conflict checks such as overlapping merges.
+#### `Table.rowCount`
+
+```ts
+get rowCount(): number;
+```
+
+The number of data rows (excludes the header and totals rows). Always defined — a table loaded
+from a file derives it from the stored range, so reading the height never throws.
+
+#### `Table.addRow`
+
+```ts
+addRow(values: readonly CellValue[] = []): void;
+```
+
+Append a data row to the bottom of the table, growing its range by one row and writing `values`
+left-to-right across its columns. A loaded table exposes its rows the same as a freshly-authored
+one, so this works identically whether the table was built in memory or read from a file.
+
+A table carrying a totals row appends above it: the new data row lands where the totals row sat,
+and the totals row (with any sheet content below) shifts down by one — exactly what inserting a
+worksheet row does. That relocation lives in the grid, so a totals-row table not attached to a
+worksheet throws, as does passing `values` on any detached table — there is nowhere to put them.
+
+#### `Table.shiftRows`
+
+```ts
+shiftRows(start: number, count: number, delta: number): boolean;
+```
+
+Re-pin the table through a row splice: `count` rows removed at the 1-based `start`, then rows
+inserted so surviving rows below shift by `delta`. A splice entirely above the table moves its
+whole range by `delta`; one landing inside grows or shrinks the data rows to absorb the change;
+one that deletes the table's every row removes it. Returns `false` when the table no longer has
+a row to occupy (the caller drops it), `true` when it survives.
+
+#### `Table.shiftColumns`
+
+```ts
+shiftColumns(start: number, count: number, delta: number): boolean;
+```
+
+Re-pin the table through a column splice. A splice entirely to the table's left moves its anchor
+by `delta`; one to its right leaves it untouched. A splice landing inside the table's columns is
+structural surgery on named columns with no unambiguous answer, so the table's columns are left
+as-is (anchor unchanged) rather than fabricated or dropped. Always returns `true`.
+
+#### `Table.options`
+
+```ts
+get options(): TableOptions;
+```
+
+The options that reconstruct this table — the anchor as a single-cell ref (not the derived
+full range), the columns, and the data-row count with the header/totals flags. Feeding this
+back to the constructor yields an equivalent table, so a worksheet model can carry a table
+losslessly across an export/import round-trip.
+
+#### `Table.range`
+
+```ts
+get range(): string;
+```
+
+The full A1 range the table occupies: header (if any) + data rows + totals (if any). Distinct
+from `TableOptions.ref` (and `options`'s own `ref`), which is only the single-cell
+anchor a table is constructed from — this is the anchor plus the columns/rows it has grown to
+cover.
+
+#### `Table.autoFilterRef`
+
+```ts
+get autoFilterRef(): string | undefined;
+```
+
+The autoFilter range — the header row plus the data rows, never the totals row — or
+`undefined` when the table has no autoFilter: either it is headerless (an autoFilter has
+nothing to anchor to and Excel treats its presence as corruption) or its `autoFilter`
+flag is off (a table read without one must not gain one on round-trip).
+
+#### `Table.region`
+
+```ts
+get region(): TableRegion;
+```
+
+The occupied rectangle, for conflict checks such as overlapping merges.
 
 ---
 

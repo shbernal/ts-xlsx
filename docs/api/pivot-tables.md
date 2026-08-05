@@ -195,9 +195,29 @@ class PivotTable {
 
 **Members**
 
-- `readonly sourceRef: string;` — The `A1:C4` source range: the header row through the last data row, across the field columns.
-- `readonly rowFields: readonly number[];` — Indices into `cacheFields` of the row-axis, column-axis, and value fields.
-- `get valueFieldName(): string;` — The value field's header name, used to label the aggregated data column ("Sum of Amount").
+#### `PivotTable.sourceRef`
+
+```ts
+readonly sourceRef: string;
+```
+
+The `A1:C4` source range: the header row through the last data row, across the field columns.
+
+#### `PivotTable.rowFields`
+
+```ts
+readonly rowFields: readonly number[];
+```
+
+Indices into `cacheFields` of the row-axis, column-axis, and value fields.
+
+#### `PivotTable.valueFieldName`
+
+```ts
+get valueFieldName(): string;
+```
+
+The value field's header name, used to label the aggregated data column ("Sum of Amount").
 
 ---
 

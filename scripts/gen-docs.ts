@@ -225,33 +225,80 @@ function isPublicMember(member: NamedMember): boolean {
 }
 
 /**
- * A class renders as a signature overview (every public member) plus a prose list of
- * each documented member — overloads share one summary. Returns the code-block member
- * lines and the Markdown doc list separately so the reader gets a compact signature
- * block above readable per-member notes.
+ * The declarations that share a member name: an overload set, a get/set pair, or a lone member.
+ *
+ * Grouped because the reference documents a *name*, not a declaration — the two halves of an
+ * accessor and every overload of a method are one thing to a caller, and the JSDoc sits on
+ * whichever declaration the author chose.
+ */
+function groupMembersByName(
+  node: ast.ClassDeclaration,
+  sourceFile: ast.SourceFile,
+): {sigs: string[]; groups: Map<string, NamedMember[]>} {
+  const sigs: string[] = [];
+  const groups = new Map<string, NamedMember[]>();
+  for (const element of node.members) {
+    const member = asNamedMember(element);
+    if (!member || !isPublicMember(member)) continue;
+    sigs.push(`  ${printSignature(member, sourceFile).trim()}`);
+    const name = member.name.getText(sourceFile);
+    let group = groups.get(name);
+    if (!group) {
+      group = [];
+      groups.set(name, group);
+    }
+    group.push(member);
+  }
+  return {sigs, groups};
+}
+
+/**
+ * The signatures worth showing for one member name.
+ *
+ * A method declared more than once is an overload set whose last declaration is the
+ * implementation — an artefact of how TypeScript spells overloading, and not a signature any
+ * caller may pass. Accessors are excluded from that collapse: a get/set pair is also two
+ * body-bearing declarations of one name, but *both* are the caller's surface.
+ */
+function shownSignatures(group: readonly NamedMember[]): readonly NamedMember[] {
+  if (group.length < 2 || !group.every(ast.isMethodDeclaration)) return group;
+  return group.filter((member) => !bodyOf(member));
+}
+
+/**
+ * A class renders as a signature overview (every public member) followed by one block per
+ * documented member — signature, summary, and the same `@throws`/`@param`/`@returns` rendering a
+ * top-level symbol gets. Members went un-tagged for a long time, which left ~40 documented throws
+ * reaching the reference never; routing them through {@link docTags} is what fixed that, and is
+ * why a member is a block rather than the one-line bullet it used to be — a tag list does not fit
+ * on a bullet.
+ *
+ * Returns the overview lines and the member blocks separately so the caller can put the compact
+ * signature block above the prose.
  */
 function renderClassMembers(
   node: ast.ClassDeclaration,
   sourceFile: ast.SourceFile,
+  className: string,
+  checker: Checker,
 ): {sigs: string[]; docs: string[]} {
-  const sigs: string[] = [];
+  const {sigs, groups} = groupMembersByName(node, sourceFile);
   const docs: string[] = [];
-  const documented = new Set<string>();
-  for (const element of node.members) {
-    const member = asNamedMember(element);
-    if (!member || !isPublicMember(member)) continue;
-    const name = member.name.getText(sourceFile);
-    const sig = printSignature(member, sourceFile).trim();
-    sigs.push(`  ${sig}`);
-    if (documented.has(name)) continue;
-    const summary = docText(member);
-    if (summary) {
-      documented.add(name);
-      // The overview block above renders a signature as the author wrote it, line breaks and
-      // all; this list puts one in an inline code span, which cannot survive them.
-      docs.push(`- \`${sig.replace(/\s+/g, ' ')}\` — ${summary.replace(/\s+/g, ' ')}`);
-    }
+  for (const [name, group] of groups) {
+    const documenting = group.find((member) => docText(member) !== '') ?? group[0];
+    if (!documenting) continue;
+    const summary = docText(documenting);
+    const symbol = checker.getSymbolAtLocation(documenting.name);
+    const tagLines = symbol ? docTags(symbol, checker) : [];
+    if (!summary && tagLines.length === 0) continue;
+    const signatures = shownSignatures(group).map((member) =>
+      printSignature(member, sourceFile).trim(),
+    );
+    docs.push(`#### \`${className}.${name}\``, '', '```ts', ...signatures, '```', '');
+    if (summary) docs.push(summary, '');
+    if (tagLines.length > 0) docs.push(...tagLines, '');
   }
+  while (docs.at(-1) === '') docs.pop();
   return {sigs, docs};
 }
 
@@ -301,7 +348,7 @@ function main(project: Project) {
     let signature: string;
     let memberDocs: string[] = [];
     if (ast.isClassDeclaration(decl)) {
-      const {sigs, docs} = renderClassMembers(decl, sourceFile);
+      const {sigs, docs} = renderClassMembers(decl, sourceFile, name, checker);
       const heritage = decl.heritageClauses?.map((h) => h.getText(sourceFile)).join(' ');
       signature = `class ${name}${heritage ? ` ${heritage}` : ''} {\n${sigs.join('\n')}\n}`;
       memberDocs = docs;
