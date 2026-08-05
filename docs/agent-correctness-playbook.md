@@ -112,7 +112,9 @@ cannot quietly redo. Tag `vX.Y.Z`, push it, and publish a GitHub release on it: 
 release event is what publishes to npm (ADR-0026), authenticated by OIDC with no
 credential in the repository. Rehearse first if you want — dispatch `publish.yml` from the
 tag with `dry_run` on — but note the rehearsal reaches `npm publish --dry-run` only for a
-version the registry does not already serve. If the publish job fails the "tag and version
+version the registry does not already serve. A green rehearsal does mean the identity was
+accepted: `--dry-run` alone reports a rejected one as a warning and exits `0`, so the job
+checks the exchange itself rather than trusting npm's exit code. If the publish job fails the "tag and version
 must be the same claim" step, fix `package.json` and re-tag; do not weaken the check. If it
 fails at `npm publish` with a **404** on a package that plainly exists, that is npm refusing
 the OIDC identity, not a missing package: read the trusted publisher on npmjs.com and check

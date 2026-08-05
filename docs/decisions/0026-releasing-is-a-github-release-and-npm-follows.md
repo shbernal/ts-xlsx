@@ -82,6 +82,16 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
   the cause. The general rule that falls out: a publish that 404s on a package that
   demonstrably exists is an identity mismatch, and the thing to read is the trusted
   publisher on npmjs.com, not this repository.
+
+  The rehearsal had been unable to catch any of this, which is the part worth keeping.
+  `npm publish --dry-run` treats a rejected identity as a warning and exits `0` — so the
+  rehearsal passed *because* it was a rehearsal, and the misconfiguration reached a real
+  release twice. A check that cannot fail on the thing it is checking is decoration, and it
+  reads as reassurance, which is worse than having no check at all. The job now reads the
+  verbose log and fails when the exchange was rejected, or when npm never attempted one.
+  Both markers were taken from the failing run's own output and re-run against it, rather
+  than written from what the log was assumed to say — the same discipline the two corrections
+  above had to be learned through.
 - **Revisit when:** npm changes the trusted-publishing contract, or a second package ships
   from this repository (the environment and the publisher config are both single-package
   shaped today).

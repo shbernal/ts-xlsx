@@ -12,6 +12,20 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Fixed
+
+- **A publish rehearsal now fails on a rejected identity.** `npm publish --dry-run` demotes a
+  failed OIDC token exchange to a warning and exits `0`, so the rehearsal reported success for
+  the one failure it exists to catch. That is not hypothetical: the 2026-07-30 rehearsal went
+  green while its exchange returned `404`, which is how a misconfigured trusted publisher
+  survived the check and cost two version numbers before anyone read the log. `publish.yml`
+  now reads the verbose log and fails the job when the exchange was rejected — or when it was
+  never attempted at all, the shape that made 1.0.1 fail `ENEEDAUTH`. Nothing in the library
+  changed; `src/` is untouched.
+
+  (1.0.2 itself reached npm on 2026-08-05, with provenance, once the publisher's `environment`
+  field was corrected on npmjs.com. The workflow needed no change for it.)
+
 ## [1.0.2] — 2026-07-29
 
 ### Changed

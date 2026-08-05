@@ -16,6 +16,8 @@ name: Publish
 #
 # Rehearsing: dispatch it manually with a tag and dry_run left on. That runs every step
 # including the environment approval and `npm publish --dry-run`, and stops short of the write.
+# A rehearsal also fails on a rejected OIDC identity, which `--dry-run` alone reports as a
+# warning and a zero exit — so a green rehearsal means the tag would really publish.
 # The dispatch must run from a ref the `npm-publish` environment admits — that is release tags
 # only, so rehearse from a `v*` tag that contains this file. A release publish always satisfies
 # this by construction: its event ref *is* the tag.
@@ -178,9 +180,51 @@ jobs:
 
           # Verbose because this is the one step whose failure mode is opaque: npm reports a
           # rejected identity as a 404, indistinguishable from a package that does not exist.
-          # The verbose log names the trusted-publishing exchange, which is the difference.
+          # The verbose log names the trusted-publishing exchange, which is the difference —
+          # and the next step reads this log to hold a rehearsal to the same standard.
           echo "npm publish ${args}"
-          npm publish ${args} --loglevel verbose
+          npm publish ${args} --loglevel verbose 2>&1 | tee "${RUNNER_TEMP}/npm-publish.log"
+
+      # `npm publish --dry-run` demotes a rejected identity from an error to a warning and exits
+      # 0. That is precisely backwards for a rehearsal: the one failure it exists to catch is the
+      # one it reports as success, and that is not hypothetical — the rehearsal on 2026-07-30
+      # went green while its exchange 404'd, so a misconfigured trusted publisher survived the
+      # check and cost two version numbers before anyone read the log.
+      #
+      # A real publish needs no such guard: npm exits non-zero when it cannot authenticate.
+      #
+      # Two halves, because "no error" alone is not evidence. The exchange must have been
+      # *attempted* — drop `registry-url` and npm asks nobody at all, which is how 1.0.1 failed
+      # with ENEEDAUTH — and it must not have been *rejected*. Both markers are quoted from the
+      # 2026-07-30 log; `npm http fetch` records 2xx as well as errors, so the attempt line is
+      # present on success too.
+      #
+      # This reads the verbose log, so it depends on `--loglevel verbose` above. Remove that and
+      # the first check fails rather than silently passing, which is the right direction.
+      - name: A rehearsal must fail on a rejected identity
+        if: steps.existing.outputs.published == 'false' && steps.target.outputs.dry_run == 'true'
+        run: |
+          set -euo pipefail
+
+          log="${RUNNER_TEMP}/npm-publish.log"
+
+          if ! grep -q 'oidc/token/exchange' "${log}"; then
+            echo "::error::npm never attempted the OIDC token exchange"
+            echo "The registry was never asked who this job is, so the rehearsal proved nothing"
+            echo "about publishing. Check that setup-node still sets registry-url."
+            exit 1
+          fi
+
+          if grep -qE 'Failed token exchange|This command requires you to be logged in' "${log}"; then
+            echo "::error::npm's OIDC token exchange was rejected"
+            echo "A real publish from this tag would fail. npm reports a rejected identity as a"
+            echo "404, so read the trusted publisher on npmjs.com — its repository, workflow"
+            echo "filename (publish.yml) and environment (npm-publish) must match this job."
+            grep -E 'oidc|logged in' "${log}" >&2 || true
+            exit 1
+          fi
+
+          echo "OIDC token exchange succeeded — this tag would publish for real"
 
       - name: Confirm the registry serves it
         if: steps.existing.outputs.published == 'false' && steps.target.outputs.dry_run != 'true'
