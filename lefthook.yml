@@ -7,15 +7,27 @@
 #
 # Bypass a hook when you genuinely must: `git commit --no-verify` /
 # `git push --no-verify`, or `LEFTHOOK=0 git …` to disable all hooks.
+#
+# Both jobs run their tool as `node <file>`, never through `pnpm exec` or a
+# `node_modules/.bin` shim. A hook pays that wrapper on every single invocation,
+# and it is not small: `pnpm exec` re-verifies the whole dependency tree before
+# the tool sees an argument. Measured on this machine with `biome --version`,
+# which does no work at all — ~0.94 s through `pnpm exec`, ~0.51 s through the
+# `.bin` shim, ~0.21 s direct. That is overhead, not lint.
 
 # Fast, staged-scoped: format + lint only what you're committing, and re-stage
 # any autofixes so the commit is always Biome-clean.
+#
+# `bin/biome` is the `bin` entry from Biome's own package.json — the file the
+# `.bin` shim is generated from and would have run, so this is the published
+# contract rather than a reach into the package. `scripts/install-hooks.ts`
+# resolves lefthook the same way, for the same reason.
 pre-commit:
   parallel: true
   jobs:
     - name: biome
       glob: "*.{ts,js,mjs,cjs,json,jsonc}"
-      run: pnpm exec biome check --write --error-on-warnings --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      run: node node_modules/@biomejs/biome/bin/biome check --write --error-on-warnings --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
 
 # Full source-correctness gate, mirroring .github/workflows/corpus.yml. Runs on
@@ -26,7 +38,6 @@ pre-commit:
 # Re-listing the gates here would be a second definition of "everything" to keep in
 # sync — and the one that silently drifts, since a hook is the copy nobody reads.
 # CI runs the same single command, for the same reason.
-# `node …` rather than `pnpm run verify` skips ~0.84 s of package-manager wrapper.
 pre-push:
   jobs:
     - name: verify
