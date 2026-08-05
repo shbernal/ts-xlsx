@@ -69,8 +69,17 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
   before CI can publish at all, and it pins three names that live outside this repository's
   review: the repository, the workflow *filename*, and the *environment*. Renaming
   `publish.yml` or the `npm-publish` environment breaks publishing until npm is updated to
-  match, and npm reports any of the three disagreeing identically. `environment.yml` needs a
-  PAT, which is the one long-lived credential left; it can only reconfigure an environment,
+  match, and npm reports any of the three disagreeing identically.
+
+  **`ENV_ADMIN_TOKEN` is absent as of 2026-08-05, so `environment.yml` cannot run.** Removing
+  the reviewer was therefore applied by hand — a `PUT` to the environments API with the same
+  payload the workflow builds, read back and confirmed (`reviewers: none`, `deploys from: tag
+  v*`). The file and the live environment agree today, but they agree by coincidence rather
+  than by construction, which is the one property this ADR bought. Until the secret is
+  restored, treat `environment.yml` as documentation: it describes the environment and can no
+  longer enforce it, and a settings-page edit would drift silently the way it did before.
+  `environment.yml` needs a PAT, which is the one long-lived credential left; it can only
+  reconfigure an environment,
   never publish.
 - **Verified, not assumed** — and the verification corrected the design twice and the
   npm-side configuration once, each against a mistake of ours.
