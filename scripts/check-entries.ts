@@ -14,43 +14,45 @@
 //      faithful union, and it is why the whole failure taxonomy is exported from `/errors` alone —
 //      `UnsupportedFormatError` belongs to no single codec.
 //
-// Parsing, not type-checking: the entries are pure re-export lists, so `ts.createSourceFile` gives
-// an exact answer in milliseconds where a `ts.createProgram` would cost a second.
+// Reading the syntax, not the types: an entry is a pure re-export list, so every question here is
+// answered by the parse tree alone. TypeScript 7 publishes no standalone parser, though — a
+// SourceFile is only reachable through a project — so the tree comes from one built over
+// `tsconfig.json`, which already includes `src/**/*.ts`. That costs about as much as loading the
+// TypeScript 6 module used to, and no diagnostics are requested, so a tree that does not typecheck
+// still gets a verdict.
 //
 //   node scripts/check-entries.ts
 
 import {readdirSync, readFileSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
+import * as ast from 'typescript/unstable/ast';
+import {API, type Project} from 'typescript/unstable/sync';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const CONFIG = join(ROOT, 'tsconfig.json');
 const ENTRY_DIR = 'src/entries';
 const BARREL = 'src/index.ts';
 
-function parse(file: string): ts.SourceFile {
-  return ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.Latest);
-}
-
 /** The names an entry barrel re-exports. Entries hold nothing but `export {…} from '…'`. */
-function exportedNames(source: ts.SourceFile): string[] {
+function exportedNames(source: ast.SourceFile): string[] {
   const names: string[] = [];
   for (const statement of source.statements) {
-    if (!ts.isExportDeclaration(statement)) continue;
+    if (!ast.isExportDeclaration(statement)) continue;
     const clause = statement.exportClause;
-    if (clause === undefined || !ts.isNamedExports(clause)) continue;
+    if (clause === undefined || !ast.isNamedExports(clause)) continue;
     for (const element of clause.elements) names.push(element.name.text);
   }
   return names;
 }
 
 /** The entry modules `src/index.ts` unions, as repo-relative paths. */
-function starExportedEntries(source: ts.SourceFile): string[] {
+function starExportedEntries(source: ast.SourceFile): string[] {
   const paths: string[] = [];
   for (const statement of source.statements) {
-    if (!ts.isExportDeclaration(statement) || statement.exportClause !== undefined) continue;
+    if (!ast.isExportDeclaration(statement) || statement.exportClause !== undefined) continue;
     const specifier = statement.moduleSpecifier;
-    if (specifier === undefined || !ts.isStringLiteral(specifier)) continue;
+    if (specifier === undefined || !ast.isStringLiteral(specifier)) continue;
     paths.push(`src/${specifier.text.replace(/^\.\//, '')}`);
   }
   return paths;
@@ -75,56 +77,81 @@ function publishedEntries(): Map<string, string> {
   return map;
 }
 
-const problems: string[] = [];
+function main(project: Project): void {
+  const parse = (file: string): ast.SourceFile => {
+    const source = project.program.getSourceFile(join(ROOT, file));
+    if (!source) throw new Error(`${file} is not in the program — is it covered by tsconfig.json?`);
+    return source;
+  };
 
-const onDisk = readdirSync(join(ROOT, ENTRY_DIR))
-  .filter((name) => name.endsWith('.ts'))
-  .map((name) => `${ENTRY_DIR}/${name}`)
-  .sort();
+  const problems: string[] = [];
 
-const published = publishedEntries();
-const publishedSources = new Set(published.values());
-for (const file of onDisk) {
-  if (!publishedSources.has(file)) {
-    problems.push(`  ${file} is an entry barrel that package.json "exports" does not publish`);
-  }
-}
-for (const [subpath, source] of published) {
-  if (source === BARREL) continue;
-  if (!onDisk.includes(source)) {
-    problems.push(`  package.json publishes "${subpath}" but ${source} does not exist`);
-  }
-}
+  const onDisk = readdirSync(join(ROOT, ENTRY_DIR))
+    .filter((name) => name.endsWith('.ts'))
+    .map((name) => `${ENTRY_DIR}/${name}`)
+    .sort();
 
-const unioned = starExportedEntries(parse(BARREL));
-for (const file of onDisk) {
-  if (!unioned.includes(file)) {
-    problems.push(`  ${BARREL} does not \`export *\` from ${file} — the root specifier loses it`);
-  }
-}
-
-const owner = new Map<string, string>();
-let total = 0;
-for (const file of onDisk) {
-  for (const name of exportedNames(parse(file))) {
-    total += 1;
-    const first = owner.get(name);
-    if (first === undefined) owner.set(name, file);
-    else {
-      problems.push(
-        `  "${name}" is exported by both ${first} and ${file}\n` +
-          `    \`export *\` resolves that ambiguity by dropping the name, so it would disappear from ${BARREL}`,
-      );
+  const published = publishedEntries();
+  const publishedSources = new Set(published.values());
+  for (const file of onDisk) {
+    if (!publishedSources.has(file)) {
+      problems.push(`  ${file} is an entry barrel that package.json "exports" does not publish`);
     }
   }
+  for (const [subpath, source] of published) {
+    if (source === BARREL) continue;
+    if (!onDisk.includes(source)) {
+      problems.push(`  package.json publishes "${subpath}" but ${source} does not exist`);
+    }
+  }
+
+  const unioned = starExportedEntries(parse(BARREL));
+  for (const file of onDisk) {
+    if (!unioned.includes(file)) {
+      problems.push(`  ${BARREL} does not \`export *\` from ${file} — the root specifier loses it`);
+    }
+  }
+
+  const owner = new Map<string, string>();
+  let total = 0;
+  for (const file of onDisk) {
+    for (const name of exportedNames(parse(file))) {
+      total += 1;
+      const first = owner.get(name);
+      if (first === undefined) owner.set(name, file);
+      else {
+        problems.push(
+          `  "${name}" is exported by both ${first} and ${file}\n` +
+            `    \`export *\` resolves that ambiguity by dropping the name, so it would disappear from ${BARREL}`,
+        );
+      }
+    }
+  }
+
+  if (problems.length === 0) {
+    console.log(
+      `entries: ${onDisk.length} public faces, ${total} disjoint exports, all published and unioned`,
+    );
+  } else {
+    console.error(`\nentries: ${problems.length} problem(s) with the public entry points.\n`);
+    console.error(`${problems.join('\n\n')}\n`);
+    process.exitCode = 1;
+  }
 }
 
-if (problems.length === 0) {
-  console.log(
-    `entries: ${onDisk.length} public faces, ${total} disjoint exports, all published and unioned`,
-  );
-} else {
-  console.error(`\nentries: ${problems.length} problem(s) with the public entry points.\n`);
-  console.error(`${problems.join('\n\n')}\n`);
-  process.exit(1);
+// The compiler is a separate process; the snapshot and the server both have to be handed back, or a
+// failing check would leave a tsgo behind and this process hanging on its pipe. `process.exitCode`
+// rather than `process.exit` above, so the close still runs before the exit is taken.
+const api = new API({cwd: ROOT});
+try {
+  const snapshot = api.updateSnapshot({openProjects: [CONFIG]});
+  try {
+    const project = snapshot.getProject(CONFIG);
+    if (!project) throw new Error(`cannot open project ${CONFIG}`);
+    main(project);
+  } finally {
+    snapshot.dispose();
+  }
+} finally {
+  api.close();
 }

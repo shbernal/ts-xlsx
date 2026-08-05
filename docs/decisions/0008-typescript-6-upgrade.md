@@ -1,6 +1,12 @@
 # ADR 0008 — Upgrade to TypeScript 6; hold at 6 (not 7) until the printer API ports
 
-**Status:** Accepted (2026-07-19) · Phase 4 · advances the toolchain from [ADR 0002](./0002-toolchain-standup.md), constrained by the docs generator of [ADR 0006](./0006-docs-from-types.md)
+**Status:** Superseded in part (2026-08-05) by [ADR 0028](./0028-typescript-7-adoption.md) · Accepted (2026-07-19) · Phase 4 · advances the toolchain from [ADR 0002](./0002-toolchain-standup.md), constrained by the docs generator of [ADR 0006](./0006-docs-from-types.md)
+
+> The "hold at 6" half of this decision is spent: the tree is on `typescript@^7.0.2`. The
+> blocker diagnosed below was real and was removed exactly as the *Negative / deferred* note
+> predicted — by rendering signatures from source-text spans instead of `transform`+`printNode`.
+> The `@types/node` reasoning still stands unchanged. Kept for the diagnosis, which is the part
+> worth reading.
 
 ## Context
 

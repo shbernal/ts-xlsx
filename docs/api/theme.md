@@ -9,7 +9,7 @@
 The Office default colour scheme, matching the theme part the writer emits for a workbook with none.
 
 ```ts
-const DEFAULT_THEME_COLOR_SCHEME: Readonly<Partial<Record<"lt1" | "dk1" | "lt2" | "dk2" | "accent1" | "accent2" | "accent3" | "accent4" | "accent5" | "accent6" | "hlink" | "folHlink", string>>>
+const DEFAULT_THEME_COLOR_SCHEME: Readonly<Partial<Record<"accent1" | "accent2" | "accent3" | "accent4" | "accent5" | "accent6" | "dk1" | "dk2" | "folHlink" | "hlink" | "lt1" | "lt2", string>>>
 ```
 
 ---

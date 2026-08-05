@@ -19,7 +19,7 @@ function isTableStyleElementType(value: string): value is TableStyleElementType;
 The four element types banded across several rows or columns — the only ones `TableStyleElement.size` means anything on.
 
 ```ts
-const STRIPE_ELEMENT_TYPES: ReadonlySet<"wholeTable" | "headerRow" | "totalRow" | "firstColumn" | "lastColumn" | "firstRowStripe" | "secondRowStripe" | "firstColumnStripe" | "secondColumnStripe" | "firstHeaderCell" | "lastHeaderCell" | "firstTotalCell" | "lastTotalCell" | "firstSubtotalColumn" | "secondSubtotalColumn" | "thirdSubtotalColumn" | "firstSubtotalRow" | "secondSubtotalRow" | "thirdSubtotalRow" | "blankRow" | "firstColumnSubheading" | "secondColumnSubheading" | "thirdColumnSubheading" | "firstRowSubheading" | "secondRowSubheading" | "thirdRowSubheading" | "pageFieldLabels" | "pageFieldValues">
+const STRIPE_ELEMENT_TYPES: ReadonlySet<"blankRow" | "firstColumn" | "firstColumnStripe" | "firstColumnSubheading" | "firstHeaderCell" | "firstRowStripe" | "firstRowSubheading" | "firstSubtotalColumn" | "firstSubtotalRow" | "firstTotalCell" | "headerRow" | "lastColumn" | "lastHeaderCell" | "lastTotalCell" | "pageFieldLabels" | "pageFieldValues" | "secondColumnStripe" | "secondColumnSubheading" | "secondRowStripe" | "secondRowSubheading" | "secondSubtotalColumn" | "secondSubtotalRow" | "thirdColumnSubheading" | "thirdRowSubheading" | "thirdSubtotalColumn" | "thirdSubtotalRow" | "totalRow" | "wholeTable">
 ```
 
 ---

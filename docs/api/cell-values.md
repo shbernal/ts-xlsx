@@ -254,5 +254,5 @@ interface SharedFormulaValue {
 The observable kind of a cell's value. Both formula shapes report as `Formula`.
 
 ```ts
-const ValueType: { readonly Null: "null"; readonly Number: "number"; readonly String: "string"; readonly Boolean: "boolean"; readonly Date: "date"; readonly Error: "error"; readonly Formula: "formula"; readonly RichText: "richText"; readonly Hyperlink: "hyperlink"; }
+const ValueType: { readonly Null: 'null'; readonly Number: 'number'; readonly String: 'string'; readonly Boolean: 'boolean'; readonly Date: 'date'; readonly Error: 'error'; readonly Formula: 'formula'; readonly RichText: 'richText'; readonly Hyperlink: 'hyperlink'; }
 ```

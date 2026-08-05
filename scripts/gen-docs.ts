@@ -13,11 +13,28 @@
 import {mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import ts from 'typescript';
+import * as ast from 'typescript/unstable/ast';
+import {
+  API,
+  type Checker,
+  type Project,
+  SymbolFlags,
+  type Symbol as TypeSymbol,
+} from 'typescript/unstable/sync';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ENTRY = join(ROOT, 'src/index.ts');
+const CONFIG = join(ROOT, 'tsconfig.json');
 const OUT_DIR = join(ROOT, 'docs/api');
+
+/**
+ * `TypeFormatFlags.NoTruncation`. TypeScript 7 does not export that enum, but the checker
+ * still reads its bits — and without this a wide union renders as `… 18 more …`.
+ */
+const NO_TRUNCATION = 1;
+
+/** The modifiers that keep a class member out of the reference. */
+const HIDDEN = ast.ModifierFlags.Private | ast.ModifierFlags.Protected;
 
 // Human-facing page titles + ordering, keyed by the source module basename an export
 // resolves to. A module not listed here still renders (alphabetically, titled from its
@@ -43,13 +60,12 @@ const GROUPS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /** The body-bearing declarations — the ones whose signature ends where their body begins. */
-function bodyOf(node: ts.Node): ts.Node | undefined {
+function bodyOf(node: ast.Node): ast.Node | undefined {
   if (
-    ts.isFunctionDeclaration(node) ||
-    ts.isMethodDeclaration(node) ||
-    ts.isConstructorDeclaration(node) ||
-    ts.isGetAccessorDeclaration(node) ||
-    ts.isSetAccessorDeclaration(node)
+    ast.isFunctionDeclaration(node) ||
+    ast.isMethodDeclaration(node) ||
+    ast.isGetAccessorDeclaration(node) ||
+    ast.isSetAccessorDeclaration(node)
   ) {
     return node.body;
   }
@@ -65,7 +81,7 @@ function bodyOf(node: ts.Node): ts.Node | undefined {
  * generator needs no emit machinery. Starting at `getStart` drops leading trivia, so the JSDoc
  * above a declaration stays out of the code block that renders it.
  */
-function printSignature(node: ts.Node, sourceFile: ts.SourceFile): string {
+function printSignature(node: ast.Node, sourceFile: ast.SourceFile): string {
   const body = bodyOf(node);
   const text = sourceFile.text
     .slice(node.getStart(sourceFile), body ? body.getStart(sourceFile) : node.getEnd())
@@ -89,15 +105,34 @@ function resolveLinks(text: string): string {
   );
 }
 
-// A bare `@word` mid-sentence silently truncates the rendered summary: TypeScript's JSDoc parser reads
-// it as the start of an unknown tag and drops everything after it. Prose about, say, an `@mention` has
-// to wrap it in backticks — the summary comes from the compiler, so this cannot be fixed downstream.
-function docText(symbol: ts.Symbol, checker: ts.TypeChecker): string {
-  return resolveLinks(ts.displayPartsToString(symbol.getDocumentationComment(checker)).trim());
+/**
+ * The JSDoc block a declaration is documented by.
+ *
+ * A `const` carries its block on the enclosing statement rather than on the declarator, so that
+ * one walks out through the declaration list; every other kind we render is annotated directly.
+ */
+function jsDocOf(node: ast.Node): ast.JSDoc | undefined {
+  const documented = ast.isVariableDeclaration(node) ? node.parent.parent : node;
+  return documented.jsDoc?.at(-1) as ast.JSDoc | undefined;
+}
+
+/**
+ * A declaration's summary prose, read from its JSDoc block.
+ *
+ * The block rather than `Symbol.getDocumentationComment`, because the checker hands back a string
+ * in which `{@link Target}` has already been flattened to a bare `Target` — losing the one piece of
+ * markup {@link resolveLinks} exists to render. The AST still carries the tag intact.
+ *
+ * A bare `@word` mid-sentence silently truncates the summary: TypeScript's JSDoc parser reads it as
+ * the start of an unknown tag and drops everything after it. Prose about, say, an `@mention` has to
+ * wrap it in backticks — the parse happens upstream of here, so this cannot be fixed downstream.
+ */
+function docText(node: ast.Node): string {
+  return resolveLinks((ast.getTextOfJSDocComment(jsDocOf(node)?.comment) ?? '').trim());
 }
 
 /** Render `@throws`, `@param`, `@returns`, `@example` tags into Markdown, in a stable order. */
-function docTags(symbol: ts.Symbol, checker: ts.TypeChecker): string[] {
+function docTags(symbol: TypeSymbol, checker: Checker): string[] {
   const order: Record<string, number> = {param: 0, returns: 1, throws: 2, example: 3};
   const tags = symbol
     .getJsDocTags(checker)
@@ -105,7 +140,7 @@ function docTags(symbol: ts.Symbol, checker: ts.TypeChecker): string[] {
     .sort((a, b) => (order[a.name] ?? 0) - (order[b.name] ?? 0));
   const lines: string[] = [];
   for (const tag of tags) {
-    const text = resolveLinks(ts.displayPartsToString(tag.text).trim());
+    const text = resolveLinks((tag.text ?? '').trim());
     if (tag.name === 'example') {
       lines.push('', '```ts', text, '```');
     } else if (tag.name === 'param') {
@@ -120,27 +155,43 @@ function docTags(symbol: ts.Symbol, checker: ts.TypeChecker): string[] {
   return lines;
 }
 
-function kindLabel(node: ts.Node): string {
-  if (ts.isInterfaceDeclaration(node)) return 'interface';
-  if (ts.isTypeAliasDeclaration(node)) return 'type';
-  if (ts.isClassDeclaration(node)) return 'class';
-  if (ts.isFunctionDeclaration(node)) return 'function';
-  if (ts.isEnumDeclaration(node)) return 'enum';
-  if (ts.isVariableDeclaration(node)) return 'const';
+function kindLabel(node: ast.Node): string {
+  if (ast.isInterfaceDeclaration(node)) return 'interface';
+  if (ast.isTypeAliasDeclaration(node)) return 'type';
+  if (ast.isClassDeclaration(node)) return 'class';
+  if (ast.isFunctionDeclaration(node)) return 'function';
+  if (ast.isEnumDeclaration(node)) return 'enum';
+  if (ast.isVariableDeclaration(node)) return 'const';
   return 'value';
 }
 
-function isPublicMember(member: ts.ClassElement): boolean {
-  if (member.name && ts.isPrivateIdentifier(member.name)) return false;
+/**
+ * The class members the reference can render: the ones carrying a name to key them by and
+ * modifiers to judge their visibility.
+ *
+ * `ClassElement` itself declares neither — TypeScript 7 models it as a bare brand — so the four
+ * kinds that do are narrowed to explicitly. The kinds left out have no name to render under
+ * anyway: a constructor, an index signature, a static block, a stray semicolon.
+ */
+type NamedMember = ast.MethodDeclaration | ast.PropertyDeclaration | ast.AccessorDeclaration;
+
+function asNamedMember(member: ast.ClassElement): NamedMember | undefined {
+  return ast.isMethodDeclaration(member) ||
+    ast.isPropertyDeclaration(member) ||
+    ast.isGetAccessorDeclaration(member) ||
+    ast.isSetAccessorDeclaration(member)
+    ? member
+    : undefined;
+}
+
+function isPublicMember(member: NamedMember): boolean {
+  if (ast.isPrivateIdentifier(member.name)) return false;
   // A computed name is the codec's back channel (`src/core/internal.ts`), keyed by a symbol that
   // never leaves the package. Reachable only by a holder of that symbol, so it is no more public
   // than a `#private` field — and rendering it would dump the whole channel, initializer included,
   // into the reference a caller reads.
-  if (member.name && ts.isComputedPropertyName(member.name)) return false;
-  const mods = ts.canHaveModifiers(member) ? ts.getModifiers(member) : undefined;
-  if (mods?.some((m) => m.kind === ts.SyntaxKind.PrivateKeyword)) return false;
-  if (mods?.some((m) => m.kind === ts.SyntaxKind.ProtectedKeyword)) return false;
-  return Boolean(member.name);
+  if (ast.isComputedPropertyName(member.name)) return false;
+  return (member.modifierFlags & HIDDEN) === 0;
 }
 
 /**
@@ -150,22 +201,20 @@ function isPublicMember(member: ts.ClassElement): boolean {
  * block above readable per-member notes.
  */
 function renderClassMembers(
-  node: ts.ClassDeclaration,
-  sourceFile: ts.SourceFile,
-  checker: ts.TypeChecker,
+  node: ast.ClassDeclaration,
+  sourceFile: ast.SourceFile,
 ): {sigs: string[]; docs: string[]} {
   const sigs: string[] = [];
   const docs: string[] = [];
   const documented = new Set<string>();
-  for (const member of node.members) {
-    if (!isPublicMember(member)) continue;
-    if (!member.name) continue;
+  for (const element of node.members) {
+    const member = asNamedMember(element);
+    if (!member || !isPublicMember(member)) continue;
     const name = member.name.getText(sourceFile);
     const sig = printSignature(member, sourceFile).trim();
     sigs.push(`  ${sig}`);
     if (documented.has(name)) continue;
-    const sym = checker.getSymbolAtLocation(member.name);
-    const summary = sym ? docText(sym, checker) : '';
+    const summary = docText(member);
     if (summary) {
       documented.add(name);
       // The overview block above renders a signature as the author wrote it, line breaks and
@@ -176,16 +225,8 @@ function renderClassMembers(
   return {sigs, docs};
 }
 
-function main() {
-  const program = ts.createProgram([ENTRY], {
-    module: ts.ModuleKind.NodeNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeNext,
-    target: ts.ScriptTarget.ES2022,
-    allowImportingTsExtensions: true,
-    noEmit: true,
-    strict: true,
-  });
-  const checker = program.getTypeChecker();
+function main(project: Project) {
+  const {program, checker} = project;
   const entrySf = program.getSourceFile(ENTRY);
   if (!entrySf) throw new Error(`cannot load entry ${ENTRY}`);
   const moduleSymbol = checker.getSymbolAtLocation(entrySf);
@@ -199,8 +240,10 @@ function main() {
 
   for (const exported of checker.getExportsOfModule(moduleSymbol)) {
     const symbol =
-      exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
-    const decl = symbol.getDeclarations()?.[0];
+      exported.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
+    // A declaration crosses the API boundary as a handle, not a node — resolving it is a
+    // round-trip to the compiler server that holds the tree.
+    const decl = symbol.declarations[0]?.resolve(project);
     if (!decl) continue;
     const sourceFile = decl.getSourceFile();
     const rel = sourceFile.fileName
@@ -217,9 +260,9 @@ function main() {
       pages.set(pageId, page);
     }
 
-    const name = exported.getName();
+    const name = exported.name;
     const kind = kindLabel(decl);
-    const summary = docText(symbol, checker);
+    const summary = docText(decl);
     const tagLines = docTags(symbol, checker);
 
     const block = [`### \`${name}\``, '', `<sub>${kind}</sub>`, ''];
@@ -227,24 +270,25 @@ function main() {
 
     let signature: string;
     let memberDocs: string[] = [];
-    if (ts.isClassDeclaration(decl)) {
-      const {sigs, docs} = renderClassMembers(decl, sourceFile, checker);
+    if (ast.isClassDeclaration(decl)) {
+      const {sigs, docs} = renderClassMembers(decl, sourceFile);
       const heritage = decl.heritageClauses?.map((h) => h.getText(sourceFile)).join(' ');
       signature = `class ${name}${heritage ? ` ${heritage}` : ''} {\n${sigs.join('\n')}\n}`;
       memberDocs = docs;
-    } else if (ts.isVariableDeclaration(decl)) {
+    } else if (ast.isVariableDeclaration(decl)) {
       const type = checker.typeToString(
         checker.getTypeOfSymbolAtLocation(symbol, decl),
         decl,
-        ts.TypeFormatFlags.NoTruncation,
+        NO_TRUNCATION,
       );
       signature = `const ${name}: ${type}`;
-    } else if (ts.isFunctionDeclaration(decl)) {
+    } else if (ast.isFunctionDeclaration(decl)) {
       // Print every overload declaration (those without a body); skip the impl signature.
-      const declarations = symbol.getDeclarations() ?? [];
+      const declarations = symbol.declarations
+        .map((handle) => handle.resolve(project))
+        .filter((d) => d !== undefined);
       const overloads = declarations.filter(
-        (d): d is ts.FunctionDeclaration =>
-          ts.isFunctionDeclaration(d) && (!d.body || declarations.length === 1),
+        (d) => ast.isFunctionDeclaration(d) && (!d.body || declarations.length === 1),
       );
       signature = overloads.map((d) => printSignature(d, d.getSourceFile())).join('\n');
     } else {
@@ -321,4 +365,23 @@ function anchor(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
-main();
+// The compiler runs out-of-process, so the snapshot and the server it lives in are both
+// resources: without the `finally` a throw mid-generation would leave a tsgo process behind
+// and this one hanging on its open pipe.
+//
+// The project comes from `tsconfig.json` rather than a hand-written option set. There is no
+// inline-options door in this API — and shutting it removed a real hazard, since the options
+// gen-docs used to pass were its own and had already drifted from the gate's.
+const api = new API({cwd: ROOT});
+try {
+  const snapshot = api.updateSnapshot({openProjects: [CONFIG]});
+  try {
+    const project = snapshot.getProject(CONFIG);
+    if (!project) throw new Error(`cannot open project ${CONFIG}`);
+    main(project);
+  } finally {
+    snapshot.dispose();
+  }
+} finally {
+  api.close();
+}

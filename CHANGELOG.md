@@ -12,6 +12,17 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Changed
+
+- **The toolchain is on TypeScript 7.** `typescript@^7.0.2` — the native Go compiler — replaces
+  the 6.0 line that [ADR-0008](docs/decisions/0008-typescript-6-upgrade.md) settled on, now that
+  the docs generator no longer needs the printer API that 7 does not ship. The two scripts using
+  the compiler programmatically moved to `typescript/unstable/*`; the type gate got ~4.5× faster.
+  `src/` is untouched and the published API is unchanged. The emitted JS in `dist/` now quotes
+  import specifiers with single quotes rather than double — the emitter's choice, no behavioural
+  difference, and the full corpus passes against the new output. See
+  [ADR-0028](docs/decisions/0028-typescript-7-adoption.md).
+
 ### Fixed
 
 - **A publish rehearsal now fails on a rejected identity.** `npm publish --dry-run` demotes a

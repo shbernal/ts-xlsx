@@ -58,8 +58,8 @@ function jsFiles(dir: string): string[] {
   });
 }
 
-// Emitted JS, not source: `tsc` prints its own quoting (double), so both forms are matched rather
-// than assuming the one the source happens to use.
+// Emitted JS, not source: the emitter picks its own quoting — double under TypeScript 6, single
+// under 7 — so both forms are matched rather than any one being assumed.
 const RELATIVE_SPECIFIER = /\bfrom\s+["'](\.[^"']*)["']/g;
 
 /** Every relative specifier the emitted module imports or re-exports from, resolved to a path. */
