@@ -12,6 +12,12 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+## [1.0.3] — 2026-08-05
+
+Nothing in the library's behaviour changed: `src/` differs from 1.0.2 only in doc comments.
+What reaches a consumer is the JSDoc the package ships — which now states what each documented
+error is — and `dist/` built by a different compiler.
+
 ### Changed
 
 - **The toolchain is on TypeScript 7.** `typescript@^7.0.2` — the native Go compiler — replaces
@@ -22,6 +28,17 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   import specifiers with single quotes rather than double — the emitter's choice, no behavioural
   difference, and the full corpus passes against the new output. See
   [ADR-0028](docs/decisions/0028-typescript-7-adoption.md).
+
+- **Contributor tooling: authored text may no longer contain characters that render as
+  something other than what they mean.** `src/core/range.ts` carried a literal U+0000 byte
+  as a sentinel where the six-character escape was meant. The two are identical to the
+  compiler, and opposite to every text tool downstream: grep answered `Binary file … matches`
+  instead of the matching lines, so the file silently dropped out of searches while still
+  appearing to have been searched — which is how its two `@throws` tags survived the audit
+  below. The sentinel's spelling changed, not its value. `scripts/check-source-text.ts` joins
+  the invariants gate, refusing C0 controls other than tab/LF/CR, DEL, and bidirectional
+  overrides (CVE-2021-42574) across `src`, `scripts`, `test`, `tools` and `docs`. Nothing in
+  the published package changes.
 
 ### Fixed
 
@@ -36,6 +53,14 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   spelling the other 45 already used, the type is rendered rather than discarded, and `gen-docs`
   fails the build on a slot that is not a type name so the shape cannot return. Links
   mid-sentence were never affected and are unchanged.
+
+  Two further faults in the same generator are fixed, both `docs/api/` only. A class member
+  rendered its description and none of its tags, so ~40 `@throws` — including every one on
+  `Workbook` and `Worksheet`, the two pages a caller is most likely to open — reached the
+  reference never; members now get their own block, as top-level functions always had. And
+  `{@link Target}` was parsed and then flattened to a bare code span, leaving the reference
+  with zero links outside its index; 433 now resolve to the page and heading that documents
+  the target, and `gen-docs` fails before writing anything if one would dangle.
 
 - **A publish rehearsal now fails on a rejected identity.** `npm publish --dry-run` demotes a
   failed OIDC token exchange to a warning and exits `0`, so the rehearsal reported success for
@@ -335,7 +360,8 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/shbernal/ts-xlsx/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/shbernal/ts-xlsx/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/shbernal/ts-xlsx/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/shbernal/ts-xlsx/releases/tag/v1.0.0
