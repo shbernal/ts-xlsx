@@ -3,6 +3,7 @@ import {test} from 'node:test';
 
 import {
   type CellValue,
+  cellValueToText,
   coerceCellValue,
   detectValueType,
   isDataTableFormulaValue,
@@ -76,6 +77,51 @@ test('type guards reject the primitive leaves and each other', () => {
   assert.ok(!isErrorValue({richText: []}));
   assert.ok(!isRichTextValue({hyperlink: 'u', text: 't'}));
   assert.ok(!isDataTableFormulaValue({sharedFormula: 'A1'}));
+});
+
+test('cellValueToText renders every primitive leaf', () => {
+  assert.equal(cellValueToText(null), '');
+  assert.equal(cellValueToText(42), '42');
+  assert.equal(cellValueToText(-0.5), '-0.5');
+  assert.equal(cellValueToText('text'), 'text');
+  assert.equal(cellValueToText(true), 'TRUE', "Excel's literal, not JavaScript's");
+  assert.equal(cellValueToText(false), 'FALSE');
+  assert.equal(cellValueToText(new Date(Date.UTC(2026, 0, 2))), '2026-01-02T00:00:00.000Z');
+});
+
+test('cellValueToText gives an invalid Date no text rather than throwing', () => {
+  assert.equal(cellValueToText(new Date(Number.NaN)), '');
+});
+
+test('cellValueToText renders the structural kinds', () => {
+  assert.equal(cellValueToText({error: '#REF!'}), '#REF!');
+  assert.equal(cellValueToText({richText: [{text: 'foo'}, {text: 'bar'}]}), 'foobar');
+  assert.equal(cellValueToText({hyperlink: 'https://x', text: 'label'}), 'label');
+  assert.equal(
+    cellValueToText({hyperlink: 'https://x', text: {richText: [{text: 'rich label'}]}}),
+    'rich label',
+    'the outer shape wins: a hyperlink renders as its label',
+  );
+});
+
+test('cellValueToText renders a formula as its cached result, or nothing', () => {
+  assert.equal(cellValueToText({formula: 'A1+B1', result: 3}), '3');
+  assert.equal(cellValueToText({formula: 'A1+B1'}), '', 'no cached result is no text');
+  assert.equal(cellValueToText({sharedFormula: 'A1', result: 'ok'}), 'ok');
+  assert.equal(cellValueToText({shareType: 'dataTable', ref: 'B2:B5', result: 7}), '7');
+  assert.equal(
+    cellValueToText({formula: 'A1/0', result: {error: '#DIV/0!'}}),
+    '#DIV/0!',
+    'a cached error is the text the grid shows',
+  );
+});
+
+test('cellValueToText applies no number format — the style is not the value', () => {
+  assert.equal(cellValueToText(0.1 + 0.2), '0.30000000000000004');
+});
+
+test('cellValueToText rejects a value outside the union, as detectValueType does', () => {
+  assert.throws(() => cellValueToText({nonsense: true} as unknown as CellValue), TypeError);
 });
 
 test('richTextToPlain concatenates every run in order, ignoring per-run formatting', () => {

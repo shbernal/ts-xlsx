@@ -18,6 +18,7 @@ import {
 } from './style.ts';
 import {
   type CellValue,
+  cellValueToText,
   coerceCellValue,
   detectValueType,
   type RichTextRun,
@@ -76,6 +77,19 @@ export class Cell {
   /** The observable {@link ValueType} of the current value. */
   get type(): ValueType {
     return detectValueType(this.#value);
+  }
+
+  /**
+   * The cell's value as plain text ({@link cellValueToText}), `""` when it is empty — so a reader
+   * that only wants strings never has to narrow the value union itself.
+   *
+   * Read-only, because text is a *rendering* of the value and not a second place to store one:
+   * writing `"3"` here could only mean the string `"3"`, which is exactly `value = '3'` and reads
+   * nothing like it. The number format is not applied either — the style is not the cell's value,
+   * so a currency cell's text carries no currency sign.
+   */
+  get text(): string {
+    return cellValueToText(this.#value);
   }
 
   /**

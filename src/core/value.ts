@@ -192,6 +192,51 @@ export function richTextToPlain(value: RichTextValue): string {
 }
 
 /**
+ * The plain text of any cell value — total over {@link CellValue}, so a caller reading a sheet
+ * whose cells it did not write never has to switch on the union itself.
+ *
+ * This is the *value's* text, not the cell's *display* text: a number renders as JavaScript
+ * renders it, with no number format applied (`0.1 + 0.2` is `"0.30000000000000004"`, a currency
+ * cell has no currency sign), because the format lives on the style and this function is given
+ * only the value. What each kind yields:
+ *
+ * - the empty cell (`null`) and an invalid `Date` → `""`, the two ways a cell has no text
+ * - a boolean → `"TRUE"` / `"FALSE"`, Excel's own literals rather than JavaScript's
+ * - a `Date` → a full ISO-8601 timestamp
+ * - an error → its literal, e.g. `"#REF!"` — the same string the grid shows
+ * - rich text → every run concatenated ({@link richTextToPlain})
+ * - a hyperlink → its label, never its destination
+ * - any of the three formula kinds → the text of the *cached result*, and `""` when the cell
+ *   carries no cached result: the formula source is not text the sheet ever displayed
+ */
+export function cellValueToText(value: CellValue): string {
+  if (value === null) return '';
+  switch (typeof value) {
+    case 'number':
+      return String(value);
+    case 'string':
+      return value;
+    case 'boolean':
+      return value ? 'TRUE' : 'FALSE';
+    default:
+      break;
+  }
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : value.toISOString();
+  // Same precedence as detectValueType, and for the same reason: the outer shape wins, so a
+  // hyperlink whose label is rich text renders as a hyperlink's label, not as rich text.
+  if (isHyperlinkValue(value)) {
+    return typeof value.text === 'string' ? value.text : richTextToPlain(value.text);
+  }
+  // Every formula kind carries a `result` of the same optional shape; one recursion renders it.
+  if (isFormulaValue(value) || isSharedFormulaValue(value) || isDataTableFormulaValue(value)) {
+    return value.result === undefined ? '' : cellValueToText(value.result);
+  }
+  if (isRichTextValue(value)) return richTextToPlain(value);
+  if (isErrorValue(value)) return value.error;
+  return unsupportedValue(value);
+}
+
+/**
  * Classify a value into its observable {@link ValueType}. This is total over
  * {@link CellValue}: every legal value has exactly one type. A `Date` is a date even
  * when its time is `NaN` (an invalid date is still a date-typed cell); serialization,
@@ -218,6 +263,14 @@ export function detectValueType(value: CellValue): ValueType {
   }
   if (isRichTextValue(value)) return ValueType.RichText;
   if (isErrorValue(value)) return ValueType.Error;
+  return unsupportedValue(value);
+}
+
+/**
+ * The verdict "this is not a cell value at all", raised from one place so that every function
+ * total over {@link CellValue} rejects the same inputs with the same message.
+ */
+function unsupportedValue(value: CellValue): never {
   throw new TypeError(`unsupported cell value: ${describe(value)}`);
 }
 

@@ -4,7 +4,9 @@
 // text. The lossy direction (styles, formulas-as-formulas, multiple sheets) is inherent to the
 // format, so this writer makes the honest choices explicit: one selected sheet, each row sized to
 // its own populated extent (never clamped to a sibling row's width), a formula rendered as its
-// cached result, a Date rendered by a caller-supplied format or a full ISO-8601 timestamp.
+// cached result, a Date rendered by a caller-supplied format or a full ISO-8601 timestamp. What a
+// value reads as is `cellValueToText`'s answer, not a private one — a CSV field and `cell.text`
+// disagreeing about the same cell would be a bug in one of them.
 //
 // `writeCsvText` yields the logical text; `writeCsv` encodes it to bytes and — for UTF-8, the
 // default — prepends a byte-order mark so a consumer such as Excel detects the encoding and does
@@ -13,12 +15,10 @@
 import type {Cell} from '../../core/cell.ts';
 import type {CellValue} from '../../core/value.ts';
 import {
-  isErrorValue,
+  cellValueToText,
+  isDataTableFormulaValue,
   isFormulaValue,
-  isHyperlinkValue,
-  isRichTextValue,
   isSharedFormulaValue,
-  richTextToPlain,
 } from '../../core/value.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
@@ -99,21 +99,17 @@ function selectSheet(workbook: Workbook, name: string | undefined): Worksheet {
   return sheet;
 }
 
+// A field is the value's plain text, with one CSV-only deviation: `dateFormat`/`dateUTC` let a
+// caller render dates in something other than ISO-8601. That reaches inside a formula's cached
+// result too, which is why the recursion is here rather than delegated wholesale.
 function csvFieldText(value: CellValue, options: CsvWriteOptions): string {
-  if (value === null) return '';
-  if (typeof value === 'number') return String(value);
-  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
-  if (typeof value === 'string') return value;
-  if (value instanceof Date) return formatDate(value, options.dateFormat, options.dateUTC ?? false);
-  if (isErrorValue(value)) return value.error;
-  if (isRichTextValue(value)) return richTextToPlain(value);
-  if (isHyperlinkValue(value)) {
-    return typeof value.text === 'string' ? value.text : richTextToPlain(value.text);
+  if (value instanceof Date && options.dateFormat !== undefined) {
+    return formatDate(value, options.dateFormat, options.dateUTC ?? false);
   }
-  if (isFormulaValue(value) || isSharedFormulaValue(value)) {
+  if (isFormulaValue(value) || isSharedFormulaValue(value) || isDataTableFormulaValue(value)) {
     return value.result === undefined ? '' : csvFieldText(value.result, options);
   }
-  return '';
+  return cellValueToText(value);
 }
 
 const DATE_TOKENS = /YYYY|YY|MM|DD|HH|mm|ss|M|D|H|m|s/g;

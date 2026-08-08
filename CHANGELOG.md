@@ -14,6 +14,16 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **`cellValueToText` and `Cell.text` — one plain-text rendering of a value, for everyone.**
+  `cellValueToText` is total over `CellValue`: the empty cell and an invalid `Date` give `""`, a
+  boolean gives Excel's `TRUE`/`FALSE`, an error its literal, rich text its runs concatenated, a
+  hyperlink its label, and any of the three formula kinds the text of its cached result. It is the
+  value's text, not the cell's *displayed* text — no number format is applied, because the format
+  lives on the style. `cell.text` is the same answer for the cell you are holding. The CSV writer
+  now renders its fields through it rather than through a private near-copy, so a CSV field and
+  `cell.text` cannot disagree about the same cell; `dateFormat`/`dateUTC` remain a CSV-only
+  deviation. One consequence of the merge: a data-table formula's cached result now reaches a CSV
+  field, where it used to render as empty.
 - **The `CellValue` type guards are public.** `isErrorValue`, `isFormulaValue`,
   `isSharedFormulaValue`, `isDataTableFormulaValue`, `isRichTextValue` and `isHyperlinkValue` have
   always existed — the reader and the writer discriminate the union with them — but the `/core`

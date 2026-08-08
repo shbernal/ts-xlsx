@@ -145,6 +145,7 @@ export {
 } from '../core/theme.ts';
 export {
   type CellValue,
+  cellValueToText,
   coerceCellValue,
   type DataTableFormulaValue,
   detectValueType,

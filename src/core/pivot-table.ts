@@ -347,6 +347,10 @@ function textOf(item: PivotItem): string {
  * Reduce any cell value to the scalar a pivot cache can hold: a number, a string, or a blank. Only
  * finite numbers stay numeric (a NaN would corrupt the cache); every other kind is flattened to its
  * displayed text so hostile or exotic source content can never throw or leak an object into the XML.
+ *
+ * Deliberately not `cellValueToText`, close as the two look: this classifies rather than renders
+ * (a number must reach the cache *as a number*), and its no-throw promise is the opposite of that
+ * function's, which rejects a value outside the union rather than quietly caching a blank.
  */
 function scalarOf(value: CellValue): PivotItem {
   if (value === null) return BLANK;

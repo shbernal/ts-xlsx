@@ -25,6 +25,33 @@ type CellValue =
 
 ---
 
+### `cellValueToText`
+
+<sub>function</sub>
+
+The plain text of any cell value — total over [`CellValue`](./cell-values.md#cellvalue), so a caller reading a sheet
+whose cells it did not write never has to switch on the union itself.
+
+This is the *value's* text, not the cell's *display* text: a number renders as JavaScript
+renders it, with no number format applied (`0.1 + 0.2` is `"0.30000000000000004"`, a currency
+cell has no currency sign), because the format lives on the style and this function is given
+only the value. What each kind yields:
+
+- the empty cell (`null`) and an invalid `Date` → `""`, the two ways a cell has no text
+- a boolean → `"TRUE"` / `"FALSE"`, Excel's own literals rather than JavaScript's
+- a `Date` → a full ISO-8601 timestamp
+- an error → its literal, e.g. `"#REF!"` — the same string the grid shows
+- rich text → every run concatenated ([`richTextToPlain`](./cell-values.md#richtexttoplain))
+- a hyperlink → its label, never its destination
+- any of the three formula kinds → the text of the *cached result*, and `""` when the cell
+  carries no cached result: the formula source is not text the sheet ever displayed
+
+```ts
+function cellValueToText(value: CellValue): string;
+```
+
+---
+
 ### `coerceCellValue`
 
 <sub>function</sub>

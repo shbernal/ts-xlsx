@@ -19,6 +19,7 @@ class Cell {
   get value(): CellValue;
   set value(value: CellValue | undefined);
   get type(): ValueType;
+  get text(): string;
   setRichText(runs: readonly RichTextRun[]): void;
   get style(): CellStyle;
   set style(style: Readonly<CellStyle>);
@@ -83,6 +84,20 @@ get type(): ValueType;
 ```
 
 The observable [`ValueType`](./cell-values.md#valuetype) of the current value.
+
+#### `Cell.text`
+
+```ts
+get text(): string;
+```
+
+The cell's value as plain text ([`cellValueToText`](./cell-values.md#cellvaluetotext)), `""` when it is empty — so a reader
+that only wants strings never has to narrow the value union itself.
+
+Read-only, because text is a *rendering* of the value and not a second place to store one:
+writing `"3"` here could only mean the string `"3"`, which is exactly `value = '3'` and reads
+nothing like it. The number format is not applied either — the style is not the cell's value,
+so a currency cell's text carries no currency sign.
 
 #### `Cell.setRichText`
 

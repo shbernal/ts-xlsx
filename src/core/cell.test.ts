@@ -72,3 +72,21 @@ test('assigning value directly still writes bare runs, for a caller who wants th
   cell.value = {richText: [{text: 'bare', font: {bold: true}}]};
   assert.deepEqual(cell.value, {richText: [{text: 'bare', font: {bold: true}}]});
 });
+
+test('text renders the cell value, and an empty cell has none', () => {
+  const cell = new Cell(1, 1);
+  assert.equal(cell.text, '', 'an untouched cell is empty, not "null"');
+  cell.value = 42;
+  assert.equal(cell.text, '42');
+  cell.value = {formula: 'SUM(A1:A2)', result: 7};
+  assert.equal(cell.text, '7', 'a formula reads as its cached result');
+  cell.setRichText([{text: 'Note:', font: {bold: true}}, {text: ' the rest'}]);
+  assert.equal(cell.text, 'Note: the rest', 'rich runs flatten in order');
+});
+
+test('text ignores the number format — the style is not the value', () => {
+  const cell = new Cell(1, 1);
+  cell.value = 0.5;
+  cell.numFmt = '0.00%';
+  assert.equal(cell.text, '0.5', 'not "50.00%": the format lives on the style');
+});
