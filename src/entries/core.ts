@@ -59,6 +59,7 @@ export {
   type TwoCellAnchor,
   type WorkbookImage,
 } from '../core/image.ts';
+export {MAX_COLUMN_WIDTH, MAX_ROW_HEIGHT} from '../core/limits.ts';
 export type {
   HeaderFooter,
   PageBreak,

@@ -57,6 +57,12 @@ set height(height: number | undefined);
 
 Row height in points; `undefined` leaves the sheet default in force.
 
+Not bounded here, deliberately: [`MAX_ROW_HEIGHT`](./grid-limits.md#maxrowheight) is what Excel accepts, but the schema
+puts no ceiling on `ht` and this setter is also how the reader loads a foreign file, so
+refusing a taller row would mean refusing to read a file that opens fine. Check against the
+constant when authoring — a row above it is one Excel will not draw at the height you asked
+for.
+
 #### `Row.hidden`
 
 ```ts

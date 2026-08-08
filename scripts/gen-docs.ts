@@ -41,6 +41,7 @@ const HIDDEN = ast.ModifierFlags.Private | ast.ModifierFlags.Protected;
 // filename) so a new public module can never silently vanish from the docs.
 const GROUPS: ReadonlyArray<readonly [string, string]> = [
   ['address', 'Addresses & ranges'],
+  ['limits', 'Grid limits'],
   ['value', 'Cell values'],
   ['cell', 'Cell'],
   ['workbook', 'Workbook'],

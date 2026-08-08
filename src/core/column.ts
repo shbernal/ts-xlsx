@@ -56,7 +56,13 @@ export class Column {
     this.#write('key', key);
   }
 
-  /** Column width in character units; `undefined` leaves the sheet default in force. */
+  /**
+   * Column width in character units — digits of the workbook default font's maximum digit width,
+   * so what one unit measures moves with that font. `undefined` leaves the sheet default in force.
+   *
+   * Not bounded here, for the same reason {@link Row.height} is not: {@link MAX_COLUMN_WIDTH} is
+   * Excel's limit, not the schema's, and this setter is the reader's path too.
+   */
   get width(): number | undefined {
     return this.#read('width');
   }

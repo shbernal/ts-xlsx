@@ -14,6 +14,18 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **`MAX_ROW_HEIGHT` and `MAX_COLUMN_WIDTH` — the grid's geometry limits, measured.** The
+  companions to `MAX_ROW`/`MAX_COLUMN`: how large a line may be drawn, where those two bound where
+  a cell may be. `ht` and `width` are a bare `xsd:double` in the schema, so the ceiling is Excel's
+  own, and it is not the one Microsoft's specifications table publishes — Excel Desktop accepts a
+  row height of 409.5 and refuses 409.6, against a documented "409 points". Column width is exactly
+  255. Both were measured over COM rather than quoted; the probe and its numbers are in
+  [`docs/knowledge/specs/grid-geometry-limits-are-excels-not-the-schemas.md`](docs/knowledge/specs/grid-geometry-limits-are-excels-not-the-schemas.md).
+  Nothing enforces them — `Row.height` and `Column.width` are the reader's path into a foreign
+  file as well as an author's, so a bound that threw would refuse files Excel opens. There is
+  deliberately no `DEFAULT_COLUMN_WIDTH` beside them: the default width follows the workbook's
+  default font (8.43 for Calibri 11, 8.09 for Aptos Narrow 11), so a constant would be a wrong
+  answer wearing a right one's name.
 - **`Worksheet.usedRange` — the sheet's extent as a handle.** `rowCount` and `columnCount` said
   once: `A1` through the last row and column carrying anything, or `undefined` when the sheet spans
   no rectangle. It replaces the `` `A1:${numberToColumn(sheet.columnCount)}${sheet.rowCount}` ``

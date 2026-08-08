@@ -45,7 +45,15 @@ export class Row {
     return this.#sheet[INTERNAL].rowPropertiesOf(this.number);
   }
 
-  /** Row height in points; `undefined` leaves the sheet default in force. */
+  /**
+   * Row height in points; `undefined` leaves the sheet default in force.
+   *
+   * Not bounded here, deliberately: {@link MAX_ROW_HEIGHT} is what Excel accepts, but the schema
+   * puts no ceiling on `ht` and this setter is also how the reader loads a foreign file, so
+   * refusing a taller row would mean refusing to read a file that opens fine. Check against the
+   * constant when authoring — a row above it is one Excel will not draw at the height you asked
+   * for.
+   */
   get height(): number | undefined {
     return this.#read('height');
   }
