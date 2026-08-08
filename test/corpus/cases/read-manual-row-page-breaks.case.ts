@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'the fixture declares two manual row breaks (precondition)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sourceBreaks} = await api.roundtripFixtureRowBreaks(FIXTURE);
         assert.deepStrictEqual(
@@ -37,7 +36,6 @@ export default {
     },
     {
       name: 'the loaded worksheet surfaces the manual row breaks',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {loadedBreaks} = await api.roundtripFixtureRowBreaks(FIXTURE);
         assert.deepStrictEqual(
@@ -49,7 +47,6 @@ export default {
     },
     {
       name: 'a load→save round-trip preserves the rowBreaks section',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rewrittenBreaks} = await api.roundtripFixtureRowBreaks(FIXTURE);
         assert.deepStrictEqual(

@@ -1,6 +1,6 @@
 ---
 name: write-corpus-case
-description: Author an implementation-blind regression corpus case under test/corpus/cases. Use when distilling a bug/reproduction into a corpus case, adding a regression test that must survive the rewrite, writing a *.case.ts file, extending the adapter contract, or setting a behavior baseline.
+description: Author a regression corpus case under test/corpus/cases. Use when distilling a bug/reproduction into a corpus case, adding a permanent regression lock, writing a *.case.ts file, or extending the adapter's capability contract.
 ---
 
 # Writing a corpus case
@@ -12,17 +12,21 @@ how the corpus outlived the rewrite it was built to survive. Full reference:
 
 ## The three rules that make a case durable
 
-1. **Implementation-blind.** A case NEVER imports `lib/` (or any implementation). It
-   calls only the adapter's contract vocabulary (`api.decodeAddress(...)` etc.). The
-   adapter is the *only* file allowed to know how an implementation is shaped.
+1. **Reach the library only through a capability.** A case NEVER imports `src/`. It calls
+   the adapter's vocabulary (`api.decodeAddress(...)` etc.); the adapter is the only file
+   allowed to know how the library is shaped. That decoupling is why the corpus survived a
+   full rewrite. It does *not* mean the capability list is hidden — `CorpusApi` is typed,
+   so a name or argument you get wrong is a compile error.
 2. **Describe the real-world scenario, not the source thread.** The durable knowledge
    is "real `.xlsx` files declare whole-column defined names like `$A:$A`", not "issue
    140". Write the scenario into `description` and each behavior `name`. Do **not**
    put upstream issue/PR numbers in that durable text (they die with the fork). A
    number may sit in the optional `provenance` block as a disposable trace only.
-3. **`baseline` records what legacy does *today*.** It is not what you wish were true
-   — it is the observed current-code result, so the runner can tell a known-open bug
-   from a fresh regression without a red build.
+3. **A behavior asserts what must be true, and nothing weaker.** There is no field for
+   "what the code does today". If the behavior does not hold, the case reddens the build —
+   that is the whole point of putting it here. Never soften an assertion to land it green;
+   either the library is wrong and this is the failing reproduction that proves it, or the
+   assertion is wrong and does not belong in the corpus.
 
 ## Shape
 
@@ -42,7 +46,6 @@ export default {
   behavior: [
     {
       name: 'decodeRange("$1:$1") — a full-row range — resolves its known row bounds',
-      baseline: 'pass',                         // what legacy does TODAY (see below)
       expect(api: CorpusApi, assert: Assert) {
         const range = api.decodeRange('$1:$1');
         assert.strictEqual(range.top, 1);
@@ -53,30 +56,31 @@ export default {
 } satisfies Case;
 ```
 
-- **`CorpusApi`** is the shared alias for the implementation-blind adapter surface — a
-  named `any` (never a literal `any`, which Biome rejects). Annotate `api` and any value
-  derived from it (callback params over adapter results) with `CorpusApi`. `Assert` is
-  Node's strict `assert`. Both params must be explicitly annotated — `assert`'s assertion
-  signatures need it (TS2775). The harness is type-checked (`pnpm run typecheck:test`), so
-  a new case must be green there too, not just under `pnpm run corpus`.
+- **`CorpusApi`** is the adapter's capability surface, derived from the adapter object so it
+  cannot drift from it. Annotate `api` with it; let values you pull *out* of a capability be
+  inferred from its return type rather than annotating them. If you genuinely must opt out
+  of typing, import `Untyped` from `../untyped.ts` — it is a named `any` that says so, and
+  it is countable. `Assert` is Node's strict `assert`. Both `expect` params must be
+  explicitly annotated — `assert`'s assertion signatures need it (TS2775). The harness is
+  type-checked (`pnpm run typecheck:test`), so a new case must be green there too, not just
+  under `pnpm run corpus`.
 - **`behavior[]`** — each entry is one assertion about *observable* behavior.
   `expect` gets the adapter and Node's strict `assert`; throw to fail, return to pass.
-  Keep each behavior single-purpose so a baseline flip is unambiguous.
+  Keep each behavior single-purpose so a failure names one thing.
 - **`cluster`** — group by theme (`address-decoding`, tables, styles, streaming,
   pivot, images, conditional-formatting, dates, formulas, csv, types, security/deps).
 
-## Setting the baseline (do this by running, not guessing)
+## Landing it (run it, do not guess)
 
-1. Write the behavior with the assertion for *correct* behavior.
-2. Run `pnpm run corpus` and read the actual result for that behavior.
-3. Set `baseline` to what legacy actually did:
-   - legacy **passes** → `baseline: 'pass'` (a **regression lock** — guards a behavior
-     that already works).
-   - legacy **fails** → `baseline: 'fail'` (a **known-open bug** the rewrite must fix).
+1. Write the behavior asserting what *correct* looks like.
+2. Run `pnpm run corpus --case <your-slug>` and read the result.
+3. Green → it is a regression lock, and you are done. Red → you have a failing
+   reproduction, which is the *good* outcome for a bug you are about to fix: land the fix in
+   the same change (CLAUDE.md §2, "bugs are fixed test-first"). Do not weaken the assertion
+   to get green, and do not land a red case on its own.
 
-The build stays green (`○` known-open is fine); it only goes red on a true
-regression (`✗` = baseline `pass`, now failing). A `↑` means legacy started passing —
-flip that baseline to `pass`.
+Also run `pnpm run typecheck:test` — a mistyped capability name or argument is a compile
+error there, before the corpus ever runs.
 
 ## Fixtures
 
@@ -94,21 +98,23 @@ see below), never by reaching into an implementation's reader directly.
 
 If a case needs a capability the contract doesn't have yet:
 
-1. Add the method to the adapters under `test/corpus/adapters/` (`rewrite.ts`, which
-   binds the contract to the `src/` implementation, and `ooxml-facts.ts` for
-   package-level OOXML facts). Each method returns plain JSON-serializable data —
-   corners, dimensions, cell values — never implementation objects.
-2. Document it in the contract table in `test/corpus/README.md`.
-3. Keep it minimal and behavior-shaped; the vocabulary grows only as cases demand.
-
-`rewrite.ts` binds the contract vocabulary to the `src/` code, so the same case runs
-unchanged against the implementation — the corpus does not move, the implementation
-does.
+1. Add the capability to the module that owns its concern under
+   `test/corpus/adapters/ts-xlsx/` (or `adapters/ooxml-facts.ts` for package-level OOXML
+   facts). Each returns plain JSON-serializable data — corners, dimensions, cell values —
+   never a live model object.
+2. Give it a return shape a case can *use*: build a keyed map with `Object.fromEntries` over
+   a mapped list rather than filling a pre-declared `Record<string, unknown>`, so the shape
+   is inferred and reaches the case. A declared-then-filled record has to name its value
+   type before the literal exists, and the only name available is one every case then has to
+   defeat.
+3. Document it in the contract table in `test/corpus/README.md`.
+4. Keep it minimal and behavior-shaped; the vocabulary grows only as cases demand.
 
 ## Validate
 
 ```
 pnpm run corpus
+pnpm run typecheck:test
 ```
 
-Green (`✓`) and known-open (`○`) are both healthy. Zero `✗` regressions is the bar.
+Every behavior `✓`, zero failures. There is no healthy non-green state.

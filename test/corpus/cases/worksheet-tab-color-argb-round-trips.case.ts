@@ -18,7 +18,6 @@ export default {
   behavior: [
     {
       name: 'the tab color is written as the exact 8-digit ARGB',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tabColorArgbWritten} = await api.tabColorRoundtrip();
         assert.strictEqual(
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'the tab color reads back as the same ARGB',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reReadArgb} = await api.tabColorRoundtrip();
         assert.strictEqual(reReadArgb, 'FFFF0000', 'the tab color survives the round-trip');
@@ -38,7 +36,6 @@ export default {
     },
     {
       name: 'a worksheet with no tab color does not acquire one',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {uncoloredHasTab} = await api.tabColorRoundtrip();
         assert.strictEqual(

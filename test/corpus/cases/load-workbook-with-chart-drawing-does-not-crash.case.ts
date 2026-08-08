@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'a workbook whose drawing is a chart graphicFrame loads without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(
@@ -40,7 +39,6 @@ export default {
     },
     {
       name: 'the worksheets are recovered after loading the chart-bearing workbook',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(
@@ -52,7 +50,6 @@ export default {
     },
     {
       name: 'cell values on the chart’s sheet are readable',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.readFixtureCells(FIXTURE, ['A1', 'B1']);
         assert.strictEqual(cells.A1.value, 'data', 'a text cell on the chart sheet reads back');

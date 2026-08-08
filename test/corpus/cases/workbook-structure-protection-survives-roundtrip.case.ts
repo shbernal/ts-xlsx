@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'workbook structure protection is re-emitted after a read→write round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sourceHadProtection, rewrittenHasProtection} =
           await api.workbookProtectionRoundtrip();
@@ -40,7 +39,6 @@ export default {
     },
     {
       name: 'the re-emitted protection still locks the workbook structure',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rewrittenLocksStructure} = await api.workbookProtectionRoundtrip();
         assert.strictEqual(

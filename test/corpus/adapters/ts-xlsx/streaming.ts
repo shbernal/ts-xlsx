@@ -4,7 +4,7 @@
 import {tmpdir} from 'node:os';
 import {Duplex, PassThrough} from 'node:stream';
 import {strFromU8, unzipSync} from 'fflate';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {
   decodeRange,
@@ -31,7 +31,7 @@ import {buildReadInput, classifyReadError} from './xml-probes.ts';
 export const streaming = {
   // The same classification through the STREAMING reader, driven far enough to open the package — for
   // asserting the streaming entry point is wired to the identical typed-error contract.
-  classifyStreamReadInput(kind: CorpusApi) {
+  classifyStreamReadInput(kind: Untyped) {
     return classifyReadError(() => {
       for (const _sheet of readWorkbookStream(buildReadInput(kind))) break;
     });
@@ -63,7 +63,7 @@ export const streaming = {
       }
     } catch (e) {
       crcValid = false;
-      crcError = String((e as CorpusApi)?.message || e);
+      crcError = String((e as Untyped)?.message || e);
     }
 
     let reloadOk = true;
@@ -72,13 +72,13 @@ export const streaming = {
     const firstCol = [];
     try {
       const wb = readXlsx(buffer);
-      sheetNames = wb.worksheets.map((s: CorpusApi) => s.name);
+      sheetNames = wb.worksheets.map((s: Untyped) => s.name);
       const s = wb.worksheets[0];
       for (let i = 1; i <= Math.min(rows, 3); i++)
         firstCol.push(normalizeStreamValue(s!.getCell(`A${i}`).value));
     } catch (e) {
       reloadOk = false;
-      reloadError = String((e as CorpusApi)?.message || e);
+      reloadError = String((e as Untyped)?.message || e);
     }
     return {partCount, emptyParts, crcValid, crcError, reloadOk, reloadError, sheetNames, firstCol};
   },
@@ -86,8 +86,8 @@ export const streaming = {
   // Drive the streaming worksheet writer through row ops (addRow/addRows), commit, and read the
   // requested cells back → { ok, error, cells, rowCount }. Exercises the batch-add convenience and the
   // single-row control on the same path.
-  async streamWriteSheet({ops = [], read = [], useSharedStrings = false}: CorpusApi = {}) {
-    const toRow = (values: CorpusApi) => (values || []).map(specValueToModel);
+  async streamWriteSheet({ops = [], read = [], useSharedStrings = false}: Untyped = {}) {
+    const toRow = (values: Untyped) => (values || []).map(specValueToModel);
     const writer = new WorkbookStreamWriter({useSharedStrings});
     let error = null;
     try {
@@ -99,13 +99,16 @@ export const streaming = {
       }
       sheet.commit();
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     const buffer = Buffer.from(await writer.commit());
-    if (error) return {ok: false, error, cells: {}, rowCount: 0};
+    // Declared before the failure return so both paths report the same `cells` type. A bare `{}` on
+    // the error path widened the result to `Record<string, …> | {}`, and a case reading `cells.A1`
+    // then had to defeat the union before it could assert anything.
+    const cells: Record<string, Untyped> = {};
+    if (error) return {ok: false, error, cells, rowCount: 0};
 
     const s = readXlsx(buffer).worksheets[0];
-    const cells: Record<string, CorpusApi> = {};
     for (const ref of read)
       cells[ref] = modelValueToSpec(normalizeStreamValue(s!.getCell(ref).value));
     return {ok: true, error: null, cells, rowCount: s!.rowCount};
@@ -123,7 +126,7 @@ export const streaming = {
     try {
       sheet.addRow(['b']).commit();
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     const buffer = Buffer.from(await writer.commit());
     const legibleRejection = error != null && /commit|committed|finaliz|closed/i.test(error);
@@ -194,7 +197,7 @@ export const streaming = {
       sheet.commit();
       buffer = Buffer.from(await writer.commit());
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     let mediaParts: string[] = [];
     let drawingParts: string[] = [];
@@ -240,7 +243,7 @@ export const streaming = {
         ows.commit();
       }
     } catch (e) {
-      copyError = String((e as CorpusApi)?.message || e);
+      copyError = String((e as Untyped)?.message || e);
     }
     const buffer = Buffer.from(await writer.commit());
     if (copyError)
@@ -277,7 +280,7 @@ export const streaming = {
     const writer = new WorkbookStreamWriter();
     const source = writer.stream;
     const sink = new PassThrough();
-    const chunks: CorpusApi[] = [];
+    const chunks: Untyped[] = [];
     sink.on('data', (c) => chunks.push(c));
     const pipeReturn = source.pipe(sink);
     const pipeReturnsDestination = pipeReturn === sink;
@@ -300,7 +303,7 @@ export const streaming = {
   // the output, versus the in-memory writer → { streamSetThrew, streamHasFlag, streamDefaultHasFlag,
   // memoryHasFlag }. Recalc-on-load must work identically on both writers.
   async streamingFullCalcOnLoadReport() {
-    const streamCalc = async (setFlag: CorpusApi) => {
+    const streamCalc = async (setFlag: Untyped) => {
       const writer = new WorkbookStreamWriter();
       let threw = false;
       if (setFlag) {
@@ -431,7 +434,7 @@ export const streaming = {
   // sink must receive a complete, re-openable package — the library owes this even when it does not own
   // the stream.
   async streamCommitReport({duplex = false, timeoutMs = 4000} = {}) {
-    const chunks: CorpusApi[] = [];
+    const chunks: Untyped[] = [];
     const stream = duplex
       ? new Duplex({
           read() {},
@@ -496,7 +499,7 @@ export const streaming = {
       ]);
     } catch (e) {
       outcome = 'threw-sync';
-      error = String((e && ((e as CorpusApi).code || (e as CorpusApi).message)) || e);
+      error = String((e && ((e as Untyped).code || (e as Untyped).message)) || e);
     }
     return {
       outcome,
@@ -509,7 +512,7 @@ export const streaming = {
   // Read a fixture both eagerly and through the streaming reader, reporting the sheet names each
   // surfaces → { eager, streaming }. The streaming reader joins each worksheet part to the
   // workbook-level declaration, so it exposes the real names, not positional placeholders.
-  streamVsEagerSheetNames(rel: CorpusApi) {
+  streamVsEagerSheetNames(rel: Untyped) {
     const eager = readFixture(rel).worksheets.map((s) => s.name);
     const streaming = [...readWorkbookStream(fixtureBytes(rel))].map((s) => s.name);
     return {eager, streaming};
@@ -518,11 +521,11 @@ export const streaming = {
   // Report the first sheet's populated row numbers from both paths → { eager, streaming }. Both skip
   // fully-empty rows (the eager `includeEmpty:false` intent) so a gap between data rows is preserved
   // as a jump in the numbers, never resequenced.
-  streamVsEagerRowNumbers(rel: CorpusApi) {
+  streamVsEagerRowNumbers(rel: Untyped) {
     const es = readFixture(rel).worksheets[0];
-    const eager: CorpusApi[] = [];
+    const eager: Untyped[] = [];
     if (es) for (const row of es.rows()) if (row.cells.length) eager.push(row.number);
-    const streaming: CorpusApi[] = [];
+    const streaming: Untyped[] = [];
     for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
       for (const row of sheet.rows()) if (row.cells.length) streaming.push(row.number);
       break; // first worksheet only
@@ -533,13 +536,13 @@ export const streaming = {
   // Report each populated first-sheet row's { number, hidden } from both paths → { eager, streaming }.
   // The streaming reader must surface a row's hidden flag (in the string form "true"/"false" some
   // generators write), agreeing with the eager read rather than reporting every row visible.
-  streamVsEagerRowHidden(rel: CorpusApi) {
+  streamVsEagerRowHidden(rel: Untyped) {
     const es = readFixture(rel).worksheets[0];
-    const eager: CorpusApi[] = [];
+    const eager: Untyped[] = [];
     if (es)
       for (const row of es.rows())
         if (row.cells.length) eager.push({number: row.number, hidden: !!row.properties?.hidden});
-    const streaming: CorpusApi[] = [];
+    const streaming: Untyped[] = [];
     for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
       for (const row of sheet.rows())
         if (row.cells.length) streaming.push({number: row.number, hidden: !!row.hidden});
@@ -567,7 +570,7 @@ export const streaming = {
       col3: !!es.getColumn(3).hidden,
     };
 
-    const stream: Record<string, CorpusApi> = {};
+    const stream: Record<string, Untyped> = {};
     let error = null;
     try {
       for (const sheet of readWorkbookStream(buffer)) {
@@ -579,7 +582,7 @@ export const streaming = {
         break; // first worksheet only
       }
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     return {eager, stream, error};
   },
@@ -607,7 +610,7 @@ export const streaming = {
         break; // first worksheet only
       }
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     return {eagerMerges, streamedMerges, error};
   },
@@ -615,22 +618,22 @@ export const streaming = {
   // Report the 1-based row-values array for the requested rows from both paths → { eager, streamed }.
   // A streamed row indexes exactly as a full-load row does (empty slot at 0, column A at 1), so a
   // caller can switch readers without re-indexing.
-  streamVsEagerRowValues(spec: CorpusApi, rowNumbers = [1]) {
+  streamVsEagerRowValues(spec: Untyped, rowNumbers = [1]) {
     const buffer = writeXlsx(buildFrom(spec));
     const wanted = new Set(rowNumbers);
 
     const es = readXlsx(buffer).worksheets[0];
-    const eager: Record<string, CorpusApi> = {};
+    const eager: Record<string, Untyped> = {};
     if (es)
       for (const row of es.rows())
-        if (wanted.has(row.number)) eager[row.number] = streamedRowValues(row.cells as CorpusApi[]);
+        if (wanted.has(row.number)) eager[row.number] = streamedRowValues(row.cells as Untyped[]);
     for (const n of rowNumbers) eager[n] ??= [null];
 
-    const streamed: Record<string, CorpusApi> = {};
+    const streamed: Record<string, Untyped> = {};
     for (const sheet of readWorkbookStream(buffer)) {
       for (const row of sheet.rows())
         if (wanted.has(row.number))
-          streamed[row.number] = streamedRowValues(row.cells as CorpusApi[]);
+          streamed[row.number] = streamedRowValues(row.cells as Untyped[]);
       break; // first worksheet only
     }
     for (const n of rowNumbers) streamed[n] ??= [null];
@@ -644,12 +647,12 @@ export const streaming = {
     const wb = new Workbook();
     for (let i = 0; i < count; i++) wb.addWorksheet(`Sheet${i + 1}`).getCell('A1').value = i;
     const buffer = writeXlsx(wb);
-    const names: CorpusApi[] = [];
+    const names: Untyped[] = [];
     let error = null;
     try {
       for (const sheet of readWorkbookStream(buffer)) names.push(sheet.name);
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     return {
       written: count,
@@ -702,8 +705,8 @@ export const streaming = {
   // completes (with every sheet name and the total rows delivered) or its error is captured as data.
   // Locks that the reader tolerates a package whose ZIP places a worksheet part before xl/workbook.xml
   // (the inflate builds a path→bytes map, so entry order is irrelevant).
-  streamReadReport(rel: CorpusApi) {
-    const sheetNames: CorpusApi[] = [];
+  streamReadReport(rel: Untyped) {
+    const sheetNames: Untyped[] = [];
     let totalRows = 0;
     try {
       for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
@@ -712,15 +715,15 @@ export const streaming = {
       }
       return {ok: true, error: null, sheetNames, totalRows};
     } catch (e) {
-      return {ok: false, error: String((e as CorpusApi)?.message || e), sheetNames, totalRows};
+      return {ok: false, error: String((e as Untyped)?.message || e), sheetNames, totalRows};
     }
   },
 
   // Stream-read a fixture's first sheet, reporting each requested cell's { type, value } | null. The
   // type is the model's stable label; a date-formatted numeric cell surfaces as a Date because the
   // streaming reader applies the cell's number format when decoding, exactly as the eager read does.
-  streamReadFixture(rel: CorpusApi, cells: CorpusApi = []) {
-    const wanted = new Map(cells.map((a: CorpusApi) => [a, null]));
+  streamReadFixture(rel: Untyped, cells: Untyped = []) {
+    const wanted = new Map(cells.map((a: Untyped) => [a, null]));
     for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
       for (const row of sheet.rows()) {
         for (const cell of row.cells) {
@@ -733,7 +736,7 @@ export const streaming = {
       }
       break; // first worksheet only
     }
-    const out: Record<string, CorpusApi> = {};
+    const out: Record<string, Untyped> = {};
     for (const [k, v] of wanted) out[k as string] = v;
     return out;
   },
@@ -741,10 +744,10 @@ export const streaming = {
   // Write a spec, then read the requested cells through both paths → { streamed, eager }. Proves the
   // streaming reader returns multi-byte UTF-8 text (CJK, emoji) byte-exact and identical to the eager
   // read — the whole-package inflate decodes UTF-8 as one unit, so no character is split.
-  streamReadSpec(spec: CorpusApi, cells: CorpusApi = []) {
+  streamReadSpec(spec: Untyped, cells: Untyped = []) {
     const buffer = writeXlsx(buildFrom(spec));
     const wanted = new Set(cells);
-    const streamed: Record<string, CorpusApi> = {};
+    const streamed: Record<string, Untyped> = {};
     for (const sheet of readWorkbookStream(buffer)) {
       for (const row of sheet.rows()) {
         for (const cell of row.cells)
@@ -753,7 +756,7 @@ export const streaming = {
       break; // first worksheet only
     }
     const es = readXlsx(buffer).worksheets[0];
-    const eager: Record<string, CorpusApi> = {};
+    const eager: Record<string, Untyped> = {};
     for (const ref of cells) eager[ref] = normalizeStreamValue(es ? es.getCell(ref).value : null);
     return {streamed, eager};
   },

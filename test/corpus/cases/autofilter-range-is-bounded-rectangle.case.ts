@@ -7,6 +7,7 @@
 // bounded reference and round-trip it unchanged, and it must stay within the sheet dimension.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const SPEC = {
   sheets: [
@@ -28,7 +29,7 @@ const SPEC = {
   ],
 };
 
-const isBoundedRect = (ref: CorpusApi) => /^[A-Z]+\d+:[A-Z]+\d+$/.test(ref || '');
+const isBoundedRect = (ref: Untyped) => /^[A-Z]+\d+:[A-Z]+\d+$/.test(ref || '');
 
 export default {
   id: 'autofilter-range-is-bounded-rectangle',
@@ -42,20 +43,18 @@ export default {
   behavior: [
     {
       name: 'the emitted autoFilter ref is the applied bounded rectangle',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(
-          sheets.S.autoFilterRef,
+          sheets.S!.autoFilterRef,
           'A1:C3',
           'the exact bounded range is serialized',
         );
-        assert.ok(isBoundedRect(sheets.S.autoFilterRef), 'the ref has both row and column bounds');
+        assert.ok(isBoundedRect(sheets.S!.autoFilterRef), 'the ref has both row and column bounds');
       },
     },
     {
       name: 'the autoFilter range round-trips unchanged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(

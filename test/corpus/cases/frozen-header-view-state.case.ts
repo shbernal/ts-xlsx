@@ -14,7 +14,6 @@ export default {
   behavior: [
     {
       name: 'the workbook declares exactly one window view, before its sheet list',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.frozenHeaderViewStateReport();
         assert.strictEqual(report.bookViewCount, 1);
@@ -23,7 +22,6 @@ export default {
     },
     {
       name: 'the window view carries a positive width and height for panes to be laid out against',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.frozenHeaderViewStateReport();
         assert.ok(
@@ -38,7 +36,6 @@ export default {
     },
     {
       name: 'exactly one sheet is marked selected, and it is the frozen one',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // Two selected sheets is a group selection, where an edit to one is applied to all of them;
         // none selected leaves the consumer with no sheet view to initialise.
@@ -47,7 +44,6 @@ export default {
     },
     {
       name: 'grouped columns report their depth as outlineLevelCol on the sheet format',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.frozenHeaderViewStateReport();
         assert.strictEqual(report.outlineLevelCol, 1);
@@ -57,7 +53,6 @@ export default {
     },
     {
       name: 'the frozen top row still serializes its pane alongside the view state',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         assert.strictEqual(api.frozenHeaderViewStateReport().paneEmitted, true);
       },

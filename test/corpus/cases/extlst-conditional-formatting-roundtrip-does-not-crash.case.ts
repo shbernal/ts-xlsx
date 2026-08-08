@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'a workbook with x14 extension-list conditional formatting loads without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {loadOk, loadError} = await api.roundtripFixtureWriteReport(FIXTURE);
         assert.strictEqual(loadOk, true, `the load must succeed; got ${JSON.stringify(loadError)}`);
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'writing the workbook back out does not crash on the extension rule',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, writeError} = await api.roundtripFixtureWriteReport(FIXTURE);
         assert.strictEqual(

@@ -8,7 +8,7 @@
 // `current` (legacy) and `rewrite` adapters unzip their own way yet return byte-identical
 // facts, so a case compares like with like across implementations.
 
-import type {CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 /** The parts of a written package, keyed by their zip path. */
 type PartMap = Record<string, string>;
@@ -136,7 +136,7 @@ const sharedFormulaFacts = (xml: string) => {
  * @param spec  the workbook spec that produced the package (drives per-sheet lookup)
  * @param partMap  { [zipPath]: xmlString } for every non-directory package part
  */
-export function packageFacts(spec: CorpusApi, partMap: PartMap) {
+export function packageFacts(spec: Untyped, partMap: PartMap) {
   const parts = Object.keys(partMap).sort();
   const read = (f: string): string | null => (f in partMap ? partMap[f]! : null);
 
@@ -182,103 +182,111 @@ export function packageFacts(spec: CorpusApi, partMap: PartMap) {
 
   const sharedStrings = sharedStringTexts(read('xl/sharedStrings.xml') || '');
 
-  const sheets: Record<string, unknown> = {};
   const sheetIndex: Record<string, string> = {};
-  (spec.sheets || []).forEach((s: CorpusApi, i: number) => {
+  (spec.sheets || []).forEach((s: Untyped, i: number) => {
     sheetIndex[s.name] = `xl/worksheets/sheet${i + 1}.xml`;
   });
-  for (const s of spec.sheets || []) {
-    const xml = read(sheetIndex[s.name]!) || '';
-    const marginTag = (xml.match(/<pageMargins\b[^>]*\/>/) || [''])[0]!;
-    const marginAttrs = attrs(marginTag);
-    const sheetViewTags = [...xml.matchAll(/<sheetView\b[^>]*(?:\/>|>)/g)];
-    // Extract each cell's `<f>` scoped to its own `<c>…</c>` body. A single cross-cell regex would let
-    // `[\s\S]*?` run from one cell's `<c>` to a *later* cell's `<f>`, mis-attributing the formula to the
-    // preceding cell (e.g. a totals row's label cell A4 stealing B4's SUBTOTAL). Iterating cells the way
-    // `cellTexts` does keeps every formula keyed to the cell that owns it.
-    const formulas: Record<string, string> = {};
-    for (const m of xml.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
-      const a = attrs(`<c ${m[1]}>`);
-      if (a.r === undefined || m[2] === undefined) continue;
-      const f = m[2].match(/<f\b[^>]*>([\s\S]*?)<\/f>/);
-      if (f !== null) formulas[a.r] = f[1]!;
-    }
-    const columnGroups = [...xml.matchAll(/<col\b[^>]*\/>/g)].map((t) => {
-      const a = attrs(t[0]);
-      return {
-        min: a.min ? Number(a.min) : null,
-        max: a.max ? Number(a.max) : null,
-        width: a.width ?? null,
-      };
-    });
-    const posOf = (tag: string): number => xml.indexOf(tag);
-    const posDrawing = posOf('<drawing ');
-    const posLegacy = posOf('<legacyDrawing ');
-    const posTable = posOf('<tableParts');
-    const ordered = (a: number, b: number): boolean | null => (a >= 0 && b >= 0 ? a < b : null);
-    const hfBlock = (xml.match(
-      /<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/,
-    ) || [''])[0]!;
-    const hfChild = (tag: string): string | null => {
-      const m = hfBlock.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`));
-      return m ? m[1]! : null;
-    };
-    const hfFlag = (name: string): boolean => new RegExp(`\\b${name}="(1|true)"`).test(hfBlock);
-    const rowAttrs: Record<string, {outlineLevel: number; hidden: boolean; collapsed: boolean}> =
-      {};
-    for (const t of xml.matchAll(/<row\b[^>]*>/g)) {
-      const a = attrs(t[0]);
-      if (a.r === undefined) continue;
-      rowAttrs[a.r] = {
-        outlineLevel: a.outlineLevel !== undefined ? Number(a.outlineLevel) : 0,
-        hidden: a.hidden === '1' || a.hidden === 'true',
-        collapsed: a.collapsed === '1' || a.collapsed === 'true',
-      };
-    }
-    sheets[s.name] = {
-      pageMargins: {present: Object.keys(marginAttrs), values: marginAttrs},
-      hasSheetViews: /<sheetViews>/.test(xml),
-      sheetViewCount: sheetViewTags.length,
-      hasDimension: /<dimension\b/.test(xml),
-      dimensionRef: (xml.match(/<dimension\b[^>]*ref="([^"]*)"/) || [])[1] ?? null,
-      autoFilterRef: (xml.match(/<autoFilter\b[^>]*ref="([^"]*)"/) || [])[1] ?? null,
-      formulas,
-      sharedFormulas: sharedFormulaFacts(xml),
-      columnGroups,
-      maxColumnIndex: columnGroups.reduce((m, g) => Math.max(m, g.max ?? 0), 0),
-      elementOrder: {
-        drawing: posDrawing,
-        legacyDrawing: posLegacy,
-        tableParts: posTable,
-        drawingBeforeLegacy: ordered(posDrawing, posLegacy),
-        legacyBeforeTableParts: ordered(posLegacy, posTable),
-        drawingBeforeTableParts: ordered(posDrawing, posTable),
-      },
-      headerFooter: {
-        present: hfBlock !== '',
-        oddHeader: hfChild('oddHeader'),
-        oddFooter: hfChild('oddFooter'),
-        evenHeader: hfChild('evenHeader'),
-        evenFooter: hfChild('evenFooter'),
-        firstHeader: hfChild('firstHeader'),
-        firstFooter: hfChild('firstFooter'),
-        differentOddEven: hfFlag('differentOddEven'),
-        differentFirst: hfFlag('differentFirst'),
-      },
-      rows: rowAttrs,
-      cellText: cellTexts(xml, sharedStrings),
-      hasBackgroundPicture: /<picture\b[^>]*r:id=/.test(xml),
-      sheetFormat: (() => {
-        const a = attrs((xml.match(/<sheetFormatPr\b[^>]*\/?>/) || [''])[0]!);
+  // Built through `Object.fromEntries` over a mapped list rather than by filling a pre-declared
+  // `Record`, so the per-sheet fact shape below is *inferred* and reaches the cases that read it. The
+  // declared form had to name a value type before the literal existed, and the only name available was
+  // `unknown` — which every case then had to defeat.
+  const sheets = Object.fromEntries(
+    ((spec.sheets || []) as Untyped[]).map((s: Untyped) => {
+      const xml = read(sheetIndex[s.name]!) || '';
+      const marginTag = (xml.match(/<pageMargins\b[^>]*\/>/) || [''])[0]!;
+      const marginAttrs = attrs(marginTag);
+      const sheetViewTags = [...xml.matchAll(/<sheetView\b[^>]*(?:\/>|>)/g)];
+      // Extract each cell's `<f>` scoped to its own `<c>…</c>` body. A single cross-cell regex would let
+      // `[\s\S]*?` run from one cell's `<c>` to a *later* cell's `<f>`, mis-attributing the formula to the
+      // preceding cell (e.g. a totals row's label cell A4 stealing B4's SUBTOTAL). Iterating cells the way
+      // `cellTexts` does keeps every formula keyed to the cell that owns it.
+      const formulas: Record<string, string> = {};
+      for (const m of xml.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+        const a = attrs(`<c ${m[1]}>`);
+        if (a.r === undefined || m[2] === undefined) continue;
+        const f = m[2].match(/<f\b[^>]*>([\s\S]*?)<\/f>/);
+        if (f !== null) formulas[a.r] = f[1]!;
+      }
+      const columnGroups = [...xml.matchAll(/<col\b[^>]*\/>/g)].map((t) => {
+        const a = attrs(t[0]);
         return {
-          defaultRowHeight: a.defaultRowHeight != null ? Number(a.defaultRowHeight) : null,
-          defaultColWidth: a.defaultColWidth != null ? Number(a.defaultColWidth) : null,
-          customHeight: a.customHeight === '1' || a.customHeight === 'true',
+          min: a.min ? Number(a.min) : null,
+          max: a.max ? Number(a.max) : null,
+          width: a.width ?? null,
         };
-      })(),
-      xmlWellFormed: xmlWellFormed(xml),
-    };
-  }
+      });
+      const posOf = (tag: string): number => xml.indexOf(tag);
+      const posDrawing = posOf('<drawing ');
+      const posLegacy = posOf('<legacyDrawing ');
+      const posTable = posOf('<tableParts');
+      const ordered = (a: number, b: number): boolean | null => (a >= 0 && b >= 0 ? a < b : null);
+      const hfBlock = (xml.match(
+        /<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/,
+      ) || [''])[0]!;
+      const hfChild = (tag: string): string | null => {
+        const m = hfBlock.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`));
+        return m ? m[1]! : null;
+      };
+      const hfFlag = (name: string): boolean => new RegExp(`\\b${name}="(1|true)"`).test(hfBlock);
+      const rowAttrs: Record<string, {outlineLevel: number; hidden: boolean; collapsed: boolean}> =
+        {};
+      for (const t of xml.matchAll(/<row\b[^>]*>/g)) {
+        const a = attrs(t[0]);
+        if (a.r === undefined) continue;
+        rowAttrs[a.r] = {
+          outlineLevel: a.outlineLevel !== undefined ? Number(a.outlineLevel) : 0,
+          hidden: a.hidden === '1' || a.hidden === 'true',
+          collapsed: a.collapsed === '1' || a.collapsed === 'true',
+        };
+      }
+      return [
+        s.name as string,
+        {
+          pageMargins: {present: Object.keys(marginAttrs), values: marginAttrs},
+          hasSheetViews: /<sheetViews>/.test(xml),
+          sheetViewCount: sheetViewTags.length,
+          hasDimension: /<dimension\b/.test(xml),
+          dimensionRef: (xml.match(/<dimension\b[^>]*ref="([^"]*)"/) || [])[1] ?? null,
+          autoFilterRef: (xml.match(/<autoFilter\b[^>]*ref="([^"]*)"/) || [])[1] ?? null,
+          formulas,
+          sharedFormulas: sharedFormulaFacts(xml),
+          columnGroups,
+          maxColumnIndex: columnGroups.reduce((m, g) => Math.max(m, g.max ?? 0), 0),
+          elementOrder: {
+            drawing: posDrawing,
+            legacyDrawing: posLegacy,
+            tableParts: posTable,
+            drawingBeforeLegacy: ordered(posDrawing, posLegacy),
+            legacyBeforeTableParts: ordered(posLegacy, posTable),
+            drawingBeforeTableParts: ordered(posDrawing, posTable),
+          },
+          headerFooter: {
+            present: hfBlock !== '',
+            oddHeader: hfChild('oddHeader'),
+            oddFooter: hfChild('oddFooter'),
+            evenHeader: hfChild('evenHeader'),
+            evenFooter: hfChild('evenFooter'),
+            firstHeader: hfChild('firstHeader'),
+            firstFooter: hfChild('firstFooter'),
+            differentOddEven: hfFlag('differentOddEven'),
+            differentFirst: hfFlag('differentFirst'),
+          },
+          rows: rowAttrs,
+          cellText: cellTexts(xml, sharedStrings),
+          hasBackgroundPicture: /<picture\b[^>]*r:id=/.test(xml),
+          sheetFormat: (() => {
+            const a = attrs((xml.match(/<sheetFormatPr\b[^>]*\/?>/) || [''])[0]!);
+            return {
+              defaultRowHeight: a.defaultRowHeight != null ? Number(a.defaultRowHeight) : null,
+              defaultColWidth: a.defaultColWidth != null ? Number(a.defaultColWidth) : null,
+              customHeight: a.customHeight === '1' || a.customHeight === 'true',
+            };
+          })(),
+          xmlWellFormed: xmlWellFormed(xml),
+        },
+      ] as const;
+    }),
+  );
 
   const tables = [];
   for (const p of parts.filter((f) => /^xl\/tables\/table\d+\.xml$/.test(f))) {

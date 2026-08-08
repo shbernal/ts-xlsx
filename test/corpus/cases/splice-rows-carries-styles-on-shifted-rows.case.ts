@@ -9,9 +9,10 @@
 // per-cell style travelling with the row.)
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 // A styled cell two rows below the top; distinct font + fill + numFmt so a lost style is unambiguous.
-const styledCell = (ref: CorpusApi) => ({
+const styledCell = (ref: Untyped) => ({
   ref,
   value: 'styled',
   font: {bold: true, color: {argb: 'FFFF0000'}},
@@ -31,7 +32,6 @@ export default {
   behavior: [
     {
       name: 'deleting a row above a styled cell shifts it up and preserves its value',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {styles} = await api.mutateWorksheet({
           cells: [{ref: 'A1', value: 'top'}, styledCell('A3')],
@@ -47,7 +47,6 @@ export default {
     },
     {
       name: 'the shifted cell keeps its font, fill, and number format',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {styles} = await api.mutateWorksheet({
           cells: [{ref: 'A1', value: 'top'}, styledCell('A3')],
@@ -69,7 +68,6 @@ export default {
     },
     {
       name: 'inserting a row above a styled cell shifts it down and preserves its style',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {styles} = await api.mutateWorksheet({
           cells: [{ref: 'A1', value: 'top'}, styledCell('A3')],

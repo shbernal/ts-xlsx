@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'many sheets each with a table write and reload without error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, writeError, reloadOk, tableCount} = await api.multiSheetTableReport();
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'table part ids are unique across the package',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {idsUnique} = await api.multiSheetTableReport();
         assert.strictEqual(
@@ -46,7 +44,6 @@ export default {
     },
     {
       name: 'a per-sheet data validation survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {firstSheetDvSurvives} = await api.multiSheetTableReport();
         assert.strictEqual(firstSheetDvSurvives, true, 'the list validation is not stripped');

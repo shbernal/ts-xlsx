@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'distinct column names are emitted unchanged (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, writtenNames, uniqueNames} = await api.tableDuplicateColumnNamesReport([
           'a',
@@ -40,7 +39,6 @@ export default {
     },
     {
       name: 'colliding column names are disambiguated into a unique set',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, writtenNames, uniqueNames} = await api.tableDuplicateColumnNamesReport([
           'foo',

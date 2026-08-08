@@ -30,7 +30,6 @@ export default {
   behavior: [
     {
       name: 'with no delete, lastRow points at the true final row (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {lastRow} = api.mutateWorksheet({cells, ops: []});
         assert.ok(lastRow, 'lastRow must resolve for a fully-populated sheet');
@@ -43,7 +42,6 @@ export default {
     },
     {
       name: 'deleting the final row leaves lastRow on the new final populated row, not an empty slot',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {lastRow} = api.mutateWorksheet({
           cells,
@@ -67,7 +65,6 @@ export default {
     },
     {
       name: 'deleting an interior block shifts data up and lastRow follows to the last populated row',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // Remove rows 2..3 (b,c): surviving data is a(1), d(2), e(3); the true last row is 'e'.
         const {lastRow} = api.mutateWorksheet({

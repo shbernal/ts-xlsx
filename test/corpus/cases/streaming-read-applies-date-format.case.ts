@@ -29,7 +29,6 @@ export default {
   behavior: [
     {
       name: 'plain numeric and string cells keep their types in streaming read (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.streamReadFixture(FIXTURE, ['A1', 'C2']);
         assert.strictEqual(cells.A1.type, 'string', 'the header cell is a string');
@@ -38,7 +37,6 @@ export default {
     },
     {
       name: 'a date-formatted cell is surfaced as a date in streaming read',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.streamReadFixture(FIXTURE, ['B2']);
         assert.strictEqual(
@@ -50,7 +48,6 @@ export default {
     },
     {
       name: 'the full read agrees a locale-keyed built-in date id is a date (oracle)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.readFixtureCells(LOCALE_FIXTURE, ['A2', 'A5']);
         assert.strictEqual(
@@ -67,7 +64,6 @@ export default {
     },
     {
       name: 'a cell using a locale-keyed built-in date format streams as a date, matching the full read',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.streamReadFixture(LOCALE_FIXTURE, ['A5']);
         assert.strictEqual(

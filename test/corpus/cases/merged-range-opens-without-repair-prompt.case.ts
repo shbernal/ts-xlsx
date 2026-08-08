@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'the merged range is declared exactly once',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {mergeCount, merges} = await api.mergeCleanReport();
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the covered non-anchor cells are not emitted as populated content',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {populatedCoveredCells} = await api.mergeCleanReport();
         assert.deepStrictEqual(
@@ -46,7 +44,6 @@ export default {
     },
     {
       name: 'the anchor cell’s value and alignment survive a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchorValue, anchorAlignment} = await api.mergeCleanReport();
         assert.strictEqual(anchorValue, 'Group Title', 'the anchor value round-trips');
@@ -62,7 +59,6 @@ export default {
       // merge collapses the range. Excel keeps only the anchor's; a leftover covered <v> under the
       // <mergeCell> ref is the exact geometry that trips the repair prompt.
       name: 'merging over already-populated covered cells discards their values, keeping the anchor',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchorValue, populatedCoveredCells} = await api.mergeOverPopulatedReport();
         assert.deepStrictEqual(

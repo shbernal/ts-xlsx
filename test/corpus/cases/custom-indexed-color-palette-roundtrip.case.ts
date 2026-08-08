@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'the custom indexed-color palette is re-emitted on round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
         assert.ok(source.hasIndexedColors, 'precondition: the source declares a custom palette');
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the palette slot-to-RGB mapping is preserved',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
         assert.deepStrictEqual(

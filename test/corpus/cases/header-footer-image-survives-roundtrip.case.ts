@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'the header/footer image token and its legacyDrawingHF wiring survive the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(
@@ -41,7 +40,6 @@ export default {
     },
     {
       name: 'both VML drawings (header image + comment) survive with the image media',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.strictEqual(

@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'reading with a configured semicolon delimiter splits fields on the semicolon',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, rows} = await api.csvRead({
           csv: 'a;b;c\n1;2;3',
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'writing with a configured semicolon delimiter emits semicolon-separated fields',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, text} = await api.csvWrite({
           spec: {rows: [['a', 'b', 'c']]},
@@ -50,7 +48,6 @@ export default {
     },
     {
       name: 'a value round-trips through a non-comma delimiter with field boundaries intact',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {text} = await api.csvWrite({
           spec: {rows: [['x', 'y']]},

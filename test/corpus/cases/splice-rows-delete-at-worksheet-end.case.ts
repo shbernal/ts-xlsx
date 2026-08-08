@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'deleting an interior row shifts the rows below up and reduces the populated row count',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {rowCount, cells} = api.mutateWorksheet({
           cells: rowCells(),
@@ -44,7 +43,6 @@ export default {
     },
     {
       name: 'deleting rows whose range includes the last populated row actually removes them',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {rowCount, cells} = api.mutateWorksheet({
           cells: rowCells(),
@@ -70,7 +68,6 @@ export default {
     },
     {
       name: 'deleting trailing columns removes them and shrinks the column count',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {columnCount, cells} = api.mutateWorksheet({
           cells: colCells(),

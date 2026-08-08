@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'styling a cell of an inheritance-inserted row does not throw a non-extensible error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {error} = await api.insertRowThenStyle('i');
         assert.strictEqual(
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'the assigned numFmt is applied to the inserted cell',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {numFmt} = await api.insertRowThenStyle('i');
         assert.strictEqual(
@@ -45,7 +43,6 @@ export default {
     },
     {
       name: 'the no-style insert mode also leaves cells mutable (consistency)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {error} = await api.insertRowThenStyle('n');
         assert.strictEqual(error, null, 'the no-style mode leaves cells mutable too');

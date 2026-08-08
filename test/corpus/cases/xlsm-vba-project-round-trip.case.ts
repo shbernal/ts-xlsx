@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'the synthetic macro-enabled package carries a vbaProject part (precondition)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {originalHasVba} = await api.xlsmVbaProjectRoundtrip();
         assert.strictEqual(originalHasVba, true);
@@ -36,7 +35,6 @@ export default {
     },
     {
       name: 'reading the package captures the vbaProject relationship as a preserved workbook reference',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadedPreservedCount} = await api.xlsmVbaProjectRoundtrip();
         assert.strictEqual(
@@ -48,7 +46,6 @@ export default {
     },
     {
       name: 'writing the loaded workbook back out re-emits xl/vbaProject.bin',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rewrittenHasVba} = await api.xlsmVbaProjectRoundtrip();
         assert.strictEqual(
@@ -60,7 +57,6 @@ export default {
     },
     {
       name: 're-emitted workbook.xml declares the macro-enabled content type, not the plain one',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rewrittenIsMacroEnabled} = await api.xlsmVbaProjectRoundtrip();
         assert.strictEqual(

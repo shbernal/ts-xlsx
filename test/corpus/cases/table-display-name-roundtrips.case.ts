@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'the supplied display name reaches the table XML displayName attribute',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writtenDisplayName} = await api.tableDisplayNameReport(DISPLAY);
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the display name survives a reload',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadedDisplayName} = await api.tableDisplayNameReport(DISPLAY);
         assert.strictEqual(
@@ -46,7 +44,6 @@ export default {
     },
     {
       name: 'the internal name is preserved distinctly from the display name',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadedName} = await api.tableDisplayNameReport(DISPLAY);
         assert.strictEqual(

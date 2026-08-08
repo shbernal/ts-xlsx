@@ -37,19 +37,18 @@ export default {
   behavior: [
     {
       name: 'writing a two-cfvo dataBar rule emits well-formed XML with a dataBar element',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, xml} = await api.authorConditionalFormatting(CF);
         assert.strictEqual(writeOk, true, 'writing the dataBar rule does not throw');
-        assert.strictEqual(xml.hasDataBar, true, 'a dataBar element is emitted');
+        assert.strictEqual(xml!.hasDataBar, true, 'a dataBar element is emitted');
         assert.strictEqual(
-          xml.cfvoCount,
+          xml!.cfvoCount,
           2,
           'both cfvo anchors are present (not truncated to one)',
         );
-        assert.strictEqual(xml.hasColor, true, 'the bar color is emitted');
+        assert.strictEqual(xml!.hasColor, true, 'the bar color is emitted');
         assert.strictEqual(
-          xml.wellFormed,
+          xml!.wellFormed,
           true,
           'the conditionalFormatting block is well-formed XML',
         );
@@ -57,7 +56,6 @@ export default {
     },
     {
       name: 'the rule reads back as a dataBar on the same range with its bar color',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reload} = await api.authorConditionalFormatting(CF);
         assert.ok(reload, 'a conditional-formatting rule reads back');
@@ -69,20 +67,18 @@ export default {
       // The gradient flag is written but the reader does not surface it on the round-tripped rule,
       // so it comes back unset — a fidelity gap distinct from the color/anchor preservation above.
       name: 'the gradient flag survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reload} = await api.authorConditionalFormatting(CF);
-        assert.strictEqual(reload.gradient, true, 'the gradient flag reads back as set');
+        assert.strictEqual(reload!.gradient, true, 'the gradient flag reads back as set');
       },
     },
     {
       name: 'both cfvo anchors survive in order',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reload} = await api.authorConditionalFormatting(CF);
-        assert.strictEqual(reload.cfvo.length, 2, 'two cfvo anchors read back');
-        assert.strictEqual(reload.cfvo[0].value, 0, 'the low anchor is 0');
-        assert.strictEqual(reload.cfvo[1].value, 1, 'the high anchor is 1');
+        assert.strictEqual(reload!.cfvo.length, 2, 'two cfvo anchors read back');
+        assert.strictEqual(reload!.cfvo[0]!.value, 0, 'the low anchor is 0');
+        assert.strictEqual(reload!.cfvo[1]!.value, 1, 'the high anchor is 1');
       },
     },
   ],

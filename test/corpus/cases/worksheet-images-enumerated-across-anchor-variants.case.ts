@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'both anchor variants are enumerated (not an empty result)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {count} = await api.enumerateImagesAfterRoundtrip();
         assert.strictEqual(
@@ -33,10 +32,9 @@ export default {
     },
     {
       name: 'each enumerated image reports its top-left cell anchor',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {images} = await api.enumerateImagesAfterRoundtrip();
-        const tls = images.map((i: CorpusApi) => i.tl && `${i.tl.col},${i.tl.row}`).sort();
+        const tls = images.map((i) => i.tl && `${i.tl.col},${i.tl.row}`).sort();
         assert.deepStrictEqual(
           tls,
           ['1,1', '5,5'],
@@ -46,7 +44,6 @@ export default {
     },
     {
       name: 'the media binaries backing the images are present',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {mediaCount} = await api.enumerateImagesAfterRoundtrip();
         assert.ok(mediaCount >= 1, 'the package carries the image media');

@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'a worksheet exposes an image-removal method',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {supported} = await api.removeImageReport();
         assert.strictEqual(
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'removing one image drops it and leaves the others',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {supported, before, after, removedGone, othersSurvive} =
           await api.removeImageReport();

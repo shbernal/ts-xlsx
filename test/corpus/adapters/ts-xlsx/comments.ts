@@ -1,7 +1,7 @@
 // Threaded comments, legacy notes, and rich text.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {commentThreadFacts, packagePartFacts, partMapOf} from './package-facts.ts';
 import {readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 
@@ -34,7 +34,7 @@ export const comments = {
       note = readXlsx(buffer).worksheets[0]!.getCell('A1').note ?? null;
       ok = true;
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     return {ok, error, note};
   },
@@ -45,7 +45,7 @@ export const comments = {
   // cell's comment part disappears and reads back null, while a neighbor that kept its note is intact,
   // and a workbook that never had a note emits no comment part at all.
   removeCellNoteReport() {
-    const partNames = (wb: CorpusApi) => Object.keys(partMapOf(writeXlsx(wb)));
+    const partNames = (wb: Untyped) => Object.keys(partMapOf(writeXlsx(wb)));
     // The note being cleared is the only one, so a lingering comment part would prove the removal
     // merely emptied the note rather than dropping it.
     const solo = new Workbook();
@@ -87,19 +87,19 @@ export const comments = {
   // zero-length run must never emit an empty <t> (Excel flags it corrupt); the surviving runs keep
   // their text and per-run formatting. The rewrite writes rich text inline, so both the empty-<t>
   // scan and the read-back target the worksheet XML (there is no shared-strings part).
-  async richTextRoundtripReport(runs: CorpusApi) {
+  async richTextRoundtripReport(runs: Untyped) {
     const wb = new Workbook();
     wb.addWorksheet('S').getCell('A1').value = {richText: runs};
     const buffer = writeXlsx(wb);
     const parts = partMapOf(buffer);
     const xml = parts['xl/sharedStrings.xml'] || parts['xl/worksheets/sheet1.xml'] || '';
     const emptyTextRunInXml = /<(?:\w+:)?t\b[^>]*\/>|<(?:\w+:)?t\b[^>]*><\/(?:\w+:)?t>/.test(xml);
-    const value = readXlsx(buffer).getWorksheet('S')!.getCell('A1').value as CorpusApi;
+    const value = readXlsx(buffer).getWorksheet('S')!.getCell('A1').value as Untyped;
     const readRuns = value && Array.isArray(value.richText) ? value.richText : [];
     return {
       emptyTextRunInXml,
       runCount: readRuns.length,
-      runs: readRuns.map((r: CorpusApi) => ({
+      runs: readRuns.map((r: Untyped) => ({
         text: r.text ?? null,
         bold: r.font ? (r.font.bold ?? false) : false,
         italic: r.font ? (r.font.italic ?? false) : false,
@@ -110,7 +110,7 @@ export const comments = {
 
   // Read a fixture and report the modern threaded conversations the reader reconstructs — see
   // {@link commentThreadFacts} for the shape.
-  readFixtureCommentThreads(rel: CorpusApi, refs: CorpusApi = []) {
+  readFixtureCommentThreads(rel: Untyped, refs: Untyped = []) {
     return commentThreadFacts(readFixture(rel), refs);
   },
 

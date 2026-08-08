@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a real built-in theme emits its style name (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {real} = await api.tableStyleThemeReport();
         assert.strictEqual(real.ok, true, 'the table writes');
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'a null/absent theme emits no style name (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {nullTheme} = await api.tableStyleThemeReport();
         assert.strictEqual(nullTheme.name, null, 'an unstyled table carries no name attribute');
@@ -38,7 +36,6 @@ export default {
     },
     {
       name: 'the "None" theme produces an unstyled table with no name',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {none} = await api.tableStyleThemeReport();
         assert.strictEqual(
@@ -50,7 +47,6 @@ export default {
     },
     {
       name: 'style flags set alongside the "None" theme survive',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {none} = await api.tableStyleThemeReport();
         assert.strictEqual(

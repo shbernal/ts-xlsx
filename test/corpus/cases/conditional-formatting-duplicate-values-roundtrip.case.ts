@@ -25,10 +25,9 @@ export default {
   behavior: [
     {
       name: 'the source file declares a duplicateValues cfRule (oracle)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source} = await api.roundtripFixtureConditionalFormatting(FIXTURE);
-        const dup = source.rules.find((r: CorpusApi) => r.type === 'duplicateValues');
+        const dup = source.rules.find((r) => r.type === 'duplicateValues');
         assert.ok(
           dup,
           `the fixture must declare a duplicateValues rule; got ${JSON.stringify(source)}`,
@@ -38,10 +37,9 @@ export default {
     },
     {
       name: 'the duplicateValues rule survives a no-op round-trip with its type, dxfId, and priority',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rewritten} = await api.roundtripFixtureConditionalFormatting(FIXTURE);
-        const dup = rewritten.rules.find((r: CorpusApi) => r.type === 'duplicateValues');
+        const dup = rewritten.rules.find((r) => r.type === 'duplicateValues');
         assert.ok(
           dup,
           `the duplicateValues rule must survive re-serialization, not be dropped; rewritten=${JSON.stringify(rewritten)}`,
@@ -52,7 +50,6 @@ export default {
     },
     {
       name: 'the re-written worksheet has no empty conditionalFormatting shell (block without a rule)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rewritten} = await api.roundtripFixtureConditionalFormatting(FIXTURE);
         assert.ok(

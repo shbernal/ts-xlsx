@@ -17,7 +17,6 @@ const FACETS = ['alignment', 'numFmt', 'protection'];
 const isolation = FACETS.flatMap((facet): Behavior[] => [
   {
     name: `setting ${facet} on one cell changes that cell (control)`,
-    baseline: 'pass',
     async expect(api: CorpusApi, assert: Assert) {
       const {target, original} = await api.loadMutateCellFacet(facet);
       assert.notStrictEqual(target, original, `the edited cell must reflect the new ${facet}`);
@@ -25,7 +24,6 @@ const isolation = FACETS.flatMap((facet): Behavior[] => [
   },
   {
     name: `setting ${facet} on one cell does not bleed into a style-sharing sibling (in memory)`,
-    baseline: 'pass',
     async expect(api: CorpusApi, assert: Assert) {
       const {sibling, original, bled} = await api.loadMutateCellFacet(facet);
       assert.ok(
@@ -36,7 +34,6 @@ const isolation = FACETS.flatMap((facet): Behavior[] => [
   },
   {
     name: `after write-back only the edited cell's ${facet} changed on disk`,
-    baseline: 'pass',
     async expect(api: CorpusApi, assert: Assert) {
       const {diskSibling, diskBled} = await api.loadMutateCellFacet(facet);
       assert.ok(

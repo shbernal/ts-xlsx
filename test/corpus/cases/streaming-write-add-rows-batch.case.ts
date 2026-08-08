@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'adding a batch of rows to a streaming worksheet does not throw',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.streamWriteSheet({
           ops: [
@@ -40,7 +39,6 @@ export default {
     },
     {
       name: 'the batch-added rows carry their values in order',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, cells, rowCount} = await api.streamWriteSheet({
           ops: [
@@ -62,7 +60,6 @@ export default {
     },
     {
       name: 'adding rows one at a time works (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, cells, rowCount} = await api.streamWriteSheet({
           ops: [

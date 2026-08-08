@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'a truthy formula result is preserved (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {truthy} = await api.formulaFalsyResultReport();
         assert.strictEqual(truthy.hasResult, true, 'the truthy result is present');
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'a formula result of 0 is preserved, not dropped',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {zero} = await api.formulaFalsyResultReport();
         assert.strictEqual(zero.hasResult, true, 'the numeric-zero result must survive');
@@ -38,7 +36,6 @@ export default {
     },
     {
       name: 'a formula result of false is preserved, not dropped',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {boolFalse} = await api.formulaFalsyResultReport();
         assert.strictEqual(boolFalse.hasResult, true, 'the boolean-false result must survive');
@@ -47,7 +44,6 @@ export default {
     },
     {
       name: 'a formula result of empty string is preserved, not dropped',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {emptyString} = await api.formulaFalsyResultReport();
         assert.strictEqual(emptyString.hasResult, true, 'the empty-string result must survive');

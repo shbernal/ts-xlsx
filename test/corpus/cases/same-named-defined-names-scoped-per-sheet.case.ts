@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'both sheet-scoped ranges of a same-named defined name are retained',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {names} = await api.readFixtureDefinedNames(FIXTURE);
         const ranges = names.namedrange || [];

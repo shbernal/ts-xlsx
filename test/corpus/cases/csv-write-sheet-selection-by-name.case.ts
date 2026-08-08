@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a matching sheet name emits that worksheet’s rows',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {text} = await api.csvWriteSheetSelection('Second');
         assert.strictEqual(text, 'b,2\nc,3', 'the named sheet is written, not the first');
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'no selector emits the first worksheet',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {text} = await api.csvWriteSheetSelection(undefined);
         assert.strictEqual(text, 'a,1', 'the default is the first worksheet');
@@ -37,7 +35,6 @@ export default {
     },
     {
       name: 'a name matching no worksheet does not silently yield empty output',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, rowCount} = await api.csvWriteSheetSelection('Nope');
         assert.ok(

@@ -27,7 +27,6 @@ export default {
   behavior: [
     {
       name: 'a table with a column-level dynamicFilter loads without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(
@@ -39,7 +38,6 @@ export default {
     },
     {
       name: 'the worksheet is recovered intact',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(sheetNames, ['Sheet1'], 'the sheet survives the tolerant read');

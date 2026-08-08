@@ -29,7 +29,6 @@ export default {
   behavior: [
     {
       name: 'a cross-sheet cell formula round-trips with the sheet name casing and ! separator intact',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const out = await api.roundtripFormulas(SPEC);
         assert.strictEqual(
@@ -41,11 +40,10 @@ export default {
     },
     {
       name: 'the written formula XML keeps the mixed-case sheet name (not lowercased)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(
-          sheets.SheetA.formulas.B2,
+          sheets.SheetA!.formulas.B2,
           'MixedCase!A10',
           'the serialized formula text preserves the sheet-name casing and ! separator',
         );
@@ -53,7 +51,6 @@ export default {
     },
     {
       name: 'a data-validation list referencing another sheet keeps that sheet-name casing on round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readBack} = await api.authorListValidations([
           {ref: 'A1', formula: 'Levels!$A$2:$A$9999'},
@@ -69,11 +66,10 @@ export default {
       // Not just the sheet name — the COLUMN LETTERS inside the reference must stay uppercase. A
       // reported defect lower-cased "$A$2" to "$a$2", producing a subtly wrong/invalid reference.
       name: 'the column letters of a cross-sheet reference stay uppercase (not lower-cased)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {xml} = await api.authorListValidations([{ref: 'A1', formula: 'Levels!$A$2:$A$8'}]);
         assert.ok(
-          xml.formula1.some((f: CorpusApi) => f === 'Levels!$A$2:$A$8'),
+          xml.formula1.some((f) => f === 'Levels!$A$2:$A$8'),
           `the reference must keep uppercase column letters; got ${JSON.stringify(xml.formula1)}`,
         );
       },

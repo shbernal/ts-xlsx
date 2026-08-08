@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'every formula reads back as the text its XML twin states',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const result = api.xlsbFormulaTextMatchesXlsxTwin();
         // The message carries each disagreement, so a regression names the token class that broke.
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'operator precedence survives because parentheses are stored, not inferred',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // A postfix stream carries no parentheses of its own — `1+2*3` and `(1+2)*3` differ only in
         // token order. Excel records the author's parentheses explicitly, so a decoder that instead
@@ -44,7 +42,6 @@ export default {
     },
     {
       name: 'unary and postfix operators keep their operand',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         assert.equal(api.xlsbFormula('Calc', 'C4').formula, '-A1');
         assert.equal(api.xlsbFormula('Calc', 'C5').formula, 'A1%');
@@ -53,7 +50,6 @@ export default {
     },
     {
       name: 'literal operands decode to their own spelling',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         assert.equal(api.xlsbFormula('Calc', 'C3').formula, '1.5+2');
         // A quote inside a string literal is doubled, as the formula grammar (not the stored text)
@@ -66,7 +62,6 @@ export default {
     },
     {
       name: 'a reference keeps the axes its author anchored',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // Row and column relativity are two flag bits on one packed word; getting either backwards
         // silently moves every `$`.
@@ -75,7 +70,6 @@ export default {
     },
     {
       name: 'a whole-column or whole-row reference reads in its abbreviated form',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // Stored as an ordinary range spanning every row (or every column) of the grid. `A:A` is not
         // shorthand a reader may choose — it is the only spelling Excel writes.
@@ -85,7 +79,6 @@ export default {
     },
     {
       name: 'a sheet-qualified reference resolves its sheet through the extern-sheet table',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // The token names no sheet: it carries an index into a table of sheet *spans*, which is why
         // a single-sheet reference and a three-dimensional one decode through the same indirection.
@@ -99,14 +92,12 @@ export default {
     },
     {
       name: 'a reference to nothing reads as the reference error, not as a cell',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         assert.equal(api.xlsbFormula('Calc', 'C35').formula, '#REF!+1');
       },
     },
     {
       name: 'a function call recovers its name and its arguments',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // A call token cites its function by number. A fixed-arity call carries no argument count at
         // all — how many operands belong to it is a property of the function, so `PI()` and
@@ -120,7 +111,6 @@ export default {
     },
     {
       name: 'an omitted argument stays omitted',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // The gap in `IF(A1>0,,1)` is a real operand whose text is nothing; dropping it would shift
         // every later argument one place left.
@@ -129,7 +119,6 @@ export default {
     },
     {
       name: 'a post-2007 function is called through the placeholder name Excel registers for it',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // The built-in function table froze around Excel 2007, so a newer function is stored as a
         // call to "user defined" whose name comes from a hidden defined name. The model holds the
@@ -139,7 +128,6 @@ export default {
     },
     {
       name: 'reference-set operators keep their punctuation',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // Intersection is a space and union is a comma — operators that look like formatting, and
         // that a reader dropping them would turn into a different formula that still parses.
@@ -149,7 +137,6 @@ export default {
     },
     {
       name: 'an array constant decodes with its shape and its element types',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // The elements live outside the token stream, in a trailing block whose row and column counts
         // are the only thing saying where each row ends — so the non-square constant is the case that
@@ -163,7 +150,6 @@ export default {
     },
     {
       name: 'an array formula states its formula on the cell that owns it',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // An array formula's cells do not carry the formula: they point at the group's top-left, and
         // the record naming the group comes *after* them in the stream.
@@ -174,7 +160,6 @@ export default {
     },
     {
       name: 'a cached result survives beside the formula that produced it',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         assert.equal(api.xlsbFormula('Calc', 'C14').result, 15);
         assert.equal(api.xlsbFormula('Calc', 'C16').result, 'pos');
@@ -184,7 +169,6 @@ export default {
     },
     {
       name: 'a filled-down formula reads its own translated text on every cell',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // Where the XML form stores one master and marks the rest as clones, Excel's binary form
         // writes each cell's formula out in full — so a clone reads back with the same text either
@@ -201,7 +185,6 @@ export default {
     },
     {
       name: 'defined names read back with their targets and their scope',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // A name's target is a token stream too, so names are unreadable until formulas are — and a
         // name may hold a constant rather than a reference.
@@ -214,7 +197,6 @@ export default {
     },
     {
       name: 'a formula referring to a defined name cites it by name, not by index',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // The token holds a position in the file's name list — a list that also contains the hidden
         // placeholders Excel registers for post-2007 functions. Filtering those out of the model

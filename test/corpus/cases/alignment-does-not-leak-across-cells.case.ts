@@ -52,7 +52,6 @@ export default {
   behavior: [
     {
       name: 'a column’s alignment applies to that column’s cells',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(COL_SPEC);
         const cells = model.sheets.S.cells;
@@ -70,7 +69,6 @@ export default {
     },
     {
       name: 'the column’s alignment does not leak to other columns’ cells',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(COL_SPEC);
         const cells = model.sheets.S.cells;
@@ -86,7 +84,6 @@ export default {
     },
     {
       name: 'setting alignment on one cell does not change its neighbours',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(CELL_SPEC);
         const cells = model.sheets.S.cells;

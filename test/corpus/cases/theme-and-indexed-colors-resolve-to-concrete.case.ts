@@ -24,6 +24,7 @@
 // every cell's link to the theme, so recolouring the workbook would stop working.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const FIXTURE = 'theme-and-indexed-colors-resolve-to-concrete/branded-colors.xlsx';
 const CELLS = ['A1', 'B1', 'C1', 'D1', 'E1'];
@@ -40,7 +41,6 @@ export default {
   behavior: [
     {
       name: 'a theme-backed fill resolves through the workbook’s own colour scheme',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.fixtureColorResolution(FIXTURE, CELLS);
         assert.deepStrictEqual(
@@ -55,7 +55,6 @@ export default {
     },
     {
       name: 'theme index 1 is dk1, so default body text resolves dark, not light',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells, themeColors} = await api.fixtureColorResolution(FIXTURE, CELLS);
         assert.strictEqual(themeColors.dk1, '1A1A1A', 'precondition: an off-black dk1');
@@ -68,7 +67,6 @@ export default {
     },
     {
       name: 'a tint is applied on top of the resolved theme colour',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.fixtureColorResolution(FIXTURE, CELLS);
         assert.strictEqual(cells.B1.fill.theme, 4, 'precondition: same slot as the untinted cell');
@@ -80,7 +78,7 @@ export default {
         );
         // Lightening raises every channel; the check is on the effect, not on one Excel build's
         // rounding of the luminance shift.
-        const channels = (argb: CorpusApi) =>
+        const channels = (argb: Untyped) =>
           [2, 4, 6].map((at: number) => Number.parseInt(argb.slice(at, at + 2), 16));
         const base = channels(cells.A1.fillResolved);
         const tinted = channels(cells.B1.fillResolved);
@@ -92,7 +90,6 @@ export default {
     },
     {
       name: 'the workbook’s custom palette wins over the built-in one',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.fixtureColorResolution(FIXTURE, CELLS);
         assert.deepStrictEqual(cells.C1.fill, {indexed: 2});
@@ -105,7 +102,6 @@ export default {
     },
     {
       name: 'the system foreground index resolves to nothing rather than to black',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.fixtureColorResolution(FIXTURE, CELLS);
         assert.deepStrictEqual(cells.E1.fill, {indexed: 64});
@@ -118,7 +114,6 @@ export default {
     },
     {
       name: 'the built-in palette backs a workbook that overrides nothing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // Entries 0-7 duplicate 8-15 in the legacy palette; both must be known.
         assert.strictEqual(await api.resolveColorOnEmptyWorkbook({indexed: 2}), 'FFFF0000');
@@ -132,7 +127,6 @@ export default {
     },
     {
       name: 'resolving does not rewrite the model’s stored encoding',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // The reference must survive being resolved: the writer re-emits what the model holds, so a
         // resolver that wrote back would turn every themed cell into a literal ARGB and break the

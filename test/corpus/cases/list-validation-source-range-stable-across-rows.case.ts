@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'every cell in the span keeps the exact cross-sheet source reference it was assigned',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, formulae, allIdentical} = await api.listValidationSourceRangeAcrossRows(
           6,
@@ -41,7 +40,6 @@ export default {
     },
     {
       name: 'the lowest row references the same source range as the highest (no drift past the source)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, formulae} = await api.listValidationSourceRangeAcrossRows(6, 'Lookup!A1:A5');
         assert.strictEqual(formulae[0], source, 'first row source reference');
@@ -54,7 +52,6 @@ export default {
     },
     {
       name: 'identical per-cell rules collapse into a single sqref block rather than one per row',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sqrefBlocks} = await api.listValidationSourceRangeAcrossRows(6, 'Lookup!A1:A5');
         assert.strictEqual(

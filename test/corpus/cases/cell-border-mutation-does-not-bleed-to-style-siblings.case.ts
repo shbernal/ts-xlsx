@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'the targeted cell gains the border',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {a1} = await api.loadMutateCellBorder();
         assert.strictEqual(a1, true, 'the cell the border was assigned to has it');
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'style-sharing siblings do not gain an unrequested border',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {a2, a3, bled} = await api.loadMutateCellBorder();
         assert.strictEqual(bled, false, `no sibling may gain the border; got A2=${a2} A3=${a3}`);

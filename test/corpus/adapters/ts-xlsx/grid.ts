@@ -1,7 +1,8 @@
 // Rows, columns, merges and the sheet geometry around them — insertion, splicing, outline
 // levels, freeze panes, print areas and page breaks.
 
-import type {CorpusApi} from '../../case.ts';
+import type {RowInput} from '../../../../src/core/worksheet.ts';
+import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {
   decodeRange,
@@ -26,7 +27,7 @@ export const grid = {
   // Author a sheet, round-trip, load, append more rows after the last populated row, round-trip again →
   // { loadedRowCount, finalRowCount, rows }. The load-bearing fact: a reloaded sheet reports its last
   // populated row so addRow lands new content at N+1 with no gap or overwrite.
-  appendRowsAfterReload(initial = [], append = []) {
+  appendRowsAfterReload(initial: RowInput[] = [], append: RowInput[] = []) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     for (const row of initial) sheet.addRow(row);
@@ -40,9 +41,9 @@ export const grid = {
     const f = final.getWorksheet('S');
     // Mirror the oracle's `row.values.slice(1)` per-row array: each row is sized to its own populated
     // extent, holes are null, and an empty row is an empty array — indexed by row number so a gap shows.
-    const rows: CorpusApi[] = Array.from({length: f!.rowCount}, () => []);
+    const rows: Untyped[] = Array.from({length: f!.rowCount}, () => []);
     for (const {number, cells} of f!.rows()) {
-      const maxCol = cells.reduce((m: number, c: CorpusApi) => Math.max(m, c.col), 0);
+      const maxCol = cells.reduce((m: number, c: Untyped) => Math.max(m, c.col), 0);
       const arr = new Array(maxCol).fill(null);
       for (const cell of cells) arr[cell.col - 1] = normalizeStreamValue(cell.value);
       rows[number - 1] = arr;
@@ -53,9 +54,9 @@ export const grid = {
   // Read a fixture's single _xlnm.Print_Area name (a comma-separated range list), re-write it, and read
   // it again → { sourceRangeCount, readPrintArea, rewrittenRangeCount }. Both disjoint ranges must
   // survive read and re-serialization, never truncated to the first.
-  roundtripFixturePrintAreas(rel: CorpusApi) {
-    const printAreaOf = (wb: CorpusApi) =>
-      wb.definedNames.find((n: CorpusApi) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+  roundtripFixturePrintAreas(rel: Untyped) {
+    const printAreaOf = (wb: Untyped) =>
+      wb.definedNames.find((n: Untyped) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const source = readXlsx(fixtureBytes(rel));
     const readPrintArea = printAreaOf(source);
     const sourceRangeCount = readPrintArea.split(',').filter(Boolean).length;
@@ -67,7 +68,7 @@ export const grid = {
   // Author a sheet-scoped _xlnm.Print_Area over a comma-separated area, round-trip, and report the
   // emitted ranges (sheet prefix stripped) → { ranges }. Two disjoint areas must emit two proper
   // rectangular ranges in one name, not a truncated single range.
-  writePrintAreaDefinedName(area: CorpusApi) {
+  writePrintAreaDefinedName(area: Untyped) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     workbook.defineName({
@@ -84,7 +85,7 @@ export const grid = {
   // Author a sheet-scoped _xlnm.Print_Area over one area (whole-column or bounded), round-trip, and
   // report the written and recovered forms → { writtenDefinedName, reReadPrintArea, reloadOk }. A
   // column-only reference ($A:$D) must recover intact, never decoded to a NaN-mangled address.
-  printAreaRoundtrip(area: CorpusApi) {
+  printAreaRoundtrip(area: Untyped) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     workbook.defineName({
@@ -93,14 +94,14 @@ export const grid = {
       refersTo: printAreaRefersTo(sheet.name, area),
     });
     let reloadOk = true;
-    let back: CorpusApi;
+    let back: Untyped;
     try {
       back = readXlsx(writeXlsx(workbook));
     } catch {
       reloadOk = false;
     }
     const refersTo =
-      back?.definedNames.find((n: CorpusApi) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+      back?.definedNames.find((n: Untyped) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const reReadPrintArea = refersTo.split('!').pop()?.replace(/\$/g, '') ?? '';
     return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
@@ -248,7 +249,7 @@ export const grid = {
     const buffer = writeXlsx(wb);
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     // A column emits an explicit width when its `<col>` carries a customWidth flag over its index.
-    const emittedAt = (index: CorpusApi) =>
+    const emittedAt = (index: Untyped) =>
       new RegExp(`<col\\b[^>]*\\bmin="${index}"[^>]*\\bmax="${index}"[^>]*\\bcustomWidth="1"`).test(
         sheetXml,
       );
@@ -281,9 +282,9 @@ export const grid = {
 
     const loaded = readXlsx(writeXlsx(workbook));
     const s = loaded.getWorksheet('S');
-    const rows: Record<string, Record<string, CorpusApi>> = {};
+    const rows: Record<string, Record<string, Untyped>> = {};
     for (const {number, cells} of s!.rows()) {
-      const row: Record<string, CorpusApi> = {};
+      const row: Record<string, Untyped> = {};
       for (const cell of cells)
         row[encodeAddress(cell.col, number).match(/^[A-Z]+/)![0]] = normalizeStreamValue(
           cell.value,
@@ -337,19 +338,19 @@ export const grid = {
   // loadedBreaks, rewrittenBreaks }, each the ascending list of break row ids. sourceBreaks reads the
   // raw fixture XML (the precondition); loadedBreaks/rewrittenBreaks come off the model after read and
   // after write→re-read, so a dropped-on-read or dropped-on-write regression shows as an empty list.
-  roundtripFixtureRowBreaks(rel: CorpusApi) {
-    const rowBreakIds = (xml: CorpusApi) => {
+  roundtripFixtureRowBreaks(rel: Untyped) {
+    const rowBreakIds = (xml: Untyped) => {
       const section = xml.match(/<rowBreaks[\s\S]*?<\/rowBreaks>/);
       if (section === null) return [];
       return [...section[0].matchAll(/<brk\b[^>]*\bid="(\d+)"/g)]
         .map((m) => Number(m[1]))
         .sort((a, b) => a - b);
     };
-    const sheet1 = (parts: CorpusApi) => parts['xl/worksheets/sheet1.xml'] ?? '';
-    const modelBreaks = (wb: CorpusApi) =>
+    const sheet1 = (parts: Untyped) => parts['xl/worksheets/sheet1.xml'] ?? '';
+    const modelBreaks = (wb: Untyped) =>
       wb.worksheets[0].rowBreaks
-        .map((brk: CorpusApi) => brk.id)
-        .sort((a: CorpusApi, b: CorpusApi) => a - b);
+        .map((brk: Untyped) => brk.id)
+        .sort((a: Untyped, b: Untyped) => a - b);
 
     const sourceBreaks = rowBreakIds(sheet1(partMapOf(fixtureBytes(rel))));
     const loaded = readFixture(rel);
@@ -369,13 +370,13 @@ export const grid = {
     s.getCell('A2').value = 'data';
     s.mergeCells('A1:B3');
     const rs = readXlsx(writeXlsx(wb)).worksheets[0]!;
-    const rects = rs.merges.map((range: CorpusApi) => {
+    const rects = rs.merges.map((range: Untyped) => {
       const {top, left, bottom, right} = decodeRange(range);
       return {top, left, bottom, right, masterRef: encodeAddress(left!, top!)};
     });
-    const masterOf = (row: CorpusApi, col: CorpusApi) =>
+    const masterOf = (row: Untyped, col: Untyped) =>
       rects.find((r) => row >= r.top! && row <= r.bottom! && col >= r.left! && col <= r.right!);
-    const visited: CorpusApi[] = [];
+    const visited: Untyped[] = [];
     for (let row = 1; row <= rs.rowCount; row++) {
       for (let col = 1; col <= rs.columnCount; col++) visited.push(encodeAddress(col, row));
     }
@@ -395,12 +396,12 @@ export const grid = {
   // an include-empty iteration yields → { rows: { <n>: { cols } }, columnCount }. Positional iteration
   // walks 1..columnCount (the sheet's declared width), so interior *and* trailing empties are surfaced
   // and every row reconstructs to the header width — the alignment invariant a positional consumer needs.
-  async readRowCellPresence(spec: CorpusApi, rowNumbers: CorpusApi = []) {
+  async readRowCellPresence(spec: Untyped, rowNumbers: Untyped = []) {
     const sheet = readXlsx(writeXlsx(buildFrom(spec))).worksheets[0]!;
     const columnCount = sheet.columnCount;
-    const rows: Record<string, CorpusApi> = {};
+    const rows: Record<string, Untyped> = {};
     for (const rn of rowNumbers) {
-      const cols: CorpusApi[] = [];
+      const cols: Untyped[] = [];
       for (let col = 1; col <= columnCount; col++) {
         sheet.getCell(encodeAddress(col, rn));
         cols.push(col);
@@ -418,7 +419,7 @@ export const grid = {
     const ws = wb.addWorksheet('S');
     ws.getCell('A1').value = 'Group';
     ws.mergeCells('A1:B1');
-    const textOf = (ref: CorpusApi) => {
+    const textOf = (ref: Untyped) => {
       const v = ws.getCell(ref).value;
       return v === null || v === undefined ? '' : String(v);
     };
@@ -443,7 +444,7 @@ export const grid = {
   // declares the range exactly once and emits a value only on the anchor, so the covered cells
   // carry no conflicting <v> — the shape that opens without Excel's repair prompt — and the
   // anchor's value and alignment survive the round-trip.
-  mergeCleanReport({anchor = 'B1', range = 'B1:G1', value = 'Group Title'}: CorpusApi = {}) {
+  mergeCleanReport({anchor = 'B1', range = 'B1:G1', value = 'Group Title'}: Untyped = {}) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     const cell = sheet.getCell(anchor);
@@ -454,7 +455,7 @@ export const grid = {
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     const merges = [...sheetXml.matchAll(/<mergeCell\b[^>]*ref="([^"]*)"/g)].map((m) => m[1]);
     const {left, right, top, bottom} = decodeRange(range);
-    const populatedCoveredCells: CorpusApi[] = [];
+    const populatedCoveredCells: Untyped[] = [];
     for (let r = top!; r <= bottom!; r++) {
       for (let c = left!; c <= right!; c++) {
         const ref = encodeAddress(c, r);
@@ -477,11 +478,7 @@ export const grid = {
   // values behind. Write and read back → { anchorValue, populatedCoveredCells, coveredValuesOnRead }.
   // Excel keeps only the anchor's value on merge; a covered cell that still carries a <v> under the
   // <mergeCell> ref is the geometry that trips Excel's repair prompt.
-  mergeOverPopulatedReport({
-    anchor = 'B1',
-    range = 'B1:G1',
-    value = 'Group Title',
-  }: CorpusApi = {}) {
+  mergeOverPopulatedReport({anchor = 'B1', range = 'B1:G1', value = 'Group Title'}: Untyped = {}) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     const {left, right, top, bottom} = decodeRange(range);
@@ -494,7 +491,7 @@ export const grid = {
     sheet.mergeCells(range);
     const buffer = writeXlsx(workbook);
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
-    const populatedCoveredCells: CorpusApi[] = [];
+    const populatedCoveredCells: Untyped[] = [];
     for (let r = top!; r <= bottom!; r++) {
       for (let c = left!; c <= right!; c++) {
         const ref = encodeAddress(c, r);
@@ -540,7 +537,7 @@ export const grid = {
   // (slave) cell inside it, write, and report which cells carry an independent <v> in the sheet
   // XML, the declared merges, and the re-read master/slave values → for asserting the slave write
   // resolves to the master (only the master carries a value; reading either address returns it).
-  mergeSlaveWrite({range = 'A1:B2', slave = 'B2', value = 'slave-write'}: CorpusApi = {}) {
+  mergeSlaveWrite({range = 'A1:B2', slave = 'B2', value = 'slave-write'}: Untyped = {}) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     sheet.mergeCells(range);
@@ -577,16 +574,16 @@ export const grid = {
     try {
       sheet.duplicateRow(1, {count: 1, insert: true});
     } catch (e) {
-      dupError = String((e as CorpusApi)?.message || e);
+      dupError = String((e as Untyped)?.message || e);
     }
-    const val = (ref: CorpusApi) => sheet.getCell(ref).value ?? null;
+    const val = (ref: Untyped) => sheet.getCell(ref).value ?? null;
     const row1 = [val('A1'), val('B1'), val('C1')];
     const row2 = [val('A2'), val('B2'), val('C2')];
     let mergeError = null;
     try {
       sheet.mergeCells('A2:C2');
     } catch (e) {
-      mergeError = String((e as CorpusApi)?.message || e);
+      mergeError = String((e as Untyped)?.message || e);
     }
     return {dupError, mergeError, rowCount: sheet.rowCount, row1, row2, merges: [...sheet.merges]};
   },
@@ -609,7 +606,7 @@ export const grid = {
       cell.font = {...cell.font, bold: true};
       numFmt = cell.numFmt;
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     return {error, numFmt};
   },
@@ -685,7 +682,7 @@ export const grid = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as CorpusApi)?.message || e);
+      writeError = String((e as Untyped)?.message || e);
     }
     if (!writeOk) return {writeOk, writeError, reloadOk: false, colSpanCount: null};
 

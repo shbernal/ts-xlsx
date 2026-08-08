@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'every cell of the multi-cell selection reports the shared validation',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.readFixtureValidations(FIXTURE);
         for (const ref of ['Sheet1!A1', 'Sheet1!A2', 'Sheet1!A3']) {
@@ -40,7 +39,6 @@ export default {
     },
     {
       name: 'a separately-validated cell keeps its own distinct rule',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.readFixtureValidations(FIXTURE);
         const dv = cells['Sheet1!B2'];

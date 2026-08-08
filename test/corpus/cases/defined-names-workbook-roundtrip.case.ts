@@ -19,13 +19,12 @@ export default {
   behavior: [
     {
       name: 'a global defined name is written into <definedNames> with its reference as text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {definedNames} = await api.inspectPackage({
           sheets: [{name: 'S', cells: [{ref: 'A1', value: 1}]}],
           definedNames: [{name: 'TaxRate', ranges: ['S!$A$1:$B$2']}],
         });
-        const entry = definedNames.find((d: CorpusApi) => d.name === 'TaxRate');
+        const entry = definedNames.find((d) => d.name === 'TaxRate');
         assert.ok(
           entry,
           `TaxRate must appear in <definedNames>; got ${JSON.stringify(definedNames)}`,
@@ -36,13 +35,12 @@ export default {
     },
     {
       name: 'a defined name whose reference contains an ampersand is XML-escaped, not corrupted',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {definedNames} = await api.inspectPackage({
           sheets: [{name: 'S', cells: [{ref: 'A1', value: 1}]}],
           definedNames: [{name: 'Combo', ranges: ["'A & B'!$A$1"]}],
         });
-        const entry = definedNames.find((d: CorpusApi) => d.name === 'Combo');
+        const entry = definedNames.find((d) => d.name === 'Combo');
         assert.ok(
           entry,
           `Combo must appear in <definedNames>; got ${JSON.stringify(definedNames)}`,

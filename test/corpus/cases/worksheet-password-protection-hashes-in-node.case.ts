@@ -24,7 +24,6 @@ export default {
   behavior: [
     {
       name: 'protecting with a password in Node does not throw a secure-random error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {threw} = await api.worksheetPasswordProtectionReport();
         assert.strictEqual(threw, null, `password protect must succeed under Node; threw ${threw}`);
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'the emitted protection carries an algorithm, hash, salt, and spin count',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {algorithm, hasHash, hasSalt, spinCount} =
           await api.worksheetPasswordProtectionReport();
@@ -44,7 +42,6 @@ export default {
     },
     {
       name: 'the requested protection options are reflected in the serialized element',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {selectLockedCells, selectUnlockedCells} =
           await api.worksheetPasswordProtectionReport();
@@ -62,7 +59,6 @@ export default {
     },
     {
       name: 'the salt is real randomness — two protects with the same password differ',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {saltsDiffer} = await api.worksheetPasswordProtectionReport();
         assert.strictEqual(

@@ -75,23 +75,21 @@ export default {
   behavior: [
     {
       name: 'a custom totals column writes its <totalsRowFormula> into the table part',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.inspectPackage(CUSTOM_TOTAL);
         assert.strictEqual(tables.length, 1, 'the table part is written');
         assert.deepStrictEqual(
-          tables[0].totalsRowFormulas,
+          tables[0]!.totalsRowFormulas,
           ['SUM(T[Amount])*1.1'],
-          `the custom formula should be emitted as a child, got ${JSON.stringify(tables[0].totalsRowFormulas)}`,
+          `the custom formula should be emitted as a child, got ${JSON.stringify(tables[0]!.totalsRowFormulas)}`,
         );
-        assert.strictEqual(tables[0].xmlWellFormed, true, 'the table XML is well-formed');
+        assert.strictEqual(tables[0]!.xmlWellFormed, true, 'the table XML is well-formed');
       },
     },
     {
       name: 'a custom totals column materializes its formula into the totals-row cell',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {formulas, cellText} = (await api.inspectPackage(CUSTOM_TOTAL)).sheets.S;
+        const {formulas, cellText} = (await api.inspectPackage(CUSTOM_TOTAL)).sheets.S!;
         assert.strictEqual(
           formulas.B4,
           'SUM(T[Amount])*1.1',
@@ -107,42 +105,40 @@ export default {
     },
     {
       name: 'the custom totals formula survives a write→read→write round-trip at the part and the cell',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const facts = await api.roundtripInspectPackage(CUSTOM_TOTAL);
         // Part-level: proves the reader recovered the column's formula rather than the cell alone
         // surviving because it was materialized on the first write.
         assert.deepStrictEqual(
-          facts.tables[0].totalsRowFormulas,
+          facts.tables[0]!.totalsRowFormulas,
           ['SUM(T[Amount])*1.1'],
-          `the <totalsRowFormula> should survive the round-trip, got ${JSON.stringify(facts.tables[0].totalsRowFormulas)}`,
+          `the <totalsRowFormula> should survive the round-trip, got ${JSON.stringify(facts.tables[0]!.totalsRowFormulas)}`,
         );
         assert.strictEqual(
-          facts.sheets.S.formulas.B4,
+          facts.sheets.S!.formulas.B4,
           'SUM(T[Amount])*1.1',
-          `the materialized cell formula should survive the round-trip, got ${facts.sheets.S.formulas.B4}`,
+          `the materialized cell formula should survive the round-trip, got ${facts.sheets.S!.formulas.B4}`,
         );
       },
     },
     {
       name: 'a custom column with no stored formula writes no child and leaves its totals cell blank',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables, sheets} = await api.inspectPackage(CUSTOM_WITHOUT_FORMULA);
         assert.deepStrictEqual(
-          tables[0].totalsRowFormulas,
+          tables[0]!.totalsRowFormulas,
           [],
-          `no <totalsRowFormula> should be emitted, got ${JSON.stringify(tables[0].totalsRowFormulas)}`,
+          `no <totalsRowFormula> should be emitted, got ${JSON.stringify(tables[0]!.totalsRowFormulas)}`,
         );
         assert.strictEqual(
-          sheets.S.cellText.B3,
+          sheets.S!.cellText.B3,
           undefined,
-          `B3 (custom, no formula) should be blank, got ${sheets.S.cellText.B3}`,
+          `B3 (custom, no formula) should be blank, got ${sheets.S!.cellText.B3}`,
         );
         assert.strictEqual(
-          sheets.S.formulas.B3,
+          sheets.S!.formulas.B3,
           undefined,
-          `B3 (custom, no formula) should carry no formula, got ${sheets.S.formulas.B3}`,
+          `B3 (custom, no formula) should carry no formula, got ${sheets.S!.formulas.B3}`,
         );
       },
     },

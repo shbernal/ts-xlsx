@@ -36,28 +36,25 @@ export default {
   behavior: [
     {
       name: 'a formula supplied without a leading = is stored verbatim (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SHEET);
-        assert.strictEqual(sheets.S.formulas.B1, '1+2', 'the plain formula stores unchanged');
+        assert.strictEqual(sheets.S!.formulas.B1, '1+2', 'the plain formula stores unchanged');
       },
     },
     {
       name: 'a formula supplied with a leading = is stored without it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SHEET);
         assert.strictEqual(
-          sheets.S.formulas.A1,
+          sheets.S!.formulas.A1,
           '1+2',
-          `the stored <f> text must not begin with "="; got ${JSON.stringify(sheets.S.formulas.A1)} — a ` +
+          `the stored <f> text must not begin with "="; got ${JSON.stringify(sheets.S!.formulas.A1)} — a ` +
             'leading = makes the file unreadable to strict consumers',
         );
       },
     },
     {
       name: 'the round-tripped formula does not retain a leading =',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {A1} = await api.roundtripFormulas(SHEET);
         assert.ok(

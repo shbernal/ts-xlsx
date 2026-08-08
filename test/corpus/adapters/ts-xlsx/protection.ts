@@ -1,7 +1,7 @@
 // Workbook, worksheet and cell protection.
 
 import {strToU8, zipSync} from 'fflate';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {decodeAddress, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {attrsOf} from './xml-probes.ts';
@@ -18,7 +18,7 @@ export const protection = {
       /<sheets>/,
       '<workbookProtection lockStructure="1" lockWindows="0"/><sheets>',
     );
-    const zipFiles: Record<string, CorpusApi> = {};
+    const zipFiles: Record<string, Untyped> = {};
     for (const [name, xml] of Object.entries(parts)) {
       zipFiles[name] = strToU8(name === 'xl/workbook.xml' ? injectedXml : xml);
     }
@@ -39,9 +39,9 @@ export const protection = {
   // flag (applyProtection + <protection> in cellXfs), and the emitted <sheetProtection> that
   // makes the locked flags enforceable.
   authorCellProtection(
-    cells: CorpusApi = [],
-    protect: CorpusApi = null,
-    {rows = [], columns = []}: CorpusApi = {},
+    cells: Untyped = [],
+    protect: Untyped = null,
+    {rows = [], columns = []}: Untyped = {},
   ) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
@@ -72,7 +72,7 @@ export const protection = {
 
     const reread = readXlsx(buffer);
     const sheet2 = reread.getWorksheet('S')!;
-    const readBack: Record<string, CorpusApi> = {};
+    const readBack: Record<string, Untyped> = {};
     for (const c of cells) {
       const p = sheet2.getCell(c.ref).protection;
       readBack[c.ref] = p ? {locked: p.locked ?? null} : null;
@@ -106,7 +106,7 @@ export const protection = {
       second = protectOnce();
     } catch (e) {
       return {
-        threw: String((e as CorpusApi)?.message || e),
+        threw: String((e as Untyped)?.message || e),
         algorithm: null,
         hasHash: false,
         hasSalt: false,
@@ -146,7 +146,7 @@ export const protection = {
 
     const buf1 = writeXlsx(wb);
     const buf2 = writeXlsx(readXlsx(buf1));
-    const protAttrs = (buf: CorpusApi) => {
+    const protAttrs = (buf: Untyped) => {
       const xml = partMapOf(buf)['xl/worksheets/sheet1.xml'] || '';
       const el = (xml.match(/<sheetProtection\b[^>]*\/?>/) || [])[0];
       return el ? attrsOf(el) : null;

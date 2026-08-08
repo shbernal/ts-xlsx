@@ -39,7 +39,6 @@ export default {
   behavior: [
     {
       name: 'fit-all-columns-on-one-page (fitToWidth=1, fitToHeight=0) round-trips',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const ps = (await api.roundtripWorkbook(FIT_WIDTH)).sheets.S.pageSetup;
         assert.strictEqual(ps.fitToPage, true, 'the fit-to-page flag is set');
@@ -50,7 +49,6 @@ export default {
     },
     {
       name: 'fit-all-rows-on-one-page (fitToHeight=1, fitToWidth=0) round-trips',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const ps = (await api.roundtripWorkbook(FIT_HEIGHT)).sheets.S.pageSetup;
         assert.strictEqual(ps.fitToPage, true, 'the fit-to-page flag is set');

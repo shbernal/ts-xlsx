@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'a table referenced by an absolute-path relationship reads without crashing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(WITH_TABLE);
         assert.ok(
@@ -36,7 +35,6 @@ export default {
     },
     {
       name: 'a table-free control workbook from the same generator still loads',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok} = await api.readFixtureReport(CONTROL);
         assert.ok(ok, 'the control loads');

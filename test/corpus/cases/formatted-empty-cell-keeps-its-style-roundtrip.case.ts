@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'a fill on a value-less cell survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {filledArgb} = await api.styledEmptyCellReport();
         assert.strictEqual(
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'the formatted empty cell reads back empty, with no value invented',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {filledValue} = await api.styledEmptyCellReport();
         assert.strictEqual(
@@ -44,7 +42,6 @@ export default {
     },
     {
       name: 'a border on a value-less cell survives while the cell stays empty',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {borderedStyle, borderedValue} = await api.styledEmptyCellReport();
         assert.strictEqual(borderedStyle, 'thin', 'the border edge on the empty cell must survive');
@@ -53,7 +50,6 @@ export default {
     },
     {
       name: 'a cell with neither a value nor a style is not fabricated',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {untouched} = await api.styledEmptyCellReport();
         assert.strictEqual(

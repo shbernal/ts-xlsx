@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'the master formula cell survives the streaming write',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {masterHasFormula} = await api.streamingSharedFormulaReport();
         assert.strictEqual(
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'shared-formula slave cells are not dropped to empty on a streaming write',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {slaveResolved, slaveValue} = await api.streamingSharedFormulaReport();
         assert.strictEqual(

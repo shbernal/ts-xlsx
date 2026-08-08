@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'the worksheet autoFilter ref covers the requested range',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {autoFilterRef} = await api.autoFilterDefinedNameReport('A1:B2');
         assert.strictEqual(autoFilterRef, 'A1:B2', 'the autoFilter ref is written over the range');
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'a _xlnm._FilterDatabase defined name is declared for the autofilter',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasFilterDatabase} = await api.autoFilterDefinedNameReport('A1:B2');
         assert.strictEqual(
@@ -41,7 +39,6 @@ export default {
     },
     {
       name: 'the _FilterDatabase defined name is hidden',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {filterDatabaseHidden} = await api.autoFilterDefinedNameReport('A1:B2');
         assert.strictEqual(

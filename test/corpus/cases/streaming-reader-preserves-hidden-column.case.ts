@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'the eager read sees the hidden column (oracle)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {eager} = await api.streamVsEagerColumnHidden();
         assert.strictEqual(eager.col2, true, 'the fixture hides column 2');
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'the streaming read reports the hidden column, not every column visible',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {eager, stream, error} = await api.streamVsEagerColumnHidden();
         assert.strictEqual(error, null, `streaming read must not error; got ${error}`);
@@ -42,7 +40,6 @@ export default {
     },
     {
       name: 'a visible column is not reported hidden by the streaming reader (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {stream} = await api.streamVsEagerColumnHidden();
         assert.strictEqual(stream.col1, false, 'column 1 must stay visible when streamed');

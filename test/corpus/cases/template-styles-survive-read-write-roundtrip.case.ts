@@ -30,7 +30,6 @@ export default {
   behavior: [
     {
       name: 'sheet names survive the no-op round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames, sheetNamesBefore} = await api.roundtripFixture(FIXTURE);
         assert.deepStrictEqual(
@@ -47,7 +46,6 @@ export default {
     },
     {
       name: 'custom column widths survive the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {columns, columnsBefore} = await api.roundtripFixture(FIXTURE);
         const b = columnsBefore[SHEET];
@@ -68,7 +66,6 @@ export default {
     },
     {
       name: 'per-cell fills and fonts survive the round-trip unchanged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {styleSurvival} = await api.roundtripFixture(FIXTURE);
         assert.ok(

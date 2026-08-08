@@ -27,7 +27,6 @@ export default {
   behavior: [
     {
       name: 'the final module set and kinds reflect the remove',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {moduleNames, moduleKinds} = await api.xlsmVbaWorkbookStructuralEdits();
         assert.deepEqual(moduleNames, ['ThisWorkbook', 'Class1']);
@@ -43,7 +42,6 @@ export default {
     },
     {
       name: 'the pre-existing reference and the newly added reference both survive',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {originalReferencePreserved, newReferencePresent} =
           await api.xlsmVbaWorkbookStructuralEdits();
@@ -57,7 +55,6 @@ export default {
     },
     {
       name: 'an untouched module survives the chained edits verbatim',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {untouchedModuleByteIdentical} = await api.xlsmVbaWorkbookStructuralEdits();
         assert.strictEqual(
@@ -69,7 +66,6 @@ export default {
     },
     {
       name: 'the package stays macro-enabled and _VBA_PROJECT is preserved untouched',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rewrittenIsMacroEnabled, vbaProjectStreamPreserved} =
           await api.xlsmVbaWorkbookStructuralEdits();

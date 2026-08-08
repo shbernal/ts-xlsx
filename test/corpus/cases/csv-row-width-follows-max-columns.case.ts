@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a three-cell row after a one-cell row emits three fields',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, text} = await api.csvWrite({spec: NARROW_FIRST});
         assert.strictEqual(ok, true, 'the CSV writes');
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'no populated cell is dropped because a preceding row was narrower',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {text} = await api.csvWrite({spec: NARROW_FIRST});
         const lines = String(text).split(/\r?\n/).filter(Boolean);

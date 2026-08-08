@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'the internal hyperlink carries a location attribute with the target reference',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasLocation, location} = await api.internalHyperlinkReport();
         assert.strictEqual(hasLocation, true, 'the <hyperlink> has a location attribute');
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'no external relationship is created for the internal target',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasExternalRel} = await api.internalHyperlinkReport();
         assert.strictEqual(
@@ -46,7 +44,6 @@ export default {
     },
     {
       name: 'the workbook with the internal hyperlink reloads (valid package)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadOk} = await api.internalHyperlinkReport();
         assert.strictEqual(reloadOk, true, 'the package is valid and reloads');

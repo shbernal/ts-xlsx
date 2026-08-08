@@ -11,6 +11,7 @@
 // validation to be dropped or the file to fail to parse.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const FIXTURE = 'custom-countif-validation-roundtrip/source.xlsx';
 
@@ -26,16 +27,13 @@ export default {
   behavior: [
     {
       name: 'the custom COUNTIF validation is read from the model with its formula and error strings',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.readFixtureValidationRules(FIXTURE);
-        const rules = Object.values(sheets).flatMap((s: CorpusApi) =>
-          s.rules.map((r: CorpusApi) => r.rule),
-        );
-        const custom = rules.find((r: CorpusApi) => r.type === 'custom');
+        const rules = Object.values(sheets).flatMap((s) => s.rules.map((r: Untyped) => r.rule));
+        const custom = rules.find((r) => r.type === 'custom');
         assert.ok(custom, `expected a custom-type validation; got ${JSON.stringify(rules)}`);
         assert.ok(
-          (custom.formulae || []).some((f: CorpusApi) => /COUNTIF/i.test(f)),
+          (custom.formulae || []).some((f: Untyped) => /COUNTIF/i.test(f)),
           `the custom formula must retain its COUNTIF text; got ${JSON.stringify(custom.formulae)}`,
         );
         assert.strictEqual(
@@ -47,11 +45,10 @@ export default {
     },
     {
       name: 'the custom validation survives a round-trip with type, formula, and error strings',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.roundtripFixtureValidationXml(FIXTURE);
-        const rules = Object.values(sheets).flatMap((s: CorpusApi) => s.standardRules);
-        const custom = rules.find((r: CorpusApi) => r.type === 'custom');
+        const rules = Object.values(sheets).flatMap((s) => s.standardRules);
+        const custom = rules.find((r) => r.type === 'custom');
         assert.ok(
           custom,
           `the custom validation must survive re-serialization; got ${JSON.stringify(rules)}`,

@@ -29,7 +29,6 @@ export default {
   behavior: [
     {
       name: 'the author (creator) set before write is read back unchanged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {properties} = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(properties.creator, 'Ada Lovelace');
@@ -37,7 +36,6 @@ export default {
     },
     {
       name: 'the last-modified-by set before write is read back unchanged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {properties} = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(properties.lastModifiedBy, 'Grace Hopper');
@@ -45,7 +43,6 @@ export default {
     },
     {
       name: 'the created timestamp survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {properties} = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(properties.created, '2020-01-02T03:04:05.000Z');
@@ -53,7 +50,6 @@ export default {
     },
     {
       name: 'the modified timestamp survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {properties} = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(properties.modified, '2021-06-07T08:09:10.000Z');

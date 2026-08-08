@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'only the master cell carries a value in the worksheet XML',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cellsWithValue} = await api.mergeSlaveWrite();
         assert.deepStrictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the merge span is declared over the same range',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {merges} = await api.mergeSlaveWrite();
         assert.deepStrictEqual(merges, ['A1:B2'], 'the merge span survives');
@@ -42,7 +40,6 @@ export default {
     },
     {
       name: 'the value written via the slave cell is read back on the master',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {masterValue, slaveValue} = await api.mergeSlaveWrite();
         assert.strictEqual(

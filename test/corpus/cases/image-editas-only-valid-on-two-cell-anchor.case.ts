@@ -41,18 +41,17 @@ export default {
   behavior: [
     {
       name: 'a top-left + bottom-right placement with editAs:absolute yields a two-cell anchor carrying editAs',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchors, xmlWellFormed} = await api.inspectImageAnchors(TWO_CELL);
         assert.ok(xmlWellFormed, 'drawing XML must be well-formed');
         assert.strictEqual(anchors.length, 1, 'one image → one anchor');
         assert.strictEqual(
-          anchors[0].anchorType,
+          anchors[0]!.anchorType,
           'twoCell',
           'top-left + bottom-right is a two-cell anchor',
         );
         assert.strictEqual(
-          anchors[0].editAs,
+          anchors[0]!.editAs,
           'absolute',
           'editAs is valid and preserved on a two-cell anchor',
         );
@@ -60,12 +59,11 @@ export default {
     },
     {
       name: 'a top-left + extent placement produces a one-cell anchor',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchors} = await api.inspectImageAnchors(ONE_CELL);
         assert.strictEqual(anchors.length, 1, 'one image → one anchor');
         assert.strictEqual(
-          anchors[0].anchorType,
+          anchors[0]!.anchorType,
           'oneCell',
           'top-left + extent (no bottom-right) is a one-cell anchor',
         );
@@ -73,13 +71,12 @@ export default {
     },
     {
       name: 'editAs is not stamped onto the one-cell anchor, which the drawing schema cannot carry it on',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchors} = await api.inspectImageAnchors(ONE_CELL);
         assert.strictEqual(
-          anchors[0].editAs,
+          anchors[0]!.editAs,
           null,
-          `editAs is a two-cell-anchor attribute; a one-cell anchor must not carry it (schema-invalid). Got editAs=${anchors[0].editAs}`,
+          `editAs is a two-cell-anchor attribute; a one-cell anchor must not carry it (schema-invalid). Got editAs=${anchors[0]!.editAs}`,
         );
       },
     },

@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'every column width survives the round-trip exactly',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
         assert.ok(
@@ -38,7 +37,6 @@ export default {
     },
     {
       name: 'the pageSetup print attributes survive the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
         assert.deepStrictEqual(

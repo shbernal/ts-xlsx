@@ -27,7 +27,6 @@ export default {
   behavior: [
     {
       name: 'a streamed worksheet exposes an addImage anchor method (parity with the in-memory worksheet)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetAddImage} = await api.streamWriterImageSupport();
         assert.ok(
@@ -38,7 +37,6 @@ export default {
     },
     {
       name: 'anchoring a registered image on a streamed sheet embeds the media and drawing parts',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {error, mediaParts, drawingParts} = await api.streamWriterImageSupport('B2:D6');
         assert.strictEqual(

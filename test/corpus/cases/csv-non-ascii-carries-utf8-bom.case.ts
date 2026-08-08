@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'the non-ASCII text is encoded as recoverable UTF-8 bytes',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {bytesDecodeToText} = await api.csvNonAsciiEncodingReport();
         assert.strictEqual(
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'the CSV carries a UTF-8 BOM so the encoding is detected',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasBom} = await api.csvNonAsciiEncodingReport();
         assert.strictEqual(hasBom, true, 'the CSV output begins with a UTF-8 byte-order mark');

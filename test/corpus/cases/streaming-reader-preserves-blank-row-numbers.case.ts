@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'streaming row numbers match the eager row numbers, gaps preserved',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {eager, streaming} = await api.streamVsEagerRowNumbers(FIXTURE);
         assert.deepStrictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'a data row after a run of blank rows keeps its absolute number (not resequenced)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {streaming} = await api.streamVsEagerRowNumbers(FIXTURE);
         assert.ok(streaming.length >= 2, 'the fixture has multiple data rows');

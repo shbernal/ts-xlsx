@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'the Excel-normalized copy of the same document loads (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, sheetNames} = await api.readFixtureReport(NORMALIZED);
         assert.ok(ok, 'the Excel-normalized copy must load');
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'the foreign-exported original loads without throwing on the mixed shared-string shape',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(LARK);
         assert.ok(
@@ -46,7 +44,6 @@ export default {
     },
     {
       name: 'the foreign export exposes the same worksheet as the normalized copy',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const foreign = await api.readFixtureReport(LARK);
         const normalized = await api.readFixtureReport(NORMALIZED);

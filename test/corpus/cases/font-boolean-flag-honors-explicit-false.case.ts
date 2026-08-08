@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a bare bold tag reads as true (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {bareTag} = await api.fontExplicitFalseBoldReport();
         assert.strictEqual(bareTag, true, 'a bare <b/> means bold');
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'an explicit-true bold tag reads as true (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {valOne} = await api.fontExplicitFalseBoldReport();
         assert.strictEqual(valOne, true, '<b val="1"/> means bold');
@@ -37,7 +35,6 @@ export default {
     },
     {
       name: 'an explicit-false bold tag reads as false',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {valZero} = await api.fontExplicitFalseBoldReport();
         assert.strictEqual(
@@ -49,7 +46,6 @@ export default {
     },
     {
       name: 'an explicit-false italic tag reads as not italic',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {italic} = await api.fontExplicitOffFlagsReport();
         assert.ok(!italic, '<i val="0"/> means NOT italic');
@@ -57,7 +53,6 @@ export default {
     },
     {
       name: 'an explicit-false strikethrough tag reads as not struck',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {strike} = await api.fontExplicitOffFlagsReport();
         assert.ok(!strike, '<strike val="0"/> means NOT struck');
@@ -65,7 +60,6 @@ export default {
     },
     {
       name: 'an underline tag with value "none" reads as not underlined',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {underline} = await api.fontExplicitOffFlagsReport();
         assert.ok(

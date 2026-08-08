@@ -45,7 +45,6 @@ export default {
   behavior: [
     {
       name: 'a namespace-prefixed workbook root with a leading BOM reads and reports its sheet',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error, sheetNames} = await api.readFixtureReport(
           `${DIR}/prefixed-root-bom.xlsx`,
@@ -59,7 +58,6 @@ export default {
     },
     {
       name: 'a namespace-prefixed root preserves a non-ASCII sheet name',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, sheetNames} = await api.readFixtureReport(
           `${DIR}/prefixed-root-cyrillic-sheet.xlsx`,
@@ -70,7 +68,6 @@ export default {
     },
     {
       name: 'a workbook whose workbook.xml is ordered after the worksheet part still reads',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, sheetNames} = await api.readFixtureReport(
           `${DIR}/workbook-part-after-worksheet.xlsx`,
@@ -85,7 +82,6 @@ export default {
     },
     {
       name: 'a plain foreign-generator (LibreOffice) workbook reads normally',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, sheetNames} = await api.readFixtureReport(`${DIR}/libreoffice-calc.xlsx`);
         assert.ok(ok, 'an unprefixed foreign-generator file must read');

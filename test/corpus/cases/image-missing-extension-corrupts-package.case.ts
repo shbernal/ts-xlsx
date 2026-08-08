@@ -27,10 +27,9 @@ export default {
   behavior: [
     {
       name: 'every content-type Default declaration carries an Extension attribute',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
-        const extensionless = contentTypeDefaults.filter((d: CorpusApi) => !d.extension);
+        const extensionless = contentTypeDefaults.filter((d) => !d.extension);
         assert.deepStrictEqual(
           extensionless,
           [],
@@ -40,12 +39,9 @@ export default {
     },
     {
       name: 'no content-type declares the bogus "image/undefined" media type',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
-        const bogus = contentTypeDefaults.filter((d: CorpusApi) =>
-          /undefined/.test(d.contentType || ''),
-        );
+        const bogus = contentTypeDefaults.filter((d) => /undefined/.test(d.contentType || ''));
         assert.deepStrictEqual(
           bogus,
           [],

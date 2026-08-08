@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'the default map coerces a numeric-looking cell to a number',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {default: def} = await api.csvReadMapReport();
         assert.strictEqual(def.aType, 'number', 'the default coerces "007" to a number');
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'an identity map preserves the raw string value with its leading zero',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {identity} = await api.csvReadMapReport();
         assert.strictEqual(identity.aType, 'string', 'the identity map keeps the value a string');

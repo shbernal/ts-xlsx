@@ -8,6 +8,7 @@
 // omit zero-length runs rather than emit an empty `<t>` element.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const RUNS = [
   {text: 'a', font: {bold: true}},
@@ -27,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'no empty <t> run element is serialized for a run with empty text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {emptyTextRunInXml} = await api.richTextRoundtripReport(RUNS);
         assert.strictEqual(
@@ -39,11 +39,10 @@ export default {
     },
     {
       name: 'the empty-text run is dropped, leaving only the non-empty runs',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {runs} = await api.richTextRoundtripReport(RUNS);
         assert.deepStrictEqual(
-          runs.map((r: CorpusApi) => r.text),
+          runs.map((r: Untyped) => r.text),
           ['a', 'b'],
           'only the two non-empty runs survive',
         );
@@ -51,11 +50,10 @@ export default {
     },
     {
       name: 'the non-empty runs surrounding the dropped run keep their text and formatting (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {runs} = await api.richTextRoundtripReport(RUNS);
-        const a = runs.find((r: CorpusApi) => r.text === 'a');
-        const b = runs.find((r: CorpusApi) => r.text === 'b');
+        const a = runs.find((r: Untyped) => r.text === 'a');
+        const b = runs.find((r: Untyped) => r.text === 'b');
         assert.ok(a && a.bold === true, 'the leading bold run survives with its formatting');
         assert.ok(b, 'the trailing run survives');
       },

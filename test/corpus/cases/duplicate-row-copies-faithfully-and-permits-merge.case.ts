@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'the duplicated row is a faithful copy of the source values',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {row1, row2, dupError} = await api.duplicateRowReport();
         assert.strictEqual(
@@ -38,7 +37,6 @@ export default {
     },
     {
       name: 'merging a range on the duplicated row succeeds without an "already merged" error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {mergeError, merges} = await api.duplicateRowReport();
         assert.strictEqual(

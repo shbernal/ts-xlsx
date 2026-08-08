@@ -32,7 +32,6 @@ export default {
   behavior: [
     {
       name: 'the source fixture carries a non-default named-style layer (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {srcCellStyleXfsCount} = await api.namedStyleFillReport(FIXTURE);
         assert.ok(
@@ -43,7 +42,6 @@ export default {
     },
     {
       name: "a cell's fill defined in the named-style layer is resolved on read",
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readFill} = await api.namedStyleFillReport(FIXTURE);
         assert.ok(
@@ -61,7 +59,6 @@ export default {
     },
     {
       name: 'the named-style layer survives a load→save round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {roundtripCellStyleXfsCount} = await api.namedStyleFillReport(FIXTURE);
         assert.ok(
@@ -72,7 +69,6 @@ export default {
     },
     {
       name: "the cell's xfId link into the named style survives the round-trip",
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {roundtripCellHasXfIdLink} = await api.namedStyleFillReport(FIXTURE);
         assert.strictEqual(

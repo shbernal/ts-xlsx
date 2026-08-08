@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'the mutated cell gets the new font color',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {a1Color} = await api.sharedBaseStyleFontMutation();
         assert.strictEqual(a1Color, 'FF00FF00', 'the targeted cell carries the new color');
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'the sibling sharing the base style does not inherit the mutated font color',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {a2Color, bled} = await api.sharedBaseStyleFontMutation();
         assert.strictEqual(

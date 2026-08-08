@@ -27,7 +27,6 @@ export default {
   behavior: [
     {
       name: 'removing one column shifts the rest left and does not throw',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {cells, error} = api.mutateWorksheet({
           cells: CELLS,
@@ -43,7 +42,6 @@ export default {
     },
     {
       name: 'removing multiple columns shifts the remainder left correctly',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {cells, error} = api.mutateWorksheet({
           cells: CELLS,

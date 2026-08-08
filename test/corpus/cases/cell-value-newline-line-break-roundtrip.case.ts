@@ -37,7 +37,6 @@ export default {
   behavior: [
     {
       name: 'a bare line-feed survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(
@@ -49,7 +48,6 @@ export default {
     },
     {
       name: 'a carriage-return+line-feed normalizes to the same stored break',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(
@@ -61,7 +59,6 @@ export default {
     },
     {
       name: 'consecutive newlines are all preserved, not merged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(
@@ -73,7 +70,6 @@ export default {
     },
     {
       name: 'wrapText does not change whether the newline is stored',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(

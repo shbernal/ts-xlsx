@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'a Date cell written with a UTC dateFormat renders in that format',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, text} = await api.csvWrite({
           spec: {rows: [[{date: NOON_JAN5_2018_UTC}]]},
@@ -37,14 +36,13 @@ export default {
     },
     {
       name: 'a Date cell written with no dateFormat renders as a full ISO-8601 timestamp',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {text} = await api.csvWrite({
           spec: {rows: [[{date: NOON_JAN5_2018_UTC}]]},
           options: {dateUTC: true},
         });
         assert.match(
-          text,
+          text!,
           /^2018-01-05T12:00:00/,
           `default is a full ISO timestamp; got ${JSON.stringify(text)}`,
         );

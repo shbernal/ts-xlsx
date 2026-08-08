@@ -151,17 +151,15 @@ export default {
   behavior: [
     {
       name: 'a labelled totals column writes its label into the totals-row cell',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {cellText} = (await api.inspectPackage(LABEL_AND_SUM)).sheets.S;
+        const {cellText} = (await api.inspectPackage(LABEL_AND_SUM)).sheets.S!;
         assert.strictEqual(cellText.A4, 'Total', `A4 should hold "Total", got ${cellText.A4}`);
       },
     },
     {
       name: 'a sum totals column writes SUBTOTAL(109, Table[Column]) into the totals-row cell',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {formulas} = (await api.inspectPackage(LABEL_AND_SUM)).sheets.S;
+        const {formulas} = (await api.inspectPackage(LABEL_AND_SUM)).sheets.S!;
         assert.strictEqual(
           formulas.B4,
           'SUBTOTAL(109,T[Amount])',
@@ -171,11 +169,10 @@ export default {
     },
     {
       name: 'the materialized totals formula caches no result (Excel recomputes on open)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // A formula cell with a cached value would appear in cellText; the totals formula must not, so
         // Excel treats it as needing computation rather than trusting a value the library cannot supply.
-        const {cellText} = (await api.inspectPackage(LABEL_AND_SUM)).sheets.S;
+        const {cellText} = (await api.inspectPackage(LABEL_AND_SUM)).sheets.S!;
         assert.strictEqual(
           cellText.B4,
           undefined,
@@ -185,26 +182,24 @@ export default {
     },
     {
       name: 'a totals row is materialized at the table anchor, not a hard-coded row or column',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const facts = (await api.inspectPackage(OFFSET_TABLE)).sheets.S;
         assert.strictEqual(
-          facts.cellText.C5,
+          facts!.cellText.C5,
           'Sum',
-          `C5 should hold "Sum", got ${facts.cellText.C5}`,
+          `C5 should hold "Sum", got ${facts!.cellText.C5}`,
         );
         assert.strictEqual(
-          facts.formulas.D5,
+          facts!.formulas.D5,
           'SUBTOTAL(109,T2[Amount])',
-          `D5 should hold the sum SUBTOTAL formula, got ${facts.formulas.D5}`,
+          `D5 should hold the sum SUBTOTAL formula, got ${facts!.formulas.D5}`,
         );
       },
     },
     {
       name: 'count maps to SUBTOTAL 103 (COUNTA) and countNums to 102 (COUNT)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {formulas} = (await api.inspectPackage(COUNT_VARIANTS)).sheets.S;
+        const {formulas} = (await api.inspectPackage(COUNT_VARIANTS)).sheets.S!;
         assert.strictEqual(
           formulas.A3,
           'SUBTOTAL(103,T[Names])',
@@ -219,48 +214,45 @@ export default {
     },
     {
       name: 'a totals column with no built-in aggregate leaves its totals cell blank',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const facts = (await api.inspectPackage(NO_AGGREGATE)).sheets.S;
         assert.strictEqual(
-          facts.cellText.A3,
+          facts!.cellText.A3,
           'Total',
-          `A3 should hold "Total", got ${facts.cellText.A3}`,
+          `A3 should hold "Total", got ${facts!.cellText.A3}`,
         );
         assert.strictEqual(
-          facts.cellText.B3,
+          facts!.cellText.B3,
           undefined,
-          `B3 (no aggregate) should be blank, got ${facts.cellText.B3}`,
+          `B3 (no aggregate) should be blank, got ${facts!.cellText.B3}`,
         );
         assert.strictEqual(
-          facts.formulas.B3,
+          facts!.formulas.B3,
           undefined,
-          `B3 (no aggregate) should carry no formula, got ${facts.formulas.B3}`,
+          `B3 (no aggregate) should carry no formula, got ${facts!.formulas.B3}`,
         );
       },
     },
     {
       name: 'a table without a totals row gains no totals cells',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const facts = (await api.inspectPackage(NO_TOTALS_ROW)).sheets.S;
         assert.strictEqual(
-          facts.cellText.A3,
+          facts!.cellText.A3,
           undefined,
-          `A3 should be blank, got ${facts.cellText.A3}`,
+          `A3 should be blank, got ${facts!.cellText.A3}`,
         );
         assert.strictEqual(
-          facts.formulas.B3,
+          facts!.formulas.B3,
           undefined,
-          `B3 should carry no formula, got ${facts.formulas.B3}`,
+          `B3 should carry no formula, got ${facts!.formulas.B3}`,
         );
       },
     },
     {
       name: 'the materialized totals row survives a write→read→write round-trip unchanged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {cellText, formulas} = (await api.roundtripInspectPackage(LABEL_AND_SUM)).sheets.S;
+        const {cellText, formulas} = (await api.roundtripInspectPackage(LABEL_AND_SUM)).sheets.S!;
         assert.strictEqual(
           cellText.A4,
           'Total',

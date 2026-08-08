@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'an explicitly unlocked cell round-trips as locked=false while a default-protection sibling does not report unlocked',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readBack} = await api.authorCellProtection([
           {ref: 'A1', value: 'default'},
@@ -44,7 +43,6 @@ export default {
     },
     {
       name: 'setting a cell unlocked carries the flag into the style record (applyProtection + <protection> in cellXfs)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasApplyProtection} = await api.authorCellProtection([
           {ref: 'A2', value: 'editable', protection: {locked: false}},
@@ -57,7 +55,6 @@ export default {
     },
     {
       name: 'protecting the worksheet emits a <sheetProtection> element — the thing that makes locked flags enforceable',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetProtection} = await api.authorCellProtection([{ref: 'A1', value: 'x'}], {
           password: 'secret',
@@ -75,7 +72,6 @@ export default {
       // unlocked flag to every cell of that band, exactly as a per-cell override would — the band is
       // just an ergonomic shorthand for "these cells are editable once the sheet is protected".
       name: 'setting a whole column unlocked carries locked=false to its cells; an off-band cell stays default-locked',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readBack} = await api.authorCellProtection(
           [
@@ -97,7 +93,6 @@ export default {
     },
     {
       name: 'setting a whole row unlocked carries locked=false to its cells',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readBack} = await api.authorCellProtection(
           [{ref: 'A3', value: 'c'}],

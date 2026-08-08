@@ -32,7 +32,6 @@ export default {
   behavior: [
     {
       name: 'a table’s custom style name still resolves to a definition after a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStylesTailFacts(FIXTURE);
         assert.strictEqual(
@@ -59,7 +58,6 @@ export default {
     },
     {
       name: 'each style element still points at the same differential style',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStylesTailFacts(FIXTURE);
         assert.deepStrictEqual(
@@ -75,14 +73,13 @@ export default {
           'and each dxfId still resolves to the same differential style',
         );
         assert.ok(
-          source.elementDxfs.every((dxf: CorpusApi) => dxf !== null),
+          source.elementDxfs.every((dxf) => dxf !== null),
           'precondition: every element’s dxfId resolves in the source',
         );
       },
     },
     {
       name: 'the nominated default table and pivot styles survive',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStylesTailFacts(FIXTURE);
         assert.strictEqual(rewritten.defaultTableStyle, source.defaultTableStyle);
@@ -91,7 +88,6 @@ export default {
     },
     {
       name: 'the re-emitted stylesheet declares every prefix its preserved fragments use',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStylesTailFacts(FIXTURE);
         assert.deepStrictEqual(

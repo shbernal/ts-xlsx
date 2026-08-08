@@ -26,10 +26,9 @@ export default {
   behavior: [
     {
       name: 'setting a subset of margins still emits all six pageMargins attributes',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
-        const present = sheets.Sheet1.pageMargins.present;
+        const present = sheets.Sheet1!.pageMargins.present;
         for (const attr of SIX) {
           assert.ok(present.includes(attr), `pageMargins missing "${attr}"; got [${present}]`);
         }
@@ -37,9 +36,8 @@ export default {
     },
     {
       name: 'margins not explicitly set are filled with valid finite numbers',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {values} = (await api.inspectPackage(SPEC)).sheets.Sheet1.pageMargins;
+        const {values} = (await api.inspectPackage(SPEC)).sheets.Sheet1!.pageMargins;
         for (const attr of SIX) {
           const n = Number(values[attr]);
           assert.ok(Number.isFinite(n), `margin "${attr}" is not a finite number: ${values[attr]}`);
@@ -48,9 +46,8 @@ export default {
     },
     {
       name: 'explicitly-set margin values are preserved, not clobbered by defaults',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {values} = (await api.inspectPackage(SPEC)).sheets.Sheet1.pageMargins;
+        const {values} = (await api.inspectPackage(SPEC)).sheets.Sheet1!.pageMargins;
         assert.strictEqual(Number(values.left), 0.1);
         assert.strictEqual(Number(values.right), 0.1);
       },

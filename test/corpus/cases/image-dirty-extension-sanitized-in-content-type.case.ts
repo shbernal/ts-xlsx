@@ -33,19 +33,16 @@ export default {
   behavior: [
     {
       name: 'every image content-type Default extension is a bare alphanumeric token',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
-        const imageDefaults = contentTypeDefaults.filter((d: CorpusApi) =>
+        const imageDefaults = contentTypeDefaults.filter((d) =>
           d.contentType?.startsWith('image/'),
         );
         assert.ok(
           imageDefaults.length >= 1,
           'the image produces at least one image content-type Default',
         );
-        const dirty = imageDefaults.filter(
-          (d: CorpusApi) => !/^[A-Za-z0-9]+$/.test(d.extension || ''),
-        );
+        const dirty = imageDefaults.filter((d) => !/^[A-Za-z0-9]+$/.test(d.extension || ''));
         assert.deepStrictEqual(
           dirty,
           [],
@@ -55,12 +52,9 @@ export default {
     },
     {
       name: 'no image content-type embeds the URL query string',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {contentTypeDefaults} = await api.inspectPackage(SPEC);
-        const leaked = contentTypeDefaults.filter((d: CorpusApi) =>
-          /[?&=]/.test(d.contentType || ''),
-        );
+        const leaked = contentTypeDefaults.filter((d) => /[?&=]/.test(d.contentType || ''));
         assert.deepStrictEqual(
           leaked,
           [],

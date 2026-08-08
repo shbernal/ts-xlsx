@@ -45,7 +45,6 @@ export default {
   behavior: [
     {
       name: 'a table with a totals-row formula column writes and round-trips without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const result = await api.tryWriteWorkbook(SPEC);
         assert.strictEqual(
@@ -57,12 +56,11 @@ export default {
     },
     {
       name: 'every declared table column is present in the written table part',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.inspectPackage(SPEC);
         assert.strictEqual(tables.length, 1, 'the table part is written');
         assert.strictEqual(
-          tables[0].columnCount,
+          tables[0]!.columnCount,
           2,
           'both columns are emitted, none dropped as a leaf',
         );
@@ -70,10 +68,9 @@ export default {
     },
     {
       name: 'the table part is well-formed with a totals-row function',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.inspectPackage(SPEC);
-        assert.strictEqual(tables[0].xmlWellFormed, true, 'the table XML is well-formed');
+        assert.strictEqual(tables[0]!.xmlWellFormed, true, 'the table XML is well-formed');
       },
     },
   ],

@@ -14,7 +14,6 @@ export default {
   behavior: [
     {
       name: 'appending rows before anchoring an image places data at the top (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rowsFirst} = await api.imageAnchorRowAppendReport();
         assert.strictEqual(rowsFirst.firstDataCell, 'a');
@@ -22,7 +21,6 @@ export default {
     },
     {
       name: 'anchoring an image first still places subsequently appended rows at the top',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {imageFirst} = await api.imageAnchorRowAppendReport();
         assert.strictEqual(imageFirst.firstDataCell, 'a');
@@ -30,7 +28,6 @@ export default {
     },
     {
       name: 'the appended-row layout is identical regardless of image-vs-rows add order',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {imageFirst, rowsFirst} = await api.imageAnchorRowAppendReport();
         assert.strictEqual(imageFirst.firstDataCell, rowsFirst.firstDataCell);

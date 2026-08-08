@@ -42,7 +42,6 @@ export default {
   behavior: [
     {
       name: 'a bounded-reference defined name survives a round-trip (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {definedNames} = await api.roundtripWorkbook(BOUNDED);
         assert.deepStrictEqual(
@@ -54,7 +53,6 @@ export default {
     },
     {
       name: 'a full-row-span defined name survives a write→read round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {definedNames} = await api.roundtripWorkbook(FULL_ROW);
         assert.deepStrictEqual(
@@ -66,7 +64,6 @@ export default {
     },
     {
       name: 'a full-column-span defined name survives a write→read round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {definedNames} = await api.roundtripWorkbook(FULL_COL);
         assert.deepStrictEqual(
@@ -78,7 +75,6 @@ export default {
     },
     {
       name: 'a full-row-span defined name declared by a real file is read back',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {names} = await api.readFixtureDefinedNames(FIXTURE);
         assert.deepStrictEqual(

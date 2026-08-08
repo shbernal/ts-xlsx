@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'inserting a row above a table shifts the table’s cell range down',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tableRef} = await api.spliceShiftsRefs();
         assert.strictEqual(
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'inserting a row above an anchored image shifts the image’s from-anchor down',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {imageFromRow} = await api.spliceShiftsRefs();
         assert.strictEqual(
@@ -47,7 +45,6 @@ export default {
     },
     {
       name: 'authoring a table with duplicate column names disambiguates them',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {dupColumnNamesUnique, dupColumnNames} = await api.spliceShiftsRefs();
         assert.strictEqual(

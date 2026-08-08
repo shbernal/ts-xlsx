@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'a frozen view emits a <pane> element',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {frozenHasPane} = await api.unfreezeViewRoundtrip();
         assert.strictEqual(frozenHasPane, true, 'a frozen view must serialize a <pane>');
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'unfreezing to a normal view leaves no <pane> element behind',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {normalHasPane} = await api.unfreezeViewRoundtrip();
         assert.strictEqual(
@@ -42,7 +40,6 @@ export default {
     },
     {
       name: 'the unfrozen sheet reloads as a normal view with no split',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadedState, reloadedHasSplit} = await api.unfreezeViewRoundtrip();
         assert.strictEqual(

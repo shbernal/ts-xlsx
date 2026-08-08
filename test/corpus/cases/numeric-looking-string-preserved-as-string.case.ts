@@ -32,7 +32,6 @@ export default {
   behavior: [
     {
       name: 'a string that looks like a decimal keeps its exact characters (trailing zero)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(
@@ -44,7 +43,6 @@ export default {
     },
     {
       name: 'a string with leading zeros is preserved verbatim',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(
@@ -56,7 +54,6 @@ export default {
     },
     {
       name: 'the preserved value is a string, not a number',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(

@@ -13,7 +13,6 @@ export default {
   behavior: [
     {
       name: 'the exact-case name is found after the sheet is added',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {foundExact} = api.worksheetNameLookupReport();
         assert.strictEqual(foundExact, true);
@@ -21,7 +20,6 @@ export default {
     },
     {
       name: 'lookup and add agree: a case-variant name reported absent by getWorksheet is addable',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {foundVariant, addVariantThrew} = api.worksheetNameLookupReport();
         // A consistent API cannot both fail to find "sheet" AND refuse to add it.

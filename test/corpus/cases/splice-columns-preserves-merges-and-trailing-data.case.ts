@@ -38,7 +38,6 @@ export default {
   behavior: [
     {
       name: 'columns to the right of the removed block keep their values at shifted positions',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.mutateWorksheet(sheet);
         assert.strictEqual(cells.B1, 'C', 'the value formerly at C1 shifts left to B1');
@@ -52,7 +51,6 @@ export default {
     },
     {
       name: 'a merged range to the right of the removed column is re-anchored to its new position',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {merges} = await api.mutateWorksheet(sheet);
         assert.ok(

@@ -27,7 +27,6 @@ export default {
   behavior: [
     {
       name: 'a whole-type validation with a cell-reference operand keeps the reference (not null/NaN)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.readFixtureValidations(FIXTURE);
         const dv = cells['Sheet1!A1'];
@@ -41,7 +40,6 @@ export default {
     },
     {
       name: 'a list-type validation with a defined-name operand keeps the name (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.readFixtureValidations(FIXTURE);
         const dv = cells['Sheet1!B1'];

@@ -29,7 +29,6 @@ export default {
   behavior: [
     {
       name: 'a workbook with a reserved-named sheet loads without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(
@@ -41,7 +40,6 @@ export default {
     },
     {
       name: 'the reserved-named sheet is exposed with its original name preserved',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(
@@ -52,7 +50,6 @@ export default {
     },
     {
       name: 'constructing a worksheet named "History" through the API is permitted',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {addThrew, roundtripName, addError} = await api.addReservedSheetNameReport();
         assert.strictEqual(
@@ -69,7 +66,6 @@ export default {
     },
     {
       name: 'a genuinely-invalid sheet name is still rejected',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {invalidRejected} = await api.addReservedSheetNameReport();
         assert.strictEqual(

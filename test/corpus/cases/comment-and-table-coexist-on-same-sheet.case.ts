@@ -41,7 +41,6 @@ export default {
   behavior: [
     {
       name: 'the package carries both a comments part and a table part with unique worksheet rels',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {packageParts, consistency} = await api.inspectPackage(SPEC);
         assert.ok(packageParts.hasCommentsPart, 'a comments part is written');
@@ -55,7 +54,6 @@ export default {
     },
     {
       name: 'the table data and the comment both survive the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const e5 = model.sheets.S.cells.E5;
@@ -74,10 +72,9 @@ export default {
       // though this library's own tolerant reader reads it back fine, so the round-trip above
       // does not catch it. Order, not just presence, is the invariant.
       name: 'the note’s legacyDrawing is emitted before the table’s tableParts (schema order)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
-        const order = sheets.S.elementOrder;
+        const order = sheets.S!.elementOrder;
         assert.ok(order.legacyDrawing >= 0, 'precondition: the note emits a legacyDrawing element');
         assert.ok(order.tableParts >= 0, 'precondition: the table emits a tableParts element');
         assert.strictEqual(

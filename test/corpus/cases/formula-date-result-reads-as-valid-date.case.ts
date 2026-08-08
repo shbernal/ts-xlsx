@@ -19,7 +19,6 @@ export default {
   behavior: [
     {
       name: 'the formula result surfaces as a valid Date under a date number format',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {isValidDate, resultIso} = await api.formulaDateResultReport();
         assert.strictEqual(
@@ -31,7 +30,6 @@ export default {
     },
     {
       name: 'the cell keeps its formula alongside the date result',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {keepsFormula} = await api.formulaDateResultReport();
         assert.strictEqual(keepsFormula, true, 'the cell round-trips as a formula cell');

@@ -10,6 +10,7 @@
 // round-trip is the durable contract; the advisory is the honest consequence, not a bug.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const spec = {
   sheets: [
@@ -24,7 +25,7 @@ const spec = {
   ],
 };
 
-const readBack = async (api: CorpusApi) => (await api.roundtripWorkbook(spec)).sheets.S.cells;
+const readBack = async (api: Untyped) => (await api.roundtripWorkbook(spec)).sheets.S.cells;
 
 export default {
   id: 'numeric-looking-string-stays-text-cell',
@@ -39,7 +40,6 @@ export default {
   behavior: [
     {
       name: 'a digit-only string value ("10") round-trips as a string, not coerced to a number',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await readBack(api);
         assert.strictEqual(
@@ -52,7 +52,6 @@ export default {
     },
     {
       name: 'a numeric value (15) round-trips as a number',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await readBack(api);
         assert.strictEqual(
@@ -65,7 +64,6 @@ export default {
     },
     {
       name: 'a zero-padded code ("007") survives without losing its leading zeros to numeric coercion',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await readBack(api);
         assert.strictEqual(

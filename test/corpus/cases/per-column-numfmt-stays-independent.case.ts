@@ -42,7 +42,6 @@ export default {
   behavior: [
     {
       name: 'each column keeps its own number format after a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const cols = model.sheets.S.columns;
@@ -57,7 +56,6 @@ export default {
     },
     {
       name: 'a cell under a currency column does not inherit the percentage columns’ format',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(
@@ -69,7 +67,6 @@ export default {
     },
     {
       name: 'cells under the percentage columns keep the percentage format',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(model.sheets.S.cells.A1.numFmt, PCT, 'A1 keeps percentage');

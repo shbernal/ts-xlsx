@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'the eager read resolves the declared sheet names (oracle)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {eager} = await api.streamVsEagerSheetNames(FIXTURE);
         assert.deepStrictEqual(eager, ['Sheet', 'test'], 'the eager read is the naming oracle');
@@ -31,7 +30,6 @@ export default {
     },
     {
       name: 'the streaming reader surfaces the same declared names, not positional placeholders',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {eager, streaming} = await api.streamVsEagerSheetNames(FIXTURE);
         assert.deepStrictEqual(

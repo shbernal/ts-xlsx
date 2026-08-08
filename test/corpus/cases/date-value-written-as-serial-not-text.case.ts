@@ -58,7 +58,6 @@ export default {
   behavior: [
     {
       name: 'a date under a column-level date format reads back as a date',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(
@@ -70,7 +69,6 @@ export default {
     },
     {
       name: 'a date under a per-cell date format reads back as a date and keeps its format',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const b1 = model.sheets.S.cells.B1;
@@ -82,7 +80,6 @@ export default {
       // A time-of-day under a time/duration format must stay a numeric (fractional-serial) cell so
       // arithmetic over a column of durations works — storing it as text makes a SUM evaluate to 0.
       name: 'a time-of-day under a duration format stays a numeric date value, not text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(TIME_SPEC);
         const a1 = model.sheets.T.cells.A1;
@@ -96,7 +93,6 @@ export default {
     },
     {
       name: 'a date-looking string under a date column stays a string (the format does not coerce it)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(STRING_UNDER_DATE_FMT);
         assert.strictEqual(

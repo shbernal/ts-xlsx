@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a shared clone with no master formula fails with an error naming the cell',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.tryWriteWorkbook({
           sheets: [{name: 'S', cells: [{ref: 'B2', sharedFormula: 'A1', result: 0}]}],
@@ -31,13 +30,12 @@ export default {
           false,
           'the write must fail rather than emit a broken shared formula',
         );
-        assert.match(error, /master/i, 'the error explains the missing master');
-        assert.match(error, /B2/, 'the error names the offending cell');
+        assert.match(error!, /master/i, 'the error explains the missing master');
+        assert.match(error!, /B2/, 'the error names the offending cell');
       },
     },
     {
       name: 'assigning each cell a concrete formula writes and round-trips',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.roundtripFormulas({
           sheets: [

@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'reading a file whose worksheet omits sheetFormatPr does not throw',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(ok, `the read must succeed; got error ${JSON.stringify(error)}`);
@@ -31,7 +30,6 @@ export default {
     },
     {
       name: 'the sheet is discoverable by name after the read',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(sheetNames && sheetNames.length >= 1, 'at least one sheet is exposed');

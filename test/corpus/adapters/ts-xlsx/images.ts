@@ -2,7 +2,7 @@
 // anchor when the rows around it move.
 
 import {strFromU8, unzipSync} from 'fflate';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {buildFrom, ONE_PX_PNG} from './spec-model.ts';
@@ -18,7 +18,7 @@ export const images = {
   // Build a workbook whose sheets place images at the spec's ranges, write it, and report the
   // serialized drawing-anchor geometry (type, editAs, from/to, one-cell extent, spPr transform) as
   // plain numbers — the surface a case asserts against for anchor correctness.
-  inspectImageAnchors(spec: CorpusApi) {
+  inspectImageAnchors(spec: Untyped) {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
     const drawingParts = Object.keys(parts)
       .filter((f) => /^xl\/drawings\/drawing\d+\.xml$/.test(f))
@@ -193,18 +193,18 @@ export const images = {
   // Read a fixture and report each image's normalized anchor range → for asserting a file whose
   // drawing anchors were authored as cell ranges reads without throwing and exposes integer cell
   // coordinates, never a raw string.
-  readFixtureImageAnchors(rel: CorpusApi) {
+  readFixtureImageAnchors(rel: Untyped) {
     const workbook = readFixture(rel);
     const images = [];
     for (const sheet of workbook.worksheets) {
       for (const im of sheet.images) {
         const from = im.anchor.from;
         // reaches past the public ImageAnchor type for the two-cell `to` side
-        const to = (im.anchor as CorpusApi).to;
+        const to = (im.anchor as Untyped).to;
         images.push({
           sheet: sheet.name,
           // reaches past the public ImageAnchor type for `editAs`
-          editAs: (im.anchor as CorpusApi).editAs ?? null,
+          editAs: (im.anchor as Untyped).editAs ?? null,
           tl: from ? {col: from.col, row: from.row} : null,
           br: to ? {col: to.col, row: to.row} : null,
         });
@@ -261,7 +261,7 @@ export const images = {
   // firstDataCell }. Anchoring a floating image is metadata overlay, not row insertion: it must not
   // advance the row-append cursor, so the layout is identical regardless of add order.
   imageAnchorRowAppendReport() {
-    const run = (order: CorpusApi) => {
+    const run = (order: Untyped) => {
       const wb = new Workbook();
       const sheet = wb.addWorksheet('S');
       const id = wb.addImage({buffer: ONE_PX_PNG, extension: 'png'});
@@ -279,12 +279,12 @@ export const images = {
 
   // Read a fixture, load-and-rewrite it, and report the picture's drawing-anchor rotation before and
   // after → { sourceRot, rewrittenRot }. An image rotation (rot on <a:xfrm>) must survive the round-trip.
-  roundtripFixtureImageRotation(rel: CorpusApi) {
-    const rotOf = (xml: CorpusApi) => {
+  roundtripFixtureImageRotation(rel: Untyped) {
+    const rotOf = (xml: Untyped) => {
       const m = xml.match(/<a:xfrm\b[^>]*\brot="(-?\d+)"/);
       return m ? Number(m[1]) : null;
     };
-    const drawingName = (parts: CorpusApi) =>
+    const drawingName = (parts: Untyped) =>
       Object.keys(parts).find((f) => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
     const srcParts = partMapOf(fixtureBytes(rel));
     const srcDrawing = drawingName(srcParts);

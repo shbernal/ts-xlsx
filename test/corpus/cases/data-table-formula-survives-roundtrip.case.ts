@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'reading a data-table formula surfaces its kind, range, and cached result',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadOk, readShareType, readRef, readResult} =
           await api.dataTableFormulaRoundtrip();
@@ -38,7 +37,6 @@ export default {
     },
     {
       name: 'writing the workbook back preserves the data-table formula kind',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {outHasDataTable} = await api.dataTableFormulaRoundtrip();
         assert.strictEqual(

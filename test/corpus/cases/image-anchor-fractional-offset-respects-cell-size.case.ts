@@ -9,6 +9,7 @@
 // regardless of the real dimensions would render the image off-center.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const fractionalAnchorSheet = ({colWidth, rowHeight}: {colWidth?: number; rowHeight?: number}) => ({
   sheets: [
@@ -21,7 +22,7 @@ const fractionalAnchorSheet = ({colWidth, rowHeight}: {colWidth?: number; rowHei
   ],
 });
 
-const firstFrom = async (api: CorpusApi, spec: CorpusApi) => {
+const firstFrom = async (api: Untyped, spec: Untyped) => {
   const {anchors} = await api.inspectImageAnchors(spec);
   return anchors[0].from;
 };
@@ -38,7 +39,6 @@ export default {
   behavior: [
     {
       name: 'a fractional column anchor offset grows with the column width',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const narrow = await firstFrom(api, fractionalAnchorSheet({colWidth: 5}));
         const wide = await firstFrom(api, fractionalAnchorSheet({colWidth: 50}));
@@ -54,7 +54,6 @@ export default {
     },
     {
       name: 'a fractional row anchor offset grows with the row height',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const short = await firstFrom(api, fractionalAnchorSheet({rowHeight: 10}));
         const tall = await firstFrom(api, fractionalAnchorSheet({rowHeight: 80}));

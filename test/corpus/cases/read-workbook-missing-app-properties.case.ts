@@ -27,7 +27,6 @@ export default {
   behavior: [
     {
       name: 'a workbook missing docProps/app.xml loads without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(
@@ -39,7 +38,6 @@ export default {
     },
     {
       name: 'the worksheets are recovered intact',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(
@@ -51,7 +49,6 @@ export default {
     },
     {
       name: 'cell values are accessible despite the missing application properties',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.readFixtureCells(FIXTURE, ['A1']);
         assert.strictEqual(cells.A1.value, 'hi', 'the first sheet’s cell value reads back');

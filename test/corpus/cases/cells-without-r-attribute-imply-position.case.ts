@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a worksheet with cells lacking the r attribute reads without error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(ok, `implied positions must not be a fatal error; got ${JSON.stringify(error)}`);
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'the worksheet is accessible after inferring positions',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(

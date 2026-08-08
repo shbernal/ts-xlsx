@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a hidden worksheet reads back hidden and a visible one stays visible',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readStates} = await api.worksheetStateReport();
         assert.strictEqual(readStates.Visible, 'visible', 'the visible sheet stays visible');
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'a veryHidden worksheet reads back veryHidden, not degraded to hidden',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readStates} = await api.worksheetStateReport();
         assert.strictEqual(readStates.VeryHid, 'veryHidden', 'veryHidden must not degrade');
@@ -38,7 +36,6 @@ export default {
     },
     {
       name: 'the workbook sheet-list entries declare each visibility state',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {xmlStates} = await api.worksheetStateReport();
         assert.strictEqual(

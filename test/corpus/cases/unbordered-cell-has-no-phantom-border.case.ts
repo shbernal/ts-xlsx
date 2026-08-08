@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'an unbordered cell reports no border sides after a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {border} = (await api.roundtripWorkbook(NO_BORDER)).sheets.S.cells.A1;
         const sides = border
@@ -40,7 +39,6 @@ export default {
     },
     {
       name: 'a cell bordered on one side does not sprout the other three',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {border} = (await api.roundtripWorkbook(TOP_ONLY)).sheets.S.cells.A1;
         assert.strictEqual(border?.top?.style, 'thin', 'the declared top border survives');

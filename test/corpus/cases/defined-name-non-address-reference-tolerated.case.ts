@@ -29,7 +29,6 @@ export default {
   behavior: [
     {
       name: 'a workbook with non-address defined names reads without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(
@@ -41,7 +40,6 @@ export default {
     },
     {
       name: 'every worksheet is recovered intact',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(
@@ -53,7 +51,6 @@ export default {
     },
     {
       name: 'a valid defined name survives even though its degenerate siblings do not decode',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {names} = await api.readFixtureDefinedNames(FIXTURE);
         assert.deepStrictEqual(

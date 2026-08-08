@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'the drawing part and its worksheet reference survive the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'the vector shape element survives inside the drawing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.drawingHasShape, 'precondition: source drawing has an xdr:sp shape');

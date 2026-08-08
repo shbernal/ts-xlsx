@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'emoji and CJK survive a default UTF-8 CSV round-trip verbatim',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {emojiRoundtrips} = await api.csvWriteEncodingReport();
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'a requested non-UTF-8 output encoding is actually applied',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {decodesAsRequested, decodesAsUtf8, requestedEncoding} =
           await api.csvWriteEncodingReport({encoding: 'utf16le'});

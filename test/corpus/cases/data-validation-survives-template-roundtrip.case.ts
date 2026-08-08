@@ -31,7 +31,6 @@ export default {
   behavior: [
     {
       name: 'at least one data validation survives the round-trip in some form',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {totalValidations} = await api.roundtripFixtureValidationXml(FIXTURE);
         assert.ok(
@@ -42,11 +41,10 @@ export default {
     },
     {
       name: 'the extended (whole-column list) validation is preserved',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {totalExt, sheets} = await api.roundtripFixtureValidationXml(FIXTURE);
         assert.ok(totalExt >= 1, 'the x14 extended validation should be re-serialized');
-        const sqrefs = Object.values(sheets).flatMap((s: CorpusApi) => s.extSqrefs);
+        const sqrefs = Object.values(sheets).flatMap((s) => s.extSqrefs);
         assert.ok(
           sqrefs.some((ref) => /^A1:A104857\d$/.test(ref)),
           `the whole-column target range should survive; got ${JSON.stringify(sqrefs)}`,

@@ -29,7 +29,6 @@ export default {
   behavior: [
     {
       name: 'loading a comment worksheet whose VML drawing target is missing does not throw',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(
@@ -41,7 +40,6 @@ export default {
     },
     {
       name: 'the worksheets are recovered despite the missing VML drawing part',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(

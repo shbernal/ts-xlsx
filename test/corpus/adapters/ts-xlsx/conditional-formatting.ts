@@ -2,7 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {FIXTURES_ROOT, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {attrsOf} from './xml-probes.ts';
@@ -11,20 +11,20 @@ export const conditionalFormatting = {
   // Author a conditional-formatting rule, write it, and report the emitted CF XML facts plus what the
   // reader surfaces on reload → { writeOk, writeError, xml:{blockCount, sqrefs, ruleCount, hasDataBar,
   // cfvoCount, hasColor, wellFormed}, reload:{type, color, gradient, cfvo} }.
-  authorConditionalFormatting(cf: CorpusApi) {
+  authorConditionalFormatting(cf: Untyped) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     // Populate the ref's first column so the rule binds to real cells.
     const rows = Number((cf.ref.match(/(\d+)\s*$/) || [])[1] || 3);
     for (let r = 1; r <= rows; r++) sheet.getCell(`A${r}`).value = r / rows;
-    let buffer: CorpusApi;
+    let buffer: Untyped;
     try {
       sheet.addConditionalFormatting(cf);
       buffer = writeXlsx(workbook);
     } catch (e) {
       return {
         writeOk: false,
-        writeError: String((e as CorpusApi)?.message || e),
+        writeError: String((e as Untyped)?.message || e),
         xml: null,
         reload: null,
       };
@@ -89,8 +89,8 @@ export const conditionalFormatting = {
 
   // Read a fixture's first-sheet conditional-formatting facts, write it back, and report the same
   // before/after → { source, rewritten } each { blockCount, rules:[{type, dxfId, priority}] }.
-  roundtripFixtureConditionalFormatting(rel: CorpusApi) {
-    const cfFacts = (xml: CorpusApi) => ({
+  roundtripFixtureConditionalFormatting(rel: Untyped) {
+    const cfFacts = (xml: Untyped) => ({
       blockCount: [...xml.matchAll(/<conditionalFormatting\b/g)].length,
       rules: [...xml.matchAll(/<cfRule\b([^>]*?)\/?>/g)].map((m) => {
         const a = attrsOf(`<x ${m[1]}>`);

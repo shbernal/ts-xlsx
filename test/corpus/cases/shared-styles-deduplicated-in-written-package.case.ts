@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: '40 cells carrying an identical fill resolve to a single shared style index',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {indices} = await api.styleDedupReport(
           {sheets: [{name: 'S', cells: sharedCells()}]},
@@ -48,7 +47,6 @@ export default {
     },
     {
       name: 'the written style table does not emit one entry per identically-styled cell',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cellXfCount} = await api.styleDedupReport(
           {sheets: [{name: 'S', cells: sharedCells()}]},
@@ -63,7 +61,6 @@ export default {
     },
     {
       name: 'a genuinely different style resolves to a distinct index (dedup does not over-collapse)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = [...sharedCells(), {ref: 'B1', value: 'x', numFmt: '0.00%'}];
         const {indices} = await api.styleDedupReport({sheets: [{name: 'S', cells}]}, ['A1', 'B1']);

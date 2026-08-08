@@ -24,7 +24,6 @@ export default {
   behavior: [
     {
       name: 'writing a whole-column-range validation does not throw during serialization',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, writeError} = await api.roundtripRangeValidation({range: RANGE});
         assert.strictEqual(
@@ -36,7 +35,6 @@ export default {
     },
     {
       name: 'the package contains exactly one dataValidation whose sqref is the requested range',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {count, sqrefs} = await api.roundtripRangeValidation({range: RANGE});
         assert.strictEqual(count, 1, 'one dataValidation entry, not one per covered cell');
@@ -49,7 +47,6 @@ export default {
     },
     {
       name: 'the written file reloads without error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadOk} = await api.roundtripRangeValidation({range: RANGE});
         assert.strictEqual(

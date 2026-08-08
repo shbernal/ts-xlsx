@@ -8,6 +8,7 @@
 // visible. Explicit hidden/visible states must be preserved.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const SPEC = {
   sheets: [
@@ -17,8 +18,8 @@ const SPEC = {
   ],
 };
 
-const stateOf = (entries: CorpusApi, name: CorpusApi) => {
-  const e = entries.find((s: CorpusApi) => s.name === name);
+const stateOf = (entries: Untyped, name: Untyped) => {
+  const e = entries.find((s: Untyped) => s.name === name);
   return e ? e.state : undefined;
 };
 
@@ -33,7 +34,6 @@ export default {
   behavior: [
     {
       name: 'a sheet added with no state is visible (not hidden or veryHidden)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetEntries} = await api.inspectPackage(SPEC);
         const state = stateOf(sheetEntries, 'Default');
@@ -45,7 +45,6 @@ export default {
     },
     {
       name: 'an explicitly hidden sheet is preserved as hidden',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetEntries} = await api.inspectPackage(SPEC);
         assert.strictEqual(
@@ -57,7 +56,6 @@ export default {
     },
     {
       name: 'an explicitly visible sheet is preserved as visible',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetEntries} = await api.inspectPackage(SPEC);
         const state = stateOf(sheetEntries, 'Shown');
@@ -69,11 +67,10 @@ export default {
     },
     {
       name: 'no default-added sheet is emitted as veryHidden',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetEntries} = await api.inspectPackage(SPEC);
         assert.ok(
-          sheetEntries.every((s: CorpusApi) => s.state !== 'veryHidden'),
+          sheetEntries.every((s) => s.state !== 'veryHidden'),
           'no sheet is silently marked veryHidden',
         );
       },

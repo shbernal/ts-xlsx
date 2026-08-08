@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'an explicit RGB fill exposes a concrete argb foreground',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const styles = await api.readFixtureCellStyles(FIXTURE, [`${SHEET}!A1`]);
         assert.strictEqual(
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'a theme+tint fill exposes its theme index and tint',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const styles = await api.readFixtureCellStyles(FIXTURE, [`${SHEET}!C2`]);
         const fg = styles[`${SHEET}!C2`].fill.fgColor;

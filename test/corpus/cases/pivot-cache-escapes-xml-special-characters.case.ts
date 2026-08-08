@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'a pivot over source data with special characters and a null value writes without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, writeError} = await api.pivotCacheSpecialCharsReport();
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the pivot cache XML is well-formed with special characters escaped',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cacheWellFormed, hasRawUnescapedAmp} = await api.pivotCacheSpecialCharsReport();
         assert.strictEqual(

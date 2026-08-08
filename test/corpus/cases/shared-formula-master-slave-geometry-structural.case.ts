@@ -15,6 +15,7 @@
 // correlated writer/reader bug cannot hide from.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 // Two independent groups on one sheet: a fill-down (B1 master over B2/B3) and a second, distinct
 // group (C1 master over C2). Two groups are what makes `si` uniqueness observable.
@@ -49,11 +50,10 @@ export default {
   behavior: [
     {
       name: 'each group has a master carrying its ref range and formula text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {masters} = (await api.inspectPackage(TWO_GROUPS)).sheets.S.sharedFormulas;
-        const byCell: Record<string, CorpusApi> = Object.fromEntries(
-          masters.map((m: CorpusApi) => [m.cell, m]),
+        const {masters} = (await api.inspectPackage(TWO_GROUPS)).sheets.S!.sharedFormulas;
+        const byCell: Record<string, Untyped> = Object.fromEntries(
+          masters.map((m: Untyped) => [m.cell, m]),
         );
         assert.strictEqual(
           masters.length,
@@ -66,9 +66,8 @@ export default {
     },
     {
       name: 'distinct groups carry distinct shared indices',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {masters, siUniqueAcrossMasters} = (await api.inspectPackage(TWO_GROUPS)).sheets.S
+        const {masters, siUniqueAcrossMasters} = (await api.inspectPackage(TWO_GROUPS)).sheets.S!
           .sharedFormulas;
         assert.strictEqual(
           siUniqueAcrossMasters,
@@ -79,11 +78,10 @@ export default {
     },
     {
       name: 'every slave references a real master and sits inside its ref',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {slaves, everySlaveHasMaster, everySlaveWithinMasterRef} = (
           await api.inspectPackage(TWO_GROUPS)
-        ).sheets.S.sharedFormulas;
+        ).sheets.S!.sharedFormulas;
         assert.strictEqual(
           slaves.length,
           3,

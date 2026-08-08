@@ -22,26 +22,20 @@ export default {
   behavior: [
     {
       name: 'the eager read sees the hidden row (oracle)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {eager} = await api.streamVsEagerRowHidden(FIXTURE);
         assert.ok(
-          eager.some((r: CorpusApi) => r.hidden),
+          eager.some((r) => r.hidden),
           `the fixture has a hidden row; eager=${JSON.stringify(eager)}`,
         );
       },
     },
     {
       name: 'the streaming read reports the same hidden flags as the eager read',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {eager, streaming} = await api.streamVsEagerRowHidden(FIXTURE);
-        const eagerHidden = eager
-          .filter((r: CorpusApi) => r.hidden)
-          .map((r: CorpusApi) => r.number);
-        const streamHidden = streaming
-          .filter((r: CorpusApi) => r.hidden)
-          .map((r: CorpusApi) => r.number);
+        const eagerHidden = eager.filter((r) => r.hidden).map((r) => r.number);
+        const streamHidden = streaming.filter((r) => r.hidden).map((r) => r.number);
         assert.deepStrictEqual(
           streamHidden,
           eagerHidden,

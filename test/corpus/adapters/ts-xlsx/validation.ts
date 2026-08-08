@@ -1,6 +1,6 @@
 // Data validation rules: authoring them, reading them back, and their serialized XML.
 
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {attrsOf, expandSqref} from './xml-probes.ts';
@@ -9,7 +9,7 @@ export const validation = {
   // Author a date-type validation whose operand coerces to a serial (or fails to), write, and report
   // the emitted first bound → { formula1, hasNaN }. A real date writes a numeric serial; a
   // non-coercible operand must drop the bound, never serialize the literal "NaN".
-  authorDateValidation(operand: CorpusApi) {
+  authorDateValidation(operand: Untyped) {
     const serial = (() => {
       const ms = Date.parse(operand);
       return Number.isNaN(ms) ? Number.NaN : ms / 86_400_000 + 25_569; // Unix epoch → 1900 serial
@@ -26,7 +26,7 @@ export const validation = {
   // the per-row source references plus how many dataValidation blocks were emitted → { source,
   // formulae, allIdentical, sqrefBlocks }. Every row must keep the exact source (no relative drift),
   // and the identical rules collapse into one spanning sqref.
-  listValidationSourceRangeAcrossRows(rows: CorpusApi, source: CorpusApi) {
+  listValidationSourceRangeAcrossRows(rows: Untyped, source: Untyped) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     sheet.addDataValidation(`A1:A${rows}`, {type: 'list', formulae: [source]}, {extended: true});
@@ -44,9 +44,9 @@ export const validation = {
   // Read a fixture and report each covered cell's data validation → { cells: { 'Sheet!Ref': rule },
   // count }. A rule authored over a multi-cell range must be reported on EVERY covered cell (the
   // range form is resolved per cell), and a reference/name operand must survive as its string.
-  readFixtureValidations(rel: CorpusApi) {
+  readFixtureValidations(rel: Untyped) {
     const wb = readFixture(rel);
-    const cells: Record<string, CorpusApi> = {};
+    const cells: Record<string, Untyped> = {};
     for (const sheet of wb.worksheets) {
       for (const {sqref} of sheet.dataValidations) {
         for (const ref of expandSqref(sqref)) {
@@ -63,9 +63,9 @@ export const validation = {
   // Reads the worksheet overlay (not populated cells), so a rule over an empty range is still seen,
   // and surfaces a reference source (a defined name, a cross-sheet range) as its verbatim formula
   // text rather than "[object Object]".
-  readFixtureValidationRules(rel: CorpusApi) {
+  readFixtureValidationRules(rel: Untyped) {
     const wb = readFixture(rel);
-    const sheets: Record<string, CorpusApi> = {};
+    const sheets: Record<string, Untyped> = {};
     for (const sheet of wb.worksheets) {
       const byContent = new Map();
       for (const {sqref, rule} of sheet.dataValidations) {
@@ -84,13 +84,13 @@ export const validation = {
   // form (2009 extension schema, carried in `<extLst>`, used for cross-sheet / whole-column list
   // sources). Lets a case assert a template's validation survives a read→write round-trip rather than
   // being silently dropped because only the standard form was understood.
-  roundtripFixtureValidationXml(rel: CorpusApi) {
+  roundtripFixtureValidationXml(rel: Untyped) {
     const parts = partMapOf(writeXlsx(readFixture(rel)));
     const sheetParts = Object.keys(parts)
       .filter((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p))
       .sort();
 
-    const sheets: Record<string, CorpusApi> = {};
+    const sheets: Record<string, Untyped> = {};
     let totalStandard = 0;
     let totalExt = 0;
     for (const p of sheetParts) {
@@ -151,17 +151,17 @@ export const validation = {
   // Attach one validation over a whole range, write, and report the serialized facts → { writeOk,
   // writeError, sqrefs, count, reloadOk }. A range-form validation must emit exactly ONE
   // dataValidation whose sqref is the requested range, not one entry per covered cell.
-  roundtripRangeValidation({range, type = 'list', formula = '"a,b,c"'}: CorpusApi = {}) {
+  roundtripRangeValidation({range, type = 'list', formula = '"a,b,c"'}: Untyped = {}) {
     const wb = new Workbook();
     const sheet = wb.addWorksheet('S');
-    let buffer: CorpusApi;
+    let buffer: Untyped;
     try {
       sheet.addDataValidation(range, {type, allowBlank: true, formulae: [formula]});
       buffer = writeXlsx(wb);
     } catch (e) {
       return {
         writeOk: false,
-        writeError: String((e as CorpusApi)?.message || e),
+        writeError: String((e as Untyped)?.message || e),
         sqrefs: [],
         count: 0,
         reloadOk: null,
@@ -185,13 +185,13 @@ export const validation = {
   // `<dataValidations>` facts (count, well-formedness, the verbatim formula1 texts). Lets a case
   // assert BOTH forms survive a write→read round-trip and that inline lists stay quoted while range
   // references stay unquoted, without the case knowing how validations are shaped internally.
-  authorListValidations(validations: CorpusApi = []) {
+  authorListValidations(validations: Untyped = []) {
     const wb = new Workbook();
     const main = wb.addWorksheet('Main');
     const levels = wb.addWorksheet('Levels');
     levels.getCell('A2').value = 'X';
     for (const v of validations) {
-      const rule: CorpusApi = {
+      const rule: Untyped = {
         type: 'list',
         allowBlank: v.allowBlank !== false,
         formulae: [v.formula],
@@ -205,7 +205,7 @@ export const validation = {
     const buffer = writeXlsx(wb);
 
     const reread = readXlsx(buffer).getWorksheet('Main');
-    const readBack: Record<string, CorpusApi> = {};
+    const readBack: Record<string, Untyped> = {};
     for (const v of validations) {
       const dv = reread?.dataValidationAt(v.ref);
       readBack[v.ref] = dv ? {type: dv.type, formulae: dv.formulae ?? null} : null;

@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'identifier-like strings that resemble dates are preserved as text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, rows} = await api.csvRead({csv: '2020-00001,1-3,3-4', options: {}});
         assert.ok(ok, 'the read must succeed');
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'a clearly numeric field is read as a number',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows} = await api.csvRead({csv: '123,45.6', options: {}});
         assert.deepStrictEqual(rows[0], [123, 45.6], 'numeric fields coerce to numbers');
@@ -42,10 +40,9 @@ export default {
     },
     {
       name: 'a strictly-formatted ISO date field is read as a Date',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows} = await api.csvRead({csv: '2018-01-05', options: {}});
-        const cell = rows[0][0];
+        const cell = rows[0]![0];
         assert.ok(
           cell && typeof cell === 'object' && cell.date,
           `a real date should coerce; got ${JSON.stringify(cell)}`,

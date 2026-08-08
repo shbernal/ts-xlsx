@@ -44,10 +44,9 @@ export default {
   behavior: [
     {
       name: 'the odd, even, and first header/footer child elements are all emitted with their text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
-        const hf = sheets.S.headerFooter;
+        const hf = sheets.S!.headerFooter;
         assert.strictEqual(hf.oddHeader, 'ODD-H', 'odd header text is written');
         assert.strictEqual(hf.evenHeader, 'EVEN-H', 'even header text is written');
         assert.strictEqual(hf.firstHeader, 'FIRST-H', 'first header text is written');
@@ -56,11 +55,10 @@ export default {
     },
     {
       name: 'differentOddEven is set when even-page header/footer content is provided',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(
-          sheets.S.headerFooter.differentOddEven,
+          sheets.S!.headerFooter.differentOddEven,
           true,
           'even variants require differentOddEven="1" or they are ignored on open',
         );
@@ -68,11 +66,10 @@ export default {
     },
     {
       name: 'differentFirst is set when first-page header/footer content is provided',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(
-          sheets.S.headerFooter.differentFirst,
+          sheets.S!.headerFooter.differentFirst,
           true,
           'first-page variants require differentFirst="1" or they are ignored on open',
         );

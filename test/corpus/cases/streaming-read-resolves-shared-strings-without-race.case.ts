@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a single streaming read resolves all shared-string cells',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {singleComplete, singleLength} = await api.streamingSharedStringsRead();
         assert.strictEqual(
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'many concurrent streaming reads all complete with resolved strings',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {concurrentAllComplete, concurrentLengths} = await api.streamingSharedStringsRead();
         assert.strictEqual(

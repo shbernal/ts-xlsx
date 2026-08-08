@@ -23,27 +23,25 @@ export default {
   behavior: [
     {
       name: 'a modern function written by its plain name is stored with the _xlfn. prefix on disk',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'FILTER(B1:D1,B2:D2=1)', result: 0}]}],
         });
         assert.ok(
-          /_xlfn\.FILTER/.test(sheets.S.formulas.A1 || ''),
-          `FILTER must be stored as _xlfn.FILTER for Excel to accept it; got: ${sheets.S.formulas.A1}`,
+          /_xlfn\.FILTER/.test(sheets.S!.formulas.A1 || ''),
+          `FILTER must be stored as _xlfn.FILTER for Excel to accept it; got: ${sheets.S!.formulas.A1}`,
         );
       },
     },
     {
       name: 'a formula whose input already carries an explicit _xlfn. prefix is not double-prefixed',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [
             {name: 'S', cells: [{ref: 'A1', formula: '_xlfn.XLOOKUP(1,B:B,C:C)', result: 0}]},
           ],
         });
-        const f = sheets.S.formulas.A1 || '';
+        const f = sheets.S!.formulas.A1 || '';
         assert.ok(/_xlfn\.XLOOKUP/.test(f), 'the explicit prefix survives');
         assert.ok(!/_xlfn\._xlfn/.test(f), `the prefix must not be doubled; got: ${f}`);
       },
@@ -54,14 +52,13 @@ export default {
       // which by itself makes Excel flag the formula. Writing a modern-function formula in plain
       // syntax must not fabricate an `@` on its range references.
       name: 'writing a modern-function formula does not inject a spurious @ implicit-intersection operator',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [
             {name: 'S', cells: [{ref: 'A1', formula: 'IFS(B1>0,"pos",B1<0,"neg")', result: 'pos'}]},
           ],
         });
-        const f = sheets.S.formulas.A1 || '';
+        const f = sheets.S!.formulas.A1 || '';
         assert.ok(
           !/(^|[^A-Za-z0-9_])@/.test(f),
           `no @ implicit-intersection operator should be injected; got: ${f}`,
@@ -74,7 +71,6 @@ export default {
       // formula combining them (LET + BYROW + LAMBDA + FILTER) that is written verbatim, with none of
       // these prefixes, is rejected by Excel as corrupt.
       name: 'a LET/LAMBDA formula is stored with the _xlfn. function prefix Excel requires',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [
@@ -90,7 +86,7 @@ export default {
             },
           ],
         });
-        const f = sheets.S.formulas.A1 || '';
+        const f = sheets.S!.formulas.A1 || '';
         assert.ok(
           /_xlfn\.LET/.test(f),
           `LET must be stored as _xlfn.LET for Excel to accept it; got: ${f}`,
@@ -102,14 +98,13 @@ export default {
       // frozen grammar and needs the `_xlfn.` prefix, but its names carry an internal '.'. The whole
       // dotted name must be prefixed once — `_xlfn.NORM.DIST` — not its trailing segment.
       name: 'a dotted statistical function is stored whole with the _xlfn. prefix, not on its tail segment',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [
             {name: 'S', cells: [{ref: 'A1', formula: 'NORM.DIST(A2,0,1,TRUE)', result: 0.5}]},
           ],
         });
-        const f = sheets.S.formulas.A1 || '';
+        const f = sheets.S!.formulas.A1 || '';
         assert.ok(
           /_xlfn\.NORM\.DIST/.test(f),
           `NORM.DIST must be stored as _xlfn.NORM.DIST; got: ${f}`,
@@ -126,12 +121,11 @@ export default {
       // that carry the same `_xlfn.` requirement. A pre-2007 cousin of the same shape (SIN) must be
       // left bare, so this pins that the prefix follows the function's vintage, not its spelling.
       name: 'a bare-name post-2007 function is prefixed while its pre-2007 cousin is left bare',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [{name: 'S', cells: [{ref: 'A1', formula: 'SEC(A2)+SIN(A2)', result: 0}]}],
         });
-        const f = sheets.S.formulas.A1 || '';
+        const f = sheets.S!.formulas.A1 || '';
         assert.ok(/_xlfn\.SEC/.test(f), `SEC must be stored as _xlfn.SEC; got: ${f}`);
         assert.ok(!/_xlfn\.SIN/.test(f), `the pre-2007 SIN must not be prefixed; got: ${f}`);
       },

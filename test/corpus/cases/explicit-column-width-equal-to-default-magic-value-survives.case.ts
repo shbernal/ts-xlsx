@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'a column explicitly set to a non-default width round-trips (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readBack, emitted} = await api.columnWidthDefaultCollisionReport([8, 9, 10]);
         assert.strictEqual(readBack.c1, 8, 'width 8 reads back');
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'a column explicitly set to the default magic width (9) emits an explicit <col>',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {emitted} = await api.columnWidthDefaultCollisionReport([8, 9, 10]);
         assert.strictEqual(
@@ -45,7 +43,6 @@ export default {
     },
     {
       name: 'a column explicitly set to 9 reads back as 9, not undefined',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readBack} = await api.columnWidthDefaultCollisionReport([8, 9, 10]);
         assert.strictEqual(readBack.c2, 9, 'an explicit width of 9 must survive the round-trip');

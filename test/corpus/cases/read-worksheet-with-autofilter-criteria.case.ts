@@ -29,7 +29,6 @@ export default {
   behavior: [
     {
       name: 'a buffered read of an autoFilter with value and custom criteria does not throw',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error, sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(ok, `the read must succeed, got error: ${error}`);
@@ -38,7 +37,6 @@ export default {
     },
     {
       name: 'the filtered column and its neighbours load all cell values (rows not dropped)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.readFixtureCells(FIXTURE, ['A2', 'A4', 'B3']);
         assert.strictEqual(cells.A2.value, 'apple', 'the first filtered value is present');
@@ -52,7 +50,6 @@ export default {
     },
     {
       name: 'the streaming reader also tolerates the criteria and delivers the cells',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.streamReadFixture(FIXTURE, ['A2', 'A4']);
         assert.ok(cells.A2 && cells.A4, 'the streaming path yields the requested cells');

@@ -24,17 +24,16 @@ export default {
   behavior: [
     {
       name: 'a table with no autoFilter does not gain one on round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         const t = tables[0];
         assert.strictEqual(
-          t.source.hasAutoFilter,
+          t!.source.hasAutoFilter,
           false,
           'precondition: the source table has no autoFilter',
         );
         assert.strictEqual(
-          t.rewritten.hasAutoFilter,
+          t!.rewritten!.hasAutoFilter,
           false,
           'the round-trip must not inject an autoFilter',
         );
@@ -42,27 +41,25 @@ export default {
     },
     {
       name: 'the header-row configuration is not flipped on round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         const t = tables[0];
         assert.strictEqual(
-          t.rewritten.headerRowCount,
-          t.source.headerRowCount,
-          `headerRowCount must be preserved (${t.source.headerRowCount})`,
+          t!.rewritten!.headerRowCount,
+          t!.source.headerRowCount,
+          `headerRowCount must be preserved (${t!.source.headerRowCount})`,
         );
       },
     },
     {
       name: 'totalsRowShown is not spuriously turned on',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         const t = tables[0];
         assert.strictEqual(
-          t.rewritten.totalsRowShown,
-          t.source.totalsRowShown,
-          `totalsRowShown must stay ${t.source.totalsRowShown}`,
+          t!.rewritten!.totalsRowShown,
+          t!.source.totalsRowShown,
+          `totalsRowShown must stay ${t!.source.totalsRowShown}`,
         );
       },
     },

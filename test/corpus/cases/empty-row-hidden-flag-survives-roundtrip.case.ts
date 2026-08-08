@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'a blank row set hidden stays hidden after a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {row3Hidden} = await api.hiddenEmptyRowReport();
         assert.strictEqual(
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'a blank row with a height keeps both its hidden flag and height (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {row4Hidden, row4Height} = await api.hiddenEmptyRowReport();
         assert.strictEqual(row4Hidden, true, 'a blank hidden row with a height stays hidden');
@@ -41,7 +39,6 @@ export default {
     },
     {
       name: 'a blank row with an outline level stays hidden after a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {row5Hidden} = await api.hiddenEmptyRowReport();
         assert.strictEqual(

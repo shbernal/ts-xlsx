@@ -43,7 +43,6 @@ export default {
   behavior: [
     {
       name: 'a workbook that authors nothing declares a complete, self-consistent default font',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.defaultFontReport({});
         // Complete: a font 0 stating no size or colour is the "missing default font" foreign readers
@@ -61,7 +60,6 @@ export default {
     },
     {
       name: 'an authored theme body face reaches font 0, so it reaches every unstyled cell',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.defaultFontReport({
           themeFonts: {major: 'Aptos Display', minor: 'Aptos'},
@@ -77,7 +75,6 @@ export default {
     },
     {
       name: 'a default font authored outright reaches font 0 and drops the theme claim it would falsify',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.defaultFontReport({defaultFont: {name: 'Georgia', size: 12}});
         assert.strictEqual(report.font0Name, 'Georgia');
@@ -90,7 +87,6 @@ export default {
     },
     {
       name: 'authoring only a size keeps the resolved face rather than blanking it',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.defaultFontReport({
           themeFonts: {minor: 'Aptos'},
@@ -102,10 +98,9 @@ export default {
     },
     {
       name: 'a package’s own font 0 survives a round-trip unchanged and gains no duplicate',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.defaultFontReport({fixture: APTOS});
-        assert.strictEqual(report.declared.name, 'Aptos Narrow', 'the declaration is surfaced');
+        assert.strictEqual(report.declared!.name, 'Aptos Narrow', 'the declaration is surfaced');
         assert.strictEqual(
           report.font0,
           '<font><sz val="11"/><color theme="1"/><name val="Aptos Narrow"/>' +
@@ -114,12 +109,11 @@ export default {
         // One entry. The failure being locked out is a font 0 replaced by an assumed Calibri with the
         // real face re-added beside it — which hides, because populated cells still render right.
         assert.strictEqual(report.fontCount, 1);
-        assert.strictEqual(report.reReadDeclared.name, 'Aptos Narrow', 'and it reads back');
+        assert.strictEqual(report.reReadDeclared!.name, 'Aptos Narrow', 'and it reads back');
       },
     },
     {
       name: 'a declared face outranks the latin body face its own theme nominates',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.defaultFontReport({fixture: CJK});
         // The producer resolved the body face through the theme's `script="Hans"` entry rather than
@@ -134,7 +128,6 @@ export default {
     },
     {
       name: 'a default font with neither family nor scheme round-trips without gaining either',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // Excel itself writes bare font 0 entries; inventing metadata for one would be a guess about
         // a face we cannot classify, and the size is what the column widths are measured against.
@@ -144,7 +137,6 @@ export default {
     },
     {
       name: 'an authored default font moves cells that only inherited the file’s, not those that named a face',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // A cell carrying only a fill still names font 0, so reading resolves the declared face onto
         // it even though the source file said nothing about its font. Treating that as an authored

@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'an in-contract vertical="center" round-trips through write and read',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeThrew, readBackVertical} = await api.alignmentVerticalEnumReport('center');
         assert.strictEqual(
@@ -45,7 +44,6 @@ export default {
     },
     {
       name: 'an out-of-contract vertical="middle" is not silently written-then-dropped',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeThrew, readBackVertical} = await api.alignmentVerticalEnumReport('middle');
         // Correct behavior is either boundary: reject the value at write time (writeThrew), or carry

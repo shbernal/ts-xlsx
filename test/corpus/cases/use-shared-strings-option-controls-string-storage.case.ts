@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'useSharedStrings=true emits a shared string table and cell references',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasSharedStringsPart, isSharedRef} = await api.sharedStringsOption(true);
         assert.strictEqual(hasSharedStringsPart, true, 'a sharedStrings part is written');
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'useSharedStrings=false stores strings inline with no shared-strings part',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasSharedStringsPart, isInline} = await api.sharedStringsOption(false);
         assert.strictEqual(

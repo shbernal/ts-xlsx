@@ -18,7 +18,6 @@ export default {
   behavior: [
     {
       name: 'a row outline level round-trips',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rowOutline} = await api.rowColumnOutlineLevelRoundtrip();
         assert.strictEqual(rowOutline, 1, 'the row keeps outline level 1');
@@ -26,7 +25,6 @@ export default {
     },
     {
       name: 'a column outline level round-trips',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {colOutline} = await api.rowColumnOutlineLevelRoundtrip();
         assert.strictEqual(colOutline, 1, 'the column keeps outline level 1');

@@ -30,7 +30,6 @@ export default {
   behavior: [
     {
       name: 'an empty-body table refs the full header row across all columns',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const [table] = (await api.inspectPackage(EMPTY)).tables;
         assert.ok(table, 'no table part written');
@@ -40,14 +39,13 @@ export default {
     },
     {
       name: 'an empty-body table keeps its autoFilter consistent with its ref',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const [table] = (await api.inspectPackage(EMPTY)).tables;
-        assert.ok(table.xmlWellFormed, 'table XML not well-formed');
-        if (table.autoFilterRef !== null) {
+        assert.ok(table!.xmlWellFormed, 'table XML not well-formed');
+        if (table!.autoFilterRef !== null) {
           assert.strictEqual(
-            table.autoFilterRef,
-            table.ref,
+            table!.autoFilterRef,
+            table!.ref,
             'autoFilter ref inconsistent with table ref',
           );
         }
@@ -55,11 +53,10 @@ export default {
     },
     {
       name: 'the same table with one data row remains valid',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const [table] = (await api.inspectPackage(ONE_ROW)).tables;
-        assert.strictEqual(table.ref, 'A1:B2', `expected ref A1:B2, got ${table.ref}`);
-        assert.strictEqual(table.columnCount, 2);
+        assert.strictEqual(table!.ref, 'A1:B2', `expected ref A1:B2, got ${table!.ref}`);
+        assert.strictEqual(table!.columnCount, 2);
       },
     },
   ],

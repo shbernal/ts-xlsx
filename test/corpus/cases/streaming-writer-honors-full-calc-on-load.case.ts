@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'the in-memory writer emits fullCalcOnLoad when set (parity oracle)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {memoryHasFlag} = await api.streamingFullCalcOnLoadReport();
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the streaming writer emits fullCalcOnLoad when set',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {streamHasFlag, streamSetThrew} = await api.streamingFullCalcOnLoadReport();
         assert.strictEqual(
@@ -46,7 +44,6 @@ export default {
     },
     {
       name: 'the streaming writer omits fullCalcOnLoad when it is not set (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {streamDefaultHasFlag} = await api.streamingFullCalcOnLoadReport();
         assert.strictEqual(

@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'a NaN cell value does not serialize a bare "NaN" token',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasNonFiniteToken, token} = await api.nonFiniteCellReport('NaN');
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'an Infinity cell value does not serialize a bare "Infinity" token',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasNonFiniteToken, token} = await api.nonFiniteCellReport('Infinity');
         assert.strictEqual(
@@ -46,7 +44,6 @@ export default {
     },
     {
       name: 'a -Infinity cell value does not serialize a bare "-Infinity" token',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasNonFiniteToken, token} = await api.nonFiniteCellReport('-Infinity');
         assert.strictEqual(

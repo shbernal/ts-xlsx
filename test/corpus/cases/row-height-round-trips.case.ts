@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'a large explicit height survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {height} = (await api.roundtripWorkbook(TALL)).sheets.S.rows[1];
         assert.strictEqual(height, 300, `expected height 300, got ${height}`);
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'a modest explicit height survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {height} = (await api.roundtripWorkbook(MODEST)).sheets.S.rows[1];
         assert.strictEqual(height, 15, `expected height 15, got ${height}`);

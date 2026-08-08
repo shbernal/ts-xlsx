@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'writer.stream.pipe(destination) returns the destination stream (Node contract)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {pipeReturnsDestination} = await api.streamWriterPipeContract();
         assert.strictEqual(
@@ -37,7 +36,6 @@ export default {
       // Control: the stream still carries the whole package — proving the defect is the return-value
       // contract, not data delivery, so a baseline flip is unambiguous.
       name: 'the piped destination receives the complete workbook bytes (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {bytes, valid} = await api.streamWriterPipeContract();
         assert.ok(bytes > 0, 'bytes flow through the piped destination');

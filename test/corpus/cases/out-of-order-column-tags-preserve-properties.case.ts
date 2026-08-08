@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'each column keeps its own width despite reordered <col> tags',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {w1, w2, w3} = await api.outOfOrderColumnsReport();
         assert.strictEqual(w1, 10, 'column 1 keeps width 10');
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'a hidden column declared out of order retains its hidden flag',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hidden2} = await api.outOfOrderColumnsReport();
         assert.strictEqual(hidden2, true, 'the out-of-order hidden column stays hidden');

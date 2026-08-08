@@ -11,16 +11,17 @@ got wrong. A bug without a corpus case is a bug that will return.
 ```
 test/corpus/
   case.ts              the shared Case/Behavior/CorpusApi types every case imports
-  cases/*.case.ts      one harvested behavior cluster, implementation-blind
-  adapters/<name>.ts   binds the contract vocabulary to a concrete implementation
-  adapters/<name>/     its capability modules, one per concern, assembled by the above
-  run.ts               discovers cases, runs them against an adapter, reports red/green
+  untyped.ts           the adapter's remaining type debt, named so it can be counted
+  cases/*.case.ts      one behavior cluster, blind to how the library is built
+  adapters/ts-xlsx.ts  binds the contract vocabulary to the library's public API
+  adapters/ts-xlsx/    its capability modules, one per concern, assembled by the above
+  run.ts               discovers cases, runs them, reports red/green
 ```
 
 Run it:
 
 ```
-node test/corpus/run.ts [--adapter rewrite] [--target src|dist]
+node test/corpus/run.ts [--target src|dist]
                         [--case <glob>]… [--verbose | --quiet] [--json]
 ```
 
@@ -46,15 +47,28 @@ export default {
   description: '…',
   provenance: {source: 'upstream-issue'},        // OPTIONAL, disposable trace — never the identity
   behavior: [
-    {name: '…', baseline: 'pass', expect(api: CorpusApi, assert: Assert) { … }},
+    {name: '…', expect(api: CorpusApi, assert: Assert) { … }},
   ],
 } satisfies Case;
 ```
 
-`CorpusApi` is the implementation-blind adapter surface (a named `any` — Biome rejects a
-literal `any`); annotate `api` and any value derived from it with it. Both `expect` params
-must be explicitly annotated (`assert`'s assertion signatures require it). The harness is
-type-checked (`pnpm run typecheck:test`), so a case must be green there as well.
+`CorpusApi` is the adapter's capability surface, **derived** from the adapter object
+(`typeof impl`) rather than declared, so it cannot drift from what the adapter actually
+offers. Annotate `api` with it; both `expect` params need explicit annotations (`assert`'s
+assertion signatures require it). Values you pull *out* of a capability are typed by its
+return type — let inference have them rather than annotating.
+
+This is the line the corpus draws. A case cannot see how the library is built: it reaches
+`src` only through a named capability, and that is the decoupling that let the corpus
+outlive the rewrite. A case *can* see the shape of the capability it calls — the name, the
+arguments, the return type — because that is the contract it is written against. `CorpusApi`
+was `any` for years on the theory that hiding it bought independence; it bought nothing and
+cost 832 behaviors their type-checking, including a case that carried a branch for a shape
+the API cannot return. When you genuinely need to opt out, `Untyped` from `../untyped.ts`
+says so out loud and is countable with `grep`.
+
+The harness is type-checked (`pnpm run typecheck:test`), so a case must be green there too —
+a capability typo is now a compile error naming the capability, not a silent skip.
 
 - **`id` / `description`** carry the durable identity: a descriptive slug and the
   *real-world scenario* in prose. Do **not** encode upstream issue/PR numbers here —
@@ -63,10 +77,8 @@ type-checked (`pnpm run typecheck:test`), so a case must be green there as well.
   its identity. The durable text must stand entirely without it.
 - **`behavior[]`** — each is one assertion about observable behavior. `expect` receives
   the **adapter** (`api`) and Node's strict `assert`; it throws to fail, returns to pass.
-- **`baseline`** records the behavior's expected state: `pass` = green now (a
-  *regression lock*), `fail` = a deliberate pending marker for a not-yet-built
-  capability, tracked without reddening CI. The rewrite is the reference
-  implementation, so every behavior baselines to `pass` today.
+  There is no expected-outcome field: a behavior in the corpus is a behavior that must
+  hold, so landing one that does not is landing a red build.
 
 ## The adapter contract
 
@@ -254,43 +266,39 @@ column carries). Together they let a case assert the correspondence OOXML requir
 column metadata and the grid cells beneath it, without knowing which string encoding the writer picked.
 
 The `spec` shape consumed by the workbook capabilities is documented alongside the
-capabilities themselves in `adapters/rewrite.ts` (worksheets with cells, columns,
-rows, page margins, tables).
+capabilities themselves in `adapters/ts-xlsx/spec-model.ts` (worksheets with cells, columns,
+rows, page margins, tables). A spec key nobody has wired throws `UnsupportedSpecError` and
+fails the build, naming the module to extend — it used to be reported as a silent skip, which
+made an untested case read as an accounted-for one.
 
-Add capabilities only as cases demand them, and add them to **every** adapter.
+Add capabilities only as cases demand them.
 
 ## The adapter
 
-- **`rewrite`** binds the vocabulary to the strict-TypeScript library under `src/` —
-  the reference implementation. Node 24 runs the `.ts` sources directly
-  (type-stripping), so the adapter imports them with no build step; the adapter is
-  itself type-checked against `src` by `pnpm run typecheck:test` (see ADR 0011).
+`adapters/ts-xlsx.ts` binds the vocabulary to this library's public API. Node runs the `.ts`
+sources directly (type-stripping), so it imports them with no build step, and it is itself
+type-checked against `src` by `pnpm run typecheck:test` (see ADR 0011).
 
-`rewrite.ts` is the assembly point, not the implementation: the capabilities live in
-`adapters/rewrite/`, one module per concern (comments, styles, streaming, …), spread into
-one object behind the same default export. Add a capability to the module that owns its
-concern; nothing closes over anything, so a capability can move between modules without any
-case noticing. `runtime.ts` is the single place the implementation under test is loaded —
-that is what makes the `CORPUS_TARGET` switch one decision rather than fourteen.
+It is the assembly point, not the implementation: the capabilities live in
+`adapters/ts-xlsx/`, one module per concern (comments, styles, streaming, …), spread into one
+object behind the default export. Add a capability to the module that owns its concern;
+nothing closes over anything, so a capability can move between modules without any case
+noticing. `runtime.ts` is the single place the implementation under test is loaded — that is
+what makes the `CORPUS_TARGET` switch one decision rather than fourteen.
 
-Run it: `node test/corpus/run.ts` (default `rewrite`, wired as `pnpm run corpus`).
+There is one adapter and no `--adapter` flag. There were two while the library was being
+rebuilt, and the corpus existed to measure the new one against the old; that comparison is
+finished, and a flag whose only value is its default is optionality nobody can use.
 
-A behavior may declare a capability the library has not built yet by throwing a
-`notImplemented`-tagged error; the runner reports it as **`∅` skipped** — neither pass
-nor fail, never a regression. Today the library implements the whole vocabulary, so
-there are no skips.
+Run it: `node test/corpus/run.ts`, wired as `pnpm run corpus`.
 
-## What the runner does with baselines
+## What the runner reports
 
-The status compares the adapter's actual outcome against the recorded `baseline`:
+A behavior passed (`✓`) or it failed (`✗`), and any failure exits 1.
 
-| baseline | actual | status | fails build? |
-|---|---|---|---|
-| pass | pass | `✓` green | no |
-| fail | fail | `○` known-open | no — a tracked pending capability |
-| pass | fail | `✗` regression | **yes** (exit 1) |
-| fail | pass | `↑` fixed | no — flip the baseline to `pass` |
-| — | not implemented | `∅` skipped | no |
-
-The finish line: **every behavior is `✓`** — no `○` known-opens, no `∅` skips, and of
-course zero `✗` regressions.
+It used to be a four-state comparison — green, `○` known-open, `✗` regression, `↑`
+newly-fixed — crossing each behavior's recorded `baseline` against its actual result. That
+was the right instrument for measuring a half-built library against the one it replaced.
+With one implementation left, all 832 behaviors recorded `baseline: 'pass'`, three of the
+four states were unreachable, and the runner was comparing against a constant. A behavior in
+the corpus is a behavior that must hold; there is nothing else for it to be.

@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'a workbook with malformed VML break tags reads without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the worksheets remain accessible after tolerating the malformed part',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(sheetNames && sheetNames.length >= 1, 'at least one worksheet is exposed');

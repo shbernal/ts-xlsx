@@ -60,9 +60,8 @@ export default {
       // the group into contiguous runs (the ADR 0012 candidate fix) would produce two masters and a
       // different ref, diverging from Excel's canonical form.
       name: 'the non-contiguous group emits one master with Excel’s canonical bounding-box ref',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
-        const {masters} = (await api.inspectPackage(SPARSE_GROUP)).sheets.S.sharedFormulas;
+        const {masters} = (await api.inspectPackage(SPARSE_GROUP)).sheets.S!.sharedFormulas;
         assert.strictEqual(masters.length, 1, `exactly one master; got ${JSON.stringify(masters)}`);
         assert.strictEqual(masters[0]?.cell, 'B1', 'the master anchors on B1');
         assert.strictEqual(
@@ -77,11 +76,10 @@ export default {
       // neither do we — only the two authored clones carry a `t="shared"` slave. A writer that
       // materialized the interior (as LibreOffice does on read) would emit extra slaves here.
       name: 'only the two authored clones are slaves — the empty interior is not materialized',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {slaves, everySlaveHasMaster, everySlaveWithinMasterRef} = (
           await api.inspectPackage(SPARSE_GROUP)
-        ).sheets.S.sharedFormulas;
+        ).sheets.S!.sharedFormulas;
         const slaveCells = slaves.map((s: {cell: string}) => s.cell).sort();
         assert.deepStrictEqual(
           slaveCells,

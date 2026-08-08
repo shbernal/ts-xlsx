@@ -30,7 +30,6 @@ export default {
   behavior: [
     {
       name: 'every merged range survives a round-trip with the same count',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(
@@ -42,7 +41,6 @@ export default {
     },
     {
       name: 'each original merge range is present after the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const got = new Set(model.sheets.S.merges);
@@ -51,7 +49,6 @@ export default {
     },
     {
       name: 'an overlapping merge is still rejected',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {error} = await api.mutateWorksheet({
           ops: [

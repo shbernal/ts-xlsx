@@ -3,7 +3,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {FIXTURES_ROOT, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {buildFrom} from './spec-model.ts';
@@ -12,7 +12,7 @@ export const tables = {
   // Find a table by name across a loaded fixture's sheets and report its column names and data-row
   // count. The reader reconstructs the table from its part, deriving the data-row count from the
   // stored range (height minus the header and totals rows), so a loaded table exposes its rows.
-  readFixtureTable(rel: CorpusApi, tableName: CorpusApi) {
+  readFixtureTable(rel: Untyped, tableName: Untyped) {
     const wb = readFixture(rel);
     for (const s of wb.worksheets) {
       const table = s.tables.find((t) => t.name === tableName);
@@ -29,7 +29,7 @@ export const tables = {
   // Load a fixture and report a named table's column count and names — used to prove a table with a
   // calculated column (a <calculatedColumnFormula> child the reader ignores) does not truncate the
   // column list or crash the read.
-  loadFixtureTableColumns(rel: CorpusApi, tableName: CorpusApi) {
+  loadFixtureTableColumns(rel: Untyped, tableName: Untyped) {
     try {
       const wb = readFixture(rel);
       for (const s of wb.worksheets) {
@@ -47,7 +47,7 @@ export const tables = {
     } catch (e) {
       return {
         loaded: false,
-        error: String((e as CorpusApi)?.message || e),
+        error: String((e as Untyped)?.message || e),
         columnCount: null,
         columnNames: null,
       };
@@ -57,8 +57,8 @@ export const tables = {
   // Build a table-bearing spec, report the full ref written into each table part, then read the
   // package back and re-write it, reporting the ref and well-formedness of each re-emitted part — so
   // a degenerate (empty-body or single-row) table is proven to survive a load→save round-trip.
-  roundtripSpecTableFacts(spec: CorpusApi) {
-    const tableFacts = (parts: CorpusApi) =>
+  roundtripSpecTableFacts(spec: Untyped) {
+    const tableFacts = (parts: Untyped) =>
       Object.keys(parts)
         .filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))
         .sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]))
@@ -72,13 +72,13 @@ export const tables = {
     const write = tableFacts(partMapOf(writeXlsx(buildFrom(spec))));
     let loadOk = true;
     let loadError = null;
-    let roundtrip: CorpusApi[] = [];
+    let roundtrip: Untyped[] = [];
     try {
       const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
       roundtrip = tableFacts(partMapOf(writeXlsx(reloaded)));
     } catch (e) {
       loadOk = false;
-      loadError = String((e as CorpusApi)?.message || e);
+      loadError = String((e as Untyped)?.message || e);
     }
     return {write, roundtrip, loadOk, loadError};
   },
@@ -114,7 +114,7 @@ export const tables = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as CorpusApi)?.message || e);
+      writeError = String((e as Untyped)?.message || e);
     }
     if (!writeOk)
       return {
@@ -151,7 +151,7 @@ export const tables = {
   // emits, plus whether the "None" table kept its showRowStripes flag. Theme "None" must mean an
   // unstyled table (no name attribute), not a bogus name="None" referencing a non-existent style.
   tableStyleThemeReport() {
-    const styleInfoOf = (style: CorpusApi) => {
+    const styleInfoOf = (style: Untyped) => {
       const wb = new Workbook();
       wb.addWorksheet('S').addTable({
         name: 'T',
@@ -168,7 +168,7 @@ export const tables = {
         tag = (parts[part!]!.match(/<tableStyleInfo[^>]*\/?>/) || [])[0] ?? null;
       } catch (e) {
         ok = false;
-        tag = String((e as CorpusApi)?.message || e);
+        tag = String((e as Untyped)?.message || e);
       }
       const name = tag && ok ? ((tag.match(/\bname="([^"]*)"/) || [])[1] ?? null) : null;
       const hasStripes = !!(tag && ok && /\bshowRowStripes="1"/.test(tag));
@@ -187,7 +187,7 @@ export const tables = {
   // column names emitted into the table part plus whether they are unique. OOXML requires unique
   // tableColumn names; colliding inputs must be disambiguated deterministically, not written verbatim
   // into a corrupt file → { ok, writtenNames, uniqueNames }.
-  tableDuplicateColumnNamesReport(headers: CorpusApi) {
+  tableDuplicateColumnNamesReport(headers: Untyped) {
     const wb = new Workbook();
     let ok = true;
     let writtenNames = null;
@@ -195,7 +195,7 @@ export const tables = {
       wb.addWorksheet('S').addTable({
         name: 'T',
         ref: 'A1',
-        columns: headers.map((name: CorpusApi) => ({name})),
+        columns: headers.map((name: Untyped) => ({name})),
         rowCount: 1,
       });
       const parts = partMapOf(writeXlsx(wb));
@@ -205,7 +205,7 @@ export const tables = {
       );
     } catch (e) {
       ok = false;
-      writtenNames = String((e as CorpusApi)?.message || e);
+      writtenNames = String((e as Untyped)?.message || e);
     }
     const uniqueNames =
       Array.isArray(writtenNames) &&
@@ -217,7 +217,7 @@ export const tables = {
   // round-trip and report the numFmt read back on each column's body cells → { writeOk, reloadOk,
   // writeError, styledBody, unstyledBody }. The per-column style must bake into the styled column's
   // body cells and leave the unstyled column untouched.
-  tableColumnStyleReport(numFmt: CorpusApi) {
+  tableColumnStyleReport(numFmt: Untyped) {
     const wb = new Workbook();
     const s = wb.addWorksheet('S');
     const table = s.addTable({
@@ -238,7 +238,7 @@ export const tables = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as CorpusApi)?.message || e);
+      writeError = String((e as Untyped)?.message || e);
     }
     if (!writeOk)
       return {writeOk, writeError, reloadOk: false, styledBody: null, unstyledBody: null};
@@ -252,7 +252,7 @@ export const tables = {
       unstyledBody = [back.getCell('B2').numFmt ?? null, back.getCell('B3').numFmt ?? null];
     } catch (e) {
       reloadOk = false;
-      writeError = String((e as CorpusApi)?.message || e);
+      writeError = String((e as Untyped)?.message || e);
     }
     return {writeOk, writeError, reloadOk, styledBody, unstyledBody};
   },
@@ -261,9 +261,9 @@ export const tables = {
   // reloaded model, append the requested rows, then re-write and re-read to report the final row
   // count. A table read from a file must expose its data rows and accept appends exactly like a
   // freshly-created one → { hasTable, loadedRowCount, addError, committed, finalRowCount }.
-  roundtripTableAppend(spec: CorpusApi, {tableName, appendRows}: CorpusApi) {
+  roundtripTableAppend(spec: Untyped, {tableName, appendRows}: Untyped) {
     const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
-    let table: CorpusApi = null;
+    let table: Untyped = null;
     for (const s of reloaded.worksheets) {
       const found = s.getTable(tableName);
       if (found) {
@@ -288,7 +288,7 @@ export const tables = {
       try {
         table.addRow(row);
       } catch (e) {
-        addError = String((e as CorpusApi)?.message || e);
+        addError = String((e as Untyped)?.message || e);
         break;
       }
     }
@@ -308,7 +308,7 @@ export const tables = {
           }
         }
       } catch (e) {
-        addError = String((e as CorpusApi)?.message || e);
+        addError = String((e as Untyped)?.message || e);
       }
     }
     return {hasTable, loadedRowCount, addError, committed, finalRowCount};
@@ -336,7 +336,7 @@ export const tables = {
       firstBuffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as CorpusApi)?.message || e);
+      writeError = String((e as Untyped)?.message || e);
     }
     if (!writeOk) {
       return {
@@ -374,7 +374,7 @@ export const tables = {
       editedValue = backSheet.getCell('B2').value;
     } catch (e) {
       reloadOk = false;
-      writeError = String((e as CorpusApi)?.message || e);
+      writeError = String((e as Untyped)?.message || e);
     }
     return {writeOk, writeError, reloadOk, hasTablePart, tablePresent, editedValue, relUnique};
   },
@@ -402,7 +402,7 @@ export const tables = {
       rawControlChars = firstColumnTag === null ? null : /[\r\n]/.test(firstColumnTag);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as CorpusApi)?.message || e);
+      writeError = String((e as Untyped)?.message || e);
     }
     return {writeOk, writeError, firstColumnTag, rawControlChars};
   },
@@ -411,15 +411,15 @@ export const tables = {
   // each table's autoFilter / header-row / totals-row / column-count facts before and after. A no-op
   // round-trip of a table that has no autoFilter must not inject one, flip the header row off, or turn
   // totalsRowShown on; a table that does have one must keep its ref and column count.
-  roundtripFixtureTableXml(rel: CorpusApi) {
-    const facts = (xml: CorpusApi) => ({
+  roundtripFixtureTableXml(rel: Untyped) {
+    const facts = (xml: Untyped) => ({
       hasAutoFilter: /<(?:\w+:)?autoFilter\b/.test(xml),
       autoFilterRef: (xml.match(/<(?:\w+:)?autoFilter\b[^>]*\bref="([^"]*)"/) || [])[1] ?? null,
       headerRowCount: (xml.match(/\bheaderRowCount="([^"]*)"/) || [])[1] ?? null,
       totalsRowShown: (xml.match(/\btotalsRowShown="([^"]*)"/) || [])[1] ?? null,
       columnCount: (xml.match(/<tableColumns\b[^>]*\bcount="([^"]*)"/) || [])[1] ?? null,
     });
-    const tablePartsInOrder = (parts: CorpusApi) =>
+    const tablePartsInOrder = (parts: Untyped) =>
       Object.keys(parts)
         .filter((n) => /^xl\/tables\/table\d+\.xml$/.test(n))
         .sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]))
@@ -439,7 +439,7 @@ export const tables = {
   // Author a table whose display name differs from its internal name, then report the displayName
   // written into the table part and the internal/display names read back from the reloaded model —
   // a serializer that mis-keys the property drops the display name to the internal default.
-  tableDisplayNameReport(display: CorpusApi) {
+  tableDisplayNameReport(display: Untyped) {
     const wb = new Workbook();
     wb.addWorksheet('S').addTable({
       name: 'MyTable',

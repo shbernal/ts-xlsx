@@ -32,36 +32,33 @@ export default {
   behavior: [
     {
       name: 'a multi-area ref produces exactly one conditionalFormatting element with a rule',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, xml} = await api.authorConditionalFormatting(CF);
         assert.strictEqual(writeOk, true, 'writing the multi-area rule does not throw');
         assert.strictEqual(
-          xml.blockCount,
+          xml!.blockCount,
           1,
           'exactly one conditionalFormatting element is emitted',
         );
-        assert.ok(xml.ruleCount >= 1, 'the rule is present, not discarded');
+        assert.ok(xml!.ruleCount >= 1, 'the rule is present, not discarded');
       },
     },
     {
       name: 'the emitted sqref carries all supplied areas as one space-separated multi-area reference',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {xml} = await api.authorConditionalFormatting(CF);
         assert.deepStrictEqual(
-          xml.sqrefs,
+          xml!.sqrefs,
           ['A1:C1 A3:C3 A5:C5'],
-          `the multi-area sqref must survive; got ${JSON.stringify(xml.sqrefs)}`,
+          `the multi-area sqref must survive; got ${JSON.stringify(xml!.sqrefs)}`,
         );
       },
     },
     {
       name: 'a valid multi-area rule never yields a sheet with zero conditionalFormatting elements',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {xml} = await api.authorConditionalFormatting(CF);
-        assert.ok(xml.blockCount > 0, 'the rule is not dropped to zero blocks');
+        assert.ok(xml!.blockCount > 0, 'the rule is not dropped to zero blocks');
       },
     },
   ],

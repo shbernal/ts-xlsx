@@ -1,34 +1,23 @@
 // The shared shape of a regression-corpus case.
 //
-// The corpus is *implementation-blind*: a case asserts observable behavior through
-// an adapter surface (`api`) that is intentionally untyped, so a case can never
-// couple to one implementation — that decoupling is the whole contract of the
-// corpus (see test/corpus/README.md). What IS typed here is the case scaffold
-// itself (id, cluster, baseline, the behavior list) and the `assert` module, so a
-// typo in the harness — a missing `behavior`, a misspelled `assert.strictEqual` —
-// is a compile error rather than a silent no-op at runtime.
+// A case asserts observable behavior through the adapter surface (`api`), and it stays blind to how
+// the library is built — it can reach `src` only through a named capability, which is the decoupling
+// that let the corpus outlive the rewrite (see test/corpus/README.md). That surface is now *typed*:
+// blindness to an implementation's internals is the contract, blindness to the capability list never
+// was, and pretending not to know it cost every case its type-checking.
 
 import type assert from 'node:assert/strict';
+import type {CorpusApi} from './adapters/ts-xlsx.ts';
 
 /** The strict `node:assert` surface handed to every behavior. */
 export type Assert = typeof assert;
 
-/**
- * The adapter under test. Untyped by design: the corpus asserts behavior, never a
- * concrete implementation's types.
- */
-// biome-ignore lint/suspicious/noExplicitAny: implementation-blind by contract — see above.
-export type CorpusApi = any;
+export type {CorpusApi};
 
-/** One observable behavior and the outcome we expect the implementation to produce. */
+/** One observable behavior the corpus locks in. */
 export interface Behavior {
   /** Human-readable statement of the behavior, shown by the runner. */
   name: string;
-  /**
-   * The outcome we currently expect: `pass` is a green regression lock; `fail`
-   * marks a tracked known-open capability the rewrite has yet to build.
-   */
-  baseline: 'pass' | 'fail';
   /** Exercise the behavior; throw (via `assert`) to fail it. */
   expect(api: CorpusApi, assert: Assert): void | Promise<void>;
 }

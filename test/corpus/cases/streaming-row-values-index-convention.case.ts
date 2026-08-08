@@ -35,7 +35,6 @@ export default {
   behavior: [
     {
       name: 'a streamed row exposes column A at index 1 with an empty leading slot at index 0',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {streamed} = await api.streamVsEagerRowValues(spec, [1]);
         assert.strictEqual(
@@ -49,7 +48,6 @@ export default {
     },
     {
       name: "a streamed row's indexing matches the full-load reader's for the same file",
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {streamed, eager} = await api.streamVsEagerRowValues(spec, [1]);
         assert.deepStrictEqual(

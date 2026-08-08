@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'summaryBelow/summaryRight = false serialize into an outlinePr element',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {outlinePrEmitted} = await api.outlinePropertiesRoundtrip();
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the summary-position flags read back after a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reReadSummaryBelow, reReadSummaryRight} = await api.outlinePropertiesRoundtrip();
         assert.strictEqual(reReadSummaryBelow, false, 'summaryBelow round-trips as false');

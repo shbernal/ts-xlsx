@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'the buffered reader exposes the declared merge ranges (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {eagerMerges} = await api.streamReadMergesReport();
         assert.deepStrictEqual(
@@ -37,7 +36,6 @@ export default {
     },
     {
       name: 'the streaming reader surfaces the same merge ranges',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {eagerMerges, streamedMerges, error} = await api.streamReadMergesReport();
         assert.ok(!error, `streaming read must not error; got ${JSON.stringify(error)}`);

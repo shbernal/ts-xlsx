@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'committing a streamed workbook over a caller PassThrough resolves within bounded time and yields a valid package',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {settled, timedOut, bytes, valid} = await api.streamCommitReport({duplex: false});
         assert.strictEqual(
@@ -42,7 +41,6 @@ export default {
     },
     {
       name: 'the same commit settles over a Duplex sink — completion does not depend on the library owning the stream',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {settled, timedOut, valid} = await api.streamCommitReport({duplex: true});
         assert.strictEqual(timedOut, false, 'the commit must not hang over a caller Duplex stream');

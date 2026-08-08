@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'a formula with a "<" operator round-trips verbatim',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.roundtripWorkbook({
           sheets: [{name: 'S', cells: [{ref: 'C1', formula: LT}]}],
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'a formula with ">" and "&" round-trips verbatim',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.roundtripWorkbook({
           sheets: [{name: 'S', cells: [{ref: 'C1', formula: GT}]}],
@@ -42,13 +40,15 @@ export default {
     },
     {
       name: 'special characters produce well-formed worksheet XML',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [{name: 'S', cells: [{ref: 'C1', formula: LT}]}],
         });
-        assert.ok(sheets.S.xmlWellFormed, 'worksheet XML not well-formed (unescaped special char)');
-        assert.ok('C1' in sheets.S.formulas, 'expected a <f> element for C1');
+        assert.ok(
+          sheets.S!.xmlWellFormed,
+          'worksheet XML not well-formed (unescaped special char)',
+        );
+        assert.ok('C1' in sheets.S!.formulas, 'expected a <f> element for C1');
       },
     },
   ],

@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'a workbook whose table has a calculated column loads without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {loaded, error} = await api.loadFixtureTableColumns(FIXTURE, 'Sales');
         assert.strictEqual(error, null, 'loading must not crash on the calculated-column table');
@@ -37,7 +36,6 @@ export default {
     },
     {
       name: 'the calculated column does not truncate the table — all three columns survive',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {columnCount, columnNames} = await api.loadFixtureTableColumns(FIXTURE, 'Sales');
         assert.strictEqual(

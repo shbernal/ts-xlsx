@@ -24,7 +24,6 @@ export default {
   behavior: [
     {
       name: 'the recent-colour swatches survive a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStylesTailFacts(FIXTURE);
         assert.deepStrictEqual(
@@ -41,7 +40,6 @@ export default {
     },
     {
       name: 'the swatches follow the indexed palette, as CT_Colors requires',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStylesTailFacts(FIXTURE);
         assert.deepStrictEqual(

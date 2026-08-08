@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'a column given a number format is not silently hidden',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const col = (await api.roundtripWorkbook(STYLED)).sheets.S.columns[2];
         assert.strictEqual(col.hidden, false, 'a styled column must not become hidden');
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the applied number format survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const col = (await api.roundtripWorkbook(STYLED)).sheets.S.columns[2];
         assert.strictEqual(col.numFmt, '#,##0', 'the column number format should persist');
@@ -42,7 +40,6 @@ export default {
     },
     {
       name: 'an explicit hidden:false with a style stays visible',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const col = (await api.roundtripWorkbook(STYLED_VISIBLE)).sheets.S.columns[2];
         assert.strictEqual(col.hidden, false);

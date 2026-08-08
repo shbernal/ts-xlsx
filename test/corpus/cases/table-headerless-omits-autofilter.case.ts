@@ -62,12 +62,11 @@ export default {
   behavior: [
     {
       name: 'a headerless table sets its header-row count to 0',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.inspectPackage(headerlessSpec);
         assert.strictEqual(tables.length, 1, 'precondition: one table part is written');
         assert.strictEqual(
-          tables[0].headerRowCount,
+          tables[0]!.headerRowCount,
           '0',
           'a headerless table declares headerRowCount="0"',
         );
@@ -75,36 +74,33 @@ export default {
     },
     {
       name: 'a headerless table emits no autoFilter (autoFilter is only valid with a header row)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.inspectPackage(headerlessSpec);
         assert.strictEqual(
-          tables[0].autoFilterRef,
+          tables[0]!.autoFilterRef,
           null,
-          `a headerless table must not emit an autoFilter; got ref ${JSON.stringify(tables[0].autoFilterRef)}`,
+          `a headerless table must not emit an autoFilter; got ref ${JSON.stringify(tables[0]!.autoFilterRef)}`,
         );
       },
     },
     {
       name: 'the emitted headerless table part is well-formed XML',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.inspectPackage(headerlessSpec);
-        assert.strictEqual(tables[0].xmlWellFormed, true, 'the table part must be well-formed');
+        assert.strictEqual(tables[0]!.xmlWellFormed, true, 'the table part must be well-formed');
       },
     },
     {
       name: 'a header-bearing table still carries its autoFilter and a header-row count of 1',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.inspectPackage(headeredSpec);
         assert.strictEqual(
-          tables[0].headerRowCount,
+          tables[0]!.headerRowCount,
           '1',
           'a headered table declares headerRowCount="1"',
         );
         assert.ok(
-          tables[0].autoFilterRef,
+          tables[0]!.autoFilterRef,
           'a headered table emits an autoFilter over its header row',
         );
       },

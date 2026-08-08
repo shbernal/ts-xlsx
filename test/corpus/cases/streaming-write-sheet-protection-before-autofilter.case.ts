@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'the streamed package reloads (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadOk} = await api.streamAutoFilterProtectionOrder();
         assert.strictEqual(
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'sheetProtection is emitted before autoFilter',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetProtectionBeforeAutoFilter} = await api.streamAutoFilterProtectionOrder();
         assert.strictEqual(

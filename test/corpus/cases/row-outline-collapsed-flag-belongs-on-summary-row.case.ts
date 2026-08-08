@@ -45,27 +45,25 @@ export default {
   behavior: [
     {
       name: 'each detail row carries its outline level and is hidden',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         for (const r of ['2', '3', '4']) {
           assert.strictEqual(
-            sheets.S.rows[r].outlineLevel,
+            sheets.S!.rows[r]!.outlineLevel,
             1,
             `detail row ${r} has outlineLevel 1`,
           );
-          assert.strictEqual(sheets.S.rows[r].hidden, true, `detail row ${r} is hidden`);
+          assert.strictEqual(sheets.S!.rows[r]!.hidden, true, `detail row ${r} is hidden`);
         }
       },
     },
     {
       name: 'the hidden detail rows do NOT carry the collapsed flag',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         for (const r of ['2', '3', '4']) {
           assert.strictEqual(
-            sheets.S.rows[r].collapsed,
+            sheets.S!.rows[r]!.collapsed,
             false,
             `the collapsed toggle belongs on the summary row, not on hidden detail row ${r}`,
           );
@@ -74,11 +72,10 @@ export default {
     },
     {
       name: 'the summary row terminating the group carries the collapsed flag',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(
-          sheets.S.rows['5'] ? sheets.S.rows['5'].collapsed : false,
+          sheets.S!.rows['5'] ? sheets.S!.rows['5'].collapsed : false,
           true,
           'the summary row (row 5) must carry collapsed="1" so the outline toggle expands in one click',
         );

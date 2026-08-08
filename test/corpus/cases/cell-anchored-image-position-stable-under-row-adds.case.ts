@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'each single-cell-anchored image produces exactly one anchor',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchorCount} = await api.cellAnchoredImagePositionReport();
         assert.strictEqual(anchorCount, 2, 'two images anchored to two cells produce two anchors');
@@ -28,7 +27,6 @@ export default {
     },
     {
       name: 'each image resolves to its intended cell with no row drift',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {froms} = await api.cellAnchoredImagePositionReport();
         assert.deepStrictEqual(

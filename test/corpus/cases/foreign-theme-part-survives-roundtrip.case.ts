@@ -31,7 +31,6 @@ export default {
   behavior: [
     {
       name: 'the source colour scheme survives a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureThemeFacts(BRANDED);
         assert.strictEqual(
@@ -48,7 +47,6 @@ export default {
     },
     {
       name: 'the source font scheme survives a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureThemeFacts(BRANDED);
         assert.strictEqual(
@@ -62,7 +60,6 @@ export default {
     },
     {
       name: 'a theme whose fill references a picture keeps that picture reachable',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureThemeFacts(THEMED_IMAGE);
         assert.strictEqual(
@@ -83,7 +80,6 @@ export default {
     },
     {
       name: 'a theme part not named theme1.xml is still found, and still lands somewhere wired',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // The relationship target is rel-relative: the conventional `theme1.xml` is a convention,
         // not a rule. The reader must follow the relationship, and the writer must re-emit the part

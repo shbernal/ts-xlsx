@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'writing a workbook with no worksheets does not silently produce a corrupt package',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const write = await api.tryWriteWorkbook({sheets: []});
         if (!write.ok) return; // throwing is an acceptable resolution
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'a one-worksheet workbook declares that worksheet consistently across the package',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {consistency} = await api.inspectPackage({
           sheets: [{name: 'Sheet1', cells: [{ref: 'A1', value: 'x'}]}],

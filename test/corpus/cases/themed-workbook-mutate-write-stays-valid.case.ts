@@ -42,7 +42,6 @@ export default {
   behavior: [
     {
       name: 'the edited fill survives the write→read round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const fill = model.sheets.S.cells.B2.fill;
@@ -52,7 +51,6 @@ export default {
     },
     {
       name: 'a theme part backs the theme-color font (no unresolved theme reference)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {styles} = await api.inspectPackage(SPEC);
         assert.ok(styles.hasThemePart, 'the package ships a theme part');
@@ -64,14 +62,13 @@ export default {
     },
     {
       name: 'the written package is a structurally valid, self-consistent OOXML zip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {consistency, sheets} = await api.inspectPackage(SPEC);
         assert.ok(
           consistency.declaredConsistent,
           'every worksheet part is declared and related consistently',
         );
-        assert.ok(sheets.S.xmlWellFormed, 'the worksheet XML is well-formed');
+        assert.ok(sheets.S!.xmlWellFormed, 'the worksheet XML is well-formed');
       },
     },
   ],

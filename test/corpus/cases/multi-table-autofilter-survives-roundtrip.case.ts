@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'every table keeps its autoFilter reference and column count (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         assert.ok(tables.length >= 2, 'the fixture has multiple tables');
@@ -43,12 +42,11 @@ export default {
     },
     {
       name: 'no table gains a totalsRowShown the source did not have',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.roundtripFixtureTableXml(FIXTURE);
         for (const t of tables) {
           assert.strictEqual(
-            t.rewritten.totalsRowShown,
+            t.rewritten!.totalsRowShown,
             t.source.totalsRowShown,
             `totalsRowShown must stay ${t.source.totalsRowShown} for ${t.name}`,
           );

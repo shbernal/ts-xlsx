@@ -9,6 +9,7 @@
 // cell so the dropdown still resolves to the same options.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const FIXTURE = 'list-validation-defined-name-and-cross-sheet-range-source/source.xlsx';
 
@@ -24,13 +25,12 @@ export default {
   behavior: [
     {
       name: 'a list validation sourced from a cross-sheet range exposes the range as its formula text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.readFixtureValidationRules(FIXTURE);
-        const rules = sheets.Main.rules.map((r: CorpusApi) => r.rule);
+        const rules = sheets.Main.rules.map((r: Untyped) => r.rule);
         const crossSheet = rules.find(
-          (r: CorpusApi) =>
-            r.type === 'list' && (r.formulae || []).some((f: CorpusApi) => /^Options!/.test(f)),
+          (r: Untyped) =>
+            r.type === 'list' && (r.formulae || []).some((f: Untyped) => /^Options!/.test(f)),
         );
         assert.ok(
           crossSheet,
@@ -44,12 +44,11 @@ export default {
     },
     {
       name: 'a list validation sourced from a defined name exposes the name as its formula text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.readFixtureValidationRules(FIXTURE);
-        const rules = sheets.Main.rules.map((r: CorpusApi) => r.rule);
+        const rules = sheets.Main.rules.map((r: Untyped) => r.rule);
         const named = rules.find(
-          (r: CorpusApi) => r.type === 'list' && (r.formulae || []).includes('DropdownOptions'),
+          (r: Untyped) => r.type === 'list' && (r.formulae || []).includes('DropdownOptions'),
         );
         assert.ok(
           named,
@@ -59,13 +58,10 @@ export default {
     },
     {
       name: 'both reference-based list validations survive a read/write round-trip as standard validations',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.roundtripFixtureValidationXml(FIXTURE);
-        const rules = Object.values(sheets).flatMap((s: CorpusApi) => s.standardRules);
-        const sources = rules
-          .filter((r: CorpusApi) => r.type === 'list')
-          .map((r: CorpusApi) => r.formula1);
+        const rules = Object.values(sheets).flatMap((s) => s.standardRules);
+        const sources = rules.filter((r) => r.type === 'list').map((r) => r.formula1);
         assert.ok(
           sources.includes('Options!A1:B1'),
           `the cross-sheet range source must survive re-serialization; got ${JSON.stringify(sources)}`,

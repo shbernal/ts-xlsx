@@ -37,7 +37,6 @@ export default {
   behavior: [
     {
       name: 'a fill set on A1 is observable on A1',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {A1} = (await api.roundtripWorkbook(SPEC)).sheets.S.cells;
         assert.ok(A1.fill && A1.fill.type === 'pattern', 'A1 should keep its fill');
@@ -46,7 +45,6 @@ export default {
     },
     {
       name: 'the fill does not bleed onto an untouched cell (B2)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {B2} = (await api.roundtripWorkbook(SPEC)).sheets.S.cells;
         assert.ok(!B2.fill || B2.fill.type === undefined, 'B2 must have no fill');
@@ -54,7 +52,6 @@ export default {
     },
     {
       name: 'the fill does not bleed along the same column (A2) or row (C1)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {A2, C1} = (await api.roundtripWorkbook(SPEC)).sheets.S.cells;
         assert.ok(!A2.fill || A2.fill.type === undefined, 'A2 (same column) must have no fill');

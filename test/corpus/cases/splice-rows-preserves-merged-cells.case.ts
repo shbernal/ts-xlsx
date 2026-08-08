@@ -9,8 +9,9 @@
 // the range silently un-merges (and points at the wrong, now-empty cells).
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
-const bannerSheet = (ops: CorpusApi) => ({
+const bannerSheet = (ops: Untyped) => ({
   cells: [
     {ref: 'A1', value: 'header'},
     {ref: 'A2', value: 'banner'},
@@ -31,7 +32,6 @@ export default {
   behavior: [
     {
       name: 'a splice below the merged range leaves it merged and untouched (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {merges} = await api.mutateWorksheet(
           bannerSheet([{op: 'spliceRows', start: 10, count: 1}]),
@@ -41,7 +41,6 @@ export default {
     },
     {
       name: 'deleting a row above the merged range shifts it up and keeps it merged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {merges} = await api.mutateWorksheet(
           bannerSheet([{op: 'spliceRows', start: 1, count: 1}]),
@@ -54,7 +53,6 @@ export default {
     },
     {
       name: 'inserting a row above the merged range shifts it down and keeps it merged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {merges} = await api.mutateWorksheet(
           bannerSheet([{op: 'spliceRows', start: 1, count: 0, inserts: [['inserted']]}]),

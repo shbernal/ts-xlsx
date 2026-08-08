@@ -1,6 +1,6 @@
 // The CSV reader and writer, including encoding behaviour.
 
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {
   normalizeCsvValue,
   specCsvValue,
@@ -10,7 +10,7 @@ import {
 import {readCsv, Workbook, writeCsv, writeCsvText} from './runtime.ts';
 
 export const csv = {
-  csvRead({csv, options}: CorpusApi = {}) {
+  csvRead({csv, options}: Untyped = {}) {
     try {
       const wb = readCsv(csv, translateCsvReadOptions(options));
       const sheet = wb.worksheets[0];
@@ -26,11 +26,11 @@ export const csv = {
       }
       return {ok: true, error: null, rows};
     } catch (e) {
-      return {ok: false, error: String((e as CorpusApi)?.message || e), rows: []};
+      return {ok: false, error: String((e as Untyped)?.message || e), rows: []};
     }
   },
 
-  csvWrite({spec = {}, options}: CorpusApi = {}) {
+  csvWrite({spec = {}, options}: Untyped = {}) {
     try {
       const wb = new Workbook();
       const sheet = wb.addWorksheet('S');
@@ -38,11 +38,11 @@ export const csv = {
       const text = writeCsvText(wb, translateCsvWriteOptions(options));
       return {ok: true, error: null, text};
     } catch (e) {
-      return {ok: false, error: String((e as CorpusApi)?.message || e), text: null};
+      return {ok: false, error: String((e as Untyped)?.message || e), text: null};
     }
   },
 
-  csvWriteSheetSelection(sheetName: CorpusApi) {
+  csvWriteSheetSelection(sheetName: Untyped) {
     const wb = new Workbook();
     wb.addWorksheet('First').addRow(['a', 1]);
     const second = wb.addWorksheet('Second');
@@ -53,7 +53,7 @@ export const csv = {
     try {
       text = writeCsvText(wb, sheetName === undefined ? {} : {sheetName});
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     return {
       ok: error === null,
@@ -65,17 +65,17 @@ export const csv = {
 
   csvReadMapReport() {
     const csv = 'id,amount\n007,32.5\n008,40';
-    const read = (map: CorpusApi) => {
+    const read = (map: Untyped) => {
       const wb = readCsv(csv, map ? {map} : {});
       const sheet = wb.worksheets[0];
       const a = sheet ? sheet.getCell('A2').value : null;
       const b = sheet ? sheet.getCell('B2').value : null;
       return {a, aType: typeof a, b, bType: typeof b};
     };
-    return {default: read(null), identity: read((v: CorpusApi) => v)};
+    return {default: read(null), identity: read((v: Untyped) => v)};
   },
 
-  csvWriteEncodingReport({encoding = 'utf16le', text = 'café'}: CorpusApi = {}) {
+  csvWriteEncodingReport({encoding = 'utf16le', text = 'café'}: Untyped = {}) {
     const EMOJI = '😀🎉';
     const CJK = '日本語テスト';
 

@@ -19,7 +19,6 @@ export default {
   behavior: [
     {
       name: 'the styled column’s cell carries the border',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {a1} = await api.columnBorderScopedReport();
         assert.strictEqual(a1, true, 'the declaring column’s cell has the right border');
@@ -27,7 +26,6 @@ export default {
     },
     {
       name: 'columns without a style get no border',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {b1, c1} = await api.columnBorderScopedReport();
         assert.strictEqual(b1, false, 'the next column does not inherit the border');

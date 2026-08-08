@@ -1,6 +1,6 @@
 // Hyperlinks, including the internal (same-workbook) form and how it serializes.
 
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {attrsOf} from './xml-probes.ts';
@@ -9,21 +9,21 @@ export const hyperlinks = {
   // Read a fixture and report every hyperlink cell as { <addr>: { hyperlink, text } }, with a rich
   // display label flattened to its concatenated text — for asserting a foreign file's links (and the
   // rejoining of an external URL's fragment carried in the location attribute) are read faithfully.
-  async readFixtureHyperlinks(rel: CorpusApi) {
-    const flatten = (t: CorpusApi) =>
+  async readFixtureHyperlinks(rel: Untyped) {
+    const flatten = (t: Untyped) =>
       t == null
         ? null
         : typeof t === 'string'
           ? t
           : Array.isArray(t.richText)
-            ? t.richText.map((r: CorpusApi) => r.text).join('')
+            ? t.richText.map((r: Untyped) => r.text).join('')
             : t;
     const sheet = readFixture(rel).worksheets[0];
-    const out: Record<string, CorpusApi> = {};
+    const out: Record<string, Untyped> = {};
     if (sheet) {
       for (const {cells} of sheet.rows()) {
         for (const cell of cells) {
-          const v = cell.value as CorpusApi;
+          const v = cell.value as Untyped;
           if (v && typeof v === 'object' && 'hyperlink' in v) {
             out[cell.address] = {hyperlink: v.hyperlink ?? null, text: flatten(v.text)};
           }
@@ -42,11 +42,11 @@ export const hyperlinks = {
     const sheet = wb.addWorksheet('Main');
     wb.addWorksheet('Target');
     sheet.getCell('A1').value = {text: 'go', hyperlink: target};
-    let buffer: CorpusApi;
+    let buffer: Untyped;
     try {
       buffer = writeXlsx(wb);
     } catch (e) {
-      return {writeOk: false, writeError: String((e as CorpusApi)?.message || e)};
+      return {writeOk: false, writeError: String((e as Untyped)?.message || e)};
     }
     const parts = partMapOf(buffer);
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
@@ -84,7 +84,7 @@ export const hyperlinks = {
     const hyperlinkEl = (sheetXml.match(/<hyperlink\b[^>]*\/?>/) || [''])[0];
     const relEl = (relsXml.match(/<Relationship\b[^>]*hyperlink[^>]*\/?>/) || [''])[0];
     const reReadHyperlink =
-      (readXlsx(buffer).getWorksheet('Sheet1')!.getCell('A1').value as CorpusApi).hyperlink ?? null;
+      (readXlsx(buffer).getWorksheet('Sheet1')!.getCell('A1').value as Untyped).hyperlink ?? null;
     return {
       hasWorksheetRels: /Type="[^"]*\/hyperlink"/.test(relsXml),
       hyperlinkHasRid: /r:id="/.test(hyperlinkEl),

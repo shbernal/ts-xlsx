@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'a non-ZIP legacy .xls payload does not resolve to a silently-empty workbook',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(

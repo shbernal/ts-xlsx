@@ -44,7 +44,6 @@ export default {
   behavior: [
     {
       name: 'an interior empty cell is surfaced by an include-empty iteration',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows} = await api.readRowCellPresence(spec, [3]);
         assert.ok(
@@ -55,7 +54,6 @@ export default {
     },
     {
       name: "trailing empty cells are surfaced up to the sheet's declared column width",
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows, columnCount} = await api.readRowCellPresence(spec, [2]);
         assert.strictEqual(columnCount, 5, 'the header makes the sheet five columns wide');
@@ -67,7 +65,6 @@ export default {
     },
     {
       name: 'every data row reconstructs to the header width so rows align column-for-column',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows, columnCount} = await api.readRowCellPresence(spec, [2]);
         assert.strictEqual(

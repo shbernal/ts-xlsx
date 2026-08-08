@@ -30,7 +30,6 @@ export default {
   behavior: [
     {
       name: 'every declared part is present and non-empty (no zero-byte auxiliary parts)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {partCount, emptyParts} = await api.streamWritePackageReport({rows: 50});
         assert.ok(partCount >= 5, `a real package declares several parts, got ${partCount}`);
@@ -39,7 +38,6 @@ export default {
     },
     {
       name: 'every zip entry’s stored CRC matches its decompressed bytes',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {crcValid, crcError} = await api.streamWritePackageReport({rows: 50});
         assert.ok(crcValid, `every entry must extract with a matching CRC-32, got: ${crcError}`);
@@ -47,7 +45,6 @@ export default {
     },
     {
       name: 'the streamed package re-reads to the same sheet names and cell values',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadOk, reloadError, sheetNames, firstCol} = await api.streamWritePackageReport({
           rows: 50,

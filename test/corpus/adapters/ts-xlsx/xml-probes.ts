@@ -3,7 +3,7 @@
 // inputs used to prove the reader classifies foreign formats instead of crashing on them.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {decodeRange, encodeAddress, readXlsx, writeCompoundFile, writeXlsx} from './runtime.ts';
 import {buildFrom} from './spec-model.ts';
 
@@ -15,7 +15,7 @@ export const hexBytes = (hex: string) =>
 // two-cell-only attribute the model drops by construction); a two-cell anchor spans tl..br. A
 // fractional grid coordinate (col 3.5) is passed through — the model floors it to the cell and derives
 // the sub-cell EMU offset from that cell's real width/height.
-export function anchorSpecImage(sheet: CorpusApi, imageId: CorpusApi, range: CorpusApi) {
+export function anchorSpecImage(sheet: Untyped, imageId: Untyped, range: Untyped) {
   if (typeof range === 'string') {
     const {left, top, right, bottom} = decodeRange(range);
     sheet.addImage(imageId, {tl: {col: left! - 1, row: top! - 1}, br: {col: right, row: bottom}});
@@ -50,7 +50,7 @@ export const imageXmlWellFormed = (xml: string) =>
 // Expand an OOXML sqref (space-separated ranges) into its covered cell references, bounded by a cap so
 // a whole-column range never balloons — used to check that a range-form validation is reported on
 // every covered cell. An unbounded whole-row/column part is skipped rather than expanded.
-export function expandSqref(sqref: CorpusApi, cap = 4096) {
+export function expandSqref(sqref: Untyped, cap = 4096) {
   const refs: string[] = [];
   for (const part of String(sqref).split(/\s+/).filter(Boolean)) {
     const {left, right, top, bottom} = decodeRange(part);
@@ -100,7 +100,7 @@ export function attrsOf(tag: string) {
 // genuine `.xlsx` (the control that must still read), a legacy `.xls` (an OLE2/CFB compound file, via the
 // production CFB writer), a binary `.xlsb` (a real ZIP whose office document is `xl/workbook.bin`),
 // non-ZIP text (a CSV handed to the wrong reader), and a ZIP-headed-but-corrupt archive.
-export function buildReadInput(kind: CorpusApi): Uint8Array {
+export function buildReadInput(kind: Untyped): Uint8Array {
   switch (kind) {
     case 'xlsx':
       return writeXlsx(buildFrom({sheets: [{name: 'S', cells: [{ref: 'A1', value: 42}]}]}));
@@ -133,12 +133,12 @@ export function buildReadInput(kind: CorpusApi): Uint8Array {
 // `code` and `format` branch fields (the typed contract a caller keys on — `code` says what kind of
 // failure it is, `format` which unsupported input it was), and whether the message leaks the zip
 // layer's internals or an absolute filesystem path (the anti-leak contract).
-export function classifyReadError(run: () => void): CorpusApi {
+export function classifyReadError(run: () => void): Untyped {
   try {
     run();
     return {threw: false, errorName: null, code: null, format: null, message: null};
   } catch (e) {
-    const err = e as CorpusApi;
+    const err = e as Untyped;
     const message = String(err?.message ?? '');
     return {
       threw: true,

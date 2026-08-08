@@ -20,6 +20,7 @@
 // note on D4 must not be mistaken for the thread's fallback (nor the fallback for a note).
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 // The two ids for one human that Excel itself writes: an authoring identity, and the separate entry it
 // interns when that person is @mentioned. Registering both is what a faithful writer has to allow — merging
@@ -40,7 +41,6 @@ export default {
   behavior: [
     {
       name: 'an authored conversation is written as its own part, wired to the workbook person registry',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {parts} = await api.authoredCommentThreadRoundtrip();
         assert.strictEqual(parts.threadedComments, 1, 'one threadedComment part for the one sheet');
@@ -64,7 +64,6 @@ export default {
     },
     {
       name: 'every participant is registered, including the separate identity a mention resolves through',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {parts} = await api.authoredCommentThreadRoundtrip();
         assert.strictEqual(parts.personEntries, 3, 'two authors plus the mentioned identity');
@@ -88,7 +87,6 @@ export default {
     },
     {
       name: 'the conversation is given the legacy fallback comment that binds its cell to it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // Without this, Excel ignores the thread part however intact it is: the cell is bound to its
         // conversation through the fallback comment's synthetic `tc={headId}` author and its `xr:uid`.
@@ -117,7 +115,6 @@ export default {
     },
     {
       name: 'the fallback text a pre-2018 reader sees folds the reply into the opening message',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {parts} = await api.authoredCommentThreadRoundtrip();
         assert.deepStrictEqual(
@@ -136,7 +133,6 @@ export default {
     },
     {
       name: 'the authored conversation reads back as the same model, participants resolved',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {model} = await api.authoredCommentThreadRoundtrip();
         assert.strictEqual(model.sheets.length, 1);
@@ -146,7 +142,7 @@ export default {
         assert.strictEqual(thread.ref, 'B2', 'the anchor is canonical — it was authored as `$B$2`');
         assert.strictEqual(thread.resolved, true);
         assert.deepStrictEqual(
-          thread.comments.map((comment: CorpusApi) => [
+          thread.comments.map((comment: Untyped) => [
             comment.id,
             comment.author?.displayName,
             comment.date,
@@ -185,7 +181,6 @@ export default {
     },
     {
       name: 'the conversation is not surfaced as a note, and the real note beside it is untouched',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // The fallback comment is boilerplate wrapping a copy of the conversation. Reading it back as
         // `cell.note` would hand the caller garbage — and re-writing it as a plain note would destroy the
@@ -205,7 +200,6 @@ export default {
     },
     {
       name: 'the same model always writes the same bytes, so an authored conversation is reproducible',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // Threaded comments need guids and timestamps, and the writer supplies neither: every id and date
         // is the caller's. A writer that reached for a clock or a random source here would make every save

@@ -28,14 +28,13 @@ export default {
   behavior: [
     {
       name: 'a pixel extent becomes a oneCellAnchor with EMU = pixels × 9525',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchors} = await api.inspectImageAnchors(SPEC);
         assert.strictEqual(anchors.length, 1, 'exactly one image anchor');
-        const {anchorType, ext} = anchors[0];
+        const {anchorType, ext} = anchors[0]!;
         assert.strictEqual(anchorType, 'oneCell', 'an explicit extent is a oneCellAnchor');
-        assert.strictEqual(ext.cx, 191 * PX_TO_EMU, 'width 191 px → 1819275 EMU');
-        assert.strictEqual(ext.cy, 47 * PX_TO_EMU, 'height 47 px → 447675 EMU');
+        assert.strictEqual(ext!.cx, 191 * PX_TO_EMU, 'width 191 px → 1819275 EMU');
+        assert.strictEqual(ext!.cy, 47 * PX_TO_EMU, 'height 47 px → 447675 EMU');
       },
     },
   ],

@@ -52,7 +52,6 @@ export default {
   behavior: [
     {
       name: 'an authored style is emitted and the table naming it resolves',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const report = await api.authorTableStyleReport({
           styles: [HARBOUR],
@@ -68,54 +67,45 @@ export default {
     },
     {
       name: 'every element resolves to a differential style that carries its formatting',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const report = await api.authorTableStyleReport({
           styles: [HARBOUR],
           tableStyle: {name: 'Harbour', showRowStripes: true},
         });
         assert.deepStrictEqual(
-          report.elements.map((element: CorpusApi) => element.type),
+          report.elements.map((element) => element.type),
           ['wholeTable', 'headerRow', 'firstRowStripe'],
           'the elements are emitted in the order the schema fixes, not authoring order',
         );
         // A dxfId that resolves to nothing is a style that paints nothing — the failure mode this
         // whole feature has to avoid, and one no schema check catches.
         assert.ok(
-          report.elementDxfs.every((dxf: CorpusApi) => dxf !== null),
+          report.elementDxfs.every((dxf) => dxf !== null),
           'every element’s dxfId lands on a real <dxf>',
         );
         const header =
-          report.elementDxfs[
-            report.elements.findIndex((element: CorpusApi) => element.type === 'headerRow')
-          ];
-        assert.match(header, /<b\/>/, 'the header row’s dxf carries the bold it was given');
-        assert.match(header, /FFBB2649/, 'and its fill colour');
+          report.elementDxfs[report.elements.findIndex((element) => element.type === 'headerRow')];
+        assert.match(header!, /<b\/>/, 'the header row’s dxf carries the bold it was given');
+        assert.match(header!, /FFBB2649/, 'and its fill colour');
       },
     },
     {
       name: 'a stripe’s band width is written, and only a stripe may carry one',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const report = await api.authorTableStyleReport({
           styles: [HARBOUR],
           tableStyle: {name: 'Harbour', showRowStripes: true},
         });
-        const stripe = report.elements.find(
-          (element: CorpusApi) => element.type === 'firstRowStripe',
-        );
-        assert.strictEqual(stripe.size, 2, 'the authored band width reaches the file');
+        const stripe = report.elements.find((element) => element.type === 'firstRowStripe');
+        assert.strictEqual(stripe!.size, 2, 'the authored band width reaches the file');
         // `size` defaults to 1 and means nothing outside the four stripe types, so a non-stripe
         // element must not carry one at all.
-        const wholeTable = report.elements.find(
-          (element: CorpusApi) => element.type === 'wholeTable',
-        );
-        assert.strictEqual(wholeTable.size, null);
+        const wholeTable = report.elements.find((element) => element.type === 'wholeTable');
+        assert.strictEqual(wholeTable!.size, null);
       },
     },
     {
       name: 'elements painted alike share one differential style',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // The dxf table is shared and interned, so a style whose header row and total row look the
         // same costs one entry, not two — the same interning a conditional-formatting rule uses.
@@ -125,12 +115,11 @@ export default {
           tableStyle: {name: 'Twin'},
         });
         assert.strictEqual(report.dxfCount, 1, 'one <dxf> backs both elements');
-        assert.strictEqual(report.elements[0].dxfId, report.elements[1].dxfId);
+        assert.strictEqual(report.elements[0]!.dxfId, report.elements[1]!.dxfId);
       },
     },
     {
       name: 'authoring a name a source file already defined overrides it, rather than duplicating it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // Two `<tableStyle>` elements sharing a name leave the table's reference ambiguous — a
         // consumer resolves whichever it indexes first — so a second definition is never the answer.
@@ -143,7 +132,7 @@ export default {
         assert.strictEqual(report.nameOnTable, 'Harbour Table');
         assert.strictEqual(report.resolves, true);
         assert.match(
-          report.elementDxfs[0],
+          report.elementDxfs[0]!,
           /<i\/>/,
           'the emitted definition is the authored one, not the preserved one',
         );
@@ -151,22 +140,21 @@ export default {
     },
     {
       name: 'a style that could never paint anything is refused at the call that made it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // Both of these produce a file Excel opens without complaint and then quietly does nothing
         // with — the class of bug that never gets found, so it is refused at the setter instead.
         assert.match(
-          await api.authorInvalidTableStyle({name: '', elements: {}}),
+          await api.authorInvalidTableStyle({name: '', elements: {}})!,
           /needs a name/,
           'an unnamed style is unreachable: a table references its style by name',
         );
         assert.match(
-          await api.authorInvalidTableStyle({name: 'X', elements: {headerRow: {size: 2}}}),
+          await api.authorInvalidTableStyle({name: 'X', elements: {headerRow: {size: 2}}})!,
           /cannot carry a size/,
           'band width applies only to the four stripe types; Excel ignores it elsewhere',
         );
         assert.match(
-          await api.authorInvalidTableStyle({name: 'X', elements: {firstRowStripe: {size: 0}}}),
+          await api.authorInvalidTableStyle({name: 'X', elements: {firstRowStripe: {size: 0}}})!,
           /positive integer/,
         );
         // A stripe with a real band width is of course fine.

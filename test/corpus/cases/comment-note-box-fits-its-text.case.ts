@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'the note is written with a VML drawing part',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {packageParts, vml} = await api.inspectPackage(SPEC);
         assert.ok(packageParts.hasVmlDrawingPart, 'a comment writes its legacy VML drawing');
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'the comment textbox is styled to auto-fit its text so a multi-line note is not clipped',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {vml} = await api.inspectPackage(SPEC);
         assert.strictEqual(

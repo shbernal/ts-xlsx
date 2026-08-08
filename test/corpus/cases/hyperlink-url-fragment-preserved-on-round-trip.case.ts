@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'a hyperlink URL with a fragment round-trips in full',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(sheets.Sheet1.cells.A1.hyperlink, URL);
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the fragment tail is not silently dropped',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hyperlink} = (await api.roundtripWorkbook(SPEC)).sheets.Sheet1.cells.A1;
         assert.notStrictEqual(hyperlink, 'http://host/ui/', 'fragment was dropped');
@@ -43,7 +41,6 @@ export default {
     },
     {
       name: 'the display text is preserved alongside the fragment URL',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {text} = (await api.roundtripWorkbook(SPEC)).sheets.Sheet1.cells.A1;
         assert.strictEqual(text, 'open case');
@@ -51,7 +48,6 @@ export default {
     },
     {
       name: 'reading a foreign file rejoins the fragment from the location attribute onto the base URL',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const links = await api.readFixtureHyperlinks(FIXTURE);
         assert.ok(links.A1, 'the hyperlink cell is read');

@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'cell values shift down correctly on insert (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {dataShifted} = await api.rowInsertPreservesNoteAndOutline();
         assert.strictEqual(dataShifted, true, 'the pre-existing rows move down by one');
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'a cell note survives a row insert above it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {noteFollowsRow} = await api.rowInsertPreservesNoteAndOutline();
         assert.strictEqual(
@@ -42,7 +40,6 @@ export default {
     },
     {
       name: 'an outline level follows its row through a row insert',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {outlineFollowsRow} = await api.rowInsertPreservesNoteAndOutline();
         assert.strictEqual(

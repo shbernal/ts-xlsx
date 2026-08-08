@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'an out-of-range filterColumn colId does not abort the load',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(
@@ -40,7 +39,6 @@ export default {
     },
     {
       name: 'the worksheet is recovered intact despite the dangling reference',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.deepStrictEqual(sheetNames, ['Sheet1'], 'the sheet survives the tolerant read');

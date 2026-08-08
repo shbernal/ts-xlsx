@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a valid bare ARGB serializes as exactly 8 hex digits',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {validRgb} = await api.fillArgbHashPrefixReport();
         assert.ok(
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'a "#"-prefixed ARGB is not emitted as a malformed rgb value',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hashRgb} = await api.fillArgbHashPrefixReport();
         assert.ok(

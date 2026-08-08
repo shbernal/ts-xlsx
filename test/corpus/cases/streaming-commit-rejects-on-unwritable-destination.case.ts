@@ -19,7 +19,6 @@ export default {
   behavior: [
     {
       name: 'commit to an unwritable destination rejects rather than hanging',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {outcome, rejected} = await api.streamCommitBadDestination();
         assert.strictEqual(
@@ -31,7 +30,6 @@ export default {
     },
     {
       name: 'the rejection carries the underlying I/O error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {carriesIoError, error} = await api.streamCommitBadDestination();
         assert.strictEqual(

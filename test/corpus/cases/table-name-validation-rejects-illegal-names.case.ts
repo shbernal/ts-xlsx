@@ -10,8 +10,9 @@
 // front with an actionable error rather than emitting a file a consumer flags as corrupt.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
-const tableSpec = (tableName: CorpusApi) => ({
+const tableSpec = (tableName: Untyped) => ({
   sheets: [
     {name: 'S', tables: [{name: tableName, ref: 'A1', headers: ['H1', 'H2'], rows: [['a', 1]]}]},
   ],
@@ -29,7 +30,6 @@ export default {
   behavior: [
     {
       name: 'a table name containing spaces or an apostrophe is rejected',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const result = await api.tryWriteWorkbook(tableSpec("Bob's Accounts"));
         assert.strictEqual(
@@ -41,7 +41,6 @@ export default {
     },
     {
       name: 'a table name starting with a digit is rejected',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const result = await api.tryWriteWorkbook(tableSpec('1Digit'));
         assert.strictEqual(result.ok, false, 'a name starting with a digit must be rejected');
@@ -51,7 +50,6 @@ export default {
       // A hyphen is ambiguous with the subtraction operator, so Excel forbids it in a table name and
       // treats a file carrying "test-name" as corrupt — it must be rejected, not written verbatim.
       name: 'a table name containing a hyphen is rejected',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const result = await api.tryWriteWorkbook(tableSpec('test-name'));
         assert.strictEqual(
@@ -63,7 +61,6 @@ export default {
     },
     {
       name: 'a valid identifier table name is accepted and survives into the written table part',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const spec = tableSpec('Valid_Name');
         const result = await api.tryWriteWorkbook(spec);
@@ -74,7 +71,7 @@ export default {
         );
         const {tables} = await api.inspectPackage(spec);
         assert.strictEqual(
-          tables[0].name,
+          tables[0]!.name,
           'Valid_Name',
           'the valid name is written verbatim into the table XML',
         );

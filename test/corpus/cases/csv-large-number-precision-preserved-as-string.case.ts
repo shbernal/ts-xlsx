@@ -25,22 +25,20 @@ export default {
   behavior: [
     {
       name: 'an ordinary in-range number is still parsed as a number',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows} = await api.csvRead({csv: CSV});
-        assert.strictEqual(rows[1][1], 42, 'a small integer parses as a number');
-        assert.strictEqual(rows[2][0], 1.5, 'a decimal parses as a number');
+        assert.strictEqual(rows[1]![1], 42, 'a small integer parses as a number');
+        assert.strictEqual(rows[2]![0], 1.5, 'a decimal parses as a number');
       },
     },
     {
       name: 'an over-precision numeric string is preserved with all its digits',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows} = await api.csvRead({csv: CSV});
         assert.strictEqual(
-          rows[1][0],
+          rows[1]![0],
           BIG,
-          `a 20-digit value must be preserved verbatim, not rounded through Number(); got ${JSON.stringify(rows[1][0])}`,
+          `a 20-digit value must be preserved verbatim, not rounded through Number(); got ${JSON.stringify(rows[1]![0])}`,
         );
       },
     },

@@ -18,7 +18,6 @@ export default {
   behavior: [
     {
       name: 'a genuine .xlsx still reads through the format probe (no false rejection)',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const result = api.classifyReadInput('xlsx');
         assert.equal(result.threw, false);
@@ -26,7 +25,6 @@ export default {
     },
     {
       name: 'a legacy .xls (OLE2/CFB) is rejected as an UnsupportedFormatError with format "xls"',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const result = api.classifyReadInput('xls');
         assert.equal(result.threw, true);
@@ -37,7 +35,6 @@ export default {
     },
     {
       name: 'a package whose office document is a binary workbook is parsed as one, not rejected',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // The reader classifies this as an `.xlsb` and hands it to the BIFF12 codec, so the failure
         // it reports for a deliberately unparseable binary workbook is a *parse* error — the format
@@ -51,7 +48,6 @@ export default {
     },
     {
       name: 'the row streamer reports a binary .xlsb as a format it cannot take, naming one that can',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const result = api.classifyStreamReadInput('xlsb');
         assert.equal(result.threw, true);
@@ -63,7 +59,6 @@ export default {
     },
     {
       name: 'non-ZIP text is rejected as an UnsupportedFormatError with format "unknown"',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const result = api.classifyReadInput('garbage');
         assert.equal(result.threw, true);
@@ -77,7 +72,6 @@ export default {
     },
     {
       name: 'a corrupt archive is reported as a package that cannot be unpacked, not an unknown format',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // A truncated package is the right *kind* of container; nothing inflated, so no part search
         // ever ran. Reporting it as an unrecognised format would name a check that did not happen and
@@ -91,7 +85,6 @@ export default {
     },
     {
       name: 'a corrupt archive leaks neither zip internals nor a filesystem path',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const result = api.classifyReadInput('corrupt-zip');
         assert.equal(result.threw, true);
@@ -101,7 +94,6 @@ export default {
     },
     {
       name: 'the streaming reader classifies a corrupt archive the same way',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const result = api.classifyStreamReadInput('corrupt-zip');
         assert.equal(result.threw, true);
@@ -112,7 +104,6 @@ export default {
     },
     {
       name: 'the streaming reader enforces the same typed-error contract for a legacy .xls',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const result = api.classifyStreamReadInput('xls');
         assert.equal(result.threw, true);

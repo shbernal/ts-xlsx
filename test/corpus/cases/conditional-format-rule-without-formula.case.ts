@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'an expression rule WITH a formula writes successfully (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, writeError} = await api.authorConditionalFormatting({
           ref: 'A1:A10',
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'an expression rule with NO formula does not crash serialization',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, writeError} = await api.authorConditionalFormatting({
           ref: 'A1:A10',

@@ -4,7 +4,7 @@
 
 import {strToU8, zipSync} from 'fflate';
 
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {encodeAddress, fixtureBytes, readXlsb, readXlsx} from './runtime.ts';
 
 const FIXTURE = 'xlsb-binary-workbook-reads-like-its-xlsx-twin';
@@ -37,7 +37,7 @@ export const xlsb = {
 
   // The sheets a binary workbook declares, in tab order, with their visibility.
   xlsbSheets() {
-    return readXlsb(fixtureBytes(`${FIXTURE}/source.xlsb`)).worksheets.map((sheet: CorpusApi) => ({
+    return readXlsb(fixtureBytes(`${FIXTURE}/source.xlsb`)).worksheets.map((sheet: Untyped) => ({
       name: sheet.name,
       state: sheet.state,
     }));
@@ -45,7 +45,7 @@ export const xlsb = {
 
   // One cell of the binary reading, as JSON-serializable facts: its decoded value (a Date rendered
   // as an ISO string) and the style facets it resolved to.
-  xlsbCell(sheetName: CorpusApi, reference: CorpusApi) {
+  xlsbCell(sheetName: Untyped, reference: Untyped) {
     const workbook = readXlsb(fixtureBytes(`${FIXTURE}/source.xlsb`));
     const sheet = workbook.getWorksheet(sheetName);
     if (sheet === undefined) return {found: false};
@@ -65,7 +65,7 @@ export const xlsb = {
   },
 
   // A sheet's row/column geometry and merged ranges, from the binary reading.
-  xlsbGrid(sheetName: CorpusApi) {
+  xlsbGrid(sheetName: Untyped) {
     const workbook = readXlsb(fixtureBytes(`${FIXTURE}/source.xlsb`));
     const sheet = workbook.getWorksheet(sheetName);
     if (sheet === undefined) return {found: false};
@@ -94,7 +94,7 @@ export const xlsb = {
   },
 
   // One formula cell of the binary reading: the decoded text and the result Excel cached beside it.
-  xlsbFormula(sheetName: CorpusApi, reference: CorpusApi) {
+  xlsbFormula(sheetName: Untyped, reference: Untyped) {
     const sheet = readXlsb(fixtureBytes(`${FORMULAS}/source.xlsb`)).getWorksheet(sheetName);
     const value = sheet?.getCell(reference).value;
     return {formula: formulaOf(value), result: normalize(value)};
@@ -110,7 +110,7 @@ export const xlsb = {
   xlsbFilledFormulaColumn() {
     const sheet = readXlsb(fixtureBytes(`${FORMULAS}/source.xlsb`)).getWorksheet('Calc');
     return ['D1', 'D2', 'D3', 'D4', 'D5'].map((address) => {
-      const value = sheet?.getCell(address).value as CorpusApi;
+      const value = sheet?.getCell(address).value as Untyped;
       return {
         address,
         formula: formulaOf(value),
@@ -134,7 +134,7 @@ export const xlsb = {
       readXlsx(archive);
       return {threw: false, errorName: null, message: null};
     } catch (error) {
-      const failure = error as CorpusApi;
+      const failure = error as Untyped;
       return {
         threw: true,
         errorName: failure?.name ?? null,
@@ -146,7 +146,7 @@ export const xlsb = {
 
 // A Date is not JSON-serializable in a way a case can compare, and a formula cell's *value* is the
 // result it computed; both are flattened the same way on either side of a comparison.
-function normalize(value: CorpusApi): CorpusApi {
+function normalize(value: Untyped): Untyped {
   if (value instanceof Date) return value.toISOString();
   if (value !== null && typeof value === 'object' && 'formula' in value) {
     return normalize(value.result ?? null);
@@ -159,22 +159,22 @@ function normalize(value: CorpusApi): CorpusApi {
 // by storing it once and marking the rest as clones; the XML form records that grouping and the
 // binary form does not — Excel writes each cell's own formula out in full. So a clone reads back with
 // the same formula text either way, and only the `sharedFormula` pointer back to the master differs.
-function comparable(value: CorpusApi): CorpusApi {
+function comparable(value: Untyped): Untyped {
   const formula = formulaOf(value);
   if (formula === null) return normalize(value);
   return {formula, result: normalize(value.result ?? null)};
 }
 
 // The formula text a cell carries, or null for a cell that is not a formula.
-function formulaOf(value: CorpusApi): CorpusApi {
+function formulaOf(value: Untyped): Untyped {
   return value !== null && typeof value === 'object' && typeof value.formula === 'string'
     ? value.formula
     : null;
 }
 
 // Every formula cell of a workbook, keyed `Sheet!A1`.
-function formulaTexts(workbook: CorpusApi): Map<string, CorpusApi> {
-  const texts = new Map<string, CorpusApi>();
+function formulaTexts(workbook: Untyped): Map<string, Untyped> {
+  const texts = new Map<string, Untyped>();
   for (const sheet of workbook.worksheets) {
     for (const cell of sheet.model.cells) {
       const formula = formulaOf(cell.value);
@@ -187,10 +187,10 @@ function formulaTexts(workbook: CorpusApi): Map<string, CorpusApi> {
 
 // A stable, order-independent rendering of everything a worksheet holds. Key order is an artefact of
 // which parser filled the object, so it is normalised away; nothing else is.
-function snapshot(workbook: CorpusApi): string {
+function snapshot(workbook: Untyped): string {
   return JSON.stringify(
     canonical(
-      workbook.worksheets.map((sheet: CorpusApi) => {
+      workbook.worksheets.map((sheet: Untyped) => {
         const model = sheet.model;
         return {
           name: sheet.name,
@@ -198,7 +198,7 @@ function snapshot(workbook: CorpusApi): string {
           columns: model.columns,
           rows: model.rows,
           merges: model.merges,
-          cells: model.cells.map((cell: CorpusApi) => ({...cell, value: comparable(cell.value)})),
+          cells: model.cells.map((cell: Untyped) => ({...cell, value: comparable(cell.value)})),
         };
       }),
     ),
@@ -207,7 +207,7 @@ function snapshot(workbook: CorpusApi): string {
   );
 }
 
-function canonical(value: CorpusApi): CorpusApi {
+function canonical(value: Untyped): Untyped {
   if (Array.isArray(value)) return value.map(canonical);
   if (value !== null && typeof value === 'object') {
     return Object.fromEntries(

@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'the exported source model carries the merged ranges (precondition)',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {srcMerges} = api.copyWorksheetModel({merges: ['A1:C1']});
         assert.deepStrictEqual(srcMerges, ['A1:C1'], 'the source model exposes its merge ranges');
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'assigning that model onto another sheet reproduces the merged ranges',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {dstMerges, error} = api.copyWorksheetModel({merges: ['A1:C1']});
         assert.strictEqual(error, null, 'the model copy must not throw');

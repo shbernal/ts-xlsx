@@ -24,7 +24,6 @@ export default {
   behavior: [
     {
       name: 'the custom format code survives a round-trip identical to the supplied string',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.strictEqual(
@@ -36,7 +35,6 @@ export default {
     },
     {
       name: 'the group-separator commas are not dropped from the format code',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const got = model.sheets.S.cells.A1.numFmt || '';
@@ -49,7 +47,6 @@ export default {
     },
     {
       name: 'the cell keeps its assigned custom number format (numFmt survives)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         assert.ok(
@@ -64,7 +61,6 @@ export default {
       // The library must persist the user's separators verbatim — never swap "." <-> "," or rewrite
       // "/" to "-" — so a comma-decimal locale renders faithfully from the invariant code.
       name: 'invariant separators in a percentage and a date format code survive verbatim',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook({
           sheets: [

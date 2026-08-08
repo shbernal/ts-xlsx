@@ -37,7 +37,6 @@ export default {
   behavior: [
     {
       name: 'the removed module is gone; the other modules and their kinds survive',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {moduleNames, moduleKinds} = await api.xlsmVbaRemoveModule();
         assert.deepEqual(moduleNames, ['ThisWorkbook', 'Class1']);
@@ -53,7 +52,6 @@ export default {
     },
     {
       name: 'the removed module’s stream is gone from the VBA storage',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {removedModuleStreamGone} = await api.xlsmVbaRemoveModule();
         assert.strictEqual(
@@ -65,7 +63,6 @@ export default {
     },
     {
       name: 'the project reference and an untouched module survive the removal verbatim',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {referencePreserved, untouchedModuleByteIdentical} = await api.xlsmVbaRemoveModule();
         assert.strictEqual(
@@ -82,7 +79,6 @@ export default {
     },
     {
       name: 'PROJECT drops only the removed module’s declaration; PROJECTwm drops only its name pair',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {removedDeclLineGone, otherDeclLinesSurvive, projectwmNoLongerHasModule1} =
           await api.xlsmVbaRemoveModule();
@@ -101,7 +97,6 @@ export default {
     },
     {
       name: '_VBA_PROJECT is preserved untouched',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {vbaProjectStreamPreserved} = await api.xlsmVbaRemoveModule();
         assert.strictEqual(

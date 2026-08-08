@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'a 6-hex RGB fill colour is promoted to a fully-opaque 8-hex ARGB',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sixHexRgb} = await api.argbNormalizationReport();
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'a colour that is neither 6 nor 8 hex digits is rejected, not written',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rejectsMalformed} = await api.argbNormalizationReport();
         assert.strictEqual(

@@ -10,6 +10,7 @@
 // bleeds to its column siblings or the column default.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const YELLOW = 'FFFFFF00';
 const SPEC = {
@@ -38,7 +39,6 @@ export default {
   behavior: [
     {
       name: 'the targeted cell gets the fill',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const a2 = model.sheets.S.cells.A2;
@@ -47,13 +47,12 @@ export default {
     },
     {
       name: 'the column siblings do not pick up the fill',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const cells = model.sheets.S.cells;
         // The writer may add a benign patternFill pattern="none" (no visible fill) to an unfilled
         // cell; what must NOT happen is the sibling acquiring the yellow foreground.
-        const notYellow = (fill: CorpusApi) =>
+        const notYellow = (fill: Untyped) =>
           !fill || fill.pattern === 'none' || !fill.fgColor || fill.fgColor.argb !== YELLOW;
         assert.ok(
           notYellow(cells.A1.fill),
@@ -67,7 +66,6 @@ export default {
     },
     {
       name: 'the shared column number format survives on every cell',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(SPEC);
         const cells = model.sheets.S.cells;

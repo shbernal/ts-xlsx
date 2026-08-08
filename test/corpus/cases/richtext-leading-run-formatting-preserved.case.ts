@@ -7,6 +7,7 @@
 // identically to the same formatting on a later run.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 export default {
   id: 'richtext-leading-run-formatting-preserved',
@@ -19,13 +20,12 @@ export default {
   behavior: [
     {
       name: 'a formatted leading run keeps its underline after round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {runs} = await api.richTextRoundtripReport([
           {text: 'here', font: {underline: true}},
           {text: ' plain', font: {}},
         ]);
-        const lead = runs.find((r: CorpusApi) => r.text === 'here');
+        const lead = runs.find((r: Untyped) => r.text === 'here');
         assert.ok(
           lead && lead.underline === true,
           'the underlined leading run survives with its underline',
@@ -34,13 +34,12 @@ export default {
     },
     {
       name: 'the same formatting on a non-leading run is preserved identically (position independence)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {runs} = await api.richTextRoundtripReport([
           {text: 'plain ', font: {}},
           {text: 'here', font: {underline: true}},
         ]);
-        const tail = runs.find((r: CorpusApi) => r.text === 'here');
+        const tail = runs.find((r: Untyped) => r.text === 'here');
         assert.ok(
           tail && tail.underline === true,
           'the underlined non-leading run survives with its underline',
@@ -49,7 +48,6 @@ export default {
     },
     {
       name: 'the leading and trailing runs are read back as distinct runs',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {runCount} = await api.richTextRoundtripReport([
           {text: 'here', font: {underline: true}},

@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'reading with header mode enabled does not throw',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.csvRead({
           csv: 'name,age\nalice,30',
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'in header mode the header row is consumed and data rows carry the values',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, rows} = await api.csvRead({
           csv: 'name,age\nalice,30',
@@ -49,7 +47,6 @@ export default {
     },
     {
       name: 'reading without header mode splits every line into array fields (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, rows} = await api.csvRead({csv: 'name,age\nalice,30', options: {}});
         assert.ok(ok, 'array-mode read works');

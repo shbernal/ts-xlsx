@@ -2,7 +2,7 @@
 // project editor supports.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {
   addVbaReference,
   CompoundFile,
@@ -56,8 +56,8 @@ export const vba = {
     const originalHasVba = 'xl/vbaProject.bin' in unzipSync(macroPackage);
 
     const loaded = readXlsx(macroPackage);
-    const reloadedPreservedCount = (loaded.preservedReferences as CorpusApi[]).filter(
-      (r: CorpusApi) => r.relType.endsWith('/vbaProject'),
+    const reloadedPreservedCount = (loaded.preservedReferences as Untyped[]).filter((r: Untyped) =>
+      r.relType.endsWith('/vbaProject'),
     ).length;
 
     const rewritten = unzipSync(writeXlsx(loaded));
@@ -93,7 +93,7 @@ export const vba = {
     const addedBin = addVbaReference(originalBin, newRef);
 
     const project = parseVbaProject(addedBin);
-    const moduleNames = project.modules.map((m: CorpusApi) => m.name);
+    const moduleNames = project.modules.map((m: Untyped) => m.name);
 
     const originalCfb = new CompoundFile(originalBin);
     const addedCfb = new CompoundFile(addedBin);
@@ -138,8 +138,8 @@ export const vba = {
     const removedBin = removeVbaModule(originalBin, 'Module1');
 
     const project = parseVbaProject(removedBin);
-    const moduleNames = project.modules.map((m: CorpusApi) => m.name);
-    const moduleKinds = project.modules.map((m: CorpusApi) => [m.name, m.kind]);
+    const moduleNames = project.modules.map((m: Untyped) => m.name);
+    const moduleKinds = project.modules.map((m: Untyped) => [m.name, m.kind]);
 
     const originalCfb = new CompoundFile(originalBin);
     const removedCfb = new CompoundFile(removedBin);
@@ -221,8 +221,8 @@ export const vba = {
 
     const reread = readXlsx(written);
     const modules = reread.vbaProject?.modules ?? [];
-    const moduleNames = modules.map((m: CorpusApi) => m.name);
-    const moduleKinds = modules.map((m: CorpusApi) => [m.name, m.kind]);
+    const moduleNames = modules.map((m: Untyped) => m.name);
+    const moduleKinds = modules.map((m: Untyped) => [m.name, m.kind]);
 
     const rewrittenBin = rewrittenParts['xl/vbaProject.bin'];
     const rewrittenCfb = rewrittenBin ? new CompoundFile(rewrittenBin) : undefined;

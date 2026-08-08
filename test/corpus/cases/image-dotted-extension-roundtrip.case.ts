@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'a leading-dot extension does not produce a doubled-separator media filename',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {mediaParts, doubledSeparator} = await api.imageExtensionRoundtrip('.png');
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'an image added with a leading-dot extension is still discoverable after a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadedImageCount} = await api.imageExtensionRoundtrip('.png');
         assert.strictEqual(reloadedImageCount, 1, 'the worksheet reports its one image, not zero');
@@ -42,7 +40,6 @@ export default {
     },
     {
       name: 'a dot-less extension round-trips the image (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadedImageCount, doubledSeparator} = await api.imageExtensionRoundtrip('png');
         assert.strictEqual(

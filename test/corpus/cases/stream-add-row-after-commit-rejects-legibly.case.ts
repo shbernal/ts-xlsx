@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a row added after commit is rejected (not silently accepted)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rejected} = await api.streamAddRowAfterCommit();
         assert.strictEqual(rejected, true, 'adding a row after commit must be rejected');
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'the rejection is a legible "already committed" error, not an internal null crash',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {legibleRejection, internalCrash, error} = await api.streamAddRowAfterCommit();
         assert.strictEqual(

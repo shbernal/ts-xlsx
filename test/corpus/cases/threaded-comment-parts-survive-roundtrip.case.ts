@@ -55,7 +55,6 @@ export default {
   behavior: [
     {
       name: 'per-sheet threadedComment parts survive the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.threadedComments >= 1, 'precondition: source has threaded-comment parts');
@@ -68,7 +67,6 @@ export default {
     },
     {
       name: 'workbook-level persons author registry survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.persons >= 1, 'precondition: source has a persons part');
@@ -77,7 +75,6 @@ export default {
     },
     {
       name: 'the conversation inside the parts survives, not just the parts',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(RESOLVED_MULTI_AUTHOR);
         assert.strictEqual(source.threadedCommentMessages, 3, 'precondition: three messages');
@@ -100,7 +97,6 @@ export default {
     },
     {
       name: 'a resolved thread stays resolved across the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(RESOLVED_MULTI_AUTHOR);
         assert.strictEqual(source.resolvedThreadHeads, 1, 'precondition: one head is marked done');
@@ -113,7 +109,6 @@ export default {
     },
     {
       name: 'each author of a multi-author thread survives with its messages still mapped to it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(RESOLVED_MULTI_AUTHOR);
         assert.strictEqual(source.personEntries, 2, 'precondition: two registered persons');
@@ -132,7 +127,6 @@ export default {
     },
     {
       name: 'an @mention inside a message survives the round-trip with its mentioned person',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(MENTION_IN_THREAD);
         assert.strictEqual(source.threadedCommentMentions, 1, 'precondition: one mention');
@@ -155,7 +149,6 @@ export default {
     },
     {
       name: 'the mention keeps the text span it highlights, so it stays over the mentioned name',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(MENTION_IN_THREAD);
         // `@Grace Hopper` is 13 characters at offset 0 — Excel renders the chip over exactly this span,
@@ -170,7 +163,6 @@ export default {
     },
     {
       name: 'the separate PeoplePicker person entry a mention resolves through survives',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(MENTION_IN_THREAD);
         assert.strictEqual(
@@ -207,7 +199,6 @@ export default {
       // this fixture's own round-tripped output: two threaded comments, B1 resolved with its reply, B2
       // open, and D4 still an ordinary note.
       name: 'the fallback comments keep the tc= authors and xr:uids that bind them to their threads',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(RESOLVED_MULTI_AUTHOR);
         assert.strictEqual(
@@ -229,7 +220,6 @@ export default {
     },
     {
       name: 'the text a pre-2018 reader sees for a conversation is regenerated word for word',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // The fallback is not carried through — it is rebuilt from the thread model — so matching Excel
         // is a claim about our own wording and reply layout, not about copying bytes. Excel folds a whole
@@ -240,7 +230,7 @@ export default {
         const {source, rewritten} = await api.roundtripFixturePackageParts(RESOLVED_MULTI_AUTHOR);
         assert.strictEqual(source.commentFallbackTexts.length, 2, 'precondition: two fallbacks');
         assert.match(
-          source.commentFallbackTexts[0],
+          source.commentFallbackTexts[0]!,
           /^\[Threaded comment\]\n\nYour version of Excel/,
           'precondition: the boilerplate Excel actually writes',
         );
@@ -253,7 +243,6 @@ export default {
     },
     {
       name: 'a conversation does not multiply into extra comments, and every comment keeps its shape',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // Two threads plus one genuine note is three comments and three VML shapes. Re-emitting the
         // fallback as well as a note per threaded cell would inflate both counts, and a comment without

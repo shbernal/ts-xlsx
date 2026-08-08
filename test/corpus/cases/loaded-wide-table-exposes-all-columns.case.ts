@@ -19,7 +19,6 @@ export default {
   behavior: [
     {
       name: 'all five columns survive a write/read round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {colCount} = await api.wideTableColumnReadReport();
         assert.strictEqual(
@@ -31,7 +30,6 @@ export default {
     },
     {
       name: 'each loaded column carries its correct header name in order',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {colNames} = await api.wideTableColumnReadReport();
         assert.deepStrictEqual(

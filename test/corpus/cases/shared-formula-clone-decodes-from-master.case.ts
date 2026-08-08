@@ -39,7 +39,6 @@ export default {
   behavior: [
     {
       name: 'the master cell keeps its own formula and result',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.roundtripFormulas(SPEC);
         assert.strictEqual(cells.B1.formula, 'A1*2', 'master formula survives');
@@ -48,7 +47,6 @@ export default {
     },
     {
       name: 'a shared clone resolves to the master formula translated to its own address',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.roundtripFormulas(SPEC);
         assert.strictEqual(cells.B2.formula, 'A2*2', 'clone one row down is A2*2, not empty');
@@ -62,7 +60,6 @@ export default {
     },
     {
       name: 'a shared clone preserves its cached result',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const cells = await api.roundtripFormulas(SPEC);
         assert.strictEqual(cells.B2.result, 4, 'clone result survives');

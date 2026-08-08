@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a workbook with empty comments reads without error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.ok(ok, `empty comments must not crash the read; got ${JSON.stringify(error)}`);
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'an empty comment surfaces as an empty note',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {A1} = await api.readFixtureCells(FIXTURE, ['A1']);
         assert.notStrictEqual(A1.note, undefined, 'the commented cell exposes a note');

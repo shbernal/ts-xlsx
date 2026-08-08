@@ -1,24 +1,21 @@
 #!/usr/bin/env node
 // Regression corpus runner.
 //
-// Loads every case under cases/, runs each behavior against an adapter (default:
-// the rewrite), and compares the *actual* outcome to the behavior's recorded
-// `baseline` — the outcome we expect the implementation to produce.
+// Loads every case under cases/, runs each behavior, and reports it green or failed.
 //
-//   baseline  actual   meaning                          fails build?
-//   --------  ------   ------------------------------    ------------
-//   pass      pass     green, as expected               no
-//   fail      fail     known-open bug, tracked          no   (an intentional pending marker)
-//   pass      fail     REGRESSION                       YES
-//   fail      pass     bug fixed — flip baseline to pass no   (but loudly flagged)
+// It used to be a comparison rather than a verdict. Each behavior recorded a `baseline` — the outcome
+// expected of the implementation *at that time* — and the runner crossed it with the actual result to
+// distinguish four states: green, a tracked known-open bug, a regression, and a known-open that had
+// started passing. That machinery existed because there were two implementations and the corpus
+// measured a half-built one against the library it was replacing.
 //
-// Post-Phase-3 the rewrite is the reference implementation and every behavior in the
-// corpus baselines to `pass`. The `baseline: 'fail'` marker survives as the way to
-// land a case for a not-yet-built capability without reddening CI — a tracked
-// known-open, not a legacy oracle's verdict.
+// One implementation remained, every one of the 832 behaviors recorded `baseline: 'pass'`, and three of
+// the four states became unreachable — the runner carried a comparison whose second operand was a
+// constant. So the baseline is gone and this reports what it actually knows: a behavior passed, or it
+// failed and the build is red.
 //
 // Usage:
-//   node test/corpus/run.ts [--adapter rewrite] [--target src|dist]
+//   node test/corpus/run.ts [--target src|dist]
 //                           [--case <glob>]… [--verbose | --quiet] [--json]
 //
 //   --case <glob>   run only cases whose `id` or `cluster` matches the glob (`*`/`?`);
@@ -40,27 +37,22 @@ import type {Behavior, Case, CorpusApi} from './case.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-/** What a behavior actually did this run. */
-type Actual = 'pass' | 'fail' | 'skip';
-/** How that outcome reads against its baseline. */
-type Status = 'ok' | 'bug' | 'regression' | 'fixed' | 'skip';
+/** What a behavior did this run. There is no third state: a corpus behavior runs, or the build is red. */
+type Status = 'pass' | 'fail';
 
 interface Outcome {
-  actual: Actual;
+  status: Status;
   detail?: string;
 }
 
 /** One behavior's verdict, as reported. */
 interface BehaviorResult {
   name: string;
-  baseline: 'pass' | 'fail';
-  actual: Actual;
   status: Status;
   detail?: string;
 }
 
 interface Args {
-  adapter: string;
   target: string | undefined;
   /** `--case` globs, unioned; empty means every case. */
   patterns: string[];
@@ -72,28 +64,15 @@ interface Args {
 /** A bad invocation, not a corpus failure: reported as one legible line, no stack. */
 class UsageError extends Error {}
 
-// An adapter that does not yet implement a capability tags its error object so the
-// behavior is SKIPPED rather than counted as a failure/regression.
-function isNotImplemented(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    'notImplemented' in err &&
-    Boolean((err as {notImplemented?: unknown}).notImplemented)
-  );
-}
-
 function parseArgs(argv: string[]): Args {
   const args: Args = {
-    adapter: 'rewrite',
     target: undefined,
     patterns: [],
     verbose: undefined,
     json: false,
   };
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--adapter') args.adapter = argv[++i] ?? '';
-    else if (argv[i] === '--target') args.target = argv[++i] ?? '';
+    if (argv[i] === '--target') args.target = argv[++i] ?? '';
     else if (argv[i] === '--case') args.patterns.push(argv[++i] ?? '');
     else if (argv[i] === '--verbose') args.verbose = true;
     else if (argv[i] === '--quiet') args.verbose = false;
@@ -149,30 +128,13 @@ function selectCases(cases: Case[], patterns: string[]): Case[] {
 async function runBehavior(behavior: Behavior, api: CorpusApi): Promise<Outcome> {
   try {
     await behavior.expect(api, assert);
-    return {actual: 'pass'};
+    return {status: 'pass'};
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    if (isNotImplemented(err)) return {actual: 'skip', detail};
-    return {actual: 'fail', detail};
+    return {status: 'fail', detail: err instanceof Error ? err.message : String(err)};
   }
 }
 
-function classify(baseline: 'pass' | 'fail', actual: Actual): Status {
-  if (actual === 'skip') return 'skip';
-  if (baseline === 'pass') return actual === 'pass' ? 'ok' : 'regression';
-  return actual === 'fail' ? 'bug' : 'fixed';
-}
-
-const MARK: Record<Status, string> = {ok: '✓', bug: '○', regression: '✗', fixed: '↑', skip: '∅'};
-
-/** The extra prose a non-green status owes the reader. */
-function annotate(status: Status, detail: string | undefined): string | undefined {
-  if (status === 'regression') return `REGRESSION: ${detail}`;
-  if (status === 'bug') return `known-open (baseline=fail): ${detail}`;
-  if (status === 'fixed') return `FIXED — now passes; flip this behavior's baseline to 'pass'`;
-  if (status === 'skip') return `not implemented: ${detail}`;
-  return undefined;
-}
+const MARK: Record<Status, string> = {pass: '✓', fail: '✗'};
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -185,17 +147,18 @@ async function main() {
     if (!args.json) console.log(line);
   };
 
-  // The adapter picks its target from CORPUS_TARGET at module load, so seed the env
-  // before importing it. The flag exists because `VAR=value cmd` is POSIX shell syntax
-  // that cmd.exe cannot parse — a package script using it is unrunnable on Windows.
-  // Env var and flag stay equivalent; the flag simply survives the shell.
+  // The adapter picks its target from CORPUS_TARGET at module load, so seed the env before importing
+  // it — which is why this import stays dynamic even though there is only one adapter to import. The
+  // flag exists because `VAR=value cmd` is POSIX shell syntax that cmd.exe cannot parse, so a package
+  // script using it is unrunnable on Windows. Env var and flag stay equivalent; the flag survives the
+  // shell.
   if (args.target !== undefined) process.env.CORPUS_TARGET = args.target;
-  const adapterPath = resolve(HERE, 'adapters', `${args.adapter}.ts`);
-  const adapterMod = await import(pathToFileURL(adapterPath).href);
+  const adapterPath = resolve(HERE, 'adapters', 'ts-xlsx.ts');
+  const adapterMod = (await import(pathToFileURL(adapterPath).href)) as {default: CorpusApi};
   const api = adapterMod.default;
   const cases = selectCases(await loadCases(), args.patterns);
 
-  const tally: Record<Status, number> = {ok: 0, bug: 0, regression: 0, fixed: 0, skip: 0};
+  const tally: Record<Status, number> = {pass: 0, fail: 0};
   const behaviorCount = cases.reduce((n, c) => n + c.behavior.length, 0);
   const filterNote = args.patterns.length > 0 ? ` matching ${args.patterns.join(', ')}` : '';
   say(
@@ -212,18 +175,15 @@ async function main() {
     const behaviors: BehaviorResult[] = [];
 
     for (const behavior of testCase.behavior) {
-      const {actual, detail} = await runBehavior(behavior, api);
-      const status = classify(behavior.baseline, actual);
+      const {status, detail} = await runBehavior(behavior, api);
       tally[status]++;
       behaviors.push({
         name: behavior.name,
-        baseline: behavior.baseline,
-        actual,
         status,
         ...(detail === undefined ? {} : {detail}),
       });
 
-      const note = annotate(status, detail);
+      const note = status === 'fail' ? `FAILED: ${detail}` : undefined;
       if (!verbose && note === undefined) continue;
       if (!headingShown) {
         say(heading);
@@ -237,10 +197,8 @@ async function main() {
     report.push({id: testCase.id, cluster: testCase.cluster, behaviors});
   }
 
-  const skipNote =
-    tally.skip > 0 ? `, ${tally.skip} skipped (capability not implemented by "${api.name}")` : '';
-  const summary = `${tally.ok} green, ${tally.bug} known-open, ${tally.fixed} newly-fixed, ${tally.regression} regression(s)${skipNote}`;
-  const failed = tally.regression > 0;
+  const summary = `${tally.pass} green, ${tally.fail} failure(s)`;
+  const failed = tally.fail > 0;
 
   if (args.json) {
     console.log(
@@ -259,7 +217,7 @@ async function main() {
   }
 
   if (failed) {
-    console.error('\nFAIL: regression(s) detected — a behavior that passed on legacy now fails.');
+    console.error(`\nFAIL: ${tally.fail} behavior(s) the corpus had locked in no longer hold.`);
     process.exitCode = 1;
   }
 }

@@ -15,7 +15,6 @@ export default {
   behavior: [
     {
       name: 'a same-sheet list validation (standard <dataValidation>) is surfaced on its cell',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.readFixtureValidations(
           'list-validation-cross-sheet-formula-reference/cross-sheet-list.xlsx',
@@ -27,7 +26,6 @@ export default {
     },
     {
       name: 'the standard same-sheet validation survives a read→write round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {totalStandard} = await api.roundtripFixtureValidationXml(
           'list-validation-cross-sheet-formula-reference/cross-sheet-list.xlsx',
@@ -40,7 +38,6 @@ export default {
     },
     {
       name: 'a cross-sheet list validation (x14 extension) is surfaced on its cell with the foreign-sheet source',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.readFixtureValidations(
           'list-validation-cross-sheet-formula-reference/cross-sheet-list.xlsx',
@@ -54,7 +51,6 @@ export default {
     },
     {
       name: 'the cross-sheet validation survives a read→write round-trip (x14 extension preserved)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {totalExt} = await api.roundtripFixtureValidationXml(
           'list-validation-cross-sheet-formula-reference/cross-sheet-list.xlsx',

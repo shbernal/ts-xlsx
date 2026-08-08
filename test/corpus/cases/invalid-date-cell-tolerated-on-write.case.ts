@@ -32,7 +32,6 @@ export default {
   behavior: [
     {
       name: 'writing a workbook with an invalid-date cell does not throw',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const result = await api.tryWriteWorkbook(SPEC);
         assert.ok(result.ok, `write failed (${result.phase}): ${result.error}`);
@@ -40,11 +39,10 @@ export default {
     },
     {
       name: 'an invalid-date cell does not drop its sibling cells',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {survivingCells} = await api.tryWriteWorkbook(SPEC);
-        assert.ok(survivingCells.Data.includes('B1'), 'sibling string cell B1 was lost');
-        assert.ok(survivingCells.Data.includes('C1'), 'sibling number cell C1 was lost');
+        assert.ok(survivingCells!.Data.includes('B1'), 'sibling string cell B1 was lost');
+        assert.ok(survivingCells!.Data.includes('C1'), 'sibling number cell C1 was lost');
       },
     },
   ],

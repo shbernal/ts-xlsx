@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a validation formula supplied with a leading = serializes without it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {formula1, hasLeadingEquals} = await api.dvFormulaLeadingEquals('=$AA$1:$AA$2');
         assert.strictEqual(
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'the reference after the = is preserved verbatim',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {formula1} = await api.dvFormulaLeadingEquals('=$AA$1:$AA$2');
         assert.strictEqual(
@@ -45,7 +43,6 @@ export default {
     },
     {
       name: 'a formula supplied without a leading = is unchanged (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {formula1} = await api.dvFormulaLeadingEquals('$AA$1:$AA$2');
         assert.strictEqual(formula1, '$AA$1:$AA$2', 'a formula with no "=" is emitted verbatim');

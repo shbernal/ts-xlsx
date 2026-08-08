@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'a string under a date number format serializes no NaN (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, hasNaN, hasInvalidDate} = await api.dateNumFmtValueReport('string');
         assert.ok(ok, 'the workbook writes');
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'a null under a date number format serializes no NaN (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasNaN, hasInvalidDate} = await api.dateNumFmtValueReport('null');
         assert.strictEqual(hasNaN, false, 'an empty cell emits no NaN');
@@ -42,7 +40,6 @@ export default {
     },
     {
       name: 'an invalid Date under a date number format does not leak NaN into the sheet XML',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasNaN, cellXml} = await api.dateNumFmtValueReport('invalidDate');
         assert.strictEqual(
@@ -54,7 +51,6 @@ export default {
     },
     {
       name: 'an invalid Date under a date number format does not leak "Invalid Date" text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasInvalidDate, cellXml} = await api.dateNumFmtValueReport('invalidDate');
         assert.strictEqual(

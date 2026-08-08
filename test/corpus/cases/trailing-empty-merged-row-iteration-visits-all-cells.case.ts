@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'the trailing merged row is within the sheet bounds after round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rowCount} = await api.trailingMergedRowIterationReport();
         assert.ok(
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'iterating cells visits the leading cell of the trailing merged row',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {a3} = await api.trailingMergedRowIterationReport();
         assert.strictEqual(
@@ -44,7 +42,6 @@ export default {
     },
     {
       name: 'the leading cell of the trailing merged row resolves to its master',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {a3} = await api.trailingMergedRowIterationReport();
         assert.strictEqual(a3.isMerged, true, 'A3 reports being merged');

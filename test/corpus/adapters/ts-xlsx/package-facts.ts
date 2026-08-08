@@ -5,7 +5,7 @@
 // round-trip through the code that produced them.
 
 import {strFromU8, unzipSync} from 'fflate';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 
 export function partMapOf(buffer: Uint8Array) {
   const unzipped = unzipSync(buffer);
@@ -22,7 +22,7 @@ export const countIn = (parts: Record<string, string>, inParts: RegExp, pattern:
     .reduce((n, p) => n + [...(parts[p] ?? '').matchAll(pattern)].length, 0);
 
 // A sheet's legacy notes as `{<ref>: <text>}`, in row-major order.
-export const notesOf = (sheet: CorpusApi) => {
+export const notesOf = (sheet: Untyped) => {
   const notes: Record<string, string> = {};
   for (const {cells} of sheet.rows()) {
     for (const cell of cells) if (cell.note !== undefined) notes[cell.address] = cell.note;
@@ -38,8 +38,8 @@ export const notesOf = (sheet: CorpusApi) => {
 //
 // Persons are sorted by id because the registry's order is meaningless: Excel re-sorts the part by person
 // id whenever it saves, so only membership is a fact.
-export const commentThreadFacts = (wb: CorpusApi, refs: CorpusApi = []) => {
-  const identity = (person: CorpusApi) =>
+export const commentThreadFacts = (wb: Untyped, refs: Untyped = []) => {
+  const identity = (person: Untyped) =>
     person == null
       ? null
       : {
@@ -51,19 +51,19 @@ export const commentThreadFacts = (wb: CorpusApi, refs: CorpusApi = []) => {
   return {
     persons: wb.persons
       .map(identity)
-      .sort((a: CorpusApi, b: CorpusApi) => String(a?.id).localeCompare(String(b?.id))),
-    sheets: wb.worksheets.map((sheet: CorpusApi) => ({
+      .sort((a: Untyped, b: Untyped) => String(a?.id).localeCompare(String(b?.id))),
+    sheets: wb.worksheets.map((sheet: Untyped) => ({
       name: sheet.name,
-      threads: sheet.commentThreads.map((thread: CorpusApi) => ({
+      threads: sheet.commentThreads.map((thread: Untyped) => ({
         ref: thread.ref,
         resolved: thread.resolved,
-        comments: thread.comments.map((comment: CorpusApi) => ({
+        comments: thread.comments.map((comment: Untyped) => ({
           id: comment.id,
           author: identity(comment.author),
           authorId: comment.personId ?? null,
           date: comment.date ?? null,
           text: comment.text,
-          mentions: comment.mentions.map((mention: CorpusApi) => ({
+          mentions: comment.mentions.map((mention: Untyped) => ({
             person: identity(mention.person),
             personId: mention.personId,
             startIndex: mention.startIndex,

@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'streaming-reading a worksheet-before-workbook archive completes without error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error, sheetNames} = await api.streamReadReport(FIXTURE);
         assert.ok(ok, `the read must not crash on entry ordering; got ${JSON.stringify(error)}`);
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'all data rows are delivered regardless of ZIP entry order',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {totalRows} = await api.streamReadReport(FIXTURE);
         assert.ok(totalRows > 0, `every worksheet's rows must be yielded; got ${totalRows} rows`);

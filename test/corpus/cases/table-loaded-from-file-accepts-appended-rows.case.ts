@@ -41,7 +41,6 @@ export default {
   behavior: [
     {
       name: 'the table is fetchable by name after a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasTable} = await api.roundtripTableAppend(SPEC, {tableName: 'T', appendRows: []});
         assert.ok(hasTable, 'getTable returns the reloaded table');
@@ -49,7 +48,6 @@ export default {
     },
     {
       name: 'the reloaded table exposes its data rows',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {loadedRowCount} = await api.roundtripTableAppend(SPEC, {
           tableName: 'T',
@@ -60,7 +58,6 @@ export default {
     },
     {
       name: 'appending a row to the reloaded table succeeds',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {addError, committed, finalRowCount} = await api.roundtripTableAppend(SPEC, {
           tableName: 'T',

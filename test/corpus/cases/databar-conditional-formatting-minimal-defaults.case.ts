@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'a dataBar rule with explicit cfvo and color writes (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk} = await api.authorConditionalFormatting({
           ref: 'A1:A3',
@@ -40,7 +39,6 @@ export default {
     },
     {
       name: 'a minimal dataBar rule (no cfvo, no color) writes without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, writeError} = await api.authorConditionalFormatting({
           ref: 'A1:A3',
@@ -55,7 +53,6 @@ export default {
     },
     {
       name: 'the minimal dataBar gains two default cfvo anchors',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {xml} = await api.authorConditionalFormatting({
           ref: 'A1:A3',
@@ -67,7 +64,6 @@ export default {
     },
     {
       name: 'the minimal dataBar gains a default bar color',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {xml} = await api.authorConditionalFormatting({
           ref: 'A1:A3',

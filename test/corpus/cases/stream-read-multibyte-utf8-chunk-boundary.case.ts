@@ -42,7 +42,6 @@ export default {
   behavior: [
     {
       name: 'large CJK text streams back exactly, with no replacement characters',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {streamed} = await api.streamReadSpec(SPEC, ['A1']);
         assert.ok(!String(streamed.A1).includes('�'), 'no U+FFFD from a chunk split mid-character');
@@ -51,7 +50,6 @@ export default {
     },
     {
       name: 'large emoji text streams back exactly, with no replacement characters',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {streamed} = await api.streamReadSpec(SPEC, ['A2']);
         assert.ok(!String(streamed.A2).includes('�'), 'no U+FFFD in the emoji cell');
@@ -64,7 +62,6 @@ export default {
     },
     {
       name: 'the streaming reader output matches the non-streaming reader for the same file',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {streamed, eager} = await api.streamReadSpec(SPEC, ['A1', 'A2']);
         assert.strictEqual(streamed.A1, eager.A1, 'CJK cell: streaming matches eager');

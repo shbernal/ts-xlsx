@@ -34,7 +34,6 @@ export default {
   behavior: [
     {
       name: 'an empty cell inside a styled block is materialised and renders styled',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.rangeStyleReport({
           values: [{address: 'A1', value: 'Region'}],
@@ -60,7 +59,6 @@ export default {
     },
     {
       name: 'a uniformly styled block collapses to one shared style entry',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // A 32-row band. One entry, not 32: the styles part is a shared table indexed by the cell's
         // `s`, and minting an entry per cell is the historical performance cliff.
@@ -80,7 +78,6 @@ export default {
     },
     {
       name: 'two differently styled blocks intern separately, without over-collapsing',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const report = api.rangeStyleReport({
           blocks: [
@@ -94,7 +91,6 @@ export default {
     },
     {
       name: 'styling a block composes with the formatting its cells already carried',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // Setting a fill must not wipe a font, a border or a number format already there — the
         // failure mode of "assign the whole style" applied blindly across a block.
@@ -111,7 +107,6 @@ export default {
     },
     {
       name: 'a block reports a facet only when every cell it covers agrees',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         // Reading a block that was never styled as a whole must not pick a corner's answer and pass
         // it off as the block's — the holes render unstyled, so the block does not have that facet.

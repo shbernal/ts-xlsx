@@ -47,7 +47,6 @@ export default {
   behavior: [
     {
       name: 'a blank threadedComment relationship target does not abort the load',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error, sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(
@@ -60,7 +59,6 @@ export default {
     },
     {
       name: 'no conversation is read from a thread part the sheet cannot reach',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // The part is still in the package. Finding it would mean guessing by filename instead of
         // following the relationship, and a guess is how a conversation gets attached to the wrong
@@ -76,7 +74,6 @@ export default {
     },
     {
       name: 'the author registry is still read, since its own relationship is intact',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // The persons part is workbook-level and wired independently, so one sheet's broken
         // relationship must not take the identities down with it — they are what a repaired or
@@ -87,7 +84,6 @@ export default {
     },
     {
       name: 'the fallback boilerplate is kept as a note, so the words are not lost with the thread',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const facts = await api.readFixtureCommentThreads(FIXTURE);
         const {notes} = facts.sheets[0];
@@ -113,7 +109,6 @@ export default {
     },
     {
       name: 'the re-written package emits neither the thread part nor an orphaned tc= fallback',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // The two halves of a conversation are emitted together or not at all: verified against
         // desktop Excel, a `tc=` fallback whose thread part is absent shows as neither a thread nor a
@@ -141,7 +136,6 @@ export default {
     },
     {
       name: 'every comment still gets exactly one box to render into',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.strictEqual(source.commentEntries, 3, 'precondition: two fallbacks and one note');

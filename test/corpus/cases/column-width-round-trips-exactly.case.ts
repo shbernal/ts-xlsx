@@ -24,7 +24,6 @@ export default {
   behavior: [
     {
       name: 'a whole-number width reads back unchanged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {width} = (await api.roundtripWorkbook(WHOLE)).sheets.S.columns[1];
         assert.strictEqual(width, 12, `expected width 12, got ${width}`);
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'a fractional width reads back unchanged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {width} = (await api.roundtripWorkbook(FRACTION)).sheets.S.columns[1];
         assert.strictEqual(width, 8.43, `expected width 8.43, got ${width}`);

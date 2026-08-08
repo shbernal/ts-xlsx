@@ -24,7 +24,6 @@ export default {
   behavior: [
     {
       name: 'the source file declares two print-area ranges in one Print_Area name (oracle)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sourceRangeCount} = await api.roundtripFixturePrintAreas(FIXTURE);
         assert.strictEqual(sourceRangeCount, 2, 'the fixture declares two print areas');
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'reading recovers both print-area ranges, not just the first',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {readPrintArea} = await api.roundtripFixturePrintAreas(FIXTURE);
         const rangeCount = String(readPrintArea || '')
@@ -46,7 +44,6 @@ export default {
     },
     {
       name: 'writing the file back preserves both print-area ranges in the Print_Area name',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rewrittenRangeCount} = await api.roundtripFixturePrintAreas(FIXTURE);
         assert.strictEqual(rewrittenRangeCount, 2, 'both ranges must survive re-serialization');
@@ -54,14 +51,11 @@ export default {
     },
     {
       name: 'authoring two print areas emits both ranges in one sheet-scoped Print_Area name',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ranges} = await api.writePrintAreaDefinedName('A1:F10,A12:F21');
         // Both emitted entries must be proper rectangular ranges (a "$A$1:$F$10" shape). A mangled
         // write drops the second range's tail, leaving a bare "A12" that is not a range at all.
-        const rectangles = ranges.filter(
-          (r: CorpusApi) => /:/.test(r) && /\$?[A-Z]+\$?\d+/.test(r),
-        );
+        const rectangles = ranges.filter((r) => /:/.test(r!) && /\$?[A-Z]+\$?\d+/.test(r!));
         assert.strictEqual(
           rectangles.length,
           2,

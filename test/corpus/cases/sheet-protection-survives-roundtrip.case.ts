@@ -24,7 +24,6 @@ export default {
   behavior: [
     {
       name: 'the first write emits a password-guarded sheetProtection with the permissive flags honored',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {first} = await api.sheetProtectionRoundtrip();
         assert.ok(first, 'protecting the sheet writes a <sheetProtection> element');
@@ -37,7 +36,6 @@ export default {
     },
     {
       name: 'protection is not silently dropped by a read→write passthrough — the second write still locks the sheet',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {second} = await api.sheetProtectionRoundtrip();
         assert.ok(second, 'the re-written sheet must still declare <sheetProtection>, not drop it');
@@ -50,7 +48,6 @@ export default {
     },
     {
       name: 'the agile password credential survives the round-trip byte-for-byte',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {first, second} = await api.sheetProtectionRoundtrip();
         assert.ok(first && second, 'both writes emit protection');
@@ -80,7 +77,6 @@ export default {
           'autofilter stays permitted after the round-trip',
         );
       },
-      baseline: 'pass',
     },
   ],
 } satisfies Case;

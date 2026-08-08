@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'inserting two blank columns shifts the columns at and after the point right by two',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells, error} = await api.mutateWorksheet({
           cells: CELLS,

@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'the ISO 8601 date cell parses to the date it states',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {A2} = await api.readFixtureCells(FIXTURE, ['A2']);
         assert.strictEqual(A2.type, 'date', 'the cell is typed as a date');
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'a string cell in the same Strict-mode workbook still reads as text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {A1} = await api.readFixtureCells(FIXTURE, ['A1']);
         assert.strictEqual(A1.type, 'string', 'the header cell reads as a string');

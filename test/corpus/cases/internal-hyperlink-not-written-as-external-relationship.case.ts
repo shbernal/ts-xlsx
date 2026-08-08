@@ -13,7 +13,6 @@ export default {
   behavior: [
     {
       name: 'an internal (#-prefixed) hyperlink carries a location attribute, not an r:id',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hyperlinkHasRid, hyperlinkLocation} =
           await api.internalHyperlinkSerializationReport();
@@ -27,7 +26,6 @@ export default {
     },
     {
       name: 'an internal hyperlink creates no external-mode worksheet relationship',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasWorksheetRels, relTargetMode} = await api.internalHyperlinkSerializationReport();
         assert.strictEqual(
@@ -39,7 +37,6 @@ export default {
     },
     {
       name: 'the internal target survives a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reReadHyperlink} = await api.internalHyperlinkSerializationReport();
         assert.strictEqual(reReadHyperlink, '#Sheet2!A1');

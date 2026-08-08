@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'the visible solid-fill color is on fgColor, with an automatic indexed bgColor',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {'Sheet1!A1': a1} = await api.readFixtureCellStyles(FIXTURE, ['Sheet1!A1']);
         assert.strictEqual(a1.fill.pattern, 'solid', 'the fill is a solid pattern');
@@ -37,7 +36,6 @@ export default {
     },
     {
       name: 'the font color is surfaced independently of the fill color',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {'Sheet1!A1': a1} = await api.readFixtureCellStyles(FIXTURE, ['Sheet1!A1']);
         assert.strictEqual(

@@ -35,7 +35,6 @@ export default {
   behavior: [
     {
       name: 'the targeted row carries the fill after round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.roundtripWorkbook(SPEC);
         const fg = sheets.S.cells.A3.fill?.fgColor;
@@ -44,7 +43,6 @@ export default {
     },
     {
       name: 'rows above and below the targeted row keep their default (empty) fill',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.roundtripWorkbook(SPEC);
         for (const ref of ['A1', 'A2', 'A4', 'A5']) {

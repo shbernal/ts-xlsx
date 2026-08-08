@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'an unstyled cell resolves to a default font (not undefined)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasFont, fontName} = await api.unstyledCellFontReport();
         assert.strictEqual(
@@ -37,7 +36,6 @@ export default {
     },
     {
       name: 'the resolved default font carries a concrete size',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {fontSize} = await api.unstyledCellFontReport();
         assert.ok(

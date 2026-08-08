@@ -24,7 +24,6 @@ export default {
   behavior: [
     {
       name: 'the table is findable by name and exposes its column names',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {found, columns} = await api.readFixtureTable(FIXTURE, TABLE);
         assert.ok(found, 'the table is located by name');
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the loaded table exposes its data rows populated from the sheet',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rowCount} = await api.readFixtureTable(FIXTURE, TABLE);
         assert.ok(

@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'reading a shared-formula workbook and writing it back does not throw',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {roundtripOk, roundtripError} = await api.sharedFormulaRoundtripAndSplice();
         assert.strictEqual(
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'the dependent cells keep a formula after the round-trip (not just a cached value)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {preservedFormulas} = await api.sharedFormulaRoundtripAndSplice();
         assert.strictEqual(
@@ -47,7 +45,6 @@ export default {
     },
     {
       name: 'splicing a column into a shared-formula sheet does not throw the master-position error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {spliceOk, spliceError} = await api.sharedFormulaRoundtripAndSplice();
         assert.strictEqual(

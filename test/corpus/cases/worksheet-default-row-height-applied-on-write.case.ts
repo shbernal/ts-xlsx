@@ -31,11 +31,10 @@ export default {
   behavior: [
     {
       name: 'the default row height is written onto the sheet-format definition',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(
-          sheets.S.sheetFormat.defaultRowHeight,
+          sheets.S!.sheetFormat.defaultRowHeight,
           30,
           'the default row height is serialized',
         );
@@ -43,11 +42,10 @@ export default {
     },
     {
       name: 'the default column width is written (symmetric handling)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.strictEqual(
-          sheets.S.sheetFormat.defaultColWidth,
+          sheets.S!.sheetFormat.defaultColWidth,
           20,
           'the default column width is serialized',
         );

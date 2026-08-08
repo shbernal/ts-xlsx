@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'the default-written package ships a theme part',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {styles} = await api.inspectPackage(NO_THEME);
         assert.strictEqual(
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'any theme-color reference in the default font remains resolvable',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {styles} = await api.inspectPackage(NO_THEME);
         assert.strictEqual(

@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'inserting a row above a merged range shifts the merge down and keeps it merged',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {merges} = await api.mutateWorksheet({
           cells: bannerCells,
@@ -45,7 +44,6 @@ export default {
     },
     {
       name: 'duplicating rows above a merged range shifts that range down by the number inserted',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {merges} = await api.mutateWorksheet({
           cells: [
@@ -66,7 +64,6 @@ export default {
     },
     {
       name: 'a row insert below the merged range leaves it merged and untouched (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {merges} = await api.mutateWorksheet({
           cells: bannerCells,

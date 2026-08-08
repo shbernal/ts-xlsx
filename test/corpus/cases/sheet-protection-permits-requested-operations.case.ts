@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'protecting the sheet emits a sheetProtection element with protection enabled',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetProtectionAttrs} = await api.authorCellProtection(
           [{ref: 'A1', value: 'x'}],
@@ -44,19 +43,18 @@ export default {
     },
     {
       name: 'sorting and autofilter are permitted (not forbidden) under protection',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetProtectionAttrs} = await api.authorCellProtection(
           [{ref: 'A1', value: 'x'}],
           PERMISSIVE,
         );
         assert.strictEqual(
-          sheetProtectionAttrs.sort,
+          sheetProtectionAttrs!.sort,
           '0',
           'sort is permitted (sort="0"), not locked',
         );
         assert.strictEqual(
-          sheetProtectionAttrs.autoFilter,
+          sheetProtectionAttrs!.autoFilter,
           '0',
           'autofilter is permitted (autoFilter="0")',
         );
@@ -64,19 +62,18 @@ export default {
     },
     {
       name: 'formatting of cells, rows, and columns is permitted under protection',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetProtectionAttrs} = await api.authorCellProtection(
           [{ref: 'A1', value: 'x'}],
           PERMISSIVE,
         );
-        assert.strictEqual(sheetProtectionAttrs.formatCells, '0', 'formatting cells is permitted');
+        assert.strictEqual(sheetProtectionAttrs!.formatCells, '0', 'formatting cells is permitted');
         assert.strictEqual(
-          sheetProtectionAttrs.formatColumns,
+          sheetProtectionAttrs!.formatColumns,
           '0',
           'formatting columns is permitted',
         );
-        assert.strictEqual(sheetProtectionAttrs.formatRows, '0', 'formatting rows is permitted');
+        assert.strictEqual(sheetProtectionAttrs!.formatRows, '0', 'formatting rows is permitted');
       },
     },
   ],

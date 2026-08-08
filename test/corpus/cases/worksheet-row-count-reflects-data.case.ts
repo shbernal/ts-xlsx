@@ -44,7 +44,6 @@ export default {
   behavior: [
     {
       name: 'rowCount is the last populated row index, not undefined',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rowCount} = (await api.roundtripWorkbook(DENSE)).sheets.S;
         assert.strictEqual(typeof rowCount, 'number', 'rowCount should be a number');
@@ -53,7 +52,6 @@ export default {
     },
     {
       name: 'actualRowCount counts populated rows, not undefined',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {actualRowCount} = (await api.roundtripWorkbook(DENSE)).sheets.S;
         assert.strictEqual(typeof actualRowCount, 'number', 'actualRowCount should be a number');
@@ -62,7 +60,6 @@ export default {
     },
     {
       name: 'a gap between rows is reflected: rowCount spans it, actualRowCount excludes it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rowCount, actualRowCount} = (await api.roundtripWorkbook(SPARSE)).sheets.S;
         assert.strictEqual(rowCount, 3, 'rowCount should span to the last populated row');

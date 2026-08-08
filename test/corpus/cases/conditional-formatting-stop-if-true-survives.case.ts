@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'a stopIfTrue rule serializes the stopIfTrue attribute on the cfRule',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {xmlHasStopIfTrue} = await api.conditionalFormattingStopIfTrue();
         assert.strictEqual(xmlHasStopIfTrue, true, 'the written cfRule must carry stopIfTrue="1"');
@@ -28,7 +27,6 @@ export default {
     },
     {
       name: 'the stopIfTrue flag round-trips onto the reloaded rule',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadStopIfTrue} = await api.conditionalFormattingStopIfTrue();
         assert.strictEqual(reloadStopIfTrue, true, 'the reloaded rule keeps stopIfTrue');

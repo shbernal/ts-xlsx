@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a valid format-code string survives a write alongside other style facets',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {controlNumFmtReload} = await api.numFmtObjectCorruptionReport();
         assert.strictEqual(
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'an object-valued number format is not stringified into the styles part as "[object Object]"',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {stylesHasObjectObject} = await api.numFmtObjectCorruptionReport();
         assert.strictEqual(

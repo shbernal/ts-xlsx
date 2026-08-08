@@ -28,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'a worksheet with both a background image and a cell note writes without error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const result = await api.tryWriteWorkbook(SPEC);
         assert.strictEqual(
@@ -40,7 +39,6 @@ export default {
     },
     {
       name: 'the worksheet relationship ids are all unique (no background/comment rel-id collision)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {consistency} = await api.inspectPackage(SPEC);
         assert.strictEqual(
@@ -52,21 +50,19 @@ export default {
     },
     {
       name: 'the comments part and its VML drawing are present alongside the background',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {packageParts, sheets} = await api.inspectPackage(SPEC);
         assert.ok(packageParts.hasCommentsPart, 'the note writes a comments part');
         assert.ok(packageParts.hasVmlDrawingPart, 'the note writes its VML drawing');
-        assert.ok(sheets.S.hasBackgroundPicture, 'the worksheet references a background picture');
+        assert.ok(sheets.S!.hasBackgroundPicture, 'the worksheet references a background picture');
       },
     },
     {
       name: 'the background image is referenced by its own worksheet relationship',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {worksheetRels} = await api.inspectPackage(SPEC);
         assert.ok(
-          worksheetRels.some((r: CorpusApi) => r.type === 'image'),
+          worksheetRels.some((r) => r.type === 'image'),
           'an image-type worksheet relationship backs the background picture',
         );
       },

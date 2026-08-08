@@ -30,7 +30,6 @@ export default {
   behavior: [
     {
       name: 'a loaded worksheet reports its last populated row so new content lands at N+1',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {loadedRowCount} = await api.appendRowsAfterReload(INITIAL, APPEND);
         assert.strictEqual(
@@ -42,7 +41,6 @@ export default {
     },
     {
       name: 'appended rows land contiguously after the existing data with no gap or overwrite',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {finalRowCount, rows} = await api.appendRowsAfterReload(INITIAL, APPEND);
         assert.strictEqual(
@@ -60,7 +58,6 @@ export default {
     },
     {
       name: 'the original rows retain their values unchanged after the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows} = await api.appendRowsAfterReload(INITIAL, APPEND);
         assert.deepStrictEqual(

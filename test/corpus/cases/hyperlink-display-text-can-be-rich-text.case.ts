@@ -36,7 +36,6 @@ export default {
   behavior: [
     {
       name: 'a plain-string hyperlink label round-trips with its target',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {A1} = (await api.roundtripWorkbook(SPEC)).sheets.S.cells;
         assert.strictEqual(A1.hyperlink, 'https://example.com', 'the target survives');
@@ -45,7 +44,6 @@ export default {
     },
     {
       name: 'a rich-text hyperlink label round-trips as rich text with its runs',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {A2} = (await api.roundtripWorkbook(SPEC)).sheets.S.cells;
         assert.strictEqual(A2.hyperlink, 'https://example.org', 'the target survives');

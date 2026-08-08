@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'a genuine Date operand writes a valid date serial, not NaN',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {formula1, hasNaN} = await api.authorDateValidation('2020-01-01T00:00:00.000Z');
         assert.strictEqual(hasNaN, false, 'no NaN token is emitted for a real date');
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'a non-coercible operand never emits the literal NaN into the formula',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {formula1, hasNaN} = await api.authorDateValidation('invalid');
         assert.strictEqual(

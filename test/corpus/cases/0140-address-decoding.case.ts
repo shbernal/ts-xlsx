@@ -29,7 +29,6 @@ export default {
   behavior: [
     {
       name: 'decodeAddress("$1") — a full-row absolute reference — does not throw',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const addr = api.decodeAddress('$1');
         assert.strictEqual(addr.row, 1, 'row should be 1');
@@ -38,7 +37,6 @@ export default {
     },
     {
       name: 'decodeRange("$1:$1") — a full-row range — resolves its known row bounds',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const range = api.decodeRange('$1:$1');
         assert.strictEqual(range.top, 1, 'top row should be 1');
@@ -47,7 +45,6 @@ export default {
     },
     {
       name: 'decodeRange("$1:$1") — serialized form leaks no "undefined"/"NaN"',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const serialized = JSON.stringify(api.decodeRange('$1:$1'));
         assert.ok(

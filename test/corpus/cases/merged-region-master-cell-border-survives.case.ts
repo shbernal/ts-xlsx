@@ -18,7 +18,6 @@ export default {
   behavior: [
     {
       name: 'the master cell keeps its top and bottom borders after the merge',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasTopBorder, hasBottomBorder, topStyle, bottomStyle} =
           await api.mergeMasterBorderReport();
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'the master cell keeps its non-border style (numFmt, font) through the merge',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {numFmt, fontBold} = await api.mergeMasterBorderReport();
         assert.strictEqual(numFmt, '0.00', 'the number format survives');
@@ -39,7 +37,6 @@ export default {
     },
     {
       name: 'the merge is declared over the range',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {merges} = await api.mergeMasterBorderReport();
         assert.ok(merges.includes('A1:B2'), `the merge is present; got ${JSON.stringify(merges)}`);

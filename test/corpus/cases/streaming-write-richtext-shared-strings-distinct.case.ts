@@ -8,12 +8,13 @@
 // disabled the text is distinct and run formatting is retained; that path is the control.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const RT_ALPHA = {richText: [{text: 'Alpha', bold: true}, {text: 'One'}]};
 const RT_BETA = {richText: [{text: 'Beta', italic: true}, {text: 'Two'}]};
 
-const text = (cell: CorpusApi) =>
-  cell?.richText ? cell.richText.map((r: CorpusApi) => r.text).join('') : cell;
+const text = (cell: Untyped) =>
+  cell?.richText ? cell.richText.map((r: Untyped) => r.text).join('') : cell;
 
 export default {
   id: 'streaming-write-richtext-shared-strings-distinct',
@@ -27,7 +28,6 @@ export default {
   behavior: [
     {
       name: 'with shared strings enabled, distinct rich-text cells stay distinct',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, cells} = await api.streamWriteSheet({
           useSharedStrings: true,
@@ -48,7 +48,6 @@ export default {
     },
     {
       name: 'with shared strings disabled, distinct rich-text cells stay distinct (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, cells} = await api.streamWriteSheet({
           useSharedStrings: false,
@@ -65,7 +64,6 @@ export default {
     },
     {
       name: 'with shared strings disabled, rich-text run formatting is retained (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cells} = await api.streamWriteSheet({
           useSharedStrings: false,

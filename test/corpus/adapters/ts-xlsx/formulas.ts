@@ -1,7 +1,7 @@
 // Formulas: shared formulas, data tables, and the values a formula cell reports.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {buildFrom, isoOrNull} from './spec-model.ts';
 
@@ -34,9 +34,9 @@ export const formulas = {
       const value = reload.getWorksheet('S')!.getCell('B2').value;
       if (value && typeof value === 'object') {
         // reaches past the value union for the data-table formula's parsed fields
-        readShareType = (value as CorpusApi).shareType ?? null;
-        readRef = (value as CorpusApi).ref ?? null;
-        readResult = (value as CorpusApi).result ?? null;
+        readShareType = (value as Untyped).shareType ?? null;
+        readRef = (value as Untyped).ref ?? null;
+        readResult = (value as Untyped).result ?? null;
       }
       reloadOk = true;
       const outXml = strFromU8(unzipSync(writeXlsx(reload))['xl/worksheets/sheet1.xml']!);
@@ -58,10 +58,10 @@ export const formulas = {
     sheet.getCell('A3').value = {formula: 'FALSE()', result: false};
     sheet.getCell('A4').value = {formula: 'T("")', result: ''};
     const back = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
-    const probe = (ref: CorpusApi) => {
+    const probe = (ref: Untyped) => {
       const value = back.getCell(ref).value;
       const hasResult = !!value && typeof value === 'object' && 'result' in value;
-      return {hasResult, result: hasResult ? (value as CorpusApi).result : undefined};
+      return {hasResult, result: hasResult ? (value as Untyped).result : undefined};
     };
     return {
       truthy: probe('A1'),
@@ -79,13 +79,13 @@ export const formulas = {
     const sheet = workbook.addWorksheet('S');
     sheet.getCell('A1').value = {formula: 'TODAY()', result: new Date(Date.UTC(2021, 0, 2))};
     const value = readXlsx(writeXlsx(workbook)).getWorksheet('S')!.getCell('A1').value;
-    const result = value && typeof value === 'object' ? (value as CorpusApi).result : undefined;
+    const result = value && typeof value === 'object' ? (value as Untyped).result : undefined;
     const isValidDate = result instanceof Date && !Number.isNaN(result.getTime());
     return {
       isValidDate,
       resultIso: result instanceof Date ? isoOrNull(result) : String(result),
       keepsFormula:
-        !!value && typeof value === 'object' && typeof (value as CorpusApi).formula === 'string',
+        !!value && typeof value === 'object' && typeof (value as Untyped).formula === 'string',
     };
   },
 
@@ -93,9 +93,9 @@ export const formulas = {
   // { formula, sharedFormula, result } — mirroring the oracle. A shared-formula clone reads back a
   // concrete formula (the master's, translated to the clone's address) while retaining its master
   // reference under `sharedFormula`; a plain formula master carries no `sharedFormula`.
-  roundtripFormulas(spec: CorpusApi) {
+  roundtripFormulas(spec: Untyped) {
     const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
-    const out: Record<string, CorpusApi> = {};
+    const out: Record<string, Untyped> = {};
     for (const s of spec.sheets || []) {
       const sheet = reloaded.getWorksheet(s.name);
       for (const c of s.cells || []) {
@@ -140,7 +140,7 @@ export const formulas = {
         return !!(v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v));
       });
     } catch (e) {
-      roundtripError = String((e as CorpusApi)?.message || e);
+      roundtripError = String((e as Untyped)?.message || e);
     }
 
     let spliceError = null;
@@ -149,7 +149,7 @@ export const formulas = {
       reread.getWorksheet('S')!.spliceColumns(1, 0, []);
       writeXlsx(reread);
     } catch (e) {
-      spliceError = String((e as CorpusApi)?.message || e);
+      spliceError = String((e as Untyped)?.message || e);
     }
 
     return {

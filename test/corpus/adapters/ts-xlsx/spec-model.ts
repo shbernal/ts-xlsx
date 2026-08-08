@@ -1,18 +1,18 @@
 // The corpus spec vocabulary ↔ the rewrite's model.
 //
 // A case describes a workbook declaratively; `buildFrom` is the one place that turns that
-// description into live objects, and the key sets above it are the feature gate: a spec
-// reaching for a key the writer cannot yet serialize is SKIPPED, never failed.
+// description into live objects, and the key sets below are its vocabulary: a spec reaching for a key
+// nobody has wired fails loudly (see `UnsupportedSpecError`) rather than being quietly skipped.
 
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {decodeAddress, encodeAddress, Workbook} from './runtime.ts';
 import {anchorSpecImage} from './xml-probes.ts';
 
 // The 1-based `row.values` array a full-load reader exposes, rebuilt from a streamed row's cells:
 // index 0 is an empty leading slot and column A lands at index 1, so streaming and buffered reads
 // index identically. Gaps (and the leading slot) are null, every present value normalized.
-export const streamedRowValues = (cells: CorpusApi[]) => {
-  const width = cells.reduce((max: number, cell: CorpusApi) => Math.max(max, cell.col), 0);
+export const streamedRowValues = (cells: Untyped[]) => {
+  const width = cells.reduce((max: number, cell: Untyped) => Math.max(max, cell.col), 0);
   const values = new Array(width + 1).fill(null);
   for (const cell of cells) values[cell.col] = normalizeStreamValue(cell.value);
   return values;
@@ -26,11 +26,28 @@ export const ONE_PX_PNG = Uint8Array.from(
   ),
 );
 
-export const notImplemented = (message: string): Error & {notImplemented?: boolean} => {
-  const err: Error & {notImplemented?: boolean} = new Error(`rewrite: ${message}`);
-  err.notImplemented = true;
-  return err;
-};
+/**
+ * A spec reached for vocabulary this adapter does not map.
+ *
+ * It used to carry a `notImplemented` flag that made the runner report the behavior as **skipped** —
+ * built when the library was incomplete and a case could legitimately outrun it. It cannot happen for
+ * that reason any more, so a skip now means only one thing: a case asked for a key nobody wired, and
+ * the corpus quietly declined to test it. That is the silent cap CLAUDE.md §3 forbids, so this is an
+ * ordinary loud failure and the message says what to extend.
+ *
+ * It stays a distinct class because one caller still needs to tell it apart: `tryWriteWorkbook`
+ * deliberately reports a *writer* error as data for a case to assert on, and an adapter gap must not
+ * be able to masquerade as one.
+ */
+export class UnsupportedSpecError extends Error {
+  constructor(message: string) {
+    super(`corpus adapter: ${message} — extend adapters/ts-xlsx/spec-model.ts to cover it`);
+    this.name = 'UnsupportedSpecError';
+  }
+}
+
+export const unsupportedSpec = (message: string): UnsupportedSpecError =>
+  new UnsupportedSpecError(message);
 
 export const SUPPORTED_TOP_KEYS = new Set(['sheets', 'properties', 'definedNames']);
 export const SUPPORTED_PROP_KEYS = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
@@ -139,14 +156,14 @@ export const printAreaRefersTo = (sheetName: string, area: string) =>
     .map((range) => `${sheetName}!${absolutizeRef(range)}`)
     .join(',');
 
-export const toDate = (v: CorpusApi) =>
+export const toDate = (v: Untyped) =>
   v && typeof v === 'object' && v.invalidDate ? new Date(NaN) : new Date(v);
-export const isoOrNull = (d: CorpusApi) =>
+export const isoOrNull = (d: Untyped) =>
   d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString() : null;
 
 // A JSON-serializable view of a read-back cell value: a Date becomes { date: iso } (null when
 // invalid), every other object is deep-cloned, and a scalar passes through. Mirrors the oracle.
-export const normalizeStreamValue = (v: CorpusApi) => {
+export const normalizeStreamValue = (v: Untyped) => {
   if (v instanceof Date) return {date: Number.isNaN(v.getTime()) ? null : v.toISOString()};
   if (v && typeof v === 'object') return JSON.parse(JSON.stringify(v));
   return v ?? null;
@@ -155,10 +172,10 @@ export const normalizeStreamValue = (v: CorpusApi) => {
 // Some specs express a rich-text run in the flat inline shape `{ text, bold, italic, … }`, while the
 // rewrite models a run as `{ text, font: { … } }`. Translate a spec value into the model shape on the
 // way in…
-export const specValueToModel = (value: CorpusApi) => {
+export const specValueToModel = (value: Untyped) => {
   if (value && typeof value === 'object' && Array.isArray(value.richText)) {
     return {
-      richText: value.richText.map((run: CorpusApi) => {
+      richText: value.richText.map((run: Untyped) => {
         const {text, ...font} = run;
         return Object.keys(font).length ? {text, font} : {text};
       }),
@@ -169,26 +186,26 @@ export const specValueToModel = (value: CorpusApi) => {
 
 // …and flatten a read-back run's `font` facets back onto the run on the way out, so a spec asserting
 // on `run.bold` sees the shape it wrote.
-export const modelValueToSpec = (value: CorpusApi) => {
+export const modelValueToSpec = (value: Untyped) => {
   if (value && typeof value === 'object' && Array.isArray(value.richText)) {
     return {
-      richText: value.richText.map(({text, font}: CorpusApi) => ({text, ...(font || {})})),
+      richText: value.richText.map(({text, font}: Untyped) => ({text, ...(font || {})})),
     };
   }
   return value;
 };
 
-// Map a declarative spec onto the rewrite's Workbook model, throwing a `notImplemented`
-// skip the moment the spec uses a feature the writer cannot represent yet.
-export function buildFrom(spec: CorpusApi = {}) {
+// Map a declarative spec onto the library's Workbook model, throwing `UnsupportedSpecError` the moment
+// the spec uses vocabulary this adapter does not map.
+export function buildFrom(spec: Untyped = {}) {
   for (const k of Object.keys(spec)) {
-    if (!SUPPORTED_TOP_KEYS.has(k)) throw notImplemented(`spec.${k} not supported yet`);
+    if (!SUPPORTED_TOP_KEYS.has(k)) throw unsupportedSpec(`spec.${k} not supported yet`);
   }
   const workbook = new Workbook();
 
   const p = spec.properties || {};
   for (const k of Object.keys(p)) {
-    if (!SUPPORTED_PROP_KEYS.has(k)) throw notImplemented(`properties.${k} not supported yet`);
+    if (!SUPPORTED_PROP_KEYS.has(k)) throw unsupportedSpec(`properties.${k} not supported yet`);
   }
   if (p.creator !== undefined) workbook.properties.creator = p.creator;
   if (p.lastModifiedBy !== undefined) workbook.properties.lastModifiedBy = p.lastModifiedBy;
@@ -197,14 +214,14 @@ export function buildFrom(spec: CorpusApi = {}) {
 
   for (const s of spec.sheets || []) {
     for (const k of Object.keys(s)) {
-      if (!SUPPORTED_SHEET_KEYS.has(k)) throw notImplemented(`sheet.${k} not supported yet`);
+      if (!SUPPORTED_SHEET_KEYS.has(k)) throw unsupportedSpec(`sheet.${k} not supported yet`);
     }
     const sheet = workbook.addWorksheet(s.name, s.state ? {state: s.state} : undefined);
 
     const sp = s.properties || {};
     for (const k of Object.keys(sp)) {
       if (!SUPPORTED_SHEET_PROP_KEYS.has(k))
-        throw notImplemented(`sheet.properties.${k} not supported yet`);
+        throw unsupportedSpec(`sheet.properties.${k} not supported yet`);
     }
     if (sp.defaultRowHeight !== undefined) sheet.properties.defaultRowHeight = sp.defaultRowHeight;
     if (sp.defaultColWidth !== undefined) sheet.properties.defaultColWidth = sp.defaultColWidth;
@@ -212,50 +229,50 @@ export function buildFrom(spec: CorpusApi = {}) {
     const pm = s.pageMargins || {};
     for (const k of Object.keys(pm)) {
       if (!SUPPORTED_PAGE_MARGIN_KEYS.has(k))
-        throw notImplemented(`pageMargins.${k} not supported yet`);
+        throw unsupportedSpec(`pageMargins.${k} not supported yet`);
       (sheet.pageMargins as Record<string, unknown>)[k] = pm[k];
     }
 
     const psu = s.pageSetup || {};
     for (const k of Object.keys(psu)) {
       if (!SUPPORTED_PAGE_SETUP_KEYS.has(k))
-        throw notImplemented(`pageSetup.${k} not supported yet`);
+        throw unsupportedSpec(`pageSetup.${k} not supported yet`);
       (sheet.pageSetup as Record<string, unknown>)[k] = psu[k];
     }
 
     const hf = s.headerFooter || {};
     for (const k of Object.keys(hf)) {
       if (!SUPPORTED_HEADER_FOOTER_KEYS.has(k))
-        throw notImplemented(`headerFooter.${k} not supported yet`);
+        throw unsupportedSpec(`headerFooter.${k} not supported yet`);
       (sheet.headerFooter as Record<string, unknown>)[k] = hf[k];
     }
 
     for (const t of s.tables || []) {
       for (const k of Object.keys(t)) {
-        if (!SUPPORTED_TABLE_KEYS.has(k)) throw notImplemented(`table.${k} not supported yet`);
+        if (!SUPPORTED_TABLE_KEYS.has(k)) throw unsupportedSpec(`table.${k} not supported yet`);
       }
-      let columns: CorpusApi[];
+      let columns: Untyped[];
       if (t.columnDefs) {
         for (const cd of t.columnDefs) {
           for (const k of Object.keys(cd)) {
             if (!SUPPORTED_TABLE_COLUMN_KEYS.has(k))
-              throw notImplemented(`table.columnDefs.${k} not supported yet`);
+              throw unsupportedSpec(`table.columnDefs.${k} not supported yet`);
           }
         }
-        columns = t.columnDefs.map((cd: CorpusApi) => {
-          const col: CorpusApi = {name: cd.name};
+        columns = t.columnDefs.map((cd: Untyped) => {
+          const col: Untyped = {name: cd.name};
           if (cd.totalsRowLabel !== undefined) col.totalsRowLabel = cd.totalsRowLabel;
           if (cd.totalsRowFunction !== undefined) col.totalsRowFunction = cd.totalsRowFunction;
           if (cd.totalsRowFormula !== undefined) col.totalsRowFormula = cd.totalsRowFormula;
           return col;
         });
       } else {
-        columns = (t.headers || []).map((name: CorpusApi) => ({name}));
+        columns = (t.headers || []).map((name: Untyped) => ({name}));
       }
       // A spec may express a table ref as the full occupied range (`A1:B3`), the shape the oracle
       // accepts, while the model anchors at the single top-left cell and derives the range from the
       // row count. Take the anchor; the declared row count reconstructs the same range.
-      const options: CorpusApi = {
+      const options: Untyped = {
         name: t.name,
         ref: t.ref.split(':')[0],
         columns,
@@ -274,8 +291,8 @@ export function buildFrom(spec: CorpusApi = {}) {
       // entry still wins, since cells are applied after tables.
       const anchor = decodeAddress(options.ref);
       const dataTop = (anchor.row ?? 1) + (t.headerRow === false ? 0 : 1);
-      (t.rows || []).forEach((rowValues: CorpusApi, r: number) => {
-        rowValues.forEach((value: CorpusApi, c: number) => {
+      (t.rows || []).forEach((rowValues: Untyped, r: number) => {
+        rowValues.forEach((value: Untyped, c: number) => {
           if (value === undefined || value === null) return;
           sheet.getCell(encodeAddress((anchor.col ?? 1) + c, dataTop + r)).value = value;
         });
@@ -290,7 +307,7 @@ export function buildFrom(spec: CorpusApi = {}) {
 
     for (const col of s.columns || []) {
       for (const k of Object.keys(col)) {
-        if (!SUPPORTED_COLUMN_KEYS.has(k)) throw notImplemented(`column.${k} not supported yet`);
+        if (!SUPPORTED_COLUMN_KEYS.has(k)) throw unsupportedSpec(`column.${k} not supported yet`);
       }
       const target = sheet.getColumn(col.index);
       if (col.width !== undefined) target.width = col.width;
@@ -305,7 +322,7 @@ export function buildFrom(spec: CorpusApi = {}) {
 
     for (const row of s.rows || []) {
       for (const k of Object.keys(row)) {
-        if (!SUPPORTED_ROW_KEYS.has(k)) throw notImplemented(`row.${k} not supported yet`);
+        if (!SUPPORTED_ROW_KEYS.has(k)) throw unsupportedSpec(`row.${k} not supported yet`);
       }
       const target = sheet.getRow(row.index);
       if (row.height !== undefined) target.height = row.height;
@@ -335,7 +352,7 @@ export function buildFrom(spec: CorpusApi = {}) {
 
     for (const c of s.cells || []) {
       for (const k of Object.keys(c)) {
-        if (!SUPPORTED_CELL_KEYS.has(k)) throw notImplemented(`cell.${k} not supported yet`);
+        if (!SUPPORTED_CELL_KEYS.has(k)) throw unsupportedSpec(`cell.${k} not supported yet`);
       }
       const cell = sheet.getCell(c.ref);
       if ('hyperlink' in c) {
@@ -361,7 +378,7 @@ export function buildFrom(spec: CorpusApi = {}) {
           if (v.invalidDate) cell.value = new Date(NaN);
           else if (v.date) cell.value = toDate(v.date);
           else if (Array.isArray(v.richText)) cell.value = {richText: v.richText};
-          else throw notImplemented(`cell value shape ${JSON.stringify(v)} not supported yet`);
+          else throw unsupportedSpec(`cell value shape ${JSON.stringify(v)} not supported yet`);
         } else {
           cell.value = v;
         }
@@ -394,9 +411,9 @@ export function buildFrom(spec: CorpusApi = {}) {
 // Mirror current.mjs's normalizeCell for the rewrite's Cell: a plain JSON view of the
 // value that survived the round-trip. Style facets are absent until the reader reads
 // them, matching the contract that an unmaterialized facet is simply not present.
-export function normalizeRewriteCell(cell: CorpusApi) {
+export function normalizeRewriteCell(cell: Untyped) {
   const v = cell.value;
-  let out: CorpusApi;
+  let out: Untyped;
   if (v && typeof v === 'object' && 'hyperlink' in v) {
     out = {
       hyperlink: v.hyperlink,
@@ -428,7 +445,7 @@ export function normalizeRewriteCell(cell: CorpusApi) {
 // one base style to two cells" (the shared-style aliasing setup) is just assigning each facet
 // present. Assigning the SAME base object to two cells shares the facet references — exactly the
 // aliasing a copy-on-write setter must not let bleed when one cell is later mutated.
-export function applyStyle(cell: CorpusApi, style: CorpusApi) {
+export function applyStyle(cell: Untyped, style: Untyped) {
   if (style.fill !== undefined) cell.fill = style.fill;
   if (style.numFmt !== undefined) cell.numFmt = style.numFmt;
   if (style.font !== undefined) cell.font = style.font;

@@ -36,12 +36,11 @@ export default {
   behavior: [
     {
       name: 'no emitted column group runs past the 16384-column limit',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage(SPEC);
         assert.ok(
-          sheets.S.maxColumnIndex <= MAX_COLUMNS,
-          `no <col> max may exceed ${MAX_COLUMNS}; got groups ${JSON.stringify(sheets.S.columnGroups)}`,
+          sheets.S!.maxColumnIndex <= MAX_COLUMNS,
+          `no <col> max may exceed ${MAX_COLUMNS}; got groups ${JSON.stringify(sheets.S!.columnGroups)}`,
         );
       },
     },

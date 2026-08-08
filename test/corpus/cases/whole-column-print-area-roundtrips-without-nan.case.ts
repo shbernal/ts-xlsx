@@ -25,7 +25,6 @@ export default {
   behavior: [
     {
       name: 'a whole-column print area writes a valid column-only defined name',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writtenDefinedName} = await api.printAreaRoundtrip('A:D');
         assert.ok(
@@ -36,7 +35,6 @@ export default {
     },
     {
       name: 'reading a whole-column print area back does not leak NaN into the recovered address',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reReadPrintArea} = await api.printAreaRoundtrip('A:D');
         assert.ok(
@@ -47,7 +45,6 @@ export default {
     },
     {
       name: 'a bounded rectangular print area round-trips unmangled (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reReadPrintArea, reloadOk} = await api.printAreaRoundtrip('A1:D10');
         assert.strictEqual(reloadOk, true, 'the workbook reloads');

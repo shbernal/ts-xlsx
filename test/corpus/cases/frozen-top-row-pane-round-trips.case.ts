@@ -18,7 +18,6 @@ export default {
   behavior: [
     {
       name: 'a frozen first-row view emits a pane split after one row',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {paneEmitted} = await api.frozenTopRowRoundtrip();
         assert.strictEqual(
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: 'the frozen-top-row split survives a round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reReadState, reReadYSplit, reReadXSplit} = await api.frozenTopRowRoundtrip();
         assert.strictEqual(reReadState, 'frozen', 'the view is still frozen after read-back');

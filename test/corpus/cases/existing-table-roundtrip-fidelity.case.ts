@@ -13,8 +13,9 @@
 // can exercise.)
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
-const table = (rows: CorpusApi, ref: CorpusApi) => ({
+const table = (rows: Untyped, ref: Untyped) => ({
   sheets: [{name: 'S', tables: [{name: 'T', ref, headers: ['C1', 'C2'], rows}]}],
 });
 
@@ -30,7 +31,6 @@ export default {
   behavior: [
     {
       name: "a table's reference range is written and survives a load→save round-trip",
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {write, roundtrip, loadOk} = await api.roundtripSpecTableFacts(
           table(
@@ -42,17 +42,16 @@ export default {
           ),
         );
         assert.ok(loadOk, 'the written table loads without throwing');
-        assert.strictEqual(write[0].ref, 'A1:B3', 'the ref is written as authored');
+        assert.strictEqual(write[0]!.ref, 'A1:B3', 'the ref is written as authored');
         assert.strictEqual(
           roundtrip[0].ref,
-          write[0].ref,
+          write[0]!.ref,
           'the ref is unchanged after the round-trip',
         );
       },
     },
     {
       name: 'the table part is not dropped across a load→save round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {roundtrip} = await api.roundtripSpecTableFacts(
           table(
@@ -69,7 +68,6 @@ export default {
     },
     {
       name: 'an empty-body table round-trips without error and keeps its part',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {roundtrip, loadOk, loadError} = await api.roundtripSpecTableFacts(
           table([], 'A1:B1'),
@@ -80,7 +78,6 @@ export default {
     },
     {
       name: 'a single-data-row table round-trips without error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {roundtrip, loadOk, loadError} = await api.roundtripSpecTableFacts(
           table([[1, 2]], 'A1:B2'),

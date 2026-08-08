@@ -8,6 +8,7 @@
 // Object]".
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
 const FIXTURE = 'conditional-format-numfmt-roundtrip/sample.xlsx';
 
@@ -23,13 +24,10 @@ export default {
   behavior: [
     {
       name: 'no DXF number format serializes as the literal "[object Object]"',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixtureStyleFacts(FIXTURE);
         assert.ok(source.dxfCount >= 1, 'precondition: the source has differential formats');
-        const broken = rewritten.dxfFormatCodes.filter((c: CorpusApi) =>
-          /\[object Object\]/.test(c),
-        );
+        const broken = rewritten.dxfFormatCodes.filter((c: Untyped) => /\[object Object\]/.test(c));
         assert.deepStrictEqual(
           broken,
           [],

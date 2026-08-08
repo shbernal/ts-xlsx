@@ -20,7 +20,6 @@ export default {
   behavior: [
     {
       name: 'the streaming style copy completes and the output loads',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {copyError, loadOk} = await api.streamingStyleCopyReport();
         assert.strictEqual(
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'the copied cell’s font and number format survive',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {fontBold, fontColor, numFmt} = await api.streamingStyleCopyReport();
         assert.strictEqual(fontBold, true, 'the bold font survives the streaming copy');
@@ -43,7 +41,6 @@ export default {
     },
     {
       name: 'the copied cell’s fill survives',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasFill} = await api.streamingStyleCopyReport();
         assert.strictEqual(hasFill, true, 'the solid fill survives the streaming copy');

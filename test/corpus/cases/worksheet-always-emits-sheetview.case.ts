@@ -19,7 +19,6 @@ export default {
   behavior: [
     {
       name: 'a worksheet with explicit row heights still emits a sheetView',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [
@@ -32,19 +31,18 @@ export default {
             },
           ],
         });
-        assert.ok(sheets.Sheet1.hasSheetViews, 'expected a <sheetViews> block');
-        assert.ok(sheets.Sheet1.sheetViewCount >= 1, 'expected at least one <sheetView>');
+        assert.ok(sheets.Sheet1!.hasSheetViews, 'expected a <sheetViews> block');
+        assert.ok(sheets.Sheet1!.sheetViewCount >= 1, 'expected at least one <sheetView>');
       },
     },
     {
       name: 'a default worksheet emits a default sheetView',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({
           sheets: [{name: 'Sheet1', cells: [{ref: 'A1', value: 'x'}]}],
         });
-        assert.ok(sheets.Sheet1.hasSheetViews, 'expected a <sheetViews> block');
-        assert.ok(sheets.Sheet1.sheetViewCount >= 1, 'expected at least one <sheetView>');
+        assert.ok(sheets.Sheet1!.hasSheetViews, 'expected a <sheetViews> block');
+        assert.ok(sheets.Sheet1!.sheetViewCount >= 1, 'expected at least one <sheetView>');
       },
     },
   ],

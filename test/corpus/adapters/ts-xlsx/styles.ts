@@ -1,7 +1,7 @@
 // Fonts, fills, borders, alignment, number formats and the style-deduplication that decides
 // which of them survive a round-trip.
 
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {applyStyle, buildFrom} from './spec-model.ts';
@@ -17,19 +17,14 @@ export const styles = {
   // while `<name>` says which face that is. The facts are therefore reported from the *written*
   // package with both parts read back, because the failure this guards is precisely the two
   // disagreeing while each part is individually well-formed.
-  defaultFontReport({
-    fixture = null,
-    themeFonts = null,
-    defaultFont = null,
-    cells = [],
-  }: CorpusApi) {
+  defaultFontReport({fixture = null, themeFonts = null, defaultFont = null, cells = []}: Untyped) {
     const workbook = fixture === null ? new Workbook() : readFixture(fixture);
     const declared = workbook.declaredDefaultFont ?? null;
     if (fixture === null) workbook.addWorksheet('S').getCell('A1').value = 'plain';
     const sheet = workbook.worksheets[0]!;
     // Each entry styles one cell, so a case can state what a cell said about its own font and check
     // which cells an authored default reaches.
-    for (const {address, font = null, fill = null} of cells as CorpusApi[]) {
+    for (const {address, font = null, fill = null} of cells as Untyped[]) {
       const cell = sheet.getCell(address);
       cell.value = address;
       if (font !== null) cell.font = font;
@@ -66,7 +61,7 @@ export const styles = {
       // What each styled cell resolves to after the round-trip, so a case can tell a cell that named
       // a face from one that merely inherited the file's default.
       cellFonts: Object.fromEntries(
-        (cells as CorpusApi[]).map(({address}) => [
+        (cells as Untyped[]).map(({address}) => [
           address,
           rereadSheet?.getCell(address).font?.name ?? null,
         ]),
@@ -81,17 +76,17 @@ export const styles = {
   // Two claims a per-cell loop makes silently and a range must keep: an empty cell inside the block
   // renders styled (so it has to be materialised, not skipped), and a uniformly styled block still
   // collapses to one shared cellXfs entry rather than one per cell.
-  rangeStyleReport({blocks = [], values = [], probe = null}: CorpusApi) {
+  rangeStyleReport({blocks = [], values = [], probe = null}: Untyped) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
-    for (const {address, value} of values as CorpusApi[]) sheet.getCell(address).value = value;
-    for (const {ref, style = null, facet = null, value = null} of blocks as CorpusApi[]) {
+    for (const {address, value} of values as Untyped[]) sheet.getCell(address).value = value;
+    for (const {ref, style = null, facet = null, value = null} of blocks as Untyped[]) {
       const range = sheet.getRange(ref);
       if (style !== null) range.style = style;
-      if (facet !== null) (range as CorpusApi)[facet] = value;
+      if (facet !== null) (range as Untyped)[facet] = value;
     }
     const sharedFacet =
-      probe === null ? null : ((sheet.getRange(probe.ref) as CorpusApi)[probe.facet] ?? null);
+      probe === null ? null : ((sheet.getRange(probe.ref) as Untyped)[probe.facet] ?? null);
     const materialisedInBlock = probe === null ? null : sheet.getRange(probe.ref).cells.length;
 
     const buffer = writeXlsx(workbook);
@@ -110,7 +105,13 @@ export const styles = {
       sharedFacet,
       materialisedInBlock,
       // The facets survive the round-trip on a cell that was empty when it was styled.
-      reloadedStyles: Object.fromEntries(
+      //
+      // The value is `Untyped` because the expression reports whichever facet happens to be set
+      // rather than the one `probe.facet` asked for, so its static type is `Fill | Font | null` and no
+      // caller can know which it got. Returning the probed facet instead would be the honest shape,
+      // but it would also change what a probe for `font` reports on a cell that carries a fill —
+      // a behavior change that does not belong in a typing pass.
+      reloadedStyles: Object.fromEntries<Untyped>(
         (probe === null ? [] : [...sheet.getRange(probe.ref).addresses()]).map((address) => [
           address,
           reread?.getCell(address).fill ?? reread?.getCell(address).font ?? null,
@@ -136,7 +137,7 @@ export const styles = {
     const bad = sheet.getCell('A2');
     bad.value = 42;
     // A caller wrongly assigns the structured numFmt object Excel parses a cell's format into.
-    bad.numFmt = {id: 164, formatCode: '0.00'} as CorpusApi;
+    bad.numFmt = {id: 164, formatCode: '0.00'} as Untyped;
     const stylesXml = partMapOf(writeXlsx(wb))['xl/styles.xml'] || '';
     const back = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     return {
@@ -166,8 +167,8 @@ export const styles = {
   // report: the source's cellStyleXfs count, A1's resolved fill, and — after a load→save round-trip —
   // the re-emitted cellStyleXfs count and whether A1's cellXfs entry still links via xfId → so a case
   // asserts the named-style layer is honoured on read and preserved (with its link) on write.
-  namedStyleFillReport(rel: CorpusApi) {
-    const countCellStyleXfs = (xml: CorpusApi) =>
+  namedStyleFillReport(rel: Untyped) {
+    const countCellStyleXfs = (xml: Untyped) =>
       Number((xml.match(/<cellStyleXfs count="(\d+)"/) || [])[1] || 0);
     const srcCellStyleXfsCount = countCellStyleXfs(
       partMapOf(fixtureBytes(rel))['xl/styles.xml'] || '',
@@ -197,7 +198,7 @@ export const styles = {
   // Write a value under a date number format and report the sheet XML's health → { ok, hasNaN,
   // hasInvalidDate, cellXml }. A string, a null (empty cell), or an Invalid Date under a date format
   // must never leak a bare "NaN" or "Invalid Date" into the cell value.
-  dateNumFmtValueReport(kind: CorpusApi) {
+  dateNumFmtValueReport(kind: Untyped) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     const cell = sheet.getCell('A1');
@@ -225,10 +226,10 @@ export const styles = {
   // font|null }. Each cell owns its own font, so a font set on one cell is observable there
   // and nowhere else — the isolation this reports. In-memory, matching the contract: the
   // <fonts>-table write/read path is exercised by the io/xlsx unit tests.
-  probeCellFonts({apply = [], read = []}: CorpusApi) {
+  probeCellFonts({apply = [], read = []}: Untyped) {
     const sheet = new Workbook().addWorksheet('sheet');
     for (const {cell, font} of apply) sheet.getCell(cell).font = font;
-    const fonts: Record<string, CorpusApi> = {};
+    const fonts: Record<string, Untyped> = {};
     for (const address of read) fonts[address] = sheet.getCell(address).font ?? null;
     return JSON.parse(JSON.stringify(fonts));
   },
@@ -238,13 +239,13 @@ export const styles = {
   // referenced by index, so identically-styled cells must collapse to one <cellXfs> entry (one
   // shared index) — dedup neither inflating to one entry per cell nor over-collapsing distinct
   // styles. A cell left at the default style carries no `s` and reports null.
-  styleDedupReport(spec: CorpusApi, cells = []) {
+  styleDedupReport(spec: Untyped, cells: string[] = []) {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
     const styles = parts['xl/styles.xml'] || '';
     const xfBlock = (styles.match(/<cellXfs\b[\s\S]*?<\/cellXfs>/) || [''])[0];
     const cellXfCount = (xfBlock!.match(/<xf\b/g) || []).length;
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
-    const indices: Record<string, CorpusApi> = {};
+    const indices: Record<string, Untyped> = {};
     for (const ref of cells) {
       const m = sheetXml.match(new RegExp(`<c\\b[^>]*\\br="${ref}"[^>]*\\bs="(\\d+)"`));
       indices[ref] = m ? Number(m[1]) : null;
@@ -294,7 +295,7 @@ export const styles = {
   // as valid 8-hex-digit values; a '#'-prefixed input must be normalized, never passed through as a
   // malformed 9-character colour.
   fillArgbHashPrefixReport() {
-    const emittedFgColor = (argb: CorpusApi) => {
+    const emittedFgColor = (argb: Untyped) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -311,7 +312,7 @@ export const styles = {
   // 6-char rgb that Excel renders black. A value that is neither 6 nor 8 hex digits is a programming
   // error and must be rejected, never written as a colour Excel silently renders black.
   argbNormalizationReport() {
-    const emittedFgColor = (argb: CorpusApi) => {
+    const emittedFgColor = (argb: Untyped) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -350,7 +351,7 @@ export const styles = {
   // the reader reads bold back → { bareTag, valOne, valZero }. A boolean font flag's `val` governs:
   // a bare tag or val="1" is on, val="0" is off — presence alone must not force true.
   fontExplicitFalseBoldReport() {
-    const readBoldWith = (tag: CorpusApi) => {
+    const readBoldWith = (tag: Untyped) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -373,7 +374,7 @@ export const styles = {
   // off; <u val="none"/> is the ABSENCE of an underline, so it must read back falsy — never the
   // truthy string "none".
   fontExplicitOffFlagsReport() {
-    const readWith = (baseFont: CorpusApi, tagRe: CorpusApi, tag: CorpusApi, field: CorpusApi) => {
+    const readWith = (baseFont: Untyped, tagRe: Untyped, tag: Untyped, field: Untyped) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -382,7 +383,7 @@ export const styles = {
         'xl/styles.xml': (xml) => xml.replace(tagRe, tag),
       });
       const font = reloaded.getWorksheet('S')!.getCell('A1').font || {};
-      return (font as Record<string, CorpusApi>)[field] ?? null;
+      return (font as Record<string, Untyped>)[field] ?? null;
     };
     return {
       italic: readWith({italic: true}, /<i ?\/>/, '<i val="0"/>', 'italic'),
@@ -397,7 +398,7 @@ export const styles = {
   // at all — the raw "0" is a truthy JS string, so a reader guarding on the raw value rather than the
   // parsed boolean would wrongly report a present alignment.
   alignmentFalseBooleanReport() {
-    const readWithAlignment = (alignAttr: CorpusApi) => {
+    const readWithAlignment = (alignAttr: Untyped) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -432,7 +433,7 @@ export const styles = {
   // writeError, readBackVertical }. Captures the writer-boundary contract: a value the writer accepts
   // must survive read-back, so an out-of-contract token must be rejected at write or preserved, never
   // silently serialized into a schema-invalid file the library's own reader then discards.
-  alignmentVerticalEnumReport(vertical: CorpusApi) {
+  alignmentVerticalEnumReport(vertical: Untyped) {
     const wb = new Workbook();
     const sheet = wb.addWorksheet('S');
     const cell = sheet.getCell('A1');
@@ -446,7 +447,7 @@ export const styles = {
       readBackVertical = back?.vertical ?? null;
     } catch (e) {
       writeThrew = true;
-      writeError = String((e as CorpusApi)?.message || e);
+      writeError = String((e as Untyped)?.message || e);
     }
     return {writeThrew, writeError, readBackVertical};
   },
@@ -466,7 +467,7 @@ export const styles = {
     const filled = back.getCell('B2');
     const bordered = back.getCell('C3');
     // fgColor lives on the pattern-fill variant, past the general Fill union surface.
-    const filledFill = filled.fill as CorpusApi;
+    const filledFill = filled.fill as Untyped;
     return {
       filledArgb: filledFill?.fgColor ? filledFill.fgColor.argb : null,
       filledValue: filled.value,
@@ -476,9 +477,9 @@ export const styles = {
     };
   },
 
-  readFixtureCellStyles(rel: CorpusApi, cells: CorpusApi = []) {
+  readFixtureCellStyles(rel: Untyped, cells: Untyped = []) {
     const wb = readFixture(rel);
-    const out: Record<string, CorpusApi> = {};
+    const out: Record<string, Untyped> = {};
     for (const key of cells) {
       const [sheetName, addr] = key.split('!');
       const sheet = wb.getWorksheet(sheetName);
@@ -498,30 +499,30 @@ export const styles = {
   // { checked, fillMismatches, borderMismatches, fillSample, borderSample }. Theme+tint and
   // indexed-palette references must survive verbatim so the sheet renders identically after a
   // pure open-then-save. Colour comparison is key-order-insensitive.
-  roundtripFixtureColorFidelity(rel: CorpusApi) {
+  roundtripFixtureColorFidelity(rel: Untyped) {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
-    const realFill = (cell: CorpusApi) =>
+    const realFill = (cell: Untyped) =>
       cell.fill && cell.fill.type === 'pattern' && cell.fill.pattern !== 'none' ? cell.fill : null;
-    const borderColors = (cell: CorpusApi) => {
+    const borderColors = (cell: Untyped) => {
       if (!cell.border) return null;
-      const edges: Record<string, CorpusApi> = {};
+      const edges: Record<string, Untyped> = {};
       for (const edge of ['top', 'left', 'right', 'bottom']) {
         if (cell.border[edge]?.color) edges[edge] = cell.border[edge].color;
       }
       return Object.keys(edges).length ? edges : null;
     };
-    const stableSort = (v: CorpusApi): CorpusApi => {
+    const stableSort = (v: Untyped): Untyped => {
       if (Array.isArray(v)) return v.map(stableSort);
       if (v && typeof v === 'object') {
-        const sorted: Record<string, CorpusApi> = {};
+        const sorted: Record<string, Untyped> = {};
         for (const k of Object.keys(v).sort()) sorted[k] = stableSort(v[k]);
         return sorted;
       }
       return v;
     };
-    const norm = (v: CorpusApi) => JSON.stringify(stableSort(v ?? null));
+    const norm = (v: Untyped) => JSON.stringify(stableSort(v ?? null));
 
     let checked = 0;
     let fillMismatches = 0;
@@ -568,7 +569,7 @@ export const styles = {
     sheet.getCell('B1').value = 'b';
     sheet.getCell('C1').value = 'c';
     const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
-    const rightBorder = (ref: CorpusApi) => {
+    const rightBorder = (ref: Untyped) => {
       const b = s.getCell(ref).border;
       return !!b?.right?.style;
     };
@@ -578,17 +579,17 @@ export const styles = {
   // Read a fixture, extract its column widths and pageSetup, write it straight back, re-read, and
   // report the same facts → { source, rewritten }. A faithful no-op round-trip must reproduce every
   // fractional column width and the print-scaling attributes the real file carries.
-  roundtripFixtureStyleFacts(rel: CorpusApi) {
+  roundtripFixtureStyleFacts(rel: Untyped) {
     // Model-level facts (column widths, pageSetup, dxfs) come from the parsed workbook; the custom
     // indexed-color palette is a raw styles.xml fact, so it is read straight from the part bytes on
     // each side — matching the legacy oracle, which extracts the same block from the zip.
-    const facts = (workbook: CorpusApi, stylesXml: CorpusApi) => {
+    const facts = (workbook: Untyped, stylesXml: Untyped) => {
       const sheet = workbook.worksheets[0];
       const ps = sheet ? sheet.pageSetup : {};
       // Differential styles are preserved as verbatim `<dxf>` fragments; a rule's number format is
       // whatever formatCode the fragment carries, so a coerced "[object Object]" can never appear.
       const dxfs = workbook.differentialStyles;
-      const dxfFormatCodes = dxfs.flatMap((f: CorpusApi) =>
+      const dxfFormatCodes = dxfs.flatMap((f: Untyped) =>
         [...f.matchAll(/formatCode="([^"]*)"/g)].map((m) => m[1]),
       );
       const palette = stylesXml.match(/<indexedColors>([\s\S]*?)<\/indexedColors>/);
@@ -630,7 +631,7 @@ export const styles = {
   // and `relTargetsResolve` whether each one names a part the package actually holds — a theme
   // re-emitted without its closure would leave that `r:embed` dangling, which is worse than dropping
   // the theme outright.
-  roundtripFixtureThemeFacts(rel: CorpusApi) {
+  roundtripFixtureThemeFacts(rel: Untyped) {
     // The theme is reached the way OPC reaches it — through the workbook's `.../theme` relationship,
     // whose target is relative to `xl/` — not by assuming the conventional `theme1.xml` name.
     const themePathOf = (parts: Record<string, string>) => {
@@ -695,7 +696,7 @@ export const styles = {
   //
   // `undeclaredPrefixes` guards the hazard of verbatim preservation: a fragment carries its namespace
   // prefixes with it, and one the re-emitted root never declares makes the whole part unparseable.
-  roundtripFixtureStylesTailFacts(rel: CorpusApi) {
+  roundtripFixtureStylesTailFacts(rel: Untyped) {
     const facts = (parts: Record<string, string>) => {
       const xml = parts['xl/styles.xml'] ?? '';
       const block = (name: string) =>
@@ -770,10 +771,10 @@ export const styles = {
   // resolution is what turns it into a colour a caller can render. The raw encoding is reported
   // beside the resolved value on purpose: resolution is a derived view, so the model must still be
   // holding the original reference.
-  fixtureColorResolution(rel: CorpusApi, cells: CorpusApi = []) {
+  fixtureColorResolution(rel: Untyped, cells: Untyped = []) {
     const workbook = readFixture(rel);
     const sheet = workbook.worksheets[0];
-    const out: Record<string, CorpusApi> = {};
+    const out: Record<string, Untyped> = {};
     for (const ref of cells) {
       const cell = sheet ? sheet.getCell(ref) : null;
       const fill = cell?.fill && cell.fill.type === 'pattern' ? (cell.fill.fgColor ?? null) : null;
@@ -790,7 +791,7 @@ export const styles = {
 
   // Resolve a colour reference against a workbook built from scratch → the 8-hex ARGB, or null. For
   // the claims that need no fixture: the built-in indexed palette, the system sentinels, tint.
-  resolveColorOnEmptyWorkbook(color: CorpusApi) {
+  resolveColorOnEmptyWorkbook(color: Untyped) {
     return new Workbook().resolveColor(color) ?? null;
   },
 
@@ -799,7 +800,7 @@ export const styles = {
   // hasThemeRels, mediaParts, resolvedThemeColor, reReadScheme }. Authoring a palette has to reach
   // three places at once: the theme part, the cells that reference it by `theme="n"`, and whatever the
   // source theme already carried and must not lose.
-  authorThemeReport({fixture = null, colors = {}, fonts = {}}: CorpusApi) {
+  authorThemeReport({fixture = null, colors = {}, fonts = {}}: Untyped) {
     const workbook = fixture === null ? new Workbook() : readFixture(fixture);
     if (fixture === null) {
       const sheet = workbook.addWorksheet('Brand');
@@ -854,7 +855,7 @@ export const styles = {
   // elementDxfs, nameOnTable, resolves, dxfCount, styleCount }. The claim a table style makes spans
   // three parts — the table names a style, the styles part defines it, the dxf table backs each
   // element — so the facts are reported *resolved* rather than as raw indices.
-  authorTableStyleReport({fixture = null, styles: authored = [], tableStyle = null}: CorpusApi) {
+  authorTableStyleReport({fixture = null, styles: authored = [], tableStyle = null}: Untyped) {
     const workbook = fixture === null ? new Workbook() : readFixture(fixture);
     if (fixture === null) {
       // A two-column, two-data-row table with no cell-level formatting at all, so anything the
@@ -923,7 +924,7 @@ export const styles = {
   },
 
   // Register a table style the library must refuse → the error message, or null if it was accepted.
-  authorInvalidTableStyle(style: CorpusApi) {
+  authorInvalidTableStyle(style: Untyped) {
     try {
       new Workbook().addTableStyle(style);
       return null;
@@ -934,7 +935,7 @@ export const styles = {
 
   // Author a theme colour the library must refuse → the error message, or null if it was accepted.
   // A malformed theme colour does not error in Excel: the slot renders as flat black.
-  authorInvalidThemeColor(value: CorpusApi) {
+  authorInvalidThemeColor(value: Untyped) {
     try {
       new Workbook().setTheme({colors: {accent1: value}});
       return null;
@@ -955,7 +956,7 @@ export const styles = {
     applyStyle(sheet.getCell('A2'), base);
     sheet.getCell('A1').font = {...sheet.getCell('A1').font, color: {argb: 'FF00FF00'}};
     const s = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
-    const colorOf = (ref: CorpusApi) => {
+    const colorOf = (ref: Untyped) => {
       const f = s.getCell(ref).font;
       return f?.color ? (f.color.argb ?? null) : null;
     };
@@ -982,7 +983,7 @@ export const styles = {
       right: {style: 'thin'},
     };
     const s = readXlsx(writeXlsx(loaded)).getWorksheet('S')!;
-    const hasBorder = (ref: CorpusApi) => {
+    const hasBorder = (ref: Untyped) => {
       const b = s.getCell(ref).border;
       return !!b?.top?.style;
     };
@@ -996,17 +997,17 @@ export const styles = {
 
   // Author two cells with one shared fill, load, replace ONE cell's fill, read the sibling in
   // memory and after write-back → { sibling, mutatedTo, original, bled, diskSibling, diskBled }.
-  loadMutateCellStyle({sharedFill = 'FFFF0000', mutateTo = 'FF00FF00'}: CorpusApi = {}) {
+  loadMutateCellStyle({sharedFill = 'FFFF0000', mutateTo = 'FF00FF00'}: Untyped = {}) {
     const wb = new Workbook();
     const s = wb.addWorksheet('S');
     s.getCell('A1').value = 'a';
     s.getCell('B1').value = 'b';
-    const fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: sharedFill}} as CorpusApi;
+    const fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: sharedFill}} as Untyped;
     s.getCell('A1').fill = fill;
     s.getCell('B1').fill = fill; // identical formatting → one shared style index on disk
     // fgColor lives on the pattern-fill variant, past the general Fill union surface.
-    const fgOf = (cell: CorpusApi) =>
-      (cell.fill as CorpusApi)?.fgColor ? ((cell.fill as CorpusApi).fgColor.argb ?? null) : null;
+    const fgOf = (cell: Untyped) =>
+      (cell.fill as Untyped)?.fgColor ? ((cell.fill as Untyped).fgColor.argb ?? null) : null;
 
     const wb2 = readXlsx(writeXlsx(wb));
     const s2 = wb2.getWorksheet('S')!;
@@ -1014,7 +1015,7 @@ export const styles = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: {argb: mutateTo},
-    } as CorpusApi;
+    } as Untyped;
     const sibling = fgOf(s2.getCell('B1'));
 
     const diskSibling = fgOf(readXlsx(writeXlsx(wb2)).getWorksheet('S')!.getCell('B1'));
@@ -1030,7 +1031,7 @@ export const styles = {
 
   // Author two cells with one shared font, load, spread-reassign ONE cell's font color, read the
   // sibling → { edited, sibling, original, mutatedTo, bled }.
-  loadMutateCellFont({original = 'FF000000', mutateTo = 'FFFF0000'}: CorpusApi = {}) {
+  loadMutateCellFont({original = 'FF000000', mutateTo = 'FFFF0000'}: Untyped = {}) {
     const wb = new Workbook();
     const s = wb.addWorksheet('S');
     const font = {name: 'Arial', size: 12, color: {argb: original}};
@@ -1041,7 +1042,7 @@ export const styles = {
 
     const s2 = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     s2.getCell('A1').font = {...s2.getCell('A1').font, color: {argb: mutateTo}};
-    const colorOf = (cell: CorpusApi) => (cell.font?.color ? (cell.font.color.argb ?? null) : null);
+    const colorOf = (cell: Untyped) => (cell.font?.color ? (cell.font.color.argb ?? null) : null);
     const sibling = colorOf(s2.getCell('B1'));
     return {
       edited: colorOf(s2.getCell('A1')),
@@ -1056,27 +1057,27 @@ export const styles = {
   // on one via its setter, and report whether it bled into the sibling in memory and on disk →
   // { facet, target, sibling, original, bled, diskSibling, diskBled }. The remaining facets of the
   // copy-on-write family, alongside fill/font/border above.
-  loadMutateCellFacet(facet: CorpusApi = 'alignment') {
+  loadMutateCellFacet(facet: Untyped = 'alignment') {
     const readFacet = (
       {
-        alignment: (c: CorpusApi) => c.alignment?.horizontal || null,
-        numFmt: (c: CorpusApi) => c.numFmt || null,
-        protection: (c: CorpusApi) =>
+        alignment: (c: Untyped) => c.alignment?.horizontal || null,
+        numFmt: (c: Untyped) => c.numFmt || null,
+        protection: (c: Untyped) =>
           c.protection && typeof c.protection.locked === 'boolean' ? c.protection.locked : null,
-      } as Record<string, CorpusApi>
+      } as Record<string, Untyped>
     )[facet];
     const apply = (
       {
-        alignment: (c: CorpusApi) => {
+        alignment: (c: Untyped) => {
           c.alignment = {horizontal: 'center'};
         },
-        numFmt: (c: CorpusApi) => {
+        numFmt: (c: Untyped) => {
           c.numFmt = '#,##0';
         },
-        protection: (c: CorpusApi) => {
+        protection: (c: Untyped) => {
           c.protection = {locked: false};
         },
-      } as Record<string, CorpusApi>
+      } as Record<string, Untyped>
     )[facet];
     if (!readFacet) throw new Error(`unknown style facet: ${facet}`);
 

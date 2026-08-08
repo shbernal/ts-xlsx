@@ -1,7 +1,7 @@
 // Core model and whole-package behaviour: address decoding, reader input classification,
 // package inspection, and the workbook-level round-trips that are not about one feature.
 
-import type {CorpusApi} from '../../case.ts';
+import type {Untyped} from '../../untyped.ts';
 import {packageFacts} from '../ooxml-facts.ts';
 import {packagePartFacts, partMapOf} from './package-facts.ts';
 import {
@@ -13,28 +13,34 @@ import {
   Workbook,
   writeXlsx,
 } from './runtime.ts';
-import {buildFrom, isoOrNull, normalizeRewriteCell, normalizeStreamValue} from './spec-model.ts';
+import {
+  buildFrom,
+  isoOrNull,
+  normalizeRewriteCell,
+  normalizeStreamValue,
+  UnsupportedSpecError,
+} from './spec-model.ts';
 import {buildReadInput, classifyReadError} from './xml-probes.ts';
 
 export const core = {
   // Classify a reader input by format family and report the typed error (or success) it produces —
   // `{threw, errorName, code, format, message, leaksZipInternals, leaksAbsolutePath}` — for asserting a
   // non-`.xlsx` blob fails with a clear, catchable, typed error rather than a raw zip crash.
-  classifyReadInput(kind: CorpusApi) {
+  classifyReadInput(kind: Untyped) {
     return classifyReadError(() => {
       readXlsx(buildReadInput(kind));
     });
   },
 
-  decodeAddress(reference: CorpusApi) {
+  decodeAddress(reference: Untyped) {
     return decodeAddress(reference);
   },
 
-  decodeRange(reference: CorpusApi) {
+  decodeRange(reference: Untyped) {
     return decodeRange(reference);
   },
 
-  inspectPackage(spec: CorpusApi) {
+  inspectPackage(spec: Untyped) {
     return packageFacts(spec, partMapOf(writeXlsx(buildFrom(spec))));
   },
 
@@ -42,7 +48,7 @@ export const core = {
   // written, loaded back into a fresh model, and re-emitted. Lets a case assert that content the
   // writer materializes (e.g. a table's totals row) survives a round-trip unchanged — neither dropped
   // on read nor duplicated/clobbered when the reloaded model is written again.
-  roundtripInspectPackage(spec: CorpusApi) {
+  roundtripInspectPackage(spec: Untyped) {
     return packageFacts(spec, partMapOf(writeXlsx(readXlsx(writeXlsx(buildFrom(spec))))));
   },
 
@@ -87,7 +93,7 @@ export const core = {
     } catch (e) {
       return {
         ok: false,
-        writeError: String((e as CorpusApi)?.message || e),
+        writeError: String((e as Untyped)?.message || e),
         cacheWellFormed: null,
         hasRawUnescapedAmp: null,
       };
@@ -125,7 +131,7 @@ export const core = {
   // stored → { hasSharedStringsPart, isSharedRef, isInline }. The option must actually control
   // storage: enabled emits a sharedStrings part and a t="s" cell reference; disabled keeps the string
   // inline with no such part.
-  sharedStringsOption(useSharedStrings: CorpusApi) {
+  sharedStringsOption(useSharedStrings: Untyped) {
     const wb = new Workbook();
     wb.addWorksheet('S').getCell('A1').value = 'shared-me';
     const parts = partMapOf(writeXlsx(wb, {useSharedStrings}));
@@ -140,7 +146,7 @@ export const core = {
   // Read a fixture, write it back unchanged, and report package-part facts before/after →
   // { source, rewritten } — for asserting a no-op round-trip PRESERVES parts the reader does not
   // model (a vector-shape drawing, a header/footer image and its VML) instead of dropping them.
-  roundtripFixturePackageParts(rel: CorpusApi) {
+  roundtripFixturePackageParts(rel: Untyped) {
     const source = packagePartFacts(partMapOf(fixtureBytes(rel)));
     const rewritten = packagePartFacts(partMapOf(writeXlsx(readXlsx(fixtureBytes(rel)))));
     return {source, rewritten};
@@ -149,7 +155,7 @@ export const core = {
   // Write a non-finite numeric cell (NaN / Infinity / -Infinity) and report whether the sheet XML
   // carries a bare token in a <v> → { hasNonFiniteToken, token }. A non-finite value has no OOXML
   // representation, so it must serialize as a valueless cell, never a literal "NaN"/"Infinity".
-  nonFiniteCellReport(kind: CorpusApi) {
+  nonFiniteCellReport(kind: Untyped) {
     const value =
       kind === 'NaN'
         ? Number.NaN
@@ -166,10 +172,10 @@ export const core = {
   // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet
   // XML → { hasNaNToken, cells }. Each cell is { t, formula, value } read off the raw `<c>`. Guards
   // that a string-typed formula result under a date format is not coerced to a numeric/NaN cell.
-  roundtripFixtureCellXml(rel: CorpusApi, refs = []) {
+  roundtripFixtureCellXml(rel: Untyped, refs: string[] = []) {
     const parts = partMapOf(writeXlsx(readXlsx(fixtureBytes(rel))));
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
-    const cells: Record<string, CorpusApi> = {};
+    const cells: Record<string, Untyped> = {};
     for (const ref of refs) {
       const match = sheetXml.match(new RegExp(`<c r="${ref}"([^>]*)>([\\s\\S]*?)</c>`));
       if (!match) continue;
@@ -206,7 +212,7 @@ export const core = {
   // is captured and returned as data (never propagated) so a case asserts on a crash rather than the
   // runner blowing up. Exercises the reader against foreign generators and schema-valid corners Excel
   // never emits (namespace-prefixed roots, a leading BOM, unusual part order, missing optional parts).
-  readFixtureReport(rel: CorpusApi) {
+  readFixtureReport(rel: Untyped) {
     try {
       const wb = readFixture(rel);
       return {
@@ -217,7 +223,7 @@ export const core = {
         creator: wb.properties.creator ?? null,
       };
     } catch (e) {
-      return {ok: false, error: String((e as CorpusApi)?.message || e), sheetNames: null};
+      return {ok: false, error: String((e as Untyped)?.message || e), sheetNames: null};
     }
   },
 
@@ -234,7 +240,7 @@ export const core = {
       wb.addWorksheet('History');
     } catch (e) {
       addThrew = true;
-      addError = String((e as CorpusApi)?.message || e);
+      addError = String((e as Untyped)?.message || e);
     }
     const roundtrip = readXlsx(writeXlsx(wb));
     const roundtripName =
@@ -259,10 +265,10 @@ export const core = {
     wb.addWorksheet('Hid', {state: 'hidden'});
     wb.addWorksheet('VeryHid', {state: 'veryHidden'});
     const buffer = writeXlsx(wb);
-    const readStates: Record<string, CorpusApi> = {};
+    const readStates: Record<string, Untyped> = {};
     for (const sheet of readXlsx(buffer).worksheets) readStates[sheet.name] = sheet.state;
     const workbookXml = partMapOf(buffer)['xl/workbook.xml'] ?? '';
-    const xmlStates: Record<string, CorpusApi> = {};
+    const xmlStates: Record<string, Untyped> = {};
     for (const m of workbookXml.matchAll(/<sheet\b([^>]*)\/?>/g)) {
       const attrs = m[1]!;
       const name = attrs.match(/\bname="([^"]*)"/)?.[1];
@@ -276,9 +282,9 @@ export const core = {
   // The model retains every name as its own entry rather than keying by name, so two same-named
   // names scoped to different sheets both survive — the scope collision that drops one on the
   // oracle's name-keyed reader.
-  readFixtureDefinedNames(rel: CorpusApi) {
+  readFixtureDefinedNames(rel: Untyped) {
     const wb = readFixture(rel);
-    const names: Record<string, CorpusApi> = {};
+    const names: Record<string, Untyped> = {};
     for (const dn of wb.definedNames) {
       names[dn.name] ||= [];
       names[dn.name].push(dn.refersTo);
@@ -295,10 +301,10 @@ export const core = {
   // format, and note → { <addr>: {type, value, numFmt, note} | null }, on the first sheet. Mirrors
   // the oracle: a date-formatted numeric serial surfaces as a Date (value { date: iso }), not a raw
   // number, honouring the 1900 date-system leap-year quirk. `type` is a stable label.
-  readFixtureCells(rel: CorpusApi, cells: CorpusApi = []) {
+  readFixtureCells(rel: Untyped, cells: Untyped = []) {
     const wb = readFixture(rel);
     const sheet = wb.worksheets[0];
-    const out: Record<string, CorpusApi> = {};
+    const out: Record<string, Untyped> = {};
     for (const addr of cells) {
       const cell = sheet ? sheet.getCell(addr) : null;
       out[addr] = cell
@@ -327,22 +333,22 @@ export const core = {
   // Style comparison is key-order-insensitive so a case asserts on content survival, not
   // serialization incidentals. In the rewrite's model a column stores a width only when it is a
   // custom width, so "has a width" is exactly "is a custom width".
-  roundtripFixture(rel: CorpusApi) {
+  roundtripFixture(rel: Untyped) {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
-    const stableSort = (v: CorpusApi): CorpusApi => {
+    const stableSort = (v: Untyped): Untyped => {
       if (Array.isArray(v)) return v.map(stableSort);
       if (v && typeof v === 'object') {
-        const sorted: Record<string, CorpusApi> = {};
+        const sorted: Record<string, Untyped> = {};
         for (const k of Object.keys(v).sort()) sorted[k] = stableSort(v[k]);
         return sorted;
       }
       return v;
     };
-    const hasStyle = (cell: CorpusApi) =>
+    const hasStyle = (cell: Untyped) =>
       !!(cell.numFmt || cell.fill?.type || cell.font || cell.alignment || cell.border);
-    const styleKey = (cell: CorpusApi) =>
+    const styleKey = (cell: Untyped) =>
       JSON.stringify(
         stableSort({
           numFmt: cell.numFmt || null,
@@ -352,10 +358,10 @@ export const core = {
           border: cell.border || null,
         }),
       );
-    const columnsWithWidth = (wb: CorpusApi) => {
-      const out: Record<string, CorpusApi> = {};
+    const columnsWithWidth = (wb: Untyped) => {
+      const out: Record<string, Untyped> = {};
       for (const sheet of wb.worksheets) {
-        const cols: Record<string, CorpusApi> = {};
+        const cols: Record<string, Untyped> = {};
         for (const {index, properties} of sheet.columns()) {
           if (properties.width !== undefined)
             cols[index] = {width: properties.width, customWidth: true};
@@ -402,23 +408,23 @@ export const core = {
   // same JSON model current.mjs reports, so every write→read round-trip case runs
   // unchanged. Facets the writer/reader do not materialize yet come back empty/null;
   // the writer's feature-gate keeps a case whose spec needs those from ever running here.
-  roundtripWorkbook(spec: CorpusApi) {
+  roundtripWorkbook(spec: Untyped) {
     const reloaded = readXlsx(writeXlsx(buildFrom(spec)));
-    const sheets: Record<string, CorpusApi> = {};
+    const sheets: Record<string, Untyped> = {};
     for (const s of spec.sheets || []) {
       const sheet = reloaded.getWorksheet(s.name);
       if (!sheet) {
         sheets[s.name] = null;
         continue;
       }
-      const cells: Record<string, CorpusApi> = {};
+      const cells: Record<string, Untyped> = {};
       for (const c of s.cells || []) cells[c.ref] = normalizeRewriteCell(sheet.getCell(c.ref));
-      const columns: Record<string, CorpusApi> = {};
+      const columns: Record<string, Untyped> = {};
       for (const col of s.columns || []) {
         const p = sheet.getColumn(col.index);
         columns[col.index] = {width: p.width ?? null, hidden: !!p.hidden, numFmt: p.numFmt ?? null};
       }
-      const rows: Record<string, CorpusApi> = {};
+      const rows: Record<string, Untyped> = {};
       for (const row of s.rows || []) {
         const p = sheet.getRow(row.index);
         rows[row.index] = {height: p.height ?? null, hidden: !!p.hidden};
@@ -444,7 +450,7 @@ export const core = {
       };
     }
     const props = reloaded.properties;
-    const definedNames: Record<string, CorpusApi> = {};
+    const definedNames: Record<string, Untyped> = {};
     for (const dn of reloaded.definedNames) {
       definedNames[dn.name] ||= [];
       definedNames[dn.name].push(dn.refersTo);
@@ -464,14 +470,14 @@ export const core = {
 
   // Load a fixture and try to write it back → { loadOk, loadError, writeOk, writeError, sheetNames } —
   // for asserting a foreign construct round-trips without the writer crashing.
-  roundtripFixtureWriteReport(rel: CorpusApi) {
-    let workbook: CorpusApi;
+  roundtripFixtureWriteReport(rel: Untyped) {
+    let workbook: Untyped;
     try {
       workbook = readFixture(rel);
     } catch (e) {
       return {
         loadOk: false,
-        loadError: String((e as CorpusApi)?.message || e),
+        loadError: String((e as Untyped)?.message || e),
         writeOk: false,
         writeError: null,
         sheetNames: [],
@@ -483,14 +489,14 @@ export const core = {
       writeXlsx(workbook);
       writeOk = true;
     } catch (e) {
-      writeError = String((e as CorpusApi)?.message || e);
+      writeError = String((e as Untyped)?.message || e);
     }
     return {
       loadOk: true,
       loadError: null,
       writeOk,
       writeError,
-      sheetNames: workbook.worksheets.map((w: CorpusApi) => w.name),
+      sheetNames: workbook.worksheets.map((w: Untyped) => w.name),
     };
   },
 
@@ -499,7 +505,7 @@ export const core = {
   // exposed and the merges the destination carries afterwards → { srcMerges, dstMerges, error }.
   // The historical bug this measures is an asymmetric model contract that dropped merges on import;
   // the rewrite's getter and setter cover the same fields, so the round-trip is lossless.
-  copyWorksheetModel({merges = ['A1:C1'], cells = [{ref: 'A1', value: 'merged'}]}: CorpusApi = {}) {
+  copyWorksheetModel({merges = ['A1:C1'], cells = [{ref: 'A1', value: 'merged'}]}: Untyped = {}) {
     const workbook = new Workbook();
     const src = workbook.addWorksheet('Src');
     for (const c of cells) src.getCell(c.ref).value = c.value;
@@ -507,18 +513,18 @@ export const core = {
     const dst = workbook.addWorksheet('Dst');
 
     let error = null;
-    let dstMerges: CorpusApi[] = [];
+    let dstMerges: Untyped[] = [];
     const srcMerges = [...src.model.merges];
     try {
-      dst.model = {...src.model, name: 'Dst'} as CorpusApi;
+      dst.model = {...src.model, name: 'Dst'} as Untyped;
       dstMerges = [...dst.model.merges];
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
     return {srcMerges: srcMerges.sort(), dstMerges: dstMerges.sort(), error};
   },
 
-  mutateWorksheet({cells = [], ops = [], read = [], readStyles = []}: CorpusApi = {}) {
+  mutateWorksheet({cells = [], ops = [], read = [], readStyles = []}: Untyped = {}) {
     const sheet = new Workbook().addWorksheet('S');
     for (const c of cells) {
       const cell = sheet.getCell(c.ref);
@@ -543,15 +549,15 @@ export const core = {
         else throw new Error(`unknown mutation op: ${op.op}`);
       }
     } catch (e) {
-      error = String((e as CorpusApi)?.message || e);
+      error = String((e as Untyped)?.message || e);
     }
 
-    const readCells: Record<string, CorpusApi> = {};
+    const readCells: Record<string, Untyped> = {};
     for (const ref of read) readCells[ref] = sheet.getCell(ref).value ?? null;
 
     // Per-cell style facets after the mutations — for asserting the style a cell carried before a
     // splice still describes the (possibly shifted) cell afterward, rather than being lost.
-    const styles: Record<string, CorpusApi> = {};
+    const styles: Record<string, Untyped> = {};
     for (const ref of readStyles) {
       const cell = sheet.getCell(ref);
       styles[ref] = {
@@ -584,30 +590,30 @@ export const core = {
     };
   },
 
-  tryWriteWorkbook(spec: CorpusApi) {
-    let workbook: CorpusApi;
+  tryWriteWorkbook(spec: Untyped) {
+    let workbook: Untyped;
     try {
       workbook = buildFrom(spec);
     } catch (error) {
-      if ((error as CorpusApi).notImplemented) throw error;
-      return {ok: false, phase: 'build', error: String((error as CorpusApi)?.message || error)};
+      if (error instanceof UnsupportedSpecError) throw error;
+      return {ok: false, phase: 'build', error: String((error as Untyped)?.message || error)};
     }
-    let buffer: CorpusApi;
+    let buffer: Untyped;
     try {
       buffer = writeXlsx(workbook);
     } catch (error) {
-      if ((error as CorpusApi).notImplemented) throw error;
-      return {ok: false, phase: 'write', error: String((error as CorpusApi)?.message || error)};
+      if (error instanceof UnsupportedSpecError) throw error;
+      return {ok: false, phase: 'write', error: String((error as Untyped)?.message || error)};
     }
     // Report which cells survived the round-trip, so a case can prove a bad cell (e.g. an Invalid
     // Date, written value-less) did not drop its siblings.
     const reread = readXlsx(buffer);
-    const survivingCells: Record<string, CorpusApi> = {};
+    const survivingCells: Record<string, Untyped> = {};
     for (const s of spec.sheets || []) {
       const sheet = reread.getWorksheet(s.name);
       survivingCells[s.name] = (s.cells || [])
-        .filter((c: CorpusApi) => sheet && sheet.getCell(c.ref).value !== null)
-        .map((c: CorpusApi) => c.ref);
+        .filter((c: Untyped) => sheet && sheet.getCell(c.ref).value !== null)
+        .map((c: Untyped) => c.ref);
     }
     return {ok: true, byteLength: buffer.byteLength ?? buffer.length, survivingCells};
   },

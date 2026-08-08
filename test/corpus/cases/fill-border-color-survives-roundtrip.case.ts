@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'the round-trip actually exercises colored cells (guard)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {checked} = await api.roundtripFixtureColorFidelity(FIXTURE);
         assert.ok(checked > 0, 'the fixture has styled cells with fill and/or border colors');
@@ -30,7 +29,6 @@ export default {
     },
     {
       name: "no cell's visible fill color changes across the round-trip",
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {fillMismatches, fillSample} = await api.roundtripFixtureColorFidelity(FIXTURE);
         assert.strictEqual(
@@ -42,7 +40,6 @@ export default {
     },
     {
       name: "no cell's border-edge color changes across the round-trip",
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {borderMismatches, borderSample} = await api.roundtripFixtureColorFidelity(FIXTURE);
         assert.strictEqual(

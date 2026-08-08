@@ -8,12 +8,13 @@
 // when the sheet's rows/columns are resized.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
+import type {Untyped} from '../untyped.ts';
 
-const imageSpec = (editAs: CorpusApi) => ({
+const imageSpec = (editAs: Untyped) => ({
   sheets: [{name: 'S', images: [{range: {tl: {col: 1, row: 1}, br: {col: 3, row: 3}, editAs}}]}],
 });
 
-const firstEditAs = (anchors: CorpusApi) => (anchors[0] ? anchors[0].editAs : undefined);
+const firstEditAs = (anchors: Untyped) => (anchors[0] ? anchors[0].editAs : undefined);
 
 export default {
   id: 'image-range-anchor-edit-as-mode-honored',
@@ -26,7 +27,6 @@ export default {
   behavior: [
     {
       name: 'an explicit twoCell request emits editAs="twoCell"',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchors} = await api.inspectImageAnchors(imageSpec('twoCell'));
         assert.strictEqual(
@@ -38,7 +38,6 @@ export default {
     },
     {
       name: 'an explicit oneCell request emits editAs="oneCell"',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchors} = await api.inspectImageAnchors(imageSpec('oneCell'));
         assert.strictEqual(
@@ -50,7 +49,6 @@ export default {
     },
     {
       name: 'an explicit absolute request emits editAs="absolute"',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchors} = await api.inspectImageAnchors(imageSpec('absolute'));
         assert.strictEqual(
@@ -65,7 +63,6 @@ export default {
       // default — oneCell (move-but-don't-resize), in the singular OpenXML spelling — never absolute,
       // an error, or a literal "undefined". This pins the semantics an inconsistent doc left ambiguous.
       name: 'an image with no explicit editAs defaults to editAs="oneCell"',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {anchors} = await api.inspectImageAnchors(imageSpec(undefined));
         assert.strictEqual(

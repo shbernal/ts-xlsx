@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'a table with a styled column writes and reloads without error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, reloadOk, writeError} = await api.tableColumnStyleReport(NUMFMT);
         assert.strictEqual(
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'the styled column’s body cells carry the requested number format',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {styledBody} = await api.tableColumnStyleReport(NUMFMT);
         assert.deepStrictEqual(
@@ -47,11 +45,10 @@ export default {
     },
     {
       name: 'columns without a per-column style are unaffected',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {unstyledBody} = await api.tableColumnStyleReport(NUMFMT);
         assert.ok(
-          unstyledBody.every((f: CorpusApi) => f !== NUMFMT),
+          unstyledBody!.every((f) => f !== NUMFMT),
           `the unstyled column must not pick up the numFmt; got ${JSON.stringify(unstyledBody)}`,
         );
       },

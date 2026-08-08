@@ -31,7 +31,6 @@ export default {
   behavior: [
     {
       name: 'the externalLink part and its <externalReferences> registration survive the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(
@@ -52,7 +51,6 @@ export default {
     },
     {
       name: 'the TargetMode="External" pointer to the source workbook survives verbatim',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(

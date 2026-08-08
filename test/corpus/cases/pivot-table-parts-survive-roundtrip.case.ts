@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'pivot table parts survive the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.pivotTables >= 1, 'precondition: source has pivot tables');
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'pivot cache parts survive the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.ok(source.pivotCache >= 1, 'precondition: source has pivot cache parts');

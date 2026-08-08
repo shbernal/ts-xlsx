@@ -19,7 +19,6 @@ export default {
   behavior: [
     {
       name: 'the edited package writes and reloads without error',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, reloadOk, writeError} = await api.tableCellEditRoundtrip();
         assert.strictEqual(
@@ -32,7 +31,6 @@ export default {
     },
     {
       name: 'the table part survives and the edited value reads back',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tablePresent, hasTablePart, editedValue} = await api.tableCellEditRoundtrip();
         assert.strictEqual(hasTablePart, true, 'the table part is still present');
@@ -42,7 +40,6 @@ export default {
     },
     {
       name: 'the worksheet relationship ids remain unique after the edit',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {relUnique} = await api.tableCellEditRoundtrip();
         assert.strictEqual(relUnique, true, 'the worksheet→table relationship ids stay unique');

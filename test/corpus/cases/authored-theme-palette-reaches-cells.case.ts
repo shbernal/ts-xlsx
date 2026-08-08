@@ -32,7 +32,6 @@ export default {
   behavior: [
     {
       name: 'an authored accent reaches the theme part and the cells that reference it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const report = await api.authorThemeReport({colors: {accent1: 'BB2649'}});
         assert.strictEqual(
@@ -48,7 +47,6 @@ export default {
     },
     {
       name: 'unauthored slots are left exactly as they were',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const report = await api.authorThemeReport({colors: {accent1: 'BB2649'}});
         // Office defaults, untouched by an author who named only accent1.
@@ -65,7 +63,6 @@ export default {
     },
     {
       name: 'the format scheme survives an authored palette',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const report = await api.authorThemeReport({colors: {accent1: 'BB2649'}});
         assert.strictEqual(report.keptFmtScheme, true, 'the <a:fmtScheme> block is still there');
@@ -78,7 +75,6 @@ export default {
     },
     {
       name: 'the major and minor typefaces are authorable',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // A font that says `scheme="minor"` names no typeface of its own, so this is the only place
         // the workbook's body face is decided.
@@ -88,7 +84,6 @@ export default {
     },
     {
       name: 'authoring over a source theme keeps the rest of that theme, relationships included',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const report = await api.authorThemeReport({
           fixture: PRESERVED_THEME,
@@ -108,12 +103,11 @@ export default {
     },
     {
       name: 'a malformed theme colour is refused at the call that supplied it',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         // Excel does not report a malformed colour value — it renders the slot as flat black — so the
         // library has to, and at the setter rather than at write time far from the cause.
-        assert.match(await api.authorInvalidThemeColor('not-a-colour'), /Invalid theme colour/);
-        assert.match(await api.authorInvalidThemeColor('#12345'), /Invalid theme colour/);
+        assert.match(await api.authorInvalidThemeColor('not-a-colour')!, /Invalid theme colour/);
+        assert.match(await api.authorInvalidThemeColor('#12345')!, /Invalid theme colour/);
         // The two conveniences the rest of the library accepts are accepted here too.
         assert.strictEqual(await api.authorInvalidThemeColor('#BB2649'), null);
         assert.strictEqual(await api.authorInvalidThemeColor('FFBB2649'), null);

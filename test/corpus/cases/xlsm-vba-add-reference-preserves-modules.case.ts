@@ -38,7 +38,6 @@ export default {
   behavior: [
     {
       name: 'the module set is unaffected by adding a reference',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {moduleNames} = await api.xlsmVbaAddReference();
         assert.deepEqual(moduleNames, ['ThisWorkbook', 'Module1', 'Class1']);
@@ -46,7 +45,6 @@ export default {
     },
     {
       name: 'the pre-existing reference and the newly added reference are both present in the dir stream',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {existingReferencePreserved, newReferencePresent} = await api.xlsmVbaAddReference();
         assert.strictEqual(
@@ -63,7 +61,6 @@ export default {
     },
     {
       name: 'an untouched module rides through byte-for-byte',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {untouchedModuleByteIdentical} = await api.xlsmVbaAddReference();
         assert.strictEqual(
@@ -75,7 +72,6 @@ export default {
     },
     {
       name: 'the PROJECT stream is left completely untouched',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {projectStreamUnchanged} = await api.xlsmVbaAddReference();
         assert.strictEqual(
@@ -88,7 +84,6 @@ export default {
     },
     {
       name: '_VBA_PROJECT is preserved untouched',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {vbaProjectStreamPreserved} = await api.xlsmVbaAddReference();
         assert.strictEqual(

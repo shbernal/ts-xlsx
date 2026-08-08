@@ -19,7 +19,6 @@ export default {
   behavior: [
     {
       name: 'the merge master cell reports its own text',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {masterText} = await api.mergedCellDisplayTextReport();
         assert.strictEqual(masterText, 'Group', 'the master reports its value as text');
@@ -27,7 +26,6 @@ export default {
     },
     {
       name: 'a merged child cell mirrors the master text without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {childText, childThrew} = await api.mergedCellDisplayTextReport();
         assert.strictEqual(childThrew, false, 'reading a merged child cell’s text must not throw');

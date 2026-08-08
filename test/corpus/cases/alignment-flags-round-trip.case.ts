@@ -33,7 +33,6 @@ export default {
   behavior: [
     {
       name: 'wrapText set true survives the round-trip as true',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {alignment} = (await api.roundtripWorkbook(WRAP_ON)).sheets.S.cells.A1;
         assert.strictEqual(alignment?.wrapText, true, 'wrapText should survive as true');
@@ -41,7 +40,6 @@ export default {
     },
     {
       name: 'wrapText and shrinkToFit left off do not come back true',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {alignment} = (await api.roundtripWorkbook(FLAGS_OFF)).sheets.S.cells.A1;
         assert.notStrictEqual(alignment?.wrapText, true, 'wrapText must not be spuriously true');
@@ -54,7 +52,6 @@ export default {
     },
     {
       name: 'a cell with no alignment does not report the flags as true',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {alignment} = (await api.roundtripWorkbook(PLAIN)).sheets.S.cells.A1;
         assert.notStrictEqual(alignment?.wrapText, true, 'wrapText must not be spuriously true');
@@ -67,7 +64,6 @@ export default {
     },
     {
       name: 'a numeric indent level survives the round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {alignment} = (await api.roundtripWorkbook(INDENT)).sheets.S.cells.A1;
         assert.strictEqual(alignment?.indent, 3, 'the indent level should survive as set');

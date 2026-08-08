@@ -24,7 +24,6 @@ export default {
   behavior: [
     {
       name: 'a small workbook streams every worksheet (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {written, emitted, error} = await api.streamReadManySheets(3);
         assert.strictEqual(error, null, `small streaming read must not error; got ${error}`);
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'a many-sheet workbook streams without the reader throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {error} = await api.streamReadManySheets(180);
         assert.strictEqual(
@@ -45,7 +43,6 @@ export default {
     },
     {
       name: 'the streamed worksheet count equals the number written, at scale',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {written, emitted} = await api.streamReadManySheets(180);
         assert.strictEqual(

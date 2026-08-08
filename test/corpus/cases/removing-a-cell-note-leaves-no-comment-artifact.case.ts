@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'a workbook whose cell never carried a note emits no comment part (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {cleanHasCommentPart} = await api.removeCellNoteReport();
         assert.strictEqual(
@@ -33,7 +32,6 @@ export default {
     },
     {
       name: 'clearing the only relevant note removes its comment part from the package',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {commentPartPresent, readNoteAfter} = await api.removeCellNoteReport();
         assert.strictEqual(
@@ -45,7 +43,6 @@ export default {
     },
     {
       name: 'clearing one note leaves a different cell’s note intact',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {neighborNoteIntact} = await api.removeCellNoteReport();
         assert.strictEqual(

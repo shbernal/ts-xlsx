@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'both blocks are present in the streamed worksheet XML',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {posDataValidations, posHyperlinks} = await api.streamWriteDvHyperlinkOrder();
         assert.ok(posDataValidations >= 0, 'a dataValidations block is emitted');
@@ -31,7 +30,6 @@ export default {
     },
     {
       name: 'dataValidations is emitted before hyperlinks (CT_Worksheet sequence order)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {dataValidationsBeforeHyperlinks} = await api.streamWriteDvHyperlinkOrder();
         assert.strictEqual(
@@ -43,7 +41,6 @@ export default {
     },
     {
       name: 'the streamed package still reloads with the tolerant reader',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadOk} = await api.streamWriteDvHyperlinkOrder();
         assert.strictEqual(

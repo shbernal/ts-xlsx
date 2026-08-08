@@ -20,12 +20,11 @@ export default {
   behavior: [
     {
       name: 'a whitespace-only field is not coerced to the number 0',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows} = await api.csvRead({csv: 'firstValue,   ,secondValue\n'});
-        assert.notStrictEqual(rows[0][1], 0, 'a whitespace-only field must not become numeric 0');
+        assert.notStrictEqual(rows[0]![1], 0, 'a whitespace-only field must not become numeric 0');
         assert.strictEqual(
-          typeof rows[0][1],
+          typeof rows[0]![1],
           'string',
           'a whitespace-only field is preserved as a string',
         );
@@ -33,18 +32,16 @@ export default {
     },
     {
       name: 'a genuine numeric field still parses as a number (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows} = await api.csvRead({csv: 'firstValue,42,secondValue\n'});
-        assert.strictEqual(rows[0][1], 42, 'a real number is still coerced to a number');
+        assert.strictEqual(rows[0]![1], 42, 'a real number is still coerced to a number');
       },
     },
     {
       name: 'an empty field stays distinct from a whitespace-only field and is not 0 (control)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rows} = await api.csvRead({csv: 'firstValue,,secondValue\n'});
-        assert.notStrictEqual(rows[0][1], 0, 'an empty field must not become numeric 0');
+        assert.notStrictEqual(rows[0]![1], 0, 'an empty field must not become numeric 0');
       },
     },
   ],

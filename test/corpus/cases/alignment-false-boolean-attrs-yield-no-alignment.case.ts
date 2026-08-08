@@ -13,7 +13,6 @@ export default {
   behavior: [
     {
       name: 'a cell whose only alignment attribute is wrapText="0" reads back with no alignment',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {wrapTextZero} = await api.alignmentFalseBooleanReport();
         assert.strictEqual(wrapTextZero, null);
@@ -21,7 +20,6 @@ export default {
     },
     {
       name: 'a cell whose only alignment attribute is shrinkToFit="0" reads back with no alignment',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {shrinkZero} = await api.alignmentFalseBooleanReport();
         assert.strictEqual(shrinkZero, null);

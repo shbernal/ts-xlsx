@@ -39,7 +39,6 @@ export default {
   behavior: [
     {
       name: 'merging a range that overlaps a table region surfaces a conflict instead of writing a corrupt file',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const result = await api.tryWriteWorkbook(overlappingSpec);
         assert.strictEqual(
@@ -51,7 +50,6 @@ export default {
     },
     {
       name: 'a merge entirely outside every table writes successfully',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const result = await api.tryWriteWorkbook(disjointSpec);
         assert.strictEqual(
@@ -63,12 +61,11 @@ export default {
     },
     {
       name: 'a table with no overlapping merge round-trips with its geometry intact',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {tables} = await api.inspectPackage(noMergeSpec);
         assert.strictEqual(tables.length, 1, 'the table part is written');
-        assert.strictEqual(tables[0].ref, 'A1:B3', 'the table geometry is intact');
-        assert.strictEqual(tables[0].xmlWellFormed, true, 'the table part is well-formed');
+        assert.strictEqual(tables[0]!.ref, 'A1:B3', 'the table geometry is intact');
+        assert.strictEqual(tables[0]!.xmlWellFormed, true, 'the table part is well-formed');
       },
     },
   ],

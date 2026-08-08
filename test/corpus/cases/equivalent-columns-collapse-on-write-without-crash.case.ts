@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'writing equivalent adjacent columns does not throw and the package reloads',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, writeError, reloadOk} = await api.equivalentColumnCollapseReport();
         assert.strictEqual(
@@ -34,11 +33,10 @@ export default {
     },
     {
       name: 'equivalent adjacent columns are coalesced into fewer <col> spans than columns',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {colSpanCount} = await api.equivalentColumnCollapseReport();
         assert.ok(
-          colSpanCount >= 1 && colSpanCount < 4,
+          colSpanCount! >= 1 && colSpanCount! < 4,
           `four equivalent columns should collapse into fewer than four <col> spans; got ${colSpanCount}`,
         );
       },

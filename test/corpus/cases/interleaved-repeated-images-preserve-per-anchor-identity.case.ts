@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'each distinct image used by the drawing gets exactly one relationship',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {distinctMediaCount, distinctRelTargets} = await api.interleavedImageAnchors('BAA');
         assert.strictEqual(distinctMediaCount, 2, 'two distinct images produce two media parts');
@@ -35,7 +34,6 @@ export default {
     },
     {
       name: 'the first two anchors (B, then A) resolve to the images they were placed with',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {resolvedLetter} = await api.interleavedImageAnchors('BAA');
         assert.strictEqual(resolvedLetter[0], 'B', 'anchor 1 renders B');
@@ -44,7 +42,6 @@ export default {
     },
     {
       name: 'the third anchor, reusing image A, does not collide onto the other image',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {resolvedLetter} = await api.interleavedImageAnchors('BAA');
         assert.strictEqual(

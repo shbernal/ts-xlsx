@@ -22,7 +22,6 @@ export default {
   behavior: [
     {
       name: 'writing a table with a CR/LF column name does not throw',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {writeOk, writeError} = await api.tableColumnNameControlChars();
         assert.strictEqual(
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the tableColumn name attribute contains no raw CR/LF control characters',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rawControlChars, firstColumnTag} = await api.tableColumnNameControlChars();
         assert.strictEqual(

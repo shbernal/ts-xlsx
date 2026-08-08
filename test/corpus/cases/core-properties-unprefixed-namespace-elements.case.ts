@@ -30,7 +30,6 @@ export default {
   behavior: [
     {
       name: 'a workbook with an unprefixed, default-namespace core.xml loads without throwing',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, error} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(ok, true, `the workbook must load; instead the reader threw: ${error}`);
@@ -38,7 +37,6 @@ export default {
     },
     {
       name: 'the lastModifiedBy value from the unprefixed core.xml is read',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {ok, lastModifiedBy} = await api.readFixtureReport(FIXTURE);
         assert.strictEqual(ok, true, 'precondition: the workbook loads');

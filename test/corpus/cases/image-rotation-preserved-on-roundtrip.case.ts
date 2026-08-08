@@ -26,7 +26,6 @@ export default {
   behavior: [
     {
       name: 'the source fixture image carries a rotation transform (precondition)',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {sourceRot} = await api.roundtripFixtureImageRotation(FIXTURE);
         assert.strictEqual(sourceRot, ROT, 'the fixture drawing declares the rotation');
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'the image rotation survives a load/save round-trip',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {rewrittenRot} = await api.roundtripFixtureImageRotation(FIXTURE);
         assert.strictEqual(

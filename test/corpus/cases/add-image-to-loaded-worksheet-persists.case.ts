@@ -21,7 +21,6 @@ export default {
   behavior: [
     {
       name: 'the re-serialized package includes the added image media',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasMedia} = await api.addImageToLoadedWorksheetReport();
         assert.strictEqual(hasMedia, true, 'the media part for the added image is present');
@@ -29,7 +28,6 @@ export default {
     },
     {
       name: 'the re-serialized package includes the drawing part describing the anchor',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {hasDrawing} = await api.addImageToLoadedWorksheetReport();
         assert.strictEqual(hasDrawing, true, 'the drawing part linking the anchor is present');
@@ -37,7 +35,6 @@ export default {
     },
     {
       name: 're-reading the output surfaces exactly the one added image',
-      baseline: 'pass',
       async expect(api: CorpusApi, assert: Assert) {
         const {reloadImageCount} = await api.addImageToLoadedWorksheetReport();
         assert.strictEqual(reloadImageCount, 1, 'the added image is enumerated after reload');

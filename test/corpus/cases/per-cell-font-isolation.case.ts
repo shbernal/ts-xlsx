@@ -23,7 +23,6 @@ export default {
   behavior: [
     {
       name: 'a font set on A1 is observable on A1',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {A1} = api.probeCellFonts({
           apply: [{cell: 'A1', font: {bold: true}}],
@@ -34,7 +33,6 @@ export default {
     },
     {
       name: 'a font set on A1 does not bleed onto an untouched cell (B2)',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {B2} = api.probeCellFonts({
           apply: [{cell: 'A1', font: {bold: true, color: {argb: 'FF3A80D5'}}}],
@@ -48,7 +46,6 @@ export default {
     },
     {
       name: 'styling cells of one column does not bleed into another column',
-      baseline: 'pass',
       expect(api: CorpusApi, assert: Assert) {
         const {C5} = api.probeCellFonts({
           apply: [
