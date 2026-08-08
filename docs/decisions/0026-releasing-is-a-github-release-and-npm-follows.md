@@ -30,11 +30,18 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
    and which run built what it serves. There is nothing to leak and nothing to rotate.
 
 3. **The publish job runs in the `npm-publish` environment, and that environment is
-   code.** `.github/workflows/environment.yml` provisions it — deployments only from `v*`
+   code.** `.github/workflows/environment.yml` declares it — deployments only from `v*`
    **tags**, and no required reviewer — so the gate guarding a publish is reviewable in a
-   diff instead of being a settings page nobody reads. It needs a PAT with Administration
-   rights, because `administration` is not among the permissions a workflow may request
-   for `GITHUB_TOKEN`; the environments API is deliberately out of that token's reach.
+   diff instead of being a settings page nobody reads, and the workflow fails when the live
+   environment disagrees with the declaration.
+
+   It *provisioned* the environment through 1.1.0 and now only checks it (**amended
+   2026-08-08**). Writing an environment is an administration endpoint, and `administration`
+   is not among the permissions a workflow may request for `GITHUB_TOKEN`, so provisioning
+   needed a PAT — `ENV_ADMIN_TOKEN` — which was never created; the workflow spent every day
+   of its life failing on its own first step. Reading an environment needs nothing but read
+   access to the repository, so the check runs on the built-in token. See the consequences
+   for what detection buys that provisioning did not.
 
    The environment carried a required reviewer through 1.0.3 and no longer does
    (**amended 2026-08-05**). On a single-maintainer project it was never a second pair of
@@ -71,16 +78,21 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
   `publish.yml` or the `npm-publish` environment breaks publishing until npm is updated to
   match, and npm reports any of the three disagreeing identically.
 
-  **`ENV_ADMIN_TOKEN` is absent as of 2026-08-05, so `environment.yml` cannot run.** Removing
-  the reviewer was therefore applied by hand — a `PUT` to the environments API with the same
-  payload the workflow builds, read back and confirmed (`reviewers: none`, `deploys from: tag
-  v*`). The file and the live environment agree today, but they agree by coincidence rather
-  than by construction, which is the one property this ADR bought. Until the secret is
-  restored, treat `environment.yml` as documentation: it describes the environment and can no
-  longer enforce it, and a settings-page edit would drift silently the way it did before.
-  `environment.yml` needs a PAT, which is the one long-lived credential left; it can only
-  reconfigure an environment,
-  never publish.
+  **The environment is now checked rather than provisioned, and the repository holds no
+  credential at all** (2026-08-08). `ENV_ADMIN_TOKEN` was never created, so the reviewer
+  removal of 2026-08-05 was applied by hand and the file and the live environment agreed by
+  coincidence rather than by construction — the one property this ADR had bought. Restoring
+  the secret would have bought it back at the price of the *other* property, since a PAT with
+  Administration rights is a long-lived credential sitting beside a publish path that
+  deliberately has none, and it is the strictly more dangerous of the two: it can rewrite the
+  gate that decides who may publish. So the write was dropped instead. `environment.yml` now
+  reads the environment on the built-in token and fails when it differs from what the file
+  declares, on a weekly schedule, on any edit to the declaration, and on demand.
+
+  What that gives up is one-click reconciliation: a drift is now fixed by hand under Settings
+  → Environments. What it keeps is the half that was load-bearing — the failure this guards
+  against is a settings edit nobody sees, and a check that goes red names it. What it gains is
+  a check that can actually run, which the provisioning version never could.
 - **Verified, not assumed** — and the verification corrected the design twice and the
   npm-side configuration once, each against a mistake of ours.
 

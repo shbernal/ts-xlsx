@@ -12,6 +12,21 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Changed
+
+- **The `npm-publish` environment is now checked rather than provisioned, and this repository
+  holds no credential at all.** `environment.yml` wrote the environment through an
+  administration endpoint, which `GITHUB_TOKEN` may not reach, so it needed a PAT —
+  `ENV_ADMIN_TOKEN`. That secret was never created: the workflow failed on its own first step
+  every day of its life, and the reviewer removal it was supposed to apply was done by hand
+  instead. Restoring the secret would have put a long-lived credential able to rewrite the gate
+  that decides who may publish next to a publish path that deliberately carries none. Reading
+  an environment needs only read access, so the write was dropped: the workflow now fails when
+  the live environment differs from what the file declares — weekly, on any edit to the
+  declaration, and on demand. Drift is detected rather than corrected, which is the half that
+  was load-bearing. Nothing about the published package changes. See
+  [ADR-0026](docs/decisions/0026-releasing-is-a-github-release-and-npm-follows.md).
+
 ## [1.1.0] — 2026-08-08
 
 The first release since 1.0.0 to add API surface. Six additions, each of them something a

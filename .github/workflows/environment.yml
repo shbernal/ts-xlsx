@@ -1,123 +1,107 @@
 name: Environment
 
-# The gate that guards publishing, as code rather than click-ops.
+# The gate that guards publishing, declared here and checked against reality.
 #
 # `publish.yml` names the `npm-publish` deployment environment, which is where the tags-only
 # restriction lives. Those settings are repo *settings* — invisible in a diff, unreviewable,
-# and silently reconstructible by anyone with admin. This workflow makes them a file: run it,
-# and the environment is whatever this says it is.
+# and silently editable by anyone with admin. This file is the declaration of what they must
+# be; this job fails when the live environment disagrees with it.
 #
-# Run it from the Actions tab (Run workflow) after changing anything here. It is idempotent —
-# re-running reconciles rather than duplicating — and it prints the effective configuration it
-# read back, so a green run is evidence of the end state, not just of the request.
+# It used to *provision* them, which needed `ENV_ADMIN_TOKEN` — a PAT with Administration
+# rights, because `administration` is not among the permissions a workflow may request for
+# GITHUB_TOKEN and the environments API is an administration endpoint. That secret was never
+# created after the reviewer removal of 2026-08-05 was applied by hand, so the file spent its
+# life unable to run: a control that cannot execute is documentation wearing a workflow's
+# clothes. *Reading* an environment, unlike writing one, needs no more than read access to the
+# repository — so the check runs on the built-in token and no long-lived credential exists in
+# this repository at all, which is the property publish.yml already had. See ADR-0026.
 #
-# It needs `ENV_ADMIN_TOKEN`: a fine-grained PAT on this repository with **Administration:
-# read and write**. The built-in GITHUB_TOKEN cannot do this — `administration` is not among
-# the permissions a workflow may request for it, and the environments API is an administration
-# endpoint. That token is deliberately not used for anything else: publishing itself carries
-# no credential at all (see publish.yml).
+# The trade is that drift is now detected rather than corrected: a failure here prints what
+# differs and you set it by hand under Settings → Environments. Detection is the half that
+# was load-bearing — the failure mode this guards against is a settings edit nobody sees.
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Environment to provision
+        description: Environment to check
         type: string
         default: npm-publish
+  # A settings-page edit lands no commit, so nothing but the clock would ever notice it.
+  schedule:
+    - cron: '17 6 * * 1'
+  # And editing the declaration re-checks it against what the repository is actually set to,
+  # so the two cannot be changed apart without a red run.
+  push:
+    branches: [master]
+    paths: ['.github/workflows/environment.yml']
 
-# Nothing here reads the tree; the administration rights come from ENV_ADMIN_TOKEN, not from
-# the job's own token, which is left with the minimum.
+# Reading an environment needs read access to the repository and nothing else.
 permissions:
   contents: read
 
 jobs:
-  provision:
-    name: Provision ${{ inputs.environment }}
+  verify:
+    name: Verify ${{ inputs.environment || 'npm-publish' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require the administration token
+      - name: Compare the live environment against this declaration
         env:
-          GH_TOKEN: ${{ secrets.ENV_ADMIN_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${GH_TOKEN}" ]; then
-            echo "::error::ENV_ADMIN_TOKEN is not set"
-            echo "Create a fine-grained PAT on this repository with Administration: read and"
-            echo "write, and add it as the repository secret ENV_ADMIN_TOKEN. The built-in"
-            echo "GITHUB_TOKEN cannot manage environments."
-            exit 1
-          fi
-
-      - name: Create or reconcile the environment
-        env:
-          GH_TOKEN: ${{ secrets.ENV_ADMIN_TOKEN }}
-          ENV_NAME: ${{ inputs.environment }}
+          GH_TOKEN: ${{ github.token }}
+          ENV_NAME: ${{ inputs.environment || 'npm-publish' }}
         run: |
           set -euo pipefail
 
-          # No required reviewer, deliberately — an empty list *removes* one this workflow
-          # previously set, rather than leaving it in place unmentioned. On a single-maintainer
-          # project the click was never a second pair of eyes: the only person who could approve
-          # a release was the person who had just cut it, so it asked the releaser to confirm
-          # what they had already decided one command earlier. What it did stop was an
-          # *accidental* publish, and the tag rule below now carries that alone — see ADR-0026
-          # for what that trades away.
+          # What the gate must be.
           #
-          # custom_branch_policies with protected_branches false is what lets the tag rule below
-          # exist at all; the two are one setting expressed in two calls.
-          cat > /tmp/environment.json <<JSON
+          # No required reviewer, deliberately: on a single-maintainer project the only login
+          # that could approve a release was the one that had just cut it. What the click
+          # genuinely stopped was an *accidental* publish, and the tag rule now carries that
+          # alone — ADR-0026 records what that trades away.
+          #
+          # protected_branches false with custom_branch_policies true is what lets a *tag* rule
+          # exist at all; the two are one setting reported as two fields, so both are asserted.
+          cat > "${RUNNER_TEMP}/declared.json" <<'JSON'
           {
-            "wait_timer": 0,
+            "wait_timer_minutes": 0,
             "reviewers": [],
-            "deployment_branch_policy": {
-              "protected_branches": false,
-              "custom_branch_policies": true
-            }
+            "protected_branches": false,
+            "custom_branch_policies": true,
+            "deploys_from": ["tag v*"]
           }
           JSON
 
-          gh api -X PUT "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}" \
-            --input /tmp/environment.json > /dev/null
-          echo "environment ${ENV_NAME} reconciled"
-
-      - name: Restrict deployments to release tags
-        env:
-          GH_TOKEN: ${{ secrets.ENV_ADMIN_TOKEN }}
-          ENV_NAME: ${{ inputs.environment }}
-        run: |
-          set -euo pipefail
-
-          policies="/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}/deployment-branch-policies"
-
-          # A publish must come from a tagged release and nothing else. Without this, anything
-          # able to name the environment — a branch, a fork's workflow file — could reach the
-          # OIDC identity that publishes to npm.
-          if gh api "${policies}" --jq '.branch_policies[] | select(.name == "v*")' | grep -q .; then
-            echo "tag policy v* already present"
-          else
-            gh api -X POST "${policies}" -f name='v*' -f type=tag > /dev/null
-            echo "tag policy v* created"
+          if ! environment=$(gh api "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}" 2>&1); then
+            echo "::error::cannot read environment ${ENV_NAME}"
+            echo "${environment}"
+            echo "If it is missing, create it under Settings -> Environments. publish.yml names"
+            echo "it and npm's trusted publisher pins the name, so a publish cannot run without"
+            echo "it — and an absent environment fails open, admitting any ref."
+            exit 1
           fi
-
-      - name: Read back the effective configuration
-        env:
-          GH_TOKEN: ${{ secrets.ENV_ADMIN_TOKEN }}
-          ENV_NAME: ${{ inputs.environment }}
-        run: |
-          set -euo pipefail
+          policies=$(gh api "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}/deployment-branch-policies")
 
           # Every field is read through a list-and-default rather than a bare stream: a rule
-          # that is absent must print as absent, not silently drop the line that would have
-          # reported it.
-          gh api "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}" --jq '
-            [.protection_rules[] | select(.type == "required_reviewers")] as $review |
-            "environment:      \(.name)",
-            "wait timer:       \([.protection_rules[] | select(.type == "wait_timer") | .wait_timer] | first // 0) min",
-            "reviewers:        \([$review[].reviewers[].reviewer.login] | join(", ") | if . == "" then "none — a deployment from an admitted ref runs unattended (intended)" else . end)",
-            "protected branch: \(.deployment_branch_policy.protected_branches)",
-            "custom policies:  \(.deployment_branch_policy.custom_branch_policies)"
-          '
+          # that is absent must be reported as absent, not silently drop the line that would
+          # have carried it. That is the same reason `deployment_branch_policy` is defaulted —
+          # GitHub reports "no policy at all" as null, and null admits everything.
+          configured=$(jq -n --argjson env "${environment}" --argjson policies "${policies}" '{
+            wait_timer_minutes: ([$env.protection_rules[] | select(.type == "wait_timer") | .wait_timer] | first // 0),
+            reviewers: ([$env.protection_rules[] | select(.type == "required_reviewers") | .reviewers[].reviewer.login] | sort),
+            protected_branches: ($env.deployment_branch_policy.protected_branches // false),
+            custom_branch_policies: ($env.deployment_branch_policy.custom_branch_policies // false),
+            deploys_from: ([$policies.branch_policies[] | "\(.type) \(.name)"] | sort)
+          }')
 
-          gh api "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}/deployment-branch-policies" \
-            --jq '"deploys from:     " + ([.branch_policies[] | "\(.type) \(.name)"] | join(", "))'
+          if diff -u --label declared --label configured \
+              <(jq -S . "${RUNNER_TEMP}/declared.json") <(jq -S . <<<"${configured}"); then
+            echo "environment ${ENV_NAME} is what this file says it is:"
+            jq -S . <<<"${configured}"
+          else
+            echo "::error::environment ${ENV_NAME} has drifted from .github/workflows/environment.yml"
+            echo "Above, '-' is what this file declares and '+' is how the repository is set."
+            echo "Reconcile under Settings -> Environments -> ${ENV_NAME}, or edit this file if"
+            echo "the new configuration is the intended one — but say why in ADR-0026."
+            exit 1
+          fi

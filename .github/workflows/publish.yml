@@ -50,7 +50,7 @@ jobs:
     name: npm publish
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # The tags-only restriction lives here, provisioned by environment.yml — and is the whole
+    # The tags-only restriction lives here, declared by environment.yml — and is the whole
     # gate, since there is no required reviewer: a release publishes unattended. npm's trusted
     # publisher config names this environment too, so a job that is not this one cannot borrow
     # the identity.
