@@ -864,3 +864,55 @@ test('addRows populates a mixed batch of array- and object-shaped rows', () => {
     'the object-shaped batch row is populated too',
   );
 });
+
+test('usedRange names A1 through the last used row and column', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('B2').value = 'x';
+  sheet.getCell('E5').value = 'y';
+  assert.equal(sheet.usedRange?.address, 'A1:E5', 'anchored at A1 and spanning the gaps');
+});
+
+test('usedRange agrees with rowCount and columnCount, formatting-only lines included', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'only value';
+  sheet.getRow(4).height = 30;
+  sheet.getColumn(3).width = 12;
+  assert.equal(sheet.rowCount, 4);
+  assert.equal(sheet.columnCount, 3);
+  assert.equal(sheet.usedRange?.address, 'A1:C4');
+});
+
+test('usedRange is undefined when no rectangle is spanned', () => {
+  const empty = new Worksheet('S', 1);
+  assert.equal(empty.usedRange, undefined, 'an empty sheet spans nothing');
+
+  const rowsOnly = new Worksheet('S', 1);
+  rowsOnly.getRow(3).height = 30;
+  assert.equal(rowsOnly.rowCount, 3);
+  assert.equal(rowsOnly.columnCount, 0);
+  assert.equal(rowsOnly.usedRange, undefined, 'one axis with no extent bounds no rectangle');
+});
+
+test('usedRange is the ref an autoFilter over the whole sheet needs', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.addRow(['Name', 'Joined']);
+  sheet.addRow(['Ada', 1815]);
+  sheet.addRow(['Grace', 1906]);
+  const used = sheet.usedRange;
+  assert.ok(used);
+  sheet.autoFilter = used.address;
+  assert.equal(
+    sheet.autoFilter?.ref,
+    'A1:B3',
+    'the data rows are inside the filter, not just the header',
+  );
+});
+
+test('usedRange creates nothing — it is a handle like getRange', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('A1').value = 'x';
+  const before = sheet.actualRowCount;
+  void sheet.usedRange;
+  assert.equal(sheet.actualRowCount, before);
+  assert.equal(sheet.usedRange?.cells.length, 1, 'only the materialised cell is reported');
+});

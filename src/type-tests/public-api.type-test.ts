@@ -33,6 +33,7 @@ import type {
   PageSetup,
   Person,
   PrintOptions,
+  Range,
   RichTextValue,
   readXlsx,
   SharedFormulaValue,
@@ -95,6 +96,10 @@ export type IoContracts = [
   Expect<Equal<ReturnType<typeof readXlsx>, Workbook>>,
   Expect<Equal<ReturnType<Workbook['getWorksheet']>, Worksheet | undefined>>,
 ];
+
+// The used range is partial by design: a sheet spanning no rectangle says so, rather than handing
+// back a phantom A1:A1 that a caller would go on to style, filter or iterate.
+export type UsedRangeContracts = [Expect<Equal<Worksheet['usedRange'], Range | undefined>>];
 
 // Export-presence guards for the core feature types now on the barrel: importing each locks it into
 // the public surface (its removal would break this compilation), and a self-`Extends` references it.

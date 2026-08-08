@@ -154,6 +154,7 @@ class Worksheet {
   get rowCount(): number;
   get actualRowCount(): number;
   get columnCount(): number;
+  get usedRange(): Range | undefined;
   *columns(): IterableIterator<Column>;
   *rows(): IterableIterator<Row>;
   addTable(options: TableOptions): Table;
@@ -423,6 +424,32 @@ get columnCount(): number;
 The 1-based index of the last column carrying anything — a non-empty cell or its own format
 properties — or 0 for an empty sheet. The used-range width, mirroring [`rowCount`](./worksheet.md#worksheetrowcount) for the
 other axis: a value in column E makes this 5 even if columns B–D are empty.
+
+#### `Worksheet.usedRange`
+
+```ts
+get usedRange(): Range | undefined;
+```
+
+The sheet's used range as one handle — `A1` through the last row and column that carry
+anything — or `undefined` when there is no rectangle to name.
+
+This is [`rowCount`](./worksheet.md#worksheetrowcount) and [`columnCount`](./worksheet.md#worksheetcolumncount) said once, so a caller stops reassembling
+`A1:${numberToColumn(sheet.columnCount)}${sheet.rowCount}` by hand. That is what an
+[`autoFilter`](./worksheet.md#worksheetautofilter) covering the whole sheet wants — `sheet.autoFilter = sheet.usedRange.address`
+— and Excel writes exactly that ref for a filter it applies itself. A header-only ref filters
+nothing, which is the bug this exists to make hard to write.
+
+It inherits both counts' definition of *used*, so it spans gaps (a value in `E5` and nothing
+else still gives `A1:E5`) and includes a line carrying only its own formatting — a set column
+width, an outline level, a merge reaching past the last value. `undefined` therefore means
+strictly "no rectangle": an empty sheet, or one carrying only row formatting and no columns at
+all (or the reverse), where an axis has no extent to bound the other against.
+
+Not the same thing as the `<dimension>` a written package records. That is the *tight* box —
+top-left at the first used cell, formatting-only rows excluded — because Excel writes it to
+describe where the data is, not what the grid spans. This handle is anchored at `A1`, because
+a caller asking for the used range means the block to read, style or filter.
 
 #### `Worksheet.columns`
 

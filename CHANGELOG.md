@@ -14,6 +14,13 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **`Worksheet.usedRange` — the sheet's extent as a handle.** `rowCount` and `columnCount` said
+  once: `A1` through the last row and column carrying anything, or `undefined` when the sheet spans
+  no rectangle. It replaces the `` `A1:${numberToColumn(sheet.columnCount)}${sheet.rowCount}` ``
+  every caller was assembling by hand, and it is what an auto-filter over a whole sheet wants —
+  `sheet.autoFilter = sheet.usedRange.address`, where a header-only ref yields dropdowns that
+  filter nothing. Anchored at `A1` and inheriting both counts' definition of *used*, so it is not
+  the tight `<dimension>` box a written package records; the doc comment states the difference.
 - **`cellValueToText` and `Cell.text` — one plain-text rendering of a value, for everyone.**
   `cellValueToText` is total over `CellValue`: the empty cell and an invalid `Date` give `""`, a
   boolean gives Excel's `TRUE`/`FALSE`, an error its literal, rich text its runs concatenated, a
