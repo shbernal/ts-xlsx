@@ -13,11 +13,13 @@ the call.
 A hard break opens a line of its own and what follows wraps independently, matching how Excel
 lays a wrapped cell out. The empty string is one line, not zero: a cell always occupies its row.
 
-An estimate, and only ever that. It counts characters, so it is exact for a monospaced face and
-approximate for every other - a run of `W`s wraps sooner on screen than this predicts, a run of
-`i`s later. Excel's own auto-fit measures glyphs; this exists so that a writer can state *a*
-height rather than leave the sheet to be laid out lazily on open, and being within a line of the
-truth is what that needs.
+An estimate, and only ever that. It counts characters, so it is exact for a monospaced face that
+wraps mid-word and approximate for every other - a run of `W`s wraps sooner on screen than this
+predicts, a run of `i`s later. Against Excel it reads a shade *low*, because Excel breaks at word
+boundaries and its usable width is about 0.64 character units under the stated one: measured at
+5 lines where Excel laid out 6, 25 where Excel laid out 26. This exists so that a writer can
+state *a* height rather than leave one to the application that opens the file, and being within a
+line of the truth is what that needs.
 
 ```ts
 function estimateWrappedLines(text: string, width: number): number;

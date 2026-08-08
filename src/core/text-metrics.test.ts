@@ -31,6 +31,20 @@ test('a fractional width is honoured rather than rounded first', () => {
   assert.equal(estimateWrappedLines('abcdefgh', 8.43), 1);
 });
 
+// The one string here whose true answer was measured rather than reasoned about: Excel auto-fitted
+// this cell, in a column of stated width 40, to 87 points - six lines of a 14.5-point default -
+// where the character count says five. Pinned so that a change making the count word-aware (which
+// would raise this to 6 and is a live question) fails here and finds
+// docs/knowledge/specs/rows-with-no-stated-height-are-autofitted-on-open.md.
+test('counting characters reads a line low against Excel, which breaks at word boundaries', () => {
+  const measuredAgainstExcel =
+    'R1 len=200: tolerate boundary pipeline anchored boundary anchored anchored anchored boundary ' +
+    'tolerate anchored canonical anchored tolerate anchored anchored boundary tolerate anchored ' +
+    'anchored pipelin';
+  assert.equal(measuredAgainstExcel.length, 200);
+  assert.equal(estimateWrappedLines(measuredAgainstExcel, 40), 5, 'Excel laid this out in 6');
+});
+
 test('a width that wraps nothing is refused rather than answered with Infinity or NaN', () => {
   for (const width of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
     assert.throws(() => estimateWrappedLines('text', width), RangeError, `width ${width}`);

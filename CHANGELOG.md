@@ -20,14 +20,17 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   several steps later with nothing left to say. A lookup miss is a typo, a stale template or a
   renamed tab, and all three are answered by seeing the real names. The CSV writer now uses it, so
   its "no worksheet named …" message gains that listing and loses the "to write as CSV" suffix.
-- **`estimateWrappedLines` — how many lines a wrapped cell takes.** A row that states no height is
-  auto-fitted by Excel at paint time, which on a sheet of wrapped multi-thousand-character cells is
-  done lazily and incompletely (bands open blank until clicked); writing an explicit height settles
-  the geometry first, and needs a line count. Counts characters against a character-unit width — the
-  same unit a column's `width` is in, so no font metric is assumed and the deferred
-  metric-table question stays deferred. Exact for a monospaced face, approximate for the rest, and
-  it says so. A hard break opens a line of its own; a zero or non-finite width is a `RangeError`
-  rather than an `Infinity` that would land in a row height.
+- **`estimateWrappedLines` — how many lines a wrapped cell takes.** A row that states no height
+  records no geometry, so its height is whoever opens the file's answer. Excel's answer is an
+  auto-fit computed on open — measured, and prompt: it saturates at `MAX_ROW_HEIGHT`, so past ~28
+  lines it stops answering, and a consumer that does not implement it (this library's reader
+  included) has no height at all. Writing one settles the geometry, and needs a line count. Counts
+  characters against a character-unit width — the same unit a column's `width` is in, so no font
+  metric is assumed and the deferred metric-table question stays deferred. Exact for a monospaced
+  face that wraps mid-word, and against Excel a shade low (5 lines where Excel laid out 6), which
+  the doc states. A hard break opens a line of its own; a zero or non-finite width is a `RangeError`
+  rather than an `Infinity` that would land in a row height. The auto-fit measurements are in
+  [`docs/knowledge/specs/rows-with-no-stated-height-are-autofitted-on-open.md`](docs/knowledge/specs/rows-with-no-stated-height-are-autofitted-on-open.md).
 - **`MAX_ROW_HEIGHT` and `MAX_COLUMN_WIDTH` — the grid's geometry limits, measured.** The
   companions to `MAX_ROW`/`MAX_COLUMN`: how large a line may be set, where those two bound where
   a cell may be. `ht` and `width` are a bare `xsd:double` in the schema, so the ceiling is Excel's
