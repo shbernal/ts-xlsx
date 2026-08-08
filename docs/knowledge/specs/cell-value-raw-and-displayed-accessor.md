@@ -51,15 +51,27 @@ union; the displayed accessor returns `string` (with a defined result for empty/
 
 ## Open questions
 
-- Naming: `cell.text` already exists in prior art as a display-ish string — does it become the
-  "displayed value" accessor, or do we introduce distinct `raw`/`display` members to avoid overloading
-  a name whose semantics were fuzzy?
+- ~~Naming: does `cell.text` become the "displayed value" accessor, or do we introduce distinct
+  `raw`/`display` members?~~ **Answered: `cell.text` is the *raw* value's plain text, and applies no
+  number format.** `cellValueToText` (`src/core/value.ts`) is the function, total over `CellValue`,
+  and `Cell.text` is it applied to the cell in hand. Overloading was avoided from the other end than
+  this note expected: rather than giving the fuzzy name the richer meaning, the name was pinned to
+  the meaning that needs no formatter, and its doc says so outright ("a currency cell's text carries
+  no currency sign"). The displayed accessor is therefore still unbuilt, and now needs a name of its
+  own — `displayText` or similar — which is the honest cost of this choice.
+- ~~Kind inspection without brittle `typeof`/`instanceof` probing.~~ **Answered:** `detectValueType`
+  classifies, and the six `isXxxValue` guards — public since the same release — narrow. A caller
+  validating a column has both the total switch and the per-kind predicate.
 - Does the displayed accessor build in a full number-format formatter (locale-aware), or start with a
-  documented subset and defer exotic format codes?
-- Hyperlink and rich-text cells: does "raw" flatten to a plain scalar/string by default, with the
-  structured form available on request, or the reverse?
-- Should these be lazy accessors computed on read, or precomputed — given the formatter cost on large
-  sheets?
+  documented subset and defer exotic format codes? **Still open, and now the only thing between the
+  two accessors:** everything except the formatter exists.
+- ~~Hyperlink and rich-text cells: does "raw" flatten to a plain scalar/string by default, with the
+  structured form available on request, or the reverse?~~ **Answered: neither is a default, because
+  they are separate members.** `cell.value` is always the structured form and `cell.text` always the
+  flattened one, so no caller has to opt in to the shape it wanted.
+- ~~Should these be lazy accessors computed on read, or precomputed?~~ **Answered: computed on
+  access, and the question dissolves without the formatter** — flattening runs is cheap enough that
+  caching would cost more invalidation than it saves. It returns if the displayed accessor lands.
 
 Related: `xlsx-date-detection-control`, `column-level-value-type`,
 `formula-cell-value-type-minimal-required-fields`, `html-fragment-to-rich-text-cell-value`,
