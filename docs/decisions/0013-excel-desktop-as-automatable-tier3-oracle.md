@@ -37,13 +37,19 @@ never replaces the Tier-2 seam fact that locks a behavior.**
 - `observe.ps1` — the COM driver. It owns **every** safety guardrail (below) and emits one
   JSON observation blob: `{version, build, openThrew, repaired, cells:[{address, hasFormula,
   formula, value}], resaved…}`.
+- `read-geometry.ps1` — a sibling COM driver answering the *geometry* question instead of the
+  cell one: per-row `RowHeight`, per-column `ColumnWidth`, the sheet's `StandardHeight`/
+  `StandardWidth`, and the same optional re-save. It takes an existing workbook path rather than a
+  probe spec (the fixtures worth asking this of are ones a writer already produced), so it is run
+  directly and carries its own Excel-present guard. Same guardrails, verbatim.
 - `run.ts` — orchestrates emit → observe → collect (canonical-ref readback happens in Node
   via `fflate`), stamps the observation with `probeSpecRef` + the authored `verdict`, and
   **self-guards**: it refuses to run, loudly and non-zero, if `pwsh` or a registered Excel
   COM server is absent, so on a non-Excel host it degrades with a clear message rather than
   silently emitting empty facts.
 
-One command: `node tools/excel-oracle/run.ts <probe.json>` → observation JSON out.
+One command: `node tools/excel-oracle/run.ts <probe.json>` → observation JSON out. For geometry,
+`pwsh -NoProfile -File tools/excel-oracle/read-geometry.ps1 -Path <file.xlsx>` → observation JSON out.
 
 ### What is and isn't scriptable
 

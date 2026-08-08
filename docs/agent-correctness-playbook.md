@@ -172,7 +172,17 @@ geometry Excel considers canonical, and writes an auditable observation sidecar.
 **seeds** the invariant only — then **lock** it with a Tier-2 seam fact that runs in CI and
 a case carrying `provenance: {source: 'excel-desktop-verification', ref: '<sidecar>'}`. The
 harness is a probe, not a test: it needs Windows+Excel+`pwsh`, self-guards to a loud refusal
-without them, and **never** runs in CI (`pnpm run corpus` must not depend on Excel). It answers
+without them, and **never** runs in CI (`pnpm run corpus` must not depend on Excel).
+
+If the invariant is *geometry* — is an over-limit `ht`/`width` clamped, quantized or honoured? —
+use the sibling probe instead, which takes a workbook you already wrote rather than a probe spec:
+`pwsh -NoProfile -File tools/excel-oracle/read-geometry.ps1 -Path <file.xlsx> [-Rows n] [-Cols n] [-NoResave]`.
+It reports per-row `RowHeight`, per-column `ColumnWidth` and the sheet's `StandardHeight`/
+`StandardWidth`, and re-saves a copy beside the input so you can diff the `ht`/`width` Excel itself
+writes. Reading a value back is the only thing that separates a clamp from a passthrough — see
+`docs/knowledge/specs/grid-geometry-limits-are-excels-not-the-schemas.md` for what it found.
+
+Both probes answer
 *state-observable* questions on *one Excel build* only — see [ADR 0013](./decisions/0013-excel-desktop-as-automatable-tier3-oracle.md)
 for what is and isn't scriptable and the five standing pitfalls.
 

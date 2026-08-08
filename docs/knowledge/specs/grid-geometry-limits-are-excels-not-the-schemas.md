@@ -115,4 +115,7 @@ automation-only run could confirm that nothing threw but never that nothing was 
 through the `excel-gui-automation` skill's `open-verdict.ps1`, one file at a time, paired with an
 all-legal negative control so a classifier that always answered "clean" would have been caught.
 The clamped/preserved values and the re-save come from a COM readback of `RowHeight`,
-`ColumnWidth` and `SaveAs` over the same fixtures.
+`ColumnWidth` and `SaveAs` over the same fixtures. That half is reproducible:
+`pwsh -NoProfile -File tools/excel-oracle/read-geometry.ps1 -Path <file.xlsx>` is the probe that
+took it, and re-running it against a fixture carrying `ht="5000"` / `width="1000"` reproduces both
+tables. The interactive half is not reproducible from the repo and stays a recorded observation.
