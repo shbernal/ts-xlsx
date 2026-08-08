@@ -28,6 +28,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Emit ESM .js + .d.ts to dist/.
       - run: pnpm run build
+      # Type-check the emitted .d.ts the way a consumer's editor would: through the
+      # package name, so the `exports` map resolves and every subpath's declarations
+      # are pulled in. The corpus proves the emitted JS behaves; nothing else in the
+      # pipeline reads the declarations, which are inference-produced (ADR 0031).
+      - run: pnpm run typecheck:dist
       # Load the compiled artifact as a consumer would and verify a write→read round-trip.
       - run: pnpm run smoke:dist
       # Run the FULL behavioral corpus against the emitted artifact, not just the

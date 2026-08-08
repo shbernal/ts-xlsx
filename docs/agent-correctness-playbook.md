@@ -11,6 +11,7 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | --- | --- | --- | --- |
 | Types + unit | The code compiles under strict TS and units pass | `pnpm run typecheck && pnpm run test:src` | Node 24 |
 | ↳ narrower | Only one tree, when iterating | `pnpm run typecheck:src` · `pnpm run typecheck:test` | Node 24 |
+| ↳ emitted `.d.ts` | The published declarations typecheck as a consumer sees them | `pnpm run typecheck:dist` | Node 24 + `pnpm run build` |
 | Lint | Style/format/floating-promise/console gates | `pnpm run lint` | Node 24 |
 | **Corpus** | Well-formed XML, package structure, and no behavior regression — the **spine** | `pnpm run corpus` | Node 24 |
 | **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `node scripts/ooxml-validator.ts file.xlsx` | **.NET 10** |
@@ -21,6 +22,14 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 both. The `typecheck` *script* used to run only the first, which made the obvious command silently
 blind to the tree the regression corpus lives in: edit an adapter, get a green `typecheck`, and
 learn nothing. It now runs both, and `typecheck:src` is there for when you genuinely want one.
+
+**`typecheck` does not mean the third tree.** `tsconfig.dist.json` typechecks the *emitted*
+`.d.ts` through the package's `exports` map, and its subject only exists after `pnpm run build` —
+so it cannot live in `verify`, which must run on a never-built tree, and it runs in `build.yml`
+instead (ADR 0031). Consequence worth knowing before you push: a change that breaks the published
+declarations but not `src/` passes every local gate and fails on the runner. If you are editing
+the public barrel or a type it re-exports, run `pnpm run build && pnpm run typecheck:dist` first —
+about 0.8 s on top of the build.
 
 **`lint:fix` needs no confirming `lint` pass.** `biome check --write` applies what it can and
 *still exits non-zero* if any diagnostic survives, so a green `lint:fix` already is the proof.

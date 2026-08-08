@@ -1,0 +1,13 @@
+{
+  "//": "Type-safety gate for the EMITTED declarations, checked the way a consumer sees them. Requires `pnpm run build` to have run first — dist/ is its subject, not its output — which is why this is a step in build.yml and not a gate in scripts/verify.ts.",
+  "//why": "tsconfig.json proves src/ is sound and the corpus proves the emitted JS behaves, but neither reads a single line of the emitted .d.ts. Those declarations are produced by inference — ADR 0009 declined `isolatedDeclarations` partly on the grounds that inference-based emit 'already works', and nothing anywhere checked that claim. A consumer's editor would have been the first thing to.",
+  "//subject": "scripts/smoke-dist.ts is the only file in the tree that imports through the package NAME, so type-checking it resolves the published `exports` map and pulls in the declarations behind every subpath. It is excluded from tsconfig.test.json for the one reason that does not apply here: there, dist/ does not exist yet.",
+  "//skipLibCheck": "Inherited off from tsconfig.json, and load-bearing rather than incidental: dist/*.d.ts IS the declaration file under test here, so skipping lib checks would skip the entire point of this project.",
+  "extends": "./tsconfig.json",
+  "//tsBuildInfoFile": "Its own file, never the inherited one — see the note in tsconfig.json. Incrementality is off outright: this runs once per CI build against a dist/ that was just regenerated, so a cache could only be stale.",
+  "compilerOptions": {
+    "incremental": false,
+    "tsBuildInfoFile": null
+  },
+  "include": ["scripts/smoke-dist.ts"]
+}
