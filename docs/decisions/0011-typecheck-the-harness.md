@@ -1,6 +1,6 @@
 # ADR 0011 — Type-check the harness: migrate `test/` + `scripts/` to strict `.ts`
 
-**Status:** Accepted (2026-07-20) · Phase 4 · extends the toolchain of [ADR 0002](./0002-toolchain-standup.md) and the gate philosophy of [ADR 0009](./0009-lint-type-gate-tightening.md)
+**Status:** Accepted (2026-07-20) · Phase 4 · extends the toolchain of [ADR 0029](./0029-toolchain-standup.md) and the gate philosophy of [ADR 0009](./0009-lint-type-gate-tightening.md)
 
 ## Context
 
@@ -69,7 +69,7 @@ to expose them. **We never change `src` to satisfy the harness.**
   `dist/` artifact, which does not exist before a build (and never in the Corpus CI
   job); its type-safety is already covered by the typechecked `src` it is emitted
   from. `scripts/**/*.ts` + `test/**/*.ts` replace the old `*.mjs` globs in
-  `biome.json` (the `noConsole`/`noNonNullAssertion` overrides ADR 0002 and ADR 0009
+  `biome.json` (the `noConsole`/`noNonNullAssertion` overrides ADR 0029 and ADR 0009
   describe now target `.ts`).
 - **Revisit `CorpusApi`-as-`any` when:** a case genuinely benefits from a typed view
   of the adapter without coupling to an implementation. It does not today — the

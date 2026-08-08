@@ -1,6 +1,6 @@
 # ADR 0022 — Verification is one cached, parallel entrypoint
 
-**Status:** Accepted (2026-07-27) · implements the dispatch table of [ADR 0010](./0010-agent-correctness-dispatch.md) over the toolchain of [ADR 0002](./0002-toolchain-standup.md)
+**Status:** Accepted (2026-07-27) · implements the dispatch table of [ADR 0010](./0010-agent-correctness-dispatch.md) over the toolchain of [ADR 0029](./0029-toolchain-standup.md)
 
 ## Context
 

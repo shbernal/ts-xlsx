@@ -1,6 +1,6 @@
 # ADR 0009 — Tighten the lint/type gates where free; decline `isolatedDeclarations`
 
-**Status:** Accepted (2026-07-20) · Phase 4 · extends the toolchain of [ADR 0002](./0002-toolchain-standup.md)
+**Status:** Accepted (2026-07-20) · Phase 4 · extends the toolchain of [ADR 0029](./0029-toolchain-standup.md)
 
 ## Context
 
@@ -31,7 +31,7 @@ enabling it changes no existing code — it only prevents a future regression:
 - **Biome `suspicious/noConsole: error`** in `src` — keeps stray debug logging out of
   the shipped library. Overridden **off** for `scripts/**/*.mjs` and `test/**/*.mjs`,
   where `console` is the legitimate idiom (the same `overrides` mechanism already
-  used for `noNonNullAssertion` in ADR 0002).
+  used for `noNonNullAssertion` in ADR 0029).
 
 ### Reject `isolatedDeclarations`
 
@@ -68,7 +68,7 @@ the better thing is *not* contorting `relationships.ts`.
 - **Positive:** three regression classes (broken side-effect imports, floating
   promises, shipped `console` calls) are now impossible to reintroduce without a
   failing gate — with no existing code touched.
-- **Neutral:** `biome.json` remains comment-free JSON (ADR 0002's load-bearing
+- **Neutral:** `biome.json` remains comment-free JSON (ADR 0029's load-bearing
   gotcha — comments silently drop the `overrides` array); rationale lives here.
 - **Revisit `isolatedDeclarations` when:** the project starts shipping hand-authored
   `.d.ts`, or the public API grows large enough that inference-based declaration emit

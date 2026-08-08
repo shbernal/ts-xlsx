@@ -1,6 +1,12 @@
-# ADR 0002 — Toolchain standup: Biome for lint/format, `node --test` kept, tsc for type tests
+# ADR 0029 — Toolchain standup: Biome for lint/format, `node --test` kept, tsc for type tests
 
 **Status:** Accepted (2026-07-19) · Phase 4 · resolves the toolchain deferrals from [ADR 0001](./0001-rewrite-runtime-and-toolchain.md)
+
+> **Renumbered 2026-08-08 from 0002**, which it shared with
+> [ADR 0002](./0002-ooxml-validation-oracle.md) (the validation oracle, accepted eight days
+> earlier). The number moves to the next free one rather than to a chronological slot, because
+> renumbering everything after it would break far more references than the collision did. The
+> acceptance date is unchanged and is the authority on ordering.
 
 ## Context
 

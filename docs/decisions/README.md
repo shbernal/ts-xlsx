@@ -1,0 +1,67 @@
+# Decision records
+
+One file per decision, kept because the *reasoning* is the part that rots invisibly: a
+config line can be re-read, but the four options we rejected and why cannot be recovered
+from the tree. An agent reaching a fork already covered here should find the answer
+instead of re-deriving it — and, more importantly, should find out when the answer was
+**withdrawn**.
+
+That last part is why this index exists. Five of these records no longer say what they
+appear to say, and until now the only way to learn that was to open the file. A retracted
+ADR read as live guidance is worse than no ADR at all: ADR 0018's mechanism (splice a
+module's source into `vbaProject.bin`) was verified, documented, confidently written, and
+does not work.
+
+**Status is the column to read first.** Retracted records are kept, not deleted — the
+disproof is the valuable part — but they are guidance about history, never about what to
+do now.
+
+**The acceptance date orders these, not the number.** ADR 0029 was renumbered out of a
+collision and sits last while dating from 2026-07-19; renumbering the twenty-seven records
+after it would have broken far more cross-references than the collision did.
+
+| # | Decision | Status |
+|---|---|---|
+| [0001](./0001-rewrite-runtime-and-toolchain.md) | Rewrite runtime & toolchain: run `.ts` directly, defer the bundler | Accepted 2026-07-11 · build slice resolved 07-19 by addendum |
+| [0002](./0002-ooxml-validation-oracle.md) | Microsoft `OpenXmlValidator` as an external conformance oracle | Accepted 2026-07-11 |
+| [0003](./0003-zip-and-xml-write-path.md) | Zip container is `fflate`; the write path emits XML directly | Accepted 2026-07-12 |
+| [0004](./0004-xml-read-path.md) | The XML read path is a lean, hand-written SAX pull parser | Accepted 2026-07-12 |
+| [0005](./0005-worksheet-model-is-semantic-only.md) | `WorksheetModel` stays a semantic value; attached parts are out of scope | Accepted 2026-07-18 |
+| [0006](./0006-docs-from-types.md) | API docs generated from the types, not a docs framework | Accepted 2026-07-19 |
+| [0007](./0007-spec-reference-vendored-schemas-and-learn-mcp.md) | Spec reference: vendored OOXML schemas + Microsoft Learn MCP | Accepted 2026-07-19 |
+| [0008](./0008-typescript-6-upgrade.md) | Upgrade to TypeScript 6; hold at 6 (not 7) until the printer API ports | **Superseded in part** 2026-08-05 by [0028](./0028-typescript-7-adoption.md) · Accepted 07-19 |
+| [0009](./0009-lint-type-gate-tightening.md) | Tighten the lint/type gates where free; decline `isolatedDeclarations` | Accepted 2026-07-20 |
+| [0010](./0010-agent-correctness-dispatch.md) | Make the correctness net easy for agents to dispatch | Accepted 2026-07-20 |
+| [0011](./0011-typecheck-the-harness.md) | Type-check the harness: migrate `test/` + `scripts/` to strict `.ts` | Accepted 2026-07-20 |
+| [0012](./0012-three-tiers-of-correctness-evidence.md) | Three tiers of correctness evidence; round-trip proves consistency, not conformance | Accepted 2026-07-21 |
+| [0013](./0013-excel-desktop-as-automatable-tier3-oracle.md) | Excel Desktop is an automatable Tier-3 oracle for state-observable behavior | Accepted 2026-07-21 |
+| [0014](./0014-charts-shapes-slicers-are-round-trip-only-for-1-0.md) | Charts, vector shapes, slicers, and form controls stay round-trip-only for 1.0 | Accepted 2026-07-21 |
+| [0015](./0015-publishing-name-semver-and-first-version.md) | Package name, SemVer, and the first published version | Accepted 2026-07-21 |
+| [0016](./0016-vba-project-is-readable-authoring-deferred.md) | The VBA project is readable through a typed view; authoring stays deferred | Accepted 2026-07-22 · **amended** 07-23 by [0017](./0017-vba-authoring-consumer-gate-lifted.md), which [0019](./0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md) then retracted — read 0019 before relying on the amendment |
+| [0017](./0017-vba-authoring-consumer-gate-lifted.md) | VBA authoring is in scope; the consumer gate is lifted | **Retracted** 2026-07-24 by [0019](./0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md) · originally Accepted 07-23 |
+| [0018](./0018-vba-edit-existing-module-source-by-splice.md) | Editing an existing macro's source is done by splicing the original `.bin` | **Retracted** 2026-07-24 by [0019](./0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md) |
+| [0019](./0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md) | VBA authoring needs real, compiled p-code; the "recompile cookie" premise is retracted | Accepted 2026-07-24 |
+| [0020](./0020-customui-ribbon-is-readable-authoring-deferred.md) | The customUI ribbon is readable through a typed view; authoring stays deferred | Accepted 2026-07-24 |
+| [0021](./0021-vba-project-signature-presence-accessor.md) | The VBA project signature is readable as *presence*, not verified as *validity* | Accepted 2026-07-24 |
+| [0022](./0022-verification-is-one-cached-parallel-entrypoint.md) | Verification is one cached, parallel entrypoint | Accepted 2026-07-27 |
+| [0023](./0023-subpath-entry-points-and-disjoint-barrels.md) | Seven subpath entry points, disjoint by construction, with the error taxonomy as its own face | Accepted 2026-07-29 |
+| [0024](./0024-async-is-one-writer-not-a-mirrored-pair.md) | Async is one writer, not a mirrored pair | Accepted 2026-07-29 |
+| [0025](./0025-the-default-font-is-declared-not-assumed.md) | The workbook default font is declared, not assumed | Accepted 2026-07-29 |
+| [0026](./0026-releasing-is-a-github-release-and-npm-follows.md) | Releasing is a GitHub release, and npm follows with no credential | Accepted 2026-07-29 |
+| [0027](./0027-dependencies-are-updated-by-a-bot-and-ci-is-the-reviewer.md) | Dependencies are updated by a bot, and CI is the reviewer | Accepted 2026-07-30 |
+| [0028](./0028-typescript-7-adoption.md) | Move to TypeScript 7; the compiler API scripts move to `unstable/*` | Accepted 2026-08-05 |
+| [0029](./0029-toolchain-standup.md) | Toolchain standup: Biome for lint/format, `node --test` kept, tsc for type tests | Accepted 2026-07-19 · renumbered 2026-08-08 from a collision at 0002 |
+
+## Writing one
+
+Take the next free number. State the decision in the title as a claim, not a topic — "Async
+is one writer, not a mirrored pair" tells a reader what changed; "Async I/O" does not. Give
+the status line a date and, when the record depends on or alters another, say which and how.
+Then add the row here, because an index nobody updates is how a retracted record gets read
+as live guidance.
+
+When a decision turns out to be wrong, **retract it in place**: mark the status, name the
+record that retracts it, keep the body, and say in one line what specifically failed. Do not
+delete it and do not quietly edit the body into being correct — the disproof is why the file
+is worth keeping, and a body edited to match hindsight destroys exactly the evidence that
+would stop the next agent trying the same thing.

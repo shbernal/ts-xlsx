@@ -1,6 +1,6 @@
-# ADR 0002 - Microsoft OpenXmlValidator as an external conformance oracle
+# ADR 0002 — Microsoft OpenXmlValidator as an external conformance oracle
 
-**Status:** Accepted (2026-07-11) - Phase 3
+**Status:** Accepted (2026-07-11) · Phase 3
 
 ## Context
 

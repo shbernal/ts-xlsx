@@ -1,10 +1,10 @@
 # Regression corpus
 
 The corpus is **the product's spine** (see [`../../docs/architecture.md`](../../docs/architecture.md)).
-It encodes "correct behavior" as a set of implementation-blind cases that run against
-*any* implementation through a thin adapter — so it survives the Phase 3 rewrite and
-proves the new code is at least as correct as the old, plus everything the old one got
-wrong. A bug without a corpus case is a bug that will return.
+It encodes "correct behavior" as cases written against the *behavior* rather than the
+code — which is how it outlived the rewrite it was built to survive, validating the new
+implementation on the same terms it had held the old one to, plus everything the old one
+got wrong. A bug without a corpus case is a bug that will return.
 
 ## Layout
 

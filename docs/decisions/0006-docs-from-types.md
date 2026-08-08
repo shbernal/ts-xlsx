@@ -11,7 +11,7 @@ plainly: *the types are the docs*. Slice 3 of the Phase 4 plan asks for first-cl
 docs generated from that surface, plus migration notes framed as "a different, better
 library" rather than a compatibility shim.
 
-The obvious move is TypeDoc. We reject it, for the same reason ADR-0002 rejected Vitest:
+The obvious move is TypeDoc. We reject it, for the same reason ADR-0029 rejected Vitest:
 it is a large transitive dependency tree (its own TS wrapper, themes, a markdown plugin)
 carried to produce output whose shape we do not control, to document *one* barrel. This
 fork exists to shed exactly that kind of weight (CLAUDE.md §2, §4), and every prior

@@ -6,10 +6,9 @@ description: Author an implementation-blind regression corpus case under test/co
 # Writing a corpus case
 
 The corpus is **the product's spine** (`docs/architecture.md`). A case encodes "correct
-behavior" as implementation-blind assertions that run against *any* implementation
-through a thin adapter — so it survives the Phase 3 rewrite and proves the new code
-is at least as correct as the old, plus everything the old one got wrong. Full
-reference: `test/corpus/README.md`.
+behavior" as assertions written against the *behavior* rather than the code — which is
+how the corpus outlived the rewrite it was built to survive. Full reference:
+`test/corpus/README.md`.
 
 ## The three rules that make a case durable
 

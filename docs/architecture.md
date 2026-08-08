@@ -371,7 +371,7 @@ The stack is deliberately small and each choice is recorded as an ADR under
 
 - **Runtime & no-build dev path** — ADR-0001.
 - **Toolchain** (Biome for lint/format; `node --test` over Vitest; hand-rolled
-  type-level tests) — ADR-0002. The harness (`test/` + `scripts/`) is TypeScript held
+  type-level tests) — ADR-0029. The harness (`test/` + `scripts/`) is TypeScript held
   to the same strict bar as `src/`, gated by `typecheck:test` — ADR-0011. All of those
   gates run as one concurrent, content-cached command (`node scripts/verify.ts`) —
   ADR-0022.
