@@ -135,28 +135,49 @@ function hasKey<K extends string>(value: unknown, key: K): value is Record<K, un
   return typeof value === 'object' && value !== null && key in value;
 }
 
+/**
+ * Whether a value is an in-cell error ({@link ErrorValue}). The narrowing counterpart of
+ * `detectValueType(value) === ValueType.Error`: use this one when the branch goes on to read
+ * `.error`, and {@link detectValueType} when it dispatches over all nine kinds at once.
+ */
 export function isErrorValue(value: CellValue): value is ErrorValue {
   return hasKey(value, 'error');
 }
 
+/**
+ * Whether a value is a cell's own formula ({@link FormulaValue}) — a master, or a formula
+ * belonging to no shared group. A shared-formula clone is **not** one of these; see
+ * {@link isSharedFormulaValue}. Both report as `ValueType.Formula`, so a caller that means "any
+ * formula-shaped cell" wants {@link detectValueType}, not this.
+ */
 export function isFormulaValue(value: CellValue): value is FormulaValue {
   // A shared-formula clone resolved on read carries both its master address (`sharedFormula`) and the
   // translated `formula`; it is a SharedFormulaValue, so exclude it here to keep the two kinds distinct.
   return hasKey(value, 'formula') && !('sharedFormula' in value);
 }
 
+/** Whether a value is a clone participating in a shared formula ({@link SharedFormulaValue}). */
 export function isSharedFormulaValue(value: CellValue): value is SharedFormulaValue {
   return hasKey(value, 'sharedFormula');
 }
 
+/** Whether a value is a What-If-Analysis data-table formula ({@link DataTableFormulaValue}). */
 export function isDataTableFormulaValue(value: CellValue): value is DataTableFormulaValue {
   return hasKey(value, 'shareType') && value.shareType === 'dataTable';
 }
 
+/**
+ * Whether a value is composed of formatted runs ({@link RichTextValue}). This is the test to
+ * make before {@link richTextToPlain}, which accepts nothing else.
+ */
 export function isRichTextValue(value: CellValue): value is RichTextValue {
   return hasKey(value, 'richText');
 }
 
+/**
+ * Whether a value is a hyperlink ({@link HyperlinkValue}). Note that its `text` is itself either
+ * a string or a {@link RichTextValue}, so reading the label out means one more narrowing.
+ */
 export function isHyperlinkValue(value: CellValue): value is HyperlinkValue {
   return hasKey(value, 'hyperlink');
 }

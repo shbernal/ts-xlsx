@@ -170,6 +170,18 @@ interface HyperlinkValue {
 
 ---
 
+### `isDataTableFormulaValue`
+
+<sub>function</sub>
+
+Whether a value is a What-If-Analysis data-table formula ([`DataTableFormulaValue`](./cell-values.md#datatableformulavalue)).
+
+```ts
+function isDataTableFormulaValue(value: CellValue): value is DataTableFormulaValue;
+```
+
+---
+
 ### `isErrorCode`
 
 <sub>function</sub>
@@ -178,6 +190,73 @@ Whether a string is one of Excel's canonical error literals.
 
 ```ts
 function isErrorCode(text: string): text is ErrorCode;
+```
+
+---
+
+### `isErrorValue`
+
+<sub>function</sub>
+
+Whether a value is an in-cell error ([`ErrorValue`](./cell-values.md#errorvalue)). The narrowing counterpart of
+`detectValueType(value) === ValueType.Error`: use this one when the branch goes on to read
+`.error`, and [`detectValueType`](./cell-values.md#detectvaluetype) when it dispatches over all nine kinds at once.
+
+```ts
+function isErrorValue(value: CellValue): value is ErrorValue;
+```
+
+---
+
+### `isFormulaValue`
+
+<sub>function</sub>
+
+Whether a value is a cell's own formula ([`FormulaValue`](./cell-values.md#formulavalue)) — a master, or a formula
+belonging to no shared group. A shared-formula clone is **not** one of these; see
+[`isSharedFormulaValue`](./cell-values.md#issharedformulavalue). Both report as `ValueType.Formula`, so a caller that means "any
+formula-shaped cell" wants [`detectValueType`](./cell-values.md#detectvaluetype), not this.
+
+```ts
+function isFormulaValue(value: CellValue): value is FormulaValue;
+```
+
+---
+
+### `isHyperlinkValue`
+
+<sub>function</sub>
+
+Whether a value is a hyperlink ([`HyperlinkValue`](./cell-values.md#hyperlinkvalue)). Note that its `text` is itself either
+a string or a [`RichTextValue`](./cell-values.md#richtextvalue), so reading the label out means one more narrowing.
+
+```ts
+function isHyperlinkValue(value: CellValue): value is HyperlinkValue;
+```
+
+---
+
+### `isRichTextValue`
+
+<sub>function</sub>
+
+Whether a value is composed of formatted runs ([`RichTextValue`](./cell-values.md#richtextvalue)). This is the test to
+make before [`richTextToPlain`](./cell-values.md#richtexttoplain), which accepts nothing else.
+
+```ts
+function isRichTextValue(value: CellValue): value is RichTextValue;
+```
+
+---
+
+### `isSharedFormulaValue`
+
+<sub>function</sub>
+
+Whether a value is a clone participating in a shared formula ([`SharedFormulaValue`](./cell-values.md#sharedformulavalue)).
+
+```ts
+function isSharedFormulaValue(value: CellValue): value is SharedFormulaValue;
 ```
 
 ---

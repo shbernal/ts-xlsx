@@ -12,18 +12,30 @@ import type {
   Comment,
   CommentThread,
   CustomUiParseError,
+  DataTableFormulaValue,
   DefinedName,
   decodeAddress,
+  ErrorValue,
   FilterColumn,
   FilterCriteria,
+  FormulaValue,
+  HyperlinkValue,
   InternalError,
+  isDataTableFormulaValue,
+  isErrorValue,
+  isFormulaValue,
+  isHyperlinkValue,
+  isRichTextValue,
+  isSharedFormulaValue,
   Mention,
   PackageReadError,
   PageBreak,
   PageSetup,
   Person,
   PrintOptions,
+  RichTextValue,
   readXlsx,
+  SharedFormulaValue,
   SheetView,
   UnsupportedFormat,
   UnsupportedFormatError,
@@ -58,6 +70,22 @@ export type ValueContracts = [
   Expect<Extends<boolean, CellValue>>,
   Expect<Extends<Date, CellValue>>,
   Expect<Equal<Extends<undefined, CellValue>, false>>,
+];
+
+// Each object-shaped CellValue kind has a guard on the public barrel, and the whole signature is
+// the contract: it accepts any CellValue (so it can be the *first* question asked about an unknown
+// cell), and it narrows to exactly its own member of the union. Writing the predicate out is what
+// pins the narrowing target — `ReturnType` would only ever say `boolean`. These are the discipline
+// that keeps a consumer from hand-rolling `'richText' in value`, which narrows nothing useful.
+export type ValueGuardContracts = [
+  Expect<Equal<typeof isErrorValue, (value: CellValue) => value is ErrorValue>>,
+  Expect<Equal<typeof isFormulaValue, (value: CellValue) => value is FormulaValue>>,
+  Expect<Equal<typeof isSharedFormulaValue, (value: CellValue) => value is SharedFormulaValue>>,
+  Expect<
+    Equal<typeof isDataTableFormulaValue, (value: CellValue) => value is DataTableFormulaValue>
+  >,
+  Expect<Equal<typeof isRichTextValue, (value: CellValue) => value is RichTextValue>>,
+  Expect<Equal<typeof isHyperlinkValue, (value: CellValue) => value is HyperlinkValue>>,
 ];
 
 // The buffered I/O surface is synchronous: writeXlsx returns bytes and readXlsx a

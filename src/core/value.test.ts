@@ -5,7 +5,9 @@ import {
   type CellValue,
   coerceCellValue,
   detectValueType,
+  isDataTableFormulaValue,
   isErrorCode,
+  isErrorValue,
   isFormulaValue,
   isHyperlinkValue,
   isRichTextValue,
@@ -55,6 +57,25 @@ test('type guards discriminate the structural shapes', () => {
   assert.ok(isSharedFormulaValue({sharedFormula: 'A1'}));
   assert.ok(isRichTextValue({richText: []}));
   assert.ok(isHyperlinkValue({hyperlink: 'u', text: 't'}));
+  assert.ok(isErrorValue({error: '#REF!'}));
+  assert.ok(isDataTableFormulaValue({shareType: 'dataTable', ref: 'B2:B5'}));
+});
+
+test('type guards reject the primitive leaves and each other', () => {
+  const primitives: readonly CellValue[] = [null, 42, 'text', true, new Date(0)];
+  for (const guard of [
+    isErrorValue,
+    isFormulaValue,
+    isSharedFormulaValue,
+    isDataTableFormulaValue,
+    isRichTextValue,
+    isHyperlinkValue,
+  ]) {
+    for (const value of primitives) assert.ok(!guard(value), `${guard.name} accepted ${value}`);
+  }
+  assert.ok(!isErrorValue({richText: []}));
+  assert.ok(!isRichTextValue({hyperlink: 'u', text: 't'}));
+  assert.ok(!isDataTableFormulaValue({sharedFormula: 'A1'}));
 });
 
 test('richTextToPlain concatenates every run in order, ignoring per-run formatting', () => {

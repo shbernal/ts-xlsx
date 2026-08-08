@@ -12,6 +12,17 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Added
+
+- **The `CellValue` type guards are public.** `isErrorValue`, `isFormulaValue`,
+  `isSharedFormulaValue`, `isDataTableFormulaValue`, `isRichTextValue` and `isHyperlinkValue` have
+  always existed — the reader and the writer discriminate the union with them — but the `/core`
+  barrel published only `detectValueType`. A consumer holding a `CellValue` therefore had no
+  narrowing primitive at all: `detectValueType` classifies but does not narrow, so reading
+  `.richText` off a value meant hand-rolling `'richText' in value` (which admits far more than the
+  guard does) or an `as` cast. Now exported, each with the narrowing target pinned by a type-level
+  contract.
+
 ### Changed
 
 - **A release now publishes unattended.** The `npm-publish` deployment environment required a
