@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Formulas: shared formulas, data tables, and the values a formula cell reports.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
@@ -140,7 +141,7 @@ export const formulas = {
         return !!(v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v));
       });
     } catch (e) {
-      roundtripError = String((e as Untyped)?.message || e);
+      roundtripError = messageOf(e);
     }
 
     let spliceError = null;
@@ -149,7 +150,7 @@ export const formulas = {
       reread.getWorksheet('S')!.spliceColumns(1, 0, []);
       writeXlsx(reread);
     } catch (e) {
-      spliceError = String((e as Untyped)?.message || e);
+      spliceError = messageOf(e);
     }
 
     return {

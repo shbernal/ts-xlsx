@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // The CSV reader and writer, including encoding behaviour.
 
 import type {Untyped} from '../../untyped.ts';
@@ -26,7 +27,7 @@ export const csv = {
       }
       return {ok: true, error: null, rows};
     } catch (e) {
-      return {ok: false, error: String((e as Untyped)?.message || e), rows: []};
+      return {ok: false, error: messageOf(e), rows: []};
     }
   },
 
@@ -38,7 +39,7 @@ export const csv = {
       const text = writeCsvText(wb, translateCsvWriteOptions(options));
       return {ok: true, error: null, text};
     } catch (e) {
-      return {ok: false, error: String((e as Untyped)?.message || e), text: null};
+      return {ok: false, error: messageOf(e), text: null};
     }
   },
 
@@ -53,7 +54,7 @@ export const csv = {
     try {
       text = writeCsvText(wb, sheetName === undefined ? {} : {sheetName});
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     return {
       ok: error === null,

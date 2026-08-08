@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Threaded comments, legacy notes, and rich text.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
@@ -34,7 +35,7 @@ export const comments = {
       note = readXlsx(buffer).worksheets[0]!.getCell('A1').note ?? null;
       ok = true;
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     return {ok, error, note};
   },

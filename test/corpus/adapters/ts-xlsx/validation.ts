@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Data validation rules: authoring them, reading them back, and their serialized XML.
 
 import type {Untyped} from '../../untyped.ts';
@@ -161,7 +162,7 @@ export const validation = {
     } catch (e) {
       return {
         writeOk: false,
-        writeError: String((e as Untyped)?.message || e),
+        writeError: messageOf(e),
         sqrefs: [],
         count: 0,
         reloadOk: null,

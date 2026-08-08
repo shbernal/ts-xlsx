@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Fonts, fills, borders, alignment, number formats and the style-deduplication that decides
 // which of them survive a round-trip.
 
@@ -447,7 +448,7 @@ export const styles = {
       readBackVertical = back?.vertical ?? null;
     } catch (e) {
       writeThrew = true;
-      writeError = String((e as Untyped)?.message || e);
+      writeError = messageOf(e);
     }
     return {writeThrew, writeError, readBackVertical};
   },
@@ -929,7 +930,7 @@ export const styles = {
       new Workbook().addTableStyle(style);
       return null;
     } catch (error) {
-      return (error as Error).message;
+      return messageOf(error);
     }
   },
 
@@ -940,7 +941,7 @@ export const styles = {
       new Workbook().setTheme({colors: {accent1: value}});
       return null;
     } catch (error) {
-      return (error as Error).message;
+      return messageOf(error);
     }
   },
 

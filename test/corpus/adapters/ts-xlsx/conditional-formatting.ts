@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Conditional formatting rules and their evaluation order.
 
 import fs from 'node:fs';
@@ -24,7 +25,7 @@ export const conditionalFormatting = {
     } catch (e) {
       return {
         writeOk: false,
-        writeError: String((e as Untyped)?.message || e),
+        writeError: messageOf(e),
         xml: null,
         reload: null,
       };

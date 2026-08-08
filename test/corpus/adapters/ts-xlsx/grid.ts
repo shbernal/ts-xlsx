@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Rows, columns, merges and the sheet geometry around them — insertion, splicing, outline
 // levels, freeze panes, print areas and page breaks.
 
@@ -574,7 +575,7 @@ export const grid = {
     try {
       sheet.duplicateRow(1, {count: 1, insert: true});
     } catch (e) {
-      dupError = String((e as Untyped)?.message || e);
+      dupError = messageOf(e);
     }
     const val = (ref: Untyped) => sheet.getCell(ref).value ?? null;
     const row1 = [val('A1'), val('B1'), val('C1')];
@@ -583,7 +584,7 @@ export const grid = {
     try {
       sheet.mergeCells('A2:C2');
     } catch (e) {
-      mergeError = String((e as Untyped)?.message || e);
+      mergeError = messageOf(e);
     }
     return {dupError, mergeError, rowCount: sheet.rowCount, row1, row2, merges: [...sheet.merges]};
   },
@@ -606,7 +607,7 @@ export const grid = {
       cell.font = {...cell.font, bold: true};
       numFmt = cell.numFmt;
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     return {error, numFmt};
   },
@@ -682,7 +683,7 @@ export const grid = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as Untyped)?.message || e);
+      writeError = messageOf(e);
     }
     if (!writeOk) return {writeOk, writeError, reloadOk: false, colSpanCount: null};
 

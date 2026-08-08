@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Workbook, worksheet and cell protection.
 
 import {strToU8, zipSync} from 'fflate';
@@ -106,7 +107,7 @@ export const protection = {
       second = protectOnce();
     } catch (e) {
       return {
-        threw: String((e as Untyped)?.message || e),
+        threw: messageOf(e),
         algorithm: null,
         hasHash: false,
         hasSalt: false,

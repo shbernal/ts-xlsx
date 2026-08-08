@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Hyperlinks, including the internal (same-workbook) form and how it serializes.
 
 import type {Untyped} from '../../untyped.ts';
@@ -46,7 +47,7 @@ export const hyperlinks = {
     try {
       buffer = writeXlsx(wb);
     } catch (e) {
-      return {writeOk: false, writeError: String((e as Untyped)?.message || e)};
+      return {writeOk: false, writeError: messageOf(e)};
     }
     const parts = partMapOf(buffer);
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';

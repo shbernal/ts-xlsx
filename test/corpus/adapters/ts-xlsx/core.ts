@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Core model and whole-package behaviour: address decoding, reader input classification,
 // package inspection, and the workbook-level round-trips that are not about one feature.
 
@@ -93,7 +94,7 @@ export const core = {
     } catch (e) {
       return {
         ok: false,
-        writeError: String((e as Untyped)?.message || e),
+        writeError: messageOf(e),
         cacheWellFormed: null,
         hasRawUnescapedAmp: null,
       };
@@ -223,7 +224,7 @@ export const core = {
         creator: wb.properties.creator ?? null,
       };
     } catch (e) {
-      return {ok: false, error: String((e as Untyped)?.message || e), sheetNames: null};
+      return {ok: false, error: messageOf(e), sheetNames: null};
     }
   },
 
@@ -240,7 +241,7 @@ export const core = {
       wb.addWorksheet('History');
     } catch (e) {
       addThrew = true;
-      addError = String((e as Untyped)?.message || e);
+      addError = messageOf(e);
     }
     const roundtrip = readXlsx(writeXlsx(wb));
     const roundtripName =
@@ -477,7 +478,7 @@ export const core = {
     } catch (e) {
       return {
         loadOk: false,
-        loadError: String((e as Untyped)?.message || e),
+        loadError: messageOf(e),
         writeOk: false,
         writeError: null,
         sheetNames: [],
@@ -489,7 +490,7 @@ export const core = {
       writeXlsx(workbook);
       writeOk = true;
     } catch (e) {
-      writeError = String((e as Untyped)?.message || e);
+      writeError = messageOf(e);
     }
     return {
       loadOk: true,
@@ -519,7 +520,7 @@ export const core = {
       dst.model = {...src.model, name: 'Dst'} as Untyped;
       dstMerges = [...dst.model.merges];
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     return {srcMerges: srcMerges.sort(), dstMerges: dstMerges.sort(), error};
   },
@@ -549,7 +550,7 @@ export const core = {
         else throw new Error(`unknown mutation op: ${op.op}`);
       }
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
 
     const readCells: Record<string, Untyped> = {};
@@ -596,14 +597,14 @@ export const core = {
       workbook = buildFrom(spec);
     } catch (error) {
       if (error instanceof UnsupportedSpecError) throw error;
-      return {ok: false, phase: 'build', error: String((error as Untyped)?.message || error)};
+      return {ok: false, phase: 'build', error: messageOf(error)};
     }
     let buffer: Untyped;
     try {
       buffer = writeXlsx(workbook);
     } catch (error) {
       if (error instanceof UnsupportedSpecError) throw error;
-      return {ok: false, phase: 'write', error: String((error as Untyped)?.message || error)};
+      return {ok: false, phase: 'write', error: messageOf(error)};
     }
     // Report which cells survived the round-trip, so a case can prove a bad cell (e.g. an Invalid
     // Date, written value-less) did not drop its siblings.

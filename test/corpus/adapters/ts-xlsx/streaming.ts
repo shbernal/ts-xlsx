@@ -1,3 +1,4 @@
+import {codeOrMessageOf, messageOf} from '../../thrown.ts';
 // The streaming writer and the streaming reader, including every case that asserts the
 // streamed result matches what the eager path produces.
 
@@ -63,7 +64,7 @@ export const streaming = {
       }
     } catch (e) {
       crcValid = false;
-      crcError = String((e as Untyped)?.message || e);
+      crcError = messageOf(e);
     }
 
     let reloadOk = true;
@@ -78,7 +79,7 @@ export const streaming = {
         firstCol.push(normalizeStreamValue(s!.getCell(`A${i}`).value));
     } catch (e) {
       reloadOk = false;
-      reloadError = String((e as Untyped)?.message || e);
+      reloadError = messageOf(e);
     }
     return {partCount, emptyParts, crcValid, crcError, reloadOk, reloadError, sheetNames, firstCol};
   },
@@ -99,7 +100,7 @@ export const streaming = {
       }
       sheet.commit();
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     const buffer = Buffer.from(await writer.commit());
     // Declared before the failure return so both paths report the same `cells` type. A bare `{}` on
@@ -126,7 +127,7 @@ export const streaming = {
     try {
       sheet.addRow(['b']).commit();
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     const buffer = Buffer.from(await writer.commit());
     const legibleRejection = error != null && /commit|committed|finaliz|closed/i.test(error);
@@ -197,7 +198,7 @@ export const streaming = {
       sheet.commit();
       buffer = Buffer.from(await writer.commit());
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     let mediaParts: string[] = [];
     let drawingParts: string[] = [];
@@ -243,7 +244,7 @@ export const streaming = {
         ows.commit();
       }
     } catch (e) {
-      copyError = String((e as Untyped)?.message || e);
+      copyError = messageOf(e);
     }
     const buffer = Buffer.from(await writer.commit());
     if (copyError)
@@ -454,7 +455,7 @@ export const streaming = {
     let settled = 'pending';
     const commit = writer.commit().then(
       () => (settled = 'resolved'),
-      (e) => (settled = `rejected:${e?.message || e}`),
+      (e) => (settled = `rejected:${messageOf(e)}`),
     );
     const timedOut = await Promise.race([
       commit.then(() => false),
@@ -493,13 +494,13 @@ export const streaming = {
           })
           .catch((e) => {
             outcome = 'rejected';
-            error = String((e && (e.code || e.message)) || e);
+            error = codeOrMessageOf(e);
           }),
         new Promise((res) => setTimeout(res, 5000)),
       ]);
     } catch (e) {
       outcome = 'threw-sync';
-      error = String((e && ((e as Untyped).code || (e as Untyped).message)) || e);
+      error = codeOrMessageOf(e);
     }
     return {
       outcome,
@@ -582,7 +583,7 @@ export const streaming = {
         break; // first worksheet only
       }
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     return {eager, stream, error};
   },
@@ -610,7 +611,7 @@ export const streaming = {
         break; // first worksheet only
       }
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     return {eagerMerges, streamedMerges, error};
   },
@@ -652,7 +653,7 @@ export const streaming = {
     try {
       for (const sheet of readWorkbookStream(buffer)) names.push(sheet.name);
     } catch (e) {
-      error = String((e as Untyped)?.message || e);
+      error = messageOf(e);
     }
     return {
       written: count,
@@ -715,7 +716,7 @@ export const streaming = {
       }
       return {ok: true, error: null, sheetNames, totalRows};
     } catch (e) {
-      return {ok: false, error: String((e as Untyped)?.message || e), sheetNames, totalRows};
+      return {ok: false, error: messageOf(e), sheetNames, totalRows};
     }
   },
 

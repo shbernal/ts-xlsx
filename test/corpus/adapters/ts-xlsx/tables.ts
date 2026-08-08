@@ -1,3 +1,4 @@
+import {messageOf} from '../../thrown.ts';
 // Worksheet tables: their columns, styles, display names, and what editing one does to the
 // cells underneath it.
 
@@ -47,7 +48,7 @@ export const tables = {
     } catch (e) {
       return {
         loaded: false,
-        error: String((e as Untyped)?.message || e),
+        error: messageOf(e),
         columnCount: null,
         columnNames: null,
       };
@@ -78,7 +79,7 @@ export const tables = {
       roundtrip = tableFacts(partMapOf(writeXlsx(reloaded)));
     } catch (e) {
       loadOk = false;
-      loadError = String((e as Untyped)?.message || e);
+      loadError = messageOf(e);
     }
     return {write, roundtrip, loadOk, loadError};
   },
@@ -114,7 +115,7 @@ export const tables = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as Untyped)?.message || e);
+      writeError = messageOf(e);
     }
     if (!writeOk)
       return {
@@ -168,7 +169,7 @@ export const tables = {
         tag = (parts[part!]!.match(/<tableStyleInfo[^>]*\/?>/) || [])[0] ?? null;
       } catch (e) {
         ok = false;
-        tag = String((e as Untyped)?.message || e);
+        tag = messageOf(e);
       }
       const name = tag && ok ? ((tag.match(/\bname="([^"]*)"/) || [])[1] ?? null) : null;
       const hasStripes = !!(tag && ok && /\bshowRowStripes="1"/.test(tag));
@@ -205,7 +206,7 @@ export const tables = {
       );
     } catch (e) {
       ok = false;
-      writtenNames = String((e as Untyped)?.message || e);
+      writtenNames = messageOf(e);
     }
     const uniqueNames =
       Array.isArray(writtenNames) &&
@@ -238,7 +239,7 @@ export const tables = {
       buffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as Untyped)?.message || e);
+      writeError = messageOf(e);
     }
     if (!writeOk)
       return {writeOk, writeError, reloadOk: false, styledBody: null, unstyledBody: null};
@@ -252,7 +253,7 @@ export const tables = {
       unstyledBody = [back.getCell('B2').numFmt ?? null, back.getCell('B3').numFmt ?? null];
     } catch (e) {
       reloadOk = false;
-      writeError = String((e as Untyped)?.message || e);
+      writeError = messageOf(e);
     }
     return {writeOk, writeError, reloadOk, styledBody, unstyledBody};
   },
@@ -288,7 +289,7 @@ export const tables = {
       try {
         table.addRow(row);
       } catch (e) {
-        addError = String((e as Untyped)?.message || e);
+        addError = messageOf(e);
         break;
       }
     }
@@ -308,7 +309,7 @@ export const tables = {
           }
         }
       } catch (e) {
-        addError = String((e as Untyped)?.message || e);
+        addError = messageOf(e);
       }
     }
     return {hasTable, loadedRowCount, addError, committed, finalRowCount};
@@ -336,7 +337,7 @@ export const tables = {
       firstBuffer = writeXlsx(wb);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as Untyped)?.message || e);
+      writeError = messageOf(e);
     }
     if (!writeOk) {
       return {
@@ -374,7 +375,7 @@ export const tables = {
       editedValue = backSheet.getCell('B2').value;
     } catch (e) {
       reloadOk = false;
-      writeError = String((e as Untyped)?.message || e);
+      writeError = messageOf(e);
     }
     return {writeOk, writeError, reloadOk, hasTablePart, tablePresent, editedValue, relUnique};
   },
@@ -402,7 +403,7 @@ export const tables = {
       rawControlChars = firstColumnTag === null ? null : /[\r\n]/.test(firstColumnTag);
     } catch (e) {
       writeOk = false;
-      writeError = String((e as Untyped)?.message || e);
+      writeError = messageOf(e);
     }
     return {writeOk, writeError, firstColumnTag, rawControlChars};
   },
