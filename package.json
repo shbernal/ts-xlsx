@@ -89,11 +89,7 @@
     "test": "node scripts/verify.ts --full",
     "prepublishOnly": "pnpm run build && pnpm run test && pnpm run smoke:dist && pnpm run size",
     "validate:ooxml": "node scripts/ooxml-validator.ts",
-    "test:ooxml": "node test/ooxml-validation/run.ts",
-    "harvest": "node scripts/harvest/fetch-issue.ts",
-    "harvest:list": "node scripts/harvest/list-backlog.ts",
-    "harvest:all": "node scripts/harvest/harvest-all.ts",
-    "harvest:status": "node scripts/harvest/status.ts"
+    "test:ooxml": "node test/ooxml-validation/run.ts"
   },
   "keywords": [
     "xlsx",

@@ -1,6 +1,6 @@
 ---
 name: write-corpus-case
-description: Author an implementation-blind regression corpus case under test/corpus/cases. Use when distilling a bug/reproduction into a corpus case, adding a regression test that must survive the rewrite, writing a *.case.ts file, extending the adapter contract, or setting a behavior baseline. Pairs with the harvest-triage skill.
+description: Author an implementation-blind regression corpus case under test/corpus/cases. Use when distilling a bug/reproduction into a corpus case, adding a regression test that must survive the rewrite, writing a *.case.ts file, extending the adapter contract, or setting a behavior baseline.
 ---
 
 # Writing a corpus case
@@ -81,8 +81,8 @@ flip that baseline to `pass`.
 
 ## Fixtures
 
-If the behavior needs a sample spreadsheet, promote it out of the disposable harvest
-attachments into the durable corpus and reference it by path:
+If the behavior needs a sample spreadsheet, commit it to the durable corpus and
+reference it by path:
 
 ```
 test/corpus/fixtures/<case-slug>/<file>.xlsx
