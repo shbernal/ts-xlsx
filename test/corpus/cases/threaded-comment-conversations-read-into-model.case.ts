@@ -15,7 +15,6 @@
 // fallback becomes on the way back out is asserted by `threaded-comment-parts-survive-roundtrip`.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
-import type {Untyped} from '../untyped.ts';
 
 // Two single-author threads: A1 asked and answered, C3 a lone remark.
 const SAMPLE = 'threaded-comment-parts-survive-roundtrip/sample.xlsx';
@@ -43,9 +42,9 @@ export default {
       name: 'each conversation is read back as one thread anchored to its cell',
       expect(api: CorpusApi, assert: Assert) {
         const {sheets} = api.readFixtureCommentThreads(SAMPLE);
-        const [sheet] = sheets;
+        const sheet = sheets[0]!;
         assert.deepStrictEqual(
-          sheet.threads.map((thread: Untyped) => thread.ref),
+          sheet.threads.map((thread) => thread.ref),
           ['A1', 'C3'],
           'both threads are found, each on the cell it hangs off',
         );
@@ -55,12 +54,10 @@ export default {
       name: 'a reply belongs to the thread it answers instead of becoming a second conversation',
       expect(api: CorpusApi, assert: Assert) {
         const {sheets} = api.readFixtureCommentThreads(SAMPLE);
-        const [sheet] = sheets;
+        const sheet = sheets[0]!;
         // Three messages on the wire, two conversations: flattening the reply out would report three.
         assert.deepStrictEqual(
-          sheet.threads.map((thread: Untyped) =>
-            thread.comments.map((comment: Untyped) => comment.text),
-          ),
+          sheet.threads.map((thread) => thread.comments.map((comment) => comment.text)),
           [
             ['Should this number include tax?', 'Yes, gross of tax.'],
             ['Confirmed against the ledger.'],
@@ -73,12 +70,12 @@ export default {
       name: 'a resolved thread reads back resolved, and an open one does not',
       expect(api: CorpusApi, assert: Assert) {
         const {sheets} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR);
-        const [sheet] = sheets;
+        const sheet = sheets[0]!;
         // Resolved is a property of the THREAD: only the head carries `done` on the wire (an open one
         // omits it entirely rather than writing `done="0"`), so reading it per message would report the
         // reply of a settled thread as unsettled.
         assert.deepStrictEqual(
-          sheet.threads.map((thread: Untyped) => [thread.ref, thread.resolved]),
+          sheet.threads.map((thread) => [thread.ref, thread.resolved]),
           [
             ['B1', true],
             ['B2', false],
@@ -90,15 +87,15 @@ export default {
       name: 'every message resolves to the identity that wrote it, not to a raw id',
       expect(api: CorpusApi, assert: Assert) {
         const {sheets} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR);
-        const [thread] = sheets[0].threads;
+        const thread = sheets[0]!.threads[0]!;
         assert.deepStrictEqual(
-          thread.comments.map((comment: Untyped) => comment.author.displayName),
+          thread.comments.map((comment) => comment.author?.displayName),
           ['Ada Lovelace', 'Grace Hopper'],
           'the question and its answer are attributed to different people',
         );
         assert.notStrictEqual(
-          thread.comments[0].authorId,
-          thread.comments[1].authorId,
+          thread.comments[0]!.authorId,
+          thread.comments[1]!.authorId,
           'precondition: they really are distinct registry entries, not one author twice',
         );
       },
@@ -108,7 +105,7 @@ export default {
       expect(api: CorpusApi, assert: Assert) {
         const {persons} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR);
         assert.deepStrictEqual(
-          persons.map((person: Untyped) => [person.displayName, person.providerId]),
+          persons.map((person) => [person.displayName, person.providerId]),
           [
             ['Grace Hopper', 'AD'],
             ['Ada Lovelace', 'AD'],
@@ -121,22 +118,22 @@ export default {
       name: 'a message keeps the timestamp the file wrote, verbatim',
       expect(api: CorpusApi, assert: Assert) {
         const {sheets} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR);
-        const [thread] = sheets[0].threads;
+        const thread = sheets[0]!.threads[0]!;
         // Excel writes local wall-clock with fractional seconds and NO timezone, which is not a
         // round-trippable instant. Reading it as one would invent a zone the file never stated and shift
         // the time; the string is what the file actually said.
-        assert.strictEqual(thread.comments[0].date, '2026-07-26T10:54:00.01');
-        assert.strictEqual(thread.comments[1].date, '2026-07-26T10:54:00.04');
+        assert.strictEqual(thread.comments[0]!.date, '2026-07-26T10:54:00.01');
+        assert.strictEqual(thread.comments[1]!.date, '2026-07-26T10:54:00.04');
       },
     },
     {
       name: 'an @mention resolves to the person it names and to the text it highlights',
       expect(api: CorpusApi, assert: Assert) {
         const {sheets} = api.readFixtureCommentThreads(MENTION_IN_THREAD);
-        const mentions = sheets[0].threads[1].comments[0].mentions;
+        const mentions = sheets[0]!.threads[1]!.comments[0]!.mentions;
         assert.strictEqual(mentions.length, 1, 'precondition: the message mentions one person');
-        const [mention] = mentions;
-        assert.strictEqual(mention.person.displayName, 'Grace Hopper', 'who was asked');
+        const mention = mentions[0]!;
+        assert.strictEqual(mention.person?.displayName, 'Grace Hopper', 'who was asked');
         // The offsets are only meaningful against the exact message text, so the span is asserted as
         // the text it actually covers: read them wrong and this is "@Grace Hopp" or "Grace Hopper ".
         assert.strictEqual(
@@ -154,21 +151,21 @@ export default {
         // display name, same userId, different id, `providerId="PeoplePicker"`. Both entries must
         // survive as themselves — resolving a mention by name or userId would pick the author entry, and
         // deduplicating the registry that way would delete the one the mention points at.
-        const graces = persons.filter((person: Untyped) => person.displayName === 'Grace Hopper');
+        const graces = persons.filter((person) => person.displayName === 'Grace Hopper');
         assert.strictEqual(graces.length, 2, 'precondition: one human, two registry entries');
         assert.deepStrictEqual(
-          graces.map((person: Untyped) => person.providerId),
+          graces.map((person) => person.providerId),
           ['AD', 'PeoplePicker'],
           'precondition: they differ only by id and registering provider',
         );
-        const [mention] = sheets[0].threads[1].comments[0].mentions;
+        const mention = sheets[0]!.threads[1]!.comments[0]!.mentions[0]!;
         assert.strictEqual(
-          mention.person.providerId,
+          mention.person?.providerId,
           'PeoplePicker',
           'the mention resolves to the entry it names',
         );
         assert.strictEqual(
-          mention.person.id,
+          mention.person?.id,
           mention.personId,
           'and that entry is the one the file pointed at',
         );
@@ -180,7 +177,7 @@ export default {
         // D4 holds a real note; B1 a thread. Excel refuses to put both on one cell, so a reader that
         // conflated the two features would answer this question wrong in both directions.
         const {sheets} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR, ['B1', 'D4', 'A5']);
-        assert.deepStrictEqual(sheets[0].at, {B1: 'B1', D4: null, A5: null});
+        assert.deepStrictEqual(sheets[0]!.at, {B1: 'B1', D4: null, A5: null});
       },
     },
     {
@@ -192,7 +189,7 @@ export default {
         // surface as one — a caller iterating notes would otherwise get that paragraph on B1 and B2
         // while the real conversation sat elsewhere. D4's note is a real one and stays.
         const {sheets} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR);
-        assert.deepStrictEqual(sheets[0].notes, {D4: 'A genuine legacy note.'});
+        assert.deepStrictEqual(sheets[0]!.notes, {D4: 'A genuine legacy note.'});
       },
     },
     {
@@ -202,7 +199,7 @@ export default {
         // The pair matters: suppressing per *cell* satisfies both, while suppressing the whole part
         // whenever a sheet has threads satisfies this one and loses D4 above.
         const {sheets} = api.readFixtureCommentThreads(SAMPLE);
-        assert.deepStrictEqual(sheets[0].notes, {});
+        assert.deepStrictEqual(sheets[0]!.notes, {});
       },
     },
   ],

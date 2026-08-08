@@ -20,7 +20,6 @@
 // note on D4 must not be mistaken for the thread's fallback (nor the fallback for a note).
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
-import type {Untyped} from '../untyped.ts';
 
 // The two ids for one human that Excel itself writes: an authoring identity, and the separate entry it
 // interns when that person is @mentioned. Registering both is what a faithful writer has to allow — merging
@@ -136,13 +135,13 @@ export default {
       async expect(api: CorpusApi, assert: Assert) {
         const {model} = await api.authoredCommentThreadRoundtrip();
         assert.strictEqual(model.sheets.length, 1);
-        const sheet = model.sheets[0];
+        const sheet = model.sheets[0]!;
         assert.strictEqual(sheet.threads.length, 1, 'one conversation, not one thread per message');
-        const thread = sheet.threads[0];
+        const thread = sheet.threads[0]!;
         assert.strictEqual(thread.ref, 'B2', 'the anchor is canonical — it was authored as `$B$2`');
         assert.strictEqual(thread.resolved, true);
         assert.deepStrictEqual(
-          thread.comments.map((comment: Untyped) => [
+          thread.comments.map((comment) => [
             comment.id,
             comment.author?.displayName,
             comment.date,
@@ -160,7 +159,7 @@ export default {
           'each message keeps its own id, author, timestamp and text, in the order it was written',
         );
         assert.deepStrictEqual(
-          thread.comments[0].mentions,
+          thread.comments[0]!.mentions,
           [
             {
               person: {
@@ -187,12 +186,12 @@ export default {
         // binding and leave Excel unable to see the thread at all.
         const {model} = await api.authoredCommentThreadRoundtrip();
         assert.deepStrictEqual(
-          model.sheets[0].notes,
+          model.sheets[0]!.notes,
           {D4: 'an ordinary note beside the conversation'},
           'the threaded cell has no note; the genuine one survives verbatim',
         );
         assert.deepStrictEqual(
-          model.sheets[0].at,
+          model.sheets[0]!.at,
           {B2: 'B2', $B$2: 'B2', D4: null},
           'the conversation is found by its anchor either way, and the noted cell is not a threaded one',
         );

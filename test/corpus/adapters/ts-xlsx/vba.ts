@@ -93,7 +93,7 @@ export const vba = {
     const addedBin = addVbaReference(originalBin, newRef);
 
     const project = parseVbaProject(addedBin);
-    const moduleNames = project.modules.map((m: Untyped) => m.name);
+    const moduleNames = project.modules.map((m) => m.name);
 
     const originalCfb = new CompoundFile(originalBin);
     const addedCfb = new CompoundFile(addedBin);
@@ -138,8 +138,8 @@ export const vba = {
     const removedBin = removeVbaModule(originalBin, 'Module1');
 
     const project = parseVbaProject(removedBin);
-    const moduleNames = project.modules.map((m: Untyped) => m.name);
-    const moduleKinds = project.modules.map((m: Untyped) => [m.name, m.kind]);
+    const moduleNames = project.modules.map((m) => m.name);
+    const moduleKinds = project.modules.map((m) => [m.name, m.kind]);
 
     const originalCfb = new CompoundFile(originalBin);
     const removedCfb = new CompoundFile(removedBin);
@@ -221,8 +221,8 @@ export const vba = {
 
     const reread = readXlsx(written);
     const modules = reread.vbaProject?.modules ?? [];
-    const moduleNames = modules.map((m: Untyped) => m.name);
-    const moduleKinds = modules.map((m: Untyped) => [m.name, m.kind]);
+    const moduleNames = modules.map((m) => m.name);
+    const moduleKinds = modules.map((m) => [m.name, m.kind]);
 
     const rewrittenBin = rewrittenParts['xl/vbaProject.bin'];
     const rewrittenCfb = rewrittenBin ? new CompoundFile(rewrittenBin) : undefined;

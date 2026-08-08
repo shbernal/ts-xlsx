@@ -64,9 +64,9 @@ export default {
         // following the relationship, and a guess is how a conversation gets attached to the wrong
         // sheet in a multi-sheet workbook.
         const facts = await api.readFixtureCommentThreads(FIXTURE, THREADED_CELLS);
-        assert.deepStrictEqual(facts.sheets[0].threads, [], 'no threads');
+        assert.deepStrictEqual(facts.sheets[0]!.threads, [], 'no threads');
         assert.deepStrictEqual(
-          facts.sheets[0].at,
+          facts.sheets[0]!.at,
           {B1: null, B2: null},
           'and neither cell reports one',
         );
@@ -86,17 +86,17 @@ export default {
       name: 'the fallback boilerplate is kept as a note, so the words are not lost with the thread',
       async expect(api: CorpusApi, assert: Assert) {
         const facts = await api.readFixtureCommentThreads(FIXTURE);
-        const {notes} = facts.sheets[0];
+        const {notes} = facts.sheets[0]!;
         assert.deepStrictEqual(
           Object.keys(notes).sort(),
           [...THREADED_CELLS, NOTED_CELL].sort(),
           'every comment in the part surfaces, the two fallbacks included',
         );
         for (const ref of THREADED_CELLS) {
-          assert.match(notes[ref], BOILERPLATE, `${ref} keeps the fallback text`);
+          assert.match(notes[ref] ?? '', BOILERPLATE, `${ref} keeps the fallback text`);
         }
         assert.match(
-          notes.B1,
+          notes.B1 ?? '',
           /Comment:\n {4}Is this gross or net of tax\?\nReply:\n {4}Gross\. Confirmed with finance\./,
           'including the conversation copied inside it — both messages, not just the first',
         );

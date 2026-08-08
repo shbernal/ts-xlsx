@@ -5,7 +5,7 @@
 // round-trip through the code that produced them.
 
 import {strFromU8, unzipSync} from 'fflate';
-import type {Untyped} from '../../untyped.ts';
+import type {WorkbookInstance, WorksheetInstance} from './runtime.ts';
 
 /** A package flattened to part name → part text: what every XML-level probe here reads from. */
 export type PartMap = Record<string, string>;
@@ -25,7 +25,7 @@ export const countIn = (parts: Record<string, string>, inParts: RegExp, pattern:
     .reduce((n, p) => n + [...(parts[p] ?? '').matchAll(pattern)].length, 0);
 
 // A sheet's legacy notes as `{<ref>: <text>}`, in row-major order.
-export const notesOf = (sheet: Untyped) => {
+export const notesOf = (sheet: WorksheetInstance) => {
   const notes: Record<string, string> = {};
   for (const {cells} of sheet.rows()) {
     for (const cell of cells) if (cell.note !== undefined) notes[cell.address] = cell.note;
@@ -41,33 +41,36 @@ export const notesOf = (sheet: Untyped) => {
 //
 // Persons are sorted by id because the registry's order is meaningless: Excel re-sorts the part by person
 // id whenever it saves, so only membership is a fact.
-export const commentThreadFacts = (wb: Untyped, refs: string[] = []) => {
-  const identity = (person: Untyped) =>
-    person == null
-      ? null
-      : {
-          id: person.id,
-          displayName: person.displayName,
-          userId: person.userId ?? null,
-          providerId: person.providerId ?? null,
-        };
+export const commentThreadFacts = (wb: WorkbookInstance, refs: string[] = []) => {
+  type Person = WorkbookInstance['persons'][number];
+  const identity = (person: Person) => ({
+    id: person.id,
+    displayName: person.displayName,
+    userId: person.userId ?? null,
+    providerId: person.providerId ?? null,
+  });
+  // A comment's author is a *lookup* through the registry and can miss; a registry entry cannot. Two
+  // functions rather than one nullable one, so `persons` is not reported as possibly-null purely
+  // because the author path shares its shape — a case reading a registry entry should not have to
+  // narrow past a `null` that cannot occur.
+  const identityOrNull = (person: Person | undefined) => (person == null ? null : identity(person));
   return {
     persons: wb.persons
-      .map(identity)
-      .sort((a: Untyped, b: Untyped) => String(a?.id).localeCompare(String(b?.id))),
-    sheets: wb.worksheets.map((sheet: Untyped) => ({
+      .map((person) => identity(person))
+      .sort((a, b) => String(a.id).localeCompare(String(b.id))),
+    sheets: wb.worksheets.map((sheet) => ({
       name: sheet.name,
-      threads: sheet.commentThreads.map((thread: Untyped) => ({
+      threads: sheet.commentThreads.map((thread) => ({
         ref: thread.ref,
         resolved: thread.resolved,
-        comments: thread.comments.map((comment: Untyped) => ({
+        comments: thread.comments.map((comment) => ({
           id: comment.id,
-          author: identity(comment.author),
+          author: identityOrNull(comment.author),
           authorId: comment.personId ?? null,
           date: comment.date ?? null,
           text: comment.text,
-          mentions: comment.mentions.map((mention: Untyped) => ({
-            person: identity(mention.person),
+          mentions: comment.mentions.map((mention) => ({
+            person: identityOrNull(mention.person),
             personId: mention.personId,
             startIndex: mention.startIndex,
             length: mention.length,

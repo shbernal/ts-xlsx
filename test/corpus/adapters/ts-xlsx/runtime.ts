@@ -27,7 +27,7 @@ export const loadModule = <T>(rel: string): Promise<T> =>
 
 export const {decodeAddress, decodeRange, encodeAddress} =
   await loadModule<typeof import('../../../../src/core/address.ts')>('core/address');
-export const {detectValueType} =
+export const {detectValueType, isRichTextValue} =
   await loadModule<typeof import('../../../../src/core/value.ts')>('core/value');
 export const {Workbook} =
   await loadModule<typeof import('../../../../src/core/workbook.ts')>('core/workbook');
@@ -57,6 +57,15 @@ export const {parseVbaProject} =
   await loadModule<typeof import('../../../../src/vba/project.ts')>('vba/project');
 export const {addVbaReference, removeVbaModule} =
   await loadModule<typeof import('../../../../src/vba/project-editor.ts')>('vba/project-editor');
+
+// The model's instance types, so the adapter can annotate what it is holding instead of reaching for
+// `Untyped`. Derived from the bindings above rather than imported separately: `runtime.ts` stays the
+// only module that knows where `src/` is, and a type here cannot drift from the implementation it
+// describes because it is read off that implementation. Nothing is emitted — these are erased before
+// anything runs, so the CORPUS_TARGET switch is still the only thing deciding what executes.
+export type WorkbookInstance = InstanceType<typeof Workbook>;
+export type WorksheetInstance = ReturnType<WorkbookInstance['addWorksheet']>;
+export type CellInstance = ReturnType<WorksheetInstance['getCell']>;
 
 // JSZip is an independent zip implementation used only to VERIFY the streaming writer's output (CRC
 // integrity), a hostile-input posture toward our own archive — never in the production src path.

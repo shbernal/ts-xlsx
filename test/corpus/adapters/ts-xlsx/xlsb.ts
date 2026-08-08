@@ -6,7 +6,7 @@ import {strToU8, zipSync} from 'fflate';
 
 import {canonicalJson} from '../../canonical-json.ts';
 import type {Untyped} from '../../untyped.ts';
-import {encodeAddress, fixtureBytes, readXlsb, readXlsx} from './runtime.ts';
+import {encodeAddress, fixtureBytes, readXlsb, readXlsx, type WorkbookInstance} from './runtime.ts';
 
 const FIXTURE = 'xlsb-binary-workbook-reads-like-its-xlsx-twin';
 const FORMULAS = 'xlsb-formula-token-streams-decode-to-formula-text';
@@ -38,7 +38,7 @@ export const xlsb = {
 
   // The sheets a binary workbook declares, in tab order, with their visibility.
   xlsbSheets() {
-    return readXlsb(fixtureBytes(`${FIXTURE}/source.xlsb`)).worksheets.map((sheet: Untyped) => ({
+    return readXlsb(fixtureBytes(`${FIXTURE}/source.xlsb`)).worksheets.map((sheet) => ({
       name: sheet.name,
       state: sheet.state,
     }));
@@ -174,8 +174,8 @@ function formulaOf(value: Untyped): Untyped {
 }
 
 // Every formula cell of a workbook, keyed `Sheet!A1`.
-function formulaTexts(workbook: Untyped): Map<string, Untyped> {
-  const texts = new Map<string, Untyped>();
+function formulaTexts(workbook: WorkbookInstance): Map<string, string> {
+  const texts = new Map<string, string>();
   for (const sheet of workbook.worksheets) {
     for (const cell of sheet.model.cells) {
       const formula = formulaOf(cell.value);
@@ -188,10 +188,10 @@ function formulaTexts(workbook: Untyped): Map<string, Untyped> {
 
 // A stable, order-independent rendering of everything a worksheet holds. Key order is an artefact of
 // which parser filled the object, so it is normalised away; nothing else is.
-function snapshot(workbook: Untyped): string {
+function snapshot(workbook: WorkbookInstance): string {
   return JSON.stringify(
     canonicalJson(
-      workbook.worksheets.map((sheet: Untyped) => {
+      workbook.worksheets.map((sheet) => {
         const model = sheet.model;
         return {
           name: sheet.name,
@@ -199,7 +199,7 @@ function snapshot(workbook: Untyped): string {
           columns: model.columns,
           rows: model.rows,
           merges: model.merges,
-          cells: model.cells.map((cell: Untyped) => ({...cell, value: comparable(cell.value)})),
+          cells: model.cells.map((cell) => ({...cell, value: comparable(cell.value)})),
         };
       }),
     ),

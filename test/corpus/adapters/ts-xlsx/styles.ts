@@ -5,7 +5,15 @@ import {canonicalJson} from '../../canonical-json.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
-import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
+import {
+  type CellInstance,
+  fixtureBytes,
+  readFixture,
+  readXlsx,
+  Workbook,
+  type WorkbookInstance,
+  writeXlsx,
+} from './runtime.ts';
 import {applyStyle, buildFrom} from './spec-model.ts';
 import {reloadPatched} from './xml-probes.ts';
 
@@ -505,13 +513,17 @@ export const styles = {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
-    const realFill = (cell: Untyped) =>
+    const realFill = (cell: CellInstance) =>
       cell.fill && cell.fill.type === 'pattern' && cell.fill.pattern !== 'none' ? cell.fill : null;
-    const borderColors = (cell: Untyped) => {
+    const borderColors = (cell: CellInstance) => {
       if (!cell.border) return null;
       const edges: Record<string, Untyped> = {};
-      for (const edge of ['top', 'left', 'right', 'bottom']) {
-        if (cell.border[edge]?.color) edges[edge] = cell.border[edge].color;
+      // `as const` so each name is a literal key of `Border` rather than a bare `string`, which
+      // cannot index it — and the edge is bound once, so the colour read is narrowed by the guard
+      // above it instead of being a second, independently-unnarrowed lookup.
+      for (const edge of ['top', 'left', 'right', 'bottom'] as const) {
+        const side = cell.border[edge];
+        if (side?.color) edges[edge] = side.color;
       }
       return Object.keys(edges).length ? edges : null;
     };
@@ -576,7 +588,7 @@ export const styles = {
     // Model-level facts (column widths, pageSetup, dxfs) come from the parsed workbook; the custom
     // indexed-color palette is a raw styles.xml fact, so it is read straight from the part bytes on
     // each side — matching the legacy oracle, which extracts the same block from the zip.
-    const facts = (workbook: Untyped, stylesXml: Untyped) => {
+    const facts = (workbook: WorkbookInstance, stylesXml: string) => {
       const sheet = workbook.worksheets[0];
       const ps = sheet ? sheet.pageSetup : {};
       // Differential styles are preserved as verbatim `<dxf>` fragments; a rule's number format is
@@ -588,7 +600,7 @@ export const styles = {
       const palette = stylesXml.match(/<indexedColors>([\s\S]*?)<\/indexedColors>/);
       return {
         columnWidths: sheet
-          ? [...sheet.columns()].map((c) => c.properties.width).filter((w) => w !== undefined)
+          ? [...sheet.columns()].map((c) => c.properties?.width).filter((w) => w !== undefined)
           : [],
         pageSetup: {
           scale: ps.scale ?? null,
@@ -602,7 +614,7 @@ export const styles = {
         dxfFormatCodes,
         hasIndexedColors: !!palette,
         indexedColorSample: palette
-          ? [...palette[1].matchAll(/rgb="([0-9a-fA-F]+)"/g)].slice(0, 6).map((m) => m[1])
+          ? [...(palette[1] ?? '').matchAll(/rgb="([0-9a-fA-F]+)"/g)].slice(0, 6).map((m) => m[1])
           : [],
       };
     };
@@ -999,7 +1011,7 @@ export const styles = {
     s.getCell('A1').fill = fill;
     s.getCell('B1').fill = fill; // identical formatting → one shared style index on disk
     // fgColor lives on the pattern-fill variant, past the general Fill union surface.
-    const fgOf = (cell: Untyped) =>
+    const fgOf = (cell: CellInstance) =>
       (cell.fill as Untyped)?.fgColor ? ((cell.fill as Untyped).fgColor.argb ?? null) : null;
 
     const wb2 = readXlsx(writeXlsx(wb));
@@ -1035,7 +1047,8 @@ export const styles = {
 
     const s2 = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
     s2.getCell('A1').font = {...s2.getCell('A1').font, color: {argb: mutateTo}};
-    const colorOf = (cell: Untyped) => (cell.font?.color ? (cell.font.color.argb ?? null) : null);
+    const colorOf = (cell: CellInstance) =>
+      cell.font?.color ? (cell.font.color.argb ?? null) : null;
     const sibling = colorOf(s2.getCell('B1'));
     return {
       edited: colorOf(s2.getCell('A1')),

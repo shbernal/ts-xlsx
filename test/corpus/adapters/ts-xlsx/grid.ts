@@ -12,6 +12,7 @@ import {
   readFixture,
   readXlsx,
   Workbook,
+  type WorkbookInstance,
   writeXlsx,
 } from './runtime.ts';
 import {buildFrom, normalizeStreamValue, ONE_PX_PNG, printAreaRefersTo} from './spec-model.ts';
@@ -56,8 +57,8 @@ export const grid = {
   // it again → { sourceRangeCount, readPrintArea, rewrittenRangeCount }. Both disjoint ranges must
   // survive read and re-serialization, never truncated to the first.
   roundtripFixturePrintAreas(rel: string) {
-    const printAreaOf = (wb: Untyped) =>
-      wb.definedNames.find((n: Untyped) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+    const printAreaOf = (wb: WorkbookInstance) =>
+      wb.definedNames.find((n) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const source = readXlsx(fixtureBytes(rel));
     const readPrintArea = printAreaOf(source);
     const sourceRangeCount = readPrintArea.split(',').filter(Boolean).length;
@@ -95,14 +96,15 @@ export const grid = {
       refersTo: printAreaRefersTo(sheet.name, area),
     });
     let reloadOk = true;
-    let back: Untyped;
+    // Explicitly null rather than left unassigned: the `?.` below is load-bearing for the failed-read
+    // path, and `any` let the declaration stay silent about the state that makes it so.
+    let back: WorkbookInstance | null = null;
     try {
       back = readXlsx(writeXlsx(workbook));
     } catch {
       reloadOk = false;
     }
-    const refersTo =
-      back?.definedNames.find((n: Untyped) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
+    const refersTo = back?.definedNames.find((n) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const reReadPrintArea = refersTo.split('!').pop()?.replace(/\$/g, '') ?? '';
     return {writtenDefinedName: refersTo, reReadPrintArea, reloadOk};
   },
@@ -348,10 +350,8 @@ export const grid = {
         .sort((a, b) => a - b);
     };
     const sheet1 = (parts: PartMap) => parts['xl/worksheets/sheet1.xml'] ?? '';
-    const modelBreaks = (wb: Untyped) =>
-      wb.worksheets[0].rowBreaks
-        .map((brk: Untyped) => brk.id)
-        .sort((a: number, b: number) => a - b);
+    const modelBreaks = (wb: WorkbookInstance) =>
+      wb.worksheets[0]!.rowBreaks.map((brk) => brk.id).sort((a: number, b: number) => a - b);
 
     const sourceBreaks = rowBreakIds(sheet1(partMapOf(fixtureBytes(rel))));
     const loaded = readFixture(rel);

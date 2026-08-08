@@ -7,12 +7,14 @@ import type {Untyped} from '../../untyped.ts';
 import {packageFacts} from '../ooxml-facts.ts';
 import {packagePartFacts, partMapOf} from './package-facts.ts';
 import {
+  type CellInstance,
   decodeAddress,
   decodeRange,
   fixtureBytes,
   readFixture,
   readXlsx,
   Workbook,
+  type WorkbookInstance,
   writeXlsx,
 } from './runtime.ts';
 import {
@@ -339,9 +341,9 @@ export const core = {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
-    const hasStyle = (cell: Untyped) =>
+    const hasStyle = (cell: CellInstance) =>
       !!(cell.numFmt || cell.fill?.type || cell.font || cell.alignment || cell.border);
-    const styleKey = (cell: Untyped) =>
+    const styleKey = (cell: CellInstance) =>
       JSON.stringify(
         canonicalJson({
           numFmt: cell.numFmt || null,
@@ -351,12 +353,14 @@ export const core = {
           border: cell.border || null,
         }),
       );
-    const columnsWithWidth = (wb: Untyped) => {
+    const columnsWithWidth = (wb: WorkbookInstance) => {
       const out: Record<string, Untyped> = {};
       for (const sheet of wb.worksheets) {
         const cols: Record<string, Untyped> = {};
         for (const {index, properties} of sheet.columns()) {
-          if (properties.width !== undefined)
+          // `properties` is absent for a column carrying no formatting record at all — `columns()`
+          // yields those too, and reading `.width` straight off it would throw rather than report.
+          if (properties?.width !== undefined)
             cols[index] = {width: properties.width, customWidth: true};
         }
         out[sheet.name] = cols;
@@ -464,7 +468,7 @@ export const core = {
   // Load a fixture and try to write it back → { loadOk, loadError, writeOk, writeError, sheetNames } —
   // for asserting a foreign construct round-trips without the writer crashing.
   roundtripFixtureWriteReport(rel: string) {
-    let workbook: Untyped;
+    let workbook: WorkbookInstance;
     try {
       workbook = readFixture(rel);
     } catch (e) {
@@ -489,7 +493,7 @@ export const core = {
       loadError: null,
       writeOk,
       writeError,
-      sheetNames: workbook.worksheets.map((w: Untyped) => w.name),
+      sheetNames: workbook.worksheets.map((w) => w.name),
     };
   },
 
@@ -584,7 +588,7 @@ export const core = {
   },
 
   tryWriteWorkbook(spec: Untyped) {
-    let workbook: Untyped;
+    let workbook: WorkbookInstance;
     try {
       workbook = buildFrom(spec);
     } catch (error) {

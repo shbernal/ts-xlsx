@@ -4,7 +4,14 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {commentThreadFacts, packagePartFacts, partMapOf} from './package-facts.ts';
-import {readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
+import {
+  isRichTextValue,
+  readFixture,
+  readXlsx,
+  Workbook,
+  type WorkbookInstance,
+  writeXlsx,
+} from './runtime.ts';
 
 export const comments = {
   // Write a noted cell, relocate its comments part to a non-canonical path (xl/sheet1_comments.xml)
@@ -46,7 +53,7 @@ export const comments = {
   // cell's comment part disappears and reads back null, while a neighbor that kept its note is intact,
   // and a workbook that never had a note emits no comment part at all.
   removeCellNoteReport() {
-    const partNames = (wb: Untyped) => Object.keys(partMapOf(writeXlsx(wb)));
+    const partNames = (wb: WorkbookInstance) => Object.keys(partMapOf(writeXlsx(wb)));
     // The note being cleared is the only one, so a lingering comment part would prove the removal
     // merely emptied the note rather than dropping it.
     const solo = new Workbook();
@@ -95,12 +102,14 @@ export const comments = {
     const parts = partMapOf(buffer);
     const xml = parts['xl/sharedStrings.xml'] || parts['xl/worksheets/sheet1.xml'] || '';
     const emptyTextRunInXml = /<(?:\w+:)?t\b[^>]*\/>|<(?:\w+:)?t\b[^>]*><\/(?:\w+:)?t>/.test(xml);
-    const value = readXlsx(buffer).getWorksheet('S')!.getCell('A1').value as Untyped;
-    const readRuns = value && Array.isArray(value.richText) ? value.richText : [];
+    const value = readXlsx(buffer).getWorksheet('S')!.getCell('A1').value;
+    // The library's own guard rather than a duck-type on `.richText`: what a case wants to know is
+    // whether the value reads back as rich text *by the same test a consumer would apply*.
+    const readRuns = value !== null && isRichTextValue(value) ? value.richText : [];
     return {
       emptyTextRunInXml,
       runCount: readRuns.length,
-      runs: readRuns.map((r: Untyped) => ({
+      runs: readRuns.map((r) => ({
         text: r.text ?? null,
         bold: r.font ? (r.font.bold ?? false) : false,
         italic: r.font ? (r.font.italic ?? false) : false,
