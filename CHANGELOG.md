@@ -12,6 +12,17 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-08-08
+
+The first release since 1.0.0 to add API surface. Six additions, each of them something a
+caller was otherwise assembling by hand: a worksheet lookup that throws instead of returning
+`undefined`, the sheet's extent as a single range, one plain-text rendering of a cell value,
+the grid's measured geometry ceilings, a wrapped-line count for authoring a row height, and
+the `CellValue` type guards — which the reader and writer had always used but the barrel never
+exported. Nothing is removed and no existing signature changes. The CSV writer now shares the
+value renderer rather than keeping a near-copy of it, which shifts two of its behaviours; both
+are recorded below.
+
 ### Added
 
 - **`Workbook.requireWorksheet` — the total counterpart of `getWorksheet`.** Same lookup, by name
@@ -432,7 +443,8 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.0.3...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/shbernal/ts-xlsx/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/shbernal/ts-xlsx/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/shbernal/ts-xlsx/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/shbernal/ts-xlsx/compare/v1.0.0...v1.0.1
