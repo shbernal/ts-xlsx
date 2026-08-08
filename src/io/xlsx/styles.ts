@@ -31,14 +31,14 @@ import {
   isVerticalAlignment,
   type NamedCellStyle,
   type Protection,
-  type TableStyleNamespace,
   type TableStyleTable,
   type UnderlineStyle,
 } from '../../core/style.ts';
 import {TABLE_STYLE_ELEMENT_TYPES, type TableStyle} from '../../core/table-style.ts';
 import {AuthoringError} from '../../errors.ts';
 import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
-import {decodeEntities, openElements} from '../../xml/xml-read.ts';
+import {decodeEntities} from '../../xml/xml-read.ts';
+import {colorAttrs} from './color-xml.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 
 // Excel reserves fill ids 0 and 1 for the "none" and "gray125" patterns it always emits;
@@ -659,112 +659,12 @@ function protectionAttrs(protection: Protection): string {
   return parts.join(' ');
 }
 
-/**
- * Extract the custom indexed-color palette (`<colors><indexedColors>`) from styles.xml as verbatim
- * `<rgbColor rgb="…"/>` fragments, or an empty list when the file rides the default palette. Kept raw
- * — rather than parsed into RGB and re-serialised — so the exact entries (count, order, casing) a
- * source file declared survive a round-trip and every `indexed="…"` reference keeps its RGB.
- */
-export function parseIndexedColors(stylesXml: string): string[] {
-  return elementFragments(stylesXml, 'indexedColors', 'rgbColor');
-}
-
-/**
- * Extract the most-recently-used colour swatches (`<colors><mruColors>`) from styles.xml as verbatim
- * `<color .../>` fragments, or an empty list when the file declares none. Kept raw for the same reason
- * the indexed palette is: the list is the author's own working set of colours and the model has no
- * use for its contents, only for not losing them.
- */
-export function parseMruColors(stylesXml: string): string[] {
-  return elementFragments(stylesXml, 'mruColors', 'color');
-}
-
-/**
- * Extract the `<tableStyles>` block from styles.xml: each `<tableStyle>` definition verbatim, plus the
- * container's nominated `defaultTableStyle`/`defaultPivotStyle`. See {@link TableStyleTable} for why
- * the definitions stay raw while the two names are decoded.
- *
- * A file with no such block — or with the self-closing `count="0"` container Excel writes when it has
- * only defaults to state — yields an empty {@link TableStyleTable.styles} and whichever names it did
- * carry.
- */
-export function parseTableStyles(stylesXml: string): TableStyleTable {
-  const styles = elementFragments(stylesXml, 'tableStyles', 'tableStyle');
-  const table: {
-    styles: string[];
-    defaultTableStyle?: string;
-    defaultPivotStyle?: string;
-    namespaces?: TableStyleNamespace[];
-  } = {styles};
-  for (const {attrs} of openElements(stylesXml, 'tableStyles')) {
-    if (attrs.defaultTableStyle !== undefined) table.defaultTableStyle = attrs.defaultTableStyle;
-    if (attrs.defaultPivotStyle !== undefined) table.defaultPivotStyle = attrs.defaultPivotStyle;
-    break;
-  }
-  const namespaces = fragmentNamespaces(stylesXml, styles);
-  if (namespaces.length > 0) table.namespaces = namespaces;
-  return table;
-}
-
-// The namespace declarations the verbatim `<tableStyle>` fragments depend on, resolved against the
-// stylesheet root that scoped them. Only prefixes a fragment actually uses are carried, so an
-// ordinary file (whose fragments use none) adds nothing to the re-emitted root; a prefix a fragment
-// uses but the root never declared is skipped, because there is no URI to re-declare it with — the
-// source was already unparseable there and inventing a URI would not repair it.
-//
-// `ignorable` is copied from the source's own `mc:Ignorable` rather than assumed: a prefix the source
-// did *not* mark ignorable carries meaning the consumer must not skip, and marking it here would tell
-// every consumer to throw that meaning away.
-function fragmentNamespaces(
-  stylesXml: string,
-  fragments: readonly string[],
-): TableStyleNamespace[] {
-  if (fragments.length === 0) return [];
-  const declared = new Map<string, string>();
-  const ignorable = new Set<string>();
-  for (const {attrs} of openElements(stylesXml, 'styleSheet')) {
-    for (const [name, value] of Object.entries(attrs)) {
-      if (name.startsWith('xmlns:')) declared.set(name.slice('xmlns:'.length), value);
-    }
-    for (const prefix of (attrs['mc:Ignorable'] ?? '').split(/\s+/)) {
-      if (prefix !== '') ignorable.add(prefix);
-    }
-    break;
-  }
-  const used = new Set<string>();
-  for (const fragment of fragments) {
-    // A prefix appears either on an element (`<p:tag`, `</p:tag`) or on an attribute (` p:attr=`).
-    for (const match of fragment.matchAll(/[\s</]([A-Za-z_][\w.-]*):[A-Za-z_]/g)) {
-      used.add(match[1] as string);
-    }
-  }
-  return [...used]
-    .filter((prefix) => declared.has(prefix))
-    .map((prefix) => ({
-      prefix,
-      uri: declared.get(prefix) as string,
-      ignorable: ignorable.has(prefix),
-    }));
-}
-
 // The `name` a `<tableStyle>` fragment declares — the key a table's `tableStyleInfo/@name` matches
 // and, here, the key an authored definition overrides a preserved one by. Read out of the fragment
 // rather than stored beside it, so the two cannot drift; `name` is required by CT_TableStyle, and a
 // fragment without one is unreachable anyway and so can never collide.
 function tableStyleName(fragment: string): string {
   return decodeEntities(/<tableStyle\b[^>]*\bname="([^"]*)"/.exec(fragment)?.[1] ?? '');
-}
-
-// The verbatim child fragments of a container element — the shape every preserved styles sub-table
-// takes. Scanning the container's inner text rather than the whole part is what keeps a `<color>` in
-// `<mruColors>` from being confused with the many other `<color>` elements a stylesheet carries, and
-// the `\b` after the child's name is what keeps `<tableStyles>` from matching as a `<tableStyle>`.
-function elementFragments(xml: string, container: string, child: string): string[] {
-  const block = new RegExp(`<${container}\\b[^>]*>([\\s\\S]*?)</${container}>`).exec(xml);
-  if (block === null) return [];
-  const inner = block[1] ?? '';
-  const pattern = new RegExp(`<${child}\\b[^>]*/>|<${child}\\b[^>]*>[\\s\\S]*?</${child}>`, 'g');
-  return [...inner.matchAll(pattern)].map((m) => m[0] ?? '');
 }
 
 // Serialise the facets a font overrides, in ECMA-376 child order. A boolean flag is emitted only
@@ -922,53 +822,4 @@ function patternFillXml(fill: Fill, {solidBgFallback}: {solidBgFallback: boolean
       : '';
   const pattern = checkedToken(fill.pattern, isFillPatternType, 'fill pattern');
   return `<fill><patternFill patternType="${pattern}">${fg}${bg}</patternFill></fill>`;
-}
-
-// OOXML wants a bare 8-hex ARGB (alpha + RGB). This single choke point — through which every
-// fill/font/border/tab colour flows — accepts two developer conveniences and rejects the rest loudly,
-// because a malformed rgb value does not error in Excel: it silently renders as flat black.
-//   - A leading '#' is a CSS habit and is stripped ('#FFBFBFBF' → 'FFBFBFBF').
-//   - A 6-hex RGB is promoted to ARGB with a fully-opaque alpha ('00FF00' → 'FF00FF00'), the common
-//     case of a colour written without its alpha channel.
-// Anything not then exactly 8 hex digits is a programming error at the API surface, so it throws with
-// the offending value rather than writing corrupt XML. Casing is preserved so foreign files round-trip.
-function normalizeArgb(argb: string): string {
-  const hex = argb.startsWith('#') ? argb.slice(1) : argb;
-  const rgb = hex.length === 6 ? `FF${hex}` : hex;
-  if (!/^[0-9a-fA-F]{8}$/.test(rgb)) {
-    throw new AuthoringError(
-      `Invalid ARGB colour ${JSON.stringify(argb)}: expected 6 or 8 hexadecimal digits`,
-    );
-  }
-  return rgb;
-}
-
-export function colorAttrs(color: Color): string {
-  const parts: string[] = [];
-  if (color.argb !== undefined) parts.push(`rgb="${normalizeArgb(color.argb)}"`);
-  if (color.theme !== undefined) parts.push(`theme="${color.theme}"`);
-  if (color.tint !== undefined) parts.push(`tint="${color.tint}"`);
-  if (color.indexed !== undefined) parts.push(`indexed="${color.indexed}"`);
-  return parts.join(' ');
-}
-
-// The read counterpart of colorAttrs: decode a `<color>`/`<fgColor>`/… element's attributes.
-// theme/indexed must be integers and tint a finite number; a malformed foreign attribute is dropped
-// rather than propagated as NaN, so a downstream colorAttrs never emits `theme="NaN"`.
-export function parseColor(attrs: {readonly [k: string]: string}): Color {
-  const color: {argb?: string; theme?: number; tint?: number; indexed?: number} = {};
-  if (attrs.rgb !== undefined) color.argb = attrs.rgb;
-  if (attrs.theme !== undefined) {
-    const theme = Number(attrs.theme);
-    if (Number.isInteger(theme)) color.theme = theme;
-  }
-  if (attrs.tint !== undefined) {
-    const tint = Number(attrs.tint);
-    if (Number.isFinite(tint)) color.tint = tint;
-  }
-  if (attrs.indexed !== undefined) {
-    const indexed = Number(attrs.indexed);
-    if (Number.isInteger(indexed)) color.indexed = indexed;
-  }
-  return color;
 }

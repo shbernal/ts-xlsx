@@ -40,7 +40,7 @@ interface ParsedPivotSource {
 <sub>interface</sub>
 
 The semantic model reconstructed from a loaded pivot's `pivotTableDefinition` and its
-`pivotCacheDefinition` (see `io/xlsx/pivot-read.ts`). Field roles are indices into `fields`;
+`pivotCacheDefinition` (see `io/xlsx/read-pivot.ts`). Field roles are indices into `fields`;
 `metric` is the aggregation the value field applies. This mirrors the authoring model's shape
 without requiring the source sheet it was built from, so a pivot loaded from a package is
 inspectable data rather than an opaque preserved blob. It is a read-only view: the writer emits a

@@ -37,7 +37,7 @@ import {
   type SheetEntry,
   type XfStyle,
 } from './read.ts';
-import {parseSharedStrings} from './shared-strings-read.ts';
+import {parseSharedStrings} from './read-shared-strings.ts';
 
 export interface ReadSheetRowsOptions extends ReadXlsxOptions {
   /**

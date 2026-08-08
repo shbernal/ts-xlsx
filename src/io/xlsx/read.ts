@@ -57,11 +57,15 @@ import {
 } from './data-validation.ts';
 import {applyHyperlinks, parseSheetHyperlinks} from './hyperlinks.ts';
 import {drawingHasUnmodeledContent, parseDrawing} from './images.ts';
-import {parsePivotTable} from './pivot-read.ts';
-import {parseStyleTable} from './read-styles.ts';
+import {parsePivotTable} from './read-pivot.ts';
+import {parseSharedStrings} from './read-shared-strings.ts';
+import {
+  parseIndexedColors,
+  parseMruColors,
+  parseStyleTable,
+  parseTableStyles,
+} from './read-styles.ts';
 import {parseWorksheet} from './read-worksheet.ts';
-import {parseSharedStrings} from './shared-strings-read.ts';
-import {parseIndexedColors, parseMruColors, parseTableStyles} from './styles.ts';
 import {parseTable} from './tables.ts';
 import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
 

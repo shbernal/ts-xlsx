@@ -103,6 +103,37 @@ import `src/io/xlsx/`. Co-located tests are exempt, since a test import is not a
 the graph we ship. Shared code that tempts a codec to reach sideways belongs in `opc` or `style`;
 that is what those directories are for.
 
+### Inside `src/io/xlsx/`: three kinds of module, deliberately flat
+
+Thirty-odd files in one directory reads like something nobody got round to organising, and the
+obvious tidy — `read/`, `write/`, `shared/` — is wrong here. The modules fall into three kinds,
+and the split would cut across the most cohesive of them:
+
+- **Feature modules, both directions in one file.** `comments.ts`, `tables.ts`, `images.ts`,
+  `hyperlinks.ts`, `data-validation.ts`, `conditional-formatting.ts`, `threaded-comments.ts` each
+  export a `parseX` for the reader beside an `xXml` for the writer. That pairing is the point: the
+  two halves share one feature's element names and must agree with each other, and a round-trip is
+  exactly the claim that they do. Splitting each into two files would double the count while moving
+  the two functions that have to stay in step into different directories.
+- **The read pipeline** — `read.ts` and everything prefixed `read-*`, plus its private helpers
+  (`cell-accumulator.ts`, `cell-value.ts`, `rich-runs.ts`). The `read-` prefix is the convention;
+  `pivot-read.ts` and `shared-strings-read.ts` were the two files spelling it the other way round.
+- **The write pipeline** — `write.ts`, `write-stream.ts`, the `*-xml.ts` serialisers, and the
+  write-side services (`styles.ts`'s interning registry, `shared-strings.ts`, `package-plan.ts`).
+
+The invariant worth having is that the read pipeline never reaches into the write pipeline. It
+holds, and `color-xml.ts` is why it took work: `parseColor` sat in the write-side style *table*, so
+the style reader and the worksheet reader both imported the writer to decode a `<color>`. Reading
+and writing that element are one concern with two directions, and they now live together in a module
+either side may use.
+
+That invariant is documented rather than gated, because a gate for it cannot be honest.
+`check-layering.ts` matches directories, and a rule derived from reachability defeats itself: the
+moment a read module imports a write module, that module becomes reachable from the read roots and
+so classifies as *shared*, which is precisely the label that makes the check pass. A declared list
+of write-pipeline modules would work but goes stale in silence, which is the failure these checkers
+exist to prevent. See ADR 0030.
+
 Cell formatting is one named tuple, not six loose fields. `CellStyle` in `core/style.ts`
 holds the six OOXML direct-format facets (`fill`, `numFmt`, `font`, `border`, `alignment`,
 `protection`); every style-bearing shape — a cell model, a column's defaults, a table column,

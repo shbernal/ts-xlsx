@@ -21,12 +21,13 @@ import type {
 import type {Color} from '../../core/style.ts';
 import {boolAttr, escapeAttr, escapeText, stripFormulaEquals} from '../../xml/xml.ts';
 import {boolStrict, coerceNumericLiteral, localName, parseXml} from '../../xml/xml-read.ts';
+import {colorAttrs, parseColor} from './color-xml.ts';
 // The x14/xm extension namespaces and ext-URI GUIDs are declared inline on the `<ext>` elements
 // exactly as Excel writes them, so no worksheet-root xmlns is needed. `CF_EXT_URI` scopes the
 // worksheet's x14 conditional formattings; `DATABAR_LINK_EXT_URI` scopes the `<x14:id>` link a
 // classic cfRule carries to name its extension.
 import {CF_EXT_URI, DATABAR_LINK_EXT_URI, XM_NS} from './namespaces.ts';
-import {colorAttrs, parseColor, type StyleRegistry} from './styles.ts';
+import type {StyleRegistry} from './styles.ts';
 import {x14Ext} from './x14-ext.ts';
 
 // Excel's default data bar when the author supplies none: a min/max anchor pair and its standard blue.

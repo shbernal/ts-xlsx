@@ -246,7 +246,7 @@ export class Worksheet {
   // Tables, merged ranges, and anchored images are sheet-level overlays on the grid, not cell storage.
   readonly #tables: Table[] = [];
   readonly #pivotTables: PivotTable[] = [];
-  // Pivot tables reconstructed from a loaded package (see io/xlsx/pivot-read.ts) — a read-only,
+  // Pivot tables reconstructed from a loaded package (see io/xlsx/read-pivot.ts) — a read-only,
   // inspection-only view distinct from #pivotTables. A loaded pivot round-trips by byte-preservation
   // (#preservedReferences), which stays its sole emission authority; this collection is never emitted,
   // so exposing it cannot double-emit. Empty for a sheet authored from scratch.

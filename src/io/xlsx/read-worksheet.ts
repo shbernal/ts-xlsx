@@ -31,7 +31,7 @@ import {
 import type {XfStyle} from '../style/xf-style.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';
-import {parseColor} from './styles.ts';
+import {parseColor} from './color-xml.ts';
 
 const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
 

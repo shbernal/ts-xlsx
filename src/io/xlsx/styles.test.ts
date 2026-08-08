@@ -3,7 +3,8 @@ import {test} from 'node:test';
 
 import type {Fill, Font} from '../../core/style.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {parseIndexedColors, StyleRegistry} from './styles.ts';
+import {parseIndexedColors} from './read-styles.ts';
+import {StyleRegistry} from './styles.ts';
 
 const solid = (argb: string): Fill => ({type: 'pattern', pattern: 'solid', fgColor: {argb}});
 

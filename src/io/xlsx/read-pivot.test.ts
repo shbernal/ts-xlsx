@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import {PivotTable, type PivotTableOptions} from '../../core/pivot-table.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {pivotCacheDefinitionXml, pivotTableXml} from './pivot.ts';
-import {parsePivotTable} from './pivot-read.ts';
+import {parsePivotTable} from './read-pivot.ts';
 
 // Build a pivot the way the writer does, then render its two definition parts. The reader is the
 // inverse of the writer, so round-tripping our own output is the sharpest check that the two agree.

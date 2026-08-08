@@ -51,6 +51,7 @@ after it would have broken far more cross-references than the collision did.
 | [0027](./0027-dependencies-are-updated-by-a-bot-and-ci-is-the-reviewer.md) | Dependencies are updated by a bot, and CI is the reviewer | Accepted 2026-07-30 |
 | [0028](./0028-typescript-7-adoption.md) | Move to TypeScript 7; the compiler API scripts move to `unstable/*` | Accepted 2026-08-05 |
 | [0029](./0029-toolchain-standup.md) | Toolchain standup: Biome for lint/format, `node --test` kept, tsc for type tests | Accepted 2026-07-19 · renumbered 2026-08-08 from a collision at 0002 |
+| [0030](./0030-xlsx-codec-stays-flat.md) | `src/io/xlsx/` stays flat; the read/write directory split is rejected | Accepted 2026-08-08 |
 
 ## Writing one
 
