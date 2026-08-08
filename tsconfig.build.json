@@ -1,12 +1,14 @@
 {
-  "//": "Publishable build. Extends the strict gate config but emits ESM .js + .d.ts to dist/. rewriteRelativeImportExtensions (TS 5.7+) rewrites the source's `.ts` import specifiers — required for the no-build dev/test workflow — down to `.js` in the emitted JS, so consumers get standard resolvable ESM with zero bundler. Comments are kept so JSDoc survives into the .d.ts hovers; source/declaration maps are omitted to keep the published tarball lean (maintainers debug src/ directly, never dist/).",
+  "//": "Publishable build, JS half. Extends the strict gate config but emits ESM .js to dist/. rewriteRelativeImportExtensions (TS 5.7+) rewrites the source's `.ts` import specifiers — required for the no-build dev/test workflow — down to `.js` in the emitted JS, so consumers get standard resolvable ESM with zero bundler. Source/declaration maps are omitted to keep the published tarball lean (maintainers debug src/ directly, never dist/).",
+  "//removeComments": "The reason `build` is two tsc passes and not one. This tree comments densely and at length, and none of that prose is addressed to a consumer — measured, it was 47% of the emitted JS, 438 KB shipped to be read by nobody. `removeComments` is a whole-emit flag, though: turning it on in a single pass also strips the JSDoc out of the .d.ts, which IS addressed to a consumer (237 KB of it, every byte reaching an editor hover — there is no non-JSDoc prose in the declarations to trim). So the passes split by audience: this one emits JS with the prose stripped, tsconfig.build.dts.json emits declarations with it kept. Verified equivalent when the split landed — all 112 .d.ts files byte-identical to the single-pass output, smoke-dist green, corpus 838/838. Do not re-merge them; a single pass has to give up one half or the other.",
   "extends": "./tsconfig.json",
   "//incremental": "Deliberately off, unlike the gate configs it extends. `build` deletes dist/ first, but the buildinfo lives outside it — so a surviving buildinfo would tell tsc the unchanged sources need no emit, and it does so silently: measured with incrementality forced on, a build after `clean` emitted 158 files, then 0, exit 0 both times. A full elaboration per release is the correct price.",
   "compilerOptions": {
     "incremental": false,
     "tsBuildInfoFile": null,
     "noEmit": false,
-    "declaration": true,
+    "declaration": false,
+    "removeComments": true,
     "rewriteRelativeImportExtensions": true,
     "rootDir": "src",
     "outDir": "dist"

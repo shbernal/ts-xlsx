@@ -73,7 +73,11 @@ cannot be a dynamic import.
    `import '…'` form as well as `… from '…'`, so a side-effect-only import cannot enter unnoticed
    now that the manifest promises there are none.
 
-6. **Budgets are per entry, and the total was raised from 600 KB to 950 KB.** 600 KB had been the
+6. **Budgets are per entry, and the total was raised from 600 KB to 950 KB** (**amended 2026-08-08**:
+   every figure in this point was roughly halved — total 530 KB — when `build` split into two `tsc`
+   passes and the JS pass began stripping comments. Nothing left any closure; the numbers here had
+   been ~47% comment prose, so they were measuring the wrong thing. Rebaselined onto comment-free
+   emit they measure code, which is what makes the tripwire below able to do its job at all.) 600 KB had been the
    number since before the BIFF12 reader, the VBA codec and the ribbon parser landed; the build was
    measured at 861 KB and CI's `pnpm run size` step had been failing on it, unread. None of that
    growth was bloat, and a tripwire nobody can satisfy stops being read at all. The signal moves to

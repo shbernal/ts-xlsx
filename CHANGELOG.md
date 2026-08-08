@@ -14,6 +14,23 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Changed
 
+- **The published tarball is 42% smaller, and nothing was removed to make it so.** `build` was
+  one `tsc` pass emitting both halves of `dist/`, and it kept comments — necessarily, because
+  that is what puts JSDoc into the `.d.ts` hovers. The cost was that the same flag also shipped
+  every implementation comment in the tree into the runtime JS: measured, 47% of it, 438 KB
+  addressed to nobody. `removeComments` is whole-emit, so a single pass could only ever give up
+  one audience or the other. The build is now two passes that split by audience —
+  `tsconfig.build.json` emits JS with the prose stripped, `tsconfig.build.dts.json` emits
+  declarations with it kept. Runtime JS falls from 918 KB to 480 KB and the tarball from 392 KB
+  to 227 KB gzipped, while all 112 `.d.ts` files are byte-identical to the single-pass output —
+  every one of the 237 KB of JSDoc across 90 files still reaches an editor hover. No module left
+  any entry's closure, no signature changed, and the corpus's 838 behaviours run green against
+  the emitted `dist/`.
+- **The per-entry size budgets are halved, which makes them stricter rather than looser.** They
+  were measured against JS that was ~47% comment, so a codec crossing a module boundary — the
+  failure the tripwire exists to catch — could have arrived inside a release's ordinary comment
+  churn without moving them. Rebaselined onto comment-free emit, they measure code.
+
 - **The `npm-publish` environment is now checked rather than provisioned, and this repository
   holds no credential at all.** `environment.yml` wrote the environment through an
   administration endpoint, which `GITHUB_TOKEN` may not reach, so it needed a PAT —

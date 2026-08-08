@@ -62,6 +62,12 @@ is **pure `tsc`** (`tsconfig.build.json` extends the strict gate config, flips
 `dist/`). No bundler earns its place: no new dependency, no config surface, no
 tree-shake/minify step we don't need for a Node-targeted ESM library.
 
+**Amended 2026-08-08:** still pure `tsc`, now two invocations of it. `removeComments`
+is whole-emit, so one pass cannot both strip the implementation prose from the JS and
+keep the JSDoc in the `.d.ts`; the passes therefore split by audience, `declaration`
+moving to `tsconfig.build.dts.json`. This is the one thing a bundler would have been
+asked for and it did not take one.
+
 Decisions that rode along:
 - **`exports`/`main`/`types` → `dist/`;** `files` ships `dist` only (no maps, no
   `src`) to keep the tarball lean (~237 KB packed). Maps are omitted deliberately —

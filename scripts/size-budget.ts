@@ -24,26 +24,28 @@ import {fileURLToPath} from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
-// Raised from 600 KB, where it had sat since long before the BIFF12 reader, the VBA codec and the
-// ribbon parser landed — none of which was bloat, all of which the number refused to admit. It had
-// been failing CI's build job for some time, unread, which is what a tripwire nobody can satisfy
-// becomes. This one is set from the measurement, and the per-entry figures below are now the part
-// that carries the signal.
-const TOTAL_BUDGET_BYTES = 950 * 1024;
+const TOTAL_BUDGET_BYTES = 530 * 1024;
 
 // Roughly a tenth of headroom over the measured closure, per entry: enough that ordinary growth is
 // not a chore, tight enough that a whole codec crossing a boundary cannot hide inside it.
+//
+// Every number below was halved when `build` split into two tsc passes and the JS pass started
+// stripping comments. That is not a budget cut — nothing left the closure, and no consumer loads a
+// byte less than they did before the prose was measured as part of it. It is the measurement
+// finally being of code. The old figures were ~47% comment, which is what had made this tripwire
+// soft: a codec crossing a boundary is the failure these numbers exist to catch, and at the old
+// scale one could have arrived inside a release's ordinary comment churn without moving them.
 const ENTRY_BUDGETS_KB: Readonly<Record<string, number>> = {
-  '.': 950,
-  './core': 365,
-  './xlsx': 930,
-  './xlsb': 480,
-  './csv': 375,
-  './vba': 85,
-  './customui': 30,
+  '.': 530,
+  './core': 185,
+  './xlsx': 520,
+  './xlsb': 262,
+  './csv': 190,
+  './vba': 50,
+  './customui': 14,
   // The taxonomy reaches nothing but itself, and that is the point: classifying a failure must
   // not cost a parser. A jump here means an error class started importing the layer it describes.
-  './errors': 16,
+  './errors': 4,
 };
 
 interface PackageJson {

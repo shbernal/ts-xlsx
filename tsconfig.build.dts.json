@@ -1,0 +1,9 @@
+{
+  "//": "Publishable build, declarations half. See the //removeComments note in tsconfig.build.json for why the build is split in two: this pass exists to keep the JSDoc that the JS pass strips. It emits nothing but .d.ts, so it inherits the JS pass's settings unchanged and overrides only the two flags that decide the audience — declarations on, comments back.",
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "removeComments": false
+  }
+}
