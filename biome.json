@@ -34,7 +34,10 @@
     "rules": {
       "preset": "recommended",
       "nursery": {
-        "noFloatingPromises": "error"
+        "noFloatingPromises": "error",
+        "noMisusedPromises": "error",
+        "useAwaitThenable": "error",
+        "useExhaustiveSwitchCases": "error"
       },
       "suspicious": {
         "noConsole": "error"
