@@ -60,8 +60,10 @@ export class Column {
    * Column width in character units — digits of the workbook default font's maximum digit width,
    * so what one unit measures moves with that font. `undefined` leaves the sheet default in force.
    *
-   * Not bounded here, for the same reason {@link Row.height} is not: {@link MAX_COLUMN_WIDTH} is
-   * Excel's limit, not the schema's, and this setter is the reader's path too.
+   * Not bounded here, for the same reason {@link Row.height} is not, and for a stronger one:
+   * {@link MAX_COLUMN_WIDTH} bounds what Excel accepts being set, not what a file may hold. Excel
+   * reads a wider column back unchanged and re-saves it verbatim, so a bound here would refuse a
+   * width Excel itself preserves.
    */
   get width(): number | undefined {
     return this.#read('width');
