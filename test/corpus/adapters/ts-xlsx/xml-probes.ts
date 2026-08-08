@@ -50,7 +50,7 @@ export const imageXmlWellFormed = (xml: string) =>
 // Expand an OOXML sqref (space-separated ranges) into its covered cell references, bounded by a cap so
 // a whole-column range never balloons — used to check that a range-form validation is reported on
 // every covered cell. An unbounded whole-row/column part is skipped rather than expanded.
-export function expandSqref(sqref: Untyped, cap = 4096) {
+export function expandSqref(sqref: string, cap = 4096) {
   const refs: string[] = [];
   for (const part of String(sqref).split(/\s+/).filter(Boolean)) {
     const {left, right, top, bottom} = decodeRange(part);
@@ -100,7 +100,13 @@ export function attrsOf(tag: string) {
 // genuine `.xlsx` (the control that must still read), a legacy `.xls` (an OLE2/CFB compound file, via the
 // production CFB writer), a binary `.xlsb` (a real ZIP whose office document is `xl/workbook.bin`),
 // non-ZIP text (a CSV handed to the wrong reader), and a ZIP-headed-but-corrupt archive.
-export function buildReadInput(kind: Untyped): Uint8Array {
+/**
+ * The format families {@link buildReadInput} can synthesise — a closed set, so a case naming one that
+ * does not exist fails to compile instead of reaching the `default` branch at runtime.
+ */
+export type ReadInputKind = 'xlsx' | 'xls' | 'xlsb' | 'garbage' | 'corrupt-zip';
+
+export function buildReadInput(kind: ReadInputKind): Uint8Array {
   switch (kind) {
     case 'xlsx':
       return writeXlsx(buildFrom({sheets: [{name: 'S', cells: [{ref: 'A1', value: 42}]}]}));

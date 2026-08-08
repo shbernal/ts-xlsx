@@ -1,7 +1,7 @@
-import {messageOf} from '../../thrown.ts';
 // Formulas: shared formulas, data tables, and the values a formula cell reports.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {buildFrom, isoOrNull} from './spec-model.ts';
@@ -59,7 +59,7 @@ export const formulas = {
     sheet.getCell('A3').value = {formula: 'FALSE()', result: false};
     sheet.getCell('A4').value = {formula: 'T("")', result: ''};
     const back = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
-    const probe = (ref: Untyped) => {
+    const probe = (ref: string) => {
       const value = back.getCell(ref).value;
       const hasResult = !!value && typeof value === 'object' && 'result' in value;
       return {hasResult, result: hasResult ? (value as Untyped).result : undefined};

@@ -7,7 +7,10 @@
 import {strFromU8, unzipSync} from 'fflate';
 import type {Untyped} from '../../untyped.ts';
 
-export function partMapOf(buffer: Uint8Array) {
+/** A package flattened to part name → part text: what every XML-level probe here reads from. */
+export type PartMap = Record<string, string>;
+
+export function partMapOf(buffer: Uint8Array): PartMap {
   const unzipped = unzipSync(buffer);
   const out: Record<string, string> = {};
   for (const name of Object.keys(unzipped)) out[name] = strFromU8(unzipped[name]!);
@@ -38,7 +41,7 @@ export const notesOf = (sheet: Untyped) => {
 //
 // Persons are sorted by id because the registry's order is meaningless: Excel re-sorts the part by person
 // id whenever it saves, so only membership is a fact.
-export const commentThreadFacts = (wb: Untyped, refs: Untyped = []) => {
+export const commentThreadFacts = (wb: Untyped, refs: string[] = []) => {
   const identity = (person: Untyped) =>
     person == null
       ? null

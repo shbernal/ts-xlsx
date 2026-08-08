@@ -1,6 +1,6 @@
-import {messageOf} from '../../thrown.ts';
 // Hyperlinks, including the internal (same-workbook) form and how it serializes.
 
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
@@ -10,7 +10,7 @@ export const hyperlinks = {
   // Read a fixture and report every hyperlink cell as { <addr>: { hyperlink, text } }, with a rich
   // display label flattened to its concatenated text — for asserting a foreign file's links (and the
   // rejoining of an external URL's fragment carried in the location attribute) are read faithfully.
-  async readFixtureHyperlinks(rel: Untyped) {
+  async readFixtureHyperlinks(rel: string) {
     const flatten = (t: Untyped) =>
       t == null
         ? null
@@ -43,7 +43,7 @@ export const hyperlinks = {
     const sheet = wb.addWorksheet('Main');
     wb.addWorksheet('Target');
     sheet.getCell('A1').value = {text: 'go', hyperlink: target};
-    let buffer: Untyped;
+    let buffer: Uint8Array;
     try {
       buffer = writeXlsx(wb);
     } catch (e) {

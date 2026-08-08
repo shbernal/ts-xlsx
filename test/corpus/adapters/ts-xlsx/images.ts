@@ -3,7 +3,7 @@
 
 import {strFromU8, unzipSync} from 'fflate';
 import type {Untyped} from '../../untyped.ts';
-import {partMapOf} from './package-facts.ts';
+import {type PartMap, partMapOf} from './package-facts.ts';
 import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
 import {buildFrom, ONE_PX_PNG} from './spec-model.ts';
 import {
@@ -193,7 +193,7 @@ export const images = {
   // Read a fixture and report each image's normalized anchor range → for asserting a file whose
   // drawing anchors were authored as cell ranges reads without throwing and exposes integer cell
   // coordinates, never a raw string.
-  readFixtureImageAnchors(rel: Untyped) {
+  readFixtureImageAnchors(rel: string) {
     const workbook = readFixture(rel);
     const images = [];
     for (const sheet of workbook.worksheets) {
@@ -279,19 +279,19 @@ export const images = {
 
   // Read a fixture, load-and-rewrite it, and report the picture's drawing-anchor rotation before and
   // after → { sourceRot, rewrittenRot }. An image rotation (rot on <a:xfrm>) must survive the round-trip.
-  roundtripFixtureImageRotation(rel: Untyped) {
-    const rotOf = (xml: Untyped) => {
+  roundtripFixtureImageRotation(rel: string) {
+    const rotOf = (xml: string) => {
       const m = xml.match(/<a:xfrm\b[^>]*\brot="(-?\d+)"/);
       return m ? Number(m[1]) : null;
     };
-    const drawingName = (parts: Untyped) =>
-      Object.keys(parts).find((f) => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
-    const srcParts = partMapOf(fixtureBytes(rel));
-    const srcDrawing = drawingName(srcParts);
-    const sourceRot = srcDrawing ? rotOf(srcParts[srcDrawing]) : null;
-    const outParts = partMapOf(writeXlsx(readXlsx(fixtureBytes(rel))));
-    const outDrawing = drawingName(outParts);
-    const rewrittenRot = outDrawing ? rotOf(outParts[outDrawing]) : null;
+    const drawingXml = (parts: PartMap) => {
+      const name = Object.keys(parts).find((f) => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
+      return name === undefined ? null : (parts[name] ?? null);
+    };
+    const srcDrawing = drawingXml(partMapOf(fixtureBytes(rel)));
+    const sourceRot = srcDrawing === null ? null : rotOf(srcDrawing);
+    const outDrawing = drawingXml(partMapOf(writeXlsx(readXlsx(fixtureBytes(rel)))));
+    const rewrittenRot = outDrawing === null ? null : rotOf(outDrawing);
     return {sourceRot, rewrittenRot};
   },
 };

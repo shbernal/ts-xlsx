@@ -1,10 +1,10 @@
-import {codeOrMessageOf, messageOf} from '../../thrown.ts';
 // The streaming writer and the streaming reader, including every case that asserts the
 // streamed result matches what the eager path produces.
 
 import {tmpdir} from 'node:os';
 import {Duplex, PassThrough} from 'node:stream';
 import {strFromU8, unzipSync} from 'fflate';
+import {codeOrMessageOf, messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {
@@ -27,12 +27,12 @@ import {
   specValueToModel,
   streamedRowValues,
 } from './spec-model.ts';
-import {buildReadInput, classifyReadError} from './xml-probes.ts';
+import {buildReadInput, classifyReadError, type ReadInputKind} from './xml-probes.ts';
 
 export const streaming = {
   // The same classification through the STREAMING reader, driven far enough to open the package — for
   // asserting the streaming entry point is wired to the identical typed-error contract.
-  classifyStreamReadInput(kind: Untyped) {
+  classifyStreamReadInput(kind: ReadInputKind) {
     return classifyReadError(() => {
       for (const _sheet of readWorkbookStream(buildReadInput(kind))) break;
     });
@@ -513,7 +513,7 @@ export const streaming = {
   // Read a fixture both eagerly and through the streaming reader, reporting the sheet names each
   // surfaces → { eager, streaming }. The streaming reader joins each worksheet part to the
   // workbook-level declaration, so it exposes the real names, not positional placeholders.
-  streamVsEagerSheetNames(rel: Untyped) {
+  streamVsEagerSheetNames(rel: string) {
     const eager = readFixture(rel).worksheets.map((s) => s.name);
     const streaming = [...readWorkbookStream(fixtureBytes(rel))].map((s) => s.name);
     return {eager, streaming};
@@ -522,7 +522,7 @@ export const streaming = {
   // Report the first sheet's populated row numbers from both paths → { eager, streaming }. Both skip
   // fully-empty rows (the eager `includeEmpty:false` intent) so a gap between data rows is preserved
   // as a jump in the numbers, never resequenced.
-  streamVsEagerRowNumbers(rel: Untyped) {
+  streamVsEagerRowNumbers(rel: string) {
     const es = readFixture(rel).worksheets[0];
     const eager: Untyped[] = [];
     if (es) for (const row of es.rows()) if (row.cells.length) eager.push(row.number);
@@ -537,7 +537,7 @@ export const streaming = {
   // Report each populated first-sheet row's { number, hidden } from both paths → { eager, streaming }.
   // The streaming reader must surface a row's hidden flag (in the string form "true"/"false" some
   // generators write), agreeing with the eager read rather than reporting every row visible.
-  streamVsEagerRowHidden(rel: Untyped) {
+  streamVsEagerRowHidden(rel: string) {
     const es = readFixture(rel).worksheets[0];
     const eager: Untyped[] = [];
     if (es)
@@ -706,7 +706,7 @@ export const streaming = {
   // completes (with every sheet name and the total rows delivered) or its error is captured as data.
   // Locks that the reader tolerates a package whose ZIP places a worksheet part before xl/workbook.xml
   // (the inflate builds a path→bytes map, so entry order is irrelevant).
-  streamReadReport(rel: Untyped) {
+  streamReadReport(rel: string) {
     const sheetNames: Untyped[] = [];
     let totalRows = 0;
     try {
@@ -723,7 +723,7 @@ export const streaming = {
   // Stream-read a fixture's first sheet, reporting each requested cell's { type, value } | null. The
   // type is the model's stable label; a date-formatted numeric cell surfaces as a Date because the
   // streaming reader applies the cell's number format when decoding, exactly as the eager read does.
-  streamReadFixture(rel: Untyped, cells: Untyped = []) {
+  streamReadFixture(rel: string, cells: Untyped = []) {
     const wanted = new Map(cells.map((a: Untyped) => [a, null]));
     for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
       for (const row of sheet.rows()) {

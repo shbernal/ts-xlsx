@@ -45,7 +45,7 @@ export const xlsb = {
 
   // One cell of the binary reading, as JSON-serializable facts: its decoded value (a Date rendered
   // as an ISO string) and the style facets it resolved to.
-  xlsbCell(sheetName: Untyped, reference: Untyped) {
+  xlsbCell(sheetName: string, reference: string) {
     const workbook = readXlsb(fixtureBytes(`${FIXTURE}/source.xlsb`));
     const sheet = workbook.getWorksheet(sheetName);
     if (sheet === undefined) return {found: false};
@@ -65,7 +65,7 @@ export const xlsb = {
   },
 
   // A sheet's row/column geometry and merged ranges, from the binary reading.
-  xlsbGrid(sheetName: Untyped) {
+  xlsbGrid(sheetName: string) {
     const workbook = readXlsb(fixtureBytes(`${FIXTURE}/source.xlsb`));
     const sheet = workbook.getWorksheet(sheetName);
     if (sheet === undefined) return {found: false};
@@ -94,7 +94,7 @@ export const xlsb = {
   },
 
   // One formula cell of the binary reading: the decoded text and the result Excel cached beside it.
-  xlsbFormula(sheetName: Untyped, reference: Untyped) {
+  xlsbFormula(sheetName: string, reference: string) {
     const sheet = readXlsb(fixtureBytes(`${FORMULAS}/source.xlsb`)).getWorksheet(sheetName);
     const value = sheet?.getCell(reference).value;
     return {formula: formulaOf(value), result: normalize(value)};

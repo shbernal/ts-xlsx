@@ -1,7 +1,7 @@
-import {messageOf} from '../../thrown.ts';
 // Fonts, fills, borders, alignment, number formats and the style-deduplication that decides
 // which of them survive a round-trip.
 
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
@@ -168,8 +168,8 @@ export const styles = {
   // report: the source's cellStyleXfs count, A1's resolved fill, and — after a load→save round-trip —
   // the re-emitted cellStyleXfs count and whether A1's cellXfs entry still links via xfId → so a case
   // asserts the named-style layer is honoured on read and preserved (with its link) on write.
-  namedStyleFillReport(rel: Untyped) {
-    const countCellStyleXfs = (xml: Untyped) =>
+  namedStyleFillReport(rel: string) {
+    const countCellStyleXfs = (xml: string) =>
       Number((xml.match(/<cellStyleXfs count="(\d+)"/) || [])[1] || 0);
     const srcCellStyleXfsCount = countCellStyleXfs(
       partMapOf(fixtureBytes(rel))['xl/styles.xml'] || '',
@@ -199,7 +199,7 @@ export const styles = {
   // Write a value under a date number format and report the sheet XML's health → { ok, hasNaN,
   // hasInvalidDate, cellXml }. A string, a null (empty cell), or an Invalid Date under a date format
   // must never leak a bare "NaN" or "Invalid Date" into the cell value.
-  dateNumFmtValueReport(kind: Untyped) {
+  dateNumFmtValueReport(kind: 'string' | 'null' | 'invalidDate') {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     const cell = sheet.getCell('A1');
@@ -296,7 +296,7 @@ export const styles = {
   // as valid 8-hex-digit values; a '#'-prefixed input must be normalized, never passed through as a
   // malformed 9-character colour.
   fillArgbHashPrefixReport() {
-    const emittedFgColor = (argb: Untyped) => {
+    const emittedFgColor = (argb: string) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -313,7 +313,7 @@ export const styles = {
   // 6-char rgb that Excel renders black. A value that is neither 6 nor 8 hex digits is a programming
   // error and must be rejected, never written as a colour Excel silently renders black.
   argbNormalizationReport() {
-    const emittedFgColor = (argb: Untyped) => {
+    const emittedFgColor = (argb: string) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -352,7 +352,7 @@ export const styles = {
   // the reader reads bold back → { bareTag, valOne, valZero }. A boolean font flag's `val` governs:
   // a bare tag or val="1" is on, val="0" is off — presence alone must not force true.
   fontExplicitFalseBoldReport() {
-    const readBoldWith = (tag: Untyped) => {
+    const readBoldWith = (tag: string) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -375,7 +375,7 @@ export const styles = {
   // off; <u val="none"/> is the ABSENCE of an underline, so it must read back falsy — never the
   // truthy string "none".
   fontExplicitOffFlagsReport() {
-    const readWith = (baseFont: Untyped, tagRe: Untyped, tag: Untyped, field: Untyped) => {
+    const readWith = (baseFont: Untyped, tagRe: RegExp, tag: string, field: string) => {
       const wb = new Workbook();
       const ws = wb.addWorksheet('S');
       ws.getCell('A1').value = 'x';
@@ -478,7 +478,7 @@ export const styles = {
     };
   },
 
-  readFixtureCellStyles(rel: Untyped, cells: Untyped = []) {
+  readFixtureCellStyles(rel: string, cells: Untyped = []) {
     const wb = readFixture(rel);
     const out: Record<string, Untyped> = {};
     for (const key of cells) {
@@ -500,7 +500,7 @@ export const styles = {
   // { checked, fillMismatches, borderMismatches, fillSample, borderSample }. Theme+tint and
   // indexed-palette references must survive verbatim so the sheet renders identically after a
   // pure open-then-save. Colour comparison is key-order-insensitive.
-  roundtripFixtureColorFidelity(rel: Untyped) {
+  roundtripFixtureColorFidelity(rel: string) {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
@@ -570,7 +570,7 @@ export const styles = {
     sheet.getCell('B1').value = 'b';
     sheet.getCell('C1').value = 'c';
     const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
-    const rightBorder = (ref: Untyped) => {
+    const rightBorder = (ref: string) => {
       const b = s.getCell(ref).border;
       return !!b?.right?.style;
     };
@@ -580,7 +580,7 @@ export const styles = {
   // Read a fixture, extract its column widths and pageSetup, write it straight back, re-read, and
   // report the same facts → { source, rewritten }. A faithful no-op round-trip must reproduce every
   // fractional column width and the print-scaling attributes the real file carries.
-  roundtripFixtureStyleFacts(rel: Untyped) {
+  roundtripFixtureStyleFacts(rel: string) {
     // Model-level facts (column widths, pageSetup, dxfs) come from the parsed workbook; the custom
     // indexed-color palette is a raw styles.xml fact, so it is read straight from the part bytes on
     // each side — matching the legacy oracle, which extracts the same block from the zip.
@@ -632,7 +632,7 @@ export const styles = {
   // and `relTargetsResolve` whether each one names a part the package actually holds — a theme
   // re-emitted without its closure would leave that `r:embed` dangling, which is worse than dropping
   // the theme outright.
-  roundtripFixtureThemeFacts(rel: Untyped) {
+  roundtripFixtureThemeFacts(rel: string) {
     // The theme is reached the way OPC reaches it — through the workbook's `.../theme` relationship,
     // whose target is relative to `xl/` — not by assuming the conventional `theme1.xml` name.
     const themePathOf = (parts: Record<string, string>) => {
@@ -697,7 +697,7 @@ export const styles = {
   //
   // `undeclaredPrefixes` guards the hazard of verbatim preservation: a fragment carries its namespace
   // prefixes with it, and one the re-emitted root never declares makes the whole part unparseable.
-  roundtripFixtureStylesTailFacts(rel: Untyped) {
+  roundtripFixtureStylesTailFacts(rel: string) {
     const facts = (parts: Record<string, string>) => {
       const xml = parts['xl/styles.xml'] ?? '';
       const block = (name: string) =>
@@ -772,7 +772,7 @@ export const styles = {
   // resolution is what turns it into a colour a caller can render. The raw encoding is reported
   // beside the resolved value on purpose: resolution is a derived view, so the model must still be
   // holding the original reference.
-  fixtureColorResolution(rel: Untyped, cells: Untyped = []) {
+  fixtureColorResolution(rel: string, cells: Untyped = []) {
     const workbook = readFixture(rel);
     const sheet = workbook.worksheets[0];
     const out: Record<string, Untyped> = {};
@@ -957,7 +957,7 @@ export const styles = {
     applyStyle(sheet.getCell('A2'), base);
     sheet.getCell('A1').font = {...sheet.getCell('A1').font, color: {argb: 'FF00FF00'}};
     const s = readXlsx(writeXlsx(workbook)).getWorksheet('S')!;
-    const colorOf = (ref: Untyped) => {
+    const colorOf = (ref: string) => {
       const f = s.getCell(ref).font;
       return f?.color ? (f.color.argb ?? null) : null;
     };
@@ -984,7 +984,7 @@ export const styles = {
       right: {style: 'thin'},
     };
     const s = readXlsx(writeXlsx(loaded)).getWorksheet('S')!;
-    const hasBorder = (ref: Untyped) => {
+    const hasBorder = (ref: string) => {
       const b = s.getCell(ref).border;
       return !!b?.top?.style;
     };

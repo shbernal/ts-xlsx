@@ -1,7 +1,7 @@
-import {messageOf} from '../../thrown.ts';
 // Core model and whole-package behaviour: address decoding, reader input classification,
 // package inspection, and the workbook-level round-trips that are not about one feature.
 
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {packageFacts} from '../ooxml-facts.ts';
 import {packagePartFacts, partMapOf} from './package-facts.ts';
@@ -21,23 +21,23 @@ import {
   normalizeStreamValue,
   UnsupportedSpecError,
 } from './spec-model.ts';
-import {buildReadInput, classifyReadError} from './xml-probes.ts';
+import {buildReadInput, classifyReadError, type ReadInputKind} from './xml-probes.ts';
 
 export const core = {
   // Classify a reader input by format family and report the typed error (or success) it produces —
   // `{threw, errorName, code, format, message, leaksZipInternals, leaksAbsolutePath}` — for asserting a
   // non-`.xlsx` blob fails with a clear, catchable, typed error rather than a raw zip crash.
-  classifyReadInput(kind: Untyped) {
+  classifyReadInput(kind: ReadInputKind) {
     return classifyReadError(() => {
       readXlsx(buildReadInput(kind));
     });
   },
 
-  decodeAddress(reference: Untyped) {
+  decodeAddress(reference: string) {
     return decodeAddress(reference);
   },
 
-  decodeRange(reference: Untyped) {
+  decodeRange(reference: string) {
     return decodeRange(reference);
   },
 
@@ -132,7 +132,7 @@ export const core = {
   // stored → { hasSharedStringsPart, isSharedRef, isInline }. The option must actually control
   // storage: enabled emits a sharedStrings part and a t="s" cell reference; disabled keeps the string
   // inline with no such part.
-  sharedStringsOption(useSharedStrings: Untyped) {
+  sharedStringsOption(useSharedStrings: boolean) {
     const wb = new Workbook();
     wb.addWorksheet('S').getCell('A1').value = 'shared-me';
     const parts = partMapOf(writeXlsx(wb, {useSharedStrings}));
@@ -147,7 +147,7 @@ export const core = {
   // Read a fixture, write it back unchanged, and report package-part facts before/after →
   // { source, rewritten } — for asserting a no-op round-trip PRESERVES parts the reader does not
   // model (a vector-shape drawing, a header/footer image and its VML) instead of dropping them.
-  roundtripFixturePackageParts(rel: Untyped) {
+  roundtripFixturePackageParts(rel: string) {
     const source = packagePartFacts(partMapOf(fixtureBytes(rel)));
     const rewritten = packagePartFacts(partMapOf(writeXlsx(readXlsx(fixtureBytes(rel)))));
     return {source, rewritten};
@@ -156,7 +156,7 @@ export const core = {
   // Write a non-finite numeric cell (NaN / Infinity / -Infinity) and report whether the sheet XML
   // carries a bare token in a <v> → { hasNonFiniteToken, token }. A non-finite value has no OOXML
   // representation, so it must serialize as a valueless cell, never a literal "NaN"/"Infinity".
-  nonFiniteCellReport(kind: Untyped) {
+  nonFiniteCellReport(kind: 'NaN' | 'Infinity' | '-Infinity') {
     const value =
       kind === 'NaN'
         ? Number.NaN
@@ -173,7 +173,7 @@ export const core = {
   // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet
   // XML → { hasNaNToken, cells }. Each cell is { t, formula, value } read off the raw `<c>`. Guards
   // that a string-typed formula result under a date format is not coerced to a numeric/NaN cell.
-  roundtripFixtureCellXml(rel: Untyped, refs: string[] = []) {
+  roundtripFixtureCellXml(rel: string, refs: string[] = []) {
     const parts = partMapOf(writeXlsx(readXlsx(fixtureBytes(rel))));
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
     const cells: Record<string, Untyped> = {};
@@ -213,7 +213,7 @@ export const core = {
   // is captured and returned as data (never propagated) so a case asserts on a crash rather than the
   // runner blowing up. Exercises the reader against foreign generators and schema-valid corners Excel
   // never emits (namespace-prefixed roots, a leading BOM, unusual part order, missing optional parts).
-  readFixtureReport(rel: Untyped) {
+  readFixtureReport(rel: string) {
     try {
       const wb = readFixture(rel);
       return {
@@ -283,7 +283,7 @@ export const core = {
   // The model retains every name as its own entry rather than keying by name, so two same-named
   // names scoped to different sheets both survive — the scope collision that drops one on the
   // oracle's name-keyed reader.
-  readFixtureDefinedNames(rel: Untyped) {
+  readFixtureDefinedNames(rel: string) {
     const wb = readFixture(rel);
     const names: Record<string, Untyped> = {};
     for (const dn of wb.definedNames) {
@@ -302,7 +302,7 @@ export const core = {
   // format, and note → { <addr>: {type, value, numFmt, note} | null }, on the first sheet. Mirrors
   // the oracle: a date-formatted numeric serial surfaces as a Date (value { date: iso }), not a raw
   // number, honouring the 1900 date-system leap-year quirk. `type` is a stable label.
-  readFixtureCells(rel: Untyped, cells: Untyped = []) {
+  readFixtureCells(rel: string, cells: Untyped = []) {
     const wb = readFixture(rel);
     const sheet = wb.worksheets[0];
     const out: Record<string, Untyped> = {};
@@ -334,7 +334,7 @@ export const core = {
   // Style comparison is key-order-insensitive so a case asserts on content survival, not
   // serialization incidentals. In the rewrite's model a column stores a width only when it is a
   // custom width, so "has a width" is exactly "is a custom width".
-  roundtripFixture(rel: Untyped) {
+  roundtripFixture(rel: string) {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
@@ -471,7 +471,7 @@ export const core = {
 
   // Load a fixture and try to write it back → { loadOk, loadError, writeOk, writeError, sheetNames } —
   // for asserting a foreign construct round-trips without the writer crashing.
-  roundtripFixtureWriteReport(rel: Untyped) {
+  roundtripFixtureWriteReport(rel: string) {
     let workbook: Untyped;
     try {
       workbook = readFixture(rel);
@@ -599,7 +599,7 @@ export const core = {
       if (error instanceof UnsupportedSpecError) throw error;
       return {ok: false, phase: 'build', error: messageOf(error)};
     }
-    let buffer: Untyped;
+    let buffer: Uint8Array;
     try {
       buffer = writeXlsx(workbook);
     } catch (error) {

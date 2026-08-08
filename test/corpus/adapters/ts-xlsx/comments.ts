@@ -1,7 +1,7 @@
-import {messageOf} from '../../thrown.ts';
 // Threaded comments, legacy notes, and rich text.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {commentThreadFacts, packagePartFacts, partMapOf} from './package-facts.ts';
 import {readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
@@ -111,7 +111,7 @@ export const comments = {
 
   // Read a fixture and report the modern threaded conversations the reader reconstructs — see
   // {@link commentThreadFacts} for the shape.
-  readFixtureCommentThreads(rel: Untyped, refs: Untyped = []) {
+  readFixtureCommentThreads(rel: string, refs: string[] = []) {
     return commentThreadFacts(readFixture(rel), refs);
   },
 

@@ -1,6 +1,6 @@
-import {messageOf} from '../../thrown.ts';
 // The CSV reader and writer, including encoding behaviour.
 
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {
   normalizeCsvValue,
@@ -43,7 +43,9 @@ export const csv = {
     }
   },
 
-  csvWriteSheetSelection(sheetName: Untyped) {
+  // `undefined` is a case the corpus exercises, not an oversight: it asks the writer to pick a sheet
+  // with no selector, so the signature has to admit it.
+  csvWriteSheetSelection(sheetName: string | undefined) {
     const wb = new Workbook();
     wb.addWorksheet('First').addRow(['a', 1]);
     const second = wb.addWorksheet('Second');

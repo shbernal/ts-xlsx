@@ -1,8 +1,8 @@
-import {messageOf} from '../../thrown.ts';
 // Conditional formatting rules and their evaluation order.
 
 import fs from 'node:fs';
 import path from 'node:path';
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {FIXTURES_ROOT, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
@@ -18,7 +18,7 @@ export const conditionalFormatting = {
     // Populate the ref's first column so the rule binds to real cells.
     const rows = Number((cf.ref.match(/(\d+)\s*$/) || [])[1] || 3);
     for (let r = 1; r <= rows; r++) sheet.getCell(`A${r}`).value = r / rows;
-    let buffer: Untyped;
+    let buffer: Uint8Array;
     try {
       sheet.addConditionalFormatting(cf);
       buffer = writeXlsx(workbook);
@@ -90,8 +90,8 @@ export const conditionalFormatting = {
 
   // Read a fixture's first-sheet conditional-formatting facts, write it back, and report the same
   // before/after → { source, rewritten } each { blockCount, rules:[{type, dxfId, priority}] }.
-  roundtripFixtureConditionalFormatting(rel: Untyped) {
-    const cfFacts = (xml: Untyped) => ({
+  roundtripFixtureConditionalFormatting(rel: string) {
+    const cfFacts = (xml: string) => ({
       blockCount: [...xml.matchAll(/<conditionalFormatting\b/g)].length,
       rules: [...xml.matchAll(/<cfRule\b([^>]*?)\/?>/g)].map((m) => {
         const a = attrsOf(`<x ${m[1]}>`);
@@ -100,7 +100,7 @@ export const conditionalFormatting = {
     });
     const srcParts = partMapOf(fs.readFileSync(path.join(FIXTURES_ROOT, rel)));
     const srcName = Object.keys(srcParts).find((n) => /sheet1\.xml$/.test(n));
-    const source = cfFacts(srcName ? srcParts[srcName] : '');
+    const source = cfFacts(srcName === undefined ? '' : (srcParts[srcName] ?? ''));
     const outXml = partMapOf(writeXlsx(readFixture(rel)))['xl/worksheets/sheet1.xml'] || '';
     return {source, rewritten: cfFacts(outXml)};
   },

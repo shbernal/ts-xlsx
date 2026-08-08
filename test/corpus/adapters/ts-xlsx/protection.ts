@@ -1,7 +1,7 @@
-import {messageOf} from '../../thrown.ts';
 // Workbook, worksheet and cell protection.
 
 import {strToU8, zipSync} from 'fflate';
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {decodeAddress, readXlsx, Workbook, writeXlsx} from './runtime.ts';

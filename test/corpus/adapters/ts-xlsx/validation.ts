@@ -1,6 +1,6 @@
-import {messageOf} from '../../thrown.ts';
 // Data validation rules: authoring them, reading them back, and their serialized XML.
 
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
 import {readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
@@ -10,7 +10,7 @@ export const validation = {
   // Author a date-type validation whose operand coerces to a serial (or fails to), write, and report
   // the emitted first bound → { formula1, hasNaN }. A real date writes a numeric serial; a
   // non-coercible operand must drop the bound, never serialize the literal "NaN".
-  authorDateValidation(operand: Untyped) {
+  authorDateValidation(operand: string) {
     const serial = (() => {
       const ms = Date.parse(operand);
       return Number.isNaN(ms) ? Number.NaN : ms / 86_400_000 + 25_569; // Unix epoch → 1900 serial
@@ -45,7 +45,7 @@ export const validation = {
   // Read a fixture and report each covered cell's data validation → { cells: { 'Sheet!Ref': rule },
   // count }. A rule authored over a multi-cell range must be reported on EVERY covered cell (the
   // range form is resolved per cell), and a reference/name operand must survive as its string.
-  readFixtureValidations(rel: Untyped) {
+  readFixtureValidations(rel: string) {
     const wb = readFixture(rel);
     const cells: Record<string, Untyped> = {};
     for (const sheet of wb.worksheets) {
@@ -64,7 +64,7 @@ export const validation = {
   // Reads the worksheet overlay (not populated cells), so a rule over an empty range is still seen,
   // and surfaces a reference source (a defined name, a cross-sheet range) as its verbatim formula
   // text rather than "[object Object]".
-  readFixtureValidationRules(rel: Untyped) {
+  readFixtureValidationRules(rel: string) {
     const wb = readFixture(rel);
     const sheets: Record<string, Untyped> = {};
     for (const sheet of wb.worksheets) {
@@ -85,7 +85,7 @@ export const validation = {
   // form (2009 extension schema, carried in `<extLst>`, used for cross-sheet / whole-column list
   // sources). Lets a case assert a template's validation survives a read→write round-trip rather than
   // being silently dropped because only the standard form was understood.
-  roundtripFixtureValidationXml(rel: Untyped) {
+  roundtripFixtureValidationXml(rel: string) {
     const parts = partMapOf(writeXlsx(readFixture(rel)));
     const sheetParts = Object.keys(parts)
       .filter((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p))
@@ -155,7 +155,7 @@ export const validation = {
   roundtripRangeValidation({range, type = 'list', formula = '"a,b,c"'}: Untyped = {}) {
     const wb = new Workbook();
     const sheet = wb.addWorksheet('S');
-    let buffer: Untyped;
+    let buffer: Uint8Array;
     try {
       sheet.addDataValidation(range, {type, allowBlank: true, formulae: [formula]});
       buffer = writeXlsx(wb);

@@ -1,10 +1,10 @@
-import {messageOf} from '../../thrown.ts';
 // Rows, columns, merges and the sheet geometry around them — insertion, splicing, outline
 // levels, freeze panes, print areas and page breaks.
 
 import type {RowInput} from '../../../../src/core/worksheet.ts';
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
-import {partMapOf} from './package-facts.ts';
+import {type PartMap, partMapOf} from './package-facts.ts';
 import {
   decodeRange,
   encodeAddress,
@@ -55,7 +55,7 @@ export const grid = {
   // Read a fixture's single _xlnm.Print_Area name (a comma-separated range list), re-write it, and read
   // it again → { sourceRangeCount, readPrintArea, rewrittenRangeCount }. Both disjoint ranges must
   // survive read and re-serialization, never truncated to the first.
-  roundtripFixturePrintAreas(rel: Untyped) {
+  roundtripFixturePrintAreas(rel: string) {
     const printAreaOf = (wb: Untyped) =>
       wb.definedNames.find((n: Untyped) => n.name === '_xlnm.Print_Area')?.refersTo ?? '';
     const source = readXlsx(fixtureBytes(rel));
@@ -69,7 +69,7 @@ export const grid = {
   // Author a sheet-scoped _xlnm.Print_Area over a comma-separated area, round-trip, and report the
   // emitted ranges (sheet prefix stripped) → { ranges }. Two disjoint areas must emit two proper
   // rectangular ranges in one name, not a truncated single range.
-  writePrintAreaDefinedName(area: Untyped) {
+  writePrintAreaDefinedName(area: string) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     workbook.defineName({
@@ -86,7 +86,7 @@ export const grid = {
   // Author a sheet-scoped _xlnm.Print_Area over one area (whole-column or bounded), round-trip, and
   // report the written and recovered forms → { writtenDefinedName, reReadPrintArea, reloadOk }. A
   // column-only reference ($A:$D) must recover intact, never decoded to a NaN-mangled address.
-  printAreaRoundtrip(area: Untyped) {
+  printAreaRoundtrip(area: string) {
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');
     workbook.defineName({
@@ -250,7 +250,7 @@ export const grid = {
     const buffer = writeXlsx(wb);
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
     // A column emits an explicit width when its `<col>` carries a customWidth flag over its index.
-    const emittedAt = (index: Untyped) =>
+    const emittedAt = (index: number) =>
       new RegExp(`<col\\b[^>]*\\bmin="${index}"[^>]*\\bmax="${index}"[^>]*\\bcustomWidth="1"`).test(
         sheetXml,
       );
@@ -339,19 +339,19 @@ export const grid = {
   // loadedBreaks, rewrittenBreaks }, each the ascending list of break row ids. sourceBreaks reads the
   // raw fixture XML (the precondition); loadedBreaks/rewrittenBreaks come off the model after read and
   // after write→re-read, so a dropped-on-read or dropped-on-write regression shows as an empty list.
-  roundtripFixtureRowBreaks(rel: Untyped) {
-    const rowBreakIds = (xml: Untyped) => {
+  roundtripFixtureRowBreaks(rel: string) {
+    const rowBreakIds = (xml: string) => {
       const section = xml.match(/<rowBreaks[\s\S]*?<\/rowBreaks>/);
       if (section === null) return [];
       return [...section[0].matchAll(/<brk\b[^>]*\bid="(\d+)"/g)]
         .map((m) => Number(m[1]))
         .sort((a, b) => a - b);
     };
-    const sheet1 = (parts: Untyped) => parts['xl/worksheets/sheet1.xml'] ?? '';
+    const sheet1 = (parts: PartMap) => parts['xl/worksheets/sheet1.xml'] ?? '';
     const modelBreaks = (wb: Untyped) =>
       wb.worksheets[0].rowBreaks
         .map((brk: Untyped) => brk.id)
-        .sort((a: Untyped, b: Untyped) => a - b);
+        .sort((a: number, b: number) => a - b);
 
     const sourceBreaks = rowBreakIds(sheet1(partMapOf(fixtureBytes(rel))));
     const loaded = readFixture(rel);
@@ -397,7 +397,7 @@ export const grid = {
   // an include-empty iteration yields → { rows: { <n>: { cols } }, columnCount }. Positional iteration
   // walks 1..columnCount (the sheet's declared width), so interior *and* trailing empties are surfaced
   // and every row reconstructs to the header width — the alignment invariant a positional consumer needs.
-  async readRowCellPresence(spec: Untyped, rowNumbers: Untyped = []) {
+  async readRowCellPresence(spec: Untyped, rowNumbers: number[] = []) {
     const sheet = readXlsx(writeXlsx(buildFrom(spec))).worksheets[0]!;
     const columnCount = sheet.columnCount;
     const rows: Record<string, Untyped> = {};
@@ -420,7 +420,7 @@ export const grid = {
     const ws = wb.addWorksheet('S');
     ws.getCell('A1').value = 'Group';
     ws.mergeCells('A1:B1');
-    const textOf = (ref: Untyped) => {
+    const textOf = (ref: string) => {
       const v = ws.getCell(ref).value;
       return v === null || v === undefined ? '' : String(v);
     };
@@ -577,7 +577,7 @@ export const grid = {
     } catch (e) {
       dupError = messageOf(e);
     }
-    const val = (ref: Untyped) => sheet.getCell(ref).value ?? null;
+    const val = (ref: string) => sheet.getCell(ref).value ?? null;
     const row1 = [val('A1'), val('B1'), val('C1')];
     const row2 = [val('A2'), val('B2'), val('C2')];
     let mergeError = null;
