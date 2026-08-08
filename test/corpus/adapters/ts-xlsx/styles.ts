@@ -1,6 +1,7 @@
 // Fonts, fills, borders, alignment, number formats and the style-deduplication that decides
 // which of them survive a round-trip.
 
+import {canonicalJson} from '../../canonical-json.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';
@@ -514,16 +515,7 @@ export const styles = {
       }
       return Object.keys(edges).length ? edges : null;
     };
-    const stableSort = (v: Untyped): Untyped => {
-      if (Array.isArray(v)) return v.map(stableSort);
-      if (v && typeof v === 'object') {
-        const sorted: Record<string, Untyped> = {};
-        for (const k of Object.keys(v).sort()) sorted[k] = stableSort(v[k]);
-        return sorted;
-      }
-      return v;
-    };
-    const norm = (v: Untyped) => JSON.stringify(stableSort(v ?? null));
+    const norm = (v: unknown) => JSON.stringify(canonicalJson(v ?? null));
 
     let checked = 0;
     let fillMismatches = 0;

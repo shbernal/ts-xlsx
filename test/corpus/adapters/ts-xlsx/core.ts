@@ -1,6 +1,7 @@
 // Core model and whole-package behaviour: address decoding, reader input classification,
 // package inspection, and the workbook-level round-trips that are not about one feature.
 
+import {canonicalJson} from '../../canonical-json.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {packageFacts} from '../ooxml-facts.ts';
@@ -338,20 +339,11 @@ export const core = {
     const before = readFixture(rel);
     const after = readXlsx(writeXlsx(before));
 
-    const stableSort = (v: Untyped): Untyped => {
-      if (Array.isArray(v)) return v.map(stableSort);
-      if (v && typeof v === 'object') {
-        const sorted: Record<string, Untyped> = {};
-        for (const k of Object.keys(v).sort()) sorted[k] = stableSort(v[k]);
-        return sorted;
-      }
-      return v;
-    };
     const hasStyle = (cell: Untyped) =>
       !!(cell.numFmt || cell.fill?.type || cell.font || cell.alignment || cell.border);
     const styleKey = (cell: Untyped) =>
       JSON.stringify(
-        stableSort({
+        canonicalJson({
           numFmt: cell.numFmt || null,
           fill: cell.fill?.type ? cell.fill : null,
           font: cell.font || null,

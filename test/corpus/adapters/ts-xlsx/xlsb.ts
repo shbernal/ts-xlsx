@@ -4,6 +4,7 @@
 
 import {strToU8, zipSync} from 'fflate';
 
+import {canonicalJson} from '../../canonical-json.ts';
 import type {Untyped} from '../../untyped.ts';
 import {encodeAddress, fixtureBytes, readXlsb, readXlsx} from './runtime.ts';
 
@@ -189,7 +190,7 @@ function formulaTexts(workbook: Untyped): Map<string, Untyped> {
 // which parser filled the object, so it is normalised away; nothing else is.
 function snapshot(workbook: Untyped): string {
   return JSON.stringify(
-    canonical(
+    canonicalJson(
       workbook.worksheets.map((sheet: Untyped) => {
         const model = sheet.model;
         return {
@@ -205,16 +206,4 @@ function snapshot(workbook: Untyped): string {
     null,
     1,
   );
-}
-
-function canonical(value: Untyped): Untyped {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([left], [right]) => (left < right ? -1 : 1))
-        .map(([key, nested]) => [key, canonical(nested)]),
-    );
-  }
-  return value;
 }
