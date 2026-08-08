@@ -93,6 +93,14 @@ change that can read secrets, and it is invisible: nothing in a diff shows who c
   → Environments. What it keeps is the half that was load-bearing — the failure this guards
   against is a settings edit nobody sees, and a check that goes red names it. What it gains is
   a check that can actually run, which the provisioning version never could.
+
+  Proving it could fail found a defect in it, which is the argument for the practice. Run
+  against a throwaway environment configured wrong on purpose, it went red — with
+  `gh: Not Found (HTTP 404)` and none of its own output. GitHub serves the
+  deployment-branch-policies endpoint only while custom policies are switched *on*; with them
+  off it 404s rather than returning an empty list. So the drift that matters most, the tag
+  rule removed, was the one case reported as an unattributed HTTP error. The switch is now
+  read first and "off" is spelled as the empty list it means.
 - **Verified, not assumed** — and the verification corrected the design twice and the
   npm-side configuration once, each against a mistake of ours.
 

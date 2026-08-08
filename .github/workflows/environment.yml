@@ -80,7 +80,15 @@ jobs:
             echo "it — and an absent environment fails open, admitting any ref."
             exit 1
           fi
-          policies=$(gh api "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}/deployment-branch-policies")
+          # The policies endpoint exists only while custom policies are switched on: with them
+          # off it answers 404, not an empty list. Asking anyway turns the drift that matters
+          # most — the tag rule removed — into a bare "gh: Not Found" with nothing to read, so
+          # the switch is consulted first and "off" is spelled as the empty list it means.
+          if [ "$(jq -r '.deployment_branch_policy.custom_branch_policies // false' <<<"${environment}")" = true ]; then
+            policies=$(gh api "/repos/${GITHUB_REPOSITORY}/environments/${ENV_NAME}/deployment-branch-policies")
+          else
+            policies='{"branch_policies": []}'
+          fi
 
           # Every field is read through a list-and-default rather than a bare stream: a rule
           # that is absent must be reported as absent, not silently drop the line that would
