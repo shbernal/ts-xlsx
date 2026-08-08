@@ -65,10 +65,18 @@ arguments, the return type — because that is the contract it is written agains
 was `any` for years on the theory that hiding it bought independence; it bought nothing and
 cost 832 behaviors their type-checking, including a case that carried a branch for a shape
 the API cannot return. When you genuinely need to opt out, `Untyped` from `../untyped.ts`
-says so out loud and is countable with `grep`.
+says so out loud and is countable — its module comment carries the command and says which
+of the remaining uses are deliberate.
 
-The harness is type-checked (`pnpm run typecheck:test`), so a case must be green there too —
-a capability typo is now a compile error naming the capability, not a silent skip.
+Two more helpers exist so the common shapes need no opt-out at all: `messageOf` in
+`thrown.ts` turns a `catch` binding into the string a case asserts on, and `canonicalJson`
+in `canonical-json.ts` sorts keys at every depth so two structurally equal values compare
+equal after `JSON.stringify`. For a value the library itself types, `runtime.ts` exports
+`WorkbookInstance`, `WorksheetInstance` and `CellInstance`.
+
+The harness is type-checked, so a case must be green there too — a capability typo is a
+compile error naming the capability, not a silent skip. `pnpm run typecheck` covers both
+this tree and `src/`; `typecheck:test` is the narrower loop.
 
 - **`id` / `description`** carry the durable identity: a descriptive slug and the
   *real-world scenario* in prose. Do **not** encode upstream issue/PR numbers here —
