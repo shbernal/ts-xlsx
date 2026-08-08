@@ -10,10 +10,17 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | Layer | What it proves | Command | Needs |
 | --- | --- | --- | --- |
 | Types + unit | The code compiles under strict TS and units pass | `pnpm run typecheck && pnpm run test:src` | Node 24 |
+| ↳ narrower | Only one tree, when iterating | `pnpm run typecheck:src` · `pnpm run typecheck:test` | Node 24 |
 | Lint | Style/format/floating-promise/console gates | `pnpm run lint` | Node 24 |
 | **Corpus** | Well-formed XML, package structure, and no behavior regression — the **spine** | `pnpm run corpus` | Node 24 |
 | **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `node scripts/ooxml-validator.ts file.xlsx` | **.NET 10** |
 | Spec grounding | Ground a decision in the authoritative format | Learn MCP + `schemas/` + `docs/knowledge/specs/` | — |
+
+**`typecheck` means both trees.** There are two strict projects — `tsconfig.json` over `src/` and
+`tsconfig.test.json` over `test/` + `scripts/` + `tools/` — and the `verify` gate has always run
+both. The `typecheck` *script* used to run only the first, which made the obvious command silently
+blind to the tree the regression corpus lives in: edit an adapter, get a green `typecheck`, and
+learn nothing. It now runs both, and `typecheck:src` is there for when you genuinely want one.
 
 **`lint:fix` needs no confirming `lint` pass.** `biome check --write` applies what it can and
 *still exits non-zero* if any diagnostic survives, so a green `lint:fix` already is the proof.
