@@ -94,9 +94,7 @@ function selectSheet(workbook: Workbook, name: string | undefined): Worksheet {
     if (first === undefined) throw new AuthoringError('workbook has no worksheet to write as CSV');
     return first;
   }
-  const sheet = workbook.getWorksheet(name);
-  if (sheet === undefined) throw new AuthoringError(`no worksheet named "${name}" to write as CSV`);
-  return sheet;
+  return workbook.requireWorksheet(name);
 }
 
 // A field is the value's plain text, with one CSV-only deviation: `dateFormat`/`dateUTC` let a

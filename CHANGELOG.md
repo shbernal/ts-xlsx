@@ -14,6 +14,12 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **`Workbook.requireWorksheet` — the total counterpart of `getWorksheet`.** Same lookup, by name
+  (case-insensitive) or numeric id, but a miss throws an `AuthoringError` naming every sheet the
+  workbook does have instead of returning `undefined` that flows on into a `?.` chain and fails
+  several steps later with nothing left to say. A lookup miss is a typo, a stale template or a
+  renamed tab, and all three are answered by seeing the real names. The CSV writer now uses it, so
+  its "no worksheet named …" message gains that listing and loses the "to write as CSV" suffix.
 - **`estimateWrappedLines` — how many lines a wrapped cell takes.** A row that states no height is
   auto-fitted by Excel at paint time, which on a sheet of wrapped multi-thousand-character cells is
   done lazily and incompletely (bands open blank until clicked); writing an explicit height settles

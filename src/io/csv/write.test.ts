@@ -31,7 +31,10 @@ test('sheetName selects the worksheet; the default is the first', () => {
 test('a name matching no worksheet throws rather than emitting empty output', () => {
   const wb = new Workbook();
   wb.addWorksheet('First').addRow(['a']);
-  assert.throws(() => writeCsvText(wb, {sheetName: 'Nope'}), /no worksheet named "Nope"/);
+  assert.throws(
+    () => writeCsvText(wb, {sheetName: 'Nope'}),
+    /no worksheet "Nope"; this workbook has "First"/,
+  );
 });
 
 test('a Date renders in a token format in UTC, or as a full ISO timestamp by default', () => {

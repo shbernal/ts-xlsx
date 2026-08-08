@@ -95,6 +95,10 @@ export type IoContracts = [
   Expect<Equal<ReturnType<typeof writeXlsx>, Uint8Array>>,
   Expect<Equal<ReturnType<typeof readXlsx>, Workbook>>,
   Expect<Equal<ReturnType<Workbook['getWorksheet']>, Worksheet | undefined>>,
+  // ...and requireWorksheet is the total counterpart: it is only worth having if the caller is
+  // spared the narrowing, so a `Worksheet | undefined` here would defeat the whole point of it.
+  Expect<Equal<ReturnType<Workbook['requireWorksheet']>, Worksheet>>,
+  Expect<Equal<Parameters<Workbook['requireWorksheet']>, Parameters<Workbook['getWorksheet']>>>,
 ];
 
 // The used range is partial by design: a sheet spanning no rectangle says so, rather than handing

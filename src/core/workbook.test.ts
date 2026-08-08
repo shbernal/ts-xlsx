@@ -93,3 +93,29 @@ test('assigning undefined clears a cell back to null/empty', () => {
   assert.equal(cell.value, null);
   assert.equal(cell.type, ValueType.Null);
 });
+
+test('requireWorksheet returns the sheet a partial lookup would', () => {
+  const wb = new Workbook();
+  const sheet = wb.addWorksheet('Data');
+  assert.strictEqual(wb.requireWorksheet('Data'), sheet);
+  assert.strictEqual(wb.requireWorksheet('DATA'), sheet, 'case-insensitive, as getWorksheet is');
+  assert.strictEqual(wb.requireWorksheet(sheet.id), sheet, 'and by numeric id');
+});
+
+test('requireWorksheet names every sheet the workbook does have', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Summary');
+  wb.addWorksheet('Raw data');
+  assert.throws(
+    () => wb.requireWorksheet('Sheet1'),
+    /no worksheet "Sheet1"; this workbook has "Summary", "Raw data"/,
+  );
+  assert.throws(() => wb.requireWorksheet(99), /no worksheet id 99; this workbook has "Summary"/);
+});
+
+test('requireWorksheet says so when there are no sheets at all', () => {
+  assert.throws(
+    () => new Workbook().requireWorksheet('Any'),
+    /no worksheet "Any": this workbook has no worksheets/,
+  );
+});

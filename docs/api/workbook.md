@@ -152,6 +152,7 @@ class Workbook {
   defineName(definedName: DefinedName): void;
   addWorksheet(name: string, options: AddWorksheetOptions = {}): Worksheet;
   getWorksheet(nameOrId: string | number): Worksheet | undefined;
+  requireWorksheet(nameOrId: string | number): Worksheet;
 }
 ```
 
@@ -664,6 +665,23 @@ getWorksheet(nameOrId: string | number): Worksheet | undefined;
 ```
 
 Look up a worksheet by name (case-insensitive) or by numeric id.
+
+#### `Workbook.requireWorksheet`
+
+```ts
+requireWorksheet(nameOrId: string | number): Worksheet;
+```
+
+[`getWorksheet`](./workbook.md#workbookgetworksheet), for a caller who knows the sheet is there — the miss throws instead of
+returning `undefined`, and the message names every sheet the workbook does have.
+
+The partial lookup is the right primitive for asking *whether* a sheet exists, and the wrong
+one for reaching a sheet a template is expected to carry: `undefined` flows on into a `?.`
+chain and fails several steps later with nothing left to say about which name was missing.
+That listing is the whole point — a lookup miss is a typo, a stale template or a renamed tab,
+and all three are answered by seeing the real names.
+
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if no worksheet has that name (case-insensitive) or numeric id.
 
 ---
 
