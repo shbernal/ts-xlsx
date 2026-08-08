@@ -17,17 +17,20 @@
     "noUnusedParameters": true,
 
     "noUncheckedSideEffectImports": true,
+    "erasableSyntaxOnly": true,
 
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true,
+    "skipLibCheck": false,
     "noEmit": true,
 
     "incremental": true,
     "tsBuildInfoFile": "node_modules/.cache/ts-xlsx/src.tsbuildinfo"
   },
+  "//erasableSyntaxOnly": "The whole dev/test/corpus workflow runs these .ts files through Node's type-stripping, which refuses syntax that is not erasable — an enum, a namespace, a parameter property. Without this flag tsc accepts all three happily and the failure surfaces later as a parse error from `node --test`, pointing at the syntax rather than at the choice. Measured at zero violations when adopted, so it constrains nothing we write today; it only keeps the no-build workflow from being broken by a construct the type gate had no opinion about (ADR 0031).",
+  "//skipLibCheck": "Off, against the near-universal default. That default is a performance workaround from an era when checking dependency .d.ts files was the expensive part of a run; TypeScript 7 (ADR 0028) ended that era — measured cold at 0.451 s with it on and 0.447 s with it off, i.e. free. With one runtime dependency and Renovate opening the bumps for CI to review (ADR 0027), a dependency shipping broken declarations SHOULD fail this gate rather than be skipped past.",
   "//incremental": "The gate runs on every turn, so re-elaborating an unchanged src/ every time is the largest avoidable cost in the inner loop. The buildinfo lives under node_modules/.cache because it is a derived artifact whose loss costs only one cold run — and node_modules/ is already ignored, so no ignore rule can drift away from it. Every config that extends this one MUST name its own tsBuildInfoFile: an inherited relative path resolves against THIS directory, so two projects would otherwise share one buildinfo and each would invalidate the other's.",
   "include": ["src/**/*.ts"]
 }
