@@ -29,7 +29,7 @@ import {
   type TwoCellAnchor,
 } from './image.ts';
 import {INTERNAL} from './internal.ts';
-import {type MergeRect, rectsOverlap} from './merge.ts';
+import {clearCoveredValues, type MergeRect, masterOf, rectsOverlap} from './merge.ts';
 import type {HeaderFooter, PageBreak, PageMargins, PageSetup, PrintOptions} from './page-setup.ts';
 import {type ParsedPivotTable, PivotTable, type PivotTableOptions} from './pivot-table.ts';
 import type {PreservedWorksheetReference} from './preserved.ts';
@@ -41,6 +41,7 @@ import {
 } from './protection.ts';
 import {Range, rangeFrom} from './range.ts';
 import {Row} from './row.ts';
+import {buildRowCells, rowPlacements} from './row-input.ts';
 import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions, TOTALS_ROW_SUBTOTAL_CODE} from './table.ts';
 import type {CellValue} from './value.ts';
@@ -324,7 +325,7 @@ export class Worksheet {
         `"${reference}" is not a single-cell reference — it omits a column or row`,
       );
     }
-    const master = this.#masterOf(row, col);
+    const master = masterOf(this.#mergeRects, row, col);
     return this.#cellAt(master.row, master.col);
   }
 
@@ -820,25 +821,9 @@ export class Worksheet {
         throw new AuthoringError(`merged range "${range}" overlaps an existing merged region`);
       }
       this.#mergeRects.push(rect);
-      this.#clearCoveredValues(rect);
+      clearCoveredValues(this.#rows, rect);
     }
     this.#merges.push(range);
-  }
-
-  // Drop any value already sitting in a merge's covered non-anchor cells, keeping only the top-left
-  // anchor — the collapse Excel performs on merge. A leftover covered value would serialise as a
-  // populated `<c>` under the range's `<mergeCell>` ref, the geometry that trips Excel's repair
-  // prompt. Styles are untouched: a border spanning the merged region rides the covered cells.
-  #clearCoveredValues(rect: MergeRect): void {
-    for (let row = rect.top; row <= rect.bottom; row++) {
-      const cols = this.#rows.get(row);
-      if (cols === undefined) continue;
-      for (let col = rect.left; col <= rect.right; col++) {
-        if (row === rect.top && col === rect.left) continue;
-        const covered = cols.get(col);
-        if (covered !== undefined) covered.value = null;
-      }
-    }
   }
 
   /** The merged ranges on this sheet, in the order they were added. */
@@ -948,7 +933,7 @@ export class Worksheet {
     if (!Number.isInteger(count) || count < 0) {
       throw new RangeError(`splice count ${count} is invalid — it must be a non-negative integer`);
     }
-    const inserted = inserts.map((values, i) => this.#buildRowCells(start + i, values));
+    const inserted = inserts.map((values, i) => buildRowCells(start + i, values, this.#columns));
     this.#edits.spliceRows(start, count, inserted);
   }
 
@@ -989,42 +974,12 @@ export class Worksheet {
     let number = this.rowCount;
     return rows.map((values) => {
       number += 1;
-      return this.#rowPlacements(values).map(([col, value]) => {
+      return rowPlacements(values, this.#columns).map(([col, value]) => {
         const cell = this.#cellAt(number, col);
         cell.value = value;
         return cell;
       });
     });
-  }
-
-  // Resolve a RowInput to the (1-based column, value) placements it names, the one interpretation of
-  // row shape that both appending (into the live grid) and splicing (into a detached row) share. A
-  // positional array maps each value to its column from A, skipping a hole or an explicit `undefined`
-  // so that column is left untouched; a keyed object maps each value under the column carrying the
-  // matching key. Array.isArray, not `instanceof Array`: a row built in another realm (a vm context,
-  // a browser iframe) is still an array but fails the identity check, and would then be walked as a
-  // keyed object — placing nothing.
-  #rowPlacements(values: RowInput): Array<[number, CellValue]> {
-    if (Array.isArray(values)) {
-      const placements: Array<[number, CellValue]> = [];
-      values.forEach((value, index) => {
-        if (value !== undefined) placements.push([index + 1, value]);
-      });
-      return placements;
-    }
-    return Object.entries(values).map(([key, value]) => [this.#columnIndexByKey(key), value]);
-  }
-
-  // Build the detached cell row an insert introduces: a fresh cell per placement, positioned at
-  // `number`, keyed by column. The grid-edit machinery then splices this map into place.
-  #buildRowCells(number: number, values: RowInput): Map<number, Cell> {
-    const row = new Map<number, Cell>();
-    for (const [col, value] of this.#rowPlacements(values)) {
-      const cell = new Cell(number, col);
-      cell.value = value;
-      row.set(col, cell);
-    }
-    return row;
   }
 
   /**
@@ -1056,16 +1011,6 @@ export class Worksheet {
     delete this.view.xSplit;
     delete this.view.ySplit;
     delete this.view.topLeftCell;
-  }
-
-  /** The 1-based index of the column carrying `key` (see {@link ColumnProperties.key}). */
-  #columnIndexByKey(key: string): number {
-    for (const [index, properties] of this.#columns) {
-      if (properties.key === key) return index;
-    }
-    throw new AuthoringError(
-      `no column is keyed ${JSON.stringify(key)} — set getColumn(n).key first`,
-    );
   }
 
   /**
@@ -1239,18 +1184,6 @@ export class Worksheet {
   /** The sheet's protection, or `undefined` if the sheet is unprotected. */
   get protection(): SheetProtection | undefined {
     return this.#protection;
-  }
-
-  // Resolve a position to the master (top-left) of the merged region covering it, or to
-  // itself when no region does. First covering region wins; overlaps are rejected in
-  // `mergeCells`, so at most one region ever applies.
-  #masterOf(row: number, col: number): {row: number; col: number} {
-    for (const rect of this.#mergeRects) {
-      if (row >= rect.top && row <= rect.bottom && col >= rect.left && col <= rect.right) {
-        return {row: rect.top, col: rect.left};
-      }
-    }
-    return {row, col};
   }
 
   #cellAt(row: number, col: number): Cell {
