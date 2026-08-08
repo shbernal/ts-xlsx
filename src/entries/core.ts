@@ -134,6 +134,7 @@ export {
   type TableStyleElement,
   type TableStyleElementType,
 } from '../core/table-style.ts';
+export {estimateWrappedLines} from '../core/text-metrics.ts';
 export {
   DEFAULT_THEME_COLOR_SCHEME,
   DEFAULT_THEME_FONTS,

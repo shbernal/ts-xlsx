@@ -42,6 +42,7 @@ const HIDDEN = ast.ModifierFlags.Private | ast.ModifierFlags.Protected;
 const GROUPS: ReadonlyArray<readonly [string, string]> = [
   ['address', 'Addresses & ranges'],
   ['limits', 'Grid limits'],
+  ['text-metrics', 'Text metrics'],
   ['value', 'Cell values'],
   ['cell', 'Cell'],
   ['workbook', 'Workbook'],

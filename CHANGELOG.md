@@ -14,6 +14,14 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **`estimateWrappedLines` — how many lines a wrapped cell takes.** A row that states no height is
+  auto-fitted by Excel at paint time, which on a sheet of wrapped multi-thousand-character cells is
+  done lazily and incompletely (bands open blank until clicked); writing an explicit height settles
+  the geometry first, and needs a line count. Counts characters against a character-unit width — the
+  same unit a column's `width` is in, so no font metric is assumed and the deferred
+  metric-table question stays deferred. Exact for a monospaced face, approximate for the rest, and
+  it says so. A hard break opens a line of its own; a zero or non-finite width is a `RangeError`
+  rather than an `Infinity` that would land in a row height.
 - **`MAX_ROW_HEIGHT` and `MAX_COLUMN_WIDTH` — the grid's geometry limits, measured.** The
   companions to `MAX_ROW`/`MAX_COLUMN`: how large a line may be drawn, where those two bound where
   a cell may be. `ht` and `width` are a bare `xsd:double` in the schema, so the ceiling is Excel's
