@@ -1,6 +1,11 @@
 ---
 name: validate-ooxml
 description: Validate generated .xlsx output against Microsoft's OOXML schema/semantic oracle (OpenXmlValidator). Use after changing any writer path, when a workbook "opens broken in Excel", when checking that emitted XML conforms to ECMA-376, or when you need an authoritative pass/fail on a generated package. Pairs with write-corpus-case; see docs/agent-correctness-playbook.md.
+metadata:
+  # For working *on* ts-xlsx, not *with* it: needs the repo's .NET tool and its docs. `npx skills
+  # add shbernal/ts-xlsx` walks .claude/skills/ too, and this flag is what keeps it out of the
+  # menu a consumer sees. Set INSTALL_INTERNAL_SKILLS=1 to install it here.
+  internal: true
 ---
 
 # Validating OOXML output

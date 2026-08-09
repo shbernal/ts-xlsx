@@ -1,6 +1,11 @@
 ---
 name: write-corpus-case
 description: Author a regression corpus case under test/corpus/cases. Use when distilling a bug/reproduction into a corpus case, adding a permanent regression lock, writing a *.case.ts file, or extending the adapter's capability contract.
+metadata:
+  # For working *on* ts-xlsx, not *with* it: it writes into this repo's test tree. `npx skills add
+  # shbernal/ts-xlsx` walks .claude/skills/ too, and this flag is what keeps it out of the menu a
+  # consumer sees. Set INSTALL_INTERNAL_SKILLS=1 to install it here.
+  internal: true
 ---
 
 # Writing a corpus case

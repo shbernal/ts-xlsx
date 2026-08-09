@@ -223,6 +223,26 @@ shapes are deliberately different (synchronous `Uint8Array` I/O instead of async
 `Buffer`/stream methods, `readXlsx`/`writeXlsx` free functions instead of
 `workbook.xlsx.*`), because the goal was the *right* API, not the familiar one.
 
+## Hit a bug? There is a skill for that
+
+Most code that uses this library is written by an agent, and an agent that hits a library
+defect will usually route around it silently — so the defect is never reported and never
+fixed. `ts-xlsx-upstream` is a skill that turns that moment into a filed issue with a
+minimal reproduction, which is what the maintainers convert into a permanent regression
+test. It ships inside the package, so it is already on disk:
+
+```shell
+npx skills add ./node_modules/@shbernal/ts-xlsx     # offline, matches your installed version
+npx skills add shbernal/ts-xlsx                     # or straight from the repo
+```
+
+It covers triage (is this bug ours or your file's?), reducing a failure to a script that
+builds its own input, and — because spreadsheets carry real data — never uploading a
+workbook to a public tracker. It asks before filing anything.
+
+You do not need it to report something: <https://github.com/shbernal/ts-xlsx/issues> is
+open, and errors the library knows are its own fault print that link themselves.
+
 ## Design principles
 
 This project is optimized to be built and maintained largely by autonomous agents, with

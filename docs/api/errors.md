@@ -41,6 +41,13 @@ No caller can provoke one, so it is not a failure mode to handle: seeing it mean
 It exists as a distinct type so that "unreachable" is *stated* rather than implied by a bare
 `Error`, which reads identically to a throw nobody has classified yet.
 
+It is the one class in the taxonomy that rewrites its own message, appending `REPORT_NOTICE`
+below the invariant that broke. The constructor is where that lives so a throw site added later
+inherits it — the alternative, a notice pasted at each of the throw sites, is one every future
+site can forget. Every other class leaves `message` exactly as given: `'malformed-input'` is a
+routine outcome for a library that reads untrusted files, and a "report this" banner on each
+corrupt input would train callers to ignore the one banner that always means something.
+
 ```ts
 class InternalError extends XlsxError {
   override readonly name = 'InternalError';
@@ -92,6 +99,12 @@ There is deliberately no "not implemented yet" code. Every candidate for one tur
 unreachable exhaustiveness guard (so: `'internal'`), and the one genuine feature gap — a binary
 `.xlsb` cannot be row-streamed — is already reported by [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror)'s `format`
 branch. A code with no throw site would be a promise the library does not keep.
+
+**Which of these is worth reporting upstream.** `'internal'` always is, and says so at runtime.
+`'unsupported-format'` and `'malformed-input'` are worth reporting when the file in hand opens
+cleanly in Excel — that combination means we are the ones who cannot read it, which is a gap, not
+a corrupt input. `'authoring'` is worth reporting only if the document it refused is one a real
+workbook can express. See `skills/ts-xlsx-upstream` for how to file one.
 
 ```ts
 type XlsxErrorCode = 'unsupported-format' | 'malformed-input' | 'authoring' | 'internal';

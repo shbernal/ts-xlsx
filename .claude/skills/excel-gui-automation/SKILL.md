@@ -1,6 +1,11 @@
 ---
 name: excel-gui-automation
 description: Use on Windows with desktop Microsoft Excel installed when you need something the headless COM oracle (tools/excel-oracle) cannot give you - the INTERACTIVE open verdict (does Excel open a file clean, prompt to repair, auto-repair, warn on a format mismatch, or reject it) that DisplayAlerts=$false suppresses; the repair log Excel writes; a fixture for a feature with no COM surface authored by driving the real ribbon; or a visual check of how a file renders in the actual app. Escalation from tools/excel-oracle and the validate-ooxml skill, not a replacement - try those first.
+metadata:
+  # For working *on* ts-xlsx, not *with* it: it drives this repo's PowerShell scripts. `npx skills
+  # add shbernal/ts-xlsx` walks .claude/skills/ too, and this flag is what keeps it out of the menu
+  # a consumer sees. Set INSTALL_INTERNAL_SKILLS=1 to install it here.
+  internal: true
 ---
 
 # Excel GUI Automation

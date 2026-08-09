@@ -35,6 +35,12 @@
  * unreachable exhaustiveness guard (so: `'internal'`), and the one genuine feature gap — a binary
  * `.xlsb` cannot be row-streamed — is already reported by {@link UnsupportedFormatError}'s `format`
  * branch. A code with no throw site would be a promise the library does not keep.
+ *
+ * **Which of these is worth reporting upstream.** `'internal'` always is, and says so at runtime.
+ * `'unsupported-format'` and `'malformed-input'` are worth reporting when the file in hand opens
+ * cleanly in Excel — that combination means we are the ones who cannot read it, which is a gap, not
+ * a corrupt input. `'authoring'` is worth reporting only if the document it refused is one a real
+ * workbook can express. See `skills/ts-xlsx-upstream` for how to file one.
  */
 export type XlsxErrorCode = 'unsupported-format' | 'malformed-input' | 'authoring' | 'internal';
 
@@ -75,6 +81,16 @@ export class AuthoringError extends XlsxError {
 }
 
 /**
+ * Where a report of an `'internal'` failure should go. Appended to every {@link InternalError}
+ * message rather than left to the docs, because a stack trace is the only artefact of the failure
+ * that reaches whoever (or whatever) is debugging it — a pointer anywhere else is a pointer they
+ * have to already be looking for.
+ */
+const REPORT_NOTICE =
+  'This is a bug in ts-xlsx, not in your file or your code. Please report it:\n' +
+  'https://github.com/shbernal/ts-xlsx/issues/new?template=agent-report.yml&labels=agent-reported';
+
+/**
  * Thrown where an invariant the library itself maintains turns out not to hold — typically an index
  * that a preceding pass proved to be in range, re-checked because `noUncheckedIndexedAccess` makes
  * the possibility of `undefined` explicit and casting it away would be worse.
@@ -82,8 +98,19 @@ export class AuthoringError extends XlsxError {
  * No caller can provoke one, so it is not a failure mode to handle: seeing it means the bug is ours.
  * It exists as a distinct type so that "unreachable" is *stated* rather than implied by a bare
  * `Error`, which reads identically to a throw nobody has classified yet.
+ *
+ * It is the one class in the taxonomy that rewrites its own message, appending {@link REPORT_NOTICE}
+ * below the invariant that broke. The constructor is where that lives so a throw site added later
+ * inherits it — the alternative, a notice pasted at each of the throw sites, is one every future
+ * site can forget. Every other class leaves `message` exactly as given: `'malformed-input'` is a
+ * routine outcome for a library that reads untrusted files, and a "report this" banner on each
+ * corrupt input would train callers to ignore the one banner that always means something.
  */
 export class InternalError extends XlsxError {
   override readonly name = 'InternalError';
   override readonly code = 'internal';
+
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message === undefined ? REPORT_NOTICE : `${message}\n\n${REPORT_NOTICE}`, options);
+  }
 }

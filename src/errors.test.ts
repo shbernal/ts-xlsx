@@ -35,7 +35,13 @@ test('every taxonomy error is catchable as one XlsxError and as a plain Error', 
     const error = new Class('boom');
     assert.ok(error instanceof XlsxError, `${Class.name} is not an XlsxError`);
     assert.ok(error instanceof Error, `${Class.name} is not an Error`);
-    assert.equal(error.message, 'boom');
+    // `InternalError` appends a report pointer below the message and is asserted exactly in its own
+    // test; every other class is contracted to hand back what it was given, unchanged.
+    if (Class === InternalError) {
+      assert.match(error.message, /^boom\n/, 'InternalError did not lead with its own message');
+    } else {
+      assert.equal(error.message, 'boom');
+    }
   }
 });
 
@@ -76,6 +82,22 @@ test('UnsupportedFormatError keeps its format branch and takes a cause after the
 
 test('UnsupportedFormatError still defaults its message per format', () => {
   assert.match(new UnsupportedFormatError('xlsb').message, /binary \.xlsb/);
+});
+
+// The report pointer is the only channel that reaches a caller who never reads our docs: it rides
+// the stack trace they are already staring at. These pin the two halves of that bargain — the
+// invariant stays first so the message is still diagnosable, and the pointer is actually there.
+test('InternalError states the broken invariant first, then where to report it', () => {
+  const error = new InternalError('pivot record references an uncatalogued item');
+  assert.match(error.message, /^pivot record references an uncatalogued item\n\n/);
+  assert.match(error.message, /bug in ts-xlsx/);
+  assert.match(error.message, /https:\/\/github\.com\/shbernal\/ts-xlsx\/issues\/new\?template=/);
+});
+
+test('InternalError without a message reports the pointer alone, not a stringified undefined', () => {
+  const message = new InternalError().message;
+  assert.doesNotMatch(message, /undefined/);
+  assert.match(message, /^This is a bug in ts-xlsx/);
 });
 
 test('malformed XML markup fails as a typed parse error, not a bare SyntaxError', () => {
