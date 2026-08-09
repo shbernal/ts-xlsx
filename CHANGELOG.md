@@ -12,6 +12,42 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-08-09
+
+No exported symbol changes in this release. What changes is what the tarball contains and what
+one error says: the package now ships a skill for reporting a defect back here, because the
+agent that hits one is working in someone else's repository and has no reason to believe filing
+is its job. Alongside it, the published tarball is 42% smaller — the same code with 438 KB of
+implementation comments no longer addressed to anyone.
+
+### Added
+
+- **The package ships a skill for reporting a bug upstream, and `InternalError` prints where to
+  send one.** Most code using this library is written by an agent, and an agent that hits a
+  library defect writes a workaround: that is the rational move from where it stands, since the
+  workaround unblocks its user today and the issue tracker belongs to a repository it is not in.
+  So the report never happens, the corpus never gets the case, and the next consumer rediscovers
+  the same defect. Three layers answer three different reasons the report dies.
+  `skills/ts-xlsx-upstream/` is now in `files`, so `npx skills add
+  ./node_modules/@shbernal/ts-xlsx` works offline and always matches the installed version. The
+  skill covers triage (is this ours or your file's?) and spends most of its length on reducing a
+  failure to a script that *builds its own input* — a spreadsheet in a real project holds
+  salaries and customer lists and the tracker is public, so the rule is synthesize or describe in
+  prose, never redact. It files without interrupting you once the reproduction stands on its own,
+  and passes `--repo shbernal/ts-xlsx` on every `gh` call, because `gh` in a consumer's checkout
+  defaults to the consumer's tracker and would file our bug there.
+- **`InternalError` messages now carry the tracker URL**, appended by the constructor rather than
+  by its six throw sites, so a site added later cannot forget it. `'internal'` is the one code in
+  the taxonomy that already declares whose bug it is, which makes an unconditional "report this"
+  a statement of fact rather than a nag — and a stack trace is the only artefact of that failure
+  that reaches whoever is debugging it, so a pointer anywhere else is one they must already be
+  looking for. The other three codes deliberately get no banner: malformed input is the routine
+  outcome for a library reading untrusted files, and a report pointer on every corrupt file
+  teaches the reader to skip the line, including the one time it always means something. They get
+  the test in prose instead, on the `XlsxErrorCode` TSDoc and therefore in `dist/index.d.ts` —
+  report it when the file opens cleanly in Excel but not here, because that combination means the
+  gap is ours.
+
 ### Changed
 
 - **The published tarball is 42% smaller, and nothing was removed to make it so.** `build` was
@@ -30,7 +66,6 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   were measured against JS that was ~47% comment, so a codec crossing a module boundary — the
   failure the tripwire exists to catch — could have arrived inside a release's ordinary comment
   churn without moving them. Rebaselined onto comment-free emit, they measure code.
-
 - **The `npm-publish` environment is now checked rather than provisioned, and this repository
   holds no credential at all.** `environment.yml` wrote the environment through an
   administration endpoint, which `GITHUB_TOKEN` may not reach, so it needed a PAT —
@@ -475,7 +510,8 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/shbernal/ts-xlsx/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/shbernal/ts-xlsx/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/shbernal/ts-xlsx/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/shbernal/ts-xlsx/compare/v1.0.1...v1.0.2
