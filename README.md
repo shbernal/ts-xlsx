@@ -236,6 +236,11 @@ npx skills add ./node_modules/@shbernal/ts-xlsx     # offline, matches your inst
 npx skills add shbernal/ts-xlsx                     # or straight from the repo
 ```
 
+That writes the skill under `.agents/skills/`, links it into whichever agent directories it
+finds, and records what it did in `skills-lock.json`. Track the lock file and ignore the
+copies: they are derived, `npx skills experimental_install` rebuilds them from the lock, and
+`npx skills update` overwrites them in place.
+
 It covers triage (is this bug ours or your file's?), reducing a failure to a script that
 builds its own input, and — because spreadsheets carry real data — never uploading a
 workbook to a public tracker. Once the reproduction stands on its own, it files without
