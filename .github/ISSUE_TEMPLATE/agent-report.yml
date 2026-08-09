@@ -23,7 +23,7 @@ body:
     attributes:
       label: ts-xlsx version
       description: 'Exact installed version: `node -p "require(''@shbernal/ts-xlsx/package.json'').version"`'
-      placeholder: 1.1.0
+      placeholder: 1.2.3
     validations:
       required: true
 
@@ -33,6 +33,17 @@ body:
       label: Node version
       description: '`node -v`'
       placeholder: v24.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system
+      description: >-
+        Path handling, filesystem case sensitivity, and line endings all differ by platform,
+        and several past defects reproduced on exactly one of them.
+      placeholder: Windows 11 x64 / macOS 15 arm64 / Ubuntu 24.04 x64
     validations:
       required: true
 
@@ -120,6 +131,10 @@ body:
       label: Before submitting
       options:
         - label: I searched open and closed issues for this error message and found no match.
+          required: true
+        - label: >-
+            This still reproduces on the latest published version — or "What happened" says why
+            I could not upgrade to check.
           required: true
         - label: No confidential data appears in this report or its attachments.
           required: true
