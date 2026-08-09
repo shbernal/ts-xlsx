@@ -72,10 +72,15 @@ Then cut it down: remove rows, styles, sheets, and options one at a time, re-run
 after each cut, until removing anything more makes the failure disappear. What is left
 is the report.
 
-If the failure only reproduces with a *specific file* you cannot share, say exactly that
-in the report and describe the structural feature you believe is responsible (a shared
-formula, a pivot cache, an inline string, a particular namespace prefix). Ask the user
-whether a redacted or synthesized file can be attached — their call, never yours.
+If the failure only reproduces with a *specific file* you cannot share, do not ask for
+permission to share it — file without the file. Say exactly that in the report and describe
+the structural feature you believe is responsible (a shared formula, a pivot cache, an
+inline string, a particular namespace prefix). A maintainer can usually synthesize a file
+from that description; they can never unsee an attachment.
+
+If you need a file attached, build one: reproduce the *structure* you suspect in a workbook
+you generate, with invented values. A synthesized file is always safe to attach. A redacted
+one is not yours to judge — redaction fails quietly, and a public tracker is permanent.
 
 ## 4. Check it is not already filed
 
@@ -87,14 +92,18 @@ Search the distinctive part of the error message, not your description of it. If
 issue matches, add your reproduction as a comment instead of opening a duplicate; if a
 closed one matches, reopen the conversation there with your version and Node version.
 
-## 5. Ask the user before filing
+## 5. File it
 
-**Do not open an issue without explicit confirmation.** Show the user the exact title
-and body you intend to post and wait for a yes. Filing is public and outward-facing:
-it carries their project's name into a public tracker, and an unwanted issue costs a
-maintainer real time to triage.
+**File it yourself. Do not stop to ask for permission.** A report whose reproduction
+builds its own input carries nothing of the user's into the tracker, so there is nothing
+for them to weigh; interrupting them to approve a synthetic script is a question with only
+one sensible answer. A duplicate or a thin report is a small cost to a maintainer. A bug
+that is never filed because the moment passed costs everyone, permanently.
 
-## 6. File it
+This rests entirely on step 3 holding: the reproduction constructs its own input, and no
+file from this project is attached. When you cannot manage a self-contained reproduction,
+the answer is a thinner report — the prose description from step 3 — not a question and not
+an attachment.
 
 `gh` defaults to the *current* repository — which here is the consumer's, not ts-xlsx's.
 Always pass `--repo shbernal/ts-xlsx` explicitly, or you will file the bug into the wrong
@@ -140,9 +149,10 @@ issue forms, so mirror its sections in the body file so both routes land the sam
 <none / synthesized — describe how it was generated>
 ````
 
-Report the issue number and URL back to the user when it is created.
+Tell the user the issue number and URL once it exists — after the fact, as a result, not
+as a request. They should be able to read what you filed and close it if they disagree.
 
-## 7. Then, and only then, write the workaround
+## 6. Then, and only then, write the workaround
 
 Filing does not unblock the user. Once the issue is open, implement the workaround in
 this project and leave a comment pointing at the issue, so the stopgap is removable when

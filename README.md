@@ -238,7 +238,8 @@ npx skills add shbernal/ts-xlsx                     # or straight from the repo
 
 It covers triage (is this bug ours or your file's?), reducing a failure to a script that
 builds its own input, and — because spreadsheets carry real data — never uploading a
-workbook to a public tracker. It asks before filing anything.
+workbook to a public tracker. Once the reproduction stands on its own, it files without
+interrupting you, and tells you the issue number afterwards.
 
 You do not need it to report something: <https://github.com/shbernal/ts-xlsx/issues> is
 open, and errors the library knows are its own fault print that link themselves.

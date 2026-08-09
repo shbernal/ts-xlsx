@@ -121,7 +121,5 @@ body:
       options:
         - label: I searched open and closed issues for this error message and found no match.
           required: true
-        - label: The person whose project hit this reviewed and approved filing it.
-          required: true
         - label: No confidential data appears in this report or its attachments.
           required: true
