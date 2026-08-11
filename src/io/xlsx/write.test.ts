@@ -445,6 +445,50 @@ test('a frozen sheet carries tabSelected alongside its pane', () => {
   assert.match(xml, /<sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1"/);
 });
 
+test('hiding the grid emits showGridLines="0", and only when asked', () => {
+  const wb = new Workbook();
+  const plain = wb.addWorksheet('Plain');
+  plain.getCell('A1').value = 'x';
+  const hidden = wb.addWorksheet('Hidden');
+  hidden.getCell('A1').value = 'x';
+  hidden.view.showGridLines = false;
+  const parts = partsOf(wb);
+
+  assert.doesNotMatch(
+    parts['xl/worksheets/sheet1.xml'] as string,
+    /showGridLines/,
+    'a sheet that never mentioned gridlines writes no attribute',
+  );
+  assert.match(parts['xl/worksheets/sheet2.xml'] as string, /<sheetView showGridLines="0"/);
+});
+
+test('a hidden grid survives a frozen pane, and round-trips', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'header';
+  s.freeze(1);
+  s.view.showGridLines = false;
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  // The frozen arm is a separate return in sheetViewsXml, so it gets its own assertion.
+  assert.match(
+    xml,
+    /<sheetView showGridLines="0" tabSelected="1" workbookViewId="0"><pane ySplit="1"/,
+  );
+
+  const reopened = readXlsx(writeXlsx(wb));
+  assert.equal(reopened.requireWorksheet('S').view.showGridLines, false);
+  assert.equal(reopened.requireWorksheet('S').view.state, 'frozen');
+});
+
+test('a visible grid reads back unset rather than true', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const reopened = readXlsx(writeXlsx(wb));
+  // Excel's default is on, so "unset" and "on" are the same state — recording `true` would make a
+  // re-write fabricate an attribute the source never carried.
+  assert.equal(reopened.requireWorksheet('S').view.showGridLines, undefined);
+});
+
 test('setting a subset of margins emits all six pageMargins attributes', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');

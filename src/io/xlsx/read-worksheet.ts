@@ -303,6 +303,7 @@ export function parseWorksheet(
             break;
           case 'tabColor':
           case 'outlinePr':
+          case 'sheetView':
           case 'pane':
           case 'pageSetUpPr':
           case 'printOptions':
@@ -411,8 +412,9 @@ export function parseWorksheet(
 // Apply one `<sheetPr>` / `<sheetView>` / print-setup child to the sheet. These are the worksheet's
 // layout and print metadata; grouping them here keeps the cell-reading switch a pure dispatch. Each
 // records only what the source carried, so a file missing a facet leaves it unset and a re-write
-// stays byte-clean. Every element here is self-closing (its state is all in attributes), so it is
-// read on open.
+// stays byte-clean. Each is read on open, from its attributes alone — which is why `<sheetView>`
+// belongs here despite wrapping children: what this reads of it is attributes, and its `<pane>`
+// child arrives as its own dispatch.
 function applySheetProperties(local: string, attrs: XmlAttributes, sheet: Worksheet): void {
   switch (local) {
     case 'tabColor':
@@ -425,6 +427,14 @@ function applySheetProperties(local: string, attrs: XmlAttributes, sheet: Worksh
         sheet.outline.summaryBelow = boolPresent(attrs.summaryBelow);
       if (attrs.summaryRight !== undefined)
         sheet.outline.summaryRight = boolPresent(attrs.summaryRight);
+      break;
+    case 'sheetView':
+      // Excel omits `showGridLines` when the grid is on, so only a present-and-false attribute is
+      // recorded. Leaving it unset otherwise is what keeps a re-write from fabricating the
+      // attribute on every sheet that never mentioned it.
+      if (attrs.showGridLines !== undefined && !boolPresent(attrs.showGridLines)) {
+        sheet.view.showGridLines = false;
+      }
       break;
     case 'pane':
       // A `<sheetView>` child recording a frozen (or split) pane. Only a frozen pane maps onto the

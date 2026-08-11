@@ -29,10 +29,13 @@ import {colorAttrs} from './color-xml.ts';
 // (`worksheetXml`, fed from `Workbook.activeTabIndex`) is what guarantees the "exactly one".
 export function sheetViewsXml(view: SheetView, active: boolean): string {
   const selected = active ? ' tabSelected="1"' : '';
+  // Excel defaults the grid on, so only an explicit `false` is worth an attribute; leaving it unset
+  // keeps a sheet that never asked about gridlines byte-clean through a round-trip.
+  const gridLines = view.showGridLines === false ? ' showGridLines="0"' : '';
   const xSplit = view.xSplit ?? 0;
   const ySplit = view.ySplit ?? 0;
   if (view.state !== 'frozen' || (xSplit === 0 && ySplit === 0)) {
-    return `<sheetViews><sheetView${selected} workbookViewId="0"/></sheetViews>`;
+    return `<sheetViews><sheetView${gridLines}${selected} workbookViewId="0"/></sheetViews>`;
   }
   const topLeftCell = view.topLeftCell ?? encodeAddress(xSplit + 1, ySplit + 1);
   const activePane =
@@ -43,7 +46,7 @@ export function sheetViewsXml(view: SheetView, active: boolean): string {
     (ySplit > 0 ? ` ySplit="${ySplit}"` : '') +
     ` topLeftCell="${escapeAttr(topLeftCell)}" activePane="${activePane}" state="frozen"/>`;
   const selection = `<selection pane="${activePane}" activeCell="${escapeAttr(topLeftCell)}" sqref="${escapeAttr(topLeftCell)}"/>`;
-  return `<sheetViews><sheetView${selected} workbookViewId="0">${pane}${selection}</sheetView></sheetViews>`;
+  return `<sheetViews><sheetView${gridLines}${selected} workbookViewId="0">${pane}${selection}</sheetView></sheetViews>`;
 }
 
 // `<sheetPr>` carries the sheet's appearance properties: the tab colour, the outline

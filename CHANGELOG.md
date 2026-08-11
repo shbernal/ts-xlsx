@@ -12,6 +12,32 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Added
+
+- **`SheetView.showGridLines` turns the on-screen grid off**, the one sheet-view attribute an
+  authoring consumer reaches for first and the only facet of `<sheetView>` this library could not
+  express. A workbook built as a *deliverable* — its own fills, its own borders, a title band —
+  reads as a spreadsheet rather than a document while Excel's grey grid shows through it, and
+  there was no way to say so:
+  [`PrintOptions.gridLines`](docs/api/page-setup.md) is the neighbouring question about *printing*
+  and Excel exposes the two as separate checkboxes because the answers differ.
+
+  ```js
+  sheet.view.showGridLines = false;
+  ```
+
+  Only an explicit `false` writes an attribute, and reading one back records only
+  `showGridLines="0"`. Excel's default is on, so "unset" and "on" are the same state: recording
+  `true` would make every re-written sheet fabricate an attribute its source never carried, which
+  is the round-trip noise `<pane>` is already careful to avoid. Both arms of `sheetViewsXml` carry
+  it, so a frozen sheet can hide its grid too.
+
+  Found by the library's first real authoring consumer, which hides the grid on all seven sheets
+  of the two workbooks it ships. The remaining `<sheetView>` booleans (`showRowColHeaders`,
+  `showRuler`, `showFormulas`, `showZeros`, `rightToLeft`) are still unmodelled — see
+  `docs/knowledge/specs/sheetview-boolean-flags-and-showformulas.md`, which called this set out and
+  is now one item shorter.
+
 ## [1.2.0] — 2026-08-09
 
 No exported symbol changes in this release. What changes is what the tarball contains and what

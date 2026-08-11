@@ -86,6 +86,15 @@ export interface SheetView {
   ySplit?: number;
   /** The cell anchoring the bottom-right scrolling pane; defaults to the first unfrozen cell. */
   topLeftCell?: string;
+  /**
+   * Whether the grid's cell lines are drawn on screen. Absent means Excel's default, which is on,
+   * so only `false` is worth setting: a sheet that paints its own fills and borders reads as a
+   * document rather than a spreadsheet once the grid behind it is off.
+   *
+   * On screen only, and unrelated to {@link PrintOptions.gridLines}, which decides whether the grid
+   * is *printed*. Excel exposes them as two separate checkboxes because the answers differ.
+   */
+  showGridLines?: boolean;
 }
 
 /**
