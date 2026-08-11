@@ -40,6 +40,21 @@ Version `1.3.0` is set in `package.json` and unpublished. The date lands when it
   `docs/knowledge/specs/sheetview-boolean-flags-and-showformulas.md`, which called this set out and
   is now one item shorter.
 
+- **`WorkbookProperties.title` and `.company`**, the two remaining fields of Excel's File ▸ Info
+  panel a deliverable actually sets. Both were silently unwritable: a caller could assign neither,
+  and a file that carried them lost them on a round-trip.
+
+  ```js
+  wb.properties.title = 'Planning Ateliers';
+  wb.properties.company = 'Acme & Co';
+  ```
+
+  `title` is `dc:title` in `docProps/core.xml`, emitted **before** `dc:creator` because
+  `cp:coreProperties` is a schema *sequence* and Excel repairs a file whose children are out of
+  order. `company` is `<Company>` in `docProps/app.xml` — the one document property OOXML keeps
+  outside the core part, which is why `appPropsXml` now takes the properties at all. Both are
+  omitted entirely when unset, and both now read back.
+
 ## [1.2.0] — 2026-08-09
 
 No exported symbol changes in this release. What changes is what the tarball contains and what

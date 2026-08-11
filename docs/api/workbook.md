@@ -689,14 +689,24 @@ and all three are answered by seeing the real names.
 
 <sub>interface</sub>
 
-Document-level metadata written to the package's core properties.
+Document-level metadata — what Excel's File ▸ Info panel shows. Mostly the package's core
+properties (`docProps/core.xml`); `company` is the exception and lives in the extended part,
+because that is where OOXML puts it. One interface either way: which part a field lands in is
+the format's business, not the caller's.
 
 ```ts
 interface WorkbookProperties {
+  /** `dc:title` — the document's title, as Excel's File ▸ Info shows it. */
+  title?: string;
   creator?: string;
   lastModifiedBy?: string;
   created?: Date;
   modified?: Date;
+  /**
+   * `Company` in the extended properties (`docProps/app.xml`), not the core ones — the only
+   * field here that does not live beside the others, because OOXML puts it in the other part.
+   */
+  company?: string;
 }
 ```
 

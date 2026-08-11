@@ -445,6 +445,35 @@ test('a frozen sheet carries tabSelected alongside its pane', () => {
   assert.match(xml, /<sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1"/);
 });
 
+test('title and company are written to their two different parts, and round-trip', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  wb.properties.title = 'Planning Ateliers';
+  wb.properties.creator = 'A. Author';
+  wb.properties.company = 'Acme & Co';
+  const parts = partsOf(wb);
+
+  const core = parts['docProps/core.xml'] as string;
+  // cp:coreProperties is a sequence, so the order is load-bearing, not incidental.
+  assert.match(core, /<dc:title>Planning Ateliers<\/dc:title><dc:creator>A\. Author<\/dc:creator>/);
+  assert.match(
+    parts['docProps/app.xml'] as string,
+    /<Application>ts-xlsx<\/Application><Company>Acme &amp; Co<\/Company>/,
+  );
+
+  const reopened = readXlsx(writeXlsx(wb));
+  assert.equal(reopened.properties.title, 'Planning Ateliers');
+  assert.equal(reopened.properties.company, 'Acme & Co');
+});
+
+test('a workbook naming neither writes neither element', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'x';
+  const parts = partsOf(wb);
+  assert.doesNotMatch(parts['docProps/core.xml'] as string, /dc:title/);
+  assert.doesNotMatch(parts['docProps/app.xml'] as string, /Company/);
+});
+
 test('hiding the grid emits showGridLines="0", and only when asked', () => {
   const wb = new Workbook();
   const plain = wb.addWorksheet('Plain');

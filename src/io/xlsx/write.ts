@@ -444,7 +444,7 @@ export function buildPackageParts(
     ),
     '_rels/.rels': strToU8(rootRelsXml(preserved.root)),
     'docProps/core.xml': strToU8(corePropsXml(workbook.properties)),
-    'docProps/app.xml': strToU8(appPropsXml()),
+    'docProps/app.xml': strToU8(appPropsXml(workbook.properties)),
     'xl/workbook.xml': strToU8(workbookXml(workbook, preservedWorkbookRels, allPivots)),
     'xl/_rels/workbook.xml.rels': strToU8(
       workbookRelsXml(

@@ -464,6 +464,11 @@ export function workbookRelsXml(
 
 export function corePropsXml(properties: WorkbookProperties): string {
   const parts: string[] = [];
+  // `dc:title` precedes `dc:creator` — `cp:coreProperties` is a sequence, not a bag, and Excel
+  // repairs a file whose children are out of schema order.
+  if (properties.title !== undefined) {
+    parts.push(`<dc:title>${escapeText(properties.title)}</dc:title>`);
+  }
   if (properties.creator !== undefined) {
     parts.push(`<dc:creator>${escapeText(properties.creator)}</dc:creator>`);
   }
@@ -489,9 +494,13 @@ function w3cdtf(element: string, date: Date): string {
   return `<dcterms:${element} xsi:type="dcterms:W3CDTF">${date.toISOString()}</dcterms:${element}>`;
 }
 
-export function appPropsXml(): string {
+export function appPropsXml(properties: WorkbookProperties): string {
+  // `Company` follows `Application` in the extended-properties sequence. It is the one document
+  // property OOXML keeps in this part rather than in core.xml, which is why it arrives here.
+  const company =
+    properties.company === undefined ? '' : `<Company>${escapeText(properties.company)}</Company>`;
   return (
     XML_DECLARATION +
-    `<Properties xmlns="${NS.extProps}"><Application>ts-xlsx</Application></Properties>`
+    `<Properties xmlns="${NS.extProps}"><Application>ts-xlsx</Application>${company}</Properties>`
   );
 }

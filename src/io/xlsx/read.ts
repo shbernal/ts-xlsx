@@ -147,6 +147,8 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   workbook[INTERNAL].restoreDefaultFont(defaultFont);
   const core = partText('docProps/core.xml');
   if (core !== undefined) applyCoreProperties(workbook, core);
+  const app = partText('docProps/app.xml');
+  if (app !== undefined) applyAppProperties(workbook, app);
   workbook.protection = parseWorkbookProtection(workbookXml);
   applyWorkbookView(workbook.view, workbookXml);
   // The threaded-comment author registry is workbook-level, and every conversation on every sheet
@@ -731,7 +733,13 @@ function parseWorkbookDefinedNames(xml: string, sheetOrder: readonly string[]): 
 
 // Core document properties live in docProps/core.xml under mixed namespaces
 // (dc:creator, cp:lastModifiedBy, dcterms:created/modified); local names disambiguate.
-const CORE_PROPERTY_LOCAL_NAMES = new Set(['creator', 'lastModifiedBy', 'created', 'modified']);
+const CORE_PROPERTY_LOCAL_NAMES = new Set([
+  'title',
+  'creator',
+  'lastModifiedBy',
+  'created',
+  'modified',
+]);
 
 function applyCoreProperties(workbook: Workbook, xml: string): void {
   let capture = '';
@@ -747,7 +755,8 @@ function applyCoreProperties(workbook: Workbook, xml: string): void {
     },
     onClose(name) {
       if (capture === '' || localName(name) !== capture) return;
-      if (capture === 'creator') workbook.properties.creator = text;
+      if (capture === 'title') workbook.properties.title = text;
+      else if (capture === 'creator') workbook.properties.creator = text;
       else if (capture === 'lastModifiedBy') workbook.properties.lastModifiedBy = text;
       else {
         const date = new Date(text);
@@ -757,6 +766,28 @@ function applyCoreProperties(workbook: Workbook, xml: string): void {
         }
       }
       capture = '';
+    },
+  });
+}
+
+// `Company` is the one document property OOXML keeps in the extended part rather than the core
+// one. Everything else in app.xml is either derived (`TitlesOfParts`) or this library's own
+// (`Application`), so nothing here reads more than the single element.
+function applyAppProperties(workbook: Workbook, xml: string): void {
+  let capture = false;
+  let text = '';
+  parseXml(xml, {
+    onOpen(name) {
+      capture = localName(name) === 'Company';
+      text = '';
+    },
+    onText(chunk) {
+      if (capture) text += chunk;
+    },
+    onClose(name) {
+      if (!capture || localName(name) !== 'Company') return;
+      workbook.properties.company = text;
+      capture = false;
     },
   });
 }
