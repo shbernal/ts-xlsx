@@ -12,6 +12,8 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+Version `1.3.0` is set in `package.json` and unpublished. The date lands when it is.
+
 ### Added
 
 - **`SheetView.showGridLines` turns the on-screen grid off**, the one sheet-view attribute an
