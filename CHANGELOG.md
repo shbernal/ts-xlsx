@@ -10,9 +10,10 @@ versioning policy, including why the first published version is `1.0.0` rather t
 This file tracks changes from its introduction forward. Earlier history — the full
 ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](docs/decisions/).
 
-## [Unreleased]
+## [1.3.1] — 2026-08-11
 
-Version `1.3.0` is set in `package.json` and unpublished. The date lands when it is.
+`1.3.0` was set in `package.json` and cut no release, so this is the first published version of
+the line and carries what was staged for it as well as the fix below.
 
 ### Added
 
@@ -54,6 +55,39 @@ Version `1.3.0` is set in `package.json` and unpublished. The date lands when it
   order. `company` is `<Company>` in `docProps/app.xml` — the one document property OOXML keeps
   outside the core part, which is why `appPropsXml` now takes the properties at all. Both are
   omitted entirely when unset, and both now read back.
+
+### Fixed
+
+- **Writing a workbook is now reproducible: the same model always produces the same bytes.** A zip
+  entry stores a modification time, `fflate` defaults it to `Date.now()`, and so every package this
+  library wrote was stamped with the moment it ran. Two writes of an unchanged workbook differed in
+  a handful of bytes per entry and in nothing else — invisible to Excel, and corrosive to everything
+  around the file. A committed `.xlsx` deliverable churned in `git diff` on every regeneration, so
+  the diff stopped being read and a real change to it had somewhere to hide; nothing downstream
+  could cache on output bytes; and a byte-comparison gate could not tell "the writer changed" from
+  "the clock moved", which is the same as not having one.
+
+  Every entry is now stamped 2001-01-01 12:00 — see
+  [ADR 0032](docs/decisions/0032-package-output-is-reproducible.md) for why that date and why there
+  is no option to go back to the clock. All four writing paths are covered: `writeXlsx`,
+  `writeXlsxAsync`, `WorkbookStreamWriter`, and the package-level VBA edits, which re-zip after
+  splicing and had nothing to preserve because unzipping drops the original times. The streamed
+  container takes the stamp as a field on the entry rather than as an option, which is exactly the
+  kind of difference that leaves one call site behind — hence a test that decodes the DOS date out
+  of every entry rather than only comparing two writes, which would pass within the same
+  two-second bucket regardless.
+
+  Consequences worth stating plainly: package bytes changed once, at this release, so a stored hash
+  of a previously written file no longer matches — nothing about the content did. `writeXlsx` and
+  `writeXlsxAsync` are now byte-identical, which pins them to the same compression settings in a way
+  comparing inflated parts never could. And a file manager listing the archive's contents shows
+  2001-01-01 against each entry, the same trade every reproducible-build toolchain makes; the file's
+  own filesystem timestamp is untouched.
+
+  Found by the library's first authoring consumer, which commits its generated workbooks.
+  [ADR 0024](docs/decisions/0024-async-is-one-writer-not-a-mirrored-pair.md) had met this while
+  comparing the two writers, declined to pin `mtime` for a test's convenience, and left the real
+  question open; a consumer answered it.
 
 ## [1.2.0] — 2026-08-09
 
@@ -553,7 +587,8 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/shbernal/ts-xlsx/compare/v1.2.0...v1.3.1
 [1.2.0]: https://github.com/shbernal/ts-xlsx/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/shbernal/ts-xlsx/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/shbernal/ts-xlsx/compare/v1.0.2...v1.0.3
