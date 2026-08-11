@@ -1,6 +1,6 @@
 # ADR 0024 — Async is one writer, not a mirrored pair
 
-**Status:** Accepted (2026-07-29) · I/O surface
+**Status:** Accepted (2026-07-29) · I/O surface · the deferred `mtime` question was answered by [ADR 0032](./0032-package-output-is-reproducible.md) (2026-08-11)
 
 ## Context
 
@@ -49,7 +49,8 @@ asynchronous; deflating a buffer is not.
 
 2. **Add `writeXlsxAsync`, and nothing else.** It shares `buildPackageParts` with `writeXlsx` and
    differs only in handing the part map to `fflate`'s worker-backed `zip()`. Every part compresses
-   to identical bytes; the two archives differ only in the per-entry timestamp.
+   to identical bytes; the two archives differed only in the per-entry timestamp, and since
+   [ADR 0032](./0032-package-output-is-reproducible.md) pinned that, not at all.
 
 3. **No `readXlsxAsync`**, for the two reasons above. Callers who need a non-blocking read run the
    whole read in a worker, which is a documentation answer.
@@ -87,4 +88,6 @@ asynchronous; deflating a buffer is not.
   stall on the table for a five-line function over a seam that was already clean.
 - **Pinning `mtime` so the two writers are byte-identical.** Tempting while testing, but it changes
   `writeXlsx`'s output and belongs to a separate question — whether `.xlsx` output should be
-  reproducible at all, which it is not today for the same reason.
+  reproducible at all, which it is not today for the same reason. *(Answered yes by
+  [ADR 0032](./0032-package-output-is-reproducible.md), on a consumer's evidence rather than a
+  test's convenience; the two writers are byte-identical as a side effect.)*

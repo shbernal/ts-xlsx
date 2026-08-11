@@ -40,6 +40,7 @@ import {type CellValue, isSharedFormulaValue} from '../../core/value.ts';
 import {type AddImageOptions, type AddWorksheetOptions, Workbook} from '../../core/workbook.ts';
 import type {ColumnProperties, Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError} from '../../errors.ts';
+import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import type {StyleRegistry} from './styles.ts';
 import {
   buildColumnDefaults,
@@ -491,6 +492,10 @@ function streamZipPackage(
     });
     for (const [name, data] of Object.entries(parts)) {
       const entry = new ZipDeflate(name, {level: 6});
+      // `mtime` is a field on the entry rather than a compression option — `ZipDeflate` forwards its
+      // options to the deflater alone — and the header is written when the entry is added, so it has
+      // to be set before that call rather than before the first push.
+      entry.mtime = FIXED_ENTRY_MTIME;
       zip.add(entry);
       entry.push(data, true);
     }

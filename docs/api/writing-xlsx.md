@@ -28,6 +28,10 @@ interface WriteOptions {
 
 Serialise a workbook into an `.xlsx` package.
 
+The bytes are a pure function of the workbook: an unchanged model written twice produces two
+identical archives, because entry timestamps are pinned to a fixed date rather than taken from the
+clock. A committed `.xlsx` therefore only changes when something about it changed.
+
 ```ts
 function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array;
 ```
@@ -43,7 +47,7 @@ or holds a value the writer cannot yet represent.
 
 Serialise a workbook into an `.xlsx` package, deflating off the calling thread.
 
-Produces the same package [`writeXlsx`](./writing-xlsx.md#writexlsx) does — every part compresses to identical bytes — and
+Produces the same package [`writeXlsx`](./writing-xlsx.md#writexlsx) does — byte for byte, entry timestamps included — and
 exists for one reason: DEFLATE dominates the cost of writing a large workbook, and [`writeXlsx`](./writing-xlsx.md#writexlsx)
 spends all of it on the caller's thread. Here `fflate` deflates each part in a worker, so the event
 loop keeps turning (stalls drop from the whole write to tens of milliseconds) and parts compress in

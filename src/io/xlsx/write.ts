@@ -22,6 +22,7 @@ import type {Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError} from '../../errors.ts';
 import {THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relsPartXml} from '../opc/rels.ts';
+import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 import {collectComments, commentsXml, vmlDrawingXml} from './comments.ts';
 import {collectHyperlinks, type HyperlinkPlan, planHyperlinks} from './hyperlinks.ts';
 import {drawingRelsXml, drawingXml} from './images.ts';
@@ -107,17 +108,21 @@ export interface InternalWriteOptions extends WriteOptions {
 /**
  * Serialise a workbook into an `.xlsx` package.
  *
+ * The bytes are a pure function of the workbook: an unchanged model written twice produces two
+ * identical archives, because entry timestamps are pinned to a fixed date rather than taken from the
+ * clock. A committed `.xlsx` therefore only changes when something about it changed.
+ *
  * @throws {AuthoringError} if the workbook has no worksheets (a zero-sheet package is corrupt),
  *   or holds a value the writer cannot yet represent.
  */
 export function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8Array {
-  return zipSync(buildPackageParts(workbook, options), {level: 6});
+  return zipSync(buildPackageParts(workbook, options), {level: 6, mtime: FIXED_ENTRY_MTIME});
 }
 
 /**
  * Serialise a workbook into an `.xlsx` package, deflating off the calling thread.
  *
- * Produces the same package {@link writeXlsx} does — every part compresses to identical bytes — and
+ * Produces the same package {@link writeXlsx} does — byte for byte, entry timestamps included — and
  * exists for one reason: DEFLATE dominates the cost of writing a large workbook, and {@link writeXlsx}
  * spends all of it on the caller's thread. Here `fflate` deflates each part in a worker, so the event
  * loop keeps turning (stalls drop from the whole write to tens of milliseconds) and parts compress in
@@ -140,7 +145,7 @@ export async function writeXlsxAsync(
 ): Promise<Uint8Array> {
   const parts = buildPackageParts(workbook, options);
   return await new Promise<Uint8Array>((resolve, reject) => {
-    zip(parts, {level: 6}, (error, data) => {
+    zip(parts, {level: 6, mtime: FIXED_ENTRY_MTIME}, (error, data) => {
       if (error) reject(error);
       else resolve(data);
     });

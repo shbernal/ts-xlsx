@@ -1209,6 +1209,23 @@ test('editXlsxVbaRemoveModule removes a module and preserves every other package
   );
 });
 
+test('editXlsxVbaRemoveModule re-zips with pinned timestamps, so the same edit is reproducible', () => {
+  const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES));
+
+  assert.deepEqual(
+    editXlsxVbaRemoveModule(pkg, 'Module1'),
+    editXlsxVbaRemoveModule(pkg, 'Module1'),
+    'the same edit twice produces the same bytes',
+  );
+
+  // The archive opens with a local file header, whose DOS date/time dword sits at offset 10 with the
+  // year (less 1980) in its top bits. Asserting the year alone is enough: from the clock it would be
+  // this one, and 2001 can only come from the pin. The full decode lives in write-determinism.test.ts.
+  const edited = editXlsxVbaRemoveModule(pkg, 'Module1');
+  const dos = new DataView(edited.buffer, edited.byteOffset, edited.byteLength).getUint32(10, true);
+  assert.equal(((dos >>> 25) & 0x7f) + 1980, 2001, 'entries are stamped, not clocked');
+});
+
 test('editXlsxVbaRemoveModule drops a stale signature part', () => {
   const pkg = xlsmPackage(buildNavigableProjectBin(CODE_PAGE, MODULES), [
     legacySignature(Uint8Array.from([1, 2, 3])),

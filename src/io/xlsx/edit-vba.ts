@@ -29,6 +29,7 @@ import {
   resolveRelativePart,
   resolveWorkbookPart,
 } from '../opc/read-opc.ts';
+import {FIXED_ENTRY_MTIME} from '../opc/zip-mtime.ts';
 
 const OFFICE_DOCUMENT_REL = 'officeDocument';
 const VBA_PROJECT_REL = 'vbaProject';
@@ -85,7 +86,10 @@ function applyToVbaProjectPart(
   files[binPath] = apply(bin);
   dropStaleSignature(files, binPath);
 
-  return zipSync(files);
+  // Re-stamped rather than preserved: `unzipSync` hands back bytes and drops each entry's original
+  // timestamp, so there is nothing to carry through — the choice is a pinned stamp or the clock, and
+  // the clock would make editing the same file twice produce two different packages.
+  return zipSync(files, {mtime: FIXED_ENTRY_MTIME});
 }
 
 // Resolve the package's `xl/vbaProject.bin` part the way the reader does: `_rels/.rels` → the

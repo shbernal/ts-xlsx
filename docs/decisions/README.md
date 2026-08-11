@@ -53,6 +53,7 @@ after it would have broken far more cross-references than the collision did.
 | [0029](./0029-toolchain-standup.md) | Toolchain standup: Biome for lint/format, `node --test` kept, tsc for type tests | Accepted 2026-07-19 · renumbered 2026-08-08 from a collision at 0002 |
 | [0030](./0030-xlsx-codec-stays-flat.md) | `src/io/xlsx/` stays flat; the read/write directory split is rejected | Accepted 2026-08-08 |
 | [0031](./0031-the-emitted-declarations-are-typechecked-too.md) | The emitted declarations are typechecked too; two more gate flags go on | Accepted 2026-08-08 |
+| [0032](./0032-package-output-is-reproducible.md) | Package output is reproducible: entry timestamps are pinned, not clocked | Accepted 2026-08-11 |
 
 ## Writing one
 

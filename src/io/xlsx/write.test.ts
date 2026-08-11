@@ -1304,11 +1304,10 @@ test('the async writer produces the same package the sync one does', async () =>
       `${name} is identical across the two writers`,
     );
   }
-  // Deliberately not asserting byte-equality of the two archives: fflate stamps each entry with the
-  // current time, so two calls straddling a DOS-time two-second bucket differ in the header alone.
-  // Length is stable across that, though — the timestamp is fixed-width — so it still pins the two
-  // paths to the same compression settings, which inflated content alone would not notice.
-  assert.equal(async.length, sync.length, 'both paths deflate at the same level');
+  // The archives themselves, not just their contents: with entry timestamps pinned there is nothing
+  // left in a package that the two paths could legitimately disagree about, so this also pins them
+  // to the same compression settings — which comparing inflated content alone would never notice.
+  assert.deepEqual(async, sync, 'the two writers produce the same archive byte for byte');
 });
 
 test('the async writer honours WriteOptions the same way', async () => {
