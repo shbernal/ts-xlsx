@@ -438,7 +438,7 @@ export class StyleRegistry {
     const cellStyleXfs = this.#cellStyleXfs.map((format) => xfXml(format, null)).join('');
     const cellStyles = this.#cellStyleNames.map(cellStyleTag).join('');
     const fontCount = RESERVED_FONT_COUNT + this.#fontXml.length;
-    const fonts = `<font>${this.#defaultFontBody}</font>` + this.#fontXml.join('');
+    const fonts = `<font>${this.#defaultFontBody}</font>${this.#fontXml.join('')}`;
     const borderCount = RESERVED_BORDER_COUNT + this.#borderXml.length;
     const borders = DEFAULT_BORDER + this.#borderXml.join('');
     return (
