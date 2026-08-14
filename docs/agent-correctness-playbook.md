@@ -202,6 +202,19 @@ Both probes answer
 *state-observable* questions on *one Excel build* only — see [ADR 0013](./decisions/0013-excel-desktop-as-automatable-tier3-oracle.md)
 for what is and isn't scriptable and the five standing pitfalls.
 
+**Someone reports a workbook *looks* wrong in Excel — text missing, colours not the ones authored.**
+Neither probe above can answer this: both are state-observable, and painting is not state. Run the
+control before you touch the writer. Re-save the file through Excel itself
+(`pwsh -NoProfile -File tools/excel-oracle/observe.ps1 -Path <wb.xlsx>`) and have the reporter try
+the Excel-authored copy. **If the fault survives, nothing this library emits is in the causal path**
+— and a "fix" to the writer would be a guess that outlives the report. Two such reports are already
+settled this way: `docs/knowledge/specs/frozen-pane-header-ink-is-an-excel-repaint-fault.md` (a
+frozen header row whose ink goes missing until clicked — reproduces in Excel's own re-save) and
+`docs/knowledge/specs/dark-mode-repaints-authored-cell-colors.md` (Dark Mode overrides every
+encoding of an authored colour). Read both before opening a rendering investigation; when a genuinely
+new one needs pixels, the interactive tier is the `excel-gui-automation` skill, and sampling the
+rendered pixels beats describing a screenshot.
+
 **You are unsure how an OOXML element / attribute / enum / child-ordering should look.**
 Do not guess — the format is full of surprises. In order:
 1. Read the vendored XSDs: `schemas/ooxml-transitional/`, start at `sml.xsd` and follow
