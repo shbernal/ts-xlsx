@@ -64,16 +64,22 @@ mistake hard to make by accident.
 Correctness is defined by an external standard, so the ground truth lives in the repo
 next to the code that answers to it:
 
-- [`schemas/ooxml-transitional/`](../schemas/) — the complete ECMA-376 **Transitional**
-  XSD set (what Excel actually emits), vendored verbatim for offline, greppable reference
-  while implementing. It is *reference*, not a validator — conformance validation stays
-  with the independent `OpenXmlValidator` oracle (ADR-0002). Repo-only; never published.
+- [`.claude/skills/ooxml-lookup/`](../.claude/skills/ooxml-lookup/) — the ECMA-376 schema
+  (Transitional **and** Strict) as a local SQLite graph behind a query CLI, vendored for
+  offline, deterministic reference while implementing. Ask it what may go inside an element
+  and in what order, what attributes a type takes, and what values those accept, rather
+  than hand-joining XSDs:
+  `node .claude/skills/ooxml-lookup/scripts/ooxml.mjs children x:c`. It is *reference*,
+  not a validator — conformance validation stays with the independent `OpenXmlValidator`
+  oracle (ADR-0002). Repo-only; never published.
 - [`docs/knowledge/specs/`](knowledge/specs/) — hand-authored, implementation-blind
   behavior notes from the harvest.
 - **Microsoft Learn MCP** (`.mcp.json`) — grounded search over Microsoft's Open
   Specifications ([MS-XLSX] et al.) for the Excel-specific deltas the standard omits.
 
-See ADR-0007 for why the static standard is vendored while the evolving prose is an MCP.
+See ADR-0007 for why the static standard is pinned in the tree while the evolving prose is
+an MCP, and ADR-0034 for why that pinned form is now a queryable graph rather than the raw
+XSD set it used to be.
 
 ## Module layout
 

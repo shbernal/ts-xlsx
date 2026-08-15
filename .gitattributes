@@ -31,11 +31,12 @@
 *.zip   binary
 *.bin   binary
 
-# The ECMA-376 XSD set is vendored *verbatim* (docs/architecture.md) — it is upstream's
-# artifact, not ours, and ships with CRLF. Normalizing it would edit a reference copy we
-# promise not to edit and would break byte-comparison against the ECMA distribution.
-# `-text` disables EOL translation in both directions, leaving the bytes untouched.
-schemas/ooxml-transitional/** -text
+# The ECMA-376 schema graph vendored with the `ooxml-lookup` skill (ADR-0034). SQLite
+# pages carry long runs that look like text and no leading NUL, so this is exactly where
+# the heuristic is least reliable — and an EOL-normalized database is a corrupt one, in the
+# file the entire schema reference lives in. `-diff` because a 2.2 MB binary delta is noise
+# in a review; the version it came from is recorded in its `.clawhub/origin.json`.
+*.db binary -diff
 
 # Generated lockfile: keep diffs collapsed in review, but still merge-resolvable.
 pnpm-lock.yaml -diff

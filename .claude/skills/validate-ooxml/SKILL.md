@@ -25,9 +25,13 @@ provenance, and caches it under `~/.cache/ooxml-validate`. No .NET, no `dotnet` 
 The published npm package is unaffected either way — this is development-only tooling.
 
 If the binary cannot be fetched, do **not** substitute an XSD/`xmllint` validator
-(deliberately not wired — `schemas/README.md`, ADR-0002). Fall back to `pnpm run corpus`
-locally and let CI's `ooxml-validation` workflow run the oracle on your PR. See
+(deliberately not wired — ADR-0002, ADR-0034). Fall back to `pnpm run corpus` locally and
+let CI's `ooxml-validation` workflow run the oracle on your PR. See
 `docs/agent-correctness-playbook.md`.
+
+The `ooxml-lookup` skill is the other half of this loop, not a replacement for it: it does
+not validate anything, but given a diagnostic's `id`, `description` and `xpath` its
+`explain` subcommand says what *would* have been legal at that position.
 
 ## Validate a file you already have
 

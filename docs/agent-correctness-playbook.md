@@ -15,7 +15,7 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | Lint | Style/format/floating-promise/console gates | `pnpm run lint` | Node 24 |
 | **Corpus** | Well-formed XML, package structure, and no behavior regression — the **spine** | `pnpm run corpus` | Node 24 |
 | **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `pnpm run validate:ooxml file.xlsx` | Node 24 + network on first call |
-| Spec grounding | Ground a decision in the authoritative format | Learn MCP + `schemas/` + `docs/knowledge/specs/` | — |
+| Spec grounding | Ground a decision in the authoritative format | `ooxml-lookup` skill + Learn MCP + `docs/knowledge/specs/` | Node 24 |
 
 **`typecheck` means both trees.** There are two strict projects — `tsconfig.json` over `src/` and
 `tsconfig.test.json` over `test/` + `scripts/` + `tools/` — and the `verify` gate has always run
@@ -217,11 +217,27 @@ rendered pixels beats describing a screenshot.
 
 **You are unsure how an OOXML element / attribute / enum / child-ordering should look.**
 Do not guess — the format is full of surprises. In order:
-1. Read the vendored XSDs: `schemas/ooxml-transitional/`, start at `sml.xsd` and follow
-   its imports (the authoritative element structure, types, enums, ordering). These are
-   **read-only reference** — see the note below.
+1. Ask the vendored **`ooxml-lookup`** skill. It holds the ECMA-376 graph as a local
+   SQLite database and answers the four-hop question — element → type → base type →
+   attribute group → facets — in one call, which is the join you would otherwise do by
+   hand across several XSD files:
+
+   ```bash
+   S=.claude/skills/ooxml-lookup/scripts/ooxml.mjs
+   node $S element x:c          # what is it: kind, type, namespace, profiles
+   node $S children x:c         # legal children in schema order, with cardinality
+   node $S attributes x:c       # attributes, inherited and attributeGroups expanded
+   node $S values ST_CellType   # the legal value space: enum, facets, patterns, unions
+   ```
+
+   Write prefixes the way you already write them — `x:`, `c:`, `a:`, `r:`, `s:`, `v:` all
+   resolve. Answers come back canonicalised (`x:c` replies `sml:c`) because `x` is also
+   VML's excel namespace, and a bare name returns every match rather than guessing. This is
+   **read-only reference**, not a validator — see the note below. Read
+   `.claude/skills/ooxml-lookup/SKILL.md` for the rest, including direct SQL when the
+   subcommands do not fit.
 2. Query the **microsoft-learn MCP** (`microsoft_docs_search` / `microsoft_docs_fetch`)
-   for Excel's *real-world deviations* from the standard — the prose the XSDs can't
+   for Excel's *real-world deviations* from the standard — the prose the schema can't
    encode. This is enabled for the project (ADR-0007); if a run says the server isn't
    available, enable `microsoft-learn` for the project.
 3. Check `docs/knowledge/specs/` for a note we already wrote on the same corner.
@@ -271,10 +287,19 @@ a *stale* baseline fails it too, so keep that file honest when you fix or introd
 diagnostic.
 
 If the oracle cannot be obtained (offline, say), do **not** reach for a second validator.
-The vendored XSDs are deliberately **not** wired into an `xmllint`-style path
-(`schemas/README.md`, ADR-0002): a naive XSD-only pass gives false alarms and false
-confidence — it can't do the semantic checks or validate the OPC parts, and the
-Transitional schemas are subtly permissive. Instead: rely on `pnpm run corpus`
-(well-formedness + structure) locally, read the XSDs and the Learn MCP to reason about
-correctness, and let CI's `ooxml-validation` workflow run the authoritative oracle on your
-PR.
+The vendored schema graph is deliberately **not** wired into an `xmllint`-style path
+(ADR-0002, ADR-0034): a naive XSD-only pass gives false alarms and false confidence — it
+can't do the semantic checks or validate the OPC parts, and the Transitional schemas are
+subtly permissive. Instead: rely on `pnpm run corpus` (well-formedness + structure)
+locally, query `ooxml-lookup` and the Learn MCP to reason about correctness, and let CI's
+`ooxml-validation` workflow run the authoritative oracle on your PR.
+
+When the oracle *has* run and you have a diagnostic, `ooxml-lookup` answers the question
+that follows it. Hand `explain` the diagnostic as JSON — the `id`, `description`, `xpath`
+and `partUri` an `ooxml-validate` report already gives you — and it returns what *would*
+have been legal at that position:
+
+```bash
+node .claude/skills/ooxml-lookup/scripts/ooxml.mjs explain \
+  '{"id":"Sch_UndeclaredAttribute","description":"The '"'"'foo'"'"' attribute is not declared.","xpath":"/x:workbook[1]/x:sheets[1]/x:sheet[1]","partUri":"/xl/workbook.xml"}'
+```
