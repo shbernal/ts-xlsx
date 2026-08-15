@@ -91,7 +91,7 @@
     "verify:quick": "node scripts/verify.ts --quick",
     "test": "node scripts/verify.ts --full",
     "prepublishOnly": "pnpm run build && pnpm run test && pnpm run smoke:dist && pnpm run size",
-    "validate:ooxml": "node scripts/ooxml-validator.ts",
+    "validate:ooxml": "ooxml-validate",
     "test:ooxml": "node test/ooxml-validation/run.ts"
   },
   "keywords": [
@@ -112,6 +112,7 @@
     "@types/node": "^24.13.3",
     "jszip": "^3.10.1",
     "lefthook": "^2.1.10",
+    "ooxml-validate": "^0.0.3",
     "typescript": "^7.0.2"
   }
 }

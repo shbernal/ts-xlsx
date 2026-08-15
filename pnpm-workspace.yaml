@@ -8,3 +8,16 @@
 # this costs only the hook install we did not want.
 allowBuilds:
   lefthook: false
+# `ooxml-validate` is the schema oracle this repo's OOXML gate is built on, published
+# from a repo of the same author. The release-age delay exists to let a compromised or
+# broken publish be caught by someone else first, which does not apply to a publish we
+# performed ourselves — so holding this one for a day would only delay the gate, not vet
+# it. Unversioned deliberately: a version-pinned exclusion has to be edited in the same
+# breath as every bump, and until it is, the *previous* version is the one the policy
+# rejects — the lockfile is checked before the new resolution lands. Bumps that are not
+# hand-made arrive through Renovate, whose own 3-day cooldown already clears pnpm's.
+#
+# Note the default is not visible through `pnpm config get minimumReleaseAge`, which
+# reports `undefined` while pnpm still enforces 1440 minutes.
+minimumReleaseAgeExclude:
+  - ooxml-validate

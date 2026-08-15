@@ -73,12 +73,23 @@
     },
 
     // The two automerge grants. Everything not named here — the runtime dependency, every
-    // major, the .NET oracle, the packageManager — opens a PR and waits, which is the
-    // default and is why it is not restated below.
+    // major, the packageManager — opens a PR and waits, which is the default and is why it
+    // is not restated below.
     {
       matchDepTypes: ['devDependencies'],
       matchUpdateTypes: ['minor', 'patch'],
       automerge: true,
+    },
+
+    // The oracle is the one devDependency that must NOT ride that grant. `ooxml-validate`
+    // is the judge, not the code: a green run after bumping it proves less than one after
+    // bumping a library, because what changed is the thing doing the proving. Its npm
+    // version is also its binary's version and its pinned Open XML SDK, so a patch bump
+    // here can move every diagnostic this repo's gate asserts on. It stops and waits, the
+    // way the repo-owned .NET tool it replaced did (ADR-0027, ADR-0033).
+    {
+      matchPackageNames: ['ooxml-validate'],
+      automerge: false,
     },
     {
       // Including digests: the pinning above only pays off if the pins move on their own.

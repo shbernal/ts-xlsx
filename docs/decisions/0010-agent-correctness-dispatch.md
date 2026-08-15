@@ -2,6 +2,15 @@
 
 **Status:** Accepted (2026-07-20) · Phase 4 · builds on [ADR 0002](./0002-ooxml-validation-oracle.md) (validation oracle) and [ADR 0007](./0007-spec-reference-vendored-schemas-and-learn-mcp.md) (spec reference + Learn MCP)
 
+> **One premise below expired on 2026-08-15.** Everything here that reasons from "the
+> oracle needs .NET" — the friction it names, the "no-.NET answer", the Stop-hook
+> exclusion's stated reason — was true of the repo-owned tool ADR 0002 specified.
+> [ADR 0033](./0033-the-ooxml-oracle-is-a-shared-package.md) replaced it with a
+> downloaded binary, so there is no .NET requirement to route around. The decisions
+> themselves stand: the dispatch table, the skill, the corpus-in-the-hook gate, and
+> — emphatically — **the declined second XSD validator**, whose reasoning never
+> depended on .NET being awkward.
+
 ## Context
 
 The project's machine-checkable safety net is deep — corpus (well-formedness, package

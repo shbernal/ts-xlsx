@@ -1,6 +1,15 @@
 # ADR 0027 — Dependencies are updated by a bot, and CI is the reviewer
 
-**Status:** Accepted (2026-07-30) · maintenance slice, after the 1.0.2 release path settled
+**Status:** Accepted (2026-07-30) · maintenance slice, after the 1.0.2 release path settled ·
+**amended** 2026-08-15 by [ADR 0033](./0033-the-ooxml-oracle-is-a-shared-package.md)
+
+> **What 0033 changed here.** The oracle stopped being a `tools/ooxml-validator` .NET
+> project and became the `ooxml-validate` npm devDependency, so: there is no NuGet
+> lockfile left to watch (the "Watch for" note below now has no subject), and the
+> stop-and-wait class named "the .NET validator and SDK" is enforced differently — the
+> devDependency automerge grant would otherwise sweep the oracle up with the linters, so
+> `renovate.json5` names it and switches automerge back off. The rule is unchanged and the
+> reason is the one stated below: the thing that changed is the judge.
 
 ## Context
 

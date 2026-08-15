@@ -23,7 +23,7 @@ after it would have broken far more cross-references than the collision did.
 | # | Decision | Status |
 |---|---|---|
 | [0001](./0001-rewrite-runtime-and-toolchain.md) | Rewrite runtime & toolchain: run `.ts` directly, defer the bundler | Accepted 2026-07-11 · build slice resolved 07-19 by addendum |
-| [0002](./0002-ooxml-validation-oracle.md) | Microsoft `OpenXmlValidator` as an external conformance oracle | Accepted 2026-07-11 |
+| [0002](./0002-ooxml-validation-oracle.md) | Microsoft `OpenXmlValidator` as an external conformance oracle | Accepted 2026-07-11 · **mechanism superseded** 2026-08-15 by [0033](./0033-the-ooxml-oracle-is-a-shared-package.md); the stance stands |
 | [0003](./0003-zip-and-xml-write-path.md) | Zip container is `fflate`; the write path emits XML directly | Accepted 2026-07-12 |
 | [0004](./0004-xml-read-path.md) | The XML read path is a lean, hand-written SAX pull parser | Accepted 2026-07-12 |
 | [0005](./0005-worksheet-model-is-semantic-only.md) | `WorksheetModel` stays a semantic value; attached parts are out of scope | Accepted 2026-07-18 |
@@ -54,6 +54,7 @@ after it would have broken far more cross-references than the collision did.
 | [0030](./0030-xlsx-codec-stays-flat.md) | `src/io/xlsx/` stays flat; the read/write directory split is rejected | Accepted 2026-08-08 |
 | [0031](./0031-the-emitted-declarations-are-typechecked-too.md) | The emitted declarations are typechecked too; two more gate flags go on | Accepted 2026-08-08 |
 | [0032](./0032-package-output-is-reproducible.md) | Package output is reproducible: entry timestamps are pinned, not clocked | Accepted 2026-08-11 |
+| [0033](./0033-the-ooxml-oracle-is-a-shared-package.md) | The OOXML oracle is a shared package, not a repo-owned .NET tool | Accepted 2026-08-15 · supersedes the mechanism of [0002](./0002-ooxml-validation-oracle.md) |
 
 ## Writing one
 

@@ -10,6 +10,31 @@ versioning policy, including why the first published version is `1.0.0` rather t
 This file tracks changes from its introduction forward. Earlier history — the full
 ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](docs/decisions/).
 
+## [Unreleased]
+
+### Changed
+
+- **The OOXML conformance oracle is now the shared `ooxml-validate` package**, and the
+  repository-owned .NET tool behind it is gone
+  ([ADR-0033](docs/decisions/0033-the-ooxml-oracle-is-a-shared-package.md)). Nothing in
+  `src/` moved and nothing a consumer installs changed — this is development and CI
+  tooling, as it always was.
+
+  The point is that `ts-pptx` used to carry a *different* validator on a different Open XML
+  SDK version, so two sibling projects were enforcing two rule sets while both calling it
+  "Microsoft's validator". They now share one oracle, one pin, and one report contract.
+
+  For contributors: **there is no .NET requirement any more.** The package fetches a
+  prebuilt, checksum- and provenance-verified binary on first use and caches it, so
+  `pnpm run validate:ooxml file.xlsx` and `pnpm run test:ooxml` work from a plain dev
+  install. `global.json` and CI's `setup-dotnet` step are gone. Both spellings work —
+  `pnpm run validate:ooxml file.xlsx` and `pnpm run validate:ooxml -- file.xlsx` — which is
+  why the dependency floor is `ooxml-validate` 0.0.3.
+
+  The baseline did not move. This repo was already validating at `Microsoft365` against
+  `DocumentFormat.OpenXml` 3.5.1, so `test/ooxml-validation/allowed-errors.json` is
+  unchanged and still empty.
+
 ## [1.3.1] — 2026-08-11
 
 `1.3.0` was set in `package.json` and cut no release, so this is the first published version of

@@ -1,6 +1,10 @@
 # ADR 0002 — Microsoft OpenXmlValidator as an external conformance oracle
 
-**Status:** Accepted (2026-07-11) · Phase 3
+**Status:** Accepted (2026-07-11) · Phase 3 · **mechanism superseded** (2026-08-15) by
+[ADR 0033](./0033-the-ooxml-oracle-is-a-shared-package.md): the oracle is no longer a
+repository-owned .NET tool but the shared `ooxml-validate` package, which carries the pin
+and the binary. Everything below about *why* this oracle, at `Microsoft365`, as
+development-only tooling, still holds — read 0033 for what runs it.
 
 ## Context
 

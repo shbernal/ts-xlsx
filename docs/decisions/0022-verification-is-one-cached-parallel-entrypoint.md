@@ -106,6 +106,14 @@ with no lockfile change.
 
 ### The OOXML validator builds on demand and is then invoked as an assembly
 
+> **Obsolete since 2026-08-15.** There is no local build to be stale:
+> [ADR 0033](./0033-the-ooxml-oracle-is-a-shared-package.md) moved the oracle into the
+> `ooxml-validate` package, which resolves a prebuilt binary. `scripts/ooxml-validator.ts`
+> and its `resolveValidator()` are gone. Kept because the reasoning below — the cost of
+> re-evaluating a project per call, and MSBuild reporting errors on the stream reserved
+> for report JSON — is why the resolution problem was worth solving somewhere rather than
+> living with.
+
 `dotnet run --project` re-evaluates the project on every call — ~2–6 s for a tool whose
 actual work is under a second. `scripts/ooxml-validator.ts` compares the DLL's mtime
 against the newest source beside the project, builds only if stale, and otherwise hands

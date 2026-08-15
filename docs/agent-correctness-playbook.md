@@ -14,7 +14,7 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | ↳ emitted `.d.ts` | The published declarations typecheck as a consumer sees them | `pnpm run typecheck:dist` | Node 24 + `pnpm run build` |
 | Lint | Style/format/floating-promise/console gates | `pnpm run lint` | Node 24 |
 | **Corpus** | Well-formed XML, package structure, and no behavior regression — the **spine** | `pnpm run corpus` | Node 24 |
-| **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `node scripts/ooxml-validator.ts file.xlsx` | **.NET 10** |
+| **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `pnpm run validate:ooxml file.xlsx` | Node 24 + network on first call |
 | Spec grounding | Ground a decision in the authoritative format | Learn MCP + `schemas/` + `docs/knowledge/specs/` | — |
 
 **`typecheck` means both trees.** There are two strict projects — `tsconfig.json` over `src/` and
@@ -84,8 +84,8 @@ turn green while regressing the spine. `--cached` exits immediately when the wor
 is byte-for-byte what it was the last time this gate set passed — a *hit means proven*, not
 skipped, because the key is the HEAD commit plus the full diff and every untracked file. A
 turn that changed nothing verifiable costs ~0.3 s; one that changed anything pays the real
-~13 s. The OOXML oracle is **not** in the hook (it needs .NET and is slower); invoke it
-yourself — see below.
+~13 s. The OOXML oracle is **not** in the hook (it is slower, and it spawns a large
+external binary); invoke it yourself — see below.
 
 **Write scratch to `.tmp/`** — probes, dumps, generated workbooks, anything regenerable
 (`$SCRATCH` and `$TMPDIR` both point there; CLAUDE.md makes it the rule). It is git-ignored,
@@ -246,26 +246,35 @@ total does not move when a boundary is crossed, only when something new is writt
 
 **You are about to finish a turn / open a PR.**
 The Stop hook covers every gate `verify --full` runs. For full CI parity add the one it
-cannot: if you have .NET 10, `node test/ooxml-validation/run.ts`. CI runs all three
-workflows (`build`, `corpus`, `ooxml-validation`) regardless, so the oracle is always
-enforced before merge even when you can't run it locally.
+cannot: `pnpm run test:ooxml`. CI runs all three workflows (`build`, `corpus`,
+`ooxml-validation`) regardless, so the oracle is always enforced before merge even when
+you can't run it locally.
 
-## The schema oracle, and what to do without .NET
+## The schema oracle, and what to do without it
 
-`OpenXmlValidator` (`scripts/ooxml-validator.ts`, also reachable as the `validate:ooxml` /
-`test:ooxml` scripts, ADR-0002) is the **single authoritative** schema/semantic check. It
-builds the .NET assembly on demand and then invokes it directly, so a warm call costs ~0.9 s
-rather than the ~2–6 s `dotnet run` spends re-evaluating the project; validate several files
-in one call. It needs .NET 10. Exit codes:
-`0` = every input clean, `1` = validation/package errors found, `2` = the tool could
-not run. Known, tracked errors are baselined in
-`test/ooxml-validation/allowed-errors.json`; a *new* error fails the gate and a *stale*
-baseline fails it too, so keep that file honest when you fix or introduce a diagnostic.
+`OpenXmlValidator`, reached through the `ooxml-validate` package (the `validate:ooxml` /
+`test:ooxml` scripts, ADR-0002), is the **single authoritative** schema/semantic check.
+The same oracle at the same Open XML SDK version serves `ts-pptx`, so the two projects
+enforce one rule set rather than two that drifted apart.
 
-If you don't have .NET 10 locally, do **not** reach for a second validator. The vendored
-XSDs are deliberately **not** wired into an `xmllint`-style path (`schemas/README.md`,
-ADR-0002): a naive XSD-only pass gives false alarms and false confidence — it can't do
-the semantic checks or validate the OPC parts, and the Transitional schemas are subtly
-permissive. Instead: rely on `pnpm run corpus` (well-formedness + structure) locally,
-read the XSDs and the Learn MCP to reason about correctness, and let CI's
-`ooxml-validation` workflow run the authoritative oracle on your PR.
+There is no .NET toolchain to install: the package downloads a prebuilt, self-contained
+binary on its first call, verifies its checksum and build provenance, and caches it under
+`~/.cache/ooxml-validate` — so the only requirement beyond a dev install is network
+access, once. Startup dominates the cost (~0.4 s, then ~9 ms per additional package), so
+validate several files in one call.
+
+Exit codes: `0` = every input clean, `1` = validation/package errors found, `2` = the tool
+could not run. Every input appears in the report with an explicit `valid` flag, so a
+missing entry is a broken contract rather than a clean file. Known, tracked errors are
+baselined in `test/ooxml-validation/allowed-errors.json`; a *new* error fails the gate and
+a *stale* baseline fails it too, so keep that file honest when you fix or introduce a
+diagnostic.
+
+If the oracle cannot be obtained (offline, say), do **not** reach for a second validator.
+The vendored XSDs are deliberately **not** wired into an `xmllint`-style path
+(`schemas/README.md`, ADR-0002): a naive XSD-only pass gives false alarms and false
+confidence — it can't do the semantic checks or validate the OPC parts, and the
+Transitional schemas are subtly permissive. Instead: rely on `pnpm run corpus`
+(well-formedness + structure) locally, read the XSDs and the Learn MCP to reason about
+correctness, and let CI's `ooxml-validation` workflow run the authoritative oracle on your
+PR.

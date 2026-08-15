@@ -1,121 +1,43 @@
 #!/usr/bin/env node
 
+// The OOXML gate: emit the writers' real output and hold it against a frozen baseline,
+// using `ooxml-validate` — the shared oracle this project and `ts-pptx` both validate
+// against. Everything this harness used to own below the assertions (the .NET build, the
+// process spawn, the conformance pin, the report types) belongs to that package now; the
+// two repos had each grown their own validator on a different Open XML SDK version, so
+// they enforced different rule sets while appearing to enforce the same one.
+
 import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
 import {mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import type JSZipType from 'jszip';
-import {resolveValidator} from '../../scripts/ooxml-validator.ts';
+import type {ValidationDiagnostic, ValidationResult} from 'ooxml-validate';
+import {FILE_FORMAT, validate, validatorAvailable} from 'ooxml-validate';
 import {Workbook} from '../../src/core/workbook.ts';
 import {writeXlsx} from '../../src/io/xlsx/write.ts';
 import {WorkbookStreamWriter} from '../../src/io/xlsx/write-stream.ts';
 
-/** Structured diagnostic emitted per validation problem by OpenXmlValidator. */
-interface ValidationError {
-  readonly id: string;
-  readonly type: string;
-  readonly partUri: string;
-  readonly xpath: string;
-}
-
 /** The stable subset of a diagnostic used to detect baseline drift. */
-type ValidationFingerprint = Pick<ValidationError, 'id' | 'type' | 'partUri' | 'xpath'>;
-
-/** Per-file validation outcome inside a report. */
-interface ValidationResult {
-  readonly file: string;
-  readonly valid: boolean;
-  readonly errors: readonly ValidationError[];
-}
-
-/** The full JSON document the validator prints to stdout. */
-interface ValidationReport {
-  readonly format: string;
-  readonly results: readonly ValidationResult[];
-}
+type ValidationFingerprint = Pick<ValidationDiagnostic, 'id' | 'type' | 'partUri' | 'xpath'>;
 
 /** Baselined-until-fixed diagnostics, keyed by workbook basename. Empty while the writer is clean —
  * an entry is a *known-open* writer bug we've chosen to track, never a mute button for a new one. */
 type Baseline = Readonly<Record<string, readonly ValidationFingerprint[]>>;
 
-/** The captured outcome of one validator invocation. */
-interface DotnetRun {
-  readonly code: number | null;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
 const require = createRequire(import.meta.url);
 const JSZip = require('jszip') as typeof JSZipType;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, '..', '..');
-// Built once for the whole run, and by the same resolver `validate:ooxml` uses, so the gate
-// and the ad-hoc command can never disagree about which assembly is authoritative.
-const VALIDATOR = await resolveValidator();
 const BASELINE = JSON.parse(
   await readFile(path.join(HERE, 'allowed-errors.json'), 'utf8'),
 ) as Baseline;
-const TIMEOUT_MS = 30_000;
-const MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
 
 // The buffered and both streaming outputs are the packages under test: every one must validate against
 // the frozen baseline (empty today, so: clean). A new diagnostic on any of them fails the gate.
 const WRITER_FILES = ['buffered.xlsx', 'streaming-inline.xlsx', 'streaming-shared.xlsx'] as const;
-
-function runDotnet(
-  files: readonly string[],
-  {format = 'Microsoft365'}: {format?: string} = {},
-): Promise<DotnetRun> {
-  const args = [VALIDATOR, '--format', format, ...files];
-
-  return new Promise<DotnetRun>((resolve, reject) => {
-    const child = spawn('dotnet', args, {
-      cwd: ROOT,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    const stdout: Buffer[] = [];
-    const stderr: Buffer[] = [];
-    let outputBytes = 0;
-    let settled = false;
-    const timeout = setTimeout(() => {
-      child.kill('SIGKILL');
-      reject(new Error(`OOXML validator timed out after ${TIMEOUT_MS}ms`));
-    }, TIMEOUT_MS);
-
-    const collect = (target: Buffer[]) => (chunk: Buffer) => {
-      outputBytes += chunk.length;
-      if (outputBytes > MAX_OUTPUT_BYTES) {
-        child.kill('SIGKILL');
-        reject(new Error(`OOXML validator output exceeded ${MAX_OUTPUT_BYTES} bytes`));
-        return;
-      }
-      target.push(chunk);
-    };
-    child.stdout.on('data', collect(stdout));
-    child.stderr.on('data', collect(stderr));
-    child.on('error', (error) => {
-      clearTimeout(timeout);
-      if (!settled) {
-        settled = true;
-        reject(error);
-      }
-    });
-    child.on('close', (code) => {
-      clearTimeout(timeout);
-      if (settled) return;
-      settled = true;
-      resolve({
-        code,
-        stdout: Buffer.concat(stdout).toString('utf8'),
-        stderr: Buffer.concat(stderr).toString('utf8'),
-      });
-    });
-  });
-}
 
 // Exercise a representative slice of the buffered writer — styled font, data validation, a formula, and
 // a table over its own cells with a totals row carrying a custom <totalsRowFormula> — so the oracle sees
@@ -185,7 +107,7 @@ async function makeSchemaInvalidControl(source: string, destination: string): Pr
   });
 }
 
-function fingerprint(error: ValidationError): ValidationFingerprint {
+function fingerprint(error: ValidationDiagnostic): ValidationFingerprint {
   return {
     id: error.id,
     type: error.type,
@@ -194,20 +116,15 @@ function fingerprint(error: ValidationError): ValidationFingerprint {
   };
 }
 
-function parseReport(result: DotnetRun, expectedCode: number): ValidationReport {
-  assert.strictEqual(
-    result.code,
-    expectedCode,
-    `validator exit code; stderr=${result.stderr}; stdout=${result.stdout}`,
-  );
-  assert.doesNotThrow(
-    () => JSON.parse(result.stdout),
-    `validator must emit JSON: ${result.stdout}`,
-  );
-  return JSON.parse(result.stdout) as ValidationReport;
-}
-
 async function main(): Promise<void> {
+  // The oracle is obtained, not assumed: the package downloads and verifies its binary on
+  // first use. Under CI this throws rather than returning false, which is the property
+  // that stops a missing oracle from turning the gate into a no-op — and here, where
+  // running this command IS asking for the oracle, "unavailable" is a failure either way.
+  if (!(await validatorAvailable())) {
+    throw new Error('the OOXML oracle is unavailable, so this gate proves nothing');
+  }
+
   const temp = await mkdtemp(path.join(tmpdir(), 'ts-xlsx-ooxml-'));
   try {
     const at = (name: string) => path.join(temp, name);
@@ -222,10 +139,15 @@ async function main(): Promise<void> {
     await writeFile(truncated, (await readFile(at('buffered.xlsx'))).subarray(0, 128));
     await writeFile(unsupported, 'not an xlsx');
 
-    // Both negative controls make this a non-zero run; the writer files are asserted clean below.
-    const report = parseReport(await runDotnet([...WRITER_FILES.map(at), invalid, truncated]), 1);
-    assert.strictEqual(report.format, 'Microsoft365');
-    const byName = new Map(report.results.map((result) => [path.basename(result.file), result]));
+    const inputs = [...WRITER_FILES.map(at), invalid, truncated];
+    const report = await validate(inputs);
+    assert.strictEqual(report.format, FILE_FORMAT);
+    // Every input appears in the report with an explicit `valid` flag — including the clean
+    // ones. Absence is never cleanliness, so a short report is a broken contract, not a pass.
+    assert.strictEqual(report.results.length, inputs.length);
+    const byName = new Map<string, ValidationResult>(
+      report.results.map((result) => [path.basename(result.file), result]),
+    );
 
     for (const name of WRITER_FILES) {
       const result = byName.get(name);
@@ -252,6 +174,9 @@ async function main(): Promise<void> {
       'invalid worksheet must produce a structured schema diagnostic',
     );
 
+    // A package that cannot be opened is a *finding* about that file, not a tool failure: it
+    // comes back as a result with `valid: false`, which is what keeps a corrupt workbook from
+    // reading as a clean one.
     const truncatedResult = byName.get('truncated.xlsx');
     assert.strictEqual(truncatedResult?.valid, false);
     assert.deepStrictEqual(
@@ -263,15 +188,15 @@ async function main(): Promise<void> {
       ['Package'],
     );
 
-    // The clean exit path: the writer outputs alone must return exit 0.
-    parseReport(await runDotnet(WRITER_FILES.map(at)), 0);
+    // The other half of that distinction: an input the oracle cannot even dispatch on is a
+    // tool failure (its exit 2), and the package surfaces it by rejecting rather than by
+    // handing back a report with a made-up verdict in it.
+    await assert.rejects(validate([unsupported]), /Unsupported file extension/);
 
-    const badInvocation = await runDotnet([unsupported]);
-    assert.strictEqual(badInvocation.code, 2);
-    assert.match(badInvocation.stderr, /Only \.xlsx files are supported/);
-    assert.strictEqual(badInvocation.stdout, '');
-
-    console.log('ooxml validation: buffered + streaming outputs clean; error controls detected');
+    console.log(
+      `ooxml validation (${report.format}, SDK ${report.sdkVersion}): ` +
+        'buffered + streaming outputs clean; error controls detected',
+    );
   } finally {
     await rm(temp, {recursive: true, force: true});
   }

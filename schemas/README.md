@@ -45,9 +45,10 @@ Those are small and stable; see `PROVENANCE.md` for where to find them.
 
 ## These are for reference, not validation
 
-Conformance validation is already handled by an independent oracle — the
-repository-owned .NET tool wrapping Microsoft's `OpenXmlValidator`
-(`pnpm run validate:ooxml`, see [ADR-0002](../docs/decisions/0002-ooxml-validation-oracle.md)).
+Conformance validation is already handled by an independent oracle — Microsoft's
+`OpenXmlValidator`, reached through the shared `ooxml-validate` package
+(`pnpm run validate:ooxml`, see [ADR-0002](../docs/decisions/0002-ooxml-validation-oracle.md)
+and [ADR-0033](../docs/decisions/0033-the-ooxml-oracle-is-a-shared-package.md)).
 **Do not** wire these XSDs into a second validation path. Their job is to be read.
 
 ## Not shipped

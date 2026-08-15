@@ -20,9 +20,9 @@
 //      (CVE-2021-42574). We parse untrusted spreadsheets; we need not also read untrusted source.
 //
 // Scope is an allowlist of authored text extensions, not a denylist of binary ones. The corpus is
-// full of .xlsx fixtures and tools/ carries a compiled validator, so the failure mode of guessing
-// wrong is a build that fails on a file for being itself. An unlisted extension goes unchecked
-// instead — add it here when we start authoring one.
+// full of .xlsx fixtures, so the failure mode of guessing wrong is a build that fails on a file for
+// being itself. An unlisted extension goes unchecked instead — add it here when we start authoring
+// one.
 //
 //   node scripts/check-source-text.ts
 
@@ -50,10 +50,6 @@ const TEXT_EXTENSIONS = new Set([
   '.yaml',
   '.xml',
   '.txt',
-  '.cs',
-  '.csproj',
-  '.props',
-  '.targets',
   '.ps1',
 ]);
 

@@ -18,8 +18,27 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: 10.0.x
       - run: pnpm install --frozen-lockfile
+
+      # `ooxml-validate` fetches its oracle binary on first use rather than from a
+      # postinstall hook, so there is nothing to install — only something to keep.
+      # Keyed on the lockfile because the package's version IS its binary's version:
+      # a bump changes both, and the old cache entry stops being the right one.
+      - name: Cache the OOXML oracle
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ooxml-validate
+          key: ooxml-oracle-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      # Resolve it before the gate runs, so a download failure lands here with the
+      # download's own error rather than inside the harness.
+      - name: Warm the OOXML oracle
+        env:
+          # The download verifies the archive's build provenance as well as its
+          # checksum, and `gh attestation verify` needs a token to query GitHub's
+          # attestation API. That check fails closed, so without this the step would
+          # fail — in the right direction, for the wrong reason.
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm exec ooxml-validate --version
+
       - run: pnpm run test:ooxml

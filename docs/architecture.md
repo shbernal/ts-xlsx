@@ -49,7 +49,8 @@ tidiness:
   src internal, because that blindness is the whole reason the corpus outlived the rewrite.
   It is a behavioral spec, not a test of any module. Run by `corpus`.
 - **External-oracle harness — `test/ooxml-validation/`.** Validates emitted packages
-  against the independent `OpenXmlValidator` (ADR-0002); different toolchain (dotnet),
+  against the independent `OpenXmlValidator`, via the shared `ooxml-validate` package
+  (ADR-0002); different toolchain (a .NET binary this repo neither builds nor pins),
   different cadence (`test:ooxml`, not in the default `test`).
 
 The wall matters: the `test/` trees earn their separation by being forbidden from reaching
