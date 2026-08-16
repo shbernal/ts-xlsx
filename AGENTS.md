@@ -112,6 +112,16 @@ that is not done — it is in progress.
   `$TMPDIR` for shells that would otherwise find it unset). Never the repo root, never an
   absolute system temp path: in-repo keeps it inspectable and already git-ignored, and
   relative keeps the command short enough to reuse.
+- **Commit messages go through a file, never through a shell.** Write the message with
+  your file-writing tool, then `git commit -F <file>`. Only a one-line
+  `git commit -m "subject"` may be typed inline. This is not style: an agent on Windows
+  has both a POSIX shell and PowerShell available, and the two disagree on multi-line
+  quoting (`<<'EOF'` against the PowerShell here-string). The wrong dialect does not
+  error — the delimiter is passed through as text and lands in the message. Two commits
+  in this history open with a bare `@` for exactly that reason. Routing the message
+  through a file removes the shell from the path, so there is no dialect left to get
+  wrong. The `no-shell-quoting-leak` rule in `lefthook.yml` is the backstop, not the
+  place to learn this: when it fires you have already burned the commit attempt.
 - **When you must ask, batch it and make it count.** Only escalate to the human for
   decisions that are genuinely theirs: irreversible/outward-facing actions
   (publishing, naming/branding, license), or a true fork-in-the-road where the
