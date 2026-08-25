@@ -203,7 +203,7 @@ export function applyThemeOverrides(baseXml: string, overrides: ThemeOverrides):
  * `<a:sysClr val="…" lastClr="…"/>`. The value-level counterpart is {@link parseThemeColorScheme};
  * this keeps the *encoding* so an untouched slot can be re-emitted exactly as the source wrote it.
  */
-export function parseThemeColorElements(
+function parseThemeColorElements(
   themeXml: string,
 ): Readonly<Partial<Record<ThemeColorSlot, string>>> {
   const block = /<a:clrScheme\b[^>]*>([\s\S]*?)<\/a:clrScheme>/.exec(themeXml);

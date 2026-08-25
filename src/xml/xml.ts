@@ -40,7 +40,7 @@ export function escapeAttr(value: string): string {
  * round-trip. Leading/trailing whitespace is otherwise collapsed by consumers, so a
  * string cell value that begins or ends with a space needs the marker.
  */
-export function needsSpacePreserve(value: string): boolean {
+function needsSpacePreserve(value: string): boolean {
   return value.length > 0 && (value !== value.trim() || /[\n\r\t]/.test(value));
 }
 

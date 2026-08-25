@@ -85,7 +85,8 @@ export interface WriteOptions {
 /**
  * {@link WriteOptions} plus the streaming writer's internal wiring, so a buffered caller's options
  * object can never carry fields meant only for {@link WorkbookStreamWriter}'s own use. Not exported
- * from the public barrel — {@link buildPackageParts} is the only consumer outside this module.
+ * from the public barrel — {@link WorkbookStreamWriter} is the only caller that fills these fields,
+ * and it reaches them through {@link buildPackageParts}.
  */
 export interface InternalWriteOptions extends WriteOptions {
   /**

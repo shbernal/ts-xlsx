@@ -206,7 +206,7 @@ const IDENTIFIER = /^[\p{L}\\_][\p{L}\p{N}._]*$/u;
  * corruption — so this is applied both when a table is authored and when one is read from a file,
  * keeping the two paths identical rather than rejecting a name list the reader would accept.
  */
-export function disambiguateColumnNames(columns: readonly TableColumn[]): TableColumn[] {
+function disambiguateColumnNames(columns: readonly TableColumn[]): TableColumn[] {
   const seen = new Set<string>();
   return columns.map((column) => {
     let candidate = column.name;

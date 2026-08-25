@@ -636,7 +636,7 @@ export function parseWorkbookSheets(xml: string): SheetEntry[] {
 // decoded as booleans (an absent or "0" attribute stays unlocked), and only the whitelisted
 // password/agile-hash attributes are preserved verbatim — a hostile or unknown attribute is dropped
 // rather than echoed back on write. Returns undefined when the workbook declares no protection.
-export function parseWorkbookProtection(xml: string): WorkbookProtection | undefined {
+function parseWorkbookProtection(xml: string): WorkbookProtection | undefined {
   let result: WorkbookProtection | undefined;
   parseXml(xml, {
     onOpen(name, attrs) {

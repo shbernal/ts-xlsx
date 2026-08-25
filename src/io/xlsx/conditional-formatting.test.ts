@@ -396,3 +396,70 @@ test('a sheet with both an extended validation and a gradient dataBar emits one 
   assert.equal(sheet?.conditionalFormattings[0]?.rules[0]?.gradient, true, 'the gradient survives');
   assert.equal(sheet?.dataValidations.length, 1, 'the extended validation survives');
 });
+
+// The third scale type. `dataBar` and `colorScale` were exercised above from the moment they
+// landed; `iconSet` reached the model, the reader and the writer without a single test naming it,
+// so `iconSetXml` was serialising a documented rule type that nothing had ever read back.
+
+test('an iconSet rule emits its icon family and one cfvo per threshold', () => {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').addConditionalFormatting({
+    ref: 'A1:A9',
+    rules: [
+      {
+        type: 'iconSet',
+        iconSet: '3TrafficLights1',
+        cfvo: [
+          {type: 'percent', value: 0},
+          {type: 'percent', value: 33},
+          {type: 'percent', value: 67},
+        ],
+      },
+    ],
+  });
+  const block = sheetXml(writeXlsx(workbook)).match(/<iconSet[\s\S]*?<\/iconSet>/)?.[0] ?? '';
+
+  assert.match(block, /<iconSet iconSet="3TrafficLights1">/);
+  assert.equal([...block.matchAll(/<cfvo\b/g)].length, 3, 'all three thresholds present');
+  assert.match(block, /<cfvo type="percent" val="33"\/>/);
+});
+
+test('an iconSet rule reads back with its type, icon family, and every threshold in order', () => {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').addConditionalFormatting({
+    ref: 'A1:A9',
+    rules: [
+      {
+        type: 'iconSet',
+        iconSet: '5Rating',
+        cfvo: [
+          {type: 'min'},
+          {type: 'percentile', value: 25},
+          {type: 'percentile', value: 50},
+          {type: 'percentile', value: 75},
+          {type: 'max'},
+        ],
+      },
+    ],
+  });
+  const rule = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+  assert.equal(rule?.type, 'iconSet');
+  assert.equal(rule?.iconSet, '5Rating');
+  assert.deepEqual(
+    rule?.cfvo?.map((v) => v.type),
+    ['min', 'percentile', 'percentile', 'percentile', 'max'],
+    'every anchor survives in order, min/max carrying no value',
+  );
+});
+
+test('an iconSet with no named family emits the element without an empty iconSet attribute', () => {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').addConditionalFormatting({
+    ref: 'A1:A3',
+    rules: [{type: 'iconSet', priority: 1, cfvo: [{type: 'min'}, {type: 'max'}]}],
+  });
+  const block = sheetXml(writeXlsx(workbook)).match(/<iconSet[\s\S]*?<\/iconSet>/)?.[0] ?? '';
+
+  assert.match(block, /^<iconSet>/, 'an absent family names no attribute at all');
+  assert.doesNotMatch(block, /iconSet=""/);
+});

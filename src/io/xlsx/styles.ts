@@ -699,7 +699,7 @@ export function fontXml(font: Font, nameTag: 'name' | 'rFont' = 'name'): string 
 // facets present are emitted — a dxf overrides exactly what it names and lets the cell's own style show
 // through the rest. A dxf's pattern fill states the highlight through `bgColor`, matching how Excel
 // writes a "fill with colour" conditional format.
-export function dxfXml(style: DifferentialStyle): string {
+function dxfXml(style: DifferentialStyle): string {
   const parts: string[] = [];
   if (style.font !== undefined) {
     const font = fontXml(style.font);

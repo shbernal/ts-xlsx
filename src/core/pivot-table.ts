@@ -54,7 +54,7 @@ const PIVOT_METRICS: ReadonlySet<string> = new Set<PivotMetric>([
 ]);
 
 /** Narrow a raw `subtotal` attribute (or any string) to a known {@link PivotMetric}. */
-export function isPivotMetric(value: string): value is PivotMetric {
+function isPivotMetric(value: string): value is PivotMetric {
   return PIVOT_METRICS.has(value);
 }
 
