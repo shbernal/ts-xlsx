@@ -83,8 +83,8 @@
     "entries:check": "node scripts/check-entries.ts",
     "source-text:check": "node scripts/check-source-text.ts",
     "chars:check": "charcheck",
-    "lint": "biome check --error-on-warnings src scripts test tools",
-    "lint:fix": "biome check --write --error-on-warnings src scripts test tools",
+    "lint": "node node_modules/oxlint/bin/oxlint src scripts test tools charcheck.config.ts --deny-warnings --report-unused-disable-directives",
+    "lint:fix": "pnpm run lint --fix",
     "format": "node scripts/format.ts --write",
     "format:check": "node scripts/format.ts --check",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
@@ -106,7 +106,6 @@
     "fflate": "^0.8.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.10",
     "@types/node": "^24.13.3",
     "charcheck": "^0.2.5",
     "jszip": "^3.10.1",

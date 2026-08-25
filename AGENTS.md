@@ -68,9 +68,12 @@ Every change must satisfy, with **zero** exceptions merged to the main branch:
   `exactOptionalPropertyTypes`, `noImplicitOverride`, and friends. `any` is a code
   smell that must be justified in a comment or eliminated. Prefer `unknown` +
   narrowing. Public API is fully and precisely typed — the types *are* the docs.
-- **Linting & formatting clean.** A single fast toolchain (Biome, or ESLint-flat +
-  Prettier if a plugin gap forces it). No warnings. Formatting is never debated;
-  it is automated.
+- **Linting & formatting clean.** oxlint for rules, oxfmt for layout — two tools
+  from one toolchain, neither of them doing the other's job. Type-aware rules come
+  from tsgolint, so the linter sees what the typechecker sees. No warnings.
+  Formatting is never debated; it is automated. A rule this project will not adopt
+  is turned off *in the config, with its finding count and the reason* — a decline
+  on the record is a decision; a rule left unmentioned is an accident.
 - **Unit tests.** Every behavior is covered. New behavior ships with tests in the
   same change. Bugs are fixed *test-first*: a failing reproduction, then the fix.
 - **Regression corpus.** Every real-world file/edge case we learn about (especially

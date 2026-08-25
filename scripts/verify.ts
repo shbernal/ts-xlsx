@@ -35,16 +35,21 @@ const STAMP = join(ROOT, '.tmp', 'verify-stamp.json');
 // node_modules/.bin, because a .bin entry on Windows is a .cmd shim that would force
 // `shell: true` — and with it quoting rules that differ per platform.
 const NODE = process.execPath;
-const BIOME = resolve(ROOT, 'node_modules/@biomejs/biome/bin/biome');
+const OXLINT = resolve(ROOT, 'node_modules/oxlint/bin/oxlint');
 const TSC = resolve(ROOT, 'node_modules/typescript/bin/tsc');
 const CHARCHECK = resolve(ROOT, 'node_modules/charcheck/dist/cli.js');
 
-/** The directories `lint` covers; must stay in step with the `lint` package script. */
-const LINT_ROOTS = ['src', 'scripts', 'test', 'tools'];
-// CLAUDE.md §2 admits no warnings, but Biome exits 0 on them: without this a rule demoted to a
-// warning (most of `style`, including noNonNullAssertion) is enforced by nothing at all.
-const LINT_STRICT = '--error-on-warnings';
-const LINTABLE = /\.(?:ts|js|mjs|cjs|json|jsonc)$/;
+/** What `lint` covers; must stay in step with the `lint` package script. */
+const LINT_TARGETS = ['src', 'scripts', 'test', 'tools', 'charcheck.config.ts'];
+// CLAUDE.md §2 admits no warnings, and oxlint exits 0 on them. Nothing in .oxlintrc.jsonc is set
+// to "warn" today, so this changes no current outcome — it is here so that the first rule adopted
+// at warning severity, to stage a migration, is still a gate rather than a message.
+const LINT_STRICT = '--deny-warnings';
+// A suppression that has outlived its cause is worse than none: it reads as a live hazard and
+// silences a rule that would now pass. The move onto oxlint left eleven of them.
+const UNUSED_DIRECTIVES = '--report-unused-disable-directives';
+// Deliberately narrower than the formatter's set: oxlint reads no JSON.
+const LINTABLE = /\.(?:ts|js|mjs|cjs)$/;
 // Past this many changed files, an explicit list stops being cheaper than a whole-tree
 // pass and starts crowding the OS argument limit. A codemod pays the 2 s.
 const SCOPED_LINT_LIMIT = 100;
@@ -127,11 +132,7 @@ async function capture(command: string, args: string[]): Promise<string> {
   return output;
 }
 
-/**
- * The lintable files that differ from HEAD — unstaged, staged and untracked. Biome's
- * own `--changed --since` was measured slower than a whole-tree pass (the diff it runs
- * internally eats the saving), so we compute the list once and hand it over explicitly.
- */
+/** The lintable files that differ from HEAD — unstaged, staged and untracked. */
 async function changedLintTargets(): Promise<string[]> {
   const lists = await Promise.all([
     capture('git', ['diff', '--name-only', '--diff-filter=ACMR']),
@@ -145,14 +146,18 @@ async function changedLintTargets(): Promise<string[]> {
       .filter(Boolean),
   );
   return [...paths]
-    .filter((path) => LINTABLE.test(path) && LINT_ROOTS.some((root) => path.startsWith(`${root}/`)))
+    .filter(
+      (path) =>
+        LINTABLE.test(path) &&
+        LINT_TARGETS.some((target) => path === target || path.startsWith(`${target}/`)),
+    )
     .sort();
 }
 
 function wholeTreeLint(): Gate {
   return {
     name: 'lint',
-    steps: [{command: NODE, args: [BIOME, 'check', LINT_STRICT, ...LINT_ROOTS]}],
+    steps: [{command: NODE, args: [OXLINT, ...LINT_TARGETS, LINT_STRICT, UNUSED_DIRECTIVES]}],
   };
 }
 
@@ -164,16 +169,16 @@ function scopedLint(changed: string[]): Gate {
     steps: [
       {
         command: NODE,
-        // A changed path can be anything git reports; let Biome pass over what it does
-        // not handle rather than failing the gate on an unmatched argument.
-        args: [
-          BIOME,
-          'check',
-          LINT_STRICT,
-          '--no-errors-on-unmatched',
-          '--files-ignore-unknown=true',
-          ...changed,
-        ],
+        // A changed path can be anything git reports, including one deleted between the
+        // `git diff` above and this call; pass over an unmatched argument rather than
+        // failing the gate on it.
+        //
+        // No `--report-unused-disable-directives` here, unlike the whole-tree gate: a
+        // suppression is unused only relative to the rules that ran, and a scoped pass runs
+        // the same rules over fewer files, so the answer is the same. It is left off only
+        // because the flag costs nothing to omit and the whole-tree gate is the one that
+        // has to be exhaustive.
+        args: [OXLINT, ...changed, LINT_STRICT, '--no-error-on-unmatched-pattern'],
       },
     ],
   };
@@ -243,7 +248,7 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
 /**
  * Run gates concurrently, but only `jobs` at a time. An unbounded fan-out is measurably
  * *slower*: the gates are not competing for cores (14 of them here) but for filesystem
- * throughput — `node --test` already spawns a worker per core, Biome is parallel across
+ * throughput — `node --test` already spawns a worker per core, oxlint is parallel across
  * all of them, and every gate reads the same few hundred files. Running all of them at
  * once inflated each gate ~2× (29 s of serial work became 57 s of it, for a wall of
  * 19.6 s); two at a time reached the same wall while leaving the machine usable, and

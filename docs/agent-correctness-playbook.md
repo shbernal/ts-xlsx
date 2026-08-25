@@ -12,7 +12,8 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | Types + unit | The code compiles under strict TS and units pass | `pnpm run typecheck && pnpm run test:src` | Node 24 |
 | ↳ narrower | Only one tree, when iterating | `pnpm run typecheck:src` · `pnpm run typecheck:test` | Node 24 |
 | ↳ emitted `.d.ts` | The published declarations typecheck as a consumer sees them | `pnpm run typecheck:dist` | Node 24 + `pnpm run build` |
-| Lint | Style/format/floating-promise/console gates | `pnpm run lint` | Node 24 |
+| Lint | The rule gates: correctness, imports, suppression hygiene | `pnpm run lint` | Node 24 |
+| ↳ layout | Every file is as oxfmt would write it | `pnpm run format:check` | Node 24 |
 | Prose | No banned character in the authored docs | `pnpm run chars:check` | Node 24 |
 | **Corpus** | Well-formed XML, package structure, and no behavior regression | `pnpm run corpus` | Node 24 |
 | **OOXML oracle** | Schema + semantic conformance against Microsoft's own validator | `pnpm run validate:ooxml file.xlsx` | Node 24 + network on first call |
@@ -33,15 +34,31 @@ declarations but not `src/` passes every local gate and fails on the runner. If 
 the public barrel or a type it re-exports, run `pnpm run build && pnpm run typecheck:dist` first,
 which costs about 0.8 s on top of the build.
 
-**`lint:fix` needs no confirming `lint` pass.** `biome check --write` applies what it can and
-*still exits non-zero* if any diagnostic survives, so a green `lint:fix` already is the proof.
-Re-running `lint` after it only re-checks a tree you have been told is clean.
+**`lint:fix` needs no confirming `lint` pass.** `oxlint --fix` applies what it can and *still
+exits non-zero* if any diagnostic survives, so a green `lint:fix` already is the proof. Re-running
+`lint` after it only re-checks a tree you have been told is clean.
 
-**A warning fails the gate.** Every Biome invocation here passes `--error-on-warnings`, because
-Biome exits 0 on warnings and most of the `style` group (`noNonNullAssertion` among them) is a
-warning. When one fires, fix the code, do not reach for the autofix: `?.` on an assertion that was
-load-bearing turns a crash into silent wrong output. Non-null assertions are usually a signal that
-an index is being carried where the object itself could be. See `src/vba/cfb-writer.ts`.
+**Read what `--fix` did before you keep it.** Not every autofix is meaning-preserving, and the
+rule that flags a construct is not the rule that understands it. `prefer-string-starts-ends-with`
+rewrites a regex into a string method, which is only equivalent while the pattern holds no
+metacharacter. `no-useless-spread` would have unwrapped `[...sheet.merges]` in
+`src/io/xlsx/read.ts`, a copy that exists because the loop body splices the array it is walking.
+That one is a suggestion oxlint declines to apply, which is exactly why the suggestions deserve
+reading rather than a blanket `--fix`.
+
+**Do not autofix a non-null assertion.** `?.` on an assertion that was load-bearing turns a crash
+into silent wrong output. A `!` is usually a signal that an index is being carried where the
+object itself could be. See `src/vba/cfb-writer.ts`. `typescript/no-non-null-assertion` is on for
+`src/**` and off under `test/**`, where the assertion is an assertion about the fixture.
+
+**A warning fails the gate.** Every oxlint invocation here passes `--deny-warnings`. Nothing is
+set to `"warn"` in `.oxlintrc.jsonc` today, so it changes no current outcome. It is there so the
+first rule adopted at warning severity, to stage a migration, is a gate and not a message.
+
+**A suppression that has outlived its cause is a lie.** `pnpm run lint` passes
+`--report-unused-disable-directives`, so an `// oxlint-disable-next-line` whose rule would now
+pass fails the gate. Every suppression in this tree carries its reason after a `--`; if you add
+one without a reason, you have recorded that you silenced something and not why.
 
 **Run one corpus case, not 265, while you iterate.** `node test/corpus/run.ts --case
 <id-or-cluster-glob>` is well under a second against ~13 s for the whole corpus, and prints the

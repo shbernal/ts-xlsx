@@ -9,8 +9,11 @@ import {type CustomUiDocument, isCustomUiRelType, parseCustomUi} from '../custom
 import {AuthoringError} from '../errors.ts';
 import {
   // Imported for the `{@link}` targets in the accessor docs below: the doc comments explain the
-  // structural splices by pointing at the functions that perform them.
+  // structural splices by pointing at the functions that perform them. tsc counts a `{@link}` as a
+  // use and oxlint does not, so `noUnusedLocals` is satisfied and the linter still has to be told.
+  // oxlint-disable-next-line eslint/no-unused-vars
   addVbaReference,
+  // oxlint-disable-next-line eslint/no-unused-vars
   removeVbaModule,
   type VbaLibraryReference,
   type VbaProject,
@@ -29,8 +32,11 @@ import type {PreservedPart, PreservedRootReference} from './preserved.ts';
 import type {Color, Font, NamedCellStyle, TableStyleTable} from './style.ts';
 import {checkTableStyle, type TableStyle} from './table-style.ts';
 import {
+  // Imported for a `{@link}` target, as the vba block above is.
+  // oxlint-disable-next-line eslint/no-unused-vars
   applyThemeOverrides,
   OFFICE_BODY_FACE,
+  // oxlint-disable-next-line eslint/no-unused-vars
   THEME_COLOR_SLOTS,
   type ThemeColorScheme,
   type ThemeFontScheme,

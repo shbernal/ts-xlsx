@@ -1,0 +1,83 @@
+// oxlint configuration. Replaces the linter half of the biome.json this repo used to
+// carry; oxfmt owns layout, and the two never overlap.
+//
+// JSONC because the choices below are measured, not preferred, and the measurements have
+// to survive contact with the next person who wonders why the config is not simply
+// `"categories": {"all": "error"}`. oxlint auto-discovers `.oxlintrc.jsonc` as it does
+// `.oxlintrc.json`.
+//
+// THIS FILE MUST STAY AT THE REPO ROOT. `ignorePatterns` and every `overrides.files`
+// glob are resolved relative to the directory the config sits in, not the working
+// directory and not the paths on the command line. A copy of this file one level down
+// matches nothing, reports every override as though it were absent, and gives no warning
+// that it did.
+//
+// Why only `correctness`, with the rest named one by one: measured on this tree, over
+// `src scripts test tools charcheck.config.ts`, each category *added* to the one above
+// it — `correctness` 31 findings, `+suspicious` 172, `+pedantic` 1990, `+restriction`
+// 6716, `+style` 23576. Past `correctness` these stop being latent bugs and become
+// another linter's house style. Naming rules by hand costs a line each and buys a rule
+// set this project actually agreed to.
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "unicorn", "typescript", "oxc", "import"],
+  "ignorePatterns": ["dist/**", "node_modules/**", "test/corpus/fixtures/**", ".tmp/**"],
+  "categories": {"correctness": "error"},
+  "rules": {
+    "eslint/no-case-declarations": "error",
+    "eslint/no-empty": "error",
+    "eslint/no-fallthrough": "error",
+    "eslint/no-prototype-builtins": "error",
+    "eslint/no-regex-spaces": "error",
+    "eslint/no-useless-assignment": "error",
+    "eslint/no-var": "error",
+    "eslint/prefer-const": "error",
+    "eslint/prefer-rest-params": "error",
+    "eslint/prefer-spread": "error",
+    "eslint/preserve-caught-error": "error",
+    "eslint/no-console": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-array-constructor": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-namespace": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/no-unsafe-function-type": "error",
+    // On for production source at zero cost: all 565 `!` in this tree are in test files
+    // (487 under test/corpus/, 78 in src/**/*.test.ts, none anywhere else). The override
+    // below carries the same posture biome.json had, rather than conceding new ground.
+    "typescript/no-non-null-assertion": "error",
+    // Declined, with the count: it fires on all 10 `new Array(...)` in this tree and every one
+    // of them is `new Array(n).fill(v)`. The ambiguity the rule exists to catch — is that
+    // argument a length or a lone element — cannot survive a `.fill` on the same expression, and
+    // `Array.from({length: n}, () => v)` would be a slower way to say the same thing. The half
+    // that would be a real defect, reading a hole as a value, `noUncheckedIndexedAccess` already
+    // types as `T | undefined`.
+    "unicorn/no-new-array": "off",
+    "import/no-duplicates": ["error", {"preferInline": true}],
+    "import/no-cycle": "error",
+    "import/no-self-import": "error",
+    "import/named": "error",
+    "import/default": "error",
+    "import/namespace": "error",
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "test/**/*.ts"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off",
+        // The corpus adapter's boundary is declared untyped on purpose — see the
+        // `Untyped` alias in test/corpus/untyped.ts, which is the contract, not an
+        // oversight.
+        "typescript/no-explicit-any": "off",
+        "eslint/no-console": "off",
+      },
+    },
+    {
+      // CLI entry points: printing is what they are for. 46 findings, no defects.
+      "files": ["scripts/**/*.ts", "tools/**/*.ts", "charcheck.config.ts"],
+      "rules": {"eslint/no-console": "off"},
+    },
+  ],
+}

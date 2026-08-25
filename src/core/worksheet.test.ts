@@ -823,7 +823,7 @@ test('a splice below a shared-formula group leaves the clone’s master address 
 test('addRow places a dense array left-to-right and skips holes in a sparse array', () => {
   const sheet = new Worksheet('S', 1);
   sheet.addRow(['a', 'b', 'c']);
-  // biome-ignore lint/suspicious/noSparseArray: the genuine array hole (not an explicit undefined) is the behavior under test — addRow must skip holes, and `1 in arr === false` is what distinguishes them
+  // oxlint-disable-next-line eslint/no-sparse-arrays -- the genuine array hole (not an explicit undefined) is the behavior under test: addRow must skip holes, and `1 in arr === false` is what distinguishes them
   sheet.addRow(['x', , 'z']);
   assert.deepEqual(
     ['A1', 'B1', 'C1'].map((r) => sheet.getCell(r).value),

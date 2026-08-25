@@ -56,7 +56,7 @@ export const comments = {
   // what the reader gives back. The legacy fallback the writer builds beside the thread carries the same
   // text through a `<t>`, so a package that escaped one and not the other would fail `rawInPart`.
   authoredThreadedCommentEscape(text: string) {
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the control characters is the check — this asks whether an emitted part carries one
+    // oxlint-disable-next-line eslint/no-control-regex -- matching the control characters is the check: this asks whether an emitted part carries one
     const raw = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
     const AUTHOR = '{39236F6F-643D-4654-8264-DD21C8472F7F}';
     const workbook = new Workbook();

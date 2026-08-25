@@ -303,7 +303,7 @@ export const grid = {
     sheet.getColumn(2).key = 'k2';
     sheet.addRow(['header']); // row 1 — keeps the checked rows at their stated numbers
     sheet.addRow(['a', 'b', 'c']); // row 2 — dense positional array
-    // biome-ignore lint/suspicious/noSparseArray: a genuine array hole (not undefined) is the point — the gap at column B must be skipped positionally
+    // oxlint-disable-next-line eslint/no-sparse-arrays -- a genuine array hole (not undefined) is the point: the gap at column B must be skipped positionally
     sheet.addRow(['x', , 'z']); // row 3 — sparse array, gap at column B
     sheet.addRow({k1: 'o1', k2: 'o2'}); // row 4 — keyed object
     sheet.addRow([7, new Date(Date.UTC(2021, 0, 2))]); // row 5 — number + date
@@ -745,7 +745,7 @@ export const grid = {
   // part still carrying a character XML cannot hold — which would make the package malformed — and
   // `read` is what the reader gives back.
   authoredHeaderFooterEscape(text: string) {
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the control characters is the check — this asks whether an emitted part carries one
+    // oxlint-disable-next-line eslint/no-control-regex -- matching the control characters is the check: this asks whether an emitted part carries one
     const raw = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
     const workbook = new Workbook();
     const sheet = workbook.addWorksheet('S');

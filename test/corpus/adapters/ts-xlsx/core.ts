@@ -182,7 +182,7 @@ export const core = {
   // make the package malformed XML. `readValue` closes the loop: reading the package back must give
   // the character the author asked for, since the escape and the unescape are inverses.
   xmlCharacterSafetyReport(where: 'cell-text' | 'formula-result' | 'sheet-name', text: string) {
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the control characters is the check — this asks whether an emitted part carries one
+    // oxlint-disable-next-line eslint/no-control-regex -- matching the control characters is the check: this asks whether an emitted part carries one
     const raw = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
     let writeOk = true;
     let writeError: string | null = null;

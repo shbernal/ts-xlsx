@@ -591,6 +591,9 @@ function readSheetPivotTables(
 function dropMergesInsideTables(sheet: Worksheet): void {
   const regions = sheet.tables.map((table) => table.region);
   if (regions.length === 0) return;
+  // The copy is not incidental: `sheet.merges` is the live backing array and `unmergeCells` splices
+  // out of it, so iterating it directly would skip the entry after every removal.
+  // oxlint-disable-next-line unicorn/no-useless-spread
   for (const range of [...sheet.merges]) {
     const {top, left, bottom, right} = decodeRange(range);
     if (top === undefined || left === undefined || bottom === undefined || right === undefined)

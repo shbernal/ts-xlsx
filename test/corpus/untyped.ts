@@ -27,5 +27,4 @@
 // adapter) and this can never tangle into an import cycle.
 
 /** A value the adapter has not typed yet. See the module comment — this is debt, not a design. */
-// biome-ignore lint/suspicious/noExplicitAny: that is the entire point of this alias.
 export type Untyped = any;

@@ -11,9 +11,10 @@
 # Both jobs run their tool as `node <file>`, never through `pnpm exec` or a
 # `node_modules/.bin` shim. A hook pays that wrapper on every single invocation,
 # and it is not small: `pnpm exec` re-verifies the whole dependency tree before
-# the tool sees an argument. Measured on this machine with `biome --version`,
+# the tool sees an argument. Measured on this machine with a `--version` call,
 # which does no work at all — ~0.94 s through `pnpm exec`, ~0.51 s through the
-# `.bin` shim, ~0.21 s direct. That is overhead, not lint.
+# `.bin` shim, ~0.21 s direct. That is overhead, not lint, and it now dwarfs the
+# work: oxlint takes 0.32 s over all 511 files.
 
 # The commit-msg gates live in shbernal/lefthook-rules, not here, because they
 # are not about this project: every repo wants them and every repo would
@@ -53,8 +54,8 @@ remotes:
 #
 # `parallel: true` and both tools writing means two jobs could touch one staged
 # file at once. They cannot conflict in practice — oxfmt only moves whitespace and
-# Biome's linter no longer formats — but if a third writer ever joins, serialize
-# them rather than hoping.
+# oxlint's fixes are all within a statement — but if a third writer ever joins,
+# serialize them rather than hoping.
 pre-commit:
   parallel: true
   jobs:
@@ -63,9 +64,12 @@ pre-commit:
       run: node node_modules/oxfmt/bin/oxfmt --write {staged_files}
       stage_fixed: true
 
-    - name: biome
-      glob: "*.{ts,js,mjs,cjs,json,jsonc}"
-      run: node node_modules/@biomejs/biome/bin/biome check --write --error-on-warnings --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+    # No `json`/`jsonc` on this glob, unlike oxfmt's above: oxlint reads no JSON. No
+    # `--report-unused-disable-directives` either — that question is about the whole tree
+    # and pre-push answers it.
+    - name: oxlint
+      glob: "*.{ts,js,mjs,cjs}"
+      run: node node_modules/oxlint/bin/oxlint --fix --deny-warnings --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
 
     # No `glob:`, deliberately. `--staged` reads the index itself and filters it through the

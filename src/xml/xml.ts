@@ -73,7 +73,7 @@ const ATTR_ESCAPES: Record<string, string> = {
  * character is one unit that no surrogate range can match, and `[\u{D800}-\u{DFFF}]` means
  * exactly "a surrogate that is not part of a pair" with no lookaround.
  */
-// biome-ignore lint/suspicious/noControlCharactersInRegex: naming the control characters is the point — this pattern exists to find them
+// oxlint-disable-next-line eslint/no-control-regex -- naming the control characters is the point: this pattern exists to find them
 const UNREPRESENTABLE = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
 const UNREPRESENTABLE_GLOBAL = new RegExp(UNREPRESENTABLE.source, 'gu');
 
