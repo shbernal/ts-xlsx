@@ -68,7 +68,8 @@ extends that same reasoning from the model-copy surface to the public authoring 
 - **Negative / deferred:** a caller who needs to *create* a chart, shape, slicer, or form
   control cannot do so with this library at 1.0 — round-trip preservation is the ceiling.
   This is a real capability gap versus desktop Excel and versus what some ExcelJS users
-  relied on (`docs/knowledge/backlog/manifest.json` #141 "Chart support", 33 reactions).
+  relied on ([exceljs/exceljs#141](https://github.com/exceljs/exceljs/issues/141), "Chart
+  support", 33 reactions at the 2026-07-09 fork-time capture).
 - **Revisit when:** a concrete consumer needs to author one of the four. At that point,
   pick up the matching spec under `docs/knowledge/specs/`, resolve its open questions
   against that consumer's actual need (not speculatively), and build it as a normal
