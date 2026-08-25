@@ -120,14 +120,16 @@ export function parseSheetHyperlinks(xml: string): ParsedHyperlink[] {
 }
 
 /** Fold parsed hyperlinks onto a sheet's cells, wrapping each cell's existing value (its visible
- * label) into a {@link HyperlinkValue}. `rels` maps a relationship id to its target URL. */
+ * label) into a {@link HyperlinkValue}. `targetOf` resolves a relationship id to its raw Target — a
+ * URL for the external links hyperlinks almost always are, so it must stay unresolved against the
+ * package rather than being handed over as a part path. */
 export function applyHyperlinks(
   sheet: Worksheet,
   links: readonly ParsedHyperlink[],
-  rels: Map<string, string>,
+  targetOf: (relId: string) => string | undefined,
 ): void {
   for (const link of links) {
-    const target = resolveTarget(link, rels);
+    const target = resolveTarget(link, targetOf);
     if (target === undefined) continue;
     // A hyperlink may span a range (`ref="D1:H1"`); Excel anchors the link at the range's top-left
     // cell. Decode once so a multi-cell link folds onto that anchor rather than asking the sheet for
@@ -165,9 +167,12 @@ function decodeRefSafe(ref: string): RangeAddress | undefined {
   }
 }
 
-function resolveTarget(link: ParsedHyperlink, rels: Map<string, string>): string | undefined {
+function resolveTarget(
+  link: ParsedHyperlink,
+  targetOf: (relId: string) => string | undefined,
+): string | undefined {
   if (link.rid !== undefined) {
-    const base = rels.get(link.rid);
+    const base = targetOf(link.rid);
     if (base === undefined) return undefined;
     // A foreign file may split an external URL's fragment into the `location` attribute, apart from
     // the relationship Target; rejoin them so the whole URL survives. Our own writer keeps the

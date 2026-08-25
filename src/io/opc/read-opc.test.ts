@@ -5,6 +5,7 @@ import {strToU8} from 'fflate';
 import {
   capturePartClosure,
   packageAccessors,
+  readPartRelationships,
   resolveRelativePart,
   resolveWorkbookPart,
 } from './read-opc.ts';
@@ -100,4 +101,83 @@ test('capturePartClosure retains an external relationship verbatim without walki
     ],
     'the external relationship is kept with its raw target and the external flag',
   );
+});
+
+// `readPartRelationships` is the single parse of a part's rels every sheet-part lookup goes through, so
+// the four queries it answers are pinned here rather than through eight readers that each used to
+// re-parse the XML for themselves.
+
+const RELS_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
+const TYPE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+function sheetWithRels(relationships: string): (path: string) => string | undefined {
+  const files = {
+    'xl/worksheets/_rels/sheet1.xml.rels': `<Relationships xmlns="${RELS_NS}">${relationships}</Relationships>`,
+  };
+  return (path) => (files as Record<string, string>)[path];
+}
+
+test('readPartRelationships resolves each target against the owning part, not the package root', () => {
+  const rels = readPartRelationships(
+    'xl/worksheets/sheet1.xml',
+    sheetWithRels(
+      `<Relationship Id="rId1" Type="${TYPE}/table" Target="../tables/table1.xml"/>` +
+        `<Relationship Id="rId2" Type="${TYPE}/table" Target="/xl/tables/table2.xml"/>`,
+    ),
+  );
+  assert.deepStrictEqual(rels.targetPaths('table'), [
+    'xl/tables/table1.xml',
+    'xl/tables/table2.xml',
+  ]);
+  assert.strictEqual(rels.targetPath('table'), 'xl/tables/table1.xml');
+});
+
+test('readPartRelationships matches a type on its trailing segment, not the whole URI', () => {
+  // The suffix match is what lets a foreign package name the type in a namespace of its own; a
+  // whole-URI comparison would drop the relationship and silently lose the part it reaches.
+  const rels = readPartRelationships(
+    'xl/worksheets/sheet1.xml',
+    sheetWithRels(
+      `<Relationship Id="rId1" Type="http://example.invalid/rel/printerSettings" Target="../printerSettings/printerSettings1.bin"/>`,
+    ),
+  );
+  assert.strictEqual(rels.targetPath('printerSettings'), 'xl/printerSettings/printerSettings1.bin');
+});
+
+test('readPartRelationships answers an id lookup with the raw target, unresolved', () => {
+  // A hyperlink's target is a URL, so resolving it against the sheet's directory would corrupt it.
+  const rels = readPartRelationships(
+    'xl/worksheets/sheet1.xml',
+    sheetWithRels(
+      `<Relationship Id="rId9" Type="${TYPE}/hyperlink" Target="https://example.invalid/a" TargetMode="External"/>`,
+    ),
+  );
+  assert.strictEqual(rels.byId('rId9')?.target, 'https://example.invalid/a');
+  assert.strictEqual(rels.byId('rId9')?.external, true);
+  assert.strictEqual(rels.byId('missing'), undefined);
+});
+
+test('a part with no rels part reads as an empty relationship set, not a failure', () => {
+  const rels = readPartRelationships('xl/worksheets/sheet9.xml', () => undefined);
+  assert.deepStrictEqual(rels.records, []);
+  assert.deepStrictEqual(rels.targetPaths('table'), []);
+  assert.strictEqual(rels.targetPath('drawing'), undefined);
+});
+
+test('readPartRelationships reads the rels part once, however many queries follow', () => {
+  // The point of the type: the sheet loop asks it eight questions per sheet, and a re-read per
+  // question is exactly what this replaced.
+  let reads = 0;
+  const partText = sheetWithRels(
+    `<Relationship Id="rId1" Type="${TYPE}/drawing" Target="../drawings/drawing1.xml"/>`,
+  );
+  const rels = readPartRelationships('xl/worksheets/sheet1.xml', (path) => {
+    reads += 1;
+    return partText(path);
+  });
+  rels.targetPath('drawing');
+  rels.targetPath('comments');
+  rels.targetPaths('table');
+  rels.byId('rId1');
+  assert.strictEqual(reads, 1);
 });

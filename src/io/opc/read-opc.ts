@@ -60,21 +60,6 @@ export function relationshipTargetsByType(xml: string, suffix: string): string[]
   return targets;
 }
 
-// The package part a sheet reaches through the first relationship of a given type, already resolved
-// relative to the sheet — the "load the sheet's rels, find the one relationship of this type, resolve
-// its target" preamble every single-part sheet lookup (notes, printer settings, drawing, background)
-// opens with. undefined when the sheet has no rels part or declares no such relationship.
-export function sheetRelTarget(
-  sheetPath: string,
-  partText: (path: string) => string | undefined,
-  type: string,
-): string | undefined {
-  const relsXml = partText(relsPathFor(sheetPath));
-  if (relsXml === undefined) return undefined;
-  const target = relationshipTargetByType(relsXml, type);
-  return target === undefined ? undefined : resolveRelativePart(sheetPath, target);
-}
-
 // Resolve a relationship target (relative to the referencing part's directory, or absolute from the
 // package root) into a package part path, collapsing `.`/`..` segments.
 export function resolveRelativePart(basePart: string, target: string): string {
@@ -130,6 +115,51 @@ export function parseRelationshipRecords(xml: string): RelationshipRecord[] {
     }
   }
   return records;
+}
+
+// One part's `.rels`, parsed once and then queried many times, with the owning part's path bound in so
+// every answer comes back as a package path rather than a target still needing resolution.
+//
+// A worksheet is the reason this exists. Its rels part is the index to nearly everything hanging off the
+// sheet — notes, threads, printer settings, the drawing, the background image, tables, pivots, and the
+// preserved-reference closure — and each of those lookups used to re-read and re-parse the same XML,
+// eight times per sheet on a workbook of any size.
+export interface PartRelationships {
+  /** Every relationship the part declares, in declaration order. */
+  readonly records: readonly RelationshipRecord[];
+  /** The relationship with this id, or undefined. Its `target` is raw: an external one is a URL, not a
+   * package path, so a caller that may see `TargetMode="External"` must read it before resolving. */
+  byId(id: string): RelationshipRecord | undefined;
+  /** Resolve one of this part's targets against the part's own directory. */
+  pathOf(target: string): string;
+  /** The package part reached through the first relationship whose Type ends with `/<suffix>`, or
+   * undefined when the part declares none — the single-part lookup (notes, printer settings, drawing,
+   * background) in one call. */
+  targetPath(suffix: string): string | undefined;
+  /** Every package part reached through a relationship of this type, in declaration order — for a part
+   * class one sheet may reference more than once (tables, pivot tables). */
+  targetPaths(suffix: string): string[];
+}
+
+// Read and parse a part's `.rels`. A part with no rels part yields an empty set rather than undefined,
+// so a caller never has to distinguish "no relationships" from "no rels part" — nothing downstream
+// treats those two differently.
+export function readPartRelationships(
+  partPath: string,
+  partText: (path: string) => string | undefined,
+): PartRelationships {
+  const records = parseRelationshipRecords(partText(relsPathFor(partPath)) ?? '');
+  const byId = new Map(records.map((record) => [record.id, record]));
+  const pathOf = (target: string): string => resolveRelativePart(partPath, target);
+  const targetsOf = (suffix: string): string[] =>
+    records.filter((record) => record.type.endsWith(`/${suffix}`)).map((record) => record.target);
+  return {
+    records,
+    byId: (id) => byId.get(id),
+    pathOf,
+    targetPath: (suffix) => targetsOf(suffix).map(pathOf)[0],
+    targetPaths: (suffix) => targetsOf(suffix).map(pathOf),
+  };
 }
 
 // Resolve a package part path to its declared content type the way OPC does: an `<Override>` naming

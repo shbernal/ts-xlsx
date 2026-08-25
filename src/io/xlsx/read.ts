@@ -31,19 +31,19 @@ import {
 import type {Worksheet, WorksheetState} from '../../core/worksheet.ts';
 import {boolStrict, localName, openElements, parseXml} from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
-import {extensionOf, relsPathFor} from '../opc/part-paths.ts';
+import {extensionOf} from '../opc/part-paths.ts';
 import {
   capturePartClosure,
   contentTypeResolver,
   type PackageAccessors,
+  type PartRelationships,
   packageAccessors,
   parseRelationshipRecords,
   parseRelationships,
+  readPartRelationships,
   relationshipTargetByType,
-  relationshipTargetsByType,
   resolveRelativePart,
   resolveWorkbookPart,
-  sheetRelTarget,
 } from '../opc/read-opc.ts';
 import {DEFAULT_MAX_UNCOMPRESSED, type ReadXlsxOptions} from '../opc/read-options.ts';
 import {inflateSpreadsheetPackage} from '../opc/sniff-format.ts';
@@ -168,9 +168,11 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
     const sheetXml = path === undefined ? undefined : partText(path);
     if (sheetXml !== undefined) parseWorksheet(sheetXml, sheet, sharedStrings, xfStyles);
     if (path !== undefined) {
+      // The sheet's rels are the index to nearly every part hanging off it, so they are parsed once
+      // here and threaded through the readers below rather than re-read by each.
+      const sheetRels = readPartRelationships(path, partText);
       if (sheetXml !== undefined) {
-        const sheetRels = parseRelationships(partText(relsPathFor(path)) ?? '');
-        applyHyperlinks(sheet, parseSheetHyperlinks(sheetXml), sheetRels);
+        applyHyperlinks(sheet, parseSheetHyperlinks(sheetXml), (id) => sheetRels.byId(id)?.target);
         applyDataValidations(sheet, [
           ...parseDataValidations(sheetXml),
           ...parseExtendedDataValidations(sheetXml),
@@ -179,18 +181,18 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
       }
       // Threads before notes: a threaded cell's comments-part entry is the thread's legacy fallback, not
       // a note, and `applyNotes` reads the sheet's restored threads to tell the two apart.
-      const threads = readSheetCommentThreads(path, pkg, workbook);
+      const threads = readSheetCommentThreads(sheetRels, pkg, workbook);
       if (threads.length > 0) sheet[INTERNAL].restoreCommentThreads(threads);
-      const comments = readSheetComments(path, pkg);
+      const comments = readSheetComments(sheetRels, pkg);
       if (comments !== undefined) applyNotes(sheet, comments);
-      readSheetImages(path, pkg, workbook, sheet, imageIdByMediaPath);
-      readSheetBackground(path, pkg, workbook, sheet, imageIdByMediaPath);
+      readSheetImages(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
+      readSheetBackground(sheetRels, pkg, workbook, sheet, imageIdByMediaPath);
       if (sheetXml !== undefined) {
-        readSheetPreservedReferences(path, sheetXml, pkg, contentTypeOf, sheet);
+        readSheetPreservedReferences(sheetRels, sheetXml, pkg, contentTypeOf, sheet);
       }
-      readSheetTables(path, pkg, sheet);
-      readSheetPivotTables(path, pkg, sheet);
-      const printerSettings = readSheetPrinterSettings(path, pkg);
+      readSheetTables(sheetRels, pkg, sheet);
+      readSheetPivotTables(sheetRels, pkg, sheet);
+      const printerSettings = readSheetPrinterSettings(sheetRels, pkg);
       if (printerSettings !== undefined) sheet.pageSetup.printerSettings = printerSettings;
     }
   }
@@ -208,12 +210,12 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
 
 // A sheet's comments live in a comments part reached through the sheet's own relationships: the sheet
 // declares a relationship of type `.../comments` whose target resolves (relative to the sheet's
-// directory) to the comments part. A sheet with no rels part or no such relationship simply has none.
+// directory) to the comments part. A sheet declaring no such relationship simply has none.
 function readSheetComments(
-  sheetPath: string,
+  sheetRels: PartRelationships,
   pkg: PackageAccessors,
 ): Map<string, ParsedComment> | undefined {
-  const commentsPath = sheetRelTarget(sheetPath, pkg.partText, 'comments');
+  const commentsPath = sheetRels.targetPath('comments');
   if (commentsPath === undefined) return undefined;
   const commentsXml = pkg.partText(commentsPath);
   if (commentsXml === undefined) return undefined;
@@ -268,11 +270,11 @@ function readWorkbookTheme(
 // this reader drops is therefore dropped from the file — which is why a message too damaged to place is
 // still kept wherever it can be, and why the anchor is canonicalised here rather than trusted downstream.
 function readSheetCommentThreads(
-  sheetPath: string,
+  sheetRels: PartRelationships,
   pkg: PackageAccessors,
   workbook: Workbook,
 ): CommentThread[] {
-  const path = sheetRelTarget(sheetPath, pkg.partText, 'threadedComment');
+  const path = sheetRels.targetPath('threadedComment');
   const xml = path === undefined ? undefined : pkg.partText(path);
   if (xml === undefined) return [];
   return buildCommentThreads(parseThreadedComments(xml), (id) => workbook.getPerson(id));
@@ -282,12 +284,12 @@ function readSheetCommentThreads(
 // declares a relationship of type `.../printerSettings` whose target resolves to a `.bin` part. We
 // keep the raw bytes verbatim — the DEVMODE inside is platform-specific and the model never
 // interprets it, only round-trips it so re-writing the file preserves the user's print configuration.
-// A sheet with no rels part or no such relationship simply has none.
+// A sheet declaring no such relationship simply has none.
 function readSheetPrinterSettings(
-  sheetPath: string,
+  sheetRels: PartRelationships,
   pkg: PackageAccessors,
 ): Uint8Array | undefined {
-  const path = sheetRelTarget(sheetPath, pkg.partText, 'printerSettings');
+  const path = sheetRels.targetPath('printerSettings');
   return path === undefined ? undefined : pkg.partBytes(path);
 }
 
@@ -296,14 +298,14 @@ function readSheetPrinterSettings(
 // picture's embed id to a media part under `xl/media/`. Each anchor becomes a workbook image (deduped
 // by media path) placed back on the sheet at its two-cell anchor.
 function readSheetImages(
-  sheetPath: string,
+  sheetRels: PartRelationships,
   pkg: PackageAccessors,
   workbook: Workbook,
   sheet: Worksheet,
   imageIdByMediaPath: Map<string, number>,
 ): void {
   const {partText, partBytes} = pkg;
-  const drawingPath = sheetRelTarget(sheetPath, partText, 'drawing');
+  const drawingPath = sheetRels.targetPath('drawing');
   if (drawingPath === undefined) return;
   const drawingXml = partText(drawingPath);
   if (drawingXml === undefined) return;
@@ -312,12 +314,12 @@ function readSheetImages(
   // suppresses that preservation and drops the chart. Leaving `sheet.images` empty routes the entire
   // drawing — pictures included — through byte-preservation, keeping every anchor faithful.
   if (drawingHasUnmodeledContent(drawingXml)) return;
-  const drawingRels = parseRelationships(partText(relsPathFor(drawingPath)) ?? '');
+  const drawingRels = readPartRelationships(drawingPath, partText);
 
   for (const anchor of parseDrawing(drawingXml)) {
-    const target = drawingRels.get(anchor.embed);
-    if (target === undefined) continue;
-    const mediaPath = resolveRelativePart(drawingPath, target);
+    const embedded = drawingRels.byId(anchor.embed);
+    if (embedded === undefined) continue;
+    const mediaPath = drawingRels.pathOf(embedded.target);
     let id = imageIdByMediaPath.get(mediaPath);
     if (id === undefined) {
       const bytes = partBytes(mediaPath);
@@ -341,13 +343,13 @@ function readSheetImages(
 // it is the sheet rels' sole image relationship. The bytes are deduped against images shared with a
 // drawing, keeping one media part per picture across a re-write.
 function readSheetBackground(
-  sheetPath: string,
+  sheetRels: PartRelationships,
   pkg: PackageAccessors,
   workbook: Workbook,
   sheet: Worksheet,
   imageIdByMediaPath: Map<string, number>,
 ): void {
-  const mediaPath = sheetRelTarget(sheetPath, pkg.partText, 'image');
+  const mediaPath = sheetRels.targetPath('image');
   if (mediaPath === undefined) return;
   let id = imageIdByMediaPath.get(mediaPath);
   if (id === undefined) {
@@ -370,24 +372,20 @@ function readSheetBackground(
 // Each reference's target part and the transitive closure of parts it reaches (a VML's image, a
 // drawing's media) are captured with their bytes, content types, and relationships.
 function readSheetPreservedReferences(
-  sheetPath: string,
+  sheetRels: PartRelationships,
   sheetXml: string,
   pkg: PackageAccessors,
   contentTypeOf: (path: string) => string,
   sheet: Worksheet,
 ): void {
   const {partText, partBytes} = pkg;
-  const relsXml = partText(relsPathFor(sheetPath));
-  if (relsXml === undefined) return;
-  const records = parseRelationshipRecords(relsXml);
-  const recordById = new Map(records.map((record) => [record.id, record]));
 
   const capture = (
     element: PreservedWorksheetReference['element'],
     relType: string,
     target: string,
   ): void => {
-    const entryPath = resolveRelativePart(sheetPath, target);
+    const entryPath = sheetRels.pathOf(target);
     const parts = capturePartClosure(entryPath, partText, partBytes, contentTypeOf);
     if (parts !== undefined)
       sheet[INTERNAL].addPreservedReference({element, relType, entryPath, parts});
@@ -401,14 +399,14 @@ function readSheetPreservedReferences(
     sheet.images.length === 0 ? ['drawing', 'legacyDrawingHF'] : ['legacyDrawingHF'];
   for (const element of referenceElements) {
     const relId = worksheetReferenceRelId(sheetXml, element);
-    const record = relId === undefined ? undefined : recordById.get(relId);
+    const record = relId === undefined ? undefined : sheetRels.byId(relId);
     if (record !== undefined && !record.external) capture(element, record.type, record.target);
   }
 
   // Relationship-wired references: a pivot table or slicer is reached through a sheet relationship
   // with no worksheet child pointing at it — Excel discovers it by scanning the sheet's rels. Preserve
   // each so the pivots/slicers a fill-and-save workflow does not touch are not dropped.
-  for (const record of records) {
+  for (const record of sheetRels.records) {
     if (record.external) continue;
     if (isPreservedSheetRelType(record.type)) capture(undefined, record.type, record.target);
   }
@@ -550,11 +548,13 @@ function worksheetReferenceRelId(
 // type `.../table` on the sheet's own rels. The writer emits one relationship per table; each part
 // is parsed back into the model and re-registered in definition order. A part that fails to parse
 // (missing name/ref/columns — Excel corruption) is skipped rather than crashing the whole read.
-function readSheetTables(sheetPath: string, pkg: PackageAccessors, sheet: Worksheet): void {
-  const relsXml = pkg.partText(relsPathFor(sheetPath));
-  if (relsXml === undefined) return;
-  for (const target of relationshipTargetsByType(relsXml, 'table')) {
-    const tableXml = pkg.partText(resolveRelativePart(sheetPath, target));
+function readSheetTables(
+  sheetRels: PartRelationships,
+  pkg: PackageAccessors,
+  sheet: Worksheet,
+): void {
+  for (const tablePath of sheetRels.targetPaths('table')) {
+    const tableXml = pkg.partText(tablePath);
     if (tableXml === undefined) continue;
     const options = parseTable(tableXml);
     if (options !== undefined) sheet.addTable(options);
@@ -569,22 +569,17 @@ function readSheetTables(sheetPath: string, pkg: PackageAccessors, sheet: Worksh
 // byte-preservation that actually round-trips the pivot, so this never changes what is re-emitted.
 // The read is lenient: a pivot whose cache is missing still yields a (partial) model rather than
 // throwing, matching Excel's tolerance for a damaged package on load.
-function readSheetPivotTables(sheetPath: string, pkg: PackageAccessors, sheet: Worksheet): void {
+function readSheetPivotTables(
+  sheetRels: PartRelationships,
+  pkg: PackageAccessors,
+  sheet: Worksheet,
+): void {
   const {partText} = pkg;
-  const relsXml = partText(relsPathFor(sheetPath));
-  if (relsXml === undefined) return;
-  for (const target of relationshipTargetsByType(relsXml, 'pivotTable')) {
-    const tablePath = resolveRelativePart(sheetPath, target);
+  for (const tablePath of sheetRels.targetPaths('pivotTable')) {
     const tableXml = partText(tablePath);
     if (tableXml === undefined) continue;
-    const cacheTarget = relationshipTargetByType(
-      partText(relsPathFor(tablePath)) ?? '',
-      'pivotCacheDefinition',
-    );
-    const cacheXml =
-      cacheTarget === undefined
-        ? ''
-        : (partText(resolveRelativePart(tablePath, cacheTarget)) ?? '');
+    const cachePath = readPartRelationships(tablePath, partText).targetPath('pivotCacheDefinition');
+    const cacheXml = cachePath === undefined ? '' : (partText(cachePath) ?? '');
     sheet[INTERNAL].addLoadedPivotTable(parsePivotTable(tableXml, cacheXml));
   }
 }
