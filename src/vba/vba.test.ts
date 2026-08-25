@@ -652,6 +652,34 @@ test('vbaProjectBytes copies a macro project from one workbook to another', () =
   );
 });
 
+test('the lazily-parsed project is re-decoded after the bytes are replaced', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('Sheet1');
+  // Read through a closure, not directly: `assert.equal(wb.vbaProject, undefined)` narrows the
+  // getter for the rest of the test, and the whole point here is that a later read differs.
+  const moduleNames = (): string[] | undefined => wb.vbaProject?.modules.map((m) => m.name);
+
+  // Reading first is what makes this a test. A macro-free workbook parses to `undefined`, and "no
+  // macros" has to stay distinguishable from "not yet decoded" — which is why the flag and the value
+  // are two fields, and why a write has to clear both.
+  assert.equal(moduleNames(), undefined, 'precondition: no macros, and that miss is now cached');
+
+  wb.vbaProjectBytes = buildVbaProjectBin(CODE_PAGE, MODULES);
+  assert.deepEqual(
+    moduleNames(),
+    ['ThisWorkbook', 'Module1', 'Class1'],
+    'attaching a project invalidates the cached miss',
+  );
+
+  const renamed = MODULES.map((m) => (m.name === 'Module1' ? {...m, name: 'Module2'} : m));
+  wb.vbaProjectBytes = buildVbaProjectBin(CODE_PAGE, renamed);
+  assert.deepEqual(
+    moduleNames(),
+    ['ThisWorkbook', 'Module2', 'Class1'],
+    'and a replacement is re-decoded, not served from the previous parse',
+  );
+});
+
 test('the vbaProjectBytes getter returns a defensive copy', () => {
   const wb = readXlsx(xlsmPackage(buildVbaProjectBin(CODE_PAGE, MODULES)));
   const first = wb.vbaProjectBytes;

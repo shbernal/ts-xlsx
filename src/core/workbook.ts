@@ -8,17 +8,13 @@
 import {type CustomUiDocument, isCustomUiRelType, parseCustomUi} from '../customui/index.ts';
 import {AuthoringError} from '../errors.ts';
 import {
+  // Imported for the `{@link}` targets in the accessor docs below: the doc comments explain the
+  // structural splices by pointing at the functions that perform them.
   addVbaReference,
-  parseVbaProject,
   removeVbaModule,
-  VBA_PROJECT_CONTENT_TYPE,
-  VBA_PROJECT_PART_PATH,
-  VBA_PROJECT_REL_TYPE,
-  VbaAuthorError,
   type VbaLibraryReference,
   type VbaProject,
   type VbaProjectSignature,
-  vbaProjectSignatureKind,
 } from '../vba/index.ts';
 import {resolveColor} from './color-resolution.ts';
 import {commentThreadGuid, type Person} from './comment-thread.ts';
@@ -48,6 +44,7 @@ import {
   type ThemeOverrides,
 } from './theme.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
+import {WorkbookVbaProject} from './workbook-vba.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
 
 /**
@@ -336,10 +333,9 @@ export class Workbook {
     return this.#customUI;
   }
 
-  // Lazily-decoded macro source. `#vbaParsed` distinguishes "not yet decoded" from a genuine "no
-  // macros" (`undefined`) result, so a macro-free workbook is not re-probed on every access.
-  #vbaParsed = false;
-  #vbaProject: VbaProject | undefined = undefined;
+  // The macro-project slice, held by reference to the preserved list so an attach or replace is
+  // visible to the writer. The accessors below are the public surface; see `workbook-vba.ts`.
+  readonly #vba = new WorkbookVbaProject(this.#preservedReferences);
 
   /**
    * The VBA project decoded from this workbook's preserved `vbaProject.bin`, or `undefined` for a
@@ -350,12 +346,7 @@ export class Workbook {
    * @throws {VbaParseError} if a macro project is present but its `vbaProject.bin` is malformed.
    */
   get vbaProject(): VbaProject | undefined {
-    if (!this.#vbaParsed) {
-      const bytes = this.#vbaProjectEntry()?.bytes;
-      this.#vbaProject = bytes ? parseVbaProject(bytes) : undefined;
-      this.#vbaParsed = true;
-    }
-    return this.#vbaProject;
+    return this.#vba.project;
   }
 
   /**
@@ -376,37 +367,11 @@ export class Workbook {
    * signature.
    */
   get vbaProjectBytes(): Uint8Array | undefined {
-    return this.#vbaProjectEntry()?.bytes.slice();
+    return this.#vba.bytes;
   }
 
   set vbaProjectBytes(bytes: Uint8Array | undefined) {
-    // Validate before touching any state: a malformed blob must fail closed and leave the existing
-    // project intact, never half-remove it. Only past this point do we mutate.
-    if (bytes !== undefined) parseVbaProject(bytes);
-
-    // Drop any existing project; its whole closure goes, taking a now-stale signature part with it. A
-    // fresh reference then mirrors exactly what the reader captures for a macro workbook, so the writer
-    // emits a byte-identical macro-enabled package with no writer changes.
-    replaceContents(
-      this.#preservedReferences,
-      this.#preservedReferences.filter((r) => !r.relType.endsWith('/vbaProject')),
-    );
-    if (bytes !== undefined) {
-      this.#preservedReferences.push({
-        relType: VBA_PROJECT_REL_TYPE,
-        entryPath: VBA_PROJECT_PART_PATH,
-        parts: [
-          {
-            path: VBA_PROJECT_PART_PATH,
-            contentType: VBA_PROJECT_CONTENT_TYPE,
-            bytes: bytes.slice(),
-            rels: [],
-          },
-        ],
-      });
-    }
-    this.#vbaParsed = false;
-    this.#vbaProject = undefined;
+    this.#vba.bytes = bytes;
   }
 
   /**
@@ -422,7 +387,7 @@ export class Workbook {
    * which generation(s) are present.
    */
   get vbaProjectSigned(): boolean {
-    return this.#vbaSignatures().length > 0;
+    return this.#vba.signatures.length > 0;
   }
 
   /**
@@ -435,27 +400,7 @@ export class Workbook {
    * verifier if you need cryptographic validation — that is deliberately out of this library's scope.
    */
   get vbaProjectSignatures(): readonly VbaProjectSignature[] {
-    return this.#vbaSignatures();
-  }
-
-  // Walk the VBA project's preserved closure for its signature parts — each reached by a signature
-  // relationship off `vbaProject.bin`. Computed on each access rather than memoised: the closure is
-  // small and already in memory, and recomputing sidesteps a cache that a signature-dropping mutation
-  // (`vbaProjectBytes` replace, module remove, reference add) would otherwise have to invalidate.
-  #vbaSignatures(): readonly VbaProjectSignature[] {
-    const ref = this.#vbaProjectRef();
-    const entry = ref?.parts.find((p) => p.path === ref.entryPath);
-    if (ref === undefined || entry === undefined) return [];
-    const partByPath = new Map(ref.parts.map((p) => [p.path, p]));
-    const signatures: VbaProjectSignature[] = [];
-    for (const rel of entry.rels) {
-      const kind = vbaProjectSignatureKind(rel.type);
-      const part = kind === undefined ? undefined : partByPath.get(rel.targetPath);
-      if (kind !== undefined && part !== undefined) {
-        signatures.push({kind, bytes: part.bytes.slice()});
-      }
-    }
-    return signatures;
+    return this.#vba.signatures;
   }
 
   /**
@@ -472,11 +417,7 @@ export class Workbook {
    * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
    */
   removeVbaModule(name: string): void {
-    const bytes = this.vbaProjectBytes;
-    if (bytes === undefined) {
-      throw new VbaAuthorError('workbook has no VBA project to remove a module from');
-    }
-    this.vbaProjectBytes = removeVbaModule(bytes, name);
+    this.#vba.removeModule(name);
   }
 
   /**
@@ -490,20 +431,7 @@ export class Workbook {
    * @throws {VbaParseError} if the attached `vbaProject.bin` is malformed.
    */
   addVbaReference(ref: VbaLibraryReference): void {
-    const bytes = this.vbaProjectBytes;
-    if (bytes === undefined) {
-      throw new VbaAuthorError('workbook has no VBA project to add a reference to');
-    }
-    this.vbaProjectBytes = addVbaReference(bytes, ref);
-  }
-
-  #vbaProjectRef(): PreservedWorkbookReference | undefined {
-    return this.#preservedReferences.find((r) => r.relType.endsWith('/vbaProject'));
-  }
-
-  #vbaProjectEntry(): PreservedPart | undefined {
-    const ref = this.#vbaProjectRef();
-    return ref?.parts.find((p) => p.path === ref.entryPath);
+    this.#vba.addReference(ref);
   }
 
   /** The preserved differential-style (`<dxfs>`) fragments, in index order. */
