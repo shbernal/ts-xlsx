@@ -24,6 +24,14 @@
 // timestamp is written from the model, verbatim, so the same workbook always serialises to the same
 // bytes. A conversation Excel wrote round-trips as itself; one authored in the model carries whatever
 // ids and dates the caller supplied.
+//
+// A message's `<text>` carries the `_xHHHH_` convention, so it is escaped on the way out and decoded
+// on the way in. Nothing in the 2018 schema says so — it is a measurement: Excel Desktop reads
+// `_x0041_` in a `<text>` back as `A`, leaves `_xZZZZ_`/`_x041_` alone, resolves `_x005F_x0041_` in
+// one left-to-right pass to the literal text, and writes a control character back out as `_x0001_`
+// when it re-saves. See `docs/knowledge/specs/spreadsheetml-xhhhh-escape-is-decoded-on-read.md`. The
+// practical consequence is that the same string now behaves identically in both comment systems,
+// where a threaded comment used to refuse what a legacy note accepted.
 
 import {encodeAddress, tryDecodeCellRef} from '../../core/address.ts';
 import {
@@ -33,8 +41,14 @@ import {
   type Mention,
   type Person,
 } from '../../core/comment-thread.ts';
-import {escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
-import {boolStrict, localName, parseXml, type XmlAttributes} from '../../xml/xml-read.ts';
+import {escapeAttr, escapeSpreadsheetText, XML_DECLARATION} from '../../xml/xml.ts';
+import {
+  boolStrict,
+  decodeSpreadsheetText,
+  localName,
+  parseXml,
+  type XmlAttributes,
+} from '../../xml/xml-read.ts';
 import {THREADED_COMMENTS_NS} from './namespaces.ts';
 
 /** A registered author of threaded comments — one `<person>` of `xl/persons/person.xml`. */
@@ -185,7 +199,9 @@ function threadedCommentFrom(
   return {
     ref,
     id,
-    text,
+    // Decoded once the whole body is in hand: an escape may straddle two text events, since the
+    // parser reports a chunk per entity, and half of `_x0041_` decodes to nothing.
+    text: decodeSpreadsheetText(text),
     done: boolStrict(attrs.done),
     mentions: [...mentions],
     ...(personId !== undefined ? {personId} : {}),
@@ -332,13 +348,17 @@ export function threadedCommentsXml(threads: readonly CommentThread[]): string {
 // held is omitted rather than written empty, so "the file did not say" stays distinguishable from "the
 // file said nothing". Every value is escaped: an authored message's text and a foreign file's ids alike
 // are untrusted, and an unescaped `"` would end the attribute and reshape the part.
+//
+// The body gets the stronger `escapeSpreadsheetText`, which the ids and the timestamp do not: it is the
+// one field here that carries what a human typed, so it is the one that can hold a character XML has no
+// syntax for. An id or a `dT` that held one is malformed input, and refusing it is the honest answer.
 function threadedCommentXml(ref: string, comment: Comment, tail: string): string {
   const date = comment.date === undefined ? '' : ` dT="${escapeAttr(comment.date)}"`;
   const person =
     comment.personId === undefined ? '' : ` personId="${escapeAttr(comment.personId)}"`;
   return (
     `<threadedComment ref="${escapeAttr(ref)}"${date}${person} id="${escapeAttr(comment.id)}"${tail}>` +
-    `<text>${escapeText(comment.text)}</text>` +
+    `<text>${escapeSpreadsheetText(comment.text)}</text>` +
     mentionsXml(comment.mentions) +
     '</threadedComment>'
   );

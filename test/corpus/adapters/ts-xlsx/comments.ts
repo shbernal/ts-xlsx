@@ -34,6 +34,53 @@ export const comments = {
     };
   },
 
+  // Read a fixture whose threaded-comment bodies hold `_xHHHH_` escapes → { eager, roundtrip }. Each is
+  // a map of a thread's anchor to its single message's text. `eager` is the fixture as read; `roundtrip`
+  // is the same model written back through our own writer and re-read, which is what holds the escape and
+  // the decode to being inverses rather than two independently plausible transformations.
+  threadedCommentEscapeReport(rel: string, refs: string[]) {
+    const textAt = (workbook: WorkbookInstance) => {
+      const sheet = workbook.worksheets[0];
+      return Object.fromEntries(
+        refs.map((ref) => [ref, sheet?.commentThreadAt(ref)?.comments[0]?.text ?? null]),
+      );
+    };
+    const source = readFixture(rel);
+    return {eager: textAt(source), roundtrip: textAt(readXlsx(writeXlsx(source)))};
+  },
+
+  // Author `text` into a threaded comment, write, and read back → { emittedText, readText, rawInPart }.
+  // `emittedText` is the body exactly as it reached the 2018 part, `rawInPart` says whether any emitted
+  // part carries the character verbatim — which would make the package malformed XML — and `readText` is
+  // what the reader gives back. The legacy fallback the writer builds beside the thread carries the same
+  // text through a `<t>`, so a package that escaped one and not the other would fail `rawInPart`.
+  authoredThreadedCommentEscape(text: string) {
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the control characters is the check — this asks whether an emitted part carries one
+    const raw = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
+    const AUTHOR = '{39236F6F-643D-4654-8264-DD21C8472F7F}';
+    const workbook = new Workbook();
+    workbook.addPerson({id: AUTHOR, displayName: 'Ada Lovelace', providerId: 'AD'});
+    const sheet = workbook.addWorksheet('Review');
+    sheet.addCommentThread({
+      ref: 'A1',
+      resolved: false,
+      comments: [
+        {id: '{11111111-2222-3333-4444-555555555555}', personId: AUTHOR, text, mentions: []},
+      ],
+    });
+    const bytes = writeXlsx(workbook);
+    const parts = partMapOf(bytes);
+    const threadPart =
+      Object.entries(parts).find(([name]) => name.includes('threadedComments/'))?.[1] ?? '';
+    return {
+      emittedText: /<text[^>]*>([\s\S]*?)<\/text>/.exec(threadPart)?.[1] ?? null,
+      rawInPart: Object.keys(parts)
+        .filter((name) => raw.test(parts[name] ?? ''))
+        .sort(),
+      readText: readXlsx(bytes).worksheets[0]?.commentThreadAt('A1')?.comments[0]?.text ?? null,
+    };
+  },
+
   // Write a noted cell, relocate its comments part to a non-canonical path (xl/sheet1_comments.xml)
   // reachable only through the worksheet rels, and reload → { ok, error, note }. The reader locates the
   // comments part by relationship *type*, not by filename glob, so the moved part still loads and its

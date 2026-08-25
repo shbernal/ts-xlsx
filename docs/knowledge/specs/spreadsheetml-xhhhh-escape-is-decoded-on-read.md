@@ -1,4 +1,4 @@
-# Excel decodes `_xHHHH_` in cell text, and does it in one left-to-right pass
+# Excel decodes `_xHHHH_` in cell text and in a threaded comment, in one left-to-right pass
 
 Cluster: xlsx-io
 
@@ -20,6 +20,8 @@ questions that actually decide an implementation are narrower than "does Excel d
   literal text `_x0041_`; two passes collapse it to `A`. Both are defensible from the prose.
 - Is the decode restricted to characters XML could not have carried anyway?
 - How strict is the grammar? Does `_x041_` or `_xZZZZ_` decode to anything?
+- Does it reach beyond cell text at all? A threaded comment's `<text>` is prose a human typed, but it
+  is a different element in a Microsoft extension namespace that documents no escape of its own.
 
 ## Measured behavior
 
@@ -65,25 +67,69 @@ text and stay that way.
 Excel decodes it anyway. A reader that only undid the escape for characters XML cannot represent
 would disagree with Excel about files Excel itself wrote.
 
+## The same convention in a threaded comment's `<text>`
+
+The measurement above says the escape works in *cell text*. It says nothing about the modern threaded
+comments, whose body is a `<text>` in
+`http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments`: a different element, in a
+Microsoft extension namespace, with no documented escape. That asymmetry was visible to callers: a
+legacy note's body is a `<t>` in a `CT_Rst` and carried a control character happily, while the same
+string in a threaded comment was refused. Same probe, same question, second element (2026-08-25).
+
+The probe package this library wrote carries one single-message thread per cell, and was patched so
+each body reached the part verbatim, validated clean by `ooxml-validate`, then opened headless and
+read through `Range.CommentThreaded.Text`, reported as character codes. The legacy fallback
+`<comment>` beside each thread was deliberately left holding the *unpatched* placeholder, so a
+readback that reports the patched text proves Excel read the 2018 part and not the fallback.
+
+| Cell | `<text>` on disk | Read back |
+| --- | --- | --- |
+| A1 | `_x0041_` | `A` |
+| A2 | `_x005F_x0041_` | `_x0041_` (7 characters) |
+| A3 | `_xZZZZ_` | `_xZZZZ_` |
+| A4 | `_x041_` | `_x041_` |
+| A5 | `_x00041_` | `_x00041_` |
+| A6 | `a_x0009_b` | `a`, U+0009, `b` |
+| A7 | `plain` | `plain` |
+| A8 | `_x0001_` | U+0001 |
+
+**It is the same convention, cell for cell.** Every row matches the cell-text table: the escape
+decodes, the near-misses do not, the escaped underscore resolves in one left-to-right pass, and a
+character XML could have carried is decoded anyway. Nothing about the extension namespace changes the
+grammar.
+
+**Excel writes it back, so this is its representation and not merely a tolerated read.** Re-saving the
+same package through Excel (`SaveAs`, `xlOpenXMLWorkbook`) and reading the emitted part shows A8 back
+on disk as `_x0001_` and A2 re-escaped to `_x005F_x0041_`. That is Excel's own writer performing the
+same underscore-first escape this library performs. A1 comes back as the plain `A` it decoded to, and
+A6 as a literal tab rather than `_x0009_`, so Excel escapes only what it must here.
+
+That settles the open question the follow-up list carried: the threaded comment's `<text>` joins the
+escaping group. What is *not* settled by any of this is a print header's `<oddHeader>`, which stays
+refused because nobody has measured a decode there.
+
 ## What follows for this library
 
 Both directions are in `src/xml/`: `escapeSpreadsheetText` in `xml.ts`, `decodeSpreadsheetText` in
-`xml-read.ts`. They are inverses, and the corpus case
-`escaped-characters-in-cell-text-decode-on-read` locks that with the package above as its fixture.
+`xml-read.ts`. They are inverses, and two corpus cases lock that with the packages above as their
+fixtures: `escaped-characters-in-cell-text-decode-on-read` for cell text and
+`threaded-comment-text-decodes-xhhhh-escape` for the conversation body.
 
-Where the convention applies is a separate decision the writer makes, and the measurement above does
-not settle it: it says the escape *works* in cell text, not that it works anywhere else. This library
-escapes cell text and refuses everything structural. The module header of `src/xml/xml.ts` states
-the line and why it falls there.
+Where the convention applies is a separate decision the writer makes, and neither measurement settles
+it in general: they say the escape *works* in these two places, not that it works anywhere else. This
+library escapes what a human typed (cell text, a note body, a threaded message) and refuses everything
+structural. The module header of `src/xml/xml.ts` states the line and why it falls there.
 
 ## Provenance
 
 `source: excel-desktop-verification`, the tier ADR-0013 describes. One Excel build, one host.
 
-The COM tier is sufficient here: every fact above is a cell value, which `Range.Value2` reports
-directly, so nothing needed the rendering tier. Reproducible from the repo: the probe package is
-committed as the corpus fixture
-`test/corpus/fixtures/escaped-characters-in-cell-text-decode-on-read/xhhhh-escapes.xlsx`, and
-re-running it is a matter of opening that file and reading A1:A7 and B1.
+The COM tier is sufficient here: every fact above is state Excel reports directly, through
+`Range.Value2` for a cell and `Range.CommentThreaded.Text` for a conversation, so nothing needed the
+rendering tier. Reproducible from the repo: both probe packages are committed as corpus fixtures,
+`test/corpus/fixtures/escaped-characters-in-cell-text-decode-on-read/xhhhh-escapes.xlsx` (open it and
+read A1:A7 and B1) and
+`test/corpus/fixtures/threaded-comment-text-decodes-xhhhh-escape/xhhhh-escapes-in-threads.xlsx` (open
+it and read the threaded comment on A1:A8).
 
 Related: `excel-repair-on-open-structural-constraints`.
