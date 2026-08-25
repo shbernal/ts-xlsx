@@ -30,7 +30,7 @@ after it would have broken far more cross-references than the collision did.
 | [0006](./0006-docs-from-types.md) | API docs generated from the types, not a docs framework | Accepted 2026-07-19 |
 | [0007](./0007-spec-reference-vendored-schemas-and-learn-mcp.md) | Spec reference: vendored OOXML schemas + Microsoft Learn MCP | Accepted 2026-07-19 · **schema half superseded** 2026-08-15 by [0034](./0034-the-schema-reference-is-a-queryable-graph.md); the Learn MCP half stands |
 | [0008](./0008-typescript-6-upgrade.md) | Upgrade to TypeScript 6; hold at 6 (not 7) until the printer API ports | **Superseded in part** 2026-08-05 by [0028](./0028-typescript-7-adoption.md) · Accepted 07-19 |
-| [0009](./0009-lint-type-gate-tightening.md) | Tighten the lint/type gates where free; decline `isolatedDeclarations` | Accepted 2026-07-20 |
+| [0009](./0009-lint-type-gate-tightening.md) | Tighten the lint/type gates where free; decline `isolatedDeclarations` | Accepted 2026-07-20 · the posture stands; the tool enforcing it changed 2026-08-25, see [0036](./0036-oxlint-and-oxfmt-replace-biome.md) |
 | [0010](./0010-agent-correctness-dispatch.md) | Make the correctness net easy for agents to dispatch | Accepted 2026-07-20 |
 | [0011](./0011-typecheck-the-harness.md) | Type-check the harness: migrate `test/` + `scripts/` to strict `.ts` | Accepted 2026-07-20 |
 | [0012](./0012-three-tiers-of-correctness-evidence.md) | Three tiers of correctness evidence; round-trip proves consistency, not conformance | Accepted 2026-07-21 |
@@ -50,13 +50,14 @@ after it would have broken far more cross-references than the collision did.
 | [0026](./0026-releasing-is-a-github-release-and-npm-follows.md) | Releasing is a GitHub release, and npm follows with no credential | Accepted 2026-07-29 |
 | [0027](./0027-dependencies-are-updated-by-a-bot-and-ci-is-the-reviewer.md) | Dependencies are updated by a bot, and CI is the reviewer | Accepted 2026-07-30 |
 | [0028](./0028-typescript-7-adoption.md) | Move to TypeScript 7; the compiler API scripts move to `unstable/*` | Accepted 2026-08-05 |
-| [0029](./0029-toolchain-standup.md) | Toolchain standup: Biome for lint/format, `node --test` kept, tsc for type tests | Accepted 2026-07-19 · renumbered 2026-08-08 from a collision at 0002 |
+| [0029](./0029-toolchain-standup.md) | Toolchain standup: Biome for lint/format, `node --test` kept, tsc for type tests | Accepted 2026-07-19 · **lint/format half superseded** 2026-08-25 by [0036](./0036-oxlint-and-oxfmt-replace-biome.md); the rest stands · renumbered 2026-08-08 from a collision at 0002 |
 | [0030](./0030-xlsx-codec-stays-flat.md) | `src/io/xlsx/` stays flat; the read/write directory split is rejected | Accepted 2026-08-08 |
 | [0031](./0031-the-emitted-declarations-are-typechecked-too.md) | The emitted declarations are typechecked too; two more gate flags go on | Accepted 2026-08-08 |
 | [0032](./0032-package-output-is-reproducible.md) | Package output is reproducible: entry timestamps are pinned, not clocked | Accepted 2026-08-11 |
 | [0033](./0033-the-ooxml-oracle-is-a-shared-package.md) | The OOXML oracle is a shared package, not a repo-owned .NET tool | Accepted 2026-08-15 · supersedes the mechanism of [0002](./0002-ooxml-validation-oracle.md) |
 | [0034](./0034-the-schema-reference-is-a-queryable-graph.md) | The schema reference is a queryable graph, not a vendored XSD dump | Accepted 2026-08-15 · supersedes part 1 of [0007](./0007-spec-reference-vendored-schemas-and-learn-mcp.md) |
 | [0035](./0035-coverage-is-the-union-of-both-suites.md) | Coverage is the union of both suites, measured with node's own implementation | Accepted 2026-08-25 · picks up the coverage thread deferred by [0029](./0029-toolchain-standup.md) |
+| [0036](./0036-oxlint-and-oxfmt-replace-biome.md) | oxlint and oxfmt replace Biome; the type-aware rules come from tsgolint | Accepted 2026-08-25 · **supersedes the toolchain half of** [0029](./0029-toolchain-standup.md) |
 
 ## Writing one
 

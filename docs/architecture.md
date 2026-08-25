@@ -430,8 +430,8 @@ The stack is deliberately small and each choice is recorded as an ADR under
 [`docs/decisions/`](decisions/):
 
 - **Runtime and no-build dev path.** ADR-0001.
-- **Toolchain.** oxlint for rules and oxfmt for layout, with type-aware rules from tsgolint;
-  `node --test` over Vitest, hand-rolled type-level
+- **Toolchain.** oxlint for rules and oxfmt for layout, with type-aware rules from tsgolint,
+  ADR-0036; `node --test` over Vitest, hand-rolled type-level
   tests. ADR-0029. The `test/` and `scripts/` trees are TypeScript held to the same strict bar
   as `src/`, gated by `typecheck:test`, ADR-0011. All of those gates run as one concurrent,
   content-cached command (`node scripts/verify.ts`), ADR-0022.

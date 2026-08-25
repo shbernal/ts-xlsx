@@ -1,6 +1,6 @@
 # ADR 0029: Toolchain standup, Biome for lint/format, `node --test` kept, tsc for type tests
 
-**Status:** Accepted (2026-07-19) · Phase 4 · resolves the toolchain deferrals from [ADR 0001](./0001-rewrite-runtime-and-toolchain.md)
+**Status:** Accepted (2026-07-19) · Phase 4 · resolves the toolchain deferrals from [ADR 0001](./0001-rewrite-runtime-and-toolchain.md) · **lint/format half superseded (2026-08-25)** by [ADR 0036](./0036-oxlint-and-oxfmt-replace-biome.md); the `node --test` and tsc-for-type-tests halves stand
 
 > **Renumbered 2026-08-08 from 0002**, which it shared with
 > [ADR 0002](./0002-ooxml-validation-oracle.md) (the validation oracle, accepted eight days

@@ -1,6 +1,6 @@
 # ADR 0009: Tighten the lint/type gates where free; decline `isolatedDeclarations`
 
-**Status:** Accepted (2026-07-20) · Phase 4 · extends the toolchain of [ADR 0029](./0029-toolchain-standup.md)
+**Status:** Accepted (2026-07-20) · Phase 4 · extends the toolchain of [ADR 0029](./0029-toolchain-standup.md) · the posture below stands; the tool enforcing it changed (2026-08-25) with [ADR 0036](./0036-oxlint-and-oxfmt-replace-biome.md)
 
 ## Context
 
