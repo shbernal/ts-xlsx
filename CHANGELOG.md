@@ -79,6 +79,14 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   Desktop before it was implemented, and the probe workbook is committed as a corpus fixture
   (`docs/knowledge/specs/spreadsheetml-xhhhh-escape-is-decoded-on-read.md`).
 
+  Two more carriers of human-typed prose have since been measured and joined the group: a
+  **threaded comment's message** and a **print header/footer definition**. Both had been guessed
+  the other way and refused such a character on write. Excel decodes and re-emits the escape in
+  each, verbatim to the cell-text grammar, so both now escape on write and decode on read. Two
+  consequences for callers: a header or a threaded message may carry any character a cell may,
+  and a foreign file whose header reads `&C_x0041_` now loads as `&CA` rather than as the
+  seven-character literal.
+
 - **A frozen pane no longer disappears when a sheet is copied through `model`.**
   `WorksheetModel` was missing `view`, so `dst.model = src.model` reproduced the cells,
   merges, tables, autofilter and page setup — and silently unfroze the header row. The

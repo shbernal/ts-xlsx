@@ -1,5 +1,6 @@
 // Rows, columns, merges and the sheet geometry around them — insertion, splicing, outline
-// levels, freeze panes, print areas and page breaks.
+// levels, freeze panes, print areas and page breaks — and the print settings that ride alongside
+// them: page margins, and the header/footer definition text.
 
 import type {RowInput} from '../../../../src/core/worksheet.ts';
 import {messageOf} from '../../thrown.ts';
@@ -725,4 +726,52 @@ export const grid = {
     }
     return {writeOk, writeError, reloadOk, colSpanCount};
   },
+
+  // Read a fixture whose `<headerFooter>` children hold `_xHHHH_` escapes → { eager, roundtrip }, each a
+  // map of the six header/footer slots to the text the model carries. `eager` is the fixture as read;
+  // `roundtrip` is that model written back through our own writer and re-read, which is what holds the
+  // escape and the decode to being inverses rather than two independently plausible transformations.
+  headerFooterEscapeReport(rel: string) {
+    const textOf = (workbook: WorkbookInstance) => {
+      const hf = workbook.worksheets[0]?.headerFooter;
+      return Object.fromEntries(HEADER_FOOTER_SLOTS.map((slot) => [slot, hf?.[slot] ?? null]));
+    };
+    const source = readFixture(rel);
+    return {eager: textOf(source), roundtrip: textOf(readXlsx(writeXlsx(source)))};
+  },
+
+  // Author `text` as a sheet's odd header, write, and read back → { emitted, rawInPart, read }.
+  // `emitted` is the `<oddHeader>` body exactly as it reached the part, `rawInPart` names any emitted
+  // part still carrying a character XML cannot hold — which would make the package malformed — and
+  // `read` is what the reader gives back.
+  authoredHeaderFooterEscape(text: string) {
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the control characters is the check — this asks whether an emitted part carries one
+    const raw = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = 'x';
+    sheet.headerFooter.oddHeader = text;
+    const bytes = writeXlsx(workbook);
+    const parts = partMapOf(bytes);
+    const sheetPart = Object.entries(parts).find(([name]) =>
+      /xl\/worksheets\/sheet\d+\.xml$/.test(name),
+    )?.[1];
+    return {
+      emitted: /<oddHeader>([\s\S]*?)<\/oddHeader>/.exec(sheetPart ?? '')?.[1] ?? null,
+      rawInPart: Object.keys(parts)
+        .filter((name) => raw.test(parts[name] ?? ''))
+        .sort(),
+      read: readXlsx(bytes).worksheets[0]?.headerFooter.oddHeader ?? null,
+    };
+  },
 };
+
+// The six `<headerFooter>` children, in CT_HeaderFooter order — the slots a header/footer report walks.
+const HEADER_FOOTER_SLOTS = [
+  'oddHeader',
+  'oddFooter',
+  'evenHeader',
+  'evenFooter',
+  'firstHeader',
+  'firstFooter',
+] as const;

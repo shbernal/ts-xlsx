@@ -658,6 +658,37 @@ test('header/footer text is XML-escaped and placed after <pageMargins>', () => {
   );
 });
 
+test('header text carries the _xHHHH_ convention, same as a cell value', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  // Excel decodes `_xHHHH_` in a `<headerFooter>` child and writes one back on save (measured over
+  // COM), so a header both may carry a character XML itself cannot and must have a literal that
+  // *looks* like an escape protected — otherwise `_x0041_` would come back as `A`.
+  s.headerFooter.oddHeader = '&C[\u0001][_x0041_]';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<oddHeader>&amp;C\[_x0001_\]\[_x005F_x0041_\]<\/oddHeader>/);
+});
+
+test('an astral character in a header needs no escape, a control one does', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  s.headerFooter.oddFooter = '\u{1F600}\u0001';
+  const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
+  assert.match(xml, /<oddFooter>\u{1F600}_x0001_<\/oddFooter>/u);
+});
+
+test('header text round-trips through the escape convention', () => {
+  const wb = new Workbook();
+  const s = wb.addWorksheet('S');
+  s.getCell('A1').value = 'x';
+  const authored = '&L[_x0041_]&C[\u0001]&R[\u{1F600}]';
+  s.headerFooter.oddHeader = authored;
+  const reread = readXlsx(writeXlsx(wb));
+  assert.equal(reread.worksheets[0]?.headerFooter.oddHeader, authored);
+});
+
 test('<cols> is placed after <sheetFormatPr> and before <sheetData>', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');

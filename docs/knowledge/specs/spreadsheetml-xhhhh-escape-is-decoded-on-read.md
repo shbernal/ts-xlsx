@@ -1,4 +1,4 @@
-# Excel decodes `_xHHHH_` in cell text and in a threaded comment, in one left-to-right pass
+# Excel decodes `_xHHHH_` in cell text, in a threaded comment, and in a print header, in one left-to-right pass
 
 Cluster: xlsx-io
 
@@ -21,7 +21,10 @@ questions that actually decide an implementation are narrower than "does Excel d
 - Is the decode restricted to characters XML could not have carried anyway?
 - How strict is the grammar? Does `_x041_` or `_xZZZZ_` decode to anything?
 - Does it reach beyond cell text at all? A threaded comment's `<text>` is prose a human typed, but it
-  is a different element in a Microsoft extension namespace that documents no escape of its own.
+  is a different element in a Microsoft extension namespace that documents no escape of its own. A
+  print header's `<oddHeader>` is prose too, but its text already carries an in-band syntax of its own,
+  the `&`-prefixed section and format codes, which is exactly the kind of thing that makes an
+  application special-case an element.
 
 ## Measured behavior
 
@@ -105,31 +108,75 @@ same underscore-first escape this library performs. A1 comes back as the plain `
 A6 as a literal tab rather than `_x0009_`, so Excel escapes only what it must here.
 
 That settles the open question the follow-up list carried: the threaded comment's `<text>` joins the
-escaping group. What is *not* settled by any of this is a print header's `<oddHeader>`, which stays
-refused because nobody has measured a decode there.
+escaping group.
+
+## The same convention in a print header's `<oddHeader>`
+
+A print header was the last element still guessed rather than measured, and guessed the other way: its
+text was refused on write when it held an unrepresentable character, and read back verbatim. That was
+consistent, but it was decided from the format's shape rather than measured. The `&`-prefixed section
+and format codes look like the only in-band syntax a header has, so a second convention layered on top
+seemed unlikely. The threaded comment had already shown that shape is a poor guide.
+
+Same probe, same eight rows, third element (2026-08-25). The package this library wrote carries one
+`<headerFooter>` whose sections were patched so each escape reached the part verbatim; it validated
+clean by `ooxml-validate`, was opened headless, and every section was read through `PageSetup`
+(`LeftHeader`/`CenterHeader`/`RightHeader`, the footer trio, and `EvenPage.*.Text`), reported as
+character codes.
+
+| Slot | Section on disk | Read back |
+| --- | --- | --- |
+| `<oddHeader>` `&L` | `_x0041_` | `A` |
+| `<oddHeader>` `&C` | `_x005F_x0041_` | `_x0041_` (7 characters) |
+| `<oddHeader>` `&R` | `_xZZZZ_` | `_xZZZZ_` |
+| `<oddFooter>` `&L` | `_x041_` | `_x041_` |
+| `<oddFooter>` `&C` | `_x00041_` | `_x00041_` |
+| `<oddFooter>` `&R` | `a_x0009_b` | `a`, U+0009, `b` |
+| `<evenHeader>` `&L` | `plain` | `plain` |
+| `<evenFooter>` `&L` | `_x0001_` | U+0001 |
+
+**It is the same convention again, row for row.** The escape decodes, the near-misses do not, the
+escaped underscore resolves in one left-to-right pass, and a character XML could have carried is
+decoded anyway. The `&`-prefixed codes are untouched by it: they are ordinary text to the decoder,
+which is why the two syntaxes can share one string without either needing to know about the other.
+
+**Excel writes it back here too.** Re-saving through Excel (`SaveAs`, `xlOpenXMLWorkbook`) emits
+`&amp;L_x0001_` for the even footer and `&amp;C_x005F_x0041_` for the literal, while the decoded `A`
+comes back plain and the tab comes back literal. So the escape is Excel's own representation for a
+header, not a tolerated read.
+
+The consequence for this library is a refusal removed, not merely a decode added: a header may now
+carry any character a note or a cell may.
 
 ## What follows for this library
 
 Both directions are in `src/xml/`: `escapeSpreadsheetText` in `xml.ts`, `decodeSpreadsheetText` in
-`xml-read.ts`. They are inverses, and two corpus cases lock that with the packages above as their
-fixtures: `escaped-characters-in-cell-text-decode-on-read` for cell text and
-`threaded-comment-text-decodes-xhhhh-escape` for the conversation body.
+`xml-read.ts`. They are inverses, and three corpus cases lock that with the packages above as their
+fixtures: `escaped-characters-in-cell-text-decode-on-read` for cell text,
+`threaded-comment-text-decodes-xhhhh-escape` for the conversation body, and
+`print-header-text-decodes-xhhhh-escape` for the header/footer definition.
 
-Where the convention applies is a separate decision the writer makes, and neither measurement settles
-it in general: they say the escape *works* in these two places, not that it works anywhere else. This
-library escapes what a human typed (cell text, a note body, a threaded message) and refuses everything
-structural. The module header of `src/xml/xml.ts` states the line and why it falls there.
+Where the convention applies is a separate decision the writer makes, and no measurement settles it in
+general: they say the escape *works* in these three places, not that it works anywhere else. This
+library escapes what a human typed (cell text, a note body, a threaded message, a print header) and
+refuses everything structural. The module header of `src/xml/xml.ts` states the line and why it falls
+there. The pattern across three elements is worth stating, though, because it is now the prior for the
+fourth: every element measured so far that carries *prose a person typed* decodes, whatever namespace
+it lives in and whatever other syntax its text already carries.
 
 ## Provenance
 
 `source: excel-desktop-verification`, the tier ADR-0013 describes. One Excel build, one host.
 
 The COM tier is sufficient here: every fact above is state Excel reports directly, through
-`Range.Value2` for a cell and `Range.CommentThreaded.Text` for a conversation, so nothing needed the
-rendering tier. Reproducible from the repo: both probe packages are committed as corpus fixtures,
+`Range.Value2` for a cell, `Range.CommentThreaded.Text` for a conversation, and `PageSetup` for a
+header, so nothing needed the rendering tier. Reproducible from the repo: all three probe packages are
+committed as corpus fixtures,
 `test/corpus/fixtures/escaped-characters-in-cell-text-decode-on-read/xhhhh-escapes.xlsx` (open it and
-read A1:A7 and B1) and
+read A1:A7 and B1),
 `test/corpus/fixtures/threaded-comment-text-decodes-xhhhh-escape/xhhhh-escapes-in-threads.xlsx` (open
-it and read the threaded comment on A1:A8).
+it and read the threaded comment on A1:A8), and
+`test/corpus/fixtures/print-header-text-decodes-xhhhh-escape/xhhhh-escapes-in-headers.xlsx` (open it
+and read the eight header/footer sections through File → Page Setup, or over COM).
 
 Related: `excel-repair-on-open-structural-constraints`.

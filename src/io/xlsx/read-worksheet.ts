@@ -24,6 +24,7 @@ import {
   boolPresent,
   boolStrict,
   boolTristate,
+  decodeSpreadsheetText,
   localName,
   parseXml,
   type XmlAttributes,
@@ -285,8 +286,8 @@ export function parseWorksheet(
           case 'firstHeader':
           case 'firstFooter':
             // A `<headerFooter>` child carries its header/footer definition as text (the `&`-prefixed
-            // section/format tokens, e.g. `&C&"Arial"&G`). Capture it verbatim so a round-trip preserves
-            // a header image's `&G` picture token and every other formatting directive.
+            // section/format tokens, e.g. `&C&"Arial"&G`). Capture the whole of it so a round-trip
+            // preserves a header image's `&G` picture token and every other formatting directive.
             capture = true;
             break;
           case 'mergeCell':
@@ -380,7 +381,11 @@ export function parseWorksheet(
           case 'evenFooter':
           case 'firstHeader':
           case 'firstFooter':
-            sheet.headerFooter[local] = text;
+            // Header text carries the `_xHHHH_` convention, same as a cell value: Excel decodes it
+            // here and re-emits it on save (measured — a patched `_x0001_` reads back over COM as
+            // U+0001, and a `_x005F_x0041_` as the literal `_x0041_`). The decode is on the whole
+            // element text, never on a SAX chunk — see {@link decodeSpreadsheetText}.
+            sheet.headerFooter[local] = decodeSpreadsheetText(text);
             break;
           case 'c':
             finalizeCellFromState();

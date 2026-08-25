@@ -14,7 +14,7 @@ import type {
 } from '../../core/page-setup.ts';
 import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
 import type {OutlineProperties, SheetView, Worksheet} from '../../core/worksheet.ts';
-import {attr, boolAttr, escapeAttr, escapeText, numberText} from '../../xml/xml.ts';
+import {attr, boolAttr, escapeAttr, escapeSpreadsheetText, numberText} from '../../xml/xml.ts';
 import {colorAttrs} from './color-xml.ts';
 
 // `<sheetViews>` holds the sheet's single view. A frozen view adds a `<pane>` recording the split
@@ -161,7 +161,11 @@ export function headerFooterXml(hf: HeaderFooter): string {
   if (differentOddEven) attrs += ' differentOddEven="1"';
   if (differentFirst) attrs += ' differentFirst="1"';
   const body = children
-    .map(({tag, key}) => `<${tag}>${escapeText(hf[key] as string)}</${tag}>`)
+    // `escapeSpreadsheetText`, not `escapeText`: Excel applies the `_xHHHH_` convention to header
+    // text exactly as it does to a cell value — it decodes an escape on load and writes one back on
+    // save (measured over COM). So a header may carry a character XML itself cannot, and a header
+    // that legitimately reads `_x0041_` must have its underscore escaped or it would decode to `A`.
+    .map(({tag, key}) => `<${tag}>${escapeSpreadsheetText(hf[key] as string)}</${tag}>`)
     .join('');
   return `<headerFooter${attrs}>${body}</headerFooter>`;
 }
