@@ -4,6 +4,13 @@
 // the run's font bundle whose self-closing children each set one facet, and a `<t>` appends the run's
 // text; the run commits on `</r>`. The surrounding parser owns only whether it is inside an `<is>`/`<si>`
 // and where a bare (non-run) `<t>` goes.
+//
+// One invariant spans both readers, and it is {@link RunAccumulator.beginContainer} that names it: an
+// accumulator is emptied when a *container* opens, never when one closes. It has to be that way round,
+// because the runs are read after the container closes — a `<c>` decodes its value at `</c>`, well past
+// the `</is>` that ended the runs — so draining them at the close would take them before the consumer
+// arrives. The cost is that every caller that opens a container must say so, which is why the method is
+// named for the container rather than for what it does to the state.
 
 import type {Font} from '../../core/style.ts';
 import type {RichTextRun} from '../../core/value.ts';
@@ -16,9 +23,13 @@ export class RunAccumulator {
   #text = '';
   #inRun = false;
 
-  // Discard accumulated runs, readying the accumulator for a fresh `<is>`/`<si>`. A new array is
-  // installed, so a value already built from a previous reset's runs keeps its own array.
-  reset(): void {
+  // Open a string container — an `<is>`, an `<si>`, or the `<c>` that may hold an `<is>` — by
+  // discarding whatever the last one gathered. Every container must open here or it inherits the
+  // previous container's runs, which is the one way this accumulator can be misused.
+  //
+  // A new array is installed rather than the existing one emptied, so a value already built from the
+  // last container's runs keeps its own array.
+  beginContainer(): void {
     this.#runs = [];
     this.#font = null;
     this.#inRun = false;

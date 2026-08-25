@@ -85,7 +85,7 @@ export class CellAccumulator {
     this.#formula = '';
     this.#valueText = '';
     this.#inlineText = '';
-    this.#runs.reset();
+    this.#runs.beginContainer();
     this.#hasFormula = false;
     this.#hasValue = false;
     this.#formulaShared = false;
@@ -122,11 +122,11 @@ export class CellAccumulator {
     this.#hasValue = true;
   }
 
-  // Begin an `<is>`: clear the inline string and its runs so a rich value built from a previous cell's
-  // runs keeps its own array.
+  // Begin an `<is>`: clear the inline string and open a fresh run container, so a rich value built
+  // from a previous cell's runs keeps its own array.
   beginInlineString(): void {
     this.#inlineText = '';
-    this.#runs.reset();
+    this.#runs.beginContainer();
   }
 
   // Route a `<t>`'s text: to the open run when one is active, otherwise to the inline string when the

@@ -27,7 +27,7 @@ export function parseSharedStrings(xml: string): SharedString[] {
       switch (local) {
         case 'si':
           plain = '';
-          runs.reset();
+          runs.beginContainer();
           isRich = false;
           break;
         case 'r':
