@@ -279,7 +279,7 @@ function facetKey(value: unknown): string {
   if (value === undefined) return '\u0000';
   return JSON.stringify(value, (_key, inner: unknown) =>
     inner !== null && typeof inner === 'object' && !Array.isArray(inner)
-      ? Object.fromEntries(Object.entries(inner as object).sort(([a], [b]) => (a < b ? -1 : 1)))
+      ? Object.fromEntries(Object.entries(inner).sort(([a], [b]) => (a < b ? -1 : 1)))
       : inner,
   );
 }

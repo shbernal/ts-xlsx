@@ -83,7 +83,7 @@
     "entries:check": "node scripts/check-entries.ts",
     "source-text:check": "node scripts/check-source-text.ts",
     "chars:check": "charcheck",
-    "lint": "node node_modules/oxlint/bin/oxlint src scripts test tools charcheck.config.ts --deny-warnings --report-unused-disable-directives",
+    "lint": "node node_modules/oxlint/bin/oxlint src scripts test tools charcheck.config.ts --type-aware --deny-warnings --report-unused-disable-directives",
     "lint:fix": "pnpm run lint --fix",
     "format": "node scripts/format.ts --write",
     "format:check": "node scripts/format.ts --check",

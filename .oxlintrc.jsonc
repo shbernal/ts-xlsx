@@ -23,6 +23,22 @@
   "plugins": ["eslint", "unicorn", "typescript", "oxc", "import"],
   "ignorePatterns": ["dist/**", "node_modules/**", "test/corpus/fixtures/**", ".tmp/**"],
   "categories": {"correctness": "error"},
+  // No `"options": {"typeAware": true}` here, deliberately, even though the rules below need it.
+  //
+  // `options.typeAware` and the CLI's `--type-aware` are an OR, not an AND: either one on its
+  // own turns the type-aware rules on (measured against a planted control — 4 findings under
+  // config-only, flag-only, and both). oxlint has no `--no-type-aware` to switch them back off,
+  // so setting it here would make *every* invocation type-aware, the pre-commit hook included.
+  // That is not mainly a speed question (0.27 s to 0.64 s on a three-file commit, 0.31 s to
+  // 1.27 s on the whole tree): a type-aware finding depends on files outside the staged set, so
+  // a staged-scoped run would report differently from CI for reasons that are nothing to do
+  // with the commit, and a hook that disagrees with CI is a hook people learn to skip.
+  //
+  // So `--type-aware` is passed by the `lint` package script and by verify's whole-tree gate,
+  // and by nothing else. A bare `oxlint` in this repo runs the syntax rules only. Note the
+  // failure mode this leaves: a type-aware rule that is not switched on reports nothing, which
+  // reads exactly like a clean tree. If a count ever looks too good, plant the control from
+  // docs/agent-correctness-playbook.md before believing it.
   "rules": {
     "eslint/no-case-declarations": "error",
     "eslint/no-empty": "error",
@@ -48,6 +64,68 @@
     // (487 under test/corpus/, 78 in src/**/*.test.ts, none anywhere else). The override
     // below carries the same posture biome.json had, rather than conceding new ground.
     "typescript/no-non-null-assertion": "error",
+
+    // ── Type-aware, from here down. Each needs `options.typeAware` above and `--type-aware`
+    // on the command line. This first block is the half of `recommendedTypeChecked` a
+    // syntax-only linter cannot replicate. Every one of them reports zero on non-test `src/`
+    // as adopted, so the block is a gate against regression and not a cleanup backlog.
+    "typescript/no-misused-promises": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-enum-comparison": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/restrict-plus-operands": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/unbound-method": "error",
+
+    // Reports uses of anything carrying a JSDoc `@deprecated`, reaching through `.d.ts` into
+    // dependencies. Our own deprecations are visible in review; a dependency's are not, and
+    // they are how a major-version break announces itself a release early. Zero tree-wide.
+    "typescript/no-deprecated": "error",
+
+    // A `void` expression read as a value is either a mistake or a claim the code does not
+    // honour. Both options were measured: with them the rule costs nothing here, and without
+    // `ignoreArrowShorthand` it would mean bracing every `forEach((x) => fn(x))` for no
+    // correctness gain.
+    "typescript/no-confusing-void-expression": [
+      "error",
+      {"ignoreArrowShorthand": true, "ignoreVoidOperator": true},
+    ],
+
+    // Not a style opinion about `return await`. This option fires only where a
+    // `return somePromise` inside try/catch/finally would route the rejection past the
+    // handler standing right there. Zero findings today.
+    "typescript/return-await": ["error", "error-handling-correctness-only"],
+
+    // `test()` and `describe()` from node:test return a promise nobody awaits, and that was
+    // 1160 of the 1160 findings this rule produced before the option below. Naming them is
+    // exactly what `allowForKnownSafeCalls` is for: the count goes to zero with no source
+    // change. Do not "fix" a node:test call site to satisfy this rule.
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "allowForKnownSafeCalls": [
+          {
+            "from": "package",
+            "package": "node:test",
+            "name": [
+              "test",
+              "it",
+              "describe",
+              "suite",
+              "before",
+              "after",
+              "beforeEach",
+              "afterEach",
+            ],
+          },
+        ],
+      },
+    ],
     // Declined, with the count: it fires on all 10 `new Array(...)` in this tree and every one
     // of them is `new Array(n).fill(v)`. The ambiguity the rule exists to catch — is that
     // argument a length or a lone element — cannot survive a `.fill` on the same expression, and
@@ -72,12 +150,89 @@
         // oversight.
         "typescript/no-explicit-any": "off",
         "eslint/no-console": "off",
+        // ── Type-aware, off across this tree. The single most consequential block in this
+        // file, so what it costs is written down rather than left to be re-derived.
+        //
+        // The `no-unsafe-*` family reports 1406 findings here and none in production source.
+        // Every one traces to `test/corpus/untyped.ts`, which declares `Untyped = any` on
+        // purpose: a corpus case describes behaviour against a deliberately untyped surface,
+        // so the adapter is where `any` is *supposed* to live. Turning the family on here
+        // would report the design, not a defect.
+        //
+        // `await-thenable` reports 699, all `await api.someMethod()` in `test/corpus/cases/**`
+        // where the adapter method happens to be synchronous. The cases await uniformly on
+        // purpose, so a method can become async without touching 282 call sites. Deleting 699
+        // awaits to satisfy the rule would trade that property away for nothing.
+        //
+        // `no-unnecessary-type-assertion` reports 301 in the same tree, all `as Untyped` on a
+        // value already typed `any`. It stays on for `src/**`, where it means something.
+        //
+        // None of these is off because it is inconvenient. Each is off because the tree it
+        // fires in has a stated contract the rule contradicts. If that contract changes,
+        // re-measure before assuming the counts still hold.
+        "typescript/await-thenable": "off",
+        "typescript/no-base-to-string": "off",
+        "typescript/no-misused-spread": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-enum-comparison": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/only-throw-error": "off",
+        "typescript/prefer-promise-reject-errors": "off",
+        "typescript/require-array-sort-compare": "off",
+        "typescript/restrict-plus-operands": "off",
+        "typescript/restrict-template-expressions": "off",
+        "typescript/unbound-method": "off",
       },
     },
     {
-      // CLI entry points: printing is what they are for. 46 findings, no defects.
+      // CLI entry points: printing is what they are for. 46 findings, no defects. They get the
+      // same type-aware exemptions as the test tree because they are the same kind of code —
+      // build scripts reaching into JSON, child-process output and third-party CLIs, none of
+      // which ships to a consumer.
       "files": ["scripts/**/*.ts", "tools/**/*.ts", "charcheck.config.ts"],
-      "rules": {"eslint/no-console": "off"},
+      "rules": {
+        "eslint/no-console": "off",
+        // ── Type-aware, off across this tree. The single most consequential block in this
+        // file, so what it costs is written down rather than left to be re-derived.
+        //
+        // The `no-unsafe-*` family reports 1406 findings here and none in production source.
+        // Every one traces to `test/corpus/untyped.ts`, which declares `Untyped = any` on
+        // purpose: a corpus case describes behaviour against a deliberately untyped surface,
+        // so the adapter is where `any` is *supposed* to live. Turning the family on here
+        // would report the design, not a defect.
+        //
+        // `await-thenable` reports 699, all `await api.someMethod()` in `test/corpus/cases/**`
+        // where the adapter method happens to be synchronous. The cases await uniformly on
+        // purpose, so a method can become async without touching 282 call sites. Deleting 699
+        // awaits to satisfy the rule would trade that property away for nothing.
+        //
+        // `no-unnecessary-type-assertion` reports 301 in the same tree, all `as Untyped` on a
+        // value already typed `any`. It stays on for `src/**`, where it means something.
+        //
+        // None of these is off because it is inconvenient. Each is off because the tree it
+        // fires in has a stated contract the rule contradicts. If that contract changes,
+        // re-measure before assuming the counts still hold.
+        "typescript/await-thenable": "off",
+        "typescript/no-base-to-string": "off",
+        "typescript/no-misused-spread": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-enum-comparison": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/only-throw-error": "off",
+        "typescript/prefer-promise-reject-errors": "off",
+        "typescript/require-array-sort-compare": "off",
+        "typescript/restrict-plus-operands": "off",
+        "typescript/restrict-template-expressions": "off",
+        "typescript/unbound-method": "off",
+      },
     },
   ],
 }

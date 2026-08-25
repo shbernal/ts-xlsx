@@ -126,7 +126,7 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
           miniFat.push(k < numMini - 1 ? startMini + k + 1 : ENDOFCHAIN);
         miniBytes.push(
           ...node.data,
-          ...new Array(numMini * MINI_SECTOR - node.data.length).fill(0),
+          ...new Array<number>(numMini * MINI_SECTOR - node.data.length).fill(0),
         );
         entry.startSector = startMini;
       }

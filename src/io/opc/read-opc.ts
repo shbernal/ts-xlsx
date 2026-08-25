@@ -15,15 +15,22 @@ import {extensionOf, relsPathFor} from './part-paths.ts';
 export interface PackageAccessors {
   /** A part's decoded text, or undefined when the package holds no such part. Decodes lazily, so a
    * part the reader never asks for is never stringified. */
-  partText(path: string): string | undefined;
+  partText: (path: string) => string | undefined;
   /** A part's raw bytes, or undefined when the package holds no such part. */
-  partBytes(path: string): Uint8Array | undefined;
+  partBytes: (path: string) => Uint8Array | undefined;
 }
 
 // Bind the part-lookup accessors over an inflated package (a part-path → bytes map).
+//
+// Both members are declared as function-typed properties rather than with method syntax, and both
+// are written as arrows here, because every reader destructures them off the returned object —
+// `const {partText, partBytes} = packageAccessors(files)`. Method syntax would say these values
+// may read `this`, which they never do (they close over `files`), and would make each of those
+// fifteen destructurings report as an unbound method. Property syntax is also the stricter
+// declaration: method-syntax parameters are checked bivariantly even under `strictFunctionTypes`.
 export function packageAccessors(files: Record<string, Uint8Array>): PackageAccessors {
   return {
-    partText(path: string): string | undefined {
+    partText: (path: string): string | undefined => {
       const bytes = files[path];
       return bytes === undefined ? undefined : strFromU8(bytes);
     },

@@ -48,6 +48,11 @@ const LINT_STRICT = '--deny-warnings';
 // A suppression that has outlived its cause is worse than none: it reads as a live hazard and
 // silences a rule that would now pass. The move onto oxlint left eleven of them.
 const UNUSED_DIRECTIVES = '--report-unused-disable-directives';
+// The rules that need a typechecker, spawning tsgolint alongside oxlint. This flag is the only
+// thing that turns them on: .oxlintrc.jsonc deliberately leaves `options.typeAware` unset, because
+// setting it there would apply to every invocation including the pre-commit hook, and oxlint has
+// no flag to switch it back off. The config says why at length.
+const TYPE_AWARE = '--type-aware';
 // Deliberately narrower than the formatter's set: oxlint reads no JSON.
 const LINTABLE = /\.(?:ts|js|mjs|cjs)$/;
 // Past this many changed files, an explicit list stops being cheaper than a whole-tree
@@ -157,7 +162,9 @@ async function changedLintTargets(): Promise<string[]> {
 function wholeTreeLint(): Gate {
   return {
     name: 'lint',
-    steps: [{command: NODE, args: [OXLINT, ...LINT_TARGETS, LINT_STRICT, UNUSED_DIRECTIVES]}],
+    steps: [
+      {command: NODE, args: [OXLINT, ...LINT_TARGETS, TYPE_AWARE, LINT_STRICT, UNUSED_DIRECTIVES]},
+    ],
   };
 }
 
@@ -173,11 +180,13 @@ function scopedLint(changed: string[]): Gate {
         // `git diff` above and this call; pass over an unmatched argument rather than
         // failing the gate on it.
         //
-        // No `--report-unused-disable-directives` here, unlike the whole-tree gate: a
-        // suppression is unused only relative to the rules that ran, and a scoped pass runs
-        // the same rules over fewer files, so the answer is the same. It is left off only
-        // because the flag costs nothing to omit and the whole-tree gate is the one that
-        // has to be exhaustive.
+        // No `--type-aware` and no `--report-unused-disable-directives`, unlike the
+        // whole-tree gate above. Both answer questions about the whole tree: a type-aware
+        // finding depends on files outside the scoped set, and a suppression is unused only
+        // relative to every rule that ran. Asking either here would give an answer that
+        // disagrees with --full for reasons that are not about the code, which is how a fast
+        // check earns a reputation for being wrong. --quick is the inner loop; --full and
+        // pre-push are where these two are answered.
         args: [OXLINT, ...changed, LINT_STRICT, '--no-error-on-unmatched-pattern'],
       },
     ],

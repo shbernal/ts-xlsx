@@ -64,9 +64,16 @@ pre-commit:
       run: node node_modules/oxfmt/bin/oxfmt --write {staged_files}
       stage_fixed: true
 
-    # No `json`/`jsonc` on this glob, unlike oxfmt's above: oxlint reads no JSON. No
-    # `--report-unused-disable-directives` either — that question is about the whole tree
-    # and pre-push answers it.
+    # No `json`/`jsonc` on this glob, unlike oxfmt's above: oxlint reads no JSON.
+    #
+    # No `--type-aware` here either, and .oxlintrc.jsonc leaves `options.typeAware` unset so
+    # that this stays true — set there it would apply to every invocation, and oxlint has no
+    # flag to switch it back off. The reason is not mainly the cost (0.27 s to 0.64 s on a
+    # three-file commit): a type-aware finding depends on files outside the staged set, so a
+    # staged-scoped run reports differently from CI for reasons that have nothing to do with
+    # the commit, and a hook that disagrees with CI is a hook people learn to skip. `pre-push`
+    # runs `verify --full`, which has it on. Same reasoning keeps
+    # `--report-unused-disable-directives` off here.
     - name: oxlint
       glob: "*.{ts,js,mjs,cjs}"
       run: node node_modules/oxlint/bin/oxlint --fix --deny-warnings --no-error-on-unmatched-pattern {staged_files}

@@ -237,7 +237,7 @@ export class StyleRegistry {
     // A `none` pattern is the reserved fill 0; a gradient is always a real, interned fill.
     const paints =
       style.fill !== undefined && (style.fill.type === 'gradient' || style.fill.pattern !== 'none');
-    const fillId = paints ? this.#internFill(style.fill as Fill) : 0;
+    const fillId = paints ? this.#internFill(style.fill) : 0;
     // A number format is a format-code *string*; a caller that assigns a structured object (e.g. a
     // parsed `{id, formatCode}` copied from another cell) must not have it stringified into the styles
     // part as `formatCode="[object Object]"`, which Excel reports as a corrupt package. A non-string

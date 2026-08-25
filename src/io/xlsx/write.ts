@@ -472,7 +472,7 @@ export function buildPackageParts(
     files[THEME_PART_PATH] = strToU8(workbook.authoredThemeXml() ?? DEFAULT_THEME_XML);
   }
   if (hasSharedStrings) {
-    files['xl/sharedStrings.xml'] = strToU8((sharedStrings as SharedStringTable).toXml());
+    files['xl/sharedStrings.xml'] = strToU8(sharedStrings.toXml());
   }
   // Singular and unnumbered, unlike the per-sheet thread parts: one registry serves the whole workbook.
   if (persons.length > 0) files['xl/persons/person.xml'] = strToU8(personsXml(persons));

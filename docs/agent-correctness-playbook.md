@@ -55,6 +55,28 @@ object itself could be. See `src/vba/cfb-writer.ts`. `typescript/no-non-null-ass
 set to `"warn"` in `.oxlintrc.jsonc` today, so it changes no current outcome. It is there so the
 first rule adopted at warning severity, to stage a migration, is a gate and not a message.
 
+**A silent type-aware rule looks exactly like a clean tree.** The rules that need type
+information run only when `--type-aware` is passed, which `pnpm run lint` and verify's whole-tree
+gate do and nothing else does. A bare `oxlint` runs the syntax rules alone and reports a clean
+tree with a straight face. If a count looks too good, plant this in `src/` and check that it
+reports exactly four findings, `no-deprecated`, `no-floating-promises`, `only-throw-error` and
+`unbound-method`, then delete it:
+
+```ts
+/** @deprecated use other */
+export function old(): number { return 1; }
+export function other(): number { return 2; }
+export function useIt(): number { return old(); }
+export async function f(): Promise<void> {}
+export function g(): void { f(); }
+export function h(): void { throw 'a string'; }
+export function i(x: {a(): void}): unknown { return x.a; }
+```
+
+It reports the same four from `test/` and `scripts/`, even though the root `tsconfig.json`
+includes only `src/**`. tsgolint is not bound to a project the way `parserOptions.project` was,
+and `--tsconfig` overrides import resolution only.
+
 **A suppression that has outlived its cause is a lie.** `pnpm run lint` passes
 `--report-unused-disable-directives`, so an `// oxlint-disable-next-line` whose rule would now
 pass fails the gate. Every suppression in this tree carries its reason after a `--`; if you add
