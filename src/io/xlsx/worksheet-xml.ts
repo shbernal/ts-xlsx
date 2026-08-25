@@ -28,7 +28,14 @@ import type {
   WorksheetProperties,
 } from '../../core/worksheet.ts';
 import {AuthoringError, InternalError} from '../../errors.ts';
-import {escapeAttr, escapeText, numberText, textElement, XML_DECLARATION} from '../../xml/xml.ts';
+import {
+  escapeAttr,
+  escapeSpreadsheetText,
+  escapeText,
+  numberText,
+  textElement,
+  XML_DECLARATION,
+} from '../../xml/xml.ts';
 import {relativePartPath} from '../opc/part-paths.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
@@ -820,7 +827,10 @@ function formulaBodyXml(
     return `<c r="${ref}"${s} t="b">${f}<v>${result ? 1 : 0}</v></c>`;
   }
   if (typeof result === 'string') {
-    return `<c r="${ref}"${s} t="str">${f}<v>${escapeText(result)}</v></c>`;
+    // The cached result of a string formula is a cell value, not structure, so it carries the
+    // `_xHHHH_` escape a `<t>` does — Excel decodes it here too (verified over COM: a `<v>` of
+    // `_x0041_` under t="str" reads back as "A" with calculation held manual).
+    return `<c r="${ref}"${s} t="str">${f}<v>${escapeSpreadsheetText(result)}</v></c>`;
   }
   if (isErrorValue(result)) {
     // A formula that evaluated to an error caches its code under t="e", exactly as a bare error
