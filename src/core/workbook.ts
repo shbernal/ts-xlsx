@@ -16,7 +16,6 @@ import {
   type VbaProject,
   type VbaProjectSignature,
 } from '../vba/index.ts';
-import {resolveColor} from './color-resolution.ts';
 import {commentThreadGuid, type Person} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
 import {
@@ -31,19 +30,14 @@ import type {Color, Font, NamedCellStyle, TableStyleTable} from './style.ts';
 import {checkTableStyle, type TableStyle} from './table-style.ts';
 import {
   applyThemeOverrides,
-  DEFAULT_THEME_COLOR_SCHEME,
-  DEFAULT_THEME_FONTS,
-  DEFAULT_THEME_XML,
   OFFICE_BODY_FACE,
-  parseThemeColorScheme,
-  parseThemeFontScheme,
   THEME_COLOR_SLOTS,
   type ThemeColorScheme,
-  type ThemeColorSlot,
   type ThemeFontScheme,
   type ThemeOverrides,
 } from './theme.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
+import {WorkbookTheme} from './workbook-theme.ts';
 import {WorkbookVbaProject} from './workbook-vba.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
 
@@ -252,11 +246,10 @@ export class Workbook {
   // that reference dangling and the table renders unstyled.
   #tableStyles: TableStyleTable = {styles: []};
 
-  // The theme part read from a file, kept verbatim with the closure of parts it reaches. The writer
-  // emits its own default theme for a workbook that has none, so without this a branded theme would be
-  // overwritten by that default and every `theme="n"` colour in the file would silently re-render.
-  // Undefined for a workbook authored from scratch, or read from a package declaring no theme.
-  #theme: PreservedTheme | undefined;
+  // The theme slice: the preserved part, the decoded scheme and its cache, and what a caller
+  // authored over them. The indexed palette stays here and is read on demand — it is styles state,
+  // not theme state, and only colour resolution wants both. See `workbook-theme.ts`.
+  readonly #theme = new WorkbookTheme(() => this.#indexedPalette());
 
   // Workbook-level references to package content the model does not interpret (pivot caches, slicer
   // caches), captured verbatim on read so a round-trip re-emits them rather than dropping the pivots
@@ -497,19 +490,8 @@ export class Workbook {
 
   /** The preserved theme part, or undefined when the workbook rides the library's default theme. */
   get themePart(): PreservedTheme | undefined {
-    return this.#theme;
+    return this.#theme.part;
   }
-
-  // The theme's colour scheme, decoded from the preserved part (and merged with any authored
-  // overrides) on first use. Cached because resolving a colour is a per-cell operation and the part is
-  // otherwise held as bytes; invalidated whenever the theme is replaced or authored.
-  #themeColors: ThemeColorScheme | undefined;
-
-  // Colour slots and typefaces the caller authored, merged over whatever the workbook already had.
-  #authoredTheme: {colors: {-readonly [K in ThemeColorSlot]?: string}; fonts: ThemeFontScheme} = {
-    colors: {},
-    fonts: {},
-  };
 
   /**
    * Author the workbook's theme: any subset of the twelve colour-scheme slots, and either of the two
@@ -532,12 +514,7 @@ export class Workbook {
    * @throws {AuthoringError} if a colour is not 6 or 8 hexadecimal digits.
    */
   setTheme(overrides: ThemeOverrides): void {
-    // Validated eagerly, by running the generation the writer will later run: a colour rejected at
-    // write time would surface far from the call that supplied it.
-    applyThemeOverrides(this.#baseThemeXml(), overrides);
-    Object.assign(this.#authoredTheme.colors, overrides.colors ?? {});
-    this.#authoredTheme.fonts = {...this.#authoredTheme.fonts, ...(overrides.fonts ?? {})};
-    this.#themeColors = undefined;
+    this.#theme.author(overrides);
   }
 
   /**
@@ -548,24 +525,12 @@ export class Workbook {
    * slots appear in the theme part. See {@link THEME_COLOR_SLOTS}.
    */
   get themeColors(): ThemeColorScheme {
-    if (this.#themeColors === undefined) {
-      const xml = this.#themeXml();
-      // A theme that declares no scheme (or none this reader decodes) falls back to the Office
-      // default rather than resolving nothing: the file still renders against *some* scheme, and the
-      // default is the one the writer would have shipped.
-      const parsed = xml === undefined ? {} : parseThemeColorScheme(xml);
-      const base = Object.keys(parsed).length === 0 ? DEFAULT_THEME_COLOR_SCHEME : parsed;
-      this.#themeColors = {...base, ...this.#authoredTheme.colors};
-    }
-    return this.#themeColors;
+    return this.#theme.colors;
   }
 
   /** The theme's major (heading) and minor (body) typefaces, authored values over the source's. */
   get themeFonts(): ThemeFontScheme {
-    const xml = this.#themeXml();
-    const parsed = xml === undefined ? {} : parseThemeFontScheme(xml);
-    const base = Object.keys(parsed).length === 0 ? DEFAULT_THEME_FONTS : parsed;
-    return {...base, ...this.#authoredTheme.fonts};
+    return this.#theme.fonts;
   }
 
   // Font id 0 exactly as a source file declared it, before anything was authored over it. Held apart
@@ -640,7 +605,7 @@ export class Workbook {
   get defaultFont(): Font {
     const declared = this.#declaredDefaultFont;
     const authored = this.#authoredDefaultFont;
-    const authoredFace = this.#authoredTheme.fonts.minor;
+    const authoredFace = this.#theme.authoredFonts.minor;
     if (declared !== undefined && authored === undefined && authoredFace === undefined) {
       return declared;
     }
@@ -676,23 +641,7 @@ export class Workbook {
    * exact encoding, and the relationships it carries.
    */
   authoredThemeXml(): string | undefined {
-    const {colors, fonts} = this.#authoredTheme;
-    if (Object.keys(colors).length === 0 && Object.keys(fonts).length === 0) return undefined;
-    return applyThemeOverrides(this.#baseThemeXml(), {colors, fonts});
-  }
-
-  // The part authored overrides are applied on top of: the preserved source theme, else the default
-  // one the writer would otherwise have emitted.
-  #baseThemeXml(): string {
-    return this.#themeXml() ?? DEFAULT_THEME_XML;
-  }
-
-  // The preserved theme part's text, decoded from the entry part of its closure.
-  #themeXml(): string | undefined {
-    const theme = this.#theme;
-    if (theme === undefined) return undefined;
-    const entry = theme.parts.find((part) => part.path === theme.entryPath);
-    return entry === undefined ? undefined : new TextDecoder().decode(entry.bytes);
+    return this.#theme.authoredXml();
   }
 
   /**
@@ -710,7 +659,7 @@ export class Workbook {
    * is applied last.
    */
   resolveColor(color: Color): string | undefined {
-    return resolveColor(color, {theme: this.themeColors, indexed: this.#indexedPalette()});
+    return this.#theme.resolveColor(color);
   }
 
   // The workbook's custom palette as plain ARGB strings. `#indexedColors` holds verbatim
@@ -975,8 +924,7 @@ export class Workbook {
       this.#tableStyles = table;
     },
     restoreThemePart: (theme) => {
-      this.#theme = theme;
-      this.#themeColors = undefined;
+      this.#theme.restorePart(theme);
     },
     restoreNamedStyles: (styles) => {
       replaceContents(this.#namedStyles, styles);

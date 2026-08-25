@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import {INTERNAL} from './internal.ts';
+import {DEFAULT_THEME_XML} from './theme.ts';
 import {ValueType} from './value.ts';
-import {Workbook} from './workbook.ts';
+import {type PreservedTheme, Workbook} from './workbook.ts';
 
 test('addWorksheet appends sheets with stable, distinct ids', () => {
   const wb = new Workbook();
@@ -233,4 +235,52 @@ test('an import carrying no background clears the one the destination held', () 
   destination.importImages(dst, {anchored: [], background: undefined});
 
   assert.equal(dst.backgroundImageId, undefined);
+});
+
+// ── Theme scheme caching ──────────────────────────────────────────────────────────────────────────
+// Decoding the scheme is cached because resolving a colour is per-cell and the part is held as
+// bytes. Two events can stale that cache — a part restored by the reader, and a caller authoring
+// over it — and a stale one is silent: every `theme="n"` cell resolves to the old palette and
+// nothing fails. So both invalidation points are pinned, each by reading the scheme *first*.
+
+function themePart(accent1: string): PreservedTheme {
+  const xml = DEFAULT_THEME_XML.replace(
+    '<a:accent1><a:srgbClr val="4472C4"/></a:accent1>',
+    `<a:accent1><a:srgbClr val="${accent1}"/></a:accent1>`,
+  );
+  return {
+    entryPath: 'xl/theme/theme1.xml',
+    parts: [
+      {
+        path: 'xl/theme/theme1.xml',
+        contentType: 'application/vnd.openxmlformats-officedocument.theme+xml',
+        bytes: new TextEncoder().encode(xml),
+        rels: [],
+      },
+    ],
+  };
+}
+
+test('setTheme invalidates an already-decoded colour scheme', () => {
+  const wb = new Workbook();
+  assert.equal(wb.themeColors.accent1, '4472C4', 'precondition: the default scheme is now cached');
+
+  wb.setTheme({colors: {accent1: 'FF0000'}});
+  assert.equal(wb.themeColors.accent1, 'FF0000', 'authoring is visible through the cache');
+  assert.equal(wb.themeColors.accent2, 'ED7D31', 'and leaves the unauthored slots alone');
+});
+
+test('restoring a theme part invalidates an already-decoded colour scheme', () => {
+  const wb = new Workbook();
+  assert.equal(wb.themeColors.accent1, '4472C4', 'precondition: the default scheme is now cached');
+
+  wb[INTERNAL].restoreThemePart(themePart('00FF00'));
+  assert.equal(wb.themeColors.accent1, '00FF00', "the restored part's scheme is what resolves");
+});
+
+test('a colour resolved through the theme follows a later setTheme', () => {
+  const wb = new Workbook();
+  assert.equal(wb.resolveColor({theme: 4}), 'FF4472C4');
+  wb.setTheme({colors: {accent1: '112233'}});
+  assert.equal(wb.resolveColor({theme: 4}), 'FF112233', 'theme="4" is accent1');
 });
