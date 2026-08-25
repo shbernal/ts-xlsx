@@ -133,6 +133,53 @@
     // that would be a real defect, reading a hole as a value, `noUncheckedIndexedAccess` already
     // types as `T | undefined`.
     "unicorn/no-new-array": "off",
+
+    // ── Considered and declined. Each of these was measured against this tree and read at the
+    // site before being turned down, and each is listed here so the next sweep finds the
+    // decision instead of re-deriving it. An unrecorded decline is worse than no decision.
+    // Counts are non-test `src/**`, oxlint 1.80.0 / oxlint-tsgolint 7.0.2001.
+
+    // 46. Forty-two of them are `boolean | undefined` in a conditional, where `if (x)` and
+    // `if (x === true)` cannot differ. The remaining four are the class the rule exists for —
+    // truthiness conflating `0` or `''` with absent — and every one of the four is deliberate:
+    // `styles.ts` omits a zero-valued gradient degree and a zero inset because that is OOXML's
+    // own default-omission rule, stated in the comment above `gradientFillXml`. The strongest
+    // evidence is inside the one file: `styleAlignmentXml` already writes
+    // `!== undefined && !== 0` for the numeric attributes and truthiness for the booleans, four
+    // lines apart. The distinction the rule wants made is already made, by hand, where it
+    // matters. Adopting would lengthen 42 lines that cannot change meaning, and would bury that
+    // deliberate contrast in noise.
+    "typescript/strict-boolean-expressions": "off",
+
+    // 7. Every one is a runtime guard the types cannot enforce, in a library whose public API is
+    // called from JavaScript where the types are erased: a `value is T` predicate that would
+    // otherwise accept any `shareType`; an `undefined` skip over an array a caller supplied; a
+    // `.filter` that compacts an array built by indexed assignment and so really can be sparse;
+    // and the stream/filename check whose own comment says it backs up the type-level union
+    // "rather than only the runtime check the constructor also carries". This package's job is
+    // parsing files other tools wrote, and a type describing that input is our claim about it,
+    // not a guarantee. Deleting a guard on the linter's word is how a malformed input turns from
+    // a caught error into a crash.
+    "typescript/no-unnecessary-condition": "off",
+
+    // 42. It asks for `x!` where a cast only removes null/undefined, which is exactly what
+    // `no-non-null-assertion` above forbids. Two enabled rules cannot demand and ban the same
+    // construct.
+    "typescript/non-nullable-type-assertion-style": "off",
+
+    // 3, all `switch (typeof value)` closing with `default: break` so the object shapes fall
+    // through to the checks below. The unmatched cases the rule lists are `bigint | function |
+    // object | symbol | undefined`; enumerating them would add five no-op cases to each switch.
+    // The rule earns its place on a discriminated union, where a new variant should break the
+    // build. `typeof`'s domain does not grow.
+    "typescript/switch-exhaustiveness-check": "off",
+
+    // Measured at 0 or 1 findings each. At that count a rule is neither a gate nor a cost, and
+    // naming it only adds a line to keep true: no-unnecessary-boolean-literal-compare 0,
+    // no-array-delete 0, use-unknown-in-catch-callback-variable 0, no-misused-spread 0,
+    // no-unnecessary-template-expression 1, prefer-optional-chain 1, prefer-nullish-coalescing 1,
+    // promise-function-async 2. Listed rather than enabled so a later sweep can skip them.
+
     "import/no-duplicates": ["error", {"preferInline": true}],
     "import/no-cycle": "error",
     "import/no-self-import": "error",
