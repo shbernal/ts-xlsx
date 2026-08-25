@@ -1,7 +1,7 @@
 // The field table behind `Worksheet.model`'s round-trip.
 //
 // Both directions used to be hand-written statement lists, one in the getter and one in the setter,
-// each enumerating the same nineteen fields. Nothing but a comment asked the next editor to touch
+// each enumerating the same fields. Nothing but a comment asked the next editor to touch
 // both, and a field exported but not imported loses data silently — the merge-loss failure the
 // model contract exists to prevent. Here each field declares both directions in one place, and the
 // registry is proved exhaustive over `keyof WorksheetModel` at compile time, so adding a field
@@ -70,6 +70,11 @@ export const WORKSHEET_MODEL_FACETS = [
     'outline',
     (sheet) => ({...sheet.outline}),
     (sheet, value) => overwrite(sheet.outline, value),
+  ),
+  facet(
+    'view',
+    (sheet) => ({...sheet.view}),
+    (sheet, value) => overwrite(sheet.view, value),
   ),
   facet(
     'pageSetup',

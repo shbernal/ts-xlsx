@@ -63,3 +63,29 @@ records) onto the public model so the "drops nothing" claim became true.
 - **Revisit when:** a concrete consumer needs to copy a sheet's attached parts (chart,
   pivot, image) to another sheet or workbook. At that point design the dedicated copy
   primitive around that use-case — do not retrofit byte closures onto `WorksheetModel`.
+
+---
+
+## Amendment (2026-08-25) — the frozen-pane view joins the model; threaded comments do not
+
+Analysing the deferred copy primitive (§4) surfaced a second field in exactly the position
+`autoFilter` had been in: `Worksheet.view` — the frozen/split pane — was absent from
+`WorksheetModel` for no stated reason, so `dst.model = src.model` reproduced every other
+sheet-level field and silently unfroze the header row. That is the same silent-loss shape this
+ADR exists to prevent, and §2's reasoning already decides it: a pane is a pair of split counts
+and an anchor cell, workbook-independent, in the category the model already carries. It now
+rides the registry, and `worksheet-model-preserves-frozen-pane` locks it through to the written
+`<pane>`.
+
+The recurrence is the lesson. §2 fixed one gap by name and left the *test* implicit, so the next
+field in the same position went unnoticed until someone looked. The test is now written into the
+`WorksheetModel` doc comment as the thing a new field is measured against: **a field belongs in
+the model when its value means the same thing on any sheet of any workbook.**
+
+Applying that test also settles `commentThreads`, which had been in neither list. A threaded
+comment names its author by an id into the workbook's `persons` registry (`Workbook.persons`,
+emitted as `xl/persons/person.xml` from the *workbook*, not the sheet), so a copied conversation
+would name an author the destination workbook has never heard of. It fails the test and is now
+named explicitly on the out-of-scope side rather than being absent from both.
+
+The boundary this ADR draws is unchanged; it is now stated as a rule instead of a list.

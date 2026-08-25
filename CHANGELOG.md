@@ -12,6 +12,26 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Fixed
+
+- **A frozen pane no longer disappears when a sheet is copied through `model`.**
+  `WorksheetModel` was missing `view`, so `dst.model = src.model` reproduced the cells,
+  merges, tables, autofilter and page setup — and silently unfroze the header row. The
+  frozen/split pane now rides the model like every other sheet-level field, and clearing it
+  works in the same direction: assigning a normal-view model over a frozen sheet unfreezes it
+  rather than leaving a stale pane.
+
+  This is additive to `WorksheetModel`. Code that *constructs* a model literal by hand rather
+  than reading one from a sheet must now supply `view` (`{}` is a normal view); code that does
+  the usual `dst.model = src.model` is unaffected.
+
+  The boundary is now a rule rather than a list
+  ([ADR-0005 amendment](docs/decisions/0005-worksheet-model-is-semantic-only.md)): **a field
+  belongs in the model when its value means the same thing on any sheet of any workbook.** By
+  that test threaded comments stay out — a comment's author is an id into the *workbook's*
+  `persons` registry — and they are now named on the out-of-scope side instead of being absent
+  from both lists.
+
 ### Changed
 
 - **The OOXML conformance oracle is now the shared `ooxml-validate` package**, and the

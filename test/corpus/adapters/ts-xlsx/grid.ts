@@ -173,6 +173,31 @@ export const grid = {
     };
   },
 
+  // Freeze a pane on one sheet, transplant that sheet's model onto another, write, and report what
+  // reached the destination → { dstPaneEmitted, dstState, dstXSplit, dstYSplit, srcPaneEmitted }.
+  // A frozen pane is workbook-independent sheet state, so it must ride the model transplant and reach
+  // the written package as a <pane>; the source's own pane must survive the read of its model.
+  frozenPaneSurvivesModelTransplant() {
+    const workbook = new Workbook();
+    const src = workbook.addWorksheet('Src');
+    src.getCell('A1').value = 'header';
+    src.freeze(2, 1);
+    const dst = workbook.addWorksheet('Dst');
+    dst.model = src.model;
+
+    const parts = partMapOf(writeXlsx(workbook));
+    const paneOf = (xml: string): boolean =>
+      /<pane\b[^>]*xSplit="1"[^>]*ySplit="2"[^>]*state="frozen"/.test(xml);
+    const view = readXlsx(writeXlsx(workbook)).getWorksheet('Dst')!.view;
+    return {
+      dstPaneEmitted: paneOf(parts['xl/worksheets/sheet2.xml'] || ''),
+      dstState: view.state ?? 'normal',
+      dstXSplit: view.xSplit ?? 0,
+      dstYSplit: view.ySplit ?? 0,
+      srcPaneEmitted: paneOf(parts['xl/worksheets/sheet1.xml'] || ''),
+    };
+  },
+
   // Freeze a view, then unfreeze it, and report the pane presence in each written form plus a reload
   // → { frozenHasPane, normalHasPane, reloadedState, reloadedHasSplit }. Unfreezing must leave no
   // leftover <pane> (which triggers Excel's repair prompt) and reload as a normal, unsplit view.

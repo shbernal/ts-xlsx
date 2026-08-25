@@ -146,25 +146,33 @@ export interface CellModel extends CellStyle {
 
 /**
  * A serialisable snapshot of a worksheet's value and overlay content — its cells and their styles,
- * the column/row/page metadata, and the sheet-level overlays (merges, data validations, conditional
- * formattings, tables, the autofilter, protection). {@link Worksheet.model} exports one; assigning
- * it back reproduces that content. The getter and setter cover exactly the same fields, so a
- * `dst.model = src.model` round-trip drops none of it — an export field the import ignored would
- * silently lose data, the historical merge-loss failure this contract exists to prevent. Both
- * directions are driven from one field table (`core/worksheet-model.ts`), which the compiler proves
- * covers every field below, so adding a field here without wiring it fails the build.
+ * the column/row/page metadata, the frozen-pane view, and the sheet-level overlays (merges, data
+ * validations, conditional formattings, tables, the autofilter, protection). {@link Worksheet.model}
+ * exports one; assigning it back reproduces that content. The getter and setter cover exactly the
+ * same fields, so a `dst.model = src.model` round-trip drops none of it — an export field the import
+ * ignored would silently lose data, the historical merge-loss failure this contract exists to
+ * prevent. Both directions are driven from one field table (`core/worksheet-model.ts`), which the
+ * compiler proves covers every field below, so adding a field here without wiring it fails the build.
+ *
+ * The line between what belongs here and what does not is **workbook-independence**: a field earns
+ * its place when its value means the same thing on any sheet of any workbook. That is the test a new
+ * field is measured against, and applying it is what admitted the autofilter and the frozen-pane view
+ * after each had been omitted for no stated reason (ADR-0005 §2).
  *
  * Out of scope by design: content that carries workbook-level identity rather than pure sheet
  * state — anchored and background images (their bytes live on the {@link Workbook}), pivot tables
- * (their source references a live worksheet), and byte-preserved parts (charts, vector drawings,
- * slicers) kept verbatim for round-tripping. These stay with their source sheet; a model assignment
- * neither copies nor clears them.
+ * (their source references a live worksheet), threaded comments (their authors are ids into the
+ * workbook's {@link Workbook.persons} registry, so a copied conversation would name an author the
+ * destination has never heard of), and byte-preserved parts (charts, vector drawings, slicers) kept
+ * verbatim for round-tripping. These stay with their source sheet; a model assignment neither copies
+ * nor clears them.
  */
 export interface WorksheetModel {
   state: WorksheetState['state'];
   tabColor: Color | undefined;
   properties: WorksheetProperties;
   outline: OutlineProperties;
+  view: SheetView;
   pageSetup: PageSetup;
   printOptions: PrintOptions;
   pageMargins: PageMargins;
@@ -1129,11 +1137,11 @@ export class Worksheet {
   /**
    * A snapshot of this sheet's value and overlay content (see {@link WorksheetModel}). Reading it and
    * assigning it onto another sheet — `dst.model = src.model` — reproduces the source: merges, cells
-   * and their styles, column/row metadata, tables, the autofilter, protection, and the page setup all
-   * survive, because the getter emits and the setter consumes exactly the same fields. Identity
-   * (`name`, `id`) is not part of the model and is never touched by assignment; nor are attached parts
-   * that carry workbook-level identity (images, pivots, byte-preserved charts/drawings) — see
-   * {@link WorksheetModel} for that boundary.
+   * and their styles, column/row metadata, tables, the autofilter, protection, the frozen-pane view,
+   * and the page setup all survive, because the getter emits and the setter consumes exactly the same
+   * fields. Identity (`name`, `id`) is not part of the model and is never touched by assignment; nor
+   * are attached parts that carry workbook-level identity (images, pivots, threaded comments,
+   * byte-preserved charts/drawings) — see {@link WorksheetModel} for that boundary.
    */
   get model(): WorksheetModel {
     const model: Record<string, unknown> = {};

@@ -14,6 +14,7 @@ function populatedSheet(): Worksheet {
   sheet.tabColor = {argb: 'FFFF0000'};
   sheet.properties.defaultRowHeight = 18;
   sheet.outline.summaryBelow = false;
+  sheet.freeze(1, 1);
   sheet.pageSetup.fitToPage = true;
   sheet.printOptions.gridLines = true;
   sheet.pageMargins.left = 0.25;
@@ -105,4 +106,27 @@ test('a model exported from an empty sheet clears every field of the sheet it is
   dst.model = empty;
 
   assert.deepEqual(dst.model, empty);
+});
+
+test('a frozen pane survives a model transplant', () => {
+  // The named regression behind the facet: `view` was omitted from the model for no stated reason,
+  // so a transplant reproduced every other sheet-level field and silently unfroze the header row.
+  // It is workbook-independent state — the test the model's boundary is drawn on — not an attached
+  // part, so it belongs in the snapshot exactly as the autofilter does.
+  const src = new Worksheet('Src', 1);
+  src.freeze(2, 1);
+
+  const dst = new Worksheet('Dst', 2);
+  dst.model = src.model;
+
+  assert.deepEqual(dst.view, {state: 'frozen', xSplit: 1, ySplit: 2, topLeftCell: 'B3'});
+});
+
+test('a model transplant clears a frozen pane the destination held', () => {
+  const dst = new Worksheet('Dst', 2);
+  dst.freeze(1);
+
+  dst.model = new Worksheet('Src', 1).model;
+
+  assert.deepEqual(dst.view, {}, 'a normal-view source leaves no pane behind');
 });
