@@ -12,6 +12,7 @@
 // compressor is the authoring inverse — it is fed our own bytes, and its output re-expands to the input
 // byte-for-byte (the round-trip is the correctness contract).
 
+import {readU16} from './bytes.ts';
 import {VbaParseError} from './errors.ts';
 
 // A decompressed chunk covers at most 4096 bytes; both directions honour this window ([MS-OVBA]
@@ -194,8 +195,4 @@ function copyTokenHelp(decompressedSoFar: number): {lengthMask: number; bitCount
   const bitCount = Math.max(Math.ceil(Math.log2(Math.max(decompressedSoFar, 1))), 4);
   const lengthMask = 0xffff >> bitCount;
   return {lengthMask, bitCount};
-}
-
-function readU16(buf: Uint8Array, at: number): number {
-  return (buf[at] as number) | ((buf[at + 1] as number) << 8);
 }

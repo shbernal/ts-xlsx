@@ -6,6 +6,7 @@
 // read those facts, then decompress each module stream from its text offset and decode with the
 // project code page. The p-code is version-specific and deliberately not exposed; a reader wants source.
 
+import {readU16, readU32} from './bytes.ts';
 import {CompoundFile} from './cfb.ts';
 import {type Decoder, decoderForCodePage} from './codepage.ts';
 import {VbaParseError} from './errors.ts';
@@ -206,17 +207,4 @@ function readProjectStreamKinds(cfb: CompoundFile, decoder: Decoder): Map<string
     if (name) kinds.set(name, kind);
   }
   return kinds;
-}
-
-function readU16(buf: Uint8Array, at: number): number {
-  return (buf[at] as number) | ((buf[at + 1] as number) << 8);
-}
-function readU32(buf: Uint8Array, at: number): number {
-  return (
-    ((buf[at] as number) |
-      ((buf[at + 1] as number) << 8) |
-      ((buf[at + 2] as number) << 16) |
-      ((buf[at + 3] as number) << 24)) >>>
-    0
-  );
 }

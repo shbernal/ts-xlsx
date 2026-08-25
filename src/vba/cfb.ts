@@ -10,6 +10,7 @@
 // the file and every chain walk is cycle-guarded. A malformed container fails closed with a
 // VbaParseError instead of reading out of bounds, looping forever, or over-allocating.
 
+import {concat, decodeUtf16le, readU16, readU32} from './bytes.ts';
 import type {CfbNode} from './cfb-writer.ts';
 import {VbaParseError} from './errors.ts';
 
@@ -40,7 +41,6 @@ const DIR_ENTRY_SIZE = 128;
 
 export class CompoundFile {
   readonly #buf: Uint8Array;
-  readonly #view: DataView;
   readonly #sectorSize: number;
   readonly #miniSectorSize: number;
   readonly #miniCutoff: number;
@@ -52,15 +52,14 @@ export class CompoundFile {
 
   constructor(buf: Uint8Array) {
     this.#buf = buf;
-    this.#view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
 
     if (buf.length < 512) throw new VbaParseError('compound file shorter than its 512-byte header');
-    if (this.#u32(0) !== CFB_SIGNATURE_LO || this.#u32(4) !== CFB_SIGNATURE_HI) {
+    if (readU32(this.#buf, 0) !== CFB_SIGNATURE_LO || readU32(this.#buf, 4) !== CFB_SIGNATURE_HI) {
       throw new VbaParseError('not a compound file (bad OLE2 signature)');
     }
 
-    const sectorShift = this.#u16(30);
-    const miniSectorShift = this.#u16(32);
+    const sectorShift = readU16(this.#buf, 30);
+    const miniSectorShift = readU16(this.#buf, 32);
     // [MS-CFB] fixes these: 512-byte sectors (shift 9) for v3, 4096 (shift 12) for v4; mini shift 6.
     if (sectorShift !== 9 && sectorShift !== 12) {
       throw new VbaParseError(`unsupported sector shift ${sectorShift}`);
@@ -71,12 +70,12 @@ export class CompoundFile {
     this.#miniSectorSize = 1 << miniSectorShift;
     this.#maxSector = Math.floor(buf.length / this.#sectorSize);
 
-    const numFatSectors = this.#u32(44);
-    const firstDirSector = this.#u32(48);
-    this.#miniCutoff = this.#u32(56);
-    const firstMiniFatSector = this.#u32(60);
-    const firstDifatSector = this.#u32(68);
-    const numDifatSectors = this.#u32(72);
+    const numFatSectors = readU32(this.#buf, 44);
+    const firstDirSector = readU32(this.#buf, 48);
+    this.#miniCutoff = readU32(this.#buf, 56);
+    const firstMiniFatSector = readU32(this.#buf, 60);
+    const firstDifatSector = readU32(this.#buf, 68);
+    const numDifatSectors = readU32(this.#buf, 72);
 
     const fatSectorIds = this.#readDifat(numFatSectors, firstDifatSector, numDifatSectors);
     this.#fat = this.#readFat(fatSectorIds);
@@ -146,7 +145,7 @@ export class CompoundFile {
     const ids: number[] = [];
     // The first 109 FAT-sector pointers live in the header; the rest chain through DIFAT sectors.
     for (let i = 0; i < 109 && ids.length < numFatSectors; i++) {
-      const v = this.#u32(76 + i * 4);
+      const v = readU32(this.#buf, 76 + i * 4);
       if (v >= MAX_REGULAR_SECTOR) break;
       ids.push(v);
     }
@@ -158,10 +157,10 @@ export class CompoundFile {
       seen.add(sector);
       const base = this.#dataSectorOffset(sector);
       for (let i = 0; i < perSector; i++) {
-        const v = this.#u32(base + i * 4);
+        const v = readU32(this.#buf, base + i * 4);
         if (v < MAX_REGULAR_SECTOR) ids.push(v);
       }
-      sector = this.#u32(base + perSector * 4);
+      sector = readU32(this.#buf, base + perSector * 4);
     }
     return ids;
   }
@@ -171,7 +170,7 @@ export class CompoundFile {
     const perSector = this.#sectorSize / 4;
     for (const sid of fatSectorIds) {
       const base = this.#dataSectorOffset(sid);
-      for (let i = 0; i < perSector; i++) fat.push(this.#u32(base + i * 4));
+      for (let i = 0; i < perSector; i++) fat.push(readU32(this.#buf, base + i * 4));
     }
     return fat;
   }
@@ -186,7 +185,7 @@ export class CompoundFile {
       if (seen.has(sector)) throw new VbaParseError('cycle in mini-FAT sector chain');
       seen.add(sector);
       const base = this.#dataSectorOffset(sector);
-      for (let i = 0; i < perSector; i++) values.push(this.#u32(base + i * 4));
+      for (let i = 0; i < perSector; i++) values.push(readU32(this.#buf, base + i * 4));
       sector = this.#nextInFat(sector);
     }
     return values;
@@ -303,42 +302,4 @@ export class CompoundFile {
     }
     return base;
   }
-
-  #u16(at: number): number {
-    return this.#view.getUint16(at, true);
-  }
-  #u32(at: number): number {
-    return this.#view.getUint32(at, true);
-  }
-}
-
-function readU16(buf: Uint8Array, at: number): number {
-  return (buf[at] as number) | ((buf[at + 1] as number) << 8);
-}
-function readU32(buf: Uint8Array, at: number): number {
-  return (
-    ((buf[at] as number) |
-      ((buf[at + 1] as number) << 8) |
-      ((buf[at + 2] as number) << 16) |
-      ((buf[at + 3] as number) << 24)) >>>
-    0
-  );
-}
-function decodeUtf16le(bytes: Uint8Array): string {
-  let s = '';
-  for (let i = 0; i + 1 < bytes.length; i += 2) {
-    s += String.fromCharCode((bytes[i] as number) | ((bytes[i + 1] as number) << 8));
-  }
-  return s;
-}
-function concat(chunks: Uint8Array[]): Uint8Array {
-  let total = 0;
-  for (const c of chunks) total += c.length;
-  const out = new Uint8Array(total);
-  let off = 0;
-  for (const c of chunks) {
-    out.set(c, off);
-    off += c.length;
-  }
-  return out;
 }

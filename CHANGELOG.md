@@ -141,6 +141,15 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   `DocumentFormat.OpenXml` 3.5.1, so `test/ooxml-validation/allowed-errors.json` is
   unchanged and still empty.
 
+- **A truncated VBA project fails closed instead of reading as zeros.** The `vbaProject.bin`
+  reader's little-endian integer reads were open-coded in four modules, and the shared shape
+  indexed past the end of the buffer without noticing: `undefined | (undefined << 8)` is `0`,
+  so a truncated compound file could parse as a structure full of valid-looking zeros. Every
+  caller happened to bounds-check first, so no known file was misread — but that is the wrong
+  place for the check in the one subsystem that parses a blob straight out of an untrusted
+  `.xlsm`. The bound now belongs to the read itself, which raises `VbaParseError` naming the
+  offset and the buffer length.
+
 ## [1.3.1] — 2026-08-11
 
 `1.3.0` was set in `package.json` and cut no release, so this is the first published version of

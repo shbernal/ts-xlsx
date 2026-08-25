@@ -10,6 +10,7 @@
 // pure-TS path (ADR 0019). These splices are safe precisely because they leave every module's p-code
 // exactly as its own compiler wrote it.
 
+import {readU16, readU32} from './bytes.ts';
 import {CompoundFile} from './cfb.ts';
 import type {CfbNode} from './cfb-writer.ts';
 import {writeCompoundFile} from './cfb-writer.ts';
@@ -464,17 +465,4 @@ function replaceStreams(
     }
     return {name: node.name, children: replaceStreams(node.children, replacements, applied)};
   });
-}
-
-function readU16(buf: Uint8Array, at: number): number {
-  return (buf[at] as number) | ((buf[at + 1] as number) << 8);
-}
-function readU32(buf: Uint8Array, at: number): number {
-  return (
-    ((buf[at] as number) |
-      ((buf[at + 1] as number) << 8) |
-      ((buf[at + 2] as number) << 16) |
-      ((buf[at + 3] as number) << 24)) >>>
-    0
-  );
 }
