@@ -10,29 +10,30 @@ value-metadata (`vm`) index that points through the workbook metadata part to a 
 which references the image via a rich-value relationship to a media part. The legacy `#VALUE!`
 error is stored in the cell as a fallback for applications that don't understand rich values.
 
-A reader that only understands drawing-anchored images (twoCell/oneCell anchors) surfaces none of
+A reader that only understands drawing-anchored images (twoCell and oneCell anchors) surfaces none of
 these: `getImages()` returns nothing, and the image-bearing cells look empty or like errors. The
 image is silently invisible to the caller.
 
 ## Desired behavior
 
 - Reading a workbook whose cells use in-cell rich-value images surfaces those images, each
-  **associated with its host cell** (e.g. C2), not with a drawing-anchor position.
-- Resolution follows the real chain: cell `vm` index → workbook metadata → rich-value record →
-  rich-value relationship → media part, yielding the correct image bytes for each cell.
+  **associated with its host cell** such as C2, not with a drawing-anchor position.
+- Resolution follows the real chain: cell `vm` index, then workbook metadata, then the rich-value
+  record, then the rich-value relationship, then the media part, yielding the correct image bytes for
+  each cell.
 - The legacy `#VALUE!` error fallback stored in the cell must not mask the presence of the in-cell
-  image — the model should expose the image, and treat the error as the documented fallback.
+  image. The model should expose the image and treat the error as the documented fallback.
 - This is distinct from drawing-anchored images: the API should make clear which images are
-  in-cell (part of a cell's value) vs. floating (anchored over the grid).
+  in-cell, part of a cell's value, and which are floating, anchored over the grid.
 
 ## Open questions
 
-- The public model shape for an in-cell image: a distinct cell value kind (e.g. an image value)
-  vs. a parallel per-cell image accessor. It must round-trip.
-- Write-side authoring of in-cell images (create a "Place in Cell" image) — in scope, or read/
+- The public model shape for an in-cell image: a distinct cell value kind, such as an image value,
+  or a parallel per-cell image accessor. It must round-trip.
+- Write-side authoring of in-cell images, creating a "Place in Cell" image: in scope, or read and
   preserve only for now?
-- Hostile-input hardening: the metadata → rich-value → media indirection is attacker-influenced;
-  bound the indirection depth and validate indices so a crafted file cannot force unbounded work
+- Hostile-input hardening: the metadata to rich-value to media indirection is attacker-influenced, so
+  bound the indirection depth and validate indices, and a crafted file must not force unbounded work
   or dangling-reference crashes.
 - Interaction with `getImages()` (drawing-anchored) so callers can enumerate both kinds without
   conflating them.

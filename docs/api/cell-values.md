@@ -67,7 +67,7 @@ caller supplied it.
 function coerceCellValue(value: CellValue | undefined): CellValue;
 ```
 
-**Throws** — `TypeError` if the value is not a recognised cell-value shape.
+**Throws:** `TypeError` if the value is not a recognised cell-value shape.
 
 ---
 

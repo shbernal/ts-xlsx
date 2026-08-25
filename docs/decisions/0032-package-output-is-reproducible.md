@@ -1,4 +1,4 @@
-# ADR 0032 — Package output is reproducible: entry timestamps are pinned, not clocked
+# ADR 0032: Package output is reproducible, with entry timestamps pinned rather than clocked
 
 **Status:** Accepted (2026-08-11) · answers the question [ADR 0024](./0024-async-is-one-writer-not-a-mirrored-pair.md) deferred when it declined to pin `mtime`
 
@@ -13,7 +13,7 @@ in a few bytes per entry and in nothing else.
 `writeXlsx` and `writeXlsxAsync`, listed pinning `mtime` under rejected alternatives, and
 was right to: the two-writer comparison did not need it, and pinning would have changed
 `writeXlsx`'s output for a reason internal to a test. It named the real question and left it
-open — *should `.xlsx` output be reproducible at all?* This record answers it.
+open, *should `.xlsx` output be reproducible at all?* This record answers it.
 
 What settled it was a consumer. The library's first authoring consumer commits the workbooks
 it generates, so a regenerated deliverable arrived as a diff of the whole file with no
@@ -30,19 +30,19 @@ content change behind it. Three costs, none visible from inside the library:
 ## Decision
 
 1. **Every zip entry this library writes is stamped with a fixed timestamp**, so package
-   bytes are a function of the workbook alone. `src/io/opc/zip-mtime.ts` owns the constant —
-   the container layer, because it is a property of the OPC package, not of the `.xlsx`
-   codec that happens to be the first to fill one.
+   bytes are a function of the workbook alone. `src/io/opc/zip-mtime.ts` owns the constant,
+   at the container layer, because it is a property of the OPC package rather than of the
+   `.xlsx` codec that happens to be the first to fill one.
 
 2. **All four writing paths use it**: `writeXlsx` (`zipSync`), `writeXlsxAsync` (`zip`),
    `WorkbookStreamWriter` (the streamed `Zip`/`ZipDeflate` container), and the package-level
    VBA edits in `edit-vba.ts`, which re-zip after splicing. Three different `fflate` calls
-   with three different ways of accepting the stamp — the streamed container takes it as a
-   field on the entry, not as an option — and any one left out would have been silent.
+   with three different ways of accepting the stamp, since the streamed container takes it as
+   a field on the entry rather than as an option, and any one left out would have been silent.
 
 3. **The value is built from local components, not a UTC instant.** `fflate` encodes the DOS
    date through local-time getters, so a fixed instant would still stamp differently in
-   different timezones — reproducible on one machine and not across two, which is the half
+   different timezones: reproducible on one machine and not across two, which is the half
    of the property that a CI comparison needs. `new Date(2001, 0, 1, 12).getTime()` reads
    back as 2001-01-01 12:00 everywhere. Midday, so no DST transition can shift the date
    under it; 2001 because zip stores DOS dates, which start at 1980, so the epoch is not
@@ -66,8 +66,8 @@ content change behind it. Three costs, none visible from inside the library:
   package no longer matches. Nothing in the model, the content, or how the file reads
   changed with it.
 - **Reproducibility is now a property, so it needs a test that can fail.** Byte-equality of
-  two writes is not enough — two calls in the same second stamp the same DOS bucket and pass
-  regardless. `write-determinism.test.ts` therefore decodes the DOS date out of the central
+  two writes is not enough, because two calls in the same second stamp the same DOS bucket and
+  pass regardless. `write-determinism.test.ts` therefore decodes the DOS date out of the central
   directory and asserts the literal 2001-01-01 12:00, spelled out rather than imported from
   the constant so the test can disagree with it.
 - **`edit-vba.ts` re-stamps rather than preserves.** `unzipSync` returns bytes and drops the

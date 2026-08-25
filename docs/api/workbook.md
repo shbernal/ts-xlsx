@@ -244,7 +244,7 @@ This is a **read-only view** over parts the writer already round-trips verbatim 
 returned objects changes nothing on write; the original `customUI` XML is re-emitted byte-for-byte
 regardless. Parsed lazily on first access and memoised.
 
-**Throws** — [`CustomUiParseError`](./customui-errors.md#customuiparseerror) if a `customUI` part is present but its XML is malformed.
+**Throws:** [`CustomUiParseError`](./customui-errors.md#customuiparseerror) if a `customUI` part is present but its XML is malformed.
 
 #### `Workbook.vbaProject`
 
@@ -257,7 +257,7 @@ workbook with no macros. This is a **read-only view** over the bytes the writer 
 verbatim — mutating the returned object changes nothing on write; the original macro blob is
 re-emitted byte-for-byte regardless. Parsed lazily on first access and memoised.
 
-**Throws** — [`VbaParseError`](./vba-errors.md#vbaparseerror) if a macro project is present but its `vbaProject.bin` is malformed.
+**Throws:** [`VbaParseError`](./vba-errors.md#vbaparseerror) if a macro project is present but its `vbaProject.bin` is malformed.
 
 #### `Workbook.vbaProjectBytes`
 
@@ -327,9 +327,9 @@ Only `procedural` and `class` modules can be removed this way — see [`removeVb
 To author or edit module *source* (which needs real compiled p-code), use the offline
 `tools/vba-compiler`, then attach its output via [`vbaProjectBytes`](./workbook.md#workbookvbaprojectbytes).
 
-**Throws** — [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if the workbook has no macro project, or `name` is not in the project,
+**Throws:** [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if the workbook has no macro project, or `name` is not in the project,
 or names a `document`/`designer` module.
-**Throws** — [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
+**Throws:** [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
 
 #### `Workbook.addVbaReference`
 
@@ -342,9 +342,9 @@ Every existing module, reference, and host-info record rides through unchanged (
 [`addVbaReference`](./workbook.md#workbookaddvbareference)). Replacing the project also drops a stale signature, as
 [`vbaProjectBytes`](./workbook.md#workbookvbaprojectbytes) does.
 
-**Throws** — [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if the workbook has no macro project, or any field of `ref` is invalid
+**Throws:** [`VbaAuthorError`](./vba-errors.md#vbaauthorerror) if the workbook has no macro project, or any field of `ref` is invalid
 (see [`VbaLibraryReference`](./vba-project-editor.md#vbalibraryreference)).
-**Throws** — [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
+**Throws:** [`VbaParseError`](./vba-errors.md#vbaparseerror) if the attached `vbaProject.bin` is malformed.
 
 #### `Workbook.differentialStyles`
 
@@ -406,7 +406,7 @@ elements — or a conditional-formatting rule — that paint the same way share 
 Registering a name a source file already defined **overrides** that definition rather than adding
 a second one beside it.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the name is empty, or an element carries a `size` outside the four stripe
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the name is empty, or an element carries a `size` outside the four stripe
 types, or a `size` is not a positive integer — see `checkTableStyle` for why those are
 refused here rather than silently dropped.
 
@@ -449,7 +449,7 @@ would replace a designer's work with the Office default. For the same reason a s
 unauthored keeps the source's own encoding, including the `<a:sysClr>` form Excel uses for
 `dk1`/`lt1` so they follow the viewer's window colours.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if a colour is not 6 or 8 hexadecimal digits.
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if a colour is not 6 or 8 hexadecimal digits.
 
 #### `Workbook.themeColors`
 
@@ -502,7 +502,7 @@ theme's body typeface. The dependency runs the other way: with no default font a
 follows [`themeFonts`](./workbook.md#workbookthemefonts)'s minor face, so `setTheme({fonts: {minor}})` already reaches every
 unstyled cell and needs no second call here. See [`defaultFont`](./workbook.md#workbookdefaultfont) for the full chain.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if `size` is not a positive finite number, or `name` is empty — both
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if `size` is not a positive finite number, or `name` is empty — both
 produce a styles part Excel renders from some other font without ever reporting why.
 
 #### `Workbook.defaultFont`
@@ -585,7 +585,7 @@ adding a second: the id is the identity. Registering the same human twice under 
 legitimate and is what Excel itself does — see `restorePersons`. The id is normalised to the
 brace-wrapped upper-case GUID form the format requires, so a `crypto.randomUUID()` is accepted as-is.
 
-**Throws** — `SyntaxError` if the id is not a GUID.
+**Throws:** `SyntaxError` if the id is not a GUID.
 
 #### `Workbook.persons`
 
@@ -653,7 +653,7 @@ The exported pictures share the registry's byte arrays rather than copying them 
 never mutates image bytes, and copying every picture would double the memory of an image-heavy
 workbook to defend against a mutation nothing performs.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the sheet anchors an image id this workbook has not registered —
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the sheet anchors an image id this workbook has not registered —
 which is what a sheet from *another* workbook looks like from here. Emitting a package with a
 drawing pointing at media that was never registered is the silently-broken-image failure this
 refuses to start.
@@ -695,7 +695,7 @@ defineName(definedName: DefinedName): void;
 
 Register a defined name on the workbook.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the name is empty, or if a [`DefinedName.scope`](./workbook.md#definedname) is given that names no
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the name is empty, or if a [`DefinedName.scope`](./workbook.md#definedname) is given that names no
 existing worksheet — a scoped name must target a sheet that is already part of the workbook.
 
 #### `Workbook.addWorksheet`
@@ -706,7 +706,7 @@ addWorksheet(name: string, options: AddWorksheetOptions = {}): Worksheet;
 
 Create a worksheet and append it to the workbook.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the name is empty, too long, contains a forbidden character,
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the name is empty, too long, contains a forbidden character,
 or collides (case-insensitively) with an existing sheet.
 
 #### `Workbook.getWorksheet`
@@ -732,7 +732,7 @@ chain and fails several steps later with nothing left to say about which name wa
 That listing is the whole point — a lookup miss is a typo, a stale template or a renamed tab,
 and all three are answered by seeing the real names.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if no worksheet has that name (case-insensitive) or numeric id.
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if no worksheet has that name (case-insensitive) or numeric id.
 
 ---
 

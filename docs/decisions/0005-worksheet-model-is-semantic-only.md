@@ -1,4 +1,4 @@
-# ADR 0005 — `WorksheetModel` stays a semantic value; attached parts are out of scope
+# ADR 0005: `WorksheetModel` stays a semantic value; attached parts are out of scope
 
 **Status:** Accepted (2026-07-18) · Phase 3 core slice
 
@@ -6,7 +6,7 @@
 
 `Worksheet.model` is the sheet-to-sheet transfer contract: `dst.model = src.model`
 snapshots a sheet and reproduces it elsewhere. Its documentation claimed the snapshot
-was "everything that defines the sheet" and that the round-trip "drops nothing" — a
+was "everything that defines the sheet" and that the round-trip "drops nothing", a
 promise that exists to prevent a historical silent-data-loss bug (a getter field the
 setter ignored).
 
@@ -17,8 +17,8 @@ and background images, the autofilter, authored pivots, loaded pivots, and the
 byte-preserved references (charts, vector drawings, slicers) captured for
 round-tripping. A `dst.model = src.model` on a loaded sheet quietly dropped all of them.
 
-The parked question was whether to make the model *faithful* by carrying those parts —
-concretely, whether to put opaque preserved-part **byte closures** (and loaded-pivot
+The parked question was whether to make the model *faithful* by carrying those parts,
+concretely whether to put opaque preserved-part **byte closures** (and loaded-pivot
 records) onto the public model so the "drops nothing" claim became true.
 
 ## Decision
@@ -27,20 +27,20 @@ records) onto the public model so the "drops nothing" claim became true.
    sheet state; it does not carry attached parts that hold *workbook-level identity*.
    Those parts cannot be made correct inside a value snapshot: image bytes live on the
    `Workbook`, a pivot's source references a live `Worksheet` instance, and preserved
-   parts are opaque package bytes with their own relationship graph — none survives a
-   copy that only sees one sheet's state. Cramming byte blobs into the model would
-   break its character (the types are the docs) without being correct cross-workbook.
-   **Byte-closures-on-the-model is declined, not merely deferred.**
+   parts are opaque package bytes with their own relationship graph. None of that
+   survives a copy that only sees one sheet's state. Cramming byte blobs into the model
+   would break its character (the types are the docs) without being correct
+   cross-workbook. **Byte-closures-on-the-model is declined, not merely deferred.**
 
 2. **The autofilter is in scope and was added.** Unlike the attached parts, an
-   autofilter is pure sheet-level state — a range plus criteria, workbook-independent
+   autofilter is pure sheet-level state, a range plus criteria, workbook-independent
    (its `_FilterDatabase` defined name is derived by the writer at emit time, not
    stored), in the exact category the model already carries (`dataValidations`,
    `conditionalFormattings`). Its omission was an unprincipled gap, so `autoFilter` now
    rides the getter and setter like the other overlays.
 
 3. **The docs are made honest.** The `WorksheetModel` and `model`-getter comments now
-   scope the "drops nothing" claim to value + overlay content and name the boundary
+   scope the "drops nothing" claim to value plus overlay content and name the boundary
    explicitly: attached parts carrying workbook-level identity stay with their source
    sheet, and a model assignment *neither copies nor clears* them. The silent trap
    becomes a documented boundary.
@@ -57,19 +57,20 @@ records) onto the public model so the "drops nothing" claim became true.
   autofilter is no longer silently dropped; the transfer boundary is documented rather
   than discovered by data loss.
 - **Negative / deferred:** `dst.model = src.model` still does not transfer images,
-  pivots, or byte-preserved charts/drawings between sheets — now stated in the contract,
-  but a consumer who expected a deep clone must copy those parts by other means (none
-  yet exists).
+  pivots, or byte-preserved charts/drawings between sheets. That is now stated in the
+  contract, but a consumer who expected a deep clone must copy those parts by other
+  means, and no such API yet exists.
 - **Revisit when:** a concrete consumer needs to copy a sheet's attached parts (chart,
   pivot, image) to another sheet or workbook. At that point design the dedicated copy
-  primitive around that use-case — do not retrofit byte closures onto `WorksheetModel`.
+  primitive around that use-case rather than retrofitting byte closures onto
+  `WorksheetModel`.
 
 ---
 
-## Amendment (2026-08-25) — the frozen-pane view joins the model; threaded comments do not
+## Amendment (2026-08-25): the frozen-pane view joins the model; threaded comments do not
 
-Analysing the deferred copy primitive (§4) surfaced a second field in exactly the position
-`autoFilter` had been in: `Worksheet.view` — the frozen/split pane — was absent from
+Analysing the deferred copy primitive (§4) turned up a second field in exactly the position
+`autoFilter` had been in. `Worksheet.view`, the frozen/split pane, was absent from
 `WorksheetModel` for no stated reason, so `dst.model = src.model` reproduced every other
 sheet-level field and silently unfroze the header row. That is the same silent-loss shape this
 ADR exists to prevent, and §2's reasoning already decides it: a pane is a pair of split counts

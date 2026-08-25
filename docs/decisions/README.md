@@ -3,7 +3,7 @@
 One file per decision, kept because the *reasoning* is the part that rots invisibly: a
 config line can be re-read, but the four options we rejected and why cannot be recovered
 from the tree. An agent reaching a fork already covered here should find the answer
-instead of re-deriving it — and, more importantly, should find out when the answer was
+instead of re-deriving it, and more importantly should find out when the answer was
 **withdrawn**.
 
 That last part is why this index exists. Five of these records no longer say what they
@@ -12,9 +12,9 @@ ADR read as live guidance is worse than no ADR at all: ADR 0018's mechanism (spl
 module's source into `vbaProject.bin`) was verified, documented, confidently written, and
 does not work.
 
-**Status is the column to read first.** Retracted records are kept, not deleted — the
-disproof is the valuable part — but they are guidance about history, never about what to
-do now.
+**Status is the column to read first.** Retracted records are kept rather than deleted,
+because the disproof is the valuable part, but they are guidance about history, never
+about what to do now.
 
 **The acceptance date orders these, not the number.** ADR 0029 was renumbered out of a
 collision and sits last while dating from 2026-07-19; renumbering the twenty-seven records
@@ -37,7 +37,7 @@ after it would have broken far more cross-references than the collision did.
 | [0013](./0013-excel-desktop-as-automatable-tier3-oracle.md) | Excel Desktop is an automatable Tier-3 oracle for state-observable behavior | Accepted 2026-07-21 |
 | [0014](./0014-charts-shapes-slicers-are-round-trip-only-for-1-0.md) | Charts, vector shapes, slicers, and form controls stay round-trip-only for 1.0 | Accepted 2026-07-21 |
 | [0015](./0015-publishing-name-semver-and-first-version.md) | Package name, SemVer, and the first published version | Accepted 2026-07-21 |
-| [0016](./0016-vba-project-is-readable-authoring-deferred.md) | The VBA project is readable through a typed view; authoring stays deferred | Accepted 2026-07-22 · **amended** 07-23 by [0017](./0017-vba-authoring-consumer-gate-lifted.md), which [0019](./0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md) then retracted — read 0019 before relying on the amendment |
+| [0016](./0016-vba-project-is-readable-authoring-deferred.md) | The VBA project is readable through a typed view; authoring stays deferred | Accepted 2026-07-22 · **amended** 07-23 by [0017](./0017-vba-authoring-consumer-gate-lifted.md), which [0019](./0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md) then retracted; read 0019 before relying on the amendment |
 | [0017](./0017-vba-authoring-consumer-gate-lifted.md) | VBA authoring is in scope; the consumer gate is lifted | **Retracted** 2026-07-24 by [0019](./0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md) · originally Accepted 07-23 |
 | [0018](./0018-vba-edit-existing-module-source-by-splice.md) | Editing an existing macro's source is done by splicing the original `.bin` | **Retracted** 2026-07-24 by [0019](./0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md) |
 | [0019](./0019-vba-authoring-needs-real-pcode-recompile-cookie-retracted.md) | VBA authoring needs real, compiled p-code; the "recompile cookie" premise is retracted | Accepted 2026-07-24 |
@@ -60,14 +60,14 @@ after it would have broken far more cross-references than the collision did.
 
 ## Writing one
 
-Take the next free number. State the decision in the title as a claim, not a topic — "Async
-is one writer, not a mirrored pair" tells a reader what changed; "Async I/O" does not. Give
-the status line a date and, when the record depends on or alters another, say which and how.
-Then add the row here, because an index nobody updates is how a retracted record gets read
-as live guidance.
+Take the next free number. State the decision in the title as a claim, not a topic.
+"Async is one writer, not a mirrored pair" tells a reader what changed; "Async I/O" does
+not. Give the status line a date and, when the record depends on or alters another, say
+which and how. Then add the row here, because an index nobody updates is how a retracted
+record gets read as live guidance.
 
 When a decision turns out to be wrong, **retract it in place**: mark the status, name the
 record that retracts it, keep the body, and say in one line what specifically failed. Do not
-delete it and do not quietly edit the body into being correct — the disproof is why the file
+delete it and do not quietly edit the body into being correct. The disproof is why the file
 is worth keeping, and a body edited to match hindsight destroys exactly the evidence that
 would stop the next agent trying the same thing.

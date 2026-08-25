@@ -1,4 +1,4 @@
-# ADR 0033 — The OOXML oracle is a shared package, not a repo-owned .NET tool
+# ADR 0033: The OOXML oracle is a shared package, not a repo-owned .NET tool
 
 **Status:** Accepted (2026-08-15) · **supersedes the mechanism of** [ADR 0002](./0002-ooxml-validation-oracle.md),
 whose stance (Microsoft's `OpenXmlValidator` is the single authoritative conformance oracle, at
@@ -20,20 +20,20 @@ It worked. Two things it could not fix on its own:
 
 `ooxml-validate` was built to remove the first problem: one oracle, one pin, one report
 contract, distributed as a prebuilt binary. Its own code descends from this repo's
-`Program.cs` — the generalisation went upstream rather than the other way around.
+`Program.cs`, so the generalisation went upstream rather than the other way around.
 
 ## Decision
 
 Depend on **`ooxml-validate`** as a dev dependency and delete the repo-owned tool.
 
-That package now owns: the .NET oracle and its `net10.0` + `DocumentFormat.OpenXml 3.5.1` +
+That package now owns: the .NET oracle and its `net10.0` plus `DocumentFormat.OpenXml 3.5.1` plus
 `packages.lock.json` pin; binary distribution (self-contained builds published per platform,
 fetched on first use, checksum- and provenance-verified, cached in `~/.cache/ooxml-validate`);
 the `Microsoft365` conformance pin; batching; and the CI gate that turns an unobtainable
 oracle into a hard failure instead of a silent skip.
 
-This repo keeps what is actually about *this* project: `test/ooxml-validation/run.ts` — which
-emits the buffered and both streaming writers' real output, plus the negative controls — and
+This repo keeps what is actually about *this* project: `test/ooxml-validation/run.ts`, which
+emits the buffered and both streaming writers' real output plus the negative controls, and
 `allowed-errors.json`, the frozen baseline it holds them against.
 
 Unchanged from ADR 0002 and worth restating because it is easy to assume otherwise: the
@@ -58,7 +58,7 @@ this repo's baseline from a repository this one does not gate. That is the delib
 having one rule set instead of two, and it is not unmanaged: `ooxml-validate` carries its own
 fixture corpus and a committed snapshot of the diagnostics they produce, so a bump PR there has
 to show the delta in its own diff before it can land. What this repo gives up is the ability to
-pin *differently* — which is exactly the ability that caused the divergence.
+pin *differently*, which is exactly the ability that caused the divergence.
 
 **Renovate's subject changes.** [ADR 0027](./0027-dependencies-are-updated-by-a-bot-and-ci-is-the-reviewer.md)
 listed the NuGet lockfile as a thing to watch here; there is no longer one. The oracle now
@@ -68,8 +68,8 @@ bump of that one number moves both halves at once.
 **What the wrapper script was quietly doing.** `scripts/ooxml-validator.ts` shifted off the
 `--` that pnpm forwards to a script, so deleting it broke `pnpm run validate:ooxml --
 file.xlsx` while leaving the plain spelling fine. Re-adding a wrapper for one character would
-have put a per-repo patch back on top of the shared CLI's contract — the exact shape of the
-problem this ADR is about — so the fix went upstream: `ooxml-validate` 0.0.3 treats a bare
+have put a per-repo patch back on top of the shared CLI's contract, the exact shape of the
+problem this ADR is about, so the fix went upstream: `ooxml-validate` 0.0.3 treats a bare
 `--` as end-of-options, and that is the floor this repo depends on. The instance is trivial;
 the rule it illustrates is not. What a shared tool should do belongs in the shared tool, even
 when the local patch is smaller.

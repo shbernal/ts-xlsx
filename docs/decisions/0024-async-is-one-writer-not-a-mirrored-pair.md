@@ -1,4 +1,4 @@
-# ADR 0024 — Async is one writer, not a mirrored pair
+# ADR 0024: Async is one writer, not a mirrored pair
 
 **Status:** Accepted (2026-07-29) · I/O surface · the deferred `mtime` question was answered by [ADR 0032](./0032-package-output-is-reproducible.md) (2026-08-11)
 
@@ -6,7 +6,7 @@
 
 `readXlsx`/`writeXlsx` are synchronous and the README sells that as a differentiator. But
 `zipSync` on a large workbook blocks the event loop for seconds, which is a real problem for a
-server generating a workbook per request, and `WorkbookStreamWriter.commit()` is already `async` —
+server generating a workbook per request, and `WorkbookStreamWriter.commit()` is already `async`,
 so the obvious move was a symmetric `readXlsxAsync`/`writeXlsxAsync` pair over `fflate`'s
 worker-backed API, keeping the sync functions as the default.
 
@@ -19,15 +19,15 @@ callback `zip()` against `zipSync`, one process per case, `monitorEventLoopDelay
 | twenty sheets | 1402 ms | **581 ms** | max 41 ms |
 
 Under `zipSync` the loop does not tick at all for the whole duration. So the async writer buys
-responsiveness always, and wall-clock only when there are several parts to deflate in parallel —
-one sheet means one worker means the same total time.
+responsiveness always, and wall-clock only when there are several parts to deflate in parallel,
+since one sheet means one worker means the same total time.
 
 The read side does not mirror this, for two independent reasons.
 
 **The compression is not the cost.** `readXlsx` inflates and then runs the SAX parse and model
 build synchronously. Moving inflation to a worker leaves the majority of the work on the caller's
 thread, so a `readXlsxAsync` would advertise a non-blocking read and then block for most of its
-duration. That is a promise the library would not keep — the same reasoning that deleted
+duration. That is a promise the library would not keep, the same reasoning that deleted
 `UnsupportedFeatureError` before it shipped in the error-taxonomy work.
 
 **It would regress the zip-bomb ceiling.** `io/opc/inflate.ts` derives its guarantee from feeding
@@ -35,11 +35,11 @@ compressed input in 16 KiB slices and checking a running *output* counter betwee
 worst-case overshoot to one slice's expansion (~16 MiB at DEFLATE's ~1032:1 ceiling). With
 `AsyncUnzipInflate` the counter sits on the calling thread while a worker keeps producing, and
 `fflate` exposes no way to enforce a cap inside the worker. The cap would become advisory with
-unbounded lag, on the reader's primary hostile-input surface.
+unbounded lag, on the reader's primary hostile-input path.
 
 One premise behind the symmetric pair also turned out to be wrong. `commit()` being `async` is not
-evidence that the synchronous contract is already inconsistent: it awaits a Node `Writable` —
-backpressure and finish — which is I/O, not CPU offload. Streaming to a sink is inherently
+evidence that the synchronous contract is already inconsistent: it awaits a Node `Writable`, for
+backpressure and finish, which is I/O and not CPU offload. Streaming to a sink is inherently
 asynchronous; deflating a buffer is not.
 
 ## Decision
@@ -59,14 +59,14 @@ asynchronous; deflating a buffer is not.
    read counterpart, because a reader who notices the gap will otherwise assume it is an oversight.
 
 5. **Failures propagate exactly as the sync path's do.** `AuthoringError` from part-building arrives
-   as a rejection rather than a throw; a zip-layer failure — including an environment that cannot
-   spawn a worker — propagates unwrapped, as it already does from `writeXlsx`. Wrapping it in
+   as a rejection rather than a throw; a zip-layer failure, including an environment that cannot
+   spawn a worker, propagates unwrapped, as it already does from `writeXlsx`. Wrapping it in
    `InternalError` would have been false: that class documents "no caller can provoke one", and a
    worker-hostile environment is provocable.
 
 ## Consequences
 
-- The published surface gains one function and one asymmetry. A symmetric pair would have read
+- The published API gains one function and one asymmetry. A symmetric pair would have read
   better in the API reference and been worse in fact.
 - The event-loop win is available to the buffered writer without touching the streaming writer,
   which already solves a different problem (bounded memory, not thread occupancy).
@@ -85,9 +85,9 @@ asynchronous; deflating a buffer is not.
   `commit()`, which conflates I/O-async with CPU-offload-async. It would also make the common
   small-workbook case worse for no gain.
 - **Sync-only, workers as the whole answer.** Defensible, but it leaves a measured multi-second
-  stall on the table for a five-line function over a seam that was already clean.
+  stall on the table for a five-line function over a boundary that was already clean.
 - **Pinning `mtime` so the two writers are byte-identical.** Tempting while testing, but it changes
-  `writeXlsx`'s output and belongs to a separate question — whether `.xlsx` output should be
+  `writeXlsx`'s output and belongs to a separate question, whether `.xlsx` output should be
   reproducible at all, which it is not today for the same reason. *(Answered yes by
   [ADR 0032](./0032-package-output-is-reproducible.md), on a consumer's evidence rather than a
   test's convenience; the two writers are byte-identical as a side effect.)*

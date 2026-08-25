@@ -346,7 +346,7 @@ or style written through a covered address lands on the master, and reading a
 covered address returns the master's. Only the master ever holds an independent
 value, so the serialized sheet stays well-formed (no stray value on a covered cell).
 
-**Throws** — `SyntaxError` if the reference does not resolve to a single cell.
+**Throws:** `SyntaxError` if the reference does not resolve to a single cell.
 
 #### `Worksheet.hasCell`
 
@@ -367,7 +367,7 @@ it creates neither cells nor a format record, so asking about a column costs not
 not extend the used range. Writing through it (`getColumn(2).width = 12`) is what materialises
 the record.
 
-**Throws** — `RangeError` if the index is not a positive integer.
+**Throws:** `RangeError` if the index is not a positive integer.
 
 #### `Worksheet.getRow`
 
@@ -380,7 +380,7 @@ creates neither cells nor a format record, so asking about a row costs nothing a
 extend the used range. Writing through it (`getRow(3).height = 20`) is what materialises the
 record.
 
-**Throws** — `RangeError` if the number is not a positive integer.
+**Throws:** `RangeError` if the number is not a positive integer.
 
 #### `Worksheet.getRange`
 
@@ -401,9 +401,9 @@ A whole-row (`'1:1'`) or whole-column (`'A:A'`) reference is refused rather than
 million-cell block: OOXML states a whole-axis default in one attribute, and [`getRow`](./worksheet.md#worksheetgetrow) /
 [`getColumn`](./worksheet.md#worksheetgetcolumn) are how you write it.
 
-**Throws** — `SyntaxError` if the reference is unparseable, names another worksheet, or leaves an
+**Throws:** `SyntaxError` if the reference is unparseable, names another worksheet, or leaves an
 axis unbounded.
-**Throws** — `RangeError` if a numeric corner is not a positive integer within the sheet's bounds.
+**Throws:** `RangeError` if a numeric corner is not a positive integer within the sheet's bounds.
 
 #### `Worksheet.rowCount`
 
@@ -491,7 +491,7 @@ Define a table over a range of this sheet. The table's shape invariants (a legal
 name, at least one column, at least one row) are enforced here; conflicts with the
 rest of the sheet (e.g. an overlapping merge) are the writer's concern.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the name, columns, or geometry are invalid.
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the name, columns, or geometry are invalid.
 
 #### `Worksheet.tables`
 
@@ -520,7 +520,7 @@ Add a pivot table to this (destination) sheet, summarising a source sheet's data
 read once, now, so the pivot is a snapshot: later edits to the source do not change it. The
 supported shape (one summed value field, at least one row and column field) is enforced here.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the metric, fields, or source shape are unsupported.
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the metric, fields, or source shape are unsupported.
 
 #### `Worksheet.pivotTables`
 
@@ -565,7 +565,7 @@ fallback comment binds its cell by the same id inside the sheet's own comments p
 one id is therefore harmless and is not rejected — Excel's ids happen to be globally unique, but
 nothing resolves across a part boundary.
 
-**Throws** — `SyntaxError` if the anchor does not resolve to a single cell, if any id is not a GUID, if a
+**Throws:** `SyntaxError` if the anchor does not resolve to a single cell, if any id is not a GUID, if a
 message id is already used on this sheet, or if a mention's span is not a whole number the wire can
 express.
 
@@ -589,7 +589,7 @@ The conversation anchored to a cell, or `undefined` when that cell carries none.
 canonicalized, so an absolute `"$B$2"` finds the same thread as `"B2"`; it names the *anchor* cell,
 so a cell merely covered by the anchor's merged region is not a match.
 
-**Throws** — `SyntaxError` if the reference does not resolve to a single cell.
+**Throws:** `SyntaxError` if the reference does not resolve to a single cell.
 
 #### `Worksheet.addImage`
 
@@ -796,7 +796,7 @@ like [`addRow`](./worksheet.md#worksheetaddrow). A `count` larger than the rows 
 silently becomes a no-op. Cells carry their full style to the shifted position, and merged ranges
 shift with the rows they cover.
 
-**Throws** — `RangeError` if `start` is not a positive integer or `count` is negative.
+**Throws:** `RangeError` if `start` is not a positive integer or `count` is negative.
 
 #### `Worksheet.insertRow`
 
@@ -808,7 +808,7 @@ Insert one row of `values` at the 1-based `pos`, shifting the rows at and below 
 `values` takes either [`RowInput`](./worksheet.md#rowinput) shape (positional array or keyed object), like
 [`addRow`](./worksheet.md#worksheetaddrow). Shorthand for [`spliceRows`](./worksheet.md#worksheetsplicerows)`(pos, 0, values)`.
 
-**Throws** — `RangeError` if `pos` is not a positive integer.
+**Throws:** `RangeError` if `pos` is not a positive integer.
 
 #### `Worksheet.addRow`
 
@@ -848,7 +848,7 @@ Freeze the top `ySplit` rows and left `xSplit` columns in place; the rest of the
 beneath them. `freeze(1)` pins a header row; `freeze(0, 1)` pins the first column. Passing both
 zero clears the freeze (equivalent to [`unfreeze`](./worksheet.md#worksheetunfreeze)).
 
-**Throws** — `RangeError` if either split is a negative or non-integer count.
+**Throws:** `RangeError` if either split is a negative or non-integer count.
 
 #### `Worksheet.unfreeze`
 
@@ -870,7 +870,7 @@ any merged range there — down by `count`; otherwise the copies overwrite the r
 below without shifting. Each copy is a faithful duplicate of the source's values and per-cell
 styles, and carries no merge of its own, so a range can be merged onto a duplicated row afterwards.
 
-**Throws** — `RangeError` if `start` is not a positive integer or `count` is negative.
+**Throws:** `RangeError` if `start` is not a positive integer or `count` is negative.
 
 #### `Worksheet.spliceColumns`
 
@@ -884,7 +884,7 @@ place — the column analog of [`spliceRows`](./worksheet.md#worksheetsplicerows
 the right of the edit re-anchors to its new columns. Each inserted column is an array of values
 indexed by row (index 0 → row 1); an empty array inserts a blank column.
 
-**Throws** — `RangeError` if `start` is not a positive integer or `count` is negative.
+**Throws:** `RangeError` if `start` is not a positive integer or `count` is negative.
 
 #### `Worksheet.insertColumn`
 
@@ -896,7 +896,7 @@ Insert one column of `values` at the 1-based `pos`, shifting the columns at and 
 by one. `values` is an array of values indexed by row (index 0 → row 1), like
 [`addColumn`](./worksheet.md#worksheetaddcolumn). Shorthand for [`spliceColumns`](./worksheet.md#worksheetsplicecolumns)`(pos, 0, values)`.
 
-**Throws** — `RangeError` if `pos` is not a positive integer.
+**Throws:** `RangeError` if `pos` is not a positive integer.
 
 #### `Worksheet.addColumn`
 

@@ -13,82 +13,84 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | ↳ narrower | Only one tree, when iterating | `pnpm run typecheck:src` · `pnpm run typecheck:test` | Node 24 |
 | ↳ emitted `.d.ts` | The published declarations typecheck as a consumer sees them | `pnpm run typecheck:dist` | Node 24 + `pnpm run build` |
 | Lint | Style/format/floating-promise/console gates | `pnpm run lint` | Node 24 |
-| **Corpus** | Well-formed XML, package structure, and no behavior regression — the **spine** | `pnpm run corpus` | Node 24 |
-| **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `pnpm run validate:ooxml file.xlsx` | Node 24 + network on first call |
+| **Corpus** | Well-formed XML, package structure, and no behavior regression | `pnpm run corpus` | Node 24 |
+| **OOXML oracle** | Schema + semantic conformance against Microsoft's own validator | `pnpm run validate:ooxml file.xlsx` | Node 24 + network on first call |
 | Spec grounding | Ground a decision in the authoritative format | `ooxml-lookup` skill + Learn MCP + `docs/knowledge/specs/` | Node 24 |
 | Coverage | Which lines/branches/functions **both** suites together ever enter | `pnpm run coverage` | Node 24 (~74 s) |
 
-**`typecheck` means both trees.** There are two strict projects — `tsconfig.json` over `src/` and
-`tsconfig.test.json` over `test/` + `scripts/` + `tools/` — and the `verify` gate has always run
+**`typecheck` means both trees.** There are two strict projects, `tsconfig.json` over `src/` and
+`tsconfig.test.json` over `test/`, `scripts/` and `tools/`, and the `verify` gate has always run
 both. The `typecheck` *script* used to run only the first, which made the obvious command silently
 blind to the tree the regression corpus lives in: edit an adapter, get a green `typecheck`, and
 learn nothing. It now runs both, and `typecheck:src` is there for when you genuinely want one.
 
 **`typecheck` does not mean the third tree.** `tsconfig.dist.json` typechecks the *emitted*
-`.d.ts` through the package's `exports` map, and its subject only exists after `pnpm run build` —
-so it cannot live in `verify`, which must run on a never-built tree, and it runs in `build.yml`
+`.d.ts` through the package's `exports` map, and its subject only exists after `pnpm run build`,
+so it cannot live in `verify`, which must run on a never-built tree. It runs in `build.yml`
 instead (ADR 0031). Consequence worth knowing before you push: a change that breaks the published
 declarations but not `src/` passes every local gate and fails on the runner. If you are editing
-the public barrel or a type it re-exports, run `pnpm run build && pnpm run typecheck:dist` first —
-about 0.8 s on top of the build.
+the public barrel or a type it re-exports, run `pnpm run build && pnpm run typecheck:dist` first,
+which costs about 0.8 s on top of the build.
 
 **`lint:fix` needs no confirming `lint` pass.** `biome check --write` applies what it can and
 *still exits non-zero* if any diagnostic survives, so a green `lint:fix` already is the proof.
 Re-running `lint` after it only re-checks a tree you have been told is clean.
 
-**A warning fails the gate** — every Biome invocation here passes `--error-on-warnings`, because
+**A warning fails the gate.** Every Biome invocation here passes `--error-on-warnings`, because
 Biome exits 0 on warnings and most of the `style` group (`noNonNullAssertion` among them) is a
 warning. When one fires, fix the code, do not reach for the autofix: `?.` on an assertion that was
 load-bearing turns a crash into silent wrong output. Non-null assertions are usually a signal that
-an index is being carried where the object itself could be — see `src/vba/cfb-writer.ts`.
+an index is being carried where the object itself could be. See `src/vba/cfb-writer.ts`.
 
 **Run one corpus case, not 265, while you iterate.** `node test/corpus/run.ts --case
 <id-or-cluster-glob>` is well under a second against ~13 s for the whole corpus, and prints the
 case in full. `--json` gives one machine-readable report object. The summary line reaches stdout
-in *every* mode — never pipe a run through `grep` to find a case, and never run the corpus twice
+in *every* mode, so never pipe a run through `grep` to find a case, and never run the corpus twice
 to get both the detail and the tally.
 
-**Cost is not the only axis — authority is (ADR 0012).** These layers witness three
-different things, and a lower one cannot stand in for a higher one:
+**Cost is not the only thing that separates these layers. Authority is (ADR 0012).** They witness
+three different things, and a lower one cannot stand in for a higher one:
 
-- **Self-consistency** — a write→read round-trip is a fixed point of *our own* code. It
-  catches *unilateral* writer/reader bugs; it is structurally blind to *correlated* ones
+- **Self-consistency.** A write→read round-trip is a fixed point of *our own* code. It
+  catches *unilateral* writer/reader bugs. It is structurally blind to *correlated* ones
   (both halves wrong in compensating directions) and to anything spanning two package
   parts. Sufficient only for **intra-model** claims (a value survives, a style does not bleed).
-- **Spec-conformance** — the `OpenXmlValidator` oracle and the `inspectPackage` structural
-  facts. An *independent* implementation, so it breaks the round-trip correlation — but it
+- **Spec-conformance.** The `OpenXmlValidator` oracle and the `inspectPackage` structural
+  facts. An *independent* implementation, so it breaks the round-trip correlation, but it
   enforces what ECMA-376 *states*, not what Excel *does*. Required for **single-part
   conformance**.
-- **Excel behavior** — what Excel Desktop actually does. The only ground truth for cross-part
-  invariants the spec omits (e.g. a table's header cells must exist and match its column
-  names). On a Windows+Excel host, scriptable via the Excel-oracle harness for state-observable
-  behavior (ADR 0013); recorded as `provenance: {source: 'excel-desktop-verification'}`.
+- **Excel behavior.** What Excel Desktop actually does. The only ground truth for cross-part
+  invariants the spec omits, for example that a table's header cells must exist and match its
+  column names. On a Windows+Excel host, scriptable via the Excel-oracle harness for
+  state-observable behavior (ADR 0013); recorded as
+  `provenance: {source: 'excel-desktop-verification'}`.
 
 For a **cross-part correspondence**, one Excel-Desktop verification *seeds* the invariant
 and a corpus fact whose shape *is* the relationship *locks* it. The `inspectPackage`
-vocabulary is partitioned by part and cannot phrase most cross-part seams yet — ADR 0012
+vocabulary is partitioned by part and cannot phrase most cross-part relationships yet. ADR 0012
 lists the open ones.
 
-**To run the whole net at once, use `node scripts/verify.ts`** — every gate above plus
+**To run the whole net at once, use `node scripts/verify.ts`.** That is every gate above plus
 `docs:check` and `constitution:check`, run concurrently, reported as one table with
 per-gate timing (~14 s wall against ~27 s of serial work). Prefer it over assembling the
 chain by hand, which is how `docs:check` and `constitution:check` get silently dropped.
 `--quick` is the inner loop: types, unit tests, and lint scoped to your changed files, no
-corpus (~5 s) — faster, but **not** a substitute for the full run. Invoke it with `node`,
+corpus (~5 s). Faster, but **not** a substitute for the full run. Invoke it with `node`,
 not `pnpm run`, to skip ~1 s of package-manager wrapper. `pnpm test`, lefthook's `pre-push`
-hook and CI's `corpus.yml` are all the same full run — there is no second list of gates to
-keep in step, so adding one here is a one-line change that CI picks up. Why it is shaped this way — the pool width, the
-cache key, the incremental-`tsc` traps — is [ADR 0022](./decisions/0022-verification-is-one-cached-parallel-entrypoint.md).
+hook and CI's `corpus.yml` are all the same full run, so there is no second list of gates to
+keep in step and adding one here is a one-line change that CI picks up. Why it is shaped this
+way, including the pool width, the cache key and the incremental-`tsc` traps, is
+[ADR 0022](./decisions/0022-verification-is-one-cached-parallel-entrypoint.md).
 
 The **Stop hook** runs `verify --full --cached` at each turn boundary, so you cannot end a
-turn green while regressing the spine. `--cached` exits immediately when the working tree
-is byte-for-byte what it was the last time this gate set passed — a *hit means proven*, not
+turn green while regressing the corpus. `--cached` exits immediately when the working tree
+is byte-for-byte what it was the last time this gate set passed. A *hit means proven*, not
 skipped, because the key is the HEAD commit plus the full diff and every untracked file. A
 turn that changed nothing verifiable costs ~0.3 s; one that changed anything pays the real
-~13 s. The OOXML oracle is **not** in the hook (it is slower, and it spawns a large
-external binary); invoke it yourself — see below.
+~13 s. The OOXML oracle is **not** in the hook, because it is slower and it spawns a large
+external binary. Invoke it yourself; see below.
 
-**Write scratch to `.tmp/`** — probes, dumps, generated workbooks, anything regenerable
+**Write scratch to `.tmp/`.** Probes, dumps, generated workbooks, anything regenerable
 (`$SCRATCH` and `$TMPDIR` both point there; CLAUDE.md makes it the rule). It is git-ignored,
 so probing leaves `git status` clean *and* costs nothing at the turn boundary: an untracked
 file anywhere else is part of the cache key and buys you a full re-verify.
@@ -96,35 +98,35 @@ file anywhere else is part of the cache key and buys you a full re-verify.
 ## Situation → check
 
 **You want to know whether something is actually tested.**
-Run `pnpm run coverage` — never `node --test --experimental-test-coverage` on its own.
+Run `pnpm run coverage`, never `node --test --experimental-test-coverage` on its own.
 The library is covered by two separate suites, and each one alone reports numbers that
 are confidently wrong about everything the other covers: measured on the unit suite
 alone, `src/core/table-style.ts` reads **0 % of functions covered** while the corpus
 exercises both of them. `pnpm run coverage` runs both and reports the union, which is
 the only total that means what it says. `--suite unit` / `--suite corpus` shows what one
 contributes and says so in the output; those partial runs are held to no floor. Modules
-no suite loads at all are listed by name under the table rather than omitted — that list
-is where a genuinely orphaned module shows up. See ADR 0035.
+no suite loads at all are listed by name under the table rather than omitted, and that
+list is where a genuinely orphaned module shows up. See ADR 0035.
 
 **You added or changed a writer path (anything that emits XML).**
-Run `pnpm run corpus` — it parses the written package and asserts well-formedness,
+Run `pnpm run corpus`. It parses the written package and asserts well-formedness,
 part/relationship/content-type structure, and element ordering
 (`test/corpus/adapters/ooxml-facts.ts`), plus every behavior regression. Then run the
-schema/semantic oracle on a representative file — use the **`validate-ooxml` skill**,
+schema/semantic oracle on a representative file: use the **`validate-ooxml` skill**,
 which emits a workbook and runs `pnpm run validate:ooxml` for you. New behavior ships
 with a corpus case in the same change (use the **`write-corpus-case` skill**).
 
-**A generated file's *content* is right but its *layout* opens wrong** — a frozen header
+**A generated file's *content* is right but its *layout* opens wrong**, meaning a frozen header
 row unpainted until you click it, a missing outline bar, no sheet selected.
 Suspect an omitted **view-initialisation** fact before you suspect the data or the styles.
 Excel writes `<bookViews><workbookView/>`, `tabSelected="1"` on exactly one `<sheetView>`,
 and `outlineLevelCol`/`outlineLevelRow` on `<sheetFormatPr>` into every file it saves;
 consumers lay the pane geometry and the outline bars out against them, so omitting them
 leaves that layout uninitialised. Such a package is still schema-valid and still opens
-without a repair prompt — **neither the oracle nor `open-verdict.ps1` will flag it**. The
+without a repair prompt, so **neither the oracle nor `open-verdict.ps1` will flag it**. The
 writer emits all three unconditionally now (`DEFAULT_WORKBOOK_VIEW`, `src/core/workbook.ts`).
 That they were omitted is certain; that any *one* of them causes a given paint glitch is
-inference from the diff — the single-variable A/B that would isolate it was never run, and
+inference from the diff. The single-variable A/B that would isolate it was never run, and
 the original report only ever reproduced under a window geometry we could not recreate. So
 if this class of symptom recurs with all three present, the cause is elsewhere: reopen the
 investigation rather than assuming it regressed here.
@@ -134,35 +136,36 @@ to find.
 
 **You are cutting a release.**
 Bump `version` in `package.json`, cut `CHANGELOG.md`'s `## [Unreleased]` into the new
-version's section, commit, and push — then let CI go green *before* tagging, because the
+version's section, commit, and push. Then let CI go green *before* tagging, because the
 tag is what the release names and a tag that fails its own gates is the one thing you
 cannot quietly redo. Tag `vX.Y.Z`, push it, and publish a GitHub release on it: that
 release event is what publishes to npm (ADR-0026), authenticated by OIDC with no
-credential in the repository. **Publishing that release is the point of no return** — there
+credential in the repository. **Publishing that release is the point of no return.** There
 is no reviewer holding the job any more, so it goes to the registry unattended and a version
-number cannot be reused. Rehearse when anything about the release is unusual — dispatch
-`publish.yml` from the tag with `dry_run` on — but note the rehearsal reaches
-`npm publish --dry-run` only for a version the registry does not already serve. A green rehearsal does mean the identity was
-accepted: `--dry-run` alone reports a rejected one as a warning and exits `0`, so the job
-checks the exchange itself rather than trusting npm's exit code. If the publish job fails the "tag and version
-must be the same claim" step, fix `package.json` and re-tag; do not weaken the check. If it
-fails at `npm publish` with a **404** on a package that plainly exists, that is npm refusing
-the OIDC identity, not a missing package: read the trusted publisher on npmjs.com and check
-its repository, workflow filename (`publish.yml`) and environment (`npm-publish`) against
-the job. A publish that has never once succeeded is far more likely misconfigured there than
-here — do not start editing the workflow.
+number cannot be reused. Rehearse when anything about the release is unusual, by dispatching
+`publish.yml` from the tag with `dry_run` on, but note the rehearsal reaches
+`npm publish --dry-run` only for a version the registry does not already serve. A green
+rehearsal does mean the identity was accepted: `--dry-run` alone reports a rejected one as a
+warning and exits `0`, so the job checks the exchange itself rather than trusting npm's exit
+code. If the publish job fails the "tag and version must be the same claim" step, fix
+`package.json` and re-tag; do not weaken the check. If it fails at `npm publish` with a
+**404** on a package that plainly exists, that is npm refusing the OIDC identity, not a
+missing package: read the trusted publisher on npmjs.com and check its repository, workflow
+filename (`publish.yml`) and environment (`npm-publish`) against the job. A publish that has
+never once succeeded is far more likely misconfigured there than here, so do not start
+editing the workflow.
 
 **You added or changed a reader path (parsing foreign XML).**
 Treat all input as hostile (ADR-0004): no unbounded allocation, no entity expansion,
-inflation bounded by output counted, unrecognized tokens dropped — never cast with
+inflation bounded by output counted, unrecognized tokens dropped and never cast with
 `as`. Add a **fixture-backed corpus case** for any real-world file shape you learn
 about (`test/corpus/fixtures/<case>/…`), then `pnpm run corpus`. A round-trip case
 (write → read) is the strongest reader proof.
 
-**You just wrote an assertion that guards an invariant — prove it can fail.**
+**You just wrote an assertion that guards an invariant. Prove it can fail.**
 A test that cannot fail is worse than no test: it reports a guarantee nobody is holding. Break the
-thing on purpose, watch the assertion fire, restore. This has caught real theatre more than once —
-an archive-length check meant to pin two writers to the same compression level passed happily at
+thing on purpose, watch the assertion fire, restore. This has caught real theatre more than once.
+An archive-length check meant to pin two writers to the same compression level passed happily at
 level 9, because below roughly 200 rows every level compresses a fixture identically; a
 compile-time exhaustiveness proof is only a proof once you have added a field and seen it named in
 the error. Applies to every mechanism in this repo that exists to catch a future mistake: the facet
@@ -170,20 +173,20 @@ registries, the entry/layering gates, the size budgets. Cheap, and it is the dif
 check and a comment.
 
 **You are about to claim something is faster, or that it stops blocking the event loop.**
-Measure, and distrust the first number — a bad measurement will talk you out of a correct change.
+Measure, and distrust the first number. A bad measurement will talk you out of a correct change.
 Three traps, all hit in one sitting while sizing `writeXlsxAsync`:
 - **One process per case.** Running the baseline and the candidate in the same process loads the
   second with the first's GC pressure. On a ~42 MB payload that alone made the faster path look
   slower. Pass the case in on `argv` and run the script twice.
 - **Never hand-roll a `setInterval` watcher for loop blocking.** It reports timer coalescing as
   blocking, and it reports `max = 0` when the loop is blocked so hard the callback never fires
-  *once* — so the worst case reads as flawless. `perf_hooks.monitorEventLoopDelay` measures the
+  *once*, so the worst case reads as flawless. `perf_hooks.monitorEventLoopDelay` measures the
   actual thing.
 - **Responsiveness and throughput are two claims.** Moving work to a worker can leave wall-clock
   untouched while cutting the longest stall from seconds to milliseconds. Say which one you
   measured; a change often buys one and not the other.
 
-Probes go in `.tmp/`. Put the numbers in the commit or the ADR — the next agent should not have to
+Probes go in `.tmp/`. Put the numbers in the commit or the ADR. The next agent should not have to
 re-derive them to know whether the trade still holds.
 
 **You are fixing a bug.**
@@ -191,47 +194,48 @@ Test-first. Write an implementation-blind corpus case that reproduces it
 (`write-corpus-case` skill), set its `baseline` to what the code does *today*, watch it
 fail, then fix until `pnpm run corpus` is green. We never fix the same bug twice.
 
-**You need a cross-part / Excel-quirk invariant seeded — the only ground truth is what Excel Desktop does.**
+**You need a cross-part or Excel-quirk invariant seeded, and the only ground truth is what Excel Desktop does.**
 On a Windows host with Excel installed, don't do it by hand: run the Excel-oracle harness.
-Write a probe (`tools/excel-oracle/probes/<invariant>.json`: a cell spec + the cells to
+Write a probe (`tools/excel-oracle/probes/<invariant>.json`: a cell spec plus the cells to
 observe), then `node tools/excel-oracle/run.ts <probe.json> --out test/corpus/fixtures/excel-oracle/<invariant>.json`.
 It opens the file headless over COM, reads formula/value per cell, re-saves to reveal the
 geometry Excel considers canonical, and writes an auditable observation sidecar. This
-**seeds** the invariant only — then **lock** it with a Tier-2 seam fact that runs in CI and
+**seeds** the invariant only. Then **lock** it with a Tier-2 seam fact that runs in CI and
 a case carrying `provenance: {source: 'excel-desktop-verification', ref: '<sidecar>'}`. The
 harness is a probe, not a test: it needs Windows+Excel+`pwsh`, self-guards to a loud refusal
 without them, and **never** runs in CI (`pnpm run corpus` must not depend on Excel).
 
-If the invariant is *geometry* — is an over-limit `ht`/`width` clamped, quantized or honoured? —
-use the sibling probe instead, which takes a workbook you already wrote rather than a probe spec:
+If the invariant is *geometry*, such as whether an over-limit `ht`/`width` is clamped, quantized
+or honoured, use the sibling probe instead, which takes a workbook you already wrote rather than a
+probe spec:
 `pwsh -NoProfile -File tools/excel-oracle/read-geometry.ps1 -Path <file.xlsx> [-Rows n] [-Cols n] [-NoResave]`.
 It reports per-row `RowHeight`, per-column `ColumnWidth` and the sheet's `StandardHeight`/
 `StandardWidth`, and re-saves a copy beside the input so you can diff the `ht`/`width` Excel itself
-writes. Reading a value back is the only thing that separates a clamp from a passthrough — see
+writes. Reading a value back is the only thing that separates a clamp from a passthrough. See
 `docs/knowledge/specs/grid-geometry-limits-are-excels-not-the-schemas.md` for what it found.
 
-Both probes answer
-*state-observable* questions on *one Excel build* only — see [ADR 0013](./decisions/0013-excel-desktop-as-automatable-tier3-oracle.md)
+Both probes answer *state-observable* questions on *one Excel build* only. See
+[ADR 0013](./decisions/0013-excel-desktop-as-automatable-tier3-oracle.md)
 for what is and isn't scriptable and the five standing pitfalls.
 
-**Someone reports a workbook *looks* wrong in Excel — text missing, colours not the ones authored.**
-Neither probe above can answer this: both are state-observable, and painting is not state. Run the
-control before you touch the writer. Re-save the file through Excel itself
+**Someone reports a workbook *looks* wrong in Excel: text missing, colours not the ones authored.**
+Neither probe above can answer this, because both are state-observable and painting is not state.
+Run the control before you touch the writer. Re-save the file through Excel itself
 (`pwsh -NoProfile -File tools/excel-oracle/observe.ps1 -Path <wb.xlsx>`) and have the reporter try
-the Excel-authored copy. **If the fault survives, nothing this library emits is in the causal path**
-— and a "fix" to the writer would be a guess that outlives the report. Two such reports are already
+the Excel-authored copy. **If the fault survives, nothing this library emits is in the causal path**,
+and a "fix" to the writer would be a guess that outlives the report. Two such reports are already
 settled this way: `docs/knowledge/specs/frozen-pane-header-ink-is-an-excel-repaint-fault.md` (a
-frozen header row whose ink goes missing until clicked — reproduces in Excel's own re-save) and
+frozen header row whose ink goes missing until clicked, which reproduces in Excel's own re-save) and
 `docs/knowledge/specs/dark-mode-repaints-authored-cell-colors.md` (Dark Mode overrides every
 encoding of an authored colour). Read both before opening a rendering investigation; when a genuinely
 new one needs pixels, the interactive tier is the `excel-gui-automation` skill, and sampling the
 rendered pixels beats describing a screenshot.
 
 **You are unsure how an OOXML element / attribute / enum / child-ordering should look.**
-Do not guess — the format is full of surprises. In order:
+Do not guess. The format is full of surprises. In order:
 1. Ask the vendored **`ooxml-lookup`** skill. It holds the ECMA-376 graph as a local
-   SQLite database and answers the four-hop question — element → type → base type →
-   attribute group → facets — in one call, which is the join you would otherwise do by
+   SQLite database and answers the four-hop question (element → type → base type →
+   attribute group → facets) in one call, which is the join you would otherwise do by
    hand across several XSD files:
 
    ```bash
@@ -242,34 +246,34 @@ Do not guess — the format is full of surprises. In order:
    node $S values ST_CellType   # the legal value space: enum, facets, patterns, unions
    ```
 
-   Write prefixes the way you already write them — `x:`, `c:`, `a:`, `r:`, `s:`, `v:` all
+   Write prefixes the way you already write them: `x:`, `c:`, `a:`, `r:`, `s:`, `v:` all
    resolve. Answers come back canonicalised (`x:c` replies `sml:c`) because `x` is also
    VML's excel namespace, and a bare name returns every match rather than guessing. This is
-   **read-only reference**, not a validator — see the note below. Read
+   **read-only reference**, not a validator; see the note below. Read
    `.claude/skills/ooxml-lookup/SKILL.md` for the rest, including direct SQL when the
    subcommands do not fit.
 2. Query the **microsoft-learn MCP** (`microsoft_docs_search` / `microsoft_docs_fetch`)
-   for Excel's *real-world deviations* from the standard — the prose the schema can't
+   for Excel's *real-world deviations* from the standard, which is the prose the schema can't
    encode. This is enabled for the project (ADR-0007); if a run says the server isn't
    available, enable `microsoft-learn` for the project.
 3. Check `docs/knowledge/specs/` for a note we already wrote on the same corner.
 
 **You changed the build/emit path (`tsconfig.build.json`, import specifiers, a runtime reference type-stripping tolerates).**
-The dev/test loop runs *stripped* `src/` `.ts`; consumers run *`tsc`-emitted* `dist/` JS — two artifacts that can diverge. `pnpm run build && pnpm run corpus:dist` runs the full behavioral corpus against the emitted JS (`CORPUS_TARGET=dist`), not just the `smoke:dist` round-trip. CI's `build` workflow does this on every PR; run it locally when you touch anything emit-shaped.
+The dev/test loop runs *stripped* `src/` `.ts`; consumers run *`tsc`-emitted* `dist/` JS, and those two artifacts can diverge. `pnpm run build && pnpm run corpus:dist` runs the full behavioral corpus against the emitted JS (`CORPUS_TARGET=dist`), not just the `smoke:dist` round-trip. CI's `build` workflow does this on every PR; run it locally when you touch anything emit-shaped.
 
 **You added, removed or moved a public export.**
 Symbols live in exactly one entry barrel under `src/entries/`, and `src/index.ts` is `export *`
-over all seven — so adding a name in two places does not conflict, it makes the name *vanish* from
+over all seven, so adding a name in two places does not conflict, it makes the name *vanish* from
 the root specifier with no error anywhere. `node scripts/check-entries.ts` (already in
 `verify --full`) is what catches that, along with an entry `package.json` forgot to publish. Then
-`pnpm run docs` — the reference is generated from the root barrel, so a symbol missing from the
+run `pnpm run docs`. The reference is generated from the root barrel, so a symbol missing from the
 diff is a symbol that fell out of the union. Error classes go in `src/entries/errors.ts` and
 nowhere else (ADR-0023).
 
 **You changed what a module imports, and it crossed a directory.**
 `node scripts/check-layering.ts` proves the graph's direction still holds. If the import turned a
 `import type` into a value import, also run `pnpm run build && pnpm run size`: the per-entry
-closures are the only measurement that notices a codec joining an entry's graph — the package
+closures are the only measurement that notices a codec joining an entry's graph, since the package
 total does not move when a boundary is crossed, only when something new is written.
 
 **You are about to finish a turn / open a PR.**
@@ -287,7 +291,7 @@ enforce one rule set rather than two that drifted apart.
 
 There is no .NET toolchain to install: the package downloads a prebuilt, self-contained
 binary on its first call, verifies its checksum and build provenance, and caches it under
-`~/.cache/ooxml-validate` — so the only requirement beyond a dev install is network
+`~/.cache/ooxml-validate`, so the only requirement beyond a dev install is network
 access, once. Startup dominates the cost (~0.4 s, then ~9 ms per additional package), so
 validate several files in one call.
 
@@ -300,16 +304,16 @@ diagnostic.
 
 If the oracle cannot be obtained (offline, say), do **not** reach for a second validator.
 The vendored schema graph is deliberately **not** wired into an `xmllint`-style path
-(ADR-0002, ADR-0034): a naive XSD-only pass gives false alarms and false confidence — it
+(ADR-0002, ADR-0034): a naive XSD-only pass gives false alarms and false confidence. It
 can't do the semantic checks or validate the OPC parts, and the Transitional schemas are
-subtly permissive. Instead: rely on `pnpm run corpus` (well-formedness + structure)
+subtly permissive. Instead: rely on `pnpm run corpus` (well-formedness plus structure)
 locally, query `ooxml-lookup` and the Learn MCP to reason about correctness, and let CI's
 `ooxml-validation` workflow run the authoritative oracle on your PR.
 
 When the oracle *has* run and you have a diagnostic, `ooxml-lookup` answers the question
-that follows it. Hand `explain` the diagnostic as JSON — the `id`, `description`, `xpath`
-and `partUri` an `ooxml-validate` report already gives you — and it returns what *would*
-have been legal at that position:
+that follows it. Hand `explain` the diagnostic as JSON, meaning the `id`, `description`,
+`xpath` and `partUri` an `ooxml-validate` report already gives you, and it returns what
+*would* have been legal at that position:
 
 ```bash
 node .claude/skills/ooxml-lookup/scripts/ooxml.mjs explain \

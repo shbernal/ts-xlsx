@@ -111,8 +111,8 @@ The cell at a column in this row, creating it on first access. The column is a 1
 Resolves through merges exactly as [`Worksheet.getCell`](./worksheet.md#worksheetgetcell) does: addressing a cell covered by
 a merged region yields that region's master.
 
-**Throws** — `RangeError` if the column is not a positive integer.
-**Throws** — `SyntaxError` if the column letters do not name a column.
+**Throws:** `RangeError` if the column is not a positive integer.
+**Throws:** `SyntaxError` if the column letters do not name a column.
 
 #### `Row.cells`
 

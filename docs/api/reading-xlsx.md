@@ -18,8 +18,8 @@ yet decode.
 function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook;
 ```
 
-**Throws** — [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is neither — a legacy `.xls` (`.format === 'xls'`) or
+**Throws:** [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is neither — a legacy `.xls` (`.format === 'xls'`) or
 an unrecognised/non-ZIP blob (`'unknown'`).
-**Throws** — [`XlsbParseError`](./xlsb-errors.md#xlsbparseerror) if a binary `.xlsb` part is malformed.
-**Throws** — [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked — a corrupt or
+**Throws:** [`XlsbParseError`](./xlsb-errors.md#xlsbparseerror) if a binary `.xlsb` part is malformed.
+**Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked — a corrupt or
 truncated archive, or one exceeding the inflate bound (a probable zip bomb).

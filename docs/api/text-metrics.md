@@ -25,5 +25,5 @@ line of the truth is what that needs.
 function estimateWrappedLines(text: string, width: number): number;
 ```
 
-**Throws** — `RangeError` if `width` is not a positive finite number - a column of zero width wraps
+**Throws:** `RangeError` if `width` is not a positive finite number - a column of zero width wraps
 nothing, and silently answering `Infinity` or `NaN` would put that straight into a row height.

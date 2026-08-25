@@ -208,16 +208,16 @@ function docTags(symbol: TypeSymbol, checker: Checker, href: LinkResolver = NO_L
       lines.push('', '```ts', text, '```');
     } else if (tag.name === 'param') {
       const [name, ...rest] = text.split(/\s+/);
-      lines.push(`- \`${name}\` — ${rest.join(' ')}`);
+      lines.push(`- \`${name}\`: ${rest.join(' ')}`);
     } else if (tag.name === 'returns') {
-      lines.push(`**Returns** — ${text}`);
+      lines.push(`**Returns:** ${text}`);
     } else if (tag.name === 'throws') {
       // The type slot is the tag's subject — which error — so it leads the line. Dropping it, as
       // this once did, left the reader told that a throw happens but never told what is thrown.
       const {errorType, prose} = splitThrows(raw, symbol.name);
       const named = href(errorType);
       const subject = named === undefined ? `\`${errorType}\`` : `[\`${errorType}\`](${named})`;
-      lines.push(`**Throws** — ${subject}${prose ? ` ${resolveLinks(prose, href)}` : ''}`);
+      lines.push(`**Throws:** ${subject}${prose ? ` ${resolveLinks(prose, href)}` : ''}`);
     }
   }
   return lines;
@@ -556,14 +556,14 @@ function main(project: Project) {
     '<!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->',
     '',
     'Every symbol below is re-exported from the package root and generated straight from',
-    'its TypeScript declaration — the types are the contract.',
+    'its TypeScript declaration, so the types are the contract.',
     '',
     ...ordered.map((page) => {
       const slug = slugify(page.title);
       const symbols = page.entries
         .map((e) => `[\`${e.name}\`](./${slug}.md#${anchor(e.name)})`)
         .join(', ');
-      return `- **[${page.title}](./${slug}.md)** — ${symbols}`;
+      return `- **[${page.title}](./${slug}.md)**: ${symbols}`;
     }),
     '',
   ].join('\n');

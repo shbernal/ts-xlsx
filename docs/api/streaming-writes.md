@@ -225,7 +225,7 @@ Serialise an eagerly-committed row and release its cells from the model. Called 
 [`StreamedRow.commit`](./streaming-writes.md#streamedrowcommit); the row's `<row>` XML is retained (interned into the workbook's live
 style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
 
-**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the row carries a shared-formula cell — a finished row cannot join the
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the row carries a shared-formula cell — a finished row cannot join the
 whole-sheet formula planning, so shared formulas must be authored through [`getCell`](./streaming-writes.md#worksheetstreamwritergetcell).
 
 #### `WorksheetStreamWriter.getCell`

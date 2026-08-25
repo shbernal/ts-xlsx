@@ -184,7 +184,7 @@ getCell(row: number): Cell;
 The cell at a 1-based row number in this column, creating it on first access. Resolves through
 merges exactly as [`Worksheet.getCell`](./worksheet.md#worksheetgetcell) does.
 
-**Throws** — `RangeError` if the row is not a positive integer.
+**Throws:** `RangeError` if the row is not a positive integer.
 
 #### `Column.cells`
 
