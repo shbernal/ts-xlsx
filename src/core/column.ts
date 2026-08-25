@@ -10,7 +10,7 @@
 
 import {encodeAddress, numberToColumn} from './address.ts';
 import type {Cell} from './cell.ts';
-import {INTERNAL} from './internal.ts';
+import {type AssertNever, INTERNAL} from './internal.ts';
 import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
 import type {CellValue} from './value.ts';
 import type {ColumnProperties, Worksheet} from './worksheet.ts';
@@ -196,8 +196,6 @@ export class Column {
     this.#sheet[INTERNAL].ensureColumnProperties(this.index)[key] = value;
   }
 }
-
-type AssertNever<T extends never> = T;
 
 /**
  * Compile-time proof that {@link Column} mirrors every {@link ColumnProperties} field — including

@@ -11,7 +11,7 @@ import {cellToModel, copyCellContent} from './cell.ts';
 import {cloneConditionalFormatting} from './conditional-formatting.ts';
 import {overwrite, replaceContents} from './containers.ts';
 import {cloneDataValidation} from './data-validation.ts';
-import {INTERNAL} from './internal.ts';
+import {type AssertNever, INTERNAL} from './internal.ts';
 import type {CellModel, Worksheet, WorksheetModel} from './worksheet.ts';
 
 /** One field of a {@link WorksheetModel}, with both directions of its round-trip declared together. */
@@ -203,8 +203,6 @@ export const WORKSHEET_MODEL_FACETS = [
     },
   ),
 ];
-
-type AssertNever<T extends never> = T;
 
 /**
  * Compile-time proof that {@link WORKSHEET_MODEL_FACETS} covers every {@link WorksheetModel} field.

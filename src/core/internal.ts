@@ -29,3 +29,12 @@ export const INTERNAL: unique symbol = Symbol('ts-xlsx codec channel');
  * millions, and a per-instance internals object would be a real cost for state most cells never carry.
  */
 export const NAMED_STYLE_ID: unique symbol = Symbol('ts-xlsx named style link');
+
+/**
+ * The exhaustiveness proof the mirror types are built on: instantiate it with a `keyof` difference
+ * that should be empty. An unmirrored field leaves that difference non-`never`, which does not
+ * satisfy the constraint, so the build fails naming the field that was missed — a type error at the
+ * declaration rather than a silent hole discovered by a round trip. `Row`, `Column` and
+ * `WORKSHEET_MODEL_FACETS` each carry one of these proofs; this is the mechanism all three use.
+ */
+export type AssertNever<T extends never> = T;

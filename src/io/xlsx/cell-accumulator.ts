@@ -9,7 +9,7 @@ import {decodeAddress, encodeAddress} from '../../core/address.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {CellValue, DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {boolPresent, decodeSpreadsheetText, type XmlAttributes} from '../../xml/xml-read.ts';
+import {boolStrict, decodeSpreadsheetText, type XmlAttributes} from '../../xml/xml-read.ts';
 import {applyXfToCell, type XfStyle} from '../style/xf-style.ts';
 import {
   decodeCellContent,
@@ -152,22 +152,34 @@ export class CellAccumulator {
     style: XfStyle | undefined,
   ): void {
     if (this.#ref === '') return;
+    const value = this.#resolveValue(sharedStrings, style);
+    const cell = sheet.getCell(this.#ref);
+    applyXfToCell(cell, style);
+    cell.value = value;
+  }
+
+  // Which of the four readings of a `<c>` applies, in the order the format makes them exclusive.
+  // Two of the branches are not pure: a shared-formula master seeds the group here as a side effect
+  // and then falls through to the ordinary decode, because a master cell *is* an ordinary cell that
+  // happens to be shared. A clone whose master is missing falls through too — that is the reading
+  // for a file whose shared-formula group is broken, and it must stay a fallthrough rather than a
+  // failure.
+  #resolveValue(
+    sharedStrings: readonly SharedString[],
+    style: XfStyle | undefined,
+  ): CellValue | DataTableFormulaValue | SharedFormulaValue {
     if (this.#dataTable !== null) {
-      const value: DataTableFormulaValue = {
+      return {
         shareType: 'dataTable',
         ref: this.#dataTable.ref,
-        ...(boolPresent(this.#dataTable.dt2D ?? '0') ? {dataTable2D: true} : {}),
-        ...(boolPresent(this.#dataTable.dtr ?? '0') ? {dataTableRow: true} : {}),
+        ...(boolStrict(this.#dataTable.dt2D) ? {dataTable2D: true} : {}),
+        ...(boolStrict(this.#dataTable.dtr) ? {dataTableRow: true} : {}),
         ...(this.#dataTable.r1 !== undefined ? {r1: this.#dataTable.r1} : {}),
         ...(this.#dataTable.r2 !== undefined ? {r2: this.#dataTable.r2} : {}),
         ...(this.#hasValue
           ? {result: decodeFormulaResult(this.#type, this.#valueText, style?.numFmt)}
           : {}),
       };
-      const cell = sheet.getCell(this.#ref);
-      applyXfToCell(cell, style);
-      cell.value = value;
-      return;
     }
     if (this.#hasFormula && this.#formulaShared && this.#formulaSi >= 0) {
       this.#masters.set(this.#formulaSi, {formula: this.#formula, col: this.#col, row: this.#row});
@@ -179,7 +191,7 @@ export class CellAccumulator {
           this.#col - master.col,
           this.#row - master.row,
         );
-        const value: SharedFormulaValue = {
+        return {
           sharedFormula: encodeAddress(master.col, master.row),
           formula: unmangleFunctions(translated),
           // A clone's cached result honours the cell's date format the same way a plain formula's does.
@@ -187,15 +199,9 @@ export class CellAccumulator {
             ? {result: decodeFormulaResult(this.#type, this.#valueText, style?.numFmt)}
             : {}),
         };
-        const cell = sheet.getCell(this.#ref);
-        applyXfToCell(cell, style);
-        cell.value = value;
-        return;
       }
     }
-    const cell = sheet.getCell(this.#ref);
-    applyXfToCell(cell, style);
-    cell.value = this.decode(sharedStrings, style);
+    return this.decode(sharedStrings, style);
   }
 
   // Decode the gathered pieces into a plain cell value, resolving the shared pool and date formats but

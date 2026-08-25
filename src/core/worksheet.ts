@@ -933,12 +933,7 @@ export class Worksheet {
    * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
    */
   spliceRows(start: number, count: number, ...inserts: RowInput[]): void {
-    if (!Number.isInteger(start) || start < 1) {
-      throw new RangeError(`splice start ${start} is out of bounds — rows start at 1`);
-    }
-    if (!Number.isInteger(count) || count < 0) {
-      throw new RangeError(`splice count ${count} is invalid — it must be a non-negative integer`);
-    }
+    assertStartAndCount('splice', 'row', start, count);
     const inserted = inserts.map((values, i) => buildRowCells(start + i, values, this.#columns));
     this.#edits.spliceRows(start, count, inserted);
   }
@@ -1030,14 +1025,7 @@ export class Worksheet {
    */
   duplicateRow(start: number, options: {count?: number; insert?: boolean} = {}): void {
     const {count = 1, insert = true} = options;
-    if (!Number.isInteger(start) || start < 1) {
-      throw new RangeError(`duplicate start ${start} is out of bounds — rows start at 1`);
-    }
-    if (!Number.isInteger(count) || count < 0) {
-      throw new RangeError(
-        `duplicate count ${count} is invalid — it must be a non-negative integer`,
-      );
-    }
+    assertStartAndCount('duplicate', 'row', start, count);
     const source = this.#rows.get(start);
     const snapshot = (destRow: number): Map<number, Cell> => {
       const row = new Map<number, Cell>();
@@ -1068,12 +1056,7 @@ export class Worksheet {
    * @throws {RangeError} if `start` is not a positive integer or `count` is negative.
    */
   spliceColumns(start: number, count: number, ...inserts: CellValue[][]): void {
-    if (!Number.isInteger(start) || start < 1) {
-      throw new RangeError(`splice start ${start} is out of bounds — columns start at 1`);
-    }
-    if (!Number.isInteger(count) || count < 0) {
-      throw new RangeError(`splice count ${count} is invalid — it must be a non-negative integer`);
-    }
+    assertStartAndCount('splice', 'column', start, count);
     this.#edits.spliceColumns(start, count, inserts);
   }
 
@@ -1259,6 +1242,23 @@ export class Worksheet {
       return cells;
     },
   };
+}
+
+// The bounds contract every splice-shaped edit shares: a 1-based start and a non-negative count.
+// The three call sites used to spell it out, so the messages differed only by interpolation — which
+// is how messages drift. `verb` names the operation the caller offered, `axis` the line it edits.
+function assertStartAndCount(
+  verb: string,
+  axis: 'row' | 'column',
+  start: number,
+  count: number,
+): void {
+  if (!Number.isInteger(start) || start < 1) {
+    throw new RangeError(`${verb} start ${start} is out of bounds — ${axis}s start at 1`);
+  }
+  if (!Number.isInteger(count) || count < 0) {
+    throw new RangeError(`${verb} count ${count} is invalid — it must be a non-negative integer`);
+  }
 }
 
 /**

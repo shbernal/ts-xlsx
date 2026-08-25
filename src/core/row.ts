@@ -15,7 +15,7 @@
 
 import {columnToNumber, encodeAddress} from './address.ts';
 import type {Cell} from './cell.ts';
-import {INTERNAL} from './internal.ts';
+import {type AssertNever, INTERNAL} from './internal.ts';
 import type {Fill} from './style.ts';
 import type {CellValue} from './value.ts';
 import type {RowProperties, Worksheet} from './worksheet.ts';
@@ -157,8 +157,6 @@ export class Row {
     this.#sheet[INTERNAL].ensureRowProperties(this.number)[key] = value;
   }
 }
-
-type AssertNever<T extends never> = T;
 
 /**
  * Compile-time proof that {@link Row} mirrors every {@link RowProperties} field. A field added to
