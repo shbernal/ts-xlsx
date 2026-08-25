@@ -79,6 +79,32 @@ export function decodeEntities(value: string): string {
   });
 }
 
+/**
+ * The SpreadsheetML `_xHHHH_` escape, in the only place it may appear: a complete cell-text value.
+ *
+ * The mirror of `escapeSpreadsheetText` in `./xml.ts`, and it sits here rather than beside it for
+ * the same reason `decodeEntities` sits apart from `escapeText` — the write helpers carry an
+ * `AuthoringError` and a whole serialisation vocabulary the reader has no business importing.
+ *
+ * **One left-to-right pass, and that is load-bearing.** `005F` maps to `_` like any other code
+ * point, with no special case, because a single pass already gives the underscore escape its
+ * meaning: in `_x005F_x0041_` the match at 0 yields `_` and scanning resumes at `x0041_`, which has
+ * no leading underscore left to start an escape. So the value reads back as the literal seven
+ * characters `_x0041_` the author wrote. Decoding `_x005F_` in a pass of its own — before or after
+ * the rest — collapses that to `A` and loses the distinction the encoder went to trouble to keep.
+ * Excel agrees: it reads that cell as `_x0041_`.
+ *
+ * The decode is unconditional, not a repair of characters XML cannot carry. Excel reads
+ * `a_x0009_b` as a tab even though a literal tab would have been perfectly legal there, so a
+ * decoder that only handled the illegal range would disagree with Excel on files Excel wrote.
+ */
+export function decodeSpreadsheetText(value: string): string {
+  if (!value.includes('_')) return value;
+  return value.replace(/_x([0-9A-Fa-f]{4})_/g, (_match, hex: string) =>
+    String.fromCharCode(parseInt(hex, 16)),
+  );
+}
+
 // Attribute values cannot contain their own delimiter and cannot contain a literal `<`,
 // so a delimiter-respecting scan finds a tag's end even when an attribute value holds a
 // `>` (legal but rare). Names may carry a namespace prefix (`r:id`, `xml:space`).

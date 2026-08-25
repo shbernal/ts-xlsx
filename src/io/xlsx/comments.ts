@@ -23,7 +23,7 @@ import {decodeAddress} from '../../core/address.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {escapeAttr, escapeText, textElement, XML_DECLARATION} from '../../xml/xml.ts';
-import {localName, parseXml} from '../../xml/xml-read.ts';
+import {decodeSpreadsheetText, localName, parseXml} from '../../xml/xml-read.ts';
 import {MARKUP_COMPATIBILITY_NS, REVISION_NS, SPREADSHEETML_NS} from './namespaces.ts';
 
 /** A comment bound for `comments{n}.xml`, paired with the coordinates the VML anchor needs. */
@@ -245,6 +245,10 @@ export function parseComments(xml: string): Map<string, ParsedComment> {
           capture = undefined;
           buffer = '';
         } else if (local === 'text') {
+          // A note's body is a `CT_Rst`, so it carries the `_xHHHH_` escape a cell's `<t>` does.
+          // Decoding at the close of `<text>` rather than per `<t>` is deliberate: `buffer` is by
+          // then the whole note, so no escape can straddle the boundary the decode runs on.
+          buffer = decodeSpreadsheetText(buffer);
           capture = undefined;
         } else if (local === 'comment' && currentRef !== undefined) {
           const threadId = threadIdOf(authors[Number(currentAuthorId)]);

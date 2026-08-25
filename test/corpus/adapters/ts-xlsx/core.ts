@@ -12,6 +12,7 @@ import {
   decodeRange,
   fixtureBytes,
   readFixture,
+  readWorkbookStream,
   readXlsx,
   Workbook,
   type WorkbookInstance,
@@ -178,7 +179,8 @@ export const core = {
   // writer did → { writeOk, writeError, partsWithRawChar, emittedText }. Cell values have the
   // SpreadsheetML `_xHHHH_` convention and must use it; a sheet name has none, so a refusal is the
   // only honest outcome there. Neither may put the raw character into an emitted part, which would
-  // make the package malformed XML.
+  // make the package malformed XML. `readValue` closes the loop: reading the package back must give
+  // the character the author asked for, since the escape and the unescape are inverses.
   xmlCharacterSafetyReport(where: 'cell-text' | 'formula-result' | 'sheet-name', text: string) {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the control characters is the check — this asks whether an emitted part carries one
     const raw = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
@@ -186,12 +188,19 @@ export const core = {
     let writeError: string | null = null;
     let partsWithRawChar: string[] = [];
     let emittedText: string | null = null;
+    let readValue: unknown = null;
     try {
       const workbook = new Workbook();
       const sheet = workbook.addWorksheet(where === 'sheet-name' ? text : 'S');
       if (where === 'cell-text') sheet.getCell('A1').value = text;
       if (where === 'formula-result') sheet.getCell('A1').value = {formula: 'B1', result: text};
-      const parts = partMapOf(writeXlsx(workbook));
+      const bytes = writeXlsx(workbook);
+      const reloaded = readXlsx(bytes).worksheets[0]?.getCell('A1').value;
+      readValue =
+        reloaded !== null && typeof reloaded === 'object' && 'result' in reloaded
+          ? reloaded.result
+          : reloaded;
+      const parts = partMapOf(bytes);
       partsWithRawChar = Object.keys(parts)
         .filter((name) => raw.test(parts[name] ?? ''))
         .sort();
@@ -203,7 +212,45 @@ export const core = {
       writeOk = false;
       writeError = messageOf(error);
     }
-    return {writeOk, writeError, partsWithRawChar, emittedText};
+    return {writeOk, writeError, partsWithRawChar, emittedText, readValue};
+  },
+
+  // Read a fixture whose cells hold `_xHHHH_` escapes, three ways → { eager, streaming, roundtrip }.
+  // Each is a map of A1 reference → the cell's decoded text (a formula cell reports its cached
+  // result). `eager` and `streaming` must agree, since a file read row-by-row must decode identically
+  // to the same file read whole; `roundtrip` reads back what our own writer re-emitted, which is what
+  // holds the escape and the unescape to being inverses of each other.
+  escapeDecodeReport(rel: string, refs: string[]) {
+    const textOf = (value: unknown): string | null => {
+      if (typeof value === 'string') return value;
+      if (value !== null && typeof value === 'object' && 'result' in value) {
+        const {result} = value as {result: unknown};
+        return typeof result === 'string' ? result : null;
+      }
+      return null;
+    };
+    const eagerOf = (workbook: WorkbookInstance) => {
+      const sheet = workbook.worksheets[0];
+      return Object.fromEntries(
+        refs.map((ref) => [ref, sheet === undefined ? null : textOf(sheet.getCell(ref).value)]),
+      );
+    };
+    const streaming: Record<string, string | null> = Object.fromEntries(
+      refs.map((ref) => [ref, null]),
+    );
+    for (const sheet of readWorkbookStream(fixtureBytes(rel))) {
+      for (const row of sheet.rows()) {
+        for (const cell of row.cells) {
+          if (cell.address in streaming) streaming[cell.address] = textOf(cell.value);
+        }
+      }
+      break; // first worksheet only
+    }
+    return {
+      eager: eagerOf(readFixture(rel)),
+      streaming,
+      roundtrip: eagerOf(readXlsx(writeXlsx(readFixture(rel)))),
+    };
   },
 
   // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet

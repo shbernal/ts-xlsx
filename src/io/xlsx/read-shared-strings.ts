@@ -2,7 +2,7 @@
 // Split out of read.ts beside its sibling parsers (read-styles.ts, rich-runs.ts) so read.ts stays
 // orchestration; the run structure it decodes is owned by RunAccumulator, shared with inline strings.
 
-import {localName, parseXml} from '../../xml/xml-read.ts';
+import {decodeSpreadsheetText, localName, parseXml} from '../../xml/xml-read.ts';
 import type {SharedString} from './cell-value.ts';
 import {RunAccumulator} from './rich-runs.ts';
 
@@ -52,11 +52,15 @@ export function parseSharedStrings(xml: string): SharedString[] {
     onClose(name) {
       const local = localName(name);
       switch (local) {
-        case 't':
+        case 't': {
           // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<si>` is plain.
-          if (!runs.appendText(text)) plain += text;
+          // The `_xHHHH_` decode happens on the whole `<t>`, never on a SAX chunk — see
+          // {@link decodeSpreadsheetText}.
+          const decoded = decodeSpreadsheetText(text);
+          if (!runs.appendText(decoded)) plain += decoded;
           capture = false;
           break;
+        }
         case 'r':
           runs.endRun();
           break;

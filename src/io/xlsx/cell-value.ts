@@ -14,7 +14,7 @@ import {
   type RichTextRun,
   type RichTextValue,
 } from '../../core/value.ts';
-import {boolStrict} from '../../xml/xml-read.ts';
+import {boolStrict, decodeSpreadsheetText} from '../../xml/xml-read.ts';
 
 /**
  * One entry of the shared-strings pool. A `<si>` built from a bare `<t>` is a plain string; a `<si>`
@@ -76,9 +76,10 @@ function decodeValue(
 ): CellValue {
   switch (type) {
     case 'inlineStr':
+      // Already decoded per `<t>` as it was gathered; the accumulator owns that seam.
       return inlineText;
     case 'str':
-      return valueText;
+      return decodeSpreadsheetText(valueText);
     case 'd':
       // A Strict-mode (ISO/IEC 29500 Strict) date cell stores an ISO 8601 value directly, not a
       // serial. Parse it literally — an ISO date is UTC — so it reads as the date it states rather
@@ -120,7 +121,11 @@ export function decodeFormulaResult(
 function decodeResult(type: string, valueText: string): FormulaResult {
   switch (type) {
     case 'str':
-      return valueText;
+      // The cached result of a string formula is a cell value, and Excel escapes and decodes it as
+      // one — verified on this host, a `<v>` of `_x0041_` under `t="str"` reads back as `A`. The
+      // sibling `<v>` types are not text: a number, a boolean, and an error code have no `_` in
+      // their grammars, so only this branch decodes.
+      return decodeSpreadsheetText(valueText);
     case 'b':
       return boolStrict(valueText);
     case 'e':

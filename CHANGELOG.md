@@ -66,6 +66,19 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   text `_x0041_` has its underscore escaped as `_x005F_x0041_`, or it would read back as the
   letter `A`. Text that only resembles an escape (`_`, `_x`, `_xZZZZ_`) is untouched.
 
+  The reader undoes the same convention, which is what makes the round-trip claim above true
+  and also changes how *foreign* files read. A workbook Excel authored with a control character
+  in a cell previously read back as the literal seven-character text `_x0001_`; it now reads
+  back as the character. That applies to inline strings, the shared-strings pool, rich-text
+  runs, legacy note text, and the cached result of a string formula, in both the buffered and
+  the streaming reader.
+
+  The decode is one left-to-right pass, so `_x005F_x0041_` reads as the literal `_x0041_`
+  rather than collapsing to `A`, and the grammar is exact: `_x041_`, `_x00041_` and `_xZZZZ_`
+  are ordinary text and stay that way. Every one of those outcomes was measured against Excel
+  Desktop before it was implemented, and the probe workbook is committed as a corpus fixture
+  (`docs/knowledge/specs/spreadsheetml-xhhhh-escape-is-decoded-on-read.md`).
+
 - **A frozen pane no longer disappears when a sheet is copied through `model`.**
   `WorksheetModel` was missing `view`, so `dst.model = src.model` reproduced the cells,
   merges, tables, autofilter and page setup — and silently unfroze the header row. The

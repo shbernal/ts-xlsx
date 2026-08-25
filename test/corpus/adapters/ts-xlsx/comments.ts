@@ -14,6 +14,26 @@ import {
 } from './runtime.ts';
 
 export const comments = {
+  // Author a control character into each of the other places cell text is carried — a legacy note's
+  // body and a rich-text run — then write and read back → { note, runs }. These reach the same `<t>`
+  // as a plain string cell, through different readers, so each needs its own decode wired.
+  escapedTextCarrierRoundtrip(text: string) {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('S');
+    sheet.getCell('A1').value = 'x';
+    sheet.getCell('A1').note = text;
+    sheet.getCell('A2').value = {richText: [{text}, {text: `${text}!`, font: {bold: true}}]};
+    const reloaded = readXlsx(writeXlsx(workbook)).worksheets[0];
+    const richValue = reloaded?.getCell('A2').value;
+    return {
+      note: reloaded?.getCell('A1').note ?? null,
+      runs:
+        richValue !== undefined && isRichTextValue(richValue)
+          ? richValue.richText.map((run) => run.text)
+          : null,
+    };
+  },
+
   // Write a noted cell, relocate its comments part to a non-canonical path (xl/sheet1_comments.xml)
   // reachable only through the worksheet rels, and reload → { ok, error, note }. The reader locates the
   // comments part by relationship *type*, not by filename glob, so the moved part still loads and its

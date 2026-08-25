@@ -116,6 +116,9 @@ export function escapeAttr(value: string): string {
  *
  * `escapeText` runs last and sees no unrepresentable character left, so its guard is a
  * standing proof that the escape was complete rather than a second check of the same thing.
+ *
+ * Reversed by `decodeSpreadsheetText` in `./xml-read.ts`, whose single left-to-right pass is what
+ * makes the `_x005F_` step above reversible. Change either and read its comment first.
  */
 export function escapeSpreadsheetText(value: string): string {
   return escapeText(

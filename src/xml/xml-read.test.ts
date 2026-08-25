@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import {escapeSpreadsheetText} from './xml.ts';
+
 import {
   closeEmptyElements,
   decodeEntities,
+  decodeSpreadsheetText,
   localName,
   openElements,
   parseXml,
@@ -204,4 +207,54 @@ test('parseXml throws on an unterminated tag', () => {
 
 test('parseXml throws on an unterminated comment', () => {
   assert.throws(() => events('<!-- oops'), /unterminated comment/);
+});
+
+// The `_xHHHH_` convention, in the direction that reads it. Every expectation here was checked
+// against Excel Desktop on this host before it was written down; see
+// `docs/knowledge/specs/spreadsheetml-xhhhh-escape-is-decoded-on-read.md`.
+
+test('decodeSpreadsheetText resolves an escape to its character', () => {
+  assert.equal(decodeSpreadsheetText('_x0041_'), 'A');
+  assert.equal(decodeSpreadsheetText('a_x0001_b'), 'a\u0001b');
+});
+
+test('decodeSpreadsheetText decodes a character XML could have carried anyway', () => {
+  // Excel does, so a decoder restricted to the illegal range would disagree with it on Excel's
+  // own files.
+  assert.equal(decodeSpreadsheetText('a_x0009_b'), 'a\tb');
+});
+
+test('decodeSpreadsheetText leaves an escaped underscore as literal text', () => {
+  // The single left-to-right pass is what makes this work: the match at 0 yields `_` and scanning
+  // resumes past it, so the `x0041_` that follows never starts an escape.
+  assert.equal(decodeSpreadsheetText('_x005F_x0041_'), '_x0041_');
+  assert.equal(decodeSpreadsheetText('a_x005F_x0041_b'), 'a_x0041_b');
+});
+
+test('decodeSpreadsheetText leaves an escaped underscore alone when nothing follows it', () => {
+  assert.equal(decodeSpreadsheetText('_x005F_'), '_');
+});
+
+test('decodeSpreadsheetText leaves a lookalike untouched', () => {
+  for (const value of ['_xZZZZ_', '_x041_', '_x00041_', '_', '_x', 'x0041_', '_X0041_']) {
+    assert.equal(decodeSpreadsheetText(value), value);
+  }
+});
+
+test('decodeSpreadsheetText accepts either case of hex digit', () => {
+  assert.equal(decodeSpreadsheetText('_x00e9_'), 'é');
+  assert.equal(decodeSpreadsheetText('_x00E9_'), 'é');
+});
+
+test('decodeSpreadsheetText restores a lone surrogate rather than a replacement character', () => {
+  assert.equal(decodeSpreadsheetText('a_xD800_b'), 'a\uD800b');
+});
+
+test('decodeSpreadsheetText inverts escapeSpreadsheetText', () => {
+  // The escape hands XML's own `&<>` to `escapeText`, so the fixed point is checked on a value
+  // holding none of those — what matters here is that the `_xHHHH_` round trip is the identity for
+  // every awkward shape at once, including ones that only interact when adjacent.
+  const awkward =
+    'plain _ _x _x0041_ _x005F_ _xZZZZ_ _x041_ __x0041_ \u0001 \uFFFE \uD800 \t\n \u007F';
+  assert.equal(decodeSpreadsheetText(escapeSpreadsheetText(awkward)), awkward);
 });

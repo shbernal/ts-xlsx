@@ -9,7 +9,7 @@ import {decodeAddress, encodeAddress} from '../../core/address.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {CellValue, DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {boolPresent, type XmlAttributes} from '../../xml/xml-read.ts';
+import {boolPresent, decodeSpreadsheetText, type XmlAttributes} from '../../xml/xml-read.ts';
 import {applyXfToCell, type XfStyle} from '../style/xf-style.ts';
 import {
   decodeCellContent,
@@ -128,8 +128,15 @@ export class CellAccumulator {
 
   // Route a `<t>`'s text: to the open run when one is active, otherwise to the inline string when the
   // parser is inside an `<is>`. A run takes precedence — a run is also inside the inline string.
+  //
+  // The `_xHHHH_` decode happens here, on one whole `<t>`, and both worksheet readers hand their
+  // `<t>` text to this method — which is what keeps the streaming path from decoding differently
+  // from the buffered one. It cannot move up into the SAX text callback: that fires once per run of
+  // character data and an entity splits a run, so `_x00` and `01_` can arrive separately and a
+  // per-chunk decode would miss the escape in exactly those strings that happen to contain an `&`.
   appendText(text: string, inInlineString: boolean): void {
-    if (!this.#runs.appendText(text) && inInlineString) this.#inlineText += text;
+    const decoded = decodeSpreadsheetText(text);
+    if (!this.#runs.appendText(decoded) && inInlineString) this.#inlineText += decoded;
   }
 
   // Commit the gathered cell to the sheet with its already-resolved style (the caller applies the
