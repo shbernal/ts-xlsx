@@ -46,6 +46,26 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Fixed
 
+- **A control character in a string no longer produces a package Excel reports as damaged.**
+  The writer escaped `& < > " '` and nothing else, so every other character reached the file
+  byte for byte — including the C0 controls XML 1.0 forbids outright and the U+FFFE/U+FFFF
+  noncharacters. A cell value holding U+0001 emitted a sheet part Microsoft's
+  `OpenXmlValidator` rejects. Strings arriving from a database column, a CSV field, or a user
+  form are exactly where these turn up.
+
+  A **cell value** is now escaped with SpreadsheetML's `_xHHHH_` convention, which is what
+  Excel writes and what Excel reads back, so the character survives the round-trip instead of
+  breaking the file. That covers inline strings, pooled strings, rich-text runs, legacy note
+  text, and the cached result of a string formula.
+
+  A lone surrogate rode along in the same fix. It never produced an invalid package — the
+  UTF-8 encoder substituted U+FFFD for it, so the file validated and the character was
+  already gone. It is now escaped and preserved like the rest.
+
+  Because `_xHHHH_` now carries meaning, a cell value that legitimately contains the literal
+  text `_x0041_` has its underscore escaped as `_x005F_x0041_`, or it would read back as the
+  letter `A`. Text that only resembles an escape (`_`, `_x`, `_xZZZZ_`) is untouched.
+
 - **A frozen pane no longer disappears when a sheet is copied through `model`.**
   `WorksheetModel` was missing `view`, so `dst.model = src.model` reproduced the cells,
   merges, tables, autofilter and page setup — and silently unfroze the header row. The
@@ -65,6 +85,18 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   from both lists.
 
 ### Changed
+
+- **Writing a character XML cannot represent into anything but a cell value now throws
+  `AuthoringError`.** Only cell values have the `_xHHHH_` escape; a sheet name, a defined
+  name, a table column name, a formula, a document property, a print header and a threaded
+  comment do not. There is no faithful way to write U+0001 into a sheet tab — `Sheet_x0001_A`
+  is a different name, not the one that was asked for — so the writer refuses, naming the
+  code point and its offset.
+
+  This is a new throw on a call that used to return. It used to return a file Excel reports
+  as damaged, so the failure has moved earlier and got louder rather than appearing from
+  nowhere. Tab, LF, CR and U+007F are valid XML 1.0 and are unaffected; so are the C1
+  controls, which only XML 1.1 forbids.
 
 - **The OOXML conformance oracle is now the shared `ooxml-validate` package**, and the
   repository-owned .NET tool behind it is gone
