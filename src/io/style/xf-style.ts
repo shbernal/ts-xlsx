@@ -9,7 +9,8 @@
 
 import {applyCellStyle, type Cell} from '../../core/cell.ts';
 import {NAMED_STYLE_ID} from '../../core/internal.ts';
-import type {CellStyle, Font, NamedCellStyle} from '../../core/style.ts';
+import type {Border, CellStyle, Fill, Font, NamedCellStyle} from '../../core/style.ts';
+import {assignStyleFacets} from '../../core/style.ts';
 
 /**
  * What an xf resolves to: the {@link CellStyle} facet tuple, plus the two flags an xf carries that
@@ -124,4 +125,64 @@ export function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
   applyCellStyle(cell, style);
   if (style.quotePrefix !== undefined) cell.quotePrefix = style.quotePrefix;
   if (style.xfId !== undefined) cell[NAMED_STYLE_ID] = style.xfId;
+}
+
+/**
+ * A `<cellStyle>` / `BrtStyle` label: the name and builtinId that title one `cellStyleXfs` entry,
+ * keyed to that entry's index.
+ */
+export interface StyleLabel {
+  readonly xfId: number;
+  readonly name?: string;
+  readonly builtinId?: number;
+}
+
+/** The sub-tables an xf resolves its facet ids against, in whichever spelling the codec parsed them. */
+export interface XfDeps {
+  readonly fonts: ReadonlyArray<Font | undefined>;
+  readonly fills: ReadonlyArray<Fill | undefined>;
+  readonly borders: ReadonlyArray<Border | undefined>;
+  readonly numFmtCodes: ReadonlyMap<number, string>;
+}
+
+/**
+ * Turn the four tables a style-sheet parse yields into the {@link StyleTable} both codecs hand back:
+ * layer each direct xf over the named style it links to, title the named layer with its labels, and
+ * carry font 0 out as the workbook default.
+ *
+ * A facet the direct xf sets wins; one it leaves unset falls through to the named base; and the
+ * `xfId` link is carried through so a re-write keeps it. None of that depends on whether the tables
+ * were parsed out of `xl/styles.xml` or `xl/styles.bin`, which is the point of stating it once — the
+ * two readers used to hold a copy each, cross-referenced by a comment saying they agreed.
+ */
+export function resolveStyleTable(tables: {
+  readonly directXfs: ReadonlyArray<XfStyle>;
+  readonly namedXfs: ReadonlyArray<XfStyle>;
+  readonly labels: ReadonlyArray<StyleLabel>;
+  readonly fonts: ReadonlyArray<Font | undefined>;
+}): StyleTable {
+  const {directXfs, namedXfs, labels, fonts} = tables;
+
+  // A draft xf only holds keys for facets it actually set, so the spread merge takes the named base
+  // and lets the direct entry override exactly what it names.
+  const cellXfs: XfStyle[] = directXfs.map((xf) => {
+    if (xf.xfId === undefined) return xf;
+    const named = namedXfs[xf.xfId];
+    return named === undefined ? xf : {...named, ...xf};
+  });
+
+  // A label's xfId is its cellStyleXfs index, so the two zip index for index.
+  const namedStyles: NamedCellStyle[] = namedXfs.map((xf, index) => {
+    const label = labels.find((entry) => entry.xfId === index);
+    const style: {-readonly [K in keyof NamedCellStyle]?: NamedCellStyle[K]} = {};
+    assignStyleFacets(style, xf);
+    if (label?.name !== undefined) style.name = label.name;
+    if (label?.builtinId !== undefined) style.builtinId = label.builtinId;
+    return style;
+  });
+
+  // Font 0 is the workbook's declared default, so it is carried out whole as well as flattened onto
+  // the xfs that name it — see {@link StyleTable.defaultFont}.
+  const defaultFont = fonts[0];
+  return defaultFont === undefined ? {cellXfs, namedStyles} : {cellXfs, namedStyles, defaultFont};
 }

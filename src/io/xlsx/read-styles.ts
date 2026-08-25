@@ -4,13 +4,13 @@
 // `s` index maps straight to its facets. A construct it does not recognise is skipped, never guessed.
 //
 // Only the parsing is XML-specific. What an xf resolves *to* — `XfStyle`, the built-in number
-// formats, applying an xf to a cell — is a property of the OOXML style model rather than of its
-// spelling, and lives above both codecs in `../style/xf-style.ts`; the `.xlsb` style reader builds
-// the same table from BIFF12 records.
+// formats, layering a direct xf over the named style it links to, applying an xf to a cell — is a
+// property of the OOXML style model rather than of its spelling, and lives above both codecs in
+// `../style/xf-style.ts`; the `.xlsb` style reader parses BIFF12 records into the same four tables
+// and finishes through the same `resolveStyleTable`.
 
 import {
   type Alignment,
-  assignStyleFacets,
   type Border,
   type Color,
   type Fill,
@@ -24,7 +24,6 @@ import {
   isHorizontalAlignment,
   isNamedUnderlineStyle,
   isVerticalAlignment,
-  type NamedCellStyle,
   type Protection,
   type TableStyleNamespace,
   type TableStyleTable,
@@ -39,7 +38,14 @@ import {
   type XmlEvent,
   xmlEvents,
 } from '../../xml/xml-read.ts';
-import {numFmtCodeFor, type StyleTable, type XfStyle} from '../style/xf-style.ts';
+import {
+  numFmtCodeFor,
+  resolveStyleTable,
+  type StyleLabel,
+  type StyleTable,
+  type XfDeps,
+  type XfStyle,
+} from '../style/xf-style.ts';
 import {parseColor} from './color-xml.ts';
 
 // A mutable xf accumulator while an <xf> element streams in: its facet ids resolve on open, but
@@ -98,7 +104,7 @@ export function parseStyleTable(xml: string): StyleTable {
   // The named-style layer: <cellStyleXfs> holds the base formats a cell's xfId links to; <cellStyles>
   // labels them by name/builtinId. Parsed in parallel with cellXfs, then zipped and merged below.
   const namedXfs: XfStyle[] = [];
-  let cellStyleNames: ReadonlyArray<CellStyleName> = [];
+  let cellStyleNames: ReadonlyArray<StyleLabel> = [];
 
   // One streaming pass, but each top-level sub-table drives its own focused sub-parser over the slice
   // of events between its open and close. The schema orders the shared tables (<numFmts>, <fonts>,
@@ -140,46 +146,7 @@ export function parseStyleTable(xml: string): StyleTable {
     next = events.next();
   }
 
-  // Layer each cellXfs entry over the named style its xfId links to: a facet the direct format sets
-  // wins; one it leaves unset falls through to the named style. The xfId is carried through so the
-  // link survives a re-write. A draft only holds keys for facets it actually set, so the spread merge
-  // takes the named base and lets the direct entry override exactly what it names.
-  const cellXfs: XfStyle[] = xfStyles.map((xf) => {
-    if (xf.xfId === undefined) return xf;
-    const named = namedXfs[xf.xfId];
-    return named === undefined ? xf : {...named, ...xf};
-  });
-
-  // Zip the resolved cellStyleXfs facets with their cellStyles name/builtinId into the model's named
-  // styles, index for index (a cellStyle's xfId is its cellStyleXfs index).
-  const namedStyles: NamedCellStyle[] = namedXfs.map((xf, index) => {
-    const label = cellStyleNames.find((entry) => entry.xfId === index);
-    const style: {-readonly [K in keyof NamedCellStyle]?: NamedCellStyle[K]} = {};
-    assignStyleFacets(style, xf);
-    if (label?.name !== undefined) style.name = label.name;
-    if (label?.builtinId !== undefined) style.builtinId = label.builtinId;
-    return style;
-  });
-
-  // Font 0 is the workbook's declared default, so it is carried out whole as well as flattened onto
-  // the xfs that name it — see {@link StyleTable.defaultFont}.
-  const defaultFont = fonts[0];
-  return defaultFont === undefined ? {cellXfs, namedStyles} : {cellXfs, namedStyles, defaultFont};
-}
-
-// A <cellStyle> label: the name/builtinId a cellStyleXfs entry carries, keyed by its xfId (its index).
-interface CellStyleName {
-  readonly xfId: number;
-  readonly name?: string;
-  readonly builtinId?: number;
-}
-
-// The shared sub-tables an <xf> resolves its facet ids against.
-interface XfDeps {
-  readonly fills: ReadonlyArray<Fill | undefined>;
-  readonly fonts: ReadonlyArray<Font | undefined>;
-  readonly borders: ReadonlyArray<Border | undefined>;
-  readonly numFmtCodes: ReadonlyMap<number, string>;
+  return resolveStyleTable({directXfs: xfStyles, namedXfs, labels: cellStyleNames, fonts});
 }
 
 // Pull events off the shared stream up to — and consuming — the close of `container`, yielding only
@@ -435,8 +402,8 @@ function resolveXf(attrs: XmlAttributes, deps: XfDeps, captureXfId: boolean): Xf
 
 // A <cellStyle> (inside <cellStyles>) names a cellStyleXfs entry by xfId; it is self-closing, so it
 // is read on open.
-function parseCellStyles(events: Iterator<XmlEvent>): ReadonlyArray<CellStyleName> {
-  const names: CellStyleName[] = [];
+function parseCellStyles(events: Iterator<XmlEvent>): ReadonlyArray<StyleLabel> {
+  const names: StyleLabel[] = [];
   for (const event of until(events, 'cellStyles')) {
     if (event.kind === 'open' && localName(event.name) === 'cellStyle') {
       const attrs = event.attrs;

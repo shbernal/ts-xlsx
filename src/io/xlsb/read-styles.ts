@@ -20,23 +20,21 @@ import type {
   FillPatternType,
   Font,
   HorizontalAlignment,
-  NamedCellStyle,
   Protection,
   UnderlineStyle,
   VerticalAlignment,
 } from '../../core/style.ts';
-import {assignStyleFacets} from '../../core/style.ts';
-import {numFmtCodeFor, type StyleTable, type XfStyle} from '../style/xf-style.ts';
+import {
+  numFmtCodeFor,
+  resolveStyleTable,
+  type StyleLabel,
+  type StyleTable,
+  type XfDeps,
+  type XfStyle,
+} from '../style/xf-style.ts';
 import {RecordReader} from './primitives.ts';
 import {readRecords} from './record-stream.ts';
 import {BRT} from './record-types.ts';
-
-// A `<cellStyle>`'s BIFF12 counterpart: the name/builtinId labelling one cellStyleXfs entry.
-interface StyleLabel {
-  readonly xfId: number;
-  readonly name?: string;
-  readonly builtinId?: number;
-}
 
 // Which Begin/End-delimited collection the pass is currently inside. `undefined` outside all of them,
 // which is also what an unrecognised nested block collapses to — so a record we do not model can
@@ -124,35 +122,7 @@ export function parseStyleTable(part: Uint8Array | undefined): StyleTable {
     }
   }
 
-  // Layer each direct format over the named style its xfId links to, exactly as the XML reader does:
-  // a facet the cell's own xf sets wins, one it leaves unset falls through to the named base.
-  const cellXfs = directXfs.map((xf) => {
-    if (xf.xfId === undefined) return xf;
-    const named = namedXfs[xf.xfId];
-    return named === undefined ? xf : {...named, ...xf};
-  });
-
-  const namedStyles: NamedCellStyle[] = namedXfs.map((xf, index) => {
-    const label = labels.find((entry) => entry.xfId === index);
-    const style: {-readonly [K in keyof NamedCellStyle]?: NamedCellStyle[K]} = {};
-    assignStyleFacets(style, xf);
-    if (label?.name !== undefined) style.name = label.name;
-    if (label?.builtinId !== undefined) style.builtinId = label.builtinId;
-    return style;
-  });
-
-  // Font 0 is the workbook's declared default, carried out whole as well as flattened onto the xfs
-  // that name it — see {@link StyleTable.defaultFont}. The XML reader does the same.
-  const defaultFont = fonts[0];
-  return defaultFont === undefined ? {cellXfs, namedStyles} : {cellXfs, namedStyles, defaultFont};
-}
-
-// The shared sub-tables an XF resolves its facet indices against.
-interface XfDeps {
-  readonly fonts: ReadonlyArray<Font | undefined>;
-  readonly fills: ReadonlyArray<Fill | undefined>;
-  readonly borders: ReadonlyArray<Border | undefined>;
-  readonly numFmtCodes: ReadonlyMap<number, string>;
+  return resolveStyleTable({directXfs, namedXfs, labels, fonts});
 }
 
 // `BrtXF` ([MS-XLSB] 2.4.876): five facet indices, the two inline alignment scalars, then two flag
