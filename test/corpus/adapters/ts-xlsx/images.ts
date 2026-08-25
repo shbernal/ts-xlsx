@@ -2,6 +2,7 @@
 // anchor when the rows around it move.
 
 import {strFromU8, unzipSync} from 'fflate';
+import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {type PartMap, partMapOf} from './package-facts.ts';
 import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
@@ -165,6 +166,67 @@ export const images = {
       resolvedLetter,
       distinctMediaCount: Object.keys(mediaSizes).length,
       distinctRelTargets: new Set(Object.values(relTarget)).size,
+    };
+  },
+
+  // Carry an image-bearing sheet into a DIFFERENT workbook — the model for its content, exportImages/
+  // importImages for its pictures — write the destination, and report whether the picture actually
+  // arrived → { dstMediaCount, allEmbedsResolve, reReadImageCount, reReadAnchor, reReadHasBackground,
+  // srcStillShowsImage, danglingAnchorError }. A drawing whose embed resolves to no media part is the
+  // silently-broken-image failure; `danglingAnchorError` is the other leg — an anchor carrying a
+  // foreign workbook's media id must be refused loudly at write time, never emitted as a dangling rel.
+  carrySheetImagesAcrossWorkbooks() {
+    const source = new Workbook();
+    const src = source.addWorksheet('Src');
+    src.getCell('A1').value = 'content';
+    const logo = source.addImage({buffer: ONE_PX_PNG, extension: 'png'});
+    src.addImage(logo, {tl: {col: 1, row: 1}, br: {col: 3, row: 4}});
+    src.addBackgroundImage(source.addImage({buffer: hexBytes('474946383961'), extension: 'gif'}));
+
+    const destination = new Workbook();
+    const dst = destination.addWorksheet('Dst');
+    dst.model = src.model;
+    destination.importImages(dst, source.exportImages(src));
+
+    const buffer = writeXlsx(destination);
+    const raw = unzipSync(buffer);
+    const names = Object.keys(raw);
+    const mediaParts = new Set(names.filter((f) => /^xl\/media\//.test(f)));
+    const relTarget: Record<string, string | undefined> = {};
+    for (const t of strFromU8(
+      raw['xl/drawings/_rels/drawing1.xml.rels'] || new Uint8Array(),
+    ).matchAll(/<Relationship\b[^>]*\/?>/g)) {
+      const a = attrsOf(t[0]!);
+      relTarget[a.Id!] = (a.Target || '').replace(/^\.\.\//, 'xl/');
+    }
+    const embeds = [
+      ...strFromU8(raw['xl/drawings/drawing1.xml'] || new Uint8Array()).matchAll(
+        /r:embed="([^"]*)"/g,
+      ),
+    ].map((m) => m[1]!);
+
+    const back = readXlsx(buffer).getWorksheet('Dst')!;
+    const anchor = back.images[0]?.anchor as Untyped;
+
+    // The other leg of the contract: an anchor holding an id the destination never registered.
+    let danglingAnchorError: string | null = null;
+    const orphaned = new Workbook();
+    orphaned.addWorksheet('O').addImageAnchor(41, {from: {col: 0, row: 0}, ext: {cx: 1, cy: 1}});
+    try {
+      writeXlsx(orphaned);
+    } catch (e) {
+      danglingAnchorError = messageOf(e);
+    }
+
+    return {
+      dstMediaCount: mediaParts.size,
+      allEmbedsResolve:
+        embeds.length > 0 && embeds.every((id) => mediaParts.has(relTarget[id] ?? '')),
+      reReadImageCount: back.images.length,
+      reReadAnchor: anchor?.from ? {col: anchor.from.col, row: anchor.from.row} : null,
+      reReadHasBackground: back.backgroundImageId !== undefined,
+      srcStillShowsImage: src.images.length === 1,
+      danglingAnchorError,
     };
   },
 

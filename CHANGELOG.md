@@ -12,6 +12,38 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Added
+
+- **`Workbook.exportImages(sheet)` / `Workbook.importImages(sheet, images)` — carry a sheet's
+  pictures to another workbook.** An anchored image holds a media *id* into one workbook's registry,
+  and that id names a different picture, or none, in the next. Copying a sheet has therefore always
+  left its images behind: `dst.model = src.model` is a semantic copy by design
+  ([ADR-0005](docs/decisions/0005-worksheet-model-is-semantic-only.md)), and there was no affordance
+  for the bytes. Now there is one, and carrying a sheet whole is the two together:
+
+  ```ts
+  destination.model = source.model;
+  destinationWorkbook.importImages(destination, sourceWorkbook.exportImages(source));
+  ```
+
+  `exportImages` resolves a sheet's anchored images and its background out of the media registry into
+  a workbook-independent `WorksheetImages` value; `importImages` registers those bytes in the
+  destination and re-anchors against the ids they land on. Registration is content-addressed, so a
+  picture already held is re-used rather than stored twice — twenty sheets sharing one logo cost one
+  media part. An import replaces the destination sheet's pictures rather than appending to them, the
+  same direction a `model` assignment goes.
+
+  `exportImages` throws `AuthoringError` for a sheet whose image ids this workbook never registered —
+  which is what a sheet belonging to *another* workbook looks like from here. That pairs with the
+  existing write-time check, so an anchor holding a foreign media id is refused by name at both ends
+  instead of being emitted as a drawing relationship pointing at media that was never written.
+
+  This covers floating anchors and the sheet background. Header/footer images are byte-preserved
+  parts and ride the preserved-reference machinery; charts, vector drawings, pivots and slicers stay
+  round-trip-only ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round-trip-only-for-1-0.md)) —
+  their bytes carry the source sheet's identity (a pivot table's workbook-unique name, a slicer
+  cache's `tabId`, a chart series' `Sheet1!$A$1`), so they cannot be relocated by copying bytes.
+
 ### Fixed
 
 - **A frozen pane no longer disappears when a sheet is copied through `model`.**

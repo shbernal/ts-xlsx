@@ -55,9 +55,11 @@ export {
   type ImageEditAs,
   isOneCellAnchor,
   type OneCellAnchor,
+  type PortableImage,
   PX_TO_EMU,
   type TwoCellAnchor,
   type WorkbookImage,
+  type WorksheetImages,
 } from '../core/image.ts';
 export {MAX_COLUMN_WIDTH, MAX_ROW_HEIGHT} from '../core/limits.ts';
 export type {

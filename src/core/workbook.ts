@@ -23,7 +23,12 @@ import {
 import {resolveColor} from './color-resolution.ts';
 import {commentThreadGuid, type Person} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
-import {normalizeImageExtension, type WorkbookImage} from './image.ts';
+import {
+  findRegisteredImage,
+  normalizeImageExtension,
+  type WorkbookImage,
+  type WorksheetImages,
+} from './image.ts';
 import {INTERNAL} from './internal.ts';
 import type {PreservedPart, PreservedRootReference} from './preserved.ts';
 import type {Color, Font, NamedCellStyle, TableStyleTable} from './style.ts';
@@ -842,6 +847,88 @@ export class Workbook {
   /** Look up a registered image by its id, or `undefined` if no image carries that id. */
   getImage(id: number): WorkbookImage | undefined {
     return this.#media[id];
+  }
+
+  /**
+   * Every picture `sheet` shows, resolved out of this workbook's media registry into the
+   * workbook-independent form {@link importImages} consumes. `sheet` must belong to this workbook —
+   * that is whose registry its image ids index.
+   *
+   * This is the attached-part half of a sheet copy, and it is deliberately a separate call from
+   * {@link Worksheet.model}: a model is a serialisable value, an image is bytes on the workbook, and
+   * ADR-0005 keeps them apart. Carrying a sheet whole is therefore the two of them together:
+   *
+   * ```ts
+   * destination.model = source.model;
+   * destinationWorkbook.importImages(destination, sourceWorkbook.exportImages(source));
+   * ```
+   *
+   * The exported pictures share the registry's byte arrays rather than copying them — the library
+   * never mutates image bytes, and copying every picture would double the memory of an image-heavy
+   * workbook to defend against a mutation nothing performs.
+   *
+   * @throws {AuthoringError} if the sheet anchors an image id this workbook has not registered —
+   *   which is what a sheet from *another* workbook looks like from here. Emitting a package with a
+   *   drawing pointing at media that was never registered is the silently-broken-image failure this
+   *   refuses to start.
+   */
+  exportImages(sheet: Worksheet): WorksheetImages {
+    const resolve = (id: number): WorkbookImage => {
+      const image = this.#media[id];
+      if (image === undefined) {
+        throw new AuthoringError(
+          `worksheet "${sheet.name}" shows image id ${id}, which is not registered on this ` +
+            "workbook — a sheet's images can only be exported by the workbook that holds them",
+        );
+      }
+      return image;
+    };
+    const background = sheet.backgroundImageId;
+    return {
+      anchored: sheet.images.map(({imageId, anchor}) => ({image: resolve(imageId), anchor})),
+      background: background === undefined ? undefined : resolve(background),
+    };
+  }
+
+  /**
+   * Show `images` on `sheet`, a worksheet of this workbook, registering each picture's bytes here
+   * and re-anchoring it against the id they land on. The counterpart to {@link exportImages}, and
+   * the affordance that lets a picture cross workbooks at all: an {@link AnchoredImage}'s `imageId`
+   * indexes one workbook's registry and means nothing in the next, so a raw anchor moved between
+   * workbooks points at media that does not exist there.
+   *
+   * The sheet's existing pictures are replaced, not appended to, so `importImages` is a transfer
+   * rather than an accumulation — the same direction {@link Worksheet.model} assignment goes, and
+   * what makes re-importing a sheet's own export leave it unchanged. An import whose `background` is
+   * absent clears the destination's background for the same reason.
+   *
+   * Registration is content-addressed: a picture whose bytes are already here is re-used at its
+   * existing id rather than stored twice, so importing the same sheet repeatedly, or twenty sheets
+   * sharing one logo, costs one media part.
+   */
+  importImages(sheet: Worksheet, images: WorksheetImages): void {
+    for (const id of new Set(sheet.images.map((image) => image.imageId))) sheet.removeImage(id);
+    sheet.removeBackgroundImage();
+    for (const {image, anchor} of images.anchored) {
+      sheet.addImageAnchor(this.#registerImage(image), anchor);
+    }
+    if (images.background !== undefined) {
+      sheet.addBackgroundImage(this.#registerImage(images.background));
+    }
+  }
+
+  // Register a picture arriving from elsewhere, re-using an identical one already held. The
+  // extension is re-normalised rather than trusted: a hand-built WorkbookImage may carry `".PNG"`
+  // where the registry holds `"png"`, and two spellings of one kind must not read as two pictures.
+  #registerImage(image: WorkbookImage): number {
+    const candidate: WorkbookImage = {
+      extension: normalizeImageExtension(image.extension, image.data),
+      data: image.data,
+    };
+    return (
+      findRegisteredImage(this.#media, candidate) ??
+      this.addImage({buffer: candidate.data, extension: candidate.extension})
+    );
   }
 
   /** The workbook's defined names, in the order they were registered. */

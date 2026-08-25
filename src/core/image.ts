@@ -143,3 +143,52 @@ export function normalizeImageExtension(extension: string | undefined, data: Uin
   }
   return sniffImageExtension(data);
 }
+
+/**
+ * An anchored image in workbook-independent form: the picture's own bytes rather than a media id
+ * into one particular workbook's registry.
+ *
+ * An {@link AnchoredImage} means nothing away from that registry — its `imageId` is an index, and
+ * the same index names a different picture (or none) in the next workbook. Attaching the picture
+ * itself is what lets an anchor cross that boundary, which is why the transfer form carries bytes
+ * where the stored form carries an id.
+ */
+export interface PortableImage {
+  readonly image: WorkbookImage;
+  readonly anchor: ImageAnchor;
+}
+
+/**
+ * Every picture a worksheet shows, in the workbook-independent form of {@link PortableImage} — the
+ * images anchored to the grid, in the order they were added, and the background tiled behind it.
+ * {@link Workbook.exportImages} produces one, {@link Workbook.importImages} applies one.
+ */
+export interface WorksheetImages {
+  readonly anchored: readonly PortableImage[];
+  readonly background: WorkbookImage | undefined;
+}
+
+/**
+ * The id under which `image` is already registered in `media`, or `undefined` if it is not.
+ *
+ * Content-addressed rather than reference-addressed: two byte-identical pictures are one picture,
+ * however they reached the registry. This is what keeps repeated imports from growing the media
+ * list without bound — the same logo carried onto twenty sheets registers once — and it is why the
+ * comparison is over bytes rather than object identity, which a picture arriving from another
+ * workbook would never satisfy.
+ *
+ * The length check comes first and short-circuits, so pictures of different sizes never reach the
+ * byte loop; only same-extension, same-length candidates are compared in full.
+ */
+export function findRegisteredImage(
+  media: readonly WorkbookImage[],
+  image: WorkbookImage,
+): number | undefined {
+  const index = media.findIndex(
+    (held) =>
+      held.extension === image.extension &&
+      held.data.length === image.data.length &&
+      held.data.every((byte, i) => byte === image.data[i]),
+  );
+  return index === -1 ? undefined : index;
+}

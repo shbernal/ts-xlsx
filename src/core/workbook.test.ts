@@ -119,3 +119,118 @@ test('requireWorksheet says so when there are no sheets at all', () => {
     /no worksheet "Any": this workbook has no worksheets/,
   );
 });
+
+// Carrying pictures between workbooks: the attached-part half of a sheet copy, which the semantic
+// `model` contract deliberately leaves alone (ADR-0005).
+
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
+const GIF = new Uint8Array([0x47, 0x49, 0x46, 9, 9]);
+
+function sheetShowingPictures() {
+  const workbook = new Workbook();
+  const sheet = workbook.addWorksheet('Src');
+  sheet.addImageAnchor(workbook.addImage({buffer: PNG}), {
+    from: {col: 0, row: 0},
+    ext: {cx: 100, cy: 50},
+  });
+  sheet.addBackgroundImage(workbook.addImage({buffer: GIF}));
+  return {workbook, sheet};
+}
+
+test('exportImages resolves a sheet-anchored image id into the picture itself', () => {
+  const {workbook, sheet} = sheetShowingPictures();
+
+  const images = workbook.exportImages(sheet);
+
+  assert.equal(images.anchored.length, 1);
+  assert.deepEqual(images.anchored[0]?.image, {extension: 'png', data: PNG});
+  assert.deepEqual(images.anchored[0]?.anchor, {from: {col: 0, row: 0}, ext: {cx: 100, cy: 50}});
+  assert.deepEqual(images.background, {extension: 'gif', data: GIF});
+});
+
+test('exportImages refuses a sheet whose image ids this workbook never registered', () => {
+  const {sheet} = sheetShowingPictures();
+
+  assert.throws(() => new Workbook().exportImages(sheet), {
+    name: 'AuthoringError',
+    message: /worksheet "Src" shows image id 0, which is not registered/,
+  });
+});
+
+test('importImages carries a picture into another workbook and re-anchors it there', () => {
+  const {workbook: source, sheet: src} = sheetShowingPictures();
+  const destination = new Workbook();
+  // The destination already holds an unrelated picture, so a carried image cannot be assumed to
+  // land on the id it had in the source.
+  destination.addImage({buffer: new Uint8Array([0x42, 0x4d, 7])});
+  const dst = destination.addWorksheet('Dst');
+
+  destination.importImages(dst, source.exportImages(src));
+
+  assert.deepEqual(destination.exportImages(dst), source.exportImages(src));
+  assert.notEqual(dst.images[0]?.imageId, src.images[0]?.imageId, 'the id is rebound, not copied');
+  assert.deepEqual(destination.getImage(dst.images[0]?.imageId ?? -1), {
+    extension: 'png',
+    data: PNG,
+  });
+});
+
+test('importing the same pictures twice registers them once', () => {
+  const {workbook: source, sheet: src} = sheetShowingPictures();
+  const destination = new Workbook();
+  const carried = source.exportImages(src);
+
+  destination.importImages(destination.addWorksheet('One'), carried);
+  destination.importImages(destination.addWorksheet('Two'), carried);
+
+  assert.equal(destination.media.length, 2, 'one png and one gif, not two of each');
+});
+
+test('a picture that differs only in extension spelling is not registered twice', () => {
+  const destination = new Workbook();
+  const sheet = destination.addWorksheet('S');
+  const anchor = {from: {col: 0, row: 0}, ext: {cx: 10, cy: 10}} as const;
+
+  destination.importImages(sheet, {
+    anchored: [
+      {image: {extension: 'png', data: PNG}, anchor},
+      {image: {extension: '.PNG', data: PNG}, anchor},
+    ],
+    background: undefined,
+  });
+
+  assert.equal(destination.media.length, 1);
+  assert.deepEqual(
+    sheet.images.map((image) => image.imageId),
+    [0, 0],
+  );
+});
+
+test("importImages replaces the destination sheet's pictures rather than adding to them", () => {
+  const {workbook: source, sheet: src} = sheetShowingPictures();
+  const destination = new Workbook();
+  const dst = destination.addWorksheet('Dst');
+  dst.addImageAnchor(destination.addImage({buffer: new Uint8Array([0x42, 0x4d, 7])}), {
+    from: {col: 5, row: 5},
+    ext: {cx: 1, cy: 1},
+  });
+  dst.addBackgroundImage(destination.addImage({buffer: new Uint8Array([0x42, 0x4d, 8])}));
+
+  destination.importImages(dst, source.exportImages(src));
+
+  assert.equal(dst.images.length, 1, 'the picture it held is gone, not kept alongside');
+  assert.deepEqual(destination.getImage(dst.backgroundImageId ?? -1), {
+    extension: 'gif',
+    data: GIF,
+  });
+});
+
+test('an import carrying no background clears the one the destination held', () => {
+  const destination = new Workbook();
+  const dst = destination.addWorksheet('Dst');
+  dst.addBackgroundImage(destination.addImage({buffer: GIF}));
+
+  destination.importImages(dst, {anchored: [], background: undefined});
+
+  assert.equal(dst.backgroundImageId, undefined);
+});

@@ -148,6 +148,8 @@ class Workbook {
   addImage(options: AddImageOptions): number;
   get media(): readonly WorkbookImage[];
   getImage(id: number): WorkbookImage | undefined;
+  exportImages(sheet: Worksheet): WorksheetImages;
+  importImages(sheet: Worksheet, images: WorksheetImages): void;
   get definedNames(): readonly DefinedName[];
   defineName(definedName: DefinedName): void;
   addWorksheet(name: string, options: AddWorksheetOptions = {}): Worksheet;
@@ -627,6 +629,55 @@ getImage(id: number): WorkbookImage | undefined;
 ```
 
 Look up a registered image by its id, or `undefined` if no image carries that id.
+
+#### `Workbook.exportImages`
+
+```ts
+exportImages(sheet: Worksheet): WorksheetImages;
+```
+
+Every picture `sheet` shows, resolved out of this workbook's media registry into the
+workbook-independent form [`importImages`](./workbook.md#workbookimportimages) consumes. `sheet` must belong to this workbook —
+that is whose registry its image ids index.
+
+This is the attached-part half of a sheet copy, and it is deliberately a separate call from
+[`Worksheet.model`](./worksheet.md#worksheetmodel): a model is a serialisable value, an image is bytes on the workbook, and
+ADR-0005 keeps them apart. Carrying a sheet whole is therefore the two of them together:
+
+```ts
+destination.model = source.model;
+destinationWorkbook.importImages(destination, sourceWorkbook.exportImages(source));
+```
+
+The exported pictures share the registry's byte arrays rather than copying them — the library
+never mutates image bytes, and copying every picture would double the memory of an image-heavy
+workbook to defend against a mutation nothing performs.
+
+**Throws** — [`AuthoringError`](./errors.md#authoringerror) if the sheet anchors an image id this workbook has not registered —
+which is what a sheet from *another* workbook looks like from here. Emitting a package with a
+drawing pointing at media that was never registered is the silently-broken-image failure this
+refuses to start.
+
+#### `Workbook.importImages`
+
+```ts
+importImages(sheet: Worksheet, images: WorksheetImages): void;
+```
+
+Show `images` on `sheet`, a worksheet of this workbook, registering each picture's bytes here
+and re-anchoring it against the id they land on. The counterpart to [`exportImages`](./workbook.md#workbookexportimages), and
+the affordance that lets a picture cross workbooks at all: an [`AnchoredImage`](./images.md#anchoredimage)'s `imageId`
+indexes one workbook's registry and means nothing in the next, so a raw anchor moved between
+workbooks points at media that does not exist there.
+
+The sheet's existing pictures are replaced, not appended to, so `importImages` is a transfer
+rather than an accumulation — the same direction [`Worksheet.model`](./worksheet.md#worksheetmodel) assignment goes, and
+what makes re-importing a sheet's own export leave it unchanged. An import whose `background` is
+absent clears the destination's background for the same reason.
+
+Registration is content-addressed: a picture whose bytes are already here is re-used at its
+existing id rather than stored twice, so importing the same sheet repeatedly, or twenty sheets
+sharing one logo, costs one media part.
 
 #### `Workbook.definedNames`
 

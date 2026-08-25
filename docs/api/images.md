@@ -113,6 +113,27 @@ interface OneCellAnchor {
 
 ---
 
+### `PortableImage`
+
+<sub>interface</sub>
+
+An anchored image in workbook-independent form: the picture's own bytes rather than a media id
+into one particular workbook's registry.
+
+An [`AnchoredImage`](./images.md#anchoredimage) means nothing away from that registry — its `imageId` is an index, and
+the same index names a different picture (or none) in the next workbook. Attaching the picture
+itself is what lets an anchor cross that boundary, which is why the transfer form carries bytes
+where the stored form carries an id.
+
+```ts
+interface PortableImage {
+  readonly image: WorkbookImage;
+  readonly anchor: ImageAnchor;
+}
+```
+
+---
+
 ### `PX_TO_EMU`
 
 <sub>const</sub>
@@ -158,5 +179,22 @@ interface WorkbookImage {
    * name and content type. */
   readonly extension: string;
   readonly data: Uint8Array;
+}
+```
+
+---
+
+### `WorksheetImages`
+
+<sub>interface</sub>
+
+Every picture a worksheet shows, in the workbook-independent form of [`PortableImage`](./images.md#portableimage) — the
+images anchored to the grid, in the order they were added, and the background tiled behind it.
+[`Workbook.exportImages`](./workbook.md#workbookexportimages) produces one, [`Workbook.importImages`](./workbook.md#workbookimportimages) applies one.
+
+```ts
+interface WorksheetImages {
+  readonly anchored: readonly PortableImage[];
+  readonly background: WorkbookImage | undefined;
 }
 ```

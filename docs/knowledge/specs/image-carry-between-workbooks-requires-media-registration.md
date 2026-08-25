@@ -2,6 +2,21 @@
 
 Cluster: images
 
+> **Resolved (2026-08-25).** `Workbook.exportImages(sheet)` / `Workbook.importImages(sheet, images)`
+> are the copy affordance, and a corpus case
+> (`sheet-images-carry-between-workbooks`) locks both legs of the contract below. The open
+> questions are answered: the affordance is a **dedicated pair on `Workbook`**, not a `model`
+> field — a model is a serialisable value and an image is bytes on the workbook, which is the
+> boundary ADR-0005 draws — so carrying a sheet whole is `dst.model = src.model` followed by
+> `dstWb.importImages(dst, srcWb.exportImages(src))`. Registration is **content-addressed**, so a
+> picture already held is re-used at its existing id rather than stored twice. **Scope is floating
+> anchors and the sheet background**; a header/footer image is a byte-preserved part
+> (`legacyDrawingHF`) and rides the preserved-reference machinery instead, and in-cell rich-value
+> images do not exist in the model yet. The raw-`model`-splice failure named below is also no longer
+> an opaque `undefined` dereference — `planMedia` throws an `AuthoringError` naming the offending
+> image id — so an anchor that reaches the writer still holding a foreign id fails loudly, as the
+> contract demands.
+
 ## Scenario
 
 A user copies content — a worksheet, a range, a drawing — from one workbook into another, and the
@@ -11,11 +26,6 @@ media id, plus the actual media bytes and the relationship that binds them. Copy
 drawing/anchor (or the cell model) into a different workbook carries a reference to an image id that
 does not exist there, so the writer emits a package with a dangling drawing relationship pointing at
 media that was never registered — a silently broken image.
-
-> Spec note, not a corpus case: the report is a support question with no reproduction, code, or
-> fixture; the one durable nugget is the diagnostic that images are a media+relationship pair, not a
-> value that travels with a copied cell/drawing. The durable value is the cross-workbook copy
-> contract; a corpus case follows once a copy affordance exists to exercise.
 
 ## Desired behavior
 
@@ -32,28 +42,20 @@ media that was never registered — a silently broken image.
   relationship in the written package resolves to a real media part with a unique rel id (the same
   packageParts/rel-id invariant the table/comment coexistence cases assert), and re-reading the
   destination surfaces the image anchored where it was placed.
-- **The current `model`-transplant failure is an opaque crash, not the loud, actionable error above.**
-  Observed today: transplanting an image-bearing worksheet's serialized `model` into a *different*
-  workbook (`dstWorkbook.addWorksheet(...).model = JSON.parse(JSON.stringify(srcSheet.model))`, the
-  workaround users reach for absent a copy API) throws `TypeError: Cannot read properties of undefined
-  (reading 'name')` at **write time**, because the anchor references a workbook-scoped media id that
-  does not exist in the destination. Within a *single* workbook the same transplant happens to carry
-  the image (the media id still resolves) but drops merged ranges — merge loss on `model` transplant
-  is already locked by `worksheet-model-preserves-merged-cells`. So a raw `model` splice must, per the
-  contract above, either register the referenced media in the destination or fail with a message that
-  *names the missing image and the offending anchor* — never a bare `undefined` dereference that gives
-  the caller no clue the cause is unregistered cross-workbook media.
+- **A raw `model` splice cannot carry the media, and no longer fails opaquely when it doesn't.** As
+  originally reported, transplanting an image-bearing worksheet's serialized `model` into a
+  *different* workbook (`dstWorkbook.addWorksheet(...).model = JSON.parse(JSON.stringify(srcSheet.model))`,
+  the workaround users reached for absent a copy API) threw `TypeError: Cannot read properties of
+  undefined (reading 'name')` at **write time**, because the anchor referenced a workbook-scoped media
+  id that did not exist in the destination. That is now an `AuthoringError` naming the image id, and
+  the model no longer carries anchors at all (ADR-0005) — so the splice is a content-only copy by
+  construction, and `importImages` is how the pictures follow.
 
 ## Open questions
 
-- What is the public copy affordance this hangs off — a worksheet/range copy API, a `model`-level
-  assignment, or a dedicated `copyImagesTo(destWorkbook)`? The contract differs: a high-level copy
-  should carry media automatically; a raw `model` splice cannot and should error.
-- De-duplication: if the same image is copied into a destination that already holds identical media,
-  is it registered once (shared) or duplicated? Prefer content-hash de-dup to avoid bloating the
-  package.
-- Scope: does "content copy" include floating drawings only, or also header/footer images, background
-  images, and (later) in-cell rich-value images — each of which has its own media wiring?
+None. The affordance, the de-duplication policy and the scope are all settled in the resolution
+note above. In-cell rich-value images remain unmodelled, but that is
+`image-embedded-in-cell-vs-floating-anchor`'s question rather than this one's.
 
 Related: `add-image-source-contract`, `image-embedded-in-cell-vs-floating-anchor`,
 `streaming-write-add-image`, `comment-and-table-coexist-on-same-sheet`.
