@@ -12,8 +12,4 @@ export {
   type VbaProjectSignature,
   type VbaProjectSignatureKind,
 } from '../vba/project.ts';
-export {
-  addVbaReference,
-  removeVbaModule,
-  type VbaLibraryReference,
-} from '../vba/project-editor.ts';
+export {addVbaReference, removeVbaModule, type VbaLibraryReference} from '../vba/project-editor.ts';

@@ -15,21 +15,8 @@
       "!test/corpus/fixtures"
     ]
   },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 100
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "single",
-      "semicolons": "always",
-      "trailingCommas": "all",
-      "bracketSpacing": false,
-      "arrowParentheses": "always"
-    }
-  },
+  "formatter": {"enabled": false},
+  "assist": {"enabled": false},
   "linter": {
     "enabled": true,
     "rules": {
@@ -42,14 +29,6 @@
       },
       "suspicious": {
         "noConsole": "error"
-      }
-    }
-  },
-  "assist": {
-    "enabled": true,
-    "actions": {
-      "source": {
-        "organizeImports": "on"
       }
     }
   },

@@ -1,0 +1,45 @@
+// oxfmt configuration. JSONC rather than JSON because the values below are not
+// preferences — they are a deliberate mirror of the `formatter` and
+// `javascript.formatter` blocks of the biome.json this replaced, and that fact has to
+// survive. oxfmt auto-discovers `.oxfmtrc.jsonc` exactly as it does `.oxfmtrc.json`.
+//
+// Measured before the swap, at these settings, over the same five globs `scripts/format.ts`
+// hands the formatter: oxfmt disagrees with Biome on 3 of 510 files. One is a hand-laid-out
+// palette that needed its suppression comment re-spelled; the other two are three-specifier
+// `export … from` blocks Biome kept expanded and oxfmt collapses onto one 98-column line.
+// Nothing else in the tree moved. Change any option here and that stops being true: every
+// one of them is a whole-tree reflow, not a matter of taste.
+//
+// Per-line suppressions are spelled `// oxfmt-ignore`. oxfmt also honours
+// `// prettier-ignore`, but no Prettier is involved here and a directive named after a tool
+// this repo does not use is a question waiting to be asked.
+//
+// The directive must be the LAST comment line before the declaration it protects. Biome
+// let the reason trail on the same comment block; oxfmt does not, and a directive with an
+// explanation after it is silently inert — the file reformats and the comment still reads
+// as though it were doing something. Put the reason above the directive, not after it.
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "useTabs": false,
+  "tabWidth": 2,
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "bracketSpacing": false,
+  "arrowParens": "always",
+
+  // A safety net, not the definition of what gets formatted: `scripts/format.ts` still hands
+  // oxfmt an explicit glob list rather than the bare `oxfmt` that would suffice. Bare, oxfmt
+  // reaches markdown, JSON and YAML this repo does not format, and a silently *wider* set is
+  // how a generated file gets clobbered. The two defences overlap on purpose.
+  "ignorePatterns": [
+    "node_modules/",
+    "dist/",
+    ".tmp/",
+    // Real workbooks and the XML pulled out of them. Formatting a fixture would change the
+    // bytes a corpus case asserts against.
+    "test/corpus/fixtures/",
+    "pnpm-lock.yaml",
+  ],
+}

@@ -24,8 +24,9 @@ import {DEFAULT_THEME_COLOR_SCHEME, THEME_COLOR_SLOTS, type ThemeColorScheme} fr
  * fully transparent colours would be absurd — it is an artefact of the 32-bit colour records these
  * values were lifted from, which is why {@link resolveColor} returns them fully opaque.
  */
-// biome-ignore format: laid out eight per row, matching how the spec tabulates the palette —
-// the 0-7 / 8-15 duplication and the 16-entry banding are legible here and invisible one-per-line.
+// Laid out eight per row, matching how the spec tabulates the palette: the 0-7 / 8-15
+// duplication and the 16-entry banding are legible here and invisible one-per-line.
+// oxfmt-ignore
 export const DEFAULT_INDEXED_COLORS: readonly string[] = [
   '00000000', '00FFFFFF', '00FF0000', '0000FF00', '000000FF', '00FFFF00', '00FF00FF', '0000FFFF',
   '00000000', '00FFFFFF', '00FF0000', '0000FF00', '000000FF', '00FFFF00', '00FF00FF', '0000FFFF',
