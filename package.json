@@ -84,7 +84,7 @@
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "typecheck:dist": "tsc --noEmit -p tsconfig.dist.json",
     "test:src": "node --test \"src/**/*.test.ts\"",
-    "test:coverage": "node --test --experimental-test-coverage \"src/**/*.test.ts\"",
+    "coverage": "node scripts/coverage.ts",
     "corpus": "node test/corpus/run.ts",
     "corpus:dist": "node test/corpus/run.ts --target dist",
     "verify": "node scripts/verify.ts --full",

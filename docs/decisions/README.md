@@ -56,6 +56,7 @@ after it would have broken far more cross-references than the collision did.
 | [0032](./0032-package-output-is-reproducible.md) | Package output is reproducible: entry timestamps are pinned, not clocked | Accepted 2026-08-11 |
 | [0033](./0033-the-ooxml-oracle-is-a-shared-package.md) | The OOXML oracle is a shared package, not a repo-owned .NET tool | Accepted 2026-08-15 · supersedes the mechanism of [0002](./0002-ooxml-validation-oracle.md) |
 | [0034](./0034-the-schema-reference-is-a-queryable-graph.md) | The schema reference is a queryable graph, not a vendored XSD dump | Accepted 2026-08-15 · supersedes part 1 of [0007](./0007-spec-reference-vendored-schemas-and-learn-mcp.md) |
+| [0035](./0035-coverage-is-the-union-of-both-suites.md) | Coverage is the union of both suites, measured with node's own implementation | Accepted 2026-08-25 · picks up the coverage thread deferred by [0029](./0029-toolchain-standup.md) |
 
 ## Writing one
 

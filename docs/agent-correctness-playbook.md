@@ -16,6 +16,7 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | **Corpus** | Well-formed XML, package structure, and no behavior regression — the **spine** | `pnpm run corpus` | Node 24 |
 | **OOXML oracle** | Schema + semantic conformance vs Microsoft's own validator | `pnpm run validate:ooxml file.xlsx` | Node 24 + network on first call |
 | Spec grounding | Ground a decision in the authoritative format | `ooxml-lookup` skill + Learn MCP + `docs/knowledge/specs/` | Node 24 |
+| Coverage | Which lines/branches/functions **both** suites together ever enter | `pnpm run coverage` | Node 24 (~74 s) |
 
 **`typecheck` means both trees.** There are two strict projects — `tsconfig.json` over `src/` and
 `tsconfig.test.json` over `test/` + `scripts/` + `tools/` — and the `verify` gate has always run
@@ -93,6 +94,17 @@ so probing leaves `git status` clean *and* costs nothing at the turn boundary: a
 file anywhere else is part of the cache key and buys you a full re-verify.
 
 ## Situation → check
+
+**You want to know whether something is actually tested.**
+Run `pnpm run coverage` — never `node --test --experimental-test-coverage` on its own.
+The library is covered by two separate suites, and each one alone reports numbers that
+are confidently wrong about everything the other covers: measured on the unit suite
+alone, `src/core/table-style.ts` reads **0 % of functions covered** while the corpus
+exercises both of them. `pnpm run coverage` runs both and reports the union, which is
+the only total that means what it says. `--suite unit` / `--suite corpus` shows what one
+contributes and says so in the output; those partial runs are held to no floor. Modules
+no suite loads at all are listed by name under the table rather than omitted — that list
+is where a genuinely orphaned module shows up. See ADR 0035.
 
 **You added or changed a writer path (anything that emits XML).**
 Run `pnpm run corpus` — it parses the written package and asserts well-formedness,

@@ -57,7 +57,11 @@ Two deliberate config choices:
 The `STRATEGY.md` default was Vitest. We reject it. The 647 tests already run green
 under Node's built-in runner on `.ts` sources with zero build step, and everything
 Vitest would buy us we already have without its dependency tree:
-- **Coverage** → `node --test --experimental-test-coverage` (script `test:coverage`).
+- **Coverage** → `node --test --experimental-test-coverage`. (Superseded 2026-08-25 by
+  [0035](./0035-coverage-is-the-union-of-both-suites.md): that command measures only the unit
+  suite, so it reported confident wrong numbers for everything the corpus covers. `test:coverage`
+  is gone; `pnpm run coverage` reports the union. The point stands — the capability is Node's,
+  not Vitest's.)
 - **Type-level tests** → tsc (see below), not `expectTypeOf`.
 - **Watch** → the inner loop is already build-free; `node --test --watch` exists.
 
@@ -84,11 +88,15 @@ analogue of a red test, verified here by a negative control.
 - **Positive:** lint + format is one zero-dep binary; the whole authored tree
   (src + scripts + corpus) is consistently formatted and lint-clean; no runtime-runner
   dependency added; type contracts are now regression-guarded; `npm test` gained a
-  `lint` gate up front and `test:coverage` is available on demand.
+  `lint` gate up front and coverage is available on demand.
 - **Negative / deferred:** Biome's `recommended` is the whole ruleset — no
   project-specific rules curated yet; coverage is available but **not** yet a CI
   gate with a threshold (deliberate — a threshold is a follow-up once we decide the
-  floor); the Biome comment gotcha is a sharp edge documented but not fixable by us.
+  floor; **the floor was decided 2026-08-25 in**
+  [**0035**](./0035-coverage-is-the-union-of-both-suites.md), which also found that the number
+  being deferred here was never the library's); the Biome comment gotcha is a sharp edge
+  documented but not fixable by us.
 - **Revisit when:** Node's test runner blocks a capability we need (reconsider
-  Vitest — the migration is pre-planned); coverage should become an enforced floor;
+  Vitest — the migration is pre-planned); ~~coverage should become an enforced floor~~
+  (done — [0035](./0035-coverage-is-the-union-of-both-suites.md));
   or the ruleset needs curation beyond `recommended`.
