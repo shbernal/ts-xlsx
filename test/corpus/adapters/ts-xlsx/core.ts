@@ -173,6 +173,39 @@ export const core = {
     return {hasNonFiniteToken: /<v>[^<]*(NaN|Infinity)[^<]*<\/v>/.test(sheetXml), token};
   },
 
+  // Author a string that XML 1.0 cannot carry verbatim — a C0 control, a noncharacter, a lone
+  // surrogate — into cell text, a cached string formula result, or a sheet name, and report what the
+  // writer did → { writeOk, writeError, partsWithRawChar, emittedText }. Cell values have the
+  // SpreadsheetML `_xHHHH_` convention and must use it; a sheet name has none, so a refusal is the
+  // only honest outcome there. Neither may put the raw character into an emitted part, which would
+  // make the package malformed XML.
+  xmlCharacterSafetyReport(where: 'cell-text' | 'formula-result' | 'sheet-name', text: string) {
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the control characters is the check — this asks whether an emitted part carries one
+    const raw = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{FFFE}\u{FFFF}\u{D800}-\u{DFFF}]/u;
+    let writeOk = true;
+    let writeError: string | null = null;
+    let partsWithRawChar: string[] = [];
+    let emittedText: string | null = null;
+    try {
+      const workbook = new Workbook();
+      const sheet = workbook.addWorksheet(where === 'sheet-name' ? text : 'S');
+      if (where === 'cell-text') sheet.getCell('A1').value = text;
+      if (where === 'formula-result') sheet.getCell('A1').value = {formula: 'B1', result: text};
+      const parts = partMapOf(writeXlsx(workbook));
+      partsWithRawChar = Object.keys(parts)
+        .filter((name) => raw.test(parts[name] ?? ''))
+        .sort();
+      const cellXml = (parts['xl/worksheets/sheet1.xml'] ?? '').match(/<c r="A1"[\s\S]*?<\/c>/);
+      const body =
+        cellXml === null ? null : /<t[^>]*>([\s\S]*?)<\/t>|<v>([\s\S]*?)<\/v>/.exec(cellXml[0]);
+      emittedText = body === null ? null : (body[1] ?? body[2] ?? null);
+    } catch (error) {
+      writeOk = false;
+      writeError = messageOf(error);
+    }
+    return {writeOk, writeError, partsWithRawChar, emittedText};
+  },
+
   // Read a fixture, write it back, and parse the requested cells straight from the re-emitted sheet
   // XML → { hasNaNToken, cells }. Each cell is { t, formula, value } read off the raw `<c>`. Guards
   // that a string-typed formula result under a date format is not coerced to a numeric/NaN cell.
