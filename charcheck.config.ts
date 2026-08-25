@@ -1,0 +1,49 @@
+// Banned characters in authored prose, checked by charcheck.
+//
+// The em dash is the one character this repo actually argues about. It is the punctuation a
+// language model reaches for when a sentence has two ideas in it and no one decided which is
+// the main one, so a document full of them reads as unedited rather than as emphatic. The fix
+// is almost never a different dash: it is a full stop, a colon, or a pair of commas, and which
+// one it is depends on the sentence. That is why this rule declares no `fix`. An automatic
+// rewrite to `-` would pass the check and leave the prose worse than it found it, which is the
+// opposite of the point.
+//
+// U+2015 HORIZONTAL BAR rides along because it renders identically at every size a reviewer
+// reads at, so banning one without the other bans nothing. U+2013 EN DASH is deliberately NOT
+// banned: `docs/knowledge/specs/` uses it for numeric ranges, which is what it is for.
+//
+// Scope is `raw`, not `markdown`, so fenced code blocks are read too. The `markdown` scope
+// would be the more precise instrument, but it needs `micromark` and its ~25 transitive
+// packages to skip regions that today contain not one banned character. CLAUDE.md section 2 keeps the
+// dependency tree small; a `charcheck-disable` comment is the cheaper escape hatch on the day a
+// quoted tool output genuinely prints one.
+//
+//   node node_modules/charcheck/dist/cli.js            # the whole tree
+//   node node_modules/charcheck/dist/cli.js --staged   # what this commit would land
+
+import {defineConfig} from 'charcheck/config';
+
+/**
+ * Em dash and its lookalike, built from code points rather than typed. A config that spelled
+ * its banned characters literally would be the one file in the repo guaranteed to contain
+ * them, so it could never widen its own `include` to cover itself, and a reviewer would have
+ * to tell U+2014 from U+2013 by eye in the one place where the difference is the whole point.
+ */
+const EM_DASHES = [String.fromCodePoint(0x2014), String.fromCodePoint(0x2015)];
+
+export default defineConfig({
+  rules: [
+    {
+      id: 'no-em-dash-in-docs',
+      chars: EM_DASHES,
+      message:
+        'em dash in authored prose: recast the sentence (full stop, colon, or commas) rather than swapping the dash',
+      include: ['docs/**/*.md'],
+      // docs/api is generated from source JSDoc by scripts/gen-docs.ts, so a finding here is
+      // not editable at the file it is reported in: the dash lives in a .ts doc comment and the
+      // page is rewritten from it on every `docs:check`. Cleaning the comments is its own
+      // change; until then this excluded tree is the honest scope of the rule.
+      exclude: ['docs/api/**'],
+    },
+  ],
+});

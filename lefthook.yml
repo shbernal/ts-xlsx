@@ -58,6 +58,15 @@ pre-commit:
       run: node node_modules/@biomejs/biome/bin/biome check --write --error-on-warnings --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       stage_fixed: true
 
+    # No `glob:`, deliberately. `--staged` reads the index itself and filters it through the
+    # rules' own include globs, so a glob here would be a second, drifting copy of the
+    # targeting that already lives in charcheck.config.ts -- and the copy that goes stale
+    # silently, since a rule aimed at a tree the hook never triggers on reports nothing and
+    # a scan that reads nothing looks exactly like a scan that passed. The cost of running
+    # unconditionally is process startup on commits that touch no prose.
+    - name: charcheck
+      run: node node_modules/charcheck/dist/cli.js --staged
+
 # Full source-correctness gate, mirroring .github/workflows/corpus.yml. Runs on
 # the whole tree (not just staged files) because a push may carry commits made
 # with --no-verify. This is exactly what CI will check, run before the round-trip.

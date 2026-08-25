@@ -76,6 +76,7 @@
     "layering:check": "node scripts/check-layering.ts",
     "entries:check": "node scripts/check-entries.ts",
     "source-text:check": "node scripts/check-source-text.ts",
+    "chars:check": "charcheck",
     "lint": "biome check --error-on-warnings src scripts test tools",
     "lint:fix": "biome check --write --error-on-warnings src scripts test tools",
     "format": "biome format --write src scripts test tools",
@@ -110,6 +111,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
     "@types/node": "^24.13.3",
+    "charcheck": "^0.2.5",
     "jszip": "^3.10.1",
     "lefthook": "^2.1.10",
     "ooxml-validate": "^0.0.3",

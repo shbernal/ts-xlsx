@@ -37,6 +37,7 @@ const STAMP = join(ROOT, '.tmp', 'verify-stamp.json');
 const NODE = process.execPath;
 const BIOME = resolve(ROOT, 'node_modules/@biomejs/biome/bin/biome');
 const TSC = resolve(ROOT, 'node_modules/typescript/bin/tsc');
+const CHARCHECK = resolve(ROOT, 'node_modules/charcheck/dist/cli.js');
 
 /** The directories `lint` covers; must stay in step with the `lint` package script. */
 const LINT_ROOTS = ['src', 'scripts', 'test', 'tools'];
@@ -216,14 +217,17 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
         ],
       },
       {
-        // Two cheap invariant checks that share a gate because neither is worth a process slot of
-        // its own: both finish in well under a second.
+        // Cheap invariant checks that share a gate because none is worth a process slot of its
+        // own: each finishes in well under a second.
         name: 'invariants',
         steps: [
           {command: NODE, args: ['scripts/check-constitution.ts']},
           {command: NODE, args: ['scripts/check-layering.ts']},
           {command: NODE, args: ['scripts/check-entries.ts']},
           {command: NODE, args: ['scripts/check-source-text.ts']},
+          // Whole-tree, where the pre-commit hook sees only the index: a --no-verify commit
+          // must not be how an em dash reaches the docs.
+          {command: NODE, args: [CHARCHECK]},
         ],
       },
     );

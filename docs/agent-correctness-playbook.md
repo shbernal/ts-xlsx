@@ -13,6 +13,7 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 | ↳ narrower | Only one tree, when iterating | `pnpm run typecheck:src` · `pnpm run typecheck:test` | Node 24 |
 | ↳ emitted `.d.ts` | The published declarations typecheck as a consumer sees them | `pnpm run typecheck:dist` | Node 24 + `pnpm run build` |
 | Lint | Style/format/floating-promise/console gates | `pnpm run lint` | Node 24 |
+| Prose | No banned character in the authored docs | `pnpm run chars:check` | Node 24 |
 | **Corpus** | Well-formed XML, package structure, and no behavior regression | `pnpm run corpus` | Node 24 |
 | **OOXML oracle** | Schema + semantic conformance against Microsoft's own validator | `pnpm run validate:ooxml file.xlsx` | Node 24 + network on first call |
 | Spec grounding | Ground a decision in the authoritative format | `ooxml-lookup` skill + Learn MCP + `docs/knowledge/specs/` | Node 24 |
@@ -133,6 +134,17 @@ investigation rather than assuming it regressed here.
 The general move for this whole class: round-trip your output through Excel's own `SaveAs`
 over COM and diff the two packages. What Excel adds unprompted is what a consumer expects
 to find.
+
+**You are writing or editing a document under `docs/`.**
+Run `pnpm run chars:check`, or just commit: the pre-commit hook runs it over the index and
+the `invariants` gate runs it over the whole tree. It bans the em dash (U+2014) and its
+lookalike (U+2015) in authored prose, and it declares no autofix on purpose, because the
+replacement for an em dash is a full stop, a colon, or a pair of commas depending on the
+sentence, and a tool that guessed would turn a red check into worse prose. The rule targets
+`docs/**/*.md` and excludes `docs/api/**`: those pages are generated from source JSDoc by
+`scripts/gen-docs.ts`, so a finding there is not editable where it is reported and cleaning
+the doc comments is its own change. Everything else under `docs/` is at zero today, which is
+what makes the gate a floor rather than a wish. Config and reasoning: `charcheck.config.ts`.
 
 **You are cutting a release.**
 Bump `version` in `package.json`, cut `CHANGELOG.md`'s `## [Unreleased]` into the new
