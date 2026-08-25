@@ -15,8 +15,13 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 import type JSZipType from 'jszip';
-import type {ValidationDiagnostic, ValidationResult} from 'ooxml-validate';
-import {FILE_FORMAT, validate, validatorAvailable} from 'ooxml-validate';
+import {
+  type ValidationDiagnostic,
+  type ValidationResult,
+  FILE_FORMAT,
+  validate,
+  validatorAvailable,
+} from 'ooxml-validate';
 
 import {Workbook} from '../../src/core/workbook.ts';
 import {WorkbookStreamWriter} from '../../src/io/xlsx/write-stream.ts';

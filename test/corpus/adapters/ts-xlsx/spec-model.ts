@@ -189,7 +189,7 @@ export const specValueToModel = (value: Untyped) => {
 export const modelValueToSpec = (value: Untyped) => {
   if (value && typeof value === 'object' && Array.isArray(value.richText)) {
     return {
-      richText: value.richText.map(({text, font}: Untyped) => ({text, ...(font || {})})),
+      richText: value.richText.map(({text, font}: Untyped) => ({text, ...font})),
     };
   }
   return value;

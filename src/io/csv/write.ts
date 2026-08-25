@@ -17,8 +17,8 @@
 // `writeCsv`. See {@link assertEncodable}.
 
 import type {Cell} from '../../core/cell.ts';
-import type {CellValue} from '../../core/value.ts';
 import {
+  type CellValue,
   cellValueToText,
   isDataTableFormulaValue,
   isFormulaValue,

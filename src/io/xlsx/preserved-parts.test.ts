@@ -282,7 +282,7 @@ test('a preserved header/footer VML is numbered clear of a modeled anchored imag
   const media = names.filter((n) => /xl\/media\//.test(n));
   assert.equal(new Set(media).size, media.length, 'no two media parts share a path');
   assert.ok(
-    media.some((n) => /\.png$/.test(n)) && media.some((n) => /\.jpeg$/.test(n)),
+    media.some((n) => n.endsWith('.png')) && media.some((n) => n.endsWith('.jpeg')),
     'both the modeled png and the preserved jpeg survive',
   );
   assert.ok(

@@ -100,7 +100,7 @@ export const conditionalFormatting = {
       }),
     });
     const srcParts = partMapOf(fs.readFileSync(path.join(FIXTURES_ROOT, rel)));
-    const srcName = Object.keys(srcParts).find((n) => /sheet1\.xml$/.test(n));
+    const srcName = Object.keys(srcParts).find((n) => n.endsWith('sheet1.xml'));
     const source = cfFacts(srcName === undefined ? '' : (srcParts[srcName] ?? ''));
     const outXml = partMapOf(writeXlsx(readFixture(rel)))['xl/worksheets/sheet1.xml'] || '';
     return {source, rewritten: cfFacts(outXml)};

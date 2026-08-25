@@ -110,7 +110,7 @@ export const styles = {
       styledCells: styled.length,
       // A uniform block must not mint one entry per cell — the historical performance cliff, and the
       // reason the style table is interned at all.
-      distinctStyleIds: [...new Set(styled.map((m) => m[2]))].length,
+      distinctStyleIds: new Set(styled.map((m) => m[2])).size,
       styledAddresses: styled.map((m) => m[1]),
       sharedFacet,
       materialisedInBlock,

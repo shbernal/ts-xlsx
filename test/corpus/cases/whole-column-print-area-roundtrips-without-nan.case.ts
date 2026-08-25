@@ -28,7 +28,7 @@ export default {
       async expect(api: CorpusApi, assert: Assert) {
         const {writtenDefinedName} = await api.printAreaRoundtrip('A:D');
         assert.ok(
-          /\$A:\$D$/.test(String(writtenDefinedName)),
+          String(writtenDefinedName).endsWith('$A:$D'),
           `the written Print_Area name is the column-only reference $A:$D; got ${JSON.stringify(writtenDefinedName)}`,
         );
       },

@@ -79,7 +79,7 @@ export class WorkbookTheme {
     // write time would surface far from the call that supplied it.
     applyThemeOverrides(this.#baseXml(), overrides);
     Object.assign(this.#authored.colors, overrides.colors ?? {});
-    this.#authored.fonts = {...this.#authored.fonts, ...(overrides.fonts ?? {})};
+    this.#authored.fonts = {...this.#authored.fonts, ...overrides.fonts};
     this.#colors = undefined;
   }
 

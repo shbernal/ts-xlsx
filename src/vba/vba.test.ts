@@ -599,7 +599,7 @@ test('reading vbaProject does not regress byte-for-byte macro preservation on wr
   // Force the read-only projection before writing — it must not perturb the preserved bytes.
   assert.ok(wb.vbaProject);
   const out = unzipSync(writeXlsx(wb));
-  const reBin = Object.entries(out).find(([n]) => /vbaProject\.bin$/.test(n))?.[1];
+  const reBin = Object.entries(out).find(([n]) => n.endsWith('vbaProject.bin'))?.[1];
   assert.ok(reBin, 'the written package still carries a vbaProject.bin');
   assert.deepEqual(reBin, vbaBin, 'the macro blob is re-emitted byte-for-byte');
   // And it still parses from the re-emitted package.

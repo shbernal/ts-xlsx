@@ -9,8 +9,14 @@
 
 import {applyCellStyle, type Cell} from '../../core/cell.ts';
 import {NAMED_STYLE_ID} from '../../core/internal.ts';
-import type {Border, CellStyle, Fill, Font, NamedCellStyle} from '../../core/style.ts';
-import {assignStyleFacets} from '../../core/style.ts';
+import {
+  type Border,
+  type CellStyle,
+  type Fill,
+  type Font,
+  type NamedCellStyle,
+  assignStyleFacets,
+} from '../../core/style.ts';
 
 /**
  * What an xf resolves to: the {@link CellStyle} facet tuple, plus the two flags an xf carries that

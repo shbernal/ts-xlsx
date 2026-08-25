@@ -30,7 +30,7 @@ export default {
         const rules = sheets.Main.rules.map((r: Untyped) => r.rule);
         const crossSheet = rules.find(
           (r: Untyped) =>
-            r.type === 'list' && (r.formulae || []).some((f: Untyped) => /^Options!/.test(f)),
+            r.type === 'list' && (r.formulae || []).some((f: Untyped) => f.startsWith('Options!')),
         );
         assert.ok(
           crossSheet,

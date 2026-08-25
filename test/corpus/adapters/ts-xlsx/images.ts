@@ -192,7 +192,7 @@ export const images = {
     const buffer = writeXlsx(destination);
     const raw = unzipSync(buffer);
     const names = Object.keys(raw);
-    const mediaParts = new Set(names.filter((f) => /^xl\/media\//.test(f)));
+    const mediaParts = new Set(names.filter((f) => f.startsWith('xl/media/')));
     const relTarget: Record<string, string | undefined> = {};
     for (const t of strFromU8(
       raw['xl/drawings/_rels/drawing1.xml.rels'] || new Uint8Array(),
