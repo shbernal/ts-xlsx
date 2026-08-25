@@ -3,6 +3,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {type PartMap, partMapOf} from './package-facts.ts';

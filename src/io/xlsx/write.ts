@@ -15,6 +15,7 @@
 // unchanged.
 
 import {strToU8, zip, zipSync} from 'fflate';
+
 import type {WorkbookImage} from '../../core/image.ts';
 import {DEFAULT_THEME_XML} from '../../core/theme.ts';
 import type {Workbook} from '../../core/workbook.ts';

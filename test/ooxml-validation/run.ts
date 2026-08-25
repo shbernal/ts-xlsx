@@ -13,12 +13,14 @@ import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+
 import type JSZipType from 'jszip';
 import type {ValidationDiagnostic, ValidationResult} from 'ooxml-validate';
 import {FILE_FORMAT, validate, validatorAvailable} from 'ooxml-validate';
+
 import {Workbook} from '../../src/core/workbook.ts';
-import {writeXlsx} from '../../src/io/xlsx/write.ts';
 import {WorkbookStreamWriter} from '../../src/io/xlsx/write-stream.ts';
+import {writeXlsx} from '../../src/io/xlsx/write.ts';
 
 /** The stable subset of a diagnostic used to detect baseline drift. */
 type ValidationFingerprint = Pick<ValidationDiagnostic, 'id' | 'type' | 'partUri' | 'xpath'>;

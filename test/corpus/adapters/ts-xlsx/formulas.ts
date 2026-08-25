@@ -1,6 +1,7 @@
 // Formulas: shared formulas, data tables, and the values a formula cell reports.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {readXlsx, Workbook, writeXlsx} from './runtime.ts';

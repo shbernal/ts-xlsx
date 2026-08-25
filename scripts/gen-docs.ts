@@ -13,6 +13,7 @@
 import {mkdirSync, rmSync, writeFileSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+
 import * as ast from 'typescript/unstable/ast';
 import {
   API,

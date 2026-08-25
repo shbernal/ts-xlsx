@@ -5,8 +5,8 @@ import {strToU8, zipSync} from 'fflate';
 
 import {isFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
-import {readXlsx} from './read.ts';
 import {readSheetRows, readWorkbookStream, type StreamedRow} from './read-rows.ts';
+import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
 function rows(data: Uint8Array, options?: Parameters<typeof readSheetRows>[1]): StreamedRow[] {

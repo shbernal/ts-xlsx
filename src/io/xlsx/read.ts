@@ -22,12 +22,12 @@ import type {CommentThread} from '../../core/comment-thread.ts';
 import {unmangleFunctions} from '../../core/formula.ts';
 import {INTERNAL} from '../../core/internal.ts';
 import type {PreservedWorksheetReference} from '../../core/preserved.ts';
-import {type DefinedName, Workbook, type WorkbookView} from '../../core/workbook.ts';
 import {
   WORKBOOK_PROTECTION_CREDENTIAL_ATTRS,
   type WorkbookProtection,
   type WorkbookProtectionCredentialAttr,
 } from '../../core/workbook-protection.ts';
+import {type DefinedName, Workbook, type WorkbookView} from '../../core/workbook.ts';
 import type {Worksheet, WorksheetState} from '../../core/worksheet.ts';
 import {boolStrict, localName, openElements, parseXml} from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';

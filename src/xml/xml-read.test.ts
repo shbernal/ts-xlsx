@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {escapeSpreadsheetText} from './xml.ts';
-
 import {
   closeEmptyElements,
   decodeEntities,
@@ -13,6 +11,7 @@ import {
   type XmlAttributes,
   xmlEvents,
 } from './xml-read.ts';
+import {escapeSpreadsheetText} from './xml.ts';
 
 interface Event {
   readonly kind: 'open' | 'text' | 'close';

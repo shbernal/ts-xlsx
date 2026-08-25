@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {XmlParseError} from '../../xml/errors.ts';
 
+import {XmlParseError} from '../../xml/errors.ts';
 import {
   buildCommentThreads,
   parsePersons,

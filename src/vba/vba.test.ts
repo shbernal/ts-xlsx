@@ -8,12 +8,12 @@ import {editXlsxVbaAddReference, editXlsxVbaRemoveModule} from '../io/xlsx/edit-
 import {readXlsx} from '../io/xlsx/read.ts';
 import {writeXlsx} from '../io/xlsx/write.ts';
 import {concat, decodeUtf16le, readU16, readU32} from './bytes.ts';
-import {CompoundFile} from './cfb.ts';
 import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
+import {CompoundFile} from './cfb.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
-import {parseVbaProject} from './project.ts';
 import {addVbaReference, removeVbaModule} from './project-editor.ts';
+import {parseVbaProject} from './project.ts';
 
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
 // These construct a genuine, spec-valid `vbaProject.bin` from scratch: an MS-OVBA "store" encoder

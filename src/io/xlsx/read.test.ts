@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+
 import type {Fill} from '../../core/style.ts';
 import {isFormulaValue} from '../../core/value.ts';
 import {DEFAULT_WORKBOOK_VIEW, Workbook} from '../../core/workbook.ts';

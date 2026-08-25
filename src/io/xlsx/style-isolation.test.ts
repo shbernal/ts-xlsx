@@ -11,6 +11,7 @@
 
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+
 import type {Fill} from '../../core/style.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';

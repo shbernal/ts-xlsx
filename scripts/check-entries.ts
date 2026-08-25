@@ -26,6 +26,7 @@
 import {readdirSync, readFileSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+
 import * as ast from 'typescript/unstable/ast';
 import {API, type Project} from 'typescript/unstable/sync';
 

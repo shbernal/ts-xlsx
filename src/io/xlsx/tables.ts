@@ -16,8 +16,8 @@ import {
   type TableStyleInfo,
   type TotalsRowFunction,
 } from '../../core/table.ts';
-import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
 import {boolPresent, localName, parseXml} from '../../xml/xml-read.ts';
+import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
 import {NS} from './relationships.ts';
 
 export function tableXml(table: Table, id: number): string {

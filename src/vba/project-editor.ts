@@ -11,9 +11,9 @@
 // exactly as its own compiler wrote it.
 
 import {readU16, readU32} from './bytes.ts';
-import {CompoundFile} from './cfb.ts';
 import type {CfbNode} from './cfb-writer.ts';
 import {writeCompoundFile} from './cfb-writer.ts';
+import {CompoundFile} from './cfb.ts';
 import {type Decoder, decoderForCodePage, type Encoder, encoderForCodePage} from './codepage.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';

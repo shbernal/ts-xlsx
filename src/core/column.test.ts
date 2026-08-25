@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+
 import {Worksheet} from './worksheet.ts';
 
 test('a column handle is a live view — two handles on one index agree', () => {

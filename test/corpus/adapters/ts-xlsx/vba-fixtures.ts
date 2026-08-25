@@ -5,6 +5,7 @@
 // preserve and re-synthesis cannot. Building it here keeps the bytes auditable.
 
 import {strToU8, zipSync} from 'fflate';
+
 import {compressContainer, writeCompoundFile} from './runtime.ts';
 
 // ── Macro-enabled fixture builder ──────────────────────────────────────────────────────────────────

@@ -8,8 +8,8 @@ import {writeCompoundFile} from '../../vba/cfb-writer.ts';
 import {PackageReadError, UnsupportedFormatError} from '../opc/errors.ts';
 import {sniffContainer} from '../opc/sniff-format.ts';
 import {XlsbParseError} from '../xlsb/errors.ts';
-import {readXlsx} from './read.ts';
 import {readWorkbookStream} from './read-rows.ts';
+import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
 /** A genuine `.xlsx` package — the control that must keep reading after the probe is in front. */

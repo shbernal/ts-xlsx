@@ -4,8 +4,9 @@
 
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {Worksheet} from './worksheet.ts';
+
 import {WORKSHEET_MODEL_FACETS} from './worksheet-model.ts';
+import {Worksheet} from './worksheet.ts';
 
 // Every field of a WorksheetModel, populated, so a round-trip has something to lose in each of them.
 function populatedSheet(): Worksheet {

@@ -29,6 +29,14 @@
   "bracketSpacing": false,
   "arrowParens": "always",
 
+  // Replaces Biome's `organizeImports` assist. Two differences, and they are the whole of
+  // the 47-file diff this option landed: oxfmt sorts module specifiers by codepoint, so
+  // `workbook-protection.ts` precedes `workbook.ts` where Biome sorted the other way; and
+  // it separates node builtins, external packages and relative imports with a blank line,
+  // where Biome ran them together. That diff is a commit of its own on purpose — a
+  // reordering hidden inside a reflow is a reordering nobody reads.
+  "sortImports": true,
+
   // A safety net, not the definition of what gets formatted: `scripts/format.ts` still hands
   // oxfmt an explicit glob list rather than the bare `oxfmt` that would suffice. Bare, oxfmt
   // reaches markdown, JSON and YAML this repo does not format, and a silently *wider* set is

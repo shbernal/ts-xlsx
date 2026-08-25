@@ -3,6 +3,7 @@
 // inputs used to prove the reader classifies foreign formats instead of crashing on them.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+
 import type {Untyped} from '../../untyped.ts';
 import {decodeRange, encodeAddress, readXlsx, writeCompoundFile, writeXlsx} from './runtime.ts';
 import {buildFrom} from './spec-model.ts';

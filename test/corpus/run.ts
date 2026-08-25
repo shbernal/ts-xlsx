@@ -33,6 +33,7 @@ import assert from 'node:assert/strict';
 import {readdir} from 'node:fs/promises';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+
 import type {Behavior, Case, CorpusApi} from './case.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));

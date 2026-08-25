@@ -12,11 +12,11 @@ import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
 import {Column} from './column.ts';
 import {type CommentThread, commentThreadGuid, commentThreadOffset} from './comment-thread.ts';
-import type {ConditionalFormatting} from './conditional-formatting.ts';
 import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
+import type {ConditionalFormatting} from './conditional-formatting.ts';
 import {replaceContents} from './containers.ts';
-import type {DataValidation, DataValidationEntry} from './data-validation.ts';
 import {DataValidationOverlay} from './data-validation-overlay.ts';
+import type {DataValidation, DataValidationEntry} from './data-validation.ts';
 import {GridEdits} from './grid-edits.ts';
 import {
   type AnchoredImage,
@@ -40,8 +40,8 @@ import {
   type SheetProtectionOptions,
 } from './protection.ts';
 import {Range, rangeFrom} from './range.ts';
-import {Row} from './row.ts';
 import {buildRowCells, rowPlacements} from './row-input.ts';
+import {Row} from './row.ts';
 import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions, TOTALS_ROW_SUBTOTAL_CODE} from './table.ts';
 import type {CellValue} from './value.ts';

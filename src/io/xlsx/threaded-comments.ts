@@ -41,7 +41,6 @@ import {
   type Mention,
   type Person,
 } from '../../core/comment-thread.ts';
-import {escapeAttr, escapeSpreadsheetText, XML_DECLARATION} from '../../xml/xml.ts';
 import {
   boolStrict,
   decodeSpreadsheetText,
@@ -49,6 +48,7 @@ import {
   parseXml,
   type XmlAttributes,
 } from '../../xml/xml-read.ts';
+import {escapeAttr, escapeSpreadsheetText, XML_DECLARATION} from '../../xml/xml.ts';
 import {THREADED_COMMENTS_NS} from './namespaces.ts';
 
 /** A registered author of threaded comments — one `<person>` of `xl/persons/person.xml`. */

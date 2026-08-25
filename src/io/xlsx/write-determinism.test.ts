@@ -10,8 +10,8 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {Workbook} from '../../core/workbook.ts';
-import {writeXlsx, writeXlsxAsync} from './write.ts';
 import {WorkbookStreamWriter} from './write-stream.ts';
+import {writeXlsx, writeXlsxAsync} from './write.ts';
 
 // The instant every entry must carry, spelled out rather than imported from `FIXED_ENTRY_MTIME`, so
 // these tests can disagree with the constant instead of restating it. Read from the clock instead,

@@ -5,6 +5,7 @@
 // round-trip through the code that produced them.
 
 import {strFromU8, unzipSync} from 'fflate';
+
 import type {WorkbookInstance, WorksheetInstance} from './runtime.ts';
 
 /** A package flattened to part name → part text: what every XML-level probe here reads from. */

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+
 import {Worksheet} from './worksheet.ts';
 
 test('a row handle is a live view, not a copy — two handles on one number agree', () => {

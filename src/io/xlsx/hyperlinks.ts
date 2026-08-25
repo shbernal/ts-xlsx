@@ -13,8 +13,8 @@
 import {decodeRange, type RangeAddress} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {escapeAttr} from '../../xml/xml.ts';
 import {localName, parseXml} from '../../xml/xml-read.ts';
+import {escapeAttr} from '../../xml/xml.ts';
 import type {SheetRelIds} from './package-plan.ts';
 
 /** A hyperlink gathered from a sheet for serialisation: the cell it sits on, its target, and an

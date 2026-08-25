@@ -1,6 +1,7 @@
 // Threaded comments, legacy notes, and rich text.
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
+
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {commentThreadFacts, packagePartFacts, partMapOf} from './package-facts.ts';

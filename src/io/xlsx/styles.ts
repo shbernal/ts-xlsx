@@ -36,8 +36,8 @@ import {
 } from '../../core/style.ts';
 import {TABLE_STYLE_ELEMENT_TYPES, type TableStyle} from '../../core/table-style.ts';
 import {AuthoringError} from '../../errors.ts';
-import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import {decodeEntities} from '../../xml/xml-read.ts';
+import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import {colorAttrs} from './color-xml.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 

@@ -7,6 +7,7 @@
 // was, and pretending not to know it cost every case its type-checking.
 
 import type assert from 'node:assert/strict';
+
 import type {CorpusApi} from './adapters/ts-xlsx.ts';
 
 /** The strict `node:assert` surface handed to every behavior. */

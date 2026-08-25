@@ -14,6 +14,7 @@
 // to one slice's expansion — not the whole (possibly enormous) stream.
 
 import {type FlateError, Unzip, type UnzipFile, UnzipInflate} from 'fflate';
+
 import {PackageReadError} from './errors.ts';
 
 // Compressed input is pushed in slices this size so decompressed output arrives in

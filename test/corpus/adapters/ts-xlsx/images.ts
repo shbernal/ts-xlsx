@@ -2,6 +2,7 @@
 // anchor when the rows around it move.
 
 import {strFromU8, unzipSync} from 'fflate';
+
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {type PartMap, partMapOf} from './package-facts.ts';

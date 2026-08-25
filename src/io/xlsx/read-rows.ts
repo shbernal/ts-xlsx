@@ -27,6 +27,7 @@ import {inflateSpreadsheetPackage, unsupportedWorkbookPart} from '../opc/sniff-f
 import {CellAccumulator} from './cell-accumulator.ts';
 import type {SharedString} from './cell-value.ts';
 import {XlsxParseError} from './errors.ts';
+import {parseSharedStrings} from './read-shared-strings.ts';
 import {
   DEFAULT_MAX_UNCOMPRESSED,
   parseRelationships,
@@ -37,7 +38,6 @@ import {
   type SheetEntry,
   type XfStyle,
 } from './read.ts';
-import {parseSharedStrings} from './read-shared-strings.ts';
 
 export interface ReadSheetRowsOptions extends ReadXlsxOptions {
   /**

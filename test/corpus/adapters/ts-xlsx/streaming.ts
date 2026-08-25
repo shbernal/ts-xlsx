@@ -3,7 +3,9 @@
 
 import {tmpdir} from 'node:os';
 import {Duplex, PassThrough} from 'node:stream';
+
 import {strFromU8, unzipSync} from 'fflate';
+
 import {codeOrMessageOf, messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {partMapOf} from './package-facts.ts';

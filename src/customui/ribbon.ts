@@ -17,6 +17,7 @@
 // half-built tree.
 
 import {strFromU8} from 'fflate';
+
 import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../xml/xml-read.ts';
 import {CustomUiParseError} from './errors.ts';
 

@@ -3,8 +3,8 @@
 // registrations), and the `docProps` core/app property parts.
 
 import {mangleFormula, quoteSheetName} from '../../core/formula.ts';
-import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
+import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
 import {escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
 import {extensionOf, relativePartPath, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
