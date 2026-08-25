@@ -17,7 +17,7 @@ import {
   type TotalsRowFunction,
 } from '../../core/table.ts';
 import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
-import {localName, parseXml} from '../../xml/xml-read.ts';
+import {boolPresent, localName, parseXml} from '../../xml/xml-read.ts';
 import {NS} from './relationships.ts';
 
 export function tableXml(table: Table, id: number): string {
@@ -88,11 +88,6 @@ function tableColumnXml(column: TableColumn, id: number): string {
   return `<tableColumn ${attrs}/>`;
 }
 
-// OOXML booleans spell false as "0" or "false"; every other spelling (including "1"/"true") is true.
-function parseOoxmlBool(value: string): boolean {
-  return value !== '0' && value !== 'false';
-}
-
 /**
  * Parse a `<table>` part into the options that reconstruct it, or `undefined` when the XML is not a
  * usable table (no name, no ref, or no columns — Excel treats such a part as corrupt, so we drop it
@@ -136,7 +131,7 @@ export function parseTable(xml: string): TableOptions | undefined {
           // Capture the flag verbatim so it re-emits exactly (or, absent, stays absent) rather
           // than being normalised.
           if (attrs.totalsRowShown !== undefined)
-            totalsRowShown = parseOoxmlBool(attrs.totalsRowShown);
+            totalsRowShown = boolPresent(attrs.totalsRowShown);
           break;
         case 'autoFilter':
           hasAutoFilter = true;
@@ -147,13 +142,13 @@ export function parseTable(xml: string): TableOptions | undefined {
           const captured: {-readonly [K in keyof TableStyleInfo]: TableStyleInfo[K]} = {};
           if (attrs.name !== undefined) captured.name = attrs.name;
           if (attrs.showFirstColumn !== undefined)
-            captured.showFirstColumn = parseOoxmlBool(attrs.showFirstColumn);
+            captured.showFirstColumn = boolPresent(attrs.showFirstColumn);
           if (attrs.showLastColumn !== undefined)
-            captured.showLastColumn = parseOoxmlBool(attrs.showLastColumn);
+            captured.showLastColumn = boolPresent(attrs.showLastColumn);
           if (attrs.showRowStripes !== undefined)
-            captured.showRowStripes = parseOoxmlBool(attrs.showRowStripes);
+            captured.showRowStripes = boolPresent(attrs.showRowStripes);
           if (attrs.showColumnStripes !== undefined) {
-            captured.showColumnStripes = parseOoxmlBool(attrs.showColumnStripes);
+            captured.showColumnStripes = boolPresent(attrs.showColumnStripes);
           }
           style = captured;
           break;

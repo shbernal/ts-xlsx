@@ -480,7 +480,7 @@ function applyColumn(
   const style = styleIndex >= 0 ? xfStyles[styleIndex] : undefined;
   for (let index = min; index <= max; index++) {
     const column = sheet.getColumn(index);
-    if (width !== undefined && Number.isFinite(width) && attrs.customWidth !== '0')
+    if (width !== undefined && Number.isFinite(width) && boolPresent(attrs.customWidth))
       column.width = width;
     if (hidden) column.hidden = true;
     if (attrs.outlineLevel !== undefined) {
@@ -502,7 +502,7 @@ function applyRow(sheet: Worksheet, attrs: XmlAttributes): void {
   // carries no formatting to round-trip, and fabricating an empty record for it would put row 5 in
   // the used range on the strength of an element that says nothing.
   const row = sheet.getRow(number);
-  if (attrs.ht !== undefined && attrs.customHeight !== '0') {
+  if (attrs.ht !== undefined && boolPresent(attrs.customHeight)) {
     const height = Number(attrs.ht);
     if (Number.isFinite(height)) row.height = height;
   }

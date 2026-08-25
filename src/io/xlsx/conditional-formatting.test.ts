@@ -463,3 +463,31 @@ test('an iconSet with no named family emits the element without an empty iconSet
   assert.match(block, /^<iconSet>/, 'an absent family names no attribute at all');
   assert.doesNotMatch(block, /iconSet=""/);
 });
+
+// `gradient` and `aboveAverage` are both default-true xsd:booleans, so a producer that spells false
+// the long way must turn them off exactly as the digit does — and an unrecognised token, on a
+// default-true attribute, still reads as true rather than as absent.
+
+test('x14 gradient="false" turns the bar flat exactly as gradient="0" does', () => {
+  const written = sheetXml(writeXlsx(dataBarBook({gradient: true})));
+  for (const spelling of ['0', 'false']) {
+    const sheet1 = written.replace('gradient="1"', `gradient="${spelling}"`);
+    const rule = readParts({sheet1}).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+    assert.equal(rule?.gradient, false, `gradient="${spelling}" reads as flat`);
+  }
+});
+
+test('aboveAverage="false" reads as below-average; garbage stays above, absence stays absent', () => {
+  const read = (attr: string): boolean | undefined => {
+    const sheet1 =
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/>' +
+      `<conditionalFormatting sqref="A1:A3"><cfRule type="aboveAverage" priority="1"${attr}/>` +
+      '</conditionalFormatting></worksheet>';
+    return readParts({sheet1}).getWorksheet('S')?.conditionalFormattings[0]?.rules[0]?.aboveAverage;
+  };
+  assert.equal(read(' aboveAverage="0"'), false);
+  assert.equal(read(' aboveAverage="false"'), false, 'the long spelling turns it off too');
+  assert.equal(read(' aboveAverage="1"'), true);
+  assert.equal(read(' aboveAverage="yes"'), true, 'a default-true attribute reads garbage as on');
+  assert.equal(read(''), undefined, 'an absent attribute stays absent, not present-and-true');
+});

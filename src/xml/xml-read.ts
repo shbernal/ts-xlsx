@@ -330,6 +330,8 @@ export function localName(qualified: string): string {
 // attributes are plain xsd:booleans that are off unless an explicit "1"/"true" turns them on
 // (`boolStrict`). An optional attribute that must round-trip byte-clean has to distinguish absent
 // from present-and-false and drop an unrecognised token rather than coerce it (`boolTristate`).
+// There is no fourth variant: a hand-rolled `attr !== '0'` reads `"false"` as true, because
+// xsd:boolean spells false both ways and only Excel's own files consistently pick the digit.
 
 /** An OOXML boolean that is on when present with no value (`<b/>` is bold) and off only on an
  * explicit `"0"`/`"false"`; absence reads as on. */

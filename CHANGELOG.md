@@ -97,6 +97,15 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   `persons` registry — and they are now named on the out-of-scope side instead of being absent
   from both lists.
 
+- **A foreign file spelling an OOXML boolean `"false"` is read correctly.** `xsd:boolean`
+  permits `true`/`false` alongside `1`/`0`. Excel writes the digit, so five readers that
+  tested the attribute by hand against `'0'` had never been caught reading the long spelling
+  as *true*: a `<col customWidth="false">` gained a width it does not have, a
+  `<row customHeight="false">` a height, an x14 data bar's `gradient="false"` stayed a
+  gradient, and a `cfRule aboveAverage="false"` read as above-average. All five now go
+  through the reader's existing `boolPresent`, which has handled both spellings all along.
+  Files written by Excel are unaffected; files from other producers are the point.
+
 ### Changed
 
 - **Writing a character XML cannot represent into anything but a cell value now throws

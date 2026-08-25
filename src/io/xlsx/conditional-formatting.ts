@@ -20,7 +20,13 @@ import type {
 } from '../../core/conditional-formatting.ts';
 import type {Color} from '../../core/style.ts';
 import {boolAttr, escapeAttr, escapeText, stripFormulaEquals} from '../../xml/xml.ts';
-import {boolStrict, coerceNumericLiteral, localName, parseXml} from '../../xml/xml-read.ts';
+import {
+  boolPresent,
+  boolStrict,
+  coerceNumericLiteral,
+  localName,
+  parseXml,
+} from '../../xml/xml-read.ts';
 import {colorAttrs, parseColor} from './color-xml.ts';
 // The x14/xm extension namespaces and ext-URI GUIDs are declared inline on the `<ext>` elements
 // exactly as Excel writes them, so no worksheet-root xmlns is needed. `CF_EXT_URI` scopes the
@@ -328,7 +334,7 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
           x14ExtId = attrs.id;
         } else if (x14Ext !== undefined && ln === 'dataBar') {
           // gradient defaults to true in the x14 schema, so an absent attribute reads as a gradient.
-          x14Ext.gradient = attrs.gradient !== '0';
+          x14Ext.gradient = boolPresent(attrs.gradient);
         } else if (x14Ext !== undefined && ln === 'negativeFillColor') {
           x14Ext.negativeFillColor = parseColor(attrs);
         } else if (x14Ext !== undefined && ln === 'axisColor') {
@@ -438,7 +444,7 @@ function newDraft(attrs: Record<string, string>): RuleDraft {
     percent: boolStrict(attrs.percent),
     bottom: boolStrict(attrs.bottom),
     // aboveAverage defaults to true in OOXML; only an explicit "0" means below-average.
-    aboveAverage: attrs.aboveAverage === undefined ? undefined : attrs.aboveAverage !== '0',
+    aboveAverage: attrs.aboveAverage === undefined ? undefined : boolPresent(attrs.aboveAverage),
     equalAverage: boolStrict(attrs.equalAverage),
     dxfId: parseIndexAttr(attrs.dxfId),
     iconSet: undefined,

@@ -360,3 +360,30 @@ test('a table survives a second read → write → read round-trip unchanged', (
     ['One', 'Two', 'Three'],
   );
 });
+
+test('a table part spelling its booleans "false" reads them off, as "0" does', () => {
+  const part = (value: string): string =>
+    '<?xml version="1.0"?>' +
+    '<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" ' +
+    `name="T" displayName="T" ref="A1:A3" totalsRowCount="1" totalsRowShown="${value}">` +
+    '<tableColumns count="1"><tableColumn id="1" name="A"/></tableColumns>' +
+    `<tableStyleInfo name="TableStyleMedium2" showFirstColumn="${value}" ` +
+    `showLastColumn="${value}" showRowStripes="${value}" showColumnStripes="${value}"/>` +
+    '</table>';
+  for (const value of ['0', 'false']) {
+    const table = parseTable(part(value));
+    assert.ok(table !== undefined);
+    assert.equal(table.totalsRowShown, false, `totalsRowShown="${value}"`);
+    assert.deepEqual(
+      {...table.style, name: undefined},
+      {
+        name: undefined,
+        showFirstColumn: false,
+        showLastColumn: false,
+        showRowStripes: false,
+        showColumnStripes: false,
+      },
+      `every tableStyleInfo flag spelled "${value}" reads off`,
+    );
+  }
+});
