@@ -4,10 +4,12 @@ import {test} from 'node:test';
 import {
   columnToNumber,
   decodeAddress,
+  decodeCellRef,
   decodeRange,
   encodeAddress,
   MAX_COLUMN,
   numberToColumn,
+  tryDecodeCellRef,
 } from './address.ts';
 
 test('numberToColumn covers the Excel range boundaries', () => {
@@ -51,6 +53,33 @@ test('decodeAddress leaves the omitted axis undefined, not a sentinel', () => {
 test('decodeAddress rejects an empty reference', () => {
   assert.throws(() => decodeAddress('$'), SyntaxError);
   assert.throws(() => decodeAddress(''), SyntaxError);
+});
+
+// The narrowing every caller that needs an actual cell used to re-derive: a bare row, a bare column
+// and a range each parse fine but name no cell, and that is the case worth a single spelling.
+const NOT_ONE_CELL = ['1', '$1', 'A', '$A', 'A1:B2', '$', '', 'a1', 'Sheet1!A1'];
+
+test('decodeCellRef narrows a full reference to its two axes', () => {
+  assert.deepEqual(decodeCellRef('B2'), {col: 2, row: 2});
+  assert.deepEqual(decodeCellRef('$B$2'), {col: 2, row: 2}, 'anchors are dropped, not rejected');
+  assert.deepEqual(decodeCellRef('XFD1048576'), {col: MAX_COLUMN, row: 1048576});
+});
+
+test('decodeCellRef refuses everything that does not name one cell', () => {
+  for (const reference of NOT_ONE_CELL) {
+    assert.throws(() => decodeCellRef(reference), SyntaxError, `"${reference}" names no one cell`);
+  }
+});
+
+test('a column past XFD is a bounds failure, not a syntax one', () => {
+  assert.throws(() => decodeCellRef('XFE1'), RangeError);
+});
+
+test('tryDecodeCellRef answers undefined where decodeCellRef throws, on either error', () => {
+  assert.deepEqual(tryDecodeCellRef('B2'), {col: 2, row: 2});
+  for (const reference of [...NOT_ONE_CELL, 'XFE1']) {
+    assert.equal(tryDecodeCellRef(reference), undefined, `"${reference}" names no one cell`);
+  }
 });
 
 test('decodeRange resolves an ordinary rectangle and normalizes corner order', () => {

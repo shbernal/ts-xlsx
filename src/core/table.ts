@@ -8,7 +8,7 @@
 // on the *shape* itself: a legal name, at least one column, and at least one row.
 
 import {AuthoringError} from '../errors.ts';
-import {decodeAddress, encodeAddress} from './address.ts';
+import {type CellPosition, decodeCellRef, encodeAddress} from './address.ts';
 import type {CellStyle} from './style.ts';
 import type {CellValue} from './value.ts';
 
@@ -273,10 +273,17 @@ export class Table {
         `table "${options.name}" has an invalid data-row count (${options.rowCount})`,
       );
     }
-    const {col, row} = decodeAddress(options.ref);
-    if (col === undefined || row === undefined) {
-      throw new SyntaxError(`table ref "${options.ref}" must anchor at a single cell (e.g. "A1")`);
+    let anchor: CellPosition;
+    try {
+      anchor = decodeCellRef(options.ref);
+    } catch (cause) {
+      // The generic "not a single-cell reference" says less than naming the table, so it becomes
+      // the cause of a message that does.
+      throw new SyntaxError(`table ref "${options.ref}" must anchor at a single cell (e.g. "A1")`, {
+        cause,
+      });
     }
+    const {col, row} = anchor;
 
     this.name = options.name;
     this.displayName = options.displayName ?? options.name;

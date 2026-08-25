@@ -7,7 +7,7 @@
 // Merges and views layer on in later slices.
 
 import {AuthoringError} from '../errors.ts';
-import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
+import {decodeCellRef, decodeRange, encodeAddress, tryDecodeCellRef} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
 import {Column} from './column.ts';
@@ -336,12 +336,7 @@ export class Worksheet {
    * @throws {SyntaxError} if the reference does not resolve to a single cell.
    */
   getCell(reference: string): Cell {
-    const {col, row} = decodeAddress(reference);
-    if (col === undefined || row === undefined) {
-      throw new SyntaxError(
-        `"${reference}" is not a single-cell reference — it omits a column or row`,
-      );
-    }
+    const {col, row} = decodeCellRef(reference);
     const master = masterOf(this.#mergeRects, row, col);
     return this.#cellAt(master.row, master.col);
   }
@@ -704,12 +699,7 @@ export class Worksheet {
   // fallback comment and {@link commentThreadAt} compare anchors as plain strings, so `$B$2` and `B2` must
   // not be two anchors.
   #anchorRef(reference: string): string {
-    const {col, row} = decodeAddress(reference);
-    if (col === undefined || row === undefined) {
-      throw new SyntaxError(
-        `"${reference}" is not a single-cell reference — it omits a column or row`,
-      );
-    }
+    const {col, row} = decodeCellRef(reference);
     return encodeAddress(col, row);
   }
 
@@ -927,9 +917,8 @@ export class Worksheet {
    * contains the cell wins, mirroring how a spreadsheet resolves overlapping validations.
    */
   dataValidationAt(reference: string): DataValidation | undefined {
-    const {col, row} = decodeAddress(reference);
-    if (col === undefined || row === undefined) return undefined;
-    return this.#dataValidations.at(col, row);
+    const cell = tryDecodeCellRef(reference);
+    return cell === undefined ? undefined : this.#dataValidations.at(cell.col, cell.row);
   }
 
   /**

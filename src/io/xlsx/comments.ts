@@ -19,7 +19,7 @@
 // threads once those two are lost. So the fallback is *derived from the thread model* on write and
 // *suppressed on read*, rather than round-tripped as a plain note.
 
-import {decodeAddress} from '../../core/address.ts';
+import {tryDecodeCellRef} from '../../core/address.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {escapeAttr, escapeText, textElement, XML_DECLARATION} from '../../xml/xml.ts';
@@ -80,9 +80,15 @@ function threadFallbacks(threads: readonly CommentThread[]): CommentCell[] {
   const fallbacks: CommentCell[] = [];
   for (const thread of threads) {
     const head = thread.comments[0];
-    const {col, row} = decodeAddress(thread.ref);
-    if (head === undefined || col === undefined || row === undefined) continue;
-    fallbacks.push({ref: thread.ref, row, col, text: fallbackText(thread), threadId: head.id});
+    const cell = tryDecodeCellRef(thread.ref);
+    if (head === undefined || cell === undefined) continue;
+    fallbacks.push({
+      ref: thread.ref,
+      row: cell.row,
+      col: cell.col,
+      text: fallbackText(thread),
+      threadId: head.id,
+    });
   }
   return fallbacks;
 }

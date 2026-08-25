@@ -25,7 +25,7 @@
 // bytes. A conversation Excel wrote round-trips as itself; one authored in the model carries whatever
 // ids and dates the caller supplied.
 
-import {type CellAddress, decodeAddress} from '../../core/address.ts';
+import {encodeAddress, tryDecodeCellRef} from '../../core/address.ts';
 import {
   type Comment,
   type CommentThread,
@@ -265,13 +265,8 @@ export function buildCommentThreads(
 // every later consumer compare anchors as plain strings (`$B$2` and `B2` are one cell) and keeps a
 // foreign file's malformed reference out of the writer, which anchors the thread's legacy fallback by it.
 function anchorRef(reference: string): string | undefined {
-  let decoded: CellAddress;
-  try {
-    decoded = decodeAddress(reference);
-  } catch {
-    return undefined;
-  }
-  return decoded.col === undefined || decoded.row === undefined ? undefined : decoded.address;
+  const cell = tryDecodeCellRef(reference);
+  return cell === undefined ? undefined : encodeAddress(cell.col, cell.row);
 }
 
 function commentFrom(

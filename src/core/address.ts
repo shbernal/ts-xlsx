@@ -119,6 +119,46 @@ export function decodeAddress(reference: string): CellAddress {
 }
 
 /**
+ * A reference that names one cell — both axes present. The narrowing of {@link CellAddress} that
+ * most callers actually want: `decodeAddress` is deliberately three-shaped because a bare row
+ * (`$1`) and a bare column (`$A`) are legitimate references, but a cell is where a value lives, and
+ * every caller that needs one was re-deriving that invariant by hand.
+ */
+export interface CellPosition {
+  readonly col: number;
+  readonly row: number;
+}
+
+/**
+ * Decode a reference that must name a single cell. Anchoring `$` signs are accepted and dropped.
+ *
+ * @throws {SyntaxError} if the reference is unparseable, or parses but omits an axis (`"A"`, `"1"`).
+ */
+export function decodeCellRef(reference: string): CellPosition {
+  const {col, row} = decodeAddress(reference);
+  if (col === undefined || row === undefined) {
+    throw new SyntaxError(
+      `"${reference}" is not a single-cell reference — it omits a column or row`,
+    );
+  }
+  return {col, row};
+}
+
+/**
+ * {@link decodeCellRef} for a reference that came out of a file rather than out of a caller:
+ * `undefined` for anything that does not name one cell, whether it is a range, a bare row or
+ * column, or outright garbage. A foreign producer writes all four, and none of them is worth
+ * throwing over when the reading code's answer is simply "then there is nothing here".
+ */
+export function tryDecodeCellRef(reference: string): CellPosition | undefined {
+  try {
+    return decodeCellRef(reference);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Decode a range reference (`A1:B2`, `$1:$1`, `Sheet1!$A:$A`) into its corners and
  * canonical dimensions. A single reference collapses to a degenerate range whose
  * corners coincide.

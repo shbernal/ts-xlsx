@@ -77,8 +77,11 @@ export class CellAccumulator {
     this.#ref = attrs.r ?? '';
     this.#type = attrs.t ?? '';
     this.#style = attrs.s !== undefined ? Number(attrs.s) : -1;
-    this.#col = this.#ref === '' ? -1 : (decodeAddress(this.#ref).col ?? -1);
-    this.#row = this.#ref === '' ? -1 : (decodeAddress(this.#ref).row ?? -1);
+    // -1 is a sentinel the shared-formula translation reads, not a failure path, so an axis the
+    // reference omits stays -1 rather than raising.
+    const decoded = this.#ref === '' ? undefined : decodeAddress(this.#ref);
+    this.#col = decoded?.col ?? -1;
+    this.#row = decoded?.row ?? -1;
     this.#formula = '';
     this.#valueText = '';
     this.#inlineText = '';

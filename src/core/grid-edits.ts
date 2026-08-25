@@ -5,7 +5,7 @@
 // touches none of the public cell API. Worksheet builds the cells an insert introduces, then hands
 // the pre-built rows (or the raw column values) here for the shift.
 
-import {decodeAddress, decodeRange, encodeAddress} from './address.ts';
+import {decodeRange, encodeAddress, tryDecodeCellRef} from './address.ts';
 import {Cell, copyCellContent} from './cell.ts';
 import {replaceContents} from './containers.ts';
 import {type AnchoredImage, type AnchorPoint, type ImageAnchor, isOneCellAnchor} from './image.ts';
@@ -136,8 +136,8 @@ export class GridEdits {
       for (const cell of cols.values()) {
         const value = cell.value;
         if (!isSharedFormulaValue(value)) continue;
-        const master = decodeAddress(value.sharedFormula);
-        if (master.col === undefined || master.row === undefined) continue;
+        const master = tryDecodeCellRef(value.sharedFormula);
+        if (master === undefined) continue;
         const anchored =
           axis === 'row'
             ? encodeAddress(master.col, shiftIndex(master.row, start, count, delta))
