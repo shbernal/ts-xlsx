@@ -14,9 +14,17 @@
 //
 // Scope is `raw`, not `markdown`, so fenced code blocks are read too. The `markdown` scope
 // would be the more precise instrument, but it needs `micromark` and its ~25 transitive
-// packages to skip regions that today contain not one banned character. CLAUDE.md section 2 keeps the
-// dependency tree small; a `charcheck-disable` comment is the cheaper escape hatch on the day a
-// quoted tool output genuinely prints one.
+// packages to skip regions that today hold not one banned character, and CLAUDE.md section 2
+// keeps the dependency tree small.
+//
+// Know the exit before you need it, because it is narrower than it looks. A suppression
+// marker inside a fenced block is ignored in a .md file under every scope, by design, so that
+// a page documenting the syntax does not silence itself. Under `raw` the fence is still
+// scanned. So a banned character in quoted tool output cannot be silenced line by line at
+// all: only `charcheck-disable-file` reaches it, and that blinds the rule to the same file's
+// prose, which is the part worth checking. On the day that happens, fix the quotation, or
+// exclude the one file, or move this rule to `markdown` and pay for micromark. Do not reach
+// for a file-level disable, which reads like a local exception and is not one.
 //
 //   node node_modules/charcheck/dist/cli.js            # the whole tree
 //   node node_modules/charcheck/dist/cli.js --staged   # what this commit would land
