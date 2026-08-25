@@ -75,6 +75,9 @@ The CSV bytes of one worksheet in the requested encoding, with a UTF-8 BOM by de
 function writeCsv(workbook: Workbook, options: CsvWriteOptions = {}): Uint8Array;
 ```
 
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if a field holds an unpaired surrogate and the encoding is UTF-8, which
+cannot represent one — the alternative is `Buffer.from`'s silent U+FFFD substitution.
+
 ---
 
 ### `writeCsvText`

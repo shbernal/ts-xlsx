@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-
 import {Workbook} from '../../core/workbook.ts';
+import {AuthoringError} from '../../errors.ts';
 import {writeCsv, writeCsvText} from './write.ts';
 
 test('each row is sized to its own extent, not clamped to a narrower earlier row', () => {
@@ -95,4 +95,51 @@ test('emoji and CJK survive the default UTF-8 byte path', () => {
   wb.addWorksheet('S').addRow(['😀🎉', '日本語']);
   const body = Buffer.from(writeCsv(wb).slice(3)).toString('utf8');
   assert.equal(body, '😀🎉,日本語');
+});
+
+// A lone surrogate is the one character the CSV encode step can lose in silence, because
+// `Buffer.from` substitutes U+FFFD for it rather than failing. Refusing is what the XLSX writer's
+// escapers do with the characters they cannot represent; CSV has no `_xHHHH_` to fall back on.
+
+test('a lone surrogate is refused on the UTF-8 path rather than encoded as U+FFFD', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addRow(['a\uD800b']);
+
+  assert.equal(
+    writeCsvText(wb),
+    'a\uD800b',
+    'the logical text loses nothing — a JS string holds it',
+  );
+  assert.throws(
+    () => writeCsv(wb),
+    (error: unknown) => {
+      assert.ok(error instanceof AuthoringError);
+      assert.match(error.message, /U\+D800 at offset 1/);
+      return true;
+    },
+  );
+});
+
+test('a lone surrogate passes through the UTF-16 path, which encodes it losslessly', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addRow(['a\uD800b']);
+  const bytes = writeCsv(wb, {encoding: 'utf16le'});
+  assert.equal(Buffer.from(bytes).toString('utf16le'), 'a\uD800b');
+});
+
+test('a well-formed astral pair is not mistaken for a lone surrogate', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addRow(['\u{1F600}']);
+  assert.equal(Buffer.from(writeCsv(wb).slice(3)).toString('utf8'), '\u{1F600}');
+});
+
+test('the two spellings of UTF-8 are the same path, BOM and refusal both', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').addRow(['café']);
+  const bytes = writeCsv(wb, {encoding: 'utf-8'});
+  assert.deepEqual([bytes[0], bytes[1], bytes[2]], [0xef, 0xbb, 0xbf]);
+
+  const broken = new Workbook();
+  broken.addWorksheet('S').addRow(['\uDC00']);
+  assert.throws(() => writeCsv(broken, {encoding: 'utf-8'}), AuthoringError);
 });

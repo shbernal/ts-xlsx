@@ -11,6 +11,10 @@
 // `writeCsvText` yields the logical text; `writeCsv` encodes it to bytes and — for UTF-8, the
 // default — prepends a byte-order mark so a consumer such as Excel detects the encoding and does
 // not mangle non-ASCII on open. The BOM is a byte-level marker, not part of the logical text.
+//
+// The split is also where the one non-obvious refusal lives: a lone surrogate is a perfectly good
+// JavaScript string and has no UTF-8 encoding, so it survives `writeCsvText` and is refused by
+// `writeCsv`. See {@link assertEncodable}.
 
 import type {Cell} from '../../core/cell.ts';
 import type {CellValue} from '../../core/value.ts';
@@ -74,19 +78,57 @@ export function writeCsvText(workbook: Workbook, options: CsvWriteOptions = {}):
   return lines.join(rowDelimiter);
 }
 
-/** The CSV bytes of one worksheet in the requested encoding, with a UTF-8 BOM by default. */
+/**
+ * The CSV bytes of one worksheet in the requested encoding, with a UTF-8 BOM by default.
+ *
+ * @throws {AuthoringError} if a field holds an unpaired surrogate and the encoding is UTF-8, which
+ * cannot represent one — the alternative is `Buffer.from`'s silent U+FFFD substitution.
+ */
 export function writeCsv(workbook: Workbook, options: CsvWriteOptions = {}): Uint8Array {
   const text = writeCsvText(workbook, options);
   const encoding = options.encoding ?? 'utf8';
+  const utf8 = isUtf8(encoding);
+  if (utf8) assertEncodable(text);
   const body = Buffer.from(text, encoding);
-  const wantBom = options.bom ?? encoding === 'utf8';
-  if (!wantBom || encoding !== 'utf8') return Uint8Array.from(body);
+  const wantBom = options.bom ?? utf8;
+  if (!wantBom || !utf8) return Uint8Array.from(body);
 
   const out = new Uint8Array(UTF8_BOM.length + body.length);
   out.set(UTF8_BOM, 0);
   out.set(body, UTF8_BOM.length);
   return out;
 }
+
+// Node spells the same encoding two ways, and the BOM is owed to both.
+function isUtf8(encoding: BufferEncoding): boolean {
+  return encoding === 'utf8' || encoding === 'utf-8';
+}
+
+/**
+ * A lone surrogate — half of an astral pair, typically what is left when a string was sliced through
+ * the middle of one — has no UTF-8 encoding. `Buffer.from` does not say so: it substitutes U+FFFD
+ * and returns bytes that look perfectly well-formed, so the character is gone and nothing failed.
+ *
+ * The XLSX writer can carry one because a cell value has the `_xHHHH_` convention to hide it in; a
+ * CSV field is plain text with no escape to reach for, so refusing is the only honest answer left.
+ *
+ * Checked for UTF-8 alone. UTF-16 writes the code unit through verbatim and loses nothing, and the
+ * byte-narrow encodings (`latin1`, `ascii`) mangle every non-ASCII character by the caller's own
+ * explicit choice — a surrogate is not a special case there.
+ */
+function assertEncodable(text: string): void {
+  const found = LONE_SURROGATE.exec(text);
+  if (found === null) return;
+  const codePoint = (text.codePointAt(found.index) as number).toString(16).toUpperCase();
+  throw new AuthoringError(
+    `cannot write U+${codePoint} at offset ${found.index} of the CSV text: it is an unpaired ` +
+      'surrogate, which UTF-8 cannot encode and CSV has no escape for',
+  );
+}
+
+// The `u` flag makes the pattern match code points, so a well-formed pair is one unit that no
+// surrogate range can match and this means exactly "a surrogate that is not part of a pair".
+const LONE_SURROGATE = /[\u{D800}-\u{DFFF}]/u;
 
 function selectSheet(workbook: Workbook, name: string | undefined): Worksheet {
   if (name === undefined) {
