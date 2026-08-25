@@ -110,6 +110,30 @@ peers, so `src/io/xlsb/` may not import `src/io/xlsx/`. Co-located tests are exe
 import is not a dependency of the graph we ship. Shared code that tempts a codec to reach sideways
 belongs in `opc` or `style`; that is what those directories are for.
 
+### The two model classes delegate their state, they do not accumulate it
+
+`Worksheet` and `Workbook` are the two classes everything else hangs off, so both would grow
+without bound if every feature simply added a private field beside the getter that reads it. Past
+about a thousand lines that is no longer a class you can read: the fields are scattered through the
+file, and there is no point at which you can see what the object *is*.
+
+Both push cohesive slices of state into their own objects and keep the public accessors in front of
+them. `Worksheet` holds `DataValidationOverlay`, `ConditionalFormattingOverlay` and `GridEdits`;
+`Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`) and `WorkbookTheme`
+(`core/workbook-theme.ts`). The public surface does not move: an accessor stays on the model class,
+keeps its name, its type and its full doc comment, and becomes a one-line delegation. The doc
+comment staying put is not incidental, since it is what `scripts/gen-docs.ts` reads and what a
+consumer sees; the slice carries implementation notes only.
+
+What makes a slice a slice is how little it touches outside itself. The VBA project reaches exactly
+one thing, the preserved-reference list, which is handed to it. The theme reaches two, and the
+second one is instructive: resolving a colour needs the workbook's custom indexed palette as well as
+the theme scheme, but that palette is also the writer's source for `<indexedColors>` and is filled
+in by the reader. It stays on `Workbook` and is passed in as a narrow accessor. Had it moved, the
+styles-table state would have followed it and the result would be a colour-and-styles overlay, which
+is not a slice of anything. When a candidate slice has more than one or two such edges, that is the
+signal it is not one.
+
 ### Inside `src/io/xlsx/`: three kinds of module, deliberately flat
 
 Thirty-odd files in one directory reads like something nobody got round to organising, and the
