@@ -101,8 +101,8 @@ export const protection = {
       const xml = partMapOf(writeXlsx(wb))['xl/worksheets/sheet1.xml'] || '';
       return (xml.match(/<sheetProtection\b[^>]*\/>/) || [''])[0];
     };
-    let first = '';
-    let second = '';
+    let first: string;
+    let second: string;
     try {
       first = protectOnce();
       second = protectOnce();

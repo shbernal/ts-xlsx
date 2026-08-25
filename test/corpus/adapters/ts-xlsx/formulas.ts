@@ -26,7 +26,7 @@ export const formulas = {
     );
     const injected = zipSync(parts);
 
-    let reloadOk = false;
+    let reloadOk: boolean;
     let readShareType = null;
     let readRef = null;
     let readResult = null;

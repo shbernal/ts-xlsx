@@ -161,7 +161,7 @@ export const tables = {
         style,
       });
       let ok = true;
-      let tag = null;
+      let tag: string | null;
       try {
         const parts = partMapOf(writeXlsx(wb));
         const part = Object.keys(parts).find((n) => /^xl\/tables\/table\d+\.xml$/.test(n));
@@ -190,7 +190,7 @@ export const tables = {
   tableDuplicateColumnNamesReport(headers: string[]) {
     const wb = new Workbook();
     let ok = true;
-    let writtenNames = null;
+    let writtenNames: string | (string | undefined)[];
     try {
       wb.addWorksheet('S').addTable({
         name: 'T',

@@ -293,7 +293,7 @@ export const streaming = {
     await writer.commit();
     await new Promise((res) => setTimeout(res, 20));
     const buffer = Buffer.concat(chunks);
-    let valid = false;
+    let valid: boolean;
     try {
       valid = readXlsx(buffer).worksheets[0]!.getCell('A1').value === 'a';
     } catch {

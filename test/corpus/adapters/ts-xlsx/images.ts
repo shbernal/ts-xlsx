@@ -7,14 +7,8 @@ import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {type PartMap, partMapOf} from './package-facts.ts';
 import {fixtureBytes, readFixture, readXlsx, Workbook, writeXlsx} from './runtime.ts';
-import {buildFrom, ONE_PX_PNG} from './spec-model.ts';
-import {
-  anchorSpecImage,
-  attrsOf,
-  hexBytes,
-  imageXmlWellFormed,
-  parseAnchorSide,
-} from './xml-probes.ts';
+import {anchorSpecImage, buildFrom, ONE_PX_PNG} from './spec-model.ts';
+import {attrsOf, hexBytes, imageXmlWellFormed, parseAnchorSide} from './xml-probes.ts';
 
 export const images = {
   // Build a workbook whose sheets place images at the spec's ranges, write it, and report the

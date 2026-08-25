@@ -11,25 +11,6 @@ import {buildFrom} from './spec-model.ts';
 export const hexBytes = (hex: string) =>
   Uint8Array.from((hex.match(/../g) ?? []).map((h) => parseInt(h, 16)));
 
-// Translate a corpus image range — a string like "B2:D6", or a {tl, br?/ext?, editAs?} object — into
-// the model's typed addImage call. A one-cell anchor is a point plus a fixed pixel extent (editAs is a
-// two-cell-only attribute the model drops by construction); a two-cell anchor spans tl..br. A
-// fractional grid coordinate (col 3.5) is passed through — the model floors it to the cell and derives
-// the sub-cell EMU offset from that cell's real width/height.
-export function anchorSpecImage(sheet: Untyped, imageId: Untyped, range: Untyped) {
-  if (typeof range === 'string') {
-    const {left, top, right, bottom} = decodeRange(range);
-    sheet.addImage(imageId, {tl: {col: left! - 1, row: top! - 1}, br: {col: right, row: bottom}});
-    return;
-  }
-  const {tl, br, ext, editAs} = range;
-  if (ext !== undefined) {
-    sheet.addImage(imageId, {tl, ext: {width: ext.width, height: ext.height}});
-  } else {
-    sheet.addImage(imageId, editAs !== undefined ? {tl, br, editAs} : {tl, br});
-  }
-}
-
 // Parse the integer children of an <xdr:from>/<xdr:to> block, mirroring the oracle so a drawing anchor
 // reports the same plain-number geometry from either adapter.
 export const intAt = (xml: string, tag: string) => {

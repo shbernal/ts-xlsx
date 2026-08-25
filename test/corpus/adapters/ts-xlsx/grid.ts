@@ -450,7 +450,7 @@ export const grid = {
       const v = ws.getCell(ref).value;
       return v === null || v === undefined ? '' : String(v);
     };
-    let masterText = null;
+    let masterText: string | null;
     let childText = null;
     let childThrew = false;
     try {
