@@ -176,9 +176,13 @@
 
     // Measured at 0 or 1 findings each. At that count a rule is neither a gate nor a cost, and
     // naming it only adds a line to keep true: no-unnecessary-boolean-literal-compare 0,
-    // no-array-delete 0, use-unknown-in-catch-callback-variable 0, no-misused-spread 0,
+    // no-array-delete 0, use-unknown-in-catch-callback-variable 0,
     // no-unnecessary-template-expression 1, prefer-optional-chain 1, prefer-nullish-coalescing 1,
     // promise-function-async 2. Listed rather than enabled so a later sweep can skip them.
+    // `no-misused-spread` used to be on this list and does not belong there: it is a `correctness`
+    // rule, so it has been ON tree-wide all along. It caught five spreads over a string where the
+    // format being encoded counts UTF-16 code units, which is the kind of thing this list is for
+    // deciding is not worth catching.
 
     "import/no-duplicates": ["error", {"preferInline": true}],
     "import/no-cycle": "error",
@@ -187,98 +191,74 @@
     "import/default": "error",
     "import/namespace": "error",
   },
+  // Overrides are applied in order and the last match wins, so these run narrow-to-narrower: the test
+  // tree, then the corpus inside it, then the CLI trees, then the one file whose types are unstable.
+  //
+  // Read the note about tsgolint's tsconfig resolution in `test/tsconfig.json` before re-measuring any
+  // count below. Until those per-directory configs existed, the type-aware rules judged every file
+  // outside `src/**` under TypeScript's DEFAULTS while tsc judged it under the strict gate, and the
+  // counts they produced were mostly that disagreement: `no-unnecessary-type-assertion` alone fell
+  // from 301 to 22 the moment the linter could see `noUncheckedIndexedAccess`. Sixteen rules were off
+  // across the whole harness on the strength of those numbers. Six are, now, and only where the
+  // adapter's declared `any` boundary actually reaches.
   "overrides": [
     {
       "files": ["**/*.test.ts", "test/**/*.ts"],
       "rules": {
+        // 565 across the tree: 487 under test/corpus/, 78 in src/**/*.test.ts, none anywhere else.
+        // A test asserting on a value it has just constructed knows more than the checker does.
         "typescript/no-non-null-assertion": "off",
-        // The corpus adapter's boundary is declared untyped on purpose — see the
-        // `Untyped` alias in test/corpus/untyped.ts, which is the contract, not an
-        // oversight.
-        "typescript/no-explicit-any": "off",
+        // 7 — five in the corpus runner, two in the OOXML validation runner. Both print results.
         "eslint/no-console": "off",
-        // ── Type-aware, off across this tree. The single most consequential block in this
-        // file, so what it costs is written down rather than left to be re-derived.
-        //
-        // The `no-unsafe-*` family reports 1406 findings here and none in production source.
-        // Every one traces to `test/corpus/untyped.ts`, which declares `Untyped = any` on
-        // purpose: a corpus case describes behaviour against a deliberately untyped surface,
-        // so the adapter is where `any` is *supposed* to live. Turning the family on here
-        // would report the design, not a defect.
-        //
-        // `await-thenable` reports 699, all `await api.someMethod()` in `test/corpus/cases/**`
-        // where the adapter method happens to be synchronous. The cases await uniformly on
-        // purpose, so a method can become async without touching 282 call sites. Deleting 699
-        // awaits to satisfy the rule would trade that property away for nothing.
-        //
-        // `no-unnecessary-type-assertion` reports 301 in the same tree, all `as Untyped` on a
-        // value already typed `any`. It stays on for `src/**`, where it means something.
-        //
-        // None of these is off because it is inconvenient. Each is off because the tree it
-        // fires in has a stated contract the rule contradicts. If that contract changes,
-        // re-measure before assuming the counts still hold.
-        "typescript/await-thenable": "off",
-        "typescript/no-base-to-string": "off",
-        "typescript/no-misused-spread": "off",
-        "typescript/no-unnecessary-type-assertion": "off",
-        "typescript/no-unsafe-argument": "off",
-        "typescript/no-unsafe-assignment": "off",
-        "typescript/no-unsafe-call": "off",
-        "typescript/no-unsafe-enum-comparison": "off",
-        "typescript/no-unsafe-member-access": "off",
-        "typescript/no-unsafe-return": "off",
-        "typescript/only-throw-error": "off",
-        "typescript/prefer-promise-reject-errors": "off",
-        "typescript/require-array-sort-compare": "off",
-        "typescript/restrict-plus-operands": "off",
-        "typescript/restrict-template-expressions": "off",
-        "typescript/unbound-method": "off",
       },
     },
     {
-      // CLI entry points: printing is what they are for. 46 findings, no defects. They get the
-      // same type-aware exemptions as the test tree because they are the same kind of code —
-      // build scripts reaching into JSON, child-process output and third-party CLIs, none of
-      // which ships to a consumer.
-      "files": ["scripts/**/*.ts", "tools/**/*.ts", "charcheck.config.ts"],
+      // The corpus adapter's `any` boundary, and the only place in the tree that still has one. See
+      // `test/corpus/untyped.ts` for the contract and ADR 0037 for why it stands. These six rules are
+      // off because they report the boundary itself, not a defect: 2111 findings, every one of them
+      // downstream of `Untyped`. The other ten rules that used to be listed here are back on — they
+      // were measuring a tsconfig mismatch, not the contract.
+      "files": ["test/corpus/**/*.ts"],
       "rules": {
-        "eslint/no-console": "off",
-        // ── Type-aware, off across this tree. The single most consequential block in this
-        // file, so what it costs is written down rather than left to be re-derived.
-        //
-        // The `no-unsafe-*` family reports 1406 findings here and none in production source.
-        // Every one traces to `test/corpus/untyped.ts`, which declares `Untyped = any` on
-        // purpose: a corpus case describes behaviour against a deliberately untyped surface,
-        // so the adapter is where `any` is *supposed* to live. Turning the family on here
-        // would report the design, not a defect.
-        //
-        // `await-thenable` reports 699, all `await api.someMethod()` in `test/corpus/cases/**`
-        // where the adapter method happens to be synchronous. The cases await uniformly on
-        // purpose, so a method can become async without touching 282 call sites. Deleting 699
-        // awaits to satisfy the rule would trade that property away for nothing.
-        //
-        // `no-unnecessary-type-assertion` reports 301 in the same tree, all `as Untyped` on a
-        // value already typed `any`. It stays on for `src/**`, where it means something.
-        //
-        // None of these is off because it is inconvenient. Each is off because the tree it
-        // fires in has a stated contract the rule contradicts. If that contract changes,
-        // re-measure before assuming the counts still hold.
+        // 1, and it is the `Untyped = any` declaration itself.
+        "typescript/no-explicit-any": "off",
+        // 699, all `await api.someMethod()` in test/corpus/cases/** where the adapter method happens
+        // to be synchronous. The cases await uniformly on purpose, so a method can become async
+        // without touching 282 call sites. Deleting 699 awaits would trade that away for nothing.
         "typescript/await-thenable": "off",
-        "typescript/no-base-to-string": "off",
-        "typescript/no-misused-spread": "off",
-        "typescript/no-unnecessary-type-assertion": "off",
+        // 1412 between them — member-access 803, assignment 373, argument 122, call 66, return 48 —
+        // and zero in production source. A corpus case describes behaviour against a deliberately
+        // untyped surface, so the adapter is where `any` is SUPPOSED to live.
         "typescript/no-unsafe-argument": "off",
         "typescript/no-unsafe-assignment": "off",
         "typescript/no-unsafe-call": "off",
-        "typescript/no-unsafe-enum-comparison": "off",
         "typescript/no-unsafe-member-access": "off",
         "typescript/no-unsafe-return": "off",
-        "typescript/only-throw-error": "off",
-        "typescript/prefer-promise-reject-errors": "off",
-        "typescript/require-array-sort-compare": "off",
-        "typescript/restrict-plus-operands": "off",
-        "typescript/restrict-template-expressions": "off",
-        "typescript/unbound-method": "off",
+      },
+    },
+    {
+      // CLI entry points: printing is what they are for. 47 findings, no defects. tools/ is not in
+      // this list — it reports zero, writing through `process.stdout` instead — so the rule stays on
+      // there and a future `console.log` in a tool has to be a decision rather than a habit.
+      "files": ["scripts/**/*.ts", "charcheck.config.ts"],
+      "rules": {"eslint/no-console": "off"},
+    },
+    {
+      // The one file the type-aware rules cannot judge, and it is not this file's fault. smoke-dist
+      // imports the package by NAME, through the published `exports` map, so its types live in dist/
+      // — which does not exist before a build and never in the corpus CI job. tsconfig.test.json
+      // excludes it for that reason, which leaves tsgolint no project for it, which makes every
+      // imported symbol `any`: 37 findings that say nothing about the file and change with whether
+      // someone happened to build first. A gate whose verdict depends on that is not a gate.
+      // tsconfig.dist.json type-checks this file properly, after a build, in CI.
+      "files": ["scripts/smoke-dist.ts"],
+      "rules": {
+        "typescript/await-thenable": "off",
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
       },
     },
   ],

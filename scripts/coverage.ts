@@ -399,6 +399,9 @@ async function main(): Promise<void> {
 main().catch((err: unknown) => {
   if (err instanceof UsageError) console.error(`coverage: ${err.message}`);
   else if (err instanceof InternalsUnavailableError) console.error(`coverage: ${err.message}`);
-  else console.error(`coverage failed: ${err instanceof Error ? (err.stack ?? err.message) : err}`);
+  else
+    console.error(
+      `coverage failed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+    );
   process.exitCode = 1;
 });

@@ -113,7 +113,7 @@ export function buildReadInput(kind: ReadInputKind): Uint8Array {
       return good.subarray(0, good.length >> 1);
     }
     default:
-      throw new Error(`unknown read-input kind: ${kind}`);
+      throw new Error(`unknown read-input kind: ${String(kind)}`);
   }
 }
 

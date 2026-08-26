@@ -25,6 +25,9 @@ The net is defense-in-depth. From cheapest/fastest to most authoritative:
 both. The `typecheck` *script* used to run only the first, which made the obvious command silently
 blind to the tree the regression corpus lives in: edit an adapter, get a green `typecheck`, and
 learn nothing. It now runs both, and `typecheck:src` is there for when you genuinely want one.
+The `tsconfig.json` inside `test/`, `scripts/` and `tools/` is not a third gate and nothing runs
+`tsc` against it; it exists so the linter reads the same options `tsc` does, and the note under
+the planted control below says what happens when it does not.
 
 **`typecheck` does not mean the third tree.** `tsconfig.dist.json` typechecks the *emitted*
 `.d.ts` through the package's `exports` map, and its subject only exists after `pnpm run build`,
@@ -73,9 +76,12 @@ export function h(): void { throw 'a string'; }
 export function i(x: {a(): void}): unknown { return x.a; }
 ```
 
-It reports the same four from `test/` and `scripts/`, even though the root `tsconfig.json`
-includes only `src/**`. tsgolint is not bound to a project the way `parserOptions.project` was,
-and `--tsconfig` overrides import resolution only.
+It reports the same four from `test/`, `test/corpus/`, `scripts/` and `tools/`, verified in all
+five trees. That it does is not free: tsgolint reads compiler options from the nearest `tsconfig.json`
+that *includes* the file, which is why those three directories each carry one (ADR
+[0037](./decisions/0037-the-linter-and-the-typechecker-read-the-same-tsconfig.md)). Delete one and
+the linter falls back to TypeScript's defaults for that tree and disagrees with `tsc` without
+saying so. `--tsconfig` does not substitute; it overrides import resolution only.
 
 **A suppression that has outlived its cause is a lie.** `pnpm run lint` passes
 `--report-unused-disable-directives`, so an `// oxlint-disable-next-line` whose rule would now

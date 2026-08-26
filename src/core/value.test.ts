@@ -72,7 +72,8 @@ test('type guards reject the primitive leaves and each other', () => {
     isRichTextValue,
     isHyperlinkValue,
   ]) {
-    for (const value of primitives) assert.ok(!guard(value), `${guard.name} accepted ${value}`);
+    for (const value of primitives)
+      assert.ok(!guard(value), `${guard.name} accepted ${JSON.stringify(value)}`);
   }
   assert.ok(!isErrorValue({richText: []}));
   assert.ok(!isRichTextValue({hyperlink: 'u', text: 't'}));

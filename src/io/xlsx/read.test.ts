@@ -647,7 +647,7 @@ test('a Strict-mode t="d" cell parses to the ISO date it states, not a 1900 seri
   };
   const cell = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1');
   assert.equal(cell?.type, 'date');
-  assert.equal((cell!.value as Date).toISOString(), '2024-02-09T00:00:00.000Z');
+  assert.equal((cell.value as Date).toISOString(), '2024-02-09T00:00:00.000Z');
 });
 
 test('a serial under a built-in locale date id (57) reads as a date, not a bare number', () => {
@@ -1111,7 +1111,7 @@ test('a Date value round-trips as a Date on the calendar day it was written', ()
   const back = roundtrip(wb).getWorksheet('S')?.getCell('A1');
   assert.equal(back?.type, 'date');
   assert.ok(back?.value instanceof Date);
-  assert.equal((back!.value as Date).toISOString(), '2020-03-04T00:00:00.000Z');
+  assert.equal(back.value.toISOString(), '2020-03-04T00:00:00.000Z');
 });
 
 test('a bare Date is written under a date number format so it reads back as a date', () => {

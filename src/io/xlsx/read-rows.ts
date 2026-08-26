@@ -89,7 +89,11 @@ export interface StreamedSheet {
   /** The worksheet's declared name, joined from the workbook part — never a positional placeholder. */
   readonly name: string;
   /** Stream this sheet's rows, one at a time, in sheet order. */
-  rows(): Generator<StreamedRow>;
+  // The two extra arguments are not decoration: a bare `Generator<T>` defaults its return and next
+  // types to `any`, and that `any` reaches the caller the moment they touch `.next()` rather than
+  // `for…of`. `void, undefined` says what these generators actually do — end with nothing, take
+  // nothing back — and keeps the streaming API free of `any`.
+  rows(): Generator<StreamedRow, void, undefined>;
   /** 1-based indices of columns the sheet declares hidden, ascending. */
   readonly hiddenColumns: readonly number[];
   /** The sheet's merged ranges, as canonical A1 range strings, in declaration order. */
@@ -115,7 +119,7 @@ export interface StreamedSheet {
 export function* readSheetRows(
   data: Uint8Array,
   options: ReadSheetRowsOptions = {},
-): Generator<StreamedRow> {
+): Generator<StreamedRow, void, undefined> {
   const pkg = openPackage(data, options.maxUncompressedBytes);
   const chosen = pickSheet(pkg.sheets, options.sheet);
   const sheetXml = pkg.sheetXml(chosen.relId);
@@ -140,7 +144,7 @@ export function* readSheetRows(
 export function* readWorkbookStream(
   data: Uint8Array,
   options: ReadXlsxOptions = {},
-): Generator<StreamedSheet> {
+): Generator<StreamedSheet, void, undefined> {
   const pkg = openPackage(data, options.maxUncompressedBytes);
   for (const sheet of pkg.sheets) {
     // A named sheet whose part is missing (truncated/foreign package) still surfaces — with no rows,
@@ -236,7 +240,7 @@ class StreamedSheetReader implements StreamedSheet {
     this.#xfStyles = xfStyles;
   }
 
-  *rows(): Generator<StreamedRow> {
+  *rows(): Generator<StreamedRow, void, undefined> {
     this.#hiddenColumns = new Set();
     this.#merges = [];
     this.#scanned = false;
@@ -288,7 +292,7 @@ function* scanSheet(
   xfStyles: ReadonlyArray<XfStyle>,
   hiddenColumns: Set<number>,
   merges: string[],
-): Generator<StreamedRow> {
+): Generator<StreamedRow, void, undefined> {
   let rowNumber = 0;
   let lastRow = 0;
   let rowHidden = false;

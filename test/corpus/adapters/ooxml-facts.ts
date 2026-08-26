@@ -193,7 +193,7 @@ export function packageFacts(spec: Untyped, partMap: PartMap) {
   const sheets = Object.fromEntries(
     ((spec.sheets || []) as Untyped[]).map((s: Untyped) => {
       const xml = read(sheetIndex[s.name]!) || '';
-      const marginTag = (xml.match(/<pageMargins\b[^>]*\/>/) || [''])[0]!;
+      const marginTag = (xml.match(/<pageMargins\b[^>]*\/>/) || [''])[0];
       const marginAttrs = attrs(marginTag);
       const sheetViewTags = [...xml.matchAll(/<sheetView\b[^>]*(?:\/>|>)/g)];
       // Extract each cell's `<f>` scoped to its own `<c>…</c>` body. A single cross-cell regex would let
@@ -222,7 +222,7 @@ export function packageFacts(spec: Untyped, partMap: PartMap) {
       const ordered = (a: number, b: number): boolean | null => (a >= 0 && b >= 0 ? a < b : null);
       const hfBlock = (xml.match(
         /<headerFooter\b[\s\S]*?<\/headerFooter>|<headerFooter\b[^>]*\/>/,
-      ) || [''])[0]!;
+      ) || [''])[0];
       const hfChild = (tag: string): string | null => {
         const m = hfBlock.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`));
         return m ? m[1]! : null;
@@ -275,7 +275,7 @@ export function packageFacts(spec: Untyped, partMap: PartMap) {
           cellText: cellTexts(xml, sharedStrings),
           hasBackgroundPicture: /<picture\b[^>]*r:id=/.test(xml),
           sheetFormat: (() => {
-            const a = attrs((xml.match(/<sheetFormatPr\b[^>]*\/?>/) || [''])[0]!);
+            const a = attrs((xml.match(/<sheetFormatPr\b[^>]*\/?>/) || [''])[0]);
             return {
               defaultRowHeight: a.defaultRowHeight != null ? Number(a.defaultRowHeight) : null,
               defaultColWidth: a.defaultColWidth != null ? Number(a.defaultColWidth) : null,
@@ -291,7 +291,7 @@ export function packageFacts(spec: Untyped, partMap: PartMap) {
   const tables = [];
   for (const p of parts.filter((f) => /^xl\/tables\/table\d+\.xml$/.test(f))) {
     const xml = read(p) || '';
-    const a = attrs((xml.match(/<table\b[^>]*>/) || [''])[0]!);
+    const a = attrs((xml.match(/<table\b[^>]*>/) || [''])[0]);
     const af = xml.match(/<autoFilter\b[^>]*ref="([^"]*)"/);
     tables.push({
       ref: a.ref ?? null,
@@ -310,8 +310,8 @@ export function packageFacts(spec: Untyped, partMap: PartMap) {
   }
 
   const stylesXml = read('xl/styles.xml') || '';
-  const defaultFontBlock = (stylesXml.match(/<font>[\s\S]*?<\/font>/) || [''])[0]!;
-  const defaultFontColor = attrs((defaultFontBlock.match(/<color\b[^>]*\/?>/) || [''])[0]!);
+  const defaultFontBlock = (stylesXml.match(/<font>[\s\S]*?<\/font>/) || [''])[0];
+  const defaultFontColor = attrs((defaultFontBlock.match(/<color\b[^>]*\/?>/) || [''])[0]);
   const hasThemePart = parts.some((p) => /^xl\/theme\/theme\d+\.xml$/.test(p));
   const styles = {
     hasThemePart,

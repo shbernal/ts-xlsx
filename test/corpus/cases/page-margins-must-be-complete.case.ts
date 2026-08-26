@@ -30,7 +30,10 @@ export default {
         const {sheets} = await api.inspectPackage(SPEC);
         const present = sheets.Sheet1!.pageMargins.present;
         for (const attr of SIX) {
-          assert.ok(present.includes(attr), `pageMargins missing "${attr}"; got [${present}]`);
+          assert.ok(
+            present.includes(attr),
+            `pageMargins missing "${attr}"; got [${present.join(', ')}]`,
+          );
         }
       },
     },

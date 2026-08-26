@@ -227,7 +227,7 @@ main().catch((err: unknown) => {
   if (err instanceof UsageError) console.error(`corpus: ${err.message}`);
   else {
     console.error(
-      `corpus runner failed: ${err instanceof Error ? (err.stack ?? err.message) : err}`,
+      `corpus runner failed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
     );
   }
   process.exitCode = 1;

@@ -1,0 +1,10 @@
+{
+  "//": "Exists for tsgolint, not for tsc. oxlint's type-aware rules resolve compiler options from the nearest tsconfig.json that INCLUDES the file being linted — a non-standard name like tsconfig.test.json is invisible to that search, and the root tsconfig.json includes only src/**. Without this file the linter type-checked tools/ under TypeScript's defaults while tsc checked it under the strict gate, so the two disagreed: a probe asserting `a[0] as string` on a `string[]` reported no-unnecessary-type-assertion here and nothing under src/, because noUncheckedIndexedAccess was on for one and off for the other. It extends the harness gate so there is one place to change the options, and narrows `include` to this directory so the search stops here.",
+  "//not-a-gate": "`pnpm typecheck` runs tsconfig.test.json over all three directories at once; nothing runs tsc against this file. Incrementality is off and the buildinfo nulled so it can never race the gate's cache — see the tsBuildInfoFile note in tsconfig.json.",
+  "extends": "../tsconfig.test.json",
+  "compilerOptions": {
+    "incremental": false,
+    "tsBuildInfoFile": null
+  },
+  "include": ["./**/*.ts"]
+}

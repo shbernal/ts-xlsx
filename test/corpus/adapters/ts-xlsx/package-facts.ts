@@ -81,9 +81,7 @@ export const commentThreadFacts = (wb: WorkbookInstance, refs: string[] = []) =>
           })),
         })),
       })),
-      at: Object.fromEntries(
-        (refs as string[]).map((ref) => [ref, sheet.commentThreadAt(ref)?.ref ?? null]),
-      ),
+      at: Object.fromEntries(refs.map((ref) => [ref, sheet.commentThreadAt(ref)?.ref ?? null])),
       // Every legacy note the sheet reads back as `{<ref>: <text>}`. Reported alongside the threads because
       // the interesting fact is what is NOT here: Excel writes a boilerplate fallback comment beside every
       // thread, and surfacing that as a note would hand the caller garbage.
@@ -174,7 +172,7 @@ export const packagePartFacts = (parts: Record<string, string>) => {
         names
           .filter((p) => /threadedComments\//.test(p))
           .flatMap((p) => [...(parts[p] ?? '').matchAll(/personId="([^"]*)"/g)])
-          .map((m) => m[1]),
+          .map((m) => m[1]!),
       ),
     ].sort(),
     personEntries: countIn(parts, /xl\/persons\/person\d*\.xml$/, /<person\b/g),
@@ -197,7 +195,7 @@ export const packagePartFacts = (parts: Record<string, string>) => {
         names
           .filter((p) => /threadedComments\//.test(p))
           .flatMap((p) => [...(parts[p] ?? '').matchAll(/\bmentionpersonId="([^"]*)"/g)])
-          .map((m) => m[1]),
+          .map((m) => m[1]!),
       ),
     ].sort(),
     // Excel interns a mentioned identity as its OWN `<person>` entry with `providerId="PeoplePicker"`,
@@ -209,7 +207,7 @@ export const packagePartFacts = (parts: Record<string, string>) => {
         names
           .filter((p) => /xl\/persons\/person\d*\.xml$/.test(p))
           .flatMap((p) => [...(parts[p] ?? '').matchAll(/\bproviderId="([^"]*)"/g)])
-          .map((m) => m[1]),
+          .map((m) => m[1]!),
       ),
     ].sort(),
     // How Excel binds a thread to the legacy fallback `<comment>` it writes beside it: the fallback's
@@ -243,7 +241,7 @@ export const packagePartFacts = (parts: Record<string, string>) => {
     externalTargets: names
       .filter((p) => /xl\/externalLinks\/_rels\/.+\.rels$/.test(p))
       .flatMap((p) => [...(parts[p] ?? '').matchAll(/Target="([^"]*)"\s+TargetMode="External"/g)])
-      .map((m) => m[1])
+      .map((m) => m[1]!)
       .sort(),
     hasLegacyDrawingHF: /<legacyDrawingHF\b/.test(ws1),
     hasDrawingRef: /<drawing\b/.test(ws1),

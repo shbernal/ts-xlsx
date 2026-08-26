@@ -445,7 +445,9 @@ async function main() {
 main().catch((err: unknown) => {
   if (err instanceof UsageError) console.error(`verify: ${err.message}`);
   else {
-    console.error(`verify failed: ${err instanceof Error ? (err.stack ?? err.message) : err}`);
+    console.error(
+      `verify failed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+    );
   }
   process.exitCode = 1;
 });

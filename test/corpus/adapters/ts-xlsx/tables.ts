@@ -109,7 +109,7 @@ export const tables = {
     }
     let writeOk = true;
     let writeError = null;
-    let buffer = null;
+    let buffer: Uint8Array | null = null;
     try {
       buffer = writeXlsx(wb);
     } catch (e) {
@@ -233,7 +233,7 @@ export const tables = {
 
     let writeOk = true;
     let writeError = null;
-    let buffer = null;
+    let buffer: Uint8Array | null = null;
     try {
       buffer = writeXlsx(wb);
     } catch (e) {
@@ -331,7 +331,7 @@ export const tables = {
 
     let writeOk = true;
     let writeError = null;
-    let firstBuffer = null;
+    let firstBuffer: Uint8Array | null = null;
     try {
       firstBuffer = writeXlsx(wb);
     } catch (e) {

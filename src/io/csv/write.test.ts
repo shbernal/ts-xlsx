@@ -80,7 +80,11 @@ test('map overrides the default rendering per field, receiving the value and col
   sheet.getCell('A1').value = 7;
   sheet.getCell('C1').value = 'x';
   assert.equal(
-    writeCsvText(wb, {map: (value, index) => `${index}:${value === null ? '_' : value}`}),
+    // The cast is this test's claim about its own fixture: the sheet holds one number and one
+    // string, and `CellValue` at large includes shapes a template would render as `[object Object]`.
+    writeCsvText(wb, {
+      map: (value, index) => `${index}:${value === null ? '_' : (value as number | string)}`,
+    }),
     '0:7,1:_,2:x',
   );
 });

@@ -52,11 +52,14 @@ function u32le(n: number): number[] {
 function rec(id: number, data: number[]): number[] {
   return [...u16le(id), ...u32le(data.length), ...data];
 }
+// Code units, not code points. `[...s]` iterates code points, so a surrogate pair would arrive as a
+// single character and `charCodeAt(0)` would keep only its high half. A CFB stream name is UTF-16
+// code units on the wire, so the encoders below must count the same way the format does.
 function ascii(s: string): number[] {
-  return [...s].map((c) => c.charCodeAt(0));
+  return Array.from({length: s.length}, (_, i) => s.charCodeAt(i));
 }
 function utf16le(s: string): number[] {
-  return [...s].flatMap((c) => u16le(c.charCodeAt(0)));
+  return ascii(s).flatMap(u16le);
 }
 
 interface ModuleSpec {
@@ -109,7 +112,7 @@ function buildCfb(streams: {name: string; data: Uint8Array}[]): Uint8Array {
     const numMini = Math.max(1, Math.ceil(s.data.length / MINI));
     for (let k = 0; k < numMini; k++)
       miniFat.push(k < numMini - 1 ? startMini + k + 1 : ENDOFCHAIN);
-    miniBytes.push(...s.data, ...new Array(numMini * MINI - s.data.length).fill(0));
+    miniBytes.push(...s.data, ...new Array<number>(numMini * MINI - s.data.length).fill(0));
     entries.push({name: s.name, type: 2, start: startMini, size: s.data.length});
   }
 

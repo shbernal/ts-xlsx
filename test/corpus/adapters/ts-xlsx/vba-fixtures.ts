@@ -23,8 +23,11 @@ export const vbaU32 = (n: number) => [
   (n >> 16) & 0xff,
   (n >> 24) & 0xff,
 ];
-export const vbaAscii = (s: string) => [...s].map((c) => c.charCodeAt(0));
-export const vbaUtf16 = (s: string) => [...s].flatMap((c) => vbaU16(c.charCodeAt(0)));
+// Code units, not code points. `[...s]` iterates code points, so a surrogate pair would arrive as a
+// single character and `charCodeAt(0)` would keep only its high half — and a CFB stream name is UTF-16
+// code units on the wire.
+export const vbaAscii = (s: string) => Array.from({length: s.length}, (_, i) => s.charCodeAt(i));
+export const vbaUtf16 = (s: string) => vbaAscii(s).flatMap(vbaU16);
 export const vbaRec = (id: number, data: number[]) => [
   ...vbaU16(id),
   ...vbaU32(data.length),

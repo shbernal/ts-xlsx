@@ -314,9 +314,11 @@ test('the generator is lazy: the first row is available before the rest are pull
 
   const iterator = readSheetRows(writeXlsx(wb));
   const first = iterator.next();
-  assert.equal(first.done, false);
+  assert.ok(!first.done);
   assert.equal(first.value.number, 1);
   assert.equal(first.value.cells[0]?.value, 1);
   // Pulling one row must not have required draining the sheet; the next pull continues in order.
-  assert.equal(iterator.next().value?.number, 2);
+  const second = iterator.next();
+  assert.ok(!second.done);
+  assert.equal(second.value.number, 2);
 });

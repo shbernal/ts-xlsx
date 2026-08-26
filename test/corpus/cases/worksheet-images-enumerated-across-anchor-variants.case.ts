@@ -34,7 +34,9 @@ export default {
       name: 'each enumerated image reports its top-left cell anchor',
       async expect(api: CorpusApi, assert: Assert) {
         const {images} = await api.enumerateImagesAfterRoundtrip();
-        const tls = images.map((i) => i.tl && `${i.tl.col},${i.tl.row}`).sort();
+        const tls: string[] = images
+          .map((i) => (i.tl ? `${i.tl.col},${i.tl.row}` : 'no-tl'))
+          .sort();
         assert.deepStrictEqual(
           tls,
           ['1,1', '5,5'],

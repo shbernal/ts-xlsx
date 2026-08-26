@@ -2,7 +2,12 @@
 
 **Status:** Accepted 2026-08-25 · supersedes the toolchain half of
 [0029](./0029-toolchain-standup.md); the lint-gate posture of
-[0009](./0009-lint-type-gate-tightening.md) stands and is now enforced by a different tool
+[0009](./0009-lint-type-gate-tightening.md) stands and is now enforced by a different tool ·
+**the exemption counts below are superseded** 2026-08-26 by
+[0037](./0037-the-linter-and-the-typechecker-read-the-same-tsconfig.md) and
+[0038](./0038-the-corpus-keeps-its-untyped-boundary.md), which found that ten of the sixteen
+rules this record turns off were measuring a tsconfig mismatch rather than the code; the
+decision to adopt oxlint stands unchanged
 
 ## Context
 
@@ -69,6 +74,12 @@ reasoning at the site.
 
 ## The two counts that look like emergencies and are not
 
+> Superseded 2026-08-26. Both counts were measured while the type-aware rules were reading
+> TypeScript's *default* compiler options for every file outside `src/**`. See ADR 0037. The
+> `no-floating-promises` result below survives the correction unchanged; the second bullet does
+> not, and ADR 0038 carries the re-measured version. The section is kept because the trap it
+> describes is real and the numbers are what a cold reader will find in `git log`.
+
 A bare `oxlint --type-aware` over this tree, before the overrides, reports numbers that
 would panic anyone reading them cold. Both are configuration, not code:
 
@@ -103,7 +114,9 @@ clean tree. `docs/agent-correctness-playbook.md` carries a planted control that 
 report exactly four findings. It reports the same four from `test/` and `scripts/`, even
 though the root `tsconfig.json` includes only `src/**`: tsgolint is not bound to a
 project the way `parserOptions.project` was, and `--tsconfig` overrides import resolution
-only.
+only. What that observation missed is *which* options those trees were then being checked
+under. The answer is TypeScript's defaults, and
+[0037](./0037-the-linter-and-the-typechecker-read-the-same-tsconfig.md) is the fix.
 
 Use it before believing any zero in this document.
 
@@ -114,7 +127,12 @@ Use it before believing any zero in this document.
   load-bearing and kept its reason verbatim.
 - Four new suppressions exist for one upstream gap: oxlint does not count a JSDoc
   `{@link}` reference as a use, where tsc does, so four imports in `src/core/workbook.ts`
-  that exist only to resolve doc links pass `noUnusedLocals` and fail the linter.
+  that exist only to resolve doc links pass `noUnusedLocals` and fail the linter. Filed
+  upstream already as `oxc-project/oxc#11639`, open since 2025-06-12, with a drafted fix in
+  #13989 that was not merged, so there is nothing here to report. This is also not oxlint
+  diverging from the linter it replaced: typescript-eslint behaves identically and closed its
+  own reports as not-planned, pointing at `jsdoc/no-undefined-types`. `noUnusedLocals` is the
+  only checker in this toolchain that resolves a doc link.
 - `lint` passes `--report-unused-disable-directives`, so a suppression that outlives its
   cause fails the gate rather than quietly silencing a rule that would now pass.
 - Formatting moved first and separately (`.oxfmtrc.jsonc`), configured to mirror the
@@ -127,6 +145,8 @@ Use it before believing any zero in this document.
 - oxlint gains a way to disable type-aware rules per invocation. Then
   `options.typeAware` can move into the config, editors get the rules, and the hook can
   still opt out.
-- The corpus adapter's `any` boundary is revisited. Sixteen type-aware rules are off
-  across `test/**` solely because of it, and that is a corpus-architecture question
-  deserving its own ADR.
+- ~~The corpus adapter's `any` boundary is revisited.~~ Done 2026-08-26 in
+  [0038](./0038-the-corpus-keeps-its-untyped-boundary.md): the boundary stands, and it costs
+  six rules over `test/corpus/**` rather than sixteen across the whole harness. The other ten
+  were [0037](./0037-the-linter-and-the-typechecker-read-the-same-tsconfig.md)'s tsconfig
+  mismatch wearing the boundary's clothes.

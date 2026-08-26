@@ -57,7 +57,9 @@ after it would have broken far more cross-references than the collision did.
 | [0033](./0033-the-ooxml-oracle-is-a-shared-package.md) | The OOXML oracle is a shared package, not a repo-owned .NET tool | Accepted 2026-08-15 · supersedes the mechanism of [0002](./0002-ooxml-validation-oracle.md) |
 | [0034](./0034-the-schema-reference-is-a-queryable-graph.md) | The schema reference is a queryable graph, not a vendored XSD dump | Accepted 2026-08-15 · supersedes part 1 of [0007](./0007-spec-reference-vendored-schemas-and-learn-mcp.md) |
 | [0035](./0035-coverage-is-the-union-of-both-suites.md) | Coverage is the union of both suites, measured with node's own implementation | Accepted 2026-08-25 · picks up the coverage thread deferred by [0029](./0029-toolchain-standup.md) |
-| [0036](./0036-oxlint-and-oxfmt-replace-biome.md) | oxlint and oxfmt replace Biome; the type-aware rules come from tsgolint | Accepted 2026-08-25 · **supersedes the toolchain half of** [0029](./0029-toolchain-standup.md) |
+| [0036](./0036-oxlint-and-oxfmt-replace-biome.md) | oxlint and oxfmt replace Biome; the type-aware rules come from tsgolint | Accepted 2026-08-25 · **supersedes the toolchain half of** [0029](./0029-toolchain-standup.md) · **its exemption counts superseded** 2026-08-26 by [0037](./0037-the-linter-and-the-typechecker-read-the-same-tsconfig.md) + [0038](./0038-the-corpus-keeps-its-untyped-boundary.md) |
+| [0037](./0037-the-linter-and-the-typechecker-read-the-same-tsconfig.md) | Every tree the linter type-checks has a `tsconfig.json` the linter can find | Accepted 2026-08-26 · corrects a mechanism [0036](./0036-oxlint-and-oxfmt-replace-biome.md) observed but did not diagnose |
+| [0038](./0038-the-corpus-keeps-its-untyped-boundary.md) | The corpus keeps its untyped boundary, and it costs six rules rather than sixteen | Accepted 2026-08-26 · answers the question [0036](./0036-oxlint-and-oxfmt-replace-biome.md) deferred |
 
 ## Writing one
 

@@ -253,7 +253,7 @@ export const styles = {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
     const styles = parts['xl/styles.xml'] || '';
     const xfBlock = (styles.match(/<cellXfs\b[\s\S]*?<\/cellXfs>/) || [''])[0];
-    const cellXfCount = (xfBlock!.match(/<xf\b/g) || []).length;
+    const cellXfCount = (xfBlock.match(/<xf\b/g) || []).length;
     const sheetXml = parts['xl/worksheets/sheet1.xml'] || '';
     const indices: Record<string, Untyped> = {};
     for (const ref of cells) {
@@ -709,10 +709,10 @@ export const styles = {
       const tableStyles = block('tableStyles');
       const colors = block('colors');
       const dxfs = [...block('dxfs').matchAll(/<dxf\b[^>]*\/>|<dxf\b[^>]*>[\s\S]*?<\/dxf>/g)].map(
-        (m) => m[0] as string,
+        (m) => m[0],
       );
       const elements = [...tableStyles.matchAll(/<tableStyleElement\b[^>]*\/>/g)].map((m) => {
-        const tag = m[0] as string;
+        const tag = m[0];
         const dxfId = /\bdxfId="(\d+)"/.exec(tag)?.[1];
         return {
           type: /\btype="([^"]*)"/.exec(tag)?.[1] ?? null,
@@ -736,7 +736,7 @@ export const styles = {
       );
       const usedPrefixes = new Set<string>();
       for (const tag of xml.matchAll(/<[^!?][^>]*>/g)) {
-        for (const m of (tag[0] as string).matchAll(/[\s</]([A-Za-z_][\w.-]*):[A-Za-z_]/g)) {
+        for (const m of tag[0].matchAll(/[\s</]([A-Za-z_][\w.-]*):[A-Za-z_]/g)) {
           if (m[1] !== 'xmlns') usedPrefixes.add(m[1] as string);
         }
       }
@@ -894,13 +894,13 @@ export const styles = {
       '';
     const tableStyles = block('tableStyles');
     const dxfs = [...block('dxfs').matchAll(/<dxf\b[^>]*\/>|<dxf\b[^>]*>[\s\S]*?<\/dxf>/g)].map(
-      (m) => m[0] as string,
+      (m) => m[0],
     );
     const definitions = [...tableStyles.matchAll(/<tableStyle\b(?!s)[^>]*\bname="([^"]*)"/g)].map(
       (m) => m[1] as string,
     );
     const elements = [...tableStyles.matchAll(/<tableStyleElement\b[^>]*\/>/g)].map((m) => {
-      const tag = m[0] as string;
+      const tag = m[0];
       const size = /\bsize="(\d+)"/.exec(tag)?.[1];
       const dxfId = /\bdxfId="(\d+)"/.exec(tag)?.[1];
       return {

@@ -124,7 +124,7 @@ export const images = {
       A: wb.addImage({buffer: PNG_A, extension: 'png'}),
       B: wb.addImage({buffer: PNG_B, extension: 'png'}),
     };
-    const placed = [...placement];
+    const placed = placement.split('');
     placed.forEach((letter, i) => {
       const col = i * 2;
       sheet.addImage((ids as Record<string, number>)[letter]!, {
@@ -137,7 +137,7 @@ export const images = {
     const relsXml = strFromU8(raw['xl/drawings/_rels/drawing1.xml.rels'] || new Uint8Array());
     const relTarget: Record<string, string | undefined> = {};
     for (const t of relsXml.matchAll(/<Relationship\b[^>]*\/?>/g)) {
-      const a = attrsOf(t[0]!);
+      const a = attrsOf(t[0]);
       relTarget[a.Id!] = (a.Target || '').split('/').pop();
     }
     const drawingXml = strFromU8(raw['xl/drawings/drawing1.xml'] || new Uint8Array());
@@ -191,7 +191,7 @@ export const images = {
     for (const t of strFromU8(
       raw['xl/drawings/_rels/drawing1.xml.rels'] || new Uint8Array(),
     ).matchAll(/<Relationship\b[^>]*\/?>/g)) {
-      const a = attrsOf(t[0]!);
+      const a = attrsOf(t[0]);
       relTarget[a.Id!] = (a.Target || '').replace(/^\.\.\//, 'xl/');
     }
     const embeds = [

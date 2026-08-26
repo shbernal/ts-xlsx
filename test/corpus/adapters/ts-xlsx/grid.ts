@@ -446,9 +446,13 @@ export const grid = {
     const ws = wb.addWorksheet('S');
     ws.getCell('A1').value = 'Group';
     ws.mergeCells('A1:B1');
+    // `String` on a `CellValue` renders every non-primitive shape as `[object Object]`, which would
+    // make a rich-text or formula read indistinguishable from any other. This probe only ever reads the
+    // string it just wrote, so anything else arriving here is a failure worth being able to see.
     const textOf = (ref: string) => {
       const v = ws.getCell(ref).value;
-      return v === null || v === undefined ? '' : String(v);
+      if (v === null || v === undefined) return '';
+      return typeof v === 'object' ? JSON.stringify(v) : String(v);
     };
     let masterText: string | null;
     let childText = null;
@@ -704,7 +708,7 @@ export const grid = {
     }
     let writeOk = true;
     let writeError = null;
-    let buffer = null;
+    let buffer: Uint8Array | null = null;
     try {
       buffer = writeXlsx(wb);
     } catch (e) {

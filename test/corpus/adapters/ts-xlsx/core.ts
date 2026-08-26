@@ -224,7 +224,7 @@ export const core = {
     const textOf = (value: unknown): string | null => {
       if (typeof value === 'string') return value;
       if (value !== null && typeof value === 'object' && 'result' in value) {
-        const {result} = value as {result: unknown};
+        const {result} = value;
         return typeof result === 'string' ? result : null;
       }
       return null;
@@ -590,8 +590,10 @@ export const core = {
     const dst = workbook.addWorksheet('Dst');
 
     let error = null;
-    let dstMerges: Untyped[] = [];
-    const srcMerges = [...src.model.merges];
+    // Declared `string[]` rather than `Untyped[]`: these are A1 range strings, and typing them is
+    // what lets the sort below be checked at all.
+    let dstMerges: string[] = [];
+    const srcMerges: string[] = [...src.model.merges];
     try {
       dst.model = {...src.model, name: 'Dst'} as Untyped;
       dstMerges = [...dst.model.merges];

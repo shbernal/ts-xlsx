@@ -65,7 +65,10 @@ test('indices 0-7 duplicate 8-15, as the spec preserves them', () => {
 });
 
 test('the system foreground and background indices stay unresolved', () => {
-  assert.deepEqual([...SYSTEM_INDEXED_COLORS].sort(), [64, 65]);
+  assert.deepEqual(
+    [...SYSTEM_INDEXED_COLORS].sort((a, b) => a - b),
+    [64, 65],
+  );
   // indexed="64" is the placeholder on every solid fill Excel writes; inventing black for it would
   // paint every such fill.
   assert.equal(resolveColor({indexed: 64}), undefined);

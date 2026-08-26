@@ -15,7 +15,7 @@ read.
 function* readSheetRows(
   data: Uint8Array,
   options: ReadSheetRowsOptions = {},
-): Generator<StreamedRow>;
+): Generator<StreamedRow, void, undefined>;
 ```
 
 - `data`: The raw `.xlsx` bytes.
@@ -59,7 +59,7 @@ of walking `readXlsx(data).worksheets`.
 function* readWorkbookStream(
   data: Uint8Array,
   options: ReadXlsxOptions = {},
-): Generator<StreamedSheet>;
+): Generator<StreamedSheet, void, undefined>;
 ```
 
 - `data`: The raw `.xlsx` bytes.

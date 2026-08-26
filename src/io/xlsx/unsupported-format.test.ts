@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {inspect} from 'node:util';
 
 import {strToU8, zipSync} from 'fflate';
 
@@ -142,7 +143,9 @@ test('a truncated archive leaks neither raw zip internals nor a filesystem path'
   assert.ok(err instanceof PackageReadError);
   // The fflate failure ("… end of central directory …", "invalid zip data") must never surface, nor
   // any filesystem path — neither in the message nor through a `cause` chain a logger would print.
-  const text = `${err.message} ${String(err.cause ?? '')}`;
+  // `inspect` rather than `String`: a logger printing an error prints its `cause` chain in full,
+  // and that whole rendering is what must not leak — `String(cause)` would show only its top line.
+  const text = `${err.message} ${inspect(err.cause)}`;
   assert.doesNotMatch(text, /central directory|is this a zip|invalid zip|unexpected EOF/i);
   assert.doesNotMatch(text, /[A-Za-z]:\\|\/(?:Users|home)\//);
   assert.equal(err.cause, undefined);

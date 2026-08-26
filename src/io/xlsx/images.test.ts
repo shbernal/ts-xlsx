@@ -43,7 +43,7 @@ test('a noted-free workbook with an image emits a drawing, a media part, and a <
   assert.ok(files['xl/media/image1.png'], 'the media bytes are written');
   const sheetXml = strFromU8(files['xl/worksheets/sheet1.xml'] as Uint8Array);
   assert.match(sheetXml, /<drawing r:id="[^"]+"\/>/);
-  const drawingXml = strFromU8(files['xl/drawings/drawing1.xml'] as Uint8Array);
+  const drawingXml = strFromU8(files['xl/drawings/drawing1.xml']);
   assert.match(drawingXml, /<xdr:from>[\s\S]*?<xdr:row>5<\/xdr:row>/);
   const contentTypes = strFromU8(files['[Content_Types].xml'] as Uint8Array);
   assert.match(contentTypes, /Extension="png" ContentType="image\/png"/);
@@ -201,7 +201,7 @@ test('a sheet background image writes a <picture>, an image relationship, and it
   assert.match(
     relsXml,
     new RegExp(
-      `<Relationship Id="${picture![1]}"[^>]*Type="[^"]*/image"[^>]*Target="\\.\\./media/image1\\.png"`,
+      `<Relationship Id="${picture[1]}"[^>]*Type="[^"]*/image"[^>]*Target="\\.\\./media/image1\\.png"`,
     ),
   );
   assert.ok(files['xl/media/image1.png'], 'the background bytes are written once');

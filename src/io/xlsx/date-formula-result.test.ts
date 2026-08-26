@@ -27,7 +27,7 @@ test('a date-valued formula result round-trips as a Date, not a bare serial', ()
   const a1 = formulaOf(readXlsx(writeXlsx(wb)), 'A1');
   assert.equal(a1.formula, 'TODAY()');
   assert.ok(a1.result instanceof Date, 'the cached result reads back as a Date');
-  assert.equal((a1.result as Date).getTime(), when.getTime());
+  assert.equal(a1.result.getTime(), when.getTime());
 });
 
 test('the result caches the serial and the cell carries a date format so it reads as a date', () => {
@@ -54,7 +54,7 @@ test('an explicit date format on the cell wins over the default but still reads 
   const back = readXlsx(writeXlsx(wb));
   const a1 = formulaOf(back, 'A1');
   assert.ok(a1.result instanceof Date, 'the explicit-format cell still yields a Date');
-  assert.equal((a1.result as Date).getTime(), when.getTime());
+  assert.equal(a1.result.getTime(), when.getTime());
   assert.equal(
     back.getWorksheet('S')?.getCell('A1').numFmt,
     'yyyy-mm-dd',

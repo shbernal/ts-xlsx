@@ -18,7 +18,12 @@ import {xmlEvents} from './xml/xml-read.ts';
 // Every class in the taxonomy, with the code it is contracted to carry. A class added without a
 // row here is one whose category nobody chose — the `every class` tests below are only as complete
 // as this table, so it is the thing to extend first.
-const TAXONOMY: ReadonlyArray<readonly [new (message?: string) => XlsxError, XlsxErrorCode]> = [
+const TAXONOMY: ReadonlyArray<
+  // Two constructor parameters, not one: every subclass inherits Error's `(message, options)` and
+  // none may shadow it away, which the cause test below calls directly. Declaring one parameter and
+  // casting at the call site said the same thing in a place the type could not enforce it.
+  readonly [new (message?: string, options?: ErrorOptions) => XlsxError, XlsxErrorCode]
+> = [
   [AuthoringError, 'authoring'],
   [VbaAuthorError, 'authoring'],
   [InternalError, 'internal'],
@@ -61,11 +66,7 @@ test('every taxonomy error reports its documented code and its own name', () => 
 test('a taxonomy error carries a cause through to the standard Error field', () => {
   const cause = new Error('underlying');
   for (const [Class] of TAXONOMY) {
-    // Every subclass inherits Error's two-argument constructor; none may shadow it away.
-    const error = new (Class as new (message?: string, options?: ErrorOptions) => XlsxError)(
-      'wrapped',
-      {cause},
-    );
+    const error = new Class('wrapped', {cause});
     assert.equal(error.cause, cause, `${Class.name} dropped its cause`);
   }
 });

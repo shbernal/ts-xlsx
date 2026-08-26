@@ -130,6 +130,14 @@ async function assertExcelAvailable(): Promise<void> {
 
 const VALID_KINDS = new Set(['procedural', 'class', 'designer', 'document']);
 
+// `Array.isArray` is declared `arg is any[]`, and a `readonly T[]` is not assignable to `any[]`, so
+// narrowing a readonly array through it widens every element to `any` — the member reads in
+// `readSpec` below would then be unchecked. This predicate does the same runtime test and keeps the
+// declared element type.
+function isReadonlyArray<T>(value: readonly T[] | undefined): value is readonly T[] {
+  return Array.isArray(value);
+}
+
 function readSpec(specPath: string): CompileSpec {
   let parsed: unknown;
   try {
@@ -138,7 +146,7 @@ function readSpec(specPath: string): CompileSpec {
     fail(`could not read/parse spec ${specPath}: ${(error as Error).message}`);
   }
   const s = parsed as Partial<CompileSpec>;
-  if (!Array.isArray(s.modules) || s.modules.length === 0) {
+  if (!isReadonlyArray(s.modules) || s.modules.length === 0) {
     fail(`spec ${specPath} must have a non-empty "modules" array`);
   }
   for (const m of s.modules) {

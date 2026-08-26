@@ -11,6 +11,11 @@ import {
   // Imported for the `{@link}` targets in the accessor docs below: the doc comments explain the
   // structural splices by pointing at the functions that perform them. tsc counts a `{@link}` as a
   // use and oxlint does not, so `noUnusedLocals` is satisfied and the linter still has to be told.
+  // Upstream at oxc-project/oxc#11639, open since 2025-06-12 (a fix was drafted in #13989 and not
+  // merged); do not file another. Nor is this oxlint diverging from the linter it replaced —
+  // typescript-eslint reports the same and closed its own reports as not-planned, referring people
+  // to `jsdoc/no-undefined-types`. `noUnusedLocals` is the only checker in this toolchain that
+  // resolves a doc link. When #11639 lands, `--report-unused-disable-directives` retires these four.
   // oxlint-disable-next-line eslint/no-unused-vars
   addVbaReference,
   // oxlint-disable-next-line eslint/no-unused-vars
