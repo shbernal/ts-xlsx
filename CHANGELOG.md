@@ -12,6 +12,27 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-08-27
+
+A major, because four documented breaks land together. None of them is a redesign: each is a
+place where the library was quietly doing the wrong thing and the honest fix is visible to a
+caller.
+
+- **Seven scalar-validation throws became native errors.** `catch (e) { if (e instanceof
+  XlsxError) }` no longer catches them. See *Changed*, first entry, for the table.
+- **`Workbook.authoredThemeXml()` is now the `Workbook.themeOverrides` getter,** and
+  `parseThemeColorScheme` moved from the `/core` subpath to `/xlsx`. The package root is
+  unaffected either way.
+- **A row or column addressed past the grid now throws `RangeError`** where it used to return,
+  matching what the letter spelling has always done. Reading such a file is unaffected.
+- **A character XML cannot represent now throws when written anywhere but a cell value.** It
+  used to return a package Excel reports as damaged.
+
+Two more changes are additive but worth reading before upgrading: `WorksheetModel` gained
+`view`, which only affects code that builds a model literal by hand, and the `_xHHHH_` escape is
+now decoded on read, so a foreign file holding one reads back as the character rather than as
+the seven-character literal.
+
 ### Added
 
 - **`GridRect` and `MentionRef`: the two shapes the library was declaring more than once.**
@@ -65,7 +86,32 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
   and then `RangeError: Map maximum size exceeded`. A denial of service on a one-line input.
   The span is now clamped to the last real column and an element wholly outside the grid is
   dropped, which is what the streaming reader already did with the same element. A `<row r>`
-  past the last row is dropped for the same reason.
+  past the last row is dropped for the same reason, in both readers: the streaming reader used
+  to hand the out-of-grid number straight to the consumer as `StreamedRow.number`, so a data
+  read could be given an address no `getCell` will accept. It now drops the row, as the
+  buffered reader does. An `<r>` names one row and nothing can be folded onto it, so it is
+  dropped rather than clamped: clamping would move a foreign file's formatting onto the last
+  real row.
+
+- **A lone surrogate in a CSV field is refused instead of silently becoming U+FFFD.**
+  `writeCsv`'s UTF-8 encode substituted the replacement character for an unpaired surrogate, so
+  the file was written, nothing failed, and the character was gone. A CSV field is plain text
+  with no escape convention to hide it in, unlike a cell value's `_xHHHH_`, so refusing at the
+  encode step is the only honest answer: it now throws, naming the code point and its offset.
+  `writeCsvText` still returns the surrogate intact, because a JS string carries it losslessly,
+  and the UTF-16 path still encodes it through.
+
+  One spelling inconsistency is settled alongside it: `encoding: 'utf-8'` used to take the
+  non-UTF-8 branch and get no byte-order mark, unlike `'utf8'`. Both spellings now behave the
+  same, BOM and refusal alike.
+
+- **An authored theme typeface reads back decoded, matching what the writer escaped.**
+  `parseThemeFontScheme` handed back the raw `<a:latin typeface>` attribute text, so a face
+  carrying an `&` came back as `&amp;`: authoring `Ampersand & Co` and reading it back yielded
+  `Ampersand &amp; Co`, and a second write would have doubled the escape. The reader was the
+  half that disagreed with the writer, and it now decodes like every other attribute reaching
+  the model. The colour scheme beside it was never exposed, because a hex slot cannot carry an
+  entity; the font scheme is the one place in the part where free text lives.
 
 - **A control character in a string no longer produces a package Excel reports as damaged.**
   The writer escaped `& < > " '` and nothing else, so every other character reached the file
@@ -814,7 +860,8 @@ author a new one ([ADR-0014](docs/decisions/0014-charts-shapes-slicers-are-round
   table is re-emitted at its original indices, and the namespace prefixes Excel stamps on a table style
   (`xr9:uid`) are re-declared on the stylesheet root rather than left dangling.
 
-[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/shbernal/ts-xlsx/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/shbernal/ts-xlsx/compare/v1.3.1...v2.0.0
 [1.3.1]: https://github.com/shbernal/ts-xlsx/compare/v1.2.0...v1.3.1
 [1.2.0]: https://github.com/shbernal/ts-xlsx/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/shbernal/ts-xlsx/compare/v1.0.3...v1.1.0
