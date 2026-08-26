@@ -91,7 +91,7 @@ test('a column-input data table round-trips with no row-orientation flag', () =>
 
 test('a ref-less t="dataTable" declaration is tolerated, not read as a data table', () => {
   // The declaration is meaningless without its range; a hostile or corrupt sheet can still emit one.
-  // The reader must not surface a data-table value from it — the cell decodes as its plain payload.
+  // The reader must not surface a data-table value from it: the cell decodes as its plain payload.
   const sheetXml =
     '<?xml version="1.0"?><worksheet><sheetData>' +
     '<row r="2"><c r="B2"><f t="dataTable" dt2D="0" dtr="1" r1="A1"/><v>7</v></c></row>' +

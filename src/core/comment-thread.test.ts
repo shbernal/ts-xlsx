@@ -104,7 +104,7 @@ test('a thread is found by its anchor, absolute reference or not', () => {
 });
 
 test('looking for a thread does not materialise the cell it asks about', () => {
-  // A read-only query that grew the grid would change what the writer emits — a phantom empty cell
+  // A read-only query that grew the grid would change what the writer emits: a phantom empty cell
   // appearing merely because something inspected the sheet.
   const sheet = new Workbook().addWorksheet('S');
   sheet.commentThreadAt('B2');
@@ -145,7 +145,7 @@ test('authoring accumulates threads rather than replacing them, unlike reader re
 test('an authored id is normalised to the one spelling the format accepts', () => {
   // Verified against the OOXML schema: `person/@id`, a message's `id`/`personId`/`parentId` and a mention's
   // `mentionpersonId`/`mentionId` are each pinned to `\{[0-9A-F]{8}-…\}`. A bare GUID is rejected and so is
-  // a lower-case one — which is exactly what `crypto.randomUUID()` returns, so the authoring path
+  // a lower-case one, which is exactly what `crypto.randomUUID()` returns, so the authoring path
   // normalises rather than refusing the one obvious way to make an id in JavaScript.
   const wb = new Workbook();
   wb.addPerson({id: 'aaaaaaaa-1111-2222-3333-444444444444', displayName: 'Ada'});
@@ -250,8 +250,8 @@ test('two sheets may reuse one message id, since nothing resolves across a part 
 
 test("a mention's span must be a whole number the wire can express", () => {
   // Verified against the OOXML schema: `startIndex` and `length` are UInt32, so 4294967295 is the last
-  // legal value. Authoring rejects rather than clamps — a clamped span silently highlights the wrong words
-  // — while a *file's* unusable mention is dropped on read, keeping the message text.
+  // legal value. Authoring rejects rather than clamps, because a clamped span silently highlights the
+  // wrong words, while a *file's* unusable mention is dropped on read, keeping the message text.
   const sheet = new Workbook().addWorksheet('S');
   const thread = threadAt('B1');
   const withSpan = (startIndex: number, length: number): CommentThread => ({
@@ -281,7 +281,7 @@ test("a mention's span must be a whole number the wire can express", () => {
 });
 
 test('a thread cannot be anchored to anything but a single cell', () => {
-  // A range, a bare column, or a bare row names no one cell to hang the conversation off — and the writer
+  // A range, a bare column, or a bare row names no one cell to hang the conversation off, and the writer
   // would have nothing to anchor its legacy fallback comment or VML shape to.
   const sheet = new Workbook().addWorksheet('S');
   for (const ref of ['A1:B2', 'A', '2', 'nonsense']) {

@@ -3,7 +3,7 @@
 // itself is protected; this module models that sheet-level switch and the optional
 // password credential that guards lifting it.
 //
-// The option surface is stated in the AUTHOR's terms — each flag answers "may a user do
+// The option surface is stated in the AUTHOR's terms: each flag answers "may a user do
 // this while the sheet is protected?" (`sort: true` = sorting stays available). OOXML
 // encodes the inverse ("1" LOCKS an operation, "0"/omission PERMITS it) and its per-
 // attribute defaults differ; that encoding table is {@link SHEET_PROTECTION_FLAGS} below,
@@ -48,7 +48,7 @@ export interface SheetProtectionOptions extends SheetProtectionFlags {
 
 /**
  * A password-derived credential, in OOXML's agile form: the hash algorithm, the salted
- * iterated hash of the password, the salt, and the iteration count — everything a consumer
+ * iterated hash of the password, the salt, and the iteration count: everything a consumer
  * needs to verify a supplied password without the password ever being stored.
  */
 export interface SheetProtectionCredential {
@@ -67,8 +67,8 @@ export interface SheetProtection {
 /**
  * The OOXML encoding table for the protection flags: each `<sheetProtection>` attribute paired
  * with whether that operation is *forbidden by default* once a sheet is protected. Both directions
- * key off this one list — the writer turns an author allow-flag into an attribute (omitting values
- * equal to the default), the reader turns an attribute back into an allow-flag — so serialization
+ * key off this one list. The writer turns an author allow-flag into an attribute (omitting values
+ * equal to the default) and the reader turns an attribute back into an allow-flag, so serialization
  * and deserialization can never fall out of step. Most editing operations default to forbidden
  * under protection; selecting cells and the object/scenario operations default to permitted.
  */
@@ -103,7 +103,7 @@ const SALT_BYTES = 16;
 
 /**
  * Derive a fresh {@link SheetProtectionCredential} for a password. Each call generates a new
- * random salt, so protecting two sheets with the same password yields different credentials —
+ * random salt, so protecting two sheets with the same password yields different credentials:
  * the salt is real randomness, not a stub.
  */
 export function deriveCredential(

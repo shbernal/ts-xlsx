@@ -70,7 +70,7 @@ test('the worksheet source reference and sheet name survive the round-trip', () 
   assert.equal(parsed.source.ref, 'A1:C4');
 });
 
-test('sum — the metric whose subtotal attribute is omitted — reads back as sum', () => {
+test('sum, the metric whose subtotal attribute is omitted, reads back as sum', () => {
   const {table, cache} = renderedPivot(
     {rows: ['Name'], columns: ['Region'], values: ['Amount']},
     SALES,
@@ -175,7 +175,7 @@ test('an unrecognised cache source type degrades to unknown, not a throw', () =>
     `<pivotCacheDefinition><cacheSource type="wormhole"><worksheetSource ref="A1:B2" sheet="Data"/></cacheSource>` +
     `<cacheFields count="1"><cacheField name="Amount"/></cacheFields></pivotCacheDefinition>`;
   const parsed = parsePivotTable(`<pivotTableDefinition name="P" cacheId="1"/>`, cache);
-  // The declared type is not one we model, so the kind reports `unknown` — but a `<worksheetSource>`
+  // The declared type is not one we model, so the kind reports `unknown`, but a `<worksheetSource>`
   // that rides along is still read, since a foreign producer may pair either with the other.
   assert.equal(parsed.source.kind, 'unknown');
   assert.equal(parsed.source.sheet, 'Data');

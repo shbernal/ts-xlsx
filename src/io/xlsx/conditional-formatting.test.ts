@@ -16,7 +16,7 @@ function stylesXml(pkg: Uint8Array): string {
 }
 
 // Read an xlsx built from a hand-authored sheet1 (and optionally styles) part, so a case can feed the
-// reader markup the writer itself only produces on round-trip — an Excel-authored x14 extLst block, a
+// reader markup the writer itself only produces on round-trip: an Excel-authored x14 extLst block, a
 // foreign dxf table.
 function readParts(parts: {sheet1?: string; styles?: string}): Workbook {
   const base = new Workbook();
@@ -215,7 +215,7 @@ test('an x14 extLst conditional formatting is left untouched and writing the she
     '<xm:sqref>A1:A5</xm:sqref></x14:conditionalFormatting></x14:conditionalFormattings></ext></extLst></worksheet>';
   const workbook = readParts({sheet1});
 
-  // The x14 rule is namespace-prefixed and is not read into the classic model — so it is neither
+  // The x14 rule is namespace-prefixed and is not read into the classic model, so it is neither
   // half-parsed into a broken rule nor does it make the writer throw.
   assert.equal(
     workbook.getWorksheet('S')?.conditionalFormattings.length,
@@ -239,7 +239,7 @@ test('a colorScale colour with a malformed theme attribute drops it rather than 
   const out = sheetXml(writeXlsx(readParts({sheet1})));
 
   // The shared validated parseColor drops the non-integer theme instead of coercing it to NaN, so the
-  // writer never emits `theme="NaN"` — which Excel would reject.
+  // writer never emits `theme="NaN"`, which Excel would reject.
   assert.doesNotMatch(out, /theme="NaN"/, 'the malformed theme is not written as NaN');
   assert.match(out, /<color rgb="FF00FF00"\/>/, 'the well-formed sibling colour survives');
 });
@@ -315,7 +315,7 @@ function dataBarBook(rule: Record<string, unknown>): Workbook {
 test('a gradient dataBar writes the classic element plus a linked x14 extension carrying the flag', () => {
   const xml = sheetXml(writeXlsx(dataBarBook({gradient: true})));
 
-  // The classic element is unchanged — every consumer still understands the bar's anchors and colour.
+  // The classic element is unchanged: every consumer still understands the bar's anchors and colour.
   assert.match(
     xml,
     /<dataBar><cfvo type="num" val="0"\/><cfvo type="num" val="1"\/><color rgb="FF638EC6"\/><\/dataBar>/,
@@ -375,7 +375,7 @@ test('a sheet with both an extended validation and a gradient dataBar emits one 
     ?.addDataValidation('B1', {type: 'list', formulae: ['Other!$A$1:$A$3']}, {extended: true});
   const xml = sheetXml(writeXlsx(workbook));
 
-  // Both extensions ride as sibling <ext> blocks inside a single worksheet <extLst> — never two.
+  // Both extensions ride as sibling <ext> blocks inside a single worksheet <extLst>, never two.
   assert.match(
     xml,
     /uri="\{78C0D931-6437-407d-A8EE-F0AAD7539E65\}"/,
@@ -465,7 +465,7 @@ test('an iconSet with no named family emits the element without an empty iconSet
 });
 
 // `gradient` and `aboveAverage` are both default-true xsd:booleans, so a producer that spells false
-// the long way must turn them off exactly as the digit does — and an unrecognised token, on a
+// the long way must turn them off exactly as the digit does, and an unrecognised token, on a
 // default-true attribute, still reads as true rather than as absent.
 
 test('x14 gradient="false" turns the bar flat exactly as gradient="0" does', () => {

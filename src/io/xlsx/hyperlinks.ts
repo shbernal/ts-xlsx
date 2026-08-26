@@ -1,4 +1,4 @@
-// Cell hyperlinks — the sheet-level `<hyperlinks>` element, its external relationships, and the
+// Cell hyperlinks: the sheet-level `<hyperlinks>` element, its external relationships, and the
 // reader that folds a link back onto its cell's value.
 //
 // A hyperlink is not stored inside the cell in OOXML: the `<c>` holds only the visible label (a
@@ -6,7 +6,7 @@
 // to a destination. An EXTERNAL destination (a URL) is reached indirectly, through a sheet
 // relationship carrying `TargetMode="External"` that the `<hyperlink>` names by `r:id`. An INTERNAL
 // destination (a location inside the same workbook, which the author writes as a `#`-prefixed value)
-// is held directly in a `location` attribute with NO relationship — emitting an internal target as an
+// is held directly in a `location` attribute with NO relationship. Emitting an internal target as an
 // external relationship makes a strict consumer resolve both the rel and the location and render the
 // destination doubled.
 
@@ -120,7 +120,7 @@ export function parseSheetHyperlinks(xml: string): ParsedHyperlink[] {
 }
 
 /** Fold parsed hyperlinks onto a sheet's cells, wrapping each cell's existing value (its visible
- * label) into a {@link HyperlinkValue}. `targetOf` resolves a relationship id to its raw Target — a
+ * label) into a {@link HyperlinkValue}. `targetOf` resolves a relationship id to its raw Target: a
  * URL for the external links hyperlinks almost always are, so it must stay unresolved against the
  * package rather than being handed over as a part path. */
 export function applyHyperlinks(

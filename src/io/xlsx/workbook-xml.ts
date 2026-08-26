@@ -98,7 +98,7 @@ export function contentTypesXml(
 // then one default per *new* extension a preserved binary part introduces (first part of an extension
 // wins). Keys are lower-cased for case-insensitive extension matching; each value keeps the extension
 // token as it will be emitted so rendering stays byte-stable. A preserved `.xml` part is deliberately
-// left out — it always carries its own type as a per-part override, never a generic `xml` default.
+// left out: it always carries its own type as a per-part override, never a generic `xml` default.
 function buildExtensionDefaults(
   commentNumbers: readonly number[],
   printerSettingsNumbers: readonly number[],
@@ -147,7 +147,7 @@ function contentTypeDefaults(
 // The per-part `<Override>` declarations, in canonical package order: workbook, worksheets, tables,
 // drawings, comments, the threaded-comment parts, each pivot's three parts, theme, styles, the optional
 // shared strings and threaded-comment person registry, the doc-props pair, then any preserved part whose
-// content type its extension's `<Default>` does not already carry — every `.xml` part (the generic `xml`
+// content type its extension's `<Default>` does not already carry: every `.xml` part (the generic `xml`
 // default never matches a real part type) and any binary part sharing an extension with a differently-typed
 // sibling (a `vbaProjectSignature.bin` next to a `vbaProject.bin`), which a lone extension default would
 // otherwise mis-type.
@@ -165,7 +165,7 @@ function contentTypeOverrides(
   hasPersons: boolean,
 ): string {
   const preservedOverrides = preservedParts
-    // A preserved theme lands at the fixed theme path, whose override is already in the list below —
+    // A preserved theme lands at the fixed theme path, whose override is already in the list below,
     // and OPC forbids declaring the same PartName twice. The fixed declaration is the right one to
     // keep: the part reached the model through a `.../theme` relationship, so its type is the theme
     // type whatever the source package happened to declare.
@@ -212,14 +212,14 @@ function override(partName: string, contentType: string): string {
 }
 
 // A `<Default>` content-type declaration binding a file extension to the type every part with that
-// extension carries — the extension-level counterpart to {@link override}'s per-part declaration.
+// extension carries: the extension-level counterpart to {@link override}'s per-part declaration.
 function defaultType(extension: string, contentType: string): string {
   return `<Default Extension="${extension}" ContentType="${contentType}"/>`;
 }
 
 // The package root relationships: the three the writer regenerates from the model (the office
-// document and the core/app properties), followed by any preserved root references — customUI ribbon
-// parts, custom properties, a thumbnail — re-declared with fresh ids past the fixed three so a
+// document and the core/app properties), followed by any preserved root references (customUI ribbon
+// parts, custom properties, a thumbnail) re-declared with fresh ids past the fixed three so a
 // round-trip keeps content wired from `_rels/.rels` that the model does not otherwise emit.
 export function rootRelsXml(rootRefs: readonly PreservedRootReferencePlan[]): string {
   return relationshipsPart([
@@ -264,7 +264,7 @@ export function workbookXml(
 // window from this rect and lays the sheet's panes out inside it, so a package without one leaves a
 // frozen split measured against an uninitialised window (see `DEFAULT_WORKBOOK_VIEW`). The
 // visibility and minimised flags are written only when they differ from the schema default, and
-// `activeTab` only for a non-first sheet — exactly the shape Excel writes for an ordinary window.
+// `activeTab` only for a non-first sheet: exactly the shape Excel writes for an ordinary window.
 function bookViewsXml(workbook: Workbook): string {
   const view = workbook.view;
   const activeTab = workbook.activeTabIndex;
@@ -282,7 +282,7 @@ function bookViewsXml(workbook: Workbook): string {
 // workbook), wired to the relationship reaching its `externalLink` part. It follows `<sheets>` in
 // CT_Workbook order and precedes `<definedNames>`; its child order is the `[n]` index a formula or
 // defined name resolves an external cell through, so entries are emitted by their captured
-// `externalReferenceIndex` — keeping every `[1]`, `[2]`, … pointing at the same linked workbook it did
+// `externalReferenceIndex`, keeping every `[1]`, `[2]`, … pointing at the same linked workbook it did
 // before the round-trip. '' when no external link was preserved.
 function externalReferencesXml(preservedRels: readonly PreservedWorkbookRel[]): string {
   const links = preservedRels
@@ -330,7 +330,7 @@ function pivotCachesXml(
 // `<workbookProtection>` precedes `<sheets>` in CT_Workbook order. It re-emits the workbook's
 // structure/window lock flags (each written only when true, so an unlocked aspect stays absent) and
 // the preserved password/agile-hash credential attributes verbatim. Emitted only when the workbook
-// actually declares protection — the flags or a credential — so an unprotected workbook stays clean.
+// actually declares protection, either the flags or a credential, so an unprotected workbook stays clean.
 function workbookProtectionXml(workbook: Workbook): string {
   const p = workbook.protection;
   if (p === undefined) return '';
@@ -346,7 +346,7 @@ function workbookProtectionXml(workbook: Workbook): string {
   return `<workbookProtection ${attrs.join(' ')}/>`;
 }
 
-// The `calcId` desktop Excel stamps into `<calcPr>` — the build number of the calc engine that last
+// The `calcId` desktop Excel stamps into `<calcPr>`: the build number of the calc engine that last
 // evaluated the workbook. Consumers only compare it to decide whether cached results are stale; we
 // emit a fixed recent value alongside `fullCalcOnLoad`, which already forces a full recalculation.
 const EXCEL_CALC_ID = '171027';
@@ -360,8 +360,8 @@ function calcPrXml(workbook: Workbook): string {
 }
 
 // The `<definedNames>` block follows `<sheets>` in the schema. A sheet-scoped name carries a
-// `localSheetId` — the 0-based position of its sheet among the `<sheet>` entries, NOT the sheet's
-// own id — so the index is resolved against the worksheet order here. The refersTo formula is the
+// `localSheetId`, the 0-based position of its sheet among the `<sheet>` entries, NOT the sheet's
+// own id, so the index is resolved against the worksheet order here. The refersTo formula is the
 // element's text content, run through the same `_xlfn.` function mangling the writer applies to a
 // cell formula so a name defined as a modern function (a LAMBDA, an XLOOKUP-based name) is stored
 // under the prefix Excel requires; a plain reference has no function call and passes through
@@ -406,8 +406,8 @@ function filterDatabaseRefersTo(sheetName: string, range: string): string {
 }
 
 // The relationships the workbook part always carries after its per-sheet rels: `styles.xml` and
-// `theme/theme1.xml`. Their count anchors every downstream rel id — `sharedStrings.xml` and the
-// threaded-comment person registry (when present), then the preserved/pivot caches — so `write.ts`
+// `theme/theme1.xml`. Their count anchors every downstream rel id (`sharedStrings.xml` and the
+// threaded-comment person registry when present, then the preserved/pivot caches) so `write.ts`
 // derives its `workbookRelBase` from this same constant rather than repeating the literal and risking
 // drift.
 export const FIXED_WORKBOOK_REL_COUNT = 2;
@@ -464,7 +464,7 @@ export function workbookRelsXml(
 
 export function corePropsXml(properties: WorkbookProperties): string {
   const parts: string[] = [];
-  // `dc:title` precedes `dc:creator` — `cp:coreProperties` is a sequence, not a bag, and Excel
+  // `dc:title` precedes `dc:creator`: `cp:coreProperties` is a sequence, not a bag, and Excel
   // repairs a file whose children are out of schema order.
   if (properties.title !== undefined) {
     parts.push(`<dc:title>${escapeText(properties.title)}</dc:title>`);

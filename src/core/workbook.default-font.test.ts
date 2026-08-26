@@ -1,8 +1,8 @@
 // The default-font chain: what an unstyled cell renders in, and which of the four levels wins.
 //
 // The invariant under nearly every case here is that a face a *file* declared outranks anything the
-// library would derive. A producer resolves the body face by script — Excel writes `等线` as font 0
-// under a theme whose latin body face is Calibri — so deriving over a declaration silently rewrites
+// library would derive. A producer resolves the body face by script (Excel writes `等线` as font 0
+// under a theme whose latin body face is Calibri) so deriving over a declaration silently rewrites
 // the face of every empty cell, and with it the metric every character-unit column width means.
 
 import assert from 'node:assert/strict';
@@ -69,7 +69,7 @@ test('an authored theme body face outranks the one a file declared', () => {
   wb[INTERNAL].restoreDefaultFont({size: 9, color: {theme: 1}, name: 'Calibri', scheme: 'minor'});
   wb.setTheme({fonts: {minor: 'Aptos'}});
   assert.equal(wb.defaultFont.name, 'Aptos');
-  // The size is the workbook's, not the face's — changing the typeface says nothing about it.
+  // The size is the workbook's, not the face's: changing the typeface says nothing about it.
   assert.equal(wb.defaultFont.size, 9);
 });
 
@@ -106,7 +106,7 @@ test('the resolved default font always states a size and a colour', () => {
 });
 
 test('family and scheme are dropped when the resolved face is not the theme body face', () => {
-  // `scheme="minor"` is a claim — that this font *is* the theme's body face — and Excel writes no
+  // `scheme="minor"` is a claim, that this font *is* the theme's body face, and Excel writes no
   // <scheme> at all on a font 0 naming anything else. Emitting the claim beside a contradicting
   // <name> is what makes a themed workbook render its unstyled cells in the wrong face.
   const wb = new Workbook();
@@ -132,7 +132,7 @@ test('a caller may state family and scheme outright', () => {
 });
 
 test('an unusable default font is refused at the call that supplied it', () => {
-  // Excel does not report either — it renders from some other font and never says why.
+  // Excel does not report either: it renders from some other font and never says why.
   const wb = new Workbook();
   assert.throws(() => wb.setDefaultFont({size: 0}), /positive number/);
   assert.throws(() => wb.setDefaultFont({size: Number.NaN}), /positive number/);

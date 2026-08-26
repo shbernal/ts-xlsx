@@ -1,6 +1,6 @@
 // The data-validation overlay a Worksheet owns: an insertion-ordered list of range-bound rules, plus
 // the decoded rectangles a point-in-rect lookup ({@link DataValidationOverlay.at}) tests against. Kept
-// as its own class — the sibling to {@link GridEdits} that owns splice arithmetic — rather than inline
+// as its own class, the sibling to {@link GridEdits} that owns splice arithmetic, rather than inline
 // on Worksheet, since a validation's storage (a rule plus its decoded ranges) is a self-contained unit
 // Worksheet only ever adds to, reads, or clears wholesale.
 
@@ -22,7 +22,7 @@ export class DataValidationOverlay {
    * through {@link at}.
    *
    * Pass `{extended: true}` to mark a rule that belongs in the 2009 extension form
-   * (`<x14:dataValidation>`) — the carrier Excel uses for a list source on another sheet and other
+   * (`<x14:dataValidation>`), the carrier Excel uses for a list source on another sheet and other
    * shapes the standard element cannot express. The reader sets it for a rule found in that form so a
    * round-trip writes it back there instead of silently corrupting the cross-sheet reference.
    */

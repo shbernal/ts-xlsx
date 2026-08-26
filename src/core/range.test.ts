@@ -38,7 +38,7 @@ test('a range reports its geometry without touching the grid', () => {
   assert.equal(range.rowCount, 4);
   assert.equal(range.columnCount, 3);
   assert.equal(range.cellCount, 12);
-  // Asking about a block must cost nothing — no cells, and no growth of the used range.
+  // Asking about a block must cost nothing: no cells, and no growth of the used range.
   assert.equal(s.rowCount, 0);
   assert.equal(s.hasCell(2, 2), false);
 });
@@ -186,7 +186,7 @@ test('clearing one facet touches only the cells that exist', () => {
 
   assert.equal(s.getCell('B2').fill, undefined);
   // There is nothing to clear on a hole, so materialising the block to write nothing would be
-  // pure cost — and would leave three empty cells behind that the sheet did not have.
+  // pure cost, and would leave three empty cells behind that the sheet did not have.
   assert.equal(range.cells.length, 1);
 });
 
@@ -199,7 +199,7 @@ test('styling a block that overlaps a merge restyles the master, stranding nothi
 
   assert.deepEqual(s.getCell('B2').font, {bold: true});
   // Every address in the block resolved to the master, so no covered position gained a cell of its
-  // own — a style stranded there would have to be dropped on write.
+  // own: a style stranded there would have to be dropped on write.
   assert.equal(s.hasCell(2, 3), false);
   assert.equal(s.hasCell(3, 3), false);
 });

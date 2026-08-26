@@ -2,14 +2,14 @@
 //
 // OOXML styles are a *shared* table referenced by index: a cell (or a formatted row/column)
 // names a `<cellXfs>` entry via its `s` attribute, and that entry names a fill by id and a
-// number format by id. Identical styles must collapse to one entry — both to produce
+// number format by id. Identical styles must collapse to one entry, both to produce
 // well-formed OOXML and to keep write cost bounded on large, lightly-formatted sheets (the
 // historical performance cliff came from re-serialising a distinct style per cell). The
 // registry interns each distinct fill, number format, and xf, handing back a stable index.
 //
 // Fills, number formats, fonts, borders, alignment, and protection are modelled today.
 // Fills/fonts/borders are shared sub-tables the xf names by id, whereas alignment and protection
-// are child elements *of* the xf — so each is interned into the xf signature directly rather than
+// are child elements *of* the xf, so each is interned into the xf signature directly rather than
 // into its own id table, and an aligned/protected xf carries them as body children in that order.
 // An unstyled cell/row/column resolves to xf 0.
 
@@ -45,7 +45,7 @@ import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 // custom fills are numbered from 2 so a foreign reader's built-in assumptions still hold.
 const RESERVED_FILL_COUNT = 2;
 
-// Font id 0 is the always-present default font — the workbook's, not an assumed one; custom fonts
+// Font id 0 is the always-present default font: the workbook's, not an assumed one. Custom fonts
 // are numbered from 1.
 const RESERVED_FONT_COUNT = 1;
 
@@ -56,7 +56,7 @@ const CUSTOM_NUMFMT_BASE = 164;
 // Border id 0 is the always-present empty border (every edge absent); custom borders from 1.
 const RESERVED_BORDER_COUNT = 1;
 
-// The Office default font's inner fragment, in the exact child order `fontXml` emits — the font 0 a
+// The Office default font's inner fragment, in the exact child order `fontXml` emits: the font 0 a
 // registry built without a workbook falls back to. A registry built *with* one derives font 0 from
 // its `defaultFont` instead, and for a plain `new Workbook()` that derivation lands on exactly this
 // string; `styles.test.ts` guards the two against drifting.
@@ -74,9 +74,9 @@ export interface CellStyle {
   readonly border?: Border | undefined;
   readonly alignment?: Alignment | undefined;
   readonly protection?: Protection | undefined;
-  /** The quote-prefix flag — an attribute on the xf, not a shared sub-table entry. */
+  /** The quote-prefix flag: an attribute on the xf, not a shared sub-table entry. */
   readonly quotePrefix?: boolean | undefined;
-  /** The `xfId` link into `cellStyleXfs` — the named cell style this format inherits from (0 = Normal). */
+  /** The `xfId` link into `cellStyleXfs`: the named cell style this format inherits from (0 = Normal). */
   readonly xfId?: number | undefined;
 }
 
@@ -113,7 +113,7 @@ const DEFAULT_FORMAT: CellFormat = {
 /** What a {@link StyleRegistry} needs from its workbook before any style is interned. */
 export interface StyleRegistryOptions {
   /**
-   * The font every cell naming none of its own renders in — emitted as id 0. Take it from
+   * The font every cell naming none of its own renders in, emitted as id 0. Take it from
    * {@link Workbook.defaultFont}, which resolves the authored/declared/theme chain and guarantees a
    * complete entry. Omitted, the registry falls back to the Office default.
    */
@@ -126,7 +126,7 @@ export interface StyleRegistryOptions {
    *
    * The reader flattens font 0 onto every xf that names it, so a cell that merely inherited the
    * file's default arrives carrying it as a concrete face. That face is an artefact of reading, not
-   * an authored intent — in the source file the cell said nothing about its font — so it must
+   * an authored intent (in the source file the cell said nothing about its font) so it must
    * collapse back to id 0 and follow the new default rather than pin itself to the old one through a
    * custom entry.
    */
@@ -137,7 +137,7 @@ export class StyleRegistry {
   // The `<font>` body emitted as id 0.
   readonly #defaultFontBody: string;
 
-  // Every serialised font body that means "id 0" — the emitted default, plus the one a source file
+  // Every serialised font body that means "id 0": the emitted default, plus the one a source file
   // declared. See {@link StyleRegistryOptions.declaredDefaultFont} for why the second belongs here.
   readonly #font0Bodies: ReadonlySet<string>;
 
@@ -192,8 +192,8 @@ export class StyleRegistry {
   readonly #indexedColors: string[] = [];
 
   // The most-recently-used colour swatches (`<colors><mruColors>`) read from a file, each entry a
-  // verbatim `<color rgb="…"/>` fragment. Purely a UI convenience — the palette Excel offers under
-  // "Recent Colors" — but it is the author's own working set, so dropping it on a re-write quietly
+  // verbatim `<color rgb="…"/>` fragment. Purely a UI convenience, the palette Excel offers under
+  // "Recent Colors", but it is the author's own working set, so dropping it on a re-write quietly
   // resets a habit. Empty for a workbook that never picked a custom colour.
   readonly #mruColors: string[] = [];
 
@@ -205,7 +205,7 @@ export class StyleRegistry {
   #tableStyles: TableStyleTable = {styles: []};
 
   // Table styles authored on the workbook, serialised on registration and keyed by name so a second
-  // definition of the same name replaces the first — as does one that overrides a preserved
+  // definition of the same name replaces the first, as does one that overrides a preserved
   // definition, since two `<tableStyle>` elements sharing a name leave a table's reference ambiguous.
   readonly #authoredTableStyles = new Map<string, string>();
 
@@ -216,8 +216,8 @@ export class StyleRegistry {
   styleId(style: CellStyle): number {
     const format = this.#composeFormat(style, style.xfId ?? 0);
     // An all-default format that links to no named style needs no entry and resolves to xf 0, so its
-    // owner emits no `s` attribute. A non-zero xfId is itself information — the cell inherits a named
-    // style — so it forces a real entry even when the direct facets are empty.
+    // owner emits no `s` attribute. A non-zero xfId is itself information (the cell inherits a named
+    // style) so it forces a real entry even when the direct facets are empty.
     if (isDefaultFormat(format)) return 0;
 
     const signature = formatSignature(format);
@@ -285,7 +285,7 @@ export class StyleRegistry {
    * rule's `dxfId`, and every `<tableStyleElement dxfId="…">` inside a preserved `<tableStyle>` (see
    * {@link seedTableStyles}). Those constructs are carried as opaque XML precisely *because* the
    * indices they name do not move. Renumbering, reordering, or de-duplicating the seeded entries
-   * would silently re-point every one of them at a different format — a change no schema check and no
+   * would silently re-point every one of them at a different format: a change no schema check and no
    * round-trip of our own can catch, because the file stays perfectly valid and merely renders wrong.
    */
   seedDifferentialStyles(fragments: readonly string[]): void {
@@ -333,8 +333,8 @@ export class StyleRegistry {
    * {@link seedTableStyles}, whose preserved definitions these append after.
    *
    * A definition here **replaces** a preserved one of the same name. Two `<tableStyle>` elements
-   * sharing a name is ambiguous — a table's `tableStyleInfo/@name` would reach whichever a consumer
-   * happened to index first — so authoring a name the source already used is read as overriding it,
+   * sharing a name is ambiguous, since a table's `tableStyleInfo/@name` would reach whichever a
+   * consumer happened to index first, so authoring a name the source already used is read as overriding it,
    * which is what asking for it means.
    */
   addTableStyle(style: TableStyle): void {
@@ -359,7 +359,7 @@ export class StyleRegistry {
   }
 
   /**
-   * Intern an authored differential style, returning the `<dxfs>` index that references it — a
+   * Intern an authored differential style, returning the `<dxfs>` index that references it: a
    * conditional-formatting rule's `dxfId`, or a table style element's. Identical styles collapse to
    * one entry, whichever feature asked for them, so a highlight rule and a table style's header row
    * painted the same way share a single `<dxf>`.
@@ -463,7 +463,7 @@ export class StyleRegistry {
   // workbook carrying no such fragment emits nothing, so the ordinary stylesheet root is unchanged.
   //
   // This is the cost of verbatim preservation: a fragment carries its prefixes with it, and a prefix
-  // no ancestor declares makes the whole part unparseable — a much louder failure than the dropped
+  // no ancestor declares makes the whole part unparseable, a much louder failure than the dropped
   // table style the preservation exists to prevent. See {@link TableStyleTable.namespaces}.
   #foreignNamespaceAttrs(): string {
     const namespaces = this.#tableStyles.namespaces ?? [];
@@ -478,13 +478,13 @@ export class StyleRegistry {
   }
 
   // <tableStyles> sits between <dxfs> and <colors> in CT_Stylesheet's child sequence. It is emitted
-  // only when the workbook has something to say there — a preserved or authored style definition, or
-  // a nominated default — so a workbook that authors none leaves every table on the built-in gallery
+  // only when the workbook has something to say there (a preserved or authored style definition, or
+  // a nominated default) so a workbook that authors none leaves every table on the built-in gallery
   // and writes nothing. `count` counts the definitions, not the attributes, so a container that only
   // nominates defaults (the shape Excel writes into nearly every file) is self-closing with count="0".
   //
   // Preserved definitions come first and authored ones after, except that an authored style replaces
-  // the preserved definition it shares a name with — see {@link addTableStyle}.
+  // the preserved definition it shares a name with. See {@link addTableStyle}.
   #tableStylesXml(): string {
     const {defaultTableStyle, defaultPivotStyle} = this.#tableStyles;
     const authored = this.#authoredTableStyles;
@@ -577,7 +577,7 @@ function xfXml(format: CellFormat, xfId: number | null): string {
   const applyAlignment = format.alignment !== '' ? ' applyAlignment="1"' : '';
   const applyProtection = format.protection !== '' ? ' applyProtection="1"' : '';
   // `quotePrefix` is a CT_Xf attribute (after xfId, before the apply flags in schema order); it is
-  // its own switch — there is no `applyQuotePrefix` flag — so it is emitted only when set.
+  // its own switch (there is no `applyQuotePrefix` flag) so it is emitted only when set.
   const quotePrefix = format.quotePrefix ? ' quotePrefix="1"' : '';
   const xfIdAttr = xfId === null ? '' : ` xfId="${xfId}"`;
   const open =
@@ -600,10 +600,10 @@ function cellStyleTag(entry: {name: string; builtinId?: number; xfId: number}): 
 
 // Reject an enum-typed style token the writer would otherwise emit verbatim. The public types already
 // forbid an out-of-contract value (VerticalAlignment, BorderStyle, FillPatternType, …), so this fires
-// only for a value smuggled past the types by an untyped caller — but the writer must never serialise
+// only for a value smuggled past the types by an untyped caller. But the writer must never serialise
 // it: it would be schema-invalid OOXML that Excel silently tolerates yet the library's own reader
 // (which narrows every such token through the same guard) discards on read-back. Rejecting at the write
-// boundary keeps the writer symmetric with the reader — garbage out refused exactly as garbage in — so
+// boundary keeps the writer symmetric with the reader, garbage out refused exactly as garbage in, so
 // a value the writer accepts is always one that round-trips.
 function checkedToken(
   value: string,
@@ -659,7 +659,7 @@ function protectionAttrs(protection: Protection): string {
   return parts.join(' ');
 }
 
-// The `name` a `<tableStyle>` fragment declares — the key a table's `tableStyleInfo/@name` matches
+// The `name` a `<tableStyle>` fragment declares: the key a table's `tableStyleInfo/@name` matches
 // and, here, the key an authored definition overrides a preserved one by. Read out of the fragment
 // rather than stored beside it, so the two cannot drift; `name` is required by CT_TableStyle, and a
 // fragment without one is unreachable anyway and so can never collide.
@@ -670,8 +670,8 @@ function tableStyleName(fragment: string): string {
 // Serialise the facets a font overrides, in ECMA-376 child order. A boolean flag is emitted only
 // when true (its absence is the default false); an empty result means the font differs from the
 // default in nothing and needs no entry at all. The face element differs by context: a styles
-// `<font>` names it `<name>` (CT_Font), a rich-text run's `<rPr>` names it `<rFont>` (CT_RPrElt) —
-// otherwise the two share every child, so `nameTag` selects the face element and the rest is common.
+// `<font>` names it `<name>` (CT_Font) and a rich-text run's `<rPr>` names it `<rFont>` (CT_RPrElt).
+// Otherwise the two share every child, so `nameTag` selects the face element and the rest is common.
 export function fontXml(font: Font, nameTag: 'name' | 'rFont' = 'name'): string {
   const parts: string[] = [];
   if (font.bold) parts.push('<b/>');
@@ -696,7 +696,7 @@ export function fontXml(font: Font, nameTag: 'name' | 'rFont' = 'name'): string 
 }
 
 // Serialise a differential style (CT_Dxf) in schema child order: font, numFmt, fill, border. Only the
-// facets present are emitted — a dxf overrides exactly what it names and lets the cell's own style show
+// facets present are emitted: a dxf overrides exactly what it names and lets the cell's own style show
 // through the rest. A dxf's pattern fill states the highlight through `bgColor`, matching how Excel
 // writes a "fill with colour" conditional format.
 function dxfXml(style: DifferentialStyle): string {
@@ -756,8 +756,8 @@ function numberAttr(value: number): string {
 }
 
 // Serialise a border in ECMA-376 CT_Border child order (left, right, top, bottom, diagonal).
-// Every edge element is always present — a styleless `<left/>` is how OOXML says "no left
-// border" — so an all-absent border round-trips to the empty default rather than a new id.
+// Every edge element is always present, since a styleless `<left/>` is how OOXML says "no left
+// border", so an all-absent border round-trips to the empty default rather than a new id.
 function borderXml(border: Border): string {
   const attrs =
     (border.diagonalUp ? ' diagonalUp="1"' : '') + (border.diagonalDown ? ' diagonalDown="1"' : '');
@@ -810,7 +810,7 @@ function colorSignature(color: Color | undefined): string {
 
 // The `<fill>` element for a pattern or gradient fill. The two callers differ only in the solid-fill
 // background fallback: a cell fill forces the automatic indexed placeholder onto a solid pattern that
-// names no background — omitting it makes Excel render the fill as flat black — whereas a dxf states
+// names no background (omitting it makes Excel render the fill as flat black) whereas a dxf states
 // only the overrides it carries, so `solidBgFallback` gates that placeholder.
 function patternFillXml(fill: Fill, {solidBgFallback}: {solidBgFallback: boolean}): string {
   if (fill.type === 'gradient') return `<fill>${gradientFillXml(fill)}</fill>`;

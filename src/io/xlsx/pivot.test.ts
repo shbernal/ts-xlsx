@@ -15,7 +15,7 @@ function partsOf(data: Uint8Array): Record<string, string> {
 }
 
 // A source sheet whose data carries every XML-special character plus a missing value in an axis
-// column — the shape that corrupts a naive pivot writer that fails to entity-escape shared items.
+// column: the shape that corrupts a naive pivot writer that fails to entity-escape shared items.
 function specialCharsWorkbook(): Workbook {
   const wb = new Workbook();
   const src = wb.addWorksheet('Data');
@@ -25,7 +25,7 @@ function specialCharsWorkbook(): Workbook {
   src.getCell('A2').value = 'Smith & Co';
   src.getCell('B2').value = '<West>';
   src.getCell('C2').value = 10;
-  // A3 (Name) left empty — a missing axis value.
+  // A3 (Name) left empty: a missing axis value.
   src.getCell('B3').value = 'East';
   src.getCell('C3').value = 20;
   src.getCell('A4').value = 'It\'s "best"';
@@ -36,7 +36,7 @@ function specialCharsWorkbook(): Workbook {
   return wb;
 }
 
-// A raw `&` that is not the start of a valid entity — the escaping bug this feature exists to prevent.
+// A raw `&` that is not the start of a valid entity: the escaping bug this feature exists to prevent.
 const RAW_AMP = /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/;
 
 test('a pivot over source data with XML-special characters and a null value writes without throwing', () => {
@@ -164,7 +164,7 @@ test('a non-sum metric carries its subtotal function and an Excel-style caption'
   assert.match(table, /<dataField name="Average of Amount" fld="2" subtotal="average"/);
 });
 
-test("sum omits the subtotal attribute — it is Excel's implicit default", () => {
+test("sum omits the subtotal attribute: it is Excel's implicit default", () => {
   const table = partsOf(writeXlsx(specialCharsWorkbook()))['xl/pivotTables/pivotTable1.xml'] ?? '';
   assert.doesNotMatch(
     table,
@@ -193,7 +193,7 @@ test('a count aggregates a non-numeric value field, describing it as a plain sha
   const parts = partsOf(writeXlsx(wb));
   const table = parts['xl/pivotTables/pivotTable1.xml'] ?? '';
   assert.match(table, /<dataField name="Count of Status" fld="2" subtotal="count"/);
-  // A text value field is not summarised as numeric — it carries a bare <sharedItems/> and rides
+  // A text value field is not summarised as numeric: it carries a bare <sharedItems/> and rides
   // inline in the records, where the count aggregation tallies its non-blank cells.
   const cache = parts['xl/pivotCache/pivotCacheDefinition1.xml'] ?? '';
   assert.match(cache, /name="Status" numFmtId="0"><sharedItems\/>/);

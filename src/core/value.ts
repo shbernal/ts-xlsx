@@ -1,11 +1,11 @@
-// The cell value model — the second bedrock primitive after addressing.
+// The cell value model: the second bedrock primitive after addressing.
 //
 // A cell holds exactly one value, and that value's *type* is observable and drives
 // everything downstream (serialization, number-format application, formula results).
 // The honest shape here is a discriminated union: a value is either a JS primitive
 // (null / number / string / boolean / Date) or one of the structural OOXML value
 // shapes (error, formula, shared formula, rich text, hyperlink). There is no
-// stringly-typed sentinel and no silent coercion between kinds — a numeric-looking
+// stringly-typed sentinel and no silent coercion between kinds: a numeric-looking
 // string stays a string, because the caller's chosen type is the source of truth.
 
 import type {Font} from './style.ts';
@@ -68,7 +68,7 @@ export interface HyperlinkValue {
   readonly range?: string;
 }
 
-/** The cached result a formula carries — any scalar, a date, or an error. */
+/** The cached result a formula carries: any scalar, a date, or an error. */
 export type FormulaResult = number | string | boolean | Date | ErrorValue;
 
 /** A cell whose value is computed by its own formula. */
@@ -78,7 +78,7 @@ export interface FormulaValue {
 }
 
 /**
- * A cell that participates in a shared formula — a clone of a master formula cell filled across a
+ * A cell that participates in a shared formula: a clone of a master formula cell filled across a
  * range. `sharedFormula` is the master cell's address (e.g. `'B1'`); the master itself is a plain
  * {@link FormulaValue}. On read, the clone's own formula is the master's translated to the clone's
  * position and `result` is the clone's cached value; on write, the clones of a master collapse into
@@ -93,7 +93,7 @@ export interface SharedFormulaValue {
 }
 
 /**
- * A cell computed by a What-If-Analysis data table (`<f t="dataTable">`) — the OOXML formula kind that
+ * A cell computed by a What-If-Analysis data table (`<f t="dataTable">`), the OOXML formula kind that
  * fills a range by re-evaluating a model against a grid of substituted input cells. The library does
  * not evaluate it; it preserves the declaration so a read-modify-write cycle re-emits it verbatim
  * rather than silently dropping the data-table kind.
@@ -129,7 +129,7 @@ export type CellValue =
 
 const ERROR_SET: ReadonlySet<string> = new Set(ERROR_CODES);
 
-// Whether a value is a non-null object carrying `key` — the object-shaped {@link CellValue} kinds are all
+// Whether a value is a non-null object carrying `key`. The object-shaped {@link CellValue} kinds are all
 // discriminated by the presence of a single property, so every guard below narrows through this one test.
 function hasKey<K extends string>(value: unknown, key: K): value is Record<K, unknown> & object {
   return typeof value === 'object' && value !== null && key in value;
@@ -145,7 +145,7 @@ export function isErrorValue(value: CellValue): value is ErrorValue {
 }
 
 /**
- * Whether a value is a cell's own formula ({@link FormulaValue}) — a master, or a formula
+ * Whether a value is a cell's own formula ({@link FormulaValue}): a master, or a formula
  * belonging to no shared group. A shared-formula clone is **not** one of these; see
  * {@link isSharedFormulaValue}. Both report as `ValueType.Formula`, so a caller that means "any
  * formula-shaped cell" wants {@link detectValueType}, not this.
@@ -192,7 +192,7 @@ export function richTextToPlain(value: RichTextValue): string {
 }
 
 /**
- * The plain text of any cell value — total over {@link CellValue}, so a caller reading a sheet
+ * The plain text of any cell value, total over {@link CellValue}, so a caller reading a sheet
  * whose cells it did not write never has to switch on the union itself.
  *
  * This is the *value's* text, not the cell's *display* text: a number renders as JavaScript
@@ -203,7 +203,7 @@ export function richTextToPlain(value: RichTextValue): string {
  * - the empty cell (`null`) and an invalid `Date` → `""`, the two ways a cell has no text
  * - a boolean → `"TRUE"` / `"FALSE"`, Excel's own literals rather than JavaScript's
  * - a `Date` → a full ISO-8601 timestamp
- * - an error → its literal, e.g. `"#REF!"` — the same string the grid shows
+ * - an error → its literal, e.g. `"#REF!"`, the same string the grid shows
  * - rich text → every run concatenated ({@link richTextToPlain})
  * - a hyperlink → its label, never its destination
  * - any of the three formula kinds → the text of the *cached result*, and `""` when the cell
@@ -256,7 +256,7 @@ export function detectValueType(value: CellValue): ValueType {
   }
   if (value instanceof Date) return ValueType.Date;
   // Order matters: a hyperlink whose text is rich must classify as Hyperlink, and a
-  // formula carrying a result must classify as Formula — check the outer shape first.
+  // formula carrying a result must classify as Formula. Check the outer shape first.
   if (isHyperlinkValue(value)) return ValueType.Hyperlink;
   if (isFormulaValue(value) || isSharedFormulaValue(value) || isDataTableFormulaValue(value)) {
     return ValueType.Formula;
@@ -290,7 +290,7 @@ function describe(value: unknown): string {
  * Normalise a raw assignment into a stored {@link CellValue}. `undefined` becomes the
  * empty cell (`null`); every other kind is validated by {@link detectValueType}. The
  * model never rewrites one value *kind* into another (a numeric-looking string stays a
- * string) — the single exception is formula text, which is canonicalised to the OOXML
+ * string). The single exception is formula text, which is canonicalised to the OOXML
  * stored form (no leading `=`) so round-trips are idempotent regardless of how the
  * caller supplied it.
  *
@@ -306,14 +306,14 @@ export function coerceCellValue(value: CellValue | undefined): CellValue {
     return formula === value.formula ? value : {...value, formula};
   }
   // A shared formula's `sharedFormula` is a master cell address, not formula text, so there is no
-  // leading `=` to canonicalise — it passes through as given.
+  // leading `=` to canonicalise; it passes through as given.
   return value;
 }
 
 /**
  * OOXML stores a formula's text in `<f>` without the UI's leading `=`. Strip a single
  * leading `=` so the stored form is canonical and a strict consumer (Google Sheets,
- * WPS) — which rejects a stored formula beginning with `=` — accepts the file.
+ * WPS), which rejects a stored formula beginning with `=`, accepts the file.
  */
 function stripLeadingEquals(formula: string): string {
   return formula.startsWith('=') ? formula.slice(1) : formula;

@@ -1,10 +1,10 @@
 // How a `RowInput` is read: the one interpretation of "a row's worth of values" that every authoring
-// entry point on `Worksheet` shares — `addRow`, `addRows`, `insertRow`, `spliceRows`.
+// entry point on `Worksheet` shares: `addRow`, `addRows`, `insertRow`, `spliceRows`.
 //
 // This is not grid mechanics, which is why it is not in `grid-edits.ts`: nothing here shifts or
 // re-anchors anything, and the arithmetic is indifferent to where the row ends up. It is the public
-// API's *input vocabulary* — positional array versus key-addressed object, and what a hole in either
-// one means — held in one place so appending into the live grid and splicing into a detached row can
+// API's *input vocabulary* (positional array versus key-addressed object, and what a hole in either
+// one means) held in one place so appending into the live grid and splicing into a detached row can
 // never drift on the answer. A row that placed values differently depending on which method received
 // it would be the kind of bug no single call site looks wrong for.
 
@@ -19,8 +19,8 @@ import type {ColumnProperties, RowInput} from './worksheet.ts';
  * untouched; a keyed object maps each value under the column carrying the matching key.
  *
  * `Array.isArray`, not `instanceof Array`: a row built in another realm (a vm context, a browser
- * iframe) is still an array but fails the identity check, and would then be walked as a keyed object —
- * placing nothing.
+ * iframe) is still an array but fails the identity check, and would then be walked as a keyed
+ * object, placing nothing.
  */
 export function rowPlacements(
   values: RowInput,
@@ -63,7 +63,5 @@ function columnIndexByKey(columns: ReadonlyMap<number, ColumnProperties>, key: s
   for (const [index, properties] of columns) {
     if (properties.key === key) return index;
   }
-  throw new AuthoringError(
-    `no column is keyed ${JSON.stringify(key)} — set getColumn(n).key first`,
-  );
+  throw new AuthoringError(`no column is keyed ${JSON.stringify(key)}: set getColumn(n).key first`);
 }

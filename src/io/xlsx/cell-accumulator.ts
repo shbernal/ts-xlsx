@@ -1,8 +1,8 @@
 // Cell-gathering state machine for the worksheet-body reader. It owns the still-textual pieces of the
-// one `<c>` currently being read — its address/type/style, formula, cached value, inline text, and
-// rich-text runs — plus the shared-formula master map that spans the whole sheet. Each `<c>` resets
+// one `<c>` currently being read (its address/type/style, formula, cached value, inline text, and
+// rich-text runs) plus the shared-formula master map that spans the whole sheet. Each `<c>` resets
 // the per-cell state on {@link beginCell} and commits it on {@link finalize}, so this class is the
-// single owner of "what has this cell gathered so far" — to a cell what {@link RunAccumulator} is to a
+// single owner of "what has this cell gathered so far": to a cell what {@link RunAccumulator} is to a
 // rich string. Value *decoding* stays in `cell-value.ts`; this class only gathers the raw pieces.
 
 import {decodeAddress, encodeAddress} from '../../core/address.ts';
@@ -95,7 +95,7 @@ export class CellAccumulator {
   }
 
   // Begin an `<f>`: record its shared-formula grouping and any data-table declaration. A self-closing
-  // `<f t="shared" si/>` is a clone — it fires no close and carries no text — so mark it here to
+  // `<f t="shared" si/>` is a clone, firing no close and carrying no text, so mark it here to
   // resolve against its master when the cell finalises.
   beginFormula(attrs: XmlAttributes, selfClosing: boolean): void {
     this.#formulaShared = attrs.t === 'shared';
@@ -130,10 +130,10 @@ export class CellAccumulator {
   }
 
   // Route a `<t>`'s text: to the open run when one is active, otherwise to the inline string when the
-  // parser is inside an `<is>`. A run takes precedence — a run is also inside the inline string.
+  // parser is inside an `<is>`. A run takes precedence, since a run is also inside the inline string.
   //
   // The `_xHHHH_` decode happens here, on one whole `<t>`, and both worksheet readers hand their
-  // `<t>` text to this method — which is what keeps the streaming path from decoding differently
+  // `<t>` text to this method, which is what keeps the streaming path from decoding differently
   // from the buffered one. It cannot move up into the SAX text callback: that fires once per run of
   // character data and an entity splits a run, so `_x00` and `01_` can arrive separately and a
   // per-chunk decode would miss the escape in exactly those strings that happen to contain an `&`.
@@ -161,7 +161,7 @@ export class CellAccumulator {
   // Which of the four readings of a `<c>` applies, in the order the format makes them exclusive.
   // Two of the branches are not pure: a shared-formula master seeds the group here as a side effect
   // and then falls through to the ordinary decode, because a master cell *is* an ordinary cell that
-  // happens to be shared. A clone whose master is missing falls through too — that is the reading
+  // happens to be shared. A clone whose master is missing falls through too: that is the reading
   // for a file whose shared-formula group is broken, and it must stay a fallthrough rather than a
   // failure.
   #resolveValue(

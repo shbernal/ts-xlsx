@@ -41,7 +41,7 @@ test('yields rows in order, non-empty cells only, with decoded values', () => {
       [2, 42],
     ],
   );
-  // Row 3 has only B3 — A3 was never written, so it is absent, not a null cell.
+  // Row 3 has only B3: A3 was never written, so it is absent, not a null cell.
   assert.deepEqual(
     streamed[2]?.cells.map((cell) => [cell.address, cell.value]),
     [['B3', true]],
@@ -54,7 +54,7 @@ test('falsy-but-present values survive; only a truly empty cell drops', () => {
   sheet.getCell('A1').value = 0;
   sheet.getCell('B1').value = false;
   sheet.getCell('C1').value = '';
-  // D1 given a style but no value — a blank the data read should omit.
+  // D1 given a style but no value: a blank the data read should omit.
   sheet.getCell('D1').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFFF0000'}};
 
   const [row] = rows(writeXlsx(wb));

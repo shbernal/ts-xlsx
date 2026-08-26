@@ -78,7 +78,7 @@ test('getCell rejects a whole-row or whole-column reference', () => {
   assert.throws(() => sheet.getCell('A'), /not a single-cell reference/);
 });
 
-test('cells materialise lazily — only touched positions exist', () => {
+test('cells materialise lazily: only touched positions exist', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
   assert.equal(sheet.hasCell(3, 2), false);
@@ -239,8 +239,8 @@ test('an import carrying no background clears the one the destination held', () 
 
 // ── Theme scheme caching ──────────────────────────────────────────────────────────────────────────
 // Decoding the scheme is cached because resolving a colour is per-cell and the part is held as
-// bytes. Two events can stale that cache — a part restored by the reader, and a caller authoring
-// over it — and a stale one is silent: every `theme="n"` cell resolves to the old palette and
+// bytes. Two events can stale that cache: a part restored by the reader, and a caller authoring
+// over it. A stale one is silent: every `theme="n"` cell resolves to the old palette and
 // nothing fails. So both invalidation points are pinned, each by reading the scheme *first*.
 
 function themePart(accent1: string): PreservedTheme {

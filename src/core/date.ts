@@ -1,4 +1,4 @@
-// Excel date serials — the bridge between a JS `Date` and OOXML's numeric storage.
+// Excel date serials: the bridge between a JS `Date` and OOXML's numeric storage.
 //
 // A spreadsheet never stores a date as such: it stores a number (the "serial") and a
 // number format that tells the viewer to render that number as a date. Serial 1 is
@@ -22,7 +22,7 @@ const PHANTOM_SERIAL = 60;
 
 /**
  * The number format applied to a `Date` cell that carries no explicit format of its own,
- * so the value renders — and reads back — as a date rather than a bare serial number.
+ * so the value renders, and reads back, as a date rather than a bare serial number.
  */
 export const DEFAULT_DATE_NUMFMT = 'yyyy-mm-dd';
 
@@ -50,8 +50,8 @@ export function serialToDate(serial: number): Date {
 
 /**
  * Whether a number-format code renders its value as a date or time. A format is a date
- * format when, once its non-formatting sections are removed — bracketed color/locale/
- * condition directives, quoted literals, and escaped characters — any of the date/time
+ * format when, once its non-formatting sections are removed (bracketed color/locale/
+ * condition directives, quoted literals, and escaped characters) any of the date/time
  * placeholder letters (`y m d h s`) remain. So `"$"#,##0.00` and `0.00%` are not dates
  * while `yyyy-mm-dd`, `dd/mm/yyyy`, and `[$-409]mmmm d, yyyy` are.
  */

@@ -13,14 +13,14 @@ import {readWorkbookStream} from './read-rows.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
-/** A genuine `.xlsx` package — the control that must keep reading after the probe is in front. */
+/** A genuine `.xlsx` package: the control that must keep reading after the probe is in front. */
 function validXlsx(): Uint8Array {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 42;
   return writeXlsx(wb);
 }
 
-/** A genuine OLE2/CFB compound file — the container a legacy `.xls` uses. */
+/** A genuine OLE2/CFB compound file: the container a legacy `.xls` uses. */
 function cfbBlob(): Uint8Array {
   return writeCompoundFile([{name: 'Workbook', data: strToU8('legacy biff bytes')}]);
 }
@@ -37,13 +37,13 @@ function xlsbBlob(): Uint8Array {
   });
 }
 
-/** Text that is neither a ZIP nor a CFB — a CSV handed to the xlsx reader, say. */
+/** Text that is neither a ZIP nor a CFB: a CSV handed to the xlsx reader, say. */
 function nonZipBlob(): Uint8Array {
   return strToU8('name,amount\nwidget,10\n');
 }
 
 /**
- * A genuine package cut off mid-stream — a half-downloaded or truncated file, which is what a corrupt
+ * A genuine package cut off mid-stream: a half-downloaded or truncated file, which is what a corrupt
  * archive looks like in the wild. The bytes fflate actually chokes on are the point: a few hand-made
  * `PK` bytes are quietly skipped by a streaming unzip rather than rejected (see {@link zipStubBlob}).
  */
@@ -88,7 +88,7 @@ test('a legacy .xls (CFB) throws UnsupportedFormatError with format "xls"', () =
 });
 
 test('a binary .xlsb is dispatched to the BIFF12 codec, not rejected as unreadable', () => {
-  // The classification stands — this *is* an `.xlsb` — but `readXlsx` now reads one, so what a
+  // The classification stands (this *is* an `.xlsb`) but `readXlsx` now reads one, so what a
   // deliberately malformed binary workbook must produce is a parse failure, not a format failure.
   const err = catchError(() => readXlsx(xlsbBlob()));
   assert.ok(err instanceof XlsbParseError);
@@ -97,7 +97,7 @@ test('a binary .xlsb is dispatched to the BIFF12 codec, not rejected as unreadab
 
 test('the row streamer still reports a binary .xlsb as a format it cannot take', () => {
   // Row streaming is built on the XML worksheet parser, so it has no binary path yet. It must say so
-  // in terms of the format — and point at the entry point that does read one.
+  // in terms of the format, and point at the entry point that does read one.
   const err = catchError(() => {
     for (const _sheet of readWorkbookStream(xlsbBlob())) break;
   });
@@ -118,7 +118,7 @@ test('non-ZIP input throws UnsupportedFormatError with format "unknown"', () => 
 
 test('a ZIP that inflates but carries no workbook part keeps the "no workbook part" message', () => {
   // The one case where that message is the truth: the archive unpacked, and the part search that ran
-  // over it came up empty. A ZIP-headed stub with no visible entry lands here too — a streaming unzip
+  // over it came up empty. A ZIP-headed stub with no visible entry lands here too: a streaming unzip
   // skips it silently rather than reporting a failure, so nothing is left to report but the absence.
   for (const blob of [zipSync({'not-a-workbook.txt': strToU8('hello')}), zipStubBlob()]) {
     const err = catchError(() => readXlsx(blob));
@@ -130,7 +130,7 @@ test('a ZIP that inflates but carries no workbook part keeps the "no workbook pa
 
 test('a truncated archive is a PackageReadError, not an unsupported format', () => {
   // Nothing inflated, so no part search ever ran: this is the right *kind* of container that cannot
-  // be unpacked — `malformed-input`, not `unsupported-format`.
+  // be unpacked: `malformed-input`, not `unsupported-format`.
   const err = catchError(() => readXlsx(truncatedZipBlob()));
   assert.ok(err instanceof PackageReadError);
   assert.equal(err.code, 'malformed-input');
@@ -142,9 +142,9 @@ test('a truncated archive leaks neither raw zip internals nor a filesystem path'
   const err = catchError(() => readXlsx(truncatedZipBlob()));
   assert.ok(err instanceof PackageReadError);
   // The fflate failure ("… end of central directory …", "invalid zip data") must never surface, nor
-  // any filesystem path — neither in the message nor through a `cause` chain a logger would print.
+  // any filesystem path, neither in the message nor through a `cause` chain a logger would print.
   // `inspect` rather than `String`: a logger printing an error prints its `cause` chain in full,
-  // and that whole rendering is what must not leak — `String(cause)` would show only its top line.
+  // and that whole rendering is what must not leak; `String(cause)` would show only its top line.
   const text = `${err.message} ${inspect(err.cause)}`;
   assert.doesNotMatch(text, /central directory|is this a zip|invalid zip|unexpected EOF/i);
   assert.doesNotMatch(text, /[A-Za-z]:\\|\/(?:Users|home)\//);

@@ -14,7 +14,7 @@ function masterOf(sheet: Worksheet, ref: string): string {
 test('addressing a covered cell resolves to the merged region master', () => {
   const sheet = new Worksheet('S', 1);
   sheet.mergeCells('A1:B2');
-  // Every covered address — including the master itself — returns the one master cell.
+  // Every covered address, including the master itself, returns the one master cell.
   const master = sheet.getCell('A1');
   assert.strictEqual(sheet.getCell('B2'), master);
   assert.strictEqual(sheet.getCell('A2'), master);
@@ -27,7 +27,7 @@ test('a value written through a slave address lands on the master and reads back
   sheet.getCell('B2').value = 'slave-write';
   assert.equal(sheet.getCell('A1').value, 'slave-write');
   assert.equal(sheet.getCell('B2').value, 'slave-write');
-  // The slave position never materialises its own cell — only the master exists.
+  // The slave position never materialises its own cell: only the master exists.
   assert.equal(sheet.hasCell(2, 2), false);
   assert.equal(sheet.hasCell(1, 1), true);
 });
@@ -43,7 +43,7 @@ test('a cell outside every merged region is addressed literally', () => {
 
 test('resolution consults merges at access time, not just at merge time', () => {
   const sheet = new Worksheet('S', 1);
-  // Address the slave before any merge exists — it is its own cell.
+  // Address the slave before any merge exists: it is its own cell.
   const before = sheet.getCell('B2');
   assert.equal(before.row, 2);
   assert.equal(before.col, 2);
@@ -56,7 +56,7 @@ test('an unbounded whole-column merge is declared but swallows no addressing', (
   const sheet = new Worksheet('S', 1);
   sheet.mergeCells('A:A');
   assert.deepEqual([...sheet.merges], ['A:A']);
-  // With no bounded rectangle there is no master to redirect to — A5 stays itself.
+  // With no bounded rectangle there is no master to redirect to: A5 stays itself.
   const cell = sheet.getCell('A5');
   assert.equal(cell.row, 5);
   assert.equal(cell.col, 1);
@@ -67,7 +67,7 @@ test('merging a range that overlaps an existing merged region is rejected', () =
   sheet.mergeCells('A1:B2');
   // B2:C3 shares the corner cell B2 with A1:B2.
   assert.throws(() => sheet.mergeCells('B2:C3'), /overlaps/);
-  // The rejected range never enters the merge list — only the first merge stands.
+  // The rejected range never enters the merge list: only the first merge stands.
   assert.deepEqual([...sheet.merges], ['A1:B2']);
 });
 
@@ -125,7 +125,7 @@ test('a values filter and a custom filter both round-trip through the setter, co
   assert.equal(sheet.autoFilter?.columns[1]?.colId, 2);
 });
 
-test('a colId outside the filter range is rejected — a column must lie within it', () => {
+test('a colId outside the filter range is rejected: a column must lie within it', () => {
   const sheet = new Worksheet('S', 1);
   assert.throws(
     () =>
@@ -138,7 +138,7 @@ test('a colId outside the filter range is rejected — a column must lie within 
   assert.equal(sheet.autoFilter, undefined, 'the rejected filter never takes hold');
 });
 
-test('a custom filter with three predicates is rejected — Excel allows at most two', () => {
+test('a custom filter with three predicates is rejected: Excel allows at most two', () => {
   const sheet = new Worksheet('S', 1);
   assert.throws(
     () =>
@@ -170,7 +170,7 @@ test('clearing an autofilter with undefined removes it', () => {
   assert.equal(sheet.autoFilter, undefined);
 });
 
-test('an unbounded autofilter range is rejected — a filter needs a bounded rectangle', () => {
+test('an unbounded autofilter range is rejected: a filter needs a bounded rectangle', () => {
   const sheet = new Worksheet('S', 1);
   assert.throws(() => (sheet.autoFilter = 'A:C'), /bounded rectangle/);
   assert.equal(sheet.autoFilter, undefined, 'the rejected range never takes hold');
@@ -188,7 +188,7 @@ test('an unbounded merge is not overlap-checked against a bounded one', () => {
   const sheet = new Worksheet('S', 1);
   sheet.mergeCells('A:A');
   // A1:A3 geometrically sits inside column A, but the unbounded merge carries no rectangle,
-  // so it participates in no overlap check — the bounded merge is accepted.
+  // so it participates in no overlap check: the bounded merge is accepted.
   sheet.mergeCells('A1:A3');
   assert.deepEqual([...sheet.merges], ['A:A', 'A1:A3']);
 });
@@ -556,7 +556,7 @@ test('addTable leaves a totals column with no built-in aggregate blank', () => {
   assert.equal(sheet.getCell('B3').value, null, 'a column with no aggregate stays blank');
 });
 
-test('addTable does not clobber a pre-set totals cell — round-trip re-registration is idempotent', () => {
+test('addTable does not clobber a pre-set totals cell: round-trip re-registration is idempotent', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getCell('B3').value = 99; // a cell already sitting where the totals aggregate would land
   sheet.addTable({
@@ -908,7 +908,7 @@ test('usedRange is the ref an autoFilter over the whole sheet needs', () => {
   );
 });
 
-test('usedRange creates nothing — it is a handle like getRange', () => {
+test('usedRange creates nothing: it is a handle like getRange', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getCell('A1').value = 'x';
   const before = sheet.actualRowCount;

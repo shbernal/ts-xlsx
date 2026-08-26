@@ -1,7 +1,7 @@
 // Streaming row reader: yield a worksheet's rows one at a time, without ever building the whole
 // {@link Workbook} model.
 //
-// `readXlsx` materialises every cell of every sheet as a live `Cell` object held in nested Maps —
+// `readXlsx` materialises every cell of every sheet as a live `Cell` object held in nested Maps,
 // fine for editing, but for a large sheet read purely to extract its data it holds the entire grid
 // in memory at once. This reader instead *pulls* the sheet's XML through `xmlEvents` and yields a
 // plain {@link StreamedRow} at each `</row>`, retaining only the row currently in hand. Peak model
@@ -10,10 +10,10 @@
 // Two entry points sit on the same scanner:
 //   - {@link readSheetRows} streams a single selected sheet's rows (the terse data-extraction case).
 //   - {@link readWorkbookStream} yields a {@link StreamedSheet} per worksheet in workbook order, so a
-//     caller can walk every sheet — each sheet's rows still stream one at a time.
+//     caller can walk every sheet, and each sheet's rows still stream one at a time.
 //
 // Scope of this slice: the package is still inflated whole (bounded by the running counter in
-// `./inflate.ts`) and shared strings / styles are read as whole parts — both are legitimately
+// `./inflate.ts`) and shared strings / styles are read as whole parts, both being legitimately
 // document-sized and cheap. What this avoids is retaining N materialised cells. A later slice can
 // make the inflate itself per-part lazy; the pull primitive this stands on (`xmlEvents`) is the
 // same one that path will use.
@@ -48,7 +48,7 @@ export interface ReadSheetRowsOptions extends ReadXlsxOptions {
 }
 
 /**
- * The resolved style facets of a streamed cell — its own `<c s>` cell format, flattened exactly as
+ * The resolved style facets of a streamed cell: its own `<c s>` cell format, flattened exactly as
  * the buffered reader resolves it. Present only when the cell carries a format; a consumer can copy
  * these straight onto a writer cell to preserve its look through a streaming read→write.
  */
@@ -60,7 +60,7 @@ export interface StreamedCell {
   readonly col: number;
   /** Canonical A1 address (`"B3"`). */
   readonly address: string;
-  /** The decoded value — identical to what `readXlsx` would produce for the same cell. */
+  /** The decoded value, identical to what `readXlsx` would produce for the same cell. */
   readonly value: CellValue;
   /** The cell's resolved style facets, or absent when the cell carries no format of its own. */
   readonly style?: StreamedCellStyle;
@@ -82,17 +82,17 @@ export interface StreamedRow {
  *
  * The two summaries are resolved lazily: reading either accessor drives a full scan of the sheet if
  * its rows have not already been consumed, so their order relative to `rows()` never matters. (When
- * rows *are* consumed first — the streaming idiom — the accessors reuse that pass and re-scan
+ * rows *are* consumed first, the streaming idiom, the accessors reuse that pass and re-scan
  * nothing.)
  */
 export interface StreamedSheet {
-  /** The worksheet's declared name, joined from the workbook part — never a positional placeholder. */
+  /** The worksheet's declared name, joined from the workbook part. Never a positional placeholder. */
   readonly name: string;
   /** Stream this sheet's rows, one at a time, in sheet order. */
   // The two extra arguments are not decoration: a bare `Generator<T>` defaults its return and next
   // types to `any`, and that `any` reaches the caller the moment they touch `.next()` rather than
-  // `for…of`. `void, undefined` says what these generators actually do — end with nothing, take
-  // nothing back — and keeps the streaming API free of `any`.
+  // `for…of`. `void, undefined` says what these generators actually do, ending with nothing and
+  // taking nothing back, and keeps the streaming API free of `any`.
   rows(): Generator<StreamedRow, void, undefined>;
   /** 1-based indices of columns the sheet declares hidden, ascending. */
   readonly hiddenColumns: readonly number[];
@@ -103,14 +103,14 @@ export interface StreamedSheet {
 /**
  * Stream a worksheet's rows from an `.xlsx` package, yielding each in sheet order without building
  * the workbook model. Only rows the sheet actually declares are yielded, and within a row only its
- * non-empty cells — a blank or style-only cell contributes nothing, matching the intent of a data
+ * non-empty cells: a blank or style-only cell contributes nothing, matching the intent of a data
  * read.
  *
  * @param data The raw `.xlsx` bytes.
  * @param options Sheet selector and the inflate bound (see {@link ReadSheetRowsOptions}).
  * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package (a legacy `.xls`, a
- *   binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
- * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
+ *   binary `.xlsb`, or an unrecognised/non-ZIP blob; branch on `.format`).
+ * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked: a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  * @throws {XlsxParseError} if the package's workbook part declares no worksheets.
  * @throws {RangeError} / {@link AuthoringError} if `options.sheet` selects a position, or a name,
@@ -123,7 +123,7 @@ export function* readSheetRows(
   const pkg = openPackage(data, options.maxUncompressedBytes);
   const chosen = pickSheet(pkg.sheets, options.sheet);
   const sheetXml = pkg.sheetXml(chosen.relId);
-  // The sheet is named but its part is missing (a truncated or foreign package) — it has no rows.
+  // The sheet is named but its part is missing (a truncated or foreign package), so it has no rows.
   if (sheetXml === undefined) return;
   yield* scanSheet(sheetXml, pkg.sharedStrings, pkg.xfStyles, new Set(), []);
 }
@@ -131,14 +131,14 @@ export function* readSheetRows(
 /**
  * Stream every worksheet of an `.xlsx` package in workbook order, without building the workbook
  * model. Each yielded {@link StreamedSheet} carries the declared sheet name and lets the caller
- * stream that sheet's rows and read its hidden-column and merge summaries — the streaming analogue
+ * stream that sheet's rows and read its hidden-column and merge summaries: the streaming analogue
  * of walking `readXlsx(data).worksheets`.
  *
  * @param data The raw `.xlsx` bytes.
  * @param options The inflate bound (see {@link ReadXlsxOptions}).
  * @throws {UnsupportedFormatError} if the input is not a readable `.xlsx` package (a legacy `.xls`, a
- *   binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
- * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
+ *   binary `.xlsb`, or an unrecognised/non-ZIP blob; branch on `.format`).
+ * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked: a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function* readWorkbookStream(
@@ -147,8 +147,8 @@ export function* readWorkbookStream(
 ): Generator<StreamedSheet, void, undefined> {
   const pkg = openPackage(data, options.maxUncompressedBytes);
   for (const sheet of pkg.sheets) {
-    // A named sheet whose part is missing (truncated/foreign package) still surfaces — with no rows,
-    // no hidden columns, and no merges — rather than vanishing from the workbook's sheet list.
+    // A named sheet whose part is missing (truncated/foreign package) still surfaces, with no rows,
+    // no hidden columns, and no merges, rather than vanishing from the workbook's sheet list.
     const xml = pkg.sheetXml(sheet.relId) ?? '';
     yield new StreamedSheetReader(sheet.name, xml, pkg.sharedStrings, pkg.xfStyles);
   }
@@ -170,7 +170,7 @@ function openPackage(data: Uint8Array, maxUncompressedBytes: number | undefined)
   const {partText: text} = packageAccessors(inflateSpreadsheetPackage(data, cap));
 
   const workbookXml = text('xl/workbook.xml');
-  // A binary `.xlsb` is a workbook this library *can* read — just not through here. Row streaming is
+  // A binary `.xlsb` is a workbook this library *can* read, just not through here. Row streaming is
   // built on the XML worksheet parser, so the binary cell table has no streaming path yet; say so,
   // rather than reporting the format as unreadable when `readXlsx` would take the very same bytes.
   if (workbookXml === undefined) {
@@ -270,7 +270,7 @@ class StreamedSheetReader implements StreamedSheet {
   #ensureScanned(): void {
     if (this.#scanned) return;
     for (const _row of this.rows()) {
-      // The rows themselves are irrelevant here — we only want the hidden/merge side effects.
+      // The rows themselves are irrelevant here; we only want the hidden/merge side effects.
     }
   }
 }
@@ -285,7 +285,7 @@ const CELL_EMPTY_CLOSE: ReadonlySet<string> = new Set(['c']);
 // (from `<mergeCells>`, after <sheetData>) into the caller-supplied collectors. The cell state
 // mirrors the buffered reader's `parseWorksheet` (same self-closing-`<c/>` handling, same capture
 // flags), but commits into a row buffer that is handed off and discarded per row rather than into a
-// persistent Worksheet — that hand-off is what bounds retained memory to one row.
+// persistent Worksheet. That hand-off is what bounds retained memory to one row.
 function* scanSheet(
   xml: string,
   sharedStrings: readonly SharedString[],
@@ -300,7 +300,7 @@ function* scanSheet(
 
   // The in-flight `<c>`, gathered exactly as the buffered reader gathers it. This reader drives the
   // same beginCell/setFormula/setValue/appendText methods, then takes only the cell's plain decoded
-  // value (via decode) — never the shared-formula / data-table resolution the buffered finalize adds,
+  // value (via decode), never the shared-formula / data-table resolution the buffered finalize adds,
   // which a data read does not want. Rich `<r>` runs are deliberately not opened here, so a rich
   // inline string flattens to its concatenated text as a streamed value always has.
   const cell = new CellAccumulator();
@@ -313,7 +313,7 @@ function* scanSheet(
     const style = cell.styleIndex >= 0 ? xfStyles[cell.styleIndex] : undefined;
     const value = cell.decode(sharedStrings, style);
     // A blank or purely style-only cell decodes to null; a data read wants only cells that carry
-    // something (a formula object, an empty string, a false, and a 0 all count — only null drops).
+    // something (a formula object, an empty string, a false, and a 0 all count; only null drops).
     if (value !== null) {
       const {col, ref} = cell;
       cells.push(style ? {col, address: ref, value, style} : {col, address: ref, value});
@@ -395,7 +395,7 @@ function* scanSheet(
 
 // Record the hidden columns a `<col min max hidden>` element declares. The span is clamped to the
 // format's column ceiling and gathered into a Set, so even a hostile file full of full-width hidden
-// spans can add at most MAX_COLUMN distinct entries — never an unbounded allocation.
+// spans can add at most MAX_COLUMN distinct entries, never an unbounded allocation.
 function collectHiddenColumn(
   attrs: {readonly [k: string]: string | undefined},
   hiddenColumns: Set<number>,

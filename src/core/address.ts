@@ -1,4 +1,4 @@
-// Address decoding — the foundational spreadsheet primitive.
+// Address decoding: the foundational spreadsheet primitive.
 //
 // Every higher layer (cells, ranges, defined names, formulas) is ultimately
 // addressed by a `col`/`row` pair, so this module is the first thing the rewrite
@@ -9,7 +9,7 @@
 // mention is `undefined`, never a sentinel. A whole-row reference (`$1`) has no
 // column; a whole-column reference (`$A:$A`) has no row. Legacy code let those
 // absent axes decay into `NaN`/`"undefined"` and leak into serialized addresses
-// (`"$undefined$1"`, `"NaN:NaN"`) — the exact defect the corpus locks against.
+// (`"$undefined$1"`, `"NaN:NaN"`), the exact defect the corpus locks against.
 
 /** Excel's column bounds: `A` (1) through `XFD` (16384). */
 export const MAX_COLUMN = 16384;
@@ -19,7 +19,7 @@ export const MAX_ROW = 1048576;
 
 /** A decoded single-cell reference. An axis the reference omits is `undefined`. */
 export interface CellAddress {
-  /** Canonical A1 form with `$` anchors stripped — e.g. `"B2"`, `"1"`, `"A"`. */
+  /** Canonical A1 form with `$` anchors stripped: e.g. `"B2"`, `"1"`, `"A"`. */
   readonly address: string;
   /** 1-based column, or `undefined` for a row-only reference (`$1`). */
   readonly col: number | undefined;
@@ -41,7 +41,7 @@ export interface RangeAddress {
   readonly sheetName?: string;
   readonly tl: CellAddress;
   readonly br: CellAddress;
-  /** Canonical `tl:br` form — `"A1:B2"`, `"1:1"` (rows), `"A:A"` (columns). */
+  /** Canonical `tl:br` form: `"A1:B2"`, `"1:1"` (rows), `"A:A"` (columns). */
   readonly dimensions: string;
 }
 
@@ -53,7 +53,7 @@ const SHEET_PREFIX = /^(?:(?:'((?:[^']|'')*)')|([^'!]+))!(.*)$/;
 /** Convert a 1-based column number to its letters (`1 → "A"`, `27 → "AA"`). */
 export function numberToColumn(n: number): string {
   if (!Number.isInteger(n) || n < 1 || n > MAX_COLUMN) {
-    throw new RangeError(`column ${n} is out of bounds — Excel supports 1..${MAX_COLUMN}`);
+    throw new RangeError(`column ${n} is out of bounds: Excel supports 1..${MAX_COLUMN}`);
   }
   let letters = '';
   let remaining = n;
@@ -80,13 +80,13 @@ export function columnToNumber(letters: string): number {
   }
   if (n > MAX_COLUMN) {
     throw new RangeError(
-      `column "${letters}" is out of bounds — Excel supports up to ${MAX_COLUMN} (XFD)`,
+      `column "${letters}" is out of bounds: Excel supports up to ${MAX_COLUMN} (XFD)`,
     );
   }
   return n;
 }
 
-/** Build a {@link CellAddress} corner straight from optional numeric axes — the address string is
+/** Build a {@link CellAddress} corner straight from optional numeric axes: the address string is
  * assembled from the parts we already hold, so no encode-then-decode round-trip is needed. An axis the
  * corner omits stays `undefined`; both absent yields the empty address (`""`). */
 function makeCellAddress(col: number | undefined, row: number | undefined): CellAddress {
@@ -119,7 +119,7 @@ export function decodeAddress(reference: string): CellAddress {
 }
 
 /**
- * A reference that names one cell — both axes present. The narrowing of {@link CellAddress} that
+ * A reference that names one cell, both axes present. The narrowing of {@link CellAddress} that
  * most callers actually want: `decodeAddress` is deliberately three-shaped because a bare row
  * (`$1`) and a bare column (`$A`) are legitimate references, but a cell is where a value lives, and
  * every caller that needs one was re-deriving that invariant by hand.
@@ -138,7 +138,7 @@ export function decodeCellRef(reference: string): CellPosition {
   const {col, row} = decodeAddress(reference);
   if (col === undefined || row === undefined) {
     throw new SyntaxError(
-      `"${reference}" is not a single-cell reference — it omits a column or row`,
+      `"${reference}" is not a single-cell reference: it omits a column or row`,
     );
   }
   return {col, row};
@@ -202,7 +202,7 @@ export function decodeRange(reference: string): RangeAddress {
 /** Encode a 1-based `col`/`row` pair into its canonical A1 address (`"B2"`). */
 export function encodeAddress(col: number, row: number): string {
   if (!Number.isInteger(row) || row < 1) {
-    throw new RangeError(`row ${row} is out of bounds — rows start at 1`);
+    throw new RangeError(`row ${row} is out of bounds: rows start at 1`);
   }
   return `${numberToColumn(col)}${row}`;
 }

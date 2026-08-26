@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import {Worksheet} from './worksheet.ts';
 
-test('a column handle is a live view — two handles on one index agree', () => {
+test('a column handle is a live view: two handles on one index agree', () => {
   const sheet = new Worksheet('S', 1);
   const first = sheet.getColumn(2);
   const second = sheet.getColumn(2);
@@ -15,7 +15,7 @@ test('a column handle is a live view — two handles on one index agree', () => 
   assert.equal(first.cells.length, 1);
 });
 
-test('reading a column creates nothing — no record, no cells, no used range', () => {
+test('reading a column creates nothing: no record, no cells, no used range', () => {
   const sheet = new Worksheet('S', 1);
   const column = sheet.getColumn(50);
 

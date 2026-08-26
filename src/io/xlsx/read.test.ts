@@ -10,7 +10,7 @@ import {UnsupportedFormatError} from '../opc/errors.ts';
 import {applyWorkbookView, readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
-/** Write a workbook and read it straight back — the round-trip under test. */
+/** Write a workbook and read it straight back: the round-trip under test. */
 function roundtrip(workbook: Workbook): Workbook {
   return readXlsx(writeXlsx(workbook));
 }
@@ -54,7 +54,7 @@ test('an unusable window attribute falls back to the default rather than a NaN g
   assert.equal(view.width, 8000);
 });
 
-test('only the first <workbookView> is read — the model carries one window', () => {
+test('only the first <workbookView> is read: the model carries one window', () => {
   const view = {...DEFAULT_WORKBOOK_VIEW};
   applyWorkbookView(
     view,
@@ -259,7 +259,7 @@ test('a formatted-but-empty cell round-trips with its fill and a null value', ()
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
   sheet.getCell('A1').value = 'anchor';
-  // B2 is styled but never given a value — the fill must survive without a value being invented.
+  // B2 is styled but never given a value: the fill must survive without a value being invented.
   sheet.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
 
   const back = roundtrip(wb).getWorksheet('S');
@@ -362,7 +362,7 @@ test('a column number format round-trips and is inherited by the column cells th
   );
 });
 
-test('a cell fill and its column number format both survive — overriding one facet keeps the other', () => {
+test('a cell fill and its column number format both survive: overriding one facet keeps the other', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
   sheet.getColumn(1).numFmt = '0.00';
@@ -432,7 +432,7 @@ test('a column border applies only to its declaring column, not to later width-o
 
 test('a cell overriding one facet keeps the column’s other facet default', () => {
   // The column defaults both an alignment and a number format; a cell that overrides only its
-  // alignment must still carry the column's number format — the generalized column composition
+  // alignment must still carry the column's number format: the generalized column composition
   // must not drop a non-overridden facet.
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
@@ -525,7 +525,7 @@ test('a custom indexed-color palette survives a read → write round-trip verbat
 });
 
 test('a gradient fill in the <fills> list keeps its id slot so later fills still resolve', () => {
-  // fills: 0 none, 1 gray125, 2 gradient, 3 solid red. A cell naming fill 3 must read back red — the
+  // fills: 0 none, 1 gray125, 2 gradient, 3 solid red. A cell naming fill 3 must read back red, so the
   // gradient at index 2 must not swallow the slot and shift red down to where nothing references it.
   const styles =
     '<?xml version="1.0"?><styleSheet><fills count="4">' +
@@ -660,7 +660,7 @@ test('a serial under a built-in locale date id (57) reads as a date, not a bare 
       '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         '<Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/></Relationships>',
     ),
-    // Built-in id 57 carries no <numFmt> entry — it is resolved from the built-in table.
+    // Built-in id 57 carries no <numFmt> entry: it is resolved from the built-in table.
     'xl/styles.xml': strToU8(
       '<?xml version="1.0"?><styleSheet><cellXfs count="2"><xf numFmtId="0"/>' +
         '<xf numFmtId="57" applyNumberFormat="1"/></cellXfs></styleSheet>',
@@ -696,7 +696,7 @@ test('a cell font round-trips through the <fonts> table, and only the styled cel
     color: {argb: 'FF3A80D5'},
     name: 'Arial',
   });
-  // The unstyled sibling renders in the workbook default font, not A1's — so it must not pick up
+  // The unstyled sibling renders in the workbook default font, not A1's, so it must not pick up
   // any of A1's overrides (bold/italic/Arial/the blue), though it does resolve the default face.
   const b2 = back?.getCell('B2').font;
   assert.equal(b2?.bold, undefined, 'an unstyled sibling does not inherit the bold');
@@ -714,7 +714,7 @@ test('an unstyled cell resolves to the workbook default font (a concrete face), 
   assert.equal(font?.size, 11, 'the default size is 11');
 });
 
-test('a cell carrying exactly the default font interns back to font id 0 — no redundant entry', () => {
+test('a cell carrying exactly the default font interns back to font id 0: no redundant entry', () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
   sheet.getCell('A1').value = 'x';
@@ -756,8 +756,8 @@ test('an underline font round-trips: single stays single, a named variant keeps 
 
 test('a foreign font’s <u val="none"/> reads back as not underlined, not the truthy string "none"', () => {
   // Real producers write <u val="none"/> for the explicit ABSENCE of an underline. Surfacing the
-  // literal "none" would be truthy — a consumer’s `if (font.underline)` would mistake it for an
-  // underline — so the reader must read it back falsy.
+  // literal "none" would be truthy: a consumer’s `if (font.underline)` would mistake it for an
+  // underline, so the reader must read it back falsy.
   const files: Record<string, Uint8Array> = {
     'xl/workbook.xml': strToU8(
       '<?xml version="1.0"?><workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
@@ -787,7 +787,7 @@ test('a foreign font’s <u val="none"/> reads back as not underlined, not the t
 
 test('a foreign font honours an explicit-false boolean flag rather than tag presence', () => {
   // A foreign generator writes <b/> (bold on) but <i val="0"/> (italic explicitly off). The
-  // reader must honour the val — a present tag is not truthy on its own.
+  // reader must honour the val: a present tag is not truthy on its own.
   const files: Record<string, Uint8Array> = {
     '[Content_Types].xml': strToU8(
       '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
@@ -814,7 +814,7 @@ test('a foreign font honours an explicit-false boolean flag rather than tag pres
   };
   const font = readXlsx(zipSync(files)).getWorksheet('S')?.getCell('A1').font;
   assert.equal(font?.bold, true, 'a bare <b/> is bold');
-  assert.equal(font?.italic, false, '<i val="0"/> is explicitly not italic — the val is honoured');
+  assert.equal(font?.italic, false, '<i val="0"/> is explicitly not italic: the val is honoured');
 });
 
 test('a cell border round-trips through the <borders> table, and only the styled cell carries it', () => {
@@ -975,7 +975,7 @@ test('a default-locked cell does not read back as explicitly protected', () => {
   assert.equal(roundtrip(wb).getWorksheet('S')?.getCell('A1').protection, undefined);
 });
 
-test('a foreign <protection locked="1"> — an explicit default — reads back with no protection', () => {
+test('a foreign <protection locked="1">, an explicit default, reads back with no protection', () => {
   // A foreign generator states the default explicitly (locked on). Since locked defaults true,
   // that carries no information; the reader must not fabricate a { locked: true } protection.
   const files: Record<string, Uint8Array> = {
@@ -1063,7 +1063,7 @@ test('a password-protected sheet round-trips its credential and permissive flags
   assert.equal(protection.flags.selectLockedCells, false);
   assert.equal(protection.flags.deleteRows, undefined);
 
-  // The agile credential is preserved verbatim — the reader cannot (and must not) re-hash it.
+  // The agile credential is preserved verbatim: the reader cannot (and must not) re-hash it.
   const original = ws.protection?.credential;
   assert.deepEqual(protection.credential, original);
   assert.equal(protection.credential?.algorithmName, 'SHA-512');
@@ -1582,8 +1582,8 @@ test("an authored theme's body face reaches font 0, so it reaches every unstyled
 
 test('a foreign non-Calibri font 0 survives a round-trip without gaining a duplicate', () => {
   // Read→write used to replace the declared default with Calibri and re-add the real face as a
-  // redundant custom entry: populated cells kept it via that entry, while empty cells — and any
-  // consumer reading font 0 as "the workbook default" — silently got Calibri.
+  // redundant custom entry: populated cells kept it via that entry, while empty cells (and any
+  // consumer reading font 0 as "the workbook default") silently got Calibri.
   const seed = new Workbook();
   seed.addWorksheet('S').getCell('A1').value = 'plain';
   const pkg = unzipSync(writeXlsx(seed));
@@ -1604,7 +1604,7 @@ test('a foreign non-Calibri font 0 survives a round-trip without gaining a dupli
     fontsBlockOf(back),
     '<fonts count="1"><font><sz val="11"/><color theme="1"/>' +
       '<name val="Aptos"/><family val="2"/><scheme val="minor"/></font></fonts>',
-    'one entry, still Aptos — no Calibri, no duplicate',
+    'one entry, still Aptos: no Calibri, no duplicate',
   );
 });
 
@@ -1612,7 +1612,7 @@ test('an authored default font moves the cells that only inherited the file’s,
   const seed = new Workbook();
   const seedSheet = seed.addWorksheet('S');
   seedSheet.getCell('A1').value = 'inherits the default';
-  // A fill forces a real xf that still names font 0 — so the reader flattens the default face onto
+  // A fill forces a real xf that still names font 0, so the reader flattens the default face onto
   // this cell even though the source file never said anything about its font.
   seedSheet.getCell('A2').value = 'filled, but says nothing about its font';
   seedSheet.getCell('A2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFEEEEEE'}};

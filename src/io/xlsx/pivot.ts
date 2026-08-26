@@ -1,10 +1,10 @@
-// OOXML rendering for a modeled pivot table: the three parts a pivot needs — the cache definition
+// OOXML rendering for a modeled pivot table: the three parts a pivot needs, the cache definition
 // (field catalogue), the cache records (a copy of the source rows), and the pivot table definition
 // (the layout). The semantic computation lives in `core/pivot-table.ts`; this file only serialises.
 //
 // Every value that reaches an attribute is run through `escapeAttr`, so source strings carrying XML
 // specials (`Smith & Co`, `<West>`, `It's "best"`) become well-formed markup rather than corrupting
-// the package — the whole point of the shared-item escaping this module guarantees.
+// the package, which is the whole point of the shared-item escaping this module guarantees.
 
 import {encodeAddress} from '../../core/address.ts';
 import type {PivotItem, PivotMetric, PivotRecordCell, PivotTable} from '../../core/pivot-table.ts';

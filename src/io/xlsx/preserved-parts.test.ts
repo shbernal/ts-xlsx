@@ -57,7 +57,7 @@ const SHAPE_DRAWING =
   '<xdr:txBody><a:bodyPr/><a:p/></xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor></xdr:wsDr>';
 
 // A single drawing part holding BOTH a modeled picture (an <xdr:pic> with a blip embed) AND a chart
-// (an <xdr:graphicFrame> naming a chart part by r:id) — the shape Excel produces for a sheet that
+// (an <xdr:graphicFrame> naming a chart part by r:id): the shape Excel produces for a sheet that
 // carries an image and a chart together. Modeling only the picture and re-serialising the drawing
 // from it would drop the chart; the whole part must ride through preservation instead.
 const MIXED_DRAWING =
@@ -297,7 +297,7 @@ test('a preserved header/footer VML is numbered clear of a modeled anchored imag
 });
 
 // A workbook overlay that adds a `<pivotCaches>` registration and a workbook relationship reaching a
-// pivot cache — the wiring a real pivot-bearing workbook carries, which the base package omits.
+// pivot cache: the wiring a real pivot-bearing workbook carries, which the base package omits.
 const workbookWithPivotCache =
   '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
   'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
@@ -318,7 +318,7 @@ test('a pivot table and its pivot cache survive read→write, cacheId wiring int
         relationship('rId1', 'worksheet', 'worksheets/sheet1.xml') +
         relationship('rId2', 'pivotCacheDefinition', 'pivotCache/pivotCacheDefinition1.xml') +
         '</Relationships>',
-      // The pivot table is discovered through a sheet relationship — there is no worksheet child.
+      // The pivot table is discovered through a sheet relationship: there is no worksheet child.
       'xl/worksheets/sheet1.xml': worksheet(''),
       'xl/worksheets/_rels/sheet1.xml.rels': rels(
         relationship('rId1', 'pivotTable', '../pivotTables/pivotTable1.xml'),
@@ -351,7 +351,7 @@ test('a pivot table and its pivot cache survive read→write, cacheId wiring int
   );
 
   // The <pivotCaches> registration is re-emitted with its cacheId, wired to the workbook relationship
-  // that reaches the (surviving) cache definition — so a pivot table can resolve its cache on reopen.
+  // that reaches the (surviving) cache definition, so a pivot table can resolve its cache on reopen.
   const wb = partText(out, /xl\/workbook\.xml$/);
   const cache = /<pivotCache cacheId="42" r:id="(rId\d+)"\/>/.exec(wb);
   assert.ok(cache, `workbook registers the pivot cache with its cacheId; got ${wb}`);
@@ -378,7 +378,7 @@ test('a pivot table and its pivot cache survive read→write, cacheId wiring int
 // A macro-enabled workbook's VBA project and a *digital signature* over it: the signature is a sibling
 // package part (`xl/vbaProjectSignature.bin`) reached by a `.../vbaProjectSignature` relationship on the
 // vbaProject part's own rels, so the closure walk carries it through. It shares the `.bin` extension
-// with `vbaProject.bin` but has a DIFFERENT content type — the case a single per-extension `<Default>`
+// with `vbaProject.bin` but has a DIFFERENT content type: the case a single per-extension `<Default>`
 // mis-types unless the writer emits a per-part `<Override>` for the odd one out.
 const msVbaRelationship = (id: string, type: string, target: string): string =>
   `<Relationship Id="${id}" Type="http://schemas.microsoft.com/office/2006/relationships/${type}" Target="${target}"/>`;
@@ -414,7 +414,7 @@ test('a signed VBA project keeps distinct content types for vbaProject.bin and i
   assert.deepEqual(files['xl/vbaProjectSignature.bin'], sigBytes, 'the signature blob survives');
 
   const ct = partText(out, /\[Content_Types\]\.xml$/);
-  // The signature part must keep its own content type — a lone `.bin` Default would mis-type it as a
+  // The signature part must keep its own content type: a lone `.bin` Default would mis-type it as a
   // second vbaProject, which Excel reads as a corrupt/duplicate project rather than a signature.
   assert.match(
     ct,
@@ -467,7 +467,7 @@ test('slicer and slicer-cache parts survive read→write', () => {
     'the workbook still references the slicer cache',
   );
 
-  // Parts surviving is not enough — Excel only rediscovers a slicer through its x14 wiring, which
+  // Parts surviving is not enough: Excel only rediscovers a slicer through its x14 wiring, which
   // references the relationship ids the writer reassigns, so the ext blocks must name the *new* ids.
   const slicerRelId = partText(out, /worksheets\/_rels\/sheet1\.xml\.rels$/).match(
     /Id="(rId\d+)"[^>]*\/slicer"/,
@@ -489,7 +489,7 @@ test('slicer and slicer-cache parts survive read→write', () => {
   );
 });
 
-// The ribbon-customisation parts (customUI.xml / customUI14.xml — the buttons a macro workbook adds to
+// The ribbon-customisation parts (customUI.xml / customUI14.xml, the buttons a macro workbook adds to
 // the ribbon) hang off the *package root* `_rels/.rels`, not the workbook part's rels, so the
 // workbook-rels closure walk never reaches them. Preserving them needs the root rels themselves to be
 // captured on read and re-declared on write.
@@ -536,7 +536,7 @@ test('customUI ribbon parts referenced from the package root rels survive read�
     'the 2009 ribbon body survives intact',
   );
 
-  // Surviving as bytes is not enough — Excel only loads the ribbon through the root-rels
+  // Surviving as bytes is not enough: Excel only loads the ribbon through the root-rels
   // relationships, so both must be re-declared there with their Microsoft-namespaced types.
   const rootRels = partText(out, /^_rels\/\.rels$/);
   assert.match(

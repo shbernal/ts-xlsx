@@ -84,7 +84,7 @@ test('XML-special characters in text and formulas are escaped', () => {
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.match(xml, /<t>a &lt; b &amp; c &gt; d<\/t>/);
   assert.match(xml, /<f>IF\(A1&lt;B1,"x"&amp;"y",""\)<\/f>/);
-  // No raw ampersand survives except as the head of an entity — the check the corpus's
+  // No raw ampersand survives except as the head of an entity: the check the corpus's
   // xmlWellFormed applies to reject unescaped specials.
   assert.doesNotMatch(xml, /&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/);
 });
@@ -250,7 +250,7 @@ test('a formatted-but-empty cell is emitted as a styled <c> with no value, not d
   const wb = new Workbook();
   const s = wb.addWorksheet('S');
   s.getCell('A1').value = 'x';
-  // B2 carries a fill but no value — a real formatted blank Excel keeps, not a cell to discard.
+  // B2 carries a fill but no value: a real formatted blank Excel keeps, not a cell to discard.
   s.getCell('B2').fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF00FF00'}};
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.match(
@@ -316,7 +316,7 @@ test('a partially-visible outline group derives no collapsed summary', () => {
   s.getCell('A4').value = 'summary';
   s.getRow(2).outlineLevel = 1;
   s.getRow(2).hidden = true;
-  // Row 3 is grouped but visible — the group is expanded, so nothing is collapsed.
+  // Row 3 is grouped but visible: the group is expanded, so nothing is collapsed.
   s.getRow(3).outlineLevel = 1;
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.doesNotMatch(xml, /collapsed/);
@@ -513,7 +513,7 @@ test('a visible grid reads back unset rather than true', () => {
   const wb = new Workbook();
   wb.addWorksheet('S').getCell('A1').value = 'x';
   const reopened = readXlsx(writeXlsx(wb));
-  // Excel's default is on, so "unset" and "on" are the same state — recording `true` would make a
+  // Excel's default is on, so "unset" and "on" are the same state: recording `true` would make a
   // re-write fabricate an attribute the source never carried.
   assert.equal(reopened.requireWorksheet('S').view.showGridLines, undefined);
 });
@@ -664,7 +664,7 @@ test('header text carries the _xHHHH_ convention, same as a cell value', () => {
   s.getCell('A1').value = 'x';
   // Excel decodes `_xHHHH_` in a `<headerFooter>` child and writes one back on save (measured over
   // COM), so a header both may carry a character XML itself cannot and must have a literal that
-  // *looks* like an escape protected — otherwise `_x0041_` would come back as `A`.
+  // *looks* like an escape protected; otherwise `_x0041_` would come back as `A`.
   s.headerFooter.oddHeader = '&C[\u0001][_x0041_]';
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.match(xml, /<oddHeader>&amp;C\[_x0001_\]\[_x005F_x0041_\]<\/oddHeader>/);
@@ -780,7 +780,7 @@ test('a no-totals table omits totalsRowShown unless the flag is set explicitly',
   assert.doesNotMatch(
     table,
     /totalsRowShown/,
-    'an unset flag emits no attribute — Excel must not see a spurious one',
+    'an unset flag emits no attribute: Excel must not see a spurious one',
   );
 });
 
@@ -1116,8 +1116,8 @@ test('a filter column addressing a column outside the range is dropped on read, 
   const s = wb.addWorksheet('S');
   s.autoFilter = 'A1:B4';
 
-  // Hand-forge an out-of-range <filterColumn colId="5"> onto the worksheet part — the kind of thing
-  // a corrupt producer emits — and re-zip. Load-repair must keep the range and drop the bad column,
+  // Hand-forge an out-of-range <filterColumn colId="5"> onto the worksheet part (the kind of thing
+  // a corrupt producer emits) and re-zip. Load-repair must keep the range and drop the bad column,
   // never throwing (the strict setter that authors go through would reject the same colId).
   const parts = unzipSync(writeXlsx(wb));
   parts['xl/worksheets/sheet1.xml'] = strToU8(
@@ -1310,7 +1310,7 @@ test('a sheet with no manual column breaks emits no <colBreaks> element', () => 
 test('the async writer produces the same package the sync one does', async () => {
   const wb = new Workbook();
   const sheet = wb.addWorksheet('S');
-  // Big enough that the deflater's level actually changes the output size — below roughly 200 rows
+  // Big enough that the deflater's level actually changes the output size; below roughly 200 rows
   // every level compresses this identically, and the size assertion below could not fail.
   for (let row = 1; row <= 300; row++) {
     sheet.getCell(`A${row}`).value = `label ${row % 37} value`;
@@ -1337,7 +1337,7 @@ test('the async writer produces the same package the sync one does', async () =>
   }
   // The archives themselves, not just their contents: with entry timestamps pinned there is nothing
   // left in a package that the two paths could legitimately disagree about, so this also pins them
-  // to the same compression settings — which comparing inflated content alone would never notice.
+  // to the same compression settings, which comparing inflated content alone would never notice.
   assert.deepEqual(async, sync, 'the two writers produce the same archive byte for byte');
 });
 

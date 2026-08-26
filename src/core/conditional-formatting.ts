@@ -1,16 +1,16 @@
-// Conditional formatting — the rules that restyle a cell based on its value (a data bar, a colour
+// Conditional formatting: the rules that restyle a cell based on its value (a data bar, a colour
 // scale, a "highlight cells greater than 10", a formula-driven expression). Like a data validation,
 // it is a worksheet-level overlay keyed by a target range, not a facet owned by one cell: one rule
 // covers a whole range, and several rules can layer on the same cells with an evaluation precedence.
 //
 // The model carries the operands each rule type needs and otherwise leaves them absent. A rule type
 // the library does not interpret in depth still round-trips its `type`, `priority`, `operator`,
-// `formulae`, and differential-style reference — so a read/write cycle never silently drops a rule.
+// `formulae`, and differential-style reference, so a read/write cycle never silently drops a rule.
 
 import type {Color, DifferentialStyle} from './style.ts';
 
 /**
- * One anchor of a colour-scale, data-bar, or icon-set scale — a "conditional format value object".
+ * One anchor of a colour-scale, data-bar, or icon-set scale: a "conditional format value object".
  * `type` names how `value` is read: a literal `num`, a `percent`/`percentile` of the range, a
  * `formula`, or the range's own `min`/`max` (which carry no value).
  */
@@ -26,7 +26,7 @@ export interface CfValueObject {
  */
 export interface ConditionalFormattingRule {
   type: string;
-  /** Evaluation precedence; lower wins. Excel requires one — the writer supplies it when absent. */
+  /** Evaluation precedence; lower wins. Excel requires one, so the writer supplies it when absent. */
   priority?: number;
   /** Halt evaluation of lower-priority rules on any cell this rule matches. */
   stopIfTrue?: boolean;
@@ -70,7 +70,7 @@ export interface ConditionalFormattingRule {
   timePeriod?: string;
 }
 
-/** A set of rules bound to the range(s) they cover. `ref` is an OOXML `sqref` — one or more
+/** A set of rules bound to the range(s) they cover. `ref` is an OOXML `sqref`: one or more
  * space-separated areas (`"A1:C1 A3:C3 A5:C5"`), the shape Excel writes when one rule is applied to
  * several non-contiguous selections at once. */
 export interface ConditionalFormatting {

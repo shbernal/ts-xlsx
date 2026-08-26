@@ -29,7 +29,7 @@ test('an invalid Date is still a Date-typed value', () => {
   assert.equal(detectValueType(new Date(NaN)), ValueType.Date);
 });
 
-test('NaN and Infinity remain Number-typed — the model does not judge finiteness', () => {
+test('NaN and Infinity remain Number-typed: the model does not judge finiteness', () => {
   assert.equal(detectValueType(Number.NaN), ValueType.Number);
   assert.equal(detectValueType(Number.POSITIVE_INFINITY), ValueType.Number);
 });
@@ -117,7 +117,7 @@ test('cellValueToText renders a formula as its cached result, or nothing', () =>
   );
 });
 
-test('cellValueToText applies no number format — the style is not the value', () => {
+test('cellValueToText applies no number format: the style is not the value', () => {
   assert.equal(cellValueToText(0.1 + 0.2), '0.30000000000000004');
 });
 

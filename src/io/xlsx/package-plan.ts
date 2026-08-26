@@ -1,6 +1,6 @@
 // The plan layer of the writer: pure graph resolution that turns a Workbook model into the numbered,
-// cross-referenced set of parts an `.xlsx` package needs — media, preserved (verbatim-carried) parts,
-// and the sheet-/workbook-local relationship ids that wire them — before any XML is serialised.
+// cross-referenced set of parts an `.xlsx` package needs (media, preserved verbatim-carried parts,
+// and the sheet-/workbook-local relationship ids that wire them) before any XML is serialised.
 
 import type {CommentThread} from '../../core/comment-thread.ts';
 import type {PivotTable} from '../../core/pivot-table.ts';
@@ -17,7 +17,7 @@ import type {DrawingImage} from './images.ts';
 // package wires a sheet's parts (tables, drawing, comments, threaded comments, printer settings, external
 // hyperlinks, background, preserved references, pivot tables). Every sheet-local id is drawn from here in
 // sequence, so no plan step re-derives its starting offset by summing the counts of the steps before
-// it — the arithmetic that, open-coded once per step with subtly different prefixes, could silently
+// it: the arithmetic that, open-coded once per step with subtly different prefixes, could silently
 // hand two parts the same id and corrupt the package. Monotonic by construction, so collisions cannot
 // arise however the steps grow. One fresh allocator per sheet; the ids it yields are sheet-local.
 export class SheetRelIds {
@@ -40,7 +40,7 @@ export interface PivotPlan {
   workbookRelId: string;
 }
 
-// A sheet's comments — its cells' notes and one legacy fallback per threaded conversation — paired with
+// A sheet's comments (its cells' notes and one legacy fallback per threaded conversation) paired with
 // the part number and sheet-local relationship ids that link the sheet to its comments part (by type)
 // and its VML drawing (by the `<legacyDrawing>` element).
 export interface CommentPlan {
@@ -52,8 +52,8 @@ export interface CommentPlan {
 
 // A sheet's threaded conversations paired with the part number naming its
 // `threadedComments/threadedComment{n}.xml` and the sheet-local relationship id reaching it. No worksheet
-// element points at that part — Excel discovers it by scanning the sheet's relationships, the way it
-// finds a pivot table — so the relationship is the whole of the wiring.
+// element points at that part. Excel discovers it by scanning the sheet's relationships, the way it
+// finds a pivot table, so the relationship is the whole of the wiring.
 export interface ThreadedCommentPlan {
   readonly number: number;
   readonly threads: readonly CommentThread[];
@@ -85,7 +85,7 @@ export interface BackgroundPlan {
 }
 
 // A verbatim-preserved package part resolved for serialisation: the collision-proof path it is
-// emitted at, its bytes and content type, and — when it references other parts — the rels part
+// emitted at, its bytes and content type, and, when it references other parts, the rels part
 // linking it to their new paths.
 export interface PreservedPartPlan {
   readonly path: string;
@@ -100,7 +100,7 @@ export interface PreservedPartPlan {
 // carries by relationship alone), the relationship Type, and the new path of the entry part it
 // targets. The id is assigned by the caller from the sheet's {@link SheetRelIds} allocator, at the
 // reference's canonical position in the sheet-local id sequence (after tables/drawing/comments/
-// threaded-comments/printer-settings/external-hyperlinks/background) — so a preserved reference never
+// threaded-comments/printer-settings/external-hyperlinks/background) so a preserved reference never
 // renumbers an id already threaded into the sheet XML.
 export interface ResolvedPreservedReference {
   readonly element: 'drawing' | 'legacyDrawingHF' | undefined;
@@ -114,7 +114,7 @@ export interface PreservedReferencePlan extends ResolvedPreservedReference {
 }
 
 // A preserved workbook reference resolved for serialisation: its relationship Type, the new path of
-// the entry part, and — for a pivot cache — the `cacheId` its `<pivotCaches>` registration carries.
+// the entry part, and, for a pivot cache, the `cacheId` its `<pivotCaches>` registration carries.
 // The workbook relationship id is assigned at emit time (it follows the modeled workbook rels, whose
 // count depends on whether a shared-strings part is emitted), so it is not fixed here.
 export interface PreservedWorkbookReferencePlan {
@@ -187,8 +187,8 @@ interface PreservedNumbering {
   media: number;
 }
 
-// Gather the workbook images actually referenced by some sheet — either anchored in a drawing or set
-// as a sheet background (an unreferenced image is not written) — number them in first-use order, and
+// Gather the workbook images actually referenced by some sheet, either anchored in a drawing or set
+// as a sheet background (an unreferenced image is not written), number them in first-use order, and
 // record the extensions in play. A sheet referencing an id with no registered image is a programming
 // error the writer surfaces rather than emitting a dangling relationship.
 export function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): MediaPlan {
@@ -224,8 +224,8 @@ export function planMedia(workbook: Workbook, sheets: readonly Worksheet[]): Med
 
 // Resolve every sheet's verbatim-preserved worksheet references (a vector-shape drawing, a
 // header/footer image) into the parts to emit and the per-sheet reference data that wires them. Each
-// reference's captured part closure is re-numbered onto collision-proof `preservedP{n}` paths — so
-// preserved content never clobbers a generated drawing/VML/media part — with the closure's internal
+// reference's captured part closure is re-numbered onto collision-proof `preservedP{n}` paths, so
+// preserved content never clobbers a generated drawing/VML/media part, with the closure's internal
 // relationships rewritten to the new sibling paths. Part numbering is the only cross-sheet concern
 // here; each reference's sheet-local relationship id is assigned by the caller from the sheet's
 // {@link SheetRelIds} allocator, so this function stays free of the sheet-local id arithmetic.
@@ -239,7 +239,7 @@ export function planPreservedParts(
   // kinds is re-numbered past the generated ones (a preserved drawing never clobbers an anchored
   // drawing, a preserved VML never clobbers a comment's VML). Comment VML is numbered by sheet index,
   // so `sheets.length` bounds it. Every other kind (pivot tables, caches, slicers, charts) the writer
-  // never generates, so those keep their original path — see {@link preservedPartPath}.
+  // never generates, so those keep their original path. See {@link preservedPartPath}.
   const numbering: PreservedNumbering = {
     drawing: generatedDrawingCount,
     vml: sheets.length,
@@ -250,7 +250,7 @@ export function planPreservedParts(
   // (a pivot cache reached both from its pivot table and from the workbook) is numbered once and
   // emitted once, so overlapping closures collapse instead of duplicating parts.
   const remap = new Map<string, string>();
-  // A preserved theme rides the same closure machinery as every other verbatim part — it can carry
+  // A preserved theme rides the same closure machinery as every other verbatim part: it can carry
   // relationships of its own (a picture used as a themed fill) that need the same renumbering and
   // rewiring. Its entry is pinned to the fixed theme path rather than left to {@link preservedPartPath},
   // because the workbook's theme relationship and the content-type override name that path
@@ -275,7 +275,7 @@ export function planPreservedParts(
       const newPath = remap.get(part.path) as string;
       if (emitted.has(newPath)) continue;
       const rels = part.rels.flatMap((rel) => {
-        // An external relationship (a linked workbook) is emitted verbatim — its target is outside the
+        // An external relationship (a linked workbook) is emitted verbatim: its target is outside the
         // package, so it is neither in the remap nor expressed relative to the new path.
         if (rel.external) {
           return [{id: rel.id, type: rel.type, target: rel.targetPath, external: true}];
@@ -288,7 +288,7 @@ export function planPreservedParts(
       // The one preserved part whose *bytes* can change: a theme the caller authored over is
       // regenerated from the source part (see `Workbook.authoredThemeXml`) rather than carried
       // verbatim, so the format scheme, the unauthored slots' encoding, and the relationships below
-      // all still ride through — only the authored elements differ.
+      // all still ride through; only the authored elements differ.
       const authoredTheme = newPath === THEME_PART_PATH ? workbook.authoredThemeXml() : undefined;
       emitted.set(newPath, {
         path: newPath,
@@ -333,10 +333,10 @@ export function planPreservedParts(
   };
 }
 
-// The path a preserved part is emitted at. A kind the writer generates of its own — a drawing, a VML,
-// a media image — is re-numbered past the generated parts of that kind (see {@link planPreservedParts})
+// The path a preserved part is emitted at. A kind the writer generates of its own (a drawing, a VML,
+// a media image) is re-numbered past the generated parts of that kind (see {@link planPreservedParts})
 // so it never clobbers one. Every other kind (a pivot table, a pivot/slicer cache, a slicer, a chart)
-// the writer never generates, so it keeps its original path — leaving the package's standard part
+// the writer never generates, so it keeps its original path, leaving the package's standard part
 // names intact and letting overlapping closures agree on a single path for a shared part.
 function preservedPartPath(originalPath: string, numbering: PreservedNumbering): string {
   const ext = extensionOf(originalPath);

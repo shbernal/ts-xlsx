@@ -1,6 +1,6 @@
 // Workbook-level protection: the `<workbookProtection>` element in CT_Workbook that locks the
 // workbook's *structure* (sheets cannot be added, deleted, reordered, or unhidden) and/or its
-// *windows*. It is distinct from worksheet-level `<sheetProtection>` — that guards a single sheet's
+// *windows*. It is distinct from worksheet-level `<sheetProtection>`, which guards a single sheet's
 // cells; this guards the workbook shell. A weak integrity signal, but a real one: dropping it on a
 // passthrough save silently unlocks a file the author locked, so the model preserves it faithfully.
 
@@ -32,11 +32,11 @@ export type WorkbookProtectionCredentialAttr =
 /**
  * A workbook's structure/window protection. The three lock flags each default to `false` (absent),
  * matching OOXML: an omitted attribute leaves that aspect unlocked. The optional {@link credentials}
- * bag carries the opaque password attributes verbatim — the library never verifies a password, it
+ * bag carries the opaque password attributes verbatim: the library never verifies a password, it
  * only refuses to lose one.
  */
 export interface WorkbookProtection {
-  /** Lock the workbook structure — no adding, deleting, reordering, or unhiding sheets. */
+  /** Lock the workbook structure: no adding, deleting, reordering, or unhiding sheets. */
   readonly lockStructure?: boolean;
   /** Lock the workbook window geometry. */
   readonly lockWindows?: boolean;

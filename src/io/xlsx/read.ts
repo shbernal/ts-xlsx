@@ -1,16 +1,16 @@
 // The buffered `.xlsx` reader: an OPC zip package in, a Workbook model out.
 //
-// It reconstructs the part of the model the writer emits today — sheet names and order,
+// It reconstructs the part of the model the writer emits today: sheet names and order,
 // cells holding a number, string, boolean, or formula, per-column width/visibility,
 // per-row height/visibility, merged ranges, page margins, and cell styles (pattern fills,
-// number formats, fonts, borders, alignment, and protection — per cell, or inherited from a
+// number formats, fonts, borders, alignment, and protection, per cell or inherited from a
 // formatted row/column). Shared-formula slaves and the richer value kinds land as the model
 // grows; an unrecognised construct is skipped rather than guessed, so a foreign file reads
 // without crashing even where a facet is not yet materialised.
 //
-// This module is the orchestrator: it wires the parsed package parts together — the OPC/rel
+// This module is the orchestrator. It wires the parsed package parts together (the OPC/rel
 // resolution (`./read-opc.ts`), the style table (`./read-styles.ts`), and each worksheet body
-// (`./read-worksheet.ts`) — and owns the sheet-part discovery (notes, images, tables, pivots) and
+// (`./read-worksheet.ts`)) and owns the sheet-part discovery (notes, images, tables, pivots) and
 // preserved-reference capture that a faithful round-trip depends on.
 //
 // Untrusted input: inflate is bounded by a running byte counter (`./inflate.ts`) that caps
@@ -84,14 +84,14 @@ export {parseStyleTable} from './read-styles.ts';
  *
  * Both OOXML serialisations are accepted: an XML `.xlsx`, and a binary `.xlsb` (BIFF12), which is the
  * same OPC container with binary office-document parts. The two are auto-detected from the package
- * itself rather than from a file extension, so a caller never branches on which form it holds — and
+ * itself rather than from a file extension, so a caller never branches on which form it holds, and
  * the model produced is the same either way. See `../xlsb/read.ts` for what the binary path does not
  * yet decode.
  *
- * @throws {UnsupportedFormatError} if the input is neither — a legacy `.xls` (`.format === 'xls'`) or
+ * @throws {UnsupportedFormatError} if the input is neither: a legacy `.xls` (`.format === 'xls'`) or
  *   an unrecognised/non-ZIP blob (`'unknown'`).
  * @throws {XlsbParseError} if a binary `.xlsb` part is malformed.
- * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
+ * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked: a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
@@ -103,7 +103,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   const workbookXml = partText('xl/workbook.xml');
   if (workbookXml === undefined) {
     // No XML office document. A binary one means this is an `.xlsb`, which reads through the BIFF12
-    // codec over the very same model — the package is already inflated, so it is handed over as-is.
+    // codec over the very same model. The package is already inflated, so it is handed over as-is.
     if (files[XLSB_WORKBOOK_PART] !== undefined) return readXlsbPackage(files);
     throw new UnsupportedFormatError('unknown');
   }
@@ -124,7 +124,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
 
   const workbook = new Workbook();
   // Preserve the differential-style table verbatim so conditional formatting's dxfId references stay
-  // valid — and a foreign dxf's number format stays a real format code — across a re-write.
+  // valid, and a foreign dxf's number format stays a real format code, across a re-write.
   workbook[INTERNAL].restoreDifferentialStyles(parseDxfs(stylesXml));
   // Preserve a custom indexed-color palette verbatim so an `indexed="…"` colour reference keeps its
   // intended RGB across a re-write instead of resolving to a different default-palette entry.
@@ -142,7 +142,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   // ordinary workbook keeps an empty named-style table and emits just the default on write.
   if (namedStyles.length > 1) workbook[INTERNAL].restoreNamedStyles(namedStyles);
   // Preserve the declared default font (font id 0) so a re-write emits the face the file itself named
-  // rather than an assumed Calibri — which would change every empty cell and the metric every
+  // rather than an assumed Calibri, which would change every empty cell and the metric every
   // character-unit column width is expressed in.
   workbook[INTERNAL].restoreDefaultFont(defaultFont);
   const core = partText('docProps/core.xml');
@@ -152,7 +152,7 @@ export function readXlsx(data: Uint8Array, options: ReadXlsxOptions = {}): Workb
   workbook.protection = parseWorkbookProtection(workbookXml);
   applyWorkbookView(workbook.view, workbookXml);
   // The threaded-comment author registry is workbook-level, and every conversation on every sheet
-  // resolves its authors and @mentions through it — so it is restored before the sheet loop that reads
+  // resolves its authors and @mentions through it, so it is restored before the sheet loop that reads
   // those conversations, not alongside the other workbook-level parts below.
   readWorkbookPersons(workbookRelsXml, pkg, workbook);
 
@@ -243,7 +243,7 @@ function readWorkbookPersons(
 //
 // Captured with its transitive part closure, not as a lone string: a theme can carry its own
 // relationships (a picture used as a themed fill, wired by an `r:embed` into the theme's rels part),
-// and re-emitting the theme body without them would leave that reference dangling — which Excel
+// and re-emitting the theme body without them would leave that reference dangling, which Excel
 // reports as a package needing repair. A package that declares no theme leaves the workbook on the
 // library's default, which is also what a dangling relationship target degrades to.
 function readWorkbookTheme(
@@ -260,14 +260,14 @@ function readWorkbookTheme(
 }
 
 // A sheet's threaded conversations live in a `xl/threadedComments/threadedComment{n}.xml` part reached
-// through a relationship of type `.../threadedComment` on the sheet's own rels — the same discovery
+// through a relationship of type `.../threadedComment` on the sheet's own rels: the same discovery
 // shape as the notes part above, and deliberately separate from it: a thread and a legacy note are
 // different features that happen to share a sheet. The messages are grouped into threads and their
 // authors resolved against the workbook registry, so each thread lands self-contained.
 //
 // What lands here IS what a re-write emits: the thread part is re-serialised from these threads, and so is
 // the legacy fallback `<comment>` that binds each cell to its conversation (see `comments.ts`). Anything
-// this reader drops is therefore dropped from the file — which is why a message too damaged to place is
+// this reader drops is therefore dropped from the file, which is why a message too damaged to place is
 // still kept wherever it can be, and why the anchor is canonicalised here rather than trusted downstream.
 function readSheetCommentThreads(
   sheetRels: PartRelationships,
@@ -282,7 +282,7 @@ function readSheetCommentThreads(
 
 // A sheet's printer-settings blob is an opaque binary part linked from `<pageSetup r:id>`: the sheet
 // declares a relationship of type `.../printerSettings` whose target resolves to a `.bin` part. We
-// keep the raw bytes verbatim — the DEVMODE inside is platform-specific and the model never
+// keep the raw bytes verbatim: the DEVMODE inside is platform-specific and the model never
 // interprets it, only round-trips it so re-writing the file preserves the user's print configuration.
 // A sheet declaring no such relationship simply has none.
 function readSheetPrinterSettings(
@@ -312,7 +312,7 @@ function readSheetImages(
   // A drawing that also holds a chart or shape is preserved whole (see readSheetPreservedReferences),
   // so its pictures must not be modeled here: modeling them would leave the sheet with images, which
   // suppresses that preservation and drops the chart. Leaving `sheet.images` empty routes the entire
-  // drawing — pictures included — through byte-preservation, keeping every anchor faithful.
+  // drawing, pictures included, through byte-preservation, keeping every anchor faithful.
   if (drawingHasUnmodeledContent(drawingXml)) return;
   const drawingRels = readPartRelationships(drawingPath, partText);
 
@@ -363,12 +363,12 @@ function readSheetBackground(
 
 // Capture the worksheet-level references to package content the model does not interpret, so a
 // round-trip re-emits them verbatim instead of dropping them:
-//   • `<drawing>` — but only when the reader modeled no anchored image from it: either a drawing that
+//   • `<drawing>`, but only when the reader modeled no anchored image from it: either a drawing that
 //     holds no pictures at all (a chart or shape), or a mixed drawing whose pictures the reader
 //     declined to model precisely so the whole part (chart included) rides here verbatim. A drawing
 //     whose pictures were modeled is owned by the model and re-serialised from it; capturing it here
 //     too would double-emit those pictures.
-//   • `<legacyDrawingHF>` — a header/footer image's VML, which the model never interprets.
+//   • `<legacyDrawingHF>`, a header/footer image's VML, which the model never interprets.
 // Each reference's target part and the transitive closure of parts it reaches (a VML's image, a
 // drawing's media) are captured with their bytes, content types, and relationships.
 function readSheetPreservedReferences(
@@ -392,8 +392,8 @@ function readSheetPreservedReferences(
   };
 
   // Element-wired references: a `<drawing>`/`<legacyDrawingHF>` names its part by an `r:id` in the
-  // sheet body. A `<drawing>` is preserved only when the reader modeled no picture from it — a
-  // chart/shape-only drawing, or a mixed one the reader left unmodeled — since one whose pictures are
+  // sheet body. A `<drawing>` is preserved only when the reader modeled no picture from it (a
+  // chart/shape-only drawing, or a mixed one the reader left unmodeled) since one whose pictures are
   // modeled is re-serialised from the model.
   const referenceElements: Array<'drawing' | 'legacyDrawingHF'> =
     sheet.images.length === 0 ? ['drawing', 'legacyDrawingHF'] : ['legacyDrawingHF'];
@@ -404,7 +404,7 @@ function readSheetPreservedReferences(
   }
 
   // Relationship-wired references: a pivot table or slicer is reached through a sheet relationship
-  // with no worksheet child pointing at it — Excel discovers it by scanning the sheet's rels. Preserve
+  // with no worksheet child pointing at it; Excel discovers it by scanning the sheet's rels. Preserve
   // each so the pivots/slicers a fill-and-save workflow does not touch are not dropped.
   for (const record of sheetRels.records) {
     if (record.external) continue;
@@ -420,9 +420,9 @@ function isPreservedSheetRelType(type: string): boolean {
   return type.endsWith('/pivotTable') || type.endsWith('/slicer');
 }
 
-// Capture the workbook-level references to package content the model does not interpret — pivot
+// Capture the workbook-level references to package content the model does not interpret: pivot
 // caches (`pivotCacheDefinition`), slicer caches (`slicerCache`), and external links (`externalLink`,
-// each a link to a source workbook) — so a round-trip re-emits them instead of dropping the pivots,
+// each a link to a source workbook), so a round-trip re-emits them instead of dropping the pivots,
 // slicers, and linked-workbook references they back. A pivot cache's `<pivotCaches>` registration (its
 // `cacheId`) and an external link's `<externalReferences>` position (its `[n]` index) are captured
 // alongside so the wiring a pivot table or a formula resolves through survives too.
@@ -455,7 +455,7 @@ function readWorkbookPreservedReferences(
 }
 
 // Content wired from the package's own `_rels/.rels` that the writer does not regenerate from the
-// model — the ribbon customUI parts, custom document properties, a thumbnail. The writer rebuilds the
+// model: the ribbon customUI parts, custom document properties, a thumbnail. The writer rebuilds the
 // root rels for the parts it models (the workbook, and core/app properties), so every other root
 // relationship's target would be dropped on write; capturing its closure here re-declares it verbatim.
 // External targets and the three regenerated relationship types are skipped.
@@ -490,8 +490,8 @@ function isRegeneratedRootRelType(type: string): boolean {
 // A workbook relationship the model does not consume but must round-trip: a pivot cache, a slicer
 // cache, an external link (the pointer to a linked source workbook), or a macro-enabled workbook's VBA
 // project. Worksheets, styles, theme, shared strings, and the threaded-comment person registry are modeled
-// and re-serialised from the model. Preserving vbaProject here — rather than silently dropping it, as an
-// unrecognised relationship type otherwise would — is what keeps loading and re-saving a .xlsm from
+// and re-serialised from the model. Preserving vbaProject here, rather than silently dropping it as an
+// unrecognised relationship type otherwise would, is what keeps loading and re-saving a .xlsm from
 // discarding its macros; the content-type override in workbook-xml.ts is the other half, so the re-emitted
 // package still declares itself macro-enabled. Preserving externalLink is what keeps a formula's `[n]`
 // external reference from dangling: the link part and its `<externalReferences>` registration are both
@@ -532,7 +532,7 @@ function parseExternalReferenceRegistrations(workbookXml: string): Map<string, n
 
 // The `r:id` of the first `<drawing>` / `<legacyDrawingHF>` element in a worksheet, or undefined when
 // the sheet declares none. The reference lives in the worksheet XML (not distinguishable by
-// relationship Type — a header/footer VML and a comment VML share the `vmlDrawing` type), so the
+// relationship Type, since a header/footer VML and a comment VML share the `vmlDrawing` type), so the
 // specific relationship is found by reading the element's `r:id` here.
 function worksheetReferenceRelId(
   sheetXml: string,
@@ -547,7 +547,7 @@ function worksheetReferenceRelId(
 // A sheet's tables live in `xl/tables/table{n}.xml` parts, each reached through a relationship of
 // type `.../table` on the sheet's own rels. The writer emits one relationship per table; each part
 // is parsed back into the model and re-registered in definition order. A part that fails to parse
-// (missing name/ref/columns — Excel corruption) is skipped rather than crashing the whole read.
+// (missing name/ref/columns, which is Excel corruption) is skipped rather than crashing the whole read.
 function readSheetTables(
   sheetRels: PartRelationships,
   pkg: PackageAccessors,
@@ -565,7 +565,7 @@ function readSheetTables(
 // Reconstruct an inspectable model of each pivot table hosted on a sheet. A pivot is reached by a
 // sheet relationship of type `.../pivotTable`; the pivot-table part carries its own relationship of
 // type `.../pivotCacheDefinition` to the cache holding the field catalogue and source range. Both
-// parts are parsed and combined into a read-only view registered on the sheet — separate from the
+// parts are parsed and combined into a read-only view registered on the sheet, separate from the
 // byte-preservation that actually round-trips the pivot, so this never changes what is re-emitted.
 // The read is lenient: a pivot whose cache is missing still yields a (partial) model rather than
 // throwing, matching Excel's tolerance for a damaged package on load.
@@ -632,7 +632,7 @@ export function parseWorkbookSheets(xml: string): SheetEntry[] {
 
 // Read the workbook's structure/window protection (`<workbookProtection>`). The three lock flags are
 // decoded as booleans (an absent or "0" attribute stays unlocked), and only the whitelisted
-// password/agile-hash attributes are preserved verbatim — a hostile or unknown attribute is dropped
+// password/agile-hash attributes are preserved verbatim: a hostile or unknown attribute is dropped
 // rather than echoed back on write. Returns undefined when the workbook declares no protection.
 function parseWorkbookProtection(xml: string): WorkbookProtection | undefined {
   let result: WorkbookProtection | undefined;
@@ -662,7 +662,7 @@ function parseWorkbookProtection(xml: string): WorkbookProtection | undefined {
 
 // Restore the workbook's saved window state from `<bookViews><workbookView/>` onto the model's view,
 // so a round-trip hands back the geometry and active tab the author left rather than stamping the
-// library's defaults over them. Only the first `<workbookView>` is read — the model carries one view,
+// library's defaults over them. Only the first `<workbookView>` is read: the model carries one view,
 // which is all Excel writes and all a single consuming window can restore.
 //
 // Each attribute is applied only when the source carried a usable value; an absent or non-numeric one

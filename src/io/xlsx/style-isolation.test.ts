@@ -2,10 +2,10 @@
 //
 // On disk, identically-formatted cells deduplicate to one shared style record, so a loaded
 // workbook can hand several cells the same style. Mutating one cell's facet must change ONLY
-// that cell — never a sibling that happened to share the record. The rewrite gets this by
+// that cell, never a sibling that happened to share the record. The rewrite gets this by
 // construction: each cell owns independent facet fields and every setter REPLACES the field
 // (the facet types are `readonly`, so a shared record cannot be edited in place). These tests
-// hard-lock that guarantee — legacy bled here, and a future refactor that reintroduced in-place
+// hard-lock that guarantee: legacy bled here, and a future refactor that reintroduced in-place
 // mutation would silently pass the corpus (its baseline is the legacy bleed), so the lock lives
 // here in src.
 
@@ -85,7 +85,7 @@ test('assigning the same base font object to two cells then mutating one isolate
   s.getCell('A1').value = 'YES';
   s.getCell('A2').value = 'NO';
   s.getCell('A1').font = base;
-  s.getCell('A2').font = base; // the SAME object assigned to both cells — the aliasing trap
+  s.getCell('A2').font = base; // the SAME object assigned to both cells: the aliasing trap
   const a1 = s.getCell('A1');
   a1.font = {...a1.font, color: {argb: 'FF00FF00'}};
 

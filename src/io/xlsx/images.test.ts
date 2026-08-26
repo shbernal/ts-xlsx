@@ -8,7 +8,7 @@ import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
 
-// A 1×1 transparent PNG — enough bytes to prove the media round-trips verbatim.
+// A 1×1 transparent PNG: enough bytes to prove the media round-trips verbatim.
 const ONE_PX_PNG = Uint8Array.from(
   atob(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',

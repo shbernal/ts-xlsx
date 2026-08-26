@@ -38,7 +38,7 @@ test('a seeded indexed-color palette re-emits as a <colors> block; an unseeded o
   );
 });
 
-test('an absent or "none" fill with no format resolves to the default xf 0 — no style entry', () => {
+test('an absent or "none" fill with no format resolves to the default xf 0: no style entry', () => {
   const styles = new StyleRegistry();
   assert.equal(styles.styleId({}), 0);
   assert.equal(styles.styleId({fill: {type: 'pattern', pattern: 'none'}}), 0);
@@ -111,14 +111,14 @@ test('an identical number format interns to one shared xf index', () => {
   assert.notEqual(first, 0, 'a real numFmt gets a non-default index');
 });
 
-test('fill and number format are independent facets — the same fill under two formats is two xfs', () => {
+test('fill and number format are independent facets: the same fill under two formats is two xfs', () => {
   const styles = new StyleRegistry();
   const plain = styles.styleId({fill: solid('FFFF0000')});
   const formatted = styles.styleId({fill: solid('FFFF0000'), numFmt: '0.00'});
   assert.notEqual(plain, formatted, 'adding a number format to a fill is a distinct style');
 });
 
-test('genuinely different styles get distinct xf indices — dedup does not over-collapse', () => {
+test('genuinely different styles get distinct xf indices: dedup does not over-collapse', () => {
   const styles = new StyleRegistry();
   const red = styles.styleId({fill: solid('FFFF0000')});
   const blue = styles.styleId({fill: solid('FF0000FF')});
@@ -231,7 +231,7 @@ test('an identical font interns to one shared xf index', () => {
   assert.notEqual(first, 0, 'a real font gets a non-default index');
 });
 
-test('a font that overrides nothing resolves to the default xf 0 — no font entry', () => {
+test('a font that overrides nothing resolves to the default xf 0: no font entry', () => {
   const styles = new StyleRegistry();
   assert.equal(styles.styleId({font: {}}), 0);
   // A boolean flag that is explicitly false is the default and adds no <font>.
@@ -296,7 +296,7 @@ test('an identical border interns to one shared xf index', () => {
   assert.notEqual(first, 0, 'a real border gets a non-default index');
 });
 
-test('a border that styles no edge resolves to the default xf 0 — no border entry', () => {
+test('a border that styles no edge resolves to the default xf 0: no border entry', () => {
   const styles = new StyleRegistry();
   assert.equal(styles.styleId({border: {}}), 0);
   assert.match(styles.toXml(), /<borders count="1">/); // just the empty default border
@@ -354,7 +354,7 @@ test('an identical alignment interns to one shared xf index', () => {
   assert.notEqual(first, 0, 'a real alignment gets a non-default index');
 });
 
-test('an all-default alignment resolves to the default xf 0 — no <alignment>', () => {
+test('an all-default alignment resolves to the default xf 0: no <alignment>', () => {
   const styles = new StyleRegistry();
   // `general` horizontal is the default, and boolean flags left off contribute nothing.
   assert.equal(
@@ -409,10 +409,10 @@ test('an identical protection interns to one shared xf index', () => {
   assert.notEqual(first, 0, 'a real protection gets a non-default index');
 });
 
-test('an all-default protection resolves to the default xf 0 — no <protection>', () => {
+test('an all-default protection resolves to the default xf 0: no <protection>', () => {
   const styles = new StyleRegistry();
   // locked defaults to TRUE and hidden to false in OOXML, so a locked, non-hidden cell restates
-  // the default and carries no information — it must not spend an xf entry.
+  // the default and carries no information: it must not spend an xf entry.
   assert.equal(styles.styleId({protection: {locked: true, hidden: false}}), 0);
   assert.doesNotMatch(styles.toXml(), /<protection/);
 });
@@ -462,7 +462,7 @@ test('a non-string number format is dropped rather than corrupting the styles pa
   const styles = new StyleRegistry();
   // A caller wrongly assigns a structured `{id, formatCode}` object where a format-code string belongs.
   const id = styles.styleId({numFmt: {id: 164, formatCode: '0.00'} as unknown as string});
-  assert.equal(id, 0, 'a non-string numFmt contributes no style — it resolves to the default xf 0');
+  assert.equal(id, 0, 'a non-string numFmt contributes no style: it resolves to the default xf 0');
   const xml = styles.toXml();
   assert.doesNotMatch(
     xml,

@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import {Worksheet} from './worksheet.ts';
 
-test('a row handle is a live view, not a copy — two handles on one number agree', () => {
+test('a row handle is a live view, not a copy: two handles on one number agree', () => {
   const sheet = new Worksheet('S', 1);
   const first = sheet.getRow(3);
   const second = sheet.getRow(3);
@@ -16,7 +16,7 @@ test('a row handle is a live view, not a copy — two handles on one number agre
   assert.equal(first.getCell('A').value, 'a');
 });
 
-test('reading a row creates nothing — no record, no cells, no used range', () => {
+test('reading a row creates nothing: no record, no cells, no used range', () => {
   const sheet = new Worksheet('S', 1);
   const row = sheet.getRow(500);
 
@@ -127,7 +127,7 @@ test('assigning row.values places what it names and leaves every other column un
   assert.deepEqual(
     sheet.getRow(1).values,
     ['A', 'b', 'c'],
-    'a shorter array does not clear the tail — addRow rules, not replacement',
+    'a shorter array does not clear the tail: addRow rules, not replacement',
   );
 
   sheet.getRow(1).values = [undefined, 'B'];
@@ -146,7 +146,7 @@ test('a row handle is positional: a splice moves content, not the handle', () =>
   assert.equal(
     row.getCell(1).value,
     'inserted',
-    "and now sees row 1's new content — a handle fixes its position, exactly as Cell does",
+    "and now sees row 1's new content: a handle fixes its position, exactly as Cell does",
   );
   assert.equal(sheet.getRow(2).height, 40, 'the original row and its formatting shifted down');
 });

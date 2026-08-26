@@ -2,7 +2,7 @@
 //
 // The image *bytes* live once on the workbook (a small media registry, addressed by a numeric id);
 // a worksheet then anchors that image to a rectangle of cells. Storing the bytes centrally means the
-// same picture used on two sheets — a logo in a header band, say — is one media part, not two.
+// same picture used on two sheets (a logo in a header band, say) is one media part, not two.
 
 /** A point in the drawing grid: a 0-based column and row, plus an EMU offset into that cell.
  * The offsets default to zero, pinning the point to the cell's top-left corner. */
@@ -26,7 +26,7 @@ export const PX_TO_EMU = 9525;
  * defaults to `oneCell` when the attribute is omitted. */
 export type ImageEditAs = 'oneCell' | 'twoCell' | 'absolute';
 
-/** A fixed image size in EMUs — the extent of a one-cell anchor, which pixel dimensions convert into
+/** A fixed image size in EMUs: the extent of a one-cell anchor, which pixel dimensions convert into
  * via {@link PX_TO_EMU}. */
 export interface Extent {
   readonly cx: number;
@@ -105,7 +105,7 @@ export interface AnchoredImage {
 
 /** A picture's bytes and its file kind, as held in the workbook's media registry. */
 export interface WorkbookImage {
-  /** Lower-case file extension without a dot — `"png"`, `"jpeg"`, `"gif"`. Drives the media part's
+  /** Lower-case file extension without a dot: `"png"`, `"jpeg"`, `"gif"`. Drives the media part's
    * name and content type. */
   readonly extension: string;
   readonly data: Uint8Array;
@@ -148,7 +148,7 @@ export function normalizeImageExtension(extension: string | undefined, data: Uin
  * An anchored image in workbook-independent form: the picture's own bytes rather than a media id
  * into one particular workbook's registry.
  *
- * An {@link AnchoredImage} means nothing away from that registry — its `imageId` is an index, and
+ * An {@link AnchoredImage} means nothing away from that registry: its `imageId` is an index, and
  * the same index names a different picture (or none) in the next workbook. Attaching the picture
  * itself is what lets an anchor cross that boundary, which is why the transfer form carries bytes
  * where the stored form carries an id.
@@ -159,7 +159,7 @@ export interface PortableImage {
 }
 
 /**
- * Every picture a worksheet shows, in the workbook-independent form of {@link PortableImage} — the
+ * Every picture a worksheet shows, in the workbook-independent form of {@link PortableImage}: the
  * images anchored to the grid, in the order they were added, and the background tiled behind it.
  * {@link Workbook.exportImages} produces one, {@link Workbook.importImages} applies one.
  */
@@ -173,7 +173,7 @@ export interface WorksheetImages {
  *
  * Content-addressed rather than reference-addressed: two byte-identical pictures are one picture,
  * however they reached the registry. This is what keeps repeated imports from growing the media
- * list without bound — the same logo carried onto twenty sheets registers once — and it is why the
+ * list without bound (the same logo carried onto twenty sheets registers once), and it is why the
  * comparison is over bytes rather than object identity, which a picture arriving from another
  * workbook would never satisfy.
  *

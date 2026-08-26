@@ -1,14 +1,14 @@
-// Modern threaded comments — the review-style conversations Excel has written since 2018, read from and
+// Modern threaded comments: the review-style conversations Excel has written since 2018, read from and
 // written to their two parts: `xl/threadedComments/threadedComment{n}.xml` (per sheet) and
 // `xl/persons/person.xml` (per workbook, the author registry).
 //
 // These are a Microsoft extension, not base ECMA-376, and they are a *separate* feature from legacy
 // notes (`comments{n}.xml`, see `comments.ts`) rather than a newer spelling of them. A cell carries
-// one or the other, never both — Excel refuses to add a note to a threaded cell and vice versa.
+// one or the other, never both: Excel refuses to add a note to a threaded cell and vice versa.
 //
 // A message identifies its author by `personId` into the registry and its thread by `id`/`parentId`:
 // the first message of a thread has no `parentId`, every reply carries the head's `id`. Only the head
-// carries `done`, so a thread's resolved state is its head's — a reply never says.
+// carries `done`, so a thread's resolved state is its head's; a reply never says.
 //
 // These parsers describe a file that already exists, so they read leniently: an unrecognised or
 // missing attribute yields a sensible default rather than a throw, and a message too incomplete to
@@ -26,7 +26,7 @@
 // ids and dates the caller supplied.
 //
 // A message's `<text>` carries the `_xHHHH_` convention, so it is escaped on the way out and decoded
-// on the way in. Nothing in the 2018 schema says so — it is a measurement: Excel Desktop reads
+// on the way in. Nothing in the 2018 schema says so; it is a measurement. Excel Desktop reads
 // `_x0041_` in a `<text>` back as `A`, leaves `_xZZZZ_`/`_x041_` alone, resolves `_x005F_x0041_` in
 // one left-to-right pass to the literal text, and writes a control character back out as `_x0001_`
 // when it re-saves. See `docs/knowledge/specs/spreadsheetml-xhhhh-escape-is-decoded-on-read.md`. The
@@ -51,7 +51,7 @@ import {
 import {escapeAttr, escapeSpreadsheetText, XML_DECLARATION} from '../../xml/xml.ts';
 import {THREADED_COMMENTS_NS} from './namespaces.ts';
 
-/** A registered author of threaded comments — one `<person>` of `xl/persons/person.xml`. */
+/** A registered author of threaded comments: one `<person>` of `xl/persons/person.xml`. */
 export interface ParsedPerson {
   /** Brace-wrapped GUID a message's `personId` points at. */
   readonly id: string;
@@ -67,7 +67,7 @@ export interface ParsedPerson {
  * that renders as the mention chip.
  *
  * All four wire attributes are required (Excel rejects a file missing any), and note the lowercase `p`
- * in `mentionpersonId` — the capitalised spelling is not a declared attribute.
+ * in `mentionpersonId`; the capitalised spelling is not a declared attribute.
  */
 export interface ParsedMention {
   /** The mentioned {@link ParsedPerson.id}, from `mentionpersonId`. */
@@ -83,7 +83,7 @@ export interface ParsedMention {
   readonly length: number;
 }
 
-/** One message of a threaded conversation — a `<threadedComment>` of a `threadedComment{n}.xml`. */
+/** One message of a threaded conversation: a `<threadedComment>` of a `threadedComment{n}.xml`. */
 export interface ParsedThreadedComment {
   /** A1 reference of the cell the whole thread anchors to; every message of a thread repeats it. */
   readonly ref: string;
@@ -93,7 +93,7 @@ export interface ParsedThreadedComment {
   readonly personId?: string;
   /**
    * The `dT` timestamp verbatim. Excel writes local wall-clock with fractional seconds and no
-   * timezone (`2026-07-24T10:56:41.72`), which is not a round-trippable instant — keeping the
+   * timezone (`2026-07-24T10:56:41.72`), which is not a round-trippable instant. Keeping the
    * string spares the reader from inventing a zone the file never stated.
    */
   readonly date?: string;
@@ -102,7 +102,7 @@ export interface ParsedThreadedComment {
   readonly parentId?: string;
   /**
    * The `done` flag exactly as written. Excel puts it on the head alone and omits it entirely on an
-   * open thread (never `done="0"`), so read a thread's resolved state off its head — a reply's
+   * open thread (never `done="0"`), so read a thread's resolved state off its head: a reply's
    * `false` here means "did not say", not "not resolved".
    */
   readonly done: boolean;
@@ -112,7 +112,7 @@ export interface ParsedThreadedComment {
 
 /**
  * Parse `xl/persons/person.xml` into its registered authors, in document order. Order carries no
- * meaning — Excel re-sorts the list by person id when it saves — so nothing may depend on it. An
+ * meaning, because Excel re-sorts the list by person id when it saves, so nothing may depend on it. An
  * entry without an `id` is skipped: no message could reference it.
  */
 export function parsePersons(xml: string): ParsedPerson[] {
@@ -139,7 +139,7 @@ export function parsePersons(xml: string): ParsedPerson[] {
 const THREADED_COMMENT_EMPTY_CLOSES: ReadonlySet<string> = new Set(['threadedComment']);
 
 /**
- * Parse a `threadedComment{n}.xml` part into its messages, in document order — thread order, with
+ * Parse a `threadedComment{n}.xml` part into its messages, in document order: thread order, with
  * each thread's replies following its head. Grouping into threads is {@link buildCommentThreads}'s
  * job; this stays faithful to the part. A message without a `ref` or `id` cannot be anchored or
  * replied to and is skipped.
@@ -211,12 +211,12 @@ function threadedCommentFrom(
 }
 
 // A mention without a target person or a usable span cannot be resolved or rendered, so it is dropped
-// rather than carried as a mention over nothing — a `length` of 0 would be an invisible chip, and a
+// rather than carried as a mention over nothing: a `length` of 0 would be an invisible chip, and a
 // negative or non-numeric offset would place it outside the text it is supposed to cover.
 //
 // The upper bound is what makes this a hostile-input guard rather than a tidiness check: an offset the
-// wire cannot express would be re-emitted by the writer as an invalid attribute — and JavaScript spells a
-// large enough number in exponent form (`1e+21`), which no schema accepts at all — costing the reader's
+// wire cannot express would be re-emitted by the writer as an invalid attribute, and JavaScript spells a
+// large enough number in exponent form (`1e+21`) which no schema accepts at all, costing the reader's
 // leniency the entire conversation when Excel repairs the part. Dropping the chip costs a highlight.
 function mentionFrom(attrs: XmlAttributes): ParsedMention | undefined {
   const personId = attrs.mentionpersonId;
@@ -235,7 +235,7 @@ function mentionFrom(attrs: XmlAttributes): ParsedMention | undefined {
 }
 
 // An integer attribute, or undefined when the file did not write a usable one. Blank is rejected before
-// `Number` sees it, since `Number('')` is 0 — an empty attribute must not read as offset zero.
+// `Number` sees it, since `Number('')` is 0: an empty attribute must not read as offset zero.
 function integerAttribute(raw: string | undefined): number | undefined {
   if (raw === undefined || raw.trim() === '') return undefined;
   const value = Number(raw);
@@ -248,7 +248,7 @@ function integerAttribute(raw: string | undefined): number | undefined {
  *
  * Document order is thread order with each thread's replies following its head, so one pass suffices: a
  * message with no `parentId` opens a thread, and a reply joins the thread its `parentId` names. A reply
- * whose parent is unknown — a dangling `parentId` no Excel file produces — opens a thread of its own
+ * whose parent is unknown (a dangling `parentId` no Excel file produces) opens a thread of its own
  * rather than being dropped, so a foreign generator's damage costs structure, never content.
  */
 export function buildCommentThreads(
@@ -277,7 +277,7 @@ export function buildCommentThreads(
 }
 
 // The canonical A1 form of a thread's anchor, or undefined when the file wrote something that cannot
-// anchor one — a range, a bare row or column, or outright garbage. Canonicalising here is what lets
+// anchor one: a range, a bare row or column, or outright garbage. Canonicalising here is what lets
 // every later consumer compare anchors as plain strings (`$B$2` and `B2` are one cell) and keeps a
 // foreign file's malformed reference out of the writer, which anchors the thread's legacy fallback by it.
 function anchorRef(reference: string): string | undefined {
@@ -317,7 +317,7 @@ function mentionOf(
 /**
  * Serialise one sheet's conversations into its `xl/threadedComments/threadedComment{n}.xml` part.
  *
- * Messages are written flat, in thread order with each thread's replies after its head — the shape
+ * Messages are written flat, in thread order with each thread's replies after its head: the shape
  * {@link parseThreadedComments} reads back. The head/reply distinction the model holds as array position
  * becomes `parentId` on every reply but the head, and `done="1"` goes on the head alone: only the head
  * carries the flag on the wire, so a reply can never contradict the thread it belongs to. An open thread
@@ -343,7 +343,7 @@ export function threadedCommentsXml(threads: readonly CommentThread[]): string {
   );
 }
 
-// One `<threadedComment>`. `tail` is the attribute that distinguishes the message's role — `done` for a
+// One `<threadedComment>`. `tail` is the attribute that distinguishes the message's role: `done` for a
 // resolved head, `parentId` for a reply, nothing for an open head. A `dT` or `personId` the model never
 // held is omitted rather than written empty, so "the file did not say" stays distinguishable from "the
 // file said nothing". Every value is escaped: an authored message's text and a foreign file's ids alike
@@ -365,13 +365,13 @@ function threadedCommentXml(ref: string, comment: Comment, tail: string): string
 }
 
 // The `<mentions>` block, which follows `<text>` in the message. All four `<mention>` attributes are
-// required — verified by dropping each in turn and getting `Sch_MissRequiredAttribute` — so a mention the
+// required, verified by dropping each in turn and getting `Sch_MissRequiredAttribute`, so a mention the
 // model holds without a `mentionId`, or with a span the wire cannot express, cannot be written at all. It
 // is dropped rather than given an invented id or a clamped span: the `@name` stays in the text and only
 // the chip is lost, whereas an invalid part risks Excel repairing the whole conversation away.
 //
 // The bounds check is deliberately here as well as in the reader. Both the authoring verb and the parser
-// already refuse an out-of-range offset, so nothing should reach this — but `restoreCommentThreads` takes
+// already refuse an out-of-range offset, so nothing should reach this. But `restoreCommentThreads` takes
 // a model wholesale, and a serialiser that *cannot* emit `length="1e+21"` beats one that merely is not
 // currently handed one.
 function mentionsXml(mentions: readonly Mention[]): string {
@@ -393,7 +393,7 @@ function writableOffset(value: number): boolean {
 }
 
 /**
- * Serialise the workbook's identity registry into `xl/persons/person.xml` — singular and unnumbered,
+ * Serialise the workbook's identity registry into `xl/persons/person.xml`: singular and unnumbered,
  * unlike the per-sheet thread parts.
  *
  * Entries are written in registry order, which carries no meaning: Excel re-sorts the list by person id

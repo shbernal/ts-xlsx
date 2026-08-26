@@ -1,4 +1,4 @@
-// Worksheet tables (OOXML `<table>` parts, `xl/tables/table{n}.xml`) — both directions. The writer
+// Worksheet tables (OOXML `<table>` parts, `xl/tables/table{n}.xml`), both directions. The writer
 // (`tableXml`) turns a `Table` into its part; the reader (`parseTable`) is its inverse, turning a
 // stored part back into the `TableOptions` a worksheet re-registers.
 //
@@ -27,7 +27,7 @@ export function tableXml(table: Table, id: number): string {
   const headerRowCount = table.headerRow ? '' : ' headerRowCount="0"';
   // A present totals row implies it is shown, so it only needs the count. Without a totals row the
   // model's tri-state totalsRowShown decides: emit the flag Excel recorded, or nothing when the
-  // source omitted it — injecting `totalsRowShown="0"` onto a table that lacked the attribute is
+  // source omitted it. Injecting `totalsRowShown="0"` onto a table that lacked the attribute is
   // exactly the spurious change that makes Excel treat an otherwise-valid table as corrupt.
   let totals: string;
   if (table.totalsRow) {
@@ -57,8 +57,8 @@ const DEFAULT_TABLE_STYLE =
   'showRowStripes="1" showColumnStripes="0"/>';
 
 // Emit `<tableStyleInfo>` from the model's style, or the default when none was captured. Each
-// attribute is written only when the model holds it, so a style read without (say) a `name` — or a
-// part that omitted a banding flag — re-emits exactly as it arrived rather than gaining an attribute.
+// attribute is written only when the model holds it, so a style read without (say) a `name`, or a
+// part that omitted a banding flag, re-emits exactly as it arrived rather than gaining an attribute.
 function tableStyleInfoXml(style: TableStyleInfo | undefined): string {
   if (style === undefined) return DEFAULT_TABLE_STYLE;
   let attrs = '';
@@ -90,8 +90,8 @@ function tableColumnXml(column: TableColumn, id: number): string {
 
 /**
  * Parse a `<table>` part into the options that reconstruct it, or `undefined` when the XML is not a
- * usable table (no name, no ref, or no columns — Excel treats such a part as corrupt, so we drop it
- * rather than fabricate a degenerate table). Duplicate column names are not resolved here — the
+ * usable table (no name, no ref, or no columns: Excel treats such a part as corrupt, so we drop it
+ * rather than fabricate a degenerate table). Duplicate column names are not resolved here, since the
  * {@link Table} constructor disambiguates them, so authoring and loading share one implementation.
  */
 export function parseTable(xml: string): TableOptions | undefined {
@@ -138,7 +138,7 @@ export function parseTable(xml: string): TableOptions | undefined {
           break;
         case 'tableStyleInfo': {
           // Keep each attribute off the literal so an absent one stays absent (not `key: undefined`),
-          // preserving the round-trip — the writer re-emits only the attributes we actually saw.
+          // preserving the round-trip: the writer re-emits only the attributes we actually saw.
           const captured: {-readonly [K in keyof TableStyleInfo]: TableStyleInfo[K]} = {};
           if (attrs.name !== undefined) captured.name = attrs.name;
           if (attrs.showFirstColumn !== undefined)
@@ -161,7 +161,7 @@ export function parseTable(xml: string): TableOptions | undefined {
             totalsRowFunction?: TotalsRowFunction;
           } = {name: attrs.name};
           if (attrs.totalsRowLabel !== undefined) column.totalsRowLabel = attrs.totalsRowLabel;
-          // An unrecognised totalsRowFunction is dropped rather than trusted in verbatim — the token
+          // An unrecognised totalsRowFunction is dropped rather than trusted in verbatim: the token
           // is a closed OOXML enumeration, so a foreign value is malformed input, not a future Excel
           // addition to accommodate.
           if (
@@ -185,7 +185,7 @@ export function parseTable(xml: string): TableOptions | undefined {
     onClose(elementName) {
       if (localName(elementName) !== 'totalsRowFormula') return;
       inTotalsFormula = false;
-      // Attach to the column currently being parsed — the last one pushed. Excel writes the child
+      // Attach to the column currently being parsed, the last one pushed. Excel writes the child
       // only for `totalsRowFunction="custom"`, so a formula on any other column is meaningless, but
       // preserving whatever the part carried keeps the round-trip faithful rather than second-guessing.
       const column = columns[columns.length - 1];

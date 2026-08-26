@@ -18,13 +18,13 @@ import {attr, boolAttr, escapeAttr, escapeSpreadsheetText, numberText} from '../
 import {colorAttrs} from './color-xml.ts';
 
 // `<sheetViews>` holds the sheet's single view. A frozen view adds a `<pane>` recording the split
-// and a `<selection>` naming the pane the split activates, exactly as Excel writes it — a normal
+// and a `<selection>` naming the pane the split activates, exactly as Excel writes it. A normal
 // view carries neither, so unfreezing leaves no leftover `<pane>` that would trip a repair prompt.
 // The active pane is whichever scrolling region the freeze creates: bottom-right when both axes are
 // frozen, else top-right (columns only) or bottom-left (rows only).
 //
 // `active` marks this sheet as the one selected on open (`tabSelected`). Exactly one sheet in a
-// workbook carries it — with none, the consumer opens with no sheet view initialised; with several,
+// workbook carries it: with none, the consumer opens with no sheet view initialised; with several,
 // the sheets form a *group selection*, where an edit to one is applied to all of them. The caller
 // (`worksheetXml`, fed from `Workbook.activeTabIndex`) is what guarantees the "exactly one".
 export function sheetViewsXml(view: SheetView, active: boolean): string {
@@ -51,7 +51,7 @@ export function sheetViewsXml(view: SheetView, active: boolean): string {
 
 // `<sheetPr>` carries the sheet's appearance properties: the tab colour, the outline
 // summary-position flags, and the fit-to-page flag. It is the first child of `<worksheet>` in
-// CT_Worksheet order; its own children follow CT_SheetPr order — `<tabColor>`, `<outlinePr>`, then
+// CT_Worksheet order; its own children follow CT_SheetPr order: `<tabColor>`, `<outlinePr>`, then
 // `<pageSetUpPr>`. Omitted entirely when the sheet carries none, so an unadorned sheet stays
 // byte-clean.
 export function sheetPrXml(sheet: Worksheet): string {
@@ -63,7 +63,7 @@ export function sheetPrXml(sheet: Worksheet): string {
 }
 
 // `<pageSetUpPr>` holds the fit-to-page toggle, which lives on the sheet properties rather than on
-// `<pageSetup>` — Excel reads it from here to decide whether the `fitToWidth`/`fitToHeight` counts
+// `<pageSetup>`. Excel reads it from here to decide whether the `fitToWidth`/`fitToHeight` counts
 // or the fixed `scale` govern printing. Emitted only when the author set the flag.
 function pageSetUpPrXml(pageSetup: PageSetup): string {
   return pageSetup.fitToPage ? '<pageSetUpPr fitToPage="1"/>' : '';
@@ -81,7 +81,7 @@ function outlinePrXml(outline: OutlineProperties): string {
 // Each sheet-protection flag maps to a `<sheetProtection>` attribute whose value is INVERTED
 // from the author-facing allow-flag: the attribute records that an operation is *forbidden*
 // ("1"), so `allow: true` serialises as "0". Only a value that differs from OOXML's per-
-// attribute default (see SHEET_PROTECTION_FLAGS) is written — most editing operations default
+// attribute default (see SHEET_PROTECTION_FLAGS) is written: most editing operations default
 // to forbidden under protection, while selecting cells defaults to permitted.
 //
 // <sheetProtection> is what makes the per-cell locked/hidden flags bite. `sheet="1"` marks the
@@ -162,7 +162,7 @@ export function headerFooterXml(hf: HeaderFooter): string {
   if (differentFirst) attrs += ' differentFirst="1"';
   const body = children
     // `escapeSpreadsheetText`, not `escapeText`: Excel applies the `_xHHHH_` convention to header
-    // text exactly as it does to a cell value — it decodes an escape on load and writes one back on
+    // text exactly as it does to a cell value: it decodes an escape on load and writes one back on
     // save (measured over COM). So a header may carry a character XML itself cannot, and a header
     // that legitimately reads `_x0041_` must have its underscore escaped or it would decode to `A`.
     .map(({tag, key}) => `<${tag}>${escapeSpreadsheetText(hf[key] as string)}</${tag}>`)
@@ -170,7 +170,7 @@ export function headerFooterXml(hf: HeaderFooter): string {
   return `<headerFooter${attrs}>${body}</headerFooter>`;
 }
 
-// Excel's "Normal" margins, in inches — the defaults Excel writes for an untouched sheet.
+// Excel's "Normal" margins, in inches: the defaults Excel writes for an untouched sheet.
 const DEFAULT_MARGINS = {
   left: 0.7,
   right: 0.7,
@@ -182,8 +182,8 @@ const DEFAULT_MARGINS = {
 const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as const;
 
 // `<printOptions>` carries the print-toggle flags and sits just before `<pageMargins>` in
-// CT_Worksheet order. Each attribute is emitted only when the model carries it — as an explicit
-// `="1"`/`="0"` so a caller can force a flag off against Excel's default — and an untouched sheet
+// CT_Worksheet order. Each attribute is emitted only when the model carries it, as an explicit
+// `="1"`/`="0"` so a caller can force a flag off against Excel's default, and an untouched sheet
 // keeps the element out of the file entirely.
 export function printOptionsXml(printOptions: PrintOptions): string {
   const attrs =
@@ -211,7 +211,7 @@ export function pageMarginsXml(margins: PageMargins): string {
 // is emitted only when the author set it, so an untouched sheet keeps the element out of the file
 // and a partially-set one never fabricates the counts Excel would otherwise default. A non-null
 // `printerSettingsRelId` links the sheet's opaque printer-settings blob and forces the element out
-// even when no scaling attribute is set — the reference is the only thing the model has to carry.
+// even when no scaling attribute is set: the reference is the only thing the model has to carry.
 export function pageSetupXml(pageSetup: PageSetup, printerSettingsRelId: string | null): string {
   const attrs =
     attr('paperSize', pageSetup.paperSize) +

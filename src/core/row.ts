@@ -1,13 +1,13 @@
 // A handle on one row of a worksheet: its formatting and its cells, reached by row number.
 //
-// A handle, not a record. `Worksheet` keeps the authoritative stores — the cell grid and the sparse
-// map of per-row formatting — and a `Row` reads and writes straight through to them, so two handles
+// A handle, not a record. `Worksheet` keeps the authoritative stores (the cell grid and the sparse
+// map of per-row formatting) and a `Row` reads and writes straight through to them, so two handles
 // on the same number always agree and neither can hold a stale copy. That is the whole reason this
 // is not a snapshot: a row object that copied its cells out would be the shape of the merge-loss
 // class of bug the model contract exists to prevent.
 //
 // Position is fixed at construction, exactly as `Cell` fixes `(row, col)`. `sheet.getRow(3)` means
-// "row 3" and keeps meaning row 3 — a splice that moves content past it does not carry the handle
+// "row 3" and keeps meaning row 3: a splice that moves content past it does not carry the handle
 // along, any more than it re-points a `Cell`.
 //
 // Formatting is created on write, never on read. Asking for `sheet.getRow(500)` costs nothing and
@@ -29,14 +29,14 @@ export class Row {
   /** @throws {RangeError} if the number is not a positive integer. */
   constructor(sheet: Worksheet, number: number) {
     if (!Number.isInteger(number) || number < 1) {
-      throw new RangeError(`row ${number} is out of bounds — rows start at 1`);
+      throw new RangeError(`row ${number} is out of bounds: rows start at 1`);
     }
     this.#sheet = sheet;
     this.number = number;
   }
 
   /**
-   * The row's format record if it has one, else `undefined` — a read that never fabricates, so a
+   * The row's format record if it has one, else `undefined`: a read that never fabricates, so a
    * serializer can ask every row it visits whether there are attributes to emit without giving each
    * one an empty record. Read-only on purpose: {@link height} and its siblings are how a row is
    * formatted, and they create the record on first write.
@@ -51,7 +51,7 @@ export class Row {
    * Not bounded here, deliberately: {@link MAX_ROW_HEIGHT} is what Excel accepts *being set*, but
    * the schema puts no ceiling on `ht` and this setter is also how the reader loads a foreign
    * file, so refusing a taller row would mean refusing a file Excel opens clean. Check against the
-   * constant when authoring — Excel silently clamps a taller row on read, so a height above it is
+   * constant when authoring: Excel silently clamps a taller row on read, so a height above it is
    * one you state and do not get.
    */
   get height(): number | undefined {
@@ -110,7 +110,7 @@ export class Row {
 
   /**
    * The row's materialised cells in ascending column order. Sparse: a column never written to has
-   * no cell here, and the array is a fresh snapshot of *which* cells exist — the cells themselves
+   * no cell here, and the array is a fresh snapshot of *which* cells exist; the cells themselves
    * are the live ones.
    */
   get cells(): readonly Cell[] {
@@ -122,10 +122,10 @@ export class Row {
    * a column with no cell is a hole, which is what distinguishes "never written" from a cell
    * holding `null`.
    *
-   * Assigning places each value it names and leaves every other column untouched — a hole or an
+   * Assigning places each value it names and leaves every other column untouched: a hole or an
    * explicit `undefined` skips that column, and a shorter array does not clear the tail. These are
    * {@link Worksheet.addRow}'s rules, deliberately: `values` is that same row shape addressed by
-   * number rather than appended. To *replace* a row, including clearing what it held, splice it —
+   * number rather than appended. To *replace* a row, including clearing what it held, splice it:
    * `sheet.spliceRows(n, 1, values)`.
    */
   get values(): (CellValue | undefined)[] {
@@ -145,7 +145,7 @@ export class Row {
 
   // `undefined` clears rather than stores: `RowProperties` is declared with optional fields under
   // `exactOptionalPropertyTypes`, so a present-but-undefined key is not the same shape as an absent
-  // one — and it would make a formatting-free row look formatted to anything reading `properties`.
+  // one, and it would make a formatting-free row look formatted to anything reading `properties`.
   // Clearing a row that has no record at all is a no-op, so a write of `undefined` never
   // materialises one.
   #write<K extends keyof RowProperties>(key: K, value: RowProperties[K]): void {

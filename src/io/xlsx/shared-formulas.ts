@@ -17,8 +17,8 @@ export interface SharedFormulaRole {
 // Plan a sheet's shared-formula groups: every clone cell (a {@link SharedFormulaValue}) names its
 // master by address, so group the clones by master, assign each group a sheet-unique `si`, and record
 // the `ref` range (master through the furthest clone) on the master. Excel requires the master to sit
-// at the top-left of that range, so a clone above or left of its master — or a master with no formula
-// (an orphan) — is rejected here, named, rather than emitted as a package Excel repairs on open.
+// at the top-left of that range, so a clone above or left of its master, or a master with no formula
+// (an orphan), is rejected here, named, rather than emitted as a package Excel repairs on open.
 export function planSharedFormulas(sheet: Worksheet): Map<string, SharedFormulaRole> {
   const groups = new Map<string, Cell[]>();
   for (const {cells} of sheet.rows()) {

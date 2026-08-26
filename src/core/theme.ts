@@ -1,4 +1,4 @@
-// The workbook theme's colour scheme — the twelve colours a `theme="n"` reference resolves against.
+// The workbook theme's colour scheme: the twelve colours a `theme="n"` reference resolves against.
 //
 // The theme part itself is carried opaquely by the model (see `Workbook.restoreThemePart`); this
 // module reads just the `<a:clrScheme>` out of it, because that is the only piece a colour reference
@@ -12,12 +12,12 @@ import {AuthoringError} from '../errors.ts';
  *
  * This order is not the order the slots appear in the theme part. ISO/IEC 29500 §20.1.6.2 documents
  * the `<a:clrScheme>` child sequence as `dk1, lt1, dk2, lt2, accent1…6, hlink, folHlink`, and that is
- * how the XML is written — but SpreadsheetML's `theme="n"` does **not** index that sequence. Excel
+ * how the XML is written. But SpreadsheetML's `theme="n"` does **not** index that sequence: Excel
  * swaps each dark/light pair: index 0 is `lt1`, 1 is `dk1`, 2 is `lt2`, 3 is `dk2`.
  *
  * Verified against Excel Desktop rather than inferred, because the two orders differ only in the
- * first four entries and reading either one into the other silently inverts text against background
- * — see `docs/knowledge/specs/theme-color-index-order.md` and the recorded observation in
+ * first four entries and reading either one into the other silently inverts text against
+ * background. See `docs/knowledge/specs/theme-color-index-order.md` and the recorded observation in
  * `test/corpus/fixtures/excel-oracle/theme-color-index-order.json`. The stylesheet's own default font
  * is the everyday witness: it carries `<color theme="1"/>` and renders black, which is `dk1`.
  */
@@ -88,7 +88,7 @@ export function parseThemeColorScheme(themeXml: string): ThemeColorScheme {
   for (const match of (block[1] ?? '').matchAll(SCHEME_SLOT)) {
     const slot = match[1] as ThemeColorSlot;
     const attrs = match[3] ?? '';
-    // A sysClr's `val` is a system-colour name ("windowText"), not a colour — its `lastClr` is the
+    // A sysClr's `val` is a system-colour name ("windowText"), not a colour. Its `lastClr` is the
     // concrete value the authoring application last resolved that name to, and is the only thing here
     // a consumer without the same OS theme can use.
     const source = match[2] === 'sysClr' ? /\blastClr="([^"]*)"/ : /\bval="([^"]*)"/;
@@ -109,7 +109,7 @@ export interface ThemeFontScheme {
 }
 
 /**
- * The body typeface a workbook falls back to when neither its theme nor its styles part names one —
+ * The body typeface a workbook falls back to when neither its theme nor its styles part names one:
  * the face the default theme nominates, and so the face every `scheme="minor"` font resolves to.
  * Named rather than inlined because it is also the last resort of the default-font chain
  * ({@link Workbook.defaultFont}), and the two must not drift.
@@ -144,7 +144,7 @@ export interface ThemeOverrides {
   readonly fonts?: ThemeFontScheme | undefined;
 }
 
-// The `<a:clrScheme>` child order — dk1, lt1, dk2, lt2, accent1..6, hlink, folHlink. Not the order
+// The `<a:clrScheme>` child order: dk1, lt1, dk2, lt2, accent1..6, hlink, folHlink. Not the order
 // `theme="n"` indexes (see THEME_COLOR_SLOTS); this is the sequence CT_ColorScheme requires the
 // elements to be written in, and writing them in index order would be schema-invalid.
 const SCHEME_ELEMENT_ORDER: readonly ThemeColorSlot[] = [
@@ -166,8 +166,8 @@ const SCHEME_ELEMENT_ORDER: readonly ThemeColorSlot[] = [
  * Apply authored colour/font overrides to a theme part, returning the new part text.
  *
  * Surgical by design: the base part rides through untouched except for the `<a:clrScheme>` and
- * `<a:fontScheme>` blocks, and within those, only what the caller actually named. The format scheme —
- * the gradients, line styles and effect styles that make a theme look like a theme — is left exactly
+ * `<a:fontScheme>` blocks, and within those, only what the caller actually named. The format scheme,
+ * the gradients, line styles and effect styles that make a theme look like a theme, is left exactly
  * as it was, because nobody hand-authors `fillStyleLst` gradient stops from a spreadsheet API and
  * regenerating it would replace a designer's work with the Office default.
  *
@@ -199,7 +199,7 @@ export function applyThemeOverrides(baseXml: string, overrides: ThemeOverrides):
 }
 
 /**
- * Each colour slot's verbatim inner element from a theme part — `<a:srgbClr val="…"/>` or
+ * Each colour slot's verbatim inner element from a theme part: `<a:srgbClr val="…"/>` or
  * `<a:sysClr val="…" lastClr="…"/>`. The value-level counterpart is {@link parseThemeColorScheme};
  * this keeps the *encoding* so an untouched slot can be re-emitted exactly as the source wrote it.
  */
@@ -219,10 +219,10 @@ function parseThemeColorElements(
   return elements;
 }
 
-// A theme colour is a bare 6-hex RGB — DrawingML has no alpha channel on `<a:srgbClr val>`. The two
+// A theme colour is a bare 6-hex RGB: DrawingML has no alpha channel on `<a:srgbClr val>`. The two
 // conveniences the rest of the library accepts (a leading '#', an 8-hex ARGB) are accepted and
 // reduced here; anything else is a caller's bug and is refused rather than written as corrupt XML,
-// which Excel does not report — it renders the slot as flat black.
+// which Excel does not report; it renders the slot as flat black.
 function normalizeSchemeValue(value: string): string {
   const hex = value.startsWith('#') ? value.slice(1) : value;
   const rgb = hex.length === 8 ? hex.slice(2) : hex;
@@ -265,7 +265,7 @@ function escapeXmlAttr(value: string): string {
 }
 
 /**
- * The theme part a workbook with no theme of its own ships — the standard Office theme.
+ * The theme part a workbook with no theme of its own ships: the standard Office theme.
  *
  * A spreadsheet must carry one even when nobody configured it: the stylesheet's own default font
  * references `theme="1"`, which a consumer can only resolve against this part, so the two travel

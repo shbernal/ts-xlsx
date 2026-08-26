@@ -1,8 +1,8 @@
 // Worksheet serialisation: a Worksheet model into its `xl/worksheets/sheetN.xml` part and the sheet's
 // rels part. Owns the row/cell renderer the streaming writer also drives, and orchestrates the whole
-// sheet body — the print/page/view/protection blocks live in `sheet-properties.ts`, shared-formula
+// sheet body: the print/page/view/protection blocks live in `sheet-properties.ts`, shared-formula
 // planning in `shared-formulas.ts`, each imported here rather than duplicated. Table *parts*
-// (`xl/tables/tableN.xml`) are `tables.ts`'s concern, alongside their reader — this module only wires
+// (`xl/tables/tableN.xml`) are `tables.ts`'s concern, alongside their reader; this module only wires
 // the sheet's `<tableParts>` back-references to them.
 
 import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
@@ -71,7 +71,7 @@ import type {CellStyle, StyleRegistry} from './styles.ts';
 import {x14Ext} from './x14-ext.ts';
 
 /**
- * The used-cell extent of a sheet — the top-left/bottom-right grid bounds that fold into the
+ * The used-cell extent of a sheet: the top-left/bottom-right grid bounds that fold into the
  * `<dimension>`. Rows carrying only formatting (a row height, an outline level) do not extend the
  * used range, matching how Excel records `<dimension>`, so {@link add} ignores them. A fresh extent
  * holds the `Infinity`/`-Infinity` sentinels; {@link isEmpty} reports that no used cell has been seen.
@@ -93,7 +93,7 @@ export class Extent {
     }
   }
 
-  /** Whether no used cell has been folded in yet — the sheet's dimension is then the lone cell `A1`. */
+  /** Whether no used cell has been folded in yet, in which case the dimension is the lone cell `A1`. */
   get isEmpty(): boolean {
     return this.bottom === -Infinity;
   }
@@ -189,7 +189,7 @@ export function worksheetXml(
   const dimensionRef = extent.isEmpty
     ? 'A1'
     : `${encodeAddress(extent.left, extent.top)}:${encodeAddress(extent.right, extent.bottom)}`;
-  // Merge the streaming writer's pre-rendered rows with the live ones into ascending row order — a
+  // Merge the streaming writer's pre-rendered rows with the live ones into ascending row order. A
   // flushed row can carry any number, and rows may be committed out of order. The buffered path has no
   // flushed rows, so it skips the merge and its sort entirely.
   const orderedRows = flushed
@@ -218,7 +218,7 @@ export function worksheetXml(
     autoFilterXml(sheet.autoFilter) +
     mergeCellsXml(sheet.merges) +
     // CT_Worksheet order: <conditionalFormatting> blocks follow <mergeCells>, then <dataValidations>,
-    // then <hyperlinks> — all precede the print settings.
+    // then <hyperlinks>, all of which precede the print settings.
     conditionalFormattingsXml(sheet.conditionalFormattings, styles) +
     dataValidationsXml(sheet.dataValidations) +
     hyperlinksXml(hyperlinks) +
@@ -241,7 +241,7 @@ export function worksheetXml(
     tablePartsXml(tables) +
     // `<extLst>` is the final child of CT_Worksheet and a worksheet may carry at most one. Both the
     // x14 conditional-formatting extensions (data-bar gradient/negative-fill/axis) and the extended
-    // (x14) data validations ride inside it as sibling `<ext>` blocks — so they are gathered here into
+    // (x14) data validations ride inside it as sibling `<ext>` blocks, so they are gathered here into
     // a single `<extLst>` rather than each emitting its own.
     worksheetExtLstXml(sheet, references.slicerRelIds) +
     '</worksheet>'
@@ -256,7 +256,7 @@ export function worksheetXml(
  */
 export function buildColumnDefaults(sheet: Worksheet): Map<number, ColumnProperties> {
   const columnDefaults = new Map<number, ColumnProperties>();
-  // `columns()` yields only columns that carry a format record, so the fallback is unreachable —
+  // `columns()` yields only columns that carry a format record, so the fallback is unreachable.
   // it is here because the handle's `properties` is honestly optional, not because a defined
   // column can lack one.
   for (const {index, properties} of sheet.columns()) columnDefaults.set(index, properties ?? {});
@@ -317,7 +317,7 @@ export function renderRow(
 
 // Compose a cell's full style by resolving each facet cell-over-row-over-column, so a cell that
 // overrides one facet still carries the row's fill and the column's other facets rather than silently
-// dropping them — the per-facet precedence Excel applies. The row contributes only a fill today;
+// dropping them: the per-facet precedence Excel applies. The row contributes only a fill today;
 // quote-prefix and the named-style link are cell-only, with no row/column default to inherit.
 function composeCellStyle(
   cell: Cell,
@@ -377,7 +377,7 @@ function validateMerges(sheet: Worksheet): void {
         bottom >= region.top;
       if (overlaps) {
         throw new AuthoringError(
-          `merged range ${merge} overlaps table "${table.name}" (${table.range}) — Excel forbids a merge inside a table`,
+          `merged range ${merge} overlaps table "${table.name}" (${table.range}): Excel forbids a merge inside a table`,
         );
       }
     }
@@ -394,7 +394,7 @@ function mergeCellsXml(merges: readonly string[]): string {
 
 // A tail reference element (`<drawing r:id="…"/>` and its `<legacyDrawing>`/`<legacyDrawingHF>`/
 // `<picture>` siblings) wiring the sheet to a part by relationship id, or '' when the sheet carries no
-// part of that kind — each such id is null then.
+// part of that kind, in which case each such id is null.
 function refElement(tag: string, relId: string | null): string {
   return relId === null ? '' : `<${tag} r:id="${relId}"/>`;
 }
@@ -442,7 +442,7 @@ export function worksheetRelsXml(
           ),
           relationship(comments.commentsRelId, REL.comments, `../comments${comments.number}.xml`),
         ]),
-    // A threaded-comment part, like a pivot table, is reached by relationship alone — no worksheet element
+    // A threaded-comment part, like a pivot table, is reached by relationship alone: no worksheet element
     // names it, so this relationship is the only thing that makes Excel look for the conversation.
     ...(threadedComments === null
       ? []
@@ -498,8 +498,8 @@ export function worksheetRelsXml(
 const DEFAULT_ROW_HEIGHT = 15;
 
 // `<sheetFormatPr>` carries the sheet's grid defaults and, when the sheet groups anything, the depth
-// of its deepest outline. A consumer sizes the outline bars from those depths — the strips that sit
-// above the column headers and left of the row headers — so a grouped sheet that omits them lays its
+// of its deepest outline. A consumer sizes the outline bars from those depths, the strips that sit
+// above the column headers and left of the row headers, so a grouped sheet that omits them lays its
 // grid out with no room reserved for a bar it then has to draw. Both are omitted at zero, as Excel
 // does, so an ungrouped sheet stays byte-clean.
 function sheetFormatPr(
@@ -518,7 +518,7 @@ function sheetFormatPr(
   return `<sheetFormatPr${attrs}/>`;
 }
 
-// The deepest column outline level the sheet declares — the `outlineLevelCol` its `<sheetFormatPr>`
+// The deepest column outline level the sheet declares: the `outlineLevelCol` its `<sheetFormatPr>`
 // reports. A column past XFD contributes nothing: {@link colsXml} drops it as out-of-range, so its
 // group would have no `<col>` to sit on.
 function maxColumnOutlineLevel(sheet: Worksheet): number {
@@ -532,7 +532,7 @@ function maxColumnOutlineLevel(sheet: Worksheet): number {
 
 function colsXml(sheet: Worksheet, styles: StyleRegistry): string {
   // Runs of adjacent columns that carry identical definitions are coalesced into a single
-  // `<col min max>` span — Excel writes columns this way, and it keeps the part compact for a
+  // `<col min max>` span. Excel writes columns this way, and it keeps the part compact for a
   // sheet whose columns share a width or outline level. A gap in the indices or any difference
   // in the emitted attributes breaks the run.
   const runs: {min: number; max: number; body: string}[] = [];
@@ -622,7 +622,7 @@ function rowAttrs(
 
 // The two row-outline facts the serialiser needs, from one walk over the rows: which summary rows
 // terminate a fully-collapsed group, and how deep the sheet's grouping goes. They share a pass
-// because the pass is the expensive part — the streaming writer must not be made to traverse rows
+// because the pass is the expensive part: the streaming writer must not be made to traverse rows
 // twice just to fill in a header attribute.
 interface RowOutline {
   readonly collapsedSummaries: Set<number>;
@@ -632,8 +632,8 @@ interface RowOutline {
 // A collapsed outline group is two coordinated facts: its detail rows carry outlineLevel and are
 // hidden, AND the summary row that terminates the group carries `collapsed`. Authors typically set
 // only outlineLevel + hidden on the detail rows, so the summary flag is derived here rather than
-// demanded of the caller: a row is a collapsed summary iff its adjacent detail run — the contiguous
-// higher-outline-level rows on the summary side — is non-empty and every row in it is hidden.
+// demanded of the caller: a row is a collapsed summary iff its adjacent detail run, the contiguous
+// higher-outline-level rows on the summary side, is non-empty and every row in it is hidden.
 // Placement follows the sheet's summaryBelow flag (Excel's default is summary below the detail); the
 // walk stops at the first row of level <= the summary's own, so a gap or a boundary ends the group.
 function scanRowOutline(sheet: Worksheet): RowOutline {
@@ -663,7 +663,7 @@ function scanRowOutline(sheet: Worksheet): RowOutline {
   return {collapsedSummaries, maxLevel};
 }
 
-// A valid Date — whether the cell's own value or a formula's cached result — with no format of its
+// A valid Date, whether the cell's own value or a formula's cached result, with no format of its
 // own gets the default date format so it renders and reads back as a date rather than a bare serial.
 // An Invalid Date and every non-date value contribute nothing here.
 function dateDefaultNumFmt(value: Cell['value']): string | undefined {
@@ -697,7 +697,7 @@ function cellXml(
   }
   if (typeof value === 'number') {
     // A non-finite number (NaN, ±Infinity) has no OOXML representation; keep the cell and its style
-    // but emit no value rather than a bare "NaN"/"Infinity" token — the same graceful degradation an
+    // but emit no value rather than a bare "NaN"/"Infinity" token: the same graceful degradation an
     // Invalid Date gets, so one bad value never corrupts the sheet or takes down the whole export.
     if (!Number.isFinite(value)) return `<c r="${ref}"${s}/>`;
     return `<c r="${ref}"${s}><v>${numberText(value)}</v></c>`;
@@ -740,13 +740,13 @@ function cellXml(
   // style); emit the styled cell with no <v>, exactly how Excel stores a formatted blank.
   if (value === null) return `<c r="${ref}"${s}/>`;
   // Every ValueType kind is served by an arm above (a formula routes through its own writer), so
-  // this is unreachable — it exists because the union is not exhaustively narrowed here.
+  // this is unreachable. It exists because the union is not exhaustively narrowed here.
   throw new InternalError(
-    `writing a ${detectValueType(value)} cell value has no arm — every CellValue kind is handled above`,
+    `writing a ${detectValueType(value)} cell value has no arm: every CellValue kind is handled above`,
   );
 }
 
-// Whether a cell carries any style facet of its own — the reason to serialise it even when empty.
+// Whether a cell carries any style facet of its own: the reason to serialise it even when empty.
 // A note is not a style: it lives in the comments part, not the cell's <c> element, so it does not
 // count here. Row/column-inherited formatting is likewise excluded; only the cell's own facets do.
 function hasOwnStyle(cell: Cell): boolean {
@@ -762,8 +762,8 @@ function hasOwnStyle(cell: Cell): boolean {
   );
 }
 
-// Serialise a formula cell — a shared-formula master or clone, a What-If data table, or a plain
-// formula — into its `<c>` element, or return undefined when the value is not a formula so `cellXml`
+// Serialise a formula cell (a shared-formula master or clone, a What-If data table, or a plain
+// formula) into its `<c>` element, or return undefined when the value is not a formula so `cellXml`
 // falls through to its value dispatch.
 function cellFormulaXml(
   ref: string,
@@ -783,7 +783,7 @@ function cellFormulaXml(
     return formulaBodyXml(ref, s, `<f t="shared" si="${shared.si}"/>`, result);
   }
   if (isDataTableFormulaValue(value)) {
-    // A data-table formula carries no expression text — only its declaration attributes — which we
+    // A data-table formula carries no expression text, only its declaration attributes, which we
     // re-emit verbatim so a read-modify-write cycle preserves the What-If kind the library never
     // evaluates. The cached result travels as any formula result does.
     const attrs =
@@ -815,7 +815,7 @@ function formulaBodyXml(
   result: FormulaResult | undefined,
 ): string {
   // A non-finite cached result (a `1/0` that reached the model as Infinity/NaN) has no OOXML
-  // representation; keep the formula but cache no value rather than emit a bare "NaN" — the same
+  // representation; keep the formula but cache no value rather than emit a bare "NaN": the same
   // graceful degradation a bare non-finite cell and an Invalid Date result get.
   if (result === undefined || (typeof result === 'number' && !Number.isFinite(result))) {
     return `<c r="${ref}"${s}>${f}</c>`;
@@ -828,13 +828,13 @@ function formulaBodyXml(
   }
   if (typeof result === 'string') {
     // The cached result of a string formula is a cell value, not structure, so it carries the
-    // `_xHHHH_` escape a `<t>` does — Excel decodes it here too (verified over COM: a `<v>` of
+    // `_xHHHH_` escape a `<t>` does, and Excel decodes it here too (verified over COM: a `<v>` of
     // `_x0041_` under t="str" reads back as "A" with calculation held manual).
     return `<c r="${ref}"${s} t="str">${f}<v>${escapeSpreadsheetText(result)}</v></c>`;
   }
   if (isErrorValue(result)) {
     // A formula that evaluated to an error caches its code under t="e", exactly as a bare error
-    // cell does — the reader's decodeResult mirrors decodeValue for this case.
+    // cell does: the reader's decodeResult mirrors decodeValue for this case.
     return `<c r="${ref}"${s} t="e">${f}<v>${result.error}</v></c>`;
   }
   if (result instanceof Date) {
@@ -846,6 +846,6 @@ function formulaBodyXml(
   }
   // Every FormulaResult kind is handled above; this guards a value that reached here past the model.
   throw new InternalError(
-    'writing a non-primitive formula result has no arm — every FormulaResult kind is handled above',
+    'writing a non-primitive formula result has no arm: every FormulaResult kind is handled above',
   );
 }

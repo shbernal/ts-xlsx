@@ -1,6 +1,6 @@
 // A handle on one column of a worksheet: its formatting and its cells, reached by column index.
 //
-// The other axis of `Row`, and the same contract — a live view over the worksheet's stores, position
+// The other axis of `Row`, and the same contract: a live view over the worksheet's stores, position
 // fixed at construction, formatting created on write rather than on read. See `core/row.ts` for why
 // it is a handle rather than a record.
 //
@@ -24,19 +24,19 @@ export class Column {
   /** @throws {RangeError} if the index is not a positive integer. */
   constructor(sheet: Worksheet, index: number) {
     if (!Number.isInteger(index) || index < 1) {
-      throw new RangeError(`column ${index} is out of bounds — columns start at 1`);
+      throw new RangeError(`column ${index} is out of bounds: columns start at 1`);
     }
     this.#sheet = sheet;
     this.index = index;
   }
 
-  /** The column's letters (`"B"`) — the spreadsheet-facing name for {@link index}. */
+  /** The column's letters (`"B"`): the spreadsheet-facing name for {@link index}. */
   get letter(): string {
     return numberToColumn(this.index);
   }
 
   /**
-   * The column's format record if it has one, else `undefined` — a read that never fabricates, so a
+   * The column's format record if it has one, else `undefined`: a read that never fabricates, so a
    * serializer can ask every column it visits whether there are attributes to emit without giving
    * each one an empty record. Read-only on purpose: {@link width} and its siblings are how a column
    * is formatted, and they create the record on first write.
@@ -47,7 +47,7 @@ export class Column {
 
   /**
    * Stable key naming this column so a keyed-object row (see {@link Worksheet.addRow}) can place a
-   * value under it by name rather than position. In-memory only — never serialized to OOXML.
+   * value under it by name rather than position. In-memory only: never serialized to OOXML.
    */
   get key(): string | undefined {
     return this.#read('key');
@@ -57,7 +57,7 @@ export class Column {
   }
 
   /**
-   * Column width in character units — digits of the workbook default font's maximum digit width,
+   * Column width in character units: digits of the workbook default font's maximum digit width,
    * so what one unit measures moves with that font. `undefined` leaves the sheet default in force.
    *
    * Not bounded here, for the same reason {@link Row.height} is not, and for a stronger one:
@@ -168,7 +168,7 @@ export class Column {
    * cell holding `null`.
    *
    * Assigning places each value it names and leaves every other row untouched, mirroring
-   * {@link Row.values} — a hole or an explicit `undefined` skips that row, and a shorter array does
+   * {@link Row.values}: a hole or an explicit `undefined` skips that row, and a shorter array does
    * not clear the tail.
    */
   get values(): (CellValue | undefined)[] {
@@ -186,7 +186,7 @@ export class Column {
     return this.#sheet[INTERNAL].columnPropertiesOf(this.index)?.[key];
   }
 
-  // `undefined` clears rather than stores — see the note on `Row`'s counterpart.
+  // `undefined` clears rather than stores; see the note on `Row`'s counterpart.
   #write<K extends keyof ColumnProperties>(key: K, value: ColumnProperties[K]): void {
     if (value === undefined) {
       const properties = this.#sheet[INTERNAL].columnPropertiesOf(this.index);
@@ -198,7 +198,7 @@ export class Column {
 }
 
 /**
- * Compile-time proof that {@link Column} mirrors every {@link ColumnProperties} field — including
+ * Compile-time proof that {@link Column} mirrors every {@link ColumnProperties} field, including
  * the six inherited `CellStyle` facets, so a seventh facet reaches this handle the moment it joins
  * the tuple. See the counterpart on `Row` for why the mirror needs proving rather than reviewing.
  */

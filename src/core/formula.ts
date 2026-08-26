@@ -1,25 +1,25 @@
 // OOXML froze its formula-function grammar around Excel 2007. Every function Microsoft has added
-// since — the dynamic-array family, LAMBDA and its helpers, the newer text and logical functions —
+// since (the dynamic-array family, LAMBDA and its helpers, the newer text and logical functions)
 // is persisted in the sheet XML under an `_xlfn.` name-mangling prefix. The prefix is purely an
 // on-disk convention: the model only ever holds the plain, readable name, the writer applies the
 // prefix on the way out, and the reader strips it back on the way in. A writer that omits it emits
 // a formula current Excel silently drops, because the function is unknown under its bare name. This
-// module is the single place that knows the mangling — shared by the xlsx writer and reader like
+// module is the single place that knows the mangling, shared by the xlsx writer and reader like
 // address.ts and date.ts own their domains.
 //
 // It also owns formula *translation*: a spreadsheet fills a formula down or across a range by storing
 // it once on a master cell and marking the rest as shared clones. Reading a clone means recovering the
-// master's formula shifted to the clone's position — relative references move by the row/column
+// master's formula shifted to the clone's position: relative references move by the row/column
 // offset, absolute (`$`-anchored) parts stay put. That relative-reference arithmetic lives here too.
 //
 // Every pass over a formula shares one hazard: a comma, paren, function name, or cell reference is
 // mere text when it sits inside a string literal, a single-quoted sheet name, or a bracketed
-// structured reference. `skipOpaque` is the single owner of skipping those regions — every pass drives
+// structured reference. `skipOpaque` is the single owner of skipping those regions: every pass drives
 // its string/quote/bracket handling through it, so the rule lives in one place. The stateless passes
 // (function-name and cell-reference rewriting) ride `scanFormula`, which copies the opaque regions
 // verbatim and hands each code run between them to a transform. `mangleParams` is the deliberate
 // exception: LET/LAMBDA parameter scope opens and closes at paren boundaries, state `scanFormula`'s
-// per-run transform cannot carry, so it runs its own forward walk — still deferring to `skipOpaque`.
+// per-run transform cannot carry, so it runs its own forward walk, still deferring to `skipOpaque`.
 
 import {columnToNumber, numberToColumn} from './address.ts';
 import {MODERN_FUNCTIONS} from './modern-functions.ts';
@@ -29,13 +29,13 @@ const XLPM = '_xlpm.';
 
 /**
  * Quote a sheet name for use in a reference exactly when Excel would: a name that is not a plain
- * identifier — or that would read as a cell address — is wrapped in single quotes with its internal
+ * identifier, or that would read as a cell address, is wrapped in single quotes with its internal
  * quotes doubled, and a simple name is left bare. Shared by everything that *builds* a qualified
  * reference: the `_FilterDatabase` name the writer derives from an autofilter, and the `.xlsb`
  * reader's Ptg decoder, which has only a sheet index to work from and must spell the prefix itself.
  *
  * `last` names the far end of a 3-D span (`Data:More!A1`). A span is quoted as a whole or not at all,
- * because the quotes delimit the sheet *reference* rather than either name — so one awkward endpoint
+ * because the quotes delimit the sheet *reference* rather than either name, so one awkward endpoint
  * puts both inside the quotes.
  */
 export function quoteSheetName(name: string, last?: string): string {
@@ -51,13 +51,13 @@ function isBareSheetName(name: string): boolean {
 }
 
 // LET and LAMBDA are the only functions that bind names. Their parameter identifiers are persisted
-// under an `_xlpm.` prefix — at the declaration site and at every in-body reference — exactly as the
+// under an `_xlpm.` prefix, at the declaration site and at every in-body reference, exactly as the
 // modern functions themselves carry `_xlfn.`. The prefix is scoped: a name bound by one LET/LAMBDA
 // is only prefixed inside that call, so a same-named defined-name reference elsewhere is untouched.
 const SCOPING_FUNCTIONS: ReadonlySet<string> = new Set(['LET', 'LAMBDA']);
 
-// A function call is an identifier — dots included, so a dotted name like NORM.DIST is matched whole
-// rather than by its tail — immediately followed by '('. The negative lookbehind rejects a name
+// A function call is an identifier (dots included, so a dotted name like NORM.DIST is matched whole
+// rather than by its tail) immediately followed by '('. The negative lookbehind rejects a name
 // preceded by an identifier character or '.', so an already-qualified name (`_xlfn.XLOOKUP`) is
 // consumed as a single token whose uppercased form is absent from the set, and is therefore never
 // double-prefixed. Lookbehind rather than a consumed boundary char so adjacent calls
@@ -66,7 +66,7 @@ const FUNCTION_CALL = /(?<![A-Za-z0-9_.])([A-Za-z_][A-Za-z0-9_.]*)(\s*\()/g;
 const PREFIX = /_xlfn\.|_xlpm\./g;
 
 // Advance past the opaque region opened at `index`: a double-quoted string literal or a single-quoted
-// sheet name — both honouring the doubled-quote escape (`""`, `''`) — or a bracketed structured
+// sheet name, both honouring the doubled-quote escape (`""`, `''`), or a bracketed structured
 // reference, which may nest (`Table[[#Data],[Col]]`). Returns the index just past the region, or
 // `index` unchanged when no opaque region opens there. Inside any of the three a comma, paren, function
 // name, or cell reference is inert, so every pass over a formula skips them through this one function.
@@ -104,8 +104,8 @@ function skipOpaque(formula: string, index: number): number {
   return index;
 }
 
-// Rewrite a formula's code while copying its opaque regions — string literals, single-quoted sheet
-// names, bracketed structured references — verbatim. `transform` sees each maximal run of code between
+// Rewrite a formula's code while copying its opaque regions (string literals, single-quoted sheet
+// names, bracketed structured references) verbatim. `transform` sees each maximal run of code between
 // those regions and returns its replacement; the opaque text is never handed to it, so a literal like
 // `"FILTER("` is never mistaken for a call and a `,` inside a structured reference never reads as a
 // separator. Concatenating the transformed runs with the copied regions reproduces the formula.
@@ -132,7 +132,7 @@ function scanFormula(formula: string, transform: (code: string) => string): stri
  * Prefix every modern function called by its plain name with `_xlfn.` so Excel accepts the stored
  * formula. Names already prefixed are left alone (never doubled), unknown/legacy functions pass
  * through untouched, and opaque regions (string literals, sheet names, structured references) are
- * preserved verbatim. No other rewriting occurs — in particular no `@` implicit-intersection operator
+ * preserved verbatim. No other rewriting occurs: in particular no `@` implicit-intersection operator
  * is ever introduced.
  */
 export function mangleFunctions(formula: string): string {
@@ -156,7 +156,7 @@ const NAME_START = /[A-Za-z_]/;
 const NAME_CHAR = /[A-Za-z0-9_.]/;
 const WHITESPACE = /\s/;
 
-// Advance past an identifier — dots included, matching FUNCTION_CALL — starting at `i`, or return `i`
+// Advance past an identifier (dots included, matching FUNCTION_CALL) starting at `i`, or return `i`
 // unchanged when no identifier begins there.
 function readName(formula: string, i: number): number {
   if (!NAME_START.test(formula[i] ?? '')) return i;
@@ -207,7 +207,7 @@ function parseCall(formula: string, open: number): {close: number; args: [number
 }
 
 // Extract the single, unprefixed identifier occupying an argument range, or `undefined` when the
-// range is not one clean name (whitespace-trimmed) — a malformed binding we decline to touch.
+// range is not one clean name (whitespace-trimmed): a malformed binding we decline to touch.
 function boundName(formula: string, [start, end]: [number, number]): string | undefined {
   let s = start;
   let e = end;
@@ -237,8 +237,8 @@ function parameterNames(
 }
 
 /**
- * Prefix every LET/LAMBDA parameter identifier with `_xlpm.` — at its declaration and at each
- * reference within the binding call's parentheses — so Excel accepts the stored formula. The prefix
+ * Prefix every LET/LAMBDA parameter identifier with `_xlpm.`, at its declaration and at each
+ * reference within the binding call's parentheses, so Excel accepts the stored formula. The prefix
  * is lexically scoped: a name is only rewritten inside the call that binds it, opaque regions are
  * copied verbatim, and a lambda-valued parameter used as a call (`f(…)`) is prefixed too. Formulas
  * with no LET/LAMBDA pass through unchanged.
@@ -292,7 +292,7 @@ export function mangleParams(formula: string): string {
       continue;
     }
 
-    // Any other identifier — a bare reference, an ordinary call, or a lambda-valued parameter call.
+    // Any other identifier: a bare reference, an ordinary call, or a lambda-valued parameter call.
     // In-scope names (declaration sites included, as they lie inside their own binding's parens) take
     // the prefix; the rest pass through. Call arguments are covered by the continuing scan, so a
     // nested LET/LAMBDA within them is still seen.
@@ -304,7 +304,7 @@ export function mangleParams(formula: string): string {
 
 /**
  * Mangle a model formula into its on-disk form: LET/LAMBDA parameter names first (`_xlpm.`), then the
- * modern-function prefix (`_xlfn.`). Ordering matters — parameter mangling reads the plain LET/LAMBDA
+ * modern-function prefix (`_xlfn.`). Ordering matters: parameter mangling reads the plain LET/LAMBDA
  * names before the function pass qualifies them. The inverse for both prefixes is unmangleFunctions.
  */
 export function mangleFormula(formula: string): string {
@@ -312,11 +312,11 @@ export function mangleFormula(formula: string): string {
 }
 
 // A relative cell reference to shift: an optional `$`, then 1–3 uppercase column letters, an optional
-// `$`, then the row digits (capped at seven — Excel's last row is 1048576). The column is uppercase-
+// `$`, then the row digits (capped at seven; Excel's last row is 1048576). The column is uppercase-
 // only because Excel stores it that way and so a lowercase defined name is never mistaken for a
 // reference. The lookbehind rejects a reference glued to a preceding name character or '.', so the
 // `A1` inside `_xlfn.A1` or a defined name `FOO_A1` is left alone; the lookahead rejects one continued
-// by a name character, opening a call `(`, or preceding a sheet `!` — a token before `!` is the sheet
+// by a name character, opening a call `(`, or preceding a sheet `!`: a token before `!` is the sheet
 // name (`Q1!A1`), not a cell. Applied per code run, where opaque regions have already been stripped.
 const CELL_REFERENCE = /(?<![A-Za-z0-9_.])(\$?)([A-Z]{1,3})(\$?)([0-9]{1,7})(?![A-Za-z0-9_.!(])/g;
 

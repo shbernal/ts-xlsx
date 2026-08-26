@@ -1,6 +1,6 @@
 // The workbook's theme, lifted off `Workbook` into the slice it actually is.
 //
-// `theme.ts` holds the theme *model* — the slot order, the scheme parsers, `applyThemeOverrides`.
+// `theme.ts` holds the theme *model*: the slot order, the scheme parsers, `applyThemeOverrides`.
 // What lives here is the per-workbook state and caching wrapped around that model: the preserved
 // part, the decoded-scheme cache, and the overrides a caller authored. Folding this into `theme.ts`
 // would mix a pure model module with mutable per-instance cache, which is how `theme.ts` grows the
@@ -50,7 +50,7 @@ export class WorkbookTheme {
 
   // The theme's colour scheme, decoded from the preserved part (and merged with any authored
   // overrides) on first use. Cached because resolving a colour is a per-cell operation and the part is
-  // otherwise held as bytes; invalidated whenever the theme is replaced or authored — the two events
+  // otherwise held as bytes; invalidated whenever the theme is replaced or authored. The two events
   // are `restorePart` and `author`, and there is nowhere else that can stale it.
   #colors: ThemeColorScheme | undefined;
 
@@ -103,7 +103,7 @@ export class WorkbookTheme {
     return {...base, ...this.#authored.fonts};
   }
 
-  // The typefaces a caller authored, unmerged — `Workbook.defaultFont` needs to know whether the body
+  // The typefaces a caller authored, unmerged. `Workbook.defaultFont` needs to know whether the body
   // face was named outright or merely inherited, which the resolved {@link fonts} cannot say.
   get authoredFonts(): ThemeFontScheme {
     return this.#authored.fonts;

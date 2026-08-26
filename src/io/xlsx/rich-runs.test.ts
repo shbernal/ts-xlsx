@@ -7,7 +7,7 @@ import {RunAccumulator} from './rich-runs.ts';
 // emptied when a container opens, so every reader that opens one has to say so. These pin it directly,
 // rather than only through the two readers that happen to obey it today.
 
-test('runs bleed into the next string when no container is opened — why the invariant exists', () => {
+test('runs bleed into the next string when no container is opened: why the invariant exists', () => {
   const runs = new RunAccumulator();
   runs.beginContainer();
   runs.beginRun();

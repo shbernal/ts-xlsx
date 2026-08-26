@@ -1,21 +1,21 @@
 // The `<color>` element, both directions.
 //
-// OOXML spells a colour the same way wherever one appears — `<color>`, `<fgColor>`, `<bgColor>`,
-// `<tabColor>`, a differential format's colour — as some combination of `rgb`, `theme`, `tint` and
+// OOXML spells a colour the same way wherever one appears (`<color>`, `<fgColor>`, `<bgColor>`,
+// `<tabColor>`, a differential format's colour) as some combination of `rgb`, `theme`, `tint` and
 // `indexed` attributes. Writing that tuple and reading it back are one concern with two directions,
 // and they have to agree: `parseColor` must accept exactly what `colorAttrs` emits, or a round-trip
 // loses a colour.
 //
 // They lived in `styles.ts`, the write-side style *table*, which made the style-table reader and the
-// worksheet reader import from the writer to decode a colour — the only place in this codec where the
+// worksheet reader import from the writer to decode a colour: the only place in this codec where the
 // read pipeline reached into the write pipeline. Nothing about decoding `<color>` belongs to the
 // interning table; it just happened to be where the first caller was.
 
 import type {Color} from '../../core/style.ts';
 import {AuthoringError} from '../../errors.ts';
 
-// OOXML wants a bare 8-hex ARGB (alpha + RGB). This single choke point — through which every
-// fill/font/border/tab colour flows — accepts two developer conveniences and rejects the rest loudly,
+// OOXML wants a bare 8-hex ARGB (alpha + RGB). This single choke point, through which every
+// fill/font/border/tab colour flows, accepts two developer conveniences and rejects the rest loudly,
 // because a malformed rgb value does not error in Excel: it silently renders as flat black.
 //   - A leading '#' is a CSS habit and is stripped ('#FFBFBFBF' → 'FFBFBFBF').
 //   - A 6-hex RGB is promoted to ARGB with a fully-opaque alpha ('00FF00' → 'FF00FF00'), the common

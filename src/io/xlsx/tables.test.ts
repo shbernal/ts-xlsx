@@ -337,7 +337,7 @@ test('reading preserves a header cell whose text drifted from the declared colum
   assert.equal(
     back.getWorksheet('S')?.getCell('A1').value,
     'Drifted',
-    'the file is authoritative on read — a re-declaration must not repair it',
+    'the file is authoritative on read: a re-declaration must not repair it',
   );
 });
 

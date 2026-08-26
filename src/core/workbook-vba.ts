@@ -2,7 +2,7 @@
 //
 // Everything here is reachable from one thing outside itself: the workbook's preserved-reference
 // list, where a macro-enabled package's `vbaProject.bin` and its signature closure live. That single
-// dependency is why this comes out whole — the list is handed in, and the workbook keeps the public
+// dependency is why this comes out whole: the list is handed in, and the workbook keeps the public
 // accessors that delegate here, exactly as `Worksheet` keeps the accessors in front of its
 // validation, conditional-formatting and grid-edit overlays.
 //
@@ -89,7 +89,7 @@ export class WorkbookVbaProject {
     this.#project = undefined;
   }
 
-  // Walk the VBA project's preserved closure for its signature parts — each reached by a signature
+  // Walk the VBA project's preserved closure for its signature parts, each reached by a signature
   // relationship off `vbaProject.bin`. Computed on each access rather than memoised: the closure is
   // small and already in memory, and recomputing sidesteps a cache that a signature-dropping mutation
   // (bytes replace, module remove, reference add) would otherwise have to invalidate.

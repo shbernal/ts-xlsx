@@ -1,5 +1,5 @@
 // Structural-edit machinery: the splice arithmetic that inserts or deletes whole rows and columns
-// and keeps everything anchored to the grid moving in step — line metadata, merged ranges, tables,
+// and keeps everything anchored to the grid moving in step: line metadata, merged ranges, tables,
 // anchored images, and shared-formula clones. It is isolated from Worksheet because it is pure grid
 // mechanics: it holds the sheet's storage containers by reference and mutates them in place, and
 // touches none of the public cell API. Worksheet builds the cells an insert introduces, then hands
@@ -20,8 +20,8 @@ function shiftIndex(v: number, start: number, count: number, delta: number): num
   return v < start ? v : v >= start + count ? v + delta : start;
 }
 
-// The sheet's mutable storage, shared by reference with Worksheet. Never reassigned — only mutated in
-// place — so the two views stay in sync through every splice.
+// The sheet's mutable storage, shared by reference with Worksheet. Never reassigned, only mutated in
+// place, so the two views stay in sync through every splice.
 interface GridStorage {
   readonly rows: Map<number, Map<number, Cell>>;
   readonly rowProperties: Map<number, RowProperties>;
@@ -130,7 +130,7 @@ export class GridEdits {
   // absolute address; when the splice shifts the master, that stored address goes stale and the writer
   // would reject the clone as orphaned. Applying the same shift the grid used keeps each clone pointed
   // at its master's new cell. A master whose axis coordinate falls in the deleted span clamps to the
-  // cut line like a merge edge — a genuinely orphaned clone the writer then reports legibly.
+  // cut line like a merge edge: a genuinely orphaned clone the writer then reports legibly.
   #reanchorSharedFormulas(axis: 'row' | 'col', start: number, count: number, delta: number): void {
     for (const cols of this.#rows.values()) {
       for (const cell of cols.values()) {
@@ -164,7 +164,7 @@ export class GridEdits {
 
   // Re-anchor merged ranges through a row or column splice. A range wholly before the edit is
   // untouched; one wholly after shifts by `nInserts - count`; one whose covered rows/columns are
-  // entirely deleted is dropped. A range straddling the cut is a genuinely ambiguous geometry — its
+  // entirely deleted is dropped. A range straddling the cut is a genuinely ambiguous geometry: its
   // edges are clamped to the cut line as a best effort. Unbounded whole-row/column merges carry no
   // rectangle and pass through unchanged.
   #shiftMerges(axis: 'row' | 'col', start: number, count: number, delta: number): void {

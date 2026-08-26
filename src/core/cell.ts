@@ -1,6 +1,6 @@
 // A single cell: a typed value at a fixed 1-based `(row, col)` position.
 //
-// Position is immutable and numeric — the corpus locks `col`/`row` as 1-based
+// Position is immutable and numeric: the corpus locks `col`/`row` as 1-based
 // *numbers* (legacy shipped a type declaration calling them strings, which broke
 // strict consumers). The value is the only mutable state here; assigning it routes
 // through the value model so the cell's `type` is always consistent with what it holds.
@@ -27,8 +27,8 @@ import {
 import type {CellModel} from './worksheet.ts';
 
 /**
- * A single cell owns its value and every style facet outright. Each facet below — fill, number format,
- * font, border, alignment, protection, quote-prefix, and note — is held in the cell's own field and
+ * A single cell owns its value and every style facet outright. Each facet below (fill, number format,
+ * font, border, alignment, protection, quote-prefix, and note) is held in the cell's own field and
  * *replaced* (never mutated in place) by its setter, so a facet set on one cell never aliases or bleeds
  * onto its row, column, or sheet siblings. Each facet's own doc covers only what is specific to it.
  */
@@ -51,10 +51,10 @@ export class Cell {
 
   constructor(row: number, col: number) {
     if (!Number.isInteger(row) || row < 1) {
-      throw new RangeError(`cell row ${row} is out of bounds — rows start at 1`);
+      throw new RangeError(`cell row ${row} is out of bounds: rows start at 1`);
     }
     if (!Number.isInteger(col) || col < 1) {
-      throw new RangeError(`cell column ${col} is out of bounds — columns start at 1`);
+      throw new RangeError(`cell column ${col} is out of bounds: columns start at 1`);
     }
     this.row = row;
     this.col = col;
@@ -80,12 +80,12 @@ export class Cell {
   }
 
   /**
-   * The cell's value as plain text ({@link cellValueToText}), `""` when it is empty — so a reader
+   * The cell's value as plain text ({@link cellValueToText}), `""` when it is empty, so a reader
    * that only wants strings never has to narrow the value union itself.
    *
    * Read-only, because text is a *rendering* of the value and not a second place to store one:
    * writing `"3"` here could only mean the string `"3"`, which is exactly `value = '3'` and reads
-   * nothing like it. The number format is not applied either — the style is not the cell's value,
+   * nothing like it. The number format is not applied either: the style is not the cell's value,
    * so a currency cell's text carries no currency sign.
    */
   get text(): string {
@@ -99,18 +99,18 @@ export class Cell {
    *
    * This exists because a run's format element does **not** inherit anything. A `<rPr>` is a
    * *complete* character format, and any facet it omits falls back to the workbook default font
-   * ({@link Workbook.defaultFont}) — not to the cell's. Verified against Excel: a cell set to
+   * ({@link Workbook.defaultFont}), not to the cell's. Verified against Excel: a cell set to
    * Courier New 16 whose first run carries only `<b/>` renders that run in the workbook default face
    * at the default size, bold, while the rest of the cell renders Courier New 16. So a run authored
    * as `{bold: true}` beside a styled cell silently loses the face, which is the format's rule rather
-   * than a bug — and the reason this is a helper rather than a change to how runs are written.
+   * than a bug, and the reason this is a helper rather than a change to how runs are written.
    *
    * Composition is per facet: a facet the run names wins, one it omits comes from the cell. Assigning
    * `value` directly stays the bare path, for a caller who wants a run that deliberately falls back
    * to the workbook default.
    *
-   * A cell that names no font of its own needs no composition — an omitted facet already falls back
-   * to the workbook default, which is exactly what such a cell renders in — so the runs pass through
+   * A cell that names no font of its own needs no composition: an omitted facet already falls back
+   * to the workbook default, which is exactly what such a cell renders in, so the runs pass through
    * unchanged.
    */
   setRichText(runs: readonly RichTextRun[]): void {
@@ -122,11 +122,11 @@ export class Cell {
   }
 
   /**
-   * The cell's full style — fill, number format, font, border, alignment, and protection — as one
+   * The cell's full style (fill, number format, font, border, alignment, and protection) as one
    * {@link CellStyle}, for restyling a cell wholesale without importing {@link applyCellStyle}
    * separately (mirrors {@link Worksheet.model}'s getter/setter pair for the whole sheet). The
    * getter carries only the facets this cell has set (the same shape {@link cellToModel} emits);
-   * the setter lays each facet `style` carries onto this cell — like every per-facet setter, it
+   * the setter lays each facet `style` carries onto this cell and, like every per-facet setter, it
    * replaces that facet outright but leaves a facet `style` omits untouched, so `cell.style = {...}`
    * composes with prior per-facet sets rather than clearing them wholesale.
    */
@@ -152,7 +152,7 @@ export class Cell {
   /**
    * The cell's number-format code (`"0.00%"`, a custom accounting format, …), or
    * `undefined` for the General format. Stored verbatim: the invariant form Excel
-   * persists — `.` decimal, `,` grouping, `/` date separator — is neither localized
+   * persists (`.` decimal, `,` grouping, `/` date separator) is neither localized
    * nor rewritten, so the code round-trips character-for-character. A cell that also carries
    * a column-level format keeps both, so overriding one facet never drops the other.
    */
@@ -165,7 +165,7 @@ export class Cell {
   }
 
   /**
-   * The cell's font — bold/italic/underline, size, colour, typeface — as a partial set
+   * The cell's font (bold/italic/underline, size, colour, typeface) as a partial set
    * of the facets that differ from the default (only the facets actually set are carried,
    * exactly as OOXML stores them). `undefined` means the cell uses the workbook default font.
    */
@@ -178,7 +178,7 @@ export class Cell {
   }
 
   /**
-   * The cell's border — the line style and colour of each side — or `undefined` when the
+   * The cell's border (the line style and colour of each side), or `undefined` when the
    * cell has none. An absent edge within a border means that side is unbordered, so reading
    * a cell never fabricates a border it does not have.
    */
@@ -191,7 +191,7 @@ export class Cell {
   }
 
   /**
-   * The cell's alignment — how its content sits within the cell, plus the wrap/shrink flags —
+   * The cell's alignment (how its content sits within the cell, plus the wrap/shrink flags),
    * or `undefined` when it uses the defaults. The boolean flags are off unless explicitly set,
    * so a cell that never enabled wrapping never reads back wrapped.
    */
@@ -204,7 +204,7 @@ export class Cell {
   }
 
   /**
-   * The cell's protection — its locked/hidden flags, enforced only once the sheet is protected —
+   * The cell's protection (its locked/hidden flags, enforced only once the sheet is protected),
    * or `undefined` when the cell carries neither. `locked` defaults to on in OOXML, so a cell
    * that never touched protection is implicitly locked and reads back as `undefined`, not as
    * `{locked: true}`; the flag only becomes explicit when a cell is unlocked.
@@ -221,7 +221,7 @@ export class Cell {
    * The quote-prefix flag: when set, a spreadsheet stores the cell's content as literal text even
    * when it looks like a formula or number, and shows a leading apostrophe in the formula bar without
    * that apostrophe being part of the stored value. `undefined` (or `false`) when unset. It is a
-   * cell-format flag — an attribute on the cell's `xf` record — so it composes independently of the
+   * cell-format flag, an attribute on the cell's `xf` record, so it composes independently of the
    * value.
    */
   get quotePrefix(): boolean | undefined {
@@ -268,11 +268,11 @@ export class Cell {
 
 // Lay each present style facet of `style` onto `cell`, leaving facets it omits untouched. A {@link Cell}
 // exposes every facet as a setter of its declared type, so it *is* a mutable {@link CellStyle} target and
-// the shared {@link assignStyleFacets} loop drives it — the facet list lives only on {@link CellStyle}, and
+// the shared {@link assignStyleFacets} loop drives it: the facet list lives only on {@link CellStyle}, and
 // no apply path can forget a facet without a compile error there. Facet objects are assigned by reference,
 // safe under the copy-on-write style model (setters replace, never mutate in place). This is the named
-// entry point for the many paths that style a cell — a table column's format, a resolved read xf, a model
-// assignment — so their call sites read as intent, not as a raw record copy.
+// entry point for the many paths that style a cell (a table column's format, a resolved read xf, a model
+// assignment), so their call sites read as intent, not as a raw record copy.
 export function applyCellStyle(cell: Cell, style: Readonly<CellStyle>): void {
   assignStyleFacets(cell, style);
 }
@@ -281,18 +281,18 @@ export function applyCellStyle(cell: Cell, style: Readonly<CellStyle>): void {
 // which a live {@link Cell} structurally satisfies, so this one primitive serves both directions that
 // load content into a cell: a structural edit shifting a cell to fresh coordinates (`Cell` fixes its
 // `(row, col)` at construction, so the shifted cell is a new cell carrying the original's content) and
-// assigning a {@link WorksheetModel} onto a sheet. Position is never copied — the target keeps its own
+// assigning a {@link WorksheetModel} onto a sheet. Position is never copied: the target keeps its own
 // `(row, col)`. The style facets go through {@link applyCellStyle} (targets are always fresh cells, so
 // its skip-if-absent is equivalent to a full copy here). Paired with {@link cellToModel} (the read
 // direction); a facet cellToModel emits but applyCellStyle omits (or the reverse) would silently drop
-// on a model round-trip — the historical merge-loss failure the CellStyle tuple now guards by type.
+// on a model round-trip, the historical merge-loss failure the CellStyle tuple now guards by type.
 export function copyCellContent(source: CellModel, target: Cell): void {
   target.value = source.value;
   applyCellStyle(target, source);
   target.note = source.note;
 }
 
-// Snapshot a cell's position and content as a {@link CellModel} — the read direction paired with
+// Snapshot a cell's position and content as a {@link CellModel}: the read direction paired with
 // {@link copyCellContent}'s write. The style facets flow through the same {@link assignStyleFacets} loop
 // as every other copy (a {@link Cell} is structurally a {@link CellStyle} source), so this direction emits
 // exactly the facets the apply direction consumes: a `dst.model = src.model` round-trip carries every one,

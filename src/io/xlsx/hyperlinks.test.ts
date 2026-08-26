@@ -111,7 +111,7 @@ test('the <hyperlinks> element sits after <mergeCells> and before <pageMargins>'
 
 test('the reader rejoins a foreign file’s location fragment onto the relationship target', () => {
   // A foreign producer stores an external URL's fragment in the hyperlink's `location`, apart from
-  // the bare relationship Target — the reader must rejoin them into the whole URL.
+  // the bare relationship Target: the reader must rejoin them into the whole URL.
   const sheetXml =
     '<?xml version="1.0"?><worksheet xmlns:r="x"><sheetData>' +
     '<row r="1"><c r="A1" t="inlineStr"><is><t>link</t></is></c></row>' +
@@ -176,7 +176,7 @@ test('a hyperlink spanning a range anchors on its top-left cell instead of crash
   const back = hyperlinkOf(readXlsx(archive), 'S', 'D1');
   assert.equal(back.hyperlink, '#Sheet1!A1');
   assert.equal(back.text, 'go');
-  // The extent is not just anchored — it is recorded, so the clickable area is not silently shrunk.
+  // The extent is not just anchored: it is recorded, so the clickable area is not silently shrunk.
   assert.equal(back.range, 'D1:H1');
 });
 

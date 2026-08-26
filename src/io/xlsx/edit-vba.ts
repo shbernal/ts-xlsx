@@ -3,8 +3,8 @@
 // rewritten (plus dropping a now-stale signature); worksheets, styles, drawings, and every other part
 // ride through untouched.
 //
-// This is the highest-fidelity way to tweak an existing macro project. The alternative — `readXlsx` →
-// the matching `Workbook` method → `writeXlsx` — rebuilds the whole package from the parsed model, which
+// This is the highest-fidelity way to tweak an existing macro project. The alternative (`readXlsx` →
+// the matching `Workbook` method → `writeXlsx`) rebuilds the whole package from the parsed model, which
 // re-serialises every part and so only preserves what the model captures. For a rich, real-world
 // workbook that round-trip can perturb parts Excel is strict about; splicing the original bytes cannot,
 // because it never re-authors anything but the macro project. Use this when the input is a real file
@@ -87,7 +87,7 @@ function applyToVbaProjectPart(
   dropStaleSignature(files, binPath);
 
   // Re-stamped rather than preserved: `unzipSync` hands back bytes and drops each entry's original
-  // timestamp, so there is nothing to carry through — the choice is a pinned stamp or the clock, and
+  // timestamp, so there is nothing to carry through: the choice is a pinned stamp or the clock, and
   // the clock would make editing the same file twice produce two different packages.
   return zipSync(files, {mtime: FIXED_ENTRY_MTIME});
 }
@@ -118,7 +118,7 @@ function resolveVbaTarget(workbookPath: string, target: string): string {
 }
 
 // Editing the project invalidates any signature over it, so remove every signature part the project's
-// `.rels` reaches, the relationships that point at them, and their content-type overrides — leaving a
+// `.rels` reaches, the relationships that point at them, and their content-type overrides, leaving a
 // package that advertises no signature rather than a broken one (mirrors Workbook.vbaProjectBytes).
 function dropStaleSignature(files: Record<string, Uint8Array>, binPath: string): void {
   const binRelsPath = relsPathFor(binPath);

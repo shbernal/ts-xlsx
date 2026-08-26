@@ -8,7 +8,7 @@ export class ConditionalFormattingOverlay {
   readonly #entries: ConditionalFormatting[] = [];
 
   /**
-   * Attach a conditional formatting to a target range. `formatting.ref` is an OOXML `sqref` — one
+   * Attach a conditional formatting to a target range. `formatting.ref` is an OOXML `sqref`: one
    * range (`"A1:A10"`), a whole column, or several space-separated areas (`"A1:C1 A3:C3"`) sharing one
    * rule set. The block is stored once against the range, defensively copied so the getter never hands
    * back a reference into the caller's object.

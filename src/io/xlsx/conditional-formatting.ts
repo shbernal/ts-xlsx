@@ -6,7 +6,7 @@
 // operands as `<formula>` children and points at a differential style by `dxfId`. A rule the library
 // does not model in depth still round-trips its attributes, so nothing is silently dropped on save.
 //
-// A data bar's richer facets — its gradient fill, its negative-value fill colour, its axis colour —
+// A data bar's richer facets (its gradient fill, its negative-value fill colour, its axis colour)
 // have no home in the classic `<dataBar>` element; Excel stores them only in the 2009 x14 extension.
 // So a data-bar rule carrying any of them is written twice: the classic element (its anchors and bar
 // colour, understood by every consumer) plus an `<x14:dataBar>` in the worksheet `<extLst>` carrying
@@ -60,7 +60,7 @@ function dataBarExtGuid(index: number): string {
 
 // Assign every extended data bar its link id once, keyed by rule identity. The classic pass (which
 // emits the `<extLst>` link on the cfRule) and the extension pass (which emits the `<x14:cfRule id>`)
-// both read the id from this map, so the two ends of a link agree by construction — not by the two
+// both read the id from this map, so the two ends of a link agree by construction, not by the two
 // passes happening to walk the rules in the same order. A rule absent from the map needs no extension.
 function dataBarExtLinks(
   formattings: readonly ConditionalFormatting[],
@@ -124,7 +124,7 @@ export function conditionalFormattingsExtXml(
 
 // One `<x14:conditionalFormatting>`: an `<x14:cfRule type="dataBar" id>` mirroring the classic anchors
 // as `<x14:cfvo>` and adding the facets the classic element cannot carry (gradient, negative-fill and
-// axis colours), with the target range in an `<xm:sqref>` child — the shape Excel writes.
+// axis colours), with the target range in an `<xm:sqref>` child: the shape Excel writes.
 function x14DataBarXml(ref: string, rule: ConditionalFormattingRule, guid: string): string {
   const cfvo = rule.cfvo && rule.cfvo.length > 0 ? rule.cfvo : DEFAULT_DATABAR_CFVO;
   const anchors = cfvo.map(x14CfvoXml).join('');
@@ -202,7 +202,7 @@ function ruleXml(
 }
 
 // A rule points at a differential style either by a preserved index read from a file (`dxfId`) or by
-// a style authored on the rule (interned here). The preserved index wins — it references the original
+// a style authored on the rule (interned here). The preserved index wins: it references the original
 // file's dxf table, which the writer re-emits verbatim. Scale rules never carry one.
 function resolveDxfId(rule: ConditionalFormattingRule, styles: StyleRegistry): number | undefined {
   if (SCALE_TYPES.has(rule.type)) return undefined;
@@ -223,7 +223,7 @@ function scaleXml(rule: ConditionalFormattingRule): string {
 }
 
 // A data bar states its low and high anchors and its bar colour. The minimal call (no cfvo, no colour)
-// gains Excel's own defaults — a min/max anchor pair and the standard blue — rather than an invalid
+// gains Excel's own defaults, a min/max anchor pair and the standard blue, rather than an invalid
 // empty element. The gradient flag and the negative-fill/axis colours have no home in this classic
 // element; they ride in the x14 extension (see {@link conditionalFormattingsExtXml}), linked from the
 // cfRule that wraps this by a shared id.
@@ -281,7 +281,7 @@ interface RuleDraft {
   cfvo: CfValueObject[];
   colors: Color[];
   color: Color | undefined;
-  // The `<x14:id>` a data-bar cfRule carries to name its extension. Transient — it links this rule to
+  // The `<x14:id>` a data-bar cfRule carries to name its extension. Transient: it links this rule to
   // its `<x14:dataBar>` during parsing and is dropped once the extension's facets are folded in.
   x14Id: string | undefined;
 }
@@ -297,8 +297,8 @@ interface DataBarExt {
 /**
  * Parse a worksheet's conditional formatting into the model. The classic `<conditionalFormatting>`
  * blocks supply every rule; the x14 extension (`<x14:conditionalFormatting>` inside `<extLst>`) is
- * read only to enrich a classic data bar with the facets the classic element cannot carry — the
- * gradient flag and the negative-fill and axis colours — matched by the shared id the two ends link
+ * read only to enrich a classic data bar with the facets the classic element cannot carry (the
+ * gradient flag and the negative-fill and axis colours) matched by the shared id the two ends link
  * on. An extension rule with no classic counterpart (a rule that lives only in x14) is ignored, so it
  * is never half-read into a broken classic rule.
  */
@@ -311,7 +311,7 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
   let formulaText = '';
 
   // Classic data-bar rules that named an extension, paired with the id they linked on, plus the
-  // extensions gathered from the worksheet <extLst>. The two are married after the pass — the
+  // extensions gathered from the worksheet <extLst>. The two are married after the pass: the
   // extension always follows the classic blocks in document order, so it is known by then.
   const linked: {rule: ConditionalFormattingRule; id: string}[] = [];
   const extById = new Map<string, DataBarExt>();
@@ -420,7 +420,7 @@ function emptyExt(): DataBarExt {
 
 /**
  * Extract the differential-style (`<dxf>`) fragments from styles.xml, each verbatim. Preserving the
- * raw XML — rather than reparsing and re-serialising — is what keeps a foreign dxf's number format a
+ * raw XML, rather than reparsing and re-serialising, is what keeps a foreign dxf's number format a
  * real format code on re-write instead of a coerced `"[object Object]"`, and keeps every conditional
  * formatting's `dxfId` index pointing at the same style it did in the source file.
  */
@@ -456,7 +456,7 @@ function newDraft(attrs: Record<string, string>): RuleDraft {
   };
 }
 
-// priority/rank/stdDev must be finite; a malformed value is dropped rather than propagated as NaN —
+// priority/rank/stdDev must be finite; a malformed value is dropped rather than propagated as NaN.
 // `priority` in particular feeds the writer's running priority counter (see `ruleXml`), so one bad
 // value would otherwise poison every later rule's auto-assigned priority on the same sheet.
 function parseFiniteAttr(value: string | undefined): number | undefined {

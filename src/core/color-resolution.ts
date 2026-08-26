@@ -7,21 +7,21 @@
 //
 // Resolution is deliberately a *derived* view. Nothing here writes back into the model: a `Color`
 // keeps the encoding its file used, so a round-trip re-emits `theme="4" tint="0.4"` rather than
-// rewriting every cell as a literal ARGB — which would bloat the styles table, break the link to the
+// rewriting every cell as a literal ARGB, which would bloat the styles table, break the link to the
 // theme (recolouring the workbook would stop working), and change what the file means.
 
 import type {Color} from './style.ts';
 import {DEFAULT_THEME_COLOR_SCHEME, THEME_COLOR_SLOTS, type ThemeColorScheme} from './theme.ts';
 
 /**
- * The built-in indexed colour palette (ECMA-376 §18.8.27), by index. Entries 0–7 duplicate 8–15 —
+ * The built-in indexed colour palette (ECMA-376 §18.8.27), by index. Entries 0–7 duplicate 8–15, a
  * redundancy the spec preserves for backwards compatibility with the legacy formats this palette came
- * from — and the table is only 64 long: indices 64 and 65 are the *system* foreground and background,
+ * from, and the table is only 64 long: indices 64 and 65 are the *system* foreground and background,
  * which name whatever the operating system's window colours are and therefore have no fixed value at
  * all (see {@link SYSTEM_INDEXED_COLORS}).
  *
- * The spec writes each entry with a leading `00`. That byte is not an alpha channel — a palette of
- * fully transparent colours would be absurd — it is an artefact of the 32-bit colour records these
+ * The spec writes each entry with a leading `00`. That byte is not an alpha channel, since a palette
+ * of fully transparent colours would be absurd. It is an artefact of the 32-bit colour records these
  * values were lifted from, which is why {@link resolveColor} returns them fully opaque.
  */
 // Laid out eight per row, matching how the spec tabulates the palette: the 0-7 / 8-15
@@ -41,7 +41,7 @@ export const DEFAULT_INDEXED_COLORS: readonly string[] = [
 /**
  * The two indices that are not colours: 64 is the system foreground and 65 the system background.
  * They resolve to whatever the viewing system's window colours are, so this library reports them
- * unresolved rather than inventing black and white — a caller that wants to paint them must decide
+ * unresolved rather than inventing black and white: a caller that wants to paint them must decide
  * for itself what "automatic" means in its context. `indexed="64"` in particular is extremely common:
  * it is the placeholder every solid fill Excel writes carries as its background colour.
  */
@@ -54,7 +54,7 @@ export interface ColorResolutionContext {
   /**
    * The workbook's custom indexed palette, by index, each entry an ARGB string. Empty or absent means
    * the workbook rides {@link DEFAULT_INDEXED_COLORS}. A custom palette replaces the built-in one
-   * wholesale — that is what `<indexedColors>` means — so a short custom palette leaves the indices
+   * wholesale, which is what `<indexedColors>` means, so a short custom palette leaves the indices
    * past its end unresolved rather than falling through to the built-in entry.
    */
   readonly indexed?: readonly string[] | undefined;
@@ -62,7 +62,7 @@ export interface ColorResolutionContext {
 
 /**
  * Resolve a colour reference to a concrete 8-hex ARGB string, or `undefined` when it cannot be
- * resolved — an `auto` colour, a system indexed colour, a theme slot the workbook's scheme does not
+ * resolved: an `auto` colour, a system indexed colour, a theme slot the workbook's scheme does not
  * declare, or an index past the end of a custom palette.
  *
  * Precedence follows what the encodings mean: an explicit `argb` is already concrete and wins; then
@@ -105,8 +105,8 @@ function resolveBase(color: Color, context: ColorResolutionContext): string | un
   return undefined;
 }
 
-// Accept the shapes a colour value legitimately arrives in — 6-hex RGB, 8-hex ARGB, either with a
-// leading '#' — and reject anything else rather than returning a half-parsed value. This is a *read*
+// Accept the shapes a colour value legitimately arrives in (6-hex RGB, 8-hex ARGB, either with a
+// leading '#') and reject anything else rather than returning a half-parsed value. This is a *read*
 // path over foreign data, so a malformed entry resolves to nothing; the writer's own normaliser
 // throws, because there the malformed value is a caller's bug.
 function normalizeArgb(value: string): string | undefined {

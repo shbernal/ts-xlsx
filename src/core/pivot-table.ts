@@ -1,13 +1,13 @@
 // A pivot table authored from a model.
 //
 // A pivot summarises a source range: its distinct field values become row/column axes and a value
-// field is aggregated across them. OOXML splits that into three parts — a `pivotCacheDefinition`
+// field is aggregated across them. OOXML splits that into three parts: a `pivotCacheDefinition`
 // (the field catalogue), a `pivotCacheRecords` (a copy of the source rows, with axis-field cells
 // swapped for indices into the catalogue), and a `pivotTableDefinition` (the layout on the
 // destination sheet). This module owns the *semantic* computation of all three; the OOXML rendering
 // lives in `io/xlsx/pivot.ts`.
 //
-// The source data is captured when the pivot is added — the model reads the source sheet's cells
+// The source data is captured when the pivot is added: the model reads the source sheet's cells
 // once, here, so the pivot is a stable snapshot independent of later edits to the source.
 
 import {AuthoringError, InternalError} from '../errors.ts';
@@ -60,8 +60,8 @@ function isPivotMetric(value: string): value is PivotMetric {
 
 /** Map an OOXML `<dataField subtotal="…">` value back to its metric. The attribute is absent for
  * `sum` (Excel's implicit default), so `undefined` reads as `sum`; an unrecognised value also reads
- * as `sum` rather than throwing, because reconstructing an existing file is a lenient operation —
- * the strict rejection of unknown metrics belongs on the authoring path, not the read path. */
+ * as `sum` rather than throwing, because reconstructing an existing file is a lenient operation.
+ * The strict rejection of unknown metrics belongs on the authoring path, not the read path. */
 export function pivotMetricFromSubtotal(subtotal: string | undefined): PivotMetric {
   if (subtotal === undefined) return 'sum';
   return isPivotMetric(subtotal) ? subtotal : 'sum';
@@ -172,7 +172,7 @@ export class PivotTable {
     const metric = options.metric ?? 'sum';
     if (!PIVOT_METRICS.has(metric)) {
       throw new AuthoringError(
-        `unsupported pivot metric "${metric}" — expected one of ${[...PIVOT_METRICS].join(', ')}`,
+        `unsupported pivot metric "${metric}": expected one of ${[...PIVOT_METRICS].join(', ')}`,
       );
     }
     this.metric = metric;
@@ -262,7 +262,7 @@ export class PivotTable {
           const scalar = scalarsForField(columnScalars, fieldIndex)[row];
           if (scalar === undefined) {
             throw new InternalError(
-              `pivot record row ${row} is out of range for field ${fieldIndex} — every column was ` +
+              `pivot record row ${row} is out of range for field ${fieldIndex}: every column was ` +
                 'scanned for the same dataRowCount above, so this index is always in range',
             );
           }
@@ -284,7 +284,7 @@ export class PivotTable {
     const field = this.cacheFields[this.valueField];
     if (field === undefined) {
       throw new InternalError(
-        `pivot valueField index ${this.valueField} is out of range — resolve() validated it against ` +
+        `pivot valueField index ${this.valueField} is out of range: resolve() validated it against ` +
           'the same fields array cacheFields was built from',
       );
     }
@@ -302,7 +302,7 @@ function scalarsForField(
   const scalars = columnScalars[fieldIndex];
   if (scalars === undefined) {
     throw new InternalError(
-      `pivot field index ${fieldIndex} is out of range for columnScalars — it was built from the same fields array`,
+      `pivot field index ${fieldIndex} is out of range for columnScalars: it was built from the same fields array`,
     );
   }
   return scalars;

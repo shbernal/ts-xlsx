@@ -130,7 +130,7 @@ const threadOn = (
   comments: texts.map((text, i) => ({id: i === 0 ? head : `{reply-${i}}`, text, mentions: []})),
 });
 
-// The conversations the package will carry, which is what the writer passes — always the sheet's own, since
+// The conversations the package will carry, which is what the writer passes: always the sheet's own, since
 // the writer serialises the `threadedComment` part from the very same list.
 const shadowing = (sheet: Worksheet) => collectComments(sheet, sheet.commentThreads);
 
@@ -172,7 +172,7 @@ test('a conversation with no note beside it still gets a comments part and a VML
   assert.strictEqual(
     (vmlDrawingXml(comments).match(/<v:shape\b/g) ?? []).length,
     1,
-    'and it has a box to render into — a comment with no shape reads as text but draws nothing',
+    'and it has a box to render into: a comment with no shape reads as text but draws nothing',
   );
 });
 
@@ -194,7 +194,7 @@ test('a conversation is never written half-emitted: the fallback and its thread 
 
 test('each sheet numbers its own thread part, leaving a gap where a sheet has no conversation', () => {
   // Part numbers follow the sheet index, so a workbook whose first sheet has only notes writes
-  // `threadedComment2.xml` with no `threadedComment1.xml` beside it. That gap is fine — nothing addresses
+  // `threadedComment2.xml` with no `threadedComment1.xml` beside it. That gap is fine: nothing addresses
   // these parts by number; each sheet reaches its own through a relationship. Verified with desktop Excel,
   // which reads all three sheets back correctly from exactly this shape.
   const wb = new Workbook();
@@ -290,7 +290,7 @@ test('a fallback is suppressed only for the thread it actually names', () => {
 
 test('an empty self-closing author still occupies its index, so a note keeps its own author', () => {
   // A comment names its author by position in `<authors>`. If a self-closing `<author/>` were skipped,
-  // every later index would shift by one — the note below would inherit the thread's `tc=` author and
+  // every later index would shift by one: the note below would inherit the thread's `tc=` author and
   // then be deleted as a fallback.
   const parsed = parseComments(
     '<comments><authors><author/><author>tc={T}</author></authors><commentList>' +

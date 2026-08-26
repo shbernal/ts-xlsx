@@ -9,7 +9,7 @@ import {Row} from './row.ts';
 import {Workbook} from './workbook.ts';
 import {Worksheet} from './worksheet.ts';
 
-// These numbers are Excel Desktop's, measured over COM against a blank workbook — see
+// These numbers are Excel Desktop's, measured over COM against a blank workbook. See
 // docs/knowledge/specs/grid-geometry-limits-are-excels-not-the-schemas.md. The point of pinning
 // them is that they are *not* what Microsoft's published specifications table says (409 points),
 // so a future reader who "corrects" them against that page fails here and finds the probe.
@@ -18,7 +18,7 @@ test('the geometry limits are the values Excel accepts, not the documented ones'
   assert.equal(MAX_COLUMN_WIDTH, 255, 'Excel takes 255 and refuses 255.4');
 });
 
-test('the model does not enforce them — a foreign file must survive being read', () => {
+test('the model does not enforce them: a foreign file must survive being read', () => {
   const sheet = new Worksheet('S', 1);
   const row = new Row(sheet, 1);
   row.height = MAX_ROW_HEIGHT * 2;
@@ -30,8 +30,8 @@ test('the model does not enforce them — a foreign file must survive being read
 });
 
 // The setters being unbounded only matters if the paths that use them are too. Excel opens an
-// over-limit package clean — it clamps a row to 409.6 on read and leaves a wide column entirely
-// alone — so neither end of our own round-trip may refuse what Excel accepts. A bound added later
+// over-limit package clean: it clamps a row to 409.6 on read and leaves a wide column entirely
+// alone, so neither end of our own round-trip may refuse what Excel accepts. A bound added later
 // to either the writer or the reader fails here rather than in someone's workbook.
 test('an over-limit geometry round-trips through the writer and the reader', () => {
   const source = new Workbook();

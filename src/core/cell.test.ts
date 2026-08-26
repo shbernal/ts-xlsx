@@ -34,7 +34,7 @@ test('style setter composes with prior per-facet sets rather than clearing them 
 
 test('setRichText composes each run over the cell font, so a run states only what it changes', () => {
   // A run's <rPr> is a complete character format: a facet it omits falls back to the workbook
-  // default font, NOT to the cell's. Verified against Excel — a cell set to Courier New 16 whose
+  // default font, NOT to the cell's. Verified against Excel: a cell set to Courier New 16 whose
   // first run carries only <b/> renders that run in the workbook default face. So authoring
   // `{bold: true}` beside a styled cell silently loses the face unless the face is composed in.
   const cell = new Cell(1, 1);
@@ -84,7 +84,7 @@ test('text renders the cell value, and an empty cell has none', () => {
   assert.equal(cell.text, 'Note: the rest', 'rich runs flatten in order');
 });
 
-test('text ignores the number format — the style is not the value', () => {
+test('text ignores the number format: the style is not the value', () => {
   const cell = new Cell(1, 1);
   cell.value = 0.5;
   cell.numFmt = '0.00%';

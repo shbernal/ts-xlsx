@@ -1,14 +1,14 @@
-// Reading a pivot table back from its OOXML parts — the inverse of `pivot.ts`.
+// Reading a pivot table back from its OOXML parts: the inverse of `pivot.ts`.
 //
 // A written pivot round-trips today by byte-preservation: the reader keeps the pivot parts verbatim
-// and re-emits them. That keeps the file faithful, but leaves the pivot opaque to the model — a
+// and re-emits them. That keeps the file faithful, but leaves the pivot opaque to the model: a
 // `.model` copy cannot carry a pivot it cannot see. This module reconstructs the *semantic* shape of
 // a pivot (its source, field roles, value field, and aggregation) from the `pivotTableDefinition`
 // and its `pivotCacheDefinition`, so a loaded pivot becomes inspectable data rather than an opaque
 // blob.
 //
 // Read leniently: these parts describe a file that already exists, so a missing or unrecognised
-// attribute yields a sensible default rather than a throw — the strict invariants belong on the
+// attribute yields a sensible default rather than a throw. The strict invariants belong on the
 // authoring path (`core/pivot-table.ts`), not here. A hostile part therefore degrades to an
 // incomplete model; it never crashes the reader.
 
@@ -43,7 +43,7 @@ export function parsePivotTable(tableXml: string, cacheXml: string): ParsedPivot
 }
 
 /** The field catalogue and worksheet source from a `pivotCacheDefinition`. Fields are collected in
- * document order — the order a table's `fld`/`x` indices address them by. */
+ * document order, the order a table's `fld`/`x` indices address them by. */
 function parsePivotCacheDefinition(cacheXml: string): {
   fields: ParsedPivotField[];
   source: ParsedPivotSource;
@@ -70,8 +70,8 @@ function parsePivotCacheDefinition(cacheXml: string): {
 
 /** The layout half of a pivot: its name, cache id, axis field roles, and the single value field.
  * `<field x>` appears identically inside `<rowFields>` and `<colFields>`, so the current container is
- * tracked to route each into the right axis. Only the first `<dataField>` is modeled — the authoring
- * model supports one value field — and any further ones are ignored rather than rejected. */
+ * tracked to route each into the right axis. Only the first `<dataField>` is modeled (the authoring
+ * model supports one value field) and any further ones are ignored rather than rejected. */
 function parsePivotTableDefinition(tableXml: string): {
   name: string;
   cacheId: string;
@@ -144,7 +144,7 @@ function sourceKind(type: string | undefined): PivotSourceKind {
   return SOURCE_KINDS.has(type as PivotSourceKind) ? (type as PivotSourceKind) : 'unknown';
 }
 
-/** Parse a non-negative field index attribute, or -1 when it is absent or not a whole number — a
+/** Parse a non-negative field index attribute, or -1 when it is absent or not a whole number, so a
  * hostile `x="../etc"` can never become a wild array index this way. */
 function toIndex(value: string | undefined): number {
   if (value === undefined) return -1;

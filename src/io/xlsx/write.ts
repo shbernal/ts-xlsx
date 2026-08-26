@@ -1,8 +1,8 @@
 // The buffered `.xlsx` writer: a Workbook model in, an OPC zip package out.
 //
-// It serialises the part of the model that exists today — worksheets; cells holding a
+// It serialises the part of the model that exists today (worksheets; cells holding a
 // number, string, boolean, or formula; column/row formatting; page margins and
-// header/footer; merged ranges; and worksheet tables — into a valid package (content
+// header/footer; merged ranges; and worksheet tables) into a valid package (content
 // types, relationships, workbook, per-sheet XML, table parts, the default theme and
 // stylesheet, and core/app properties). Styles, images, and the richer value kinds land
 // as the model grows; until then the writer refuses a value it cannot represent
@@ -86,14 +86,14 @@ export interface WriteOptions {
 /**
  * {@link WriteOptions} plus the streaming writer's internal wiring, so a buffered caller's options
  * object can never carry fields meant only for {@link WorkbookStreamWriter}'s own use. Not exported
- * from the public barrel — {@link WorkbookStreamWriter} is the only caller that fills these fields,
+ * from the public barrel: {@link WorkbookStreamWriter} is the only caller that fills these fields,
  * and it reaches them through {@link buildPackageParts}.
  */
 export interface InternalWriteOptions extends WriteOptions {
   /**
    * The style registry to intern into, in place of a freshly-seeded one. The streaming writer
    * serialises each committed row eagerly (freeing its cells), so those rows' style ids must be
-   * assigned by the very same registry that later emits `xl/styles.xml` — otherwise the ids in the
+   * assigned by the very same registry that later emits `xl/styles.xml`; otherwise the ids in the
    * pre-rendered rows would not match the styles part. When omitted the buffered path seeds its own,
    * so its output is unchanged.
    */
@@ -124,19 +124,19 @@ export function writeXlsx(workbook: Workbook, options: WriteOptions = {}): Uint8
 /**
  * Serialise a workbook into an `.xlsx` package, deflating off the calling thread.
  *
- * Produces the same package {@link writeXlsx} does — byte for byte, entry timestamps included — and
+ * Produces the same package {@link writeXlsx} does, byte for byte and entry timestamps included, and
  * exists for one reason: DEFLATE dominates the cost of writing a large workbook, and {@link writeXlsx}
  * spends all of it on the caller's thread. Here `fflate` deflates each part in a worker, so the event
  * loop keeps turning (stalls drop from the whole write to tens of milliseconds) and parts compress in
  * parallel, which on a multi-sheet workbook also finishes sooner. On a single-sheet workbook there is
  * only one part to deflate, so expect responsiveness rather than speed.
  *
- * Building the parts still happens on the calling thread — only compression moves. That is why there
+ * Building the parts still happens on the calling thread; only compression moves. That is why there
  * is no `readXlsxAsync` mirroring this: reading is dominated by XML parsing and model building, which
  * no worker can take, and the reader's zip-bomb ceiling is enforced by counting output between
  * synchronous input slices. See ADR-0024.
  *
- * @throws {AuthoringError} — as a rejection — under the same conditions as {@link writeXlsx};
+ * @throws {AuthoringError}, as a rejection, under the same conditions as {@link writeXlsx};
  *   the part-building it shares happens before any worker is involved. A failure raised by the zip
  *   layer itself (including an environment that cannot spawn a worker) propagates unwrapped, exactly
  *   as it does from {@link writeXlsx}.
@@ -162,7 +162,7 @@ export async function writeXlsxAsync(
  */
 export function createStyleRegistry(workbook: Workbook): StyleRegistry {
   // Font id 0 is the workbook's own default face, resolved from what it declared, what was authored,
-  // and its theme's body typeface — never an assumed Calibri, which would re-face every empty cell
+  // and its theme's body typeface. Never an assumed Calibri, which would re-face every empty cell
   // and change the metric every character-unit column width is expressed in.
   const styles = new StyleRegistry({
     defaultFont: workbook.defaultFont,
@@ -185,13 +185,13 @@ export function createStyleRegistry(workbook: Workbook): StyleRegistry {
   // each element's dxfId still indexes the differential-style table seeded above at its original index.
   styles.seedTableStyles(workbook.tableStyles);
   // Authored styles append after the preserved ones, and intern their elements' formatting after the
-  // seeded dxfs — the ordering that keeps every preserved dxfId pointing where it did.
+  // seeded dxfs: the ordering that keeps every preserved dxfId pointing where it did.
   for (const style of workbook.customTableStyles) styles.addTableStyle(style);
   return styles;
 }
 
 // One worksheet's planned package parts and the sheet-local relationship ids wiring them, produced in
-// the single planning pass. Held as a struct per sheet — rather than eight index-aligned arrays — so a
+// the single planning pass. Held as a struct per sheet rather than eight index-aligned arrays, so a
 // downstream step reads one sheet's plan as a unit and cannot transpose two sheets by mis-indexing.
 interface SheetPlan {
   readonly tables: TablePlan[];
@@ -229,8 +229,8 @@ function resolveSheetReferences(plan: SheetPlan): SheetReferences {
 
 /**
  * Assemble a workbook into the map of OPC package parts (part name → bytes) that make up an `.xlsx`,
- * short of zipping them. This is the whole serialisation — content types, relationships, workbook,
- * per-sheet XML, styles, theme, media, tables, and props — factored out of {@link writeXlsx} so the
+ * short of zipping them. This is the whole serialisation (content types, relationships, workbook,
+ * per-sheet XML, styles, theme, media, tables, and props) factored out of {@link writeXlsx} so the
  * streaming writer can drive the identical parts through a streamed zip container rather than
  * `zipSync`. Neither writer duplicates a byte of serialisation.
  *
@@ -243,7 +243,7 @@ export function buildPackageParts(
   const sheets = workbook.worksheets;
   if (sheets.length === 0) {
     throw new AuthoringError(
-      'cannot write a workbook with no worksheets — a zero-sheet package is corrupt to Excel',
+      'cannot write a workbook with no worksheets: a zero-sheet package is corrupt to Excel',
     );
   }
 
@@ -255,8 +255,8 @@ export function buildPackageParts(
   // addressed by a global number. Resolved before the sheet loop so a drawing's embeds can target it.
   const media = planMedia(workbook, sheets);
 
-  // Content the model does not interpret — a vector-shape drawing, a header/footer image, a pivot
-  // table and its caches, a slicer — captured on read and re-emitted verbatim onto collision-proof
+  // Content the model does not interpret (a vector-shape drawing, a header/footer image, a pivot
+  // table and its caches, a slicer) captured on read and re-emitted verbatim onto collision-proof
   // paths. Preserved parts are renumbered past the parts the writer generates of the same kind
   // (drawings, VML, media), so resolving them needs only those generated counts; each sheet's
   // preserved references take their sheet-local rel ids in canonical position in the loop below.
@@ -266,7 +266,7 @@ export function buildPackageParts(
   // Plan every sheet's parts in a single pass, drawing each sheet-local relationship id from that
   // sheet's allocator in canonical order: tables, drawing, comments (VML + comments part), printer
   // settings, external hyperlinks, background, preserved references, pivot tables. One running
-  // allocator per sheet is what keeps the ids gapless and collision-free — no step re-derives its
+  // allocator per sheet is what keeps the ids gapless and collision-free: no step re-derives its
   // offset by summing the ones before it, so none can drift into another's id. Part numbers (tables,
   // drawings, pivots) are global across the workbook and counted here in the same pass.
   let tableNumber = 0;
@@ -300,7 +300,7 @@ export function buildPackageParts(
     // A conversation and the legacy fallback `<comment>` that binds its cell to it are two halves of one
     // representation, so both are derived from this single list and neither can be emitted without the
     // other. Verified against desktop Excel: a `tc=` fallback whose thread part is absent shows as neither
-    // a thread nor a note — the text disappears rather than degrading — and a thread part whose fallback is
+    // a thread nor a note (the text disappears rather than degrading) and a thread part whose fallback is
     // absent is ignored, leaving the cell blank. A thread with no messages is not one of them: it has
     // nothing to say, and no head id for its replies or its fallback to hang off.
     const threads = sheet.commentThreads.filter((thread) => thread.comments.length > 0);
@@ -411,11 +411,11 @@ export function buildPackageParts(
 
   // The identity registry is emitted only beside the thread parts that point into it. With no conversation
   // in the package nothing can reference a `<person>`, so the part would be a workbook-level relationship
-  // to dead weight — and it is the messages, not the registry, that make an identity worth carrying.
+  // to dead weight, and it is the messages, not the registry, that make an identity worth carrying.
   const persons = threadedCommentNumbers.length === 0 ? [] : workbook.persons;
 
-  // A preserved workbook reference's relationship id follows the modeled workbook rels — the sheets,
-  // styles, theme, and (when emitted) shared strings and the threaded-comment person registry — so adding
+  // A preserved workbook reference's relationship id follows the modeled workbook rels (the sheets,
+  // styles, theme, and, when emitted, shared strings and the threaded-comment person registry) so adding
   // one never renumbers an id already used. The workbook body and its rels part are wired from the same
   // assignment, so a pivot cache's `<pivotCaches>` registration and its relationship agree on the id.
   const modeledWorkbookRelCount =
@@ -464,7 +464,7 @@ export function buildPackageParts(
     ),
     'xl/styles.xml': strToU8(styles.toXml()),
   };
-  // A theme read from a source package is emitted through the preserved-part path, closure and all —
+  // A theme read from a source package is emitted through the preserved-part path, closure and all,
   // with any authored overrides already spliced into its entry part by the planner. A workbook without
   // one gets its authored theme, or the library's default, which the stylesheet's `theme="1"` default
   // font still needs something to resolve against.
@@ -569,7 +569,7 @@ function emitSheetParts(
 
 // Emit every pivot table's three chained parts. A pivot spans a pivot-table part (linked from its host
 // sheet) that references a cache definition, which references its cache records. Each cache carries a
-// rels part naming the next link by `rId1` — the id the definition/table XML resolves against.
+// rels part naming the next link by `rId1`: the id the definition/table XML resolves against.
 function emitPivotParts(files: PackageFiles, allPivots: readonly PivotPlan[]): void {
   for (const pivot of allPivots) {
     const {number, cacheId, table} = pivot;

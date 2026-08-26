@@ -1,7 +1,7 @@
 // The post-2007 functions Excel persists with an `_xlfn.` prefix, keyed by their uppercased name.
 // OOXML froze its function grammar around Excel 2007; everything Microsoft added since is unknown to
 // older readers under its bare name, so the writer stores it prefixed and the reader strips the prefix
-// back — the mangling in `formula.ts` is the single place that applies and removes it. That mangler
+// back. The mangling in `formula.ts` is the single place that applies and removes it, and that mangler
 // treats '.' as part of a function name, so both the plain modern functions and the dotted 2010
 // statistical rename family below are matched as whole names and prefixed.
 export const MODERN_FUNCTIONS: ReadonlySet<string> = new Set([
@@ -50,7 +50,7 @@ export const MODERN_FUNCTIONS: ReadonlySet<string> = new Set([
   'MAXIFS',
   'MINIFS',
 
-  // Other bare-name functions added after the frozen grammar (Excel 2010 / 2013) — trigonometric,
+  // Other bare-name functions added after the frozen grammar (Excel 2010 / 2013): trigonometric,
   // bitwise, engineering, information, and math/financial additions. Their names carry no '.', so
   // they need no tokenizer work; they simply have to be recognised as modern to earn the prefix.
   'AGGREGATE',

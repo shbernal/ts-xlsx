@@ -2,27 +2,27 @@
 // stream, rather than holding the finished bytes in one buffer as {@link writeXlsx} does.
 //
 // A producer adds worksheets, appends rows as it generates them, commits each sheet, then commits the
-// workbook — at which point the package is assembled and streamed out. The output goes to whichever
+// workbook, at which point the package is assembled and streamed out. The output goes to whichever
 // destination the caller chose at construction: its own pull-based `stream` to pipe, a caller-owned
 // `Writable` sink (an outbound upload), or a `filename` the writer opens. In every case `commit()`
-// settles — it resolves once a supplied sink has flushed the whole package and rejects if that sink
+// settles: it resolves once a supplied sink has flushed the whole package and rejects if that sink
 // errors (an unopenable file), never hanging on a finish signal that will not come. The output rides a
 // genuinely
 // streamed zip container (fflate's `Zip`/`ZipDeflate`), which computes each entry's CRC-32
-// incrementally, so the archive is well-formed by construction — the defect the upstream "streaming
+// incrementally, so the archive is well-formed by construction, and the defect the upstream "streaming
 // writer emits a corrupt zip" reports describe is structurally absent here. The bytes reload
 // identically to a whole-file write because both writers share `buildPackageParts` for every part.
 //
 // Peak memory: a row committed with `row.commit()` is serialised to its `<row>` XML immediately and
 // its cells evicted from the model, so an append-driven producer holds only the rows still in flight
 // rather than the whole sheet's cell graph. The eagerly-rendered rows intern into the workbook's live
-// style registry — the same one that emits `xl/styles.xml` — so their style ids stay correct; their
+// style registry, the same one that emits `xl/styles.xml`, so their style ids stay correct; their
 // XML is handed to `buildPackageParts` and emitted at the head of `<sheetData>`. This eager path runs
 // with strings inline (a shared-strings pool is inherently whole-workbook, so it defeats bounding);
 // turning `useSharedStrings` on falls back to holding every row live until commit. A flushed row is a
 // finished row: it cannot join whole-sheet derivations, so a shared-formula clone in a committed row
 // is rejected, and rows reached only through `getCell` (never `row.commit()`) stay live and serialise
-// the ordinary way. The package bytes themselves are still assembled once at commit — a later slice
+// the ordinary way. The package bytes themselves are still assembled once at commit; a later slice
 // can flush each sheet's `<sheetData>` straight into its streamed zip entry to bound that half too.
 
 import {createWriteStream} from 'node:fs';
@@ -56,17 +56,17 @@ import {
 
 /** Calculation settings applied to the streamed workbook. Mirrors the {@link Workbook} flags. */
 export interface CalcProperties {
-  /** Ask the consumer to recalculate every formula on open — the OOXML `fullCalcOnLoad` flag. */
+  /** Ask the consumer to recalculate every formula on open: the OOXML `fullCalcOnLoad` flag. */
   fullCalcOnLoad?: boolean;
 }
 
-// A caller may supply a sink to write to (a stream or a filename) but never both — enforced here as a
+// A caller may supply a sink to write to (a stream or a filename) but never both. This is enforced as a
 // type-level union rather than only the runtime check the constructor also carries, so passing both is
 // a compile error, not a first-run surprise.
 type SinkOptions =
   | {
       /**
-       * Write the package to a caller-owned {@link Writable} sink — an outbound upload, a cloud-SDK
+       * Write the package to a caller-owned {@link Writable} sink: an outbound upload, a cloud-SDK
        * stream, any destination the caller controls. {@link WorkbookStreamWriter.commit} pushes every
        * chunk into it and settles only once the sink has finished (or rejects if it errors), so a
        * caller can deterministically sequence work after the upload completes. Mutually exclusive
@@ -90,7 +90,7 @@ type SinkOptions =
 /** Options fixed at construction that shape the whole streamed package. */
 export type WorkbookStreamWriterOptions = SinkOptions & {
   /**
-   * Pool plain string cell values into a shared-strings table rather than storing each inline — the
+   * Pool plain string cell values into a shared-strings table rather than storing each inline: the
    * same {@link WriteOptions.useSharedStrings} the buffered writer exposes. Off by default.
    */
   readonly useSharedStrings?: boolean;
@@ -120,7 +120,7 @@ export class StreamedRow {
   }
 
   /** Finalise the row: an eager writer serialises it now and releases its cells; otherwise a no-op.
-   * Committing twice is harmless — the second call does nothing rather than re-emitting the row. */
+   * Committing twice is harmless: the second call does nothing rather than re-emitting the row. */
   commit(): void {
     if (this.#committed) return;
     this.#committed = true;
@@ -130,7 +130,7 @@ export class StreamedRow {
 
 /**
  * A worksheet being written incrementally. Append rows with {@link addRow}/{@link addRows}, style
- * cells through {@link getCell}, then {@link commit} to freeze it — after which any further mutation
+ * cells through {@link getCell}, then {@link commit} to freeze it, after which any further mutation
  * is rejected with a legible error rather than silently accepted or crashing.
  */
 export class WorksheetStreamWriter {
@@ -159,7 +159,7 @@ export class WorksheetStreamWriter {
     return this.#sheet.name;
   }
 
-  /** The number of rows written so far — spans gaps and formatted-only rows, like the model, and
+  /** The number of rows written so far. Spans gaps and formatted-only rows, like the model, and
    * survives the eviction of eagerly-flushed rows. */
   get rowCount(): number {
     return Math.max(this.#lastRow, this.#sheet.rowCount);
@@ -205,7 +205,7 @@ export class WorksheetStreamWriter {
    * {@link StreamedRow.commit}; the row's `<row>` XML is retained (interned into the workbook's live
    * style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
    *
-   * @throws {AuthoringError} if the row carries a shared-formula cell — a finished row cannot join the
+   * @throws {AuthoringError} if the row carries a shared-formula cell: a finished row cannot join the
    *   whole-sheet formula planning, so shared formulas must be authored through {@link getCell}.
    */
   flushRow(number: number, cells: readonly Cell[]): void {
@@ -221,7 +221,7 @@ export class WorksheetStreamWriter {
     this.#columnDefaults ??= buildColumnDefaults(this.#sheet);
     const properties = this.#sheet.getRow(number).properties;
     // The row's outline depth is read off here because eviction is about to take its properties with
-    // it, and `<sheetFormatPr outlineLevelRow>` — written long after, once every row is flushed —
+    // it, and `<sheetFormatPr outlineLevelRow>`, written long after once every row is flushed,
     // reports the deepest level on the whole sheet.
     this.#maxRowOutlineLevel = Math.max(this.#maxRowOutlineLevel, properties?.outlineLevel ?? 0);
     const {xml, minCol, maxCol} = renderRow(
@@ -241,7 +241,7 @@ export class WorksheetStreamWriter {
     this.#sheet[INTERNAL].evictRow(number);
   }
 
-  // The rows this writer flushed, or undefined if none — handed to buildPackageParts at commit.
+  // The rows this writer flushed, or undefined if none. Handed to buildPackageParts at commit.
   flushedSheet(): FlushedSheet | undefined {
     if (this.#flushedRows.length === 0) return undefined;
     return {
@@ -259,8 +259,8 @@ export class WorksheetStreamWriter {
 
   /**
    * Attach a data validation to a range before the sheet is committed. Delegates to the model, so the
-   * streamed package emits the `<dataValidations>` block in its CT_Worksheet position — before
-   * `<hyperlinks>` — because both writers share one worksheet serializer.
+   * streamed package emits the `<dataValidations>` block in its CT_Worksheet position, before
+   * `<hyperlinks>`, because both writers share one worksheet serializer.
    */
   addDataValidation(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void {
     this.#assertOpen();
@@ -269,8 +269,8 @@ export class WorksheetStreamWriter {
 
   /**
    * Attach a conditional formatting to a range before the sheet is committed. Like every other block,
-   * it lands in its schema-mandated slot — after `<mergeCells>`, before `<dataValidations>` and
-   * `<hyperlinks>` — since the streamed sheet is serialized through the same path as a buffered write.
+   * it lands in its schema-mandated slot, after `<mergeCells>` and before `<dataValidations>` and
+   * `<hyperlinks>`, since the streamed sheet is serialized through the same path as a buffered write.
    */
   addConditionalFormatting(formatting: ConditionalFormatting): void {
     this.#assertOpen();
@@ -281,7 +281,7 @@ export class WorksheetStreamWriter {
    * Anchor a workbook image (the id from {@link WorkbookStreamWriter.addImage}) to this sheet,
    * spanning the rectangle from the top-left grid point `tl` to the bottom-right `br`. The streamed
    * package emits the drawing part, its media relationship, and the sheet's `<drawing>` reference
-   * exactly as a buffered write does — both writers share `buildPackageParts`.
+   * exactly as a buffered write does: both writers share `buildPackageParts`.
    */
   addImage(imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: AnchorPoint}): void {
     this.#assertOpen();
@@ -290,7 +290,7 @@ export class WorksheetStreamWriter {
 
   /**
    * Apply the sheet's autofilter before it is committed; mirrors {@link Worksheet.autoFilter}. The
-   * streamed package emits `<autoFilter>` in its CT_Worksheet slot — after `<sheetProtection>` — and
+   * streamed package emits `<autoFilter>` in its CT_Worksheet slot, after `<sheetProtection>`, and
    * contributes the hidden `_FilterDatabase` defined name, exactly as a buffered write does.
    */
   set autoFilter(filter: string | AutoFilter | undefined) {
@@ -330,7 +330,7 @@ export class WorksheetStreamWriter {
   #assertOpen(): void {
     if (this.#committed) {
       throw new AuthoringError(
-        `worksheet "${this.#sheet.name}" is already committed — its rows are finalised and no more can be added`,
+        `worksheet "${this.#sheet.name}" is already committed: its rows are finalised and no more can be added`,
       );
     }
   }
@@ -351,7 +351,7 @@ export class WorkbookStreamWriter {
   // flushed row's style ids match the styles.xml built from the same table.
   readonly #styles: StyleRegistry;
   // Eager per-row flushing runs with strings inline; a shared-strings pool is inherently whole-workbook,
-  // so it cannot bound memory — turning it on keeps every row live until commit.
+  // so it cannot bound memory: turning it on keeps every row live until commit.
   readonly #eager: boolean;
   #stream: PassThrough | undefined;
   #committed = false;
@@ -378,8 +378,8 @@ export class WorkbookStreamWriter {
   }
 
   /**
-   * The output stream carrying the package bytes. A caller drives it with Node's standard idiom —
-   * `writer.stream.pipe(out)` — which composes because `pipe` returns its destination. The stream is
+   * The output stream carrying the package bytes. A caller drives it with Node's standard idiom,
+   * `writer.stream.pipe(out)`, which composes because `pipe` returns its destination. The stream is
    * created lazily on first access so a caller handing the writer its own sink is still free to
    * ignore this one.
    */
@@ -396,7 +396,7 @@ export class WorkbookStreamWriter {
   addImage(options: AddImageOptions): number {
     if (this.#committed) {
       throw new AuthoringError(
-        'the workbook is already committed — no more images can be registered',
+        'the workbook is already committed: no more images can be registered',
       );
     }
     return this.#workbook.addImage(options);
@@ -406,7 +406,7 @@ export class WorkbookStreamWriter {
   addWorksheet(name: string, options: AddWorksheetOptions = {}): WorksheetStreamWriter {
     if (this.#committed) {
       throw new AuthoringError(
-        'the workbook is already committed — no more worksheets can be added',
+        'the workbook is already committed: no more worksheets can be added',
       );
     }
     const sheet = new WorksheetStreamWriter(
@@ -447,7 +447,7 @@ export class WorkbookStreamWriter {
     const owned = this.#stream;
     const sink = this.#sink;
     // Track the caller sink's terminal state before writing a byte, so an open failure that errors on a
-    // later tick (a bad filename) is caught rather than lost — the whole point of the reject-not-hang
+    // later tick (a bad filename) is caught rather than lost, which is the whole point of the reject-not-hang
     // contract.
     const sinkSettled = sink ? settleOnFinish(sink) : undefined;
 
@@ -464,7 +464,7 @@ export class WorkbookStreamWriter {
 }
 
 // Resolve when a caller-supplied sink has flushed the whole package (`finish`), or reject if it errors
-// (`error`) — the commit promise must settle either way, never hang. Whichever fires first wins; the
+// (`error`): the commit promise must settle either way, never hang. Whichever fires first wins; the
 // other is ignored.
 function settleOnFinish(sink: Writable): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -475,7 +475,7 @@ function settleOnFinish(sink: Writable): Promise<void> {
 
 // Zip the package parts through fflate's streaming container, forwarding each output chunk to `onChunk`
 // as it is produced and resolving with the whole archive once the final chunk arrives. `ZipDeflate`
-// deflates synchronously, so the callback fires inline as each part is pushed — the CRC-32 fflate
+// deflates synchronously, so the callback fires inline as each part is pushed, and the CRC-32 fflate
 // stamps into every entry's header therefore always matches the bytes it just compressed.
 function streamZipPackage(
   parts: Record<string, Uint8Array>,
@@ -494,8 +494,8 @@ function streamZipPackage(
     });
     for (const [name, data] of Object.entries(parts)) {
       const entry = new ZipDeflate(name, {level: 6});
-      // `mtime` is a field on the entry rather than a compression option — `ZipDeflate` forwards its
-      // options to the deflater alone — and the header is written when the entry is added, so it has
+      // `mtime` is a field on the entry rather than a compression option (`ZipDeflate` forwards its
+      // options to the deflater alone) and the header is written when the entry is added, so it has
       // to be set before that call rather than before the first push.
       entry.mtime = FIXED_ENTRY_MTIME;
       zip.add(entry);

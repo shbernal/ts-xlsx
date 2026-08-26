@@ -1,7 +1,7 @@
 // Writing a workbook is a function of the workbook and nothing else.
 //
-// The three writers reach fflate through three different calls — `zipSync`, `zip`, and the streamed
-// `Zip`/`ZipDeflate` container — and each of them defaults an entry's timestamp to `Date.now()`. One
+// The three writers reach fflate through three different calls (`zipSync`, `zip`, and the streamed
+// `Zip`/`ZipDeflate` container) and each of them defaults an entry's timestamp to `Date.now()`. One
 // call site left unpinned is enough to make a regenerated deliverable churn, and the failure is
 // silent: the package stays valid, reloads identically, and only shows up as a diff in someone
 // else's repository. So each writer is asked here, in the same terms.
@@ -15,7 +15,7 @@ import {writeXlsx, writeXlsxAsync} from './write.ts';
 
 // The instant every entry must carry, spelled out rather than imported from `FIXED_ENTRY_MTIME`, so
 // these tests can disagree with the constant instead of restating it. Read from the clock instead,
-// this would be today — which is exactly the churn the pin exists to stop.
+// this would be today, which is exactly the churn the pin exists to stop.
 const EXPECTED_STAMP = {year: 2001, month: 1, day: 1, hour: 12, minute: 0, second: 0};
 
 // A workbook with enough shape to spread across several package parts, so a stamp assertion covers

@@ -24,7 +24,7 @@ export interface FilterColumn {
 export type FilterCriteria = ValuesFilter | CustomFilter;
 
 /**
- * A column narrowed to a discrete set of allowed values — the checkbox list in Excel's dropdown.
+ * A column narrowed to a discrete set of allowed values: the checkbox list in Excel's dropdown.
  * A row survives when its cell in this column matches one of {@link values} (or is blank, when
  * {@link blank} is set).
  */
@@ -76,7 +76,7 @@ export function isCustomFilterOperator(value: string): value is CustomFilterOper
  * Validate and normalise a settable autofilter into its canonical stored form. A bare range string
  * is the common case (dropdowns, no criteria); an {@link AutoFilter} object carries per-column
  * criteria too. Throws when the range is not a bounded rectangle, or a column's `colId` falls
- * outside it, or a custom filter does not carry one or two predicates — a filter authored wrong is
+ * outside it, or a custom filter does not carry one or two predicates: a filter authored wrong is
  * a bug to surface, not to silently repair. (The reader sanitises hostile input before it reaches
  * here, so load never trips these guards.)
  */

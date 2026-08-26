@@ -1,4 +1,4 @@
-// Data validation — the input constraints Excel enforces on a cell (a dropdown list, a numeric
+// Data validation: the input constraints Excel enforces on a cell (a dropdown list, a numeric
 // range, a length limit, a custom formula). Unlike a style facet, a validation is not owned by one
 // cell: it is a worksheet-level overlay keyed by a target range (`sqref`), and a cell inherits
 // whichever rule's range contains it. Keying by range is what keeps a whole-column dropdown a single
@@ -30,7 +30,7 @@ export type DataValidationOperator =
 /** How Excel reacts to input that fails the rule. */
 export type DataValidationErrorStyle = 'stop' | 'warning' | 'information';
 
-/** One validation rule. `formulae` holds the operand(s) — `formula1` then optional `formula2`: a
+/** One validation rule. `formulae` holds the operand(s), `formula1` then optional `formula2`: a
  * numeric literal is stored as a number, while a cell reference, defined name, or list source keeps
  * its verbatim string. */
 export interface DataValidation {
@@ -47,9 +47,9 @@ export interface DataValidation {
   promptTitle?: string;
 }
 
-/** A validation bound to the range(s) it covers. `sqref` is an OOXML `sqref` — one or more
+/** A validation bound to the range(s) it covers. `sqref` is an OOXML `sqref`: one or more
  * space-separated ranges. `extended` marks a rule stored in the 2009 extension form
- * (`<x14:dataValidation>` inside the worksheet `<extLst>`) — Excel's carrier for validations a
+ * (`<x14:dataValidation>` inside the worksheet `<extLst>`), Excel's carrier for validations a
  * legacy `<dataValidation>` cannot express, such as a list source on another sheet. The flag is how
  * a rule read from that form remembers to be written back to it, rather than downgraded to the
  * standard element (which would corrupt a cross-sheet reference). */

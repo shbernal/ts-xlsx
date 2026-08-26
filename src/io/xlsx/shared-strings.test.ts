@@ -50,7 +50,7 @@ test('an enabled workbook with no string cells never fabricates an empty sharedS
   assert.doesNotMatch(partText(pkg, 'xl/_rels/workbook.xml.rels') ?? '', /sharedStrings/);
 });
 
-test('an identical string is pooled once — count counts references, uniqueCount counts entries', () => {
+test('an identical string is pooled once: count counts references, uniqueCount counts entries', () => {
   const pkg = writeXlsx(bookWithStrings('dup', 'dup', 'other'), {useSharedStrings: true});
   const sst = partText(pkg, 'xl/sharedStrings.xml') ?? '';
 
@@ -82,7 +82,7 @@ test('under the option a rich-text cell is pooled as a rich <si> of runs and rea
   };
   const pkg = writeXlsx(workbook, {useSharedStrings: true});
 
-  // The runs become a rich <si> entry the cell references by index — the shape Excel itself writes.
+  // The runs become a rich <si> entry the cell references by index: the shape Excel itself writes.
   assert.match(
     partText(pkg, 'xl/sharedStrings.xml') ?? '',
     /<si><r><rPr><b\/><\/rPr><t>bold<\/t><\/r><r><t>plain<\/t><\/r><\/si>/,
@@ -105,7 +105,7 @@ test('a plain string and rich runs of the same text stay distinct entries in the
   const sst = partText(pkg, 'xl/sharedStrings.xml') ?? '';
 
   // The plain <t> entry and the <r>-run entry render to different markup, so neither collapses
-  // into the other — two references, two distinct entries.
+  // into the other: two references, two distinct entries.
   assert.match(sst, /uniqueCount="2"/);
   const cells = partText(pkg, 'xl/worksheets/sheet1.xml') ?? '';
   assert.match(cells, /r="A1"[^>]* t="s"><v>0<\/v>/);
@@ -140,7 +140,7 @@ test('parseSharedStrings reconstructs a foreign rich <si> into runs, not flatten
 });
 
 test('a t="s" cell pointing at a foreign rich <si> reads back as rich text', () => {
-  // Author a plain package, then graft a rich shared-strings pool and a t="s" cell onto it — the
+  // Author a plain package, then graft a rich shared-strings pool and a t="s" cell onto it: the
   // markup Excel writes but our writer only produces on round-trip.
   const base = new Workbook();
   base.addWorksheet('S');

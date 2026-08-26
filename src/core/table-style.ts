@@ -1,7 +1,7 @@
 // A custom table style: the named, reusable look a table (or a pivot) applies to itself by name.
 //
-// A table style is a list of *elements*, each naming one region of the table — the whole table, the
-// header row, the first row stripe — and the differential formatting to lay over it. Excel's built-in
+// A table style is a list of *elements*, each naming one region of the table (the whole table, the
+// header row, the first row stripe) and the differential formatting to lay over it. Excel's built-in
 // gallery ("TableStyleMedium2" and its sixty siblings) is exactly this shape; a workbook that declares
 // its own joins the gallery for that file, and a table reaches it by name through
 // `TableStyleInfo.name`.
@@ -14,8 +14,8 @@ import type {DifferentialStyle} from './style.ts';
  *
  * The first thirteen apply to a **table**; the rest style a **pivot table**, which has regions a
  * table does not have (subtotal rows, page-field labels, subheadings). Both live in the same
- * enumeration and the same `<tableStyle>` element — what decides which regions a consumer honours is
- * the style's own `table`/`pivot` flags, not the element names — so the type carries all of them
+ * enumeration and the same `<tableStyle>` element. What decides which regions a consumer honours is
+ * the style's own `table`/`pivot` flags, not the element names, so the type carries all of them
  * rather than splitting into two enumerations that a caller would have to choose between up front.
  */
 export const TABLE_STYLE_ELEMENT_TYPES = [
@@ -52,7 +52,7 @@ export const TABLE_STYLE_ELEMENT_TYPES = [
 /** One region of a table or pivot that a table style can format. */
 export type TableStyleElementType = (typeof TABLE_STYLE_ELEMENT_TYPES)[number];
 
-/** The four element types banded across several rows or columns — the only ones {@link TableStyleElement.size} means anything on. */
+/** The four element types banded across several rows or columns: the only ones {@link TableStyleElement.size} means anything on. */
 export const STRIPE_ELEMENT_TYPES: ReadonlySet<TableStyleElementType> = new Set([
   'firstRowStripe',
   'secondRowStripe',
@@ -66,7 +66,7 @@ export function isTableStyleElementType(value: string): value is TableStyleEleme
 
 /**
  * How one region of a table is formatted: a {@link DifferentialStyle} laid over whatever the cells
- * already carry, plus — for a stripe — how many rows or columns wide one band is.
+ * already carry, plus, for a stripe, how many rows or columns wide one band is.
  *
  * A `numFmt` here is carried faithfully but has no visible effect: Excel's own table-style element
  * exposes a font, an interior and borders, and nothing for a number format. See
@@ -74,7 +74,7 @@ export function isTableStyleElementType(value: string): value is TableStyleEleme
  */
 export interface TableStyleElement extends DifferentialStyle {
   /**
-   * The band width, in rows or columns, for a striped element — `2` makes each band two rows deep.
+   * The band width, in rows or columns, for a striped element: `2` makes each band two rows deep.
    * Defaults to 1.
    *
    * Meaningful **only** on the four stripe types ({@link STRIPE_ELEMENT_TYPES}); ECMA-376 says so and
@@ -92,7 +92,7 @@ export interface TableStyleElement extends DifferentialStyle {
  * Elements are applied in the order ECMA-376 fixes, not the order they are written here: whole table,
  * then the column stripes, then the row stripes, then last/first column, header row, total row, and
  * the four corner cells. So a row stripe wins over a column stripe, and both win over the whole-table
- * formatting — worth knowing when a stripe colour appears not to take.
+ * formatting, which is worth knowing when a stripe colour appears not to take.
  */
 export interface TableStyle {
   /** The name a table references, and the name Excel shows in its style gallery. */
@@ -110,7 +110,7 @@ export interface TableStyle {
  *
  * Both failures here are of the same kind: Excel accepts the file and quietly does nothing with the
  * part the caller cared about. An empty name means no table can ever reference the style, and a
- * `size` outside a stripe is ignored — neither shows up as a repair prompt or a schema error, so the
+ * `size` outside a stripe is ignored. Neither shows up as a repair prompt or a schema error, so the
  * only place to catch them is the call that made them.
  *
  * @throws {AuthoringError} if the name is empty, or a non-stripe element carries a `size`, or a `size` is not

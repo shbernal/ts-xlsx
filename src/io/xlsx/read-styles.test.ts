@@ -104,7 +104,7 @@ test('an unrecognised alignment token is dropped; a valid one is kept', () => {
   assert.deepEqual(good.cellXfs[0]?.alignment, {horizontal: 'center', vertical: 'top'});
 });
 
-// A named style's label — the `name`/`builtinId` pair on <cellStyle> — is invisible to a round trip:
+// A named style's label, the `name`/`builtinId` pair on <cellStyle>, is invisible to a round trip:
 // a reader that drops it and a writer that never emits it agree with each other, and the corpus is a
 // fixed point of both (ADR 0012). So it is asserted here, against the parse, in the only place that
 // can see the difference.
@@ -131,7 +131,7 @@ test("a named style's label reaches the model, name and builtinId both", () => {
 
 test('a label out of order titles the entry its xfId names, not the one it was declared at', () => {
   // The labels zip against cellStyleXfs by xfId, not by document position, so a file listing them in
-  // any other order must still title the right base — and an unlabelled base must stay unlabelled
+  // any other order must still title the right base, and an unlabelled base must stay unlabelled
   // rather than inherit its neighbour's name.
   const table = parseStyleTable(
     '<styleSheet>' +

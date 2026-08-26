@@ -1,8 +1,8 @@
 // The workbook: the top of the model and the entry point of the public API.
 //
 // It owns its worksheets and the document-level properties. Sheet identity follows
-// Excel's rules — names are unique case-insensitively, bounded in length, and free
-// of the characters Excel forbids — so an invalid book cannot be constructed in the
+// Excel's rules: names are unique case-insensitively, bounded in length, and free of
+// the characters Excel forbids. An invalid book therefore cannot be constructed in the
 // first place, rather than failing only at write time.
 
 import {type CustomUiDocument, isCustomUiRelType, parseCustomUi} from '../customui/index.ts';
@@ -12,7 +12,7 @@ import {
   // structural splices by pointing at the functions that perform them. tsc counts a `{@link}` as a
   // use and oxlint does not, so `noUnusedLocals` is satisfied and the linter still has to be told.
   // Upstream at oxc-project/oxc#11639, open since 2025-06-12 (a fix was drafted in #13989 and not
-  // merged); do not file another. Nor is this oxlint diverging from the linter it replaced —
+  // merged); do not file another. Nor is this oxlint diverging from the linter it replaced:
   // typescript-eslint reports the same and closed its own reports as not-planned, referring people
   // to `jsdoc/no-undefined-types`. `noUnusedLocals` is the only checker in this toolchain that
   // resolves a doc link. When #11639 lands, `--report-unused-disable-directives` retires these four.
@@ -53,15 +53,15 @@ import {WorkbookVbaProject} from './workbook-vba.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
 
 /**
- * A workbook-level reference to package content the model does not model — a pivot cache
- * (`pivotCacheDefinition`) or a slicer cache (`slicerCache`) — preserved verbatim across a round-trip
+ * A workbook-level reference to package content the model does not model: a pivot cache
+ * (`pivotCacheDefinition`) or a slicer cache (`slicerCache`), preserved verbatim across a round-trip
  * instead of being dropped. `relType` is the workbook relationship Type URI to re-emit; `entryPath`
  * is the part it points at; `parts` is the transitive closure that reference reaches (the entry
  * included). `pivotCacheId` carries the `<pivotCache cacheId>` a pivot cache is registered under in
  * the workbook's `<pivotCaches>`, so the wiring a pivot table resolves its cache through is re-emitted
  * too; it is absent for a slicer cache, which the workbook lists in an extension block instead.
  * `externalReferenceIndex` is the 0-based position of an `externalLink` within the workbook's
- * `<externalReferences>` — the `[n]` a formula or defined name resolves an external cell through — so
+ * `<externalReferences>`, the `[n]` a formula or defined name resolves an external cell through, so
  * the block is re-emitted in the original order and every `[n]` still points at the same linked
  * workbook; it is absent for a pivot/slicer cache.
  */
@@ -74,14 +74,14 @@ export interface PreservedWorkbookReference {
 }
 
 /**
- * The workbook's theme part, captured verbatim from a source package — the `<clrScheme>`,
+ * The workbook's theme part, captured verbatim from a source package: the `<clrScheme>`,
  * `<fontScheme>`, and `<fmtScheme>` every `theme="n"` colour reference and every `scheme="major|minor"`
  * font in the file resolves against.
  *
  * Held opaquely, like {@link Workbook.restoreDifferentialStyles}'s `<dxf>` fragments: the model does
  * not interpret the theme, it only refuses to destroy it. `entryPath` is where the source package held
  * the part (reached through the workbook's `.../theme` relationship, so not necessarily
- * `xl/theme/theme1.xml`), and `parts` is the transitive closure it reaches — the entry included. The
+ * `xl/theme/theme1.xml`), and `parts` is the transitive closure it reaches, the entry included. The
  * closure matters because a theme can carry its own relationships: a picture used as a themed fill is
  * wired by an `r:embed` into the theme's rels part, and re-emitting the theme without it would leave
  * that reference dangling.
@@ -92,14 +92,14 @@ export interface PreservedTheme {
 }
 
 /**
- * The workbook's saved window state — OOXML's `<workbookView>`, the single entry of `<bookViews>`.
+ * The workbook's saved window state: OOXML's `<workbookView>`, the single entry of `<bookViews>`.
  *
  * This is the rect a consumer restores the document window to, and the layout every pane geometry is
  * computed against: a frozen split is positioned within it. `activeTab` names the sheet whose tab is
  * selected on open.
  *
  * The position and size are in twips (1/20 of a point), Excel's window unit. A slightly negative
- * `x`/`y` is normal and is what Excel itself writes — a maximised window's frame sits just outside the
+ * `x`/`y` is normal and is what Excel itself writes: a maximised window's frame sits just outside the
  * work area.
  */
 export interface WorkbookView {
@@ -120,7 +120,7 @@ export interface WorkbookView {
 }
 
 /**
- * The window geometry a workbook starts from — the values desktop Excel writes for its own default
+ * The window geometry a workbook starts from: the values desktop Excel writes for its own default
  * window.
  *
  * A default is emitted rather than the element left out because Excel writes `<bookViews>` into every
@@ -137,28 +137,28 @@ export const DEFAULT_WORKBOOK_VIEW = {
 } as const satisfies WorkbookView;
 
 /**
- * Document-level metadata — what Excel's File ▸ Info panel shows. Mostly the package's core
+ * Document-level metadata: what Excel's File ▸ Info panel shows. Mostly the package's core
  * properties (`docProps/core.xml`); `company` is the exception and lives in the extended part,
  * because that is where OOXML puts it. One interface either way: which part a field lands in is
  * the format's business, not the caller's.
  */
 export interface WorkbookProperties {
-  /** `dc:title` — the document's title, as Excel's File ▸ Info shows it. */
+  /** The document's title (`dc:title`), as Excel's File ▸ Info shows it. */
   title?: string;
   creator?: string;
   lastModifiedBy?: string;
   created?: Date;
   modified?: Date;
   /**
-   * `Company` in the extended properties (`docProps/app.xml`), not the core ones — the only
+   * `Company` in the extended properties (`docProps/app.xml`), not the core ones. It is the only
    * field here that does not live beside the others, because OOXML puts it in the other part.
    */
   company?: string;
 }
 
 /**
- * A named reference in the workbook — the entries Excel surfaces in its Name Manager. A name maps
- * an identifier to a formula (`refersTo`), most often a cell range like `Sheet1!$A$1:$B$2` but
+ * A named reference in the workbook, one of the entries Excel surfaces in its Name Manager. A name
+ * maps an identifier to a formula (`refersTo`), most often a cell range like `Sheet1!$A$1:$B$2` but
  * possibly any formula. A name is global to the workbook unless it names a sheet in {@link scope},
  * which restricts it to that sheet and lets another sheet reuse the same name independently.
  */
@@ -183,7 +183,7 @@ export interface AddWorksheetOptions {
 export interface AddImageOptions {
   /** The image bytes. */
   readonly buffer: Uint8Array;
-  /** The file kind — `"png"`, `"jpeg"`/`"jpg"`, `"gif"`, … A leading dot or a URL query string is
+  /** The file kind: `"png"`, `"jpeg"`/`"jpg"`, `"gif"`, … A leading dot or a URL query string is
    * tolerated and stripped; omit it entirely to infer the kind from the bytes' magic number. */
   readonly extension?: string;
 }
@@ -196,7 +196,7 @@ export class Workbook {
   readonly properties: WorkbookProperties = {};
 
   /**
-   * The workbook's window state — position, size, and the selected sheet. Always present (see
+   * The workbook's window state: position, size, and the selected sheet. Always present (see
    * {@link DEFAULT_WORKBOOK_VIEW} for why it is defaulted rather than left unset) and always written.
    * Reading a file replaces it with that file's saved geometry, so a round-trip restores the window
    * the author left rather than stamping ours over it.
@@ -206,13 +206,13 @@ export class Workbook {
   /**
    * Ask consuming spreadsheet apps to recalculate every formula when the file is opened, rather than
    * trusting the cached results stored with each formula cell. Set this when the producer cannot
-   * compute formula results itself — the OOXML `fullCalcOnLoad` flag. Off by default, so a workbook
-   * whose cached results are authoritative stays unmarked.
+   * compute formula results itself. This is the OOXML `fullCalcOnLoad` flag, off by default, so a
+   * workbook whose cached results are authoritative stays unmarked.
    */
   fullCalcOnLoad = false;
 
   /**
-   * Workbook-level structure/window protection — the OOXML `<workbookProtection>` element. Absent by
+   * Workbook-level structure/window protection: the OOXML `<workbookProtection>` element. Absent by
    * default (an unprotected workbook). Set it to lock the workbook shell, or leave it as read from a
    * file so a protected workbook stays locked across a passthrough save rather than being silently
    * unlocked. Distinct from a worksheet's own `protect()`, which guards a single sheet's cells.
@@ -234,7 +234,7 @@ export class Workbook {
   // custom number format) keeps a valid target across a read/write cycle instead of dangling.
   readonly #dxfs: string[] = [];
 
-  // Named cell styles (`cellStyleXfs`/`cellStyles` in styles.xml) — the shared, named formatting layer
+  // Named cell styles (`cellStyleXfs`/`cellStyles` in styles.xml): the shared, named formatting layer
   // a cell links to by index. Preserved so a cell whose fill/font/… lives only in a named style keeps
   // that style, and the link, across a round-trip. Empty when a file declares nothing beyond the
   // default Normal style, in which case the writer emits just that default.
@@ -258,7 +258,7 @@ export class Workbook {
   #tableStyles: TableStyleTable = {styles: []};
 
   // The theme slice: the preserved part, the decoded scheme and its cache, and what a caller
-  // authored over them. The indexed palette stays here and is read on demand — it is styles state,
+  // authored over them. The indexed palette stays here and is read on demand: it is styles state,
   // not theme state, and only colour resolution wants both. See `workbook-theme.ts`.
   readonly #theme = new WorkbookTheme(() => this.#indexedPalette());
 
@@ -268,7 +268,7 @@ export class Workbook {
   readonly #preservedReferences: PreservedWorkbookReference[] = [];
 
   // The threaded-comment identity registry (`xl/persons/person.xml`), the workbook-level table every
-  // message resolves its author through and every @mention its target. Keyed by person id — see
+  // message resolves its author through and every @mention its target. Keyed by person id. See
   // `restorePersons` for why nothing else will do. Empty for a workbook with no threaded comments.
   readonly #persons = new Map<string, Person>();
 
@@ -279,7 +279,7 @@ export class Workbook {
 
   /**
    * The 0-based index of the active sheet: {@link WorkbookView.activeTab} resolved against the sheets
-   * that actually exist. Exactly one sheet is always active — an out-of-range tab (a caller's stale
+   * that actually exist. Exactly one sheet is always active: an out-of-range tab (a caller's stale
    * index, or a file whose sheet was removed after the view was saved) falls back to the first sheet
    * rather than to none, because a package where no sheet is selected gives the consumer no view to
    * initialise on open.
@@ -313,12 +313,12 @@ export class Workbook {
   #customUI: readonly CustomUiDocument[] = [];
 
   /**
-   * The ribbon customisations decoded from this workbook's `customUI` parts — `customUI.xml` (Office
+   * The ribbon customisations decoded from this workbook's `customUI` parts: `customUI.xml` (Office
    * 2007) and/or `customUI14.xml` (Office 2010+), in the order their root relationships were read. Each
    * {@link CustomUiDocument} is tagged with its dialect and exposes the parsed `<ribbon>` tree. Empty
    * for a workbook that customises no ribbon.
    *
-   * This is a **read-only view** over parts the writer already round-trips verbatim — mutating the
+   * This is a **read-only view** over parts the writer already round-trips verbatim. Mutating the
    * returned objects changes nothing on write; the original `customUI` XML is re-emitted byte-for-byte
    * regardless. Parsed lazily on first access and memoised.
    *
@@ -344,7 +344,7 @@ export class Workbook {
   /**
    * The VBA project decoded from this workbook's preserved `vbaProject.bin`, or `undefined` for a
    * workbook with no macros. This is a **read-only view** over the bytes the writer already round-trips
-   * verbatim — mutating the returned object changes nothing on write; the original macro blob is
+   * verbatim. Mutating the returned object changes nothing on write; the original macro blob is
    * re-emitted byte-for-byte regardless. Parsed lazily on first access and memoised.
    *
    * @throws {VbaParseError} if a macro project is present but its `vbaProject.bin` is malformed.
@@ -354,8 +354,8 @@ export class Workbook {
   }
 
   /**
-   * The raw `vbaProject.bin` bytes attached to this workbook — the exact macro blob the writer will
-   * embed — or `undefined` for a workbook with no macros. The getter returns a defensive copy, so
+   * The raw `vbaProject.bin` bytes attached to this workbook (the exact macro blob the writer will
+   * embed), or `undefined` for a workbook with no macros. The getter returns a defensive copy, so
    * mutating it changes nothing on write.
    *
    * Assigning bytes attaches (or replaces) the macro project: the written package becomes
@@ -366,9 +366,9 @@ export class Workbook {
    * `.bin` produced by another tool. Assigning `undefined` removes the project, reverting the workbook
    * to a plain (non-macro) package.
    *
-   * Replacing or removing the project also drops any digital signature the previous blob carried — a
-   * signature over the old bytes cannot validate new ones — so the result never advertises a broken
-   * signature.
+   * Replacing or removing the project also drops any digital signature the previous blob carried,
+   * because a signature over the old bytes cannot validate new ones, so the result never advertises
+   * a broken signature.
    */
   get vbaProjectBytes(): Uint8Array | undefined {
     return this.#vba.bytes;
@@ -379,7 +379,7 @@ export class Workbook {
   }
 
   /**
-   * Whether this workbook's VBA project carries a digital signature — `true` if any signature part is
+   * Whether this workbook's VBA project carries a digital signature: `true` if any signature part is
    * attached, `false` for an unsigned project or a workbook with no macros.
    *
    * This reflects the **presence** of a signature blob, not its cryptographic validity: the library
@@ -396,23 +396,23 @@ export class Workbook {
 
   /**
    * The digital signatures attached to this workbook's VBA project, in the order their relationships
-   * are wired off `vbaProject.bin` — up to three generations (legacy, agile, V3) can coexist over the
+   * are wired off `vbaProject.bin`. Up to three generations (legacy, agile, V3) can coexist over the
    * same project bytes. Empty for an unsigned project or a workbook with no macros.
    *
    * Each entry's `bytes` are the raw signature blob passed through verbatim; the library does not parse
    * or verify them (see {@link vbaProjectSigned} on presence-vs-validity). Hand a blob to an external
-   * verifier if you need cryptographic validation — that is deliberately out of this library's scope.
+   * verifier if you need cryptographic validation; that is deliberately out of this library's scope.
    */
   get vbaProjectSignatures(): readonly VbaProjectSignature[] {
     return this.#vba.signatures;
   }
 
   /**
-   * Remove a standard module from this workbook's existing macro project, in place — a structural splice
+   * Remove a standard module from this workbook's existing macro project, in place: a structural splice
    * that leaves every remaining module's compiled p-code untouched (see {@link removeVbaModule}).
    * Replacing the project also drops a stale signature, as {@link vbaProjectBytes} does.
    *
-   * Only `procedural` and `class` modules can be removed this way — see {@link removeVbaModule} for why.
+   * Only `procedural` and `class` modules can be removed this way. See {@link removeVbaModule} for why.
    * To author or edit module *source* (which needs real compiled p-code), use the offline
    * `tools/vba-compiler`, then attach its output via {@link vbaProjectBytes}.
    *
@@ -459,11 +459,11 @@ export class Workbook {
   }
 
   // Table styles authored on this workbook, keyed by name so registering the same name twice replaces
-  // rather than duplicates — two definitions sharing a name leave a table's reference ambiguous.
+  // rather than duplicates: two definitions sharing a name leave a table's reference ambiguous.
   readonly #customTableStyles = new Map<string, TableStyle>();
 
   /**
-   * Register a custom table style — a named look a table applies to itself by putting that name in
+   * Register a custom table style: a named look a table applies to itself by putting that name in
    * {@link TableStyleInfo.name}, exactly as it would name one of Excel's built-in gallery styles.
    *
    * ```ts
@@ -480,13 +480,13 @@ export class Workbook {
    * ```
    *
    * Each element's formatting is interned into the workbook's shared differential-style table, so two
-   * elements — or a conditional-formatting rule — that paint the same way share one entry.
+   * elements, or a conditional-formatting rule, that paint the same way share one entry.
    *
    * Registering a name a source file already defined **overrides** that definition rather than adding
    * a second one beside it.
    *
    * @throws {AuthoringError} if the name is empty, or an element carries a `size` outside the four stripe
-   *   types, or a `size` is not a positive integer — see {@link checkTableStyle} for why those are
+   *   types, or a `size` is not a positive integer. See {@link checkTableStyle} for why those are
    *   refused here rather than silently dropped.
    */
   addTableStyle(style: TableStyle): void {
@@ -509,18 +509,18 @@ export class Workbook {
    * typefaces. Merges into what the workbook already has, so branding one accent leaves the other
    * eleven slots alone, and calling it twice accumulates.
    *
-   * This is the workbook-wide palette. A cell that names a colour as `theme="4"` — which is what Excel
-   * writes whenever a user picks from the theme row of the colour picker — follows `accent1` here, so
+   * This is the workbook-wide palette. A cell that names a colour as `theme="4"`, which is what Excel
+   * writes whenever a user picks from the theme row of the colour picker, follows `accent1` here, so
    * one call restyles every such cell, chart and table style at once. Colours are `RRGGBB`; a leading
    * `#` and an 8-hex ARGB are both accepted and reduced, and anything else throws rather than writing
    * a value Excel silently renders as flat black.
    *
-   * What it does **not** touch: the theme's format scheme — the gradient, line and effect styles that
-   * give a theme its texture. Those ride through from the source theme (or the library's default)
-   * untouched, because nobody hand-authors gradient stops from a spreadsheet API and regenerating them
-   * would replace a designer's work with the Office default. For the same reason a slot left
-   * unauthored keeps the source's own encoding, including the `<a:sysClr>` form Excel uses for
-   * `dk1`/`lt1` so they follow the viewer's window colours.
+   * What it does **not** touch: the theme's format scheme, meaning the gradient, line and effect
+   * styles that give a theme its texture. Those ride through from the source theme (or the library's
+   * default) untouched, because nobody hand-authors gradient stops from a spreadsheet API and
+   * regenerating them would replace a designer's work with the Office default. For the same reason a
+   * slot left unauthored keeps the source's own encoding, including the `<a:sysClr>` form Excel uses
+   * for `dk1`/`lt1` so they follow the viewer's window colours.
    *
    * @throws {AuthoringError} if a colour is not 6 or 8 hexadecimal digits.
    */
@@ -529,7 +529,7 @@ export class Workbook {
   }
 
   /**
-   * The colour scheme every `theme="n"` reference in this workbook resolves against — anything
+   * The colour scheme every `theme="n"` reference in this workbook resolves against: anything
    * {@link setTheme} authored, over the preserved theme's `<a:clrScheme>`, over the Office default.
    *
    * Note the slot *order*: `theme="0"` is `lt1` and `theme="1"` is `dk1`, which is not the order the
@@ -555,7 +555,7 @@ export class Workbook {
   #authoredDefaultFont: Font | undefined;
 
   /**
-   * The default font as the source package declared it — font id 0 of its styles part, the face every
+   * The default font as the source package declared it: font id 0 of its styles part, the face every
    * cell that names no font of its own renders in. `undefined` for a workbook authored from scratch or
    * read from a package carrying no styles part: nothing was declared, and the library does not
    * fabricate a declaration on the file's behalf.
@@ -568,18 +568,18 @@ export class Workbook {
   }
 
   /**
-   * Author the workbook's default font — the face, size and colour every cell with no font of its own
+   * Author the workbook's default font: the face, size and colour every cell with no font of its own
    * renders in, **empty cells included**. Merges into whatever the workbook already had, so
    * `setDefaultFont({size: 14})` keeps the resolved face and changes only the size, and calling it
    * twice accumulates. This is the one knob that reaches a cell no row or column default can: an
    * untouched cell in an unformatted column.
    *
-   * It writes the styles part's font 0 and **nothing else** — in particular it does not rewrite the
+   * It writes the styles part's font 0 and **nothing else**. In particular it does not rewrite the
    * theme's body typeface. The dependency runs the other way: with no default font authored, font 0
    * follows {@link themeFonts}'s minor face, so `setTheme({fonts: {minor}})` already reaches every
    * unstyled cell and needs no second call here. See {@link defaultFont} for the full chain.
    *
-   * @throws {AuthoringError} if `size` is not a positive finite number, or `name` is empty — both
+   * @throws {AuthoringError} if `size` is not a positive finite number, or `name` is empty. Both
    *   produce a styles part Excel renders from some other font without ever reporting why.
    */
   setDefaultFont(font: Font): void {
@@ -593,7 +593,7 @@ export class Workbook {
   }
 
   /**
-   * The font every cell that names none of its own renders in, resolved and complete — what the writer
+   * The font every cell that names none of its own renders in, resolved and complete: what the writer
    * emits as font id 0. Never `undefined`: a workbook always renders in *some* face, and the chain
    * below always reaches one.
    *
@@ -604,12 +604,12 @@ export class Workbook {
    * The two authored levels outrank the file because authoring is an explicit act; between them
    * {@link setDefaultFont} wins on the face because it names font 0 outright while
    * {@link setTheme} names it only by implication. With **nothing** authored the file's own font 0
-   * passes through verbatim — deliberately, because a producer resolves that face by script and we do
-   * not: Excel writes `等线` as font 0 under a theme whose latin body face is `Calibri`, and
+   * passes through verbatim. That is deliberate, because a producer resolves that face by script and
+   * we do not: Excel writes `等线` as font 0 under a theme whose latin body face is `Calibri`, and
    * re-deriving would silently rewrite it.
    *
    * `family` and `scheme` describe the *theme's* body face, so they are carried exactly while the
-   * resolved face still is that face and dropped when a caller names another — which is also what
+   * resolved face still is that face and dropped when a caller names another, which is also what
    * Excel writes: a font 0 naming a non-theme face carries no `<scheme>` at all. Either may be stated
    * outright, in which case the caller's word stands.
    */
@@ -647,8 +647,8 @@ export class Workbook {
    * The theme part text this workbook should write, or `undefined` when nothing was authored and the
    * source theme (or the writer's default) should ride through untouched.
    *
-   * Authoring generates *over* the existing part rather than from scratch — see
-   * {@link applyThemeOverrides} — so a preserved theme keeps its format scheme, its unauthored slots'
+   * Authoring generates *over* the existing part rather than from scratch (see
+   * {@link applyThemeOverrides}), so a preserved theme keeps its format scheme, its unauthored slots'
    * exact encoding, and the relationships it carries.
    */
   authoredThemeXml(): string | undefined {
@@ -657,7 +657,7 @@ export class Workbook {
 
   /**
    * Resolve a colour reference to a concrete 8-hex ARGB string, or `undefined` when it does not
-   * resolve to a fixed colour — an `auto` colour, one of the two system indexed colours, or a theme
+   * resolve to a fixed colour: an `auto` colour, one of the two system indexed colours, or a theme
    * slot this workbook's scheme does not declare.
    *
    * This is a *derived* view, not a rewrite: the {@link Color} stays exactly as its file encoded it,
@@ -674,7 +674,7 @@ export class Workbook {
   }
 
   // The workbook's custom palette as plain ARGB strings. `#indexedColors` holds verbatim
-  // `<rgbColor rgb="…"/>` fragments — the form the writer re-emits — so the value is read out here
+  // `<rgbColor rgb="…"/>` fragments, the form the writer re-emits, so the value is read out here
   // rather than stored twice in two shapes that could drift.
   #indexedPalette(): readonly string[] {
     return this.#indexedColors.map((fragment) => /\brgb="([^"]*)"/.exec(fragment)?.[1] ?? '');
@@ -686,12 +686,12 @@ export class Workbook {
   }
 
   /**
-   * Register an identity a threaded comment can name — an author, or someone `@mentioned` in a message.
+   * Register an identity a threaded comment can name: an author, or someone `@mentioned` in a message.
    * A message reaches it by {@link Comment.personId}, a mention by {@link Mention.personId}.
    *
    * Keyed by {@link Person.id} alone, so registering the same id twice replaces the entry rather than
    * adding a second: the id is the identity. Registering the same human twice under *different* ids is
-   * legitimate and is what Excel itself does — see {@link restorePersons}. The id is normalised to the
+   * legitimate and is what Excel itself does. See {@link restorePersons}. The id is normalised to the
    * brace-wrapped upper-case GUID form the format requires, so a `crypto.randomUUID()` is accepted as-is.
    *
    * @throws {SyntaxError} if the id is not a GUID.
@@ -703,7 +703,8 @@ export class Workbook {
 
   /**
    * The registered threaded-comment identities, in the order they were read. That order carries no
-   * meaning — Excel re-sorts the registry by person id when it saves — so nothing may depend on it.
+   * meaning, because Excel re-sorts the registry by person id when it saves, so nothing may depend
+   * on it.
    */
   get persons(): readonly Person[] {
     return [...this.#persons.values()];
@@ -739,7 +740,7 @@ export class Workbook {
 
   /**
    * Every picture `sheet` shows, resolved out of this workbook's media registry into the
-   * workbook-independent form {@link importImages} consumes. `sheet` must belong to this workbook —
+   * workbook-independent form {@link importImages} consumes. `sheet` must belong to this workbook:
    * that is whose registry its image ids index.
    *
    * This is the attached-part half of a sheet copy, and it is deliberately a separate call from
@@ -751,11 +752,11 @@ export class Workbook {
    * destinationWorkbook.importImages(destination, sourceWorkbook.exportImages(source));
    * ```
    *
-   * The exported pictures share the registry's byte arrays rather than copying them — the library
+   * The exported pictures share the registry's byte arrays rather than copying them: the library
    * never mutates image bytes, and copying every picture would double the memory of an image-heavy
    * workbook to defend against a mutation nothing performs.
    *
-   * @throws {AuthoringError} if the sheet anchors an image id this workbook has not registered —
+   * @throws {AuthoringError} if the sheet anchors an image id this workbook has not registered,
    *   which is what a sheet from *another* workbook looks like from here. Emitting a package with a
    *   drawing pointing at media that was never registered is the silently-broken-image failure this
    *   refuses to start.
@@ -766,7 +767,7 @@ export class Workbook {
       if (image === undefined) {
         throw new AuthoringError(
           `worksheet "${sheet.name}" shows image id ${id}, which is not registered on this ` +
-            "workbook — a sheet's images can only be exported by the workbook that holds them",
+            "workbook: a sheet's images can only be exported by the workbook that holds them",
         );
       }
       return image;
@@ -786,7 +787,7 @@ export class Workbook {
    * workbooks points at media that does not exist there.
    *
    * The sheet's existing pictures are replaced, not appended to, so `importImages` is a transfer
-   * rather than an accumulation — the same direction {@link Worksheet.model} assignment goes, and
+   * rather than an accumulation: the same direction {@link Worksheet.model} assignment goes, and
    * what makes re-importing a sheet's own export leave it unchanged. An import whose `background` is
    * absent clears the destination's background for the same reason.
    *
@@ -828,7 +829,7 @@ export class Workbook {
    * Register a defined name on the workbook.
    *
    * @throws {AuthoringError} if the name is empty, or if a {@link DefinedName.scope} is given that names no
-   *   existing worksheet — a scoped name must target a sheet that is already part of the workbook.
+   *   existing worksheet. A scoped name must target a sheet that is already part of the workbook.
    */
   defineName(definedName: DefinedName): void {
     if (definedName.name.length === 0) {
@@ -865,13 +866,13 @@ export class Workbook {
   }
 
   /**
-   * {@link getWorksheet}, for a caller who knows the sheet is there — the miss throws instead of
+   * {@link getWorksheet}, for a caller who knows the sheet is there: the miss throws instead of
    * returning `undefined`, and the message names every sheet the workbook does have.
    *
    * The partial lookup is the right primitive for asking *whether* a sheet exists, and the wrong
    * one for reaching a sheet a template is expected to carry: `undefined` flows on into a `?.`
    * chain and fails several steps later with nothing left to say about which name was missing.
-   * That listing is the whole point — a lookup miss is a typo, a stale template or a renamed tab,
+   * That listing is the whole point: a lookup miss is a typo, a stale template or a renamed tab,
    * and all three are answered by seeing the real names.
    *
    * @throws {AuthoringError} if no worksheet has that name (case-insensitive) or numeric id.
@@ -912,7 +913,7 @@ export class Workbook {
   }
 
   /**
-   * The codec's channel into this workbook — see `core/internal.ts` for why these are not public
+   * The codec's channel into this workbook. See `core/internal.ts` for why these are not public
    * methods. Declared last so every private field it closes over is already in scope.
    */
   readonly [INTERNAL]: WorkbookInternals = {
@@ -955,7 +956,7 @@ export class Workbook {
  * the finished form the file stated it. Reached as `workbook[INTERNAL]`; see `core/internal.ts`.
  *
  * Every operation replaces what it restores rather than merging, because a reader states a table
- * whole — a half-restored `<dxfs>` would leave existing `dxfId` references pointing into a mix of
+ * whole: a half-restored `<dxfs>` would leave existing `dxfId` references pointing into a mix of
  * two files.
  */
 export interface WorkbookInternals {
@@ -966,7 +967,7 @@ export interface WorkbookInternals {
   addPreservedRootReference(reference: PreservedRootReference): void;
 
   /**
-   * Reinstate the differential-style (`<dxfs>`) table read from a file — the deserialization
+   * Reinstate the differential-style (`<dxfs>`) table read from a file: the deserialization
    * counterpart the writer re-emits verbatim. Each entry is one `<dxf>…</dxf>` fragment, preserved as
    * opaque XML so a conditional-formatting rule's `dxfId` (an index into this table) stays valid on
    * re-write.
@@ -974,8 +975,8 @@ export interface WorkbookInternals {
   restoreDifferentialStyles(fragments: readonly string[]): void;
 
   /**
-   * Reinstate the custom indexed-color palette (`<colors><indexedColors>`) read from a file — each
-   * entry a verbatim `<rgbColor rgb="…"/>` fragment — so a colour referenced by `indexed="…"` keeps
+   * Reinstate the custom indexed-color palette (`<colors><indexedColors>`) read from a file, each
+   * entry a verbatim `<rgbColor rgb="…"/>` fragment, so a colour referenced by `indexed="…"` keeps
    * its intended RGB on re-write instead of the palette being dropped and the colour shifting to a
    * default-palette entry.
    */
@@ -983,22 +984,23 @@ export interface WorkbookInternals {
 
   /**
    * Reinstate the most-recently-used colour swatches (`<colors><mruColors>`) read from a file, each
-   * entry a verbatim `<color rgb="…"/>` fragment — the "Recent Colors" row a spreadsheet application
-   * offers, which is the author's own working set rather than anything the model interprets.
+   * entry a verbatim `<color rgb="…"/>` fragment. This is the "Recent Colors" row a spreadsheet
+   * application offers, which is the author's own working set rather than anything the model
+   * interprets.
    */
   restoreMruColors(fragments: readonly string[]): void;
 
   /**
-   * Reinstate the custom table-style definitions (`<tableStyles>`) read from a file — see
-   * {@link TableStyleTable} — so a table whose `styleName` names a custom style still resolves to a
+   * Reinstate the custom table-style definitions (`<tableStyles>`) read from a file (see
+   * {@link TableStyleTable}), so a table whose `styleName` names a custom style still resolves to a
    * real definition on re-write instead of dangling, and the file's nominated default table/pivot
    * styles survive.
    */
   restoreTableStyles(table: TableStyleTable): void;
 
   /**
-   * Reinstate the theme part read from a file — opaque preserved XML plus the closure of parts it
-   * reaches (see {@link PreservedTheme}) — so a workbook's colour and font schemes survive a re-write
+   * Reinstate the theme part read from a file: opaque preserved XML plus the closure of parts it
+   * reaches (see {@link PreservedTheme}), so a workbook's colour and font schemes survive a re-write
    * instead of being replaced by the library's default Office theme. Passing `undefined` drops back
    * to that default.
    */
@@ -1012,7 +1014,7 @@ export interface WorkbookInternals {
   restoreNamedStyles(styles: readonly NamedCellStyle[]): void;
 
   /**
-   * Reinstate font id 0 as a file declared it — the face its unstyled cells render in, and the metric
+   * Reinstate font id 0 as a file declared it: the face its unstyled cells render in, and the metric
    * its column widths are expressed in character units of. Restored rather than assumed because the
    * library must not inject its own default ahead of one a file already states: doing so replaces the
    * declared face on every empty cell and silently changes what every `<col width>` means.
@@ -1022,13 +1024,13 @@ export interface WorkbookInternals {
   restoreDefaultFont(font: Font | undefined): void;
 
   /**
-   * Reinstate the threaded-comment identity registry (`xl/persons/person.xml`) read from a file — the
+   * Reinstate the threaded-comment identity registry (`xl/persons/person.xml`) read from a file: the
    * authors and mentioned people a comment thread's messages point at.
    *
    * Entries are keyed by {@link Person.id} and by nothing else. A single human legitimately owns
    * several entries: Excel interns a *mentioned* identity as its own `providerId="PeoplePicker"` entry
-   * beside that person's `providerId="AD"` authoring entry — same `displayName`, same `userId`, a
-   * different id — and points the mention at the new one. Collapsing entries by name or `userId` would
+   * beside that person's `providerId="AD"` authoring entry (same `displayName`, same `userId`, a
+   * different id) and points the mention at the new one. Collapsing entries by name or `userId` would
    * merge those two and silently re-point every mention at the wrong identity.
    *
    * {@link Workbook.addPerson} is the authoring verb.

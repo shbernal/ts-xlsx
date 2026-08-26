@@ -38,7 +38,7 @@ const MARGIN_SIDES = ['left', 'right', 'top', 'bottom', 'header', 'footer'] as c
 
 // Worksheet elements that commit on their close: a formatted-but-empty `<c/>` and a criteria-free
 // self-closing `<autoFilter/>` are expanded to open+close so each finalises once in onClose. The
-// text-bearing `<f/>`/`<v/>`/`<t/>` are deliberately excluded — an empty one must not commit.
+// text-bearing `<f/>`/`<v/>`/`<t/>` are deliberately excluded: an empty one must not commit.
 const WORKSHEET_EMPTY_CLOSES: ReadonlySet<string> = new Set(['c', 'autoFilter']);
 
 // Fold a filter column's accumulated `<filters>` or `<customFilters>` state into one criteria value,
@@ -59,10 +59,10 @@ function pendingFilterCriteria(
   return null;
 }
 
-// Read a <sheetProtection> element back into a SheetProtection — the deserialization mirror of the
+// Read a <sheetProtection> element back into a SheetProtection: the deserialization mirror of the
 // writer. `sheet="0"` (or "false") means the element records an *un*protected sheet, so nothing is
 // restored. Each flag attribute is the INVERSE of the author's allow-flag ("1" forbids, "0" permits),
-// and only attributes actually present are carried, so an omitted (default-valued) flag stays absent —
+// and only attributes actually present are carried, so an omitted (default-valued) flag stays absent,
 // exactly what the writer emitted. A password credential is preserved verbatim in its agile form
 // (algorithm, hash, salt, spin count); there is no plaintext password to recover, so it is not re-hashed.
 function parseSheetProtection(attrs: XmlAttributes): SheetProtection | undefined {
@@ -124,7 +124,7 @@ class AutoFilterAccumulator {
 
   beginValues(attrs: XmlAttributes): void {
     this.#values = [];
-    // `blank` defaults off when absent, so presence is required first — then it reads as an
+    // `blank` defaults off when absent, so presence is required first; then it reads as an
     // on-when-present flag. (`boolPresent` alone would treat the absent attribute as on.)
     this.#blank = attrs.blank !== undefined && boolPresent(attrs.blank);
   }
@@ -150,7 +150,7 @@ class AutoFilterAccumulator {
 
   // Assemble this column's criteria from whichever accumulator filled. A column whose colId is
   // negative, or whose criteria are empty (no values, no blank, no predicates), carries nothing
-  // filterable and is dropped so a re-write stays clean — load-repair, not authoring.
+  // filterable and is dropped so a re-write stays clean: load-repair, not authoring.
   endColumn(): void {
     const criteria = pendingFilterCriteria(this.#values, this.#blank, this.#predicates, this.#and);
     if (this.#colId >= 0 && criteria !== null) {
@@ -158,7 +158,7 @@ class AutoFilterAccumulator {
     }
   }
 
-  // Commit the accumulated autofilter to the sheet. Runs on `</autoFilter>` — including the synthesized
+  // Commit the accumulated autofilter to the sheet. Runs on `</autoFilter>`, including the synthesized
   // close of a criteria-free self-closing `<autoFilter/>`. Columns whose colId falls outside the range
   // are dropped here so the strict setter never trips on hostile input.
   commit(sheet: Worksheet): void {
@@ -168,7 +168,7 @@ class AutoFilterAccumulator {
       const width = left !== undefined && right !== undefined ? right - left + 1 : 0;
       sheet.autoFilter = {ref: this.#ref, columns: this.#columns.filter((c) => c.colId < width)};
     } catch {
-      // unbounded or malformed autofilter range in the source file — ignore it
+      // unbounded or malformed autofilter range in the source file: ignore it
     }
     this.#ref = null;
     this.#columns = [];
@@ -227,7 +227,7 @@ export function parseWorksheet(
   const columnStyle = new Map<number, number>();
 
   // Commit the cell held in the accumulator, resolving its style from its own `s`, then its row's
-  // (when customFormat), then its column's default — the order Excel applies. Runs on `</c>` close,
+  // (when customFormat), then its column's default: the order Excel applies. Runs on `</c>` close,
   // including the synthesized close of a self-closing `<c/>` formatted-but-empty cell.
   const finalizeCellFromState = (): void => {
     const styleIndex =
@@ -292,13 +292,13 @@ export function parseWorksheet(
             break;
           case 'mergeCell':
             // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
-            // bad range at the model boundary, but don't let one abort the whole parse — drop it and
+            // bad range at the model boundary, but don't let one abort the whole parse: drop it and
             // keep reading the valid geometry.
             if (attrs.ref !== undefined && attrs.ref !== '') {
               try {
                 sheet.mergeCells(attrs.ref);
               } catch {
-                // overlapping/malformed merge in the source file — skip it
+                // overlapping/malformed merge in the source file: skip it
               }
             }
             break;
@@ -366,7 +366,7 @@ export function parseWorksheet(
             break;
           case 't':
             // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<is>` is a plain
-            // inline string. A run takes precedence — a run is also inside the inline string.
+            // inline string. A run takes precedence, since a run is also inside the inline string.
             cell.appendText(text, inInlineString);
             break;
           case 'r':
@@ -382,9 +382,9 @@ export function parseWorksheet(
           case 'firstHeader':
           case 'firstFooter':
             // Header text carries the `_xHHHH_` convention, same as a cell value: Excel decodes it
-            // here and re-emits it on save (measured — a patched `_x0001_` reads back over COM as
+            // here and re-emits it on save (measured: a patched `_x0001_` reads back over COM as
             // U+0001, and a `_x005F_x0041_` as the literal `_x0041_`). The decode is on the whole
-            // element text, never on a SAX chunk — see {@link decodeSpreadsheetText}.
+            // element text, never on a SAX chunk. See {@link decodeSpreadsheetText}.
             sheet.headerFooter[local] = decodeSpreadsheetText(text);
             break;
           case 'c':
@@ -417,7 +417,7 @@ export function parseWorksheet(
 // Apply one `<sheetPr>` / `<sheetView>` / print-setup child to the sheet. These are the worksheet's
 // layout and print metadata; grouping them here keeps the cell-reading switch a pure dispatch. Each
 // records only what the source carried, so a file missing a facet leaves it unset and a re-write
-// stays byte-clean. Each is read on open, from its attributes alone — which is why `<sheetView>`
+// stays byte-clean. Each is read on open, from its attributes alone, which is why `<sheetView>`
 // belongs here despite wrapping children: what this reads of it is attributes, and its `<pane>`
 // child arrives as its own dispatch.
 function applySheetProperties(local: string, attrs: XmlAttributes, sheet: Worksheet): void {
@@ -502,7 +502,7 @@ function applyColumn(
 function applyRow(sheet: Worksheet, attrs: XmlAttributes): void {
   const number = Number(attrs.r);
   if (!Number.isInteger(number) || number < 1) return;
-  // A `<row>` that states no attribute at all leaves no format record behind — the handle creates
+  // A `<row>` that states no attribute at all leaves no format record behind: the handle creates
   // one only when something is written through it. That is the right reading: a bare `<row r="5"/>`
   // carries no formatting to round-trip, and fabricating an empty record for it would put row 5 in
   // the used range on the strength of an element that says nothing.

@@ -58,7 +58,7 @@ const MENTION_MESSAGE =
   `mentionId="${MENTION_ID}" startIndex="0" length="13"/></mentions>` +
   '</threadedComment></ThreadedComments>';
 
-// The same file's registry. Excel interns a *mentioned* identity as its own entry — note the third
+// The same file's registry. Excel interns a *mentioned* identity as its own entry: note the third
 // `<person>`: same displayName and userId as the second, different id, `providerId="PeoplePicker"`.
 const MENTION_PERSONS =
   '<personList xmlns="http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments">' +
@@ -121,7 +121,7 @@ test('a person with no id is skipped, since no message could reference it', () =
   );
 });
 
-test('a person with an id but no displayName is kept — the id is what messages point at', () => {
+test('a person with an id but no displayName is kept: the id is what messages point at', () => {
   assert.deepStrictEqual(parsePersons('<personList><person id="{A}"/></personList>'), [
     {id: '{A}', displayName: ''},
   ]);
@@ -190,7 +190,7 @@ test('message text is entity-decoded and keeps its line breaks', () => {
   assert.strictEqual(message?.text, '5 < 6 & "quoted"\nsecond line');
 });
 
-// The `_xHHHH_` group. Excel Desktop was asked directly what a patched `<text>` says — the probe is
+// The `_xHHHH_` group. Excel Desktop was asked directly what a patched `<text>` says: the probe is
 // recorded in `docs/knowledge/specs/spreadsheetml-xhhhh-escape-is-decoded-on-read.md`: the escape
 // decodes, the near-misses do not, and `_x005F_` in front of one yields the literal text. These lock
 // the reader to that grammar rather than to a looser one that would eat text Excel keeps.
@@ -282,7 +282,7 @@ test('a message that mentions nobody reports an empty list, never an absent one'
 
 test('a mention with no target person or no usable span is dropped, not left pointing nowhere', () => {
   // Hand-written: Excel requires all four attributes and rejects a file missing any (including the
-  // capitalised `mentionPersonId` below — not a declared attribute), so every entry but the last is a
+  // capitalised `mentionPersonId` below, not a declared attribute), so every entry but the last is a
   // shape only a foreign generator produces. A chip over nothing would highlight the wrong text.
   const [message] = parseThreadedComments(
     '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>@Someone hi</text><mentions>' +
@@ -362,7 +362,7 @@ test('an author the registry does not hold leaves the id readable instead of bla
   assert.strictEqual(head?.personId, ADA, 'but who was meant stays recoverable');
 });
 
-test('a mention resolves to the entry it names — the PeoplePicker one, not its author twin', () => {
+test('a mention resolves to the entry it names: the PeoplePicker one, not its author twin', () => {
   const [thread] = buildCommentThreads(
     parseThreadedComments(MENTION_MESSAGE),
     lookupOver(MENTION_PERSONS),
@@ -467,7 +467,7 @@ test('an empty part parses as no messages and no authors', () => {
 
 test('a thread anchor is canonicalised, so an absolute reference names the same cell as a relative one', () => {
   // Excel writes a plain `B2`, but a foreign generator may anchor with `$` signs. Canonicalising in the
-  // builder is what lets every later consumer compare anchors as plain strings — and what lets the
+  // builder is what lets every later consumer compare anchors as plain strings, and what lets the
   // writer place the thread's legacy fallback without re-parsing the reference.
   const threads = buildCommentThreads(
     parseThreadedComments(
@@ -527,7 +527,7 @@ test('a conversation is written flat: the head first, then its replies naming it
       `<threadedComment ref="B1" dT="2026-07-26T10:54:00.01" personId="${ADA}" id="{HEAD}">` +
         '<text>Gross or net?</text></threadedComment>',
     ),
-    'the head carries no parentId — that is what makes it the head',
+    'the head carries no parentId: that is what makes it the head',
   );
   assert.ok(
     xml.includes(
@@ -598,7 +598,7 @@ test('a mention is written with all four attributes Excel requires, lower-case p
 
 test('a mention with no id of its own is dropped, but the text it named is not', () => {
   // All four attributes are required (each one dropped in turn gives Sch_MissRequiredAttribute), and the
-  // writer has no id generator — so an invalid part would risk Excel repairing the whole conversation
+  // writer has no id generator, so an invalid part would risk Excel repairing the whole conversation
   // away, where dropping the chip costs only the highlight. Excel always writes the id; this needs a
   // foreign generator.
   const xml = threadedCommentsXml([
@@ -671,8 +671,8 @@ test('an empty registry still writes a well-formed part rather than a stub', () 
 
 // ── Hostile input ────────────────────────────────────────────────────────────────────────────────────
 // Both parts come from an untrusted file. The SAX layer already bounds the shapes that would otherwise
-// need guarding here — it is a single non-recursive O(n) pass, and it decodes entities without ever
-// expanding them, so neither nesting depth nor a billion-laughs payload can reach these parsers — and the
+// need guarding here: it is a single non-recursive O(n) pass, and it decodes entities without ever
+// expanding them, so neither nesting depth nor a billion-laughs payload can reach these parsers, and the
 // package's inflate ceiling bounds the bytes. What is left is this reader's own arithmetic and state
 // machine, and the fact that what it accepts, the writer re-emits.
 
@@ -726,7 +726,7 @@ test('the writer cannot emit an out-of-range span even from a model that was han
 });
 
 test('an entity a part declares itself is not expanded, so a nested-entity payload stays inert', () => {
-  // Not merely bounded — structurally impossible: the scanner skips markup declarations without reading
+  // Not merely bounded but structurally impossible: the scanner skips markup declarations without reading
   // them and decodes only the five predefined entities, so `&lol;` resolves to nothing to expand.
   const xml =
     '<?xml version="1.0"?><!DOCTYPE ThreadedComments [<!ENTITY lol "haha">' +
@@ -739,7 +739,7 @@ test('an entity a part declares itself is not expanded, so a nested-entity paylo
 
 test('a message nested inside another is not fabricated into a thread of its own', () => {
   // A shape no producer emits and the schema forbids. The parser holds one open message at a time, so the
-  // inner close commits and the outer one finds nothing left to commit — the damage costs a message, not
+  // inner close commits and the outer one finds nothing left to commit: the damage costs a message, not
   // a crash and not a duplicate.
   const messages = parseThreadedComments(
     '<ThreadedComments><threadedComment ref="A1" id="{A}"><text>outer</text>' +
@@ -776,11 +776,11 @@ test('a stray text element outside a message cannot leak into the next message',
 });
 
 test('a truncated part fails loudly rather than yielding a half-read conversation', () => {
-  // A truncated tag is unrecoverable — anything after it is unparsed bytes, and guessing where the element
+  // A truncated tag is unrecoverable: anything after it is unparsed bytes, and guessing where the element
   // ended would invent structure. The throw propagates out of the whole read, as it does for any malformed
   // part (verified): a corrupt package is a hard error here, never a silently halved conversation. That is
   // a different failure from an *unreachable* part, which is tolerated because nothing is ambiguous about
-  // it — see the `threaded-comment-rel-empty-target-tolerated` corpus case.
+  // it. See the `threaded-comment-rel-empty-target-tolerated` corpus case.
   assert.throws(
     () => parseThreadedComments('<ThreadedComments><threadedComment ref="A1" id="{A"'),
     XmlParseError,

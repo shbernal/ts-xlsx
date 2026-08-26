@@ -37,7 +37,7 @@ test('the result caches the serial and the cell carries a date format so it read
   const sheetXml = sheetXmlOf(writeXlsx(wb));
 
   // The serial rides in <v> exactly as a bare date cell stores its value, and the cell references a
-  // (non-default) style — the date number format that makes the serial read back as a Date.
+  // (non-default) style: the date number format that makes the serial read back as a Date.
   assert.match(
     sheetXml,
     new RegExp(`<c r="A1" s="\\d+"><f>TODAY\\(\\)</f><v>${dateToSerial(when)}</v></c>`),

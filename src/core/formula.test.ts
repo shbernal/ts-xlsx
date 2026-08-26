@@ -142,7 +142,7 @@ test('a LAMBDA prefixes every parameter but leaves its body cells and legacy cal
 });
 
 test('the _xlpm. prefix is scoped: a same-named reference outside the binding is untouched', () => {
-  // The leading `x` is a defined-name reference, not the LET parameter — it must survive verbatim.
+  // The leading `x` is a defined-name reference, not the LET parameter: it must survive verbatim.
   assert.equal(mangleParams('x+LET(x,1,x)'), 'x+LET(_xlpm.x,1,_xlpm.x)');
   assert.equal(mangleParams('LET(x,1,x)+x'), 'LET(_xlpm.x,1,_xlpm.x)+x');
 });
@@ -261,7 +261,7 @@ test('quoteSheetName leaves a plain identifier bare and quotes anything else', (
 });
 
 test('quoteSheetName quotes a 3-D span as a whole or not at all', () => {
-  // The quotes delimit the sheet reference, not either endpoint — so one awkward name puts both
+  // The quotes delimit the sheet reference, not either endpoint, so one awkward name puts both
   // inside them, which is how Excel spells `'Odd Name:More'!A1`.
   assert.equal(quoteSheetName('Data', 'More'), 'Data:More');
   assert.equal(quoteSheetName('Odd Name', 'More'), "'Odd Name:More'");

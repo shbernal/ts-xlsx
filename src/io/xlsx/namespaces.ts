@@ -11,7 +11,7 @@
  */
 
 /**
- * SpreadsheetML main namespace — the default `xmlns` of the workbook,
+ * SpreadsheetML main namespace: the default `xmlns` of the workbook,
  * worksheet, styles, sharedStrings, comments, table and pivot parts.
  */
 export const SPREADSHEETML_NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -30,7 +30,7 @@ export const MARKUP_COMPATIBILITY_NS =
 export const REVISION_NS = 'http://schemas.microsoft.com/office/spreadsheetml/2014/revision';
 
 /**
- * The 2018 threaded-comments namespace, shared by both parts of the feature — a sheet's
+ * The 2018 threaded-comments namespace, shared by both parts of the feature: a sheet's
  * `threadedComment{n}.xml` and the workbook's `person.xml`. Note the plural `threadedcomments`, all
  * lower-case: Excel matches the URI exactly and reads neither part under any other spelling.
  */

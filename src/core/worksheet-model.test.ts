@@ -1,6 +1,6 @@
 // Field-agnostic cover for the model round-trip. The per-field cases live in worksheet.test.ts;
-// these assert the properties the facet registry is what guarantees, so they keep their meaning —
-// and keep catching a half-wired field — as WorksheetModel grows.
+// these assert the properties the facet registry is what guarantees, so they keep their meaning,
+// and keep catching a half-wired field, as WorksheetModel grows.
 
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
@@ -41,7 +41,7 @@ function populatedSheet(): Worksheet {
 
 test('the exported model carries exactly the fields the facet registry declares', () => {
   // The registry is proved exhaustive over `keyof WorksheetModel` at compile time; this is the
-  // runtime half — that the getter actually emits a key for each facet and invents none besides.
+  // runtime half: that the getter actually emits a key for each facet and invents none besides.
   assert.deepEqual(
     Object.keys(populatedSheet().model).sort(),
     WORKSHEET_MODEL_FACETS.map((facet) => facet.key).sort(),
@@ -53,8 +53,8 @@ test('a fully populated sheet round-trips to an identical model', () => {
   const dst = new Worksheet('Dst', 2);
   dst.model = src.model;
 
-  // A facet whose two directions disagree — a field read but not written, or written into the wrong
-  // place — shows up here as a difference, whichever field it is.
+  // A facet whose two directions disagree (a field read but not written, or written into the wrong
+  // place) shows up here as a difference, whichever field it is.
   assert.deepEqual(dst.model, src.model);
 });
 
@@ -112,7 +112,7 @@ test('a model exported from an empty sheet clears every field of the sheet it is
 test('a frozen pane survives a model transplant', () => {
   // The named regression behind the facet: `view` was omitted from the model for no stated reason,
   // so a transplant reproduced every other sheet-level field and silently unfroze the header row.
-  // It is workbook-independent state — the test the model's boundary is drawn on — not an attached
+  // It is workbook-independent state, the test the model's boundary is drawn on, not an attached
   // part, so it belongs in the snapshot exactly as the autofilter does.
   const src = new Worksheet('Src', 1);
   src.freeze(2, 1);

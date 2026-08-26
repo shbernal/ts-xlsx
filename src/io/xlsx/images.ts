@@ -1,6 +1,6 @@
 // Anchored images on the wire: the `xl/drawings/drawing{n}.xml` part (a DrawingML two-cell anchor
 // per image), the drawing's own relationships to the `xl/media/` bytes, and the reader that turns a
-// drawing back into anchors. The image bytes themselves are opaque here — the writer copies them
+// drawing back into anchors. The image bytes themselves are opaque here: the writer copies them
 // verbatim into a media part and the reader hands them back untouched.
 
 import {
@@ -73,7 +73,7 @@ function anchorXml(image: DrawingImage, id: number): string {
 }
 
 // A picture anchored between two grid points. The geometry lives entirely in <xdr:from>/<xdr:to>, so
-// the picture carries no absolute <a:xfrm> — a zeroed one would override the anchor and collapse the
+// the picture carries no absolute <a:xfrm>: a zeroed one would override the anchor and collapse the
 // image to nothing in strict viewers (LibreOffice), while a non-zero one would fight the anchor. A
 // rotation is the one transform kept: it can't be derived from the anchor, so it rides a rot-only xfrm.
 function twoCellAnchorXml(
@@ -194,7 +194,7 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
       } else if (local === 'pic') {
         picDepth++;
       } else if (local === 'xfrm' && picDepth > 0) {
-        // The picture's own rotation — the one spPr transform that can't be derived from the anchor.
+        // The picture's own rotation: the one spPr transform that can't be derived from the anchor.
         const rot = Number(attrs.rot);
         if (Number.isFinite(rot) && rot !== 0) rotation = rot;
       } else if (local === 'from') {
@@ -251,7 +251,7 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
 // not re-serialised from its pictures alone (which would silently drop the chart/shape).
 const UNMODELED_DRAWING_CONTENT = new Set<string>(['graphicFrame', 'sp', 'cxnSp', 'grpSp']);
 
-/** Whether a drawing part holds anchor content beyond plain pictures — a chart, shape, connector, or
+/** Whether a drawing part holds anchor content beyond plain pictures: a chart, shape, connector, or
  * group. Excel packs every one of a sheet's anchors into a single drawing part, so a sheet with both a
  * picture and a chart yields a mixed drawing; modeling only its pictures and re-serialising from them
  * would drop the chart. The reader uses this to fall back to whole-drawing byte-preservation instead. */

@@ -27,7 +27,7 @@ export function rectsOverlap(a: MergeRect, b: MergeRect): boolean {
 /**
  * Resolve a position to the master (top-left) of the merged region covering it, or to itself when no
  * region does. First covering region wins; `Worksheet.mergeCells` rejects overlaps, so at most one
- * region ever applies. Only fully-bounded rects participate — an unbounded whole-row/column merge
+ * region ever applies. Only fully-bounded rects participate: an unbounded whole-row/column merge
  * carries no rect and so resolves nothing.
  */
 export function masterOf(
@@ -45,7 +45,7 @@ export function masterOf(
 
 /**
  * Drop any value already sitting in a merge's covered non-anchor cells, keeping only the top-left
- * anchor — the collapse Excel performs on merge. A leftover covered value would serialise as a
+ * anchor, the collapse Excel performs on merge. A leftover covered value would serialise as a
  * populated `<c>` under the range's `<mergeCell>` ref, the geometry that trips Excel's repair prompt.
  * Styles are untouched: a border spanning the merged region rides the covered cells.
  */
@@ -63,7 +63,7 @@ export function clearCoveredValues(rows: Map<number, Map<number, Cell>>, rect: M
 
 /** Decode an OOXML `sqref` (one or more space-separated ranges) into containment rectangles. A whole
  * column or row leaves one axis unbounded, so its missing edges open to `Infinity` rather than
- * clamping — a cell anywhere down the column still resolves inside it. */
+ * clamping: a cell anywhere down the column still resolves inside it. */
 export function decodeSqrefRects(sqref: string): MergeRect[] {
   const rects: MergeRect[] = [];
   for (const part of sqref.split(/\s+/)) {

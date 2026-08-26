@@ -1,7 +1,7 @@
 // A worksheet table (OOXML `<table>`): a named, structured range with typed columns,
 // an optional header row, and an optional totals row.
 //
-// The model stores the anchor and the column/row counts, not a pre-baked range string —
+// The model stores the anchor and the column/row counts, not a pre-baked range string:
 // the occupied geometry is derived, so it stays correct as an empty table (header row
 // only), a headerless table (data rows only), or a totals-bearing table. The writer is
 // the OOXML gatekeeper for serialization; this model owns the invariants Excel enforces
@@ -12,13 +12,13 @@ import {type CellPosition, decodeCellRef, encodeAddress} from './address.ts';
 import type {CellStyle} from './style.ts';
 import type {CellValue} from './value.ts';
 
-/** A per-column cell format applied to a table's body cells — the facets Excel's table-column style
+/** A per-column cell format applied to a table's body cells: the facets Excel's table-column style
  * bakes into the cells rather than storing as table metadata. Every facet ({@link CellStyle}) is
  * optional; only the ones set are applied, leaving the rest of each cell's style untouched. */
 export type TableColumnStyle = Readonly<CellStyle>;
 
 /** Writes a value into the owning worksheet's grid at a 1-based row/column, applying the column's
- * style (if any) to the cell — the hook a {@link Table} uses to materialise the cells of a row
+ * style (if any) to the cell: the hook a {@link Table} uses to materialise the cells of a row
  * appended through {@link Table.addRow}. A worksheet supplies it when it registers the table; a table
  * built standalone has none and cannot write cell values. */
 export type TableCellWriter = (
@@ -29,28 +29,28 @@ export type TableCellWriter = (
 ) => void;
 
 /** Inserts one empty row into the owning worksheet's grid at a 1-based `row`, shifting that row and
- * everything below it down by one — the hook a {@link Table} with a totals row uses to open a slot
+ * everything below it down by one: the hook a {@link Table} with a totals row uses to open a slot
  * for an appended data row above the totals. Relocating the totals row lives in the grid, so a
  * standalone table has no inserter and cannot append past a totals row. */
 export type TableRowInserter = (row: number) => void;
 
 /**
  * A table's visual style (`<tableStyleInfo>`): the named style to apply plus the banding/highlight
- * toggles. Every field is a tri-state so a round-trip stays faithful — a value present in the source
+ * toggles. Every field is a tri-state so a round-trip stays faithful: a value present in the source
  * re-emits, one the source omitted stays omitted rather than being defaulted to `"0"`. A workbook
  * whose part carries no `<tableStyleInfo>` at all leaves {@link TableOptions.style} undefined.
  */
 export interface TableStyleInfo {
   /**
-   * Named table style to apply — one of the built-in gallery (`"TableStyleMedium2"`, …) or a custom
+   * Named table style to apply: one of the built-in gallery (`"TableStyleMedium2"`, …) or a custom
    * one the workbook defines with {@link Workbook.addTableStyle}.
    *
-   * **Not validated.** A name that matches nothing renders the table unstyled, silently — but this
-   * library must not be the thing that rejects it. A reader has to accept a name from a newer Excel
-   * than the gallery list it was built with, and a writer that threw would make round-tripping such a
-   * file impossible; there is also no diagnostics channel to warn through, so the only options were
-   * "throw" and "accept". Accepting is the one that never makes a readable file unreadable. If a
-   * warning channel is ever added, this is the first thing that should use it.
+   * **Not validated.** A name that matches nothing renders the table unstyled, silently. Even so,
+   * this library must not be the thing that rejects it. A reader has to accept a name from a newer
+   * Excel than the gallery list it was built with, and a writer that threw would make round-tripping
+   * such a file impossible; there is also no diagnostics channel to warn through, so the only
+   * options were "throw" and "accept". Accepting is the one that never makes a readable file
+   * unreadable. If a warning channel is ever added, this is the first thing that should use it.
    */
   readonly name?: string;
   /** Emphasise the first column. */
@@ -64,7 +64,7 @@ export interface TableStyleInfo {
 }
 
 /** Copy a style, keeping only its defined fields off the literal so `exactOptionalPropertyTypes`
- * never sees a fabricated `key: undefined` — an absent attribute must stay absent across a copy.
+ * never sees a fabricated `key: undefined`: an absent attribute must stay absent across a copy.
  *
  * The sentinel name `"None"` (Excel's table-style gallery entry for *no* style) is normalised to an
  * absent name: OOXML expresses "unstyled" as a `<tableStyleInfo>` with no `name` attribute, so a
@@ -82,10 +82,10 @@ function cloneStyleInfo(style: TableStyleInfo): TableStyleInfo {
 
 /**
  * OOXML's totals-row function names (`ST_TotalsRowFunction`) to the `SUBTOTAL` first-argument code
- * Excel writes into a materialised totals cell. The `10x` band ignores manually hidden rows — the
+ * Excel writes into a materialised totals cell. The `10x` band ignores manually hidden rows, the
  * behaviour Excel's totals row uses. The one inversion trap: `count` is COUNTA (103, non-empty) while
  * `countNums` is COUNT (102, numbers only). `none` (no aggregate) has no built-in code, so a column
- * carrying it is absent here and its totals cell is left unmaterialised — Excel accepts the blank
+ * carrying it is absent here and its totals cell is left unmaterialised: Excel accepts the blank
  * cell. `custom` is likewise absent: its aggregate is not a `SUBTOTAL` but the arbitrary formula
  * stored in {@link TableColumn.totalsRowFormula}, which the reader/writer round-trip and the
  * materialiser writes into the cell verbatim.
@@ -102,7 +102,7 @@ export const TOTALS_ROW_SUBTOTAL_CODE: Readonly<Partial<Record<TotalsRowFunction
 };
 
 /**
- * The values `ST_TotalsRowFunction` (ECMA-376 §18.18.86) can take — a closed OOXML enumeration Excel
+ * The values `ST_TotalsRowFunction` (ECMA-376 §18.18.86) can take: a closed OOXML enumeration Excel
  * does not extend over time (unlike, say, a conditional-formatting rule type), so an author-side typo
  * such as `"avg"` is a compile error here rather than a silently no-op attribute at write time.
  */
@@ -138,7 +138,7 @@ export function isTotalsRowFunction(value: string): value is TotalsRowFunction {
 
 /** One column of a table: a header name and its optional totals-row behaviour. */
 export interface TableColumn {
-  /** The column's header/display name. Must be unique within the table (case-insensitively) —
+  /** The column's header/display name. Must be unique within the table (case-insensitively):
    * Excel writes a table with colliding column names as corrupt. A collision supplied at construction
    * is disambiguated deterministically (the first keeps its name, later clashes gain a numeric
    * suffix), the same repair the reader applies to a loaded file, rather than being rejected. */
@@ -148,7 +148,7 @@ export interface TableColumn {
   /** Built-in totals-row aggregate (`"sum"`, `"average"`, `"count"`, …), or `"custom"` when the
    * column's total is the arbitrary formula in {@link totalsRowFormula} rather than a `SUBTOTAL`. */
   readonly totalsRowFunction?: TotalsRowFunction;
-  /** The formula (no leading `=`) backing a `totalsRowFunction: "custom"` column — OOXML's
+  /** The formula (no leading `=`) backing a `totalsRowFunction: "custom"` column. This is OOXML's
    * `<totalsRowFormula>` child. Round-tripped verbatim and written into the totals cell as the
    * cell's formula. Meaningful only alongside `totalsRowFunction: "custom"`; ignored otherwise. */
   readonly totalsRowFormula?: string;
@@ -159,13 +159,13 @@ export interface TableColumn {
 }
 
 export interface TableOptions {
-  /** Table name — a valid Excel identifier, unique across the workbook. This is the name used in
+  /** Table name: a valid Excel identifier, unique across the workbook. This is the name used in
    * structured formula references (`Table1[Column]`). */
   name: string;
   /** Human-facing display name shown in the UI. A free-form label (spaces allowed) that need not
    * be a valid identifier. Defaults to {@link name} when omitted. */
   displayName?: string;
-  /** A1 reference of the table's top-left cell (an anchor, e.g. `"A1"` — not the full range). */
+  /** A1 reference of the table's top-left cell (an anchor, e.g. `"A1"`, not the full range). */
   ref: string;
   /** The table's columns, left to right. At least one is required. */
   columns: readonly TableColumn[];
@@ -175,15 +175,15 @@ export interface TableOptions {
   headerRow?: boolean;
   /** Whether the table has a totals row. Defaults to `false`. */
   totalsRow?: boolean;
-  /** The `totalsRowShown` flag on a table *without* a totals row — Excel's record of whether a
+  /** The `totalsRowShown` flag on a table *without* a totals row: Excel's record of whether a
    * totals row has ever been toggled on. Tri-state so a round-trip is faithful: `false` re-emits
    * `totalsRowShown="0"`, `true` re-emits `totalsRowShown="1"`, and `undefined` (the authoring
-   * default) emits nothing — a file read without the attribute must not have one injected. Ignored
+   * default) emits nothing: a file read without the attribute must not have one injected. Ignored
    * when {@link totalsRow} is set, since a present totals row already implies it is shown. */
   totalsRowShown?: boolean;
   /** Whether the header row carries an autoFilter. Defaults to {@link headerRow}: a header table
    * gains an autoFilter, a headerless one never can. Set `false` to keep a header table's rows
-   * unfiltered — a file read without an autoFilter must round-trip without one being injected. */
+   * unfiltered: a file read without an autoFilter must round-trip without one being injected. */
   autoFilter?: boolean;
   /** The table's visual style. Preserved verbatim across a round-trip; when omitted, a freshly
    * authored table is written with Excel's default (`TableStyleMedium2`, banded rows). A part read
@@ -194,7 +194,7 @@ export interface TableOptions {
 // Excel's table-name grammar: start with a letter, underscore, or backslash; every later
 // character a letter, digit, period, or underscore. Unicode letters/digits are allowed.
 // Excel additionally forbids a name that *is* a cell reference (`A1`, `R1C1`); we defer
-// that rule deliberately — the regression corpus treats cell-reference-shaped names like
+// that rule deliberately: the regression corpus treats cell-reference-shaped names like
 // `T1` as valid table names, so enforcing the collision rule here would reject a fixture
 // the contract accepts.
 const IDENTIFIER = /^[\p{L}\\_][\p{L}\p{N}._]*$/u;
@@ -202,8 +202,8 @@ const IDENTIFIER = /^[\p{L}\\_][\p{L}\p{N}._]*$/u;
 /**
  * Return copies of `columns` with every name made unique (case-insensitively): the first occurrence
  * keeps its name; a later clash gains the smallest numeric suffix that resolves it (`foo`, `foo2`,
- * `foo3`, …). OOXML requires unique column names within a table — Excel treats a collision as
- * corruption — so this is applied both when a table is authored and when one is read from a file,
+ * `foo3`, …). OOXML requires unique column names within a table, and Excel treats a collision as
+ * corruption, so this is applied both when a table is authored and when one is read from a file,
  * keeping the two paths identical rather than rejecting a name list the reader would accept.
  */
 function disambiguateColumnNames(columns: readonly TableColumn[]): TableColumn[] {
@@ -224,7 +224,7 @@ function validateTableName(name: string): void {
   }
   if (!IDENTIFIER.test(name)) {
     throw new AuthoringError(
-      `table name ${JSON.stringify(name)} is not a valid Excel identifier — it must start with a letter, ` +
+      `table name ${JSON.stringify(name)} is not a valid Excel identifier: it must start with a letter, ` +
         'underscore, or backslash and contain only letters, digits, periods, and underscores',
     );
   }
@@ -255,7 +255,7 @@ export class Table {
   #dataRowCount: number;
 
   // Set by the worksheet that registers this table so an appended row can be written into the grid.
-  // A table constructed standalone (a unit test, a bare model) has none — appending values then
+  // A table constructed standalone (a unit test, a bare model) has none: appending values then
   // throws rather than silently dropping them.
   readonly #writeCell: TableCellWriter | undefined;
 
@@ -293,7 +293,7 @@ export class Table {
     this.totalsRowShown = options.totalsRowShown;
     this.style = options.style === undefined ? undefined : cloneStyleInfo(options.style);
     // A header table gains an autoFilter by default (Excel's behaviour when a table is inserted);
-    // a headerless table can never carry one — an autoFilter has no header row to anchor to.
+    // a headerless table can never carry one: an autoFilter has no header row to anchor to.
     this.autoFilter = this.headerRow && (options.autoFilter ?? true);
     this.#anchorCol = col;
     this.#anchorRow = row;
@@ -303,7 +303,7 @@ export class Table {
 
     if (this.#rowSpan < 1) {
       throw new AuthoringError(
-        `table "${this.name}" has no rows — it needs a header row or at least one data row`,
+        `table "${this.name}" has no rows: it needs a header row or at least one data row`,
       );
     }
   }
@@ -312,7 +312,7 @@ export class Table {
     return this.columns.length;
   }
 
-  /** The number of data rows (excludes the header and totals rows). Always defined — a table loaded
+  /** The number of data rows (excludes the header and totals rows). Always defined: a table loaded
    * from a file derives it from the stored range, so reading the height never throws. */
   get rowCount(): number {
     return this.#dataRowCount;
@@ -324,9 +324,9 @@ export class Table {
    * one, so this works identically whether the table was built in memory or read from a file.
    *
    * A table carrying a totals row appends above it: the new data row lands where the totals row sat,
-   * and the totals row (with any sheet content below) shifts down by one — exactly what inserting a
+   * and the totals row (with any sheet content below) shifts down by one, exactly what inserting a
    * worksheet row does. That relocation lives in the grid, so a totals-row table not attached to a
-   * worksheet throws, as does passing `values` on any detached table — there is nowhere to put them.
+   * worksheet throws, as does passing `values` on any detached table: there is nowhere to put them.
    */
   addRow(values: readonly CellValue[] = []): void {
     if (values.length > this.columnCount) {
@@ -342,7 +342,7 @@ export class Table {
     if (this.totalsRow) {
       if (this.#insertRow === undefined) {
         throw new AuthoringError(
-          `table "${this.name}" is not attached to a worksheet — cannot relocate its totals row to append a data row`,
+          `table "${this.name}" is not attached to a worksheet: cannot relocate its totals row to append a data row`,
         );
       }
       // Opening a grid slot at the totals row shifts the totals down and grows this table by one
@@ -357,7 +357,7 @@ export class Table {
     if (values.length > 0) {
       if (this.#writeCell === undefined) {
         throw new AuthoringError(
-          `table "${this.name}" is not attached to a worksheet — cannot write appended row values`,
+          `table "${this.name}" is not attached to a worksheet: cannot write appended row values`,
         );
       }
       values.forEach((value, index) => {
@@ -401,7 +401,7 @@ export class Table {
   }
 
   /**
-   * The options that reconstruct this table — the anchor as a single-cell ref (not the derived
+   * The options that reconstruct this table: the anchor as a single-cell ref (not the derived
    * full range), the columns, and the data-row count with the header/totals flags. Feeding this
    * back to the constructor yields an equivalent table, so a worksheet model can carry a table
    * losslessly across an export/import round-trip.
@@ -418,7 +418,7 @@ export class Table {
       autoFilter: this.autoFilter,
     };
     // Kept off the literal so `undefined` (attribute absent) stays absent, not an explicit
-    // `totalsRowShown: undefined` — the round-trip must not fabricate the flag.
+    // `totalsRowShown: undefined`: the round-trip must not fabricate the flag.
     if (this.totalsRowShown !== undefined) options.totalsRowShown = this.totalsRowShown;
     if (this.style !== undefined) options.style = cloneStyleInfo(this.style);
     return options;
@@ -426,14 +426,14 @@ export class Table {
 
   /** The full A1 range the table occupies: header (if any) + data rows + totals (if any). Distinct
    * from {@link TableOptions.ref} (and {@link options}'s own `ref`), which is only the single-cell
-   * anchor a table is constructed from — this is the anchor plus the columns/rows it has grown to
+   * anchor a table is constructed from; this is the anchor plus the columns/rows it has grown to
    * cover. */
   get range(): string {
     return `${encodeAddress(this.#anchorCol, this.#anchorRow)}:${encodeAddress(this.#right, this.#bottom)}`;
   }
 
   /**
-   * The autoFilter range — the header row plus the data rows, never the totals row — or
+   * The autoFilter range (the header row plus the data rows, never the totals row), or
    * `undefined` when the table has no autoFilter: either it is headerless (an autoFilter has
    * nothing to anchor to and Excel treats its presence as corruption) or its {@link autoFilter}
    * flag is off (a table read without one must not gain one on round-trip).

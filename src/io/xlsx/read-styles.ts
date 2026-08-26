@@ -3,8 +3,8 @@
 // and the two xf tables (`<cellXfs>`, `<cellStyleXfs>`), flattening the id-indirection so a cell's
 // `s` index maps straight to its facets. A construct it does not recognise is skipped, never guessed.
 //
-// Only the parsing is XML-specific. What an xf resolves *to* — `XfStyle`, the built-in number
-// formats, layering a direct xf over the named style it links to, applying an xf to a cell — is a
+// Only the parsing is XML-specific. What an xf resolves *to* (`XfStyle`, the built-in number
+// formats, layering a direct xf over the named style it links to, applying an xf to a cell) is a
 // property of the OOXML style model rather than of its spelling, and lives above both codecs in
 // `../style/xf-style.ts`; the `.xlsb` style reader parses BIFF12 records into the same four tables
 // and finishes through the same `resolveStyleTable`.
@@ -70,7 +70,7 @@ type GradientDraft = {
   stopColor: Color | undefined;
 };
 
-// The four sides plus the diagonal — the edge elements a <border> can hold, in the order the
+// The four sides plus the diagonal: the edge elements a <border> can hold, in the order the
 // schema lists them. This one tuple drives the edge-name union, the membership set (which drives
 // edge parsing without a per-name branch), and the "does any edge carry a style" scan below.
 const BORDER_EDGE_NAMES = ['left', 'right', 'top', 'bottom', 'diagonal'] as const;
@@ -91,7 +91,7 @@ const STYLE_EMPTY_CLOSES: ReadonlySet<string> = new Set([
 
 // styles.xml is a shared table: <numFmts> defines custom format codes by id, <fills> lists
 // the fills, and <cellXfs> lists the cell formats, each naming a fill and a number format by
-// id. We flatten that indirection into one array — cellXfs index → resolved {fill, numFmt} —
+// id. We flatten that indirection into one array, cellXfs index → resolved {fill, numFmt},
 // so a cell/row/column style index maps straight to its facets. The schema orders <numFmts>
 // and <fills> before <cellXfs>, so both lookups are complete before an xf references them.
 export function parseStyleTable(xml: string): StyleTable {
@@ -109,8 +109,8 @@ export function parseStyleTable(xml: string): StyleTable {
   // One streaming pass, but each top-level sub-table drives its own focused sub-parser over the slice
   // of events between its open and close. The schema orders the shared tables (<numFmts>, <fonts>,
   // <fills>, <borders>) before the xf tables, so their results are complete before an <xf> resolves
-  // against them. Every recognised container name is plural and unique to the styleSheet root — none
-  // appears inside a <dxf>'s singular <font>/<fill>/<border> children — so skipping an unrecognised
+  // against them. Every recognised container name is plural and unique to the styleSheet root, and none
+  // appears inside a <dxf>'s singular <font>/<fill>/<border> children, so skipping an unrecognised
   // section here drops exactly what the old flat pass gated off with its `in*` flags.
   const events = closeEmptyElements(xmlEvents(xml), STYLE_EMPTY_CLOSES);
   let next = events.next();
@@ -149,7 +149,7 @@ export function parseStyleTable(xml: string): StyleTable {
   return resolveStyleTable({directXfs: xfStyles, namedXfs, labels: cellStyleNames, fonts});
 }
 
-// Pull events off the shared stream up to — and consuming — the close of `container`, yielding only
+// Pull events off the shared stream up to, and consuming, the close of `container`, yielding only
 // those strictly inside it. A sub-table parser loops this to completion (never breaking), so it drives
 // its own small state machine over exactly its section without closing the underlying generator, and
 // the outer pass resumes at the element after the container's close.
@@ -202,7 +202,7 @@ function parseFills(events: Iterator<XmlEvent>): ReadonlyArray<Fill | undefined>
   let bgColor: Color | undefined;
   // A gradient fill accumulates from <gradientFill> open to close; its stops fill in as <stop>/<color>
   // pairs arrive. `fillSlotAt` marks where in `fills` the current <fill> began, so its close can keep a
-  // slot even when the fill body was neither a pattern nor a gradient — index alignment is load-bearing.
+  // slot even when the fill body was neither a pattern nor a gradient: index alignment is load-bearing.
   let gradientDraft: GradientDraft | null = null;
   let fillSlotAt = -1;
   for (const event of until(events, 'fills')) {
@@ -210,7 +210,7 @@ function parseFills(events: Iterator<XmlEvent>): ReadonlyArray<Fill | undefined>
       const attrs = event.attrs;
       switch (localName(event.name)) {
         case 'fill':
-          // Mark where this <fill> starts so its close can guarantee exactly one slot — a fill body
+          // Mark where this <fill> starts so its close can guarantee exactly one slot. A fill body
           // that is neither <patternFill> nor <gradientFill> (or a gradient we could not parse) must
           // still consume an id, or every later fill index shifts and cells mis-resolve their fill.
           fillSlotAt = fills.length;
@@ -300,7 +300,7 @@ function parseBorders(events: Iterator<XmlEvent>): ReadonlyArray<Border | undefi
       } else if (borderDraft !== null) {
         // A border's edges and their <color> children are all read on open (each is self-closing bar a
         // coloured edge, whose colour child is itself self-closing). An edge whose style is absent or
-        // an unrecognised token is dropped — the side simply carries no border.
+        // an unrecognised token is dropped: the side simply carries no border.
         if (BORDER_EDGES.has(local)) {
           if (attrs.style !== undefined && isBorderStyle(attrs.style)) {
             currentEdge = local as BorderEdgeName;
@@ -375,7 +375,7 @@ function resolveXf(attrs: XmlAttributes, deps: XfDeps, captureXfId: boolean): Xf
   const fillId = Number(attrs.fillId);
   const fill = Number.isInteger(fillId) ? deps.fills[fillId] : undefined;
   const fontId = Number(attrs.fontId);
-  // Font id 0 is the workbook default font (a real Calibri-11-style face), not an absence — unlike
+  // Font id 0 is the workbook default font (a real Calibri-11-style face), not an absence, unlike
   // border id 0, which is a genuinely empty border. So an xf naming font 0 resolves to that default
   // face, giving every cell a concrete font to render.
   const font = Number.isInteger(fontId) ? deps.fonts[fontId] : undefined;
@@ -441,7 +441,7 @@ export function applyFontChild(draft: FontDraft, local: string, attrs: XmlAttrib
       break;
     case 'u':
       // A bare <u/> is a single underline; a named style (single/double/…) carries through; but
-      // val="none" is the explicit ABSENCE of an underline, so it must read back falsy — not the
+      // val="none" is the explicit ABSENCE of an underline, so it must read back falsy, not the
       // truthy string "none" that a consumer's `if (font.underline)` would mistake for underlined. An
       // unrecognised token keeps the "is underlined" fact but drops the unknown style (a plain true).
       draft.underline =
@@ -465,7 +465,7 @@ export function applyFontChild(draft: FontDraft, local: string, attrs: XmlAttrib
     case 'color':
       draft.color = parseColor(attrs);
       break;
-    // `<name>` in a styles `<font>`, `<rFont>` in a rich-text run's `<rPr>` — the same font face.
+    // `<name>` in a styles `<font>`, `<rFont>` in a rich-text run's `<rPr>`: the same font face.
     case 'name':
     case 'rFont':
       if (attrs.val !== undefined) draft.name = attrs.val;
@@ -503,7 +503,7 @@ function toFill(
   bgColor: Color | undefined,
 ): Fill | undefined {
   // `none` (and an absent patternType) is the absence of a fill; an unrecognised token is dropped the
-  // same way — like the border-edge style above — so a foreign pattern we do not model leaves the cell
+  // same way, like the border-edge style above, so a foreign pattern we do not model leaves the cell
   // unfilled rather than propagating a token the writer would later re-emit unvalidated.
   if (!isFillPatternType(pattern) || pattern === 'none') return undefined;
   return {
@@ -533,8 +533,8 @@ function borderToStyle(draft: BorderDraft): Border | undefined {
 }
 
 // Read an <alignment> element's attributes into an Alignment, keeping only facets that differ
-// from the default. Boolean flags honour their parsed value — wrapText="0" is off, so it must
-// not fabricate a { wrapText: false } alignment — and an element carrying only defaults yields
+// from the default. Boolean flags honour their parsed value (wrapText="0" is off, so it must
+// not fabricate a { wrapText: false } alignment) and an element carrying only defaults yields
 // undefined rather than an empty alignment object.
 function parseAlignment(attrs: XmlAttributes): Alignment | undefined {
   const out: {-readonly [K in keyof Alignment]?: Alignment[K]} = {};
@@ -568,7 +568,7 @@ function parseAlignment(attrs: XmlAttributes): Alignment | undefined {
 
 // Read a <protection> element into a Protection, keeping only facets that differ from the OOXML
 // default. `locked` defaults to TRUE, so only an explicit `locked="0"` carries information (an
-// unlocked cell) — a default or explicit-true cell must not read back as { locked: true }; `hidden`
+// unlocked cell): a default or explicit-true cell must not read back as { locked: true }. `hidden`
 // defaults to false, so only `hidden="1"` is carried. An element with only defaults yields undefined.
 function parseProtection(attrs: XmlAttributes): Protection | undefined {
   const out: {-readonly [K in keyof Protection]?: Protection[K]} = {};
@@ -590,7 +590,7 @@ function parseProtection(attrs: XmlAttributes): Protection | undefined {
 /**
  * Extract the custom indexed-color palette (`<colors><indexedColors>`) from styles.xml as verbatim
  * `<rgbColor rgb="…"/>` fragments, or an empty list when the file rides the default palette. Kept raw
- * — rather than parsed into RGB and re-serialised — so the exact entries (count, order, casing) a
+ * rather than parsed into RGB and re-serialised, so the exact entries (count, order, casing) a
  * source file declared survive a round-trip and every `indexed="…"` reference keeps its RGB.
  */
 export function parseIndexedColors(stylesXml: string): string[] {
@@ -612,8 +612,8 @@ export function parseMruColors(stylesXml: string): string[] {
  * container's nominated `defaultTableStyle`/`defaultPivotStyle`. See {@link TableStyleTable} for why
  * the definitions stay raw while the two names are decoded.
  *
- * A file with no such block — or with the self-closing `count="0"` container Excel writes when it has
- * only defaults to state — yields an empty {@link TableStyleTable.styles} and whichever names it did
+ * A file with no such block, or with the self-closing `count="0"` container Excel writes when it has
+ * only defaults to state, yields an empty {@link TableStyleTable.styles} and whichever names it did
  * carry.
  */
 export function parseTableStyles(stylesXml: string): TableStyleTable {
@@ -637,7 +637,7 @@ export function parseTableStyles(stylesXml: string): TableStyleTable {
 // The namespace declarations the verbatim `<tableStyle>` fragments depend on, resolved against the
 // stylesheet root that scoped them. Only prefixes a fragment actually uses are carried, so an
 // ordinary file (whose fragments use none) adds nothing to the re-emitted root; a prefix a fragment
-// uses but the root never declared is skipped, because there is no URI to re-declare it with — the
+// uses but the root never declared is skipped, because there is no URI to re-declare it with: the
 // source was already unparseable there and inventing a URI would not repair it.
 //
 // `ignorable` is copied from the source's own `mc:Ignorable` rather than assumed: a prefix the source
@@ -675,7 +675,7 @@ function fragmentNamespaces(
     }));
 }
 
-// The verbatim child fragments of a container element — the shape every preserved styles sub-table
+// The verbatim child fragments of a container element: the shape every preserved styles sub-table
 // takes. Scanning the container's inner text rather than the whole part is what keeps a `<color>` in
 // `<mruColors>` from being confused with the many other `<color>` elements a stylesheet carries, and
 // the `\b` after the child's name is what keeps `<tableStyles>` from matching as a `<tableStyle>`.

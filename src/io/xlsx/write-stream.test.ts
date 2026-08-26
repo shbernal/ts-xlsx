@@ -11,7 +11,7 @@ import {isOneCellAnchor} from '../../core/image.ts';
 import {readXlsx} from './read.ts';
 import {WorkbookStreamWriter} from './write-stream.ts';
 
-// Decode one package part back to its XML text — the streamed archive is a real zip, so read it the
+// Decode one package part back to its XML text. The streamed archive is a real zip, so read it the
 // same way a consumer would.
 function partText(pkg: Uint8Array, name: string): string {
   const bytes = unzipSync(pkg)[name];
@@ -19,7 +19,7 @@ function partText(pkg: Uint8Array, name: string): string {
   return strFromU8(bytes);
 }
 
-// A 1×1 transparent PNG — enough bytes to prove the streamed media round-trips verbatim.
+// A 1×1 transparent PNG: enough bytes to prove the streamed media round-trips verbatim.
 const ONE_PX_PNG = Uint8Array.from(
   atob(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -165,7 +165,7 @@ test('commit over a caller-supplied PassThrough sink resolves and delivers a val
   assert.equal(reread.getCell('A1').value, 'a');
 });
 
-test('commit over a Duplex sink resolves — completion does not depend on the writer owning the stream', async () => {
+test('commit over a Duplex sink resolves: completion does not depend on the writer owning the stream', async () => {
   const chunks: Buffer[] = [];
   const sink = new Duplex({
     read() {},
@@ -413,7 +413,7 @@ test('committing a streamed row evicts its cells from the model, bounding peak m
   assert.equal(sheet.model.hasCell(1, 1), false, 'commit released the cell graph');
   assert.equal(sheet.model.hasCell(1, 2), false);
   // rowCount survives the eviction, so the next append lands below the evicted row rather than reusing
-  // its number — the correctness hazard that makes owning the row counter necessary.
+  // its number: the correctness hazard that makes owning the row counter necessary.
   assert.equal(sheet.rowCount, 1);
   sheet.addRow(['c']).commit();
   const reread = readXlsx(await writer.commit()).getWorksheet('S');
@@ -426,7 +426,7 @@ test('committing a streamed row evicts its cells from the model, bounding peak m
   );
 });
 
-test('a fully committed streamed sheet holds no live cells at commit — every row was evicted', async () => {
+test('a fully committed streamed sheet holds no live cells at commit: every row was evicted', async () => {
   const writer = new WorkbookStreamWriter();
   const sheet = writer.addWorksheet('S');
   for (let i = 1; i <= 50; i++) sheet.addRow([i, `v${i}`]).commit();
@@ -446,7 +446,7 @@ test('a streamed sheet reports the outline depth of rows already evicted', async
   const detail = sheet.addRow(['detail']);
   sheet.model.getRow(2).outlineLevel = 2;
   detail.commit();
-  // <sheetFormatPr> is written at commit, long after both rows were flushed and freed — the depth has
+  // <sheetFormatPr> is written at commit, long after both rows were flushed and freed, so the depth has
   // to have been carried across the eviction rather than re-read off the model.
   assert.match(
     partText(await writer.commit(), 'xl/worksheets/sheet1.xml'),
@@ -454,7 +454,7 @@ test('a streamed sheet reports the outline depth of rows already evicted', async
   );
 });
 
-test('with useSharedStrings a streamed row stays live until commit — the shared pool defeats bounding', async () => {
+test('with useSharedStrings a streamed row stays live until commit: the shared pool defeats bounding', async () => {
   const writer = new WorkbookStreamWriter({useSharedStrings: true});
   const sheet = writer.addWorksheet('S');
   sheet.addRow(['x']).commit();

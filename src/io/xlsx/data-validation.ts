@@ -1,4 +1,4 @@
-// Data validation I/O — the sheet-level `<dataValidations>` element and the reader that folds each
+// Data validation I/O: the sheet-level `<dataValidations>` element and the reader that folds each
 // rule back onto its range.
 //
 // A validation stores its operands in `<formula1>`/`<formula2>` child elements and its target in a
@@ -8,7 +8,7 @@
 // source keeps its string, so a reference is never coerced to NaN and lost.
 //
 // The extended `<x14:dataValidation>` form (2009 extension schema) carries the validations a legacy
-// element cannot express — chiefly a list whose source lives on another sheet. It lives in the
+// element cannot express, chiefly a list whose source lives on another sheet. It lives in the
 // worksheet `<extLst>`, keeps its target in a `<xm:sqref>` child rather than a `sqref` attribute, and
 // wraps each operand in an `<xm:f>` under `<x14:formula1>`/`<x14:formula2>`. A rule read from that
 // form is tagged `extended` so it is written back there; the two forms are parsed and serialised by
@@ -34,7 +34,7 @@ import {x14Ext} from './x14-ext.ts';
 const TYPED = new Set<string>(['whole', 'decimal', 'date', 'time', 'textLength']);
 
 /** The standard `<dataValidations>` element for the rules stored in the legacy form, or '' when the
- * sheet has none of them — so a sheet with only extended (or no) validations stays byte-clean here.
+ * sheet has none of them, so a sheet with only extended (or no) validations stays byte-clean here.
  * The extended rules are emitted separately by {@link dataValidationsExtXml}. */
 export function dataValidationsXml(entries: readonly DataValidationEntry[]): string {
   const standard = entries.filter((entry) => !entry.extended);
@@ -45,7 +45,7 @@ export function dataValidationsXml(entries: readonly DataValidationEntry[]): str
 
 /** The `<ext>` carrying the extended (`<x14:dataValidation>`) rules, or '' when the sheet declares
  * none. Emitted bare (no `<extLst>` wrapper) so the worksheet serialiser can gather it into a single
- * `<extLst>` beside the conditional-formatting extension — a worksheet may carry at most one. */
+ * `<extLst>` beside the conditional-formatting extension: a worksheet may carry at most one. */
 export function dataValidationsExtXml(entries: readonly DataValidationEntry[]): string {
   const extended = entries.filter((entry) => entry.extended);
   if (extended.length === 0) return '';
@@ -86,7 +86,7 @@ function dataValidationXml(sqref: string, rule: DataValidation): string {
 
 // A rule's two operands with any non-finite numeric bound dropped: a NaN/±Infinity operand (e.g. a
 // date validation whose bound failed to coerce to a serial) has no OOXML representation, so it is
-// omitted rather than serialised as the literal "NaN" — the same graceful degradation a non-finite
+// omitted rather than serialised as the literal "NaN": the same graceful degradation a non-finite
 // cell value gets.
 function operands(
   rule: DataValidation,
@@ -122,7 +122,7 @@ export function parseDataValidations(xml: string): DataValidationEntry[] {
   parseXml(xml, {
     onOpen(name, attrs) {
       const ln = localName(name);
-      // Only the standard, unprefixed element — an `x14:dataValidation` is left for the extended path.
+      // Only the standard, unprefixed element: an `x14:dataValidation` is left for the extended path.
       if (ln === 'dataValidation' && !name.includes(':')) {
         current = {attrs, formulae: []};
       } else if (current !== undefined && ln === 'formula1') {

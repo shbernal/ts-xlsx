@@ -79,7 +79,7 @@ test('the system foreground and background indices stay unresolved', () => {
 test('a workbook custom palette replaces the built-in one wholesale', () => {
   const indexed = ['00112233', '00445566', '00778899'];
   assert.equal(resolveColor({indexed: 2}, {indexed}), 'FF778899');
-  // Past the end of a custom palette there is nothing — it replaces the built-in table, it does not
+  // Past the end of a custom palette there is nothing: it replaces the built-in table, it does not
   // extend it, so falling through would resolve to a colour the workbook explicitly overrode away.
   assert.equal(resolveColor({indexed: 10}, {indexed}), undefined);
 });
@@ -95,7 +95,7 @@ test('tint 0 and a non-finite tint leave the colour alone', () => {
 });
 
 test('tint tracks what Excel renders, within the measured tolerance', () => {
-  // Sampled from test/corpus/fixtures/excel-oracle/theme-color-tint-luminance.json — accent1 156082
+  // Sampled from test/corpus/fixtures/excel-oracle/theme-color-tint-luminance.json: accent1 156082
   // and accent2 E97132 as Excel itself painted them. The bound is 2/255 per channel; see applyTint.
   const samples: [string, number, string][] = [
     ['FF156082', -0.5, '0B3040'],
@@ -142,7 +142,7 @@ test('parseThemeColorScheme reads srgbClr and sysClr slots', () => {
   assert.equal(scheme.dk1, '1A1A1A');
   assert.equal(scheme.lt1, 'FAFAFA');
   assert.equal(scheme.accent1, 'BB2649');
-  // Slots the scheme does not declare stay absent — and nothing outside <clrScheme> is picked up.
+  // Slots the scheme does not declare stay absent, and nothing outside <clrScheme> is picked up.
   assert.equal(scheme.accent2, undefined);
   assert.equal(Object.values(scheme).includes('DEADBE'), false);
 });

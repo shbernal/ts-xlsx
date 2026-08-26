@@ -2,7 +2,7 @@
 //
 // Both directions used to be hand-written statement lists, one in the getter and one in the setter,
 // each enumerating the same fields. Nothing but a comment asked the next editor to touch
-// both, and a field exported but not imported loses data silently — the merge-loss failure the
+// both, and a field exported but not imported loses data silently: the merge-loss failure the
 // model contract exists to prevent. Here each field declares both directions in one place, and the
 // registry is proved exhaustive over `keyof WorksheetModel` at compile time, so adding a field
 // without wiring it is an error naming the field rather than a review catch.
@@ -22,12 +22,12 @@ interface ModelFacet<K extends keyof WorksheetModel = keyof WorksheetModel> {
   /**
    * Apply the field to a sheet whose content has already been reset. Takes the whole model rather
    * than the field so that a loop over the registry needs no correlation between `key` and the
-   * field's type — {@link facet} does that projection once, where the key is still a single type.
+   * field's type. {@link facet} does that projection once, where the key is still a single type.
    *
    * The obvious shape, `write(sheet, value: WorksheetModel[K])` stored as-is, cannot be called from
    * a loop: over a union of `ModelFacet<K>` the parameter is contravariant under
    * `strictFunctionTypes`, which breaks the correlation. Declaring `write` with method syntax makes
-   * it compile — by making the position bivariant, which buys the call back by switching the check
+   * it compile, by making the position bivariant, which buys the call back by switching the check
    * off. Projecting inside the helper is correlated *and* sound; do not "simplify" it back.
    */
   readonly write: (sheet: Worksheet, model: WorksheetModel) => void;
@@ -186,7 +186,7 @@ export const WORKSHEET_MODEL_FACETS = [
   facet(
     'autoFilter',
     (sheet) => sheet.autoFilter,
-    // Through the public setter, which re-canonicalises the range and — on `undefined` — clears any
+    // Through the public setter, which re-canonicalises the range and, on `undefined`, clears any
     // autofilter the destination held. That clearing is why the field is applied even when absent.
     (sheet, value) => {
       sheet.autoFilter = value;

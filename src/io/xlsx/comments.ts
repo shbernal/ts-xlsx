@@ -1,19 +1,19 @@
-// Cell comments — the `xl/comments{n}.xml` part, its `xl/drawings/vmlDrawing{n}.vml` companion, and the
+// Cell comments: the `xl/comments{n}.xml` part, its `xl/drawings/vmlDrawing{n}.vml` companion, and the
 // reader that maps a comment back onto its cell.
 //
 // A comment is anchored to a cell by A1 reference and rendered by Excel as a floating box. The box's
 // geometry lives in a legacy VML drawing (the pre-DrawingML shape format Excel still requires here);
-// the text lives in the comments part. Both are emitted together — a comments part with no matching
+// the text lives in the comments part. Both are emitted together: a comments part with no matching
 // `<legacyDrawing>`/VML reads as text but renders nothing, so we never split them.
 //
 // Two different things share this one wire form:
-//   • a user's **note** (`cell.note`) — a single anonymous annotation, the whole of what the part held
+//   • a user's **note** (`cell.note`), a single anonymous annotation, the whole of what the part held
 //     before 2018;
 //   • the legacy **fallback** Excel writes beside every modern threaded comment (see
 //     `threaded-comments.ts`), so a pre-2018 reader still sees the conversation. Its text is a fixed
 //     boilerplate wrapping a copy of the thread, and its author is a synthetic `tc={headId}` entry.
 //
-// That `tc=` author and the comment's `xr:uid` are how Excel binds a cell back to its thread — not
+// That `tc=` author and the comment's `xr:uid` are how Excel binds a cell back to its thread, not
 // decoration. Verified against desktop Excel: a package whose threadedComment part, persons registry,
 // relationships and content types all survive intact still reads back as ordinary notes with zero
 // threads once those two are lost. So the fallback is *derived from the thread model* on write and
@@ -47,12 +47,12 @@ export interface CommentCell {
  * in `threads`. A comment anchors to its cell regardless of the cell's value, so a note (or a thread) on
  * an otherwise-empty cell is collected too.
  *
- * `threads` is the conversations the *package* will carry, not simply the ones the sheet holds — the
+ * `threads` is the conversations the *package* will carry, not simply the ones the sheet holds. The
  * caller decides, because a fallback beside a thread whose `threadedComment` part is missing is worse
  * than no fallback at all: verified against desktop Excel, such a comment shows as neither a thread nor
  * a note, so the text disappears entirely.
  *
- * Ordered by cell, row-major, the way Excel writes the list — so a fallback lands interleaved among the
+ * Ordered by cell, row-major, the way Excel writes the list, so a fallback lands interleaved among the
  * notes rather than appended after them, and the VML shapes follow the same order.
  */
 export function collectComments(
@@ -102,7 +102,7 @@ const FALLBACK_PREAMBLE =
 
 // A whole conversation flattened into the one comment a pre-2018 reader can render: the opening message
 // under `Comment:`, then each reply under its own `Reply:`, every body indented four spaces. Verified
-// against desktop Excel for a thread with three replies — `Reply:` repeats per reply rather than the
+// against desktop Excel for a thread with three replies: `Reply:` repeats per reply rather than the
 // replies being joined under one heading.
 function fallbackText(thread: CommentThread): string {
   const [head, ...replies] = thread.comments;
@@ -120,7 +120,7 @@ const REVISION_NS_ATTRS = ` xmlns:mc="${MARKUP_COMPATIBILITY_NS}" mc:Ignorable="
  * Authors are laid out the way Excel lays them out: one synthetic `tc={headId}` entry per threaded
  * conversation first, then a single anonymous author shared by every note (the model carries no note
  * author). Each comment points at its own author by index, and a fallback additionally carries the
- * `xr:uid` naming its thread — the pair that keeps Excel treating the cell as threaded.
+ * `xr:uid` naming its thread: the pair that keeps Excel treating the cell as threaded.
  */
 export function commentsXml(comments: readonly CommentCell[]): string {
   const authorIdByThreadId = new Map<string, number>();
@@ -170,7 +170,7 @@ const VML_HEADER =
 /** The `xl/drawings/vmlDrawing{n}.vml` companion: one hidden text-box shape per comment, in the same
  * order as the comments part. Anchor coordinates place the box a couple of cells down-and-right of its
  * owner; Excel refines them on open, so the values are a sensible starting geometry rather than a
- * pixel-exact layout. A thread's fallback shape is `ObjectType="Note"` like any other — Excel draws the
+ * pixel-exact layout. A thread's fallback shape is `ObjectType="Note"` like any other: Excel draws the
  * threaded-comment card itself and only needs the shape to exist. */
 export function vmlDrawingXml(comments: readonly CommentCell[]): string {
   const shapes = comments
@@ -204,8 +204,8 @@ export interface ParsedComment {
   readonly threadId?: string;
 }
 
-// A comment names its author by index into `<authors>`, so an empty entry must still occupy its slot —
-// presenting the self-closing `<author/>` an author-less file writes as an empty element gives it the
+// A comment names its author by index into `<authors>`, so an empty entry must still occupy its slot.
+// Presenting the self-closing `<author/>` an author-less file writes as an empty element gives it the
 // close that pushes it. Without this every later index would shift by one and a note could inherit a
 // thread's `tc=` author.
 const COMMENT_EMPTY_CLOSES: ReadonlySet<string> = new Set(['author']);
@@ -273,7 +273,7 @@ export function parseComments(xml: string): Map<string, ParsedComment> {
 }
 
 // A missing or non-numeric `authorId` indexes nothing, so `authors[NaN]` is undefined and the comment
-// reads as a plain note — the safe direction, since mistaking a note for a fallback would delete it.
+// reads as a plain note: the safe direction, since mistaking a note for a fallback would delete it.
 function threadIdOf(author: string | undefined): string | undefined {
   if (author === undefined || !author.startsWith(THREAD_AUTHOR_PREFIX)) return undefined;
   const id = author.slice(THREAD_AUTHOR_PREFIX.length);
@@ -284,7 +284,7 @@ function threadIdOf(author: string | undefined): string | undefined {
  * Apply a parsed comments part onto a sheet's cells as notes, addressing each by its A1 reference.
  *
  * A thread's legacy fallback is not a note and does not become one: its text is boilerplate wrapping a
- * copy of the conversation, so surfacing it as `cell.note` hands the caller garbage — and on write it
+ * copy of the conversation, so surfacing it as `cell.note` hands the caller garbage, and on write it
  * would be re-emitted as a plain note, destroying the `tc=`/`xr:uid` binding and leaving Excel unable to
  * see the thread at all.
  *

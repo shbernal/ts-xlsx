@@ -5,7 +5,7 @@ import {test} from 'node:test';
 import {deriveCredential} from './protection.ts';
 
 // An independent re-implementation of OOXML's agile hash, used to prove deriveCredential's output
-// is genuinely derived from its own reported salt via the documented algorithm — catching a wrong
+// is genuinely derived from its own reported salt via the documented algorithm, catching a wrong
 // concat order or a big-endian iteration counter, which a self-comparison could not.
 function referenceHash(password: string, saltBase64: string, spinCount: number): string {
   const salt = Buffer.from(saltBase64, 'base64');
@@ -42,7 +42,7 @@ test('a custom spin count is honored', () => {
   assert.equal(credential.hashValue, referenceHash('pw', credential.saltValue, 7));
 });
 
-test('the salt is real randomness — two derivations of one password differ', () => {
+test('the salt is real randomness: two derivations of one password differ', () => {
   const a = deriveCredential('same', 5);
   const b = deriveCredential('same', 5);
   assert.notEqual(a.saltValue, b.saltValue);

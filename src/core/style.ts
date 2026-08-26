@@ -2,7 +2,7 @@
 //
 // Styles are a large surface in OOXML (fonts, fills, borders, alignment, number
 // formats, protection). The rewrite grows them corpus-first; this module models the
-// facets landed so far — colours, fills, borders, fonts, alignment, and protection.
+// facets landed so far: colours, fills, borders, fonts, alignment, and protection.
 
 /** Underline can be a plain flag or one of Excel's named underline styles. */
 export type UnderlineStyle =
@@ -94,7 +94,7 @@ export function isFillPatternType(value: string): value is FillPatternType {
 
 /**
  * A pattern fill. For a `solid` fill the visible colour is the pattern *foreground*
- * (`fgColor`) — OOXML's counter-intuitive rule — while `bgColor` is the automatic
+ * (`fgColor`), OOXML's counter-intuitive rule, while `bgColor` is the automatic
  * indexed placeholder.
  */
 export interface PatternFill {
@@ -202,7 +202,7 @@ export function isFontVerticalAlignment(value: string): value is FontVerticalAli
   return value === 'superscript' || value === 'subscript';
 }
 
-/** The theme-font role a `<scheme val>` names — `"minor"`/`"major"` bind the font to whichever
+/** The theme-font role a `<scheme val>` names: `"minor"`/`"major"` bind the font to whichever
  * face the workbook theme assigns that role, `"none"` leaves it a literal, unbound face. */
 export type FontScheme = 'minor' | 'major' | 'none';
 
@@ -212,7 +212,7 @@ export function isFontScheme(value: string): value is FontScheme {
 }
 
 /** A font, as it applies to a cell or a single rich-text run. Every facet is optional and
- * independent, like {@link Border}/{@link Alignment}/{@link Protection} — a font sets only the
+ * independent, like {@link Border}/{@link Alignment}/{@link Protection}: a font sets only the
  * facets it overrides (Excel's own default font backs the rest), so no consumer ever holds every
  * field populated at once. */
 export interface Font {
@@ -278,7 +278,7 @@ export function isVerticalAlignment(value: string): value is VerticalAlignment {
 
 /**
  * A cell's alignment. Every facet is optional and independent; an absent facet means the cell
- * takes Excel's default for it. The boolean flags default to off — a cell that never enabled
+ * takes Excel's default for it. The boolean flags default to off, so a cell that never enabled
  * `wrapText`/`shrinkToFit` must never read back with them on. `textRotation` is in degrees
  * (0–180, where 91–180 encodes -1° to -90°); `indent` is a non-negative indent level.
  */
@@ -293,7 +293,7 @@ export interface Alignment {
 }
 
 /**
- * A cell's protection state, enforced only when the worksheet itself is protected — the flags
+ * A cell's protection state, enforced only when the worksheet itself is protected. The flags
  * do nothing on an unprotected sheet. `locked` defaults to TRUE in OOXML (every cell is locked
  * unless told otherwise), so the meaningful, information-carrying state is an explicitly
  * *unlocked* cell (`locked: false`); marking a cell locked merely restates the default and
@@ -306,14 +306,14 @@ export interface Protection {
 }
 
 /**
- * The six direct-format facets a cell can carry — its fill, number format, font, border, alignment,
+ * The six direct-format facets a cell can carry: its fill, number format, font, border, alignment,
  * and protection. Every facet is optional and independent: a cell sets only the facets it overrides
  * and inherits the rest. This one tuple is the unit of style throughout the library, so the
- * interfaces that carry a cell's formatting compose it rather than re-listing the fields — a column,
+ * interfaces that carry a cell's formatting compose it rather than re-listing the fields: a column,
  * table column, or named style whose facets *default* the cells that leave them unset (see
  * {@link ColumnProperties}, {@link NamedCellStyle}), and a cell's own resolved format. Because they
  * share this type, "add a facet" is a single edit here and the compiler enforces that no read/write
- * path silently drops one — the round-trip symmetry the merge-loss contract depends on.
+ * path silently drops one, the round-trip symmetry the merge-loss contract depends on.
  */
 export interface CellStyle {
   fill?: Fill | undefined;
@@ -325,7 +325,7 @@ export interface CellStyle {
 }
 
 // One entry per facet, as a Record rather than a bare list so the compiler rejects it the moment a
-// facet is added to CellStyle and forgotten here — which would otherwise let the facet-list-driven
+// facet is added to CellStyle and forgotten here, which would otherwise let the facet-list-driven
 // copies below (assignStyleFacets) silently skip the new facet, a merge-loss.
 const CELL_STYLE_FACET_KEYS: Record<keyof CellStyle, true> = {
   fill: true,
@@ -340,18 +340,18 @@ const CELL_STYLE_FACET_KEYS: Record<keyof CellStyle, true> = {
 export const CELL_STYLE_FACETS = Object.keys(CELL_STYLE_FACET_KEYS) as (keyof CellStyle)[];
 
 /**
- * Copy each present facet of `source` onto `target`, leaving facets `source` omits untouched — the
+ * Copy each present facet of `source` onto `target`, leaving facets `source` omits untouched: the
  * plain-record counterpart to a cell's `applyCellStyle`, for the {@link CellStyle}-shaped targets a
  * `Cell`'s setters don't reach (a column's cell-defaults, a named style being assembled on read).
  * Driven by {@link CELL_STYLE_FACETS}, so a facet added to the tuple reaches these paths the moment
- * it joins — the same single-point-of-change the cell path gets.
+ * it joins, the same single-point-of-change the cell path gets.
  */
 export function assignStyleFacets(target: CellStyle, source: Readonly<CellStyle>): void {
   for (const facet of CELL_STYLE_FACETS) copyFacet(target, source, facet);
 }
 
 // A single facet key at a time, so the write's key type is one member (not the whole union) and
-// `target[key] = source[key]` typechecks without a cast — the correlated-key access TS can't verify
+// `target[key] = source[key]` typechecks without a cast: the correlated-key access TS can't verify
 // when the key is a union.
 function copyFacet<K extends keyof CellStyle>(
   target: CellStyle,
@@ -363,7 +363,7 @@ function copyFacet<K extends keyof CellStyle>(
 }
 
 /**
- * A named cell style — the OOXML `cellStyleXfs`/`cellStyles` layer. A spreadsheet applies a built-in
+ * A named cell style: the OOXML `cellStyleXfs`/`cellStyles` layer. A spreadsheet applies a built-in
  * or custom style (e.g. "Normal", "Accent1") whose visual facets live in this shared, named layer
  * rather than on each cell's direct format; a cell links to it and inherits any facet the direct
  * format leaves unset. The facets are a cell's own (see {@link CellStyle}); `name` is the style's
@@ -377,7 +377,7 @@ export type NamedCellStyle = Readonly<CellStyle> & {
 /**
  * A differential style (OOXML CT_Dxf): formatting laid *over* whatever a cell already carries. Only
  * the facets present override; the rest of the cell's own style shows through. It carries the subset
- * of the cell-style facets (see {@link CellStyle}) a `<dxf>` can express — font, number format, fill,
+ * of the cell-style facets (see {@link CellStyle}) a `<dxf>` can express: font, number format, fill,
  * and border.
  *
  * Differential styles live in one workbook-level table (`<dxfs>`) that several features index into:
@@ -400,7 +400,7 @@ export type DifferentialStyle = Pick<CellStyle, 'font' | 'numFmt' | 'fill' | 'bo
  * Each entry of {@link styles} is one `<tableStyle>…</tableStyle>` fragment kept verbatim, for the
  * same reason a `<dxf>` is: a `tableStyleElement`'s `dxfId` indexes the differential-style table,
  * which the writer re-emits **at its original indices**, so the references stay valid without
- * reparsing anything. That index-stability is load-bearing — renumbering the dxf table would
+ * reparsing anything. That index-stability is load-bearing: renumbering the dxf table would
  * silently re-point every preserved table style at a different format.
  *
  * The two default names are ordinary strings, not fragments: they are re-escaped on write, so they
@@ -416,7 +416,7 @@ export interface TableStyleTable {
    *
    * Carrying a fragment verbatim carries its *prefixes* too. Excel stamps a revision id
    * (`xr9:uid="{…}"`) on every `<tableStyle>` it writes, so a fragment re-emitted under a
-   * `<styleSheet>` that declares only the default namespace is not namespace-well-formed — no
+   * `<styleSheet>` that declares only the default namespace is not namespace-well-formed, and no
    * consumer can parse the part at all, which is a far louder failure than the dropped table style
    * this preservation exists to prevent. The writer re-declares each prefix on `<styleSheet>` and
    * re-states the ignorable ones, exactly as the source did.
