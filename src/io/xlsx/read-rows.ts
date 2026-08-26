@@ -18,7 +18,7 @@
 // make the inflate itself per-part lazy; the pull primitive this stands on (`xmlEvents`) is the
 // same one that path will use.
 
-import {MAX_COLUMN} from '../../core/address.ts';
+import {MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
 import {AuthoringError} from '../../errors.ts';
 import {
@@ -303,6 +303,7 @@ function* scanSheet(
   let rowNumber = 0;
   let lastRow = 0;
   let rowHidden = false;
+  let rowInGrid = true;
   let cells: StreamedCell[] = [];
 
   // The in-flight `<c>`, gathered exactly as the buffered reader gathers it, then taken as the
@@ -313,7 +314,7 @@ function* scanSheet(
   const cell = new CellAccumulator({richRuns: false});
 
   const finalizeCell = (): void => {
-    if (cell.ref === '' || cell.col < 0) return;
+    if (cell.ref === '' || cell.col < 0 || !rowInGrid) return;
     const style = cell.styleIndex >= 0 ? xfStyles[cell.styleIndex] : undefined;
     const value = cell.decode(sharedStrings, style);
     // A blank or purely style-only cell decodes to null; a data read wants only cells that carry
@@ -336,6 +337,12 @@ function* scanSheet(
         case 'row': {
           rowNumber = numInteger(event.attrs.r, 1) ?? lastRow + 1;
           lastRow = rowNumber;
+          // A row past the grid is dropped whole, the same reading `applyRow` takes in the buffered
+          // reader: an `<r>` names one row, so there is nothing to clamp it onto, and yielding a
+          // `number` of 1048577 would hand the consumer an address no `getCell` will accept. The
+          // `<c>` machine still runs over its cells, because it is what keeps the reader in step
+          // with the element stream, but nothing is retained for them and no row is handed off.
+          rowInGrid = rowNumber <= MAX_ROW;
           rowHidden = boolStrict(event.attrs.hidden);
           cells = [];
           break;
@@ -356,7 +363,7 @@ function* scanSheet(
     const claimed = cell.closeElement(local);
     if (claimed === 'cell') finalizeCell();
     else if (claimed === 'other' && local === 'row') {
-      yield {number: rowNumber, hidden: rowHidden, cells};
+      if (rowInGrid) yield {number: rowNumber, hidden: rowHidden, cells};
     }
   }
 }

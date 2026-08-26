@@ -3,6 +3,7 @@ import {test} from 'node:test';
 
 import {strToU8, zipSync} from 'fflate';
 
+import {MAX_ROW} from '../../core/address.ts';
 import {isFormulaValue} from '../../core/value.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {readSheetRows, readWorkbookStream, type StreamedRow} from './read-rows.ts';
@@ -161,6 +162,39 @@ test('an inline string cell decodes through the streaming SAX path', () => {
   });
 
   assert.equal(rows(archive)[0]?.cells[0]?.value, 'hi there');
+});
+
+test('a row past the last row is dropped, as the buffered reader drops it', () => {
+  // The two readers have to agree on what an out-of-grid `<r>` means. The buffered one drops the
+  // row (clamping would move its formatting onto 1048576); this one must not hand the consumer a
+  // `number` that names no cell, and must retain nothing for the row it refuses.
+  const sheetXml =
+    '<?xml version="1.0"?><worksheet><sheetData>' +
+    '<row r="1"><c r="A1" t="inlineStr"><is><t>in grid</t></is></c></row>' +
+    `<row r="${MAX_ROW + 1}"><c r="A${MAX_ROW + 1}" t="inlineStr"><is><t>past it</t></is></c></row>` +
+    '<row r="2"><c r="A2" t="inlineStr"><is><t>after</t></is></c></row>' +
+    '</sheetData></worksheet>';
+  const archive = zipSync({
+    '[Content_Types].xml': strToU8('<Types/>'),
+    'xl/workbook.xml': strToU8(
+      '<workbook><sheets><sheet name="S" r:id="rId1"/></sheets></workbook>',
+    ),
+    'xl/_rels/workbook.xml.rels': strToU8(
+      '<Relationships><Relationship Id="rId1" Type="x/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+    ),
+    'xl/worksheets/sheet1.xml': strToU8(sheetXml),
+  });
+
+  const streamed = rows(archive);
+  assert.deepEqual(
+    streamed.map((row) => row.number),
+    [1, 2],
+    'the out-of-grid row is not yielded, and the rows around it still are',
+  );
+  assert.deepEqual(
+    streamed.map((row) => row.cells.map((cell) => cell.value)),
+    [['in grid'], ['after']],
+  );
 });
 
 test('streamed values agree with readXlsx cell-for-cell', () => {
