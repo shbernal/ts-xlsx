@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// vba-compiler harness — orchestrator.
+// vba-compiler harness: orchestrator.
 //
 // Turns a declarative spec of VBA module source into a genuinely-compiled artifact by driving a real,
 // headless Excel through the VBIDE object model (compile.ps1):
@@ -8,14 +8,14 @@
 // WHY THIS EXISTS: Excel does NOT recompile VBA from source on open. A module ships its compiled p-code
 // and Excel runs that; a from-scratch or byte-spliced project with absent/mismatched p-code throws
 // "Invalid data format" or silently runs stale code (recorded finding 2026-07-24). Genuinely compiled,
-// source-matched p-code is a hard requirement, and only a real Excel can produce it — hence this
+// source-matched p-code is a hard requirement, and only a real Excel can produce it. Hence this
 // offline build tool. The shipped library stays pure-TS: it attaches the emitted bytes verbatim via
 // `Workbook.vbaProjectBytes`.
 //
 // This is a PROBE/build tool, NOT a test. It is Windows/Excel-bound and never runs in CI; its output is
 // a recorded artifact that seeds a committed corpus fixture (ADR 0012/0013 seed+lock split). It also
 // needs Trust access to the VBA project object model
-// (HKCU\Software\Microsoft\Office\<ver>\Excel\Security\AccessVBOM = 1) — see README.md.
+// (HKCU\Software\Microsoft\Office\<ver>\Excel\Security\AccessVBOM = 1). See README.md.
 //
 // Usage:  node tools/vba-compiler/run.ts <spec.json> --out <vbaProject.bin | out.xlsm>
 
@@ -36,7 +36,7 @@ interface ModuleSpec {
   readonly source: string;
 }
 
-/** The compile spec: the modules to author, and — for editing an existing project — a base workbook. */
+/** The compile spec: the modules to author, and, for editing an existing project, a base workbook. */
 interface CompileSpec {
   readonly modules: readonly ModuleSpec[];
   /** Path to an existing `.xlsm` to edit in place (required for `document`/`designer` modules). */
@@ -131,7 +131,7 @@ async function assertExcelAvailable(): Promise<void> {
 const VALID_KINDS = new Set(['procedural', 'class', 'designer', 'document']);
 
 // `Array.isArray` is declared `arg is any[]`, and a `readonly T[]` is not assignable to `any[]`, so
-// narrowing a readonly array through it widens every element to `any` — the member reads in
+// narrowing a readonly array through it widens every element to `any`, and the member reads in
 // `readSpec` below would then be unchecked. This predicate does the same runtime test and keeps the
 // declared element type.
 function isReadonlyArray<T>(value: readonly T[] | undefined): value is readonly T[] {
@@ -192,7 +192,7 @@ async function main(): Promise<void> {
   if (!result.ok) fail(`compilation failed: ${result.error ?? '(no error message)'}`);
 
   process.stderr.write(
-    `vba-compiler: ${result.mode} — ${result.modules.map((m) => `${m.name}(${m.action})`).join(', ')} -> ${outPath}\n`,
+    `vba-compiler: ${result.mode}, ${result.modules.map((m) => `${m.name}(${m.action})`).join(', ')} -> ${outPath}\n`,
   );
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }

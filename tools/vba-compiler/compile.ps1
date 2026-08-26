@@ -1,13 +1,13 @@
-# vba-compiler harness — VBIDE COM driver.
+# vba-compiler harness: VBIDE COM driver.
 #
 # Turns VBA module SOURCE into a genuinely-compiled `vbaProject.bin` (or a whole `.xlsm`) by driving a
 # real, headless Excel through the VBIDE object model. This is the ONLY sound way to author/edit VBA:
-# Excel does not recompile from source on open — a module ships its p-code (PerformanceCache) and Excel
+# Excel does not recompile from source on open: a module ships its p-code (PerformanceCache) and Excel
 # runs THAT; a from-scratch or byte-spliced project with no/mismatched p-code either throws "Invalid
 # data format" or silently runs stale code (recorded finding 2026-07-24; see ../../docs/decisions).
 #
 # Contract mirrors tools/excel-oracle/observe.ps1: it owns EVERY guardrail, because a stray modal here
-# deadlocks the caller forever —
+# deadlocks the caller forever:
 #   - Visible=$false + DisplayAlerts=$false + AutomationSecurity=Low (macros MUST load so they compile);
 #   - the COM work runs inside a background job wrapped by a wall-clock watchdog (Wait-Job -Timeout);
 #   - on timeout the job is stopped and any EXCEL.EXE THIS run spawned is force-killed;

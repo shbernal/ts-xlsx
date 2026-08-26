@@ -1,4 +1,4 @@
-# Excel-oracle harness — COM driver.
+# Excel-oracle harness: COM driver.
 #
 # Opens a .xlsx in headless Excel Desktop, reads formula/value per requested cell, optionally re-saves
 # a copy (so the caller can read back the ref Excel itself canonicalizes), and emits ONE JSON
@@ -17,7 +17,7 @@ param(
   [Parameter(Mandatory = $true)] [string] $Path,
   # Comma-joined cell addresses (e.g. "B1,B2,D5"). Taken as one string and split here on purpose: a
   # [string[]] param bound via -File from an external spawn collapses to a single element, and Excel's
-  # Range() reads a comma as a union operator — so a joined token silently reads one merged area, not
+  # Range() reads a comma as a union operator, so a joined token silently reads one merged area, not
   # each cell. Splitting here keeps one address per readback.
   [string] $Cells = '',
   [string] $SaveAsPath = '',

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Excel-oracle harness — orchestrator.
+// Excel-oracle harness: orchestrator.
 //
 // One command turns a declarative probe into a recorded Excel-Desktop observation:
 //   emit (spec -> .xlsx)  ->  observe (headless COM readback + re-save)  ->  collect (parse + canonical
@@ -159,7 +159,7 @@ function readProbe(probePath: string): Probe {
   return p as Probe;
 }
 
-/** Read back the shared-formula `<f>` elements Excel itself wrote — its canonical form for the group. */
+/** Read back the shared-formula `<f>` elements Excel itself wrote: its canonical form for the group. */
 function canonicalSharedFormulas(resavedPath: string): Record<string, string[]> {
   const zip = unzipSync(new Uint8Array(readFileSync(resavedPath)));
   const out: Record<string, string[]> = {};
@@ -232,7 +232,7 @@ async function main(): Promise<void> {
         error: raw.resaveError,
         canonicalSharedFormulasBySheet,
       },
-      // The authored interpretation this probe records — the conclusion the observation justifies.
+      // The authored interpretation this probe records: the conclusion the observation justifies.
       // Echoed from the probe (not derived) so the seeding case's provenance points at fact + verdict
       // together; a Tier-2 seam fact is still what locks the behavior in CI (ADR 0012).
       ...(probe.verdict !== undefined ? {verdict: probe.verdict} : {}),

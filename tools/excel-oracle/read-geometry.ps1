@@ -1,8 +1,8 @@
-# Excel-oracle harness — geometry readback probe.
+# Excel-oracle harness: geometry readback probe.
 #
 # Sibling of observe.ps1. Where that one asks "what formula/value does Excel see in these cells?",
 # this one asks "what does Excel think the GEOMETRY of this sheet is?": per-row RowHeight, per-column
-# ColumnWidth, and the sheet's StandardHeight/StandardWidth — then optionally re-saves a copy so the
+# ColumnWidth, and the sheet's StandardHeight/StandardWidth, then optionally re-saves a copy so the
 # caller can read back the ht/width Excel itself considers canonical.
 #
 # That readback is how a clamp is distinguished from a passthrough. A package can carry an ht/width
@@ -13,14 +13,14 @@
 # It takes an EXISTING workbook path rather than a probe spec: the fixtures worth asking this about
 # are ones a writer already produced. Emit them however you like, then point this at the file.
 #
-# Every guardrail of observe.ps1 applies verbatim and for the same reason — a stray modal here
+# Every guardrail of observe.ps1 applies verbatim and for the same reason, since a stray modal here
 # deadlocks the agent forever: DisplayAlerts=$false + AutomationSecurity=ForceDisable +
 # AskToUpdateLinks=$false, the COM work inside a background job under a wall-clock watchdog, an
 # orphan sweep scoped to EXCEL.EXE PIDs THIS run spawned, and a finally that always Quit()s.
 #
 # Automation-open is not interactive-open. Those same suppressed modals mean this probe can detect
 # that a repair happened (Open threw / the name carries "[Repaired]") but never reports the
-# interactive open verdict — for that, escalate to the excel-gui-automation skill. See ADR 0013.
+# interactive open verdict. For that, escalate to the excel-gui-automation skill. See ADR 0013.
 #
 # Usage:  pwsh -NoProfile -File tools/excel-oracle/read-geometry.ps1 -Path <file.xlsx> [-Rows 4] [-Cols 4]
 #                [-SaveAsPath <out.xlsx>] [-NoResave] [-TimeoutSec 120]

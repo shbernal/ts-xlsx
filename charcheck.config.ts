@@ -52,7 +52,7 @@ export default defineConfig({
       chars: EM_DASHES,
       message:
         'em dash in authored prose: recast the sentence (full stop, colon, or commas) rather than swapping the dash',
-      include: ['docs/**/*.md'],
+      include: ['docs/**/*.md', 'tools/**/*.md'],
     },
     {
       id: 'no-em-dash-in-source',
@@ -61,12 +61,26 @@ export default defineConfig({
         'em dash in source prose: recast the sentence (full stop, colon, or commas) rather than swapping the dash',
       // Comments and string literals alike. An error message is prose too, read by someone
       // under stress, and it is the half a comments-only rule would have had to leave out.
-      // `scripts/tsconfig.json` is here for the same reason its `"//"` keys exist: they are a
-      // paragraph of prose that happens to live in a JSON value.
-      // `test/` and `tools/` are not in yet: they still carry the character, and a rule aimed
-      // at a tree that trips it reports on every run until someone learns to ignore the
-      // output. Widen this glob in the change that cleans them, not before.
-      include: ['src/**/*.ts', 'scripts/**/*.ts', 'scripts/tsconfig.json'],
+      // The `tsconfig.json` files are here for the same reason their `"//"` keys exist: they
+      // are a paragraph of prose that happens to live in a JSON value. `.ps1` is in because a
+      // COM driver's header comment is where its guardrails are explained, and that is prose
+      // whoever next has to debug a hung Excel will read.
+      // `test/` is not in yet: it still carries the character, and a rule aimed at a tree that
+      // trips it reports on every run until someone learns to ignore the output. Widen this
+      // glob in the change that cleans it, not before.
+      include: [
+        'src/**/*.ts',
+        'scripts/**/*.ts',
+        'scripts/**/*.json',
+        'tools/**/*.ts',
+        'tools/**/*.json',
+        'tools/**/*.ps1',
+      ],
+      // A probe record is evidence, not prose we may reword later. `verdict` and `description`
+      // are what the author concluded on the day Excel was asked, and the fixture the record
+      // seeded carries the same sentences; recasting one and not the other invents a drift,
+      // recasting both edits the record. 3 findings, declined on purpose.
+      exclude: ['tools/excel-oracle/probes/**'],
     },
   ],
 });
