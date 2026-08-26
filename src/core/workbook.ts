@@ -483,9 +483,10 @@ export class Workbook {
    * Registering a name a source file already defined **overrides** that definition rather than adding
    * a second one beside it.
    *
-   * @throws {AuthoringError} if the name is empty, or an element carries a `size` outside the four stripe
-   *   types, or a `size` is not a positive integer. See {@link checkTableStyle} for why those are
-   *   refused here rather than silently dropped.
+   * @throws {AuthoringError} if the name is empty, or an element carries a `size` outside the four
+   *   stripe types. See {@link checkTableStyle} for why those are refused here rather than silently
+   *   dropped.
+   * @throws {RangeError} if a `size` is not a positive integer.
    */
   addTableStyle(style: TableStyle): void {
     checkTableStyle(style);
@@ -577,15 +578,16 @@ export class Workbook {
    * follows {@link themeFonts}'s minor face, so `setTheme({fonts: {minor}})` already reaches every
    * unstyled cell and needs no second call here. See {@link defaultFont} for the full chain.
    *
-   * @throws {AuthoringError} if `size` is not a positive finite number, or `name` is empty. Both
-   *   produce a styles part Excel renders from some other font without ever reporting why.
+   * @throws {RangeError} if `size` is not a positive finite number, or `name` is empty. Both
+   *   produce a styles part Excel renders from some other font without ever reporting why. Native
+   *   rather than {@link AuthoringError}: one argument out of range is what `RangeError` is for.
    */
   setDefaultFont(font: Font): void {
     if (font.size !== undefined && !(Number.isFinite(font.size) && font.size > 0)) {
-      throw new AuthoringError(`default font size must be a positive number, not ${font.size}`);
+      throw new RangeError(`default font size must be a positive number, not ${font.size}`);
     }
     if (font.name !== undefined && font.name === '') {
-      throw new AuthoringError('default font name cannot be empty');
+      throw new RangeError('default font name cannot be empty');
     }
     this.#authoredDefaultFont = {...this.#authoredDefaultFont, ...font};
   }

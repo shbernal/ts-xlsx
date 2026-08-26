@@ -216,14 +216,17 @@ function disambiguateColumnNames(columns: readonly TableColumn[]): TableColumn[]
   });
 }
 
+// Both throws are native, which is the call this one needed: a table name is a single scalar, and
+// "does not parse as an identifier" is the same kind of failure as a comment id that is not a GUID,
+// which `comment-thread.ts` already raises as a `SyntaxError`. The composite claim about a table --
+// that its columns span its range, that it does not name a column twice -- is elsewhere, and that
+// one stays an `AuthoringError`.
 function validateTableName(name: string): void {
   if (name.length === 0 || name.length > 255) {
-    throw new AuthoringError(
-      `table name ${JSON.stringify(name)} must be between 1 and 255 characters`,
-    );
+    throw new RangeError(`table name ${JSON.stringify(name)} must be between 1 and 255 characters`);
   }
   if (!IDENTIFIER.test(name)) {
-    throw new AuthoringError(
+    throw new SyntaxError(
       `table name ${JSON.stringify(name)} is not a valid Excel identifier: it must start with a letter, ` +
         'underscore, or backslash and contain only letters, digits, periods, and underscores',
     );

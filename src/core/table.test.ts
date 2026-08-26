@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import {XlsxError} from '../errors.ts';
 import {Table, type TableOptions} from './table.ts';
 
 function table(overrides: Partial<TableOptions> = {}): Table {
@@ -118,4 +119,23 @@ test('addRow on a detached table with a totals row throws: relocation needs the 
     () => table({totalsRow: true}).addRow(),
     /not attached to a worksheet.*relocate its totals row/,
   );
+});
+
+test('a table name that is not an Excel identifier is refused, natively', () => {
+  // A name is a single scalar: out of range is a `RangeError`, unparseable a `SyntaxError`, the same
+  // way a comment id that is not a GUID is. The composite claims about a table (its columns spanning
+  // its range, a duplicate column name) are what stay in the library's own taxonomy. Asserted as
+  // *not* an XlsxError so a later re-wrap reddens the suite instead of changing what callers catch.
+  assert.throws(() => table({name: ''}), {name: 'RangeError', message: /1 and 255/});
+  assert.throws(() => table({name: 'x'.repeat(256)}), {name: 'RangeError'});
+  assert.throws(() => table({name: '1st quarter'}), {
+    name: 'SyntaxError',
+    message: /valid Excel identifier/,
+  });
+  for (const name of ['', '1st quarter']) {
+    assert.throws(
+      () => table({name}),
+      (error: unknown) => !(error instanceof XlsxError),
+    );
+  }
 });

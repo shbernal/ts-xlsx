@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
-import {AuthoringError} from '../../errors.ts';
+import {XlsxError} from '../../errors.ts';
 import {
   applyThemeOverrides,
   DEFAULT_THEME_XML,
@@ -56,9 +56,17 @@ test('applyThemeOverrides replaces only the slots the caller named', () => {
 });
 
 test('applyThemeOverrides refuses a colour that is not a hex triplet', () => {
+  // Native, not the library's taxonomy: one string that does not parse. Asserted both ways so a
+  // later well-meaning re-wrap reddens the suite instead of quietly changing what a caller catches.
   assert.throws(
     () => applyThemeOverrides(DEFAULT_THEME_XML, {colors: {accent1: 'rebeccapurple'}}),
-    AuthoringError,
+    {
+      name: 'SyntaxError',
+    },
+  );
+  assert.throws(
+    () => applyThemeOverrides(DEFAULT_THEME_XML, {colors: {accent1: 'rebeccapurple'}}),
+    (error: unknown) => !(error instanceof XlsxError),
   );
 });
 

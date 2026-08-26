@@ -8,6 +8,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import {XlsxError} from '../errors.ts';
 import {INTERNAL} from './internal.ts';
 import type {Font} from './style.ts';
 import {Workbook} from './workbook.ts';
@@ -134,9 +135,22 @@ test('a caller may state family and scheme outright', () => {
 test('an unusable default font is refused at the call that supplied it', () => {
   // Excel does not report either: it renders from some other font and never says why.
   const wb = new Workbook();
-  assert.throws(() => wb.setDefaultFont({size: 0}), /positive number/);
-  assert.throws(() => wb.setDefaultFont({size: Number.NaN}), /positive number/);
-  assert.throws(() => wb.setDefaultFont({name: ''}), /cannot be empty/);
+  // Native `RangeError`, not the library's taxonomy: one argument out of range. Asserted as *not*
+  // an XlsxError too, so a later well-meaning re-wrap reddens the suite instead of quietly changing
+  // what a caller catches.
+  assert.throws(() => wb.setDefaultFont({size: 0}), {
+    name: 'RangeError',
+    message: /positive number/,
+  });
+  assert.throws(() => wb.setDefaultFont({size: Number.NaN}), {name: 'RangeError'});
+  assert.throws(() => wb.setDefaultFont({name: ''}), {
+    name: 'RangeError',
+    message: /cannot be empty/,
+  });
+  assert.throws(
+    () => wb.setDefaultFont({size: 0}),
+    (error: unknown) => !(error instanceof XlsxError),
+  );
   // …and a refused call leaves the workbook exactly as it was.
   assert.equal(wb.defaultFont.name, 'Calibri');
 });

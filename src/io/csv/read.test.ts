@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import {XlsxError} from '../../errors.ts';
 import {readCsv} from './read.ts';
 
 // The single worksheet's rows as a plain 2-D array of cell values, for terse assertions.
@@ -25,8 +26,14 @@ test('a configured delimiter splits fields and numeric fields coerce', () => {
 });
 
 test('a non-single-character delimiter is rejected rather than silently collapsing rows', () => {
-  assert.throws(() => readCsv('a,b,c', {delimiter: ''}));
-  assert.throws(() => readCsv('a::b::c', {delimiter: '::'}));
+  // Native `RangeError`, not the library's taxonomy: one argument out of range. Asserted as *not*
+  // an XlsxError too, so a later re-wrap reddens the suite rather than quietly changing the catch.
+  assert.throws(() => readCsv('a,b,c', {delimiter: ''}), {name: 'RangeError'});
+  assert.throws(() => readCsv('a::b::c', {delimiter: '::'}), {name: 'RangeError'});
+  assert.throws(
+    () => readCsv('a::b::c', {delimiter: '::'}),
+    (error: unknown) => !(error instanceof XlsxError),
+  );
 });
 
 test('an over-precision numeric string is preserved verbatim; in-range numbers coerce', () => {

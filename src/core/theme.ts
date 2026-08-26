@@ -7,8 +7,6 @@
 // lives with the codec that carries it (`io/xlsx/theme-xml.ts`). The part itself rides through the
 // model opaquely (see `Workbook.restoreThemePart`); nothing here parses it.
 
-import {AuthoringError} from '../errors.ts';
-
 /**
  * The twelve colour-scheme slots **in the order a `theme="n"` attribute indexes them**.
  *
@@ -101,13 +99,15 @@ export interface ThemeOverrides {
  * reduced here; anything else is a caller's bug and is refused rather than written as corrupt XML,
  * which Excel does not report; it renders the slot as flat black.
  *
- * @throws {AuthoringError} if the value is not a recognisable RGB or ARGB hex string.
+ * @throws {SyntaxError} if the value is not a recognisable RGB or ARGB hex string. Native rather
+ * than the library's own `AuthoringError`: a string that does not parse is what `SyntaxError` is
+ * for, and it is the same kind of failure a malformed comment GUID raises.
  */
 export function normalizeThemeColor(value: string): string {
   const hex = value.startsWith('#') ? value.slice(1) : value;
   const rgb = hex.length === 8 ? hex.slice(2) : hex;
   if (!/^[0-9a-fA-F]{6}$/.test(rgb)) {
-    throw new AuthoringError(
+    throw new SyntaxError(
       `Invalid theme colour ${JSON.stringify(value)}: expected 6 hexadecimal digits (RRGGBB)`,
     );
   }

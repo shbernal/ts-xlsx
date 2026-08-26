@@ -3,6 +3,7 @@ import {test} from 'node:test';
 
 import type {Fill, Font} from '../../core/style.ts';
 import {Workbook} from '../../core/workbook.ts';
+import {XlsxError} from '../../errors.ts';
 import {parseIndexedColors} from './read-styles.ts';
 import {StyleRegistry} from './styles.ts';
 
@@ -187,9 +188,19 @@ test('a "#"-prefixed 6-hex RGB is both stripped and promoted to opaque ARGB', ()
 test('an ARGB that is neither 6 nor 8 hex digits is rejected at the API surface', () => {
   const styles = new StyleRegistry();
   // A malformed colour silently renders as flat black in Excel; fail loud instead of writing it.
-  assert.throws(() => styles.styleId({fill: solid('12345')}), /Invalid ARGB colour "12345"/);
-  assert.throws(() => styles.styleId({fill: solid('GGGGGGGG')}), /Invalid ARGB colour/);
-  assert.throws(() => styles.styleId({fill: solid('red')}), /Invalid ARGB colour/);
+  // Native `SyntaxError`, not the library's taxonomy: one string that does not parse, the same kind
+  // of failure a comment id that is not a GUID raises. Asserted as *not* an XlsxError too, so a
+  // later re-wrap reddens the suite rather than quietly changing what a caller catches.
+  assert.throws(() => styles.styleId({fill: solid('12345')}), {
+    name: 'SyntaxError',
+    message: /Invalid ARGB colour "12345"/,
+  });
+  assert.throws(() => styles.styleId({fill: solid('GGGGGGGG')}), {name: 'SyntaxError'});
+  assert.throws(() => styles.styleId({fill: solid('red')}), {name: 'SyntaxError'});
+  assert.throws(
+    () => styles.styleId({fill: solid('red')}),
+    (error: unknown) => !(error instanceof XlsxError),
+  );
 });
 
 test('a custom number format is defined in <numFmts> from id 164 and referenced by its xf', () => {

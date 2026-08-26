@@ -12,7 +12,6 @@
 // interning table; it just happened to be where the first caller was.
 
 import type {Color} from '../../core/style.ts';
-import {AuthoringError} from '../../errors.ts';
 import {numFinite, numInteger} from '../../xml/xml-read.ts';
 
 // OOXML wants a bare 8-hex ARGB (alpha + RGB). This single choke point, through which every
@@ -23,11 +22,15 @@ import {numFinite, numInteger} from '../../xml/xml-read.ts';
 //     case of a colour written without its alpha channel.
 // Anything not then exactly 8 hex digits is a programming error at the API surface, so it throws with
 // the offending value rather than writing corrupt XML. Casing is preserved so foreign files round-trip.
+//
+// `normalizeThemeColor` in `core/theme.ts` asks a similar question and stays a separate function:
+// a theme slot is `<a:srgbClr val>`, which DrawingML gives no alpha channel, so the two differ in
+// exactly the thing this one exists to add. One function with a flag for that would be worse.
 function normalizeArgb(argb: string): string {
   const hex = argb.startsWith('#') ? argb.slice(1) : argb;
   const rgb = hex.length === 6 ? `FF${hex}` : hex;
   if (!/^[0-9a-fA-F]{8}$/.test(rgb)) {
-    throw new AuthoringError(
+    throw new SyntaxError(
       `Invalid ARGB colour ${JSON.stringify(argb)}: expected 6 or 8 hexadecimal digits`,
     );
   }

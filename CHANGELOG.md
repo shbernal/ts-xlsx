@@ -137,6 +137,27 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Changed
 
+- **Six scalar-validation sites now throw native errors, as `errors.ts` says they should.** The
+  taxonomy draws the line explicitly: one argument out of range, unparseable, or the wrong type is
+  a native `RangeError`/`SyntaxError`/`TypeError`, and `AuthoringError` starts where a *composite*
+  is inconsistent. Six sites were on the wrong side of it, so `catch (e) { if (e instanceof
+  XlsxError) }` caught some argument mistakes and not others, with no rule a caller could predict.
+
+  | What | Was | Now |
+  | --- | --- | --- |
+  | `Workbook.setDefaultFont` size / empty name | `AuthoringError` | `RangeError` |
+  | `Workbook.addTableStyle` band `size` | `AuthoringError` | `RangeError` |
+  | `readCsv` `delimiter` length | `AuthoringError` | `RangeError` |
+  | A table name's length | `AuthoringError` | `RangeError` |
+  | A table name that is not an Excel identifier | `AuthoringError` | `SyntaxError` |
+  | A theme colour that is not `RRGGBB` | `AuthoringError` | `SyntaxError` |
+  | An ARGB colour that is not 6 or 8 hex digits | `AuthoringError` | `SyntaxError` |
+
+  Every message string is unchanged, and no other throw moved: the composite claims stay where they
+  were (a table style with no name, an element carrying a `size` it cannot have, a table whose
+  columns do not span its range). Code branching on the message or on `instanceof Error` is
+  unaffected; code branching on `XlsxError` for these seven needs the native type instead.
+
 - **`Workbook.authoredThemeXml()` is now `Workbook.themeOverrides`.** The old method handed back
   theme part *text*, which made the model the place that knew how a theme is spelled. The getter
   returns the colour slots and typefaces {@link setTheme} authored, or `undefined` when none were,

@@ -406,9 +406,10 @@ elements, or a conditional-formatting rule, that paint the same way share one en
 Registering a name a source file already defined **overrides** that definition rather than adding
 a second one beside it.
 
-**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the name is empty, or an element carries a `size` outside the four stripe
-types, or a `size` is not a positive integer. See `checkTableStyle` for why those are
-refused here rather than silently dropped.
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the name is empty, or an element carries a `size` outside the four
+stripe types. See `checkTableStyle` for why those are refused here rather than silently
+dropped.
+**Throws:** `RangeError` if a `size` is not a positive integer.
 
 #### `Workbook.customTableStyles`
 
@@ -502,8 +503,9 @@ theme's body typeface. The dependency runs the other way: with no default font a
 follows [`themeFonts`](./workbook.md#workbookthemefonts)'s minor face, so `setTheme({fonts: {minor}})` already reaches every
 unstyled cell and needs no second call here. See [`defaultFont`](./workbook.md#workbookdefaultfont) for the full chain.
 
-**Throws:** [`AuthoringError`](./errors.md#authoringerror) if `size` is not a positive finite number, or `name` is empty. Both
-produce a styles part Excel renders from some other font without ever reporting why.
+**Throws:** `RangeError` if `size` is not a positive finite number, or `name` is empty. Both
+produce a styles part Excel renders from some other font without ever reporting why. Native
+rather than [`AuthoringError`](./errors.md#authoringerror): one argument out of range is what `RangeError` is for.
 
 #### `Workbook.defaultFont`
 

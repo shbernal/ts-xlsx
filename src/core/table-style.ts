@@ -113,8 +113,8 @@ export interface TableStyle {
  * `size` outside a stripe is ignored. Neither shows up as a repair prompt or a schema error, so the
  * only place to catch them is the call that made them.
  *
- * @throws {AuthoringError} if the name is empty, or a non-stripe element carries a `size`, or a `size` is not
- *   a positive integer.
+ * @throws {AuthoringError} if the name is empty, or a non-stripe element carries a `size`.
+ * @throws {RangeError} if a `size` is not a positive integer.
  */
 export function checkTableStyle(style: TableStyle): void {
   if (style.name === '') {
@@ -136,9 +136,8 @@ export function checkTableStyle(style: TableStyle): void {
       );
     }
     if (!Number.isInteger(size) || size < 1) {
-      throw new AuthoringError(
-        `Invalid table style band size ${size}: expected a positive integer`,
-      );
+      // One number out of range, unlike the element/size mismatch above, which is a composite claim.
+      throw new RangeError(`Invalid table style band size ${size}: expected a positive integer`);
     }
   }
 }
