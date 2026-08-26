@@ -241,6 +241,16 @@ same way the model registry is: a field added to `RowProperties` or `ColumnPrope
 accessor fails the build naming the field, because otherwise the record would carry it, the codecs
 would read and write it, and the public handle would simply never mention it.
 
+Those sixteen pairs are spelled out rather than generated from a facet list, and the decision was
+taken deliberately once the list-driven form was costed. The facet lists elsewhere in `core/`
+(`CELL_STYLE_FACETS`, `WORKSHEET_MODEL_FACETS`) drive *loops* over state a caller never names;
+generating accessors is a different thing, and its price is paid twice. `gen-docs.ts` reads class
+members, so each property would still need a declared member carrying its doc comment, leaving only
+the four-line body to save. And the members would have to be installed at runtime rather than
+declared, which trades a surface the compiler checks for one it merely believes. That is the
+`AssertNever` proof above spending its own guarantee. A slice that is not one costs more than the
+lines it removes, and so does an abstraction.
+
 The xlsx reader and writer, the two largest pieces here, are each a cluster rather than a
 monolith, split along the OOXML package's own divisions so a change touches one part:
 

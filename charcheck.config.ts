@@ -54,6 +54,16 @@ export default defineConfig({
       chars: EM_DASHES,
       message:
         'em dash in authored prose: recast the sentence (full stop, colon, or commas) rather than swapping the dash',
+      // Every include names a directory, so no root-level `.md` is in scope. That is a decision for
+      // the files it is usually about: an ephemeral plan and its follow-up list live at the root
+      // (`.git/info/exclude` names them), and they are scaffolding deleted when the work lands, so
+      // holding them to the prose bar of a page someone will read next year buys nothing, and a
+      // finding on a file git is already told to ignore reads as noise.
+      //
+      // It is not yet a decision for `README.md`, `CLAUDE.md` and `CHANGELOG.md`, which the sweep
+      // that seeded this rule never reached and which hold 161 findings between them. Widening the
+      // glob before recasting that prose would only redden the gate. Do the sweep first, then add
+      // those three by name; do not reach for a bare `*.md`, which would pull the plans back in.
       include: ['docs/**/*.md', 'test/**/*.md', 'tools/**/*.md'],
     },
     {
