@@ -288,10 +288,11 @@ const CELL_EMPTY_CLOSE: ReadonlySet<string> = new Set(['c']);
 
 // Pull the sheet XML through the event stream, yielding a StreamedRow at each `</row>`, while
 // recording the sheet's hidden columns (from `<col hidden>`, before <sheetData>) and merged ranges
-// (from `<mergeCells>`, after <sheetData>) into the caller-supplied collectors. The cell state
-// mirrors the buffered reader's `parseWorksheet` (same self-closing-`<c/>` handling, same capture
-// flags), but commits into a row buffer that is handed off and discarded per row rather than into a
-// persistent Worksheet. That hand-off is what bounds retained memory to one row.
+// (from `<mergeCells>`, after <sheetData>) into the caller-supplied collectors. The `<c>` machine is
+// the accumulator's own, the same one the buffered reader drives, so the two cannot read a cell
+// differently. What differs is what committing means: this one pushes into a row buffer that is
+// handed off and discarded per row rather than into a persistent Worksheet, and that hand-off is
+// what bounds retained memory to one row.
 function* scanSheet(
   xml: string,
   sharedStrings: readonly SharedString[],
@@ -304,15 +305,12 @@ function* scanSheet(
   let rowHidden = false;
   let cells: StreamedCell[] = [];
 
-  // The in-flight `<c>`, gathered exactly as the buffered reader gathers it. This reader drives the
-  // same beginCell/setFormula/setValue/appendText methods, then takes only the cell's plain decoded
-  // value (via decode), never the shared-formula / data-table resolution the buffered finalize adds,
-  // which a data read does not want. Rich `<r>` runs are deliberately not opened here, so a rich
-  // inline string flattens to its concatenated text as a streamed value always has.
-  const cell = new CellAccumulator();
-  let inInlineString = false;
-  let capture = false;
-  let text = '';
+  // The in-flight `<c>`, gathered exactly as the buffered reader gathers it, then taken as the
+  // cell's plain decoded value (via decode) rather than through the shared-formula / data-table
+  // resolution the buffered finalize adds, which a data read does not want. Rich `<r>` runs are
+  // deliberately not read here, so a rich inline string flattens to its concatenated text as a
+  // streamed value always has.
+  const cell = new CellAccumulator({richRuns: false});
 
   const finalizeCell = (): void => {
     if (cell.ref === '' || cell.col < 0) return;
@@ -328,13 +326,12 @@ function* scanSheet(
 
   for (const event of closeEmptyElements(xmlEvents(xml), CELL_EMPTY_CLOSE)) {
     if (event.kind === 'text') {
-      if (capture) text += event.text;
+      cell.appendChunk(event.text);
       continue;
     }
     if (event.kind === 'open') {
       const local = localName(event.name);
-      text = '';
-      capture = false;
+      if (cell.openElement(local, event.attrs, event.selfClosing)) continue;
       switch (local) {
         case 'row': {
           rowNumber = numInteger(event.attrs.r, 1) ?? lastRow + 1;
@@ -349,52 +346,18 @@ function* scanSheet(
         case 'mergeCell':
           if (event.attrs.ref !== undefined) merges.push(event.attrs.ref);
           break;
-        case 'c':
-          cell.beginCell(event.attrs);
-          break;
-        case 'is':
-          inInlineString = true;
-          cell.beginInlineString();
-          break;
-        case 'f':
-          capture = true;
-          cell.beginFormula(event.attrs, event.selfClosing);
-          break;
-        case 'v':
-        case 't':
-          capture = true;
-          break;
         default:
           break;
       }
-      if (event.selfClosing && (local === 'f' || local === 'v')) capture = false;
       continue;
     }
     // close
     const local = localName(event.name);
-    switch (local) {
-      case 'f':
-        cell.setFormula(text);
-        break;
-      case 'v':
-        cell.setValue(text);
-        break;
-      case 't':
-        cell.appendText(text, inInlineString);
-        break;
-      case 'is':
-        inInlineString = false;
-        break;
-      case 'c':
-        finalizeCell();
-        break;
-      case 'row':
-        yield {number: rowNumber, hidden: rowHidden, cells};
-        break;
-      default:
-        break;
+    const claimed = cell.closeElement(local);
+    if (claimed === 'cell') finalizeCell();
+    else if (claimed === 'other' && local === 'row') {
+      yield {number: rowNumber, hidden: rowHidden, cells};
     }
-    capture = false;
   }
 }
 

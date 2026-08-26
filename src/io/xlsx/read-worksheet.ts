@@ -212,10 +212,7 @@ export function parseWorksheet(
 ): void {
   // The one `<c>` currently being read: its address/type/style, formula, value, inline text, rich
   // runs, and the sheet-spanning shared-formula master map. Each `<c>` resets it and commits it.
-  const cell = new CellAccumulator();
-  let inInlineString = false;
-  let capture = false;
-  let text = '';
+  const cell = new CellAccumulator({richRuns: true});
   // A row with customFormat="1" supplies a default style for its cells that carry no `s`.
   let rowStyle = -1;
   let rowCustomFormat = false;
@@ -245,8 +242,7 @@ export function parseWorksheet(
     {
       onOpen(name, attrs, selfClosing) {
         const local = localName(name);
-        text = '';
-        capture = false;
+        if (cell.openElement(local, attrs, selfClosing)) return;
         switch (local) {
           case 'col':
             applyColumn(sheet, attrs, xfStyles, columnStyle);
@@ -255,29 +251,6 @@ export function parseWorksheet(
             applyRow(sheet, attrs);
             rowStyle = numInteger(attrs.s, 0) ?? -1;
             rowCustomFormat = boolStrict(attrs.customFormat);
-            break;
-          case 'c':
-            cell.beginCell(attrs);
-            break;
-          case 'is':
-            inInlineString = true;
-            cell.beginInlineString();
-            break;
-          case 'r':
-            // A run inside a rich inline string. Its `<rPr>` (if any) and `<t>` follow.
-            if (inInlineString) cell.runs.beginRun();
-            break;
-          case 'rPr':
-            // The run's formatting bundle; its self-closing children stream into the default branch.
-            cell.runs.beginProperties();
-            break;
-          case 'f':
-            capture = true;
-            cell.beginFormula(attrs, selfClosing);
-            break;
-          case 'v':
-          case 't':
-            capture = true;
             break;
           case 'oddHeader':
           case 'oddFooter':
@@ -288,7 +261,7 @@ export function parseWorksheet(
             // A `<headerFooter>` child carries its header/footer definition as text (the `&`-prefixed
             // section/format tokens, e.g. `&C&"Arial"&G`). Capture the whole of it so a round-trip
             // preserves a header image's `&G` picture token and every other formatting directive.
-            capture = true;
+            cell.capture();
             break;
           case 'mergeCell':
             // A well-formed file never declares overlapping merges; a corrupt one might. Reject the
@@ -350,31 +323,19 @@ export function parseWorksheet(
             cell.runs.applyProperty(local, attrs);
             break;
         }
-        if (selfClosing && (local === 'f' || local === 'v')) capture = false;
       },
       onText(chunk) {
-        if (capture) text += chunk;
+        cell.appendChunk(chunk);
       },
       onClose(name) {
         const local = localName(name);
+        const claimed = cell.closeElement(local);
+        if (claimed === 'cell') {
+          finalizeCellFromState();
+          return;
+        }
+        if (claimed === 'claimed') return;
         switch (local) {
-          case 'f':
-            cell.setFormula(text);
-            break;
-          case 'v':
-            cell.setValue(text);
-            break;
-          case 't':
-            // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<is>` is a plain
-            // inline string. A run takes precedence, since a run is also inside the inline string.
-            cell.appendText(text, inInlineString);
-            break;
-          case 'r':
-            cell.runs.endRun();
-            break;
-          case 'is':
-            inInlineString = false;
-            break;
           case 'oddHeader':
           case 'oddFooter':
           case 'evenHeader':
@@ -385,10 +346,7 @@ export function parseWorksheet(
             // here and re-emits it on save (measured: a patched `_x0001_` reads back over COM as
             // U+0001, and a `_x005F_x0041_` as the literal `_x0041_`). The decode is on the whole
             // element text, never on a SAX chunk. See {@link decodeSpreadsheetText}.
-            sheet.headerFooter[local] = decodeSpreadsheetText(text);
-            break;
-          case 'c':
-            finalizeCellFromState();
+            sheet.headerFooter[local] = decodeSpreadsheetText(cell.capturedText);
             break;
           case 'row':
             rowStyle = -1;
@@ -407,7 +365,6 @@ export function parseWorksheet(
           default:
             break;
         }
-        capture = false;
       },
     },
     {closeEmptyElements: WORKSHEET_EMPTY_CLOSES},

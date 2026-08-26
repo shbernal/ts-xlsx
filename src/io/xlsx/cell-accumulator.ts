@@ -4,6 +4,15 @@
 // the per-cell state on {@link beginCell} and commits it on {@link finalize}, so this class is the
 // single owner of "what has this cell gathered so far": to a cell what {@link RunAccumulator} is to a
 // rich string. Value *decoding* stays in `cell-value.ts`; this class only gathers the raw pieces.
+//
+// It also drives itself. {@link openElement}/{@link appendChunk}/{@link closeElement} are the
+// `<c>`/`<is>`/`<f>`/`<v>`/`<t>` element machine both worksheet readers used to spell out
+// identically, each with its own copy of the three flags it runs on (inside-an-inline-string,
+// capturing, captured text). Two readers keeping one machine in step by convention is not a
+// mechanism, and the flags are exactly the state that drifts: an element the two disagree about
+// silently reads a different value on one path than the other. Each reader now contributes only
+// what is genuinely its own -- what committing a cell means, and whether rich runs are read at all
+// -- and falls through to this for the rest.
 
 import {decodeAddress, encodeAddress} from '../../core/address.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
@@ -56,6 +65,20 @@ export class CellAccumulator {
   // a map filled as the sheet streams: the master's formula translated to the clone's position.
   readonly #masters = new Map<number, {formula: string; col: number; row: number}>();
 
+  // The element machine's own state: whether an `<is>` is open, whether the current element's text
+  // is being gathered, and what has been gathered of it.
+  #inInlineString = false;
+  #capture = false;
+  #text = '';
+
+  // Whether `<r>`/`<rPr>` open a rich-text run. The buffered reader reads them; the row stream
+  // deliberately does not, so a rich inline string flattens to its concatenated text there.
+  readonly #richRuns: boolean;
+
+  constructor(options: {readonly richRuns: boolean}) {
+    this.#richRuns = options.richRuns;
+  }
+
   /** This cell's `<c r>` address (`"B3"`), or '' when it carried none. */
   get ref(): string {
     return this.#ref;
@@ -78,7 +101,7 @@ export class CellAccumulator {
 
   // Begin a new `<c>`: record its address/type/style and clear every per-cell gathered field so the
   // last cell's formula, value, runs, or shared/data-table declaration cannot bleed into this one.
-  beginCell(attrs: XmlAttributes): void {
+  #beginCell(attrs: XmlAttributes): void {
     this.#ref = attrs.r ?? '';
     this.#type = attrs.t ?? '';
     this.#style = numInteger(attrs.s, 0) ?? -1;
@@ -102,7 +125,7 @@ export class CellAccumulator {
   // Begin an `<f>`: record its shared-formula grouping and any data-table declaration. A self-closing
   // `<f t="shared" si/>` is a clone, firing no close and carrying no text, so mark it here to
   // resolve against its master when the cell finalises.
-  beginFormula(attrs: XmlAttributes, selfClosing: boolean): void {
+  #beginFormula(attrs: XmlAttributes, selfClosing: boolean): void {
     this.#formulaShared = attrs.t === 'shared';
     this.#formulaSi = numInteger(attrs.si, 0) ?? -1;
     if (selfClosing && this.#formulaShared) this.#sharedClone = true;
@@ -117,19 +140,19 @@ export class CellAccumulator {
     }
   }
 
-  setFormula(text: string): void {
+  #setFormula(text: string): void {
     this.#formula = text;
     this.#hasFormula = true;
   }
 
-  setValue(text: string): void {
+  #setValue(text: string): void {
     this.#valueText = text;
     this.#hasValue = true;
   }
 
   // Begin an `<is>`: clear the inline string and open a fresh run container, so a rich value built
   // from a previous cell's runs keeps its own array.
-  beginInlineString(): void {
+  #beginInlineString(): void {
     this.#inlineText = '';
     this.#runs.beginContainer();
   }
@@ -137,14 +160,111 @@ export class CellAccumulator {
   // Route a `<t>`'s text: to the open run when one is active, otherwise to the inline string when the
   // parser is inside an `<is>`. A run takes precedence, since a run is also inside the inline string.
   //
-  // The `_xHHHH_` decode happens here, on one whole `<t>`, and both worksheet readers hand their
-  // `<t>` text to this method, which is what keeps the streaming path from decoding differently
-  // from the buffered one. It cannot move up into the SAX text callback: that fires once per run of
-  // character data and an entity splits a run, so `_x00` and `01_` can arrive separately and a
-  // per-chunk decode would miss the escape in exactly those strings that happen to contain an `&`.
-  appendText(text: string, inInlineString: boolean): void {
+  // The `_xHHHH_` decode happens here, on one whole `<t>`. It cannot move up into the SAX text
+  // callback: that fires once per run of character data and an entity splits a run, so `_x00` and
+  // `01_` can arrive separately and a per-chunk decode would miss the escape in exactly those
+  // strings that happen to contain an `&`.
+  #appendText(text: string): void {
     const decoded = decodeSpreadsheetText(text);
-    if (!this.#runs.appendText(decoded) && inInlineString) this.#inlineText += decoded;
+    if (!this.#runs.appendText(decoded) && this.#inInlineString) this.#inlineText += decoded;
+  }
+
+  /**
+   * The text gathered since the current element opened. A caller reads it for the elements it
+   * captures itself (see {@link capture}); the machine reads it for its own.
+   */
+  get capturedText(): string {
+    return this.#text;
+  }
+
+  /** Gather the current element's text for the caller's own use, the way `<v>` and `<t>` do. */
+  capture(): void {
+    this.#capture = true;
+  }
+
+  /**
+   * Drive one element open, and return whether it was one of the cell machine's own. Every open
+   * resets the capture state first, which is true of both readers and of every element, not just
+   * these; a caller that captures its own text calls {@link capture} after this returns.
+   */
+  openElement(local: string, attrs: XmlAttributes, selfClosing: boolean): boolean {
+    this.#text = '';
+    this.#capture = false;
+    switch (local) {
+      case 'c':
+        this.#beginCell(attrs);
+        return true;
+      case 'is':
+        this.#inInlineString = true;
+        this.#beginInlineString();
+        return true;
+      case 'f':
+        // A self-closing `<f/>` fires no close, so nothing will consume the capture it just armed.
+        this.#capture = !selfClosing;
+        this.#beginFormula(attrs, selfClosing);
+        return true;
+      case 'v':
+        this.#capture = !selfClosing;
+        return true;
+      case 't':
+        this.#capture = true;
+        return true;
+      case 'r':
+        // A run inside a rich inline string. Its `<rPr>` (if any) and `<t>` follow.
+        if (!this.#richRuns) return false;
+        if (this.#inInlineString) this.#runs.beginRun();
+        return true;
+      case 'rPr':
+        // The run's formatting bundle; its self-closing children reach `runs.applyProperty` through
+        // the caller's own default branch, which is the only thing that branch is for.
+        if (!this.#richRuns) return false;
+        this.#runs.beginProperties();
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /** Feed one run of character data. Ignored unless something is capturing. */
+  appendChunk(chunk: string): void {
+    if (this.#capture) this.#text += chunk;
+  }
+
+  /**
+   * Drive one element close. `'cell'` means a `</c>` closed and the caller should commit the
+   * gathered cell, which is the one step the two readers do differently; `'claimed'` means the
+   * machine handled it; `'other'` leaves it to the caller. Capture always ends here, as it does on
+   * every close in both readers.
+   */
+  closeElement(local: string): 'cell' | 'claimed' | 'other' {
+    const verdict = this.#closeElement(local);
+    this.#capture = false;
+    return verdict;
+  }
+
+  #closeElement(local: string): 'cell' | 'claimed' | 'other' {
+    switch (local) {
+      case 'f':
+        this.#setFormula(this.#text);
+        return 'claimed';
+      case 'v':
+        this.#setValue(this.#text);
+        return 'claimed';
+      case 't':
+        this.#appendText(this.#text);
+        return 'claimed';
+      case 'r':
+        if (!this.#richRuns) return 'other';
+        this.#runs.endRun();
+        return 'claimed';
+      case 'is':
+        this.#inInlineString = false;
+        return 'claimed';
+      case 'c':
+        return 'cell';
+      default:
+        return 'other';
+    }
   }
 
   // Commit the gathered cell to the sheet with its already-resolved style (the caller applies the
