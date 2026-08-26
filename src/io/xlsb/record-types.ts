@@ -5,12 +5,12 @@
 //
 // Deliberately partial. [MS-XLSB] enumerates ~760 record types; listing the ones we do not decode
 // would claim coverage we do not have. A record whose type is absent here is skipped by the parsers,
-// which is the correct behaviour for a forward-compatible reader — the format grows, and an unknown
+// which is the correct behaviour for a forward-compatible reader: the format grows, and an unknown
 // record is always safely framed (its size is in the stream) even when its meaning is not known.
 
 /** BIFF12 record numbers, grouped by the part whose stream they appear in. */
 export const BRT = {
-  // Cell table (worksheet part). The single-byte record space — these are the hot path.
+  // Cell table (worksheet part). The single-byte record space: these are the hot path.
   RowHdr: 0,
   CellBlank: 1,
   CellRk: 2,

@@ -3,7 +3,7 @@
 // by splicing the original bytes (every module's compiled p-code preserved untouched).
 //
 // Authoring or editing module SOURCE is NOT here. Excel runs a module's compiled p-code, not its source,
-// and only a real Excel can produce source-matched p-code — so that lives in the offline
+// and only a real Excel can produce source-matched p-code, so that lives in the offline
 // `tools/vba-compiler` (VBIDE), whose output is attached via `Workbook.vbaProjectBytes`. The read path
 // is a projection over bytes the model preserves opaquely on round-trip. For the design invariants and
 // the wider VBA feature map see the ADRs: read view (docs/decisions/0016), authoring (0017/0019), and

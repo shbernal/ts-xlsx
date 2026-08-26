@@ -2,7 +2,7 @@
 //
 // `vbaProject.bin` is a CFB container (the same "structured storage" behind legacy .doc/.xls). We read
 // streams by name and, for the edit-in-place path, reconstruct the whole storage/stream hierarchy so it
-// can be re-emitted through the writer with one stream swapped — so this is a deliberate subset of
+// can be re-emitted through the writer with one stream swapped, so this is a deliberate subset of
 // [MS-CFB]: header → FAT → directory, plus the mini-FAT for sub-cutoff streams, and the red-black
 // sibling tree each storage navigates.
 //
@@ -104,7 +104,7 @@ export class CompoundFile {
 
   /**
    * Reconstruct the container's top-level children as the writer's node shape, recursing into every
-   * storage — so a caller can swap one stream and re-emit the whole hierarchy with {@link writeCompoundFile}.
+   * storage, so a caller can swap one stream and re-emit the whole hierarchy with {@link writeCompoundFile}.
    * Walks the red-black sibling tree each storage navigates (not the linear directory scan), so any part
    * a host reaches is carried through. Cycle- and bounds-guarded like every other chain walk here.
    */
@@ -195,7 +195,7 @@ export class CompoundFile {
     const raw = this.#readChainFull(firstDirSector);
     const entries: DirEntry[] = [];
     // Empty slots are kept as placeholders (not skipped) so array indices stay equal to the on-disk
-    // directory-entry ids the sibling-tree links reference — the tree walk in #buildSiblings needs them.
+    // directory-entry ids the sibling-tree links reference: the tree walk in #buildSiblings needs them.
     for (let off = 0; off + DIR_ENTRY_SIZE <= raw.length; off += DIR_ENTRY_SIZE) {
       const type = raw[off + 66] as number;
       if (
@@ -227,7 +227,7 @@ export class CompoundFile {
       }
       const name = decodeUtf16le(raw.subarray(off, off + Math.max(0, nameLen - 2)));
       const startSector = readU32(raw, off + 116);
-      const size = readU32(raw, off + 120); // low 32 bits — ample for a VBA project
+      const size = readU32(raw, off + 120); // low 32 bits, ample for a VBA project
       entries.push({name, type, startSector, size, left, right, child});
     }
     return entries;

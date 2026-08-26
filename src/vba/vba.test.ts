@@ -17,7 +17,7 @@ import {parseVbaProject} from './project.ts';
 
 // ── Fixture builders ──────────────────────────────────────────────────────────────────────────────
 // These construct a genuine, spec-valid `vbaProject.bin` from scratch: an MS-OVBA "store" encoder
-// (literal-only chunks — valid compression that happens not to compress) and a minimal MS-CFB writer.
+// (literal-only chunks: valid compression that happens not to compress) and a minimal MS-CFB writer.
 // No third-party bytes, no Excel. This exercises the real parse pipeline; the decoder is additionally
 // pinned against an independent hand-verified vector (see the first decompress test) so the fixture and
 // the code under test are not a closed loop on the copy-token path.
@@ -72,7 +72,7 @@ interface ModuleSpec {
 function buildDirStream(codePage: number, modules: ModuleSpec[]): number[] {
   const records: number[] = [];
   records.push(...rec(0x0003, u16le(codePage))); // PROJECTCODEPAGE
-  // PROJECTVERSION: Size=4 counts only VersionMajor; the trailing 2-byte VersionMinor is uncounted —
+  // PROJECTVERSION: Size=4 counts only VersionMajor; the trailing 2-byte VersionMinor is uncounted,
   // the exact record that misaligns a naive TLV walk. Its presence proves the parser skips it.
   records.push(...rec(0x0009, u32le(0x04)), ...u16le(0x000a));
   records.push(...rec(0x000f, u16le(modules.length))); // MODULES_COUNT
@@ -80,12 +80,12 @@ function buildDirStream(codePage: number, modules: ModuleSpec[]): number[] {
   for (const m of modules) {
     records.push(...rec(0x0019, ascii(m.name))); // MODULENAME
     records.push(...rec(0x001a, ascii(m.name))); // MODULESTREAMNAME (MBCS)
-    records.push(...rec(0x0032, utf16le(m.name))); // Reserved: Unicode stream name — must be skipped
+    records.push(...rec(0x0032, utf16le(m.name))); // Reserved: Unicode stream name, must be skipped
     records.push(...rec(0x0031, u32le(m.pcodePrefixLen))); // MODULEOFFSET
     records.push(...rec(m.documentType ? 0x0022 : 0x0021, [])); // MODULETYPE (Reserved u32 = Size 0)
     records.push(...rec(0x002b, [])); // MODULETERMINATOR
   }
-  records.push(...rec(0x0010, [])); // dir Terminator — closes PROJECTMODULES, ends the dir stream
+  records.push(...rec(0x0010, [])); // dir Terminator: closes PROJECTMODULES, ends the dir stream
   return records;
 }
 
@@ -93,7 +93,7 @@ function buildDirStream(codePage: number, modules: ModuleSpec[]): number[] {
 function buildModuleStream(m: ModuleSpec): Uint8Array {
   const compressed = storeCompress(Uint8Array.from(m.sourceBytes));
   const out = new Uint8Array(m.pcodePrefixLen + compressed.length);
-  out.set(compressed, m.pcodePrefixLen); // prefix left as zeros — stand-in for the PerformanceCache
+  out.set(compressed, m.pcodePrefixLen); // prefix left as zeros: stand-in for the PerformanceCache
   return out;
 }
 
@@ -216,9 +216,9 @@ function buildVbaProjectBin(codePage: number, modules: ModuleSpec[]): Uint8Array
   ]);
 }
 
-// A three-module project: a document code-behind, a procedural .bas, and a class module — the last two
+// A three-module project: a document code-behind, a procedural .bas, and a class module. The last two
 // share MODULETYPE 0x22/0x21 but are told apart by the PROJECT stream. Module1's source carries byte
-// 0xC0, which is 'А' (U+0410) in code page 1251 — proving code-page-aware decoding, not latin1.
+// 0xC0, which is 'А' (U+0410) in code page 1251, proving code-page-aware decoding, not latin1.
 const MODULES: ModuleSpec[] = [
   {
     name: 'ThisWorkbook',
@@ -240,7 +240,7 @@ const CODE_PAGE = 1251;
 
 test('decompressContainer expands a hand-verified copy-token vector', () => {
   // Container for "abcabc": literals a,b,c then CopyToken(offset 3, length 3). Encoded by hand from
-  // [MS-OVBA] 2.4.1.3.19.3 — not by this suite's storeCompress, which never emits copy tokens.
+  // [MS-OVBA] 2.4.1.3.19.3, not by this suite's storeCompress, which never emits copy tokens.
   const container = Uint8Array.from([0x01, 0x05, 0xb0, 0x08, 0x61, 0x62, 0x63, 0x00, 0x20]);
   assert.equal(new TextDecoder('latin1').decode(decompressContainer(container)), 'abcabc');
 });
@@ -289,7 +289,7 @@ test('compressContainer emits copy tokens, shrinking repetitive data via run-len
 
 test('compressContainer output re-parses as a real module through the whole pipeline', () => {
   // Compress genuine VBA source, wrap it as a module stream at offset 0, and read it back through the
-  // production CFB writer + parser — the compressor feeding the reader end to end, no store-mode fixture.
+  // production CFB writer + parser: the compressor feeding the reader end to end, no store-mode fixture.
   const source = 'Sub Demo()\r\n    MsgBox "hi"\r\n    MsgBox "hi"\r\nEnd Sub';
   const compressed = compressContainer(strToU8(source));
   const dir = compressContainer(
@@ -362,8 +362,8 @@ test('parseVbaProject throws VbaParseError on a corrupt dir stream', () => {
 
 // ── CFB writer (§2.3a): writeCompoundFile ────────────────────────────────────────────────────────────
 
-// Navigate the directory as a host does — from the Root Entry's child down each storage's balanced
-// tree — collecting stream paths. Independent of CompoundFile, which linear-scans the directory and so
+// Navigate the directory as a host does, from the Root Entry's child down each storage's balanced
+// tree, collecting stream paths. Independent of CompoundFile, which linear-scans the directory and so
 // would pass even over a broken tree; this asserts the tree Excel actually walks is a valid, acyclic
 // search tree that reaches every entry.
 function treeReachableStreams(bin: Uint8Array): string[] {
@@ -443,7 +443,7 @@ test('writeCompoundFile nests streams inside a storage and keeps the tree naviga
 
 test('writeCompoundFile produces a container parseVbaProject decodes', () => {
   // Build the VBA-project stream set from the same fixture bytes, but package it through the production
-  // writer (proper VBA-storage hierarchy) rather than the test's buildCfb — proving the writer yields a
+  // writer (proper VBA-storage hierarchy) rather than the test's buildCfb, proving the writer yields a
   // parseable project, not merely a reader-round-trippable blob.
   const dir = storeCompress(Uint8Array.from(buildDirStream(CODE_PAGE, MODULES)));
   const vbaChildren: CfbNode[] = [
@@ -490,7 +490,7 @@ test('writeCompoundFile rejects duplicate sibling names', () => {
 // ── Workbook integration + round-trip non-regression ─────────────────────────────────────────────────
 
 // One VBA-signature generation to wire into a package: the full relationship Type (carrying the year
-// segment the generation really uses — 2006 legacy, 2014 agile, 2020 V3), the sibling part's file name
+// segment the generation really uses: 2006 legacy, 2014 agile, 2020 V3), the sibling part's file name
 // and content type, and its raw bytes. Office attaches up to three of these over one project.
 interface SignatureGeneration {
   readonly relType: string;
@@ -519,7 +519,7 @@ const v3Signature = (bytes: Uint8Array): SignatureGeneration => ({
 });
 
 // A minimal macro-enabled package around a vbaProject.bin. Pass one or more `sigs` to additionally wire
-// digital signatures over the project — sibling parts reached from the project part's own rels, the
+// digital signatures over the project: sibling parts reached from the project part's own rels, the
 // shape an authoring replace must invalidate (a signature over old bytes cannot vouch for new ones).
 function xlsmPackage(vbaBin: Uint8Array, sigs: readonly SignatureGeneration[] = []): Uint8Array {
   const ms = 'http://schemas.microsoft.com/office/2006/relationships';
@@ -599,7 +599,7 @@ test('Workbook.vbaProject is undefined for a macro-free workbook', () => {
 test('reading vbaProject does not regress byte-for-byte macro preservation on write', () => {
   const vbaBin = buildVbaProjectBin(CODE_PAGE, MODULES);
   const wb = readXlsx(xlsmPackage(vbaBin));
-  // Force the read-only projection before writing — it must not perturb the preserved bytes.
+  // Force the read-only projection before writing; it must not perturb the preserved bytes.
   assert.ok(wb.vbaProject);
   const out = unzipSync(writeXlsx(wb));
   const reBin = Object.entries(out).find(([n]) => n.endsWith('vbaProject.bin'))?.[1];
@@ -663,7 +663,7 @@ test('the lazily-parsed project is re-decoded after the bytes are replaced', () 
   const moduleNames = (): string[] | undefined => wb.vbaProject?.modules.map((m) => m.name);
 
   // Reading first is what makes this a test. A macro-free workbook parses to `undefined`, and "no
-  // macros" has to stay distinguishable from "not yet decoded" — which is why the flag and the value
+  // macros" has to stay distinguishable from "not yet decoded", which is why the flag and the value
   // are two fields, and why a write has to clear both.
   assert.equal(moduleNames(), undefined, 'precondition: no macros, and that miss is now cached');
 
@@ -827,7 +827,7 @@ test('Workbook.vbaProjectSignatures reports every generation, across the years e
 // ── Shared fixtures for structural edits: removeVbaModule / addVbaReference ────────────────────────────
 
 // The PROJECTwm stream pairs each module's MBCS name with its UTF-16 name, both NUL-terminated, ending
-// with an empty pair — one record per module the dir/PROJECT streams declare, so removeVbaModule's
+// with an empty pair, one record per module the dir/PROJECT streams declare, so removeVbaModule's
 // splice (which counts existing records against the parsed module count) has a real structure to shrink.
 function buildProjectwmStream(names: readonly string[]): Uint8Array {
   const b: number[] = [];
@@ -837,7 +837,7 @@ function buildProjectwmStream(names: readonly string[]): Uint8Array {
 }
 
 // Package a project through the *production* CFB writer so it has the navigable red-black sibling tree
-// the removeVbaModule/addVbaReference editors walk (buildVbaProjectBin leaves those links null — fine for
+// the removeVbaModule/addVbaReference editors walk (buildVbaProjectBin leaves those links null, fine for
 // the linear-scan reader, but the editors rebuild the tree). Optionally append raw dir records (e.g. a
 // PROJECTREFERENCES entry) and a distinctive _VBA_PROJECT, so a test can prove both survive / are
 // replaced as intended.
@@ -869,7 +869,7 @@ function indexOfBytes(haystack: Uint8Array, needle: Uint8Array): number {
   return -1;
 }
 
-// The dir stream's MODULES_COUNT field ([MS-OVBA] 2.3.4.2.3.2) — not cross-checked by parseVbaProject
+// The dir stream's MODULES_COUNT field ([MS-OVBA] 2.3.4.2.3.2), not cross-checked by parseVbaProject
 // (which discovers modules by MODULETERMINATOR markers regardless of the count), but Excel relies on it,
 // so removeVbaModule must keep it in sync. Reads it directly out of the decompressed dir bytes.
 function readModulesCount(dir: Uint8Array): number {
@@ -919,7 +919,7 @@ test('removeVbaModule removes a procedural module, preserving references and unt
   }
   assert.equal(after.readStream('Module1'), undefined, "Module1's stream is gone");
 
-  // _VBA_PROJECT is preserved untouched — Excel runs the modules' existing p-code, and resetting the
+  // _VBA_PROJECT is preserved untouched: Excel runs the modules' existing p-code, and resetting the
   // cookie would crash the load.
   assert.deepEqual(after.readStream('_VBA_PROJECT'), before.readStream('_VBA_PROJECT'));
 
@@ -979,7 +979,7 @@ test('removeVbaModule rejects a malformed container as a parse error', () => {
 
 // ── Structural edit: addVbaReference ─────────────────────────────────────────────────────────────────
 
-// Microsoft Scripting Runtime's real GUID/path — the exact reference this splice was verified against on
+// Microsoft Scripting Runtime's real GUID/path: the exact reference this splice was verified against on
 // a genuine Excel-authored project (2026-07-23, excel-gui-automation probe, ADR 0012/0013 provenance).
 const SCRIPTING_REF = {
   name: 'Scripting',
@@ -996,7 +996,7 @@ test('addVbaReference adds a registered reference to a project with no existing 
   const bin = buildNavigableProjectBin(CODE_PAGE, MODULES);
   const added = addVbaReference(bin, SCRIPTING_REF);
 
-  // Modules are unaffected — same set, same order.
+  // Modules are unaffected: same set, same order.
   assert.deepEqual(
     parseVbaProject(added).modules.map((m) => m.name),
     ['ThisWorkbook', 'Module1', 'Class1'],
@@ -1016,11 +1016,11 @@ test('addVbaReference adds a registered reference to a project with no existing 
   assert.equal(readModulesCount(dirAfter), 3, 'MODULES_COUNT is untouched by adding a reference');
 
   // No real Excel-authored PROJECT stream carries a Reference= line for a registered library reference
-  // (verified against a genuine Excel-authored project) — so neither PROJECT nor PROJECTwm changes here.
+  // (verified against a genuine Excel-authored project) so neither PROJECT nor PROJECTwm changes here.
   assert.deepEqual(after.readStream('PROJECT'), before.readStream('PROJECT'));
   assert.deepEqual(after.readStream('PROJECTwm'), before.readStream('PROJECTwm'));
 
-  // _VBA_PROJECT is preserved untouched — Excel runs the modules' existing p-code, and resetting the
+  // _VBA_PROJECT is preserved untouched: Excel runs the modules' existing p-code, and resetting the
   // cookie would crash the load.
   assert.deepEqual(after.readStream('_VBA_PROJECT'), before.readStream('_VBA_PROJECT'));
 });

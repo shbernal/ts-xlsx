@@ -3,7 +3,7 @@
 // These types have no runtime footprint: they are verified by `npm run typecheck`
 // (tsc over the whole src/ tree) and excluded from the published build. When a
 // public type drifts, the matching `Expect<Equal<...>>` stops resolving to `true`
-// and the typecheck gate fails — the type-level analogue of a red test.
+// and the typecheck gate fails: the type-level analogue of a red test.
 
 /**
  * Bivariance-safe structural equality: `true` only when `A` and `B` are mutually
@@ -17,5 +17,5 @@ export type Equal<A, B> =
 /** Resolves only when its argument is exactly `true`; the workhorse of a case list. */
 export type Expect<T extends true> = T;
 
-/** `true` when `A` is assignable to `B` — a directional (subtype) check. */
+/** `true` when `A` is assignable to `B`: a directional (subtype) check. */
 export type Extends<A, B> = A extends B ? true : false;

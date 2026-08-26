@@ -116,6 +116,14 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Changed
 
+- **Error messages no longer contain em dashes.** Where a message used ` — ` to weld two
+  clauses together it now uses a colon, a semicolon, or a pair of commas, whichever the
+  sentence wanted: `column 5 is out of bounds: columns start at 1` rather than
+  `column 5 is out of bounds — columns start at 1`. No message changed meaning, none grew,
+  and the error *types* and `code` values are untouched, so anything branching on the
+  taxonomy is unaffected. Code that matched on message text is not: match on the class or
+  on `code` instead, which is what they are for.
+
 - **Writing a character XML cannot represent into anything but a cell value now throws
   `AuthoringError`.** Only cell values have the `_xHHHH_` escape; a sheet name, a defined
   name, a table column name, a formula, a document property, a print header and a threaded

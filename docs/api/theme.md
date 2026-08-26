@@ -52,12 +52,12 @@ The twelve colour-scheme slots **in the order a `theme="n"` attribute indexes th
 
 This order is not the order the slots appear in the theme part. ISO/IEC 29500 §20.1.6.2 documents
 the `<a:clrScheme>` child sequence as `dk1, lt1, dk2, lt2, accent1…6, hlink, folHlink`, and that is
-how the XML is written — but SpreadsheetML's `theme="n"` does **not** index that sequence. Excel
+how the XML is written. But SpreadsheetML's `theme="n"` does **not** index that sequence: Excel
 swaps each dark/light pair: index 0 is `lt1`, 1 is `dk1`, 2 is `lt2`, 3 is `dk2`.
 
 Verified against Excel Desktop rather than inferred, because the two orders differ only in the
-first four entries and reading either one into the other silently inverts text against background
-— see `docs/knowledge/specs/theme-color-index-order.md` and the recorded observation in
+first four entries and reading either one into the other silently inverts text against
+background. See `docs/knowledge/specs/theme-color-index-order.md` and the recorded observation in
 `test/corpus/fixtures/excel-oracle/theme-color-index-order.json`. The stylesheet's own default font
 is the everyday witness: it carries `<color theme="1"/>` and renders black, which is `dk1`.
 

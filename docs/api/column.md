@@ -56,7 +56,7 @@ readonly index: number;
 get letter(): string;
 ```
 
-The column's letters (`"B"`) — the spreadsheet-facing name for [`index`](./column.md#columnindex).
+The column's letters (`"B"`): the spreadsheet-facing name for [`index`](./column.md#columnindex).
 
 #### `Column.properties`
 
@@ -64,7 +64,7 @@ The column's letters (`"B"`) — the spreadsheet-facing name for [`index`](./col
 get properties(): Readonly<ColumnProperties> | undefined;
 ```
 
-The column's format record if it has one, else `undefined` — a read that never fabricates, so a
+The column's format record if it has one, else `undefined`: a read that never fabricates, so a
 serializer can ask every column it visits whether there are attributes to emit without giving
 each one an empty record. Read-only on purpose: [`width`](./column.md#columnwidth) and its siblings are how a column
 is formatted, and they create the record on first write.
@@ -77,7 +77,7 @@ set key(key: string | undefined);
 ```
 
 Stable key naming this column so a keyed-object row (see [`Worksheet.addRow`](./worksheet.md#worksheetaddrow)) can place a
-value under it by name rather than position. In-memory only — never serialized to OOXML.
+value under it by name rather than position. In-memory only: never serialized to OOXML.
 
 #### `Column.width`
 
@@ -86,7 +86,7 @@ get width(): number | undefined;
 set width(width: number | undefined);
 ```
 
-Column width in character units — digits of the workbook default font's maximum digit width,
+Column width in character units: digits of the workbook default font's maximum digit width,
 so what one unit measures moves with that font. `undefined` leaves the sheet default in force.
 
 Not bounded here, for the same reason [`Row.height`](./row.md#rowheight) is not, and for a stronger one:
@@ -207,5 +207,5 @@ a row with no cell in this column is a hole, which is what distinguishes "never 
 cell holding `null`.
 
 Assigning places each value it names and leaves every other row untouched, mirroring
-[`Row.values`](./row.md#rowvalues) — a hole or an explicit `undefined` skips that row, and a shorter array does
+[`Row.values`](./row.md#rowvalues): a hole or an explicit `undefined` skips that row, and a shorter array does
 not clear the tail.

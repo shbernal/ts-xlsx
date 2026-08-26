@@ -2,8 +2,8 @@
 // flattened, which of the two number-format tables an id resolves against, and what applying an xf to
 // a cell means.
 //
-// None of that is a property of how the style table is spelled — `xl/styles.xml` and `xl/styles.bin`
-// state the same model in XML and BIFF12 records — so it is stated once here, above both codecs. The
+// None of that is a property of how the style table is spelled, since `xl/styles.xml` and
+// `xl/styles.bin` state the same model, so it is stated once here, above both codecs. The
 // XML parsing lives in `../xlsx/read-styles.ts`, the record parsing in `../xlsb/read-styles.ts`, and
 // each hands back the same {@link StyleTable}.
 
@@ -24,7 +24,7 @@ import {
  * not present on the reconstructed cell.
  *
  * It *derives* the facets rather than listing them, so a seventh facet added to `CellStyle` reaches
- * both readers the moment it joins. Re-declaring them here — the shape this replaced — meant a new
+ * both readers the moment it joins. Re-declaring them here, the shape this replaced, meant a new
  * facet silently stopped at the model and never appeared in a file we read back.
  */
 export interface XfStyle extends CellStyle {
@@ -40,7 +40,7 @@ export interface StyleTable {
   readonly cellXfs: ReadonlyArray<XfStyle>;
   readonly namedStyles: ReadonlyArray<NamedCellStyle>;
   /**
-   * Font id 0 — the workbook's declared default font, the face every cell naming no font renders in.
+   * Font id 0: the workbook's declared default font, the face every cell naming no font renders in.
    * Surfaced separately from the fonts it was flattened onto because it is workbook-level state, not a
    * cell format: a re-write must emit *this* face as font 0 rather than an assumed Calibri, or every
    * empty cell changes face and every character-unit column width changes meaning. Absent when the
@@ -52,7 +52,7 @@ export interface StyleTable {
 // ECMA-376 reserves numFmt ids below 164 for formats every consumer knows implicitly, so a
 // foreign file may name one with no <numFmt> entry. This maps the standard ids to their
 // codes; id 0 (General) and any unknown id resolve to no format. The writer never emits
-// these — it always defines a custom id — but reading them keeps foreign files faithful.
+// these, since it always defines a custom id, but reading them keeps foreign files faithful.
 const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
   [1, '0'],
   [2, '0.00'],
@@ -83,7 +83,7 @@ const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
   [49, '@'],
   // Ids 27..36 and 50..58 are reserved for locale-specific built-in East Asian date/time formats;
   // a file authored in a CJK locale styles date cells with them and, being built-ins, emits no
-  // <numFmt>. The exact code is locale-defined — these are the representative Excel forms — but what
+  // <numFmt>. The exact code is locale-defined (these are the representative Excel forms) but what
   // matters for reading is that each resolves to a non-empty date/time code so the serial reads as a
   // date rather than a bare number.
   [27, '[$-404]e/m/d'],
@@ -109,7 +109,7 @@ const BUILTIN_NUMFMTS: ReadonlyMap<number, string> = new Map([
 
 /**
  * The format code a number-format id denotes: the file's own `<numFmt>`/`BrtFmt` declaration if it
- * has one, else the built-in Excel defines for that id. Id 0 is General — the absence of a format —
+ * has one, else the built-in Excel defines for that id. Id 0 is General, the absence of a format,
  * and resolves to nothing so an ordinary cell carries no `numFmt`.
  */
 export function numFmtCodeFor(id: number, custom: ReadonlyMap<number, string>): string | undefined {
@@ -118,12 +118,12 @@ export function numFmtCodeFor(id: number, custom: ReadonlyMap<number, string>): 
 }
 
 /**
- * Apply a resolved xf's non-value facets to a cell — the six {@link CellStyle} facets through the
+ * Apply a resolved xf's non-value facets to a cell: the six {@link CellStyle} facets through the
  * shared {@link applyCellStyle}, plus the two links that live on the xf itself rather than in the
  * facet tuple (`quotePrefix`, and the `xfId` pointer into the named-style layer).
  *
  * Shared by every path that commits a cell: the XML reader's ordinary and shared-formula-clone paths,
- * and the BIFF12 reader — so a styled cell keeps its look regardless of which serialisation it came
+ * and the BIFF12 reader, so a styled cell keeps its look regardless of which serialisation it came
  * from, and the two cannot drift on what "applying a style" means.
  */
 export function applyXfToCell(cell: Cell, style: XfStyle | undefined): void {
@@ -158,7 +158,7 @@ export interface XfDeps {
  *
  * A facet the direct xf sets wins; one it leaves unset falls through to the named base; and the
  * `xfId` link is carried through so a re-write keeps it. None of that depends on whether the tables
- * were parsed out of `xl/styles.xml` or `xl/styles.bin`, which is the point of stating it once — the
+ * were parsed out of `xl/styles.xml` or `xl/styles.bin`, which is the point of stating it once: the
  * two readers used to hold a copy each, cross-referenced by a comment saying they agreed.
  */
 export function resolveStyleTable(tables: {
@@ -188,7 +188,7 @@ export function resolveStyleTable(tables: {
   });
 
   // Font 0 is the workbook's declared default, so it is carried out whole as well as flattened onto
-  // the xfs that name it — see {@link StyleTable.defaultFont}.
+  // the xfs that name it. See {@link StyleTable.defaultFont}.
   const defaultFont = fonts[0];
   return defaultFont === undefined ? {cellXfs, namedStyles} : {cellXfs, namedStyles, defaultFont};
 }

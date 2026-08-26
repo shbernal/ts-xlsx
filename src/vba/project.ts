@@ -2,7 +2,7 @@
 //
 // Pipeline ([MS-OVBA] 2.3.4.2): the CFB container holds a `VBA/dir` stream (itself MS-OVBA compressed)
 // that lists each module's stream name, its code page, and the byte offset in that module's stream
-// where the compressed source text begins — past the p-code / PerformanceCache. We decompress `dir`,
+// where the compressed source text begins, past the p-code / PerformanceCache. We decompress `dir`,
 // read those facts, then decompress each module stream from its text offset and decode with the
 // project code page. The p-code is version-specific and deliberately not exposed; a reader wants source.
 
@@ -12,13 +12,13 @@ import {type Decoder, decoderForCodePage} from './codepage.ts';
 import {VbaParseError} from './errors.ts';
 import {decompressContainer} from './ms-ovba.ts';
 
-/** How a module participates in the project — the classification the VBA editor shows. */
+/** How a module participates in the project: the classification the VBA editor shows. */
 export type VbaModuleKind = 'procedural' | 'document' | 'class' | 'designer';
 
 export interface VbaModule {
   /** The module's code name as seen in the VBA editor, e.g. `ThisWorkbook`, `JsonConverter`. */
   readonly name: string;
-  /** The CFB stream the module's bytes live in — usually equal to {@link name}. */
+  /** The CFB stream the module's bytes live in, usually equal to {@link name}. */
   readonly streamName: string;
   /** Procedural (`.bas`), document code-behind, class module, or designer (UserForm). */
   readonly kind: VbaModuleKind;
@@ -33,7 +33,7 @@ export interface VbaProject {
   readonly modules: readonly VbaModule[];
 }
 
-// The OPC packaging identity of a workbook's VBA project — the relationship Type URI Excel wires it
+// The OPC packaging identity of a workbook's VBA project: the relationship Type URI Excel wires it
 // under, the content type its `.bin` part declares, and the canonical package path. These are the
 // facts an authoring path needs to attach a macro blob so the writer emits a valid macro-enabled
 // package; the reader matches the same relationship type by suffix (`isPreservedWorkbookRelType`).
@@ -43,18 +43,18 @@ export const VBA_PROJECT_CONTENT_TYPE = 'application/vnd.ms-office.vbaProject';
 export const VBA_PROJECT_PART_PATH = 'xl/vbaProject.bin';
 
 /**
- * Which generation of VBA project signature a part is — Office emits up to three sibling signature
+ * Which generation of VBA project signature a part is. Office emits up to three sibling signature
  * parts off `vbaProject.bin`'s own rels over the same project bytes ([MS-OFFMACRO2]): the original
  * `legacy` signature, the `agile` (V2) successor, and the `v3` scheme that closes a tampering hole
  * the earlier two left open (KB5000676). All three can coexist in one package.
  */
 export type VbaProjectSignatureKind = 'legacy' | 'agile' | 'v3';
 
-/** One digital signature over a workbook's VBA project — its generation and its raw signature bytes. */
+/** One digital signature over a workbook's VBA project: its generation and its raw signature bytes. */
 export interface VbaProjectSignature {
   readonly kind: VbaProjectSignatureKind;
   /**
-   * The raw signature part bytes (a PKCS#7/CMS blob), passed through verbatim — this library does not
+   * The raw signature part bytes (a PKCS#7/CMS blob), passed through verbatim. This library does not
    * parse or cryptographically verify them. Their presence means "a signature is attached," never
    * "this signature is valid."
    */
@@ -64,7 +64,7 @@ export interface VbaProjectSignature {
 // A signature part is matched by the FINAL segment of its relationship Type, not the whole URI: the
 // segment (`vbaProjectSignature{,Agile,V3}`) names the generation, while the year the URI carries
 // (2006 / 2014 / 2020) is incidental and varies. The closure walk already carries any such part
-// through verbatim regardless of type, so recognising the generation token is all detection needs —
+// through verbatim regardless of type, so recognising the generation token is all detection needs:
 // no exact URI to pin, and a future scheme this map does not know stays preserved but unreported.
 const SIGNATURE_KIND_BY_REL_SEGMENT: Readonly<Record<string, VbaProjectSignatureKind>> = {
   vbaProjectSignature: 'legacy',

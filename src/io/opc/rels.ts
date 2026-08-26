@@ -1,5 +1,5 @@
 // The write side of the relationship graph: a single `<Relationship>` element and the `.rels` part
-// envelope that wraps a set of them. Pure OPC — a `.rels` part has the same shape whatever the parts
+// envelope that wraps a set of them. Pure OPC: a `.rels` part has the same shape whatever the parts
 // it wires together are spelled in, so this is stated once here rather than inside a codec.
 //
 // The reader's half of the same graph (resolving targets, walking a part closure) is in `read-opc.ts`.

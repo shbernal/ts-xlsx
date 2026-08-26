@@ -47,14 +47,14 @@ or holds a value the writer cannot yet represent.
 
 Serialise a workbook into an `.xlsx` package, deflating off the calling thread.
 
-Produces the same package [`writeXlsx`](./writing-xlsx.md#writexlsx) does — byte for byte, entry timestamps included — and
+Produces the same package [`writeXlsx`](./writing-xlsx.md#writexlsx) does, byte for byte and entry timestamps included, and
 exists for one reason: DEFLATE dominates the cost of writing a large workbook, and [`writeXlsx`](./writing-xlsx.md#writexlsx)
 spends all of it on the caller's thread. Here `fflate` deflates each part in a worker, so the event
 loop keeps turning (stalls drop from the whole write to tens of milliseconds) and parts compress in
 parallel, which on a multi-sheet workbook also finishes sooner. On a single-sheet workbook there is
 only one part to deflate, so expect responsiveness rather than speed.
 
-Building the parts still happens on the calling thread — only compression moves. That is why there
+Building the parts still happens on the calling thread; only compression moves. That is why there
 is no `readXlsxAsync` mirroring this: reading is dominated by XML parsing and model building, which
 no worker can take, and the reader's zip-bomb ceiling is enforced by counting output between
 synchronous input slices. See ADR-0024.
@@ -66,7 +66,7 @@ async function writeXlsxAsync(
 ): Promise<Uint8Array>;
 ```
 
-**Throws:** [`AuthoringError`](./errors.md#authoringerror) — as a rejection — under the same conditions as [`writeXlsx`](./writing-xlsx.md#writexlsx);
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) , as a rejection, under the same conditions as [`writeXlsx`](./writing-xlsx.md#writexlsx);
 the part-building it shares happens before any worker is involved. A failure raised by the zip
 layer itself (including an environment that cannot spawn a worker) propagates unwrapped, exactly
 as it does from [`writeXlsx`](./writing-xlsx.md#writexlsx).

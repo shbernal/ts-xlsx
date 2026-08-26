@@ -8,7 +8,7 @@
 
 A rectangular block of a worksheet's cells: `sheet.getRange('B2:D5')`.
 
-Cheap and stateless — constructing one creates no cells and does not extend the used range.
+Cheap and stateless: constructing one creates no cells and does not extend the used range.
 [`addresses`](./range.md#rangeaddresses) walks the block without materialising anything; [`cells`](./range.md#rangecells) reports only what
 already exists.
 
@@ -96,7 +96,7 @@ The worksheet this block belongs to.
 get address(): string;
 ```
 
-Canonical `tl:br` A1 form — `"B2:D5"`. A one-cell block still reads as `"B2:B2"`.
+Canonical `tl:br` A1 form, `"B2:D5"`. A one-cell block still reads as `"B2:B2"`.
 
 #### `Range.rowCount`
 
@@ -120,7 +120,7 @@ Columns spanned, inclusive of both edges.
 get cellCount(): number;
 ```
 
-Cells the block covers — `rowCount * columnCount`, whether or not they exist yet.
+Cells the block covers: `rowCount * columnCount`, whether or not they exist yet.
 
 #### `Range.contains`
 
@@ -137,7 +137,7 @@ Whether a 1-based position falls inside the block.
 ```
 
 Every address the block covers, row-major (`B2`, `C2`, `D2`, `B3`, …). Materialises nothing, so
-this is the cheap way to walk a large block — and, being a generator, it can be abandoned
+this is the cheap way to walk a large block, and, being a generator, it can be abandoned
 part-way without having built the whole list.
 
 #### `Range.cells`
@@ -148,7 +148,7 @@ get cells(): readonly Cell[];
 
 The block's **materialised** cells, row-major. Sparse: a position nothing has ever written to is
 simply absent, which is what distinguishes "never written" from a cell holding `null`. Reading
-this creates nothing — mirroring [`Column.cells`](./column.md#columncells).
+this creates nothing, mirroring [`Column.cells`](./column.md#columncells).
 
 #### `Range.style`
 
@@ -157,7 +157,7 @@ get style(): CellStyle;
 set style(style: Readonly<CellStyle>);
 ```
 
-The block's style, facet by facet — the counterpart of [`Cell.style`](./cell.md#cellstyle) over a rectangle, with
+The block's style, facet by facet: the counterpart of [`Cell.style`](./cell.md#cellstyle) over a rectangle, with
 the same semantics in both directions.
 
 **Reading** reports a facet only when *every* position in the block carries a structurally
@@ -165,13 +165,13 @@ identical one, and `undefined` when they differ or any position is still empty. 
 through this handle therefore reads back what was written; a block whose cells disagree says so
 rather than picking a corner's answer and passing it off as the whole.
 
-**Writing** lays each facet the payload names onto every cell, leaving facets it omits untouched
-— exactly what `cell.style = {...}` does, so this composes with prior styling instead of clearing
-it. Use [`clearStyle`](./range.md#rangeclearstyle) first for a wholesale replace.
+**Writing** lays each facet the payload names onto every cell, leaving facets it omits
+untouched, exactly what `cell.style = {...}` does, so this composes with prior styling instead
+of clearing it. Use [`clearStyle`](./range.md#rangeclearstyle) first for a wholesale replace.
 
 Writing **materialises** every position in the block, because a styled-but-valueless cell is the
 only way an empty cell renders with a fill: skipping the holes would leave gaps in a header band.
-The cost is bounded by construction — a range is always a bounded rectangle, and whole-axis
+The cost is bounded by construction: a range is always a bounded rectangle, and whole-axis
 styling belongs to [`Worksheet.getColumn`](./worksheet.md#worksheetgetcolumn)/[`Worksheet.getRow`](./worksheet.md#worksheetgetrow) instead. [`cellCount`](./range.md#rangecellcount)
 is the exact number of cells a write will create.
 
@@ -183,7 +183,7 @@ clearStyle(): void;
 
 Strip every style facet from every cell in the block, leaving values untouched. Assigning
 [`style`](./range.md#rangestyle) composes, so this is how a wholesale replace is said: `clearStyle()` then assign.
-Materialises nothing — a cell that does not exist carries no style to clear.
+Materialises nothing: a cell that does not exist carries no style to clear.
 
 #### `Range.fill`
 

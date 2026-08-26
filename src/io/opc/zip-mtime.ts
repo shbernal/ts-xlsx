@@ -5,7 +5,7 @@
 // writes of an unchanged workbook differ in a few bytes per entry and in nothing else. Excel cannot
 // see the difference; everything around the file can. A committed `.xlsx` deliverable churns in
 // `git diff` on every regeneration, a cache keyed on output bytes never hits, and a byte-comparison
-// gate cannot separate "the writer changed" from "the clock moved" — so it stops being able to fail
+// gate cannot separate "the writer changed" from "the clock moved", so it stops being able to fail
 // for the right reason, which is worse than not having one.
 //
 // Pinning it makes writing a pure function of the workbook. Two constraints picked the value:

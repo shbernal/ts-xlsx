@@ -8,7 +8,7 @@
 
 Stream a worksheet's rows from an `.xlsx` package, yielding each in sheet order without building
 the workbook model. Only rows the sheet actually declares are yielded, and within a row only its
-non-empty cells — a blank or style-only cell contributes nothing, matching the intent of a data
+non-empty cells: a blank or style-only cell contributes nothing, matching the intent of a data
 read.
 
 ```ts
@@ -21,8 +21,8 @@ function* readSheetRows(
 - `data`: The raw `.xlsx` bytes.
 - `options`: Sheet selector and the inflate bound (see [`ReadSheetRowsOptions`](./streaming-reads.md#readsheetrowsoptions)).
 **Throws:** [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is not a readable `.xlsx` package (a legacy `.xls`, a
-binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
-**Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked — a corrupt or
+binary `.xlsb`, or an unrecognised/non-ZIP blob; branch on `.format`).
+**Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked: a corrupt or
 truncated archive, or one exceeding the inflate bound (a probable zip bomb).
 **Throws:** [`XlsxParseError`](./xlsx-errors.md#xlsxparseerror) if the package's workbook part declares no worksheets.
 **Throws:** `RangeError` / [`AuthoringError`](./errors.md#authoringerror) if `options.sheet` selects a position, or a name,
@@ -52,7 +52,7 @@ interface ReadSheetRowsOptions extends ReadXlsxOptions {
 
 Stream every worksheet of an `.xlsx` package in workbook order, without building the workbook
 model. Each yielded `StreamedSheet` carries the declared sheet name and lets the caller
-stream that sheet's rows and read its hidden-column and merge summaries — the streaming analogue
+stream that sheet's rows and read its hidden-column and merge summaries: the streaming analogue
 of walking `readXlsx(data).worksheets`.
 
 ```ts
@@ -65,6 +65,6 @@ function* readWorkbookStream(
 - `data`: The raw `.xlsx` bytes.
 - `options`: The inflate bound (see [`ReadXlsxOptions`](./opc-read-options.md#readxlsxoptions)).
 **Throws:** [`UnsupportedFormatError`](./opc-errors.md#unsupportedformaterror) if the input is not a readable `.xlsx` package (a legacy `.xls`, a
-binary `.xlsb`, or an unrecognised/non-ZIP blob — branch on `.format`).
-**Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked — a corrupt or
+binary `.xlsb`, or an unrecognised/non-ZIP blob; branch on `.format`).
+**Throws:** [`PackageReadError`](./opc-errors.md#packagereaderror) if the input is a ZIP that cannot be unpacked: a corrupt or
 truncated archive, or one exceeding the inflate bound (a probable zip bomb).

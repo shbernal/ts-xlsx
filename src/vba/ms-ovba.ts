@@ -1,4 +1,4 @@
-// MS-OVBA §2.4.1 — compression and decompression of a "CompressedContainer".
+// MS-OVBA §2.4.1: compression and decompression of a "CompressedContainer".
 //
 // VBA module source and the project `dir` stream are stored in Office's own run-length compression,
 // NOT deflate. A container is a 0x01 signature byte followed by one or more chunks; each chunk
@@ -9,7 +9,7 @@
 // The decompressor is a hostile-input parser: the container comes from an untrusted file, so every
 // length and back-reference is bounds-checked and the total output is capped. A malformed container
 // fails closed with a VbaParseError rather than over-allocating, looping, or reading out of bounds. The
-// compressor is the authoring inverse — it is fed our own bytes, and its output re-expands to the input
+// compressor is the authoring inverse: it is fed our own bytes, and its output re-expands to the input
 // byte-for-byte (the round-trip is the correctness contract).
 
 import {readU16} from './bytes.ts';
@@ -106,7 +106,7 @@ export function decompressContainer(
 }
 
 /**
- * Compress `data` into an MS-OVBA CompressedContainer — the inverse of {@link decompressContainer}.
+ * Compress `data` into an MS-OVBA CompressedContainer: the inverse of {@link decompressContainer}.
  * Every 4096-decompressed-byte window is emitted as a compressed chunk of literal and copy tokens, or
  * stored verbatim when compression would not shrink it (so the encoded chunk never exceeds the 12-bit
  * size field). The result re-expands to `data` byte-for-byte.

@@ -6,7 +6,7 @@
 
 <sub>interface</sub>
 
-One anchor of a colour-scale, data-bar, or icon-set scale — a "conditional format value object".
+One anchor of a colour-scale, data-bar, or icon-set scale: a "conditional format value object".
 `type` names how `value` is read: a literal `num`, a `percent`/`percentile` of the range, a
 `formula`, or the range's own `min`/`max` (which carry no value).
 
@@ -23,7 +23,7 @@ interface CfValueObject {
 
 <sub>interface</sub>
 
-A set of rules bound to the range(s) they cover. `ref` is an OOXML `sqref` — one or more
+A set of rules bound to the range(s) they cover. `ref` is an OOXML `sqref`: one or more
 space-separated areas (`"A1:C1 A3:C3 A5:C5"`), the shape Excel writes when one rule is applied to
 several non-contiguous selections at once.
 
@@ -47,7 +47,7 @@ still preserves `type`, `priority`, `operator`, `formulae`, and `dxfId` across a
 ```ts
 interface ConditionalFormattingRule {
   type: string;
-  /** Evaluation precedence; lower wins. Excel requires one — the writer supplies it when absent. */
+  /** Evaluation precedence; lower wins. Excel requires one, so the writer supplies it when absent. */
   priority?: number;
   /** Halt evaluation of lower-priority rules on any cell this rule matches. */
   stopIfTrue?: boolean;

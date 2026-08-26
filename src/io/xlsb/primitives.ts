@@ -7,7 +7,7 @@
 // record actually holds *before* a single character is materialised, so a forged `cch` costs one
 // comparison instead of gigabytes.
 //
-// Structures decoded here — RkNumber, XLWideString, BrtColor, Cell, UncheckedRfX, BErr — are shared
+// Structures decoded here (RkNumber, XLWideString, BrtColor, Cell, UncheckedRfX, BErr) are shared
 // across the workbook, worksheet, styles, and shared-string parsers; nothing part-specific lives here.
 
 import type {Color} from '../../core/style.ts';
@@ -22,7 +22,7 @@ export interface CellHeader {
   readonly styleIndex: number;
 }
 
-/** An `UncheckedRfX` ([MS-XLSB] 2.5.155) cell range — all four bounds zero-based and inclusive. */
+/** An `UncheckedRfX` ([MS-XLSB] 2.5.155) cell range, all four bounds zero-based and inclusive. */
 export interface RangeBounds {
   readonly rowFirst: number;
   readonly rowLast: number;
@@ -35,13 +35,13 @@ export interface RangeBounds {
 // on a long string). 4096 is comfortably under every engine's limit and makes the batching invisible.
 const CHARS_PER_BATCH = 4096;
 
-// `XLNullableWideString` marks "no string" with a character count of 0xFFFFFFFF rather than 0 — an
+// `XLNullableWideString` marks "no string" with a character count of 0xFFFFFFFF rather than 0: an
 // empty string and an absent one are different values (a sheet's relationship id is nullable; its
 // name is not).
 const NULL_STRING_LENGTH = 0xffffffff;
 
-// One reusable 8-byte window for reassembling an RkNumber's truncated double. The alternative — a
-// fresh ArrayBuffer per RK cell — would allocate once per numeric cell in the workbook, on the single
+// One reusable 8-byte window for reassembling an RkNumber's truncated double. The alternative, a
+// fresh ArrayBuffer per RK cell, would allocate once per numeric cell in the workbook, on the single
 // hottest path in the reader. Safe to share: the write and the read below are one synchronous pair.
 const rkScratch = new DataView(new ArrayBuffer(8));
 
@@ -49,7 +49,7 @@ const rkScratch = new DataView(new ArrayBuffer(8));
  * A bounds-checked cursor over one record's payload.
  *
  * Each accessor advances the cursor by exactly the bytes it consumed, so a record is decoded by
- * naming its fields in order. Reading past the payload throws {@link XlsbParseError} — a record that
+ * naming its fields in order. Reading past the payload throws {@link XlsbParseError}: a record that
  * is shorter than its own definition is a malformed file, not a case to guess through.
  */
 export class RecordReader {
@@ -72,13 +72,13 @@ export class RecordReader {
     return this.remaining <= 0;
   }
 
-  /** Advance past `count` bytes without decoding them — a reserved or unmodelled field. */
+  /** Advance past `count` bytes without decoding them: a reserved or unmodelled field. */
   skip(count: number): void {
     this.#take(count);
   }
 
   /**
-   * The next `count` bytes as a **view**, for a field whose own decoding happens elsewhere — a formula
+   * The next `count` bytes as a **view**, for a field whose own decoding happens elsewhere: a formula
    * token stream, whose meaning depends on workbook tables this record knows nothing about. A view
    * rather than a copy for the same reason a record's payload is one: the declared length comes from
    * the file, so it must bound a read, never an allocation.
@@ -114,7 +114,7 @@ export class RecordReader {
 
   /**
    * An `RkNumber` ([MS-XLSB] 2.5.122): a number packed into 32 bits. Two flag bits steal the low end
-   * of the word — `fInt` says the remaining 30 bits are a signed integer rather than the *high* 30
+   * of the word: `fInt` says the remaining 30 bits are a signed integer rather than the *high* 30
    * bits of a double whose low 34 bits are zero, and `fX100` says the result was scaled up by 100 to
    * keep two decimal places in the integer form. It exists because most real spreadsheet numbers are
    * small integers or two-decimal currency, and this stores them in half the bytes of a double.
@@ -133,7 +133,7 @@ export class RecordReader {
   }
 
   /**
-   * A UTF-16 string whose character count is 16-bit rather than 32-bit — the form used *inside* a
+   * A UTF-16 string whose character count is 16-bit rather than 32-bit: the form used *inside* a
    * formula token stream (`PtgStr`, and the string elements of an array constant), where a 4-byte
    * count on every literal would be pure overhead.
    */
@@ -149,7 +149,7 @@ export class RecordReader {
 
   /**
    * A `RichStr` ([MS-XLSB] 2.5.124): a string that may carry per-run formatting and phonetic guides.
-   * Only the text is returned — the run and phonetic tails are left unread, which is safe because the
+   * Only the text is returned; the run and phonetic tails are left unread, which is safe because the
    * record's framing (not this cursor) bounds where the payload ends.
    */
   richString(): string {
@@ -179,7 +179,7 @@ export class RecordReader {
    *
    * The four encodings are mutually exclusive and the type tag picks which of the payload's fields
    * carry meaning; the rest are explicitly undefined. An *automatic* colour (type 0) names nothing at
-   * all, and reads back as no colour — the same absence the XML reader produces for `<color auto="1"/>`,
+   * all, and reads back as no colour: the same absence the XML reader produces for `<color auto="1"/>`,
    * so a cell whose font colour was never set does not gain one on read.
    */
   color(): Color | undefined {

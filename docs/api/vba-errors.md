@@ -7,7 +7,7 @@
 <sub>class</sub>
 
 Thrown when authoring a VBA project (synthesizing a `vbaProject.bin` from module source) is asked to
-produce something that cannot be encoded to a well-formed container — a stream name longer than the
+produce something that cannot be encoded to a well-formed container: a stream name longer than the
 [MS-CFB] 31-character limit, a duplicate stream name, or a project so large it would exceed the
 writer's single-header DIFAT bound. This is a caller-side contract violation, distinct from
 [`VbaParseError`](./vba-errors.md#vbaparseerror) (which reports a malformed blob *read* from an untrusted file).
@@ -25,7 +25,7 @@ class VbaAuthorError extends XlsxError {
 
 <sub>class</sub>
 
-Thrown when a VBA project (`vbaProject.bin`) is present but cannot be parsed — a malformed
+Thrown when a VBA project (`vbaProject.bin`) is present but cannot be parsed: a malformed
 compound file, a corrupt compressed stream, or a `dir` record that does not conform to [MS-OVBA].
 A workbook with no macros never produces this: [`Workbook.vbaProject`](./workbook.md#workbookvbaproject) is `undefined` instead.
 

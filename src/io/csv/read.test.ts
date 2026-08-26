@@ -49,7 +49,7 @@ test('padded ids and dash-codes stay strings; a strict ISO date becomes a Date',
   assert.equal(cell.toISOString(), '2018-01-05T00:00:00.000Z');
 });
 
-test('a whitespace-only field is a string, an empty field is null — neither is 0', () => {
+test('a whitespace-only field is a string, an empty field is null: neither is 0', () => {
   const [row] = rowsOf('firstValue,   ,secondValue\n');
   assert.equal(typeof row![1], 'string');
   assert.notEqual(row![1], 0);

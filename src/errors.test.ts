@@ -16,7 +16,7 @@ import {XmlParseError} from './xml/errors.ts';
 import {xmlEvents} from './xml/xml-read.ts';
 
 // Every class in the taxonomy, with the code it is contracted to carry. A class added without a
-// row here is one whose category nobody chose — the `every class` tests below are only as complete
+// row here is one whose category nobody chose. The `every class` tests below are only as complete
 // as this table, so it is the thing to extend first.
 const TAXONOMY: ReadonlyArray<
   // Two constructor parameters, not one: every subclass inherits Error's `(message, options)` and
@@ -86,7 +86,7 @@ test('UnsupportedFormatError still defaults its message per format', () => {
 });
 
 // The report pointer is the only channel that reaches a caller who never reads our docs: it rides
-// the stack trace they are already staring at. These pin the two halves of that bargain — the
+// the stack trace they are already staring at. These pin the two halves of that bargain: the
 // invariant stays first so the message is still diagnosable, and the pointer is actually there.
 test('InternalError states the broken invariant first, then where to report it', () => {
   const error = new InternalError('pivot record references an uncatalogued item');
@@ -119,7 +119,7 @@ test('a wrapping parser keeps the failure it wrapped on cause', () => {
 });
 
 // The taxonomy is only worth its weight if the throw sites actually use it. These sample the two
-// layers that used to throw a bare `Error` — the model and the writer — so a regression to
+// layers that used to throw a bare `Error`, the model and the writer, so a regression to
 // `new Error(...)` in either fails here rather than only in the docs.
 test('the model rejects an unauthorable document with an AuthoringError', () => {
   const workbook = new Workbook();
@@ -137,7 +137,7 @@ test('the writer rejects an unwritable workbook with an AuthoringError', () => {
 });
 
 // The writer's unhandled-value arms are `InternalError` rather than a "not implemented" report
-// because the model refuses a foreign value long before serialisation — this is what proves it, and
+// because the model refuses a foreign value long before serialisation. This is what proves it, and
 // what would fail if the model's guard were ever loosened into the writer's lap.
 test('a value the model does not admit never reaches the writer', () => {
   const sheet = new Workbook().addWorksheet('Sheet1');

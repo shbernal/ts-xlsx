@@ -10,7 +10,7 @@ Calculation settings applied to the streamed workbook. Mirrors the [`Workbook`](
 
 ```ts
 interface CalcProperties {
-  /** Ask the consumer to recalculate every formula on open — the OOXML `fullCalcOnLoad` flag. */
+  /** Ask the consumer to recalculate every formula on open: the OOXML `fullCalcOnLoad` flag. */
   fullCalcOnLoad?: boolean;
 }
 ```
@@ -50,7 +50,7 @@ commit(): void;
 ```
 
 Finalise the row: an eager writer serialises it now and releases its cells; otherwise a no-op.
-Committing twice is harmless — the second call does nothing rather than re-emitting the row.
+Committing twice is harmless: the second call does nothing rather than re-emitting the row.
 
 ---
 
@@ -98,8 +98,8 @@ Document-level metadata written to the package's core properties.
 get stream(): Readable;
 ```
 
-The output stream carrying the package bytes. A caller drives it with Node's standard idiom —
-`writer.stream.pipe(out)` — which composes because `pipe` returns its destination. The stream is
+The output stream carrying the package bytes. A caller drives it with Node's standard idiom,
+`writer.stream.pipe(out)`, which composes because `pipe` returns its destination. The stream is
 created lazily on first access so a caller handing the writer its own sink is still free to
 ignore this one.
 
@@ -142,7 +142,7 @@ Options fixed at construction that shape the whole streamed package.
 ```ts
 type WorkbookStreamWriterOptions = SinkOptions & {
   /**
-   * Pool plain string cell values into a shared-strings table rather than storing each inline — the
+   * Pool plain string cell values into a shared-strings table rather than storing each inline: the
    * same {@link WriteOptions.useSharedStrings} the buffered writer exposes. Off by default.
    */
   readonly useSharedStrings?: boolean;
@@ -156,7 +156,7 @@ type WorkbookStreamWriterOptions = SinkOptions & {
 <sub>class</sub>
 
 A worksheet being written incrementally. Append rows with [`addRow`](./streaming-writes.md#worksheetstreamwriteraddrow)/[`addRows`](./streaming-writes.md#worksheetstreamwriteraddrows), style
-cells through [`getCell`](./streaming-writes.md#worksheetstreamwritergetcell), then [`commit`](./streaming-writes.md#worksheetstreamwritercommit) to freeze it — after which any further mutation
+cells through [`getCell`](./streaming-writes.md#worksheetstreamwritergetcell), then [`commit`](./streaming-writes.md#worksheetstreamwritercommit) to freeze it, after which any further mutation
 is rejected with a legible error rather than silently accepted or crashing.
 
 ```ts
@@ -196,7 +196,7 @@ The sheet's name.
 get rowCount(): number;
 ```
 
-The number of rows written so far — spans gaps and formatted-only rows, like the model, and
+The number of rows written so far. Spans gaps and formatted-only rows, like the model, and
 survives the eviction of eagerly-flushed rows.
 
 #### `WorksheetStreamWriter.addRow`
@@ -225,7 +225,7 @@ Serialise an eagerly-committed row and release its cells from the model. Called 
 [`StreamedRow.commit`](./streaming-writes.md#streamedrowcommit); the row's `<row>` XML is retained (interned into the workbook's live
 style registry so its ids stay valid) and the cell graph is dropped, bounding peak memory.
 
-**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the row carries a shared-formula cell — a finished row cannot join the
+**Throws:** [`AuthoringError`](./errors.md#authoringerror) if the row carries a shared-formula cell: a finished row cannot join the
 whole-sheet formula planning, so shared formulas must be authored through [`getCell`](./streaming-writes.md#worksheetstreamwritergetcell).
 
 #### `WorksheetStreamWriter.getCell`
@@ -243,8 +243,8 @@ addDataValidation(sqref: string, rule: DataValidation, options: {extended?: bool
 ```
 
 Attach a data validation to a range before the sheet is committed. Delegates to the model, so the
-streamed package emits the `<dataValidations>` block in its CT_Worksheet position — before
-`<hyperlinks>` — because both writers share one worksheet serializer.
+streamed package emits the `<dataValidations>` block in its CT_Worksheet position, before
+`<hyperlinks>`, because both writers share one worksheet serializer.
 
 #### `WorksheetStreamWriter.addConditionalFormatting`
 
@@ -253,8 +253,8 @@ addConditionalFormatting(formatting: ConditionalFormatting): void;
 ```
 
 Attach a conditional formatting to a range before the sheet is committed. Like every other block,
-it lands in its schema-mandated slot — after `<mergeCells>`, before `<dataValidations>` and
-`<hyperlinks>` — since the streamed sheet is serialized through the same path as a buffered write.
+it lands in its schema-mandated slot, after `<mergeCells>` and before `<dataValidations>` and
+`<hyperlinks>`, since the streamed sheet is serialized through the same path as a buffered write.
 
 #### `WorksheetStreamWriter.addImage`
 
@@ -265,7 +265,7 @@ addImage(imageId: number, anchor: {readonly tl: AnchorPoint; readonly br: Anchor
 Anchor a workbook image (the id from [`WorkbookStreamWriter.addImage`](./streaming-writes.md#workbookstreamwriteraddimage)) to this sheet,
 spanning the rectangle from the top-left grid point `tl` to the bottom-right `br`. The streamed
 package emits the drawing part, its media relationship, and the sheet's `<drawing>` reference
-exactly as a buffered write does — both writers share `buildPackageParts`.
+exactly as a buffered write does: both writers share `buildPackageParts`.
 
 #### `WorksheetStreamWriter.autoFilter`
 
@@ -275,7 +275,7 @@ get autoFilter(): AutoFilter | undefined;
 ```
 
 Apply the sheet's autofilter before it is committed; mirrors [`Worksheet.autoFilter`](./worksheet.md#worksheetautofilter). The
-streamed package emits `<autoFilter>` in its CT_Worksheet slot — after `<sheetProtection>` — and
+streamed package emits `<autoFilter>` in its CT_Worksheet slot, after `<sheetProtection>`, and
 contributes the hidden `_FilterDatabase` defined name, exactly as a buffered write does.
 
 #### `WorksheetStreamWriter.protect`

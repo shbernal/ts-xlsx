@@ -6,7 +6,7 @@
 
 <sub>interface</sub>
 
-One message of a [`CommentThread`](./comment-thread.md#commentthread) — what a single person wrote, once.
+One message of a [`CommentThread`](./comment-thread.md#commentthread): what a single person wrote, once.
 
 ```ts
 interface Comment {
@@ -21,7 +21,7 @@ interface Comment {
   readonly personId?: string;
   /**
    * When it was written, verbatim. Excel writes local wall-clock with fractional seconds and no
-   * timezone (`2026-07-24T10:56:41.72`), which is not a round-trippable instant — keeping the string
+   * timezone (`2026-07-24T10:56:41.72`), which is not a round-trippable instant. Keeping the string
    * spares the reader from inventing a zone the file never stated.
    */
   readonly date?: string;
@@ -43,8 +43,8 @@ A conversation anchored to one cell: what was asked, every reply, and whether it
 ```ts
 interface CommentThread {
   /**
-   * A1 reference of the single cell the conversation hangs off, canonicalised — no `$` anchors, always
-   * a column and a row — so two anchors compare as plain strings and a writer can resolve it without
+   * A1 reference of the single cell the conversation hangs off, canonicalised with no `$` anchors and
+   * always a column and a row, so two anchors compare as plain strings and a writer can resolve it without
    * re-validating it.
    */
   readonly ref: string;
@@ -67,7 +67,7 @@ interface CommentThread {
 An `@mention` inside a message: who was named, and the run of [`Comment.text`](./comment-thread.md#comment) that renders as the
 mention chip.
 
-The offsets are only meaningful against that exact text — shift either and a spreadsheet app
+The offsets are only meaningful against that exact text: shift either and a spreadsheet app
 highlights the wrong words.
 
 ```ts
@@ -95,23 +95,23 @@ interface Mention {
 
 <sub>interface</sub>
 
-A registered identity a threaded comment can point at — an author, or someone `@mentioned` in a
+A registered identity a threaded comment can point at: an author, or someone `@mentioned` in a
 message. One `<person>` of the workbook's `xl/persons/person.xml` registry.
 
 A single human legitimately has **several** entries: Excel registers a mentioned identity separately
 from that person's authoring identity, with the same `displayName` and `userId` but a
-different `id` and a different `providerId`. The id is therefore the only identity —
+different `id` and a different `providerId`. The id is therefore the only identity;
 see [`Workbook.getPerson`](./workbook.md#workbookgetperson).
 
 ```ts
 interface Person {
   /** Brace-wrapped GUID this identity is referenced by. The only field that identifies it. */
   readonly id: string;
-  /** The name a spreadsheet app shows — not unique, and not an identity. */
+  /** The name a spreadsheet app shows. Not unique, and not an identity. */
   readonly displayName: string;
   /** Identity-provider handle, `S::<email>::<tenant-guid>` for an AzureAD account. */
   readonly userId?: string;
-  /** The provider that registered this entry — `AD` for a directory account, `PeoplePicker` for an
+  /** The provider that registered this entry: `AD` for a directory account, `PeoplePicker` for an
    * identity interned by being mentioned. */
   readonly providerId?: string;
 }

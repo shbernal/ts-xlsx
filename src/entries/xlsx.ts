@@ -1,4 +1,4 @@
-// Entry barrel for `@shbernal/ts-xlsx/xlsx` — the XML codec: whole-workbook read and write, the
+// Entry barrel for `@shbernal/ts-xlsx/xlsx`, the XML codec: whole-workbook read and write, the
 // streaming pair, and the in-place VBA part edits.
 //
 // The streaming reader's entry points are public; the granular per-row/cell/sheet output shapes
@@ -9,7 +9,7 @@
 // hands back `Cell`, which belongs to `/core`.
 //
 // Streaming is not its own entry point. Measured, `read-rows` + `write-stream` reach every module
-// `read` + `write` do plus three — an entry that costs what the codec costs is an alias, not a
+// `read` + `write` do plus three, and an entry that costs what the codec costs is an alias, not a
 // packaging boundary.
 
 export {editXlsxVbaAddReference, editXlsxVbaRemoveModule} from '../io/xlsx/edit-vba.ts';

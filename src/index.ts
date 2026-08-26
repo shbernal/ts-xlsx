@@ -1,6 +1,6 @@
 // The convenience entry point: everything the package exports, under one specifier.
 //
-// It is a union of the subpath entry barrels in `src/entries/`, which are the real public faces —
+// It is a union of the subpath entry barrels in `src/entries/`, which are the real public faces:
 // `@shbernal/ts-xlsx/core`, `/xlsx`, `/xlsb`, `/csv`, `/vba`, `/customui`, `/errors`. Each symbol
 // is listed in exactly one of them, so there is no second list to keep in step here and a star
 // re-export cannot silently drop a name to an ambiguity. `scripts/check-layering.ts` holds the

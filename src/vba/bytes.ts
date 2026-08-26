@@ -1,15 +1,15 @@
-// Read-side byte primitives for the VBA subsystem — the counterpart to the write-side `vba-encoding.ts`
+// Read-side byte primitives for the VBA subsystem: the counterpart to the write-side `vba-encoding.ts`
 // (`u16`, `u32`, `utf16le`, `push`). Every structure under `src/vba/` is a little-endian binary record
 // ([MS-CFB] sectors and directory entries, [MS-OVBA] `dir` TLVs and compressed chunks), so these four
 // are what its parsers are built from.
 //
 // The bound is checked here, once, rather than at each caller. A plain `buf[at] | (buf[at + 1] << 8)`
-// reads `undefined | (undefined << 8)` past the end, which is `0` — a truncated `vbaProject.bin` out of
+// reads `undefined | (undefined << 8)` past the end, which is `0`, so a truncated `vbaProject.bin` out of
 // an untrusted `.xlsm` would parse as a file full of zeros instead of failing. `DataView.getUint16` is
 // the obvious fix but the wrong one here: it throws `RangeError`, which is outside this package's
 // failure taxonomy, and it is slow. Measured at 20M reads, a `DataView` constructed per call runs ~90x
 // slower than the raw index and one cached per buffer ~8x, while the explicit `undefined` check below
-// is indistinguishable from the unchecked read — V8 already bounds-checks the load, so the branch is
+// is indistinguishable from the unchecked read: V8 already bounds-checks the load, so the branch is
 // free. `ms-ovba.ts` calls `readU16` once per copy token, so that difference is not academic.
 
 import {VbaParseError} from './errors.ts';
@@ -41,7 +41,7 @@ export function readU32(buf: Uint8Array, at: number): number {
 }
 
 /**
- * Decode UTF-16LE code units — the encoding [MS-CFB] uses for directory-entry names and [MS-OVBA] for
+ * Decode UTF-16LE code units: the encoding [MS-CFB] uses for directory-entry names and [MS-OVBA] for
  * every "Unicode" name field. A trailing odd byte is dropped: these fields are length-prefixed by the
  * producer and a half code unit carries nothing to decode.
  */

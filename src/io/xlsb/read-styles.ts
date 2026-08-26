@@ -1,12 +1,12 @@
 // The BIFF12 style-sheet reader: `xl/styles.bin` in, the same {@link StyleTable} the XML reader
 // produces out. Every collection (`fmts`, `fonts`, `fills`, `borders`, `cellStyleXfs`, `cellXfs`,
 // `styles`) is a Begin/End record pair around its entries, so the pass tracks which collection it is
-// inside — `BrtXF` appears in two of them and is meaningless without that context.
+// inside: `BrtXF` appears in two of them and is meaningless without that context.
 //
 // The resolution *rules* are deliberately not restated here: number-format ids go through the XML
 // reader's `numFmtCodeFor`, and each facet is emitted with the same "only when it differs from the
 // default" discipline the XML path uses. That is what makes the binary and XML readings of one
-// workbook the same model rather than two similar ones — a bottom vertical alignment, a locked cell,
+// workbook the same model rather than two similar ones: a bottom vertical alignment, a locked cell,
 // or a General number format is written explicitly in BIFF12 and omitted in XML, so the binary side
 // has to drop exactly what the XML side never had.
 
@@ -37,7 +37,7 @@ import {readRecords} from './record-stream.ts';
 import {BRT} from './record-types.ts';
 
 // Which Begin/End-delimited collection the pass is currently inside. `undefined` outside all of them,
-// which is also what an unrecognised nested block collapses to — so a record we do not model can
+// which is also what an unrecognised nested block collapses to, so a record we do not model can
 // never be mistaken for an entry of the collection that happened to precede it.
 type Collection =
   | 'fmts'
@@ -135,7 +135,7 @@ function readXf(reader: RecordReader, deps: XfDeps, isDirect: boolean): XfStyle 
   const fill = deps.fills[reader.u16()];
   const borderIndex = reader.u16();
   // Border 0 is the genuinely empty default (font 0, by contrast, is the workbook's real default
-  // face), so only a custom index names an actual border — the same asymmetry the XML reader keeps.
+  // face), so only a custom index names an actual border: the same asymmetry the XML reader keeps.
   const border = borderIndex > 0 ? deps.borders[borderIndex] : undefined;
   const rotation = reader.u8();
   const indent = reader.u8();
@@ -201,7 +201,7 @@ const HORIZONTAL_ALIGNMENTS: ReadonlyArray<HorizontalAlignment | undefined> = [
   'distributed',
 ];
 
-// `alcv`, likewise — with `bottom` (index 2) left out as the default.
+// `alcv`, likewise, with `bottom` (index 2) left out as the default.
 const VERTICAL_ALIGNMENTS: ReadonlyArray<VerticalAlignment | undefined> = [
   'top',
   'center',
@@ -250,7 +250,7 @@ function readFont(reader: RecordReader): Font {
 const BOLD_WEIGHT = 700;
 
 // `uls` ([MS-XLSB] 2.4.690). A single underline is `true`, not `'single'`, because that is what XML's
-// bare `<u/>` — which is what Excel writes for it — reads back as.
+// bare `<u/>`, which is what Excel writes for it, reads back as.
 const UNDERLINE_STYLES: ReadonlyMap<number, UnderlineStyle> = new Map<number, UnderlineStyle>([
   [0x01, true],
   [0x02, 'double'],
@@ -262,11 +262,11 @@ const UNDERLINE_STYLES: ReadonlyMap<number, UnderlineStyle> = new Map<number, Un
 // patterns in the same order, so the code indexes the name list directly.
 function readFill(reader: RecordReader): Fill | undefined {
   const pattern = FILL_PATTERNS[reader.u32()];
-  // `none` is the absence of a fill, and an unmodelled pattern (a gradient — see below) is dropped
+  // `none` is the absence of a fill, and an unmodelled pattern (a gradient; see below) is dropped
   // rather than guessed, so an unfilled cell reads back unfilled either way.
   if (pattern === undefined) return undefined;
   // BIFF12 always states both colours; XML states only the ones the fill actually has, using the two
-  // legacy-palette sentinels for the rest — 64 is "automatic foreground", 65 "automatic background".
+  // legacy-palette sentinels for the rest: 64 is "automatic foreground", 65 "automatic background".
   // Dropping each in its own slot reproduces exactly what the XML reader sees: an untouched hatch
   // pattern carries no colours at all, while a solid fill keeps the explicit `bgColor indexed="64"`
   // Excel writes beside its foreground.
@@ -288,7 +288,7 @@ function notSentinel(color: Color | undefined, sentinel: number): Color | undefi
 }
 
 // Indexed by the stored `fls` value. Index 0 (`none`) is deliberately absent: an unfilled cell
-// carries no fill. Gradient fills (`fls` 0x28) are not decoded in this cut — the stop array's layout
+// carries no fill. Gradient fills (`fls` 0x28) are not decoded in this cut: the stop array's layout
 // is the one piece of BrtFill this reader has no Excel-authored sample to check against, and a
 // silently wrong gradient is worse than none.
 const FILL_PATTERNS: ReadonlyArray<FillPatternType | undefined> = [
@@ -314,7 +314,7 @@ const FILL_PATTERNS: ReadonlyArray<FillPatternType | undefined> = [
 ];
 
 // `BrtBorder` ([MS-XLSB] 2.4.314): the two diagonal-direction bits, then five `Blxf` edges in the
-// order top, bottom, left, right, diagonal — which is *not* the model's or the schema's order, so
+// order top, bottom, left, right, diagonal, which is *not* the model's or the schema's order, so
 // the edges are read positionally and named here.
 function readBorder(reader: RecordReader): Border | undefined {
   const flags = reader.u8();

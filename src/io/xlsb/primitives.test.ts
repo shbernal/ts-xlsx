@@ -107,7 +107,7 @@ test('a BrtColor decodes each of its four encodings onto the model colour', () =
     new RecordReader(bytes(...values)).color();
   // Automatic: the record names no colour at all, so the cell gains none.
   assert.equal(color(0x00, 0x00, 0, 0, 0, 0, 0, 0), undefined);
-  // Indexed 64 — the automatic-background placeholder Excel writes on every solid fill.
+  // Indexed 64: the automatic-background placeholder Excel writes on every solid fill.
   assert.deepEqual(color(0x03, 0x40, 0, 0, 0, 0, 0, 0), {indexed: 64});
   // ARGB, straight from a fill Excel wrote for interior colour 0xEEDDCC (BGR) → FFCCDDEE.
   assert.deepEqual(color(0x05, 0xff, 0, 0, 0xcc, 0xdd, 0xee, 0xff), {argb: 'FFCCDDEE'});

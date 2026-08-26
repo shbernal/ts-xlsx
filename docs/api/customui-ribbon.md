@@ -115,7 +115,7 @@ set of RibbonX control elements ([`RibbonControlKind`](./customui-ribbon.md#ribb
 as `unknown` rather than dropped. The three identity attributes (`id` a document-defined control,
 `idQ` a qualified id, `idMso` a built-in control) and the two most-consulted display/behaviour
 attributes (`label`, `onAction`) are lifted out as typed conveniences; every attribute the element
-actually carried — including the many `get*` dynamic callbacks and layout hints not modelled here —
+actually carried, including the many `get*` dynamic callbacks and layout hints not modelled here,
 is preserved verbatim in `attributes`, so nothing is lost. Container controls (a `menu`,
 `splitButton`, `gallery`, `dropDown`, `box`, …) carry their nested controls/items in `children`.
 
@@ -130,7 +130,7 @@ interface RibbonControl {
   readonly idMso?: string;
   /** The static label, when the element carries one (a dynamic label uses `getLabel`, in {@link attributes}). */
   readonly label?: string;
-  /** The callback procedure name invoked on activation — the macro a click runs. */
+  /** The callback procedure name invoked on activation: the macro a click runs. */
   readonly onAction?: string;
   /** Every attribute on the element, verbatim and entity-decoded. The typed fields above are lifted from
    * here; this map is the complete record, including attributes this model does not lift out. */
@@ -178,7 +178,7 @@ type RibbonControlKind =
 
 <sub>type</sub>
 
-The `customUI` schema a part is written against — the read model keys off this, not the (frequently
+The `customUI` schema a part is written against. The read model keys off this, not the (frequently
 mis-copied) relationship type. `2007` is the original RibbonX (`customUI.xml`); `2010` is the later
 schema (`customUI14.xml`) that also carries backstage/QAT/commands.
 

@@ -2,8 +2,8 @@
 //
 // Writing OOXML needs only correct escaping and well-formed structure; parsing (the
 // reader's concern) is a separate, later decision, so no XML library is on the write
-// path. Escaping is the one hard, security-relevant requirement — an unescaped `<`,
-// `&`, or `"` produces a malformed package a consumer rejects — so it lives here,
+// path. Escaping is the one hard, security-relevant requirement, since an unescaped `<`,
+// `&`, or `"` produces a malformed package a consumer rejects, so it lives here,
 // audited once, rather than sprinkled through the part emitters.
 //
 // A second class of character is harder than `&`: the ones XML 1.0 has no syntax for at
@@ -21,7 +21,7 @@
 //
 // **Everything else is refused.** The schema is no help in drawing that line: `ST_Xstring`
 // types a sheet name and a print header just as it types `<t>`, so following the type alone
-// would have us escape a sheet name too — and a workbook whose tab reads `Sheet_x0001_A` is
+// would have us escape a sheet name too, and a workbook whose tab reads `Sheet_x0001_A` is
 // not a faithful rendering of the name the author asked for, it is a different name. Where
 // there is no faithful representation the honest answer is `AuthoringError`, which is the
 // stance `numberText` below already takes on a non-finite number for the same reason. That
@@ -32,7 +32,7 @@
 // is why the test is *does Excel decode it here* rather than *does this read as prose*. A
 // legacy note's body is a `<t>` in a `CT_Rst`, the very type the convention is defined on. A
 // threaded comment's `<text>` is a different element in the 2018 extension namespace with no
-// documented escape at all — it took a measurement to put it here, and it decodes with the
+// documented escape at all; it took a measurement to put it here, and it decodes with the
 // same closed grammar and the same single pass. A print header stays refused: nobody has
 // measured a decode there, and its own `&`-prefixed formatting codes are the only in-band
 // syntax it has.
@@ -64,7 +64,7 @@ const ATTR_ESCAPES: Record<string, string> = {
  *
  * Three classes: the C0 controls outside the tab/LF/CR the `Char` production allows, the two
  * noncharacters at the top of the BMP, and unpaired surrogates. The last are not an XML
- * problem but a UTF-8 one — the encoder substitutes U+FFFD for a lone surrogate, so the
+ * problem but a UTF-8 one: the encoder substitutes U+FFFD for a lone surrogate, so the
  * package validates and the value is quietly gone, which is the same loss by a different
  * route. U+007F and the C1 controls are deliberately absent: XML 1.1 forbids them, OOXML is
  * 1.0.
@@ -84,7 +84,7 @@ function codePointHex(codePoint: number): string {
 
 /**
  * Refuse a string that XML cannot carry, naming the character and where it is so the author
- * can find it in a value they never inspected — these arrive from a database column or a CSV
+ * can find it in a value they never inspected. These arrive from a database column or a CSV
  * field, not from a literal in the calling code.
  */
 function assertRepresentable(value: string): void {
@@ -114,7 +114,7 @@ export function escapeAttr(value: string): string {
  *
  * The order of the two replacements is load-bearing. Once `_xHHHH_` decodes to something, a
  * value that legitimately reads `_x0041_` would come back as `A`, so the underscore is
- * escaped first — and only where it begins a sequence that would otherwise decode, leaving
+ * escaped first, and only where it begins a sequence that would otherwise decode, leaving
  * every other underscore alone. Doing that after the character escape would re-escape the
  * `_x005F_` it had just introduced.
  *
@@ -143,8 +143,8 @@ function needsSpacePreserve(value: string): boolean {
 
 /**
  * A `<t>` text element carrying an escaped string, marked `xml:space="preserve"` when its
- * whitespace would otherwise be collapsed. Shared by every string-bearing element — a plain
- * inline string cell, a rich-text run, a pooled string, a note's body — so all decode
+ * whitespace would otherwise be collapsed. Shared by every string-bearing element (a plain
+ * inline string cell, a rich-text run, a pooled string, a note's body) so all decode
  * identically on the way back.
  */
 export function textElement(value: string): string {
@@ -155,7 +155,7 @@ export function textElement(value: string): string {
 /**
  * Render a formula operand for serialisation: a number becomes its literal, a string is stripped of
  * the single optional leading '=' an author may write (OOXML stores the expression without it, e.g.
- * `=A1>0` on disk is `A1>0`). The result is unescaped — the caller escapes it for its target,
+ * `=A1>0` on disk is `A1>0`). The result is unescaped: the caller escapes it for its target,
  * whether that is element text or an attribute value.
  */
 export function stripFormulaEquals(value: string | number): string {
@@ -167,7 +167,7 @@ export function stripFormulaEquals(value: string | number): string {
  * A boolean attribute rendered with a leading space (` name="1"` / ` name="0"`), or '' when the value
  * is undefined. OOXML booleans serialise as 1/0; emitting the explicit `="0"` lets a writer force a
  * flag off against a consumer's default, while an unset (undefined) flag stays out of the element
- * entirely — the two-state-plus-absent contract every flag writer here shares.
+ * entirely: the two-state-plus-absent contract every flag writer here shares.
  */
 export function boolAttr(name: string, value: boolean | undefined): string {
   return value === undefined ? '' : ` ${name}="${value ? 1 : 0}"`;
@@ -175,7 +175,7 @@ export function boolAttr(name: string, value: boolean | undefined): string {
 
 /**
  * A numeric attribute rendered with a leading space (` name="42"`), or '' when the value is undefined
- * — so a count an author never set stays out of the element rather than fabricating a default.
+ * so that a count an author never set stays out of the element rather than fabricating a default.
  */
 export function attr(name: string, value: number | undefined): string {
   return value === undefined ? '' : ` ${name}="${value}"`;
@@ -188,7 +188,7 @@ export function attr(name: string, value: number | undefined): string {
 export function numberText(value: number): string {
   if (!Number.isFinite(value)) {
     throw new AuthoringError(
-      `cannot write a non-finite number (${value}) — it has no OOXML representation`,
+      `cannot write a non-finite number (${value}): it has no OOXML representation`,
     );
   }
   return String(value);

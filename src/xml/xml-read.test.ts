@@ -48,7 +48,7 @@ test('decodeEntities resolves decimal and hex character references', () => {
   assert.equal(decodeEntities('&#65;&#x42;&#x1F600;'), 'AB\u{1F600}');
 });
 
-test('decodeEntities leaves an unknown named entity verbatim — no DTD, nothing to expand', () => {
+test('decodeEntities leaves an unknown named entity verbatim: no DTD, nothing to expand', () => {
   // This is the property that makes entity-expansion (billion-laughs) attacks impossible.
   assert.equal(decodeEntities('&lol;&custom;'), '&lol;&custom;');
 });
@@ -161,7 +161,7 @@ test('parseXml normalizes CRLF and lone CR line endings in text to LF (XML §2.1
 });
 
 test('parseXml preserves a carriage return supplied as a character reference', () => {
-  // EOL normalization precedes entity decoding, so &#13; survives as a genuine CR — the escape
+  // EOL normalization precedes entity decoding, so &#13; survives as a genuine CR: the escape
   // hatch distinguishing an intended carriage return from a producer's newline convention.
   const evs = events('<t>a&#13;b</t>');
   assert.deepEqual(
@@ -251,7 +251,7 @@ test('decodeSpreadsheetText restores a lone surrogate rather than a replacement 
 
 test('decodeSpreadsheetText inverts escapeSpreadsheetText', () => {
   // The escape hands XML's own `&<>` to `escapeText`, so the fixed point is checked on a value
-  // holding none of those — what matters here is that the `_xHHHH_` round trip is the identity for
+  // holding none of those. What matters here is that the `_xHHHH_` round trip is the identity for
   // every awkward shape at once, including ones that only interact when adjacent.
   const awkward =
     'plain _ _x _x0041_ _x005F_ _xZZZZ_ _x041_ __x0041_ \u0001 \uFFFE \uD800 \t\n \u007F';

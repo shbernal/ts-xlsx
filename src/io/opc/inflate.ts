@@ -2,7 +2,7 @@
 //
 // Decompression is the reader's first hostile-input surface: a "zip bomb" ships a few
 // kilobytes that inflate to gigabytes. The zip's own size headers cannot be trusted to
-// bound this — they are attacker-controlled. A header that declares a *large* size makes a
+// bound this: they are attacker-controlled. A header that declares a *large* size makes a
 // naïve reader preallocate that much (an amplifier: tiny input, huge allocation); a header
 // that lies *small* makes a size-preallocating inflater silently truncate real data. So we
 // consult the declared sizes for nothing. Instead the compressed archive is fed to fflate's
@@ -11,7 +11,7 @@
 //
 // Because DEFLATE cannot expand input by more than ~1032:1, feeding at most INPUT_SLICE
 // compressed bytes before each counter check bounds the worst-case overshoot past the cap
-// to one slice's expansion — not the whole (possibly enormous) stream.
+// to one slice's expansion, not the whole (possibly enormous) stream.
 
 import {type FlateError, Unzip, type UnzipFile, UnzipInflate} from 'fflate';
 
@@ -31,7 +31,7 @@ const INPUT_SLICE = 1 << 14;
  * @param cap  Maximum total uncompressed output, in bytes, across all parts. Enforced
  *   against bytes actually produced, never against the archive's declared sizes.
  * @returns A map of part path to inflated bytes.
- * @throws {PackageReadError} if inflation would exceed `cap` — a probable zip bomb.
+ * @throws {PackageReadError} if inflation would exceed `cap`, a probable zip bomb.
  * @throws {Error} raised by the zip layer if the archive is malformed or a part uses an unsupported
  *   compression method. Callers reach this through {@link inflateSpreadsheetPackage}, which is where
  *   those are classified; the raw error is deliberately not re-typed here, because its text is the

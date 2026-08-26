@@ -1,4 +1,4 @@
-// CSV parsing — flat delimited text back into a one-sheet workbook.
+// CSV parsing: flat delimited text back into a one-sheet workbook.
 //
 // The hard part of reading CSV is not splitting fields; it is deciding a field's *type* without
 // corrupting data. The rules here are deliberate and lossless-by-default:

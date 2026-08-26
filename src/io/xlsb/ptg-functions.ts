@@ -1,12 +1,12 @@
 // The `Ftab` built-in function table ([MS-XLS] 2.5.198.17, shared verbatim by BIFF12): the index a
 // `PtgFunc`/`PtgFuncVar` token carries, mapped to the function name that index means.
 //
-// A binary formula names no function — it cites one by number — so this table is the whole difference
+// A binary formula names no function; it cites one by number, so this table is the whole difference
 // between `SUM(A1:A5)` and an unreadable stream. It is transcribed from the normative table rather
 // than assembled from Excel's UI, which matters at both ends: the low indices include the XLM macro
 // functions (`GOTO`, `ADD.BAR`, …) that no modern sheet uses but a legacy file may still carry, and
-// the table simply stops at `RTD`. Everything Microsoft added after that — the whole modern library,
-// `TEXTJOIN` through `LAMBDA` — is *not* here and never will be: a post-2007 function is called
+// the table simply stops at `RTD`. Everything Microsoft added after that (the whole modern library,
+// `TEXTJOIN` through `LAMBDA`) is *not* here and never will be: a post-2007 function is called
 // through index 255 ("user defined") with an `_xlfn.`-prefixed name as its first operand, which is
 // the same indirection the XML form spells out in the function name itself.
 //
@@ -25,7 +25,7 @@ export function functionNameFor(index: number): string | undefined {
 /**
  * How many arguments a fixed-arity function takes, or `undefined` for one whose argument count varies.
  *
- * A `PtgFunc` token states only *which* function is called, never with how many arguments — it is the
+ * A `PtgFunc` token states only *which* function is called, never with how many arguments: it is the
  * token Excel emits precisely because the count is implied by the function. So decoding `ROUND(A1,2)`
  * back from its two operands and one call token is impossible without this: the arity is the only
  * thing that says which operands on the stack belong to the call. (`PtgFuncVar` carries its own count

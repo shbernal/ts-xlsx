@@ -12,7 +12,7 @@ function bytes(...values: number[]): Uint8Array {
 const NONE = new Uint8Array(0);
 
 // A workbook of three sheets whose extern-sheet table names each of them and, at index 3, an
-// external workbook — the shape the resolver has to tell apart.
+// external workbook: the shape the resolver has to tell apart.
 const SCOPE: FormulaScope = {
   sheetNames: ['Calc', 'Data', 'More'],
   externSheets: [
@@ -36,7 +36,7 @@ function ref(row: number, column: number, flags = 0xc000): Uint8Array {
 }
 
 test('a postfix stream folds back into infix text', () => {
-  // 1, 2, 3, multiply, add — the tokens behind `1+2*3`.
+  // 1, 2, 3, multiply, add: the tokens behind `1+2*3`.
   const rgce = bytes(0x1e, 1, 0, 0x1e, 2, 0, 0x1e, 3, 0, 0x05, 0x03);
   assert.equal(decodeFormula(rgce, NONE, SCOPE), '1+2*3');
 });
@@ -66,7 +66,7 @@ test('a 3-D reference resolves its sheet span through the extern-sheet table', (
 
 test('a reference through an unrecognised externals table does not resolve', () => {
   // With a supporting book this reader could not account for, the whole table's indices are
-  // untrustworthy — naming a sheet from them could name the wrong one.
+  // untrustworthy: naming a sheet from them could name the wrong one.
   const opaque: FormulaScope = {...SCOPE, selfSupBook: undefined};
   assert.equal(decodeFormula(bytes(0x5a, 0, 0, 0, 0, 0, 0, 0x00, 0xc0), NONE, opaque), undefined);
 });
@@ -94,7 +94,7 @@ test('a token running past the end of its own stream is a parse error', () => {
 });
 
 test('an array constant declaring more elements than any workbook holds is refused', () => {
-  // The elements are read from the trailing block, which cannot outrun its record — but the row and
+  // The elements are read from the trailing block, which cannot outrun its record, but the row and
   // column counts are multiplied before any of it is read, so a forged pair must not buy a loop.
   const rgce = bytes(0x60, ...new Array<number>(14).fill(0));
   const rgcb = bytes(0xff, 0xff, 0xff, 0x0f, 0xff, 0xff, 0xff, 0x0f);
@@ -138,7 +138,7 @@ test('a fixed-arity function knows how many operands belong to its call', () => 
   assert.equal(fixedArityFor('ROUND'), 2);
   assert.equal(fixedArityFor('MID'), 3);
   assert.equal(fixedArityFor('REPLACE'), 4);
-  // A variadic function has no fixed arity — its call token carries its own count instead.
+  // A variadic function has no fixed arity: its call token carries its own count instead.
   assert.equal(fixedArityFor('SUM'), undefined);
   assert.equal(fixedArityFor('IF'), undefined);
 });

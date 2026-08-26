@@ -16,7 +16,7 @@ function isTableStyleElementType(value: string): value is TableStyleElementType;
 
 <sub>const</sub>
 
-The four element types banded across several rows or columns — the only ones [`TableStyleElement.size`](./table-style.md#tablestyleelement) means anything on.
+The four element types banded across several rows or columns: the only ones [`TableStyleElement.size`](./table-style.md#tablestyleelement) means anything on.
 
 ```ts
 const STRIPE_ELEMENT_TYPES: ReadonlySet<"blankRow" | "firstColumn" | "firstColumnStripe" | "firstColumnSubheading" | "firstHeaderCell" | "firstRowStripe" | "firstRowSubheading" | "firstSubtotalColumn" | "firstSubtotalRow" | "firstTotalCell" | "headerRow" | "lastColumn" | "lastHeaderCell" | "lastTotalCell" | "pageFieldLabels" | "pageFieldValues" | "secondColumnStripe" | "secondColumnSubheading" | "secondRowStripe" | "secondRowSubheading" | "secondSubtotalColumn" | "secondSubtotalRow" | "thirdColumnSubheading" | "thirdRowSubheading" | "thirdSubtotalColumn" | "thirdSubtotalRow" | "totalRow" | "wholeTable">
@@ -32,8 +32,8 @@ The regions a table style can format (`ST_TableStyleType`).
 
 The first thirteen apply to a **table**; the rest style a **pivot table**, which has regions a
 table does not have (subtotal rows, page-field labels, subheadings). Both live in the same
-enumeration and the same `<tableStyle>` element — what decides which regions a consumer honours is
-the style's own `table`/`pivot` flags, not the element names — so the type carries all of them
+enumeration and the same `<tableStyle>` element. What decides which regions a consumer honours is
+the style's own `table`/`pivot` flags, not the element names, so the type carries all of them
 rather than splitting into two enumerations that a caller would have to choose between up front.
 
 ```ts
@@ -52,7 +52,7 @@ A custom table style, ready to be registered on a workbook and named by a table'
 Elements are applied in the order ECMA-376 fixes, not the order they are written here: whole table,
 then the column stripes, then the row stripes, then last/first column, header row, total row, and
 the four corner cells. So a row stripe wins over a column stripe, and both win over the whole-table
-formatting — worth knowing when a stripe colour appears not to take.
+formatting, which is worth knowing when a stripe colour appears not to take.
 
 ```ts
 interface TableStyle {
@@ -74,7 +74,7 @@ interface TableStyle {
 <sub>interface</sub>
 
 How one region of a table is formatted: a [`DifferentialStyle`](./styles.md#differentialstyle) laid over whatever the cells
-already carry, plus — for a stripe — how many rows or columns wide one band is.
+already carry, plus, for a stripe, how many rows or columns wide one band is.
 
 A `numFmt` here is carried faithfully but has no visible effect: Excel's own table-style element
 exposes a font, an interior and borders, and nothing for a number format. See
@@ -83,7 +83,7 @@ exposes a font, an interior and borders, and nothing for a number format. See
 ```ts
 interface TableStyleElement extends DifferentialStyle {
   /**
-   * The band width, in rows or columns, for a striped element — `2` makes each band two rows deep.
+   * The band width, in rows or columns, for a striped element: `2` makes each band two rows deep.
    * Defaults to 1.
    *
    * Meaningful **only** on the four stripe types ({@link STRIPE_ELEMENT_TYPES}); ECMA-376 says so and

@@ -97,13 +97,13 @@ test('a part ending mid-header is rejected rather than read as undefined', () =>
 
 test('the fourth size byte terminates the size regardless of its continuation bit', () => {
   // [MS-XLSB]: "The high bit of the fourth byte MUST be ignored." A file that sets it anyway must
-  // not drag a fifth byte into the size — that would shift the payload and desync the whole part.
+  // not drag a fifth byte into the size: that would shift the payload and desync the whole part.
   const part = concat(Uint8Array.of(1, 0x83, 0x80, 0x80, 0x80), new Uint8Array(3));
   const [record] = [...readRecords(part)];
   assert.equal(record?.data.length, 3);
 });
 
-test('framing is lazy — a caller that stops early does not frame the rest of the part', () => {
+test('framing is lazy: a caller that stops early does not frame the rest of the part', () => {
   // The tail is deliberately malformed: reaching it would throw, so completing without one proves
   // the generator never looked past the record the caller asked for.
   const part = concat(frame(2, Uint8Array.of(1)), Uint8Array.of(3, 0xff, 0xff, 0xff, 0x7f));

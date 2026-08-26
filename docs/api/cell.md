@@ -6,8 +6,8 @@
 
 <sub>class</sub>
 
-A single cell owns its value and every style facet outright. Each facet below — fill, number format,
-font, border, alignment, protection, quote-prefix, and note — is held in the cell's own field and
+A single cell owns its value and every style facet outright. Each facet below (fill, number format,
+font, border, alignment, protection, quote-prefix, and note) is held in the cell's own field and
 *replaced* (never mutated in place) by its setter, so a facet set on one cell never aliases or bleeds
 onto its row, column, or sheet siblings. Each facet's own doc covers only what is specific to it.
 
@@ -91,12 +91,12 @@ The observable [`ValueType`](./cell-values.md#valuetype) of the current value.
 get text(): string;
 ```
 
-The cell's value as plain text ([`cellValueToText`](./cell-values.md#cellvaluetotext)), `""` when it is empty — so a reader
+The cell's value as plain text ([`cellValueToText`](./cell-values.md#cellvaluetotext)), `""` when it is empty, so a reader
 that only wants strings never has to narrow the value union itself.
 
 Read-only, because text is a *rendering* of the value and not a second place to store one:
 writing `"3"` here could only mean the string `"3"`, which is exactly `value = '3'` and reads
-nothing like it. The number format is not applied either — the style is not the cell's value,
+nothing like it. The number format is not applied either: the style is not the cell's value,
 so a currency cell's text carries no currency sign.
 
 #### `Cell.setRichText`
@@ -111,18 +111,18 @@ cell's typeface, size and colour throughout and bolds the first run.
 
 This exists because a run's format element does **not** inherit anything. A `<rPr>` is a
 *complete* character format, and any facet it omits falls back to the workbook default font
-([`Workbook.defaultFont`](./workbook.md#workbookdefaultfont)) — not to the cell's. Verified against Excel: a cell set to
+([`Workbook.defaultFont`](./workbook.md#workbookdefaultfont)), not to the cell's. Verified against Excel: a cell set to
 Courier New 16 whose first run carries only `<b/>` renders that run in the workbook default face
 at the default size, bold, while the rest of the cell renders Courier New 16. So a run authored
 as `{bold: true}` beside a styled cell silently loses the face, which is the format's rule rather
-than a bug — and the reason this is a helper rather than a change to how runs are written.
+than a bug, and the reason this is a helper rather than a change to how runs are written.
 
 Composition is per facet: a facet the run names wins, one it omits comes from the cell. Assigning
 `value` directly stays the bare path, for a caller who wants a run that deliberately falls back
 to the workbook default.
 
-A cell that names no font of its own needs no composition — an omitted facet already falls back
-to the workbook default, which is exactly what such a cell renders in — so the runs pass through
+A cell that names no font of its own needs no composition: an omitted facet already falls back
+to the workbook default, which is exactly what such a cell renders in, so the runs pass through
 unchanged.
 
 #### `Cell.style`
@@ -132,11 +132,11 @@ get style(): CellStyle;
 set style(style: Readonly<CellStyle>);
 ```
 
-The cell's full style — fill, number format, font, border, alignment, and protection — as one
+The cell's full style (fill, number format, font, border, alignment, and protection) as one
 [`CellStyle`](./styles.md#cellstyle), for restyling a cell wholesale without importing `applyCellStyle`
 separately (mirrors [`Worksheet.model`](./worksheet.md#worksheetmodel)'s getter/setter pair for the whole sheet). The
 getter carries only the facets this cell has set (the same shape `cellToModel` emits);
-the setter lays each facet `style` carries onto this cell — like every per-facet setter, it
+the setter lays each facet `style` carries onto this cell and, like every per-facet setter, it
 replaces that facet outright but leaves a facet `style` omits untouched, so `cell.style = {...}`
 composes with prior per-facet sets rather than clearing them wholesale.
 
@@ -158,7 +158,7 @@ set numFmt(numFmt: string | undefined);
 
 The cell's number-format code (`"0.00%"`, a custom accounting format, …), or
 `undefined` for the General format. Stored verbatim: the invariant form Excel
-persists — `.` decimal, `,` grouping, `/` date separator — is neither localized
+persists (`.` decimal, `,` grouping, `/` date separator) is neither localized
 nor rewritten, so the code round-trips character-for-character. A cell that also carries
 a column-level format keeps both, so overriding one facet never drops the other.
 
@@ -169,7 +169,7 @@ get font(): Font | undefined;
 set font(font: Font | undefined);
 ```
 
-The cell's font — bold/italic/underline, size, colour, typeface — as a partial set
+The cell's font (bold/italic/underline, size, colour, typeface) as a partial set
 of the facets that differ from the default (only the facets actually set are carried,
 exactly as OOXML stores them). `undefined` means the cell uses the workbook default font.
 
@@ -180,7 +180,7 @@ get border(): Border | undefined;
 set border(border: Border | undefined);
 ```
 
-The cell's border — the line style and colour of each side — or `undefined` when the
+The cell's border (the line style and colour of each side), or `undefined` when the
 cell has none. An absent edge within a border means that side is unbordered, so reading
 a cell never fabricates a border it does not have.
 
@@ -191,7 +191,7 @@ get alignment(): Alignment | undefined;
 set alignment(alignment: Alignment | undefined);
 ```
 
-The cell's alignment — how its content sits within the cell, plus the wrap/shrink flags —
+The cell's alignment (how its content sits within the cell, plus the wrap/shrink flags),
 or `undefined` when it uses the defaults. The boolean flags are off unless explicitly set,
 so a cell that never enabled wrapping never reads back wrapped.
 
@@ -202,7 +202,7 @@ get protection(): Protection | undefined;
 set protection(protection: Protection | undefined);
 ```
 
-The cell's protection — its locked/hidden flags, enforced only once the sheet is protected —
+The cell's protection (its locked/hidden flags, enforced only once the sheet is protected),
 or `undefined` when the cell carries neither. `locked` defaults to on in OOXML, so a cell
 that never touched protection is implicitly locked and reads back as `undefined`, not as
 `{locked: true}`; the flag only becomes explicit when a cell is unlocked.
@@ -217,7 +217,7 @@ set quotePrefix(quotePrefix: boolean | undefined);
 The quote-prefix flag: when set, a spreadsheet stores the cell's content as literal text even
 when it looks like a formula or number, and shows a leading apostrophe in the formula bar without
 that apostrophe being part of the stored value. `undefined` (or `false`) when unset. It is a
-cell-format flag — an attribute on the cell's `xf` record — so it composes independently of the
+cell-format flag, an attribute on the cell's `xf` record, so it composes independently of the
 value.
 
 #### `Cell.note`

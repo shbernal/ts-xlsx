@@ -22,7 +22,7 @@ interface SheetProtection {
 <sub>interface</sub>
 
 A password-derived credential, in OOXML's agile form: the hash algorithm, the salted
-iterated hash of the password, the salt, and the iteration count — everything a consumer
+iterated hash of the password, the salt, and the iteration count: everything a consumer
 needs to verify a supplied password without the password ever being stored.
 
 ```ts
@@ -93,12 +93,12 @@ interface SheetProtectionOptions extends SheetProtectionFlags {
 
 A workbook's structure/window protection. The three lock flags each default to `false` (absent),
 matching OOXML: an omitted attribute leaves that aspect unlocked. The optional `credentials`
-bag carries the opaque password attributes verbatim — the library never verifies a password, it
+bag carries the opaque password attributes verbatim: the library never verifies a password, it
 only refuses to lose one.
 
 ```ts
 interface WorkbookProtection {
-  /** Lock the workbook structure — no adding, deleting, reordering, or unhiding sheets. */
+  /** Lock the workbook structure: no adding, deleting, reordering, or unhiding sheets. */
   readonly lockStructure?: boolean;
   /** Lock the workbook window geometry. */
   readonly lockWindows?: boolean;

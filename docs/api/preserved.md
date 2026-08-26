@@ -29,7 +29,7 @@ interface PreservedPart {
 One outbound relationship of a [`PreservedPart`](./preserved.md#preservedpart): the id it carries inside its own rels part,
 the relationship Type URI, and its target. An internal relationship's `targetPath` is the resolved
 package path of the part it points at (the writer re-numbers and rewires it); an `external`
-relationship's `targetPath` is the raw `Target` verbatim (a linked workbook's path or URL) — it is
+relationship's `targetPath` is the raw `Target` verbatim (a linked workbook's path or URL). It is
 outside the package, so it is emitted unchanged with `TargetMode="External"` and never remapped.
 Preserving external relationships is what keeps an `externalLink` part's pointer to its source
 workbook alive, so a round-trip does not orphan the `[n]` external references formulas resolve through.
@@ -50,7 +50,7 @@ interface PreservedRelationship {
 <sub>interface</sub>
 
 A package-root reference to content the model does not model, wired from the package's own
-`_rels/.rels` rather than the workbook part's rels — the ribbon-customisation parts
+`_rels/.rels` rather than the workbook part's rels: the ribbon-customisation parts
 (`customUI/customUI14.xml`), custom document properties (`docProps/custom.xml`), a thumbnail, and
 anything else hung off the root. The writer regenerates the root rels for the parts it models
 (workbook, core/app properties), so these would be dropped unless captured here and re-declared.
@@ -72,7 +72,7 @@ interface PreservedRootReference {
 
 <sub>interface</sub>
 
-A worksheet-level reference to package content the model does not model — preserved verbatim across
+A worksheet-level reference to package content the model does not model, preserved verbatim across
 a round-trip instead of being silently dropped. `element` is the worksheet child that wires the
 reference (`<drawing>` for a vector-shape drawing, `<legacyDrawingHF>` for a header/footer image),
 or `undefined` when the sheet wires it by relationship alone (a pivot table or slicer Excel

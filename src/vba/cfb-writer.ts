@@ -1,11 +1,11 @@
-// Writer for the OLE2 / Compound File Binary format ([MS-CFB]) — the encode counterpart to cfb.ts.
+// Writer for the OLE2 / Compound File Binary format ([MS-CFB]): the encode counterpart to cfb.ts.
 //
 // Produces a v3 (512-byte sector) container from a hierarchy of storages and streams, the substrate a
 // synthesized vbaProject.bin is built on (its modules live inside a `VBA` storage, with `PROJECT` and
 // `PROJECTwm` at the root). Streams below the 4096-byte mini cutoff are packed into the mini stream and
 // chained through the mini-FAT; larger streams take whole regular sectors. Each storage's children are
 // emitted as a name-ordered balanced binary tree ([MS-CFB] 2.6.4), so a host that *navigates* the tree
-// (Excel) reaches every entry — not only a linear scanner like this library's own reader.
+// (Excel) reaches every entry, not only a linear scanner like this library's own reader.
 //
 // Unlike the reader, this is not a hostile-input path: we are the producer. It still validates its
 // contract (name length, sibling-name uniqueness, size bound) and fails closed with VbaAuthorError,
@@ -55,7 +55,7 @@ function isStream(node: CfbNode): node is CfbStream {
 interface DirEntry {
   /**
    * Position in the directory stream. Sibling and child links are stored as these indices, so an
-   * entry carries its own — the alternative is looking the object back up in `entries`, which under
+   * entry carries its own; the alternative is looking the object back up in `entries`, which under
    * `noUncheckedIndexedAccess` yields `DirEntry | undefined` at every use site.
    */
   readonly index: number;
@@ -81,7 +81,7 @@ interface BigStream {
  * by linear scan and by tree navigation.
  *
  * @throws {VbaAuthorError} if any name is empty or exceeds 31 characters, sibling names collide, or the
- *   project is so large it would need more than 109 FAT sectors (~7 MB — far beyond any real project).
+ *   project is so large it would need more than 109 FAT sectors (~7 MB, far beyond any real project).
  */
 export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   const entries: DirEntry[] = [];
@@ -109,7 +109,7 @@ export function writeCompoundFile(root: readonly CfbNode[]): Uint8Array {
   const bigStreams: BigStream[] = [];
 
   // `siblings` is the parent's child list itself rather than its index, so a child is appended to an
-  // array we hold — no lookup that could come back empty.
+  // array we hold, with no lookup that could come back empty.
   const addNode = (node: CfbNode, siblings: DirEntry[]): void => {
     if (isStream(node)) {
       const entry = addEntry(node.name, TYPE_STREAM, ENDOFCHAIN);
@@ -341,5 +341,5 @@ function writeDirEntry(dv: DataView, off: number, e: DirEntry): void {
   dv.setUint32(off + 76, e.child, true);
   dv.setUint32(off + 116, e.startSector, true);
   dv.setUint32(off + 120, e.size, true);
-  // Size high (124), CLSID (80..95), state/time fields stay zero — valid for a v3 entry.
+  // Size high (124), CLSID (80..95), state/time fields stay zero: valid for a v3 entry.
 }

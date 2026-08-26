@@ -1,6 +1,6 @@
 // The path algebra of an OPC package: a part's extension, where its relationships live, and how one
 // part names another. Pure string work over package-absolute paths, with no notion of what any part
-// contains — so the XML and BIFF12 codecs, and the readers and writers within each, share it.
+// contains, so the XML and BIFF12 codecs, and the readers and writers within each, share it.
 
 // Where the writer always puts the theme part. The workbook's theme relationship and the package's
 // content-type override both name this path unconditionally, so a theme preserved from a source

@@ -13,8 +13,8 @@ import {parseStyleTable} from './read-styles.ts';
 // reader that keeps them from one that drops them on the floor.
 //
 // It runs against the real binary package rather than a hand-framed record because the label's
-// encoding — a flag word deciding whether the gallery index means anything, and a wide string after
-// it — is exactly the part a hand-written fixture would get wrong in the same direction the reader
+// encoding (a flag word deciding whether the gallery index means anything, and a wide string after
+// it) is exactly the part a hand-written fixture would get wrong in the same direction the reader
 // does. The workbook model cannot be asked instead: a package whose only named style is Normal never
 // reaches `restoreNamedStyles`, which is why this gap went unwatched.
 const FIXTURE = path.resolve(

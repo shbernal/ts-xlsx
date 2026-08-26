@@ -1,6 +1,6 @@
 // The buffered `.xlsb` reader: a binary OPC package in, a {@link Workbook} model out.
 //
-// An `.xlsb` is the *same* OPC/ZIP container and the *same* relationship graph as an `.xlsx` — the
+// An `.xlsb` is the *same* OPC/ZIP container and the *same* relationship graph as an `.xlsx`: the
 // workbook part points at its sheets, its shared strings, and its style sheet through ordinary
 // `.rels` XML. Only the office-document parts differ: `xl/workbook.bin`, `xl/worksheets/sheetN.bin`
 // and friends are BIFF12 record streams instead of XML. So this module reuses the container layer
@@ -8,7 +8,7 @@
 // exactly the "two codecs over one model" shape the format note argues for.
 //
 // The model produced is the one `readXlsx` produces, not a parallel one: the same `Workbook`, the
-// same `XfStyle` table, the same cells. That is what lets a caller convert between the two forms —
+// same `XfStyle` table, the same cells. That is what lets a caller convert between the two forms,
 // and what the corpus asserts, by reading a workbook Excel saved in both forms and comparing.
 //
 // Not yet decoded (each its own slice of work, none silently wrong): rich-text runs, tables, pivots,
@@ -36,10 +36,10 @@ export const XLSB_WORKBOOK_PART = 'xl/workbook.bin';
 /**
  * Read an `.xlsb` (binary BIFF12) package into a {@link Workbook}.
  *
- * @throws {UnsupportedFormatError} if the input is not an `.xlsb` package — a legacy `.xls`
+ * @throws {UnsupportedFormatError} if the input is not an `.xlsb` package: a legacy `.xls`
  *   (`.format === 'xls'`), an XML `.xlsx` or unrecognised blob (`'unknown'`).
  * @throws {XlsbParseError} if a binary part is malformed.
- * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked — a corrupt or
+ * @throws {PackageReadError} if the input is a ZIP that cannot be unpacked: a corrupt or
  *   truncated archive, or one exceeding the inflate bound (a probable zip bomb).
  */
 export function readXlsb(data: Uint8Array, options: ReadXlsxOptions = {}): Workbook {
@@ -105,7 +105,7 @@ interface NameDeclaration {
   readonly name: string;
   /** Zero-based index of the sheet the name is scoped to, or `undefined` for a workbook-global name. */
   readonly scopeSheet: number | undefined;
-  /** Whether the name registers a callable rather than a target — see {@link definedNames}. */
+  /** Whether the name registers a callable rather than a target. See {@link definedNames}. */
   readonly isFunction: boolean;
   readonly rgce: Uint8Array;
   readonly rgcb: Uint8Array;
@@ -127,8 +127,8 @@ function readWorkbookPart(part: Uint8Array): WorkbookDeclaration {
   let inBundle = false;
   let inExternals = false;
   // A workbook with no external links declares exactly one supporting book: itself. Rather than
-  // enumerate every record type that could open another — and risk miscounting into a *wrong* sheet
-  // name — anything else inside the externals block disqualifies the whole table.
+  // enumerate every record type that could open another, and risk miscounting into a *wrong* sheet
+  // name, anything else inside the externals block disqualifies the whole table.
   let supportingBooks = 0;
   let selfSupBook: number | undefined;
 
@@ -151,7 +151,7 @@ function readWorkbookPart(part: Uint8Array): WorkbookDeclaration {
   };
 }
 
-// `BrtBundleSh` ([MS-XLSB] 2.4.303) — the binary spelling of `<sheet name state r:id/>`.
+// `BrtBundleSh` ([MS-XLSB] 2.4.303): the binary spelling of `<sheet name state r:id/>`.
 function readSheet(data: Uint8Array): SheetDeclaration {
   const reader = new RecordReader(data);
   const state = SHEET_STATES[reader.u32()] ?? 'visible';
@@ -202,7 +202,7 @@ const NAME_IS_FUNCTION = 0x00000002;
 
 // The workbook's defined names, as the model holds them.
 //
-// Two kinds of `BrtName` are dropped, both because the XML form does not persist them either — so
+// Two kinds of `BrtName` are dropped, both because the XML form does not persist them either, so
 // carrying them through would make the two readings of one workbook disagree. A *function* name is
 // Excel's registration of a callable (every post-2007 function gets one, `_xlfn.TEXTJOIN` and
 // friends); its target is the placeholder `#NAME?`, not a range. And `_xlnm._FilterDatabase` is the

@@ -6,7 +6,7 @@ import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 import {PackageReadError} from './errors.ts';
 import {inflatePackage} from './inflate.ts';
 
-/** A deterministic, near-incompressible byte pattern — large enough to span several input
+/** A deterministic, near-incompressible byte pattern, large enough to span several input
  *  slices once zipped, so the multi-chunk reassembly path is exercised. */
 function noise(length: number): Uint8Array {
   const out = new Uint8Array(length);

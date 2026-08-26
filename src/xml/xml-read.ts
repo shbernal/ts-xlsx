@@ -1,7 +1,7 @@
 // A lean, hostile-input-safe SAX pull parser for the read path.
 //
-// OOXML uses a small, regular subset of XML, so the reader does not need — and must not
-// pay for — a general-purpose DOM library (see ADR 0004). This scans the source in a
+// OOXML uses a small, regular subset of XML, so the reader does not need, and must not
+// pay for, a general-purpose DOM library (see ADR 0004). This scans the source in a
 // single O(n) pass with no recursion, emitting open/text/close events; the OOXML reader
 // consumes them and builds only the model, so peak memory tracks real content rather
 // than document structure.
@@ -31,7 +31,7 @@ export interface SaxHandlers {
  * One parse event from {@link xmlEvents}. The payloads match {@link SaxHandlers} exactly: `text`
  * is already entity-decoded (or verbatim CDATA), and a `<x/>` yields one `open` with
  * `selfClosing: true` and no matching `close`. The discriminated `kind` lets a *pull* consumer
- * drive the parse — the shape the streaming reader needs, where a push callback cannot `yield`.
+ * drive the parse: the shape the streaming reader needs, where a push callback cannot `yield`.
  */
 export type XmlEvent =
   | {
@@ -55,7 +55,7 @@ const ENTITY = /&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);/g;
 
 /**
  * Decode XML character references and the five predefined entities. An unrecognised
- * `&name;` is left verbatim rather than expanded — there is no DTD, so there is nothing
+ * `&name;` is left verbatim rather than expanded: there is no DTD, so there is nothing
  * to expand it to, and refusing to invent one is what makes entity-expansion attacks
  * impossible.
  */
@@ -83,15 +83,15 @@ export function decodeEntities(value: string): string {
  * The SpreadsheetML `_xHHHH_` escape, in the only place it may appear: a complete cell-text value.
  *
  * The mirror of `escapeSpreadsheetText` in `./xml.ts`, and it sits here rather than beside it for
- * the same reason `decodeEntities` sits apart from `escapeText` — the write helpers carry an
+ * the same reason `decodeEntities` sits apart from `escapeText`: the write helpers carry an
  * `AuthoringError` and a whole serialisation vocabulary the reader has no business importing.
  *
  * **One left-to-right pass, and that is load-bearing.** `005F` maps to `_` like any other code
  * point, with no special case, because a single pass already gives the underscore escape its
  * meaning: in `_x005F_x0041_` the match at 0 yields `_` and scanning resumes at `x0041_`, which has
  * no leading underscore left to start an escape. So the value reads back as the literal seven
- * characters `_x0041_` the author wrote. Decoding `_x005F_` in a pass of its own — before or after
- * the rest — collapses that to `A` and loses the distinction the encoder went to trouble to keep.
+ * characters `_x0041_` the author wrote. Decoding `_x005F_` in a pass of its own, before or after
+ * the rest, collapses that to `A` and loses the distinction the encoder went to trouble to keep.
  * Excel agrees: it reads that cell as `_x0041_`.
  *
  * The decode is unconditional, not a repair of characters XML cannot carry. Excel reads
@@ -156,7 +156,7 @@ function skipDeclaration(source: string, start: number): number {
  * Scan an XML document as a *pull* stream of {@link XmlEvent}s in a single O(n) pass with no
  * recursion. This is the parser's core; {@link parseXml} is a thin push adapter over it. A
  * consumer that must produce output incrementally (the streaming row reader) pulls events and
- * yields as it goes, holding only its own running state — a push callback cannot.
+ * yields as it goes, holding only its own running state; a push callback cannot.
  *
  * Throws {@link XmlParseError} on malformed markup.
  */
@@ -245,12 +245,12 @@ export function* openElements(source: string, ...localNames: string[]): Generato
 
 /**
  * Wrap an {@link XmlEvent} stream so a self-closing `<x/>` whose local name is in `names` is
- * presented as an open (with `selfClosing: false`) immediately followed by a close — the exact
+ * presented as an open (with `selfClosing: false`) immediately followed by a close: the exact
  * event shape of `<x></x>`. This lets a consumer commit such an element from its close handling
  * alone, instead of hand-coding a parallel self-closing branch: {@link xmlEvents} fires no close
  * for `<x/>`, and forgetting that branch silently drops the empty element. Names not in the set
- * pass through untouched, so an element whose close would wrongly act on absent content — an empty
- * `<v/>`/`<f/>` that must not commit captured text — is left as a bare self-closing open.
+ * pass through untouched, so an element whose close would wrongly act on absent content (an empty
+ * `<v/>`/`<f/>` that must not commit captured text) is left as a bare self-closing open.
  */
 export function* closeEmptyElements(
   events: Iterable<XmlEvent>,
@@ -279,7 +279,7 @@ export interface ParseXmlOptions {
 
 /**
  * Parse an XML document, dispatching SAX events to `handlers`. A thin push adapter over
- * {@link xmlEvents} — one scanning core serves both the callback and the pull consumers.
+ * {@link xmlEvents}: one scanning core serves both the callback and the pull consumers.
  * Throws {@link XmlParseError} on malformed markup.
  */
 export function parseXml(source: string, handlers: SaxHandlers, options?: ParseXmlOptions): void {
@@ -304,7 +304,7 @@ export function parseXml(source: string, handlers: SaxHandlers, options?: ParseX
 // XML end-of-line handling (spec §2.11): a literal CRLF or lone CR in character data is
 // normalized to a single LF, so a value's in-cell line breaks read back identically whatever
 // newline convention the producer wrote. Normalization precedes entity decoding, so a
-// deliberately-encoded carriage return (&#13;) survives it — the escape hatch for a real CR.
+// deliberately-encoded carriage return (&#13;) survives it: the escape hatch for a real CR.
 // CDATA is delivered verbatim (it bypasses this), matching the reader's CDATA contract.
 function normalizeLineEndings(chunk: string): string {
   if (!chunk.includes('\r')) return chunk;
@@ -339,8 +339,8 @@ export function boolPresent(val: string | undefined): boolean {
   return val === undefined || (val !== '0' && val !== 'false');
 }
 
-/** An OOXML boolean that is on only when explicitly `"1"`/`"true"`; anything else — including
- * absence and a truthy-looking `"0"` — is off. */
+/** An OOXML boolean that is on only when explicitly `"1"`/`"true"`; anything else, including
+ * absence and a truthy-looking `"0"`, is off. */
 export function boolStrict(val: string | undefined): boolean {
   return val === '1' || val === 'true';
 }

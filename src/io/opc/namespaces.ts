@@ -1,5 +1,5 @@
 /**
- * The namespace URIs the Open Packaging Conventions layer itself owns — the ones that describe a
+ * The namespace URIs the Open Packaging Conventions layer itself owns: the ones that describe a
  * *package* rather than the spreadsheet inside it. Every OOXML package carries these regardless of
  * which serialisation its office document uses, so an `.xlsb` and an `.xlsx` agree on them exactly.
  *

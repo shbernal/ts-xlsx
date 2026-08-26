@@ -12,8 +12,8 @@ import {
 } from './read-opc.ts';
 
 // Path resolution is a hostile-input parser path: a relationship Target comes verbatim from an
-// untrusted package. These pin the OPC-legal shapes a well-formed writer never emits — absolute
-// (package-root) targets and `.`/`..`/empty segments — so a real or malicious file that uses them
+// untrusted package. These pin the OPC-legal shapes a well-formed writer never emits (absolute
+// package-root targets and `.`/`..`/empty segments) so a real or malicious file that uses them
 // still resolves to a bounded part path.
 
 test('resolveRelativePart treats a leading slash as package-root-absolute', () => {
@@ -65,8 +65,8 @@ test('resolveWorkbookPart strips a leading `./` before rooting under `xl/`', () 
 });
 
 // An externalLink part points at its source workbook through a `TargetMode="External"` relationship.
-// The closure must keep that wiring verbatim — dropping it (as it once did) orphans the link and
-// dangles every `[n]` external reference a formula resolves through — while never trying to walk into
+// The closure must keep that wiring verbatim, since dropping it (as it once did) orphans the link and
+// dangles every `[n]` external reference a formula resolves through, while never trying to walk into
 // the out-of-package target.
 test('capturePartClosure retains an external relationship verbatim without walking it', () => {
   const rels =

@@ -113,7 +113,7 @@ test('a lone surrogate is refused on the UTF-8 path rather than encoded as U+FFF
   assert.equal(
     writeCsvText(wb),
     'a\uD800b',
-    'the logical text loses nothing — a JS string holds it',
+    'the logical text loses nothing: a JS string holds it',
   );
   assert.throws(
     () => writeCsv(wb),

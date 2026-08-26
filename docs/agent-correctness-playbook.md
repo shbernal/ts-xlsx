@@ -180,16 +180,19 @@ The general move for this whole class: round-trip your output through Excel's ow
 over COM and diff the two packages. What Excel adds unprompted is what a consumer expects
 to find.
 
-**You are writing or editing a document under `docs/`.**
+**You are writing or editing a document under `docs/`, or any prose in `src/`.**
 Run `pnpm run chars:check`, or just commit: the pre-commit hook runs it over the index and
 the `invariants` gate runs it over the whole tree. It bans the em dash (U+2014) and its
 lookalike (U+2015) in authored prose, and it declares no autofix on purpose, because the
 replacement for an em dash is a full stop, a colon, or a pair of commas depending on the
-sentence, and a tool that guessed would turn a red check into worse prose. The rule targets
-`docs/**/*.md` and excludes `docs/api/**`: those pages are generated from source JSDoc by
-`scripts/gen-docs.ts`, so a finding there is not editable where it is reported and cleaning
-the doc comments is its own change. Everything else under `docs/` is at zero today, which is
-what makes the gate a floor rather than a wish. Config and reasoning: `charcheck.config.ts`.
+sentence, and a tool that guessed would turn a red check into worse prose. Two rules: one
+over `docs/**/*.md` (`docs/api/**` included, since those pages are generated from source
+JSDoc that is itself clean) and one over `src/**/*.ts`. The source rule reads whole files,
+comments and string literals alike, because charcheck has no comments-only scope; an error
+message is prose too, so that is the right reach rather than a compromise. `scripts/`,
+`test/` and `tools/` are not covered yet and still carry the character. Both trees are at
+zero today, which is what makes the gate a floor rather than a wish. Config and reasoning:
+`charcheck.config.ts`.
 
 **You are cutting a release.**
 Bump `version` in `package.json`, cut `CHANGELOG.md`'s `## [Unreleased]` into the new

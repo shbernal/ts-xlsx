@@ -17,6 +17,12 @@
 // packages to skip regions that today hold not one banned character, and CLAUDE.md section 2
 // keeps the dependency tree small.
 //
+// `raw` is also the only shape the source rule below could take, and that one is not a
+// preference. charcheck's scopes are `raw`, `strings`, `markup`, `markdown` and `html`; none
+// of them reads comments, and `strings` reads the opposite. So a rule that guards a doc
+// comment guards the whole file, which is why the string literals were recast too rather
+// than left as the one place in `src/` the character still lives.
+//
 // Know the exit before you need it, because it is narrower than it looks. A suppression
 // marker inside a fenced block is ignored in a .md file under every scope, by design, so that
 // a page documenting the syntax does not silence itself. Under `raw` the fence is still
@@ -47,11 +53,18 @@ export default defineConfig({
       message:
         'em dash in authored prose: recast the sentence (full stop, colon, or commas) rather than swapping the dash',
       include: ['docs/**/*.md'],
-      // docs/api is generated from source JSDoc by scripts/gen-docs.ts, so a finding here is
-      // not editable at the file it is reported in: the dash lives in a .ts doc comment and the
-      // page is rewritten from it on every `docs:check`. Cleaning the comments is its own
-      // change; until then this excluded tree is the honest scope of the rule.
-      exclude: ['docs/api/**'],
+    },
+    {
+      id: 'no-em-dash-in-source',
+      chars: EM_DASHES,
+      message:
+        'em dash in source prose: recast the sentence (full stop, colon, or commas) rather than swapping the dash',
+      // Comments and string literals alike. An error message is prose too, read by someone
+      // under stress, and it is the half a comments-only rule would have had to leave out.
+      // `scripts/`, `test/` and `tools/` are not in yet: they still carry the character, and a
+      // rule aimed at a tree that trips it reports on every run until someone learns to ignore
+      // the output. Widen this glob in the change that cleans them, not before.
+      include: ['src/**/*.ts'],
     },
   ],
 });

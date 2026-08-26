@@ -1,15 +1,15 @@
-// CSV serialization — the flat-text sibling of the XLSX writer.
+// CSV serialization: the flat-text sibling of the XLSX writer.
 //
 // A worksheet is a rectangle of typed cells; CSV is that rectangle flattened to delimited
 // text. The lossy direction (styles, formulas-as-formulas, multiple sheets) is inherent to the
 // format, so this writer makes the honest choices explicit: one selected sheet, each row sized to
 // its own populated extent (never clamped to a sibling row's width), a formula rendered as its
 // cached result, a Date rendered by a caller-supplied format or a full ISO-8601 timestamp. What a
-// value reads as is `cellValueToText`'s answer, not a private one — a CSV field and `cell.text`
+// value reads as is `cellValueToText`'s answer, not a private one: a CSV field and `cell.text`
 // disagreeing about the same cell would be a bug in one of them.
 //
-// `writeCsvText` yields the logical text; `writeCsv` encodes it to bytes and — for UTF-8, the
-// default — prepends a byte-order mark so a consumer such as Excel detects the encoding and does
+// `writeCsvText` yields the logical text; `writeCsv` encodes it to bytes and, for UTF-8 (the
+// default), prepends a byte-order mark so a consumer such as Excel detects the encoding and does
 // not mangle non-ASCII on open. The BOM is a byte-level marker, not part of the logical text.
 //
 // The split is also where the one non-obvious refusal lives: a lone surrogate is a perfectly good
@@ -53,7 +53,7 @@ export interface CsvWriteOptions {
 
 const UTF8_BOM = Uint8Array.of(0xef, 0xbb, 0xbf);
 
-/** The logical CSV text of one worksheet — no BOM, no byte encoding. */
+/** The logical CSV text of one worksheet: no BOM, no byte encoding. */
 export function writeCsvText(workbook: Workbook, options: CsvWriteOptions = {}): string {
   const sheet = selectSheet(workbook, options.sheetName);
   const delimiter = options.delimiter ?? ',';
@@ -82,7 +82,7 @@ export function writeCsvText(workbook: Workbook, options: CsvWriteOptions = {}):
  * The CSV bytes of one worksheet in the requested encoding, with a UTF-8 BOM by default.
  *
  * @throws {AuthoringError} if a field holds an unpaired surrogate and the encoding is UTF-8, which
- * cannot represent one — the alternative is `Buffer.from`'s silent U+FFFD substitution.
+ * cannot represent one. The alternative is `Buffer.from`'s silent U+FFFD substitution.
  */
 export function writeCsv(workbook: Workbook, options: CsvWriteOptions = {}): Uint8Array {
   const text = writeCsvText(workbook, options);
@@ -105,8 +105,8 @@ function isUtf8(encoding: BufferEncoding): boolean {
 }
 
 /**
- * A lone surrogate — half of an astral pair, typically what is left when a string was sliced through
- * the middle of one — has no UTF-8 encoding. `Buffer.from` does not say so: it substitutes U+FFFD
+ * A lone surrogate (half of an astral pair, typically what is left when a string was sliced through
+ * the middle of one) has no UTF-8 encoding. `Buffer.from` does not say so: it substitutes U+FFFD
  * and returns bytes that look perfectly well-formed, so the character is gone and nothing failed.
  *
  * The XLSX writer can carry one because a cell value has the `_xHHHH_` convention to hide it in; a
@@ -114,7 +114,7 @@ function isUtf8(encoding: BufferEncoding): boolean {
  *
  * Checked for UTF-8 alone. UTF-16 writes the code unit through verbatim and loses nothing, and the
  * byte-narrow encodings (`latin1`, `ascii`) mangle every non-ASCII character by the caller's own
- * explicit choice — a surrogate is not a special case there.
+ * explicit choice, and a surrogate is not a special case there.
  */
 function assertEncodable(text: string): void {
   const found = LONE_SURROGATE.exec(text);

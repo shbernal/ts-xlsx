@@ -76,7 +76,7 @@ function writeCsv(workbook: Workbook, options: CsvWriteOptions = {}): Uint8Array
 ```
 
 **Throws:** [`AuthoringError`](./errors.md#authoringerror) if a field holds an unpaired surrogate and the encoding is UTF-8, which
-cannot represent one — the alternative is `Buffer.from`'s silent U+FFFD substitution.
+cannot represent one. The alternative is `Buffer.from`'s silent U+FFFD substitution.
 
 ---
 
@@ -84,7 +84,7 @@ cannot represent one — the alternative is `Buffer.from`'s silent U+FFFD substi
 
 <sub>function</sub>
 
-The logical CSV text of one worksheet — no BOM, no byte encoding.
+The logical CSV text of one worksheet: no BOM, no byte encoding.
 
 ```ts
 function writeCsvText(workbook: Workbook, options: CsvWriteOptions = {}): string;

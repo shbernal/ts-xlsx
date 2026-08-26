@@ -44,7 +44,7 @@ interface AnchorPoint {
 
 <sub>interface</sub>
 
-A fixed image size in EMUs — the extent of a one-cell anchor, which pixel dimensions convert into
+A fixed image size in EMUs: the extent of a one-cell anchor, which pixel dimensions convert into
 via [`PX_TO_EMU`](./images.md#pxtoemu).
 
 ```ts
@@ -120,7 +120,7 @@ interface OneCellAnchor {
 An anchored image in workbook-independent form: the picture's own bytes rather than a media id
 into one particular workbook's registry.
 
-An [`AnchoredImage`](./images.md#anchoredimage) means nothing away from that registry — its `imageId` is an index, and
+An [`AnchoredImage`](./images.md#anchoredimage) means nothing away from that registry: its `imageId` is an index, and
 the same index names a different picture (or none) in the next workbook. Attaching the picture
 itself is what lets an anchor cross that boundary, which is why the transfer form carries bytes
 where the stored form carries an id.
@@ -175,7 +175,7 @@ A picture's bytes and its file kind, as held in the workbook's media registry.
 
 ```ts
 interface WorkbookImage {
-  /** Lower-case file extension without a dot — `"png"`, `"jpeg"`, `"gif"`. Drives the media part's
+  /** Lower-case file extension without a dot: `"png"`, `"jpeg"`, `"gif"`. Drives the media part's
    * name and content type. */
   readonly extension: string;
   readonly data: Uint8Array;
@@ -188,7 +188,7 @@ interface WorkbookImage {
 
 <sub>interface</sub>
 
-Every picture a worksheet shows, in the workbook-independent form of [`PortableImage`](./images.md#portableimage) — the
+Every picture a worksheet shows, in the workbook-independent form of [`PortableImage`](./images.md#portableimage): the
 images anchored to the grid, in the order they were added, and the background tiled behind it.
 [`Workbook.exportImages`](./workbook.md#workbookexportimages) produces one, [`Workbook.importImages`](./workbook.md#workbookimportimages) applies one.
 

@@ -1,4 +1,4 @@
-// Entry barrel for `@shbernal/ts-xlsx/errors` — the whole failure taxonomy, and nothing else.
+// Entry barrel for `@shbernal/ts-xlsx/errors`: the whole failure taxonomy, and nothing else.
 //
 // Every error class the library throws is exported here and from no other entry. That rule is
 // what keeps the entry barrels disjoint (a container-level failure belongs to no single codec:
@@ -6,8 +6,8 @@
 // "what can this throw at me?" one import rather than a hunt across codecs.
 //
 // It is also the cheapest thing in the package by an order of magnitude: the classes reach
-// nothing but each other, so a service that only needs to classify a failure — log it, map it to
-// an HTTP status, decide whether to retry — pays for the taxonomy and not for a parser.
+// nothing but each other, so a service that only needs to classify a failure (log it, map it to
+// an HTTP status, decide whether to retry) pays for the taxonomy and not for a parser.
 //
 // `XlsxError` is the one-line answer to "was that us?"; `XlsxErrorCode` is the kind of failure,
 // shared across classes on purpose (see `src/errors.ts`).

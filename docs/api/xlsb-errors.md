@@ -6,7 +6,7 @@
 
 <sub>class</sub>
 
-Thrown when an `.xlsb` package's binary BIFF12 content cannot be parsed — a record whose declared
+Thrown when an `.xlsb` package's binary BIFF12 content cannot be parsed: a record whose declared
 size runs past the end of its part, a truncated record header, or a structure that does not conform
 to [MS-XLSB].
 

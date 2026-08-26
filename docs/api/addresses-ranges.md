@@ -10,7 +10,7 @@ A decoded single-cell reference. An axis the reference omits is `undefined`.
 
 ```ts
 interface CellAddress {
-  /** Canonical A1 form with `$` anchors stripped — e.g. `"B2"`, `"1"`, `"A"`. */
+  /** Canonical A1 form with `$` anchors stripped: e.g. `"B2"`, `"1"`, `"A"`. */
   readonly address: string;
   /** 1-based column, or `undefined` for a row-only reference (`$1`). */
   readonly col: number | undefined;
@@ -128,7 +128,7 @@ interface RangeAddress {
   readonly sheetName?: string;
   readonly tl: CellAddress;
   readonly br: CellAddress;
-  /** Canonical `tl:br` form — `"A1:B2"`, `"1:1"` (rows), `"A:A"` (columns). */
+  /** Canonical `tl:br` form: `"A1:B2"`, `"1:1"` (rows), `"A:A"` (columns). */
   readonly dimensions: string;
 }
 ```

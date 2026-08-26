@@ -100,7 +100,7 @@ type FilterCriteria = ValuesFilter | CustomFilter;
 
 <sub>interface</sub>
 
-A column narrowed to a discrete set of allowed values — the checkbox list in Excel's dropdown.
+A column narrowed to a discrete set of allowed values: the checkbox list in Excel's dropdown.
 A row survives when its cell in this column matches one of `values` (or is blank, when
 `blank` is set).
 

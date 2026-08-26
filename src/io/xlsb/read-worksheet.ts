@@ -1,15 +1,15 @@
 // The BIFF12 worksheet-body reader: one `xl/worksheets/sheetN.bin` in, one populated {@link Worksheet}
-// out — the binary counterpart of `../xlsx/read-worksheet.ts`, filling the very same model.
+// out: the binary counterpart of `../xlsx/read-worksheet.ts`, filling the very same model.
 //
 // The cell table is a flat, row-major run of records: a `BrtRowHdr` opens a row and every cell record
 // until the next one belongs to it, so the open row is a single variable rather than nested state.
-// Each cell record is a `Cell` header followed by a value shaped by the record's own type — which is
+// Each cell record is a `Cell` header followed by a value shaped by the record's own type, which is
 // what makes the binary form quick to parse: there is no `t=` attribute to interpret, the record
 // number *is* the type.
 //
 // A formula cell carries both halves of what the XML form spells in `<f>` and `<v>`: a `Ptg` token
 // stream, decoded back to text by `./formula.ts`, and the result Excel last computed. The two are
-// filled independently — a formula whose stream uses a token this reader does not decode still
+// filled independently: a formula whose stream uses a token this reader does not decode still
 // surfaces its cached value, which is exactly what the reader could see before the decoder existed.
 //
 // One shape needs a second look at the sheet. An array formula's member cells hold a `PtgExp`
@@ -30,7 +30,7 @@ import {errorCodeFor, RecordReader} from './primitives.ts';
 import {readRecords} from './record-stream.ts';
 import {BRT} from './record-types.ts';
 
-// Every record that carries a plain cell — one whose payload is a value and nothing else. Membership
+// Every record that carries a plain cell, one whose payload is a value and nothing else. Membership
 // drives the dispatch below, so a record type absent from both this set and {@link FORMULA_RECORDS}
 // is skipped whole rather than being mistaken for a cell and consuming the reader.
 const CELL_RECORDS: ReadonlySet<number> = new Set([
@@ -85,7 +85,7 @@ export function parseWorksheet(
   // A column's format is the last fallback. Column records always precede the cell table.
   const columnStyle = new Map<number, number>();
   // The sheet's default row height, in twips. Every row header restates its height whether or not the
-  // row has one of its own, so the default is what tells the two apart — see {@link applyRow}.
+  // row has one of its own, so the default is what tells the two apart. See {@link applyRow}.
   // `BrtWsFmtInfo` precedes the cell table, so it is always known by the time a row is read.
   let defaultRowHeight = -1;
   // The formula of each array-formula group, keyed by the group's top-left cell, and the member cells
@@ -121,7 +121,7 @@ export function parseWorksheet(
     } else if ((CELL_RECORDS.has(record.type) || FORMULA_RECORDS.has(record.type)) && row > 0) {
       const {column, styleIndex} = reader.cell();
       if (!inGrid(column, row - 1)) continue;
-      // A cell's own format wins, then its row's, then its column's — the order Excel applies.
+      // A cell's own format wins, then its row's, then its column's: the order Excel applies.
       // Index 0 is the default xf, which BIFF12 writes where XML simply omits `s`, so it means
       // "no format of my own" and lets the row/column default through.
       const resolved =
@@ -179,7 +179,7 @@ function formulaValue(formula: string | undefined, result: FormulaResult | undef
   return result === undefined ? {formula: stored} : {formula: stored, result};
 }
 
-// The result a formula record cached, decoded by the record's own kind — the binary counterpart of
+// The result a formula record cached, decoded by the record's own kind: the binary counterpart of
 // reading `<v>` under the `t` attribute.
 function cachedResult(
   type: number,
@@ -215,7 +215,7 @@ function inGrid(column: number, row: number): boolean {
   return column >= 0 && column <= MAX_COLUMN_INDEX && row >= 0 && row <= MAX_ROW_INDEX;
 }
 
-// Decode a cell record's payload — the reader is positioned just past the shared `Cell` header, so
+// Decode a cell record's payload. The reader is positioned just past the shared `Cell` header, so
 // what remains is exactly the value this record type carries.
 function decodeCell(
   type: number,
@@ -249,7 +249,7 @@ function decodeCell(
   }
 }
 
-// A number stored under a date format is a date serial — surface it as a Date so a date read from an
+// A number stored under a date format is a date serial: surface it as a Date so a date read from an
 // `.xlsb` is the same value the `.xlsx` twin yields, not a bare number.
 function asNumberOrDate(value: number, numFmt: string | undefined): number | Date {
   return numFmt !== undefined && isDateFormat(numFmt) ? serialToDate(value) : value;
@@ -273,7 +273,7 @@ function applyRow(
   const row = index + 1;
   const handle = sheet.getRow(row);
   // Every row header restates a height; only a row whose height is its *own* has one to record. That
-  // is a row the user sized by hand, or one Excel auto-fitted to a taller font or wrapped text — both
+  // is a row the user sized by hand, or one Excel auto-fitted to a taller font or wrapped text. Both
   // differ from the sheet default, which is exactly when XML emits `ht`. A row merely restating the
   // default carries no height, so it must not read back with one.
   if ((flags & ROW_CUSTOM_HEIGHT) !== 0 || height !== defaultRowHeight) {

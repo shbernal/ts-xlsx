@@ -12,7 +12,7 @@ import {XlsbParseError} from './errors.ts';
 import {readXlsb} from './read.ts';
 
 // The corpus owns the implementation-blind "reads like its XML twin" property; these are the
-// white-box checks that go with the modules — the wiring, and the failure modes a fixture cannot show.
+// white-box checks that go with the modules: the wiring, and the failure modes a fixture cannot show.
 const FIXTURE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../../../test/corpus/fixtures/xlsb-binary-workbook-reads-like-its-xlsx-twin/source.xlsb',
@@ -30,7 +30,7 @@ test('readXlsb reads a binary package into the workbook model', () => {
 });
 
 test('readXlsx auto-detects a binary package and produces the same workbook readXlsb does', () => {
-  // The auto-detect path must not be a second, subtly different reader — it is the same codec, handed
+  // The auto-detect path must not be a second, subtly different reader: it is the same codec, handed
   // an already-inflated package.
   const auto = readXlsx(fixture());
   const explicit = readXlsb(fixture());
@@ -79,7 +79,7 @@ test('a package with no style sheet reads its values with every cell unstyled', 
 
 test('a package with no shared-string table reads its pooled cells as empty strings', () => {
   const workbook = readXlsb(withoutPart('xl/sharedStrings.bin'));
-  // The value is gone with the pool, but the cell — and the rest of the sheet — still reads.
+  // The value is gone with the pool, but the cell, and the rest of the sheet, still reads.
   assert.equal(workbook.getWorksheet('Values')?.getCell('A1').value, '');
   assert.equal(workbook.getWorksheet('Values')?.getCell('B2').value, 10);
 });

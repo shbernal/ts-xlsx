@@ -1,6 +1,6 @@
 // The VBA project stores module names and source as MBCS bytes in the project code page
 // (`PROJECTCODEPAGE`, [MS-OVBA] 2.3.4.2). To recover text we decode those bytes with the matching
-// encoding rather than assuming latin1 — a CJK or Cyrillic project would otherwise mojibake.
+// encoding rather than assuming latin1: a CJK or Cyrillic project would otherwise mojibake.
 
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 
@@ -40,7 +40,7 @@ const CODEPAGE_LABEL = new Map<number, string>([
 
 /**
  * A `TextDecoder` for the given VBA project code page. Non-fatal (malformed bytes become U+FFFD rather
- * than throwing) because recovered source is for reading, not re-encoding — a stray byte must not sink
+ * than throwing) because recovered source is for reading, not re-encoding: a stray byte must not sink
  * the whole extraction. An unknown code page falls back to windows-1252.
  */
 export function decoderForCodePage(codePage: number): Decoder {
@@ -65,7 +65,7 @@ export function decoderForCodePage(codePage: number): Decoder {
  * decoding every byte 0x00..0xFF through the matching decoder and inverting the map. This is exact for
  * the single-byte code pages a VBA project realistically declares. Under a multi-byte code page (Shift
  * JIS, GBK, …) the high bytes are lead bytes, not standalone characters, so only ASCII inverts and any
- * non-ASCII character is rejected — fail-closed rather than emit a corrupt byte. A character the chosen
+ * non-ASCII character is rejected, failing closed rather than emitting a corrupt byte. A character the chosen
  * code page cannot represent throws {@link VbaAuthorError}.
  */
 export function encoderForCodePage(codePage: number): Encoder {

@@ -43,7 +43,7 @@ readonly number: number;
 get properties(): Readonly<RowProperties> | undefined;
 ```
 
-The row's format record if it has one, else `undefined` — a read that never fabricates, so a
+The row's format record if it has one, else `undefined`: a read that never fabricates, so a
 serializer can ask every row it visits whether there are attributes to emit without giving each
 one an empty record. Read-only on purpose: [`height`](./row.md#rowheight) and its siblings are how a row is
 formatted, and they create the record on first write.
@@ -60,7 +60,7 @@ Row height in points; `undefined` leaves the sheet default in force.
 Not bounded here, deliberately: [`MAX_ROW_HEIGHT`](./grid-limits.md#maxrowheight) is what Excel accepts *being set*, but
 the schema puts no ceiling on `ht` and this setter is also how the reader loads a foreign
 file, so refusing a taller row would mean refusing a file Excel opens clean. Check against the
-constant when authoring — Excel silently clamps a taller row on read, so a height above it is
+constant when authoring: Excel silently clamps a taller row on read, so a height above it is
 one you state and do not get.
 
 #### `Row.hidden`
@@ -121,7 +121,7 @@ get cells(): readonly Cell[];
 ```
 
 The row's materialised cells in ascending column order. Sparse: a column never written to has
-no cell here, and the array is a fresh snapshot of *which* cells exist — the cells themselves
+no cell here, and the array is a fresh snapshot of *which* cells exist; the cells themselves
 are the live ones.
 
 #### `Row.values`
@@ -135,8 +135,8 @@ The row's values by position, index 0 being column A. Sparse in the same way [`c
 a column with no cell is a hole, which is what distinguishes "never written" from a cell
 holding `null`.
 
-Assigning places each value it names and leaves every other column untouched — a hole or an
+Assigning places each value it names and leaves every other column untouched: a hole or an
 explicit `undefined` skips that column, and a shorter array does not clear the tail. These are
 [`Worksheet.addRow`](./worksheet.md#worksheetaddrow)'s rules, deliberately: `values` is that same row shape addressed by
-number rather than appended. To *replace* a row, including clearing what it held, splice it —
+number rather than appended. To *replace* a row, including clearing what it held, splice it:
 `sheet.spliceRows(n, 1, values)`.

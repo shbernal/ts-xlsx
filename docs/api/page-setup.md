@@ -30,7 +30,7 @@ interface HeaderFooter {
 
 A manual page break (`<brk>`). For a row break, `id` is the row the layout splits *before*; for a
 column break it is the column. `max` bounds the break's extent across the other axis (Excel writes
-the last row/column index) and `man` marks it author-set rather than automatic — the model preserves
+the last row/column index) and `man` marks it author-set rather than automatic. The model preserves
 whatever the source carried so a round-trip reproduces the break's span exactly.
 
 ```ts
@@ -75,7 +75,7 @@ Print-scaling and orientation settings. These map onto two OOXML elements: `fitT
 `<pageSetUpPr>` flag (a `<sheetPr>` child) that switches Excel from fixed-zoom to fit-to-page
 scaling, while the rest are `<pageSetup>` attributes. Excel honours `scale` only when `fitToPage`
 is off and the `fitToWidth`/`fitToHeight` page counts only when it is on, but the model carries
-whatever the author set — an unset field is omitted so a round-trip never fabricates one. An
+whatever the author set: an unset field is omitted so a round-trip never fabricates one. An
 empty object emits neither element.
 
 ```ts
@@ -94,7 +94,7 @@ interface PageSetup {
   pageOrder?: 'downThenOver' | 'overThenDown';
   /**
    * Paper size as Excel's 1-based enumeration index (e.g. `9` = A4, `1` = US Letter). Carried as an
-   * opaque integer — the model does not map it to physical dimensions, only preserves whatever the
+   * opaque integer: the model does not map it to physical dimensions, only preserves whatever the
    * author or source file set.
    */
   paperSize?: number;
@@ -115,7 +115,7 @@ interface PageSetup {
 <sub>interface</sub>
 
 Print-toggle flags from the `<printOptions>` element. Each maps to a boolean OOXML attribute that
-defaults false — except `gridLinesSet`, which defaults true and gates whether `gridLines` is
+defaults false, except `gridLinesSet`, which defaults true and gates whether `gridLines` is
 honoured. The model stores only what the source or caller set, so an unset flag is omitted and a
 round-trip never fabricates one; an empty object emits no element at all.
 

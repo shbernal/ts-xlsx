@@ -6,7 +6,7 @@
 // round-trip (see `src/core/preserved.ts`); this module adds a reader on top, mirroring how
 // `parseVbaProject` projects a read view over bytes the writer already round-trips opaquely.
 //
-// Scope (v1): the `<ribbon>` subtree only — tabs → groups → controls, plus each control's callback
+// Scope (v1): the `<ribbon>` subtree only, tabs → groups → controls, plus each control's callback
 // names (the `onAction` a click invokes is the whole reason a macro workbook ships a ribbon). A
 // customUI document's `<commands>`, `<backstage>`, `<contextMenus>`, and the ribbon's `qat`/
 // `contextualTabs` are NOT parsed; they still round-trip byte-for-byte, they are just not surfaced here.
@@ -21,7 +21,7 @@ import {strFromU8} from 'fflate';
 import {boolStrict, localName, type XmlAttributes, xmlEvents} from '../xml/xml-read.ts';
 import {CustomUiParseError} from './errors.ts';
 
-/** The `customUI` schema a part is written against — the read model keys off this, not the (frequently
+/** The `customUI` schema a part is written against. The read model keys off this, not the (frequently
  * mis-copied) relationship type. `2007` is the original RibbonX (`customUI.xml`); `2010` is the later
  * schema (`customUI14.xml`) that also carries backstage/QAT/commands. */
 export type RibbonDialect = '2007' | '2010';
@@ -32,7 +32,7 @@ export const CUSTOMUI_2009_NAMESPACE = 'http://schemas.microsoft.com/office/2009
 
 // The OPC relationship Type URIs Office wires the two ribbon parts under, from the package-root rels.
 // Both end `/ui/extensibility` (the 2010 one confusingly carries `2007` in its path); the reader
-// matches on that suffix — {@link isCustomUiRelType} — exactly as the rest of the reader matches
+// matches on that suffix, in {@link isCustomUiRelType}, exactly as the rest of the reader matches
 // preserved relationship types by local suffix.
 export const CUSTOMUI_2007_REL_TYPE =
   'http://schemas.microsoft.com/office/2006/relationships/ui/extensibility';
@@ -50,7 +50,7 @@ export function isCustomUiRelType(type: string): boolean {
  * as `unknown` rather than dropped. The three identity attributes (`id` a document-defined control,
  * `idQ` a qualified id, `idMso` a built-in control) and the two most-consulted display/behaviour
  * attributes (`label`, `onAction`) are lifted out as typed conveniences; every attribute the element
- * actually carried — including the many `get*` dynamic callbacks and layout hints not modelled here —
+ * actually carried, including the many `get*` dynamic callbacks and layout hints not modelled here,
  * is preserved verbatim in {@link attributes}, so nothing is lost. Container controls (a `menu`,
  * `splitButton`, `gallery`, `dropDown`, `box`, …) carry their nested controls/items in {@link children}.
  */
@@ -64,7 +64,7 @@ export interface RibbonControl {
   readonly idMso?: string;
   /** The static label, when the element carries one (a dynamic label uses `getLabel`, in {@link attributes}). */
   readonly label?: string;
-  /** The callback procedure name invoked on activation — the macro a click runs. */
+  /** The callback procedure name invoked on activation: the macro a click runs. */
   readonly onAction?: string;
   /** Every attribute on the element, verbatim and entity-decoded. The typed fields above are lifted from
    * here; this map is the complete record, including attributes this model does not lift out. */
@@ -164,7 +164,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<RibbonControlKind>([
   'item',
 ]);
 
-// A minimal element node built from the SAX event stream — enough to walk the small customUI tree
+// A minimal element node built from the SAX event stream: enough to walk the small customUI tree
 // without a general-purpose DOM dependency. `name` keeps the qualified form so namespace resolution can
 // tell a default-namespaced `<customUI>` from a prefixed `<mso:customUI>`; `local` is the stripped name
 // every structural match uses.
@@ -206,7 +206,7 @@ export function parseCustomUi(input: string | Uint8Array): CustomUiDocument {
 // Resolve the namespace bound to the customUI element's own name and map it to a dialect. A default
 // namespace (`xmlns=`) governs an unprefixed `<customUI>`; a prefixed `<p:customUI>` is governed by
 // that prefix's `xmlns:p`. Neither of the two known namespaces present means this is not a customUI part
-// this reader understands — fail closed rather than guess.
+// this reader understands, so fail closed rather than guess.
 function dialectOf(customUi: RawElement): RibbonDialect {
   const colon = customUi.name.indexOf(':');
   const nsAttr = colon === -1 ? 'xmlns' : `xmlns:${customUi.name.slice(0, colon)}`;

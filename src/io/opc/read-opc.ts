@@ -1,6 +1,6 @@
 // The OPC (Open Packaging Conventions) layer of the reader: resolving relationship targets to part
 // paths, reading a part's `.rels`, resolving a part's declared content type, and walking the transitive
-// closure of parts a preserved reference reaches. Every helper here is pure over the inflated package —
+// closure of parts a preserved reference reaches. Every helper here is pure over the inflated package:
 // it takes part text/bytes accessors and returns paths or records, touching no Workbook model.
 
 import {strFromU8} from 'fflate';
@@ -23,7 +23,7 @@ export interface PackageAccessors {
 // Bind the part-lookup accessors over an inflated package (a part-path → bytes map).
 //
 // Both members are declared as function-typed properties rather than with method syntax, and both
-// are written as arrows here, because every reader destructures them off the returned object —
+// are written as arrows here, because every reader destructures them off the returned object:
 // `const {partText, partBytes} = packageAccessors(files)`. Method syntax would say these values
 // may read `this`, which they never do (they close over `files`), and would make each of those
 // fifteen destructurings report as an unbound method. Property syntax is also the stricter
@@ -51,12 +51,12 @@ function matchesType(
 }
 
 // The Target of the first relationship whose Type ends with `/<suffix>`, or undefined when none is
-// declared — for a single expected reference, where the plural form below would over-gather.
+// declared. For a single expected reference, where the plural form below would over-gather.
 export function relationshipTargetByType(xml: string, suffix: string): string | undefined {
   return relationshipTargetsByType(xml, suffix)[0];
 }
 
-// Every Target whose Type ends with `/<suffix>`, in declaration order — for a part class a sheet may
+// Every Target whose Type ends with `/<suffix>`, in declaration order. For a part class a sheet may
 // reference more than once (a sheet can own several tables), where the singular helper's first-match
 // would miss all but one.
 export function relationshipTargetsByType(xml: string, suffix: string): string[] {
@@ -128,8 +128,8 @@ export function parseRelationshipRecords(xml: string): RelationshipRecord[] {
 // every answer comes back as a package path rather than a target still needing resolution.
 //
 // A worksheet is the reason this exists. Its rels part is the index to nearly everything hanging off the
-// sheet — notes, threads, printer settings, the drawing, the background image, tables, pivots, and the
-// preserved-reference closure — and each of those lookups used to re-read and re-parse the same XML,
+// sheet (notes, threads, printer settings, the drawing, the background image, tables, pivots, and the
+// preserved-reference closure) and each of those lookups used to re-read and re-parse the same XML,
 // eight times per sheet on a workbook of any size.
 export interface PartRelationships {
   /** Every relationship the part declares, in declaration order. */
@@ -140,16 +140,16 @@ export interface PartRelationships {
   /** Resolve one of this part's targets against the part's own directory. */
   pathOf(target: string): string;
   /** The package part reached through the first relationship whose Type ends with `/<suffix>`, or
-   * undefined when the part declares none — the single-part lookup (notes, printer settings, drawing,
+   * undefined when the part declares none: the single-part lookup (notes, printer settings, drawing,
    * background) in one call. */
   targetPath(suffix: string): string | undefined;
-  /** Every package part reached through a relationship of this type, in declaration order — for a part
+  /** Every package part reached through a relationship of this type, in declaration order. For a part
    * class one sheet may reference more than once (tables, pivot tables). */
   targetPaths(suffix: string): string[];
 }
 
 // Read and parse a part's `.rels`. A part with no rels part yields an empty set rather than undefined,
-// so a caller never has to distinguish "no relationships" from "no rels part" — nothing downstream
+// so a caller never has to distinguish "no relationships" from "no rels part": nothing downstream
 // treats those two differently.
 export function readPartRelationships(
   partPath: string,
@@ -192,8 +192,8 @@ export function contentTypeResolver(contentTypesXml: string): (path: string) => 
     'application/octet-stream';
 }
 
-// Gather the transitive closure of package parts reachable from an entry part — the part itself, then
-// every internal part its relationships target, breadth-first — each with its raw bytes, content type,
+// Gather the transitive closure of package parts reachable from an entry part: the part itself, then
+// every internal part its relationships target, breadth-first, each with its raw bytes, content type,
 // and (internal) relationships. Returns undefined when the entry part is absent (a dangling reference
 // preserves nothing). A `visited` set dedupes shared parts and bounds the walk to the (finite,
 // inflate-capped) package, so a maliciously self-referential rels graph cannot loop.
@@ -218,7 +218,7 @@ export function capturePartClosure(
       for (const rel of parseRelationshipRecords(relsXml)) {
         if (rel.external) {
           // A linked workbook lives outside the package: keep the wiring verbatim (an externalLink
-          // part's pointer to its source), but do not walk into it — there is no package part to visit.
+          // part's pointer to its source), but do not walk into it: there is no package part to visit.
           rels.push({id: rel.id, type: rel.type, targetPath: rel.target, external: true});
           continue;
         }

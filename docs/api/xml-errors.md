@@ -6,7 +6,7 @@
 
 <sub>class</sub>
 
-Thrown when XML text cannot be scanned into parse events — an unterminated tag, comment, CDATA
+Thrown when XML text cannot be scanned into parse events: an unterminated tag, comment, CDATA
 section, markup declaration or processing instruction.
 
 This is a *typed* failure rather than the native `SyntaxError` it reads like, because the text

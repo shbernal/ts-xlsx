@@ -2,7 +2,7 @@ import {XlsxError} from '../errors.ts';
 
 /**
  * Thrown when a `customUI` ribbon-customisation part (`customUI/customUI.xml` or
- * `customUI/customUI14.xml`) is present but cannot be parsed into a {@link CustomUiDocument} — malformed
+ * `customUI/customUI14.xml`) is present but cannot be parsed into a {@link CustomUiDocument}: malformed
  * XML, a missing or unrecognised `<customUI>` root namespace, or nesting deep enough to look hostile.
  * A workbook with no ribbon customisation never produces this: {@link Workbook.customUI} is an empty
  * array instead.

@@ -1,9 +1,9 @@
-// Decoding a BIFF12 `Ptg` token stream back into formula text — the one place where the binary and
+// Decoding a BIFF12 `Ptg` token stream back into formula text: the one place where the binary and
 // XML serialisations of a workbook are genuinely different *languages* rather than different spellings.
 //
 // An `.xlsx` stores `SUM(A1:A5)/COUNT(A1:A5)` as those nineteen characters. An `.xlsb` stores the same
 // formula as a postfix (reverse-Polish) token stream: two range operands, two calls, a divide. So the
-// decoder is a stack machine — each operand pushes its own text, each operator pops what it needs and
+// decoder is a stack machine: each operand pushes its own text, each operator pops what it needs and
 // pushes the joined result, and a well-formed stream leaves exactly one string behind.
 //
 // Two things make the reconstruction exact rather than approximate:
@@ -13,13 +13,13 @@
 //     `1+2*3`. The token stream already says which is which.
 //   - **A reference names no sheet.** A 3-D reference carries an *index* into the workbook's
 //     `BrtExternSheet` table, which in turn names a span of sheets in a supporting book. Resolving
-//     that indirection — and re-quoting the sheet name the way Excel would — is what turns token
+//     that indirection, and re-quoting the sheet name the way Excel would, is what turns token
 //     `ixti=2` back into `'Odd Name'!A1`.
 //
 // **A token this decoder does not know makes the whole formula undecodable, by design.** The stream is
 // self-describing only if every token's length is known, so guessing past an unrecognised token would
 // desynchronise the parse and produce confident nonsense. Instead the decoder returns `undefined` and
-// its caller keeps what it can still trust — the cached result Excel stored beside the formula. The
+// its caller keeps what it can still trust: the cached result Excel stored beside the formula. The
 // gaps that reach that path are listed in `docs/knowledge/specs/xlsb-binary-format-output.md`.
 
 import {MAX_COLUMN, numberToColumn} from '../../core/address.ts';
@@ -37,16 +37,16 @@ export interface ExternSheetRef {
 
 /** The workbook-level tables a formula's references and names resolve through. */
 export interface FormulaScope {
-  /** Sheet names in workbook (tab) order — what an `Xti`'s sheet indices point into. */
+  /** Sheet names in workbook (tab) order: what an `Xti`'s sheet indices point into. */
   readonly sheetNames: readonly string[];
   /** The `BrtExternSheet` table, indexed by a 3-D token's `ixti`. */
   readonly externSheets: readonly ExternSheetRef[];
   /** The index of the supporting book that is this workbook, or `undefined` when the file declares a
    * supporting book this reader does not recognise. A workbook with no external links declares
-   * exactly one — itself — so this is the ordinary case; anything else leaves the indices untrustworthy
+   * exactly one, itself, so this is the ordinary case; anything else leaves the indices untrustworthy
    * and no 3-D reference resolves, which drops those formulas rather than naming the wrong sheet. */
   readonly selfSupBook: number | undefined;
-  /** Every `BrtName` in file order, function placeholders included — a `PtgName` cites one by
+  /** Every `BrtName` in file order, function placeholders included. A `PtgName` cites one by
    * **1-based** index, so filtering this list would misaddress every name reference. */
   readonly names: readonly string[];
 }
@@ -60,7 +60,7 @@ export interface FormulaAnchor {
 
 /**
  * Decode a `CellParsedFormula`'s token stream into formula text, in the same on-disk spelling the XML
- * form writes into `<f>` — `_xlfn.`-prefixed function names included, so the caller applies the same
+ * form writes into `<f>`, `_xlfn.`-prefixed function names included, so the caller applies the same
  * `unmangleFunctions` normalisation to either serialisation.
  *
  * @param rgce the token stream.
@@ -139,7 +139,7 @@ function step(
       return operand !== undefined && push(`(${operand})`);
     }
     case PTG.MissArg:
-      // An omitted argument — `IF(A1>0,,1)` — is a real operand whose text is nothing at all.
+      // An omitted argument, as in `IF(A1>0,,1)`, is a real operand whose text is nothing at all.
       return push('');
     case PTG.Str:
       return push(quoteString(tokens.shortString()));
@@ -155,7 +155,7 @@ function step(
       return push(numberText(tokens.f64()));
     default:
       // Every remaining token is an operand or call whose meaning is independent of its result class
-      // (reference, value, or array) — the class only tells the calculation engine how to coerce it.
+      // (reference, value, or array): the class only tells the calculation engine how to coerce it.
       return ptg >= CLASSED_TOKEN_FLOOR
         ? operand(
             (ptg & CLASSED_TOKEN_MASK) | CLASSED_TOKEN_FLOOR,
@@ -190,7 +190,7 @@ function operand(
     case PTG.FuncVar:
       return variadicCall(tokens, stack, push);
     case PTG.Name: {
-      // Cited 1-based, and into the *unfiltered* name list — the placeholder names Excel registers for
+      // Cited 1-based, and into the *unfiltered* name list: the placeholder names Excel registers for
       // post-2007 functions occupy indices too, even though they are not the workbook's defined names.
       return push(scope.names[tokens.u32() - 1]);
     }
@@ -222,7 +222,7 @@ function operand(
       return push(REFERENCE_ERROR);
     case PTG.MemArea:
       // A precomputed range: the tokens it was computed from follow inline, so the header is skipped
-      // and the walk simply continues into them. Its extra-data entry — the resulting rectangles — is
+      // and the walk simply continues into them. Its extra-data entry, the resulting rectangles, is
       // a calculation shortcut with nothing to say about the text, but must still be consumed in order.
       tokens.skip(6);
       return skipExtraRanges(extra);
@@ -232,7 +232,7 @@ function operand(
 }
 
 // `PtgAttr` ([MS-XLSB] 2.5.97.1): a family of hints the calculation engine leaves in the stream.
-// Almost all are invisible in the formula text — the jump offsets an `IF` uses to skip the branch it
+// Almost all are invisible in the formula text: the jump offsets an `IF` uses to skip the branch it
 // did not take, the marker on a volatile function. The one that carries meaning is `bitSum`, Excel's
 // encoding of a single-argument `SUM`, which is a call by any other name.
 function attribute(
@@ -249,8 +249,8 @@ function attribute(
     return true;
   }
   if ((flags & ATTR_SUM) !== 0) return push(call('SUM', 1, stack));
-  // `bitSpace` records whitespace the author typed around a token. It is cosmetic — Excel redisplays
-  // the formula identically without it — and reattaching it to the right operand is not something a
+  // `bitSpace` records whitespace the author typed around a token. It is cosmetic, since Excel
+  // redisplays the formula identically without it, and reattaching it to the right operand is not something a
   // postfix walk can do, so it is dropped rather than misplaced.
   return true;
 }
@@ -284,7 +284,7 @@ function call(name: string, arity: number, stack: string[]): string | undefined 
 
 // `PtgExtraArray` ([MS-XLSB] 2.5.97.2): the elements of an array constant, row-major, behind a
 // row/column count. The element encodings are fixed-width apart from the string, which carries its
-// own length — so the block is walked, never indexed.
+// own length, so the block is walked, never indexed.
 function arrayConstant(extra: RecordReader): string | undefined {
   const rows = extra.u32();
   const columns = extra.u32();
@@ -351,7 +351,7 @@ function cellText(row: number, packedColumn: number): string | undefined {
 }
 
 // A range. A range that spans every row of its columns, or every column of its rows, is written in
-// Excel's abbreviated form (`A:A`, `2:2`) — which is not cosmetic: it is the only spelling Excel
+// Excel's abbreviated form (`A:A`, `2:2`), which is not cosmetic: it is the only spelling Excel
 // writes for a whole-column reference, so anything else would fail to match the XML twin.
 function rangeText(
   rowFirst: number,
@@ -399,7 +399,7 @@ function numberText(value: number): string {
 const REFERENCE_ERROR = '#REF!';
 
 // The infix operators, by their ptg. `PtgIsect` is Excel's space operator (`A1:A3 A2:A5`) and
-// `PtgUnion` its comma — both are operators despite looking like punctuation.
+// `PtgUnion` its comma; both are operators despite looking like punctuation.
 const BINARY_OPERATORS: ReadonlyMap<number, string> = new Map([
   [0x03, '+'],
   [0x04, '-'],
@@ -478,7 +478,7 @@ const SER_ERR = 0x04;
 const RANGE_BYTES = 16;
 
 // A bound on an array constant's declared size. The elements themselves are read from the extra-data
-// block, which cannot outrun its own record — but the row × column product is multiplied *before* any
+// block, which cannot outrun its own record, but the row × column product is multiplied *before* any
 // of it is read, and a forged pair would otherwise buy a loop of its own choosing. Excel's own limit
 // on an array constant is far below this.
 const MAX_ARRAY_ELEMENTS = 1 << 20;

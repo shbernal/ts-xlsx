@@ -1,4 +1,4 @@
-// Entry barrel for `@shbernal/ts-xlsx/customui` — the read-only ribbon view over a macro
+// Entry barrel for `@shbernal/ts-xlsx/customui`: the read-only ribbon view over a macro
 // workbook's preserved `customUI` parts.
 
 export {

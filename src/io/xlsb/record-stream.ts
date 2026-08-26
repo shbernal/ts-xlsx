@@ -1,9 +1,9 @@
 // The BIFF12 record framing every `.bin` part of an `.xlsb` package is built from ([MS-XLSB] 2.1.4).
 //
-// A part is a bare concatenation of records — no header, no index, no terminator — each framed as a
+// A part is a bare concatenation of records, with no header, no index and no terminator, each framed as a
 // variable-length type, a variable-length size, and that many payload bytes. Both prefixes are
 // 7-bits-per-byte with the high bit meaning "one more byte follows": the type is 1–2 bytes (so the
-// single-byte space is reserved for the hot records — a cell is one byte of framing), the size is 1–4.
+// single-byte space is reserved for the hot records, so a cell is one byte of framing), the size is 1–4.
 //
 // **This is the reader's hostile-input frontier.** The declared size is attacker-controlled, so it is
 // never allowed to drive an allocation: a record's payload is handed out as a `subarray` *view* onto
@@ -44,7 +44,7 @@ export function* readRecords(part: Uint8Array): Generator<BiffRecord> {
     }
 
     // The one check that makes a forged size harmless: compare it against what the part *actually*
-    // holds, before anything is handed out. `part.length - offset` cannot be negative here — byteAt
+    // holds, before anything is handed out. `part.length - offset` cannot be negative here: byteAt
     // has already proven every header byte was in range.
     if (size > part.length - offset) {
       throw new XlsbParseError(

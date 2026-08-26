@@ -1,8 +1,8 @@
-// Entry barrel for `@shbernal/ts-xlsx/core` — the document model, with no serialisation attached.
+// Entry barrel for `@shbernal/ts-xlsx/core`: the document model, with no serialisation attached.
 //
 // This is what a consumer imports to build or inspect a workbook in memory: the classes, the
 // property shapes, and the value vocabulary. It pulls in no ZIP, no XML writer and no BIFF12
-// decoder. Errors are not here — the whole failure taxonomy lives behind `/errors`, so that a
+// decoder. Errors are not here: the whole failure taxonomy lives behind `/errors`, so that a
 // caller who only needs to branch on a failure never loads a codec to get the class.
 
 export {

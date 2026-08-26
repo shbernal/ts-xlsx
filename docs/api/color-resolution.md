@@ -34,7 +34,7 @@ interface ColorResolutionContext {
   /**
    * The workbook's custom indexed palette, by index, each entry an ARGB string. Empty or absent means
    * the workbook rides {@link DEFAULT_INDEXED_COLORS}. A custom palette replaces the built-in one
-   * wholesale — that is what `<indexedColors>` means — so a short custom palette leaves the indices
+   * wholesale, which is what `<indexedColors>` means, so a short custom palette leaves the indices
    * past its end unresolved rather than falling through to the built-in entry.
    */
   readonly indexed?: readonly string[] | undefined;
@@ -47,14 +47,14 @@ interface ColorResolutionContext {
 
 <sub>const</sub>
 
-The built-in indexed colour palette (ECMA-376 §18.8.27), by index. Entries 0–7 duplicate 8–15 —
+The built-in indexed colour palette (ECMA-376 §18.8.27), by index. Entries 0–7 duplicate 8–15, a
 redundancy the spec preserves for backwards compatibility with the legacy formats this palette came
-from — and the table is only 64 long: indices 64 and 65 are the *system* foreground and background,
+from, and the table is only 64 long: indices 64 and 65 are the *system* foreground and background,
 which name whatever the operating system's window colours are and therefore have no fixed value at
 all (see [`SYSTEM_INDEXED_COLORS`](./color-resolution.md#systemindexedcolors)).
 
-The spec writes each entry with a leading `00`. That byte is not an alpha channel — a palette of
-fully transparent colours would be absurd — it is an artefact of the 32-bit colour records these
+The spec writes each entry with a leading `00`. That byte is not an alpha channel, since a palette
+of fully transparent colours would be absurd. It is an artefact of the 32-bit colour records these
 values were lifted from, which is why [`resolveColor`](./color-resolution.md#resolvecolor) returns them fully opaque.
 
 ```ts
@@ -68,7 +68,7 @@ const DEFAULT_INDEXED_COLORS: readonly string[]
 <sub>function</sub>
 
 Resolve a colour reference to a concrete 8-hex ARGB string, or `undefined` when it cannot be
-resolved — an `auto` colour, a system indexed colour, a theme slot the workbook's scheme does not
+resolved: an `auto` colour, a system indexed colour, a theme slot the workbook's scheme does not
 declare, or an index past the end of a custom palette.
 
 Precedence follows what the encodings mean: an explicit `argb` is already concrete and wins; then
@@ -93,7 +93,7 @@ function resolveColor(
 
 The two indices that are not colours: 64 is the system foreground and 65 the system background.
 They resolve to whatever the viewing system's window colours are, so this library reports them
-unresolved rather than inventing black and white — a caller that wants to paint them must decide
+unresolved rather than inventing black and white: a caller that wants to paint them must decide
 for itself what "automatic" means in its context. `indexed="64"` in particular is extremely common:
 it is the placeholder every solid fill Excel writes carries as its background colour.
 

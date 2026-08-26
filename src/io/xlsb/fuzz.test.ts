@@ -12,7 +12,7 @@ import {readXlsb} from './read.ts';
 
 // An adversarial pass over the BIFF12 reader.
 //
-// The contract under test is not "these mutations produce these workbooks" — a mutated file has no
+// The contract under test is not "these mutations produce these workbooks": a mutated file has no
 // correct reading. It is the *hostile-input* contract: whatever the bytes say, the reader either
 // produces a model or fails closed with a typed error, in bounded time and bounded memory. Two
 // failure shapes are called out specifically because each is a bug wearing a crash's clothes:
@@ -29,7 +29,7 @@ const FIXTURE = path.resolve(
   '../../../test/corpus/fixtures/xlsb-binary-workbook-reads-like-its-xlsx-twin/source.xlsb',
 );
 
-// The binary parts — the only ones this reader parses, and so the only ones worth mutating.
+// The binary parts: the only ones this reader parses, and so the only ones worth mutating.
 const BINARY_PARTS = [
   'xl/workbook.bin',
   'xl/worksheets/sheet1.bin',
@@ -66,7 +66,7 @@ function readOrFailClosed(archive: Uint8Array, label: string): void {
       return;
     }
     // A model-level rejection (a sheet name a mutation made invalid or duplicated) is a legitimate
-    // closed failure too — it is the model refusing bad data, not the parser losing its footing.
+    // closed failure too: it is the model refusing bad data, not the parser losing its footing.
     assert.ok(
       error instanceof Error && !(error instanceof TypeError) && !(error instanceof RangeError),
       `${label}: expected a typed, closed failure but got ${String(error)}`,
@@ -129,7 +129,7 @@ test('a record length inflated to the maximum is rejected, not allocated', () =>
 test('a cell, row, or column addressed outside the grid is dropped, not encoded', () => {
   // Positional fields are the one place a lying number cannot simply be believed: an address beyond
   // Excel's grid has no representation, and a column *run* beyond it is a loop bound. Both are driven
-  // to their extreme here — every 32-bit positional field set to its maximum.
+  // to their extreme here, with every 32-bit positional field set to its maximum.
   const parts = unzipSync(readFileSync(FIXTURE));
   const sheet = parts['xl/worksheets/sheet2.bin'];
   assert.ok(sheet);

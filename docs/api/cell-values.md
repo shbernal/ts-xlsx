@@ -29,7 +29,7 @@ type CellValue =
 
 <sub>function</sub>
 
-The plain text of any cell value — total over [`CellValue`](./cell-values.md#cellvalue), so a caller reading a sheet
+The plain text of any cell value, total over [`CellValue`](./cell-values.md#cellvalue), so a caller reading a sheet
 whose cells it did not write never has to switch on the union itself.
 
 This is the *value's* text, not the cell's *display* text: a number renders as JavaScript
@@ -40,7 +40,7 @@ only the value. What each kind yields:
 - the empty cell (`null`) and an invalid `Date` → `""`, the two ways a cell has no text
 - a boolean → `"TRUE"` / `"FALSE"`, Excel's own literals rather than JavaScript's
 - a `Date` → a full ISO-8601 timestamp
-- an error → its literal, e.g. `"#REF!"` — the same string the grid shows
+- an error → its literal, e.g. `"#REF!"`, the same string the grid shows
 - rich text → every run concatenated ([`richTextToPlain`](./cell-values.md#richtexttoplain))
 - a hyperlink → its label, never its destination
 - any of the three formula kinds → the text of the *cached result*, and `""` when the cell
@@ -59,7 +59,7 @@ function cellValueToText(value: CellValue): string;
 Normalise a raw assignment into a stored [`CellValue`](./cell-values.md#cellvalue). `undefined` becomes the
 empty cell (`null`); every other kind is validated by [`detectValueType`](./cell-values.md#detectvaluetype). The
 model never rewrites one value *kind* into another (a numeric-looking string stays a
-string) — the single exception is formula text, which is canonicalised to the OOXML
+string). The single exception is formula text, which is canonicalised to the OOXML
 stored form (no leading `=`) so round-trips are idempotent regardless of how the
 caller supplied it.
 
@@ -75,7 +75,7 @@ function coerceCellValue(value: CellValue | undefined): CellValue;
 
 <sub>interface</sub>
 
-A cell computed by a What-If-Analysis data table (`<f t="dataTable">`) — the OOXML formula kind that
+A cell computed by a What-If-Analysis data table (`<f t="dataTable">`), the OOXML formula kind that
 fills a range by re-evaluating a model against a grid of substituted input cells. The library does
 not evaluate it; it preserves the declaration so a read-modify-write cycle re-emits it verbatim
 rather than silently dropping the data-table kind.
@@ -154,7 +154,7 @@ interface ErrorValue {
 
 <sub>type</sub>
 
-The cached result a formula carries — any scalar, a date, or an error.
+The cached result a formula carries: any scalar, a date, or an error.
 
 ```ts
 type FormulaResult = number | string | boolean | Date | ErrorValue;
@@ -239,7 +239,7 @@ function isErrorValue(value: CellValue): value is ErrorValue;
 
 <sub>function</sub>
 
-Whether a value is a cell's own formula ([`FormulaValue`](./cell-values.md#formulavalue)) — a master, or a formula
+Whether a value is a cell's own formula ([`FormulaValue`](./cell-values.md#formulavalue)): a master, or a formula
 belonging to no shared group. A shared-formula clone is **not** one of these; see
 [`isSharedFormulaValue`](./cell-values.md#issharedformulavalue). Both report as `ValueType.Formula`, so a caller that means "any
 formula-shaped cell" wants [`detectValueType`](./cell-values.md#detectvaluetype), not this.
@@ -335,7 +335,7 @@ interface RichTextValue {
 
 <sub>interface</sub>
 
-A cell that participates in a shared formula — a clone of a master formula cell filled across a
+A cell that participates in a shared formula: a clone of a master formula cell filled across a
 range. `sharedFormula` is the master cell's address (e.g. `'B1'`); the master itself is a plain
 [`FormulaValue`](./cell-values.md#formulavalue). On read, the clone's own formula is the master's translated to the clone's
 position and `result` is the clone's cached value; on write, the clones of a master collapse into
