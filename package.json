@@ -107,7 +107,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
-    "charcheck": "^0.2.5",
+    "charcheck": "^0.3.0",
     "jszip": "^3.10.1",
     "lefthook": "^2.1.10",
     "ooxml-validate": "^0.0.3",

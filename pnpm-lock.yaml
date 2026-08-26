@@ -16,8 +16,8 @@ importers:
         specifier: ^24.13.3
         version: 24.13.3
       charcheck:
-        specifier: ^0.2.5
-        version: 0.2.5(typescript@7.0.2)
+        specifier: ^0.3.0
+        version: 0.3.0(typescript@7.0.2)
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -439,8 +439,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  charcheck@0.2.5:
-    resolution: {integrity: sha512-wh/wtUxFAhaRIomzZb1QWEViiEwjctpKxQDofRBJL1AsIeziXhqjHk1+1s26woUse9gfPKJ28LPP+tjeUNO/fA==}
+  charcheck@0.3.0:
+    resolution: {integrity: sha512-zS8b6WuT0rGcthse1ftE12KeErMeGHDPBKGNpHinxA8kesRv3PTVd/4JCD6I/N8b1I/gtDesaN9P7ST6HcyhJw==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -819,7 +819,7 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  charcheck@0.2.5(typescript@7.0.2):
+  charcheck@0.3.0(typescript@7.0.2):
     dependencies:
       picocolors: 1.1.1
       tinyglobby: 0.2.17
