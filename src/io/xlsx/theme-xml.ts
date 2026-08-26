@@ -21,6 +21,7 @@ import {
   type ThemeFontScheme,
   type ThemeOverrides,
 } from '../../core/theme.ts';
+import {decodeEntities} from '../../xml/xml-read.ts';
 import {escapeAttr} from '../../xml/xml.ts';
 
 // One `<a:slot>` of a `<a:clrScheme>` and the colour element inside it. Two colour models appear in
@@ -65,7 +66,11 @@ export function parseThemeFontScheme(themeXml: string): ThemeFontScheme {
   if (block === null) return {};
   const face = (which: 'majorFont' | 'minorFont'): string | undefined => {
     const font = new RegExp(`<a:${which}\\b[^>]*>([\\s\\S]*?)</a:${which}>`).exec(block[1] ?? '');
-    return /<a:latin\b[^>]*\btypeface="([^"]*)"/.exec(font?.[1] ?? '')?.[1];
+    const typeface = /<a:latin\b[^>]*\btypeface="([^"]*)"/.exec(font?.[1] ?? '')?.[1];
+    // Decoded, unlike the colour scheme's slots above: those are six hex digits and can carry no
+    // entity, but a typeface is free text and the writer's `escapeAttr` turns an `&` in one into
+    // `&amp;`. Handing the raw attribute back is what made authoring "A&B" read back as "A&amp;B".
+    return typeface === undefined ? undefined : decodeEntities(typeface);
   };
   const scheme: {major?: string; minor?: string} = {};
   const major = face('majorFont');

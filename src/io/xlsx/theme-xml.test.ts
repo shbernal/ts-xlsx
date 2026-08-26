@@ -46,6 +46,20 @@ test('parseThemeFontScheme reads the major and minor latin faces', () => {
   assert.deepEqual(parseThemeFontScheme('<a:theme/>'), {}, 'and nothing out of a part without one');
 });
 
+test('a typeface carrying an entity reads back decoded, matching what the writer escaped', () => {
+  // The writer escapes the face through `escapeAttr`, so the reader is the half that has to agree
+  // with it: without decoding, authoring "A&B" reads back as "A&amp;B" and a second write doubles
+  // the escape. The colour slots need none of this, being six hex digits.
+  const authored = applyThemeOverrides(DEFAULT_THEME_XML, {
+    fonts: {major: 'Ampersand & Co', minor: 'Angle <Bracket>'},
+  });
+  assert.ok(authored.includes('typeface="Ampersand &amp; Co"'), 'the part holds the escaped form');
+  assert.deepEqual(parseThemeFontScheme(authored), {
+    major: 'Ampersand & Co',
+    minor: 'Angle <Bracket>',
+  });
+});
+
 test('applyThemeOverrides replaces only the slots the caller named', () => {
   const xml = applyThemeOverrides(DEFAULT_THEME_XML, {colors: {accent1: '#BB2649'}});
   assert.ok(xml.includes('<a:accent1><a:srgbClr val="BB2649"/></a:accent1>'));
