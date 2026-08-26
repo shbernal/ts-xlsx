@@ -4,7 +4,7 @@
 // of loading the whole workbook, then indexes into each row's value collection to pull named columns.
 // Spreadsheet columns are 1-based, so a row's value array carries an empty leading slot: index 0 is
 // unused and the first real cell (column A) lands at index 1. A caller who wrote code against the
-// full-load reader and switches to streaming (or vice versa) must not have to re-index — the durable
+// full-load reader and switches to streaming (or vice versa) must not have to re-index: the durable
 // contract is that both read modes expose the SAME 1-based convention, so the leading slot is empty
 // in both and column A is at index 1 in both.
 

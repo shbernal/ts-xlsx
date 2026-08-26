@@ -3,7 +3,7 @@
 // Real-world scenario: reading a CSV with the parser's header mode enabled, the parser
 // emits each data row as an object keyed by header name rather than as an array. A reader
 // that unconditionally runs a per-cell map over each row assumes an array and throws
-// "data.map is not a function" the moment header mode is on — so the entire header-mode
+// "data.map is not a function" the moment header mode is on, so the entire header-mode
 // read path is broken. Reading the same CSV without header mode (every line an array of
 // fields) works and is the control.
 

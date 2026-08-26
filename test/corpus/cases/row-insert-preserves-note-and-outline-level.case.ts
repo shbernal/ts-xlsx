@@ -1,11 +1,11 @@
 // Cluster: core-model
 //
-// Real-world scenario: a worksheet has rows carrying metadata beyond cell values — a cell note
+// Real-world scenario: a worksheet has rows carrying metadata beyond cell values: a cell note
 // (comment) and an outline (grouping) level. When a row is inserted above them, that metadata must
 // travel with its logical row: the note stays attached to the same cell content at its shifted
 // position, and the outline level stays on the row it grouped. The observed bugs: inserting a row
 // drops the cell note entirely, and the outline level stays pinned to the old absolute row index
-// rather than following its row — so after an insert the grouping lands on the wrong row and the note
+// rather than following its row, so after an insert the grouping lands on the wrong row and the note
 // is gone. Cell values themselves shift correctly, which isolates the defect to the row metadata.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

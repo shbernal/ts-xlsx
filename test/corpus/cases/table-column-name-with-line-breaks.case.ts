@@ -1,7 +1,7 @@
 // Cluster: tables
 //
 // Real-world scenario: a user builds a table whose header labels wrap across multiple visual lines by
-// embedding line-break characters (CR/LF) in a column name — "Test\r\nmultiple\r\nlines" — together
+// embedding line-break characters (CR/LF) in a column name, "Test\r\nmultiple\r\nlines", together
 // with wrapText alignment. The column name is emitted as an XML attribute value in the table part.
 // Raw CR/LF in an attribute is not preserved by XML attribute-value normalization (a CR becomes a
 // space on reparse) and makes the package suspect, so the application reports the file as damaged.

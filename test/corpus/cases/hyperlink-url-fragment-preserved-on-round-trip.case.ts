@@ -11,7 +11,7 @@ import type {Assert, Case, CorpusApi} from '../case.ts';
 const URL = 'http://host/ui/#/case/2007720723';
 const SPEC = {sheets: [{name: 'Sheet1', cells: [{ref: 'A1', text: 'open case', hyperlink: URL}]}]};
 // A foreign-authored file where the fragment ("#myhash") lives in the hyperlink element's location
-// attribute, separate from the relationship Target (the bare "http://localhost/") — the read path
+// attribute, separate from the relationship Target (the bare "http://localhost/"): the read path
 // must rejoin them, exercising the same fidelity from the READ direction rather than write→read.
 const FIXTURE = 'hyperlink-url-fragment-preserved-on-round-trip/foreign-fragment.xlsx';
 

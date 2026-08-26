@@ -2,17 +2,17 @@
 //
 // Real-world scenario: a program opens a hand-crafted *template* `.xlsx` that already
 // contains data validations (typically dropdown lists), fills in some cells, and writes
-// the result back out. The written file must still carry the template's validations — a
+// the result back out. The written file must still carry the template's validations:a
 // dropdown the template author created must keep working in the output.
 //
-// The trap: modern Excel stores many validations — list validations that reference
-// another sheet, or that span a whole column — using the *extended* form from the 2009
+// The trap: modern Excel stores many validations, list validations that reference
+// another sheet, or that span a whole column, using the *extended* form from the 2009
 // extension schema: `<x14:dataValidation>` inside `<extLst>`, with the target range in
 // `<xm:sqref>`. The legacy writer only understands the standard `<dataValidation>` block,
 // so it drops the entire extended block on write and the validation vanishes silently.
 //
 // Fixture `template.xlsx` (authored in Excel) declares a single list validation over a
-// whole column (`A1:A1048576`) entirely in the extended `<extLst>` form — there are zero
+// whole column (`A1:A1048576`) entirely in the extended `<extLst>` form: there are zero
 // standard `<dataValidation>` entries in it.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -26,7 +26,7 @@ export default {
   description:
     'A data validation a template declares survives a read→write round-trip, including a ' +
     'validation stored in the extended (x14 / extLst) form used for list validations that ' +
-    'span whole columns or reference other sheets — it must not be silently dropped on write.',
+    'span whole columns or reference other sheets: it must not be silently dropped on write.',
 
   behavior: [
     {

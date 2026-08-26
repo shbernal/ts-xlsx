@@ -5,8 +5,8 @@ export default {
   cluster: 'core-model',
   description:
     'A sheet copied through the `model` export/import contract keeps its frozen pane. A frozen ' +
-    'view is workbook-independent sheet state — it means the same thing on any sheet of any ' +
-    'workbook — so it belongs in the snapshot alongside the merges and the autofilter, and must ' +
+    'view is workbook-independent sheet state: it means the same thing on any sheet of any ' +
+    'workbook, so it belongs in the snapshot alongside the merges and the autofilter, and must ' +
     'reach the written package as a `<pane>` rather than being silently unfrozen in transit.',
   provenance: {source: 'adr-0005-amendment', ref: 1},
   behavior: [

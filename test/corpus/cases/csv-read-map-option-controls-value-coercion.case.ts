@@ -1,9 +1,9 @@
 // Cluster: csv
 //
 // Real-world scenario: the CSV reader applies a per-value transformation to every parsed cell. By
-// default it coerces — a numeric-looking cell like "007" becomes the number 7 (losing the leading
-// zero), "32.5" becomes 32.5. A caller who needs the raw text (identifiers, leading zeros) — or who
-// wants to skip the expensive default coercion on a large file — supplies a custom map function; an
+// default it coerces: a numeric-looking cell like "007" becomes the number 7 (losing the leading
+// zero), "32.5" becomes 32.5. A caller who needs the raw text (identifiers, leading zeros), or who
+// wants to skip the expensive default coercion on a large file, supplies a custom map function; an
 // identity map preserves each raw string verbatim. The map option must govern how each parsed value
 // is transformed before it becomes a cell.
 

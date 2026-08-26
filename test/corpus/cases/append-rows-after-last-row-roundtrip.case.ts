@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a user opens an existing workbook that already has a block of data rows on a
 // sheet, appends new rows immediately after the last populated row, and saves. After the round-trip
-// the original rows must be untouched and the appended rows must sit at the next contiguous indices —
+// the original rows must be untouched and the appended rows must sit at the next contiguous indices,
 // no blank gap before them, no overwrite of the existing data. The load-bearing fact is that a
 // loaded worksheet reports its last populated row so `addRow` places new content at N+1.
 
@@ -24,7 +24,7 @@ export default {
   cluster: 'streaming',
   description:
     'Appending rows to a loaded workbook places them at contiguous indices immediately after the ' +
-    'last populated row — no gap, no overwrite — and both the original and appended rows survive a ' +
+    'last populated row, no gap, no overwrite, and both the original and appended rows survive a ' +
     'write/reload with correct values.',
 
   behavior: [

@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a user creates a workbook and adds worksheets without specifying a visibility
 // state, then writes the file. The sheets must open as normal visible tabs. A regression once caused
-// newly added sheets to be emitted as hidden unless the caller explicitly passed a visible state —
+// newly added sheets to be emitted as hidden unless the caller explicitly passed a visible state,
 // the opposite of the natural expectation. Each sheet declaration in the workbook part carries a
 // visibility marker (visible / hidden / veryHidden); with no state given, the written state must be
 // visible. Explicit hidden/visible states must be preserved.
@@ -29,7 +29,7 @@ export default {
   cluster: 'xlsx-io',
   description:
     'A worksheet added with no visibility state is written as visible (never hidden/veryHidden), and ' +
-    'explicit hidden or visible states are preserved — so default sheets open as normal tabs.',
+    'explicit hidden or visible states are preserved, so default sheets open as normal tabs.',
 
   behavior: [
     {

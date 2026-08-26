@@ -2,8 +2,8 @@
 //
 // Real-world scenario: a workbook is read in streaming mode, where the zip package is consumed
 // entry-by-entry as an async stream. A reported failure was that some zip entries (notably the
-// shared-strings part) were occasionally skipped under concurrency — a hand-rolled stream-iteration
-// wrapper racing the native async-iterable contract — leaving string cells unresolved or a read
+// shared-strings part) were occasionally skipped under concurrency, a hand-rolled stream-iteration
+// wrapper racing the native async-iterable contract, leaving string cells unresolved or a read
 // hanging. A streaming read must resolve every string-typed cell (never skip shared strings), always
 // terminate, and yield identical complete results when many independent reads run concurrently.
 
@@ -16,7 +16,7 @@ export default {
   description:
     'A streaming read resolves every shared-string cell to its text (the shared-strings part is never ' +
     'skipped), and running many independent streaming reads concurrently yields complete, identical ' +
-    'results for every one — no dropped entries or missing parses.',
+    'results for every one: no dropped entries or missing parses.',
 
   behavior: [
     {

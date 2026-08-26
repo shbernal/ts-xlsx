@@ -13,7 +13,7 @@ const FORMULAS = 'xlsb-formula-token-streams-decode-to-formula-text';
 
 export const xlsb = {
   // Read the same workbook from its binary and its XML serialisation and report whether the two
-  // models agree — sheet names, order and visibility; every cell's value and style facets; row and
+  // models agree: sheet names, order and visibility; every cell's value and style facets; row and
   // column geometry; merges. On disagreement, name the first field that differs so a failure is
   // legible without a debugger.
   //
@@ -79,7 +79,7 @@ export const xlsb = {
     };
   },
 
-  // Every formula cell of the binary reading, compared against the same cell of its XML twin — where
+  // Every formula cell of the binary reading, compared against the same cell of its XML twin, where
   // the formula is *text* rather than a token stream. Reports each disagreement, so a failure names
   // the token class that broke rather than a count.
   xlsbFormulaTextMatchesXlsxTwin() {
@@ -124,7 +124,7 @@ export const xlsb = {
   // classification succeeded (it *is* an `.xlsb`), so the failure must be a typed parse error rather
   // than a crash, a hang, or a silently empty workbook.
   xlsbMalformedBinaryWorkbook() {
-    // A record header claiming a payload far longer than the part holds — the lever a hostile file
+    // A record header claiming a payload far longer than the part holds: the lever a hostile file
     // would pull.
     const workbook = Uint8Array.of(0x81, 0x00, 0x02, 0xff, 0xff, 0xff, 0x7f, 0x01);
     const archive = zipSync({
@@ -158,7 +158,7 @@ function normalize(value: Untyped): Untyped {
 // A cell value as the two serialisations can honestly be compared: formula text and cached result
 // both kept, but the shared-formula *grouping* dropped. A spreadsheet fills a formula down a column
 // by storing it once and marking the rest as clones; the XML form records that grouping and the
-// binary form does not — Excel writes each cell's own formula out in full. So a clone reads back with
+// binary form does not: Excel writes each cell's own formula out in full. So a clone reads back with
 // the same formula text either way, and only the `sharedFormula` pointer back to the master differs.
 function comparable(value: Untyped): Untyped {
   const formula = formulaOf(value);

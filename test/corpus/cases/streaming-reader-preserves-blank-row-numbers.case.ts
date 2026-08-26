@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a sheet has data on row 1, then several blank rows, then data resuming on
 // rows 6–8. Read row-by-row with the streaming reader, each yielded row must carry its true sheet
-// index in `row.number` — so a consumer can map streamed rows back to their original positions —
+// index in `row.number`, so a consumer can map streamed rows back to their original positions,
 // preserving the numeric gap where the blank rows sit (1 then 6, not a resequenced 1,2). The eager
 // (fully-loaded) reader reports the true row numbers; the two read paths must agree.
 
@@ -16,7 +16,7 @@ export default {
   cluster: 'streaming',
   description:
     "The streaming reader preserves each data row's true sheet index in row.number across interior " +
-    'blank rows, agreeing with the eager read — a row after a run of blanks keeps its absolute ' +
+    'blank rows, agreeing with the eager read: a row after a run of blanks keeps its absolute ' +
     'number rather than being shifted up by the count of skipped blanks.',
 
   behavior: [

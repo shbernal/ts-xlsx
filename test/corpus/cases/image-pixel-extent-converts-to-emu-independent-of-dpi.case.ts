@@ -9,7 +9,7 @@
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
-// A single image anchored at the top-left with an explicit pixel extent — a oneCellAnchor.
+// A single image anchored at the top-left with an explicit pixel extent: a oneCellAnchor.
 const SPEC = {
   sheets: [{name: 'S', images: [{range: {tl: {col: 0, row: 0}, ext: {width: 191, height: 47}}}]}],
 };
@@ -22,7 +22,7 @@ export default {
   cluster: 'images',
   description:
     'An image anchored with an explicit pixel extent serializes to a oneCellAnchor whose ext ' +
-    'cx/cy are the requested pixels converted at the fixed 96-DPI rate (1 px = 9525 EMU) — the ' +
+    'cx/cy are the requested pixels converted at the fixed 96-DPI rate (1 px = 9525 EMU): the ' +
     'rendered size follows the requested pixels only, never the source image’s embedded DPI.',
 
   behavior: [

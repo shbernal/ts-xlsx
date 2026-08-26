@@ -1,18 +1,18 @@
 // Cluster: styles
 //
 // Real-world scenario: a user opens a workbook that carries a theme (fonts referencing colors
-// by theme index, the usual state of any Excel-authored file), edits a few cells — e.g. sets
-// solid fills to highlight differences — and writes it back to a buffer. A recurring report
+// by theme index, the usual state of any Excel-authored file), edits a few cells, e.g. sets
+// solid fills to highlight differences, and writes it back to a buffer. A recurring report
 // claims the result is corrupt and only writing succeeds after stripping the theme first. The
 // durable requirement: reading a themed workbook, mutating cells, and writing it back must
 // produce a valid, re-readable package with the theme intact and the edits applied. Clearing
 // the theme must never be a precondition for a non-corrupt write. (The original corruption in
-// that report traced to concurrent read/write of the same file — a caller error, not a library
-// defect — so the library path itself is expected to be sound; this case locks that in.)
+// that report traced to concurrent read/write of the same file, a caller error, not a library
+// defect, so the library path itself is expected to be sound; this case locks that in.)
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
-// A theme-color font (color by theme index) plus a solid fill applied to a different cell —
+// A theme-color font (color by theme index) plus a solid fill applied to a different cell:
 // exactly the "themed workbook with a highlight edit" shape.
 const SPEC = {
   sheets: [
@@ -35,7 +35,7 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 745},
   cluster: 'styles',
   description:
-    'A themed workbook — a theme-color font plus a solid highlight fill — writes back to a ' +
+    'A themed workbook, a theme-color font plus a solid highlight fill, writes back to a ' +
     'valid, re-readable package with the theme part intact and the edited fill preserved; ' +
     'stripping the theme is never required to avoid corruption.',
 

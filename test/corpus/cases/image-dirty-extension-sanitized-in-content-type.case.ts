@@ -3,7 +3,7 @@
 // Real-world scenario: a caller derives an image's extension from a URL and passes it to addImage.
 // When the URL carries query parameters (e.g. a photo link ending in ".png?alt=media&token=…"), the
 // extension string is not a clean image extension. Adding the image succeeds, but the media/drawing
-// serializer threads the dirty string straight into [Content_Types].xml — producing a <Default>
+// serializer threads the dirty string straight into [Content_Types].xml, producing a <Default>
 // whose Extension attribute is "png?alt=media&token=…" and a ContentType of "image/png?alt=media&…".
 // A content-type Extension must be a bare token (letters/digits); the query-string garbage yields an
 // invalid content-type declaration, so strict consumers refuse to open the file (and in some builds
@@ -27,8 +27,8 @@ export default {
   cluster: 'images',
   description:
     'An image whose extension carries URL query-string characters must be sanitized to a bare token ' +
-    'before it reaches the content-type declaration — every image <Default> Extension is ' +
-    'alphanumeric, and no ContentType embeds the query string — so the package is valid.',
+    'before it reaches the content-type declaration: every image <Default> Extension is ' +
+    'alphanumeric, and no ContentType embeds the query string, so the package is valid.',
 
   behavior: [
     {

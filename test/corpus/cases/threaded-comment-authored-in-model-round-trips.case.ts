@@ -1,15 +1,15 @@
 // Cluster: comment
 //
-// Real-world scenario: a report generator wants to leave review comments in the workbook it produces —
+// Real-world scenario: a report generator wants to leave review comments in the workbook it produces:
 // Excel's modern threaded comments (the 2018 conversations: an author, a timestamp, replies, a resolved
 // state, `@mentions`), not the anonymous legacy notes that predate them. Nothing here comes from an input
 // file: the conversation, its participants and its mention are built in the model and written from it.
 //
 // That makes this the case that distinguishes *serialising* the feature from *carrying* it. A conversation
 // read from a file could survive a round-trip on preserved bytes alone while the library understood nothing
-// about it; an authored one cannot. Everything the package says about the conversation — the per-sheet
+// about it; an authored one cannot. Everything the package says about the conversation, the per-sheet
 // threadedComment part, the workbook-level person registry, and the legacy fallback `<comment>` that is
-// how Excel binds a cell to its thread — has to be built from the model, and then read back into the same
+// how Excel binds a cell to its thread, has to be built from the model, and then read back into the same
 // model.
 //
 // Verified against desktop Excel on exactly this package (2026-07-26): it opens clean with no repair
@@ -22,7 +22,7 @@
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
 // The two ids for one human that Excel itself writes: an authoring identity, and the separate entry it
-// interns when that person is @mentioned. Registering both is what a faithful writer has to allow — merging
+// interns when that person is @mentioned. Registering both is what a faithful writer has to allow: merging
 // them by name would silently re-point the mention.
 const GRACE_MENTIONED = '{BA397017-DD76-4496-AA75-59ADB199950C}';
 const HEAD = '{11111111-2222-3333-4444-555555555555}';
@@ -32,8 +32,8 @@ export default {
   provenance: {source: 'excel-desktop-verification'},
   cluster: 'comment',
   description:
-    'A threaded conversation authored in the model — a resolved thread with a reply by a second author ' +
-    'and an @mention, beside a legacy note on another cell — is serialised into the threadedComment part, ' +
+    'A threaded conversation authored in the model, a resolved thread with a reply by a second author ' +
+    'and an @mention, beside a legacy note on another cell, is serialised into the threadedComment part, ' +
     'the workbook person registry and the legacy fallback comment, and reads back as the same model. ' +
     'Nothing is carried through from an input file, and the same model always writes the same bytes.',
 
@@ -80,7 +80,7 @@ export default {
         assert.deepStrictEqual(
           parts.threadedCommentMentionSpans,
           ['0:13'],
-          '`@Grace Hopper` is 13 characters at offset 0 — the span Excel draws the chip over',
+          '`@Grace Hopper` is 13 characters at offset 0: the span Excel draws the chip over',
         );
       },
     },
@@ -103,7 +103,7 @@ export default {
         assert.strictEqual(
           parts.commentEntries,
           2,
-          'the fallback and the note on the other cell — a conversation is one comment, not one per message',
+          'the fallback and the note on the other cell: a conversation is one comment, not one per message',
         );
         assert.strictEqual(
           parts.commentVmlShapes,
@@ -126,7 +126,7 @@ export default {
               'Reply:\n    Gross. Confirmed with finance.',
           ],
           'the boilerplate verbatim, then Comment: and the head, then one Reply: per reply, bodies ' +
-            'indented four spaces — exactly what Excel writes',
+            'indented four spaces: exactly what Excel writes',
         );
       },
     },
@@ -138,7 +138,7 @@ export default {
         const sheet = model.sheets[0]!;
         assert.strictEqual(sheet.threads.length, 1, 'one conversation, not one thread per message');
         const thread = sheet.threads[0]!;
-        assert.strictEqual(thread.ref, 'B2', 'the anchor is canonical — it was authored as `$B$2`');
+        assert.strictEqual(thread.ref, 'B2', 'the anchor is canonical: it was authored as `$B$2`');
         assert.strictEqual(thread.resolved, true);
         assert.deepStrictEqual(
           thread.comments.map((comment) => [
@@ -182,7 +182,7 @@ export default {
       name: 'the conversation is not surfaced as a note, and the real note beside it is untouched',
       async expect(api: CorpusApi, assert: Assert) {
         // The fallback comment is boilerplate wrapping a copy of the conversation. Reading it back as
-        // `cell.note` would hand the caller garbage — and re-writing it as a plain note would destroy the
+        // `cell.note` would hand the caller garbage, and re-writing it as a plain note would destroy the
         // binding and leave Excel unable to see the thread at all.
         const {model} = await api.authoredCommentThreadRoundtrip();
         assert.deepStrictEqual(

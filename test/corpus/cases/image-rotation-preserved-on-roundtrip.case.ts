@@ -1,6 +1,6 @@
 // Cluster: images
 //
-// Real-world scenario: a workbook contains an image that was rotated in the drawing — the OOXML
+// Real-world scenario: a workbook contains an image that was rotated in the drawing: the OOXML
 // drawing anchor carries a rotation transform (`rot` on the picture's `<a:xfrm>` shape properties,
 // in 1/60000-degree units). Reading and writing the workbook back must retain that rotation. In the
 // reported failure the rotation was dropped on read, so the re-written file rendered the image

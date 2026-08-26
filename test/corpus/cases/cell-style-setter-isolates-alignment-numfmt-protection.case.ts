@@ -2,11 +2,11 @@
 //
 // Real-world scenario: a loaded workbook deduplicates identical formatting, so cells saved with the
 // same style share one in-memory style object. Setting a single style facet on one cell via its
-// setter must change only that cell — but if the setter mutates the shared object in place, every
+// setter must change only that cell, but if the setter mutates the shared object in place, every
 // sibling that happened to share the style silently inherits the change. The fill, font, and border
 // facets of this aliasing family are locked separately (per-cell-fill-isolation,
 // shared-base-style-font-mutation-isolated, cell-border-mutation-does-not-bleed-to-style-siblings);
-// this case covers the remaining facets — alignment, number format, and protection — for which the
+// this case covers the remaining facets, alignment, number format, and protection, for which the
 // setter today edits the aliased record and bleeds into the sibling. Correct behavior is
 // copy-on-write: the assignment isolates the target cell's style at the point of mutation.
 
@@ -50,7 +50,7 @@ export default {
   cluster: 'styles',
   description:
     'Setting the alignment, number format, or protection of one loaded cell that shares a style ' +
-    'record with siblings changes only that cell — the setter is copy-on-write and never mutates ' +
+    'record with siblings changes only that cell: the setter is copy-on-write and never mutates ' +
     'the aliased shared style, in memory or after write-back.',
 
   behavior: isolation,

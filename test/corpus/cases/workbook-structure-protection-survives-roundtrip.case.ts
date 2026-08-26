@@ -1,10 +1,10 @@
 // Cluster: security
 //
-// Real-world scenario: a workbook is protected at the WORKBOOK level — its structure is locked so
+// Real-world scenario: a workbook is protected at the WORKBOOK level: its structure is locked so
 // sheets cannot be added, deleted, reordered, or unhidden (the OOXML <workbookProtection
 // lockStructure="1"> element). A user opens that workbook, reads it, and saves it back out. The
 // workbook-level structure protection must survive that round-trip. The observed defect: the writer
-// drops <workbookProtection> entirely, silently unlocking the structure of a file that was protected —
+// drops <workbookProtection> entirely, silently unlocking the structure of a file that was protected,
 // even though worksheet-level protection (locked cells / sheetProtection) is preserved. Structure
 // protection is a real, if weak, integrity signal and must not be lost on a passthrough save.
 

@@ -1,7 +1,7 @@
 // Cluster: images
 //
-// Real-world scenario: a caller builds a large spreadsheet through the streaming/incremental writer
-// — chosen because the dataset is too big to hold fully in memory — and wants to embed an image
+// Real-world scenario: a caller builds a large spreadsheet through the streaming/incremental
+// writer, chosen because the dataset is too big to hold fully in memory, and wants to embed an image
 // (a logo anchored over a cell range) exactly as they would with the in-memory workbook. In the
 // in-memory path they register the image on the workbook and anchor it onto a worksheet over a
 // range. On the streaming path the equivalent is absent: the streamed worksheet exposes no way to
@@ -9,7 +9,7 @@
 // the in-memory path they could not afford.
 //
 // The durable requirement: the streaming writer must reach parity with the in-memory writer for
-// image embedding — a registered image can be anchored onto a streamed worksheet, and the streamed
+// image embedding: a registered image can be anchored onto a streamed worksheet, and the streamed
 // package then carries the media part (real image bytes) and a drawing part anchoring it. This is a
 // known-open gap today (the streamed worksheet has no addImage); the rewrite must close it.
 
@@ -22,7 +22,7 @@ export default {
   description:
     'The streaming writer offers image parity with the in-memory writer: a registered image can be ' +
     'anchored onto a streamed worksheet, and the streamed package carries the media and drawing ' +
-    'parts — so callers who need both out-of-core data and an embedded image are not forced in-core.',
+    'parts, so callers who need both out-of-core data and an embedded image are not forced in-core.',
 
   behavior: [
     {

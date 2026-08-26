@@ -2,8 +2,8 @@
 //
 // Real-world scenario: a solid pattern fill is set on a single row via the row accessor (e.g. an
 // orange-red fill on row 3). After a write/read round-trip only that row's cells carry the fill;
-// every other cell keeps its default (empty) fill. This guards against whole-sheet style leakage —
-// a row-level fill spreading across the entire sheet — which is exactly the class of silent
+// every other cell keeps its default (empty) fill. This guards against whole-sheet style leakage,
+// a row-level fill spreading across the entire sheet, which is exactly the class of silent
 // corruption a regression lock must catch, and it must hold regardless of the row's index.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -30,7 +30,7 @@ export default {
   cluster: 'styles',
   description:
     'A solid fill assigned to a single row via the row accessor stays scoped to that row after a ' +
-    'round-trip — the fill does not leak onto rows above or below it, independent of the row index.',
+    'round-trip: the fill does not leak onto rows above or below it, independent of the row index.',
 
   behavior: [
     {

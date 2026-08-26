@@ -1,7 +1,7 @@
 // The shared shape of a regression-corpus case.
 //
 // A case asserts observable behavior through the adapter surface (`api`), and it stays blind to how
-// the library is built — it can reach `src` only through a named capability, which is the decoupling
+// the library is built: it can reach `src` only through a named capability, which is the decoupling
 // that let the corpus outlive the rewrite (see test/corpus/README.md). That surface is now *typed*:
 // blindness to an implementation's internals is the contract, blindness to the capability list never
 // was, and pretending not to know it cost every case its type-checking.

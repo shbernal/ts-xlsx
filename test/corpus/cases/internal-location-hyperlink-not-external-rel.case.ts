@@ -1,7 +1,7 @@
 // Cluster: address-decoding
 //
 // Real-world scenario: an author builds a table-of-contents sheet whose cells link to other locations
-// inside the same workbook. Each link's hyperlink value begins with '#' — e.g. "#'Target'!A1" —
+// inside the same workbook. Each link's hyperlink value begins with '#', e.g. "#'Target'!A1",
 // marking it as an internal document location rather than an external URL. An internal link must be
 // written with a `location` attribute on the <hyperlink> element and NO external relationship; if it
 // is instead emitted as an external-mode relationship (r:id → .rels TargetMode="External"), strict

@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: a user sets a solid pattern fill and supplies the colour as a 6-hex RGB
-// ('00FF00') — the everyday habit of writing a colour without its alpha channel — or, by mistake, as
+// ('00FF00'), the everyday habit of writing a colour without its alpha channel, or, by mistake, as
 // a value that is not a colour at all ('12345', 'red'). OOXML's rgb attribute is a bare 8-hex ARGB;
 // a 6-char value renders as flat black in Excel, and a malformed value does too, with no error to
 // warn the author. A 6-hex RGB must be promoted to an opaque 8-hex ARGB ('FF00FF00'), and a value

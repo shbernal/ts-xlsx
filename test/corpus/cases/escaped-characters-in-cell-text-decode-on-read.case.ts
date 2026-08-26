@@ -118,7 +118,7 @@ export default {
       },
     },
     {
-      name: 'the other cell-text carriers — a note body, a rich-text run — round-trip the same way',
+      name: 'the other cell-text carriers, a note body, a rich-text run, round-trip the same way',
       expect(api: CorpusApi, assert: Assert) {
         const text = 'a\u0001b';
         const {note, runs} = api.escapedTextCarrierRoundtrip(text);

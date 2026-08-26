@@ -17,7 +17,7 @@ export default {
   cluster: 'streaming',
   description:
     'The streaming reader reports a row\'s hidden flag (interpreting the string-form "true"/"false" ' +
-    'some generators write), agreeing with the eager read — not reporting every row visible.',
+    'some generators write), agreeing with the eager read, not reporting every row visible.',
 
   behavior: [
     {

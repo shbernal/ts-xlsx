@@ -1,6 +1,6 @@
 // Cluster: xlsx-io
 //
-// Real-world scenario: a program paints a cell — a background fill, a border — to lay out a form or
+// Real-world scenario: a program paints a cell, a background fill, a border, to lay out a form or
 // a coloured grid, but never puts a value in it. On write-then-read the formatting is lost because
 // the writer serialises only cells that hold a value, dropping the style-only ones. A formatted-but-
 // empty cell is a real cell to Excel (`<c r=".." s=".."/>` with no `<v>`): its style must survive the

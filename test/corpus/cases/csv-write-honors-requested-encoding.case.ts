@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a caller exports a worksheet to CSV and passes an explicit output encoding,
 // expecting the produced bytes to be in that encoding. The multibyte content itself (emoji, CJK,
-// accented Latin) is not the problem — it survives a UTF-8 round-trip verbatim. The problem is that
+// accented Latin) is not the problem: it survives a UTF-8 round-trip verbatim. The problem is that
 // the CSV writer silently ignores the requested encoding and always emits UTF-8, so a caller who
 // asked for a different encoding (because their downstream consumer expects it) gets bytes that
 // decode to garbage ("mojibake") under the encoding they think they have. A requested output

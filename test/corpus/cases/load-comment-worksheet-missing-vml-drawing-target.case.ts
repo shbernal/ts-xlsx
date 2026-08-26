@@ -1,7 +1,7 @@
 // Cluster: address-decoding
 //
 // Real-world scenario: some .xlsx files declare cell comments on a worksheet and a worksheet
-// relationship pointing at a legacy VML drawing part — but the referenced VML part is not actually
+// relationship pointing at a legacy VML drawing part, but the referenced VML part is not actually
 // present in the package (missing, misnamed, or unreconciled). On load, the reader walks each
 // worksheet relationship and, for a VML-drawing rel on a sheet that has comments, dereferences the
 // drawing to merge note positioning onto the comments. When the target part is absent that lookup
@@ -10,7 +10,7 @@
 // worksheets survive, and the comment text (which lives in the comments part, not the VML) is kept.
 //
 // The fixture is a workbook authored with a cell note, then stripped of its VML drawing part while
-// the worksheet relationship that references it is left in place — reproducing the dangling-target
+// the worksheet relationship that references it is left in place, reproducing the dangling-target
 // shape without depending on a specific application to emit it.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

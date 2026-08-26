@@ -1,11 +1,11 @@
 // Cluster: tables
 //
-// Real-world scenario: a user adds a table with the header row turned off — a headerless table that
+// Real-world scenario: a user adds a table with the header row turned off, a headerless table that
 // shows only data rows. In OOXML a table's autoFilter and its header-row count are only meaningful
 // when the table actually has a header row: the autoFilter anchors its filter dropdowns on the
 // header cells. A headerless table must therefore set headerRowCount="0" and emit NO autoFilter
 // element. The writer already zeroes the header-row count, but it still injects an autoFilter for
-// the headerless table — an internally inconsistent table part that Excel flags as corrupt and
+// the headerless table, an internally inconsistent table part that Excel flags as corrupt and
 // repairs by stripping the AutoFilter (and sometimes the whole table) on open. A header-bearing
 // table, by contrast, legitimately carries both an autoFilter and a header-row count of 1.
 

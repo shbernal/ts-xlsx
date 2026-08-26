@@ -5,14 +5,14 @@
 // an empty string). Today the writer threads the bad extension straight through: the media part
 // becomes media/imageN.undefined, the drawing relationship targets that filename, and
 // [Content_Types].xml gains a malformed <Default> element carrying ContentType "image/undefined"
-// with no Extension attribute at all. The result is a structurally invalid .xlsx — a Default
-// content-type element MUST carry an Extension, and image/undefined is not a real media type —
+// with no Extension attribute at all. The result is a structurally invalid .xlsx: a Default
+// content-type element MUST carry an Extension, and image/undefined is not a real media type,
 // so strict consumers refuse to open it. A missing/invalid image extension must never produce a
 // malformed content-type declaration.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
-// An image whose extension is missing entirely — the exact shape a mistyped descriptor produces.
+// An image whose extension is missing entirely: the exact shape a mistyped descriptor produces.
 const SPEC = {sheets: [{name: 'S', images: [{range: 'B2:C3', extension: undefined}]}]};
 
 export default {
@@ -21,8 +21,8 @@ export default {
   cluster: 'images',
   description:
     'An image added with a missing or invalid extension must not produce a package with a ' +
-    'malformed content-type declaration — no <Default> element lacking an Extension attribute ' +
-    'and no bogus "image/undefined" media type — so the file opens without a repair step.',
+    'malformed content-type declaration: no <Default> element lacking an Extension attribute ' +
+    'and no bogus "image/undefined" media type, so the file opens without a repair step.',
 
   behavior: [
     {

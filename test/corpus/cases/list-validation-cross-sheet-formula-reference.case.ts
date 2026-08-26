@@ -10,7 +10,7 @@ export default {
     '`extLst`) rather than the plain `<dataValidation>` element; a reader that only understands the ' +
     'standard form silently drops the rule, so the cell reports no validation and a read→write ' +
     'round-trip loses the dropdown entirely. Same-sheet list validations use the standard form and ' +
-    'already survive — that contrast is the tell.',
+    'already survive: that contrast is the tell.',
   provenance: {source: 'upstream-issue'},
   behavior: [
     {

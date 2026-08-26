@@ -4,7 +4,7 @@
 // SpreadsheetML element under an explicit namespace prefix (<x:workbook>, <x:sheetData>,
 // <x:c>…), uses inline `t="str"` cell values, and points its worksheet relationship at an
 // absolute package path. The file is spec-valid and opens in desktop apps, but the library
-// crashes reading it ("Cannot set properties of undefined (setting 'sheetNo')") — it assumes the
+// crashes reading it ("Cannot set properties of undefined (setting 'sheetNo')"): it assumes the
 // unprefixed element names. A reader must tolerate the prefixed serialization: read the file
 // without throwing, expose the single sheet by its declared name, and read its inline cell text.
 

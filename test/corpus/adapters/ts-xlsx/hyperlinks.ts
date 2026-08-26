@@ -8,8 +8,8 @@ import {attrsOf} from './xml-probes.ts';
 
 export const hyperlinks = {
   // Read a fixture and report every hyperlink cell as { <addr>: { hyperlink, text } }, with a rich
-  // display label flattened to its concatenated text — for asserting a foreign file's links (and the
-  // rejoining of an external URL's fragment carried in the location attribute) are read faithfully.
+  // display label flattened to its concatenated text. A foreign file's links, and the rejoining of
+  // an external URL's fragment carried in the location attribute, must be read faithfully.
   async readFixtureHyperlinks(rel: string) {
     const flatten = (t: Untyped) =>
       t == null

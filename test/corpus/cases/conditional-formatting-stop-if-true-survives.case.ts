@@ -1,6 +1,6 @@
 // Cluster: conditional-formatting
 //
-// Real-world scenario: a conditional-formatting rule sets `stopIfTrue` — when the rule matches a
+// Real-world scenario: a conditional-formatting rule sets `stopIfTrue`: when the rule matches a
 // cell, evaluation of all lower-priority rules for that cell halts. This is a first-class OOXML
 // cfRule attribute and is essential for layering rules (a match on an early rule must be able to
 // suppress later ones). A user who sets stopIfTrue on a rule needs it emitted in the sheet XML and

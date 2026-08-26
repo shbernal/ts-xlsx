@@ -1,6 +1,6 @@
 // Cluster: types
 //
-// Real-world scenario: a hyperlink cell's display text is not always a plain string — it can
+// Real-world scenario: a hyperlink cell's display text is not always a plain string: it can
 // carry character formatting (rich text runs), e.g. a partly-bold label over a single link
 // target. A hyperlink value must therefore model its display text as either a plain string or
 // rich text, and both forms must survive a round-trip with the target URL intact. A workbook

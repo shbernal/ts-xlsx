@@ -2,8 +2,8 @@
 //
 // Real-world scenario: a workbook has a conditional-formatting rule whose differential format
 // (DXF) includes a custom number format. On a round-trip the DXF number format's code is
-// serialized as the literal string "[object Object]" — the format-code object was coerced to a
-// string instead of having its code read out — producing a styles part a strict consumer
+// serialized as the literal string "[object Object]", the format-code object was coerced to a
+// string instead of having its code read out, producing a styles part a strict consumer
 // rejects. A DXF number format must round-trip as its real format code, never as "[object
 // Object]".
 

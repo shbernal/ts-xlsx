@@ -4,7 +4,7 @@
 // result set, writes it with zero data rows. The produced xl/tables/tableN.xml must
 // still be well-formed: its ref must span the full header row across all declared
 // columns (not collapse to a single cell), and any autoFilter must stay consistent
-// with that ref — otherwise Excel strips or repairs the table. Adding one data row
+// with that ref; otherwise Excel strips or repairs the table. Adding one data row
 // must keep working (guarding the known-good path).
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

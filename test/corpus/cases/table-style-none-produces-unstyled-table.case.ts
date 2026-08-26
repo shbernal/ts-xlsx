@@ -1,6 +1,6 @@
 // Cluster: tables
 //
-// Real-world scenario: Excel's table-style gallery offers "None" — a table with no banding or theme
+// Real-world scenario: Excel's table-style gallery offers "None": a table with no banding or theme
 // applied. A caller declaring a table with style theme 'None' expects an unstyled table: in OOXML
 // that is a tableStyleInfo with no name attribute (exactly what a null/absent theme produces). The
 // bug: the writer emits the literal name="None", a reference to a style that does not exist, rather
@@ -14,8 +14,8 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'tables',
   description:
-    'A table styled with theme "None" produces an unstyled table — a tableStyleInfo with no name ' +
-    'attribute, the same as a null/absent theme — rather than a bogus name="None" that references a ' +
+    'A table styled with theme "None" produces an unstyled table: a tableStyleInfo with no name ' +
+    'attribute, the same as a null/absent theme, rather than a bogus name="None" that references a ' +
     'non-existent style; style flags set alongside it survive.',
 
   behavior: [

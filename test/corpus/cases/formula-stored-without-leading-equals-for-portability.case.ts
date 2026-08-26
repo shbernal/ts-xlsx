@@ -30,7 +30,7 @@ export default {
   cluster: 'formulas',
   description:
     'A cell formula is stored in the sheet XML without a leading "=" (OOXML <f> carries no equals ' +
-    'sign), even when the caller supplied one — so the document is portable to strict consumers ' +
+    'sign), even when the caller supplied one, so the document is portable to strict consumers ' +
     '(Google Sheets/WPS), not just Excel; a formula supplied without "=" is unchanged.',
 
   behavior: [
@@ -48,7 +48,7 @@ export default {
         assert.strictEqual(
           sheets.S!.formulas.A1,
           '1+2',
-          `the stored <f> text must not begin with "="; got ${JSON.stringify(sheets.S!.formulas.A1)} — a ` +
+          `the stored <f> text must not begin with "="; got ${JSON.stringify(sheets.S!.formulas.A1)}, a ` +
             'leading = makes the file unreadable to strict consumers',
         );
       },

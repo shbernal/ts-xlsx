@@ -7,10 +7,10 @@
 import type {Untyped} from '../../untyped.ts';
 import {decodeAddress, decodeRange, encodeAddress, Workbook} from './runtime.ts';
 
-// Translate a corpus image range — a string like "B2:D6", or a {tl, br?/ext?, editAs?} object — into
+// Translate a corpus image range, a string like "B2:D6", or a {tl, br?/ext?, editAs?} object, into
 // the model's typed addImage call. A one-cell anchor is a point plus a fixed pixel extent (editAs is a
 // two-cell-only attribute the model drops by construction); a two-cell anchor spans tl..br. A
-// fractional grid coordinate (col 3.5) is passed through — the model floors it to the cell and derives
+// fractional grid coordinate (col 3.5) is passed through: the model floors it to the cell and derives
 // the sub-cell EMU offset from that cell's real width/height.
 export function anchorSpecImage(sheet: Untyped, imageId: Untyped, range: Untyped) {
   if (typeof range === 'string') {
@@ -36,7 +36,7 @@ export const streamedRowValues = (cells: Untyped[]) => {
   return values;
 };
 
-// A 1×1 PNG — a minimal image payload for anchoring on a sheet.
+// A 1×1 PNG: a minimal image payload for anchoring on a sheet.
 export const ONE_PX_PNG = Uint8Array.from(
   Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -47,7 +47,7 @@ export const ONE_PX_PNG = Uint8Array.from(
 /**
  * A spec reached for vocabulary this adapter does not map.
  *
- * It used to carry a `notImplemented` flag that made the runner report the behavior as **skipped** —
+ * It used to carry a `notImplemented` flag that made the runner report the behavior as **skipped**,
  * built when the library was incomplete and a case could legitimately outrun it. It cannot happen for
  * that reason any more, so a skip now means only one thing: a case asked for a key nobody wired, and
  * the corpus quietly declined to test it. That is the silent cap CLAUDE.md §3 forbids, so this is an
@@ -59,7 +59,7 @@ export const ONE_PX_PNG = Uint8Array.from(
  */
 export class UnsupportedSpecError extends Error {
   constructor(message: string) {
-    super(`corpus adapter: ${message} — extend adapters/ts-xlsx/spec-model.ts to cover it`);
+    super(`corpus adapter: ${message}; extend adapters/ts-xlsx/spec-model.ts to cover it`);
     this.name = 'UnsupportedSpecError';
   }
 }
@@ -304,8 +304,8 @@ export function buildFrom(spec: Untyped = {}) {
       // range; a body cell exists in `sheetData` only if something writes it. Excel writes the body
       // cells and the table range as one fact, so a spec asserting over body content (column styles
       // reaching data cells, dimension, shared strings) needs the cells actually present. Write below
-      // the header row (materialized by addTable) — anchorRow for a headerless table, one below it
-      // otherwise — and leave the totals row (if any) to its own materialization. A later `s.cells`
+      // the header row (materialized by addTable), anchorRow for a headerless table, one below it
+      // otherwise, and leave the totals row (if any) to its own materialization. A later `s.cells`
       // entry still wins, since cells are applied after tables.
       const anchor = decodeAddress(options.ref);
       const dataTop = (anchor.row ?? 1) + (t.headerRow === false ? 0 : 1);
@@ -355,12 +355,12 @@ export function buildFrom(spec: Untyped = {}) {
     for (const img of s.images || []) {
       // A spec omits `extension` to mean the default 'png'; it sets the key (to a dirty or missing
       // value) on purpose to exercise the library's write-side extension sanitisation. Pass the raw
-      // value through — `workbook.addImage` normalises a leading dot / query string / missing hint.
+      // value through: `workbook.addImage` normalises a leading dot / query string / missing hint.
       const options =
         'extension' in img ? {buffer: ONE_PX_PNG, extension: img.extension} : {buffer: ONE_PX_PNG};
       anchorSpecImage(sheet, workbook.addImage(options), img.range);
     }
-    // A sheet background is a workbook image tiled behind the grid, not anchored — it rides its own
+    // A sheet background is a workbook image tiled behind the grid, not anchored: it rides its own
     // worksheet `<picture>` relationship, so a case can assert it coexists with comment/VML parts.
     if (s.background) {
       sheet.addBackgroundImage(
@@ -452,7 +452,7 @@ export function normalizeRewriteCell(cell: Untyped) {
   if (cell.border !== undefined) out.border = cell.border;
   if (cell.alignment !== undefined) out.alignment = cell.alignment;
   if (cell.protection !== undefined) out.protection = cell.protection;
-  // A note is cell metadata, reported only when the round-trip preserved one — mirrors the oracle so a
+  // A note is cell metadata, reported only when the round-trip preserved one; mirrors the oracle so a
   // case can assert a comment survives alongside a table/background rather than reading undefined.
   if (cell.note !== undefined) out.note = cell.note;
   return out;
@@ -461,7 +461,7 @@ export function normalizeRewriteCell(cell: Untyped) {
 // Decompose an ExcelJS-shaped aggregate style object onto the rewrite's per-facet setters.
 // The rewrite has no `.style` aggregate: each cell owns independent facet fields, so "assign
 // one base style to two cells" (the shared-style aliasing setup) is just assigning each facet
-// present. Assigning the SAME base object to two cells shares the facet references — exactly the
+// present. Assigning the SAME base object to two cells shares the facet references: exactly the
 // aliasing a copy-on-write setter must not let bleed when one cell is later mutated.
 export function applyStyle(cell: Untyped, style: Untyped) {
   if (style.fill !== undefined) cell.fill = style.fill;

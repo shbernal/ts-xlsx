@@ -3,7 +3,7 @@
 // Real-world scenario: a template applies a number format (or other style) to a
 // whole column so every value in it renders consistently, without touching the
 // column's visibility. Attaching a style must not, as a side effect, mark the
-// column hidden — a reported failure mode where styled columns vanished on open.
+// column hidden, a reported failure mode where styled columns vanished on open.
 // The style must apply and the column must stay visible unless visibility was set
 // explicitly.
 

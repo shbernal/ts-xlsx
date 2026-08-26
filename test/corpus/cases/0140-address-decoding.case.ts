@@ -1,14 +1,14 @@
-// Provenance: exceljs/exceljs#140 — "col-cache.js: Cannot read property '0' of null"
+// Provenance: exceljs/exceljs#140, "col-cache.js: Cannot read property '0' of null"
 // Cluster: address-decoding
 //
 // Real-world .xlsx files declare defined names that reference whole rows or whole
-// columns, e.g. `MyWorksheet!$A:$A` (full column) or `'Some Text'!$1:$1` (full row)
-// — see the reproduction XML in the issue thread. Decoding these must not crash and
+// columns, e.g. `MyWorksheet!$A:$A` (full column) or `'Some Text'!$1:$1` (full row).
+// See the reproduction XML in the issue thread. Decoding these must not crash and
 // must not leak the literal strings "undefined"/"NaN" into serialized addresses.
 //
 // The original TypeError crash was fixed upstream, so the no-throw behaviors are
 // GREEN regression locks. But full-row range decoding still emits garbage
-// (`$col$row: "$undefined$1"`, `dimensions: "NaN:NaN"`) — captured here as a RED
+// (`$col$row: "$undefined$1"`, `dimensions: "NaN:NaN"`), captured here as a RED
 // live defect the rewrite must fix. `baseline` records the *current legacy* result
 // so the runner can tell a known-open bug from a fresh regression.
 
@@ -28,7 +28,7 @@ export default {
 
   behavior: [
     {
-      name: 'decodeAddress("$1") — a full-row absolute reference — does not throw',
+      name: 'decodeAddress("$1"), a full-row absolute reference, does not throw',
       expect(api: CorpusApi, assert: Assert) {
         const addr = api.decodeAddress('$1');
         assert.strictEqual(addr.row, 1, 'row should be 1');
@@ -36,7 +36,7 @@ export default {
       },
     },
     {
-      name: 'decodeRange("$1:$1") — a full-row range — resolves its known row bounds',
+      name: 'decodeRange("$1:$1"), a full-row range, resolves its known row bounds',
       expect(api: CorpusApi, assert: Assert) {
         const range = api.decodeRange('$1:$1');
         assert.strictEqual(range.top, 1, 'top row should be 1');
@@ -44,7 +44,7 @@ export default {
       },
     },
     {
-      name: 'decodeRange("$1:$1") — serialized form leaks no "undefined"/"NaN"',
+      name: 'decodeRange("$1:$1"): serialized form leaks no "undefined"/"NaN"',
       expect(api: CorpusApi, assert: Assert) {
         const serialized = JSON.stringify(api.decodeRange('$1:$1'));
         assert.ok(

@@ -6,8 +6,8 @@
 // relies on a browser-oriented randomness shim with no Node fallback, it throws "Secure random number
 // generation is not supported by this browser" and the protect call fails on the server. The library
 // must obtain secure random bytes from the platform runtime and complete: protect resolves, emits a
-// well-formed password-derived protection element, honors the requested options, and — because the
-// salt is real randomness, not a stub — two protects with the same password produce different salts.
+// well-formed password-derived protection element, honors the requested options, and, because the
+// salt is real randomness, not a stub, two protects with the same password produce different salts.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -58,7 +58,7 @@ export default {
       },
     },
     {
-      name: 'the salt is real randomness — two protects with the same password differ',
+      name: 'the salt is real randomness: two protects with the same password differ',
       async expect(api: CorpusApi, assert: Assert) {
         const {saltsDiffer} = await api.worksheetPasswordProtectionReport();
         assert.strictEqual(

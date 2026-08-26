@@ -1,6 +1,6 @@
 // Cluster: security
 //
-// Real-world scenario: a caller hands the OOXML reader a legacy binary .xls file — the old
+// Real-world scenario: a caller hands the OOXML reader a legacy binary .xls file: the old
 // OLE2 / Compound File Binary format (magic bytes D0 CF 11 E0), not a ZIP. The reader only
 // understands the ZIP-based .xlsx container, so it extracts no worksheets. Instead of signalling
 // that the input is the wrong format, it resolves to a workbook whose worksheets array is empty,
@@ -27,7 +27,7 @@ export default {
         const {ok, sheetNames} = await api.readFixtureReport(FIXTURE);
         assert.ok(
           !(ok && (!sheetNames || sheetNames.length === 0)),
-          'the reader must not succeed with zero sheets on a wrong-format file — it must reject it',
+          'the reader must not succeed with zero sheets on a wrong-format file: it must reject it',
         );
       },
     },

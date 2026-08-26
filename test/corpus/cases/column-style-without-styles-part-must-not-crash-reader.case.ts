@@ -1,13 +1,13 @@
 // Cluster: styles
 //
-// Real-world scenario: a package's worksheet declares a column-level style — a `<col>` element
-// carrying a styleId (from a column number-format, font, width-with-style, etc.) — but the package
+// Real-world scenario: a package's worksheet declares a column-level style, a `<col>` element
+// carrying a styleId (from a column number-format, font, width-with-style, etc.), but the package
 // has no styles part for that id to resolve against. This happens with partially-assembled packages,
 // producers that emit column styles without a complete styles.xml, or files where the styles part was
 // stripped. Reconciling the column looks the styleId up in the styles collection; when that
 // collection is absent the reader dereferences `undefined.getStyleModel(...)` and aborts the entire
 // load with an internal TypeError. A dangling column-style reference is malformed input the reader
-// must tolerate — loading the worksheet without the unresolved style — not a crash.
+// must tolerate, loading the worksheet without the unresolved style, not a crash.
 //
 // The fixture is a normal single-column-styled workbook whose styles part has been removed while the
 // worksheet's `<col>` styleId reference remains, reproducing the dangling reference.
@@ -22,7 +22,7 @@ export default {
   cluster: 'styles',
   description:
     'A workbook whose worksheet has a column with a style reference but no styles part loads without ' +
-    'throwing — the reader tolerates the unresolvable column styleId instead of dereferencing an ' +
+    'throwing: the reader tolerates the unresolvable column styleId instead of dereferencing an ' +
     'undefined styles collection, and the worksheet is still available.',
 
   behavior: [

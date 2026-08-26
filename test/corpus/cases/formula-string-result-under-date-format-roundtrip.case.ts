@@ -3,8 +3,8 @@
 // Real-world scenario: cell A1 holds text ("test") but is styled with a date number format
 // (mmm-yy). Cell A2 is the formula =A1, so its cached result is the string "test" and A2 inherits
 // a date/number format. In the source file A2 is a string-typed formula cell (t="str") with the
-// cached value "test". Loading the workbook and writing it straight back out — with no user edits
-// — must produce a file that still opens cleanly. The observed corruption: the writer drops A2's
+// cached value "test". Loading the workbook and writing it straight back out, with no user edits,
+// must produce a file that still opens cleanly. The observed corruption: the writer drops A2's
 // string type and, because the cell's style carries a numeric/date format, coerces the string
 // cached result toward a number and emits the literal token "NaN" as the value. A numeric cell
 // containing "NaN" is invalid content, so Excel shows a "we found a problem… recover?" prompt.
@@ -19,7 +19,7 @@ export default {
   cluster: 'formulas',
   description:
     'A string-typed formula cell (=A1 whose cached result is the text "test") that is styled with ' +
-    'a date number format round-trips as a string formula cell — the writer must not drop the ' +
+    'a date number format round-trips as a string formula cell: the writer must not drop the ' +
     'string type and emit the invalid token "NaN" as the cell value (which corrupts the file).',
 
   behavior: [

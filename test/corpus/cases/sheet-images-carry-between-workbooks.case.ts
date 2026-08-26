@@ -8,7 +8,7 @@ export default {
     'workbooks. An image is a media+relationship pair, not a value that travels with a cell: the ' +
     "anchor holds an id into its own workbook's media registry, and that id names a different " +
     'picture, or none, in the destination. Carrying a sheet must therefore register the picture in ' +
-    'the destination workbook and rebind the anchor to the id it lands on — and an anchor that ' +
+    'the destination workbook and rebind the anchor to the id it lands on, and an anchor that ' +
     'reaches the writer still holding a foreign id must be refused by name rather than emitted as ' +
     'a drawing relationship pointing at media that was never written.',
   provenance: {

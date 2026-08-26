@@ -3,9 +3,9 @@
 // Real-world scenario: a user duplicates a worksheet by reading one sheet's `model` object and
 // assigning it onto a freshly added worksheet (the idiomatic "clone a sheet" pattern). The source
 // sheet has merged cell ranges. After the assignment the destination has all the values, columns,
-// and styles — but none of the merged ranges: the merges silently vanish. The root cause is an
-// asymmetry in the worksheet model's serialize/deserialize contract — the exported model exposes
-// merged ranges under one property while the importer reads a different one — so merge data does not
+// and styles, but none of the merged ranges: the merges silently vanish. The root cause is an
+// asymmetry in the worksheet model's serialize/deserialize contract: the exported model exposes
+// merged ranges under one property while the importer reads a different one, so merge data does not
 // survive a model export/import round-trip. Users worked around it for years by manually
 // re-applying every merge after the copy.
 
@@ -17,7 +17,7 @@ export default {
   cluster: 'core-model',
   description:
     'Copying a worksheet via its model export/import (dst.model = {...src.model, name}) reproduces ' +
-    "the source sheet's merged ranges on the destination — model round-trip is lossless for merges.",
+    "the source sheet's merged ranges on the destination: model round-trip is lossless for merges.",
 
   behavior: [
     {

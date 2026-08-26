@@ -5,7 +5,7 @@
 // forms are valid OOXML and open in desktop apps, but the library resolves only relative targets,
 // so loading the file crashes ("Cannot read properties of undefined (reading 'name')") when it
 // fails to find the table part. A reader must resolve an absolute-path relationship target and
-// load the table it points to — a control workbook from the same generator with no table also
+// load the table it points to: a control workbook from the same generator with no table also
 // continues to load.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

@@ -5,7 +5,7 @@
 // cell, expecting only that cell to gain a border. Because the cells alias one style object, mutating
 // one cell's border mutates the shared record and the border appears on every sibling that shared it.
 // Correct behavior is copy-on-write: a per-cell border assignment isolates that cell's style at the
-// point of mutation. (This is the border facet of the shared-style aliasing family — see
+// point of mutation. (This is the border facet of the shared-style aliasing family, see
 // per-cell-fill-isolation and shared-base-style-font-mutation-isolated.)
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -15,7 +15,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'styles',
   description:
-    'Assigning a border to one cell that shares a style record with siblings borders only that cell — ' +
+    'Assigning a border to one cell that shares a style record with siblings borders only that cell: ' +
     'the siblings keep their unbordered style, with no shared-record bleed.',
 
   behavior: [

@@ -2,8 +2,8 @@
 //
 // Real-world scenario: a data pipeline maps a column to Date values, and one row's
 // source is null or malformed, producing `new Date(NaN)` (an Invalid Date). Writing
-// the workbook must not throw an unhandled error out of the write call, and — most
-// importantly — must not lose the other, valid cells in that sheet. A single bad
+// the workbook must not throw an unhandled error out of the write call, and, most
+// importantly, must not lose the other, valid cells in that sheet. A single bad
 // value should degrade locally, never take down the whole export.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

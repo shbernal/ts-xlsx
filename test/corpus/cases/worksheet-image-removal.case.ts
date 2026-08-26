@@ -1,7 +1,7 @@
 // Cluster: images
 //
 // Real-world scenario: a caller adds several images to a worksheet, then decides one should no longer
-// appear in the output — a logo swapped out, a placeholder dropped. The library exposes a way to add
+// appear in the output: a logo swapped out, a placeholder dropped. The library exposes a way to add
 // and anchor an image but no way to remove a previously-added one, so the only recourse is to rebuild
 // the worksheet from scratch. A worksheet must offer image removal: dropping a specific image leaves
 // the written workbook with only the images the caller still wants, each remaining image preserved at

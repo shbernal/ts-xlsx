@@ -1,6 +1,6 @@
 // Cluster: defined-names
 //
-// Real-world scenario: a user gives a range a memorable name — `TaxRate`, `SalesData` — so formulas
+// Real-world scenario: a user gives a range a memorable name, `TaxRate`, `SalesData`, so formulas
 // can reference it by name instead of by coordinates. Excel stores these workbook-level names in a
 // `<definedNames>` block inside workbook.xml, each `<definedName name="…">` holding the reference as
 // its text content, sited immediately after `<sheets>`. A writer that drops the block, mis-sites it,

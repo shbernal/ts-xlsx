@@ -1,12 +1,12 @@
 // Cluster: styles
 //
 // Real-world scenario: an author wants a cell's fill to visually represent its numeric value as a
-// proportional bar — a data-bar conditional-formatting rule over a range, carrying a bar color, a
+// proportional bar, a data-bar conditional-formatting rule over a range, carrying a bar color, a
 // gradient flag, and two conditional-format value objects (cfvo) defining the low and high anchors
 // of the bar scale (e.g. num 0 to num 1). The rule must write valid worksheet XML (a dataBar element
 // with its cfvo anchors and color) that opens without a repair prompt, and it must round-trip: after
 // write→read the rule is present on the same range with its color, gradient flag, and both cfvo
-// anchors intact. A malformed shape — a truncated/empty cfvo or dataBar element — corrupts the sheet.
+// anchors intact. A malformed shape, a truncated/empty cfvo or dataBar element, corrupts the sheet.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -65,7 +65,7 @@ export default {
     },
     {
       // The gradient flag is written but the reader does not surface it on the round-tripped rule,
-      // so it comes back unset — a fidelity gap distinct from the color/anchor preservation above.
+      // so it comes back unset, a fidelity gap distinct from the color/anchor preservation above.
       name: 'the gradient flag survives the round-trip',
       async expect(api: CorpusApi, assert: Assert) {
         const {reload} = await api.authorConditionalFormatting(CF);

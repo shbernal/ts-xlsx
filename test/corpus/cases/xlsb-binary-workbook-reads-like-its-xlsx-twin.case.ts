@@ -4,20 +4,20 @@ import type {Untyped} from '../untyped.ts';
 // `.xlsb` (BIFF12) is the binary serialisation of the same spreadsheet model `.xlsx` spells in XML:
 // the same OPC/ZIP package and relationship graph, with the workbook, worksheet, shared-string and
 // style parts stored as binary record streams. A reader that supports both must therefore produce
-// *one* model, not two similar ones — a caller converting between the forms, or simply handed a file
+// *one* model, not two similar ones: a caller converting between the forms, or simply handed a file
 // it did not choose the format of, must not have to care which it got.
 //
-// The fixtures are a pair Excel itself saved from one in-memory workbook — `source.xlsb` and
-// `source.xlsx` — which makes the XML twin an independent oracle rather than something this library
+// The fixtures are a pair Excel itself saved from one in-memory workbook, `source.xlsb` and
+// `source.xlsx`, which makes the XML twin an independent oracle rather than something this library
 // produced. See `author.ps1` beside them, and the spec
 // `docs/knowledge/specs/xlsb-binary-format-output.md`.
 export default {
   id: 'xlsb-binary-workbook-reads-like-its-xlsx-twin',
   cluster: 'xlsx-io',
   description:
-    'A binary .xlsb workbook reads into the same model its .xlsx twin does — values, number ' +
+    'A binary .xlsb workbook reads into the same model its .xlsx twin does: values, number ' +
     'formats, fonts, fills, borders, alignment, protection, sheet order and visibility, row and ' +
-    'column geometry, and merges — and a malformed binary part fails with a typed parse error.',
+    'column geometry, and merges, and a malformed binary part fails with a typed parse error.',
   provenance: {source: 'upstream-issue'},
   behavior: [
     {
@@ -56,7 +56,10 @@ export default {
       expect(api: CorpusApi, assert: Assert) {
         assert.equal(api.xlsbCell('Values', 'B6').value, true);
         assert.deepEqual(api.xlsbCell('Values', 'B7').value, {error: '#DIV/0!'});
-        assert.equal(api.xlsbCell('Values', 'B12').value, 'naïve — 日本語');
+        // The dash is the fixture's own cell text, not prose: this asserts the binary reader
+        // hands back exactly what Excel wrote into B12.
+        // charcheck-disable-next-line no-em-dash-in-source
+        assert.equal(api.xlsbCell('Values', 'B12').value, 'naïve \u2014 日本語');
       },
     },
     {
@@ -71,7 +74,7 @@ export default {
       name: 'a formula cell surfaces the result Excel cached for it',
       expect(api: CorpusApi, assert: Assert) {
         // The formula's own token stream is not decoded yet, so what a formula cell carries is the
-        // value — which is the same value the XML reader takes from `<v>`. Locking it here means the
+        // value, which is the same value the XML reader takes from `<v>`. Locking it here means the
         // gap cannot widen into a *wrong* value while the token decoder is still to come.
         assert.equal(api.xlsbCell('Values', 'B9').value, 1245.7978);
         assert.equal(api.xlsbCell('Values', 'B10').value, 'WIDGET');
@@ -181,7 +184,7 @@ export default {
     {
       name: 'a malformed binary workbook part fails with a typed parse error, not a crash',
       expect(api: CorpusApi, assert: Assert) {
-        // A record header declaring a payload far longer than the part holds — the lever a hostile
+        // A record header declaring a payload far longer than the part holds: the lever a hostile
         // file pulls to make a naive reader over-allocate or read out of bounds.
         const result = api.xlsbMalformedBinaryWorkbook();
         assert.equal(result.threw, true);

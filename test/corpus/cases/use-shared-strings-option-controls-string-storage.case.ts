@@ -1,7 +1,7 @@
 // Cluster: streaming
 //
 // Real-world scenario: a workbook with string cells is written to a buffer. The writer exposes a
-// useSharedStrings option meant to choose how in-cell text is stored — enabled, strings are
+// useSharedStrings option meant to choose how in-cell text is stored: enabled, strings are
 // deduplicated into a shared string table (sharedStrings.xml) and cells reference it by index;
 // disabled, strings are stored inline in the worksheet cells. The reported failure is that the option
 // has no effect: shared strings are emitted regardless. Both representations must read back to the
@@ -15,7 +15,7 @@ export default {
   cluster: 'streaming',
   description:
     'The useSharedStrings write option controls string storage: enabled emits a shared string table ' +
-    'with cell references, disabled stores strings inline with no shared-strings part — rather than ' +
+    'with cell references, disabled stores strings inline with no shared-strings part, rather than ' +
     'always using shared strings regardless of the option.',
 
   behavior: [

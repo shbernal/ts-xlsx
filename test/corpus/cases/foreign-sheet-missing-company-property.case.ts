@@ -1,7 +1,7 @@
 // Cluster: xlsx-io
 //
 // Real-world scenario: a workbook produced by a foreign generator (HanCell) omits optional
-// document properties — its docProps/app.xml has no <Company> element. A reader that assumes the
+// document properties: its docProps/app.xml has no <Company> element. A reader that assumes the
 // element is present crashes dereferencing it ("Cannot read properties of undefined (reading
 // 'company')"), so the whole file is unreadable over a missing optional property. Absent optional
 // document properties must read back as unset, not as a fatal error, and the worksheets must load.
@@ -16,7 +16,7 @@ export default {
   cluster: 'xlsx-io',
   description:
     'A workbook whose docProps/app.xml omits optional properties (e.g. Company) reads without ' +
-    'crashing — a missing optional document property is treated as unset, and the worksheets load.',
+    'crashing: a missing optional document property is treated as unset, and the worksheets load.',
 
   behavior: [
     {

@@ -4,11 +4,11 @@
 // every row offers the same choices, sourcing the options from a range on a separate lookup sheet
 // (e.g. Lookup!A1:A5). A recurring trap is the "shrinking dropdown": as the same validation is
 // applied to more and more rows, the lower rows show progressively fewer options. The cause is
-// relative-reference drift — if the source range is treated as relative to each target cell, the
+// relative-reference drift: if the source range is treated as relative to each target cell, the
 // reference slides downward per row until it points past the end of the source data. The library must
 // not do this: every targeted cell must persist the exact source-range reference it was given, so all
 // cells expose the same complete option list regardless of how many rows are validated. (The writer
-// is free to collapse the identical per-cell rules into a single sqref block — that is an efficiency
+// is free to collapse the identical per-cell rules into a single sqref block: that is an efficiency
 // win, not drift.)
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -19,7 +19,7 @@ export default {
   cluster: 'data-validation',
   description:
     'Applying one list validation with a cross-sheet source range to a vertical span of cells ' +
-    'persists the exact same source reference for every cell — no per-row relative drift — so the ' +
+    'persists the exact same source reference for every cell, no per-row relative drift, so the ' +
     'lowest row references the same full source range as the highest (dropdown options do not shrink ' +
     'with row index).',
 

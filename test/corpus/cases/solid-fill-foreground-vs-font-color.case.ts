@@ -5,7 +5,7 @@
 // color is the pattern foreground (`fgColor`), while `bgColor` is an automatic placeholder
 // (indexed 64). The font color is an entirely separate style facet. A reader must surface the
 // visible fill color on `fill.fgColor`, keep the automatic `bgColor` distinct, and expose the
-// font color independently — never conflating fill and font color.
+// font color independently, never conflating fill and font color.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -17,7 +17,7 @@ export default {
   cluster: 'styles',
   description:
     'A solid-pattern fill exposes its visible color on fill.fgColor with an automatic indexed ' +
-    'bgColor, and the cell font color is surfaced independently on font.color — fill color and ' +
+    'bgColor, and the cell font color is surfaced independently on font.color: fill color and ' +
     'font color are never conflated.',
 
   behavior: [

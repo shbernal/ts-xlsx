@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a user enables an auto filter over a data range and later sorts by it.
 // Sorting only works if the written autoFilter reference is a bounded rectangle that covers the
-// data — both start and end row and column present. A column-only, row-unbounded reference (like
+// data, both start and end row and column present. A column-only, row-unbounded reference (like
 // "A:AZ") makes sorting fail. When a bounded range is applied, the library must emit that exact
 // bounded reference and round-trip it unchanged, and it must stay within the sheet dimension.
 
@@ -37,7 +37,7 @@ export default {
   cluster: 'tables',
   description:
     'An auto filter applied over a bounded data range is emitted as that exact bounded ' +
-    'rectangle (both start and end row and column) and round-trips unchanged — never a ' +
+    'rectangle (both start and end row and column) and round-trips unchanged, never a ' +
     'column-only, row-unbounded reference that breaks sorting.',
 
   behavior: [

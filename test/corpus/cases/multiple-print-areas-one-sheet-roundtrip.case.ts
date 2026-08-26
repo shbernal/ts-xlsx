@@ -2,7 +2,7 @@
 //
 // Real-world scenario: Excel lets a single worksheet declare more than one print area (disjoint
 // blocks that each print on their own page). In the package this is ONE defined name of type
-// _xlnm.Print_Area whose value is a comma-separated list of ranges sharing one localSheetId — e.g.
+// _xlnm.Print_Area whose value is a comma-separated list of ranges sharing one localSheetId, e.g.
 // "Sheet!$A$1:$F$10,Sheet!$A$12:$F$21". A reader that looks only at the first range silently drops
 // the rest, so a two-print-area file comes back with one. Symmetrically, authoring two print areas
 // must emit both back into a single Print_Area name as a comma-separated list; splitting on the
@@ -18,7 +18,7 @@ export default {
   cluster: 'tables',
   description:
     'A worksheet with two disjoint print areas (recorded as one comma-separated _xlnm.Print_Area ' +
-    'defined name) is read back with BOTH ranges and re-emitted with both — not truncated to the ' +
+    'defined name) is read back with BOTH ranges and re-emitted with both, not truncated to the ' +
     'first range on read, nor mangled to a single range on write.',
 
   behavior: [

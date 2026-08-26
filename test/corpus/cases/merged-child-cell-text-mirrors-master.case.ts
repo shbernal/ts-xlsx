@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a horizontal merge (A1:B1) has its value in the master cell (A1); the other
 // cells of the range are merged children. Reading the displayed text of a merged child cell must not
-// throw and must return the same text as the master — a consumer iterating the cells of a merged
+// throw and must return the same text as the master: a consumer iterating the cells of a merged
 // range should see consistent text at every cell, not an exception on the child cells. Locks the
 // merged-child text behavior against the reported throw.
 

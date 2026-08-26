@@ -6,7 +6,7 @@ export default {
   description:
     'Worksheet-name lookup and worksheet-name uniqueness must agree on what counts as the same ' +
     'name. Adding a worksheet rejects a case-variant duplicate (adding "sheet" when "Sheet" ' +
-    'exists throws), but looking one up matches case-sensitively — so a caller who checks ' +
+    'exists throws), but looking one up matches case-sensitively, so a caller who checks ' +
     'getWorksheet("sheet"), sees nothing, and then adds it hits a surprise throw. A name reported ' +
     'absent by lookup must be safely addable; the two APIs cannot disagree on identity.',
   provenance: {source: 'upstream-issue'},

@@ -3,8 +3,8 @@
 // Real-world scenario: spreadsheet editors and export libraries other than Excel frequently produce
 // .xlsx packages that omit the docProps/app.xml part entirely, or ship a minimal one without the
 // extended application properties (company, manager). Opening such a workbook must degrade
-// gracefully — surface whatever core content is present and leave the absent app-properties fields
-// unset — rather than dereferencing an undefined properties object and throwing. Re-saving through
+// gracefully: surface whatever core content is present and leave the absent app-properties fields
+// unset, rather than dereferencing an undefined properties object and throwing. Re-saving through
 // Excel (which injects a full app.xml) happens to sidestep the crash, confirming the missing part is
 // the trigger; the library must read valid foreign-generated files without needing that round-trip.
 //
@@ -21,7 +21,7 @@ export default {
   cluster: 'address-decoding',
   description:
     'Reading an .xlsx package that has no docProps/app.xml part completes without throwing and the ' +
-    'worksheet content is accessible — the absent application-properties are left unset rather than ' +
+    'worksheet content is accessible: the absent application-properties are left unset rather than ' +
     'crashing the load or being fabricated.',
 
   behavior: [

@@ -1,7 +1,7 @@
 // Cluster: formulas
 //
-// Real-world scenario: a caller assigns a cell a shared-formula reference — "use the same
-// formula as this master cell" — but the referenced master was never given a concrete
+// Real-world scenario: a caller assigns a cell a shared-formula reference, "use the same
+// formula as this master cell", but the referenced master was never given a concrete
 // formula, or sits below/right of the clone. Serialization cannot resolve the clone, and
 // must fail with a legible error that *names the offending cell*, not a bare throw from
 // deep in the writer. The always-safe alternative is to assign each cell the same concrete

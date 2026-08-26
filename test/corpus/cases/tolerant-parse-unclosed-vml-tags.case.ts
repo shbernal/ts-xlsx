@@ -1,7 +1,7 @@
 // Cluster: xlsx-io
 //
 // Real-world scenario: a workbook's legacy VML drawing part (used for comments/controls) contains
-// unclosed break-style tags — HTML-ish <br> without a closing form — as some foreign generators
+// unclosed break-style tags, HTML-ish <br> without a closing form, as some foreign generators
 // emit. A strict XML parser aborts the entire load with an "unexpected close tag" error, so the
 // whole workbook is unreadable because of a malformed auxiliary part. A malformed legacy
 // VML/drawing part must not abort parsing of the rest of the package: the worksheet and cell data
@@ -17,7 +17,7 @@ export default {
   cluster: 'xlsx-io',
   description:
     'A workbook whose legacy VML drawing part contains unclosed break-style tags loads without ' +
-    'throwing an "unexpected close tag" error — a malformed auxiliary part does not abort parsing ' +
+    'throwing an "unexpected close tag" error: a malformed auxiliary part does not abort parsing ' +
     'of the worksheet and cell data.',
 
   behavior: [

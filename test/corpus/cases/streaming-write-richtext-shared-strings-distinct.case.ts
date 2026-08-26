@@ -3,7 +3,7 @@
 // Real-world scenario: streaming a workbook to disk with shared strings enabled, several
 // cells each hold a *distinct* rich-text value (different runs, different formatting). Each
 // cell must serialize to its own shared-string entry and read back as its own rich text.
-// With shared strings enabled today, every rich-text cell collapses onto the first one —
+// With shared strings enabled today, every rich-text cell collapses onto the first one,
 // all cells end up displaying the first cell's text and formatting. With shared strings
 // disabled the text is distinct and run formatting is retained; that path is the control.
 
@@ -22,7 +22,7 @@ export default {
   cluster: 'streaming',
   description:
     'Streaming a workbook with shared strings enabled, two cells with distinct rich-text ' +
-    'values read back as their own distinct rich text — they must not be deduplicated onto ' +
+    'values read back as their own distinct rich text: they must not be deduplicated onto ' +
     'the first cell’s value.',
 
   behavior: [

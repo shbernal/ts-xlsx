@@ -28,7 +28,7 @@ export const tables = {
     return {found: false, columns: null, rowCount: null};
   },
 
-  // Load a fixture and report a named table's column count and names — used to prove a table with a
+  // Load a fixture and report a named table's column count and names, used to prove a table with a
   // calculated column (a <calculatedColumnFormula> child the reader ignores) does not truncate the
   // column list or crash the read.
   loadFixtureTableColumns(rel: string, tableName: string) {
@@ -57,7 +57,7 @@ export const tables = {
   },
 
   // Build a table-bearing spec, report the full ref written into each table part, then read the
-  // package back and re-write it, reporting the ref and well-formedness of each re-emitted part — so
+  // package back and re-write it, reporting the ref and well-formedness of each re-emitted part, so
   // a degenerate (empty-body or single-row) table is proven to survive a load→save round-trip.
   roundtripSpecTableFacts(spec: Untyped) {
     const tableFacts = (parts: PartMap) =>
@@ -83,7 +83,7 @@ export const tables = {
     return {write, roundtrip, loadOk, loadError};
   },
 
-  // Author a five-column table, round-trip it, and report the loaded column count and names — the
+  // Author a five-column table, round-trip it, and report the loaded column count and names: the
   // reader must expose every column in order, not truncate to a fixed cap.
   wideTableColumnReadReport() {
     const wb = new Workbook();
@@ -99,7 +99,7 @@ export const tables = {
 
   // Add a table and a list validation to each of five sheets, then report that the package writes
   // with unique table part ids, reloads with every table present, and keeps the first sheet's
-  // validation — the loop over many sheets must not collide table ids or strip validations.
+  // validation: the loop over many sheets must not collide table ids or strip validations.
   multiSheetTableReport() {
     const wb = new Workbook();
     for (let i = 1; i <= 5; i++) {
@@ -146,8 +146,8 @@ export const tables = {
     return {writeOk, writeError, reloadOk, tableCount, idsUnique, firstSheetDvSurvives};
   },
 
-  // Write three tables — one with a real built-in style name, one with no style, one with the
-  // sentinel theme "None" — and report the tableStyleInfo name attribute (or null when absent) each
+  // Write three tables, one with a real built-in style name, one with no style, one with the
+  // sentinel theme "None", and report the tableStyleInfo name attribute (or null when absent) each
   // emits, plus whether the "None" table kept its showRowStripes flag. Theme "None" must mean an
   // unstyled table (no name attribute), not a bogus name="None" referencing a non-existent style.
   tableStyleThemeReport() {
@@ -176,7 +176,7 @@ export const tables = {
     };
     return {
       real: styleInfoOf({name: 'TableStyleMedium2'}),
-      // An explicit style object with no name is OOXML's "unstyled" — distinct from omitting the
+      // An explicit style object with no name is OOXML's "unstyled", distinct from omitting the
       // style entirely, which a freshly-authored table fills with Excel's default (TableStyleMedium2).
       nullTheme: styleInfoOf({}),
       none: styleInfoOf({name: 'None', showRowStripes: true}),
@@ -315,7 +315,7 @@ export const tables = {
   },
 
   // Author a table over A1:B3, populate its cells, load the package, edit a body cell (B2 → 999),
-  // and re-write — reporting that both writes and the reload succeed, the table part and its unique
+  // and re-write, reporting that both writes and the reload succeed, the table part and its unique
   // worksheet relationship survive, and the edited value reads back. Editing a cell inside a table's
   // range must not truncate or corrupt the table part or its rels.
   tableCellEditRoundtrip() {
@@ -440,7 +440,7 @@ export const tables = {
   },
 
   // Author a table whose display name differs from its internal name, then report the displayName
-  // written into the table part and the internal/display names read back from the reloaded model —
+  // written into the table part and the internal/display names read back from the reloaded model:
   // a serializer that mis-keys the property drops the display name to the internal default.
   tableDisplayNameReport(display: string) {
     const wb = new Workbook();

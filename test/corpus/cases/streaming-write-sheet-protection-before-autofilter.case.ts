@@ -4,7 +4,7 @@
 // over its header range and sheet protection. OOXML's CT_Worksheet sequence requires the
 // <sheetProtection> element to appear before <autoFilter>; emitting them reversed makes strict
 // consumers (Excel) treat the file as corrupt. The buffered writer orders them correctly, so this
-// isolates the streaming path's sibling-element ordering — the same class as the streaming
+// isolates the streaming path's sibling-element ordering: the same class as the streaming
 // conditionalFormatting/dataValidations-before-hyperlinks defects.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

@@ -17,7 +17,7 @@ export default {
   description:
     'Inserting a row above a table and an anchored image shifts both the table’s cell range and the ' +
     'image’s anchor down by the inserted rows, and authoring a table with duplicate column names ' +
-    'disambiguates them into a unique set — so a template fill does not strand refs at stale ' +
+    'disambiguates them into a unique set, so a template fill does not strand refs at stale ' +
     'coordinates or emit an invalid table with colliding column names.',
 
   behavior: [

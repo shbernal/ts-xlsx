@@ -1,7 +1,7 @@
 // Cluster: conditional-formatting
 //
 // Real-world scenario: a user applies a single conditional-formatting rule (e.g. a colorScale) to
-// several non-contiguous blocks at once — rows 1, 3, and 5 of a grid — so the scale is computed
+// several non-contiguous blocks at once, rows 1, 3, and 5 of a grid, so the scale is computed
 // across the union of all those cells. In OOXML this is one conditionalFormatting element whose
 // sqref lists multiple space-separated areas ("A1:C1 A3:C3 A5:C5"), exactly what Excel produces when
 // you select multiple ranges and apply one rule. Supplying the multiple areas in one ref must emit

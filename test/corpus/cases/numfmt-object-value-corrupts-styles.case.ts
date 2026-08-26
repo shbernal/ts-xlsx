@@ -3,7 +3,7 @@
 // Real-world scenario: a caller sets a cell's number format from a structured object (an object
 // carrying an id and a format-code field, e.g. copied from another cell's parsed numFmt) instead of a
 // plain format-code string. The writer must not blindly stringify that object into the styles part's
-// formatCode attribute — doing so emits formatCode="[object Object]", a malformed number format that
+// formatCode attribute: doing so emits formatCode="[object Object]", a malformed number format that
 // Excel reports as a corrupt package on open. A legitimately-set format-code STRING, meanwhile, must
 // survive a write even when the cell also carries alignment, font, and protection styling.
 

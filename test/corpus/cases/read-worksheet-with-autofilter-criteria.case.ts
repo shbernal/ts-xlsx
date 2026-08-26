@@ -1,12 +1,12 @@
 // Cluster: tables
 //
 // Real-world scenario: a spreadsheet application saves a worksheet whose column auto-filter has
-// actual *criteria* applied — not just the outer filter range, but concrete selections. In OOXML
+// actual *criteria* applied: not just the outer filter range, but concrete selections. In OOXML
 // these live inside the `<autoFilter>` element as `<filterColumn>` children holding either a
 // `<filters>` list of `<filter val="…"/>` values (a value selection) or a `<customFilters>` block
 // of `<customFilter operator="…" val="…"/>` comparisons (a "greater than N" style rule). A reader
-// that understood only the outer range historically threw on these children — "Unexpected xml node
-// in parseOpen: filter" / "parseClose: customFilters" — making the entire workbook unreadable.
+// that understood only the outer range historically threw on these children, "Unexpected xml node
+// in parseOpen: filter" / "parseClose: customFilters", making the entire workbook unreadable.
 //
 // The filter criteria are metadata about which rows are hidden; a robust reader must at minimum
 // tolerate them and still surface every cell, through both the buffered and the streaming path.
@@ -22,8 +22,8 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'tables',
   description:
-    'Reading a worksheet whose autoFilter carries filter criteria — a value list (filters/filter) ' +
-    'and a custom comparison (customFilters/customFilter) — must not throw, and every cell must ' +
+    'Reading a worksheet whose autoFilter carries filter criteria, a value list (filters/filter) ' +
+    'and a custom comparison (customFilters/customFilter), must not throw, and every cell must ' +
     'remain accessible, via both the buffered and the streaming reader.',
 
   behavior: [

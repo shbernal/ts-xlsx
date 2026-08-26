@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a cell holds rich text made of multiple runs where the very first run carries
 // character formatting (e.g. an underlined leading word) and the rest is plain. On read-back the
-// leading run's formatting must survive — a run's position within the cell text must not decide
+// leading run's formatting must survive: a run's position within the cell text must not decide
 // whether its formatting is preserved. This locks that formatting on a leading run is read back
 // identically to the same formatting on a later run.
 
@@ -15,7 +15,7 @@ export default {
   cluster: 'styles',
   description:
     'Character formatting on the leading run of a rich-text cell survives a round-trip, identically ' +
-    'to the same formatting on a non-leading run — run position does not affect formatting survival.',
+    'to the same formatting on a non-leading run: run position does not affect formatting survival.',
 
   behavior: [
     {

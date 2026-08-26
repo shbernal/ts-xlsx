@@ -1,6 +1,6 @@
 // Cluster: styles
 //
-// Real-world scenario: a workbook carries a branded theme — a custom <clrScheme> and <fontScheme> in
+// Real-world scenario: a workbook carries a branded theme, a custom <clrScheme> and <fontScheme> in
 // the theme part. That part is what every `theme="n"` colour reference and every
 // `scheme="major|minor"` font in the file resolves against, so a no-op round-trip that replaces it
 // with the default Office theme leaves the cells untouched yet silently re-renders the whole
@@ -8,11 +8,11 @@
 // survive a read→write unchanged.
 //
 // Two traps ride along. The part is reached through the workbook's `.../theme` relationship, whose
-// target is rel-relative — `theme1.xml` is a convention, not a rule, so one fixture names it
+// target is rel-relative: `theme1.xml` is a convention, not a rule, so one fixture names it
 // `theme2.xml`. And a theme can carry relationships of its own: a picture used as a themed fill is
 // wired by an `r:embed` into the theme's rels part. Re-emitting the theme body without that closure
-// is worse than dropping the theme — it leaves a dangling reference, which Excel reports as a
-// package needing repair — so the closure travels with it.
+// is worse than dropping the theme: it leaves a dangling reference, which Excel reports as a
+// package needing repair, so the closure travels with it.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -24,7 +24,7 @@ export default {
   provenance: {source: 'round-trip-fidelity-audit'},
   cluster: 'styles',
   description:
-    'A workbook’s theme part — its colour scheme and font scheme, plus any parts it references — ' +
+    'A workbook’s theme part, its colour scheme and font scheme, plus any parts it references, ' +
     'survives a no-op round-trip, instead of being overwritten by the default Office theme and ' +
     'silently re-rendering every themed colour and font in the file.',
 
@@ -83,7 +83,7 @@ export default {
       async expect(api: CorpusApi, assert: Assert) {
         // The relationship target is rel-relative: the conventional `theme1.xml` is a convention,
         // not a rule. The reader must follow the relationship, and the writer must re-emit the part
-        // at whatever path its own regenerated theme relationship names — a theme written anywhere
+        // at whatever path its own regenerated theme relationship names: a theme written anywhere
         // else leaves that relationship, and the content-type override, pointing at nothing.
         const {source, rewritten} = await api.roundtripFixtureThemeFacts(BRANDED);
         assert.strictEqual(

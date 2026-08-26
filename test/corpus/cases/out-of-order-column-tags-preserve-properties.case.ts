@@ -2,7 +2,7 @@
 //
 // Real-world scenario: some foreign generators (excelize, jxls-poi) emit a worksheet's <col> entries
 // in non-ascending document order rather than sorted by column index. A reader that assumes ascending
-// order can mis-associate widths, hidden flags, and styles with the wrong columns — or lose them. The
+// order can mis-associate widths, hidden flags, and styles with the wrong columns, or lose them. The
 // reader must bind each <col> entry's properties to the column its min/max range names, regardless of
 // the order the entries appear in the document. Locks foreign-generator tolerance for out-of-order
 // column tags.

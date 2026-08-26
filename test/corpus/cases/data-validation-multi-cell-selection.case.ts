@@ -4,7 +4,7 @@
 // Validation, and applies one rule (e.g. "whole number between 0 and 9"). Excel stores
 // that as a single validation whose `sqref` covers the whole selected range rather than
 // one entry per cell. When the file is read back, every cell in that range must report
-// the validation — a program that inspects one cell of the block to learn its rule must
+// the validation: a program that inspects one cell of the block to learn its rule must
 // not find the rule missing just because it was authored across a multi-cell selection.
 //
 // Fixture `book.xlsx` was authored in Excel: A1:A3 share a "whole between 0 and 9"
@@ -20,7 +20,7 @@ export default {
   cluster: 'core-model',
   description:
     'A data validation applied in Excel to a multi-cell selection is read back on every ' +
-    'cell of the selected range, not only on the first — the range-form (sqref spanning ' +
+    'cell of the selected range, not only on the first: the range-form (sqref spanning ' +
     'multiple cells) is expanded per cell on read.',
 
   behavior: [

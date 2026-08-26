@@ -1,7 +1,7 @@
 // Cluster: styles
 //
-// Real-world scenario: a user styles a single cell — e.g. sets `A1.font = { bold:
-// true }` to emphasize one heading — and expects only that cell to change. A
+// Real-world scenario: a user styles a single cell, e.g. sets `A1.font = { bold:
+// true }` to emphasize one heading, and expects only that cell to change. A
 // regression in the legacy style engine (an "always keep the first font" change)
 // caused a per-cell font assignment to bleed across the ENTIRE worksheet: every
 // untouched cell reported the same font as the one cell that was set. Setting a

@@ -20,7 +20,7 @@ export default {
   cluster: 'types',
   description:
     'A cell styled with a locale-specific built-in date number-format id (e.g. 57 or 31) resolves ' +
-    'to a non-empty date format code and reads as a date, not a bare number — the built-in numFmt ' +
+    'to a non-empty date format code and reads as a date, not a bare number: the built-in numFmt ' +
     'table must cover the 27..58 locale-specific date ids, not only the Western ids.',
 
   behavior: [

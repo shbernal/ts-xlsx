@@ -1,7 +1,7 @@
 // Cluster: tables
 //
 // Real-world scenario: a worksheet defines a table with more than three columns. On load, every
-// declared column must be exposed with its correct header name — the column collection length equals
+// declared column must be exposed with its correct header name: the column collection length equals
 // the number of columns in the table definition, not a fixed cap. A historical defect truncated a
 // loaded table's columns to three; this locks the full-width read as a regression guard. (A loaded
 // table also exposing its data rows is covered separately by loaded-table-exposes-data-rows.)
@@ -14,7 +14,7 @@ export default {
   cluster: 'tables',
   description:
     'A table with five columns, written and read back, exposes all five columns with their correct ' +
-    'header names in order — not truncated to a fixed cap of three.',
+    'header names in order, not truncated to a fixed cap of three.',
 
   behavior: [
     {

@@ -1,21 +1,21 @@
 // Cluster: tables
 //
 // Real-world scenario: a table's totals row carries a column whose aggregate is not a built-in
-// (sum/count/…) but an arbitrary formula the user typed — Excel records it as totalsRowFunction="custom"
+// (sum/count/…) but an arbitrary formula the user typed: Excel records it as totalsRowFunction="custom"
 // with a <totalsRowFormula> child holding the formula text (no leading "="). A library that models only
 // the built-in functions drops that child on read and re-emits a bare totalsRowFunction="custom" with no
 // formula: the file still validates (the child is optional in the schema) but the user's custom total is
 // silently lost, and Excel shows a blank/zero in that cell on reopen.
 //
 // So the library round-trips <totalsRowFormula> verbatim and materializes it into the totals cell as the
-// cell's own formula — the same treatment a built-in aggregate gets, minus the SUBTOTAL synthesis. The
+// cell's own formula: the same treatment a built-in aggregate gets, minus the SUBTOTAL synthesis. The
 // formula caches no result (the library is not a calc engine; Excel computes it on open). A custom column
 // with no stored formula has nothing to write and stays blank, exactly as it did before.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
 // Header row 1, data rows 2–3, totals row 4. Column A labelled "Total"; column B is a custom total whose
-// formula grosses the SUM up by 10% — a formula Excel cannot express as any built-in SUBTOTAL code.
+// formula grosses the SUM up by 10%, a formula Excel cannot express as any built-in SUBTOTAL code.
 const CUSTOM_TOTAL = {
   sheets: [
     {
@@ -40,7 +40,7 @@ const CUSTOM_TOTAL = {
 };
 
 // A custom column that carries no <totalsRowFormula> (function set to "custom" with nothing behind it)
-// has nothing to materialize and must stay blank — the pre-existing behaviour for a formula-less column.
+// has nothing to materialize and must stay blank: the pre-existing behaviour for a formula-less column.
 // Totals row is row 3 (header 1, data 2, totals 3), columns A/B.
 const CUSTOM_WITHOUT_FORMULA = {
   sheets: [

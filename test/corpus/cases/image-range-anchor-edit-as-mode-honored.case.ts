@@ -21,8 +21,8 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'images',
   description:
-    'A range-anchored image honors the caller’s explicit anchor-edit mode — twoCell (move+resize), ' +
-    'oneCell (move only), or absolute (neither) — emitting the requested editAs in the drawing XML.',
+    'A range-anchored image honors the caller’s explicit anchor-edit mode: twoCell (move+resize), ' +
+    'oneCell (move only), or absolute (neither), emitting the requested editAs in the drawing XML.',
 
   behavior: [
     {
@@ -60,7 +60,7 @@ export default {
     },
     {
       // With no explicit mode (omitted, or passed as undefined) the anchor must resolve to a stable
-      // default — oneCell (move-but-don't-resize), in the singular OpenXML spelling — never absolute,
+      // default: oneCell (move-but-don't-resize), in the singular OpenXML spelling, never absolute,
       // an error, or a literal "undefined". This pins the semantics an inconsistent doc left ambiguous.
       name: 'an image with no explicit editAs defaults to editAs="oneCell"',
       async expect(api: CorpusApi, assert: Assert) {

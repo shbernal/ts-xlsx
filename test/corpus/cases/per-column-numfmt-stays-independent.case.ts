@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: a user writes numeric data across several columns and applies a distinct
-// number format to each — percentage on two columns, currency on another. After saving, every column
+// number format to each: percentage on two columns, currency on another. After saving, every column
 // must keep its own format. The reported failure was that all columns collapsed to whichever format
 // was assigned last, because cells/columns that started from the same default style shared one style
 // object, so mutating numFmt through one handle leaked to its siblings. The user-facing expectation
@@ -36,7 +36,7 @@ export default {
   cluster: 'styles',
   description:
     'Assigning distinct number formats to different columns keeps each format independent after a ' +
-    'round-trip — setting a format on one column does not leak to the others through a shared style ' +
+    'round-trip: setting a format on one column does not leak to the others through a shared style ' +
     'object.',
 
   behavior: [

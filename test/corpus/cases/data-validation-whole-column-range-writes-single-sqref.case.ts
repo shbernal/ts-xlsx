@@ -1,6 +1,6 @@
 // Cluster: validations
 //
-// Real-world scenario: a user attaches one data validation — a list/dropdown — to an entire column
+// Real-world scenario: a user attaches one data validation, a list/dropdown, to an entire column
 // (e.g. B2 down to the last row) rather than assigning it cell by cell. Writing must succeed and
 // emit exactly one `dataValidation` whose `sqref` is the requested range, not one entry per covered
 // cell (which would balloon the file and the parse). The whole-column form is the natural,

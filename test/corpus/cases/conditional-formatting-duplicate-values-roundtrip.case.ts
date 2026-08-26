@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a workbook has a conditional-formatting rule of type "duplicateValues" over
 // a column range, referencing a differential format (dxfId) at a given priority. Read the file and
-// write it straight back and the rule is dropped — the emitted worksheet loses the cfRule (the
+// write it straight back and the rule is dropped: the emitted worksheet loses the cfRule (the
 // whole conditionalFormatting block vanishes, or is reduced to an empty shell). Excel then reports
 // the file as damaged and discards the formatting on repair. Even a rule type the library does not
 // otherwise interpret must be preserved across a round-trip for input/output fidelity. This is one
@@ -19,7 +19,7 @@ export default {
   cluster: 'styles',
   description:
     'A "duplicateValues" conditional-formatting rule (with its dxfId and priority) survives a ' +
-    'read/write round-trip — the writer must not drop the cfRule or emit an empty ' +
+    'read/write round-trip: the writer must not drop the cfRule or emit an empty ' +
     'conditionalFormatting shell, which corrupts the file.',
 
   behavior: [

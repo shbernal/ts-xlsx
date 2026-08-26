@@ -1,15 +1,15 @@
 // Cluster: images
 //
 // Real-world scenario: to place a picture at a precise sub-cell position, a caller anchors
-// it with a *fractional* cell coordinate — `tl.col = 3.5` meaning "halfway across the
+// it with a *fractional* cell coordinate, `tl.col = 3.5` meaning "halfway across the
 // fourth column". The library must translate that fraction into an OOXML sub-cell offset
 // (`<xdr:colOff>` in EMU) computed against the *actual* width of that column. If the
 // column is wide, halfway across it is a large offset; if narrow, a small one.
 //
 // The bug: the offset is computed from an ad-hoc width→EMU factor that does not match a
 // column's real geometry, and default-width columns use a fixed constant. The result is
-// that a *wider* custom column can yield a *smaller* half-way offset than a default column
-// — the picture lands in the wrong place, and worse the wrong way round. A whole-integer
+// that a *wider* custom column can yield a *smaller* half-way offset than a default column.
+// The picture lands in the wrong place, and worse the wrong way round. A whole-integer
 // anchor (no fraction) has always sat exactly on the cell boundary and must keep doing so.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

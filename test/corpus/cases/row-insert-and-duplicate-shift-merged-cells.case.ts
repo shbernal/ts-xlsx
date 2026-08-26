@@ -1,7 +1,7 @@
 // Cluster: tables
 //
 // Real-world scenario: a worksheet has a merged range, and the author edits rows through the
-// row-level API — inserting a row above the merge, or duplicating a row — rather than through the
+// row-level API, inserting a row above the merge, or duplicating a row, rather than through the
 // splice API. Just like a splice, these edits move cell data; the merged range must move with it.
 // The bug: insertRow and duplicateRow shift the cells but leave the merge record stranded at its
 // original indices, so the range silently ends up covering the wrong cells (or a duplicated row is
@@ -50,7 +50,7 @@ export default {
             {ref: 'A1', value: 'a'},
             {ref: 'A3', value: 'banner'},
           ],
-          // duplicate row 1 twice, inserting — this pushes the A3:C3 merge down to A5:C5.
+          // duplicate row 1 twice, inserting: this pushes the A3:C3 merge down to A5:C5.
           ops: [
             {op: 'mergeCells', range: 'A3:C3'},
             {op: 'duplicateRow', start: 1, count: 2, insert: true},

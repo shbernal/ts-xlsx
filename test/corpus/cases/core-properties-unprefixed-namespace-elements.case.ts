@@ -6,7 +6,7 @@
 // like lastModifiedBy and lastPrinted then appear UNPREFIXED (<lastModifiedBy>) instead of as
 // <cp:lastModifiedBy>, while created/creator keep their own dc/dcterms prefixes. A reader that
 // matches core-property elements by literal prefixed tag name treats the unprefixed spelling as an
-// unexpected node and throws while parsing — so an otherwise valid workbook fails to open at all.
+// unexpected node and throws while parsing, so an otherwise valid workbook fails to open at all.
 // Core properties must be matched by namespace + local name, so the prefixed and default-namespace
 // spellings are read identically.
 //
@@ -25,7 +25,7 @@ export default {
   description:
     'A workbook whose docProps/core.xml declares the core-properties namespace as the default xmlns ' +
     '(so lastModifiedBy / lastPrinted are unprefixed) loads without throwing, and its lastModifiedBy ' +
-    'value is read — core properties are matched by namespace and local name, not literal prefix.',
+    'value is read: core properties are matched by namespace and local name, not literal prefix.',
 
   behavior: [
     {

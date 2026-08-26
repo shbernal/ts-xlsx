@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a caller uses the streaming workbook writer to produce a spreadsheet directly
 // to a file destination, then awaits commit() to finalize the archive. If the destination cannot be
-// opened for writing — an invalid path, or one exceeding the OS filename length limit — the underlying
+// opened for writing, an invalid path, or one exceeding the OS filename length limit, the underlying
 // write stream errors. The commit promise must reject with that I/O error, not hang forever leaving
 // the caller awaiting a promise that never settles. A commit to a valid destination still resolves.
 

@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a spreadsheet is written so several cells reference the same style index (the
 // on-disk format deduplicates identical formatting into one shared style record). After the workbook
-// is loaded, each cell exposes a `style` object — but because those cells resolved to the same index,
+// is loaded, each cell exposes a `style` object, but because those cells resolved to the same index,
 // the reader hands them all the *same* in-memory style object rather than independent copies. So
 // mutating one loaded cell's style (setting a fill, font, alignment, or number format) silently
 // bleeds into every other cell that happened to share that style index on disk, potentially across
@@ -16,7 +16,7 @@ export default {
   cluster: 'styles',
   description:
     'Cells that shared a style index on disk must expose independent style objects once loaded, so ' +
-    "mutating one cell's fill leaves sibling cells untouched — both in memory and after write-back.",
+    "mutating one cell's fill leaves sibling cells untouched, both in memory and after write-back.",
 
   behavior: [
     {
@@ -43,7 +43,7 @@ export default {
       },
     },
     {
-      // The same aliasing reached through the idiomatic "tweak one property" path — spreading the
+      // The same aliasing reached through the idiomatic "tweak one property" path: spreading the
       // existing font onto a fresh literal and overriding one member (cell.font = {...cell.font,
       // color}). Even building a new object must not carry the shared record's identity into the
       // sibling.

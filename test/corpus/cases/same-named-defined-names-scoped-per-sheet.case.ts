@@ -1,7 +1,7 @@
 // Cluster: defined-names
 //
 // Real-world scenario: a workbook has two defined names that share the same name but are scoped
-// to different sheets (each `<definedName>` carries a distinct `localSheetId`) — a common Excel
+// to different sheets (each `<definedName>` carries a distinct `localSheetId`), a common Excel
 // pattern where "namedrange" means one range on Page1 and a different range on Page2. Today the
 // reader keys defined names by name alone, so the two collide on load and only the last one
 // survives; the first sheet's scoped range is lost. Same-named, differently-scoped defined names
@@ -16,8 +16,8 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 1497},
   cluster: 'defined-names',
   description:
-    'Two defined names sharing a name but scoped to different sheets are both retained on load ' +
-    '— each keeps its own sheet-scoped range instead of colliding so that only the last survives.',
+    'Two defined names sharing a name but scoped to different sheets are both retained on load: ' +
+    'each keeps its own sheet-scoped range instead of colliding so that only the last survives.',
 
   behavior: [
     {

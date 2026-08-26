@@ -1,7 +1,7 @@
 // Cluster: images
 //
 // Real-world scenario: a user adds an image and supplies the file extension as the raw result of a
-// path-extension helper — ".png" (with a leading dot) rather than "png". The media part is then
+// path-extension helper, ".png" (with a leading dot) rather than "png". The media part is then
 // written with a doubled separator in its filename ("xl/media/image1..png"), and on read the
 // media-matching logic (which assumes a single well-formed extension) fails to recognize the
 // doubled-dot part, so getImages() comes back empty and the picture is lost. A leading-dot extension
@@ -17,7 +17,7 @@ export default {
   description:
     'An image added with a leading-dot extension (".png") produces a well-formed media filename (no ' +
     'doubled separator) and survives a write/read round-trip so the worksheet still reports one ' +
-    'image — behaving identically to a dot-less extension.',
+    'image, behaving identically to a dot-less extension.',
 
   behavior: [
     {

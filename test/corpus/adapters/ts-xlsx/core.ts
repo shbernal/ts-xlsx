@@ -28,9 +28,9 @@ import {
 import {buildReadInput, classifyReadError, type ReadInputKind} from './xml-probes.ts';
 
 export const core = {
-  // Classify a reader input by format family and report the typed error (or success) it produces —
-  // `{threw, errorName, code, format, message, leaksZipInternals, leaksAbsolutePath}` — for asserting a
-  // non-`.xlsx` blob fails with a clear, catchable, typed error rather than a raw zip crash.
+  // Classify a reader input by format family and report the typed error (or success) it produces:
+  // `{threw, errorName, code, format, message, leaksZipInternals, leaksAbsolutePath}`. A
+  // non-`.xlsx` blob must fail with a clear, catchable, typed error rather than a raw zip crash.
   classifyReadInput(kind: ReadInputKind) {
     return classifyReadError(() => {
       readXlsx(buildReadInput(kind));
@@ -51,7 +51,7 @@ export const core = {
 
   // Same package facts as `inspectPackage`, but after a full write→read→write cycle: the spec is
   // written, loaded back into a fresh model, and re-emitted. Lets a case assert that content the
-  // writer materializes (e.g. a table's totals row) survives a round-trip unchanged — neither dropped
+  // writer materializes (e.g. a table's totals row) survives a round-trip unchanged, neither dropped
   // on read nor duplicated/clobbered when the reloaded model is written again.
   roundtripInspectPackage(spec: Untyped) {
     return packageFacts(spec, partMapOf(writeXlsx(readXlsx(writeXlsx(buildFrom(spec))))));
@@ -149,8 +149,8 @@ export const core = {
   },
 
   // Read a fixture, write it back unchanged, and report package-part facts before/after →
-  // { source, rewritten } — for asserting a no-op round-trip PRESERVES parts the reader does not
-  // model (a vector-shape drawing, a header/footer image and its VML) instead of dropping them.
+  // { source, rewritten }. Use it to assert a no-op round-trip PRESERVES parts the reader does
+  // not model (a vector-shape drawing, a header/footer image and its VML) instead of dropping them.
   roundtripFixturePackageParts(rel: string) {
     const source = packagePartFacts(partMapOf(fixtureBytes(rel)));
     const rewritten = packagePartFacts(partMapOf(writeXlsx(readXlsx(fixtureBytes(rel)))));
@@ -174,9 +174,9 @@ export const core = {
     return {hasNonFiniteToken: /<v>[^<]*(NaN|Infinity)[^<]*<\/v>/.test(sheetXml), token};
   },
 
-  // Author a string that XML 1.0 cannot carry verbatim — a C0 control, a noncharacter, a lone
-  // surrogate — into cell text, a cached string formula result, or a sheet name, and report what the
-  // writer did → { writeOk, writeError, partsWithRawChar, emittedText }. Cell values have the
+  // Author into cell text, a cached string formula result, or a sheet name a string that XML 1.0
+  // cannot carry verbatim, meaning a C0 control, a noncharacter or a lone surrogate, and report what
+  // the writer did → { writeOk, writeError, partsWithRawChar, emittedText }. Cell values have the
   // SpreadsheetML `_xHHHH_` convention and must use it; a sheet name has none, so a refusal is the
   // only honest outcome there. Neither may put the raw character into an emitted part, which would
   // make the package malformed XML. `readValue` closes the loop: reading the package back must give
@@ -340,8 +340,8 @@ export const core = {
 
   // Author a workbook whose sheets carry each visibility state (a valid workbook keeps one visible),
   // then report the state read back after a round-trip and the state attribute the workbook.xml
-  // sheet-list entry carries → { readStates, xmlStates }, each keyed by sheet name. veryHidden — a
-  // format-only state — must survive both as the model state and as the sheet-list attribute, never
+  // sheet-list entry carries → { readStates, xmlStates }, each keyed by sheet name. veryHidden, a
+  // format-only state, must survive both as the model state and as the sheet-list attribute, never
   // degrading to hidden or visible.
   worksheetStateReport() {
     const wb = new Workbook();
@@ -364,7 +364,7 @@ export const core = {
 
   // Read a fixture and report its defined names as { <name>: [refersTo…] }, mirroring the oracle.
   // The model retains every name as its own entry rather than keying by name, so two same-named
-  // names scoped to different sheets both survive — the scope collision that drops one on the
+  // names scoped to different sheets both survive: the scope collision that drops one on the
   // oracle's name-keyed reader.
   readFixtureDefinedNames(rel: string) {
     const wb = readFixture(rel);
@@ -380,7 +380,7 @@ export const core = {
   // Read a real fixture `.xlsx` and report the fill and font colour the reader surfaces for each
   // requested `<sheet>!<address>` cell → { [key]: { fill, fontColor } | null }. Mirrors the oracle:
   // a solid-pattern fill's visible colour lives on fgColor while bgColor is the automatic indexed
-  // placeholder, and the font colour is a wholly separate facet — the two are never conflated.
+  // placeholder, and the font colour is a wholly separate facet; the two are never conflated.
   // Read a real fixture `.xlsx` and report each requested cell's observable type, value, number
   // format, and note → { <addr>: {type, value, numFmt, note} | null }, on the first sheet. Mirrors
   // the oracle: a date-formatted numeric serial surfaces as a Date (value { date: iso }), not a raw
@@ -438,7 +438,7 @@ export const core = {
       for (const sheet of wb.worksheets) {
         const cols: Record<string, Untyped> = {};
         for (const {index, properties} of sheet.columns()) {
-          // `properties` is absent for a column carrying no formatting record at all — `columns()`
+          // `properties` is absent for a column carrying no formatting record at all. `columns()`
           // yields those too, and reading `.width` straight off it would throw rather than report.
           if (properties?.width !== undefined)
             cols[index] = {width: properties.width, customWidth: true};
@@ -456,7 +456,7 @@ export const core = {
       for (const {cells} of sheet.rows()) {
         for (const cell of cells) {
           // Resolve both sides through getCell so a merged-range slave redirects to its master on
-          // each — comparing the row-iterated slave (its own style) against getCell (the master) would
+          // each: comparing the row-iterated slave (its own style) against getCell (the master) would
           // report a phantom drift that is only an access asymmetry, not a lost style.
           const beforeCell = sheet.getCell(cell.address);
           if (!hasStyle(beforeCell)) continue;
@@ -545,8 +545,8 @@ export const core = {
     };
   },
 
-  // Load a fixture and try to write it back → { loadOk, loadError, writeOk, writeError, sheetNames } —
-  // for asserting a foreign construct round-trips without the writer crashing.
+  // Load a fixture and try to write it back → { loadOk, loadError, writeOk, writeError,
+  // sheetNames }. Use it to assert a foreign construct round-trips without the writer crashing.
   roundtripFixtureWriteReport(rel: string) {
     let workbook: WorkbookInstance;
     try {
@@ -634,8 +634,8 @@ export const core = {
     const readCells: Record<string, Untyped> = {};
     for (const ref of read) readCells[ref] = sheet.getCell(ref).value ?? null;
 
-    // Per-cell style facets after the mutations — for asserting the style a cell carried before a
-    // splice still describes the (possibly shifted) cell afterward, rather than being lost.
+    // Per-cell style facets after the mutations. The style a cell carried before a splice must
+    // still describe the (possibly shifted) cell afterward, rather than being lost.
     const styles: Record<string, Untyped> = {};
     for (const ref of readStyles) {
       const cell = sheet.getCell(ref);
@@ -648,7 +648,7 @@ export const core = {
     }
 
     // The last POPULATED row and its column-1 value, derived from the row iterator (ascending, so
-    // the final populated row wins) — a delete-splice must leave this on the true last row, never a
+    // the final populated row wins); a delete-splice must leave this on the true last row, never a
     // trailing empty slot.
     let lastRow = null;
     for (const {number, cells: rowCells} of sheet.rows()) {

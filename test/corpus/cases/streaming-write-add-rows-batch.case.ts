@@ -2,7 +2,7 @@
 //
 // Real-world scenario: streaming a worksheet to disk, a producer wants to append a batch
 // of rows in one call instead of looping row-by-row. The batch add must behave like adding
-// each row individually — same values, same sequential row numbers — and must not commit or
+// each row individually, same values, same sequential row numbers, and must not commit or
 // lock the sheet, so more rows can still be added after. In the streaming writer this batch
 // convenience is declared in the types but absent at runtime, so the call throws
 // "addRows is not a function". The single-row add is the working control.

@@ -1,7 +1,7 @@
 // Cluster: address-decoding
 //
 // Real-world scenario: the `r` position attribute on <row> and <c> elements is optional in
-// SpreadsheetML — a generator may omit it, in which case position is implied by document order
+// SpreadsheetML: a generator may omit it, in which case position is implied by document order
 // (the first row is row 1, and cells fill columns A, B, C… left to right). A reader that requires
 // `r` fails with "Invalid row number in model". A worksheet whose rows and cells omit `r` must
 // read successfully, with each element's position inferred from its order.

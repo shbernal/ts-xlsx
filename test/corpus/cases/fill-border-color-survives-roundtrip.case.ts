@@ -2,7 +2,7 @@
 //
 // Real-world scenario: an Excel-authored workbook uses cell background (fill) colors and border
 // colors that reference the theme and/or the indexed palette rather than plain RGB. Loading the
-// file and writing it straight back — with no edits — must preserve the visually-rendered colors
+// file and writing it straight back, with no edits, must preserve the visually-rendered colors
 // exactly. A naive style reader/writer that drops or misinterprets a theme/tint or indexed
 // reference changes the appearance of a pure open-then-save.
 
@@ -16,7 +16,7 @@ export default {
   cluster: 'styles',
   description:
     "A pure open-then-save round-trip preserves cells' visible fill (solid/patterned foreground) " +
-    'and border-edge colors — including theme+tint and indexed-palette references — so the sheet ' +
+    'and border-edge colors, including theme+tint and indexed-palette references, so the sheet ' +
     'renders identically after re-saving.',
 
   behavior: [

@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a cell is assigned a rich-text value made of several formatted runs, one of
 // which carries an empty text string (a middle run whose text is ""). An empty run serializes to a
-// run element with an empty `<t>` payload, which Excel's schema rejects — opening the file prompts a
+// run element with an empty `<t>` payload, which Excel's schema rejects: opening the file prompts a
 // corrupt-file recovery. An empty run contributes nothing to the rendered text, so dropping it at
 // serialization time produces a valid file whose visible appearance is unchanged. The writer must
 // omit zero-length runs rather than emit an empty `<t>` element.

@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a program opens a real .xlsx that already contains a defined table and
 // wants to read its data by table name. The table is found and its column names are exposed, but
-// its data rows come back undefined — the loader reconstructs the table's name, columns, and
+// its data rows come back undefined: the loader reconstructs the table's name, columns, and
 // range but never repopulates its data rows from the on-sheet cells. So reading a column's values
 // or the table height on a loaded table yields nothing (or throws). A table read from a file must
 // expose its data rows, populated from the sheet, exactly like a freshly-created table.
@@ -18,7 +18,7 @@ export default {
   cluster: 'tables',
   description:
     'A table loaded from a real file is findable by name and exposes its declared column names, ' +
-    'and — the open bug — must expose its data rows populated from the on-sheet cells rather than ' +
+    'and, the open bug, must expose its data rows populated from the on-sheet cells rather than ' +
     'an undefined rows array.',
 
   behavior: [

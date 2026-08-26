@@ -2,8 +2,8 @@
 //
 // Real-world scenario: a user reads a template, then inserts rows in a style-inheritance mode (copy
 // the style of an adjacent row) rather than the no-style mode. A reported failure was that the
-// inserted cells' style objects were frozen internally, so any later style assignment — setting
-// numFmt to a currency pattern, toggling font bold — threw "Cannot add property numFmt, object is not
+// inserted cells' style objects were frozen internally, so any later style assignment, setting
+// numFmt to a currency pattern, toggling font bold, threw "Cannot add property numFmt, object is not
 // extensible", forcing the user back to the no-style mode. Inserting a row and then styling its cells
 // must work regardless of the style-inheritance mode.
 
@@ -16,7 +16,7 @@ export default {
   description:
     'After inserting a row with a style-inheritance mode, assigning a numFmt and mutating a font ' +
     'property on the inserted cells succeeds (no "object is not extensible" throw) and the numFmt is ' +
-    'applied — behaving like the no-style insert mode.',
+    'applied, behaving like the no-style insert mode.',
 
   behavior: [
     {

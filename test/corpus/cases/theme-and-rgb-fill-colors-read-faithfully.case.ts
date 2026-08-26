@@ -1,6 +1,6 @@
 // Cluster: styles
 //
-// Real-world scenario: a workbook authored in a desktop app colors cells two ways — some with an
+// Real-world scenario: a workbook authored in a desktop app colors cells two ways: some with an
 // explicit RGB fill, some with a theme color plus a tint (a shade derived from a palette entry).
 // A reader must surface both faithfully: an RGB fill's foreground carries the concrete argb, and
 // a theme+tint fill's foreground carries the theme index and its tint, so no fill color is lost
@@ -17,7 +17,7 @@ export default {
   cluster: 'styles',
   description:
     'Cell fill colors are read faithfully whether expressed as an explicit RGB value (concrete ' +
-    'argb on fgColor) or as a theme color with a tint (theme index + tint on fgColor) — a ' +
+    'argb on fgColor) or as a theme color with a tint (theme index + tint on fgColor): a ' +
     'themed fill is not dropped as "missing color".',
 
   behavior: [

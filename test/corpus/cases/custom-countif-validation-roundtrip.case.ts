@@ -3,7 +3,7 @@
 // Real-world scenario: a column is guarded against duplicate entries with a *custom* data
 // validation whose formula is a COUNTIF expression (e.g. COUNTIF($A$2:$A$20,A3)<2) over a large
 // target range, paired with an error title and message Excel shows when the rule is violated.
-// (The original complaint — that Excel does not block a *pasted* duplicate — is Excel's own
+// (The original complaint, that Excel does not block a *pasted* duplicate, is Excel's own
 // runtime paste behavior, which neither the OOXML format nor this library governs; it is out of
 // scope.) The durable, checkable guarantee is faithful persistence: the validation must survive a
 // load/save round-trip with its type, formula (relative + absolute references), target range, and
@@ -21,7 +21,7 @@ export default {
   cluster: 'validations',
   description:
     'A custom-type data validation with a COUNTIF formula, a target range, and error strings ' +
-    'is read back with those facts intact and survives a load/save round-trip without loss — ' +
+    'is read back with those facts intact and survives a load/save round-trip without loss: ' +
     'a worksheet-level xr:uid extension attribute does not cause it to be dropped.',
 
   behavior: [

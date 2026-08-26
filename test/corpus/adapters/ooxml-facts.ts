@@ -3,9 +3,9 @@
 // Given a workbook spec and the written package's parts as a plain { path: xmlString }
 // map, it derives the same JSON-serializable facts a case asserts on (content-type
 // declarations, sheet entries, relationships, per-worksheet cell/formula/margin facts,
-// style/theme presence, comment VML, cross-part consistency). Keeping this
-// implementation-blind — it knows only OOXML, never how any library is shaped — lets the
-// `current` (legacy) and `rewrite` adapters unzip their own way yet return byte-identical
+// style/theme presence, comment VML, cross-part consistency). It knows only OOXML and never
+// how any library is shaped, and keeping it that way lets the `current` (legacy) and
+// `rewrite` adapters unzip their own way yet return byte-identical
 // facts, so a case compares like with like across implementations.
 
 import type {Untyped} from '../untyped.ts';
@@ -69,7 +69,7 @@ const cellTexts = (xml: string, shared: string[]): Record<string, string> => {
   return out;
 };
 
-// Column letters (A, AA, …) to a 1-based index, and an A1 reference / range to plain coordinates —
+// Column letters (A, AA, …) to a 1-based index, and an A1 reference / range to plain coordinates:
 // the minimum geometry the shared-formula fact needs to decide whether a slave falls inside its
 // master's ref, kept local so this extractor stays free of the library it inspects.
 const colToNum = (letters: string): number => {
@@ -92,7 +92,7 @@ const parseRect = (
   return {left: tl.col, top: tl.row, right: br.col, bottom: br.row};
 };
 
-// Shared-formula geometry read straight off the emitted `<f>` elements — the master/slave
+// Shared-formula geometry read straight off the emitted `<f>` elements: the master/slave
 // correspondence a write→read round-trip cannot witness (our reader resolves a slave by its `si`, so
 // a writer that mis-stamped `si`/`ref` and a reader that read it back the same wrong way agree). A
 // master carries `t="shared"` with a `ref` range and a `si`; a slave carries the same `si` and no
@@ -189,7 +189,7 @@ export function packageFacts(spec: Untyped, partMap: PartMap) {
   // Built through `Object.fromEntries` over a mapped list rather than by filling a pre-declared
   // `Record`, so the per-sheet fact shape below is *inferred* and reaches the cases that read it. The
   // declared form had to name a value type before the literal existed, and the only name available was
-  // `unknown` — which every case then had to defeat.
+  // `unknown`, which every case then had to defeat.
   const sheets = Object.fromEntries(
     ((spec.sheets || []) as Untyped[]).map((s: Untyped) => {
       const xml = read(sheetIndex[s.name]!) || '';

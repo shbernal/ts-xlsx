@@ -1,11 +1,11 @@
 // Cluster: validations
 //
 // Real-world scenario: a dropdown (list) data validation is very often driven not by an inline
-// literal list but by a *reference* — a workbook defined name pointing at a column on another
+// literal list but by a *reference*: a workbook defined name pointing at a column on another
 // sheet, or an explicit cross-sheet range like `Options!A1:B1`. Both are the standard way to
 // keep the allowed values on a separate "options" sheet. Reading such a file must surface each
-// validation's source as its reference text (the defined name, or the range) — never stringified
-// to "[object Object]" — and a read/write round-trip must preserve that reference and the target
+// validation's source as its reference text (the defined name, or the range), never stringified
+// to "[object Object]", and a read/write round-trip must preserve that reference and the target
 // cell so the dropdown still resolves to the same options.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -18,8 +18,8 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'validations',
   description:
-    'A list-type data validation whose source is a reference — a workbook defined name, or a ' +
-    'cross-sheet range like "Options!A1:B1" — is read back as that reference text (not an ' +
+    'A list-type data validation whose source is a reference, a workbook defined name, or a ' +
+    'cross-sheet range like "Options!A1:B1", is read back as that reference text (not an ' +
     '"[object Object]" string), and both the reference and its target cell survive a round-trip.',
 
   behavior: [

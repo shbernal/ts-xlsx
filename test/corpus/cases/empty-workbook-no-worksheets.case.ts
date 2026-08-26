@@ -2,7 +2,7 @@
 //
 // Real-world scenario: code builds a workbook conditionally and, on an empty data
 // set, ends up adding no worksheets before writing. A workbook with zero worksheets
-// cannot be represented as a valid .xlsx — Excel shows the "unreadable content"
+// cannot be represented as a valid .xlsx: Excel shows the "unreadable content"
 // repair prompt. A correct writer must resolve this unambiguously: either refuse
 // (throw a clear error) or emit a package that actually contains a worksheet part.
 // Silently producing a package that declares no worksheet is the wrong outcome.

@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a user attaches a note (cell comment) to a cell, then decides it should not
 // appear in the exported file. There is no first-class way to remove a note: assigning an empty note
-// object (the common workaround) persists an *empty* comment — the cell still shows a comment marker
+// object (the common workaround) persists an *empty* comment: the cell still shows a comment marker
 // in spreadsheet apps and the package still carries the comment part and its VML drawing. What the
 // user needs is a genuine removal: after clearing, the cell reports no note and the written package
 // contains no comment or VML artifact for it, while other cells' notes and values are untouched.

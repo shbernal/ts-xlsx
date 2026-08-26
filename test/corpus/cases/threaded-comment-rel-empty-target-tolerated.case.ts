@@ -1,7 +1,7 @@
 // Cluster: comment
 //
 // Real-world scenario: a sheet declares a threaded-comment relationship (type
-// `.../2017/10/relationships/threadedComment`) whose Target attribute is empty — it announces a
+// `.../2017/10/relationships/threadedComment`) whose Target attribute is empty: it announces a
 // conversation without saying where the part is. Foreign generators emit relationships
 // unconditionally, and a hand-edited or partially-repaired package lands in the same shape. The
 // relationship is the *only* wiring for these parts (no worksheet element names one, the way none names
@@ -10,8 +10,8 @@
 // Two things must hold. The load must survive: dereferencing the empty target and then reading a
 // property off the missing part is the exact crash the sibling `worksheet-comment-rel-empty-target`
 // case pins for the notes relationship. And the *text* must survive, which is the less obvious half.
-// Excel writes a legacy fallback `<comment>` beside every conversation — the "[Threaded comment] Your
-// version of Excel..." boilerplate wrapping a copy of the messages — and we normally suppress that on
+// Excel writes a legacy fallback `<comment>` beside every conversation, the "[Threaded comment] Your
+// version of Excel..." boilerplate wrapping a copy of the messages, and we normally suppress that on
 // read, since surfacing it as `cell.note` would hand the caller garbage and re-emitting it as a plain
 // note would destroy the `tc=`/`xr:uid` binding Excel resolves the thread through. Suppression is
 // therefore conditioned on holding the conversation the fallback *names*, not merely on the cell having
@@ -21,7 +21,7 @@
 // The fixture is the Excel-authored `resolved-multi-author.xlsx` (a resolved thread with a reply by a
 // second author, an open thread, and a genuine legacy note on a third cell) with one edit: its sheet
 // rels carry `Target=""` on the threadedComment relationship. Every part is otherwise intact, including
-// the thread part itself — which is the point. A part nothing can reach is not adopted by filename.
+// the thread part itself, which is the point. A part nothing can reach is not adopted by filename.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -40,7 +40,7 @@ export default {
     'Loading a workbook whose worksheet declares a threadedComment relationship with an empty Target ' +
     'completes without throwing and recovers the sheet. No conversation is invented from the ' +
     'unreachable part, and because the thread is not held, the legacy fallback comment is kept as a ' +
-    'note — the last remaining record of what was said — rather than suppressed. The re-written ' +
+    'note, the last remaining record of what was said, rather than suppressed. The re-written ' +
     'package carries no thread part, no author registry and no tc= fallback author, so it never emits ' +
     'half a representation.',
 
@@ -76,7 +76,7 @@ export default {
       name: 'the author registry is still read, since its own relationship is intact',
       async expect(api: CorpusApi, assert: Assert) {
         // The persons part is workbook-level and wired independently, so one sheet's broken
-        // relationship must not take the identities down with it — they are what a repaired or
+        // relationship must not take the identities down with it: they are what a repaired or
         // re-linked conversation would resolve through.
         const facts = await api.readFixtureCommentThreads(FIXTURE);
         assert.strictEqual(facts.persons.length, 2, 'both registered persons survive');
@@ -98,7 +98,7 @@ export default {
         assert.match(
           notes.B1 ?? '',
           /Comment:\n {4}Is this gross or net of tax\?\nReply:\n {4}Gross\. Confirmed with finance\./,
-          'including the conversation copied inside it — both messages, not just the first',
+          'including the conversation copied inside it: both messages, not just the first',
         );
         assert.strictEqual(
           notes[NOTED_CELL],
@@ -112,7 +112,7 @@ export default {
       async expect(api: CorpusApi, assert: Assert) {
         // The two halves of a conversation are emitted together or not at all: verified against
         // desktop Excel, a `tc=` fallback whose thread part is absent shows as neither a thread nor a
-        // note — the text disappears entirely. Holding no thread, the writer emits plain notes, which
+        // note: the text disappears entirely. Holding no thread, the writer emits plain notes, which
         // is the shape that still renders.
         const {source, rewritten} = await api.roundtripFixturePackageParts(FIXTURE);
         assert.strictEqual(source.threadedComments, 1, 'precondition: the part is in the package');
@@ -143,7 +143,7 @@ export default {
         assert.strictEqual(
           rewritten.commentVmlShapes,
           rewritten.commentEntries,
-          'one VML shape per comment — a comment without one reads as text but renders nothing',
+          'one VML shape per comment: a comment without one reads as text but renders nothing',
         );
       },
     },

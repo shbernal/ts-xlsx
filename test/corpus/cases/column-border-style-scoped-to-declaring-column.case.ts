@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a user attaches a border style (a right border) to exactly one column via that
 // column's style, and declares later columns with only a width. The border must appear only on the
-// declaring column's cells — not bleed into subsequent columns. Correct behavior is that each
+// declaring column's cells, not bleed into subsequent columns. Correct behavior is that each
 // column's declared style is independent; setting a style on one column does not affect any other.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -13,7 +13,7 @@ export default {
   cluster: 'styles',
   description:
     'A border style declared on one column applies only to that column’s cells; later columns with ' +
-    'no style of their own get no border — column styles are independent, not bled into subsequent ' +
+    'no style of their own get no border: column styles are independent, not bled into subsequent ' +
     'columns.',
 
   behavior: [

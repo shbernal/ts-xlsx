@@ -1,8 +1,8 @@
 // Cluster: core-model
 //
-// Real-world scenario: code reads a sheet and asks it how many rows it has —
+// Real-world scenario: code reads a sheet and asks it how many rows it has:
 // `rowCount` (the index of the last row carrying anything) and `actualRowCount`
-// (how many rows actually hold values) — to drive a loop. These must be concrete
+// (how many rows actually hold values), to drive a loop. These must be concrete
 // numbers that reflect the data, never `undefined`, and `actualRowCount` must
 // exclude the gaps so a sparse sheet is measured honestly.
 
@@ -38,7 +38,7 @@ export default {
   cluster: 'core-model',
   description:
     'After a write→read round-trip, a worksheet reports rowCount and actualRowCount ' +
-    'as concrete numbers reflecting its data — rowCount spans to the last populated ' +
+    'as concrete numbers reflecting its data: rowCount spans to the last populated ' +
     'row and actualRowCount counts only rows that hold values.',
 
   behavior: [

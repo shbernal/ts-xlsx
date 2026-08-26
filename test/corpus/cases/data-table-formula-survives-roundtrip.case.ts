@@ -1,11 +1,11 @@
 // Cluster: formulas
 //
 // Real-world scenario: an Excel workbook built with the What-If Analysis "Data Table" feature carries
-// cells whose formula is the OOXML data-table kind — `<f t="dataTable" ref="…" r1="…"/>` with row/
-// column input-cell references — rather than a plain formula string. A user opens such a workbook,
+// cells whose formula is the OOXML data-table kind, `<f t="dataTable" ref="…" r1="…"/>` with row/
+// column input-cell references, rather than a plain formula string. A user opens such a workbook,
 // changes an unrelated cell, and saves. After the round trip the data-table formula is gone: the cell
 // no longer recalculates against its inputs, and downstream tools that referenced it show #REF!. A
-// document reader/writer must preserve exotic formula kinds it does not itself evaluate — reading one
+// document reader/writer must preserve exotic formula kinds it does not itself evaluate: reading one
 // must surface it, and writing must re-emit it verbatim, even when the edit touches a different cell.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

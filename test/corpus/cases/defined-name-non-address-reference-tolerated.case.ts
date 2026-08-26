@@ -1,12 +1,12 @@
 // Cluster: address-decoding
 //
 // Real-world scenario: some workbooks declare defined names (named ranges) whose stored formula is
-// not a plain cell/range address — a constant value, an error reference like #REF!, or a name into
+// not a plain cell/range address: a constant value, an error reference like #REF!, or a name into
 // an external workbook. A reader that decodes every defined name as an address during reconcile can
 // throw on the degenerate one ("Cannot read property 'match' of undefined") and abort the entire
 // load. A workbook must stay readable even when one of its defined names does not resolve to a normal
-// in-sheet address: the offending name is skipped, the rest of the workbook — other worksheets, cell
-// values, and well-formed defined names — comes through intact.
+// in-sheet address: the offending name is skipped, the rest of the workbook, other worksheets, cell
+// values, and well-formed defined names, comes through intact.
 //
 // The fixture is a workbook whose workbook.xml declares a mix of names: a valid one
 // (`GoodName` → Sheet1!$A$1), a constant (`42`), an error ref (`#REF!`), and an external

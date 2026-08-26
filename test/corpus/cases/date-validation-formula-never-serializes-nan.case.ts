@@ -3,7 +3,7 @@
 // Real-world scenario: a user adds a date-type data validation to a range, expecting the validation
 // bound to be written as a real date. When the operand is a genuine Date, the worksheet XML must
 // carry a valid date serial in the formula. When the operand is not a coercible date, the writer must
-// never emit the literal token "NaN" into the formula element — Excel then treats the bound as broken
+// never emit the literal token "NaN" into the formula element: Excel then treats the bound as broken
 // and the validation silently fails. A real Date works today; a non-coercible operand emits NaN.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

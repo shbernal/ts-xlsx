@@ -5,7 +5,7 @@
 // facts: every detail (child) row carries its outlineLevel and is hidden, AND the summary row that
 // terminates the group carries the `collapsed` flag on its own row element. When the collapsed flag
 // is instead written on the hidden detail rows (and omitted from the summary row), the rows show as
-// hidden but the expand/collapse toggle is out of sync — the user must click twice to expand. The
+// hidden but the expand/collapse toggle is out of sync: the user must click twice to expand. The
 // detail rows get their outlineLevel + hidden right today; the collapsed flag is placed on the wrong
 // rows.
 
@@ -39,7 +39,7 @@ export default {
   cluster: 'rows',
   description:
     'A collapsed row-outline group writes its detail rows with outlineLevel + hidden (correct today) ' +
-    'and places the collapsed toggle on the summary row that terminates the group — not on the ' +
+    'and places the collapsed toggle on the summary row that terminates the group, not on the ' +
     'hidden detail rows, where it is emitted today, leaving the expand/collapse control out of sync.',
 
   behavior: [

@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a user sets a worksheet's default row height (the height for every row with no
 // explicit per-row height) as a worksheet-level property, expecting all otherwise-unstyled rows to
-// render at that height. The companion default column width, set the same way, takes effect — but the
+// render at that height. The companion default column width, set the same way, takes effect, but the
 // default row height was reported silently dropped, so rows rendered at the application's built-in
 // default. The property must be serialized onto the sheet-format definition symmetrically with the
 // default column width.

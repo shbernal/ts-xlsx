@@ -1,8 +1,8 @@
 // Cluster: xlsx-io
 //
 // Real-world scenario: a program opens a styled template `.xlsx` authored in desktop
-// Excel — banded solid fills, bold headers, custom column widths, merged-cell layout
-// across several sheets — fills in some cells, and saves it back. The saved copy must
+// Excel, banded solid fills, bold headers, custom column widths, merged-cell layout
+// across several sheets, fills in some cells, and saves it back. The saved copy must
 // render the same: column widths, fills, fonts and number formats a template declares
 // must survive a read→write round-trip. "Fill in a formatted template and re-save" is a
 // mainstream use, and a lossy round-trip that resets widths to zero or drops fills makes
@@ -23,7 +23,7 @@ export default {
   cluster: 'xlsx-io',
   description:
     'A styled template read from disk and written back unchanged keeps its sheet names, ' +
-    'custom column widths, and per-cell styling (fills, fonts, number formats) — the ' +
+    'custom column widths, and per-cell styling (fills, fonts, number formats): the ' +
     'format-preserving "open a template, fill it in, save it" path must not reset widths ' +
     'or drop styles.',
 

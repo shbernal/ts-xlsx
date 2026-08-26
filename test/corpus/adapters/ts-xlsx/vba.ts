@@ -25,12 +25,13 @@ import {
 
 export const vba = {
   // Splice a synthetic vbaProject.bin + its workbook relationship + content-type override into an
-  // otherwise-plain written package — the writer cannot author a VBA project itself (its bytes are
-  // opaque, never modeled), so this is the only way to produce a macro-enabled-shaped package to
-  // round-trip — then read it back and write it again → { originalHasVba, reloadedPreservedCount,
+  // otherwise-plain written package, since the writer cannot author a VBA project itself (its
+  // bytes are opaque, never modeled) and this is the only way to produce a macro-enabled-shaped
+  // package to round-trip. Then read it back and write it again → { originalHasVba,
+  // reloadedPreservedCount,
   // rewrittenHasVba, rewrittenIsMacroEnabled }. For asserting a macro-enabled workbook's VBA project
   // and its macro-enabled content-type survive a read/write cycle rather than being silently dropped
-  // (an unrecognised workbook relationship is otherwise discarded — real-world data loss on any
+  // (an unrecognised workbook relationship is otherwise discarded: real-world data loss on any
   // .xlsm a caller loads and re-saves).
   xlsmVbaProjectRoundtrip() {
     const VBA_REL_TYPE =
@@ -76,7 +77,7 @@ export const vba = {
   // asserts the new REFERENCENAME + REFERENCEREGISTERED records read back correctly, the hand-crafted
   // pre-existing reference and every module survive byte-for-byte, PROJECT/PROJECTwm are untouched (no
   // real Excel-authored PROJECT stream carries a Reference= line for a registered reference), and
-  // _VBA_PROJECT is left byte-for-byte unchanged — Excel runs the modules' existing p-code, so resetting
+  // _VBA_PROJECT is left byte-for-byte unchanged: Excel runs the modules' existing p-code, so resetting
   // the cookie would crash the load (ADR 0019).
   xlsmVbaAddReference() {
     const originalBin = buildVbaFixtureBin();
@@ -131,7 +132,7 @@ export const vba = {
   // fixture, and asserts: Module1 is gone from the module list; the untouched document module
   // (ThisWorkbook) and the hand-crafted PROJECTREFERENCES record survive byte-for-byte; Module1's
   // declaration line is gone from PROJECT while the other modules' lines survive; Module1's name pair is
-  // gone from PROJECTwm; and _VBA_PROJECT is left byte-for-byte unchanged — Excel runs the surviving
+  // gone from PROJECTwm; and _VBA_PROJECT is left byte-for-byte unchanged: Excel runs the surviving
   // modules' existing p-code, so resetting the cookie would crash the load (ADR 0019).
   xlsmVbaRemoveModule() {
     const originalBin = buildVbaFixtureBin();
@@ -187,15 +188,15 @@ export const vba = {
     };
   },
 
-  // Chain the two structural edits through the *public, package-level* surface — Workbook.removeVbaModule,
-  // Workbook.addVbaReference — rather than calling the project-editor primitives directly, the way
+  // Chain the two structural edits through the *public, package-level* surface: Workbook.removeVbaModule,
+  // Workbook.addVbaReference, rather than calling the project-editor primitives directly, the way
   // xlsmVbaRemoveModule/xlsmVbaAddReference do. Those cases lock the splice primitives; this one locks
   // that the primitives are actually wired to Workbook and survive a real readXlsx -> edit -> writeXlsx ->
   // readXlsx package round-trip, not only a bare-bin call. Removes the pre-existing Module1 and adds a
   // reference to the three-module, one-reference fixture, then asserts: the final module set/kinds are as
   // expected; the hand-crafted PROJECTREFERENCES record AND the newly added reference are both present;
   // the untouched Class1 module survives byte-for-byte; the package stays macro-enabled; and
-  // _VBA_PROJECT is left byte-for-byte unchanged — Excel runs the surviving modules' existing p-code, so
+  // _VBA_PROJECT is left byte-for-byte unchanged: Excel runs the surviving modules' existing p-code, so
   // resetting the cookie would crash the load (ADR 0019).
   xlsmVbaWorkbookStructuralEdits() {
     const originalBin = buildVbaFixtureBin();

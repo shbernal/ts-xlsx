@@ -1,7 +1,7 @@
 // Cluster: sheet-views
 //
 // Real-world scenario: a workbook has a worksheet with frozen panes, and a consumer wants to
-// unfreeze it — the natural edit is to replace the sheet's view with a plain normal view. The
+// unfreeze it: the natural edit is to replace the sheet's view with a plain normal view. The
 // emitted sheetViews XML must then be self-consistent: a normal view carries NO <pane> element and
 // no frozen-only pane attributes. If pane markup leaks onto a normal view, a spreadsheet application
 // flags the file as needing repair on open. Conversely a genuinely frozen view must still emit its
@@ -16,7 +16,7 @@ export default {
   cluster: 'sheet-views',
   description:
     'Unfreezing a worksheet by replacing its frozen view with a normal view emits valid sheetViews ' +
-    'XML — no leftover <pane> element on the normal view — and the reloaded sheet reports state ' +
+    'XML, no leftover <pane> element on the normal view, and the reloaded sheet reports state ' +
     "'normal' with no split, while a frozen view still emits its <pane>.",
 
   behavior: [

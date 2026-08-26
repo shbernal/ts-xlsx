@@ -4,7 +4,7 @@
 // should render using a caller-supplied format (e.g. MM/DD/YYYY) rather than a full ISO-8601
 // timestamp with timezone offset. A user exporting dates wants "01/05/2018", not
 // "2018-01-05T12:00:00-06:00". A UTC flag controls whether the formatted value reflects
-// local time or UTC — without it the local timezone can shift the calendar day.
+// local time or UTC; without it the local timezone can shift the calendar day.
 //
 // The date must be a genuine Date value in the cell; the earlier confusion in the wild was
 // a cell holding a date *string*, which no format option can reach.

@@ -1,7 +1,7 @@
 // The implementation under test, loaded once for the whole adapter.
 //
 // Every other module here imports its `src/` bindings from this one so the CORPUS_TARGET
-// switch — stripped .ts sources by default, emitted dist/ JS on demand — is decided in a
+// switch, stripped .ts sources by default, emitted dist/ JS on demand, is decided in a
 // single place and cannot drift between concerns.
 
 import fs from 'node:fs';
@@ -11,8 +11,8 @@ import {fileURLToPath} from 'node:url';
 
 // Retarget the implementation under test. Default: the src/ .ts sources, run
 // directly via Node's type-stripping (the zero-build dev/test loop). Set
-// CORPUS_TARGET=dist to run the *emitted* artifact instead — the exact ESM `tsc`
-// produces for consumers — putting the full behavioral corpus behind the same
+// CORPUS_TARGET=dist to run the *emitted* artifact instead, the exact ESM `tsc`
+// produces for consumers, putting the full behavioral corpus behind the same
 // gate. test:src and this adapter's default only ever see *stripped* source;
 // dist runs catch strip-vs-emit divergence (import-specifier rewrite, a
 // runtime reference type-stripping tolerated) across every case, not just the
@@ -61,18 +61,18 @@ export const {addVbaReference, removeVbaModule} =
 // The model's instance types, so the adapter can annotate what it is holding instead of reaching for
 // `Untyped`. Derived from the bindings above rather than imported separately: `runtime.ts` stays the
 // only module that knows where `src/` is, and a type here cannot drift from the implementation it
-// describes because it is read off that implementation. Nothing is emitted — these are erased before
+// describes because it is read off that implementation. Nothing is emitted: these are erased before
 // anything runs, so the CORPUS_TARGET switch is still the only thing deciding what executes.
 export type WorkbookInstance = InstanceType<typeof Workbook>;
 export type WorksheetInstance = ReturnType<WorkbookInstance['addWorksheet']>;
 export type CellInstance = ReturnType<WorksheetInstance['getCell']>;
 
 // JSZip is an independent zip implementation used only to VERIFY the streaming writer's output (CRC
-// integrity), a hostile-input posture toward our own archive — never in the production src path.
+// integrity), a hostile-input posture toward our own archive, never in the production src path.
 const require = createRequire(import.meta.url);
 export const JSZip = require('jszip');
 
-// Durable sample inputs live under test/corpus/fixtures/<case-slug>/ — the SAME tree the
+// Durable sample inputs live under test/corpus/fixtures/<case-slug>/: the SAME tree the
 // oracle adapter reads, so a fixture-backed case measures both implementations against one
 // real-world file. The rewrite reads them straight through readXlsx (a fixture is just a
 // foreign `.xlsx` buffer).

@@ -4,7 +4,7 @@
 // package must still ship a valid theme part (the default Office theme), because a workbook that
 // declares style/color-scheme dependencies but ships no theme part is treated as corrupt by Excel,
 // which repairs the file on open. This locks the writer's default-theme emission as a regression
-// guard — a missing theme part is a real corruption class.
+// guard: a missing theme part is a real corruption class.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 

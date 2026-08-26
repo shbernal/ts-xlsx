@@ -2,7 +2,7 @@ import type {Assert, Case, CorpusApi} from '../case.ts';
 
 // A spreadsheet reader is handed untrusted files, and not all of them are `.xlsx`. A legacy binary
 // `.xls`, a binary `.xlsb`, a CSV pointed at the wrong reader, or an outright corrupt archive must each
-// fail with a clear, catchable, typed error — never a raw zip-library crash (which is opaque and can
+// fail with a clear, catchable, typed error, never a raw zip-library crash (which is opaque and can
 // leak an absolute filesystem path from the layer below). Two branches, and the distinction is the
 // contract: input of the wrong *kind* is an unsupported format (tagged with which one), while a
 // container we recognise and cannot unpack is a malformed package. See the spec
@@ -37,7 +37,7 @@ export default {
       name: 'a package whose office document is a binary workbook is parsed as one, not rejected',
       expect(api: CorpusApi, assert: Assert) {
         // The reader classifies this as an `.xlsb` and hands it to the BIFF12 codec, so the failure
-        // it reports for a deliberately unparseable binary workbook is a *parse* error — the format
+        // it reports for a deliberately unparseable binary workbook is a *parse* error: the format
         // was recognised. (That a well-formed `.xlsb` reads into the same model its `.xlsx` twin does
         // is the subject of `xlsb-binary-workbook-reads-like-its-xlsx-twin`.)
         const result = api.classifyReadInput('xlsb');

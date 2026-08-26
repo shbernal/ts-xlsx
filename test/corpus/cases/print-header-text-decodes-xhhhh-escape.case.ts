@@ -1,16 +1,16 @@
 // Cluster: page-setup
 //
-// Real-world scenario: a print header is prose a human typed into Page Setup — a document title, a
+// Real-world scenario: a print header is prose a human typed into Page Setup, a document title, a
 // client name, a path pasted out of a system that put a control character in it. It reaches the file as
 // the text of an `<oddHeader>`, which is `ST_Xstring` exactly as a `<t>` is, so the same question
 // arises: does SpreadsheetML's `_xHHHH_` convention apply here, or is a header plain text? The answer
-// was assumed from the format's shape — the `&`-prefixed section codes look like the only in-band
-// syntax a header has — and the assumption cost callers a header that could not carry what a note
+// was assumed from the format's shape: the `&`-prefixed section codes look like the only in-band
+// syntax a header has, and the assumption cost callers a header that could not carry what a note
 // could.
 //
 // Excel Desktop settled it (2026-08-25, Microsoft 365 16.0 build 20228): a `<headerFooter>` patched to
 // hold the eight grammar rows the cell-text probe used reads back over COM through `PageSetup` with the
-// identical verdict on every one — `_x0041_` decodes to `A`, `_x005F_x0041_` yields the literal seven
+// identical verdict on every one: `_x0041_` decodes to `A`, `_x005F_x0041_` yields the literal seven
 // characters, `_xZZZZ_`/`_x041_`/`_x00041_` come back untouched, and a tab is decoded even though XML
 // could have carried it. Excel then re-saved the package and wrote a control character back as
 // `_x0001_` and the literal back as `_x005F_x0041_`, so the escape is its own representation here, not
@@ -29,7 +29,7 @@ export default {
   description:
     'A print header/footer definition carries the `_xHHHH_` convention exactly as cell text does: ' +
     'Excel decodes it on read and writes it back on save, so this library must escape on write and ' +
-    'decode on read. The grammar is closed — four hex digits, no more and no fewer — and resolved in ' +
+    'decode on read. The grammar is closed: four hex digits, no more and no fewer, and resolved in ' +
     'one left-to-right pass, so `_x005F_` in front of an escape yields the literal text rather than ' +
     'the character it resembles. The consequence for callers is that a header may carry any character ' +
     'a note or a cell may, instead of being refused for one XML cannot spell.',

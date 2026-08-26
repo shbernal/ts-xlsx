@@ -3,7 +3,7 @@
 // Real-world scenario: a user opens a real workbook with carefully-set column widths and print
 // settings (scale, fit-to-width, page order, orientation), makes no changes, and saves. Every
 // column width must come back to the exact fractional character-unit value, and the pageSetup
-// attributes must survive — the "open a template and re-save" path must be faithful, independent
+// attributes must survive: the "open a template and re-save" path must be faithful, independent
 // of the library's assumed default font/DPI.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

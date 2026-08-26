@@ -1,6 +1,6 @@
 // Cluster: images
 //
-// Real-world scenario: a user opens an .xlsx that contains a chart — a worksheet drawing carrying a
+// Real-world scenario: a user opens an .xlsx that contains a chart: a worksheet drawing carrying a
 // chart graphicFrame rather than a picture/image. They only want to read data cells. During load the
 // reader reconciles worksheet drawings against their relationship parts; a drawing that holds a chart
 // (and therefore no picture anchors) must not make the reconciliation dereference an undefined

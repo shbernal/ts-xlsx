@@ -1,8 +1,8 @@
 // Cluster: tables
 //
 // Real-world scenario: a program loops over a collection, adding one worksheet per item and a table
-// (plus a data validation) to each. The generated file must open cleanly — not in Excel's protected /
-// "needs repair" view — and the data validations must not be stripped during repair. The classic
+// (plus a data validation) to each. The generated file must open cleanly: not in Excel's protected /
+// "needs repair" view, and the data validations must not be stripped during repair. The classic
 // cause of this failure is table part id collisions: if the tables across sheets do not get unique
 // ids, Excel rejects the package. Building many sheets-with-tables in a loop must produce a valid
 // package with unique table ids and every sheet's validation intact.

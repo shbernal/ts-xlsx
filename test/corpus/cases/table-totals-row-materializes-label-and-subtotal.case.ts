@@ -1,18 +1,18 @@
 // Cluster: tables
 //
-// Real-world scenario: a table declares a totals row (totalsRowCount="1") with per-column directives —
+// Real-world scenario: a table declares a totals row (totalsRowCount="1") with per-column directives:
 // a literal label on one column ("Total") and a built-in aggregate on another (sum, count, …). Excel
 // renders that row on open: the labelled column shows its text and the aggregate column shows a
 // SUBTOTAL formula over the table's column. A library that declares the totals row's geometry but
 // writes nothing into those grid cells produces a file whose totals row is blank until the user
-// interacts with the table — a UX-parity gap against Excel's on-open rendering.
+// interacts with the table, a UX-parity gap against Excel's on-open rendering.
 //
 // So the library materializes the row it declares: the label cell holds the label string, and the
-// aggregate cell holds `SUBTOTAL(code, Table[Column])` — the same formula Excel would compute, with the
+// aggregate cell holds `SUBTOTAL(code, Table[Column])`: the same formula Excel would compute, with the
 // correct SUBTOTAL function code per aggregate (the count/countNums → COUNTA/COUNT inversion is the
 // trap). The formula carries no cached result: the library is not a calc engine, and Excel computes an
 // uncached formula cell on open. A column with no built-in aggregate stays blank, exactly as the whole
-// row did before, so nothing regresses for it — a `custom` column's stored formula is materialized
+// row did before, so nothing regresses for it: a `custom` column's stored formula is materialized
 // separately (see the table-column-custom-totals-formula-roundtrip case).
 //
 // The materialization mirrors the header row's "fill only empty cells" guard, which keeps a round-trip
@@ -20,7 +20,7 @@
 // totals cells are authoritative and must survive a write→read→write cycle untouched.
 //
 // This was confirmed against Excel Desktop through the Excel-oracle harness (ADR 0013) on Excel 16.0
-// build 20131 — sidecar `test/corpus/fixtures/excel-oracle/table-totals-row-materialized.json`. Excel
+// build 20131: sidecar `test/corpus/fixtures/excel-oracle/table-totals-row-materialized.json`. Excel
 // opened the materialized totals row without repair and computed both uncached SUBTOTAL cells on open
 // (COUNTA→2, SUM→30), so the no-cached-`<v>` emission is safe and `fullCalcOnLoad` is not required. It
 // accepts our fully-qualified `T[Column]` structured reference and renders it in its own canonical
@@ -77,7 +77,7 @@ const OFFSET_TABLE = {
   ],
 };
 
-// count vs countNums map to different SUBTOTAL codes — COUNTA (103) and COUNT (102) — the one easy
+// count vs countNums map to different SUBTOTAL codes, COUNTA (103) and COUNT (102), the one easy
 // inversion to get wrong. Totals row is row 3 (header 1, data 2, totals 3), columns A/B.
 const COUNT_VARIANTS = {
   sheets: [

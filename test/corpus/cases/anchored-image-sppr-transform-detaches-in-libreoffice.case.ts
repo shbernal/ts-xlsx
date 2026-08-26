@@ -4,7 +4,7 @@
 // an explicit extent). The anchor itself is correct, but the emitted drawing XML also writes the
 // picture's own absolute shape transform (spPr/xfrm) as a zeroed placeholder: offset 0,0 and
 // extent 0,0. Excel ignores this transform for an anchored drawing and positions purely from the
-// anchor, so the file looks fine there — but a strict consumer (notably LibreOffice Calc) honors
+// anchor, so the file looks fine there, but a strict consumer (notably LibreOffice Calc) honors
 // the zeroed absolute transform and renders the picture detached from its anchor cell, at the wrong
 // place. The picture must not carry a competing zeroed transform that would override its anchor.
 

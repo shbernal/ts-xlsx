@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a worksheet has styled rows (fonts, fills, number formats). When a row above
 // them is deleted (or inserted) via a row-splice, every row below the splice point shifts up (or
-// down). The style a cell carried must travel with it to its new row index — a shifted cell keeps
+// down). The style a cell carried must travel with it to its new row index: a shifted cell keeps
 // its font, fill, and numFmt rather than coming back blank. A reported defect was that shifted rows
 // lost all styling from the splice point onward; that must never regress. (Merge preservation across
 // the same shift is locked separately by `splice-rows-preserves-merged-cells`; this case is about

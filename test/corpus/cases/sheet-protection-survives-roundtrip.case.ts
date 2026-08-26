@@ -1,11 +1,11 @@
 // Cluster: security
 //
 // Real-world scenario: an author protects a worksheet with a password and opts to leave sorting and
-// autofilter available to end users. A consumer opens that file, reads it, and saves it back out —
+// autofilter available to end users. A consumer opens that file, reads it, and saves it back out,
 // a plain passthrough. The worksheet-level protection must survive that read→write round-trip, or the
 // save silently unlocks a sheet the author locked. The subtlety is the password credential: OOXML
 // stores it in finished agile form (algorithm, salted iterated hash, salt, spin count) with no
-// recoverable plaintext, so the reader cannot re-hash it — it must carry the exact credential back
+// recoverable plaintext, so the reader cannot re-hash it: it must carry the exact credential back
 // out byte-for-byte. And because OOXML inverts the protection booleans ("1" LOCKS an operation, "0"
 // PERMITS it), the permissive flags the author chose must round-trip as "0", not be dropped or flipped.
 
@@ -19,7 +19,7 @@ export default {
     'Worksheet-level protection present in a loaded workbook survives a read→write round-trip: the ' +
     're-written sheet still declares <sheetProtection sheet="1">, preserves the agile password ' +
     'credential (algorithm/hash/salt/spinCount) verbatim, and keeps the permissive flags the author ' +
-    'chose — rather than silently unlocking the sheet on a passthrough save.',
+    'chose, rather than silently unlocking the sheet on a passthrough save.',
 
   behavior: [
     {
@@ -35,7 +35,7 @@ export default {
       },
     },
     {
-      name: 'protection is not silently dropped by a read→write passthrough — the second write still locks the sheet',
+      name: 'protection is not silently dropped by a read→write passthrough: the second write still locks the sheet',
       async expect(api: CorpusApi, assert: Assert) {
         const {second} = await api.sheetProtectionRoundtrip();
         assert.ok(second, 'the re-written sheet must still declare <sheetProtection>, not drop it');

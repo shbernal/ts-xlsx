@@ -1,6 +1,6 @@
 // Cluster: styles
 //
-// Real-world scenario: an author assigns a complex custom Excel number-format code to a cell — a
+// Real-world scenario: an author assigns a complex custom Excel number-format code to a cell, a
 // four-section accounting/currency format with quoted currency literals, alignment placeholders, and
 // group/decimal separators, e.g. `_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)`. Whatever
 // format code the library is given must be stored and reproduced byte-for-byte: it must not drop the
@@ -18,8 +18,8 @@ export default {
   cluster: 'styles',
   description:
     'A complex multi-section custom number-format code assigned to a cell round-trips through ' +
-    'write-then-read character-for-character — quoted literals, alignment placeholders, and ' +
-    'group/decimal separators intact — with no dropped commas or injected escapes.',
+    'write-then-read character-for-character, quoted literals, alignment placeholders, and ' +
+    'group/decimal separators intact, with no dropped commas or injected escapes.',
 
   behavior: [
     {
@@ -58,8 +58,8 @@ export default {
     {
       // Number-format codes are stored in an invariant form where "." is always the decimal and ","
       // the grouping separator (and "/" the date separator); the viewer localizes at display time.
-      // The library must persist the user's separators verbatim — never swap "." <-> "," or rewrite
-      // "/" to "-" — so a comma-decimal locale renders faithfully from the invariant code.
+      // The library must persist the user's separators verbatim, never swap "." <-> "," or rewrite
+      // "/" to "-", so a comma-decimal locale renders faithfully from the invariant code.
       name: 'invariant separators in a percentage and a date format code survive verbatim',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook({

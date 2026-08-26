@@ -1,7 +1,7 @@
 // Cluster: tables
 //
 // Real-world scenario: a user creates a worksheet table and gives it a display/definition name Excel
-// considers illegal — one with spaces, an apostrophe, other punctuation ("Bob's Accounts"), or a
+// considers illegal: one with spaces, an apostrophe, other punctuation ("Bob's Accounts"), or a
 // leading digit. Excel's table-name rules are strict: the name must start with a letter, underscore,
 // or backslash, and every later character must be a letter, digit, period, or underscore; a name
 // that collides with a cell reference (like "A1") is also invalid. The library accepts any string and
@@ -48,7 +48,7 @@ export default {
     },
     {
       // A hyphen is ambiguous with the subtraction operator, so Excel forbids it in a table name and
-      // treats a file carrying "test-name" as corrupt — it must be rejected, not written verbatim.
+      // treats a file carrying "test-name" as corrupt: it must be rejected, not written verbatim.
       name: 'a table name containing a hyphen is rejected',
       async expect(api: CorpusApi, assert: Assert) {
         const result = await api.tryWriteWorkbook(tableSpec('test-name'));

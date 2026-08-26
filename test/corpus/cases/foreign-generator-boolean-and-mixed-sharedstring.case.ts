@@ -19,8 +19,8 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'foreign-generator-tolerance',
   description:
-    'A workbook from a foreign generator — boolean attributes spelled "true"/"false" and a ' +
-    'shared-string <si> with a leading empty <t/> before rich-text runs — loads without throwing, ' +
+    'A workbook from a foreign generator, boolean attributes spelled "true"/"false" and a ' +
+    'shared-string <si> with a leading empty <t/> before rich-text runs, loads without throwing, ' +
     'yielding the same worksheet as the Excel-normalized copy of the same document.',
 
   behavior: [

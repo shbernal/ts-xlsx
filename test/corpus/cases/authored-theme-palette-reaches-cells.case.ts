@@ -2,14 +2,14 @@
 //
 // Real-world scenario: a team wants their workbooks in their own brand colours. In a spreadsheet that
 // means the *theme* palette, not per-cell fills: Excel's colour picker offers the theme row first, and
-// a colour chosen from it is written as `theme="4"` — a reference, resolved at render time. Setting
+// a colour chosen from it is written as `theme="4"`, a reference, resolved at render time. Setting
 // `accent1` therefore restyles every cell, chart and table style that follows the theme at once, and
 // is the only way to recolour a workbook without touching a single cell.
 //
 // Authoring generates *over* the existing theme rather than replacing it, which is what the assertions
 // here are mostly about:
 //
-//  • The format scheme — the gradient, line and effect styles that give a theme its texture — is a
+//  • The format scheme, the gradient, line and effect styles that give a theme its texture, is a
 //    designer's work that no spreadsheet API hand-authors. It rides through untouched.
 //  • A slot the caller did not name keeps its source **encoding**, not just its value. `dk1`/`lt1` are
 //    `<a:sysClr>` so they follow the viewer's window colours; rewriting them as `<a:srgbClr>` would
@@ -66,7 +66,7 @@ export default {
       async expect(api: CorpusApi, assert: Assert) {
         const report = await api.authorThemeReport({colors: {accent1: 'BB2649'}});
         assert.strictEqual(report.keptFmtScheme, true, 'the <a:fmtScheme> block is still there');
-        // Not merely present — still populated. A regenerated theme would flatten the gradients.
+        // Not merely present, still populated. A regenerated theme would flatten the gradients.
         assert.ok(
           report.fmtSchemeGradientStops > 0,
           `the format scheme still carries its gradient stops (found ${report.fmtSchemeGradientStops})`,
@@ -90,7 +90,7 @@ export default {
           colors: {accent3: '112233'},
         });
         assert.strictEqual(report.scheme.accent3, '112233', 'the authored slot changed');
-        // The source theme's own values, not the Office defaults — the base is the file's theme.
+        // The source theme's own values, not the Office defaults: the base is the file's theme.
         assert.strictEqual(report.schemeName, 'Harbour');
         assert.strictEqual(report.scheme.accent1, 'BB2649');
         assert.strictEqual(report.scheme.dk2, '1B3A4B');
@@ -104,7 +104,7 @@ export default {
     {
       name: 'a malformed theme colour is refused at the call that supplied it',
       async expect(api: CorpusApi, assert: Assert) {
-        // Excel does not report a malformed colour value — it renders the slot as flat black — so the
+        // Excel does not report a malformed colour value: it renders the slot as flat black, so the
         // library has to, and at the setter rather than at write time far from the cause.
         assert.match(await api.authorInvalidThemeColor('not-a-colour')!, /Invalid theme colour/);
         assert.match(await api.authorInvalidThemeColor('#12345')!, /Invalid theme colour/);

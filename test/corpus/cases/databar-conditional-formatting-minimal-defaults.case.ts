@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: a user adds a data-bar conditional-formatting rule with only the minimal
-// options — a rule of type "dataBar" with a priority, no explicit conditional-formatting-value-
+// options: a rule of type "dataBar" with a priority, no explicit conditional-formatting-value-
 // objects (cfvo), and no bar color. Excel's own UI fills in a min/max cfvo range and a standard bar
 // color when you apply a default data bar; the library should do the same and produce a valid file.
 // The bug: with cfvo omitted the writer indexes into an absent cfvo collection and throws
@@ -17,7 +17,7 @@ export default {
   description:
     'A dataBar conditional-formatting rule with only type + priority (no cfvo, no color) writes ' +
     'without throwing and gains default min/max cfvo anchors and a default bar color, the same as ' +
-    'Excel’s default data bar — rather than crashing on the absent cfvo collection.',
+    'Excel’s default data bar, rather than crashing on the absent cfvo collection.',
 
   behavior: [
     {

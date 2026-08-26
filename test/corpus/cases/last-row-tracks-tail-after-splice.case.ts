@@ -3,8 +3,8 @@
 // Real-world scenario: code builds a worksheet, then removes rows with a splice, and afterward asks
 // the worksheet for its last row (to append below it, or to read the final record). Deleting rows
 // shifts the surviving rows up but can leave trailing EMPTY slots behind the real last populated row
-// in the sheet's internal row list. `lastRow` must still resolve to that last populated row — its
-// number and its cells reachable — rather than indexing into a trailing empty slot and returning a
+// in the sheet's internal row list. `lastRow` must still resolve to that last populated row: its
+// number and its cells reachable, rather than indexing into a trailing empty slot and returning a
 // row whose cells are all empty (effectively undefined data), which breaks the "find the end of the
 // data" idiom right after a delete.
 

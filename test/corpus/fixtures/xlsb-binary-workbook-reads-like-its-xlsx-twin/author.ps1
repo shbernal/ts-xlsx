@@ -1,6 +1,6 @@
 # Authors this case's two fixtures with real Excel, so both are genuine Excel output rather than
 # something this library invented: `source.xlsb` (binary BIFF12) and `source.xlsx` (OOXML XML), saved
-# from one and the same in-memory workbook. That pairing is the case's whole point — the XML twin is
+# from one and the same in-memory workbook. That pairing is the case's whole point: the XML twin is
 # an independent oracle for what the binary must decode to.
 #
 # Requires Windows + desktop Excel. Not run by CI; re-run by hand only when the fixture must change:
@@ -46,6 +46,9 @@ try {
   $values.Range('A11').Value2 = 'formula bool'
   $values.Range('B11').Formula = '=1>0'
   $values.Range('A12').Value2 = 'unicode'
+  # The dash is deliberate cell content, not prose: the case asserts the binary reader
+  # hands it back verbatim, so it has to survive here as the character Excel will store.
+  # charcheck-disable-next-line no-em-dash-in-source
   $values.Range('B12').Value2 = 'naïve — 日本語'
   $values.Range('A13').Value2 = 'builtin numfmt'
   $values.Range('B13').Value2 = 0.125

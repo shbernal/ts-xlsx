@@ -30,7 +30,7 @@ export const imageXmlWellFormed = (xml: string) =>
   !/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/.test(xml);
 
 // Expand an OOXML sqref (space-separated ranges) into its covered cell references, bounded by a cap so
-// a whole-column range never balloons — used to check that a range-form validation is reported on
+// a whole-column range never balloons, used to check that a range-form validation is reported on
 // every covered cell. An unbounded whole-row/column part is skipped rather than expanded.
 export function expandSqref(sqref: string, cap = 4096) {
   const refs: string[] = [];
@@ -44,7 +44,7 @@ export function expandSqref(sqref: string, cap = 4096) {
   return refs;
 }
 
-// Rewrite named parts of a written package and read the result back — the way to feed the
+// Rewrite named parts of a written package and read the result back: the way to feed the
 // reader the hand-edited OOXML forms real producers emit but the writer itself never generates
 // (an explicit-false boolean flag `<b val="0"/>`, an alignment element carrying only `wrapText="0"`,
 // an injected xf). `edits` maps a part path to a (xml) => xml transform; unlisted parts pass through.
@@ -75,7 +75,7 @@ export function attrsOf(tag: string) {
 // way to produce an edit-in-place *input* without an interactive VBA editor: the writer cannot author a
 // project from a model (no reference support, document-module linkage is host-coupled), but the editor
 // splices new module source into an existing bin. The fixture carries a hand-crafted PROJECTREFERENCES
-// record and a `document` code-behind module — the two things splice-editing must preserve that
+// record and a `document` code-behind module: the two things splice-editing must preserve that
 // re-synthesis structurally cannot.
 
 // Build a reader input of a given format family, to probe the reader's typed-error classification: a
@@ -83,7 +83,7 @@ export function attrsOf(tag: string) {
 // production CFB writer), a binary `.xlsb` (a real ZIP whose office document is `xl/workbook.bin`),
 // non-ZIP text (a CSV handed to the wrong reader), and a ZIP-headed-but-corrupt archive.
 /**
- * The format families {@link buildReadInput} can synthesise — a closed set, so a case naming one that
+ * The format families {@link buildReadInput} can synthesise: a closed set, so a case naming one that
  * does not exist fails to compile instead of reaching the `default` branch at runtime.
  */
 export type ReadInputKind = 'xlsx' | 'xls' | 'xlsb' | 'garbage' | 'corrupt-zip';
@@ -106,7 +106,7 @@ export function buildReadInput(kind: ReadInputKind): Uint8Array {
     case 'garbage':
       return strToU8('name,amount\nwidget,10\n');
     case 'corrupt-zip': {
-      // A genuine package cut off mid-stream — a half-downloaded file, which is what a corrupt archive
+      // A genuine package cut off mid-stream: a half-downloaded file, which is what a corrupt archive
       // looks like in the wild. The bytes a zip layer actually rejects are the point: a few hand-made
       // `PK` bytes are quietly skipped by a streaming unzip rather than reported as a failure.
       const good = writeXlsx(buildFrom({sheets: [{name: 'S', cells: [{ref: 'A1', value: 42}]}]}));
@@ -118,7 +118,7 @@ export function buildReadInput(kind: ReadInputKind): Uint8Array {
 }
 
 // Turn a reader call into JSON-serializable classification facts: whether it threw, the error's `name`,
-// `code` and `format` branch fields (the typed contract a caller keys on — `code` says what kind of
+// `code` and `format` branch fields (the typed contract a caller keys on: `code` says what kind of
 // failure it is, `format` which unsupported input it was), and whether the message leaks the zip
 // layer's internals or an absolute filesystem path (the anti-leak contract).
 export function classifyReadError(run: () => void): Untyped {

@@ -1,6 +1,6 @@
 // Cluster: types
 //
-// Real-world scenario: each cell exposes its position through a column index and a row index —
+// Real-world scenario: each cell exposes its position through a column index and a row index,
 // 1-based integers describing where the cell lives. Consumers rely on them as numbers for arithmetic
 // (comparing positions, computing offsets, indexing parallel arrays). The runtime has always returned
 // numbers, but the legacy published TypeScript declared the accessors as `string`, so strict code
@@ -15,7 +15,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'types',
   description:
-    "A cell's col and row accessors are 1-based numbers at runtime, matching its actual position — " +
+    "A cell's col and row accessors are 1-based numbers at runtime, matching its actual position, " +
     'not strings.',
 
   behavior: [

@@ -4,7 +4,7 @@
 // the shared-strings table. The streaming reader consumes the shared-strings XML as a sequence of
 // raw byte chunks fed to a SAX parser. If a chunk boundary falls in the middle of a multi-byte UTF-8
 // sequence and each chunk is decoded independently, the split code point becomes the Unicode
-// replacement character (U+FFFD) — so some CJK/emoji cells read back as garbage even though the file
+// replacement character (U+FFFD), so some CJK/emoji cells read back as garbage even though the file
 // is well-formed and round-trips correctly through the non-streaming reader. A correct streaming
 // decoder reassembles UTF-8 sequences across chunk boundaries. The payload here is deliberately large
 // so the shared-strings part spans multiple underlying chunks.
@@ -33,10 +33,10 @@ export default {
   cluster: 'streaming',
   description:
     'The streaming reader must return multi-byte UTF-8 cell text (CJK, emoji) byte-exact even when ' +
-    'the shared-strings XML is split across chunk boundaries — no U+FFFD replacement characters — ' +
+    'the shared-strings XML is split across chunk boundaries, no U+FFFD replacement characters, ' +
     'and match what the non-streaming reader returns. Today a chunk split mid-character corrupts ' +
     'some sequences: a large CJK payload comes back with replacement characters (known-open), while ' +
-    'a large emoji payload happens to survive — the reader decodes chunks independently instead of ' +
+    'a large emoji payload happens to survive: the reader decodes chunks independently instead of ' +
     'reassembling UTF-8 across boundaries.',
 
   behavior: [

@@ -1,9 +1,9 @@
 // Cluster: tables
 //
-// Real-world scenario: a worksheet has a horizontally merged range below the top of the sheet — a
+// Real-world scenario: a worksheet has a horizontally merged range below the top of the sheet: a
 // header row, then a banner merged across A2:O2. The user deletes a row above the merged range
 // (a row-splice delete), which shifts the merged range upward. After the delete the range must
-// still be merged, now at A1:O1 — the same span, shifted. The same row-shifting logic underlies
+// still be merged, now at A1:O1, the same span, shifted. The same row-shifting logic underlies
 // row insertion (shift down) and duplication, so merged ranges must survive those too. The bug:
 // the splice moves the cell data but leaves the merge range stranded at its original indices, so
 // the range silently un-merges (and points at the wrong, now-empty cells).

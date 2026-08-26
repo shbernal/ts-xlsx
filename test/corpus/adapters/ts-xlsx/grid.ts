@@ -1,5 +1,5 @@
-// Rows, columns, merges and the sheet geometry around them — insertion, splicing, outline
-// levels, freeze panes, print areas and page breaks — and the print settings that ride alongside
+// Rows, columns, merges and the sheet geometry around them: insertion, splicing, outline
+// levels, freeze panes, print areas and page breaks, and the print settings that ride alongside
 // them: page margins, and the header/footer definition text.
 
 import type {RowInput} from '../../../../src/core/worksheet.ts';
@@ -43,7 +43,7 @@ export const grid = {
     const final = readXlsx(writeXlsx(loaded));
     const f = final.getWorksheet('S');
     // Mirror the oracle's `row.values.slice(1)` per-row array: each row is sized to its own populated
-    // extent, holes are null, and an empty row is an empty array — indexed by row number so a gap shows.
+    // extent, holes are null, and an empty row is an empty array, indexed by row number so a gap shows.
     const rows: Untyped[] = Array.from({length: f!.rowCount}, () => []);
     for (const {number, cells} of f!.rows()) {
       const maxCol = cells.reduce((m: number, c: Untyped) => Math.max(m, c.col), 0);
@@ -130,8 +130,8 @@ export const grid = {
     };
   },
 
-  // Author the shape a generated report has — a frozen top row above grouped, hidden columns, on the
-  // first of two sheets — write it, and report the view-initialisation facts of the written package →
+  // Author the shape a generated report has, a frozen top row above grouped, hidden columns on the
+  // first of two sheets, then write it and report the view-initialisation facts of that package →
   // { bookViewCount, bookViewsBeforeSheets, windowWidth, windowHeight, selectedSheets,
   // outlineLevelCol, paneEmitted }. A consumer restores the document window from the workbook view
   // and lays the frozen pane and the column-outline bar out inside it; omitting those facts leaves
@@ -224,7 +224,7 @@ export const grid = {
   },
 
   // Author three columns with distinct widths (one hidden), write, then REVERSE the order of the
-  // emitted `<col>` tags — the shape foreign generators (excelize, jxls-poi) produce — and read the
+  // emitted `<col>` tags, the shape foreign generators (excelize, jxls-poi) produce, and read the
   // patched package back → { w1, w2, w3, hidden2 }. Each column's width and hidden flag must bind to
   // the column its min/max names, regardless of document order.
   outOfOrderColumnsReport() {
@@ -301,13 +301,13 @@ export const grid = {
     const sheet = workbook.addWorksheet('S');
     sheet.getColumn(1).key = 'k1';
     sheet.getColumn(2).key = 'k2';
-    sheet.addRow(['header']); // row 1 — keeps the checked rows at their stated numbers
-    sheet.addRow(['a', 'b', 'c']); // row 2 — dense positional array
+    sheet.addRow(['header']); // row 1: keeps the checked rows at their stated numbers
+    sheet.addRow(['a', 'b', 'c']); // row 2: dense positional array
     // oxlint-disable-next-line eslint/no-sparse-arrays -- a genuine array hole (not undefined) is the point: the gap at column B must be skipped positionally
-    sheet.addRow(['x', , 'z']); // row 3 — sparse array, gap at column B
-    sheet.addRow({k1: 'o1', k2: 'o2'}); // row 4 — keyed object
-    sheet.addRow([7, new Date(Date.UTC(2021, 0, 2))]); // row 5 — number + date
-    sheet.addRows([['m1', 'm2'], {k1: 'n1'}]); // rows 6, 7 — mixed batch
+    sheet.addRow(['x', , 'z']); // row 3: sparse array, gap at column B
+    sheet.addRow({k1: 'o1', k2: 'o2'}); // row 4: keyed object
+    sheet.addRow([7, new Date(Date.UTC(2021, 0, 2))]); // row 5: number + date
+    sheet.addRows([['m1', 'm2'], {k1: 'n1'}]); // rows 6, 7: mixed batch
 
     const loaded = readXlsx(writeXlsx(workbook));
     const s = loaded.getWorksheet('S');
@@ -345,7 +345,7 @@ export const grid = {
   // Set row-level properties on rows that carry NO cell value and report what survives a round-trip
   // → { row3Hidden, row4Hidden, row4Height, row5Hidden }. A content-less row bearing a hidden flag,
   // a height, or an outline level must still be written (its <row> element materialised) so the
-  // property is not lost — the failure mode is a blank hidden/grouped spacer row coming back visible.
+  // property is not lost: the failure mode is a blank hidden/grouped spacer row coming back visible.
   hiddenEmptyRowReport() {
     const wb = new Workbook();
     const ws = wb.addWorksheet('S');
@@ -422,7 +422,7 @@ export const grid = {
   // Build a workbook from a spec, round-trip it, and for each requested row report the column indices
   // an include-empty iteration yields → { rows: { <n>: { cols } }, columnCount }. Positional iteration
   // walks 1..columnCount (the sheet's declared width), so interior *and* trailing empties are surfaced
-  // and every row reconstructs to the header width — the alignment invariant a positional consumer needs.
+  // and every row reconstructs to the header width, the alignment invariant a positional consumer needs.
   async readRowCellPresence(spec: Untyped, rowNumbers: number[] = []) {
     const sheet = readXlsx(writeXlsx(buildFrom(spec))).worksheets[0]!;
     const columnCount = sheet.columnCount;
@@ -473,7 +473,7 @@ export const grid = {
   // Merge a horizontal span with a value + alignment on the anchor, write, then read back →
   // { mergeCount, merges, populatedCoveredCells, anchorValue, anchorAlignment }. A clean merge
   // declares the range exactly once and emits a value only on the anchor, so the covered cells
-  // carry no conflicting <v> — the shape that opens without Excel's repair prompt — and the
+  // carry no conflicting <v>, the shape that opens without Excel's repair prompt, and the
   // anchor's value and alignment survive the round-trip.
   mergeCleanReport({anchor = 'B1', range = 'B1:G1', value = 'Group Title'}: Untyped = {}) {
     const workbook = new Workbook();
@@ -505,7 +505,7 @@ export const grid = {
     };
   },
 
-  // Populate covered non-anchor cells FIRST, then merge over them — the order that leaves stray
+  // Populate covered non-anchor cells FIRST, then merge over them: the order that leaves stray
   // values behind. Write and read back → { anchorValue, populatedCoveredCells, coveredValuesOnRead }.
   // Excel keeps only the anchor's value on merge; a covered cell that still carries a <v> under the
   // <mergeCell> ref is the geometry that trips Excel's repair prompt.
@@ -575,7 +575,7 @@ export const grid = {
     sheet.getCell(slave).value = value;
     const buffer = writeXlsx(workbook);
     const sheetXml = partMapOf(buffer)['xl/worksheets/sheet1.xml'] || '';
-    // A cell "carries a value" if its element has value content — a number/bool/formula (<v>),
+    // A cell "carries a value" if its element has value content: a number/bool/formula (<v>),
     // an inline string (<is>), or a formula (<f>). The writer serialises strings as inlineStr,
     // so keying on <v> alone would miss them; an empty covered cell is never emitted at all.
     const cellsWithValue = [
@@ -594,8 +594,8 @@ export const grid = {
     };
   },
 
-  // Duplicate a populated row with default args, then merge a range on the copy — for asserting the
-  // copy is faithful (values, not empty/NaN) and carries no phantom merge that would reject the merge.
+  // Duplicate a populated row with default args, then merge a range on the copy. The copy must be
+  // faithful (values, not empty/NaN) and carry no phantom merge that would reject the merge.
   duplicateRowReport() {
     const sheet = new Workbook().addWorksheet('S');
     sheet.getCell('A1').value = 'a';
@@ -619,7 +619,7 @@ export const grid = {
     return {dupError, mergeError, rowCount: sheet.rowCount, row1, row2, merges: [...sheet.merges]};
   },
 
-  // Insert a row then style a cell of it — for asserting the inserted cells stay mutable (no frozen,
+  // Insert a row then style a cell of it. The inserted cells must stay mutable (no frozen,
   // "object is not extensible" style object) regardless of the requested style-inheritance mode. The
   // rewrite's copy-on-write style model makes every cell mutable by construction, so the mode is
   // immaterial; it is accepted and ignored.
@@ -676,7 +676,7 @@ export const grid = {
     const drawingXml = parts['xl/drawings/drawing1.xml'] || '';
     const imageFromRow = (drawingXml.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/) || [])[1];
 
-    // Duplicate table column names authored separately — construction disambiguates them into a
+    // Duplicate table column names authored separately: construction disambiguates them into a
     // unique set rather than emitting a corrupt table (the same repair the reader applies on load).
     const w2 = new Workbook();
     const dupTable = w2
@@ -746,7 +746,7 @@ export const grid = {
 
   // Author `text` as a sheet's odd header, write, and read back → { emitted, rawInPart, read }.
   // `emitted` is the `<oddHeader>` body exactly as it reached the part, `rawInPart` names any emitted
-  // part still carrying a character XML cannot hold — which would make the package malformed — and
+  // part still carrying a character XML cannot hold, which would make the package malformed, and
   // `read` is what the reader gives back.
   authoredHeaderFooterEscape(text: string) {
     // oxlint-disable-next-line eslint/no-control-regex -- matching the control characters is the check: this asks whether an emitted part carries one
@@ -770,7 +770,7 @@ export const grid = {
   },
 };
 
-// The six `<headerFooter>` children, in CT_HeaderFooter order — the slots a header/footer report walks.
+// The six `<headerFooter>` children, in CT_HeaderFooter order: the slots a header/footer report walks.
 const HEADER_FOOTER_SLOTS = [
   'oddHeader',
   'oddFooter',

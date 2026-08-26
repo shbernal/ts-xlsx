@@ -1,13 +1,13 @@
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
 // An `.xlsx` stores a formula as the text the author typed. An `.xlsb` stores the same formula as a
-// `Ptg` token stream — postfix, with functions cited by number, sheets by index into a table, and
+// `Ptg` token stream: postfix, with functions cited by number, sheets by index into a table, and
 // defined names by position. So "the two forms produce one model" is a much stronger claim about
 // formulas than about anything else in the file: it means a stack machine reconstructed the exact
 // characters Excel would have written, parentheses and `$` anchors and quoting included.
 //
-// The fixtures are a pair Excel itself saved from one in-memory workbook — `source.xlsb` and
-// `source.xlsx` — so the XML twin is an independent oracle rather than something this library
+// The fixtures are a pair Excel itself saved from one in-memory workbook, `source.xlsb` and
+// `source.xlsx`, so the XML twin is an independent oracle rather than something this library
 // produced. The workbook is a grammar tour: one formula per token class. See `author.ps1` beside
 // them, and the spec `docs/knowledge/specs/xlsb-binary-format-output.md`.
 export default {
@@ -15,7 +15,7 @@ export default {
   cluster: 'xlsx-io',
   description:
     'A binary .xlsb formula, stored as a Ptg token stream, reads back as the same formula text its ' +
-    '.xlsx twin states — operators and parentheses, every operand kind, references including 3-D ' +
+    '.xlsx twin states: operators and parentheses, every operand kind, references including 3-D ' +
     'and whole-column, built-in and post-2007 function calls, array constants, and defined names.',
   provenance: {source: 'upstream-issue'},
   behavior: [
@@ -33,7 +33,7 @@ export default {
     {
       name: 'operator precedence survives because parentheses are stored, not inferred',
       expect(api: CorpusApi, assert: Assert) {
-        // A postfix stream carries no parentheses of its own — `1+2*3` and `(1+2)*3` differ only in
+        // A postfix stream carries no parentheses of its own: `1+2*3` and `(1+2)*3` differ only in
         // token order. Excel records the author's parentheses explicitly, so a decoder that instead
         // re-derived them from precedence would turn the second into the first.
         assert.equal(api.xlsbFormula('Calc', 'C1').formula, '1+2*3');
@@ -53,7 +53,7 @@ export default {
       expect(api: CorpusApi, assert: Assert) {
         assert.equal(api.xlsbFormula('Calc', 'C3').formula, '1.5+2');
         // A quote inside a string literal is doubled, as the formula grammar (not the stored text)
-        // requires — the token holds `say "hi"` and the formula must read `"say ""hi"""`.
+        // requires: the token holds `say "hi"` and the formula must read `"say ""hi"""`.
         assert.equal(api.xlsbFormula('Calc', 'C8').formula, '"say ""hi"""');
         assert.equal(api.xlsbFormula('Calc', 'C10').formula, 'A1<>A2');
         assert.equal(api.xlsbFormula('Calc', 'C11').formula, 'TRUE');
@@ -72,7 +72,7 @@ export default {
       name: 'a whole-column or whole-row reference reads in its abbreviated form',
       expect(api: CorpusApi, assert: Assert) {
         // Stored as an ordinary range spanning every row (or every column) of the grid. `A:A` is not
-        // shorthand a reader may choose — it is the only spelling Excel writes.
+        // shorthand a reader may choose: it is the only spelling Excel writes.
         assert.equal(api.xlsbFormula('Calc', 'C23').formula, 'SUM(A:A)');
         assert.equal(api.xlsbFormula('Calc', 'C24').formula, 'SUM(Data!2:2)');
       },
@@ -85,7 +85,7 @@ export default {
         assert.equal(api.xlsbFormula('Calc', 'C19').formula, 'SUM(Data!A1:B2)');
         assert.equal(api.xlsbFormula('Calc', 'C20').formula, 'Data!$A$1');
         assert.equal(api.xlsbFormula('Calc', 'C22').formula, 'SUM(Data:More!A1)');
-        // A name that is not a plain identifier is quoted — a decision the reader must make itself,
+        // A name that is not a plain identifier is quoted, a decision the reader must make itself,
         // since the stored form has no quoting at all.
         assert.equal(api.xlsbFormula('Calc', 'C21').formula, "'Odd Name'!A1");
       },
@@ -100,7 +100,7 @@ export default {
       name: 'a function call recovers its name and its arguments',
       expect(api: CorpusApi, assert: Assert) {
         // A call token cites its function by number. A fixed-arity call carries no argument count at
-        // all — how many operands belong to it is a property of the function, so `PI()` and
+        // all: how many operands belong to it is a property of the function, so `PI()` and
         // `SUM(A1:A5)` are distinguished by the table, not the stream.
         assert.equal(api.xlsbFormula('Calc', 'C18').formula, 'PI()');
         assert.equal(api.xlsbFormula('Calc', 'C14').formula, 'SUM(A1:A5)');
@@ -129,7 +129,7 @@ export default {
     {
       name: 'reference-set operators keep their punctuation',
       expect(api: CorpusApi, assert: Assert) {
-        // Intersection is a space and union is a comma — operators that look like formatting, and
+        // Intersection is a space and union is a comma, operators that look like formatting, and
         // that a reader dropping them would turn into a different formula that still parses.
         assert.equal(api.xlsbFormula('Calc', 'C28').formula, 'SUM(A1:A3 A2:A5)');
         assert.equal(api.xlsbFormula('Calc', 'C30').formula, 'SUM((A1:A2,A4:A5))');
@@ -139,7 +139,7 @@ export default {
       name: 'an array constant decodes with its shape and its element types',
       expect(api: CorpusApi, assert: Assert) {
         // The elements live outside the token stream, in a trailing block whose row and column counts
-        // are the only thing saying where each row ends — so the non-square constant is the case that
+        // are the only thing saying where each row ends, so the non-square constant is the case that
         // catches a decoder reading those two counts the wrong way round.
         assert.equal(api.xlsbFormula('Calc', 'C31').formula, 'SUM({1,2;3,4})');
         assert.equal(api.xlsbFormula('Calc', 'C32').formula, 'SUM({1,2,3;4,5,6})');
@@ -171,7 +171,7 @@ export default {
       name: 'a filled-down formula reads its own translated text on every cell',
       expect(api: CorpusApi, assert: Assert) {
         // Where the XML form stores one master and marks the rest as clones, Excel's binary form
-        // writes each cell's formula out in full — so a clone reads back with the same text either
+        // writes each cell's formula out in full, so a clone reads back with the same text either
         // way, and only the pointer back to the master is absent. The grouping is a storage
         // optimisation, not a fact about the sheet.
         assert.deepEqual(api.xlsbFilledFormulaColumn(), [
@@ -186,7 +186,7 @@ export default {
     {
       name: 'defined names read back with their targets and their scope',
       expect(api: CorpusApi, assert: Assert) {
-        // A name's target is a token stream too, so names are unreadable until formulas are — and a
+        // A name's target is a token stream too, so names are unreadable until formulas are, and a
         // name may hold a constant rather than a reference.
         assert.deepEqual(api.xlsbDefinedNames(), [
           {name: 'Factor', refersTo: '2'},
@@ -198,7 +198,7 @@ export default {
     {
       name: 'a formula referring to a defined name cites it by name, not by index',
       expect(api: CorpusApi, assert: Assert) {
-        // The token holds a position in the file's name list — a list that also contains the hidden
+        // The token holds a position in the file's name list, a list that also contains the hidden
         // placeholders Excel registers for post-2007 functions. Filtering those out of the model
         // while still counting them for lookup is the whole difference between `Rate*A1` and a
         // formula naming the wrong thing.

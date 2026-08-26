@@ -1,15 +1,16 @@
 // Cluster: xlsx-io
 //
 // Real-world scenario: the strings an application writes into a workbook come from a database, a CSV
-// export or a user form, and some of them carry characters XML 1.0 cannot hold — a C0 control left by
+// export or a user form, and some of them carry characters XML 1.0 cannot hold: a C0 control left by
 // a legacy field terminator, a U+FFFE noncharacter from a mis-decoded byte order mark, half of a
 // surrogate pair from a truncated UTF-16 field. Passed through raw, they produce a package the
 // application reports as damaged and refuses to open.
 //
 // SpreadsheetML has one convention for this and it covers cell values only: `_xHHHH_`, which Excel
 // writes and reads back. So a cell value carrying such a character is escaped and survives intact,
-// while a sheet name — which has no such convention, and whose tab would otherwise read `Sheet_x0001_A`
-// — is refused outright. Because `_xHHHH_` now means something, a value that legitimately contains the
+// while a sheet name, which has no such convention and whose tab would otherwise read
+// `Sheet_x0001_A`, is refused outright. Because `_xHHHH_` now means something, a value that
+// legitimately contains the
 // literal text `_x0041_` must have its underscore escaped as well, or it would come back as `A`.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -22,8 +23,8 @@ export default {
   provenance: {source: 'writer-boundary-probe'},
   description:
     'A string carrying a character XML 1.0 cannot represent is never emitted raw: a cell value is ' +
-    'escaped with the SpreadsheetML _xHHHH_ convention, and a sheet name — which has no such ' +
-    'convention — is refused with an error naming the code point.',
+    'escaped with the SpreadsheetML _xHHHH_ convention, and a sheet name, which has no such ' +
+    'convention, is refused with an error naming the code point.',
 
   behavior: [
     {

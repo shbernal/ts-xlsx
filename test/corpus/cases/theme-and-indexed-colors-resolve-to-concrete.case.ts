@@ -1,22 +1,22 @@
 // Cluster: styles
 //
 // Real-world scenario: a caller inspects a cell's fill or font colour and gets `{theme: 4}` or
-// `{indexed: 2}` — a reference into a table they have no access to, and no colour at all. OOXML lets a
+// `{indexed: 2}`, a reference into a table they have no access to, and no colour at all. OOXML lets a
 // colour state itself three ways, and two of them are indirections: `theme="n"` points into the
 // workbook theme's colour scheme, `indexed="n"` into a legacy 64-entry palette a workbook may also
 // override. Either may carry a `tint` that lightens or darkens the result. Without resolution the
-// model can report the colour of an explicit-RGB cell and nothing else — which, in files produced by
+// model can report the colour of an explicit-RGB cell and nothing else, which, in files produced by
 // Excel, is most cells.
 //
 // Two traps this pins down:
 //
 //  • `theme="n"` does NOT index the order the slots appear in the theme part. Index 0 is `lt1` and 1
-//    is `dk1` — each dark/light pair swapped relative to the `<a:clrScheme>` child sequence the spec
+//    is `dk1`, each dark/light pair swapped relative to the `<a:clrScheme>` child sequence the spec
 //    tabulates. Reading the sequence order instead inverts text against background on every workbook.
 //    Settled against Excel Desktop; see the recorded observation in
 //    `test/corpus/fixtures/excel-oracle/theme-color-index-order.json`.
 //  • `indexed="64"` is not a colour. It is the system-foreground sentinel, and it sits on the
-//    background of essentially every solid fill Excel writes — resolving it to black would repaint
+//    background of essentially every solid fill Excel writes: resolving it to black would repaint
 //    them all.
 //
 // Resolution is a *derived* view. The model keeps the encoding the file used, so a round-trip
@@ -35,7 +35,7 @@ export default {
   cluster: 'styles',
   description:
     'A colour stated as a theme slot or a palette index resolves to a concrete ARGB the caller can ' +
-    'render — through the workbook’s own theme and its own custom palette, with any tint applied — ' +
+    'render, through the workbook’s own theme and its own custom palette, with any tint applied, ' +
     'while the model keeps the original reference so a round-trip re-emits it unchanged.',
 
   behavior: [
@@ -48,7 +48,7 @@ export default {
           {theme: 4},
           'precondition: the cell states its fill as a theme slot and nothing else',
         );
-        // accent1 in this file's theme, not the Office default 4472C4 — so a resolver that ignored
+        // accent1 in this file's theme, not the Office default 4472C4, so a resolver that ignored
         // the workbook's theme could not pass by luck.
         assert.strictEqual(cells.A1.fillResolved, 'FFBB2649');
       },
@@ -60,7 +60,7 @@ export default {
         assert.strictEqual(themeColors.dk1, '1A1A1A', 'precondition: an off-black dk1');
         assert.strictEqual(themeColors.lt1, 'FAFAFA', 'precondition: an off-white lt1');
         assert.deepStrictEqual(cells.A1.font, {theme: 1});
-        // Reading the clrScheme child order instead would give FFFAFAFA — white text on a coloured
+        // Reading the clrScheme child order instead would give FFFAFAFA: white text on a coloured
         // fill, on every workbook ever written.
         assert.strictEqual(cells.A1.fontResolved, 'FF1A1A1A');
       },
@@ -95,7 +95,7 @@ export default {
         assert.deepStrictEqual(cells.C1.fill, {indexed: 2});
         // Slot 2 is pure red (00FF0000) in the built-in palette; this workbook overrode it.
         assert.strictEqual(cells.C1.fillResolved, 'FF123456');
-        // A slot the workbook left alone still resolves — the override is per entry, not a reset.
+        // A slot the workbook left alone still resolves: the override is per entry, not a reset.
         assert.deepStrictEqual(cells.D1.fill, {indexed: 10});
         assert.strictEqual(cells.D1.fillResolved, 'FFFF0000');
       },

@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: an author wants some cells editable and the rest read-only. In OOXML the
-// per-cell "locked" flag defaults to TRUE — so marking a cell locked=true is a no-op relative to the
+// per-cell "locked" flag defaults to TRUE, so marking a cell locked=true is a no-op relative to the
 // default, and the only per-cell state that actually carries information is locked=FALSE (an
 // explicitly *unlocked* cell). Crucially, the locked flag does nothing on its own: it is enforced
 // only when the worksheet itself is protected (a <sheetProtection> element). A common confusion is
@@ -54,7 +54,7 @@ export default {
       },
     },
     {
-      name: 'protecting the worksheet emits a <sheetProtection> element — the thing that makes locked flags enforceable',
+      name: 'protecting the worksheet emits a <sheetProtection> element, the thing that makes locked flags enforceable',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheetProtection} = await api.authorCellProtection([{ref: 'A1', value: 'x'}], {
           password: 'secret',
@@ -69,7 +69,7 @@ export default {
     },
     {
       // Unlocking a whole COLUMN or ROW in one call (rather than touching each cell) must carry the
-      // unlocked flag to every cell of that band, exactly as a per-cell override would — the band is
+      // unlocked flag to every cell of that band, exactly as a per-cell override would: the band is
       // just an ergonomic shorthand for "these cells are editable once the sheet is protected".
       name: 'setting a whole column unlocked carries locked=false to its cells; an off-band cell stays default-locked',
       async expect(api: CorpusApi, assert: Assert) {

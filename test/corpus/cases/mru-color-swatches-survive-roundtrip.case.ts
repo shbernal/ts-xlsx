@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: an author picks custom colours while building a workbook, and the application
-// records them in `<colors><mruColors>` — the "Recent Colors" row it offers next time the file is
+// records them in `<colors><mruColors>`, the "Recent Colors" row it offers next time the file is
 // opened. A round-trip that regenerates styles.xml drops the block, quietly resetting the author's
 // working palette on every save.
 //

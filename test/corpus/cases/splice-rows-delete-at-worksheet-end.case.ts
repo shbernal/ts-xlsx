@@ -1,7 +1,7 @@
 // Cluster: tables
 //
 // Real-world scenario: a worksheet has a known number of populated rows. Deleting a run of rows that
-// reaches the last populated row — trimming the tail off a sheet — should actually remove those rows
+// reaches the last populated row, trimming the tail off a sheet, should actually remove those rows
 // and shrink the sheet's dimension, just as deleting rows in the middle shifts the rows below up. In
 // the buggy behavior, a delete-splice whose range includes the final row silently leaves the trailing
 // rows in place: the sheet still reports the old row count and the "deleted" cells still hold their
@@ -20,7 +20,7 @@ export default {
   cluster: 'tables',
   description:
     'A row/column delete-splice whose range includes the last populated row/column must actually ' +
-    'remove it and shrink the sheet dimension — not silently leave the trailing entries in place — ' +
+    'remove it and shrink the sheet dimension, not silently leave the trailing entries in place, ' +
     'the same way an interior delete-splice shifts the following rows/columns up/left.',
 
   behavior: [

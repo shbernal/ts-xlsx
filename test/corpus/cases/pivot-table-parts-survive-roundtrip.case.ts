@@ -16,7 +16,7 @@ export default {
   cluster: 'pivot',
   description:
     'A no-op load→save preserves pivot-table parts and their pivot caches instead of dropping ' +
-    'them — a chart/pivot-bearing template survives a fill-and-save without losing its pivots.',
+    'them: a chart/pivot-bearing template survives a fill-and-save without losing its pivots.',
 
   behavior: [
     {

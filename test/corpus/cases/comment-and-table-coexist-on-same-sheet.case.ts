@@ -1,8 +1,8 @@
 // Cluster: tables
 //
 // Real-world scenario: a worksheet contains both a table and at least one cell comment
-// (note). Each feature adds its own worksheet relationships and parts — a comment brings a
-// comments part plus a legacy VML drawing, a table brings a table part — and if their
+// (note). Each feature adds its own worksheet relationships and parts: a comment brings a
+// comments part plus a legacy VML drawing, a table brings a table part, and if their
 // relationship wiring collides the written file is corrupt: Excel repairs it on open and
 // can blank the affected cells. A sheet with both a table and a comment must produce a
 // valid, internally-consistent package where both survive.
@@ -34,9 +34,9 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 1429},
   cluster: 'tables',
   description:
-    'A worksheet carrying both a table and a cell comment writes a valid package — the ' +
+    'A worksheet carrying both a table and a cell comment writes a valid package: the ' +
     'comments part, its VML drawing, and the table part coexist with unique worksheet ' +
-    'relationship ids — and both the table data and the comment survive a round-trip.',
+    'relationship ids, and both the table data and the comment survive a round-trip.',
 
   behavior: [
     {
@@ -68,7 +68,7 @@ export default {
     {
       // The note's VML link (legacyDrawing) and the table link (tableParts) must appear in the
       // order the worksheet schema fixes: legacyDrawing before tableParts. Emitting them the
-      // other way round is schema-invalid — Excel repairs the file and can drop the sheet — even
+      // other way round is schema-invalid: Excel repairs the file and can drop the sheet, even
       // though this library's own tolerant reader reads it back fine, so the round-trip above
       // does not catch it. Order, not just presence, is the invariant.
       name: 'the note’s legacyDrawing is emitted before the table’s tableParts (schema order)',

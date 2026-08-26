@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: a user iterates a worksheet's cells, assigns a common base style to each, then
-// conditionally overrides one nested property (e.g. font color) on individual cells — green for
+// conditionally overrides one nested property (e.g. font color) on individual cells, green for
 // "YES", red for "NO". Instead of only the targeted cells changing, the override bleeds into every
 // cell that received the base style, because assigning a shared style object (or shared style id) and
 // later mutating a nested property mutates the aliased instance. Correct behavior is copy-on-write:
@@ -19,7 +19,7 @@ export default {
   cluster: 'styles',
   description:
     'Assigning one base style object to two cells and then mutating one cell’s font color affects ' +
-    'only that cell — the sibling given the same base style keeps its original font, with no ' +
+    'only that cell: the sibling given the same base style keeps its original font, with no ' +
     'aliasing bleed.',
 
   behavior: [

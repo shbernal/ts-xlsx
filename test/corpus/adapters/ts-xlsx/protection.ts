@@ -53,7 +53,7 @@ export const protection = {
       if (c.protection !== undefined) cell.protection = c.protection;
     }
     // Whole-column / whole-row protection: the model carries protection per cell, so realize an
-    // unlocked band by stamping its flag onto each listed cell that falls in the band — the same
+    // unlocked band by stamping its flag onto each listed cell that falls in the band: the same
     // end-state a per-cell override yields (column-scope inheritance is a separate capability).
     // Applied after the per-cell settings so the band-level flag is what the case asserts.
     for (const col of columns) {
@@ -135,7 +135,7 @@ export const protection = {
   // Protect a worksheet, write it, read it back, then write the reloaded workbook again, reporting
   // the <sheetProtection> attributes from BOTH writes → { first, second }. Proves the reader carries
   // sheet-level protection back into the model rather than silently dropping it on a passthrough
-  // save — the second write must still emit protection, with the agile credential preserved verbatim
+  // save: the second write must still emit protection, with the agile credential preserved verbatim
   // (no plaintext password survives to re-hash) and the permissive flags intact.
   sheetProtectionRoundtrip(
     password = 'secret',
@@ -158,6 +158,6 @@ export const protection = {
 
   // Copy-on-write style aliasing family. Each cell owns its facet fields and every setter REPLACES
   // the field (the readonly facet types forbid in-place mutation of a shared record), so mutating
-  // one cell's facet — even a cell that shared a style with siblings on disk — cannot bleed onto a
+  // one cell's facet, even a cell that shared a style with siblings on disk, cannot bleed onto a
   // sibling. These methods prove that end-to-end through the real write→read path.
 };

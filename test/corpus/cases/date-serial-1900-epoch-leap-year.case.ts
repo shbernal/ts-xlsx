@@ -1,8 +1,8 @@
 // Cluster: types
 //
 // Real-world scenario: date-formatted cells store a numeric serial in the 1900 date system. Excel
-// treats serial 1 as 1900-01-01 and — because of a deliberately-reproduced 1900 leap-year quirk
-// (serial 60 is the non-existent 1900-02-29) — serials 1..59 map to 1900-01-01..1900-02-28. A
+// treats serial 1 as 1900-01-01 and, because of a deliberately-reproduced 1900 leap-year quirk
+// (serial 60 is the non-existent 1900-02-29), serials 1..59 map to 1900-01-01..1900-02-28. A
 // reader that uses a straight 1899-12-30 epoch without accounting for the phantom day reads every
 // pre-March-1900 serial one day early (serial 1 → 1899-12-31 instead of 1900-01-01), so imported
 // dates are wrong. A date-formatted serial must read as the calendar date Excel displays for it.
@@ -48,7 +48,7 @@ export default {
     {
       // The boundary case: serial 60 is the phantom 1900-02-29 that never existed. Every serial at or
       // below 59 is therefore one day later than a naive "days since 1899-12-31" offset would place
-      // it — serial 59 is 1900-02-28, the real day just before the phantom. A reader that ignores the
+      // it: serial 59 is 1900-02-28, the real day just before the phantom. A reader that ignores the
       // phantom day reads serial 59 as 1900-02-27, one day early.
       name: 'serial 59 reads as 1900-02-28 (the real day just below the phantom 1900-02-29)',
       async expect(api: CorpusApi, assert: Assert) {

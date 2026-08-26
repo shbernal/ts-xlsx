@@ -1,7 +1,7 @@
 // Cluster: images
 //
 // Real-world scenario: a worksheet drawing contains a vector shape (an xdr:sp rectangle) or a
-// text box — not a picture. A library that models only cell-anchored images drops the whole
+// text box, not a picture. A library that models only cell-anchored images drops the whole
 // drawing on a no-op load→save: the worksheet's drawing relationship, the drawing part, and the
 // shape all disappear, so the reopened file has lost its shapes. Unmodeled drawing content must
 // be preserved through a round-trip rather than silently discarded.
@@ -15,7 +15,7 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 1147},
   cluster: 'images',
   description:
-    'A no-op load→save preserves a worksheet drawing that contains a vector shape (xdr:sp) — the ' +
+    'A no-op load→save preserves a worksheet drawing that contains a vector shape (xdr:sp): the ' +
     'drawing relationship, the drawing part, and the shape survive instead of the whole drawing ' +
     'being dropped.',
 

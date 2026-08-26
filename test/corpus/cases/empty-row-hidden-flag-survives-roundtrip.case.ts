@@ -1,8 +1,8 @@
 // Cluster: xlsx-io
 //
 // Real-world scenario: a user sets a row's hidden property to true but never assigns any cell value
-// in that row (an intentional blank spacer/hidden row). On write-then-read the hidden state is lost —
-// the row comes back visible — because the writer only emits a <row> element for rows that carry
+// in that row (an intentional blank spacer/hidden row). On write-then-read the hidden state is lost,
+// the row comes back visible, because the writer only emits a <row> element for rows that carry
 // cells or another materialized property. A blank row that carries a row-level property (hidden,
 // height, outline level) must still be written so that property survives.
 
@@ -14,7 +14,7 @@ export default {
   cluster: 'xlsx-io',
   description:
     'A blank row (no cell values) that is set hidden stays hidden after a round-trip; a blank row ' +
-    'given a height or outline level likewise retains it — the row-level property is written even ' +
+    'given a height or outline level likewise retains it: the row-level property is written even ' +
     'without cell content.',
 
   behavior: [

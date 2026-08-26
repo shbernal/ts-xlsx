@@ -81,7 +81,7 @@ export const validation = {
   },
 
   // Read a fixture, write it back, and report the data-validation facts of the *re-serialized*
-  // package — both the standard `<dataValidation>` entries and the extended `<x14:dataValidation>`
+  // package: both the standard `<dataValidation>` entries and the extended `<x14:dataValidation>`
   // form (2009 extension schema, carried in `<extLst>`, used for cross-sheet / whole-column list
   // sources). Lets a case assert a template's validation survives a read→write round-trip rather than
   // being silently dropped because only the standard form was understood.
@@ -180,8 +180,8 @@ export const validation = {
     return {writeOk: true, writeError: null, sqrefs, count, reloadOk};
   },
 
-  // Author list validations on a 'Main' sheet from the two source forms an author uses — an inline
-  // quoted literal ("Male,Female") and a cross-sheet range reference (Levels!$A$2:$A$9999) — write,
+  // Author list validations on a 'Main' sheet from the two source forms an author uses: an inline
+  // quoted literal ("Male,Female") and a cross-sheet range reference (Levels!$A$2:$A$9999), write,
   // read back, and report both the per-cell rule the reader hands back and the serialized
   // `<dataValidations>` facts (count, well-formedness, the verbatim formula1 texts). Lets a case
   // assert BOTH forms survive a write→read round-trip and that inline lists stay quoted while range

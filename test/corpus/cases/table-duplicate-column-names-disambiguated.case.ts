@@ -3,7 +3,7 @@
 // Real-world scenario: a table is built by mapping a header list into column definitions, and that
 // list happens to contain repeated names (e.g. every column is called "foo"). OOXML requires every
 // tableColumn name to be unique within a table part; a table whose column names collide produces a
-// file that Excel flags as corrupt and offers to repair. The library must never emit such a file —
+// file that Excel flags as corrupt and offers to repair. The library must never emit such a file:
 // duplicate incoming names must be disambiguated deterministically (keep the first "foo", then
 // "foo1", "foo2", …) so the workbook opens cleanly. The bug: the writer emits the colliding names
 // verbatim (name="foo" three times), yielding a corrupt package.
@@ -49,7 +49,7 @@ export default {
         assert.strictEqual(
           uniqueNames,
           true,
-          `each tableColumn name must be unique; got ${JSON.stringify(writtenNames)} — OOXML rejects a ` +
+          `each tableColumn name must be unique; got ${JSON.stringify(writtenNames)}: OOXML rejects a ` +
             'table whose column names collide',
         );
       },

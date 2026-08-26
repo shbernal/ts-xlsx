@@ -1,12 +1,12 @@
 // Cluster: styles
 //
-// Real-world scenario: a workbook has many rows with light, repetitive formatting — every cell in a
+// Real-world scenario: a workbook has many rows with light, repetitive formatting: every cell in a
 // numeric column shares one number format, every header shares one bold font. Even when the visual
 // style is identical, each cell may hold its own distinct style object in memory. On write, styles.xml
 // is meant to be a SHARED table referenced by index: those identical cell styles must collapse to a
 // single entry rather than emitting one style-table entry per cell. This is both a correctness
 // expectation for well-formed OOXML and the mechanism that keeps write time bounded on large,
-// lightly-formatted sheets — the historical performance cliff came from treating each cell's style as
+// lightly-formatted sheets: the historical performance cliff came from treating each cell's style as
 // unique and re-serializing it, so the interned representation never got reused. Deduplication must
 // also not over-collapse: a genuinely different style stays a distinct entry.
 
@@ -22,7 +22,7 @@ export default {
   cluster: 'styles',
   description:
     'Cells carrying identical visual formatting collapse to a single shared style-table entry on ' +
-    'write (one index, not one entry per cell), while a genuinely distinct style stays separate — the ' +
+    'write (one index, not one entry per cell), while a genuinely distinct style stays separate: the ' +
     'OOXML shared-table expectation that also keeps write cost bounded on large, lightly-formatted sheets.',
 
   behavior: [
@@ -52,7 +52,7 @@ export default {
           {sheets: [{name: 'S', cells: sharedCells()}]},
           [],
         );
-        // Default + the one shared fill = a small, bounded table — never ~40 entries.
+        // Default + the one shared fill = a small, bounded table, never ~40 entries.
         assert.ok(
           cellXfCount < 5,
           `40 identically-styled cells must not inflate the style table; got ${cellXfCount} entries`,

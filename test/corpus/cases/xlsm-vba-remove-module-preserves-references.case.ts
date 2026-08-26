@@ -1,12 +1,12 @@
 // Cluster: security
 //
-// Real-world scenario: a caller pruning a macro project incrementally — dropping a helper module that is
-// no longer needed from an existing macro-enabled workbook — needs a way to shrink an already-loaded
+// Real-world scenario: a caller pruning a macro project incrementally, dropping a helper module that is
+// no longer needed from an existing macro-enabled workbook, needs a way to shrink an already-loaded
 // vbaProject.bin by one module without disturbing what remains. The project carries state that cannot be
 // re-synthesized from a model: a reference to an external type library (PROJECTREFERENCES) and other
 // modules whose bytes (p-code prefix included) must ride through untouched. A naive "rebuild the project"
 // strategy would drop the reference and force every untouched module to be re-emitted (and thus
-// re-verified) even though only one module actually left — so removing a module must SPLICE it out of the
+// re-verified) even though only one module actually left, so removing a module must SPLICE it out of the
 // original bytes, mirroring how adding a reference already does (see
 // xlsm-vba-add-reference-preserves-modules).
 //
@@ -15,8 +15,8 @@
 // from the dir stream (decrementing MODULES_COUNT), drops its declaration from PROJECT/PROJECTwm, and
 // drops its compressed source stream from the VBA storage. It leaves _VBA_PROJECT completely untouched:
 // Excel runs the surviving modules' existing compiled p-code, and resetting the stream to an "unmatchable
-// version" cookie does not force a recompile from source — on a project that carries real p-code it
-// actively crashes the load (ADR 0019). Only procedural/class modules can be removed this way —
+// version" cookie does not force a recompile from source: on a project that carries real p-code it
+// actively crashes the load (ADR 0019). Only procedural/class modules can be removed this way:
 // removing a document module (ThisWorkbook) or a designer module would break host linkage the primitive
 // has no visibility into, so it is rejected fail-closed.
 // This case asserts the removed module is gone from every stream it touched, the hand-crafted
@@ -102,7 +102,7 @@ export default {
         assert.strictEqual(
           vbaProjectStreamPreserved,
           true,
-          '_VBA_PROJECT must be left byte-for-byte unchanged — Excel runs the surviving modules’ ' +
+          '_VBA_PROJECT must be left byte-for-byte unchanged: Excel runs the surviving modules’ ' +
             'existing p-code, and resetting the cookie would crash the load',
         );
       },

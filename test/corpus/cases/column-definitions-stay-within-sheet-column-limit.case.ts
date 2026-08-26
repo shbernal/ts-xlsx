@@ -5,7 +5,7 @@
 // XFD = 16384). Today setting a column at an index beyond the limit emits a <col> element whose
 // `max` exceeds 16384, which strict spreadsheet applications reject as a corrupt file. A written
 // worksheet must never emit a column definition whose min or max column index exceeds the sheet
-// maximum — an out-of-range column group must be clamped or dropped, keeping the column table
+// maximum: an out-of-range column group must be clamped or dropped, keeping the column table
 // internally consistent.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

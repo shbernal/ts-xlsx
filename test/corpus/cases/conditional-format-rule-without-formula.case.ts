@@ -1,8 +1,8 @@
 // Cluster: formulas
 //
-// Real-world scenario: a worksheet carries a conditional-formatting rule whose formula list is absent
-// — for example an expression-type rule authored by another tool that emitted the rule without a
-// formula element. When the library serializes the worksheet, the conditional-formatting writer
+// Real-world scenario: a worksheet carries a conditional-formatting rule whose formula list is
+// absent, for example an expression-type rule authored by another tool that emitted the rule
+// without a formula element. When the library serializes the worksheet, the conditional-formatting writer
 // assumes every rule has at least one formula and indexes into the formula list, throwing a TypeError
 // ("Cannot read properties of undefined (reading '0')") instead of emitting XML. Writing such a
 // workbook must succeed and preserve the rule rather than crashing on the missing formula.
@@ -14,7 +14,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'formulas',
   description:
-    'Serializing a worksheet whose conditional-formatting rule has no formula must not throw — the ' +
+    'Serializing a worksheet whose conditional-formatting rule has no formula must not throw: the ' +
     'writer must tolerate a formula-less rule rather than indexing into an absent formula list.',
 
   behavior: [

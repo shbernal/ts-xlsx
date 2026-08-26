@@ -5,8 +5,8 @@
 // `MixedCase!A10`), and a data-validation list whose allowed values come from a range on that other
 // sheet (`Levels!$A$2:$A$9999`). When the file is written and reopened, the cross-sheet reference
 // must survive verbatim: the referenced sheet name keeps its exact casing (not lowercased) and the
-// `!` sheet/cell separator is preserved. Reporters saw references broken on reopen — the sheet name
-// came back lowercased and the formula/validation failed to resolve — because the reference text
+// `!` sheet/cell separator is preserved. Reporters saw references broken on reopen: the sheet name
+// came back lowercased and the formula/validation failed to resolve, because the reference text
 // was mangled on write.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -63,7 +63,7 @@ export default {
       },
     },
     {
-      // Not just the sheet name — the COLUMN LETTERS inside the reference must stay uppercase. A
+      // Not just the sheet name: the COLUMN LETTERS inside the reference must stay uppercase. A
       // reported defect lower-cased "$A$2" to "$a$2", producing a subtly wrong/invalid reference.
       name: 'the column letters of a cross-sheet reference stay uppercase (not lower-cased)',
       async expect(api: CorpusApi, assert: Assert) {

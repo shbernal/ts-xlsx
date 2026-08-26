@@ -2,7 +2,7 @@
 //
 // Real-world scenario: images are anchored to single cells (C2, C3) while rows are appended in the
 // same loop that adds the images. Each image's cell-range anchor must resolve to the coordinates of
-// that exact cell, independent of the interleaving order of addRow and addImage — no off-by-one row
+// that exact cell, independent of the interleaving order of addRow and addImage: no off-by-one row
 // drift, no phantom extra row, and a one-to-one mapping from each image to its intended cell. Locks
 // the cell-anchored image position against the reported misalignment.
 
@@ -14,7 +14,7 @@ export default {
   cluster: 'images',
   description:
     'Images anchored to single cells (C2, C3) with addRow calls interleaved between them resolve ' +
-    'each to its exact cell — from-anchor col 2 at rows 1 and 2 (zero-based) — mapping one-to-one ' +
+    'each to its exact cell, from-anchor col 2 at rows 1 and 2 (zero-based), mapping one-to-one ' +
     'with no off-by-one drift or phantom row.',
 
   behavior: [
@@ -37,7 +37,7 @@ export default {
         assert.deepStrictEqual(
           froms[1],
           {col: 2, row: 2},
-          'the C3 image anchors at col 2, row 2 — no off-by-one',
+          'the C3 image anchors at col 2, row 2; no off-by-one',
         );
       },
     },

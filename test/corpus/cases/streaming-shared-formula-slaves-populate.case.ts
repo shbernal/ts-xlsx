@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a workbook is built through the streaming writer with a master formula cell
 // (e.g. B1 = A1*2) and a block of shared-formula slave cells (B2..B10 each referencing B1 as their
-// shared-formula master) — the standard compact way to apply one formula down a column. When the
+// shared-formula master), the standard compact way to apply one formula down a column. When the
 // streamed package is read back, the slave cells must be real formula cells (resolving to the shared
 // formula, or at least a value), not empty. A streaming writer that drops the slaves leaves every
 // derived cell blank in the output.

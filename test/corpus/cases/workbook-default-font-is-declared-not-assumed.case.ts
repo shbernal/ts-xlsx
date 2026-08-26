@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Font id 0 of the styles part is the workbook's default font: the face every cell that names no font
-// of its own renders in — **empty cells included** — and the Maximum Digit Width every character-unit
+// of its own renders in, **empty cells included**, and the Maximum Digit Width every character-unit
 // `<col width>` is expressed in. It is not a cell format and it is not optional; `<fonts>` always has
 // a first entry, so a writer that splices in a constant is *declaring* a default rather than omitting
 // one.
@@ -12,8 +12,9 @@
 // but whose font 0 names Calibri shows Calibri in every unstyled cell, and no amount of theme
 // authoring reaches them.
 //
-// The round-trip half is the same fact seen from the other side. A file that declares its own font 0
-// — Aptos Narrow, Arial 8, 等线 — must get it back unchanged. Replacing it with an assumed Calibri
+// The round-trip half is the same fact seen from the other side. A file that declares its own
+// font 0, whether Aptos Narrow, Arial 8 or 等线, must get it back unchanged. Replacing it with an
+// assumed Calibri
 // re-faces every empty cell and silently changes what every column width *means*, while populated
 // cells keep the real face through a redundant custom entry, so the damage hides.
 //
@@ -34,7 +35,7 @@ export default {
   provenance: {source: 'round-trip-fidelity-audit'},
   cluster: 'styles',
   description:
-    'The styles part’s font 0 is the workbook’s default font — what every unstyled cell renders in ' +
+    'The styles part’s font 0 is the workbook’s default font: what every unstyled cell renders in ' +
     'and what column widths are measured against. A file that declares one keeps it across a ' +
     'round-trip, and a workbook that authors a theme body face (or a default font outright) has it ' +
     'reach font 0 with the `scheme="minor"` claim left truthful rather than contradicting the name ' +
@@ -80,7 +81,7 @@ export default {
         assert.strictEqual(report.font0Name, 'Georgia');
         assert.strictEqual(report.resolved.size, 12);
         // Georgia is not the theme's body face, so claiming `scheme="minor"` would be the exact
-        // contradiction this case exists to forbid — and Excel writes no `<scheme>` on such a font 0.
+        // contradiction this case exists to forbid, and Excel writes no `<scheme>` on such a font 0.
         assert.strictEqual(report.font0Scheme, null);
         assert.strictEqual(report.agreesWithTheme, false);
       },
@@ -107,7 +108,7 @@ export default {
             '<family val="2"/><scheme val="minor"/></font>',
         );
         // One entry. The failure being locked out is a font 0 replaced by an assumed Calibri with the
-        // real face re-added beside it — which hides, because populated cells still render right.
+        // real face re-added beside it, which hides, because populated cells still render right.
         assert.strictEqual(report.fontCount, 1);
         assert.strictEqual(report.reReadDeclared!.name, 'Aptos Narrow', 'and it reads back');
       },

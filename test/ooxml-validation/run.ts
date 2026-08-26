@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // The OOXML gate: emit the writers' real output and hold it against a frozen baseline,
-// using `ooxml-validate` — the shared oracle this project and `ts-pptx` both validate
+// using `ooxml-validate`, the shared oracle this project and `ts-pptx` both validate
 // against. Everything this harness used to own below the assertions (the .NET build, the
 // process spawn, the conformance pin, the report types) belongs to that package now; the
 // two repos had each grown their own validator on a different Open XML SDK version, so
@@ -30,7 +30,7 @@ import {writeXlsx} from '../../src/io/xlsx/write.ts';
 /** The stable subset of a diagnostic used to detect baseline drift. */
 type ValidationFingerprint = Pick<ValidationDiagnostic, 'id' | 'type' | 'partUri' | 'xpath'>;
 
-/** Baselined-until-fixed diagnostics, keyed by workbook basename. Empty while the writer is clean —
+/** Baselined-until-fixed diagnostics, keyed by workbook basename. Empty while the writer is clean:
  * an entry is a *known-open* writer bug we've chosen to track, never a mute button for a new one. */
 type Baseline = Readonly<Record<string, readonly ValidationFingerprint[]>>;
 
@@ -46,8 +46,8 @@ const BASELINE = JSON.parse(
 // the frozen baseline (empty today, so: clean). A new diagnostic on any of them fails the gate.
 const WRITER_FILES = ['buffered.xlsx', 'streaming-inline.xlsx', 'streaming-shared.xlsx'] as const;
 
-// Exercise a representative slice of the buffered writer — styled font, data validation, a formula, and
-// a table over its own cells with a totals row carrying a custom <totalsRowFormula> — so the oracle sees
+// Exercise a representative slice of the buffered writer: styled font, data validation, a formula, and
+// a table over its own cells with a totals row carrying a custom <totalsRowFormula>, so the oracle sees
 // more than a bare grid and validates the totals-row markup against the schema.
 async function writeBufferedWorkbook(file: string): Promise<void> {
   const workbook = new Workbook();
@@ -126,7 +126,7 @@ function fingerprint(error: ValidationDiagnostic): ValidationFingerprint {
 async function main(): Promise<void> {
   // The oracle is obtained, not assumed: the package downloads and verifies its binary on
   // first use. Under CI this throws rather than returning false, which is the property
-  // that stops a missing oracle from turning the gate into a no-op — and here, where
+  // that stops a missing oracle from turning the gate into a no-op, and here, where
   // running this command IS asking for the oracle, "unavailable" is a failure either way.
   if (!(await validatorAvailable())) {
     throw new Error('the OOXML oracle is unavailable, so this gate proves nothing');
@@ -149,7 +149,7 @@ async function main(): Promise<void> {
     const inputs = [...WRITER_FILES.map(at), invalid, truncated];
     const report = await validate(inputs);
     assert.strictEqual(report.format, FILE_FORMAT);
-    // Every input appears in the report with an explicit `valid` flag — including the clean
+    // Every input appears in the report with an explicit `valid` flag, including the clean
     // ones. Absence is never cleanliness, so a short report is a broken contract, not a pass.
     assert.strictEqual(report.results.length, inputs.length);
     const byName = new Map<string, ValidationResult>(
@@ -163,7 +163,7 @@ async function main(): Promise<void> {
       assert.deepStrictEqual(
         result.errors.map(fingerprint),
         expected,
-        `${name} diverged from its baseline — fix the writer, do not baseline a new error`,
+        `${name} diverged from its baseline: fix the writer, do not baseline a new error`,
       );
       assert.strictEqual(
         result.valid,

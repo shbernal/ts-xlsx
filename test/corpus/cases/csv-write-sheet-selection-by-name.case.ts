@@ -4,7 +4,7 @@
 // CSV. The CSV writer accepts a sheet-selection option. When the caller supplies a name that matches
 // a worksheet, that sheet's rows are written. When no selector is given, the first worksheet is
 // written. But when the name matches no worksheet (e.g. the caller passed an intended output filename
-// by mistake), the writer silently emits an empty CSV for a non-empty workbook, hiding the error —
+// by mistake), the writer silently emits an empty CSV for a non-empty workbook, hiding the error;
 // it should error or have a clearly-defined fallback instead of yielding zero rows.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

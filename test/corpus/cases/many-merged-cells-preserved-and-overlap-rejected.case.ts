@@ -1,7 +1,7 @@
 // Cluster: merged-cells
 //
 // Real-world scenario: a worksheet has a large number of merged cell ranges (real files reach tens
-// of thousands — e.g. one small horizontal merge per row over thousands of rows). Loading and
+// of thousands, e.g. one small horizontal merge per row over thousands of rows). Loading and
 // re-saving must preserve every merge range exactly, with no merge dropped or duplicated, while
 // still rejecting genuinely overlapping merges. (The pathological parse *time* of tens of
 // thousands of merges is a separate performance concern captured in a spec note; this case locks
@@ -9,7 +9,7 @@
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
-// One horizontal merge per row across many rows — the shape of the real-world file, at a size the
+// One horizontal merge per row across many rows: the shape of the real-world file, at a size the
 // corpus can round-trip quickly.
 const MERGES = Array.from({length: 60}, (_, i) => `A${i + 1}:B${i + 1}`);
 const SPEC = {
@@ -24,7 +24,7 @@ export default {
   cluster: 'merged-cells',
   description:
     'Every merged range survives a round-trip with identical bounds and count (none dropped or ' +
-    'duplicated), while an overlapping merge is still rejected — the overlap check is optimized, ' +
+    'duplicated), while an overlapping merge is still rejected: the overlap check is optimized, ' +
     'not removed.',
 
   behavior: [

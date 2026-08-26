@@ -1,13 +1,13 @@
 // Cluster: formulas
 //
 // Real-world scenario: a user writes a cell formula using a modern Excel function that post-dates
-// the original OOXML function grammar — FILTER, XLOOKUP, LET, SEQUENCE — by its plain, readable name
+// the original OOXML function grammar, FILTER, XLOOKUP, LET, SEQUENCE, by its plain, readable name
 // (e.g. `=FILTER(A1:D1, A2:D2 = N1)`). When the file is opened in current desktop Excel, the formula
 // is silently dropped or shown as removed, even though typing the identical formula into Excel works
 // fine. The cause is an OOXML storage convention: functions introduced after the frozen legacy
 // grammar must be stored in the sheet XML with a `_xlfn.` name-mangling prefix (and LET's defined
-// names with a `_xlpm.` prefix). The prefix is an on-disk detail — the reader must strip it back to
-// the plain name — but if the writer never applies it, Excel rejects the formula.
+// names with a `_xlpm.` prefix). The prefix is an on-disk detail: the reader must strip it back to
+// the plain name, but if the writer never applies it, Excel rejects the formula.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -96,7 +96,7 @@ export default {
     {
       // The 2010 statistical-consistency rename family (NORM.DIST, T.DIST.2T, …) also post-dates the
       // frozen grammar and needs the `_xlfn.` prefix, but its names carry an internal '.'. The whole
-      // dotted name must be prefixed once — `_xlfn.NORM.DIST` — not its trailing segment.
+      // dotted name must be prefixed once, `_xlfn.NORM.DIST`, not its trailing segment.
       name: 'a dotted statistical function is stored whole with the _xlfn. prefix, not on its tail segment',
       async expect(api: CorpusApi, assert: Assert) {
         const {sheets} = await api.inspectPackage({

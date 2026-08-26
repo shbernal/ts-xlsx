@@ -1,10 +1,10 @@
 // Cluster: types
 //
 // Real-world scenario: an application builds a worksheet from mixed data where a logically-numeric
-// column arrives partly as JS numbers and partly as JS strings — a quantity field holding both 15
+// column arrives partly as JS numbers and partly as JS strings: a quantity field holding both 15
 // and "10", or an identifier column of zero-padded codes like "007". The library must preserve the
 // caller's DECLARED type: a JS string is written as a text cell, a JS number as a numeric cell. It
-// must NOT silently coerce a digit-only string into a number — that would destroy zero-padded codes,
+// must NOT silently coerce a digit-only string into a number: that would destroy zero-padded codes,
 // account numbers, and identifiers, and is exactly the corruption a "number stored as text" advisory
 // in a spreadsheet application is warning about (correctly). Type fidelity through a write→read
 // round-trip is the durable contract; the advisory is the honest consequence, not a bug.
@@ -33,7 +33,7 @@ export default {
   cluster: 'types',
   description:
     'A cell assigned a digit-only JS string is persisted and read back as a string (text cell), and ' +
-    'a cell assigned a JS number is persisted and read back as a number — the library preserves the ' +
+    'a cell assigned a JS number is persisted and read back as a number: the library preserves the ' +
     'declared type and never coerces a numeric-looking string into a numeric cell, so zero-padded ' +
     'codes survive intact.',
 

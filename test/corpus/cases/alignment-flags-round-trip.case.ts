@@ -1,7 +1,7 @@
 // Cluster: styles
 //
-// Real-world scenario: cells carry boolean alignment flags — wrapText and
-// shrinkToFit — that are OFF for the vast majority of cells. A reader must report
+// Real-world scenario: cells carry boolean alignment flags, wrapText and
+// shrinkToFit, that are OFF for the vast majority of cells. A reader must report
 // these as they truly are: a cell that never enabled wrapText must not come back
 // claiming wrapText is on. The failure mode is a reader defaulting every cell's
 // flags to `true`, which silently rewraps or shrinks content the author never
@@ -27,7 +27,7 @@ export default {
   cluster: 'styles',
   description:
     'The boolean alignment flags wrapText and shrinkToFit round-trip as their true ' +
-    'value — an enabled flag survives, and a disabled or unset flag does not come ' +
+    'value: an enabled flag survives, and a disabled or unset flag does not come ' +
     'back spuriously enabled.',
 
   behavior: [

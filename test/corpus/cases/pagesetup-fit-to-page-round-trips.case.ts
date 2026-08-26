@@ -1,7 +1,7 @@
 // Cluster: page-setup
 //
-// Real-world scenario: a user configures a worksheet's print scaling via fit-to-page — fit all
-// columns onto one page wide, or all rows onto one page tall — instead of a fixed zoom. The
+// Real-world scenario: a user configures a worksheet's print scaling via fit-to-page, fit all
+// columns onto one page wide, or all rows onto one page tall, instead of a fixed zoom. The
 // fit-to-page intent (the flag plus the fitToWidth/fitToHeight page counts and any scale) must
 // be emitted onto the sheet properties and pageSetup consistently and survive a round-trip, so
 // the reopened workbook prints with the same fit behavior the author requested.
@@ -32,8 +32,8 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 388},
   cluster: 'page-setup',
   description:
-    'A worksheet’s fit-to-page print scaling — the fitToPage flag together with the ' +
-    'fitToWidth/fitToHeight page counts (and scale) — survives a write→read round-trip so the ' +
+    'A worksheet’s fit-to-page print scaling, the fitToPage flag together with the ' +
+    'fitToWidth/fitToHeight page counts (and scale), survives a write→read round-trip so the ' +
     'reopened sheet prints with the requested fit behavior.',
 
   behavior: [

@@ -1,6 +1,6 @@
 // Cluster: formulas
 //
-// Real-world scenario: a workbook contains shared formulas — the master/slave grouping a spreadsheet
+// Real-world scenario: a workbook contains shared formulas, the master/slave grouping a spreadsheet
 // app emits when a formula is filled across a range (one master cell defining the formula plus
 // dependent cells that reference it by a shared range). Reading such a workbook and writing it back,
 // or applying a structural edit like inserting a column, must not corrupt the master/slave

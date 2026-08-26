@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a CSV field contains only whitespace (a run of spaces between two delimiters,
 // e.g. `firstValue,   ,secondValue`). JavaScript's `Number('   ')` is 0, so a naive type-inference
-// mapper turns a whitespace-only field into the number 0 — silently destroying the original content
+// mapper turns a whitespace-only field into the number 0, silently destroying the original content
 // and injecting a spurious numeric value. A whitespace-only field is not a number; it must be
 // preserved as its literal string. An empty field (nothing between delimiters) stays distinct (null),
 // and genuinely numeric fields still parse as numbers.

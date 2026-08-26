@@ -3,7 +3,7 @@
 // Real-world scenario: a workbook is produced through the streaming writer and contains formula cells
 // whose cached results the producer cannot compute (it is not a formula engine). The standard OOXML
 // remedy is to set the workbook's fullCalcOnLoad flag so the consuming spreadsheet app recalculates
-// every formula when it opens the file. The in-memory writer honors this — it emits
+// every formula when it opens the file. The in-memory writer honors this: it emits
 // <calcPr … fullCalcOnLoad="1"/>. The streaming writer does not: the flag set on the writer never
 // reaches the output, whose <calcPr> carries only a calcId, so the produced file opens showing stale
 // cached results with no recalculation. Recalc-on-load must work identically on both writers.

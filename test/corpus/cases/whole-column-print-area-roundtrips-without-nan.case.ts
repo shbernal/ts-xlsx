@@ -1,14 +1,14 @@
 // Cluster: tables
 //
-// Real-world scenario: a worksheet's print area is set to span entire columns (or entire rows) —
+// Real-world scenario: a worksheet's print area is set to span entire columns (or entire rows):
 // e.g. "print columns A through D, all rows". In the package this is a `_xlnm.Print_Area` defined
 // name whose value is a column-only reference like 'S'!$A:$D, which is a perfectly valid OOXML
 // range. On write the library emits exactly that. The bug is on the READ path: the reader decodes
 // each endpoint as a full cell address and, finding no row number on a column-only reference,
-// substitutes NaN — so reopening the file surfaces the print area back as the corrupt string
+// substitutes NaN, so reopening the file surfaces the print area back as the corrupt string
 // "ANaN:DNaN". A caller inspecting or re-emitting that value gets a malformed reference that a
 // spreadsheet app rejects. A bounded rectangular range (A1:D10) has both a column and a row at each
-// endpoint, so it round-trips unmangled — which isolates the defect to column-/row-only references.
+// endpoint, so it round-trips unmangled, which isolates the defect to column-/row-only references.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 

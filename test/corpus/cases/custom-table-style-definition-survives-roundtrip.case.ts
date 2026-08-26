@@ -1,7 +1,7 @@
 // Cluster: styles
 //
-// Real-world scenario: a workbook defines its own table style — a `<tableStyle>` in styles.xml whose
-// elements paint the whole table, the header row, the stripes — and a table asks for it by name in
+// Real-world scenario: a workbook defines its own table style, a `<tableStyle>` in styles.xml whose
+// elements paint the whole table, the header row, the stripes, and a table asks for it by name in
 // `tableStyleInfo/@name`. A no-op round-trip that regenerates styles.xml without the `<tableStyles>`
 // block leaves the table asking for a style nothing defines: it opens without complaint and renders
 // completely unstyled, so the file looks "fine" while every brand colour is gone.
@@ -10,11 +10,11 @@
 //
 //  • A `tableStyleElement`'s `dxfId` is an *index* into the differential-style table. That table is
 //    re-emitted at its original indices, which is the only reason a verbatim fragment's references
-//    stay meaningful — renumbering it would silently re-point every element at a different format.
+//    stay meaningful: renumbering it would silently re-point every element at a different format.
 //    So the case asserts on the dxf each element actually lands on, not on the index.
 //  • A verbatim fragment carries its namespace prefixes with it. Excel stamps `xr9:uid` on every
 //    table style it writes, so a stylesheet root that declares only the default namespace makes the
-//    part unparseable — a far louder failure than the dropped style this preservation prevents.
+//    part unparseable, a far louder failure than the dropped style this preservation prevents.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 
@@ -26,7 +26,7 @@ export default {
   cluster: 'styles',
   description:
     'A workbook’s custom `<tableStyle>` definitions, and the default table/pivot styles it ' +
-    'nominates, survive a no-op round-trip — so a table referencing a custom style by name still ' +
+    'nominates, survive a no-op round-trip, so a table referencing a custom style by name still ' +
     'resolves to a real definition instead of rendering unstyled.',
 
   behavior: [
@@ -66,7 +66,7 @@ export default {
           'every tableStyleElement survives with its type and dxfId',
         );
         // The load-bearing half: the dxf indices must still mean what they meant. Comparing the
-        // resolved fragments — not the indices — is what makes a renumbered dxf table fail here.
+        // resolved fragments, not the indices, is what makes a renumbered dxf table fail here.
         assert.deepStrictEqual(
           rewritten.elementDxfs,
           source.elementDxfs,

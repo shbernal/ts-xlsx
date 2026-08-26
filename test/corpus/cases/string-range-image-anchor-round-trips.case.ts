@@ -1,7 +1,7 @@
 // Cluster: images
 //
 // Real-world scenario: images are commonly anchored to a *cell range* expressed as a
-// string — `sheet.addImage(id, "B2:D6")` — and real `.xlsx` files authored by other tools
+// string, `sheet.addImage(id, "B2:D6")`, and real `.xlsx` files authored by other tools
 // carry drawing anchors that decode to such ranges (e.g. a banner spanning "B198:BN198").
 // Both adding a string-range image and reading a file full of range-anchored images must
 // succeed and yield a normalized two-cell anchor, never throw. Historically, reading such

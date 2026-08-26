@@ -7,7 +7,7 @@
 // disagreeing. A newline in a cell value must be preserved as a genuine in-cell line break,
 // survive a round-trip, and be normalized so the stored result is the same regardless of the
 // caller's newline convention. wrapText alignment governs only default *rendering* of the
-// break — it must not change whether the break is *stored*.
+// break: it must not change whether the break is *stored*.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 

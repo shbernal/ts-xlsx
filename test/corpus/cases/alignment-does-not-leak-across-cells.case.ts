@@ -3,7 +3,7 @@
 // Real-world scenario: a user applies an alignment property (e.g. textRotation) to a single column,
 // or to individual cells, expecting only that target to be affected. A reported failure was that
 // every cell in the sheet ended up with the same rotation, because cells/rows/columns shared one
-// alignment/style object by reference — mutating a nested property on one entity mutated the shared
+// alignment/style object by reference: mutating a nested property on one entity mutated the shared
 // instance and bled across unrelated cells. Correct behavior is copy-on-write isolation: assigning
 // alignment to one column applies to that column's own cells only, and setting it on one cell leaves
 // every other cell untouched.
@@ -46,7 +46,7 @@ export default {
   cluster: 'styles',
   description:
     'Assigning alignment (e.g. textRotation) to one column applies to that column’s cells only, and ' +
-    'setting alignment on a single cell leaves its neighbours untouched — no shared-style leak that ' +
+    'setting alignment on a single cell leaves its neighbours untouched: no shared-style leak that ' +
     'bleeds the alignment across the whole sheet.',
 
   behavior: [

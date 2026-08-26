@@ -3,7 +3,7 @@
 // Real-world scenario: a workbook overrides the legacy indexed-color palette with a custom
 // <indexedColors> block in styles.xml, and cells/fonts/borders reference colors by index into
 // that palette. A no-op round-trip drops the custom palette entirely, so every indexed color
-// silently resolves to a different RGB (the default palette entry) — colors change on save. The
+// silently resolves to a different RGB (the default palette entry); colors change on save. The
 // custom indexed-color palette must survive a round-trip so indexed color references keep their
 // intended RGB.
 

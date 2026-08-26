@@ -2,7 +2,7 @@
 //
 // Real-world scenario: reading a CSV, fields that merely *resemble* a date must not be
 // silently turned into Date values. Identifiers and codes like "2020-00001" (a padded ID),
-// "1-3" (an inventory code), or "3-4" (a range label) are text and must stay text —
+// "1-3" (an inventory code), or "3-4" (a range label) are text and must stay text:
 // coercing them corrupts the data and can crash downstream code. Genuinely numeric fields
 // should still become numbers, and genuine ISO dates should still become dates. The reader
 // must coerce conservatively: only clear numbers and strictly-formatted dates convert.

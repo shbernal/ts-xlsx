@@ -1,6 +1,6 @@
 // Cluster: tables
 //
-// Real-world scenario: a user with keyed columns appends rows in three interchangeable shapes — a
+// Real-world scenario: a user with keyed columns appends rows in three interchangeable shapes: a
 // dense positional array (values map left-to-right onto columns), a sparse 1-based array (indices
 // place values into specific columns, gaps stay empty), and a key/value object keyed by the column
 // keys. All three must land their data, and a batch append mixing array- and object-shaped rows must
@@ -76,7 +76,7 @@ export default {
     },
     {
       // Array detection must be structural, not realm-bound: an array built in a foreign realm (a
-      // Node vm context, or a browser iframe) is still an array — Array.isArray says so — but code
+      // Node vm context, or a browser iframe) is still an array, Array.isArray says so, but code
       // that checks `instanceof Array` or the constructor identity mistakes it for a plain object
       // and populates no cells. Feeding such a row must place one value per element like any array.
       name: 'a row from an array built in another realm still populates one cell per element',

@@ -1,9 +1,9 @@
 // Cluster: comments
 //
 // Real-world scenario: a workbook from a foreign generator (easyexcel) has cell comments whose
-// text runs are empty — every comment element is a bare, text-less note (with its VML drawing
+// text runs are empty: every comment element is a bare, text-less note (with its VML drawing
 // wiring). Reading such a file must complete without error and surface each comment as an empty
-// note, consistently across every affected cell — an empty comment is a valid comment, not a
+// note, consistently across every affected cell: an empty comment is a valid comment, not a
 // parse failure and not a missing note.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -16,7 +16,7 @@ export default {
   cluster: 'comments',
   description:
     'A workbook whose comments have no text runs reads without error and surfaces each as an ' +
-    'empty note, consistently — an empty comment is a valid, blank note rather than a crash.',
+    'empty note, consistently: an empty comment is a valid, blank note rather than a crash.',
 
   behavior: [
     {

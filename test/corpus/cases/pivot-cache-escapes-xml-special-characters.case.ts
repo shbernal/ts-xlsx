@@ -1,8 +1,8 @@
 // Cluster: tables
 //
 // Real-world scenario: a pivot table is built over source data containing ordinary strings with
-// XML-special characters — company names like "Smith & Co", angle brackets like "<West>", quoted
-// text like It's "best" — plus rows with a missing (null) field value. The pivot cache serializes
+// XML-special characters: company names like "Smith & Co", angle brackets like "<West>", quoted
+// text like It's "best", plus rows with a missing (null) field value. The pivot cache serializes
 // each distinct field value as a shared item. Those string values must be entity-escaped, or the
 // pivotCacheDefinition part is malformed XML that Excel refuses to open. The bug: the writer emits
 // the raw characters (a bare "&"), producing invalid XML. Missing values must serialize without

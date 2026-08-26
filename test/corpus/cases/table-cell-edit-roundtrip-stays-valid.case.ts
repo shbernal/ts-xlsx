@@ -2,8 +2,8 @@
 //
 // Real-world scenario: a user opens a workbook that contains a table, sets the value of a cell inside
 // the table's range (a body cell), and writes the workbook back. The result must remain a valid,
-// openable spreadsheet — the table XML, its worksheet relationship, and its definition survive, and
-// the edited value is present — not a truncated or structurally corrupt package.
+// openable spreadsheet: the table XML, its worksheet relationship, and its definition survive, and
+// the edited value is present, not a truncated or structurally corrupt package.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 

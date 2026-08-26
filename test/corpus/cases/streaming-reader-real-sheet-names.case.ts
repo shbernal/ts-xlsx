@@ -1,8 +1,8 @@
 // Cluster: streaming
 //
 // Real-world scenario: a workbook produced by a foreign generator declares worksheets with
-// meaningful names (e.g. "Sheet" and "test"). Consumed through the streaming reader — iterating
-// worksheet readers one at a time — each reader exposes a generic positional name ("Sheet1",
+// meaningful names (e.g. "Sheet" and "test"). Consumed through the streaming reader, iterating
+// worksheet readers one at a time, each reader exposes a generic positional name ("Sheet1",
 // "Sheet2") instead of the declared one. The eager (whole-workbook) reader resolves the same
 // file's names correctly, so the file is well-formed. The streaming reader must join each incoming
 // worksheet part to the workbook-level sheet declaration (which carries the authoritative name),

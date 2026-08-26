@@ -2,7 +2,7 @@
 //
 // Real-world scenario: spreadsheets store a formula filled down a column once, on a
 // "master" cell, and mark every other cell in the range as a bare clone that only points
-// back at the master by a shared index — the clone carries no formula text of its own.
+// back at the master by a shared index: the clone carries no formula text of its own.
 // Reading such a file, each clone must resolve to a concrete formula: the master's formula
 // address-translated to the clone's position (a master `A1*2` at B1, shared down, means B2
 // is `A2*2`, B3 is `A3*2`). A reader that left clones empty would lose every dragged-down

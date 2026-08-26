@@ -3,7 +3,7 @@
 // Real-world scenario: a workbook contains several worksheet tables, each with its own
 // autoFilter. A pure read/write round-trip must preserve every table's definition. The table
 // references and column counts do survive, but the writer spuriously sets totalsRowShown on
-// every table (the source had it off), which — combined with the autoFilter — makes Excel treat
+// every table (the source had it off), which, combined with the autoFilter, makes Excel treat
 // the tables as corrupt. A round-trip must not turn on a totals row the author never enabled.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -15,8 +15,8 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 2184},
   cluster: 'tables',
   description:
-    'A workbook with multiple tables each carrying an autoFilter round-trips without corruption ' +
-    '— every table keeps its autoFilter reference and column count, and the writer does not turn ' +
+    'A workbook with multiple tables each carrying an autoFilter round-trips without corruption: ' +
+    'every table keeps its autoFilter reference and column count, and the writer does not turn ' +
     'on totalsRowShown that the source left off.',
 
   behavior: [

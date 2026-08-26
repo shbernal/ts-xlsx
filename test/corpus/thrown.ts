@@ -2,7 +2,7 @@
 //
 // A `catch` binding is `unknown`, and the corpus has one settled answer for what to report from it:
 // the thrown value's `message` if it has one, the value itself otherwise. That answer was written out
-// by hand 46 times as `String((e as any)?.message || e)`, where the cast was load-bearing — the only
+// by hand 46 times as `String((e as any)?.message || e)`, where the cast was load-bearing: the only
 // way to reach `.message` off `unknown` without narrowing. Naming the operation removes every one of
 // those casts, because the widening happens once, here, behind a signature that says `unknown` in and
 // `string` out.

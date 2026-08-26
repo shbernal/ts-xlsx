@@ -1,11 +1,11 @@
 // Cluster: formulas
 //
-// Real-world scenario: a worksheet has formula cells whose cached results are falsy — a numeric 0, a
+// Real-world scenario: a worksheet has formula cells whose cached results are falsy: a numeric 0, a
 // boolean false, or an empty string. When such a cell is read back (or copied/cloned as part of
 // normal model handling), the formula's result must survive exactly. A reported failure: copy logic
 // that decides which fields to carry over with a truthiness test silently drops any result equal to
 // 0, false, or "", so the cell comes back as a formula with no result even though the source recorded
-// one. A truthy result is unaffected — which is exactly what pinpoints the truthiness bug.
+// one. A truthy result is unaffected, which is exactly what pinpoints the truthiness bug.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
 

@@ -1,10 +1,10 @@
 // Cluster: streaming
 //
-// Real-world scenario: OOXML's worksheet part (CT_Worksheet) fixes the order of its child elements —
+// Real-world scenario: OOXML's worksheet part (CT_Worksheet) fixes the order of its child elements:
 // among them, <conditionalFormatting> must precede <hyperlinks>. When a sheet is written through the
 // streaming writer with both a conditional-formatting rule (e.g. alternating-row shading via
 // MOD(ROW(),2)=0) and a hyperlink cell, the streaming writer emits these two blocks in the wrong
-// order (hyperlinks before conditionalFormatting), violating the schema sequence — so Excel reports
+// order (hyperlinks before conditionalFormatting), violating the schema sequence, so Excel reports
 // the file as corrupt and offers to repair it. The buffered writer orders them correctly; this is a
 // streaming-path ordering defect.
 

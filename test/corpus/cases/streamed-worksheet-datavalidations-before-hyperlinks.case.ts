@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a worksheet written through the streaming writer has both a hyperlink cell and
 // a cell with a data validation (a list dropdown). OOXML's CT_Worksheet content model fixes the
-// order of trailing child elements — <dataValidations> must precede <hyperlinks>. The streaming
+// order of trailing child elements: <dataValidations> must precede <hyperlinks>. The streaming
 // writer emits the hyperlinks block before the data-validations block, so Microsoft Excel reports
 // the file as corrupt and offers to recover it, while tolerant apps open it fine. The non-streaming
 // writer orders them correctly. This is the same streaming child-order defect as the

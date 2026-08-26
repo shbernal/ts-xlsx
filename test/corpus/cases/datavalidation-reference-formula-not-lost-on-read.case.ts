@@ -1,11 +1,11 @@
 // Cluster: types
 //
 // Real-world scenario: a workbook has data validations whose formula operands are not literal numbers
-// but expressions Excel evaluates at validation time — a cell reference like L26, or a defined name
+// but expressions Excel evaluates at validation time, a cell reference like L26, or a defined name
 // like a named range backing a list. In the sheet XML these are <formula1>L26</formula1> and
 // <formula1>myNames</formula1>. Numeric-typed validations (whole, decimal, date) run the operand
 // through numeric parsing to convert literals; for a non-numeric expression that parse fails and the
-// reader stores null/NaN instead of the original reference — losing it. The reader must preserve the
+// reader stores null/NaN instead of the original reference, losing it. The reader must preserve the
 // original formula/reference text for any validation whose operand is not a pure numeric literal.
 //
 // The fixture declares a whole-type validation whose formula1 is a cell reference (L26), a list-type

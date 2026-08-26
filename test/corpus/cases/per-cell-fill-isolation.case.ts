@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a script reads a workbook and paints a background fill onto
 // one specific cell (e.g. to flag a dirty/edited value). Only that cell must end up
-// filled. A recurring complaint is that setting a fill "also fills other cells" —
+// filled. A recurring complaint is that setting a fill "also fills other cells",
 // style bleeding across a row, column, or the whole sheet. A fill assigned to one
 // cell must stay local to that cell through a write→read round-trip; untouched
 // cells must come back with no fill.

@@ -1,7 +1,7 @@
 // Cluster: formulas
 //
 // A shared formula is stored once on a master cell as `<f t="shared" ref="B1:B3" si="0">A1*2</f>`;
-// every other cell in the group is a slave carrying only `<f t="shared" si="0"/>` — no formula text,
+// every other cell in the group is a slave carrying only `<f t="shared" si="0"/>`: no formula text,
 // just a back-reference to the master's index. Excel enforces the correspondence structurally: a
 // slave's `si` must resolve to a master that declared it, distinct groups must carry distinct `si`,
 // and a slave must sit inside its master's `ref` range. A dangling `si`, a duplicated `si`, or a
@@ -11,7 +11,7 @@
 // fixed point of our own encoder/decoder pair: the reader resolves a slave by its `si`, so a writer
 // that stamped the wrong `si`/`ref` and a reader that read it back the same wrong way would agree and
 // the round-trip would stay green (ADR 0012, tier 1). This case reads the geometry straight off the
-// emitted `<f>` elements — an independent structural witness of the master↔slave relationship that a
+// emitted `<f>` elements, an independent structural witness of the master↔slave relationship that a
 // correlated writer/reader bug cannot hide from.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -42,8 +42,8 @@ export default {
   provenance: {source: 'cross-part-seam-audit', ref: 'ADR-0012'},
   cluster: 'formulas',
   description:
-    'The shared-formula master/slave geometry emitted to the worksheet — a master carrying ' +
-    '`t="shared" ref si` with its formula text, and slaves carrying only a matching `si` — is ' +
+    'The shared-formula master/slave geometry emitted to the worksheet, a master carrying ' +
+    '`t="shared" ref si` with its formula text, and slaves carrying only a matching `si`, is ' +
     'asserted structurally, not through the reader round-trip, so a correlated writer/reader `si`/' +
     '`ref` bug cannot pass unseen.',
 

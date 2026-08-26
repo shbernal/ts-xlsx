@@ -1,4 +1,4 @@
-// Images and their drawing anchors — placement, enumeration, removal, and what happens to an
+// Images and their drawing anchors: placement, enumeration, removal, and what happens to an
 // anchor when the rows around it move.
 
 import {strFromU8, unzipSync} from 'fflate';
@@ -13,7 +13,7 @@ import {attrsOf, hexBytes, imageXmlWellFormed, parseAnchorSide} from './xml-prob
 export const images = {
   // Build a workbook whose sheets place images at the spec's ranges, write it, and report the
   // serialized drawing-anchor geometry (type, editAs, from/to, one-cell extent, spPr transform) as
-  // plain numbers — the surface a case asserts against for anchor correctness.
+  // plain numbers: the surface a case asserts against for anchor correctness.
   inspectImageAnchors(spec: Untyped) {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
     const drawingParts = Object.keys(parts)
@@ -164,11 +164,11 @@ export const images = {
     };
   },
 
-  // Carry an image-bearing sheet into a DIFFERENT workbook — the model for its content, exportImages/
-  // importImages for its pictures — write the destination, and report whether the picture actually
+  // Carry an image-bearing sheet into a DIFFERENT workbook, taking the model for its content and
+  // exportImages/importImages for its pictures, then write the destination and report whether it
   // arrived → { dstMediaCount, allEmbedsResolve, reReadImageCount, reReadAnchor, reReadHasBackground,
   // srcStillShowsImage, danglingAnchorError }. A drawing whose embed resolves to no media part is the
-  // silently-broken-image failure; `danglingAnchorError` is the other leg — an anchor carrying a
+  // silently-broken-image failure; `danglingAnchorError` is the other leg: an anchor carrying a
   // foreign workbook's media id must be refused loudly at write time, never emitted as a dangling rel.
   carrySheetImagesAcrossWorkbooks() {
     const source = new Workbook();

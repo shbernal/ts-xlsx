@@ -1,7 +1,7 @@
 // Cluster: core-model
 //
 // Real-world scenario: a program wants to drop one or more columns from a built
-// sheet — e.g. remove a spacer column, or strip trailing empties — with a single
+// sheet, e.g. remove a spacer column, or strip trailing empties, with a single
 // spliceColumns(start, count). Historically this path was fragile: an internal
 // assumption that every stored row is a dense array meant splicing columns could
 // throw ("r is not a function"/"is not an array") on sheets whose rows are sparse.
@@ -21,7 +21,7 @@ export default {
   cluster: 'core-model',
   description:
     'spliceColumns(start, count) removes exactly the requested columns and shifts the ' +
-    'columns to their right leftward, without throwing — for both single- and ' +
+    'columns to their right leftward, without throwing, for both single- and ' +
     'multi-column removals.',
 
   behavior: [

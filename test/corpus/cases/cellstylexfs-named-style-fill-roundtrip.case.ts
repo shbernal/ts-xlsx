@@ -1,8 +1,8 @@
 // Cluster: styles
 //
 // Real-world scenario: in the OOXML styles part a cell's effective formatting is layered. A direct
-// cellXfs record (the format applied to a cell) may carry an `xfId` pointing into cellStyleXfs — the
-// collection of NAMED cell-style definitions — and a visual property such as a fill, font, or border
+// cellXfs record (the format applied to a cell) may carry an `xfId` pointing into cellStyleXfs, the
+// collection of NAMED cell-style definitions, and a visual property such as a fill, font, or border
 // can live entirely in that named-style layer rather than being duplicated on the direct cellXfs
 // record. Files produced by spreadsheet applications routinely format cells this way (e.g. applying a
 // built-in or custom cell style). A reader that ignores the xfId→cellStyleXfs link resolves the cell

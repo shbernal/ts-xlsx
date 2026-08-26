@@ -4,10 +4,10 @@
 // of a sheet. Loading that workbook and writing it back out must preserve the table definition so the
 // result opens cleanly without a repair prompt: the table's reference range must survive in the written
 // table part rather than being dropped or shifted, the part itself must not vanish, and degenerate
-// shapes — a table with an empty body or a single data row — must round-trip without error or injected
+// shapes, a table with an empty body or a single data row, must round-trip without error or injected
 // padding rows.
 //
-// (A related hazard — a table whose HEADER ROW is hidden must stay valid on save — needs an
+// (A related hazard, a table whose HEADER ROW is hidden must stay valid on save, needs an
 // Excel-authored fixture that declares a hidden header, so it is recorded in the clone/merge and
 // table spec notes rather than asserted here; this case covers the fidelity that a spec-built table
 // can exercise.)

@@ -1,7 +1,7 @@
 // Cluster: images
 //
 // Real-world scenario: an image is placed with a two-cell anchor whose top-left coordinate has a
-// fractional component (e.g. col 0.5, row 0.5) — the anchor point sits halfway into a cell. When
+// fractional component (e.g. col 0.5, row 0.5): the anchor point sits halfway into a cell. When
 // the target column widths and row heights differ from the defaults, the fractional part must be
 // converted to an EMU offset scaled by that cell's ACTUAL width and height: a col-0.5 anchor in a
 // wide column must sit further right than the same anchor in a narrow column, and a row-0.5 anchor
@@ -33,7 +33,7 @@ export default {
   cluster: 'images',
   description:
     "The sub-cell EMU offset of a fractional image anchor scales with the target cell's real " +
-    'column width and row height — a col-0.5 anchor sits further right in a wide column, and a ' +
+    'column width and row height: a col-0.5 anchor sits further right in a wide column, and a ' +
     'row-0.5 anchor further down in a tall row, rather than using the default cell size.',
 
   behavior: [

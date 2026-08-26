@@ -2,8 +2,8 @@
 //
 // Real-world scenario: with the streaming writer, a caller adds rows to a worksheet and commits it
 // (or commits the whole workbook, which commits all sheets). If the caller then adds another row to
-// that already-committed sheet — often because rows are appended from an async callback that races
-// the commit — the write must fail with a clear "sheet already committed" error, not an internal
+// that already-committed sheet, often because rows are appended from an async callback that races
+// the commit, the write must fail with a clear "sheet already committed" error, not an internal
 // null-property access crash that leaves the caller guessing. A cleanly-committed workbook still
 // produces a valid, readable package.
 

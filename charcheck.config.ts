@@ -64,23 +64,32 @@ export default defineConfig({
       // The `tsconfig.json` files are here for the same reason their `"//"` keys exist: they
       // are a paragraph of prose that happens to live in a JSON value. `.ps1` is in because a
       // COM driver's header comment is where its guardrails are explained, and that is prose
-      // whoever next has to debug a hung Excel will read.
-      // `test/` is not in yet: it still carries the character, and a rule aimed at a tree that
-      // trips it reports on every run until someone learns to ignore the output. Widen this
-      // glob in the change that cleans it, not before.
+      // whoever next has to debug a hung Excel will read. `charcheck.config.ts` is in because
+      // a config that bans a character and then contains one is the one file nobody would
+      // check; building `EM_DASHES` from code points is what makes that possible.
       include: [
+        'charcheck.config.ts',
         'src/**/*.ts',
         'scripts/**/*.ts',
         'scripts/**/*.json',
+        'test/**/*.ts',
+        'test/**/*.json',
+        'test/**/*.ps1',
         'tools/**/*.ts',
         'tools/**/*.json',
         'tools/**/*.ps1',
       ],
       // A probe record is evidence, not prose we may reword later. `verdict` and `description`
-      // are what the author concluded on the day Excel was asked, and the fixture the record
-      // seeded carries the same sentences; recasting one and not the other invents a drift,
-      // recasting both edits the record. 3 findings, declined on purpose.
-      exclude: ['tools/excel-oracle/probes/**'],
+      // are what the author concluded on the day Excel was asked, and both the probe spec and
+      // the corpus fixture it seeded carry the same sentences; recasting one and not the other
+      // invents a drift, recasting both edits the record. 16 findings, declined on purpose.
+      //
+      // The character survives in two other places under `test/`, and neither is an exception
+      // to the rule: both are cell content a case asserts on byte-for-byte. The .ts writes the
+      // character as a unicode escape, the same fix `check-source-text.ts` asks for elsewhere;
+      // the PowerShell fixture author, whose single-quoted strings admit no escape, carries a
+      // line suppression with the reason beside it.
+      exclude: ['tools/excel-oracle/probes/**', 'test/corpus/fixtures/excel-oracle/**'],
     },
   ],
 });

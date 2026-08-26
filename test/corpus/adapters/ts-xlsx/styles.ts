@@ -18,8 +18,8 @@ import {applyStyle, buildFrom} from './spec-model.ts';
 import {reloadPatched} from './xml-probes.ts';
 
 export const styles = {
-  // Resolve a workbook's default font — optionally over a fixture, optionally after authoring a theme
-  // body face and/or a default font — write it, and report what the package now says about font id 0
+  // Resolve a workbook's default font, optionally over a fixture, optionally after authoring a theme
+  // body face and/or a default font, write it, and report what the package now says about font id 0
   // and the theme it claims to follow → { declared, resolved, font0, fontCount, themeMinor,
   // agreesWithTheme, reReadDeclared, cellFonts }.
   //
@@ -108,7 +108,7 @@ export const styles = {
     return {
       cellXfs: Number(/<cellXfs count="(\d+)"/.exec(stylesXml)?.[1] ?? 0),
       styledCells: styled.length,
-      // A uniform block must not mint one entry per cell — the historical performance cliff, and the
+      // A uniform block must not mint one entry per cell: the historical performance cliff, and the
       // reason the style table is interned at all.
       distinctStyleIds: new Set(styled.map((m) => m[2])).size,
       styledAddresses: styled.map((m) => m[1]),
@@ -119,7 +119,7 @@ export const styles = {
       // The value is `Untyped` because the expression reports whichever facet happens to be set
       // rather than the one `probe.facet` asked for, so its static type is `Fill | Font | null` and no
       // caller can know which it got. Returning the probed facet instead would be the honest shape,
-      // but it would also change what a probe for `font` reports on a cell that carries a fill —
+      // but it would also change what a probe for `font` reports on a cell that carries a fill,
       // a behavior change that does not belong in a typing pass.
       reloadedStyles: Object.fromEntries<Untyped>(
         (probe === null ? [] : [...sheet.getRange(probe.ref).addresses()]).map((address) => [
@@ -174,7 +174,7 @@ export const styles = {
   },
 
   // Load a fixture whose A1 fill lives only in a named cell style (cellXfs xfId → cellStyleXfs), and
-  // report: the source's cellStyleXfs count, A1's resolved fill, and — after a load→save round-trip —
+  // report: the source's cellStyleXfs count, A1's resolved fill, and, after a load→save round-trip,
   // the re-emitted cellStyleXfs count and whether A1's cellXfs entry still links via xfId → so a case
   // asserts the named-style layer is honoured on read and preserved (with its link) on write.
   namedStyleFillReport(rel: string) {
@@ -234,7 +234,7 @@ export const styles = {
 
   // Apply a font to each named cell, then read each requested cell's font back → { <ref>:
   // font|null }. Each cell owns its own font, so a font set on one cell is observable there
-  // and nowhere else — the isolation this reports. In-memory, matching the contract: the
+  // and nowhere else: the isolation this reports. In-memory, matching the contract: the
   // <fonts>-table write/read path is exercised by the io/xlsx unit tests.
   probeCellFonts({apply = [], read = []}: Untyped) {
     const sheet = new Workbook().addWorksheet('sheet');
@@ -247,7 +247,7 @@ export const styles = {
   // Write the spec and report the shared style table's size plus the index each requested cell
   // resolved to → { cellXfCount, indices: { <ref>: index|null } }. styles.xml is a SHARED table
   // referenced by index, so identically-styled cells must collapse to one <cellXfs> entry (one
-  // shared index) — dedup neither inflating to one entry per cell nor over-collapsing distinct
+  // shared index), dedup neither inflating to one entry per cell nor over-collapsing distinct
   // styles. A cell left at the default style carries no `s` and reports null.
   styleDedupReport(spec: Untyped, cells: string[] = []) {
     const parts = partMapOf(writeXlsx(buildFrom(spec)));
@@ -300,7 +300,7 @@ export const styles = {
     };
   },
 
-  // Write a solid fill twice — once with a clean bare ARGB, once with a CSS-habit '#'-prefixed one —
+  // Write a solid fill twice, once with a clean bare ARGB, once with a CSS-habit '#'-prefixed one,
   // and report the emitted <fgColor rgb="..."> for each → { validRgb, hashRgb }. Both must serialize
   // as valid 8-hex-digit values; a '#'-prefixed input must be normalized, never passed through as a
   // malformed 9-character colour.
@@ -359,7 +359,7 @@ export const styles = {
 
   // Author a bold cell, then rewrite the emitted <b/> flag to each explicit form and report how
   // the reader reads bold back → { bareTag, valOne, valZero }. A boolean font flag's `val` governs:
-  // a bare tag or val="1" is on, val="0" is off — presence alone must not force true.
+  // a bare tag or val="1" is on, val="0" is off; presence alone must not force true.
   fontExplicitFalseBoldReport() {
     const readBoldWith = (tag: string) => {
       const wb = new Workbook();
@@ -381,7 +381,7 @@ export const styles = {
 
   // Author cells with italic/strike/underline on, rewrite each flag to its explicit-off form, and
   // report what the reader reads back → { italic, strike, underline }. val="0" turns a boolean flag
-  // off; <u val="none"/> is the ABSENCE of an underline, so it must read back falsy — never the
+  // off; <u val="none"/> is the ABSENCE of an underline, so it must read back falsy, never the
   // truthy string "none".
   fontExplicitOffFlagsReport() {
     const readWith = (baseFont: Untyped, tagRe: RegExp, tag: string, field: string) => {
@@ -405,7 +405,7 @@ export const styles = {
   // Inject an xf whose alignment element carries only an explicit-false boolean (wrapText="0" /
   // shrinkToFit="0"), point A1 at it, and report the alignment the reader surfaces → { wrapTextZero,
   // shrinkZero }. An all-false alignment carries no information and must read back as no alignment
-  // at all — the raw "0" is a truthy JS string, so a reader guarding on the raw value rather than the
+  // at all: the raw "0" is a truthy JS string, so a reader guarding on the raw value rather than the
   // parsed boolean would wrongly report a present alignment.
   alignmentFalseBooleanReport() {
     const readWithAlignment = (alignAttr: Untyped) => {
@@ -437,9 +437,9 @@ export const styles = {
     };
   },
 
-  // Assign a vertical-alignment enum token to a cell — routed through the untyped adapter surface so a
+  // Assign a vertical-alignment enum token to a cell, routed through the untyped adapter surface so a
   // value TypeScript would reject at compile time (e.g. the ExcelJS-era "middle") reaches the writer as
-  // an untyped caller would smuggle it — then attempt a full write→read cycle → { writeThrew,
+  // an untyped caller would smuggle it, then attempt a full write→read cycle → { writeThrew,
   // writeError, readBackVertical }. Captures the writer-boundary contract: a value the writer accepts
   // must survive read-back, so an out-of-contract token must be rejected at write or preserved, never
   // silently serialized into a schema-invalid file the library's own reader then discards.
@@ -519,7 +519,7 @@ export const styles = {
       if (!cell.border) return null;
       const edges: Record<string, Untyped> = {};
       // `as const` so each name is a literal key of `Border` rather than a bare `string`, which
-      // cannot index it — and the edge is bound once, so the colour read is narrowed by the guard
+      // cannot index it, and the edge is bound once, so the colour read is narrowed by the guard
       // above it instead of being a second, independently-unnarrowed lookup.
       for (const edge of ['top', 'left', 'right', 'bottom'] as const) {
         const side = cell.border[edge];
@@ -564,7 +564,7 @@ export const styles = {
   // Give one column a right border and later columns only a width, then round-trip and report
   // each cell's right border → { a1, b1, c1 }. A column's border is a default for its own cells,
   // so the declaring column's cell carries it while columns without a style of their own get
-  // nothing — column styles are independent, not bled into subsequent columns.
+  // nothing: column styles are independent, not bled into subsequent columns.
   columnBorderScopedReport() {
     const wb = new Workbook();
     const sheet = wb.addWorksheet('S');
@@ -587,7 +587,7 @@ export const styles = {
   roundtripFixtureStyleFacts(rel: string) {
     // Model-level facts (column widths, pageSetup, dxfs) come from the parsed workbook; the custom
     // indexed-color palette is a raw styles.xml fact, so it is read straight from the part bytes on
-    // each side — matching the legacy oracle, which extracts the same block from the zip.
+    // each side, matching the legacy oracle, which extracts the same block from the zip.
     const facts = (workbook: WorkbookInstance, stylesXml: string) => {
       const sheet = workbook.worksheets[0];
       const ps = sheet ? sheet.pageSetup : {};
@@ -633,12 +633,12 @@ export const styles = {
   // the package carries, and the model holds the theme opaquely by design.
   //
   // `relTargets` are the theme's own outbound relationship targets (a picture used as a themed fill)
-  // and `relTargetsResolve` whether each one names a part the package actually holds — a theme
+  // and `relTargetsResolve` whether each one names a part the package actually holds: a theme
   // re-emitted without its closure would leave that `r:embed` dangling, which is worse than dropping
   // the theme outright.
   roundtripFixtureThemeFacts(rel: string) {
-    // The theme is reached the way OPC reaches it — through the workbook's `.../theme` relationship,
-    // whose target is relative to `xl/` — not by assuming the conventional `theme1.xml` name.
+    // The theme is reached the way OPC reaches it, through the workbook's `.../theme` relationship,
+    // whose target is relative to `xl/`, not by assuming the conventional `theme1.xml` name.
     const themePathOf = (parts: Record<string, string>) => {
       const rels = parts['xl/_rels/workbook.xml.rels'] ?? '';
       for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) {
@@ -692,7 +692,7 @@ export const styles = {
   },
 
   // Read a fixture, write it straight back, and report the tail blocks of styles.xml on each side →
-  // { source, rewritten }. Those blocks — `<dxfs>`, `<tableStyles>`, `<colors>` — are the ones a
+  // { source, rewritten }. Those blocks, `<dxfs>`, `<tableStyles>`, `<colors>`, are the ones a
   // regenerating writer drops most easily, and they reference each other: a `tableStyleElement`'s
   // `dxfId` indexes the dxf table, and a table part's `tableStyleInfo/@name` names a `<tableStyle>`
   // by name. So the facts are reported *resolved*: `elementDxfs` is the dxf fragment each element's
@@ -719,7 +719,7 @@ export const styles = {
           dxfId: dxfId === undefined ? null : Number(dxfId),
         };
       });
-      // The name the first table part asks its style by — the reference that dangles when the
+      // The name the first table part asks its style by: the reference that dangles when the
       // definition is dropped.
       const tablePart = Object.keys(parts)
         .filter((p) => /^xl\/tables\/table\d+\.xml$/.test(p))
@@ -800,7 +800,7 @@ export const styles = {
     return new Workbook().resolveColor(color) ?? null;
   },
 
-  // Author theme colours/fonts on a workbook — from scratch, or over a fixture's own theme — write
+  // Author theme colours/fonts on a workbook, from scratch, or over a fixture's own theme, write
   // it, and report what the emitted theme part carries → { scheme, fonts, schemeName, keptFmtScheme,
   // hasThemeRels, mediaParts, resolvedThemeColor, reReadScheme }. Authoring a palette has to reach
   // three places at once: the theme part, the cells that reference it by `theme="n"`, and whatever the
@@ -858,8 +858,8 @@ export const styles = {
   // Register custom table styles on a workbook (optionally one read from a fixture), point a table at
   // one of them, write, and report the cross-part wiring that has to hold → { definitions, elements,
   // elementDxfs, nameOnTable, resolves, dxfCount, styleCount }. The claim a table style makes spans
-  // three parts — the table names a style, the styles part defines it, the dxf table backs each
-  // element — so the facts are reported *resolved* rather than as raw indices.
+  // three parts: the table names a style, the styles part defines it, the dxf table backs each
+  // element, so the facts are reported *resolved* rather than as raw indices.
   authorTableStyleReport({fixture = null, styles: authored = [], tableStyle = null}: Untyped) {
     const workbook = fixture === null ? new Workbook() : readFixture(fixture);
     if (fixture === null) {
@@ -919,7 +919,7 @@ export const styles = {
     return {
       definitions,
       elements,
-      // Each element's dxf, resolved — the half that makes the style actually paint anything.
+      // Each element's dxf, resolved: the half that makes the style actually paint anything.
       elementDxfs: elements.map(({dxfId}) => (dxfId === null ? null : (dxfs[dxfId] ?? null))),
       nameOnTable,
       resolves: nameOnTable === null ? null : definitions.includes(nameOnTable),

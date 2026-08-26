@@ -1,7 +1,7 @@
 // Cluster: csv
 //
 // Real-world scenario: spreadsheet data is exchanged as delimiter-separated text that
-// often uses a delimiter other than comma — semicolon is the default in many European
+// often uses a delimiter other than comma: semicolon is the default in many European
 // locales, tab is common for data dumps. Reading such a file, and writing one for such a
 // locale, must let the caller set the field delimiter for both directions, and a value
 // round-tripped through a non-comma delimiter must keep its field boundaries.

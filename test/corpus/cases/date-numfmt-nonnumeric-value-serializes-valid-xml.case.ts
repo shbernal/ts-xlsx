@@ -1,10 +1,10 @@
 // Cluster: types
 //
 // Real-world scenario: a cell carries a date-style number format but its stored value is not a valid
-// date — most sharply, an already-invalid Date object (the result of parsing bad input). Because the
+// date: most sharply, an already-invalid Date object (the result of parsing bad input). Because the
 // number format is a date format, the writer runs the date→serial conversion, and an invalid Date
 // converts to NaN. Emitting <v>NaN</v> as a numeric cell value produces malformed content Excel
-// flags as corrupt and offers to repair on reopen. The writer must degrade gracefully — never leak
+// flags as corrupt and offers to repair on reopen. The writer must degrade gracefully: never leak
 // NaN or "Invalid Date" into the sheet XML. A plain string or null under the same date format is the
 // working control (no conversion is forced, nothing bogus is emitted).
 
@@ -16,7 +16,7 @@ export default {
   cluster: 'types',
   description:
     'A cell with a date number format over a non-numeric value must never serialize NaN or ' +
-    '"Invalid Date" into the sheet XML — an invalid Date under a date numFmt degrades gracefully ' +
+    '"Invalid Date" into the sheet XML: an invalid Date under a date numFmt degrades gracefully ' +
     'rather than emitting a bogus numeric serial Excel rejects; a string or null under the same ' +
     'format is unaffected.',
 

@@ -32,8 +32,8 @@ import {
 import {buildReadInput, classifyReadError, type ReadInputKind} from './xml-probes.ts';
 
 export const streaming = {
-  // The same classification through the STREAMING reader, driven far enough to open the package — for
-  // asserting the streaming entry point is wired to the identical typed-error contract.
+  // The same classification through the STREAMING reader, driven far enough to open the package.
+  // The streaming entry point must be wired to the identical typed-error contract.
   classifyStreamReadInput(kind: ReadInputKind) {
     return classifyReadError(() => {
       for (const _sheet of readWorkbookStream(buildReadInput(kind))) break;
@@ -434,7 +434,7 @@ export const streaming = {
 
   // Commit a streaming workbook over a caller-supplied writable (a plain PassThrough or a Duplex) and
   // report { settled, timedOut, bytes, valid }. The commit must settle within bounded time and the
-  // sink must receive a complete, re-openable package — the library owes this even when it does not own
+  // sink must receive a complete, re-openable package: the library owes this even when it does not own
   // the stream.
   async streamCommitReport({duplex = false, timeoutMs = 4000} = {}) {
     const chunks: Untyped[] = [];
@@ -645,7 +645,7 @@ export const streaming = {
 
   // Write `count` single-cell worksheets, then stream them back, reporting { written, emitted, error,
   // first, last }. Exercises the reader across far more than 100 sheets and a package whose worksheet
-  // parts may precede the workbook part — every sheet must be emitted exactly once.
+  // parts may precede the workbook part: every sheet must be emitted exactly once.
   streamReadManySheets(count = 180) {
     const wb = new Workbook();
     for (let i = 0; i < count; i++) wb.addWorksheet(`Sheet${i + 1}`).getCell('A1').value = i;
@@ -704,7 +704,7 @@ export const streaming = {
     };
   },
 
-  // Stream-read a fixture end-to-end, reporting { ok, error, sheetNames, totalRows } — the read either
+  // Stream-read a fixture end-to-end, reporting { ok, error, sheetNames, totalRows }: the read either
   // completes (with every sheet name and the total rows delivered) or its error is captured as data.
   // Locks that the reader tolerates a package whose ZIP places a worksheet part before xl/workbook.xml
   // (the inflate builds a path→bytes map, so entry order is irrelevant).
@@ -746,7 +746,7 @@ export const streaming = {
 
   // Write a spec, then read the requested cells through both paths → { streamed, eager }. Proves the
   // streaming reader returns multi-byte UTF-8 text (CJK, emoji) byte-exact and identical to the eager
-  // read — the whole-package inflate decodes UTF-8 as one unit, so no character is split.
+  // read: the whole-package inflate decodes UTF-8 as one unit, so no character is split.
   streamReadSpec(spec: Untyped, cells: Untyped = []) {
     const buffer = writeXlsx(buildFrom(spec));
     const wanted = new Set(cells);

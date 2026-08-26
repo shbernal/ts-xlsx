@@ -1,8 +1,8 @@
 // Cluster: xlsx-io
 //
-// Real-world scenario: a program sets document metadata on a workbook — author
+// Real-world scenario: a program sets document metadata on a workbook: author
 // (creator), last editor, and the created/modified timestamps that populate
-// docProps/core.xml — then writes the file. Opening and reading that file back
+// docProps/core.xml, then writes the file. Opening and reading that file back
 // must return the same metadata; it is what shows in Excel's "Info" pane and what
 // document-management systems index on. Losing it on write/read is silent data loss.
 

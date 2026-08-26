@@ -1,11 +1,11 @@
 // Cluster: tables
 //
-// Real-world scenario: an Excel table can carry a column-level dynamic filter — for example the
-// built-in "Above Average" filter — persisted in the table part's autoFilter as a self-closing
+// Real-world scenario: an Excel table can carry a column-level dynamic filter, for example the
+// built-in "Above Average" filter, persisted in the table part's autoFilter as a self-closing
 // <dynamicFilter type="aboveAverage" val="…"/> inside a <filterColumn>. A workbook carrying such a
 // table must open: reading it must not abort on the dynamicFilter node. The file is otherwise valid
 // and opens cleanly in Excel; a reader that rejects the exotic filter node would refuse a whole
-// legitimate workbook. (Round-tripping the filter data itself is a separate concern — this case
+// legitimate workbook. (Round-tripping the filter data itself is a separate concern: this case
 // locks that the load is tolerant and the table/worksheet survive.)
 //
 // The fixture is authored by building a normal table and injecting a column-level dynamicFilter into

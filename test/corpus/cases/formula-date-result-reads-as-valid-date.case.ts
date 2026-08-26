@@ -1,6 +1,6 @@
 // Cluster: formulas
 //
-// Real-world scenario: a formula cell computes a date — its cached result is stored as a date serial
+// Real-world scenario: a formula cell computes a date: its cached result is stored as a date serial
 // number and the cell carries a date number format (e.g. yyyy-mm-dd). When the workbook is read back,
 // the formula's result value must surface as a valid Date, not an Invalid Date, so a caller reading
 // the computed value gets a usable date. The format (numFmt) is what makes the numeric result a date,

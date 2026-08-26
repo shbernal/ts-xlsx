@@ -5,7 +5,7 @@
 // read surfaces those cells as Date values; the streaming read surfaces the raw serial number
 // instead, because it does not apply cell styles when deciding a cell's type. A date read as a
 // bare number breaks every downstream consumer. Streaming read must resolve a date-formatted
-// numeric cell to a date, exactly as the full read does — while genuinely numeric and string
+// numeric cell to a date, exactly as the full read does, while genuinely numeric and string
 // cells keep their types.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -14,7 +14,7 @@ const FIXTURE = 'streaming-read-applies-date-format/sample.xlsx';
 // A second fixture whose date cells use East-Asian built-in number-format ids whose default entry
 // is a *locale-keyed map* of format strings (not a single universal code). The streaming reader's
 // default-format lookup reads only the single-code shape, so these built-in date ids resolve to
-// nothing and degrade to raw serials — the same date-vs-number failure, via a distinct root cause.
+// nothing and degrade to raw serials: the same date-vs-number failure, via a distinct root cause.
 const LOCALE_FIXTURE = 'streaming-read-applies-date-format/locale-dates.xlsx';
 
 export default {
@@ -24,7 +24,7 @@ export default {
   description:
     'The streaming reader applies cell number formats when typing cells, so a date-formatted ' +
     'numeric cell is surfaced as a date (matching the full read) rather than as a raw serial ' +
-    'number — while plain numeric and string cells keep their types.',
+    'number, while plain numeric and string cells keep their types.',
 
   behavior: [
     {

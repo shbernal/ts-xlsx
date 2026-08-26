@@ -3,8 +3,8 @@
 // Real-world scenario: a "list" data validation on a range (e.g. B2:B16) has a dropdown source on
 // a DIFFERENT worksheet (e.g. Dropdown!$D$4:$D$8). A legacy inline <dataValidations> element
 // cannot reference another sheet, so Excel writes the validation only in the worksheet's
-// extension list — an x14:dataValidations block whose <xm:f> holds the cross-sheet source and
-// <xm:sqref> the target range — with NO legacy element at all. A reader that understands only the
+// extension list, an x14:dataValidations block whose <xm:f> holds the cross-sheet source and
+// <xm:sqref> the target range, with NO legacy element at all. A reader that understands only the
 // legacy element sees no validation, so the dropdown is dropped on read and lost on save. The
 // cross-sheet list validation must be detected on read and preserved on round-trip.
 
@@ -17,8 +17,8 @@ export default {
   provenance: {source: 'upstream-issue', repo: 'exceljs/exceljs', ref: 1900},
   cluster: 'data-validation',
   description:
-    'A list data validation whose source references another worksheet — stored only in the x14 ' +
-    'extension list — is detected on read and preserved on a round-trip, instead of being ' +
+    'A list data validation whose source references another worksheet, stored only in the x14 ' +
+    'extension list, is detected on read and preserved on a round-trip, instead of being ' +
     'silently dropped because only the legacy element is understood.',
 
   behavior: [

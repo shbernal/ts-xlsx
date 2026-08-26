@@ -4,7 +4,7 @@ export default {
   id: 'non-canonical-comments-part-path-must-load',
   cluster: 'address-decoding',
   description:
-    'Open Packaging Conventions let a part live at whatever path its relationship Target names — the ' +
+    'Open Packaging Conventions let a part live at whatever path its relationship Target names: the ' +
     'comments part need not be the conventional xl/comments1.xml. A reader must locate parts by ' +
     'relationship type, not by filename glob. When the comments part sits at a non-canonical path ' +
     '(xl/sheet1_comments.xml) reachable only through the worksheet rels, a glob-based loader skips ' +

@@ -1,16 +1,16 @@
 // Cluster: comment
 //
 // Real-world scenario: a reviewer opens a workbook to find out what the conversation on a cell actually
-// said — who asked, who answered, when, whether it was settled, and who was pulled in by name. Excel's
+// said: who asked, who answered, when, whether it was settled, and who was pulled in by name. Excel's
 // modern threaded comments carry all of that, but on the wire it is scattered: a flat list of messages
 // bound into threads only by `parentId`, each naming its author by a GUID that resolves through a
 // separate workbook-level registry, and a resolved flag that only the thread's first message carries.
-// Reading the parts is not enough — a reader that hands back that shape has moved the work to its caller.
+// Reading the parts is not enough: a reader that hands back that shape has moved the work to its caller.
 // So this locks the reconstruction: threads with their replies in place, authors and @mentions resolved
 // to real identities, and the resolved state read from where it is actually written.
 //
 // The reader also has to tell a conversation apart from a note. Excel writes a legacy fallback
-// `<comment>` beside every thread — fixed boilerplate wrapping a copy of the conversation — so a reader
+// `<comment>` beside every thread, fixed boilerplate wrapping a copy of the conversation, so a reader
 // that takes the comments part at face value reports a garbage note on every threaded cell. What that
 // fallback becomes on the way back out is asserted by `threaded-comment-parts-survive-roundtrip`.
 
@@ -20,7 +20,7 @@ import type {Assert, Case, CorpusApi} from '../case.ts';
 const SAMPLE = 'threaded-comment-parts-survive-roundtrip/sample.xlsx';
 
 // A resolved two-message thread on B1 whose reply is by a SECOND author, an open thread on B2, and a
-// genuine legacy note on D4 — the mix that separates "a thread" from "a note" on one sheet.
+// genuine legacy note on D4: the mix that separates "a thread" from "a note" on one sheet.
 const RESOLVED_MULTI_AUTHOR = 'threaded-comment-parts-survive-roundtrip/resolved-multi-author.xlsx';
 
 // The same file plus an @mention, including the separate `providerId="PeoplePicker"` registry entry
@@ -149,7 +149,7 @@ export default {
         const {persons, sheets} = api.readFixtureCommentThreads(MENTION_IN_THREAD);
         // Excel interns a mentioned identity SEPARATELY from that person's authoring identity: same
         // display name, same userId, different id, `providerId="PeoplePicker"`. Both entries must
-        // survive as themselves — resolving a mention by name or userId would pick the author entry, and
+        // survive as themselves: resolving a mention by name or userId would pick the author entry, and
         // deduplicating the registry that way would delete the one the mention points at.
         const graces = persons.filter((person) => person.displayName === 'Grace Hopper');
         assert.strictEqual(graces.length, 2, 'precondition: one human, two registry entries');
@@ -186,7 +186,7 @@ export default {
         // Excel writes a legacy fallback `<comment>` beside every thread so a pre-2018 reader sees
         // something: boilerplate ("[Threaded comment] Your version of Excel allows you to read...")
         // wrapping a copy of the conversation. It is not an annotation anybody wrote, so it must not
-        // surface as one — a caller iterating notes would otherwise get that paragraph on B1 and B2
+        // surface as one: a caller iterating notes would otherwise get that paragraph on B1 and B2
         // while the real conversation sat elsewhere. D4's note is a real one and stays.
         const {sheets} = api.readFixtureCommentThreads(RESOLVED_MULTI_AUTHOR);
         assert.deepStrictEqual(sheets[0]!.notes, {D4: 'A genuine legacy note.'});

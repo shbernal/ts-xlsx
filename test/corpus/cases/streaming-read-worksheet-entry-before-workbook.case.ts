@@ -19,7 +19,7 @@ export default {
   cluster: 'streaming',
   description:
     'The streaming reader tolerates a package whose ZIP places a worksheet part before ' +
-    'xl/workbook.xml — it yields every worksheet and all rows rather than crashing on an unbuilt ' +
+    'xl/workbook.xml: it yields every worksheet and all rows rather than crashing on an unbuilt ' +
     'workbook model.',
 
   behavior: [

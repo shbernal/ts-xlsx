@@ -1,12 +1,12 @@
 // Cluster: tables
 //
 // Real-world scenario: a workbook's Name Manager holds a defined name whose reference spans
-// entire rows or entire columns rather than a bounded rectangle — e.g. a name pointing at
+// entire rows or entire columns rather than a bounded rectangle, e.g. a name pointing at
 // "Sheet2!$1:$5" (rows 1–5, every column) or the whole-axis forms "$A:$C" (all rows of three
 // columns) and "$1:$1048576" (all columns of a row block). Excel creates these routinely.
 // Today an over-strict range-address check that demands explicit column *and* row bounds
 // silently discards any open-ended span: `definedNames.add` accepts the reference without
-// error yet the name never lands in the model, so it is absent from the written file — and a
+// error yet the name never lands in the model, so it is absent from the written file, and a
 // file that already declares such a name reads back with the name gone. Bounded references
 // (both corners fully qualified) survive; only the open-ended spans vanish. Full-row and
 // full-column named ranges must survive read and write exactly like bounded ones.
@@ -37,7 +37,7 @@ export default {
   description:
     'A defined name whose reference is an entire-row or entire-column span survives a ' +
     'read/write round-trip instead of being silently dropped by over-strict address ' +
-    'validation — bounded references already survive; the open-ended spans must too.',
+    'validation: bounded references already survive; the open-ended spans must too.',
 
   behavior: [
     {

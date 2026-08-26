@@ -1,15 +1,15 @@
 // Cluster: xlsx-io
 //
-// Real-world scenario: a workbook links to a cell in another workbook — a formula or defined name
+// Real-world scenario: a workbook links to a cell in another workbook, a formula or defined name
 // resolves through `[1]Sheet!$A$1`, where `[1]` is an entry in the workbook's `<externalReferences>`
 // backed by an `xl/externalLinks/externalLink1.xml` part whose own rels point (TargetMode="External")
 // at the source file. The reader does not model external links, so before this fix a no-op load→save
 // dropped the externalLink part and its `<externalReferences>` registration while KEEPING the formulas
-// that use `[1]` — leaving a dangling external reference that Excel prompts to repair on open. The
+// that use `[1]`, leaving a dangling external reference that Excel prompts to repair on open. The
 // unmodeled external link (and its external-target pointer) must survive the round-trip intact.
 //
 // The fixture is synthetic and self-authored (no third-party bytes): a one-sheet package whose B1
-// reads `[1]Questionnaire!$C$28`, with a minimal externalLink part linking a placeholder local path —
+// reads `[1]Questionnaire!$C$28`, with a minimal externalLink part linking a placeholder local path,
 // distilled from a real 10-module .xlsm whose only round-trip repair prompt traced to this dropped link.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -24,9 +24,9 @@ export default {
   },
   cluster: 'xlsx-io',
   description:
-    'A no-op load→save preserves an external-workbook link — the externalLink part, its ' +
+    'A no-op load→save preserves an external-workbook link: the externalLink part, its ' +
     'TargetMode="External" source pointer, and the <externalReferences> registration the [n] in a ' +
-    'formula resolves through — rather than dropping it and dangling the reference.',
+    'formula resolves through, rather than dropping it and dangling the reference.',
 
   behavior: [
     {

@@ -1,7 +1,7 @@
 // Cluster: address-decoding
 //
 // Real-world scenario: some foreign generators declare a worksheet-level comments relationship (type
-// ".../comments") but leave its Target attribute empty (Target="") — they announce the relationship
+// ".../comments") but leave its Target attribute empty (Target=""): they announce the relationship
 // while omitting the part path. During load the reader reconciles each worksheet's relationships back
 // onto the model, and for a comments relationship it dereferences the target to attach the notes. If
 // that step assumes every comments relationship has a resolvable target, the empty target makes it

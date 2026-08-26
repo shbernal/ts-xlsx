@@ -1,13 +1,13 @@
 // Cluster: tables
 //
-// Real-world scenario: an Excel table can hold a CALCULATED column — one where every body cell shares
+// Real-world scenario: an Excel table can hold a CALCULATED column, one where every body cell shares
 // a single formula. Excel records that formula once, on the column definition, as a
 // `<calculatedColumnFormula>` child of the `<tableColumn>` element (not as a formula on each cell).
 // A reader must consume that nested element and keep enumerating the remaining columns. The legacy
 // table-column reader instead loses its place at the nested element: it stops collecting columns after
 // the first calculated one, so the table's column list is truncated, and reconciling the sheet's
 // autoFilter against the short list then dereferences a column that is not there
-// ("Cannot set properties of undefined (setting 'filterButton')") — the whole workbook fails to load.
+// ("Cannot set properties of undefined (setting 'filterButton')"), the whole workbook fails to load.
 //
 // The fixture is a three-column table (Qty, Double, Label) whose middle column, Double, is calculated
 // (`Sales[Qty]*2`). A correct reader loads all three columns without error.
@@ -35,7 +35,7 @@ export default {
       },
     },
     {
-      name: 'the calculated column does not truncate the table — all three columns survive',
+      name: 'the calculated column does not truncate the table: all three columns survive',
       async expect(api: CorpusApi, assert: Assert) {
         const {columnCount, columnNames} = await api.loadFixtureTableColumns(FIXTURE, 'Sales');
         assert.strictEqual(

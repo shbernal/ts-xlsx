@@ -3,7 +3,7 @@
 // Real-world scenario: a workbook merges a rectangular range (e.g. a 2×2 block). In OOXML a merged
 // region is a single master (top-left) cell carrying the visible value; the other covered cells are
 // subordinate and must not carry an independent value. A user sets a value by addressing a non-master
-// (slave) cell inside the merge — e.g. the bottom-right cell. That write must resolve to the region's
+// (slave) cell inside the merge, e.g. the bottom-right cell. That write must resolve to the region's
 // master, not silently create a competing value on a slave cell (which is malformed and can be
 // dropped or rejected by spreadsheet applications). After a round-trip the merge span is intact with
 // exactly one value on the master.

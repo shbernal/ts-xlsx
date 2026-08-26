@@ -5,7 +5,7 @@
 // neither moves nor resizes when surrounding cells change. Supplying a top-left + extent produces a
 // single-anchor drawing (xdr:oneCellAnchor), but in the OOXML drawing schema the editAs movement
 // attribute is defined only on the two-cell anchor (xdr:twoCellAnchor); oneCellAnchor and
-// absoluteAnchor carry no editAs. Emitting editAs on a oneCellAnchor is schema-invalid — the mode is
+// absoluteAnchor carry no editAs. Emitting editAs on a oneCellAnchor is schema-invalid: the mode is
 // not honored and a strict consumer rejects or repairs it. The requested absolute pin must be
 // expressed through a construct that can legally carry it, not stamped onto an anchor kind that
 // cannot. When a bottom-right cell IS supplied the drawing is a twoCellAnchor and editAs is valid.
@@ -34,7 +34,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'images',
   description:
-    'The editAs movement mode is emitted only where the OOXML drawing schema allows it — on a ' +
+    'The editAs movement mode is emitted only where the OOXML drawing schema allows it: on a ' +
     'two-cell anchor. A top-left + extent placement produces a one-cell anchor, which cannot carry ' +
     'editAs; the requested absolute pin must not be stamped onto it as a schema-invalid attribute.',
 

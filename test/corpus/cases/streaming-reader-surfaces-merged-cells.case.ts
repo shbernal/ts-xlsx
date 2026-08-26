@@ -1,11 +1,11 @@
 // Cluster: streaming
 //
 // Real-world scenario: a consumer parses a large workbook with the streaming reader (low-memory,
-// row-by-row) and needs to know which ranges are merged — to render the sheet, read a value once
+// row-by-row) and needs to know which ranges are merged: to render the sheet, read a value once
 // from a merged master, or skip covered cells. The buffered reader exposes merge ranges from the
 // worksheet model; the streaming reader drops them entirely (the mergeCells element is never
 // surfaced), so a streaming caller cannot recover merge geometry without abandoning streaming and
-// loading the whole file — defeating the reason they streamed. The streaming reader must surface the
+// loading the whole file, defeating the reason they streamed. The streaming reader must surface the
 // same merge set the buffered reader does.
 //
 // (The design/emission-ordering discussion is captured in the streaming-read-surfaces-merged-cells

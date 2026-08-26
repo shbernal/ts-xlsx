@@ -1,10 +1,10 @@
 // Cluster: core-model
 //
 // Real-world scenario: a program wants to open a workbook and *insert* one or more blank columns into
-// an existing sheet — spliceColumns's insertion mode, spliceColumns(start, 0, ...columns) with a zero
+// an existing sheet, spliceColumns's insertion mode, spliceColumns(start, 0, ...columns) with a zero
 // delete-count and one array per inserted column. Users reach for this to add spacer or fill-in
 // columns without rebuilding the sheet. The insertion must shift every column at and after `start`
-// rightward by the number of inserted columns, preserving their values, and must not throw — the
+// rightward by the number of inserted columns, preserving their values, and must not throw: the
 // removal-side splice invariants (splice-columns-shifts-remaining) have an insertion analog that is
 // just as important and was historically the fragile, untested direction.
 //
@@ -23,7 +23,7 @@ export default {
   description:
     'spliceColumns(start, 0, ...columns) inserts the given blank columns at `start` and shifts the ' +
     'columns at and after `start` rightward by the inserted count, preserving their values without ' +
-    'throwing — the insertion analog of the removal-side column splice.',
+    'throwing: the insertion analog of the removal-side column splice.',
 
   behavior: [
     {

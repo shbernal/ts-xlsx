@@ -4,7 +4,7 @@
 // optional <sheetFormatPr> element (default row height / outline properties) that Excel always
 // writes. A reader that assumes the element is present crashes dereferencing outline properties
 // on a null format object. A missing <sheetFormatPr> must be treated as default/empty format
-// properties, and the file must read without throwing — its sheets discoverable and its cells
+// properties, and the file must read without throwing: its sheets discoverable and its cells
 // readable.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';
@@ -17,7 +17,7 @@ export default {
   cluster: 'xlsx-io',
   description:
     'A worksheet from a foreign generator that omits the optional <sheetFormatPr> element reads ' +
-    'without crashing — a missing format-properties element is treated as defaults, and the ' +
+    'without crashing: a missing format-properties element is treated as defaults, and the ' +
     'sheet remains discoverable by name.',
 
   behavior: [

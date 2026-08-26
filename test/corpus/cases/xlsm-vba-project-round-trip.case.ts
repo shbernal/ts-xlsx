@@ -5,12 +5,12 @@
 // macro-enabled content type so Excel and OPC readers recognise the package as macro-enabled rather
 // than a plain workbook that merely happens to reference a foreign part. A library that reads such a
 // file and writes it back out (e.g. to apply an unrelated edit) must not silently discard the VBA
-// project — a caller who round-trips a `.xlsm` and re-saves it with that extension would otherwise
+// project, a caller who round-trips a `.xlsm` and re-saves it with that extension would otherwise
 // lose the workbook's macros with no error and no indication anything was dropped.
 //
 // The writer cannot author a VBA project itself (its bytes are opaque and never modeled), so the case
 // exercises the round-trip by splicing a synthetic vbaProject part onto an otherwise-plain written
-// package before reloading it — the only way to produce a macro-enabled-shaped package without an
+// package before reloading it: the only way to produce a macro-enabled-shaped package without an
 // interactive VBA editor.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

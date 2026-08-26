@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: rows and columns can be grouped into a collapsible outline by assigning an
-// outline (grouping) level — the OOXML outlineLevel attribute on <row> and <col> (0 = ungrouped, up
+// outline (grouping) level, the OOXML outlineLevel attribute on <row> and <col> (0 = ungrouped, up
 // to 7 nested levels). Setting a level on a row and on a column must survive a write/read cycle so the
 // grouping is preserved on reopen. Locks basic outline-level round-trip for both axes.
 

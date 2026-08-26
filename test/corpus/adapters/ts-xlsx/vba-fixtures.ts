@@ -1,7 +1,7 @@
 // A hand-built VBA project fixture.
 //
-// The .xlsm cases need a *structurally real* vbaProject.bin — a PROJ record and a
-// `document` code-behind module — because those are exactly the parts splice-editing must
+// The .xlsm cases need a *structurally real* vbaProject.bin: a PROJ record and a
+// `document` code-behind module, because those are exactly the parts splice-editing must
 // preserve and re-synthesis cannot. Building it here keeps the bytes auditable.
 
 import {strToU8, zipSync} from 'fflate';
@@ -14,7 +14,7 @@ import {compressContainer, writeCompoundFile} from './runtime.ts';
 // way to produce an edit-in-place *input* without an interactive VBA editor: the writer cannot author a
 // project from a model (no reference support, document-module linkage is host-coupled), but the editor
 // splices new module source into an existing bin. The fixture carries a hand-crafted PROJECTREFERENCES
-// record and a `document` code-behind module — the two things splice-editing must preserve that
+// record and a `document` code-behind module: the two things splice-editing must preserve that
 // re-synthesis structurally cannot.
 export const vbaU16 = (n: number) => [n & 0xff, (n >> 8) & 0xff];
 export const vbaU32 = (n: number) => [
@@ -24,7 +24,7 @@ export const vbaU32 = (n: number) => [
   (n >> 24) & 0xff,
 ];
 // Code units, not code points. `[...s]` iterates code points, so a surrogate pair would arrive as a
-// single character and `charCodeAt(0)` would keep only its high half — and a CFB stream name is UTF-16
+// single character and `charCodeAt(0)` would keep only its high half, and a CFB stream name is UTF-16
 // code units on the wire.
 export const vbaAscii = (s: string) => Array.from({length: s.length}, (_, i) => s.charCodeAt(i));
 export const vbaUtf16 = (s: string) => vbaAscii(s).flatMap(vbaU16);
@@ -41,7 +41,7 @@ export interface VbaFixtureModule {
   readonly pcodePrefixLen: number;
 }
 
-// Module1's source carries byte 0xC0 — 'А' (U+0410) in code page 1251 — so a code-page-blind (latin1)
+// Module1's source carries byte 0xC0, 'А' (U+0410) in code page 1251, so a code-page-blind (latin1)
 // reader would corrupt it; preserving it byte-for-byte proves the untouched stream rides through raw.
 export const VBA_FIXTURE_MODULES: VbaFixtureModule[] = [
   {
@@ -60,7 +60,7 @@ export const VBA_FIXTURE_MODULES: VbaFixtureModule[] = [
 ];
 export const VBA_FIXTURE_CODE_PAGE = 1251;
 // A REFERENCEREGISTERED record ([MS-OVBA] 2.3.4.2). Its distinctive marker must survive the edit
-// verbatim — the writer emits no references at all, so its presence proves splice-not-resynthesize.
+// verbatim: the writer emits no references at all, so its presence proves splice-not-resynthesize.
 export const VBA_FIXTURE_REF_MARKER = '*\\Gstdole2.tlb#OLE Automation#REF-MARKER-42';
 
 export const VBA_PROJECT_STREAM = [
@@ -85,9 +85,9 @@ export function buildVbaFixtureBin(): Uint8Array {
     dir.push(...vbaRec(m.document ? 0x0022 : 0x0021, [])); // MODULETYPE
     dir.push(...vbaRec(0x002b, [])); // MODULETERMINATOR
   }
-  dir.push(...vbaRec(0x0010, [])); // dir Terminator — closes PROJECTMODULES, ends the dir stream
+  dir.push(...vbaRec(0x0010, [])); // dir Terminator: closes PROJECTMODULES, ends the dir stream
   // REFERENCEREGISTERED, appended after the terminator: real Excel files put PROJECTREFERENCES before
-  // PROJECTMODULES, but the reader's uniform TLV walk doesn't care about ordering — placing it last here
+  // PROJECTMODULES, but the reader's uniform TLV walk doesn't care about ordering; placing it last here
   // keeps this fixture builder additive to extend rather than requiring the whole dir array reordered.
   dir.push(...vbaRec(0x000d, vbaAscii(VBA_FIXTURE_REF_MARKER)));
 
@@ -99,7 +99,7 @@ export function buildVbaFixtureBin(): Uint8Array {
   };
 
   // PROJECTwm pairs each module's MBCS name with its UTF-16 name, both NUL-terminated, ending with an
-  // empty pair — one record per module, matching the dir/PROJECT streams' module list.
+  // empty pair: one record per module, matching the dir/PROJECT streams' module list.
   const projectwm: number[] = [];
   for (const m of VBA_FIXTURE_MODULES) {
     projectwm.push(...vbaAscii(m.name), 0x00, ...vbaUtf16(m.name), 0x00, 0x00);
@@ -163,10 +163,10 @@ export function vbaIndexOfBytes(haystack: Uint8Array, needle: Uint8Array): numbe
   return -1;
 }
 
-// Whole-stream byte equality — used to assert a structural VBA edit leaves `_VBA_PROJECT` completely
+// Whole-stream byte equality, used to assert a structural VBA edit leaves `_VBA_PROJECT` completely
 // untouched (removeVbaModule/addVbaReference no longer reset it to the recompile cookie; Excel runs the
 // project's existing p-code as-is, and resetting the cookie on a project that carries real p-code
-// actively crashes the load — ADR 0019).
+// actively crashes the load; see ADR 0019).
 export function vbaBytesIdentical(a: Uint8Array, b: Uint8Array): boolean {
   return a.length === b.length && vbaIndexOfBytes(a, b) === 0;
 }

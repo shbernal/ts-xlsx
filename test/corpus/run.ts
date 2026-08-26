@@ -3,14 +3,14 @@
 //
 // Loads every case under cases/, runs each behavior, and reports it green or failed.
 //
-// It used to be a comparison rather than a verdict. Each behavior recorded a `baseline` — the outcome
-// expected of the implementation *at that time* — and the runner crossed it with the actual result to
+// It used to be a comparison rather than a verdict. Each behavior recorded a `baseline`, the outcome
+// expected of the implementation *at that time*, and the runner crossed it with the actual result to
 // distinguish four states: green, a tracked known-open bug, a regression, and a known-open that had
 // started passing. That machinery existed because there were two implementations and the corpus
 // measured a half-built one against the library it was replacing.
 //
 // One implementation remained, every one of the 832 behaviors recorded `baseline: 'pass'`, and three of
-// the four states became unreachable — the runner carried a comparison whose second operand was a
+// the four states became unreachable: the runner carried a comparison whose second operand was a
 // constant. So the baseline is gone and this reports what it actually knows: a behavior passed, or it
 // failed and the build is red.
 //
@@ -149,7 +149,7 @@ async function main() {
   };
 
   // The adapter picks its target from CORPUS_TARGET at module load, so seed the env before importing
-  // it — which is why this import stays dynamic even though there is only one adapter to import. The
+  // it, which is why this import stays dynamic even though there is only one adapter to import. The
   // flag exists because `VAR=value cmd` is POSIX shell syntax that cmd.exe cannot parse, so a package
   // script using it is unrunnable on Windows. Env var and flag stay equivalent; the flag survives the
   // shell.
@@ -168,7 +168,7 @@ async function main() {
 
   const report: {id: string; cluster: string; behaviors: BehaviorResult[]}[] = [];
   for (const testCase of cases) {
-    // `provenance` is an optional, disposable trace — a case is identified by its
+    // `provenance` is an optional, disposable trace: a case is identified by its
     // durable `id`/`cluster`, never by an upstream number. Show a ref only if present.
     const ref = testCase.provenance?.ref;
     const heading = `  ${testCase.id}${ref ? `  [#${ref}]` : ''}  ${testCase.cluster}`;

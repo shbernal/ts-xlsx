@@ -1,7 +1,7 @@
 // Cluster: security
 //
 // Real-world scenario: a caller reads an existing macro-enabled workbook and wants to shape its macro
-// project — drop a module that's no longer needed, wire up a COM reference — using the public Workbook
+// project, drop a module that's no longer needed, wire up a COM reference, using the public Workbook
 // API, not the low-level project-editor primitives. Workbook.removeVbaModule/addVbaReference exist
 // precisely so a caller never has to reach past the model into raw vbaProject.bin bytes for this. Each
 // method must inherit the same splice guarantees the underlying primitive proved in isolation (see
@@ -77,7 +77,7 @@ export default {
         assert.strictEqual(
           vbaProjectStreamPreserved,
           true,
-          '_VBA_PROJECT must be left byte-for-byte unchanged — Excel runs the remaining modules’ ' +
+          '_VBA_PROJECT must be left byte-for-byte unchanged: Excel runs the remaining modules’ ' +
             'existing p-code, and resetting the cookie would crash the load',
         );
       },

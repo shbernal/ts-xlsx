@@ -2,8 +2,8 @@
 //
 // Real-world scenario: a user loads an .xlsx with embedded images and enumerates the worksheet's
 // images to recover each image's binary and its top-left cell anchor, so it can be re-associated with
-// the surrounding row data. The enumeration must return one entry per embedded image — for both a
-// two-cell (from/to) anchor and a one-cell (from + extent) anchor — with its anchor coordinates,
+// the surrounding row data. The enumeration must return one entry per embedded image, for both a
+// two-cell (from/to) anchor and a one-cell (from + extent) anchor, with its anchor coordinates,
 // rather than an empty result when the media parts are present. This locks that the image-enumeration
 // read surface works across anchor variants.
 

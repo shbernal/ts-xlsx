@@ -1,15 +1,15 @@
 // Cluster: comment
 //
-// Real-world scenario: a reviewer's comment carries a character XML 1.0 has no syntax for — a control
+// Real-world scenario: a reviewer's comment carries a character XML 1.0 has no syntax for, a control
 // character pasted out of a database column, a lone surrogate from a mangled name. In a legacy note that
 // text survives, because a note's body is a `<t>` and `<t>` has SpreadsheetML's `_xHHHH_` convention. A
 // threaded comment's `<text>` is a different element in the 2018 extension namespace, and nothing in that
-// schema documents an escape, so the same string used to be refused there — one comment system accepting
+// schema documents an escape, so the same string used to be refused there: one comment system accepting
 // what the other rejected, for a reason no caller could see.
 //
 // Excel Desktop settled it (2026-08-25, Microsoft 365 16.0 build 20228): a `<text>` patched to hold
 // `_x0041_` reads back over COM as `A`, `_x005F_x0041_` as the literal seven-character text, and
-// `_xZZZZ_`/`_x041_`/`_x00041_` untouched — the same closed grammar and the same single left-to-right
+// `_xZZZZ_`/`_x041_`/`_x00041_` untouched: the same closed grammar and the same single left-to-right
 // pass as cell text. Excel then re-saved the package and wrote a control character back out as
 // `_x0001_`, so the escape is its own representation here and not merely tolerated on read. The
 // measurement is written up in `docs/knowledge/specs/spreadsheetml-xhhhh-escape-is-decoded-on-read.md`;
@@ -27,7 +27,7 @@ export default {
   description:
     "A threaded comment's `<text>` carries the `_xHHHH_` convention exactly as cell text does: Excel " +
     'decodes it on read and writes it back on save, so this library must escape on write and decode on ' +
-    'read. The grammar is closed — four hex digits, no more and no fewer — and resolved in one ' +
+    'read. The grammar is closed: four hex digits, no more and no fewer, and resolved in one ' +
     'left-to-right pass, so `_x005F_` in front of an escape yields the literal text rather than the ' +
     'character it resembles. The consequence for callers is that the two comment systems finally agree ' +
     'on the same string.',

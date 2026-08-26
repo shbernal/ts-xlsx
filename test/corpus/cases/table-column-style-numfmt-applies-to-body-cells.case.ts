@@ -1,7 +1,7 @@
 // Cluster: tables
 //
-// Real-world scenario: a table is created with a per-column style — a number format on one column
-// (e.g. a thousands-separated decimal) — intending that format to apply to that column's body cells.
+// Real-world scenario: a table is created with a per-column style, a number format on one column
+// (e.g. a thousands-separated decimal), intending that format to apply to that column's body cells.
 // The per-column style must be merged into each affected cell's style so the produced package is
 // valid and the column's body cells render with the requested format. A reported failure had the
 // per-column style corrupt the written file; the correct behavior is a clean write where the styled

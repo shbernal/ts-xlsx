@@ -1,8 +1,8 @@
 // Cluster: pivot
 //
 // Real-world scenario: a workbook contains pivot tables, their pivot caches, and slicers (the
-// interactive filter widgets that drive pivots). A no-op load→save drops all of it — pivot table
-// parts, pivot cache parts, and every slicer part — so the reopened file has lost its pivots and
+// interactive filter widgets that drive pivots). A no-op load→save drops all of it: pivot table
+// parts, pivot cache parts, and every slicer part, so the reopened file has lost its pivots and
 // slicers. Until a full pivot/slicer model exists, these unmodeled parts must survive a
 // round-trip so a fill-and-save workflow does not destroy them.
 
@@ -16,7 +16,7 @@ export default {
   cluster: 'pivot',
   description:
     'A no-op load→save preserves pivot tables, pivot caches, and slicer parts rather than ' +
-    'dropping them — a pivot/slicer-bearing template survives a fill-and-save.',
+    'dropping them: a pivot/slicer-bearing template survives a fill-and-save.',
 
   behavior: [
     {

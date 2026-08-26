@@ -1,13 +1,13 @@
 // Cluster: xlsx-io
 //
 // Real-world scenario: a worksheet's page header and footer are configured with distinct content
-// for different page classes — separate text for the first page, for even-numbered pages, and for
+// for different page classes: separate text for the first page, for even-numbered pages, and for
 // odd pages. In OOXML the `<headerFooter>` element carries `firstHeader`/`firstFooter`,
 // `evenHeader`/`evenFooter`, and `oddHeader`/`oddFooter` children, but the first- and even-page
 // variants are only honored by consuming applications when the gating attributes are set:
 // `differentFirst="1"` for first-page content and `differentOddEven="1"` for even-page content.
 // Without those flags a spreadsheet application shows the odd content on every page even though the
-// even/first elements are present — the community workaround (duplicating odd content into even)
+// even/first elements are present: the community workaround (duplicating odd content into even)
 // exists precisely because the differentiation flags are missing.
 //
 // The invariant: emitting the variant child elements is not enough; the gating flags must be set

@@ -15,8 +15,8 @@ import {
 } from './runtime.ts';
 
 export const comments = {
-  // Author a control character into each of the other places cell text is carried — a legacy note's
-  // body and a rich-text run — then write and read back → { note, runs }. These reach the same `<t>`
+  // Author a control character into each of the other places cell text is carried, a legacy note's
+  // body and a rich-text run, then write and read back → { note, runs }. These reach the same `<t>`
   // as a plain string cell, through different readers, so each needs its own decode wired.
   escapedTextCarrierRoundtrip(text: string) {
     const workbook = new Workbook();
@@ -52,7 +52,7 @@ export const comments = {
 
   // Author `text` into a threaded comment, write, and read back → { emittedText, readText, rawInPart }.
   // `emittedText` is the body exactly as it reached the 2018 part, `rawInPart` says whether any emitted
-  // part carries the character verbatim — which would make the package malformed XML — and `readText` is
+  // part carries the character verbatim, which would make the package malformed XML, and `readText` is
   // what the reader gives back. The legacy fallback the writer builds beside the thread carries the same
   // text through a `<t>`, so a package that escaped one and not the other would fail `rawInPart`.
   authoredThreadedCommentEscape(text: string) {
@@ -186,17 +186,17 @@ export const comments = {
     };
   },
 
-  // Read a fixture and report the modern threaded conversations the reader reconstructs — see
+  // Read a fixture and report the modern threaded conversations the reader reconstructs, see
   // {@link commentThreadFacts} for the shape.
   readFixtureCommentThreads(rel: string, refs: string[] = []) {
     return commentThreadFacts(readFixture(rel), refs);
   },
 
-  // Author a conversation in the MODEL — never read from a file — write it, and read the package back:
+  // Author a conversation in the MODEL, never read from a file, write it, and read the package back:
   // → { parts, deterministic, model }. Nothing here comes from preserved bytes, so this is what proves the
   // writer serialises the feature rather than merely carrying it: the thread part, the workbook person
   // registry, and the legacy fallback comment are all built from the model on the way out and reassembled
-  // into threads on the way in. `deterministic` re-writes the same model and compares the bytes — the
+  // into threads on the way in. `deterministic` re-writes the same model and compares the bytes: the
   // writer holds no clock and no id generator, so every guid and timestamp comes from the caller.
   //
   // The conversation deliberately mixes every facet at once (a reply by a second author, an @mention
@@ -210,7 +210,7 @@ export const comments = {
     const workbook = new Workbook();
     workbook.addPerson({id: ADA, displayName: 'Ada Lovelace', providerId: 'AD'});
     workbook.addPerson({id: GRACE, displayName: 'Grace Hopper', providerId: 'AD'});
-    // The same human as GRACE under a second id — how Excel registers a *mentioned* identity.
+    // The same human as GRACE under a second id: how Excel registers a *mentioned* identity.
     workbook.addPerson({
       id: GRACE_MENTIONED,
       displayName: 'Grace Hopper',

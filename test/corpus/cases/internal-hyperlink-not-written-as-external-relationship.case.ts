@@ -7,7 +7,7 @@ export default {
     'A hyperlink whose destination is inside the same workbook (a "#Sheet2!A1" target) must be ' +
     'serialized as an internal link: a location attribute holding the in-workbook reference and NO ' +
     'external relationship. Writing it as an external-mode r:id relationship (TargetMode="External") ' +
-    'AND a location makes a strict consumer resolve both and render the target doubled — the ' +
+    'AND a location makes a strict consumer resolve both and render the target doubled: the ' +
     'observed "#Sheet2!A1##Sheet2!A1". The internal and external forms must serialize distinctly.',
   provenance: {source: 'upstream-issue'},
   behavior: [

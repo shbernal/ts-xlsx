@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a workbook registers two distinct images (A and B) and a worksheet places
 // three anchors in the order B, A, A. After a write/read round-trip each anchor must reference the
-// image it was placed with — the rendered sequence must stay B, A, A. The defect: the drawing
+// image it was placed with: the rendered sequence must stay B, A, A. The defect: the drawing
 // serializer resolves each anchor's image relationship with a fragile "same as the previous anchor"
 // heuristic instead of a stable image-id → relationship-id mapping. When one image is reused across
 // non-adjacent anchors while another interleaves, the heuristic collides and the third anchor

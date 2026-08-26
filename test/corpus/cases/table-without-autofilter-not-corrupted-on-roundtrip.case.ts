@@ -4,7 +4,7 @@
 // whose header-row configuration is the default. A pure read/write round-trip (no logical edits)
 // must not alter the table part. Today the writer corrupts it: it injects an autoFilter element
 // (with an empty, self-closed filterColumn), flips the header-row setting off, and turns on
-// totalsRowShown — producing an internally inconsistent table + autoFilter that Excel treats as
+// totalsRowShown, producing an internally inconsistent table + autoFilter that Excel treats as
 // corrupt and repairs by stripping the Table and AutoFilter features. A round-trip must leave a
 // valid table valid.
 
@@ -18,7 +18,7 @@ export default {
   cluster: 'tables',
   description:
     'A no-op read/write round-trip of a table that has no autoFilter does not inject an ' +
-    'autoFilter, flip the header-row setting off, or turn on totalsRowShown — the re-emitted ' +
+    'autoFilter, flip the header-row setting off, or turn on totalsRowShown: the re-emitted ' +
     'table part stays valid instead of being repaired away by Excel.',
 
   behavior: [

@@ -92,7 +92,7 @@ export const formulas = {
   },
 
   // Build a formula-bearing spec, write it, read it back, and report each cell as
-  // { formula, sharedFormula, result } — mirroring the oracle. A shared-formula clone reads back a
+  // { formula, sharedFormula, result }, mirroring the oracle. A shared-formula clone reads back a
   // concrete formula (the master's, translated to the clone's address) while retaining its master
   // reference under `sharedFormula`; a plain formula master carries no `sharedFormula`.
   roundtripFormulas(spec: Untyped) {

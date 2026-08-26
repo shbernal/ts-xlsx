@@ -2,7 +2,7 @@
 //
 // Real-world scenario: the default font a writer emits references its color by
 // *theme index* (e.g. <color theme="1"/>) rather than a literal ARGB. That is valid
-// OOXML only if the package also ships a theme part that defines the color slots —
+// OOXML only if the package also ships a theme part that defines the color slots,
 // otherwise Excel cannot resolve the color and prompts to repair the file on open.
 // The invariant: whenever a serialized font references a theme color, a theme part
 // backing it is present in the package.

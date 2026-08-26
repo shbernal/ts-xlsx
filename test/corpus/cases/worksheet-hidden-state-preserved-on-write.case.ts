@@ -4,7 +4,7 @@
 // while at least one stays visible (a valid workbook must keep one visible sheet). After writing and
 // reopening, the marked worksheets must still be hidden: a consumer reading the file sees each sheet's
 // visibility state, and the workbook's sheet-list entry declares that state rather than defaulting to
-// visible. veryHidden — a state only settable through the file format, not the application UI — must
+// visible. veryHidden, a state only settable through the file format, not the application UI, must
 // not degrade to plain hidden or to visible.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

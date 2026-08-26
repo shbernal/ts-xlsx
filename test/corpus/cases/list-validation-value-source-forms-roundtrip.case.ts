@@ -2,16 +2,16 @@
 //
 // Real-world scenario: an author attaches a dropdown (a data validation of type "list") to cells.
 // There are two supported ways to express the allowed values, and both are common. The first is an
-// inline, comma-separated literal wrapped in double quotes — formula `"Male,Female"` — embedding the
+// inline, comma-separated literal wrapped in double quotes, formula `"Male,Female"`, embedding the
 // whole choice set directly in the validation. The second is a formula that references a range
-// holding the choices — `Levels!$A$2:$A$9999` — letting the dropdown draw from data written on a
+// holding the choices, `Levels!$A$2:$A$9999`, letting the dropdown draw from data written on a
 // (often hidden) helper sheet, so it behaves "dynamically" as that data changes. Whichever form the
 // author supplies must survive a write→read round-trip with its type, target, and formula text
 // intact, and the emitted XML must be one a strict consumer (Excel) accepts without a repair prompt.
 //
 // Durable constraint worth recording: the inline literal form has an Excel length ceiling (~255
 // chars); larger option sets silently fail to display in Excel and must use the range-reference
-// form. That is a design guardrail for authors, captured in the spec notes — the corpus locks the
+// form. That is a design guardrail for authors, captured in the spec notes: the corpus locks the
 // mechanical guarantee that neither form is mangled or coerced on the way through.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

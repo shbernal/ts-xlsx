@@ -7,11 +7,11 @@
 // here closes over anything, so a capability can move between modules without any case noticing.
 //
 // There used to be a Proxy here that turned an unknown property into a thrower tagged for the runner
-// to report as "skipped" — the right design while the library was being rebuilt module by module and a
+// to report as "skipped": the right design while the library was being rebuilt module by module and a
 // case could legitimately arrive before the code it tested. That is over, and the same mechanism now
 // only has one possible cause: a case calling a capability that does not exist. Skipping that silently
 // is the worst available outcome, because the case reads as accounted for. Deleting the Proxy makes it
-// the best one — with `CorpusApi` derived from this object, the typo is a compile error naming the
+// the best one: with `CorpusApi` derived from this object, the typo is a compile error naming the
 // capability, caught by `typecheck:test` before anything runs.
 
 import {comments} from './ts-xlsx/comments.ts';
@@ -58,7 +58,7 @@ const impl = {
  * it from the first (`WORKSHEET_MODEL_FACETS`, `check-entries.ts`). Derivation makes drift impossible
  * instead of merely detectable.
  *
- * This is what the cases are blind to and what they are not. They still cannot see `src` internals —
+ * This is what the cases are blind to and what they are not. They still cannot see `src` internals:
  * they reach the library only through the capabilities below, which is the decoupling that let the
  * corpus outlive the rewrite. What they no longer pretend not to see is the *shape of this surface*:
  * a capability's name, its arguments and what it returns are the contract a case is written against,

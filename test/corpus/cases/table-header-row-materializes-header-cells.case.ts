@@ -7,7 +7,7 @@
 // (`ref="A1:B3"`) that *includes* the header row. Excel treats the two as one fact: the
 // worksheet cell sitting at each header position must exist and must carry exactly that
 // column's name. A table whose declared header row is empty in `sheetData` is structurally
-// inconsistent, and Excel takes the repair-on-open path rather than rendering it — verified
+// inconsistent, and Excel takes the repair-on-open path rather than rendering it, verified
 // against Excel Desktop, which refuses the package outright and, when forced through
 // `xlRepairFile`, rewrites the headers to generic `Column1`/`Column2`.
 //
@@ -91,7 +91,7 @@ export default {
       },
     },
     {
-      name: 'a headerless table writes no header cells — its first row is data',
+      name: 'a headerless table writes no header cells: its first row is data',
       async expect(api: CorpusApi, assert: Assert) {
         const {cellText} = (await api.inspectPackage(HEADERLESS_TABLE)).sheets.S!;
         // The first row is the data row ['x', 'y'], not the column names: a headerless table must

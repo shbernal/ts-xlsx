@@ -3,7 +3,7 @@
 # same in-memory workbook. The XML twin is the oracle: whatever text Excel writes into `<f>` is what
 # the binary token stream must decode back to, character for character.
 #
-# The workbook is deliberately a grammar tour rather than a realistic sheet — one formula per token
+# The workbook is deliberately a grammar tour rather than a realistic sheet: one formula per token
 # class the decoder must handle (operators and their precedence, every operand kind, every reference
 # shape including 3-D and whole-column/row, defined names, shared and array formulas).
 #

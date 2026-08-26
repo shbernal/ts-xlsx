@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: an author protects a worksheet but explicitly opts to leave some operations
-// available to end users — sorting, autofilter, and formatting cells/rows/columns — so the structure
+// available to end users, sorting, autofilter, and formatting cells/rows/columns, so the structure
 // is locked while people can still sort and filter the data. OOXML's <sheetProtection> uses INVERTED
 // booleans: an attribute value of "1" LOCKS an operation and "0" (or omission) PERMITS it. So a
 // caller asking to keep sorting available must produce sort="0", not sort="1". If the permissive
@@ -22,7 +22,7 @@ export default {
   description:
     'Protecting a worksheet while opting to keep sort, autofilter, and cell/row/column formatting ' +
     'available emits a <sheetProtection> with the sheet locked but those operations permitted ' +
-    '(attribute "0", the OOXML "not forbidden" encoding) — the permissive options are honored, not ' +
+    '(attribute "0", the OOXML "not forbidden" encoding): the permissive options are honored, not ' +
     'dropped or inverted to a lock.',
 
   behavior: [

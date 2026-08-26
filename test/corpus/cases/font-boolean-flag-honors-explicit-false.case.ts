@@ -1,9 +1,9 @@
 // Cluster: styles
 //
 // Real-world scenario: OOXML boolean font flags (bold, italic, strike, condensed, outline, shadow,
-// extend) default to ON when the tag is present with no value — `<b/>` means bold. But a tag can
+// extend) default to ON when the tag is present with no value: `<b/>` means bold. But a tag can
 // carry an explicit value: `<b val="0"/>` means bold is OFF, `<b val="1"/>` means ON. A parser that
-// treats mere tag presence as true — ignoring the val attribute — reads an explicit-false flag as
+// treats mere tag presence as true, ignoring the val attribute, reads an explicit-false flag as
 // true, corrupting styles. This bites hardest in conditional-formatting differential (dxf) fonts,
 // where a rule that explicitly disables a flag is read as enabling it. The reader must honor the val.
 
@@ -15,7 +15,7 @@ export default {
   cluster: 'styles',
   description:
     'A boolean font flag serialized with an explicit-false value (e.g. <b val="0"/>) is read as ' +
-    'false, while a bare tag (<b/>) and an explicit-true tag (<b val="1"/>) are read as true — the ' +
+    'false, while a bare tag (<b/>) and an explicit-true tag (<b val="1"/>) are read as true: the ' +
     'reader honors the val attribute rather than returning true on tag presence alone.',
 
   behavior: [
@@ -40,7 +40,7 @@ export default {
         assert.strictEqual(
           valZero,
           false,
-          '<b val="0"/> means NOT bold — the val attribute must be honored, not ignored',
+          '<b val="0"/> means NOT bold: the val attribute must be honored, not ignored',
         );
       },
     },
@@ -64,7 +64,7 @@ export default {
         const {underline} = await api.fontExplicitOffFlagsReport();
         assert.ok(
           !underline && underline !== 'none',
-          '<u val="none"/> means NOT underlined — the string "none" is not truthy underline',
+          '<u val="none"/> means NOT underlined: the string "none" is not truthy underline',
         );
       },
     },

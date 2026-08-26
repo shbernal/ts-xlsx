@@ -1,7 +1,7 @@
 // Cluster: comment
 //
 // Real-world scenario: a fill-and-save workflow loads a workbook carrying Excel's modern threaded comments
-// (the 2018 review-style conversations — author, timestamp, replies) and writes it back out. Those live in
+// (the 2018 review-style conversations, author, timestamp, replies) and writes it back out. Those live in
 // per-sheet `xl/threadedComments/threadedComment{n}.xml` parts wired by a
 // `.../2017/10/relationships/threadedComment` sheet relationship, with the authors in a workbook-level
 // `xl/persons/person.xml` registry wired by a `.../relationships/person` relationship. A round-trip must
@@ -11,11 +11,11 @@
 // First the parts were merely carried through byte-for-byte, which stopped the load→save that used to drop
 // them outright. That turned out to be necessary but not sufficient: Excel binds a cell to its thread
 // through the legacy fallback `<comment>` it writes beside it (the "[Threaded comment] Your version of
-// Excel..." boilerplate) — specifically through that comment's synthetic `tc={headId}` author and its
-// `xr:uid` — so re-serialising the fallback as an ordinary note left every carried-through thread orphaned
+// Excel..." boilerplate), specifically through that comment's synthetic `tc={headId}` author and its
+// `xr:uid`, so re-serialising the fallback as an ordinary note left every carried-through thread orphaned
 // and invisible in the app. The fallback is therefore owned: suppressed on read, rebuilt from the model on
 // write. And now both parts are serialised from the model too, so what these behaviors measure is our own
-// output rather than the input's bytes — the conversation is not preserved, it is understood and rewritten.
+// output rather than the input's bytes: the conversation is not preserved, it is understood and rewritten.
 //
 // The sibling case `threaded-comment-authored-in-model-round-trips` covers the other direction, where there
 // is no input file to carry anything through.
@@ -27,17 +27,17 @@ const FIXTURE = 'threaded-comment-parts-survive-roundtrip/sample.xlsx';
 // A second real-world shape: a *resolved* thread whose reply is by a different author, plus a genuine
 // legacy note on another cell of the same sheet. Excel refuses to put a note and a thread on the SAME
 // cell (AddComment and AddCommentThreaded each reject the other's cell), so co-existence is per sheet,
-// not per cell — which is exactly what makes this file the interesting one: its `comments1.xml` mixes
+// not per cell, which is exactly what makes this file the interesting one: its `comments1.xml` mixes
 // two synthetic `tc={guid}` thread fallbacks with one real note author.
 const RESOLVED_MULTI_AUTHOR = 'threaded-comment-parts-survive-roundtrip/resolved-multi-author.xlsx';
 
-// A third shape: a message that @mentions someone. A mention is not decoration — it carries the
+// A third shape: a message that @mentions someone. A mention is not decoration: it carries the
 // mentioned person's id plus the character span of the message text that renders as the mention chip, so
 // dropping it loses who was asked and shifting it highlights the wrong words. Excel's own save is what
 // produced this file: an injected mention was re-resolved by Excel, which re-pointed it at a NEW person
 // entry it added with `providerId="PeoplePicker"` (the same human as an existing `providerId="AD"`
 // author, but a separate registry entry), then rendered `@Grace Hopper` as a chip over exactly the
-// 13 characters `startIndex="0" length="13"` names — the leading `@` included.
+// 13 characters `startIndex="0" length="13"` names: the leading `@` included.
 const MENTION_IN_THREAD = 'threaded-comment-parts-survive-roundtrip/mention-in-thread.xlsx';
 
 export default {
@@ -45,8 +45,8 @@ export default {
   provenance: {source: 'excel-desktop-verification'},
   cluster: 'comment',
   description:
-    'A no-op load→save hands back every modern threaded comment it was given — the per-sheet ' +
-    'threadedComment parts and the workbook-level persons author registry, re-serialised from the model — ' +
+    'A no-op load→save hands back every modern threaded comment it was given: the per-sheet ' +
+    'threadedComment parts and the workbook-level persons author registry, re-serialised from the model, ' +
     'so a threaded-comment-bearing workbook survives a fill-and-save. Asserted on the conversation itself ' +
     'and not merely on the parts: message count, reply structure, resolved (`done`) state, each author of ' +
     'a multi-author thread, each @mention with the text span it highlights, and the legacy fallback ' +
@@ -151,7 +151,7 @@ export default {
       name: 'the mention keeps the text span it highlights, so it stays over the mentioned name',
       async expect(api: CorpusApi, assert: Assert) {
         const {source, rewritten} = await api.roundtripFixturePackageParts(MENTION_IN_THREAD);
-        // `@Grace Hopper` is 13 characters at offset 0 — Excel renders the chip over exactly this span,
+        // `@Grace Hopper` is 13 characters at offset 0: Excel renders the chip over exactly this span,
         // so the pair is asserted literally rather than only compared before/after.
         assert.deepStrictEqual(source.threadedCommentMentionSpans, ['0:13'], 'precondition: span');
         assert.deepStrictEqual(
@@ -178,7 +178,7 @@ export default {
         assert.strictEqual(
           rewritten.personEntries,
           source.personEntries,
-          'all three entries survive — the mentioned identity is not merged into its author twin',
+          'all three entries survive: the mentioned identity is not merged into its author twin',
         );
         assert.deepStrictEqual(
           rewritten.personProviderIds,
@@ -190,7 +190,7 @@ export default {
     {
       // The behavior that makes preservation mean something *in Excel*, and the one this case was long
       // open on. Verified against desktop Excel: before this, our round-tripped output was read back as
-      // ZERO threaded comments and three ordinary notes — even though threadedComment1.xml, person.xml,
+      // ZERO threaded comments and three ordinary notes, even though threadedComment1.xml, person.xml,
       // both relationships and both content-type overrides all survived intact and the package validated
       // clean. The break was in `comments{n}.xml`, re-serialised from the note model: the `<authors>`
       // list collapsed to one empty `<author/>` (losing the synthetic `tc={headId}` entries) and every
@@ -221,7 +221,7 @@ export default {
     {
       name: 'the text a pre-2018 reader sees for a conversation is regenerated word for word',
       async expect(api: CorpusApi, assert: Assert) {
-        // The fallback is not carried through — it is rebuilt from the thread model — so matching Excel
+        // The fallback is not carried through, it is rebuilt from the thread model, so matching Excel
         // is a claim about our own wording and reply layout, not about copying bytes. Excel folds a whole
         // conversation into one comment: fixed boilerplate, `Comment:` and the opening message, then a
         // repeated `Reply:` per reply, each body indented four spaces. Compared after the line-end

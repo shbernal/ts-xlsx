@@ -1,18 +1,18 @@
 // Cluster: styles
 //
-// Real-world scenario: a team wants their tables in their own look — branded header row, their own
-// stripe colour — reused across every table in every workbook they generate. Excel calls this a table
+// Real-world scenario: a team wants their tables in their own look: branded header row, their own
+// stripe colour, reused across every table in every workbook they generate. Excel calls this a table
 // style, and a workbook can define its own beside the built-in gallery: a `<tableStyle>` in styles.xml
 // whose elements each name a region of the table and the differential formatting to lay over it. A
 // table then reaches it by name through `tableStyleInfo/@name`, exactly as it would name
 // "TableStyleMedium2".
 //
 // This is a *cross-part* claim, and that is what makes it hard to check. The table part names a
-// style, the styles part defines it, and the dxf table backs each of its elements — every one of
+// style, the styles part defines it, and the dxf table backs each of its elements: every one of
 // those parts can be individually schema-valid while the whole says nothing to Excel and the table
 // renders unstyled. So the assertions here resolve the references rather than counting them, and the
-// question the corpus structurally cannot answer — whether Excel *renders* the style or merely opens
-// the file without complaint — was put to Excel Desktop directly and recorded in
+// question the corpus structurally cannot answer, whether Excel *renders* the style or merely opens
+// the file without complaint, was put to Excel Desktop directly and recorded in
 // `test/corpus/fixtures/excel-oracle/authored-table-style-renders.json`: it registers the style in
 // the workbook's own gallery, paints the header row from it (bold in DisplayFormat while the cells
 // themselves carry no bold), and honours a stripe's `size` across both data rows.
@@ -46,7 +46,7 @@ export default {
   cluster: 'styles',
   description:
     'A custom table style authored on the workbook is emitted as a real `<tableStyle>` whose every ' +
-    'element resolves to a differential style, and a table naming it resolves to that definition — ' +
+    'element resolves to a differential style, and a table naming it resolves to that definition: ' +
     'the cross-part wiring Excel needs to actually paint the table.',
 
   behavior: [
@@ -77,7 +77,7 @@ export default {
           ['wholeTable', 'headerRow', 'firstRowStripe'],
           'the elements are emitted in the order the schema fixes, not authoring order',
         );
-        // A dxfId that resolves to nothing is a style that paints nothing — the failure mode this
+        // A dxfId that resolves to nothing is a style that paints nothing, the failure mode this
         // whole feature has to avoid, and one no schema check catches.
         assert.ok(
           report.elementDxfs.every((dxf) => dxf !== null),
@@ -108,7 +108,7 @@ export default {
       name: 'elements painted alike share one differential style',
       async expect(api: CorpusApi, assert: Assert) {
         // The dxf table is shared and interned, so a style whose header row and total row look the
-        // same costs one entry, not two — the same interning a conditional-formatting rule uses.
+        // same costs one entry, not two, the same interning a conditional-formatting rule uses.
         const fill = {type: 'pattern', pattern: 'solid', bgColor: {argb: 'FFBB2649'}};
         const report = await api.authorTableStyleReport({
           styles: [{name: 'Twin', elements: {headerRow: {fill}, totalRow: {fill}}}],
@@ -121,8 +121,8 @@ export default {
     {
       name: 'authoring a name a source file already defined overrides it, rather than duplicating it',
       async expect(api: CorpusApi, assert: Assert) {
-        // Two `<tableStyle>` elements sharing a name leave the table's reference ambiguous — a
-        // consumer resolves whichever it indexes first — so a second definition is never the answer.
+        // Two `<tableStyle>` elements sharing a name leave the table's reference ambiguous: a
+        // consumer resolves whichever it indexes first, so a second definition is never the answer.
         const report = await api.authorTableStyleReport({
           fixture: PRESERVED,
           styles: [{name: 'Harbour Table', elements: {headerRow: {font: {italic: true}}}}],
@@ -142,7 +142,7 @@ export default {
       name: 'a style that could never paint anything is refused at the call that made it',
       async expect(api: CorpusApi, assert: Assert) {
         // Both of these produce a file Excel opens without complaint and then quietly does nothing
-        // with — the class of bug that never gets found, so it is refused at the setter instead.
+        // with, the class of bug that never gets found, so it is refused at the setter instead.
         assert.match(
           await api.authorInvalidTableStyle({name: '', elements: {}})!,
           /needs a name/,

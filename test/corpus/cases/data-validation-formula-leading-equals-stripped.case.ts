@@ -1,7 +1,7 @@
 // Cluster: validations
 //
 // Real-world scenario: a list-type data validation's source is supplied as a formula string with a
-// leading '=' — e.g. "=$AA$1:$AA$2". In OOXML the dataValidation formula1 element carries the formula
+// leading '=', e.g. "=$AA$1:$AA$2". In OOXML the dataValidation formula1 element carries the formula
 // WITHOUT a leading '=' (the '=' is a UI/authoring convention, not part of the stored formula). When
 // the writer emits the '=' verbatim into formula1, the application does not apply the validation until
 // the file is reopened/repaired. The writer must strip exactly one leading '=' from a validation

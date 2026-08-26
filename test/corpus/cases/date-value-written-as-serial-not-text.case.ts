@@ -1,7 +1,7 @@
 // Cluster: types
 //
 // Real-world scenario: a user assigns a genuine Date to a cell that carries a date number
-// format — set either per-cell or via a column-level style. The cell must be written as a
+// format, set either per-cell or via a column-level style. The cell must be written as a
 // numeric-typed cell holding the date serial number (so a spreadsheet app treats it as a real
 // date and the number format displays it), never as a text string. A date silently coerced to
 // text sorts and computes wrong and cannot be reformatted. Applying a date number format at the
@@ -32,7 +32,7 @@ const TIME_SPEC = {
 };
 
 // The dual of the above: a date-LOOKING STRING under a date number format must stay a string. A date
-// format is a display instruction, not a coercion — applying it cannot turn text into a date. So a
+// format is a display instruction, not a coercion: applying it cannot turn text into a date. So a
 // caller who wants real, pivotable dates must supply Date values; a string like "2024/02/02" under a
 // date column stays text (and pivots/sorts as text), which the caller can detect rather than being
 // silently told it is a date.
@@ -52,7 +52,7 @@ export default {
   cluster: 'types',
   description:
     'A genuine date value under a date number format is written as a numeric (serial) cell ' +
-    'and reads back as a date, not a text string — for both a column-level and a per-cell ' +
+    'and reads back as a date, not a text string, for both a column-level and a per-cell ' +
     'date format; a column date format alone does not coerce the value to text.',
 
   behavior: [
@@ -78,7 +78,7 @@ export default {
     },
     {
       // A time-of-day under a time/duration format must stay a numeric (fractional-serial) cell so
-      // arithmetic over a column of durations works — storing it as text makes a SUM evaluate to 0.
+      // arithmetic over a column of durations works; storing it as text makes a SUM evaluate to 0.
       name: 'a time-of-day under a duration format stays a numeric date value, not text',
       async expect(api: CorpusApi, assert: Assert) {
         const model = await api.roundtripWorkbook(TIME_SPEC);
@@ -98,7 +98,7 @@ export default {
         assert.strictEqual(
           model.sheets.S.cells.A1.value,
           '2024/02/02',
-          'the string keeps its exact text — a date number format must not turn text into a date',
+          'the string keeps its exact text: a date number format must not turn text into a date',
         );
       },
     },

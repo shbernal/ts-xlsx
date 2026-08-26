@@ -4,7 +4,7 @@
 // that exact stored value to survive a write→read cycle. A recurring confusion is
 // that Excel *displays* a slightly different figure (a character-width vs. pixel
 // padding offset of ~0.71), leading people to believe the library mangles the
-// value. The stored model value must round-trip byte-for-byte — no silent unit
+// value. The stored model value must round-trip byte-for-byte, no silent unit
 // drift added or subtracted on write or read.
 
 import type {Assert, Case, CorpusApi} from '../case.ts';

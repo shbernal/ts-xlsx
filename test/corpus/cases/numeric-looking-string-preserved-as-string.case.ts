@@ -1,6 +1,6 @@
 // Cluster: types
 //
-// Real-world scenario: a user has values that look numeric but must be treated as text — an
+// Real-world scenario: a user has values that look numeric but must be treated as text: an
 // identifier, or a formatted amount like "1000.80" where the trailing zero is significant. They set
 // the cell value to a JavaScript string. On write-then-read the cell must remain a string carrying
 // exactly the characters supplied ("1000.80"), not be coerced into a number that drops the trailing
@@ -26,7 +26,7 @@ export default {
   cluster: 'types',
   description:
     'A cell assigned a numeric-looking JavaScript string ("1000.80", "007") round-trips as a string ' +
-    'with its exact characters — including a significant trailing zero and leading zeros — rather ' +
+    'with its exact characters, including a significant trailing zero and leading zeros, rather ' +
     'than being coerced to a number that changes the value or type.',
 
   behavior: [

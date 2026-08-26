@@ -2,7 +2,7 @@
 //
 // Real-world scenario: a user sets a couple of print margins on a worksheet (say
 // just left and right) and saves. OOXML's <pageMargins> element requires all six
-// attributes — left, right, top, bottom, header, footer — to be present; a partial
+// of left, right, top, bottom, header and footer to be present; a partial
 // element is invalid and can make Excel repair the file. A faithful writer must
 // emit all six (filling the untouched ones with valid finite defaults) while
 // preserving the values the user did set.

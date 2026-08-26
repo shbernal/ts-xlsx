@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: a column has a shared style (e.g. a column-level number format) covering
-// several populated cells. The user targets one cell — say A2 — and gives it a fill to make just
+// several populated cells. The user targets one cell, say A2, and gives it a fill to make just
 // that cell stand out. They expect only A2 to change. A reported failure was that every other cell in
 // the column that shared the original style also picked up the fill, because the per-cell style
 // setter mutated a style object aliased across the cells rather than giving the targeted cell its own
@@ -32,7 +32,7 @@ export default {
   provenance: {source: 'upstream-issue'},
   cluster: 'styles',
   description:
-    'Assigning a fill to one cell in a column that shares a style changes only that cell — its ' +
+    'Assigning a fill to one cell in a column that shares a style changes only that cell: its ' +
     'column siblings keep their original (unfilled) style and the column-level number format is ' +
     'preserved on all of them, with no shared-style bleed.',
 

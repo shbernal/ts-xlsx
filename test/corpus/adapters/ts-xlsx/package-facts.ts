@@ -1,6 +1,6 @@
 // Structural facts read back out of a written package.
 //
-// These answer "what is actually in the zip" — part inventory, comment threads, notes —
+// These answer "what is actually in the zip": part inventory, comment threads, notes,
 // without going through our own reader, so a case can assert on the bytes rather than on a
 // round-trip through the code that produced them.
 
@@ -18,7 +18,7 @@ export function partMapOf(buffer: Uint8Array): PartMap {
   return out;
 }
 
-// Total matches of `pattern` across every part whose name matches `inParts` — for facts that live in
+// Total matches of `pattern` across every part whose name matches `inParts`, for facts that live in
 // the part's content rather than in the package's shape.
 export const countIn = (parts: Record<string, string>, inParts: RegExp, pattern: RegExp) =>
   Object.keys(parts)
@@ -38,7 +38,7 @@ export const notesOf = (sheet: WorksheetInstance) => {
 // anchor/resolved state and its messages in order (author resolved through the registry, the raw author id
 // alongside so an unresolved one is visible, and each @mention's resolved identity + text span). `refs`
 // additionally probes the per-cell lookup, reporting the anchor of the thread found at each reference (null
-// for none) — so a case can assert a noted cell is not mistaken for a threaded one.
+// for none), so a case can assert a noted cell is not mistaken for a threaded one.
 //
 // Persons are sorted by id because the registry's order is meaningless: Excel re-sorts the part by person
 // id whenever it saves, so only membership is a fact.
@@ -52,7 +52,7 @@ export const commentThreadFacts = (wb: WorkbookInstance, refs: string[] = []) =>
   });
   // A comment's author is a *lookup* through the registry and can miss; a registry entry cannot. Two
   // functions rather than one nullable one, so `persons` is not reported as possibly-null purely
-  // because the author path shares its shape — a case reading a registry entry should not have to
+  // because the author path shares its shape: a case reading a registry entry should not have to
   // narrow past a `null` that cannot occur.
   const identityOrNull = (person: Person | undefined) => (person == null ? null : identity(person));
   return {
@@ -75,7 +75,7 @@ export const commentThreadFacts = (wb: WorkbookInstance, refs: string[] = []) =>
             personId: mention.personId,
             startIndex: mention.startIndex,
             length: mention.length,
-            // The exact run of text the mention chip covers — the only check that proves the span was not
+            // The exact run of text the mention chip covers: the only check that proves the span was not
             // shifted, since the offsets alone are just numbers.
             span: comment.text.slice(mention.startIndex, mention.startIndex + mention.length),
           })),
@@ -115,7 +115,7 @@ export const threadFallbackComments = (parts: Record<string, string>) => {
         // Line-end normalisation, which XML 1.0 §2.11 requires of every processor before the
         // application sees the text: a literal CRLF in element content IS a lone LF as far as any
         // reader is concerned. Excel writes the boilerplate with CRLF, we write LF, and no consumer can
-        // tell — so doing it here keeps the comparison about wording instead of about line endings.
+        // tell, so doing it here keeps the comparison about wording instead of about line endings.
         .replace(/\r\n?/g, '\n');
       found.push({uid, text});
     }
@@ -123,7 +123,7 @@ export const threadFallbackComments = (parts: Record<string, string>) => {
   return found.sort((a, b) => a.uid.localeCompare(b.uid));
 };
 
-// Package-part facts a passthrough round-trip must preserve — the mirror of the oracle's
+// Package-part facts a passthrough round-trip must preserve: the mirror of the oracle's
 // `packageFactsFromZip`: counts of part families the reader does not fully model (drawings, VML,
 // media, pivot tables/caches, comments) plus the worksheet/drawing reference flags that wire
 // unmodeled features (a vector-shape drawing, a header/footer image) into the sheet.
@@ -154,7 +154,7 @@ export const packagePartFacts = (parts: Record<string, string>) => {
     // The conversation *inside* those parts, so preservation is asserted on content and not merely on
     // a part existing: one `<threadedComment>` per message (replies carry `parentId`), a thread head
     // marked resolved by `done`, and the `<person>` registry entries the `personId`s resolve through.
-    // The distinct personId set is what proves a multi-author thread keeps each message's author —
+    // The distinct personId set is what proves a multi-author thread keeps each message's author,
     // reported sorted, since only membership is meaningful.
     threadedCommentMessages: countIn(parts, /threadedComments\//, /<threadedComment\b/g),
     threadedCommentReplies: countIn(
@@ -179,7 +179,7 @@ export const packagePartFacts = (parts: Record<string, string>) => {
     // An @mention inside a message: `<mention>` names the mentioned person and pins the span of text
     // that renders as the mention chip. Verified against desktop Excel (2026-07-26): `startIndex` is a
     // 0-based character offset and `length` COVERS the leading `@`, so the offsets are only meaningful
-    // against the exact message text — drop or shift either and Excel highlights the wrong words.
+    // against the exact message text: drop or shift either and Excel highlights the wrong words.
     threadedCommentMentions: countIn(parts, /threadedComments\//, /<mention\b/g),
     threadedCommentMentionSpans: names
       .filter((p) => /threadedComments\//.test(p))
@@ -201,7 +201,7 @@ export const packagePartFacts = (parts: Record<string, string>) => {
     // Excel interns a mentioned identity as its OWN `<person>` entry with `providerId="PeoplePicker"`,
     // separate from the same human's `providerId="AD"` authoring entry (verified: Excel rewrote an
     // injected mention to point at a new person id it added on save). So the registry legitimately holds
-    // several entries per human, distinguished only by id — collapsing them by name or userId corrupts it.
+    // several entries per human, distinguished only by id; collapsing them by name or userId corrupts it.
     personProviderIds: [
       ...new Set(
         names
@@ -213,7 +213,7 @@ export const packagePartFacts = (parts: Record<string, string>) => {
     // How Excel binds a thread to the legacy fallback `<comment>` it writes beside it: the fallback's
     // author is a synthetic `tc={headThreadId}` entry in the comments part's `<authors>`, and the
     // `<comment>` itself carries `xr:uid="{headThreadId}"`. Lose either and Excel stops recognising the
-    // cell as threaded — it renders an ordinary note and ignores the thread part, however intact that
+    // cell as threaded: it renders an ordinary note and ignores the thread part, however intact that
     // part still is. So these are the load-bearing halves of "the conversation survived", not trivia.
     commentFallbackThreadAuthors: countIn(
       parts,
@@ -227,16 +227,16 @@ export const packagePartFacts = (parts: Record<string, string>) => {
     // producing something.
     commentFallbackTexts: threadFallbackComments(parts).map((fallback) => fallback.text),
     // Every `<comment>` of the comments part, and every VML shape backing one. A comment with no shape
-    // reads as text but renders nothing, so the two counts must agree — and a thread's fallback must
+    // reads as text but renders nothing, so the two counts must agree, and a thread's fallback must
     // not turn into a *second* comment beside a note on the same cell.
     commentEntries: countIn(parts, /comments\d+\.xml$/, /<comment\b/g),
     commentVmlShapes: countIn(parts, /vmlDrawing\d+\.vml$/, /<v:shape\b/g),
     externalLinks: names.filter((p) => /xl\/externalLinks\/externalLink\d+\.xml$/.test(p)).length,
-    // The `<externalReference>` registrations in workbook.xml — one per `[n]` a formula resolves an
+    // The `<externalReference>` registrations in workbook.xml: one per `[n]` a formula resolves an
     // external cell through. Reported as a count (the rel ids are renumbered on write, the ordering and
     // arity are what must survive).
     externalReferenceCount: [...wb.matchAll(/<externalReference\b/g)].length,
-    // The `TargetMode="External"` source-workbook pointers carried by every externalLink's own rels —
+    // The `TargetMode="External"` source-workbook pointers carried by every externalLink's own rels:
     // dropping these orphans the link. Sorted so the comparison is order-independent.
     externalTargets: names
       .filter((p) => /xl\/externalLinks\/_rels\/.+\.rels$/.test(p))

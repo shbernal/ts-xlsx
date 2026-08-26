@@ -1,13 +1,13 @@
 // Cluster: core-model
 //
 // Real-world scenario: a program builds a sheet, then wants to trim it down to a
-// header — "remove every row after row 2". The natural call is a single
+// header: "remove every row after row 2". The natural call is a single
 // spliceRows(start, count) where count spans all the remaining rows. Users reach for
 // one bulk splice precisely because doing it one row at a time in a loop is
 // pathologically slow on large sheets (tens of thousands of rows).
 //
-// The trap real users hit: when `count` is large — in particular when it reaches or
-// exceeds the number of rows actually present from `start` onward — the splice
+// The trap real users hit: when `count` is large, in particular when it reaches or
+// exceeds the number of rows actually present from `start` onward, the splice
 // removes *nothing* and the row count is unchanged, silently. A small count works; a
 // count that would clear the tail is a no-op. The number passed must mean "remove
 // this many rows" for every value, not just small ones.
@@ -23,7 +23,7 @@ export default {
   cluster: 'core-model',
   description:
     'spliceRows(start, count) removes exactly `count` rows for every count, including ' +
-    'a count large enough to clear all rows from `start` to the end — not just small ' +
+    'a count large enough to clear all rows from `start` to the end, not just small ' +
     'counts. A bulk removal must not silently become a no-op.',
 
   behavior: [

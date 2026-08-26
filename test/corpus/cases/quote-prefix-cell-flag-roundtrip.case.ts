@@ -17,7 +17,7 @@ export default {
   cluster: 'styles',
   description:
     'A cell marked with the quote-prefix flag writes a cell-format record carrying the quotePrefix ' +
-    'attribute, and a read/modify/write round-trip preserves the flag — the mechanism a spreadsheet ' +
+    'attribute, and a read/modify/write round-trip preserves the flag: the mechanism a spreadsheet ' +
     'uses to force formula-like content to be stored as literal text.',
 
   behavior: [

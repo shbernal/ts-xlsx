@@ -1,7 +1,7 @@
 // Cluster: styles
 //
 // Real-world scenario: a worksheet's tab is colored by supplying an 8-digit ARGB hex string. Colors
-// in the format are ARGB — the first two hex digits are the alpha channel — so FFFF0000 is opaque
+// in the format are ARGB, the first two hex digits are the alpha channel, so FFFF0000 is opaque
 // red, not a blue-ish RGBA misread. The tab color must round-trip verbatim, and a worksheet with no
 // tab color set must not acquire a spurious one. Locks the tab-color ARGB contract.
 
