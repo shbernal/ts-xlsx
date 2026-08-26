@@ -17,23 +17,13 @@ import {
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
 import {Column} from './column.ts';
-import {type CommentThread, commentThreadGuid, commentThreadOffset} from './comment-thread.ts';
+import type {CommentThread} from './comment-thread.ts';
 import {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
 import type {ConditionalFormatting} from './conditional-formatting.ts';
-import {replaceContents} from './containers.ts';
 import {DataValidationOverlay} from './data-validation-overlay.ts';
 import type {DataValidation, DataValidationEntry} from './data-validation.ts';
 import {GridEdits} from './grid-edits.ts';
-import {
-  type AnchoredImage,
-  type AnchorPoint,
-  type Extent,
-  type ImageAnchor,
-  type ImageEditAs,
-  PX_TO_EMU,
-  resolveAnchorPoint,
-  type TwoCellAnchor,
-} from './image.ts';
+import type {AnchoredImage, AnchorPoint, ImageAnchor, ImageEditAs} from './image.ts';
 import {INTERNAL} from './internal.ts';
 import {clearCoveredValues, type MergeRect, masterOf} from './merge.ts';
 import type {HeaderFooter, PageBreak, PageMargins, PageSetup, PrintOptions} from './page-setup.ts';
@@ -51,6 +41,8 @@ import {Row} from './row.ts';
 import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions, TOTALS_ROW_SUBTOTAL_CODE} from './table.ts';
 import type {CellValue} from './value.ts';
+import {WorksheetComments} from './worksheet-comments.ts';
+import {WorksheetImages} from './worksheet-images.ts';
 import {WORKSHEET_MODEL_FACETS} from './worksheet-model.ts';
 
 export interface WorksheetState {
@@ -278,12 +270,16 @@ export class Worksheet {
   // authority the writer serialises from: both the sheet's threadedComment part and the legacy fallback
   // comment that binds each cell to its conversation are derived from this list. Empty for a sheet with no
   // threaded comments.
-  readonly #commentThreads: CommentThread[] = [];
+  readonly #comments = new WorksheetComments(() => this.name);
   readonly #merges: string[] = [];
-  readonly #images: AnchoredImage[] = [];
+  readonly #images = new WorksheetImages({
+    // A size a column or row does not set defers to the sheet default, then to Excel's own.
+    columnWidth: (col) => this.#columns.get(col + 1)?.width ?? this.properties.defaultColWidth,
+    rowHeight: (row) =>
+      this.#rowProperties.get(row + 1)?.height ?? this.properties.defaultRowHeight,
+  });
   // A sheet background is a single workbook image tiled behind the grid, distinct from an anchored
   // drawing (it has no anchor and rides its own worksheet relationship, not a drawing part).
-  #backgroundImageId: number | undefined;
   // Worksheet-level references to package content the model does not interpret (a vector-shape
   // drawing, a header/footer image), captured verbatim on read so a round-trip re-emits them rather
   // than dropping them. Empty for a sheet authored from scratch.
@@ -324,7 +320,7 @@ export class Worksheet {
       merges: this.#merges,
       mergeRects: this.#mergeRects,
       tables: this.#tables,
-      images: this.#images,
+      images: this.#images.anchors,
     });
   }
 
@@ -658,38 +654,7 @@ export class Worksheet {
    * express.
    */
   addCommentThread(thread: CommentThread): void {
-    const taken = new Set(
-      this.#commentThreads.flatMap((held) => held.comments.map((comment) => comment.id)),
-    );
-    // Every message is validated before any of it is stored, so a rejection leaves the sheet untouched
-    // rather than half-carrying a conversation whose remaining messages were refused.
-    const comments = thread.comments.map((comment) => {
-      const id = commentThreadGuid(comment.id, 'a comment id');
-      if (taken.has(id)) {
-        throw new SyntaxError(
-          `a comment id must be unique within a sheet, but "${id}" is already used on "${this.name}": ` +
-            'a reply and the legacy fallback comment both find their thread by it',
-        );
-      }
-      taken.add(id);
-      return {
-        ...comment,
-        id,
-        ...(comment.personId !== undefined
-          ? {personId: commentThreadGuid(comment.personId, "a comment's author id")}
-          : {}),
-        mentions: comment.mentions.map((mention) => ({
-          ...mention,
-          personId: commentThreadGuid(mention.personId, "a mention's person id"),
-          startIndex: commentThreadOffset(mention.startIndex, "a mention's startIndex"),
-          length: commentThreadOffset(mention.length, "a mention's length"),
-          ...(mention.mentionId !== undefined
-            ? {mentionId: commentThreadGuid(mention.mentionId, 'a mention id')}
-            : {}),
-        })),
-      };
-    });
-    this.#commentThreads.push({...thread, ref: this.#anchorRef(thread.ref), comments});
+    this.#comments.add(thread);
   }
 
   /**
@@ -698,15 +663,7 @@ export class Worksheet {
    * ({@link Cell.note}).
    */
   get commentThreads(): readonly CommentThread[] {
-    return this.#commentThreads;
-  }
-
-  // The canonical A1 form of a conversation's anchor. A thread hangs off one cell, and both the writer's
-  // fallback comment and {@link commentThreadAt} compare anchors as plain strings, so `$B$2` and `B2` must
-  // not be two anchors.
-  #anchorRef(reference: string): string {
-    const {col, row} = decodeCellRef(reference);
-    return encodeAddress(col, row);
+    return this.#comments.threads;
   }
 
   /**
@@ -717,8 +674,7 @@ export class Worksheet {
    * @throws {SyntaxError} if the reference does not resolve to a single cell.
    */
   commentThreadAt(reference: string): CommentThread | undefined {
-    const anchor = this.#anchorRef(reference);
-    return this.#commentThreads.find((thread) => thread.ref === anchor);
+    return this.#comments.at(reference);
   }
 
   /**
@@ -749,26 +705,7 @@ export class Worksheet {
       | {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs}
       | {readonly tl: AnchorPoint; readonly ext: {readonly width: number; readonly height: number}},
   ): void {
-    // Bind the pure anchor geometry to this sheet's per-column/row sizes; a size a column or row does
-    // not set defers to the sheet default, then (inside resolveAnchorPoint) to Excel's own default.
-    const columnWidth = (col: number): number | undefined =>
-      this.#columns.get(col + 1)?.width ?? this.properties.defaultColWidth;
-    const rowHeight = (row: number): number | undefined =>
-      this.#rowProperties.get(row + 1)?.height ?? this.properties.defaultRowHeight;
-    if ('ext' in anchor) {
-      const ext: Extent = {
-        cx: Math.round(anchor.ext.width * PX_TO_EMU),
-        cy: Math.round(anchor.ext.height * PX_TO_EMU),
-      };
-      const from = resolveAnchorPoint(anchor.tl, columnWidth, rowHeight);
-      this.#images.push({imageId, anchor: {from, ext}});
-      return;
-    }
-    const from = resolveAnchorPoint(anchor.tl, columnWidth, rowHeight);
-    const to = resolveAnchorPoint(anchor.br, columnWidth, rowHeight);
-    const twoCell: TwoCellAnchor =
-      anchor.editAs !== undefined ? {from, to, editAs: anchor.editAs} : {from, to};
-    this.#images.push({imageId, anchor: twoCell});
+    this.#images.add(imageId, anchor);
   }
 
   /**
@@ -777,37 +714,36 @@ export class Worksheet {
    * a drawing part without a lossy pixel round-trip.
    */
   addImageAnchor(imageId: number, anchor: ImageAnchor): void {
-    this.#images.push({imageId, anchor});
+    this.#images.addAnchor(imageId, anchor);
   }
 
   /** Drop every anchor of the given workbook image from this sheet. The image stays registered on the
    * workbook (another sheet may still show it), so only this sheet's anchors are removed; the writer
    * then omits any media no sheet anchors any longer. */
   removeImage(imageId: number): void {
-    const kept = this.#images.filter((image) => image.imageId !== imageId);
-    replaceContents(this.#images, kept);
+    this.#images.remove(imageId);
   }
 
   /** The images anchored to this sheet, in the order they were added. */
   get images(): readonly AnchoredImage[] {
-    return this.#images;
+    return this.#images.anchors;
   }
 
   /** Set this sheet's background image to a workbook image (the id {@link Workbook.addImage} returned).
    * The picture tiles behind the whole grid; it is not anchored to any cell. Passing a new id replaces
    * the previous background. */
   addBackgroundImage(imageId: number): void {
-    this.#backgroundImageId = imageId;
+    this.#images.setBackground(imageId);
   }
 
   /** Remove this sheet's background image, if any. The image stays registered on the workbook. */
   removeBackgroundImage(): void {
-    this.#backgroundImageId = undefined;
+    this.#images.setBackground(undefined);
   }
 
   /** The workbook image id set as this sheet's background, or `undefined` when it has none. */
   get backgroundImageId(): number | undefined {
-    return this.#backgroundImageId;
+    return this.#images.backgroundImageId;
   }
 
   /** The worksheet-level references to unmodeled package content preserved for round-tripping. */
@@ -1208,7 +1144,7 @@ export class Worksheet {
       this.#loadedPivotTables.push(pivot);
     },
     restoreCommentThreads: (threads) => {
-      replaceContents(this.#commentThreads, threads);
+      this.#comments.restore(threads);
     },
     addPreservedReference: (reference) => {
       this.#preservedReferences.push(reference);

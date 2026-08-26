@@ -118,9 +118,10 @@ about a thousand lines that is no longer a class you can read: the fields are sc
 file, and there is no point at which you can see what the object *is*.
 
 Both push cohesive slices of state into their own objects and keep the public accessors in front of
-them. `Worksheet` holds `DataValidationOverlay`, `ConditionalFormattingOverlay` and `GridEdits`;
-`Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`) and `WorkbookTheme`
-(`core/workbook-theme.ts`). The public surface does not move: an accessor stays on the model class,
+them. `Worksheet` holds `DataValidationOverlay`, `ConditionalFormattingOverlay`, `GridEdits`,
+`WorksheetImages` (`core/worksheet-images.ts`) and `WorksheetComments`
+(`core/worksheet-comments.ts`); `Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`) and
+`WorkbookTheme` (`core/workbook-theme.ts`). The public surface does not move: an accessor stays on the model class,
 keeps its name, its type and its full doc comment, and becomes a one-line delegation. The doc
 comment staying put is not incidental, since it is what `scripts/gen-docs.ts` reads and what a
 consumer sees; the slice carries implementation notes only.
@@ -133,6 +134,15 @@ in by the reader. It stays on `Workbook` and is passed in as a narrow accessor. 
 styles-table state would have followed it and the result would be a colour-and-styles overlay, which
 is not a slice of anything. When a candidate slice has more than one or two such edges, that is the
 signal it is not one.
+
+`Worksheet` is still over the thousand lines after those two, and deliberately so. What is left on
+it is the grid and the things that reach into the grid constantly: tables and pivots materialise
+header and totals rows and re-pin themselves through `GridEdits` on every splice, so lifting them
+would produce a tables-and-grid overlay, which is the theme example above with a different name. The
+page-layout fields (`view`, `pageSetup`, `printOptions`, `pageMargins`, `headerFooter`, and the two
+break lists) are plain mutable objects with no accessors and no behaviour, so there is nothing to
+delegate and grouping them would change the public API to no end. The line count is the symptom the
+rule watches for, not the rule; a slice that is not one costs more than the lines it removes.
 
 ### Inside `src/io/xlsx/`: three kinds of module, deliberately flat
 
