@@ -42,8 +42,8 @@ import type {CellStyle, Color, Fill} from './style.ts';
 import {Table, type TableOptions, TOTALS_ROW_SUBTOTAL_CODE} from './table.ts';
 import type {CellValue} from './value.ts';
 import {WorksheetComments} from './worksheet-comments.ts';
-import {WorksheetImages} from './worksheet-images.ts';
 import {WORKSHEET_MODEL_FACETS} from './worksheet-model.ts';
+import {WorksheetPictures} from './worksheet-pictures.ts';
 
 export interface WorksheetState {
   /** Sheet visibility, as Excel models it. Defaults to `visible`. */
@@ -272,7 +272,7 @@ export class Worksheet {
   // threaded comments.
   readonly #comments = new WorksheetComments(() => this.name);
   readonly #merges: string[] = [];
-  readonly #images = new WorksheetImages({
+  readonly #images = new WorksheetPictures({
     // A size a column or row does not set defers to the sheet default, then to Excel's own.
     columnWidth: (col) => this.#columns.get(col + 1)?.width ?? this.properties.defaultColWidth,
     rowHeight: (row) =>

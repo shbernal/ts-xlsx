@@ -1,5 +1,10 @@
 // The pictures on a worksheet, lifted off `Worksheet` into the slice they are.
 //
+// Named for the pictures rather than for the images because `WorksheetImages` is already taken, by
+// the public value type `Workbook.exportImages` hands back: a sheet's pictures in a
+// workbook-independent form. Two things in `core/` under one name would be a standing invitation to
+// import the wrong one.
+//
 // Two kinds, and they are not the same thing: an *anchored* image is pinned to a grid rectangle or
 // a grid point and moves with the cells under it, while the *background* tiles behind the whole
 // sheet and is anchored to nothing. Both are held here because both are one opaque workbook image
@@ -24,7 +29,7 @@ import {
   type TwoCellAnchor,
 } from './image.ts';
 
-/** The two shapes {@link WorksheetImages.add} accepts, in caller-facing pixel units. */
+/** The two shapes {@link WorksheetPictures.add} accepts, in caller-facing pixel units. */
 export type PixelAnchor =
   | {readonly tl: AnchorPoint; readonly br: AnchorPoint; readonly editAs?: ImageEditAs}
   | {readonly tl: AnchorPoint; readonly ext: {readonly width: number; readonly height: number}};
@@ -35,7 +40,7 @@ export interface AnchorMetrics {
   rowHeight(row: number): number | undefined;
 }
 
-export class WorksheetImages {
+export class WorksheetPictures {
   readonly #metrics: AnchorMetrics;
 
   // Mutable and handed out whole to `GridEdits`, which re-pins every anchor in place on a splice.

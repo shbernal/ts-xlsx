@@ -119,7 +119,7 @@ file, and there is no point at which you can see what the object *is*.
 
 Both push cohesive slices of state into their own objects and keep the public accessors in front of
 them. `Worksheet` holds `DataValidationOverlay`, `ConditionalFormattingOverlay`, `GridEdits`,
-`WorksheetImages` (`core/worksheet-images.ts`) and `WorksheetComments`
+`WorksheetPictures` (`core/worksheet-pictures.ts`) and `WorksheetComments`
 (`core/worksheet-comments.ts`); `Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`) and
 `WorkbookTheme` (`core/workbook-theme.ts`). The public surface does not move: an accessor stays on the model class,
 keeps its name, its type and its full doc comment, and becomes a one-line delegation. The doc
