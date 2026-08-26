@@ -5,7 +5,7 @@
 // (`xl/tables/tableN.xml`) are `tables.ts`'s concern, alongside their reader; this module only wires
 // the sheet's `<tableParts>` back-references to them.
 
-import {decodeRange, encodeAddress, MAX_COLUMN} from '../../core/address.ts';
+import {decodeRange, encodeAddress} from '../../core/address.ts';
 import type {Cell} from '../../core/cell.ts';
 import {DEFAULT_DATE_NUMFMT, dateToSerial} from '../../core/date.ts';
 import {mangleFormula} from '../../core/formula.ts';
@@ -519,14 +519,10 @@ function sheetFormatPr(
 }
 
 // The deepest column outline level the sheet declares: the `outlineLevelCol` its `<sheetFormatPr>`
-// reports. A column past XFD contributes nothing: {@link colsXml} drops it as out-of-range, so its
-// group would have no `<col>` to sit on.
+// reports.
 function maxColumnOutlineLevel(sheet: Worksheet): number {
   let max = 0;
-  for (const column of sheet.columns()) {
-    if (column.index > MAX_COLUMN) continue;
-    max = Math.max(max, column.outlineLevel ?? 0);
-  }
+  for (const column of sheet.columns()) max = Math.max(max, column.outlineLevel ?? 0);
   return max;
 }
 
@@ -537,9 +533,6 @@ function colsXml(sheet: Worksheet, styles: StyleRegistry): string {
   // in the emitted attributes breaks the run.
   const runs: {min: number; max: number; body: string}[] = [];
   for (const {index, properties} of sheet.columns()) {
-    // OOXML has no column past XFD (16384); a definition beyond it is corrupt to Excel,
-    // so drop it rather than emit an out-of-range <col> range.
-    if (index > MAX_COLUMN) continue;
     const body = colBody(properties ?? {}, styles);
     // A <col> with no width, visibility, or style says nothing; omit it entirely. That also covers
     // the column with no format record at all, which `columns()` does not in fact yield.

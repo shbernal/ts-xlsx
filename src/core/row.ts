@@ -13,7 +13,7 @@
 // Formatting is created on write, never on read. Asking for `sheet.getRow(500)` costs nothing and
 // does not extend the used range; assigning `height` is what materialises the record.
 
-import {columnToNumber, encodeAddress} from './address.ts';
+import {assertRowInBounds, columnToNumber, encodeAddress} from './address.ts';
 import type {Cell} from './cell.ts';
 import {type AssertNever, INTERNAL} from './internal.ts';
 import type {Fill} from './style.ts';
@@ -26,11 +26,9 @@ export class Row {
   /** 1-based row number. Fixed for this handle's lifetime. */
   readonly number: number;
 
-  /** @throws {RangeError} if the number is not a positive integer. */
+  /** @throws {RangeError} unless the number is an integer within Excel's row grid (1..1048576). */
   constructor(sheet: Worksheet, number: number) {
-    if (!Number.isInteger(number) || number < 1) {
-      throw new RangeError(`row ${number} is out of bounds: rows start at 1`);
-    }
+    assertRowInBounds(number);
     this.#sheet = sheet;
     this.number = number;
   }

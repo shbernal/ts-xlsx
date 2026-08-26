@@ -207,12 +207,12 @@ test('an ungrouped column emits no outline attributes', () => {
   assert.doesNotMatch(xml, /outlineLevel|collapsed/);
 });
 
-test('a column past the 16384 limit is dropped, never serialized', () => {
+test('the last column serializes, and one past the limit never reaches the model to be written', () => {
   const wb = new Workbook();
   const s = wb.addWorksheet('S');
   s.getCell('A1').value = 'x';
   s.getColumn(16384).width = 10;
-  s.getColumn(16385).width = 10;
+  assert.throws(() => s.getColumn(16385), RangeError, 'the writer has no out-of-grid case to drop');
   const xml = partsOf(wb)['xl/worksheets/sheet1.xml'] as string;
   assert.match(xml, /min="16384" max="16384"/);
   assert.doesNotMatch(xml, /16385/);

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import {MAX_ROW} from './address.ts';
 import {Worksheet} from './worksheet.ts';
 
 test('a row handle is a live view, not a copy: two handles on one number agree', () => {
@@ -156,6 +157,15 @@ test('a row is out of bounds below 1, and rejects a non-integer', () => {
   assert.throws(() => sheet.getRow(0), RangeError);
   assert.throws(() => sheet.getRow(-1), RangeError);
   assert.throws(() => sheet.getRow(1.5), RangeError);
+});
+
+test('a row past 1048576 is out of bounds', () => {
+  const sheet = new Worksheet('S', 1);
+  assert.equal(sheet.getRow(MAX_ROW).number, MAX_ROW, 'the last row in the grid stands');
+  assert.throws(() => sheet.getRow(MAX_ROW + 1), {
+    name: 'RangeError',
+    message: `row ${MAX_ROW + 1} is out of bounds: Excel supports 1..${MAX_ROW}`,
+  });
 });
 
 test('sheet.rows() yields handles over the union of celled and formatted rows, ascending', () => {

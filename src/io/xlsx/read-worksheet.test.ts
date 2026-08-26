@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import {MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {parseWorksheet} from './read-worksheet.ts';
 
@@ -45,4 +46,27 @@ test('customHeight="false" suppresses the row height exactly as customHeight="0"
     30,
     'and the flag set still carries the height through',
   );
+});
+
+test('a `<col>` span past XFD is clamped, not walked', () => {
+  // Unclamped, `max="99999999"` materialised 16.7 million column records before dying on the map's
+  // size limit. Assert the record count rather than the elapsed time: the count is what bounds it.
+  const worksheet = sheet('<cols><col min="1" max="99999999" width="12" customWidth="1"/></cols>');
+  assert.equal([...worksheet.columns()].length, MAX_COLUMN);
+  assert.equal(worksheet.getColumn(MAX_COLUMN).width, 12, 'the span reaches the last real column');
+});
+
+test('a `<col>` element wholly outside the grid is dropped', () => {
+  const worksheet = sheet(
+    `<cols><col min="${MAX_COLUMN + 1}" max="99999" width="12" customWidth="1"/></cols>`,
+  );
+  assert.equal([...worksheet.columns()].length, 0);
+});
+
+test('a `<row>` past the last row is dropped rather than clamped onto it', () => {
+  const worksheet = sheet(
+    `<sheetData><row r="${MAX_ROW + 1}" ht="30" customHeight="1"/></sheetData>`,
+  );
+  assert.equal([...worksheet.rows()].length, 0);
+  assert.equal(worksheet.getRow(MAX_ROW).height, undefined, 'and nothing landed on the last row');
 });

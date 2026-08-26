@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import {MAX_COLUMN} from './address.ts';
 import {Worksheet} from './worksheet.ts';
 
 test('a column handle is a live view: two handles on one index agree', () => {
@@ -115,6 +116,16 @@ test('a column is out of bounds below 1, and rejects a non-integer', () => {
   const sheet = new Worksheet('S', 1);
   assert.throws(() => sheet.getColumn(0), RangeError);
   assert.throws(() => sheet.getColumn(1.5), RangeError);
+});
+
+test('a column past XFD is out of bounds, the same as the letters that spell it', () => {
+  const sheet = new Worksheet('S', 1);
+  assert.equal(sheet.getColumn(MAX_COLUMN).index, MAX_COLUMN, 'the last column in the grid stands');
+  assert.throws(() => sheet.getColumn(MAX_COLUMN + 1), {
+    name: 'RangeError',
+    message: `column ${MAX_COLUMN + 1} is out of bounds: Excel supports 1..${MAX_COLUMN}`,
+  });
+  assert.throws(() => sheet.getCell('XFE1'), RangeError, 'and the letter spelling agrees');
 });
 
 test('sheet.columns() yields handles for the formatted columns, ascending', () => {

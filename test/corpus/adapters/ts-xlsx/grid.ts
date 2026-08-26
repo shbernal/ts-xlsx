@@ -10,6 +10,8 @@ import {
   decodeRange,
   encodeAddress,
   fixtureBytes,
+  MAX_COLUMN,
+  MAX_ROW,
   readFixture,
   readXlsx,
   Workbook,
@@ -246,6 +248,42 @@ export const grid = {
       w2: back.getColumn(2).width,
       w3: back.getColumn(3).width,
       hidden2: back.getColumn(2).hidden ?? false,
+    };
+  },
+
+  // Patch a written sheet's `<cols>`/`<sheetData>` with the out-of-grid spans a hostile or broken
+  // producer emits, then read it back → { spanColumnCount, lastSpannedWidth, beyondColumnCount,
+  // beyondRowCount }. A `<col max="99999999">` names more columns than the format has; a reader that
+  // walks the span verbatim allocates until it dies, so the counts below are the allocation bound.
+  hostileGridSpanReport(spanMax = 99999999) {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getCell('A1').value = 'x';
+    const bytes = writeXlsx(wb);
+    const patch = (cols: string, rows: string) =>
+      reloadPatched(bytes, {
+        'xl/worksheets/sheet1.xml': (xml) =>
+          xml
+            .replace(/<cols>[\s\S]*?<\/cols>/, '')
+            .replace(/<sheetData>/, `${cols}<sheetData>`)
+            .replace(/<\/sheetData>/, `${rows}</sheetData>`),
+      }).getWorksheet('S')!;
+
+    const span = patch(
+      `<cols><col min="1" max="${spanMax}" width="12" customWidth="1"/></cols>`,
+      '',
+    );
+    const beyond = patch(
+      `<cols><col min="${MAX_COLUMN + 1}" max="${spanMax}" width="12" customWidth="1"/></cols>`,
+      `<row r="${MAX_ROW + 1}" ht="30" customHeight="1"/>`,
+    );
+    return {
+      spanColumnCount: [...span.columns()].length,
+      lastSpannedWidth: span.getColumn(MAX_COLUMN).width,
+      beyondColumnCount: [...beyond.columns()].length,
+      // The base sheet holds A1, so count what lies past the grid rather than what lies in it.
+      beyondRowCount: [...beyond.rows()].filter((row) => row.number > MAX_ROW).length,
+      maxColumn: MAX_COLUMN,
     };
   },
 

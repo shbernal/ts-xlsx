@@ -5,7 +5,7 @@
 // strict consumers). The value is the only mutable state here; assigning it routes
 // through the value model so the cell's `type` is always consistent with what it holds.
 
-import {encodeAddress} from './address.ts';
+import {assertColumnInBounds, assertRowInBounds, encodeAddress} from './address.ts';
 import {NAMED_STYLE_ID} from './internal.ts';
 import {
   type Alignment,
@@ -49,13 +49,10 @@ export class Cell {
   #namedStyleId: number | undefined;
   #note: string | undefined;
 
+  /** @throws {RangeError} unless both axes are integers within Excel's grid. */
   constructor(row: number, col: number) {
-    if (!Number.isInteger(row) || row < 1) {
-      throw new RangeError(`cell row ${row} is out of bounds: rows start at 1`);
-    }
-    if (!Number.isInteger(col) || col < 1) {
-      throw new RangeError(`cell column ${col} is out of bounds: columns start at 1`);
-    }
+    assertRowInBounds(row);
+    assertColumnInBounds(col);
     this.row = row;
     this.col = col;
   }

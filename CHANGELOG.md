@@ -46,6 +46,14 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Fixed
 
+- **A `<col>` span wider than the sheet no longer hangs the reader.** `<col min="1"
+  max="99999999"/>` is one line of XML that named more columns than the format has, and the
+  buffered reader walked it verbatim: roughly 16.7 million column records, twenty-five seconds,
+  and then `RangeError: Map maximum size exceeded`. A denial of service on a one-line input.
+  The span is now clamped to the last real column and an element wholly outside the grid is
+  dropped, which is what the streaming reader already did with the same element. A `<row r>`
+  past the last row is dropped for the same reason.
+
 - **A control character in a string no longer produces a package Excel reports as damaged.**
   The writer escaped `& < > " '` and nothing else, so every other character reached the file
   byte for byte — including the C0 controls XML 1.0 forbids outright and the U+FFFE/U+FFFF
@@ -116,10 +124,22 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Changed
 
+- **A row or column addressed by number is now bounded by the grid, as one addressed by letters
+  already was.** `getCell('XFE1')` threw and `getColumn(16385)` did not, so whether the library
+  refused a position outside the spreadsheet grid depended on how the caller spelled it, and the
+  numeric spelling let the model hold, and the writer emit, a package Excel must repair. `Row`,
+  `Column` and `Cell` now reject an index outside `1..1048576` / `1..16384` with a `RangeError`
+  worded the same way the letter path words it.
+
+  This is a new throw on calls that used to return. Code placing content at a synthetic index past
+  the grid was producing a file Excel rejects, so the failure has moved to the call that causes it.
+  Reading is unaffected: a file declaring an out-of-grid position is bounded on read rather than
+  refused, so no file that opened before stops opening.
+
 - **Error messages no longer contain em dashes.** Where a message used ` — ` to weld two
   clauses together it now uses a colon, a semicolon, or a pair of commas, whichever the
-  sentence wanted: `column 5 is out of bounds: columns start at 1` rather than
-  `column 5 is out of bounds — columns start at 1`. No message changed meaning, none grew,
+  sentence wanted: `column 16385 is out of bounds: Excel supports 1..16384` rather than
+  `column 16385 is out of bounds — Excel supports 1..16384`. No message changed meaning, none grew,
   and the error *types* and `code` values are untouched, so anything branching on the
   taxonomy is unaffected. Code that matched on message text is not: match on the class or
   on `code` instead, which is what they are for.

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
+import {MAX_COLUMN, MAX_ROW} from './address.ts';
 import {Cell} from './cell.ts';
 
 test('style getter carries only the facets actually set, mirroring the per-facet getters', () => {
@@ -89,4 +90,18 @@ test('text ignores the number format: the style is not the value', () => {
   cell.value = 0.5;
   cell.numFmt = '0.00%';
   assert.equal(cell.text, '0.5', 'not "50.00%": the format lives on the style');
+});
+
+test('a cell outside the grid is out of bounds on either axis', () => {
+  assert.doesNotThrow(() => new Cell(MAX_ROW, MAX_COLUMN), 'XFD1048576 is a real cell');
+  assert.throws(() => new Cell(MAX_ROW + 1, 1), {
+    name: 'RangeError',
+    message: `row ${MAX_ROW + 1} is out of bounds: Excel supports 1..${MAX_ROW}`,
+  });
+  assert.throws(() => new Cell(1, MAX_COLUMN + 1), {
+    name: 'RangeError',
+    message: `column ${MAX_COLUMN + 1} is out of bounds: Excel supports 1..${MAX_COLUMN}`,
+  });
+  assert.throws(() => new Cell(0, 1), RangeError);
+  assert.throws(() => new Cell(1, 1.5), RangeError);
 });

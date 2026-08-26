@@ -8,7 +8,7 @@
 // the six `CellStyle` facets as *defaults* for its cells, which is why the mirror below is twice the
 // length of the row's.
 
-import {encodeAddress, numberToColumn} from './address.ts';
+import {assertColumnInBounds, encodeAddress, numberToColumn} from './address.ts';
 import type {Cell} from './cell.ts';
 import {type AssertNever, INTERNAL} from './internal.ts';
 import type {Alignment, Border, Fill, Font, Protection} from './style.ts';
@@ -21,11 +21,9 @@ export class Column {
   /** 1-based column index. Fixed for this handle's lifetime. */
   readonly index: number;
 
-  /** @throws {RangeError} if the index is not a positive integer. */
+  /** @throws {RangeError} unless the index is an integer within Excel's column grid (1..16384). */
   constructor(sheet: Worksheet, index: number) {
-    if (!Number.isInteger(index) || index < 1) {
-      throw new RangeError(`column ${index} is out of bounds: columns start at 1`);
-    }
+    assertColumnInBounds(index);
     this.#sheet = sheet;
     this.index = index;
   }

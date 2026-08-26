@@ -17,6 +17,25 @@ export const MAX_COLUMN = 16384;
 /** Excel's row bound: 1 through 1048576. The other axis of {@link MAX_COLUMN}. */
 export const MAX_ROW = 1048576;
 
+// The numeric door into the grid. `numberToColumn`/`columnToNumber` bound a reference spelled in
+// letters; these bound the same position spelled as a number, so `getColumn(16385)` and
+// `getCell('XFE1')` refuse the same mistake with the same words. Native `RangeError` rather than
+// `AuthoringError`: a single scalar out of range is what `errors.ts` reserves for native errors.
+
+/** @throws {RangeError} unless `n` is an integer in `1..MAX_COLUMN`. */
+export function assertColumnInBounds(n: number): void {
+  if (!Number.isInteger(n) || n < 1 || n > MAX_COLUMN) {
+    throw new RangeError(`column ${n} is out of bounds: Excel supports 1..${MAX_COLUMN}`);
+  }
+}
+
+/** @throws {RangeError} unless `n` is an integer in `1..MAX_ROW`. */
+export function assertRowInBounds(n: number): void {
+  if (!Number.isInteger(n) || n < 1 || n > MAX_ROW) {
+    throw new RangeError(`row ${n} is out of bounds: Excel supports 1..${MAX_ROW}`);
+  }
+}
+
 /** A decoded single-cell reference. An axis the reference omits is `undefined`. */
 export interface CellAddress {
   /** Canonical A1 form with `$` anchors stripped: e.g. `"B2"`, `"1"`, `"A"`. */

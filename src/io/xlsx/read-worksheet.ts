@@ -3,7 +3,7 @@
 // (the cell being read, shared-formula masters, an autofilter draft, the current page-break axis) so
 // each element commits its state as it closes. Style indices resolve through the parsed style table.
 
-import {decodeRange} from '../../core/address.ts';
+import {decodeRange, MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import {
   type CustomFilterPredicate,
   type FilterColumn,
@@ -476,14 +476,18 @@ function applyColumn(
 ): void {
   const min = Number(attrs.min);
   const max = Number(attrs.max);
-  if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1) return;
+  if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || min > MAX_COLUMN) return;
+  // Clamp the span to the format's ceiling rather than letting `getColumn` throw through the read:
+  // a `<col max="99999999">` is a file Excel opens, and an unclamped loop would materialise 16.7
+  // million column records before dying. Same reading as the streaming reader's `collectHiddenColumn`.
+  const last = Math.min(max, MAX_COLUMN);
   const width = attrs.width !== undefined ? Number(attrs.width) : undefined;
   const hidden = boolStrict(attrs.hidden);
   const styleIndex = attrs.style !== undefined ? Number(attrs.style) : -1;
   // The column's style resolves to the same facet bundle a cell's does; mirror all of it onto the
   // column model so `getColumn(i)` reflects the declared default, not just its number format.
   const style = styleIndex >= 0 ? xfStyles[styleIndex] : undefined;
-  for (let index = min; index <= max; index++) {
+  for (let index = min; index <= last; index++) {
     const column = sheet.getColumn(index);
     if (width !== undefined && Number.isFinite(width) && boolPresent(attrs.customWidth))
       column.width = width;
@@ -501,7 +505,9 @@ function applyColumn(
 
 function applyRow(sheet: Worksheet, attrs: XmlAttributes): void {
   const number = Number(attrs.r);
-  if (!Number.isInteger(number) || number < 1) return;
+  // Out-of-grid rows are dropped rather than clamped: unlike a `<col>` span, an `<r>` names one row,
+  // so there is nothing to fold it onto and clamping would silently move its formatting to 1048576.
+  if (!Number.isInteger(number) || number < 1 || number > MAX_ROW) return;
   // A `<row>` that states no attribute at all leaves no format record behind: the handle creates
   // one only when something is written through it. That is the right reading: a bare `<row r="5"/>`
   // carries no formatting to round-trip, and fabricating an empty record for it would put row 5 in

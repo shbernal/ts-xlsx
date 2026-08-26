@@ -25,7 +25,7 @@ export const loadModule = <T>(rel: string): Promise<T> =>
     new URL(`../../../../${target.dir}/${rel}.${target.ext}`, import.meta.url).href
   ) as Promise<T>;
 
-export const {decodeAddress, decodeRange, encodeAddress} =
+export const {decodeAddress, decodeRange, encodeAddress, MAX_COLUMN, MAX_ROW} =
   await loadModule<typeof import('../../../../src/core/address.ts')>('core/address');
 export const {detectValueType, isRichTextValue} =
   await loadModule<typeof import('../../../../src/core/value.ts')>('core/value');
