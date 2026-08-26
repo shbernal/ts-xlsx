@@ -21,7 +21,9 @@
 // preference. charcheck's scopes are `raw`, `strings`, `markup`, `markdown` and `html`; none
 // of them reads comments, and `strings` reads the opposite. So a rule that guards a doc
 // comment guards the whole file, which is why the string literals were recast too rather
-// than left as the one place in `src/` the character still lives.
+// than left as the one place in `src/` the character still lives. A `comments` scope is
+// asked for upstream at charcheck#22; even if it ships, this rule keeps `raw`, since the
+// include below also reaches `.json` and `.ps1`, which no TypeScript scope reads.
 //
 // Know the exit before you need it, because it is narrower than it looks. A suppression
 // marker inside a fenced block is ignored in a .md file under every scope, by design, so that
