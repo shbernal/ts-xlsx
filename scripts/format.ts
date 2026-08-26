@@ -6,9 +6,9 @@
 //   node scripts/format.ts --check    exit non-zero if anything would change
 //
 // The glob list exists because bare `oxfmt` considers a *wider* set than this repo
-// formats — markdown, JSON, YAML — and a formatter that silently reaches further than
-// you think is how a generated file gets rewritten. `.oxfmtrc.jsonc`'s `ignorePatterns`
-// is the second, overlapping defence.
+// formats. It reaches markdown, JSON and YAML too, and a formatter that silently reaches
+// further than you think is how a generated file gets rewritten. `.oxfmtrc.jsonc`'s
+// `ignorePatterns` is the second, overlapping defence.
 //
 // It lives in a script rather than inline in package.json because three callers need it
 // (`format`, `format:check`, and the format gate in verify.ts) and a glob list copied
@@ -16,7 +16,7 @@
 //
 // oxfmt expands the globs itself; they are never handed to a shell, so `**` means the
 // same thing on every platform. Invoked as `node <entrypoint>` rather than through
-// `pnpm exec` or a .bin shim for the reason lefthook.yml records — the wrapper costs
+// `pnpm exec` or a .bin shim for the reason lefthook.yml records: the wrapper costs
 // more than the work.
 
 import {spawn} from 'node:child_process';

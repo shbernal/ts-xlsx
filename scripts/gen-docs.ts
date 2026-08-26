@@ -3,8 +3,8 @@
 // The public barrel (`src/index.ts`) is the single source of truth: this walks the
 // symbols it re-exports via the TypeScript compiler API, renders each one's JSDoc
 // summary + tags + a body-stripped TypeScript signature, and writes one Markdown
-// page per originating module plus an index. No new dependency — `typescript` is
-// already the toolchain — so the docs cannot describe a shape the compiler wouldn't
+// page per originating module plus an index. No new dependency, since `typescript` is
+// already the toolchain, so the docs cannot describe a shape the compiler wouldn't
 // accept. Run `pnpm run docs`; `pnpm run docs:check` fails if the committed pages have
 // drifted from a fresh generation (the docs are gated like any other artifact).
 //
@@ -30,7 +30,7 @@ const OUT_DIR = join(ROOT, 'docs/api');
 
 /**
  * `TypeFormatFlags.NoTruncation`. TypeScript 7 does not export that enum, but the checker
- * still reads its bits — and without this a wide union renders as `… 18 more …`.
+ * still reads its bits, and without this a wide union renders as `… 18 more …`.
  */
 const NO_TRUNCATION = 1;
 
@@ -62,7 +62,7 @@ const GROUPS: ReadonlyArray<readonly [string, string]> = [
   ['csv/write', 'CSV'],
 ];
 
-/** The body-bearing declarations — the ones whose signature ends where their body begins. */
+/** The body-bearing declarations: the ones whose signature ends where their body begins. */
 function bodyOf(node: ast.Node): ast.Node | undefined {
   if (
     ast.isFunctionDeclaration(node) ||
@@ -80,7 +80,7 @@ function bodyOf(node: ast.Node): ast.Node | undefined {
  * has one.
  *
  * Source text rather than a compiler re-print: the reference then shows the shape the author
- * wrote — parameter line breaks and all — instead of the printer's normalization, and the
+ * wrote, parameter line breaks and all, instead of the printer's normalization, and the
  * generator needs no emit machinery. Starting at `getStart` drops leading trivia, so the JSDoc
  * above a declaration stays out of the code block that renders it.
  */
@@ -98,14 +98,14 @@ function printSignature(node: ast.Node, sourceFile: ast.SourceFile): string {
 /** Where a `{@link}` target lives in the reference, or `undefined` if the reference does not document it. */
 type LinkResolver = (target: string) => string | undefined;
 
-/** The resolver for prose rendered before the link index exists — the index's own entries. */
+/** The resolver for prose rendered before the link index exists: the index's own entries. */
 const NO_LINKS: LinkResolver = () => undefined;
 
 /**
  * A link target's URL.
  *
- * `{@link addRow}` written inside `Worksheet`'s own prose means `Worksheet.addRow` — the author had
- * the class in scope and wrote what they would say aloud — so a scoped lookup runs first. A
+ * `{@link addRow}` written inside `Worksheet`'s own prose means `Worksheet.addRow`. The author had
+ * the class in scope and wrote what they would say aloud, so a scoped lookup runs first. A
  * qualified target with no block of its own falls back to its container: `DefinedName.scope` is an
  * interface property, which renders inside the interface's signature rather than under a heading,
  * and the interface is where a reader finds it.
@@ -129,7 +129,7 @@ function linkResolver(targets: ReadonlyMap<string, string>, scope?: string): Lin
  * internal, and a reader is better served by the name than by a link to nothing.
  *
  * Only the pipe form carries a label. TSDoc also permits `{@link Target label}` (space, no pipe), which
- * falls through here and renders as the whole string — so write the pipe, or write a bare target.
+ * falls through here and renders as the whole string, so write the pipe, or write a bare target.
  */
 function resolveLinks(text: string, href: LinkResolver = NO_LINKS): string {
   return text.replace(
@@ -157,18 +157,18 @@ function jsDocOf(node: ast.Node): ast.JSDoc | undefined {
  * A declaration's summary prose, read from its JSDoc block.
  *
  * The block rather than `Symbol.getDocumentationComment`, because the checker hands back a string
- * in which `{@link Target}` has already been flattened to a bare `Target` — losing the one piece of
+ * in which `{@link Target}` has already been flattened to a bare `Target`, losing the one piece of
  * markup {@link resolveLinks} exists to render. The AST still carries the tag intact.
  *
  * A bare `@word` mid-sentence silently truncates the summary: TypeScript's JSDoc parser reads it as
  * the start of an unknown tag and drops everything after it. Prose about, say, an `@mention` has to
- * wrap it in backticks — the parse happens upstream of here, so this cannot be fixed downstream.
+ * wrap it in backticks. The parse happens upstream of here, so this cannot be fixed downstream.
  */
 function docText(node: ast.Node, href: LinkResolver = NO_LINKS): string {
   return resolveLinks((ast.getTextOfJSDocComment(jsDocOf(node)?.comment) ?? '').trim(), href);
 }
 
-/** A bare type name, possibly qualified — what the brace slot of a `@throws` is allowed to hold. */
+/** A bare type name, possibly qualified: what the brace slot of a `@throws` is allowed to hold. */
 const ERROR_TYPE = /^[A-Za-z_$][\w$.]*$/;
 
 /**
@@ -177,7 +177,7 @@ const ERROR_TYPE = /^[A-Za-z_$][\w$.]*$/;
  * `@throws {ErrorType}` is the only spelling that survives the parse. TypeScript reads the braces
  * after `@throws` as a *type expression*, and `{@link Target}` is not one: the parse runs past the
  * close brace and consumes the rest of the comment, so the tag arrives here as the bare string `{`
- * with its prose already gone — from editor hovers too, not just from this generator. Nothing
+ * with its prose already gone, from editor hovers too and not just from this generator. Nothing
  * downstream can recover it, so a slot that is not a type name fails the run rather than
  * publishing the truncation as if it were the whole sentence.
  */
@@ -186,8 +186,8 @@ function splitThrows(raw: string, symbolName: string): {errorType: string; prose
   const errorType = close === -1 ? '' : raw.slice(1, close).trim();
   if (!ERROR_TYPE.test(errorType)) {
     throw new Error(
-      `${symbolName}: write \`@throws {ErrorType} prose\`, not \`@throws ${raw}\` — ` +
-        "a `{@link …}` in the brace slot is swallowed by TypeScript's JSDoc type-expression " +
+      `${symbolName}: write \`@throws {ErrorType} prose\`, not \`@throws ${raw}\`. ` +
+        "A `{@link …}` in the brace slot is swallowed by TypeScript's JSDoc type-expression " +
         'parse, and takes the description with it. Links mid-sentence are fine.',
     );
   }
@@ -213,7 +213,7 @@ function docTags(symbol: TypeSymbol, checker: Checker, href: LinkResolver = NO_L
     } else if (tag.name === 'returns') {
       lines.push(`**Returns:** ${text}`);
     } else if (tag.name === 'throws') {
-      // The type slot is the tag's subject — which error — so it leads the line. Dropping it, as
+      // The type slot is the tag's subject, which error it is, so it leads the line. Dropping it, as
       // this once did, left the reader told that a throw happens but never told what is thrown.
       const {errorType, prose} = splitThrows(raw, symbol.name);
       const named = href(errorType);
@@ -238,7 +238,7 @@ function kindLabel(node: ast.Node): string {
  * The class members the reference can render: the ones carrying a name to key them by and
  * modifiers to judge their visibility.
  *
- * `ClassElement` itself declares neither — TypeScript 7 models it as a bare brand — so the four
+ * `ClassElement` itself declares neither: TypeScript 7 models it as a bare brand. So the four
  * kinds that do are narrowed to explicitly. The kinds left out have no name to render under
  * anyway: a constructor, an index signature, a static block, a stray semicolon.
  */
@@ -257,7 +257,7 @@ function isPublicMember(member: NamedMember): boolean {
   if (ast.isPrivateIdentifier(member.name)) return false;
   // A computed name is the codec's back channel (`src/core/internal.ts`), keyed by a symbol that
   // never leaves the package. Reachable only by a holder of that symbol, so it is no more public
-  // than a `#private` field — and rendering it would dump the whole channel, initializer included,
+  // than a `#private` field, and rendering it would dump the whole channel, initializer included,
   // into the reference a caller reads.
   if (ast.isComputedPropertyName(member.name)) return false;
   return (member.modifierFlags & HIDDEN) === 0;
@@ -266,7 +266,7 @@ function isPublicMember(member: NamedMember): boolean {
 /**
  * The declarations that share a member name: an overload set, a get/set pair, or a lone member.
  *
- * Grouped because the reference documents a *name*, not a declaration — the two halves of an
+ * Grouped because the reference documents a *name*, not a declaration: the two halves of an
  * accessor and every overload of a method are one thing to a caller, and the JSDoc sits on
  * whichever declaration the author chose.
  */
@@ -295,7 +295,7 @@ function groupMembersByName(
  * The signatures worth showing for one member name.
  *
  * A method declared more than once is an overload set whose last declaration is the
- * implementation — an artefact of how TypeScript spells overloading, and not a signature any
+ * implementation, an artefact of how TypeScript spells overloading, and not a signature any
  * caller may pass. Accessors are excluded from that collapse: a get/set pair is also two
  * body-bearing declarations of one name, but *both* are the caller's surface.
  */
@@ -314,7 +314,7 @@ type DocumentedMember = {
 
 /**
  * The members that get a block of their own: those with prose, tags, or both. A member carrying
- * neither is left to the signature overview, which already lists it — a heading over a bare
+ * neither is left to the signature overview, which already lists it: a heading over a bare
  * signature says nothing the overview did not.
  *
  * The link index and the renderer both go through here rather than each deciding for itself. When
@@ -342,10 +342,10 @@ function documentedMembers(
 
 /**
  * A class renders as a signature overview (every public member) followed by one block per
- * documented member — signature, summary, and the same `@throws`/`@param`/`@returns` rendering a
+ * documented member: signature, summary, and the same `@throws`/`@param`/`@returns` rendering a
  * top-level symbol gets. Members went un-tagged for a long time, which left ~40 documented throws
  * reaching the reference never; routing them through {@link docTags} is what fixed that, and is
- * why a member is a block rather than the one-line bullet it used to be — a tag list does not fit
+ * why a member is a block rather than the one-line bullet it used to be. A tag list does not fit
  * on a bullet.
  *
  * Returns the overview lines and the member blocks separately so the caller can put the compact
@@ -378,7 +378,7 @@ function anchorsIn(body: string): Set<string> {
   let fenced = false;
   for (const line of body.split('\n')) {
     if (line.startsWith('```')) fenced = !fenced;
-    // A fence holds source text, and a signature's own JSDoc rides along in it — `#` there starts
+    // A fence holds source text, and a signature's own JSDoc rides along in it. `#` there starts
     // no heading, and `{@link}` there is never rewritten into a link.
     if (fenced) continue;
     const heading = /^#{1,6}\s+(.*)$/.exec(line);
@@ -391,7 +391,7 @@ function anchorsIn(body: string): Set<string> {
  * Refuse to write a reference that links to a heading it does not contain.
  *
  * The link index and the renderer derive their member lists from one function so they cannot
- * disagree — but they did disagree once, when the index advertised every member and the renderer
+ * disagree. But they did disagree once, when the index advertised every member and the renderer
  * gave a block only to the documented ones, and the result was four links to headings that were
  * never written. Nothing about the output looked wrong; the anchors simply went nowhere. This is
  * the check that makes that failure loud, and it costs one pass over text already in memory.
@@ -423,7 +423,7 @@ function main(project: Project) {
   const entrySf = program.getSourceFile(ENTRY);
   if (!entrySf) throw new Error(`cannot load entry ${ENTRY}`);
   const moduleSymbol = checker.getSymbolAtLocation(entrySf);
-  if (!moduleSymbol) throw new Error('entry has no module symbol — is src/index.ts a module?');
+  if (!moduleSymbol) throw new Error('entry has no module symbol; is src/index.ts a module?');
 
   const groupTitle = new Map(GROUPS);
   const groupOrder = new Map<string, number>(GROUPS.map(([key], i) => [key, i]));
@@ -443,7 +443,7 @@ function main(project: Project) {
   for (const exported of checker.getExportsOfModule(moduleSymbol)) {
     const symbol =
       exported.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
-    // A declaration crosses the API boundary as a handle, not a node — resolving it is a
+    // A declaration crosses the API boundary as a handle, not a node, so resolving it is a
     // round-trip to the compiler server that holds the tree.
     const decl = symbol.declarations[0]?.resolve(project);
     if (!decl) continue;
@@ -466,7 +466,7 @@ function main(project: Project) {
 
   // Every target has to be known before the first block renders: prose links forward as freely as
   // it links back, and a symbol's page is only settled once the walk that assigns pages has ended.
-  // Hence the split — walk, index, then render.
+  // Hence the split: walk, index, then render.
   const targets = new Map<string, string>();
   for (const {decl, sourceFile, name, page} of walked) {
     const slug = slugify(page.title);
@@ -521,7 +521,7 @@ function main(project: Project) {
     page.entries.push({name, block: block.join('\n')});
   }
 
-  // Deterministic output regardless of `getExportsOfModule` iteration order — the CI
+  // Deterministic output regardless of `getExportsOfModule` iteration order, because the CI
   // drift check compares committed pages against a fresh generation byte for byte.
   for (const page of pages.values()) {
     page.entries.sort((a: Entry, b: Entry) => a.name.localeCompare(b.name));
@@ -592,7 +592,7 @@ function anchor(name: string): string {
 // and this one hanging on its open pipe.
 //
 // The project comes from `tsconfig.json` rather than a hand-written option set. There is no
-// inline-options door in this API — and shutting it removed a real hazard, since the options
+// inline-options door in this API, and shutting it removed a real hazard, since the options
 // gen-docs used to pass were its own and had already drifted from the gate's.
 const api = new API({cwd: ROOT});
 try {

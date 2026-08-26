@@ -3,14 +3,14 @@
 // They were one file behind a symlink, so every runtime converged on the same rules by
 // construction. That construction does not survive Windows: creating a symlink needs
 // admin (or Developer Mode), so a checkout there materializes AGENTS.md as a ~9-byte
-// text file containing the literal string "CLAUDE.md" — and an AGENTS.md-reading agent
+// text file containing the literal string "CLAUDE.md", and an AGENTS.md-reading agent
 // silently gets no constitution at all. The failure is silent, which is the worst kind.
 //
 // So AGENTS.md is now a real file, and this check is what replaces the symlink's
 // guarantee: duplication is only safe when drift is impossible, and the way we make
 // drift impossible here is a machine check, not a promise to remember.
 //
-// Comparison is line-ending-insensitive on purpose — the two files are the same
+// Comparison is line-ending-insensitive on purpose. The two files are the same
 // document, and a checkout that hands one CRLF is not a divergence of content.
 
 import {readFileSync} from 'node:fs';

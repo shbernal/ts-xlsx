@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 // Authored text stays legible to the tools that read text.
 //
-// A literal NUL in a .ts file costs nothing at compile time — it is valid UTF-8 and tsc does not
-// care — but it flips every text tool into binary mode. grep answers `Binary file … matches`
+// A literal NUL in a .ts file costs nothing at compile time. It is valid UTF-8, and tsc does not
+// care. Every other text tool flips into binary mode. grep answers `Binary file … matches`
 // instead of the matching lines, so the file stops appearing in searches while still appearing to
 // have been searched. That is how `src/core/range.ts` hid two `@throws` tags from a doc audit: the
 // grep declined to quote them, the tally came back one short, and nothing anywhere reported a
 // problem. A check that fails loudly is worth more than a file that lies quietly.
 //
 // The sentinel it was spelling is fine; writing it as the character rather than as the escape was
-// not. Those two are identical to the compiler and opposite to everything else — exactly the kind
+// not. Those two are identical to the compiler and opposite to everything else: exactly the kind
 // of difference no reviewer catches by eye, and so exactly the kind a machine should catch.
 //
 // Two classes are refused:
@@ -21,8 +21,8 @@
 //
 // Scope is an allowlist of authored text extensions, not a denylist of binary ones. The corpus is
 // full of .xlsx fixtures, so the failure mode of guessing wrong is a build that fails on a file for
-// being itself. An unlisted extension goes unchecked instead — add it here when we start authoring
-// one.
+// being itself. An unlisted extension goes unchecked instead, so add it here when we start
+// authoring one.
 //
 //   node scripts/check-source-text.ts
 
@@ -65,7 +65,7 @@ const CONTROL_NAMES = new Map([
 ]);
 
 const CONTROL_HINT =
-  "a literal control character reads as binary to grep and friends — write it as an escape ('\\u0000')";
+  "a literal control character reads as binary to grep and friends; write it as an escape ('\\u0000')";
 const BIDI_HINT =
   'a bidirectional override reorders how the line renders without changing what it means';
 

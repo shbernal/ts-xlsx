@@ -61,10 +61,12 @@ export default defineConfig({
         'em dash in source prose: recast the sentence (full stop, colon, or commas) rather than swapping the dash',
       // Comments and string literals alike. An error message is prose too, read by someone
       // under stress, and it is the half a comments-only rule would have had to leave out.
-      // `scripts/`, `test/` and `tools/` are not in yet: they still carry the character, and a
-      // rule aimed at a tree that trips it reports on every run until someone learns to ignore
-      // the output. Widen this glob in the change that cleans them, not before.
-      include: ['src/**/*.ts'],
+      // `scripts/tsconfig.json` is here for the same reason its `"//"` keys exist: they are a
+      // paragraph of prose that happens to live in a JSON value.
+      // `test/` and `tools/` are not in yet: they still carry the character, and a rule aimed
+      // at a tree that trips it reports on every run until someone learns to ignore the
+      // output. Widen this glob in the change that cleans them, not before.
+      include: ['src/**/*.ts', 'scripts/**/*.ts', 'scripts/tsconfig.json'],
     },
   ],
 });

@@ -4,7 +4,7 @@
 // The shared container layer (OPC/ZIP, relationship resolution, format sniffing) and the XML
 // helpers used to live inside `src/io/xlsx/`, so the BIFF12 codec reached sideways into the XML
 // codec to get at them. That is a direction no codec should have over another, and it regresses in
-// one careless import — an import that typechecks, passes every test, and looks locally reasonable.
+// one careless import: an import that typechecks, passes every test, and looks locally reasonable.
 // A comment asking the next author to remember is not a mechanism; this is.
 //
 // Each rule names a directory and the directories its modules may not import. Test files are
@@ -20,11 +20,11 @@ import {fileURLToPath} from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 interface Rule {
-  /** Modules under this directory — or the single module at this exact path… */
+  /** Modules under this directory, or the single module at this exact path… */
   readonly layer: string;
   /** …may not import modules under any of these. */
   readonly forbidden: readonly string[];
-  /** Why, in one line — printed with the violation so the fix is obvious from the failure alone. */
+  /** Why, in one line. Printed with the violation so the fix is obvious from the failure alone. */
   readonly because: string;
 }
 
@@ -60,14 +60,14 @@ const RULES: readonly Rule[] = [
     layer: 'src/io/xlsb',
     forbidden: ['src/io/xlsx'],
     because:
-      'the BIFF12 and XML codecs are peers — shared code belongs in src/io/opc or src/io/style',
+      'the BIFF12 and XML codecs are peers; shared code belongs in src/io/opc or src/io/style',
   },
 ];
 
 /**
  * The entry barrels are the package's public faces, not modules to build on. Only the root barrel
- * composes them; an internal import of one would route a dependency through the public surface —
- * the module graph's shape would then follow what we chose to export, and a cycle would be one
+ * composes them; an internal import of one would route a dependency through the public surface.
+ * The module graph's shape would then follow what we chose to export, and a cycle would be one
  * re-export away. Their own contents are checked by `scripts/check-entries.ts`.
  */
 const ENTRIES = 'src/entries';
@@ -82,13 +82,13 @@ function sourceFiles(dir: string): string[] {
 }
 
 // Every relative specifier the module imports or re-exports from, resolved to a repo-relative path.
-// Only relative specifiers can cross a layer — a bare specifier is a dependency, not a layer.
+// Only relative specifiers can cross a layer: a bare specifier is a dependency, not a layer.
 function importedPaths(file: string): string[] {
   const source = readFileSync(join(ROOT, file), 'utf8');
   // Both spellings: `… from '…'`, and the bare `import '…'` that has no `from` to anchor on. The
-  // bare form should never appear — the package declares `"sideEffects": false`, so an import kept
-  // only for its effect is a lie to every bundler — but a rule that cannot see it would say the
-  // graph is clean while a layer was being crossed by the one import form it was blind to.
+  // bare form should never appear, since the package declares `"sideEffects": false` and an import
+  // kept only for its effect is a lie to every bundler. But a rule that cannot see it would say
+  // the graph is clean while a layer was being crossed by the one import form it was blind to.
   const specifiers = [...source.matchAll(/\b(?:from|import)\s+'(\.[^']*)'/g)].map(
     (match) => match[1] as string,
   );
@@ -111,7 +111,7 @@ for (const file of sourceFiles('src')) {
     for (const target of importedPaths(file)) {
       if (target.startsWith(`${ENTRIES}/`)) {
         violations.push(
-          `  ${file}\n    imports ${target}\n    only ${ENTRY_COMPOSER} may compose the entry barrels — import the module that declares the symbol`,
+          `  ${file}\n    imports ${target}\n    only ${ENTRY_COMPOSER} may compose the entry barrels; import the module that declares the symbol`,
         );
       }
     }
@@ -124,7 +124,7 @@ for (const file of sourceFiles('src')) {
     const crossed = rule.forbidden.find((layer) => target.startsWith(`${layer}/`));
     if (crossed !== undefined) {
       violations.push(
-        `  ${file}\n    imports ${target}\n    ${rule.layer} may not reach into ${crossed} — ${rule.because}`,
+        `  ${file}\n    imports ${target}\n    ${rule.layer} may not reach into ${crossed}: ${rule.because}`,
       );
     }
   }

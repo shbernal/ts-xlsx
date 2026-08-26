@@ -3,16 +3,16 @@
 //
 // The gates are independent processes with no shared state, so running them in
 // sequence only buys the illusion of tidiness: it costs the sum of their times
-// instead of the maximum. Assembling the chain by hand also lets gates go missing —
+// instead of the maximum. Assembling the chain by hand also lets gates go missing:
 // `docs:check` and `constitution:check` are the two that get forgotten, because they
 // are the two that rarely fail.
 //
 // Usage:
 //   node scripts/verify.ts [--full | --quick] [--jobs <n>] [--list] [--cached]
 //
-//   --full        every gate — the same set lefthook runs pre-push and CI enforces.
+//   --full        every gate, the same set lefthook runs pre-push and CI enforces.
 //                 The default, because a bare invocation must never quietly skip the spine.
-//   --quick       the inner loop — types, unit tests, and lint scoped to the files you
+//   --quick       the inner loop: types, unit tests, and lint scoped to the files you
 //                 have actually touched. No corpus, so it is not a substitute for --full.
 //   --jobs <n>    how many gates to run at once (default 2; see runPool).
 //   --list        print this mode's gate names and exit, without running them.
@@ -33,7 +33,7 @@ const STAMP = join(ROOT, '.tmp', 'verify-stamp.json');
 
 // Tools are invoked as node scripts against their package entrypoints rather than via
 // node_modules/.bin, because a .bin entry on Windows is a .cmd shim that would force
-// `shell: true` — and with it quoting rules that differ per platform.
+// `shell: true`, and with it quoting rules that differ per platform.
 const NODE = process.execPath;
 const OXLINT = resolve(ROOT, 'node_modules/oxlint/bin/oxlint');
 const TSC = resolve(ROOT, 'node_modules/typescript/bin/tsc');
@@ -42,7 +42,7 @@ const CHARCHECK = resolve(ROOT, 'node_modules/charcheck/dist/cli.js');
 /** What `lint` covers; must stay in step with the `lint` package script. */
 const LINT_TARGETS = ['src', 'scripts', 'test', 'tools', 'charcheck.config.ts'];
 // CLAUDE.md §2 admits no warnings, and oxlint exits 0 on them. Nothing in .oxlintrc.jsonc is set
-// to "warn" today, so this changes no current outcome — it is here so that the first rule adopted
+// to "warn" today, so this changes no current outcome. It is here so that the first rule adopted
 // at warning severity, to stage a migration, is still a gate rather than a message.
 const LINT_STRICT = '--deny-warnings';
 // A suppression that has outlived its cause is worse than none: it reads as a live hazard and
@@ -59,7 +59,7 @@ const LINTABLE = /\.(?:ts|js|mjs|cjs)$/;
 // pass and starts crowding the OS argument limit. A codemod pays the 2 s.
 const SCOPED_LINT_LIMIT = 100;
 
-// How many gates run at once. Deliberately not derived from the core count — see
+// How many gates run at once. Deliberately not derived from the core count: see
 // runPool. Override with --jobs on a machine whose I/O is not the ceiling.
 const DEFAULT_JOBS = 2;
 
@@ -74,7 +74,7 @@ interface Gate {
   name: string;
   /** Run in order; the gate fails on the first step that does. */
   steps: Step[];
-  /** Why the gate had nothing to do — set instead of steps, and reported as skipped. */
+  /** Why the gate had nothing to do. Set instead of steps, and reported as skipped. */
   vacuous?: string;
 }
 
@@ -137,7 +137,7 @@ async function capture(command: string, args: string[]): Promise<string> {
   return output;
 }
 
-/** The lintable files that differ from HEAD — unstaged, staged and untracked. */
+/** The lintable files that differ from HEAD: unstaged, staged and untracked. */
 async function changedLintTargets(): Promise<string[]> {
   const lists = await Promise.all([
     capture('git', ['diff', '--name-only', '--diff-filter=ACMR']),
@@ -208,7 +208,7 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
     {name: 'test:src', steps: [{command: NODE, args: ['--test', 'src/**/*.test.ts']}]},
     // Its own gate, not a step of `lint`: they are two tools now, and a combined gate
     // reports one failure without saying which of them produced it. Whole-tree even in
-    // --quick mode — the check is ~0.7 s against the whole 511 files, so scoping it to
+    // --quick mode, because the check is ~0.7 s against the whole 511 files, so scoping it to
     // changed files would buy nothing and add a second definition of the file set.
     {name: 'format', steps: [{command: NODE, args: ['scripts/format.ts', '--check']}]},
     // Both projects in one gate, deliberately sequential: two `tsc` processes each
@@ -257,7 +257,7 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
 /**
  * Run gates concurrently, but only `jobs` at a time. An unbounded fan-out is measurably
  * *slower*: the gates are not competing for cores (14 of them here) but for filesystem
- * throughput — `node --test` already spawns a worker per core, oxlint is parallel across
+ * throughput. `node --test` already spawns a worker per core, oxlint is parallel across
  * all of them, and every gate reads the same few hundred files. Running all of them at
  * once inflated each gate ~2× (29 s of serial work became 57 s of it, for a wall of
  * 19.6 s); two at a time reached the same wall while leaving the machine usable, and
@@ -346,7 +346,7 @@ async function treeKey(mode: Mode): Promise<string | undefined> {
   for (const path of paths) {
     hash.update(path);
     // A file that vanished between listing and reading is a race, not a verdict: fold in
-    // nothing and let the next run — which will see a different tree — decide.
+    // nothing and let the next run decide, on a tree that will by then be different.
     hash.update(await readFile(resolve(ROOT, path)).catch(() => Buffer.alloc(0)));
   }
   return hash.digest('hex');
@@ -392,7 +392,7 @@ async function main() {
   if (key !== undefined) {
     const pass = await readPass(mode);
     if (pass?.key === key) {
-      console.log(`verify --${mode}: this tree already passed at ${pass.at} — nothing changed`);
+      console.log(`verify --${mode}: this tree already passed at ${pass.at}; nothing changed`);
       return;
     }
   }
@@ -405,7 +405,7 @@ async function main() {
   }
 
   const width = Math.max(...gates.map((gate) => gate.name.length));
-  console.log(`verify --${mode} — ${gates.length} gates, ${jobs} at a time\n`);
+  console.log(`verify --${mode}: ${gates.length} gates, ${jobs} at a time\n`);
 
   // Reported as each finishes rather than in declaration order: the fast gates give
   // immediate feedback, and a gate that hangs is identifiable by its absence.
@@ -435,7 +435,7 @@ async function main() {
     );
   } else {
     console.error(
-      `\nverify: FAILED — ${failed.map((result) => result.gate.name).join(', ')} ` +
+      `\nverify: FAILED. ${failed.map((result) => result.gate.name).join(', ')} ` +
         `(${results.length - failed.length} green) in ${seconds(wall)}`,
     );
     process.exitCode = 1;

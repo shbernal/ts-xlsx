@@ -4,7 +4,7 @@
 // The library is tested by two deliberately separate suites (docs/architecture.md): the white-box
 // unit tests co-located as `src/**/*.test.ts`, and the implementation-blind black-box corpus under
 // `test/corpus/`, which reaches the library only through an adapter. They are complementary by
-// design — that is the whole point of the topology — so neither one's coverage is the library's
+// design, which is the whole point of the topology, so neither one's coverage is the library's
 // coverage.
 //
 // The old `test:coverage` measured only the unit suite. That did not merely under-report; it
@@ -16,8 +16,8 @@
 // A zero that means "the other suite covers this" is indistinguishable from a zero that means
 // "nothing tests this", so the report cost more than it bought: a reader chasing the worst rows in
 // the table spends their time on modules that were never uncovered, while a genuinely untested
-// function sits mid-table looking fine. The one real gap this repo had — `iconSetXml`, a documented
-// rule type nothing ever read back — was invisible in that table for exactly that reason.
+// function sits mid-table looking fine. This repo had one real gap, `iconSetXml`, a documented
+// rule type nothing ever read back, and it was invisible in that table for exactly that reason.
 //
 // So: run each suite with `NODE_V8_COVERAGE` pointed at one shared directory, and report the union.
 // V8 writes one JSON file per process, keyed by pid and timestamp, and node's own coverage reader
@@ -29,7 +29,7 @@
 //                            [--lines <pct>] [--branches <pct>] [--functions <pct>]
 //
 //   --suite <name>    measure only this suite (`unit` or `corpus`); repeatable, unioned.
-//                     Defaults to every suite — which is the only total that is true.
+//                     Defaults to every suite, which is the only total that is true.
 //                     Useful to see what one suite contributes, never to judge the library.
 //   --reuse           report from the raw coverage already in .tmp/coverage without re-running
 //                     anything. Re-renders in milliseconds; reports stale numbers if the tree moved.
@@ -42,15 +42,16 @@
 // The numbers have to be *comparable* to `node --test --experimental-test-coverage`, or this tool
 // replaces one misleading report with another: a reader seeing a different total could not tell
 // whether the delta was the corpus or this script's arithmetic. Line coverage is not a quantity you
-// can eyeball — it is byte-offset ranges mapped onto lines, with `/* node:coverage ignore */`
+// can eyeball. It is byte-offset ranges mapped onto lines, with `/* node:coverage ignore */`
 // handling, block-coverage branch counting, and a specific rule for which lines count at all.
 // Reimplementing that produces numbers that are *close*, and close is the failure mode being fixed.
 //
 // So we construct node's own `TestCoverage` against our directory and call its `summary()`. This is
 // an internal module and needs `--expose-internals`, which is why the report phase re-executes this
-// script with that flag. That coupling is deliberate and bounded: it fails *loudly* — the require
-// throws `Cannot find module` and this script stops with the message below — rather than quietly
-// producing numbers that no longer mean what they say. Given the failure being fixed is precisely
+// script with that flag. That coupling is deliberate and bounded: it fails *loudly*, with the
+// require throwing `Cannot find module` and this script stopping on the message below, rather than
+// quietly producing numbers that no longer mean what they say. Given the failure being fixed is
+// precisely
 // "confident wrong numbers", a loud break on a node upgrade is the cheaper risk. See ADR 0035.
 
 import {spawn} from 'node:child_process';
@@ -96,7 +97,7 @@ const SUITES: readonly Suite[] = [
 /** A bad invocation, not a failing check: one legible line, no stack. */
 class UsageError extends Error {}
 
-/** The internals are gone or renamed — the one failure this tool must never paper over. */
+/** The internals are gone or renamed: the one failure this tool must never paper over. */
 class InternalsUnavailableError extends Error {}
 
 interface Args {
@@ -196,7 +197,7 @@ async function readManifest(): Promise<string[] | undefined> {
 
 /**
  * Run every requested suite into one directory, cleared first. Stale files from an earlier run
- * would merge in silently and inflate the result — the same class of quiet wrongness this tool
+ * would merge in silently and inflate the result, the same class of quiet wrongness this tool
  * exists to remove.
  */
 async function runSuites(suites: readonly Suite[]): Promise<void> {
@@ -208,7 +209,7 @@ async function runSuites(suites: readonly Suite[]): Promise<void> {
     const elapsed = ((performance.now() - started) / 1000).toFixed(1);
     if (code !== 0) {
       throw new Error(
-        `suite '${suite.name}' failed (exit ${code ?? 'spawn error'}) — ` +
+        `suite '${suite.name}' failed (exit ${code ?? 'spawn error'}): ` +
           `coverage of a red tree measures nothing`,
       );
     }
@@ -269,7 +270,7 @@ function loadInternals(): Internals | undefined {
       `node ${process.version} does not expose internal/test_runner/coverage under ` +
         `--expose-internals. This script borrows node's own coverage implementation so its ` +
         `numbers match \`node --test --experimental-test-coverage\` exactly (ADR 0035); that ` +
-        `module has moved or gone. Fix the import or reimplement summary() — do not fall back ` +
+        `module has moved or gone. Fix the import or reimplement summary(). Do not fall back ` +
         `to an approximation, which is the failure this tool exists to remove.`,
     );
   }
@@ -286,7 +287,7 @@ function loadInternals(): Internals | undefined {
 
 /**
  * The `src/` modules absent from the report. V8 records only scripts it actually loaded, so a module
- * no suite imports does not appear as 0 % — it does not appear at all, which reads as "no problem
+ * no suite imports does not appear as 0 %. It does not appear at all, which reads as "no problem
  * here". Today every one of these is a type-only module or a re-export barrel that erases to nothing
  * at runtime (their contracts are gated by `typecheck` and `check-entries.ts` instead), so the list
  * is expected and short. A module with real behavior showing up here is the signal.
@@ -334,9 +335,9 @@ function summarize(internals: Internals): CoverageSummary {
 
 /** Names the data actually in {@link RAW}, and says plainly when that data is not the library. */
 function describeScope(measured: readonly string[] | undefined): string {
-  if (measured === undefined) return 'an unrecorded set of suites — re-run without --reuse';
+  if (measured === undefined) return 'an unrecorded set of suites; re-run without --reuse';
   if (measured.length === SUITES.length) return 'unit + corpus';
-  return `${measured.join(' + ')} only — NOT the library's coverage`;
+  return `${measured.join(' + ')} only, NOT the library's coverage`;
 }
 
 function report(
@@ -363,7 +364,7 @@ function report(
   if (below.length > 0) {
     for (const check of below) {
       console.error(
-        `coverage: FAILED — ${check.label} ${check.actual.toFixed(2)}% is below the ` +
+        `coverage: FAILED. ${check.label} ${check.actual.toFixed(2)}% is below the ` +
           `${check.floor}% floor`,
       );
     }

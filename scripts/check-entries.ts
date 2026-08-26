@@ -5,18 +5,18 @@
 // them, and `src/index.ts` unions them with `export *` so the root specifier keeps carrying
 // everything. Three things can go wrong silently, and each is checked here:
 //
-//   1. An entry file exists but nothing publishes it — dead code that reads like API.
-//   2. `exports` names a subpath whose entry file is gone — a consumer's import resolves to a
-//      missing file at runtime, long after CI was green.
+//   1. An entry file exists but nothing publishes it: dead code that reads like API.
+//   2. `exports` names a subpath whose entry file is gone, so a consumer's import resolves to
+//      a missing file at runtime, long after CI was green.
 //   3. Two entries export the same name. This is the dangerous one: `export *` does not error on
 //      an ambiguous re-export, it *drops the name*, so the symbol would vanish from the root
 //      specifier with no diagnostic anywhere. Disjointness is what makes `src/index.ts` a
-//      faithful union, and it is why the whole failure taxonomy is exported from `/errors` alone —
-//      `UnsupportedFormatError` belongs to no single codec.
+//      faithful union, and it is why the whole failure taxonomy is exported from `/errors`
+//      alone: `UnsupportedFormatError` belongs to no single codec.
 //
 // Reading the syntax, not the types: an entry is a pure re-export list, so every question here is
-// answered by the parse tree alone. TypeScript 7 publishes no standalone parser, though — a
-// SourceFile is only reachable through a project — so the tree comes from one built over
+// answered by the parse tree alone. TypeScript 7 publishes no standalone parser, though. A
+// SourceFile is only reachable through a project, so the tree comes from one built over
 // `tsconfig.json`, which already includes `src/**/*.ts`. That costs about as much as loading the
 // TypeScript 6 module used to, and no diagnostics are requested, so a tree that does not typecheck
 // still gets a verdict.
@@ -81,7 +81,7 @@ function publishedEntries(): Map<string, string> {
 function main(project: Project): void {
   const parse = (file: string): ast.SourceFile => {
     const source = project.program.getSourceFile(join(ROOT, file));
-    if (!source) throw new Error(`${file} is not in the program — is it covered by tsconfig.json?`);
+    if (!source) throw new Error(`${file} is not in the program; is it covered by tsconfig.json?`);
     return source;
   };
 
@@ -109,7 +109,7 @@ function main(project: Project): void {
   const unioned = starExportedEntries(parse(BARREL));
   for (const file of onDisk) {
     if (!unioned.includes(file)) {
-      problems.push(`  ${BARREL} does not \`export *\` from ${file} — the root specifier loses it`);
+      problems.push(`  ${BARREL} does not \`export *\` from ${file}; the root specifier loses it`);
     }
   }
 

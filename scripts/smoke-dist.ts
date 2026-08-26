@@ -6,7 +6,7 @@
 // runtime-only reference that type-stripping tolerated.
 //
 // Imports go through the package NAME, not a relative `../dist/` path, so Node resolves them the
-// way a consumer's would — through `package.json`'s `exports` map (self-reference, which Node
+// way a consumer's would, through `package.json`'s `exports` map (self-reference, which Node
 // enables for any package that declares `exports`). That is the only thing in the repo that
 // exercises the map: the corpus's dist target loads emitted modules by file path, so a subpath
 // that resolved to nothing would pass every other gate and fail on a consumer's first install.
@@ -83,7 +83,7 @@ const coreReach = closure(entryFile('core'));
 for (const file of coreReach) {
   assert.ok(
     !file.includes(join('dist', 'io')),
-    `/core reaches ${file} — the model must not pull in a serialisation`,
+    `/core reaches ${file}: the model must not pull in a serialisation`,
   );
 }
 
@@ -91,12 +91,12 @@ const errorsReach = closure(entryFile('errors'));
 for (const file of errorsReach) {
   assert.ok(
     file.endsWith('errors.js'),
-    `/errors reaches ${file} — the taxonomy must cost nothing but itself`,
+    `/errors reaches ${file}: the taxonomy must cost nothing but itself`,
   );
 }
 
 console.log(
-  `dist smoke ok — ${bytes.byteLength} byte xlsx, round-trip verified; ` +
+  `dist smoke ok: ${bytes.byteLength} byte xlsx, round-trip verified; ` +
     `${Object.keys(SUBPATH_BINDINGS).length} subpaths resolve through exports; ` +
     `/core is codec-free (${coreReach.size} modules), /errors is self-contained (${errorsReach.size})`,
 );

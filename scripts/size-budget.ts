@@ -2,19 +2,19 @@
 //
 // Two numbers, because they answer two different questions.
 //
-// The **total** is every emitted `dist/**/*.js` — what ships in the tarball, and the tripwire
+// The **total** is every emitted `dist/**/*.js`: what ships in the tarball, and the tripwire
 // against accidental bloat (an errant dependency inlined, dead code shipped).
 //
 // The **per-entry** numbers are what a consumer actually loads. Each public subpath in
 // `package.json`'s `exports` is walked transitively through its static imports; the closure is the
 // set of modules that must be present for that entry to evaluate. It is a lower bound on any
-// bundler's answer — `sideEffects: false` lets a bundler prune *within* these modules, never add
-// to them — and it is the only number that notices the failures that matter here: a codec
-// acquiring a value-import of something it previously needed only as a type, or the model reaching
-// into a parser. The total cannot see either; both leave it unchanged.
+// bundler's answer, since `sideEffects: false` lets a bundler prune *within* these modules and
+// never add to them. It is also the only number that notices the failures that matter here:
+// a codec acquiring a value-import of something it previously needed only as a type, or the model
+// reaching into a parser. The total cannot see either; both leave it unchanged.
 //
 // Budgets are tripwires, not targets. Raise one deliberately, with the same eyes a dependency
-// addition would get — and when you do, say in the commit *what* the entry gained.
+// addition would get. When you do, say in the commit *what* the entry gained.
 //
 //   node scripts/size-budget.ts
 
@@ -30,7 +30,7 @@ const TOTAL_BUDGET_BYTES = 530 * 1024;
 // not a chore, tight enough that a whole codec crossing a boundary cannot hide inside it.
 //
 // Every number below was halved when `build` split into two tsc passes and the JS pass started
-// stripping comments. That is not a budget cut — nothing left the closure, and no consumer loads a
+// stripping comments. That is not a budget cut: nothing left the closure, and no consumer loads a
 // byte less than they did before the prose was measured as part of it. It is the measurement
 // finally being of code. The old figures were ~47% comment, which is what had made this tripwire
 // soft: a codec crossing a boundary is the failure these numbers exist to catch, and at the old
@@ -60,8 +60,8 @@ function jsFiles(dir: string): string[] {
   });
 }
 
-// Emitted JS, not source: the emitter picks its own quoting — double under TypeScript 6, single
-// under 7 — so both forms are matched rather than any one being assumed.
+// Emitted JS, not source: the emitter picks its own quoting, double under TypeScript 6 and single
+// under 7, so both forms are matched rather than any one being assumed.
 const RELATIVE_SPECIFIER = /\bfrom\s+["'](\.[^"']*)["']/g;
 
 /** Every relative specifier the emitted module imports or re-exports from, resolved to a path. */
@@ -99,13 +99,13 @@ const over: string[] = [];
 const all = jsFiles(DIST);
 const total = bytes(all);
 console.log(
-  `total runtime JS: ${kb(total)} across ${all.length} file(s) — budget ${kb(TOTAL_BUDGET_BYTES)}`,
+  `total runtime JS: ${kb(total)} across ${all.length} file(s); budget ${kb(TOTAL_BUDGET_BYTES)}`,
 );
 if (total > TOTAL_BUDGET_BYTES) {
   over.push(`total is over by ${kb(total - TOTAL_BUDGET_BYTES)}`);
 }
 
-console.log('\nper entry — the module closure a consumer of that subpath loads:\n');
+console.log('\nper entry, the module closure a consumer of that subpath loads:\n');
 for (const [subpath, target] of Object.entries(pkg.exports)) {
   const emitted = typeof target === 'string' ? undefined : target.default;
   if (emitted === undefined || !emitted.endsWith('.js')) continue;
