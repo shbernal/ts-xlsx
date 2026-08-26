@@ -6,6 +6,8 @@ import {
   decodeEntities,
   decodeSpreadsheetText,
   localName,
+  numFinite,
+  numInteger,
   openElements,
   parseXml,
   type XmlAttributes,
@@ -256,4 +258,51 @@ test('decodeSpreadsheetText inverts escapeSpreadsheetText', () => {
   const awkward =
     'plain _ _x _x0041_ _x005F_ _xZZZZ_ _x041_ __x0041_ \u0001 \uFFFE \uD800 \t\n \u007F';
   assert.equal(decodeSpreadsheetText(escapeSpreadsheetText(awkward)), awkward);
+});
+
+test('numInteger reads an ordinal, and reads nothing out of anything that is not one', () => {
+  for (const [attr, expected] of [
+    ['0', 0],
+    ['-3', -3],
+    ['42', 42],
+    [' 7 ', 7],
+    ['1e3', 1000],
+    [undefined, undefined],
+    ['', undefined],
+    ['   ', undefined],
+    ['abc', undefined],
+    ['1.5', undefined],
+    ['NaN', undefined],
+    ['Infinity', undefined],
+    // Past the safe range an "integer" no longer survives its own arithmetic.
+    ['9007199254740993', undefined],
+  ] as const) {
+    assert.equal(numInteger(attr), expected, `numInteger(${JSON.stringify(attr)})`);
+  }
+});
+
+test('numInteger drops a value below the floor rather than clamping it to it', () => {
+  assert.equal(numInteger('0', 0), 0);
+  assert.equal(numInteger('-1', 0), undefined);
+  assert.equal(numInteger('1', 1), 1);
+  assert.equal(numInteger('0', 1), undefined, 'a dropped value leaves the caller its own default');
+});
+
+test('numFinite reads a measurement, integer or not, and refuses what is not finite', () => {
+  for (const [attr, expected] of [
+    ['1.5', 1.5],
+    ['0', 0],
+    ['-2.25', -2.25],
+    ['1e-3', 0.001],
+    [undefined, undefined],
+    ['', undefined],
+    ['pt', undefined],
+    ['NaN', undefined],
+    ['Infinity', undefined],
+    ['-Infinity', undefined],
+  ] as const) {
+    assert.equal(numFinite(attr), expected, `numFinite(${JSON.stringify(attr)})`);
+  }
+  assert.equal(numFinite('-0.5', 0), undefined, 'and honours the floor');
+  assert.equal(numFinite('9007199254740993', 0), 9007199254740992, 'a measurement may be huge');
 });

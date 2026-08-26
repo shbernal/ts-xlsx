@@ -132,6 +132,32 @@ export const grid = {
     };
   },
 
+  // Patch a frozen pane's split attributes with a malformed value, reload, and write the reloaded
+  // workbook back out -> [{spelling, xSplit, ySplit, rewriteError}]. A file may spell a split as a
+  // fraction, a negative, or a word; the authoring API (`freeze`) refuses all three, so a read that
+  // stores one puts the model into a state its own writer cannot serialize.
+  malformedFrozenSplitReport(spellings = ['abc', '1.5', '-3']) {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getCell('A1').value = 'header';
+    sheet.freeze(1, 1);
+    const bytes = writeXlsx(wb);
+    return spellings.map((spelling) => {
+      const back = reloadPatched(bytes, {
+        'xl/worksheets/sheet1.xml': (xml) =>
+          xml.replace(/(<pane\b[^>]*?)xSplit="[^"]*"/, `$1xSplit="${spelling}"`),
+      });
+      const {xSplit, ySplit} = back.getWorksheet('S')!.view;
+      let rewriteError: string | null = null;
+      try {
+        writeXlsx(back);
+      } catch (error) {
+        rewriteError = messageOf(error);
+      }
+      return {spelling, xSplit: xSplit ?? null, ySplit: ySplit ?? null, rewriteError};
+    });
+  },
+
   // Author the shape a generated report has, a frozen top row above grouped, hidden columns on the
   // first of two sheets, then write it and report the view-initialisation facts of that package →
   // { bookViewCount, bookViewsBeforeSheets, windowWidth, windowHeight, selectedSheets,

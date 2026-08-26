@@ -46,6 +46,12 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Fixed
 
+- **A malformed frozen-pane split no longer surfaces from the writer.** A `<pane>` whose `xSplit`
+  or `ySplit` spelled a fraction, a negative, or a word was stored verbatim, though `freeze()`
+  refuses all three. The read succeeded and the *serializer* then threw a `RangeError` naming a
+  column the file never mentioned. A split that is not a non-negative integer is now dropped where
+  it is read, leaving the rest of the sheet view intact.
+
 - **A `<col>` span wider than the sheet no longer hangs the reader.** `<col min="1"
   max="99999999"/>` is one line of XML that named more columns than the format has, and the
   buffered reader walked it verbatim: roughly 16.7 million column records, twenty-five seconds,

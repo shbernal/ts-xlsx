@@ -354,6 +354,45 @@ export function boolTristate(val: string | undefined): boolean | undefined {
   return undefined;
 }
 
+// The numeric attributes need the same treatment, and for the same reason: a bare `Number(attr)`
+// turns a token it cannot parse into `NaN`, which is a number, so every guard downstream passes it
+// along until something far from the file throws about a value the caller never wrote. Two readings
+// cover the format. An ordinal - a count, an index, a row or a column - is an integer or it is
+// nothing (`numInteger`). A measurement - a width, a height, a tint, a margin - is any finite
+// number (`numFinite`). Both take the floor the attribute's kind implies, because nearly every call
+// site wants "at least 0" or "at least 1" and would otherwise spell it inline and sometimes forget.
+// Absent, unparseable and out-of-floor all read as `undefined`, so a caller stores only what the
+// source carried and a re-write stays byte-clean.
+
+/** An OOXML integer attribute at or above `min` (default: unbounded below); `undefined` when the
+ * attribute is absent, blank, fractional, not a number, or below the floor. Integers past
+ * `Number.MAX_SAFE_INTEGER` read as `undefined` too: no index or count is usable out there, and
+ * arithmetic on one silently lies. */
+export function numInteger(
+  val: string | undefined,
+  min = -Number.MAX_SAFE_INTEGER,
+): number | undefined {
+  const n = parseAttrNumber(val);
+  if (n === undefined || !Number.isSafeInteger(n) || n < min) return undefined;
+  return n;
+}
+
+/** An OOXML decimal attribute at or above `min` (default: unbounded below); `undefined` when the
+ * attribute is absent, blank, not a number, or below the floor. Infinities are not finite numbers
+ * and read as `undefined`. */
+export function numFinite(val: string | undefined, min = -Infinity): number | undefined {
+  const n = parseAttrNumber(val);
+  if (n === undefined || n < min) return undefined;
+  return n;
+}
+
+// `Number("")` and `Number(" ")` are both 0, which would turn an empty attribute into a real value.
+function parseAttrNumber(val: string | undefined): number | undefined {
+  if (val === undefined || val.trim() === '') return undefined;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 /** Read an operand's text as a number only when it is a canonical decimal literal (optional sign,
  * digits, optional fraction). A cell reference, defined name, expression, or exotically-spelled
  * number (`1E5`, hex) keeps its verbatim text, so it is neither coerced to `NaN` and lost nor

@@ -26,6 +26,7 @@ import {
   boolTristate,
   decodeSpreadsheetText,
   localName,
+  numInteger,
   parseXml,
   type XmlAttributes,
 } from '../../xml/xml-read.ts';
@@ -446,8 +447,13 @@ function applySheetProperties(local: string, attrs: XmlAttributes, sheet: Worksh
       // model's view; a source without one leaves `view` empty, so a re-write emits no pane.
       if (attrs.state === 'frozen' || attrs.state === 'frozenSplit') {
         sheet.view.state = 'frozen';
-        if (attrs.xSplit !== undefined) sheet.view.xSplit = Number(attrs.xSplit);
-        if (attrs.ySplit !== undefined) sheet.view.ySplit = Number(attrs.ySplit);
+        // A split that is not a non-negative integer is dropped, not stored: `Worksheet.freeze()`
+        // refuses the same value, and storing it here only defers the failure to the writer, which
+        // adds the split to a cell ordinal and throws about a column the caller never named.
+        const xSplit = numInteger(attrs.xSplit, 0);
+        const ySplit = numInteger(attrs.ySplit, 0);
+        if (xSplit !== undefined) sheet.view.xSplit = xSplit;
+        if (ySplit !== undefined) sheet.view.ySplit = ySplit;
         if (attrs.topLeftCell !== undefined) sheet.view.topLeftCell = attrs.topLeftCell;
       }
       break;

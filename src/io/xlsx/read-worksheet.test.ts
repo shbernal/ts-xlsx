@@ -4,6 +4,7 @@ import {test} from 'node:test';
 import {MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {parseWorksheet} from './read-worksheet.ts';
+import {sheetViewsXml} from './sheet-properties.ts';
 
 // `customWidth`/`customHeight` are xsd:booleans, so a foreign producer may spell false either way.
 // Excel writes the digit, which is why the long spelling went unnoticed for so long.
@@ -69,4 +70,32 @@ test('a `<row>` past the last row is dropped rather than clamped onto it', () =>
   );
   assert.equal([...worksheet.rows()].length, 0);
   assert.equal(worksheet.getRow(MAX_ROW).height, undefined, 'and nothing landed on the last row');
+});
+
+test('a `<pane>` split that is not a non-negative integer is dropped, not carried to the writer', () => {
+  // Each of these used to land in `view` verbatim and surface later out of the serializer, as a
+  // RangeError naming a column the file never mentioned.
+  for (const attrs of ['xSplit="abc"', 'xSplit="1.5" ySplit="2"', 'ySplit="-3"']) {
+    const worksheet = sheet(
+      `<sheetViews><sheetView workbookViewId="0"><pane ${attrs} topLeftCell="B2" state="frozen"/></sheetView></sheetViews>`,
+    );
+    assert.equal(worksheet.view.state, 'frozen', `${attrs}: the pane itself still reads`);
+    for (const axis of ['xSplit', 'ySplit'] as const) {
+      const split = worksheet.view[axis];
+      assert.ok(
+        split === undefined || (Number.isInteger(split) && split >= 0),
+        `${attrs}: ${axis} is ${String(split)}, which freeze() would refuse`,
+      );
+    }
+    assert.doesNotThrow(() => sheetViewsXml(worksheet.view, true), `${attrs}: and re-writes clean`);
+  }
+});
+
+test('a well-formed `<pane>` split still reads', () => {
+  const worksheet = sheet(
+    '<sheetViews><sheetView workbookViewId="0"><pane xSplit="2" ySplit="1" topLeftCell="C2" state="frozen"/></sheetView></sheetViews>',
+  );
+  assert.equal(worksheet.view.xSplit, 2);
+  assert.equal(worksheet.view.ySplit, 1);
+  assert.equal(worksheet.view.topLeftCell, 'C2');
 });
