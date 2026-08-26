@@ -120,20 +120,28 @@ file, and there is no point at which you can see what the object *is*.
 Both push cohesive slices of state into their own objects and keep the public accessors in front of
 them. `Worksheet` holds `DataValidationOverlay`, `ConditionalFormattingOverlay`, `GridEdits`,
 `WorksheetPictures` (`core/worksheet-pictures.ts`) and `WorksheetComments`
-(`core/worksheet-comments.ts`); `Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`) and
-`WorkbookTheme` (`core/workbook-theme.ts`). The public surface does not move: an accessor stays on the model class,
-keeps its name, its type and its full doc comment, and becomes a one-line delegation. The doc
-comment staying put is not incidental, since it is what `scripts/gen-docs.ts` reads and what a
-consumer sees; the slice carries implementation notes only.
+(`core/worksheet-comments.ts`); `Workbook` holds `WorkbookVbaProject` (`core/workbook-vba.ts`),
+`WorkbookTheme` (`core/workbook-theme.ts`) and `WorkbookStyleTables` (`core/workbook-styles.ts`).
+The public surface does not move: an accessor stays on the model class, keeps its name, its type
+and its full doc comment, and becomes a one-line delegation. The doc comment staying put is not
+incidental, since it is what `scripts/gen-docs.ts` reads and what a consumer sees; the slice
+carries implementation notes only.
 
 What makes a slice a slice is how little it touches outside itself. The VBA project reaches exactly
-one thing, the preserved-reference list, which is handed to it. The theme reaches two, and the
-second one is instructive: resolving a colour needs the workbook's custom indexed palette as well as
-the theme scheme, but that palette is also the writer's source for `<indexedColors>` and is filled
-in by the reader. It stays on `Workbook` and is passed in as a narrow accessor. Had it moved, the
-styles-table state would have followed it and the result would be a colour-and-styles overlay, which
-is not a slice of anything. When a candidate slice has more than one or two such edges, that is the
-signal it is not one.
+one thing, the preserved-reference list, which is handed to it. The style tables reach nothing: the
+six of them (`<dxfs>`, the named cell styles, the two colour lists, the table-style block and the
+definitions a caller authors) are one thing said six ways, a table read out of `styles.xml` and
+handed back to the writer, each the target of an index held elsewhere in the file.
+
+The theme reaches one, and it is instructive: resolving a colour needs the workbook's custom indexed
+palette as well as the theme scheme, but that palette is also the writer's source for
+`<indexedColors>` and is filled in by the reader, so it belongs with the style tables rather than
+with the theme. It is passed in as a narrow accessor over that slice. Had the palette moved *into*
+the theme, the rest of the styles-table state would have followed it and the result would be a
+colour-and-styles overlay, which is not a slice of anything. When a candidate slice has more than one
+or two such edges, that is the signal it is not one. The media block on `Workbook` is the standing
+example of a candidate that fails it: `exportImages`/`importImages` reach five different things on
+`Worksheet`, so grouping them would move the coupling rather than remove it.
 
 `Worksheet` is still over the thousand lines after those two, and deliberately so. What is left on
 it is the grid and the things that reach into the grid constantly: tables and pivots materialise

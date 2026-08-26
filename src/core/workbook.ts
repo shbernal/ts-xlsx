@@ -25,7 +25,6 @@ import {
   type VbaProjectSignature,
 } from '../vba/index.ts';
 import {commentThreadGuid, type Person} from './comment-thread.ts';
-import {replaceContents} from './containers.ts';
 import {
   findRegisteredImage,
   normalizeImageExtension,
@@ -46,6 +45,7 @@ import {
   type ThemeOverrides,
 } from './theme.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
+import {WorkbookStyleTables} from './workbook-styles.ts';
 import {type DeclaredThemeSchemes, WorkbookTheme} from './workbook-theme.ts';
 import {WorkbookVbaProject} from './workbook-vba.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
@@ -226,39 +226,15 @@ export class Workbook {
 
   readonly #definedNames: DefinedName[] = [];
 
-  // Differential styles (`<dxfs>`) are a workbook-level table in styles.xml that conditional
-  // formatting references by index. The library models the classic scale rules directly but preserves
-  // the dxf table as opaque XML fragments, so a rule that references a dxfId (a highlight fill, a
-  // custom number format) keeps a valid target across a read/write cycle instead of dangling.
-  readonly #dxfs: string[] = [];
-
-  // Named cell styles (`cellStyleXfs`/`cellStyles` in styles.xml): the shared, named formatting layer
-  // a cell links to by index. Preserved so a cell whose fill/font/… lives only in a named style keeps
-  // that style, and the link, across a round-trip. Empty when a file declares nothing beyond the
-  // default Normal style, in which case the writer emits just that default.
-  readonly #namedStyles: NamedCellStyle[] = [];
-
-  // A custom indexed-color palette (`<colors><indexedColors>` in styles.xml) read from a file, each
-  // entry a verbatim `<rgbColor rgb="…"/>` fragment. Preserved so an `indexed="…"` colour reference
-  // keeps its intended RGB across a round-trip instead of resolving to a different default-palette
-  // entry. Empty for a workbook that never overrode the palette.
-  readonly #indexedColors: string[] = [];
-
-  // The most-recently-used colour swatches (`<colors><mruColors>` in styles.xml), each a verbatim
-  // `<color rgb="…"/>` fragment. The author's own working set of colours; dropping it on a re-write
-  // quietly resets a habit. Empty for a workbook that never picked a custom colour.
-  readonly #mruColors: string[] = [];
-
-  // The custom table-style definitions (`<tableStyles>` in styles.xml), each `<tableStyle>` kept
-  // verbatim, plus the gallery names the file nominates as the default for a new table and pivot. A
-  // table's `tableStyleInfo/@name` can name one of these definitions, so dropping the block leaves
-  // that reference dangling and the table renders unstyled.
-  #tableStyles: TableStyleTable = {styles: []};
+  // The style-tables slice: the `<dxfs>`, the named cell styles, the two colour lists and the
+  // table-style definitions, all preserved rather than interpreted because each is the target of an
+  // index held elsewhere in the file. See `workbook-styles.ts`.
+  readonly #styles = new WorkbookStyleTables();
 
   // The theme slice: the preserved part, the decoded scheme and its cache, and what a caller
-  // authored over them. The indexed palette stays here and is read on demand: it is styles state,
-  // not theme state, and only colour resolution wants both. See `workbook-theme.ts`.
-  readonly #theme = new WorkbookTheme(() => this.#indexedPalette());
+  // authored over them. The indexed palette is read off the styles slice on demand: it is styles
+  // state, not theme state, and only colour resolution wants both. See `workbook-theme.ts`.
+  readonly #theme = new WorkbookTheme(() => this.#styles.indexedPalette());
 
   // Workbook-level references to package content the model does not interpret (pivot caches, slicer
   // caches), captured verbatim on read so a round-trip re-emits them rather than dropping the pivots
@@ -438,27 +414,23 @@ export class Workbook {
 
   /** The preserved differential-style (`<dxfs>`) fragments, in index order. */
   get differentialStyles(): readonly string[] {
-    return this.#dxfs;
+    return this.#styles.differentialStyles;
   }
 
   /** The preserved custom indexed-color palette, in index order; empty when the default palette rules. */
   get indexedColors(): readonly string[] {
-    return this.#indexedColors;
+    return this.#styles.indexedColors;
   }
 
   /** The preserved most-recently-used colour swatches, in order; empty when the file declared none. */
   get mruColors(): readonly string[] {
-    return this.#mruColors;
+    return this.#styles.mruColors;
   }
 
   /** The preserved `<tableStyles>` block; `styles` is empty when the file declared no custom style. */
   get tableStyles(): TableStyleTable {
-    return this.#tableStyles;
+    return this.#styles.tableStyles;
   }
-
-  // Table styles authored on this workbook, keyed by name so registering the same name twice replaces
-  // rather than duplicates: two definitions sharing a name leave a table's reference ambiguous.
-  readonly #customTableStyles = new Map<string, TableStyle>();
 
   /**
    * Register a custom table style: a named look a table applies to itself by putting that name in
@@ -490,12 +462,12 @@ export class Workbook {
    */
   addTableStyle(style: TableStyle): void {
     checkTableStyle(style);
-    this.#customTableStyles.set(style.name, style);
+    this.#styles.addCustomTableStyle(style);
   }
 
   /** The table styles authored on this workbook, in registration order. */
   get customTableStyles(): readonly TableStyle[] {
-    return [...this.#customTableStyles.values()];
+    return this.#styles.customTableStyles;
   }
 
   /** The preserved theme part, or undefined when the workbook rides the library's default theme. */
@@ -673,16 +645,9 @@ export class Workbook {
     return this.#theme.resolveColor(color);
   }
 
-  // The workbook's custom palette as plain ARGB strings. `#indexedColors` holds verbatim
-  // `<rgbColor rgb="…"/>` fragments, the form the writer re-emits, so the value is read out here
-  // rather than stored twice in two shapes that could drift.
-  #indexedPalette(): readonly string[] {
-    return this.#indexedColors.map((fragment) => /\brgb="([^"]*)"/.exec(fragment)?.[1] ?? '');
-  }
-
   /** The named cell styles, in index order (index 0 is Normal); empty when only the default exists. */
   get namedStyles(): readonly NamedCellStyle[] {
-    return this.#namedStyles;
+    return this.#styles.namedStyles;
   }
 
   /**
@@ -924,22 +889,22 @@ export class Workbook {
       this.#preservedRootReferences.push(reference);
     },
     restoreDifferentialStyles: (fragments) => {
-      replaceContents(this.#dxfs, fragments);
+      this.#styles.restoreDifferentialStyles(fragments);
     },
     restoreIndexedColors: (fragments) => {
-      replaceContents(this.#indexedColors, fragments);
+      this.#styles.restoreIndexedColors(fragments);
     },
     restoreMruColors: (fragments) => {
-      replaceContents(this.#mruColors, fragments);
+      this.#styles.restoreMruColors(fragments);
     },
     restoreTableStyles: (table) => {
-      this.#tableStyles = table;
+      this.#styles.restoreTableStyles(table);
     },
     restoreThemePart: (theme, declared) => {
       this.#theme.restorePart(theme, declared);
     },
     restoreNamedStyles: (styles) => {
-      replaceContents(this.#namedStyles, styles);
+      this.#styles.restoreNamedStyles(styles);
     },
     restoreDefaultFont: (font) => {
       this.#declaredDefaultFont = font;

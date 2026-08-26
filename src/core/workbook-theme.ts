@@ -13,9 +13,9 @@
 // The boundary that matters, and the reason this slice is not as clean as the VBA one: colour
 // resolution needs the workbook's custom `<indexedColors>` palette as well as the theme scheme, and
 // that palette is *also* the writer's source for the `<indexedColors>` element and is populated by
-// the reader. So it stays on `Workbook` and reaches here as a narrow accessor. Moving it would drag
-// the styles-table state along and turn a theme overlay into a colour-and-styles overlay, which is
-// not a slice.
+// the reader. So it lives with the other style tables (`workbook-styles.ts`) and reaches here as a
+// narrow accessor over them. Moving it in would drag that whole table along and turn a theme overlay
+// into a colour-and-styles overlay, which is not a slice.
 //
 // The doc comments for the public surface stay on `Workbook`'s accessors, which is what the API
 // reference is generated from and what a consumer reads.
@@ -46,7 +46,7 @@ export interface DeclaredThemeSchemes {
  */
 export class WorkbookTheme {
   // The workbook's custom indexed palette, read on demand rather than held: it belongs to the styles
-  // state, not to the theme, and only colour resolution needs it.
+  // slice, not to the theme, and only colour resolution needs it.
   readonly #indexedPalette: () => readonly string[];
 
   // The theme part read from a file, kept verbatim with the closure of parts it reaches. The writer
