@@ -26,6 +26,7 @@ import {
   boolTristate,
   decodeSpreadsheetText,
   localName,
+  numFinite,
   numInteger,
   parseXml,
   type XmlAttributes,
@@ -74,22 +75,20 @@ function parseSheetProtection(attrs: XmlAttributes): SheetProtection | undefined
     if (raw !== undefined) flags[key] = !boolStrict(raw);
   }
   const {algorithmName, hashValue, saltValue, spinCount} = attrs;
+  const spin = numInteger(spinCount, 0);
   if (
     algorithmName !== undefined &&
     hashValue !== undefined &&
     saltValue !== undefined &&
-    spinCount !== undefined
+    spin !== undefined
   ) {
-    const spin = Number(spinCount);
-    if (Number.isFinite(spin)) {
-      const credential: SheetProtectionCredential = {
-        algorithmName,
-        hashValue,
-        saltValue,
-        spinCount: spin,
-      };
-      return {flags, credential};
-    }
+    const credential: SheetProtectionCredential = {
+      algorithmName,
+      hashValue,
+      saltValue,
+      spinCount: spin,
+    };
+    return {flags, credential};
   }
   return {flags};
 }
@@ -116,7 +115,7 @@ class AutoFilterAccumulator {
   // Open a criteria block for one column, offset `colId` from the range's left edge. Reset the
   // per-column accumulators; whichever child (`<filters>`/`<customFilters>`) opens fills one.
   beginColumn(attrs: XmlAttributes): void {
-    this.#colId = attrs.colId !== undefined ? Number(attrs.colId) : -1;
+    this.#colId = numInteger(attrs.colId, 0) ?? -1;
     this.#values = null;
     this.#blank = false;
     this.#predicates = null;
@@ -195,11 +194,11 @@ class PageBreakAccumulator {
   // and dropped rather than trusted. A `<brk>` outside any break container has no axis and is ignored.
   add(attrs: XmlAttributes): void {
     if (this.#target === null) return;
-    const id = Number(attrs.id);
-    if (!Number.isInteger(id) || id < 1) return;
+    const id = numInteger(attrs.id, 1);
+    if (id === undefined) return;
     const brk: {id: number; max?: number; man?: boolean} = {id};
-    const max = Number(attrs.max);
-    if (Number.isInteger(max) && max >= 0) brk.max = max;
+    const max = numInteger(attrs.max, 0);
+    if (max !== undefined) brk.max = max;
     if (boolStrict(attrs.man)) brk.man = true;
     this.#target.push(brk);
   }
@@ -254,7 +253,7 @@ export function parseWorksheet(
             break;
           case 'row':
             applyRow(sheet, attrs);
-            rowStyle = attrs.s !== undefined ? Number(attrs.s) : -1;
+            rowStyle = numInteger(attrs.s, 0) ?? -1;
             rowCustomFormat = boolStrict(attrs.customFormat);
             break;
           case 'c':
@@ -480,28 +479,25 @@ function applyColumn(
   xfStyles: ReadonlyArray<XfStyle>,
   columnStyle: Map<number, number>,
 ): void {
-  const min = Number(attrs.min);
-  const max = Number(attrs.max);
-  if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || min > MAX_COLUMN) return;
+  const min = numInteger(attrs.min, 1);
+  const max = numInteger(attrs.max, 1);
+  if (min === undefined || max === undefined || min > MAX_COLUMN) return;
   // Clamp the span to the format's ceiling rather than letting `getColumn` throw through the read:
   // a `<col max="99999999">` is a file Excel opens, and an unclamped loop would materialise 16.7
   // million column records before dying. Same reading as the streaming reader's `collectHiddenColumn`.
   const last = Math.min(max, MAX_COLUMN);
-  const width = attrs.width !== undefined ? Number(attrs.width) : undefined;
+  const width = numFinite(attrs.width);
   const hidden = boolStrict(attrs.hidden);
-  const styleIndex = attrs.style !== undefined ? Number(attrs.style) : -1;
+  const styleIndex = numInteger(attrs.style, 0) ?? -1;
   // The column's style resolves to the same facet bundle a cell's does; mirror all of it onto the
   // column model so `getColumn(i)` reflects the declared default, not just its number format.
   const style = styleIndex >= 0 ? xfStyles[styleIndex] : undefined;
   for (let index = min; index <= last; index++) {
     const column = sheet.getColumn(index);
-    if (width !== undefined && Number.isFinite(width) && boolPresent(attrs.customWidth))
-      column.width = width;
+    if (width !== undefined && boolPresent(attrs.customWidth)) column.width = width;
     if (hidden) column.hidden = true;
-    if (attrs.outlineLevel !== undefined) {
-      const level = Number(attrs.outlineLevel);
-      if (Number.isInteger(level) && level > 0) column.outlineLevel = level;
-    }
+    const outlineLevel = numInteger(attrs.outlineLevel, 1);
+    if (outlineLevel !== undefined) column.outlineLevel = outlineLevel;
     if (boolStrict(attrs.collapsed)) column.collapsed = true;
     if (style !== undefined) assignStyleFacets(column, style);
     // Record the column's style so a bare cell in it can inherit the full column format on read.
@@ -510,24 +506,20 @@ function applyColumn(
 }
 
 function applyRow(sheet: Worksheet, attrs: XmlAttributes): void {
-  const number = Number(attrs.r);
+  const number = numInteger(attrs.r, 1);
   // Out-of-grid rows are dropped rather than clamped: unlike a `<col>` span, an `<r>` names one row,
   // so there is nothing to fold it onto and clamping would silently move its formatting to 1048576.
-  if (!Number.isInteger(number) || number < 1 || number > MAX_ROW) return;
+  if (number === undefined || number > MAX_ROW) return;
   // A `<row>` that states no attribute at all leaves no format record behind: the handle creates
   // one only when something is written through it. That is the right reading: a bare `<row r="5"/>`
   // carries no formatting to round-trip, and fabricating an empty record for it would put row 5 in
   // the used range on the strength of an element that says nothing.
   const row = sheet.getRow(number);
-  if (attrs.ht !== undefined && boolPresent(attrs.customHeight)) {
-    const height = Number(attrs.ht);
-    if (Number.isFinite(height)) row.height = height;
-  }
+  const height = numFinite(attrs.ht);
+  if (height !== undefined && boolPresent(attrs.customHeight)) row.height = height;
   if (boolStrict(attrs.hidden)) row.hidden = true;
-  if (attrs.outlineLevel !== undefined) {
-    const level = Number(attrs.outlineLevel);
-    if (Number.isInteger(level) && level > 0) row.outlineLevel = level;
-  }
+  const outlineLevel = numInteger(attrs.outlineLevel, 1);
+  if (outlineLevel !== undefined) row.outlineLevel = outlineLevel;
   if (boolStrict(attrs.collapsed)) row.collapsed = true;
 }
 
@@ -549,30 +541,23 @@ function applyPrintOptions(printOptions: PrintOptions, attrs: XmlAttributes): vo
 
 function applyMargins(margins: PageMargins, attrs: XmlAttributes): void {
   for (const side of MARGIN_SIDES) {
-    const raw = attrs[side];
-    if (raw === undefined) continue;
-    const value = Number(raw);
-    if (Number.isFinite(value)) margins[side] = value;
+    const value = numFinite(attrs[side]);
+    if (value !== undefined) margins[side] = value;
   }
 }
 
 // Read the `<pageSetup>` print-scaling attributes back onto the model, setting only those the
-// source carried so a re-write stays byte-clean. Numeric attributes that fail to parse are
-// dropped rather than stored as NaN; the enumerated ones are trusted verbatim (an unexpected token
-// round-trips harmlessly as an unknown string).
+// source carried so a re-write stays byte-clean. Each of the four is a count or an enumeration id,
+// so a fractional or negative one carries no meaning and is dropped; the enumerated string
+// attributes are trusted verbatim (an unexpected token round-trips harmlessly as an unknown string).
 function applyPageSetup(pageSetup: PageSetup, attrs: XmlAttributes): void {
-  const num = (raw: string | undefined): number | undefined => {
-    if (raw === undefined) return undefined;
-    const value = Number(raw);
-    return Number.isFinite(value) ? value : undefined;
-  };
-  const paperSize = num(attrs.paperSize);
+  const paperSize = numInteger(attrs.paperSize, 0);
   if (paperSize !== undefined) pageSetup.paperSize = paperSize;
-  const scale = num(attrs.scale);
+  const scale = numInteger(attrs.scale, 0);
   if (scale !== undefined) pageSetup.scale = scale;
-  const fitToWidth = num(attrs.fitToWidth);
+  const fitToWidth = numInteger(attrs.fitToWidth, 0);
   if (fitToWidth !== undefined) pageSetup.fitToWidth = fitToWidth;
-  const fitToHeight = num(attrs.fitToHeight);
+  const fitToHeight = numInteger(attrs.fitToHeight, 0);
   if (fitToHeight !== undefined) pageSetup.fitToHeight = fitToHeight;
   if (attrs.pageOrder === 'downThenOver' || attrs.pageOrder === 'overThenDown') {
     pageSetup.pageOrder = attrs.pageOrder;

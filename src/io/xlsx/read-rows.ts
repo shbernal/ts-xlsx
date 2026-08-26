@@ -21,7 +21,13 @@
 import {MAX_COLUMN} from '../../core/address.ts';
 import type {CellValue} from '../../core/value.ts';
 import {AuthoringError} from '../../errors.ts';
-import {boolStrict, closeEmptyElements, localName, xmlEvents} from '../../xml/xml-read.ts';
+import {
+  boolStrict,
+  closeEmptyElements,
+  localName,
+  numInteger,
+  xmlEvents,
+} from '../../xml/xml-read.ts';
 import {packageAccessors} from '../opc/read-opc.ts';
 import {inflateSpreadsheetPackage, unsupportedWorkbookPart} from '../opc/sniff-format.ts';
 import {CellAccumulator} from './cell-accumulator.ts';
@@ -331,8 +337,7 @@ function* scanSheet(
       capture = false;
       switch (local) {
         case 'row': {
-          const declared = Number(event.attrs.r);
-          rowNumber = Number.isInteger(declared) && declared >= 1 ? declared : lastRow + 1;
+          rowNumber = numInteger(event.attrs.r, 1) ?? lastRow + 1;
           lastRow = rowNumber;
           rowHidden = boolStrict(event.attrs.hidden);
           cells = [];
@@ -401,9 +406,9 @@ function collectHiddenColumn(
   hiddenColumns: Set<number>,
 ): void {
   if (attrs.hidden !== '1' && attrs.hidden !== 'true') return;
-  const min = Number(attrs.min);
-  const max = Number(attrs.max);
-  if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1) return;
+  const min = numInteger(attrs.min, 1);
+  const max = numInteger(attrs.max, 1);
+  if (min === undefined || max === undefined) return;
   const last = Math.min(max, MAX_COLUMN);
   for (let index = min; index <= last; index++) hiddenColumns.add(index);
 }

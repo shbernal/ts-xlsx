@@ -22,7 +22,7 @@
 import {tryDecodeCellRef} from '../../core/address.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {decodeSpreadsheetText, localName, parseXml} from '../../xml/xml-read.ts';
+import {decodeSpreadsheetText, localName, numInteger, parseXml} from '../../xml/xml-read.ts';
 import {escapeAttr, escapeText, textElement, XML_DECLARATION} from '../../xml/xml.ts';
 import {MARKUP_COMPATIBILITY_NS, REVISION_NS, SPREADSHEETML_NS} from './namespaces.ts';
 
@@ -257,7 +257,7 @@ export function parseComments(xml: string): Map<string, ParsedComment> {
           buffer = decodeSpreadsheetText(buffer);
           capture = undefined;
         } else if (local === 'comment' && currentRef !== undefined) {
-          const threadId = threadIdOf(authors[Number(currentAuthorId)]);
+          const threadId = threadIdOf(authors[numInteger(currentAuthorId, 0) ?? -1]);
           comments.set(currentRef, {
             text: buffer,
             ...(threadId !== undefined ? {threadId} : {}),

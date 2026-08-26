@@ -29,7 +29,7 @@ import {
 } from '../../core/workbook-protection.ts';
 import {type DefinedName, Workbook, type WorkbookView} from '../../core/workbook.ts';
 import type {Worksheet, WorksheetState} from '../../core/worksheet.ts';
-import {boolStrict, localName, openElements, parseXml} from '../../xml/xml-read.ts';
+import {boolStrict, localName, numInteger, openElements, parseXml} from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {extensionOf} from '../opc/part-paths.ts';
 import {
@@ -670,23 +670,24 @@ function parseWorkbookProtection(xml: string): WorkbookProtection | undefined {
 // than a NaN geometry that would serialise as garbage.
 export function applyWorkbookView(view: WorkbookView, xml: string): void {
   for (const {attrs} of openElements(xml, 'workbookView')) {
-    applyViewNumber(attrs.xWindow, (value) => (view.x = value));
-    applyViewNumber(attrs.yWindow, (value) => (view.y = value));
-    applyViewNumber(attrs.windowWidth, (value) => (view.width = value));
-    applyViewNumber(attrs.windowHeight, (value) => (view.height = value));
-    applyViewNumber(attrs.activeTab, (value) => (view.activeTab = value));
+    // The window may sit at a negative origin (a secondary monitor left of the primary), so only
+    // the extents and the tab ordinal carry a floor.
+    const x = numInteger(attrs.xWindow);
+    if (x !== undefined) view.x = x;
+    const y = numInteger(attrs.yWindow);
+    if (y !== undefined) view.y = y;
+    const width = numInteger(attrs.windowWidth, 0);
+    if (width !== undefined) view.width = width;
+    const height = numInteger(attrs.windowHeight, 0);
+    if (height !== undefined) view.height = height;
+    const activeTab = numInteger(attrs.activeTab, 0);
+    if (activeTab !== undefined) view.activeTab = activeTab;
     if (attrs.visibility === 'hidden' || attrs.visibility === 'veryHidden') {
       view.visibility = attrs.visibility;
     }
     if (boolStrict(attrs.minimized)) view.minimized = true;
     return;
   }
-}
-
-function applyViewNumber(raw: string | undefined, assign: (value: number) => void): void {
-  if (raw === undefined) return;
-  const value = Number(raw);
-  if (Number.isFinite(value)) assign(Math.trunc(value));
 }
 
 // Reconstruct the workbook's defined names. Each `<definedName>` carries its name (and optional
@@ -707,7 +708,7 @@ function parseWorkbookDefinedNames(xml: string, sheetOrder: readonly string[]): 
       if (attrs.name === '_xlnm._FilterDatabase') return;
       capture = true;
       refersTo = '';
-      const scopeIndex = attrs.localSheetId === undefined ? -1 : Number(attrs.localSheetId);
+      const scopeIndex = numInteger(attrs.localSheetId, 0) ?? -1;
       const scope = sheetOrder[scopeIndex];
       pending = {name: attrs.name};
       if (scope !== undefined) pending.scope = scope;

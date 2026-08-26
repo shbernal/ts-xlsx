@@ -16,7 +16,7 @@ import {
   type TableStyleInfo,
   type TotalsRowFunction,
 } from '../../core/table.ts';
-import {boolPresent, localName, parseXml} from '../../xml/xml-read.ts';
+import {boolPresent, localName, numInteger, parseXml} from '../../xml/xml-read.ts';
 import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
 import {NS} from './relationships.ts';
 
@@ -126,8 +126,8 @@ export function parseTable(xml: string): TableOptions | undefined {
           name = attrs.name ?? attrs.displayName;
           displayName = attrs.displayName ?? attrs.name;
           ref = attrs.ref;
-          if (attrs.headerRowCount !== undefined) headerRowCount = Number(attrs.headerRowCount);
-          if (attrs.totalsRowCount !== undefined) totalsRowCount = Number(attrs.totalsRowCount);
+          headerRowCount = numInteger(attrs.headerRowCount, 0) ?? headerRowCount;
+          totalsRowCount = numInteger(attrs.totalsRowCount, 0) ?? totalsRowCount;
           // Capture the flag verbatim so it re-emits exactly (or, absent, stays absent) rather
           // than being normalised.
           if (attrs.totalsRowShown !== undefined)

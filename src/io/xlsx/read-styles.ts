@@ -33,6 +33,8 @@ import {
   boolStrict,
   closeEmptyElements,
   localName,
+  numFinite,
+  numInteger,
   openElements,
   type XmlAttributes,
   type XmlEvent,
@@ -169,8 +171,8 @@ function parseNumFmts(events: Iterator<XmlEvent>): ReadonlyMap<number, string> {
   const codes = new Map<number, string>();
   for (const event of until(events, 'numFmts')) {
     if (event.kind === 'open' && localName(event.name) === 'numFmt') {
-      const id = Number(event.attrs.numFmtId);
-      if (Number.isInteger(id) && id > 0 && event.attrs.formatCode !== undefined) {
+      const id = numInteger(event.attrs.numFmtId, 1);
+      if (id !== undefined && event.attrs.formatCode !== undefined) {
         codes.set(id, event.attrs.formatCode);
       }
     }
@@ -240,8 +242,7 @@ function parseFills(events: Iterator<XmlEvent>): ReadonlyArray<Fill | undefined>
           break;
         case 'stop':
           if (gradientDraft !== null) {
-            const position = Number(attrs.position);
-            gradientDraft.stopPosition = Number.isFinite(position) ? position : 0;
+            gradientDraft.stopPosition = numFinite(attrs.position) ?? 0;
             gradientDraft.stopColor = undefined;
           }
           break;
@@ -372,16 +373,16 @@ function parseXfTable(
 // Resolve an <xf>'s facet ids against the shared sub-tables into a draft. `captureXfId` is set only
 // for cellXfs entries, the sole table whose xfId links to a named style.
 function resolveXf(attrs: XmlAttributes, deps: XfDeps, captureXfId: boolean): XfDraft {
-  const fillId = Number(attrs.fillId);
-  const fill = Number.isInteger(fillId) ? deps.fills[fillId] : undefined;
-  const fontId = Number(attrs.fontId);
+  const fillId = numInteger(attrs.fillId, 0);
+  const fill = fillId !== undefined ? deps.fills[fillId] : undefined;
+  const fontId = numInteger(attrs.fontId, 0);
   // Font id 0 is the workbook default font (a real Calibri-11-style face), not an absence, unlike
   // border id 0, which is a genuinely empty border. So an xf naming font 0 resolves to that default
   // face, giving every cell a concrete font to render.
-  const font = Number.isInteger(fontId) ? deps.fonts[fontId] : undefined;
-  const borderId = Number(attrs.borderId);
+  const font = fontId !== undefined ? deps.fonts[fontId] : undefined;
   // Border id 0 is the empty default; only a custom border (id > 0) is an explicit one.
-  const border = Number.isInteger(borderId) && borderId > 0 ? deps.borders[borderId] : undefined;
+  const borderId = numInteger(attrs.borderId, 1);
+  const border = borderId !== undefined ? deps.borders[borderId] : undefined;
   const numFmt = resolveNumFmt(attrs.numFmtId, deps.numFmtCodes);
   const draft: XfDraft = {};
   if (fill) draft.fill = fill;
@@ -393,9 +394,9 @@ function resolveXf(attrs: XmlAttributes, deps: XfDeps, captureXfId: boolean): Xf
   if (boolStrict(attrs.quotePrefix)) draft.quotePrefix = true;
   // A cellXfs entry's xfId links it to a named style; capture it only when it points beyond the Normal
   // default (0), so an ordinary cell carries no spurious named-style link.
-  if (captureXfId && attrs.xfId !== undefined) {
-    const xfId = Number(attrs.xfId);
-    if (Number.isInteger(xfId) && xfId > 0) draft.xfId = xfId;
+  if (captureXfId) {
+    const xfId = numInteger(attrs.xfId, 1);
+    if (xfId !== undefined) draft.xfId = xfId;
   }
   return draft;
 }
@@ -407,14 +408,12 @@ function parseCellStyles(events: Iterator<XmlEvent>): ReadonlyArray<StyleLabel> 
   for (const event of until(events, 'cellStyles')) {
     if (event.kind === 'open' && localName(event.name) === 'cellStyle') {
       const attrs = event.attrs;
-      const xfId = Number(attrs.xfId);
-      if (Number.isInteger(xfId)) {
+      const xfId = numInteger(attrs.xfId);
+      if (xfId !== undefined) {
         const entry: {xfId: number; name?: string; builtinId?: number} = {xfId};
         if (attrs.name !== undefined) entry.name = attrs.name;
-        if (attrs.builtinId !== undefined) {
-          const builtinId = Number(attrs.builtinId);
-          if (Number.isInteger(builtinId)) entry.builtinId = builtinId;
-        }
+        const builtinId = numInteger(attrs.builtinId);
+        if (builtinId !== undefined) entry.builtinId = builtinId;
         names.push(entry);
       }
     }
@@ -458,8 +457,8 @@ export function applyFontChild(draft: FontDraft, local: string, attrs: XmlAttrib
         draft.vertAlign = attrs.val;
       break;
     case 'sz': {
-      const size = Number(attrs.val);
-      if (Number.isFinite(size)) draft.size = size;
+      const size = numFinite(attrs.val);
+      if (size !== undefined) draft.size = size;
       break;
     }
     case 'color':
@@ -471,13 +470,13 @@ export function applyFontChild(draft: FontDraft, local: string, attrs: XmlAttrib
       if (attrs.val !== undefined) draft.name = attrs.val;
       break;
     case 'family': {
-      const family = Number(attrs.val);
-      if (Number.isInteger(family)) draft.family = family;
+      const family = numInteger(attrs.val);
+      if (family !== undefined) draft.family = family;
       break;
     }
     case 'charset': {
-      const charset = Number(attrs.val);
-      if (Number.isInteger(charset)) draft.charset = charset;
+      const charset = numInteger(attrs.val);
+      if (charset !== undefined) draft.charset = charset;
       break;
     }
     case 'scheme':
@@ -494,7 +493,8 @@ function resolveNumFmt(
   raw: string | undefined,
   custom: ReadonlyMap<number, string>,
 ): string | undefined {
-  return raw === undefined ? undefined : numFmtCodeFor(Number(raw), custom);
+  const id = numInteger(raw, 1);
+  return id === undefined ? undefined : numFmtCodeFor(id, custom);
 }
 
 function toFill(
@@ -518,8 +518,8 @@ function toFill(
 // only the finite ones so an absent or malformed attribute leaves the field its OOXML default (unset).
 function assignGradientNumbers(fill: GradientDraft['fill'], attrs: XmlAttributes): void {
   for (const key of ['degree', 'left', 'right', 'top', 'bottom'] as const) {
-    const value = Number(attrs[key]);
-    if (attrs[key] !== undefined && Number.isFinite(value)) fill[key] = value;
+    const value = numFinite(attrs[key]);
+    if (value !== undefined) fill[key] = value;
   }
 }
 
@@ -549,20 +549,14 @@ function parseAlignment(attrs: XmlAttributes): Alignment | undefined {
   }
   if (attrs.vertical !== undefined && isVerticalAlignment(attrs.vertical))
     out.vertical = attrs.vertical;
-  if (attrs.textRotation !== undefined) {
-    const rotation = Number(attrs.textRotation);
-    if (Number.isFinite(rotation) && rotation !== 0) out.textRotation = rotation;
-  }
+  const rotation = numFinite(attrs.textRotation);
+  if (rotation !== undefined && rotation !== 0) out.textRotation = rotation;
   if (boolStrict(attrs.wrapText)) out.wrapText = true;
-  if (attrs.indent !== undefined) {
-    const indent = Number(attrs.indent);
-    if (Number.isInteger(indent) && indent !== 0) out.indent = indent;
-  }
+  const indent = numInteger(attrs.indent);
+  if (indent !== undefined && indent !== 0) out.indent = indent;
   if (boolStrict(attrs.shrinkToFit)) out.shrinkToFit = true;
-  if (attrs.readingOrder !== undefined) {
-    const order = Number(attrs.readingOrder);
-    if (Number.isInteger(order) && order !== 0) out.readingOrder = order;
-  }
+  const order = numInteger(attrs.readingOrder);
+  if (order !== undefined && order !== 0) out.readingOrder = order;
   return Object.keys(out).length > 0 ? out : undefined;
 }
 

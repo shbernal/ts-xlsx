@@ -45,6 +45,7 @@ import {
   boolStrict,
   decodeSpreadsheetText,
   localName,
+  numInteger,
   parseXml,
   type XmlAttributes,
 } from '../../xml/xml-read.ts';
@@ -220,8 +221,8 @@ function threadedCommentFrom(
 // leniency the entire conversation when Excel repairs the part. Dropping the chip costs a highlight.
 function mentionFrom(attrs: XmlAttributes): ParsedMention | undefined {
   const personId = attrs.mentionpersonId;
-  const startIndex = integerAttribute(attrs.startIndex);
-  const length = integerAttribute(attrs.length);
+  const startIndex = numInteger(attrs.startIndex);
+  const length = numInteger(attrs.length);
   if (personId === undefined || startIndex === undefined || length === undefined) return undefined;
   // A negative offset points outside the text and a zero length spans nothing, so neither could render.
   if (startIndex < 0 || length <= 0) return undefined;
@@ -232,14 +233,6 @@ function mentionFrom(attrs: XmlAttributes): ParsedMention | undefined {
     length,
     ...(attrs.mentionId !== undefined ? {mentionId: attrs.mentionId} : {}),
   };
-}
-
-// An integer attribute, or undefined when the file did not write a usable one. Blank is rejected before
-// `Number` sees it, since `Number('')` is 0: an empty attribute must not read as offset zero.
-function integerAttribute(raw: string | undefined): number | undefined {
-  if (raw === undefined || raw.trim() === '') return undefined;
-  const value = Number(raw);
-  return Number.isInteger(value) ? value : undefined;
 }
 
 /**

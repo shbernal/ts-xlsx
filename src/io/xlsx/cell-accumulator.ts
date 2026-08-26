@@ -9,7 +9,12 @@ import {decodeAddress, encodeAddress} from '../../core/address.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {CellValue, DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {boolStrict, decodeSpreadsheetText, type XmlAttributes} from '../../xml/xml-read.ts';
+import {
+  boolStrict,
+  decodeSpreadsheetText,
+  numInteger,
+  type XmlAttributes,
+} from '../../xml/xml-read.ts';
 import {applyXfToCell, type XfStyle} from '../style/xf-style.ts';
 import {
   decodeCellContent,
@@ -76,7 +81,7 @@ export class CellAccumulator {
   beginCell(attrs: XmlAttributes): void {
     this.#ref = attrs.r ?? '';
     this.#type = attrs.t ?? '';
-    this.#style = attrs.s !== undefined ? Number(attrs.s) : -1;
+    this.#style = numInteger(attrs.s, 0) ?? -1;
     // -1 is a sentinel the shared-formula translation reads, not a failure path, so an axis the
     // reference omits stays -1 rather than raising.
     const decoded = this.#ref === '' ? undefined : decodeAddress(this.#ref);
@@ -99,7 +104,7 @@ export class CellAccumulator {
   // resolve against its master when the cell finalises.
   beginFormula(attrs: XmlAttributes, selfClosing: boolean): void {
     this.#formulaShared = attrs.t === 'shared';
-    this.#formulaSi = attrs.si !== undefined ? Number(attrs.si) : -1;
+    this.#formulaSi = numInteger(attrs.si, 0) ?? -1;
     if (selfClosing && this.#formulaShared) this.#sharedClone = true;
     if (attrs.t === 'dataTable' && attrs.ref !== undefined) {
       this.#dataTable = {

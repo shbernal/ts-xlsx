@@ -13,6 +13,7 @@
 
 import type {Color} from '../../core/style.ts';
 import {AuthoringError} from '../../errors.ts';
+import {numFinite, numInteger} from '../../xml/xml-read.ts';
 
 // OOXML wants a bare 8-hex ARGB (alpha + RGB). This single choke point, through which every
 // fill/font/border/tab colour flows, accepts two developer conveniences and rejects the rest loudly,
@@ -49,17 +50,11 @@ export function colorAttrs(color: Color): string {
 export function parseColor(attrs: {readonly [k: string]: string}): Color {
   const color: {argb?: string; theme?: number; tint?: number; indexed?: number} = {};
   if (attrs.rgb !== undefined) color.argb = attrs.rgb;
-  if (attrs.theme !== undefined) {
-    const theme = Number(attrs.theme);
-    if (Number.isInteger(theme)) color.theme = theme;
-  }
-  if (attrs.tint !== undefined) {
-    const tint = Number(attrs.tint);
-    if (Number.isFinite(tint)) color.tint = tint;
-  }
-  if (attrs.indexed !== undefined) {
-    const indexed = Number(attrs.indexed);
-    if (Number.isInteger(indexed)) color.indexed = indexed;
-  }
+  const theme = numInteger(attrs.theme, 0);
+  if (theme !== undefined) color.theme = theme;
+  const tint = numFinite(attrs.tint);
+  if (tint !== undefined) color.tint = tint;
+  const indexed = numInteger(attrs.indexed, 0);
+  if (indexed !== undefined) color.indexed = indexed;
   return color;
 }

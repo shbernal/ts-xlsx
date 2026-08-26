@@ -10,7 +10,7 @@ import {
   type ImageEditAs,
   isOneCellAnchor,
 } from '../../core/image.ts';
-import {localName, parseXml} from '../../xml/xml-read.ts';
+import {localName, numFinite, parseXml} from '../../xml/xml-read.ts';
 import {XML_DECLARATION} from '../../xml/xml.ts';
 import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
@@ -195,16 +195,16 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
         picDepth++;
       } else if (local === 'xfrm' && picDepth > 0) {
         // The picture's own rotation: the one spPr transform that can't be derived from the anchor.
-        const rot = Number(attrs.rot);
-        if (Number.isFinite(rot) && rot !== 0) rotation = rot;
+        const rot = numFinite(attrs.rot);
+        if (rot !== undefined && rot !== 0) rotation = rot;
       } else if (local === 'from') {
         target = from;
       } else if (local === 'to') {
         target = to;
       } else if (local === 'ext' && picDepth === 0) {
-        const cx = Number(attrs.cx);
-        const cy = Number(attrs.cy);
-        if (Number.isFinite(cx) && Number.isFinite(cy)) ext = {cx, cy};
+        const cx = numFinite(attrs.cx, 0);
+        const cy = numFinite(attrs.cy, 0);
+        if (cx !== undefined && cy !== undefined) ext = {cx, cy};
       } else if (local === 'blip') {
         const value = attrs['r:embed'] ?? attrs.embed;
         if (value !== undefined) embed = value;
@@ -219,8 +219,8 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
     onClose(name) {
       const local = localName(name);
       if (target !== null && coord === local && COORDINATES.has(local)) {
-        const value = Number(text);
-        if (Number.isFinite(value)) setCoordinate(target, local, value);
+        const value = numFinite(text);
+        if (value !== undefined) setCoordinate(target, local, value);
         coord = '';
       } else if (local === 'from' || local === 'to') {
         target = null;
