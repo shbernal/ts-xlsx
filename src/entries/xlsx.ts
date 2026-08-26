@@ -19,6 +19,11 @@ export {
   readSheetRows,
   readWorkbookStream,
 } from '../io/xlsx/read-rows.ts';
+export {
+  DEFAULT_THEME_XML,
+  parseThemeColorScheme,
+  parseThemeFontScheme,
+} from '../io/xlsx/theme-xml.ts';
 export {type WriteOptions, writeXlsx, writeXlsxAsync} from '../io/xlsx/write.ts';
 export {
   type CalcProperties,

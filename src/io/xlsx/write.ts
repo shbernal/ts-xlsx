@@ -17,7 +17,6 @@
 import {strToU8, zip, zipSync} from 'fflate';
 
 import type {WorkbookImage} from '../../core/image.ts';
-import {DEFAULT_THEME_XML} from '../../core/theme.ts';
 import type {Workbook} from '../../core/workbook.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {AuthoringError} from '../../errors.ts';
@@ -47,6 +46,7 @@ import {REL} from './relationships.ts';
 import {SharedStringTable} from './shared-strings.ts';
 import {StyleRegistry} from './styles.ts';
 import {tableXml} from './tables.ts';
+import {applyThemeOverrides, DEFAULT_THEME_XML} from './theme-xml.ts';
 import {personsXml, threadedCommentsXml} from './threaded-comments.ts';
 import {
   appPropsXml,
@@ -469,7 +469,12 @@ export function buildPackageParts(
   // one gets its authored theme, or the library's default, which the stylesheet's `theme="1"` default
   // font still needs something to resolve against.
   if (!preserved.themeEmitted) {
-    files[THEME_PART_PATH] = strToU8(workbook.authoredThemeXml() ?? DEFAULT_THEME_XML);
+    const overrides = workbook.themeOverrides;
+    files[THEME_PART_PATH] = strToU8(
+      overrides === undefined
+        ? DEFAULT_THEME_XML
+        : applyThemeOverrides(DEFAULT_THEME_XML, overrides),
+    );
   }
   if (hasSharedStrings) {
     files['xl/sharedStrings.xml'] = strToU8(sharedStrings.toXml());

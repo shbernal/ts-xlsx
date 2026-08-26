@@ -37,7 +37,7 @@ import {
 import {TABLE_STYLE_ELEMENT_TYPES, type TableStyle} from '../../core/table-style.ts';
 import {AuthoringError} from '../../errors.ts';
 import {decodeEntities} from '../../xml/xml-read.ts';
-import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
+import {assertRepresentable, escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import {colorAttrs} from './color-xml.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 
@@ -785,8 +785,11 @@ function edgeXml(tag: string, edge: BorderEdge | undefined): string {
 // need escaping. A code can legitimately contain `"` (quoted literals like `"$"`), `<`, `&`.
 // Unlike `escapeAttr`, a lone `'` is left untouched: it is not markup-significant inside a
 // double-quoted attribute, and Excel writes format codes with bare apostrophes, so leaving it
-// keeps the round-tripped code byte-identical to the source.
+// keeps the round-tripped code byte-identical to the source. That divergence is the whole reason
+// this exists; the representability guard is not part of it, so it runs here too rather than
+// letting a code carrying a character XML 1.0 cannot spell be written raw into the part.
 function escapeFormatCode(code: string): string {
+  assertRepresentable(code);
   return code
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

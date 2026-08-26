@@ -595,3 +595,20 @@ test('a font that is neither default is still interned as a custom entry', () =>
   assert.equal(styles.styleId({font: {size: 11, name: 'Courier New'}}), 1);
   assert.match(styles.toXml(), /<fonts count="2">/);
 });
+
+test('a number format code keeps its bare apostrophe but not a character XML cannot carry', () => {
+  const styles = new StyleRegistry({defaultFont: {size: 11, name: 'Calibri'}});
+  styles.styleId({numFmt: "d mmm yy's"});
+  assert.ok(
+    styles.toXml().includes('formatCode="d mmm yy\'s"'),
+    'the apostrophe is not markup-significant inside a double-quoted attribute, so it stays bare',
+  );
+
+  const hostile = new StyleRegistry({defaultFont: {size: 11, name: 'Calibri'}});
+  hostile.styleId({numFmt: 'BAD\u0001'});
+  assert.throws(
+    () => hostile.toXml(),
+    {name: 'AuthoringError'},
+    'and the unrepresentable one is refused',
+  );
+});

@@ -12,6 +12,7 @@ import {extensionOf, relativePartPath, relsPathFor, THEME_PART_PATH} from '../op
 import {preservedRelsXml} from '../opc/rels.ts';
 import type {CommentCell} from './comments.ts';
 import type {DrawingImage} from './images.ts';
+import {applyThemeOverrides} from './theme-xml.ts';
 
 // A sheet's relationship-id allocator: hands out `rId1`, `rId2`, … in the one canonical order the
 // package wires a sheet's parts (tables, drawing, comments, threaded comments, printer settings, external
@@ -286,13 +287,18 @@ export function planPreservedParts(
           : [{id: rel.id, type: rel.type, target: relativePartPath(newPath, target)}];
       });
       // The one preserved part whose *bytes* can change: a theme the caller authored over is
-      // regenerated from the source part (see `Workbook.authoredThemeXml`) rather than carried
-      // verbatim, so the format scheme, the unauthored slots' encoding, and the relationships below
-      // all still ride through; only the authored elements differ.
-      const authoredTheme = newPath === THEME_PART_PATH ? workbook.authoredThemeXml() : undefined;
+      // composed onto the source part rather than carried verbatim, so the format scheme, the
+      // unauthored slots' encoding, and the relationships below all still ride through; only the
+      // authored elements differ.
+      const overrides = newPath === THEME_PART_PATH ? workbook.themeOverrides : undefined;
       emitted.set(newPath, {
         path: newPath,
-        bytes: authoredTheme === undefined ? part.bytes : new TextEncoder().encode(authoredTheme),
+        bytes:
+          overrides === undefined
+            ? part.bytes
+            : new TextEncoder().encode(
+                applyThemeOverrides(new TextDecoder().decode(part.bytes), overrides),
+              ),
         contentType: part.contentType,
         relsPath: rels.length === 0 ? null : relsPathFor(newPath),
         relsXml: rels.length === 0 ? null : preservedRelsXml(rels),

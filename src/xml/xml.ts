@@ -86,8 +86,13 @@ function codePointHex(codePoint: number): string {
  * Refuse a string that XML cannot carry, naming the character and where it is so the author
  * can find it in a value they never inspected. These arrive from a database column or a CSV
  * field, not from a literal in the calling code.
+ *
+ * Exported for the one escape that cannot be {@link escapeAttr}: a number format code escapes
+ * everything but the apostrophe, and needs this guard just the same.
+ *
+ * @throws {AuthoringError} naming the code point and its offset.
  */
-function assertRepresentable(value: string): void {
+export function assertRepresentable(value: string): void {
   const found = UNREPRESENTABLE.exec(value);
   if (found === null) return;
   throw new AuthoringError(

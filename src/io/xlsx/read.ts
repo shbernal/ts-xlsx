@@ -67,6 +67,7 @@ import {
 } from './read-styles.ts';
 import {parseWorksheet} from './read-worksheet.ts';
 import {parseTable} from './tables.ts';
+import {parseThemeColorScheme, parseThemeFontScheme} from './theme-xml.ts';
 import {buildCommentThreads, parsePersons, parseThreadedComments} from './threaded-comments.ts';
 
 // Re-exported for the streaming reader (`./read-rows.ts`) and the public barrel, which import these
@@ -256,7 +257,14 @@ function readWorkbookTheme(
   if (target === undefined) return;
   const entryPath = resolveWorkbookPart(target);
   const parts = capturePartClosure(entryPath, pkg.partText, pkg.partBytes, contentTypeOf);
-  if (parts !== undefined) workbook[INTERNAL].restoreThemePart({entryPath, parts});
+  if (parts === undefined) return;
+  // The schemes are decoded here rather than on demand from the model: the part rides through the
+  // model as opaque bytes, and only the codec knows how to read one.
+  const xml = pkg.partText(entryPath) ?? '';
+  workbook[INTERNAL].restoreThemePart(
+    {entryPath, parts},
+    {colors: parseThemeColorScheme(xml), fonts: parseThemeFontScheme(xml)},
+  );
 }
 
 // A sheet's threaded conversations live in a `xl/threadedComments/threadedComment{n}.xml` part reached

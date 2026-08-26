@@ -60,9 +60,10 @@ description of what changed.
 
 ## Where this lives
 
-`applyThemeOverrides` in `src/core/theme.ts`; `Workbook.setTheme`, `themeColors`, `themeFonts` and
-`authoredThemeXml` on `src/core/workbook.ts`. The writer splices the authored part in at plan time so
-a preserved theme's closure is unaffected (`planPreservedParts`, `src/io/xlsx/package-plan.ts`).
+`applyThemeOverrides` in `src/io/xlsx/theme-xml.ts`; `Workbook.setTheme`, `themeColors`,
+`themeFonts` and `themeOverrides` on `src/core/workbook.ts`. The model carries what was authored;
+the writer composes it onto the part at plan time, so a preserved theme's closure is unaffected
+(`planPreservedParts`, `src/io/xlsx/package-plan.ts`).
 
 Related: `authored-theme-palette-reaches-cells`, `foreign-theme-part-survives-roundtrip`,
 `theme-color-index-order.md`, `theme-and-indexed-colors-resolve-to-concrete`.

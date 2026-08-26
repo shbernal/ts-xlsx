@@ -37,10 +37,8 @@ import type {PreservedPart, PreservedRootReference} from './preserved.ts';
 import type {Color, Font, NamedCellStyle, TableStyleTable} from './style.ts';
 import {checkTableStyle, type TableStyle} from './table-style.ts';
 import {
-  // Imported for a `{@link}` target, as the vba block above is.
-  // oxlint-disable-next-line eslint/no-unused-vars
-  applyThemeOverrides,
   OFFICE_BODY_FACE,
+  // Imported for a `{@link}` target, as the vba block above is.
   // oxlint-disable-next-line eslint/no-unused-vars
   THEME_COLOR_SLOTS,
   type ThemeColorScheme,
@@ -48,7 +46,7 @@ import {
   type ThemeOverrides,
 } from './theme.ts';
 import type {WorkbookProtection} from './workbook-protection.ts';
-import {WorkbookTheme} from './workbook-theme.ts';
+import {type DeclaredThemeSchemes, WorkbookTheme} from './workbook-theme.ts';
 import {WorkbookVbaProject} from './workbook-vba.ts';
 import {Worksheet, type WorksheetState} from './worksheet.ts';
 
@@ -644,15 +642,15 @@ export class Workbook {
   }
 
   /**
-   * The theme part text this workbook should write, or `undefined` when nothing was authored and the
-   * source theme (or the writer's default) should ride through untouched.
+   * The colour slots and typefaces {@link setTheme} authored on this workbook, or `undefined` when
+   * none were, in which case the source theme (or the writer's default) rides through untouched.
    *
-   * Authoring generates *over* the existing part rather than from scratch (see
-   * {@link applyThemeOverrides}), so a preserved theme keeps its format scheme, its unauthored slots'
-   * exact encoding, and the relationships it carries.
+   * A serializer composes these *over* the existing part rather than generating one from scratch, so
+   * a preserved theme keeps its format scheme, its unauthored slots' exact encoding, and the
+   * relationships it carries.
    */
-  authoredThemeXml(): string | undefined {
-    return this.#theme.authoredXml();
+  get themeOverrides(): ThemeOverrides | undefined {
+    return this.#theme.overrides;
   }
 
   /**
@@ -935,8 +933,8 @@ export class Workbook {
     restoreTableStyles: (table) => {
       this.#tableStyles = table;
     },
-    restoreThemePart: (theme) => {
-      this.#theme.restorePart(theme);
+    restoreThemePart: (theme, declared) => {
+      this.#theme.restorePart(theme, declared);
     },
     restoreNamedStyles: (styles) => {
       replaceContents(this.#namedStyles, styles);
@@ -1004,7 +1002,7 @@ export interface WorkbookInternals {
    * instead of being replaced by the library's default Office theme. Passing `undefined` drops back
    * to that default.
    */
-  restoreThemePart(theme: PreservedTheme | undefined): void;
+  restoreThemePart(theme: PreservedTheme | undefined, declared: DeclaredThemeSchemes): void;
 
   /**
    * Reinstate the named cell styles (`cellStyleXfs`/`cellStyles`) read from a file, index for index,

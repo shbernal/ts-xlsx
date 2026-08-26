@@ -139,7 +139,7 @@ class Workbook {
   get declaredDefaultFont(): Font | undefined;
   setDefaultFont(font: Font): void;
   get defaultFont(): Font;
-  authoredThemeXml(): string | undefined;
+  get themeOverrides(): ThemeOverrides | undefined;
   resolveColor(color: Color): string | undefined;
   get namedStyles(): readonly NamedCellStyle[];
   addPerson(person: Person): void;
@@ -531,18 +531,18 @@ resolved face still is that face and dropped when a caller names another, which 
 Excel writes: a font 0 naming a non-theme face carries no `<scheme>` at all. Either may be stated
 outright, in which case the caller's word stands.
 
-#### `Workbook.authoredThemeXml`
+#### `Workbook.themeOverrides`
 
 ```ts
-authoredThemeXml(): string | undefined;
+get themeOverrides(): ThemeOverrides | undefined;
 ```
 
-The theme part text this workbook should write, or `undefined` when nothing was authored and the
-source theme (or the writer's default) should ride through untouched.
+The colour slots and typefaces [`setTheme`](./workbook.md#workbooksettheme) authored on this workbook, or `undefined` when
+none were, in which case the source theme (or the writer's default) rides through untouched.
 
-Authoring generates *over* the existing part rather than from scratch (see
-`applyThemeOverrides`), so a preserved theme keeps its format scheme, its unauthored slots'
-exact encoding, and the relationships it carries.
+A serializer composes these *over* the existing part rather than generating one from scratch, so
+a preserved theme keeps its format scheme, its unauthored slots' exact encoding, and the
+relationships it carries.
 
 #### `Workbook.resolveColor`
 

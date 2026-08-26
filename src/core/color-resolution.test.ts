@@ -7,7 +7,7 @@ import {
   resolveColor,
   SYSTEM_INDEXED_COLORS,
 } from './color-resolution.ts';
-import {DEFAULT_THEME_COLOR_SCHEME, parseThemeColorScheme, THEME_COLOR_SLOTS} from './theme.ts';
+import {DEFAULT_THEME_COLOR_SCHEME, THEME_COLOR_SLOTS} from './theme.ts';
 
 test('an explicit argb resolves to itself, keeping its declared alpha', () => {
   assert.equal(resolveColor({argb: 'FF336699'}), 'FF336699');
@@ -126,34 +126,4 @@ test('tint applies on top of a resolved theme colour', () => {
 
 test('a colour that states nothing resolves to nothing', () => {
   assert.equal(resolveColor({}), undefined);
-});
-
-test('parseThemeColorScheme reads srgbClr and sysClr slots', () => {
-  const xml =
-    '<a:theme><a:themeElements><a:clrScheme name="X">' +
-    '<a:dk1><a:sysClr val="windowText" lastClr="1A1A1A"/></a:dk1>' +
-    '<a:lt1><a:sysClr val="window" lastClr="FAFAFA"/></a:lt1>' +
-    '<a:accent1><a:srgbClr val="BB2649"/></a:accent1>' +
-    '</a:clrScheme>' +
-    '<a:fmtScheme><a:gs><a:srgbClr val="DEADBE"/></a:gs></a:fmtScheme>' +
-    '</a:themeElements></a:theme>';
-  const scheme = parseThemeColorScheme(xml);
-  // A sysClr's `val` names an operating-system colour; only its `lastClr` is a usable value.
-  assert.equal(scheme.dk1, '1A1A1A');
-  assert.equal(scheme.lt1, 'FAFAFA');
-  assert.equal(scheme.accent1, 'BB2649');
-  // Slots the scheme does not declare stay absent, and nothing outside <clrScheme> is picked up.
-  assert.equal(scheme.accent2, undefined);
-  assert.equal(Object.values(scheme).includes('DEADBE'), false);
-});
-
-test('parseThemeColorScheme drops a slot it cannot decode rather than guessing', () => {
-  const xml =
-    '<a:clrScheme><a:accent1><a:hslClr hue="0" sat="0" lum="0"/></a:accent1>' +
-    '<a:accent2><a:srgbClr val="zzzzzz"/></a:accent2></a:clrScheme>';
-  assert.deepEqual(parseThemeColorScheme(xml), {});
-});
-
-test('a theme part with no colour scheme yields nothing', () => {
-  assert.deepEqual(parseThemeColorScheme('<a:theme/>'), {});
 });

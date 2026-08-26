@@ -140,7 +140,6 @@ export {estimateWrappedLines} from '../core/text-metrics.ts';
 export {
   DEFAULT_THEME_COLOR_SCHEME,
   DEFAULT_THEME_FONTS,
-  parseThemeColorScheme,
   THEME_COLOR_SLOTS,
   type ThemeColorScheme,
   type ThemeColorSlot,

@@ -130,6 +130,23 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Changed
 
+- **`Workbook.authoredThemeXml()` is now `Workbook.themeOverrides`.** The old method handed back
+  theme part *text*, which made the model the place that knew how a theme is spelled. The getter
+  returns the colour slots and typefaces {@link setTheme} authored, or `undefined` when none were,
+  and the serializer composes them onto the part it is about to write. Same result in the file;
+  a caller who needs the text can compose it with `applyThemeOverrides`.
+
+- **`parseThemeColorScheme` moved from `/core` to `/xlsx`,** which is where the part it parses is
+  read, and is joined there by `parseThemeFontScheme` and `DEFAULT_THEME_XML`. Importing from the
+  package root is unaffected; a subpath import needs the new one.
+
+- **An authored theme typeface is escaped properly.** The theme writer carried its own attribute
+  escape, weaker than the library's: it handled `& < > "` and left the apostrophe, the newline, the
+  carriage return and the tab raw, and it did not refuse a character XML 1.0 cannot represent. A
+  typeface carrying any of those produced a malformed part. It now uses the same escape as every
+  other attribute in the package. A custom number format code, whose escape *deliberately* differs
+  (a bare apostrophe round-trips), gained the representability guard it was also missing.
+
 - **A row or column addressed by number is now bounded by the grid, as one addressed by letters
   already was.** `getCell('XFE1')` threw and `getColumn(16385)` did not, so whether the library
   refused a position outside the spreadsheet grid depended on how the caller spelled it, and the
