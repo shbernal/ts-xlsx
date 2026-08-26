@@ -10,7 +10,7 @@
 // is what `getColumn`/`getRow` already write, in constant space. Refusing them is what lets a range
 // materialise its cells eagerly without a cost cliff hiding behind an innocuous-looking call.
 
-import {decodeRange, encodeAddress, MAX_COLUMN, MAX_ROW} from './address.ts';
+import {decodeRange, encodeAddress, type GridRect, MAX_COLUMN, MAX_ROW} from './address.ts';
 import {applyCellStyle, type Cell} from './cell.ts';
 import {
   type Alignment,
@@ -32,9 +32,10 @@ import type {Worksheet} from './worksheet.ts';
  *
  * Bounds are **inclusive first/last**, never start-and-count. That is the convention every
  * range-shaped accessor in this library follows, so the three axes cannot disagree about what a
- * pair of numbers means.
+ * pair of numbers means; the handle is declared to satisfy {@link GridRect}, which is that
+ * convention written down once.
  */
-export class Range {
+export class Range implements GridRect {
   readonly #sheet: Worksheet;
 
   /** 1-based row of the block's top edge. Fixed for this handle's lifetime. */

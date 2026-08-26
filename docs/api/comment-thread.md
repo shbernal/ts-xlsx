@@ -64,25 +64,44 @@ interface CommentThread {
 
 <sub>interface</sub>
 
-An `@mention` inside a message: who was named, and the run of [`Comment.text`](./comment-thread.md#comment) that renders as the
-mention chip.
-
-The offsets are only meaningful against that exact text: shift either and a spreadsheet app
-highlights the wrong words.
+A [`MentionRef`](./comment-thread.md#mentionref) with its identity resolved against the workbook's person registry.
 
 ```ts
-interface Mention {
+interface Mention extends MentionRef {
   /**
    * The mentioned identity, resolved through the workbook registry. Absent when the file names an id
    * the registry does not hold (a mention left dangling by a foreign generator); {@link personId}
    * still says who was meant.
    */
   readonly person?: Person;
+}
+```
+
+---
+
+### `MentionRef`
+
+<sub>interface</sub>
+
+An `@mention` as the file spells it: who was named, and the run of [`Comment.text`](./comment-thread.md#comment) that
+renders as the mention chip.
+
+The offsets are only meaningful against that exact text: shift either and a spreadsheet app
+highlights the wrong words.
+
+This is the wire shape, shared with the codec that reads it. [`Mention`](./comment-thread.md#mention) is this plus the
+identity we resolved the id to, which is the one thing the file does not carry.
+
+```ts
+interface MentionRef {
   /** The mentioned {@link Person.id} exactly as written, so a dangling mention stays diagnosable. */
   readonly personId: string;
   /** Excel's own id for this mention, preserved so re-emitting it does not invent a new one. */
   readonly mentionId?: string;
-  /** 0-based character offset into {@link Comment.text} where the mention starts. */
+  /**
+   * 0-based character offset into {@link Comment.text} where the mention starts. Verified against
+   * desktop Excel by rendering: the chip covers exactly `[startIndex, startIndex + length)`.
+   */
   readonly startIndex: number;
   /** Length of the mention in characters, **counting the leading `@`** (`@Grace Hopper` is 13). */
   readonly length: number;

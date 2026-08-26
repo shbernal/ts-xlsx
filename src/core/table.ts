@@ -8,7 +8,7 @@
 // on the *shape* itself: a legal name, at least one column, and at least one row.
 
 import {AuthoringError} from '../errors.ts';
-import {type CellPosition, decodeCellRef, encodeAddress} from './address.ts';
+import {type CellPosition, decodeCellRef, encodeAddress, type GridRect} from './address.ts';
 import type {CellStyle} from './style.ts';
 import type {CellValue} from './value.ts';
 
@@ -230,13 +230,8 @@ function validateTableName(name: string): void {
   }
 }
 
-/** The rectangle a table occupies, in 1-based coordinates. */
-export interface TableRegion {
-  readonly top: number;
-  readonly left: number;
-  readonly bottom: number;
-  readonly right: number;
-}
+/** The rectangle a table occupies, as the {@link GridRect} every range-shaped thing in the library is. */
+export type TableRegion = GridRect;
 
 export class Table {
   readonly name: string;

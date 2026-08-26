@@ -7,7 +7,13 @@
 // Merges and views layer on in later slices.
 
 import {AuthoringError} from '../errors.ts';
-import {decodeCellRef, decodeRange, encodeAddress, tryDecodeCellRef} from './address.ts';
+import {
+  decodeCellRef,
+  decodeRange,
+  encodeAddress,
+  rectsOverlap,
+  tryDecodeCellRef,
+} from './address.ts';
 import {type AutoFilter, canonicalizeAutoFilter} from './autofilter.ts';
 import {applyCellStyle, Cell, copyCellContent} from './cell.ts';
 import {Column} from './column.ts';
@@ -29,7 +35,7 @@ import {
   type TwoCellAnchor,
 } from './image.ts';
 import {INTERNAL} from './internal.ts';
-import {clearCoveredValues, type MergeRect, masterOf, rectsOverlap} from './merge.ts';
+import {clearCoveredValues, type MergeRect, masterOf} from './merge.ts';
 import type {HeaderFooter, PageBreak, PageMargins, PageSetup, PrintOptions} from './page-setup.ts';
 import {type ParsedPivotTable, PivotTable, type PivotTableOptions} from './pivot-table.ts';
 import type {PreservedWorksheetReference} from './preserved.ts';

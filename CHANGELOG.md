@@ -14,6 +14,13 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Added
 
+- **`GridRect` and `MentionRef`: the two shapes the library was declaring more than once.**
+  `GridRect` is the four inclusive 1-based bounds every range-shaped thing in the library carries;
+  `MergeRect` and `TableRegion` are now aliases of it and `Range` is declared to satisfy it, so a
+  function written over one rectangle takes all of them. `MentionRef` is an `@mention` as a file
+  spells it, and `Mention` is that plus the identity the id resolved to. Both are exported from
+  `/core`. No existing type changed shape.
+
 - **`Workbook.exportImages(sheet)` / `Workbook.importImages(sheet, images)` — carry a sheet's
   pictures to another workbook.** An anchored image holds a media *id* into one workbook's registry,
   and that id names a different picture, or none, in the next. Copying a sheet has therefore always

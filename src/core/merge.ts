@@ -8,21 +8,11 @@
 // there. Reasoning about "what does a merge do to the grid" meant reading both. The storage arrives as
 // a parameter, so these stay pure functions of the rects and rows handed in.
 
-import {decodeRange} from './address.ts';
+import {decodeRange, type GridRect} from './address.ts';
 import type {Cell} from './cell.ts';
 
-/** A merged region as inclusive 1-based grid bounds. */
-export interface MergeRect {
-  readonly top: number;
-  readonly left: number;
-  readonly bottom: number;
-  readonly right: number;
-}
-
-/** Whether two inclusive grid rectangles share at least one cell. */
-export function rectsOverlap(a: MergeRect, b: MergeRect): boolean {
-  return a.left <= b.right && b.left <= a.right && a.top <= b.bottom && b.top <= a.bottom;
-}
+/** A merged region, as the {@link GridRect} every range-shaped thing in the library is. */
+export type MergeRect = GridRect;
 
 /**
  * Resolve a position to the master (top-left) of the merged region covering it, or to itself when no

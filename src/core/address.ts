@@ -36,6 +36,30 @@ export function assertRowInBounds(n: number): void {
   }
 }
 
+/**
+ * A rectangular block of the grid, as **inclusive** 1-based bounds on both axes.
+ *
+ * One declaration because inclusive-first/last is the convention every range-shaped thing in this
+ * library follows, and three copies of a convention are three places it can drift. A merged region,
+ * a table's extent and a {@link Range} handle are all this shape; what differs between them is what
+ * the rectangle *means*, which is what their own names carry.
+ */
+export interface GridRect {
+  /** 1-based row of the top edge. */
+  readonly top: number;
+  /** 1-based column of the left edge. */
+  readonly left: number;
+  /** 1-based row of the bottom edge, inclusive. */
+  readonly bottom: number;
+  /** 1-based column of the right edge, inclusive. */
+  readonly right: number;
+}
+
+/** Whether two grid rectangles share at least one cell. */
+export function rectsOverlap(a: GridRect, b: GridRect): boolean {
+  return a.left <= b.right && b.left <= a.right && a.top <= b.bottom && b.top <= a.bottom;
+}
+
 /** A decoded single-cell reference. An axis the reference omits is `undefined`. */
 export interface CellAddress {
   /** Canonical A1 form with `$` anchors stripped: e.g. `"B2"`, `"1"`, `"A"`. */

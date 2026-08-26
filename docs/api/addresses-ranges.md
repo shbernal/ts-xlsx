@@ -74,6 +74,32 @@ function encodeAddress(col: number, row: number): string;
 
 ---
 
+### `GridRect`
+
+<sub>interface</sub>
+
+A rectangular block of the grid, as **inclusive** 1-based bounds on both axes.
+
+One declaration because inclusive-first/last is the convention every range-shaped thing in this
+library follows, and three copies of a convention are three places it can drift. A merged region,
+a table's extent and a [`Range`](./range.md#range) handle are all this shape; what differs between them is what
+the rectangle *means*, which is what their own names carry.
+
+```ts
+interface GridRect {
+  /** 1-based row of the top edge. */
+  readonly top: number;
+  /** 1-based column of the left edge. */
+  readonly left: number;
+  /** 1-based row of the bottom edge, inclusive. */
+  readonly bottom: number;
+  /** 1-based column of the right edge, inclusive. */
+  readonly right: number;
+}
+```
+
+---
+
 ### `MAX_COLUMN`
 
 <sub>const</sub>

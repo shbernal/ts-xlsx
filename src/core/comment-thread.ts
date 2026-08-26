@@ -31,27 +31,37 @@ export interface Person {
 }
 
 /**
- * An `@mention` inside a message: who was named, and the run of {@link Comment.text} that renders as the
- * mention chip.
+ * An `@mention` as the file spells it: who was named, and the run of {@link Comment.text} that
+ * renders as the mention chip.
  *
  * The offsets are only meaningful against that exact text: shift either and a spreadsheet app
  * highlights the wrong words.
+ *
+ * This is the wire shape, shared with the codec that reads it. {@link Mention} is this plus the
+ * identity we resolved the id to, which is the one thing the file does not carry.
  */
-export interface Mention {
+export interface MentionRef {
+  /** The mentioned {@link Person.id} exactly as written, so a dangling mention stays diagnosable. */
+  readonly personId: string;
+  /** Excel's own id for this mention, preserved so re-emitting it does not invent a new one. */
+  readonly mentionId?: string;
+  /**
+   * 0-based character offset into {@link Comment.text} where the mention starts. Verified against
+   * desktop Excel by rendering: the chip covers exactly `[startIndex, startIndex + length)`.
+   */
+  readonly startIndex: number;
+  /** Length of the mention in characters, **counting the leading `@`** (`@Grace Hopper` is 13). */
+  readonly length: number;
+}
+
+/** A {@link MentionRef} with its identity resolved against the workbook's person registry. */
+export interface Mention extends MentionRef {
   /**
    * The mentioned identity, resolved through the workbook registry. Absent when the file names an id
    * the registry does not hold (a mention left dangling by a foreign generator); {@link personId}
    * still says who was meant.
    */
   readonly person?: Person;
-  /** The mentioned {@link Person.id} exactly as written, so a dangling mention stays diagnosable. */
-  readonly personId: string;
-  /** Excel's own id for this mention, preserved so re-emitting it does not invent a new one. */
-  readonly mentionId?: string;
-  /** 0-based character offset into {@link Comment.text} where the mention starts. */
-  readonly startIndex: number;
-  /** Length of the mention in characters, **counting the leading `@`** (`@Grace Hopper` is 13). */
-  readonly length: number;
 }
 
 /** One message of a {@link CommentThread}: what a single person wrote, once. */

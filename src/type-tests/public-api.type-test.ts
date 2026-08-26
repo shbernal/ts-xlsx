@@ -27,7 +27,9 @@ import type {
   isHyperlinkValue,
   isRichTextValue,
   isSharedFormulaValue,
+  GridRect,
   Mention,
+  MentionRef,
   PackageReadError,
   PageBreak,
   PageSetup,
@@ -38,6 +40,7 @@ import type {
   readXlsx,
   SharedFormulaValue,
   SheetView,
+  TableRegion,
   UnsupportedFormat,
   UnsupportedFormatError,
   VbaAuthorError,
@@ -105,6 +108,13 @@ export type IoContracts = [
 // back a phantom A1:A1 that a caller would go on to style, filter or iterate.
 export type UsedRangeContracts = [Expect<Equal<Worksheet['usedRange'], Range | undefined>>];
 
+// Every range-shaped thing in the library is the same four inclusive 1-based bounds, so a caller who
+// writes one function over `GridRect` can pass it a range handle, a table's extent, or a merge.
+export type GridRectContracts = [
+  Expect<Extends<Range, GridRect>>,
+  Expect<Equal<TableRegion, GridRect>>,
+];
+
 // Export-presence guards for the core feature types now on the barrel: importing each locks it into
 // the public surface (its removal would break this compilation), and a self-`Extends` references it.
 // FilterColumn/FilterCriteria come along so a constructed AutoFilter is fully nameable by callers.
@@ -130,6 +140,10 @@ export type CommentThreadContracts = [
   Expect<Equal<Comment['mentions'], readonly Mention[]>>,
   Expect<Equal<Comment['author'], Person | undefined>>,
   Expect<Equal<Mention['person'], Person | undefined>>,
+  // The resolved mention is the wire shape plus that one field: a caller can hand a `Mention` to
+  // anything taking a `MentionRef`, and the codec's own parsed shape is the same type.
+  Expect<Extends<Mention, MentionRef>>,
+  Expect<Equal<Omit<Mention, 'person'>, MentionRef>>,
   Expect<Equal<ReturnType<Workbook['getPerson']>, Person | undefined>>,
   Expect<Equal<Workbook['persons'], readonly Person[]>>,
   Expect<Equal<ReturnType<Worksheet['commentThreadAt']>, CommentThread | undefined>>,

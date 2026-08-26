@@ -11,6 +11,7 @@ export {
   decodeAddress,
   decodeRange,
   encodeAddress,
+  type GridRect,
   MAX_COLUMN,
   MAX_ROW,
   numberToColumn,
@@ -34,7 +35,7 @@ export {
   SYSTEM_INDEXED_COLORS,
 } from '../core/color-resolution.ts';
 export {Column} from '../core/column.ts';
-export type {Comment, CommentThread, Mention, Person} from '../core/comment-thread.ts';
+export type {Comment, CommentThread, Mention, MentionRef, Person} from '../core/comment-thread.ts';
 export type {
   CfValueObject,
   ConditionalFormatting,

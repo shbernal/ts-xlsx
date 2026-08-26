@@ -208,17 +208,12 @@ interface TableOptions {
 
 ### `TableRegion`
 
-<sub>interface</sub>
+<sub>type</sub>
 
-The rectangle a table occupies, in 1-based coordinates.
+The rectangle a table occupies, as the [`GridRect`](./addresses-ranges.md#gridrect) every range-shaped thing in the library is.
 
 ```ts
-interface TableRegion {
-  readonly top: number;
-  readonly left: number;
-  readonly bottom: number;
-  readonly right: number;
-}
+type TableRegion = GridRect;
 ```
 
 ---

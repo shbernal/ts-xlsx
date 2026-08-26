@@ -39,6 +39,7 @@ import {
   type CommentThread,
   MENTION_OFFSET_MAX,
   type Mention,
+  type MentionRef,
   type Person,
 } from '../../core/comment-thread.ts';
 import {
@@ -64,25 +65,16 @@ export interface ParsedPerson {
 }
 
 /**
- * One `<mention>` of a message's `<mentions>` block: who was named, and the run of the message text
- * that renders as the mention chip.
+ * One `<mention>` of a message's `<mentions>` block: the model's own {@link MentionRef}, which is
+ * exactly the four wire attributes with nothing resolved yet. Declaring it a second time here would
+ * be two places for the offset convention to drift, and the offsets are what a spreadsheet app
+ * highlights with.
  *
- * All four wire attributes are required (Excel rejects a file missing any), and note the lowercase `p`
- * in `mentionpersonId`; the capitalised spelling is not a declared attribute.
+ * All four attributes are required (Excel rejects a file missing any), and note the lowercase `p`
+ * in `mentionpersonId`; the capitalised spelling is not a declared attribute. The person id is that
+ * attribute's value; every other field is named as the model names it.
  */
-export interface ParsedMention {
-  /** The mentioned {@link ParsedPerson.id}, from `mentionpersonId`. */
-  readonly personId: string;
-  /** Excel's own id for the mention itself. Absent only in a file that omitted it. */
-  readonly mentionId?: string;
-  /**
-   * 0-based character offset into the message text. Verified against desktop Excel by rendering: the
-   * chip covers exactly `[startIndex, startIndex + length)` of the text.
-   */
-  readonly startIndex: number;
-  /** The mention's length in characters, **including the leading `@`** (`@Grace Hopper` is 13). */
-  readonly length: number;
-}
+export type ParsedMention = MentionRef;
 
 /** One message of a threaded conversation: a `<threadedComment>` of a `threadedComment{n}.xml`. */
 export interface ParsedThreadedComment {

@@ -14,10 +14,11 @@ already exists.
 
 Bounds are **inclusive first/last**, never start-and-count. That is the convention every
 range-shaped accessor in this library follows, so the three axes cannot disagree about what a
-pair of numbers means.
+pair of numbers means; the handle is declared to satisfy [`GridRect`](./addresses-ranges.md#gridrect), which is that
+convention written down once.
 
 ```ts
-class Range {
+class Range implements GridRect {
   readonly top: number;
   readonly left: number;
   readonly bottom: number;
