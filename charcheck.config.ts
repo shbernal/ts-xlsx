@@ -52,7 +52,7 @@ export default defineConfig({
       chars: EM_DASHES,
       message:
         'em dash in authored prose: recast the sentence (full stop, colon, or commas) rather than swapping the dash',
-      include: ['docs/**/*.md', 'tools/**/*.md'],
+      include: ['docs/**/*.md', 'test/**/*.md', 'tools/**/*.md'],
     },
     {
       id: 'no-em-dash-in-source',
