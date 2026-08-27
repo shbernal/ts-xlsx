@@ -506,7 +506,7 @@ export function worksheetRelsXml(
     ...hyperlinks
       .filter((link) => link.relId !== undefined && link.target !== undefined)
       .map((link) =>
-        relationship(link.relId as string, REL.hyperlink, escapeAttr(link.target as string), {
+        relationship(link.relId as string, REL.hyperlink, link.target as string, {
           external: true,
         }),
       ),

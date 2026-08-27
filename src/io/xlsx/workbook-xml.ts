@@ -234,9 +234,7 @@ export function rootRelsXml(rootRefs: readonly PreservedRootReferencePlan[]): st
     relationship('rId1', REL.officeDocument, 'xl/workbook.xml'),
     relationship('rId2', REL.coreProps, 'docProps/core.xml'),
     relationship('rId3', REL.extProps, 'docProps/app.xml'),
-    ...rootRefs.map((ref, i) =>
-      relationship(`rId${4 + i}`, ref.relType, escapeAttr(ref.entryPath)),
-    ),
+    ...rootRefs.map((ref, i) => relationship(`rId${4 + i}`, ref.relType, ref.entryPath)),
   ]);
 }
 

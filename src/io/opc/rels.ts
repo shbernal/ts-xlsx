@@ -7,9 +7,17 @@
 import {escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import {PKG_RELS_NS} from './namespaces.ts';
 
-// A single `<Relationship>`. An `external` target lives outside the package (a hyperlink URL), so the
-// element carries `TargetMode="External"`; a package-internal target (the default) omits it. The caller
-// escapes the target when it is not a writer-controlled package path.
+/**
+ * A single `<Relationship>`. An `external` target lives outside the package (a hyperlink URL), so the
+ * element carries `TargetMode="External"`; a package-internal target (the default) omits it.
+ *
+ * All three values are escaped here, unconditionally. The obligation used to sit in a comment saying
+ * the caller escaped a target it did not control, which made the safety of this function a property
+ * of its call sites rather than of itself, on the one boundary in the tree where `xml.ts` says that is
+ * explicitly not how it is done. Escaping a writer-controlled package path is the identity, so the
+ * generated chains emit the same bytes and the guarantee holds by construction instead of by
+ * inspecting every caller. `TargetMode` stays a fixed token, not a value.
+ */
 export function relationship(
   id: string,
   type: string,
@@ -17,7 +25,10 @@ export function relationship(
   options?: {external?: boolean},
 ): string {
   const mode = options?.external ? ' TargetMode="External"' : '';
-  return `<Relationship Id="${id}" Type="${type}" Target="${target}"${mode}/>`;
+  return (
+    `<Relationship Id="${escapeAttr(id)}" Type="${escapeAttr(type)}" ` +
+    `Target="${escapeAttr(target)}"${mode}/>`
+  );
 }
 
 // Wrap a part's `<Relationship>` elements in the OPC `.rels` envelope (XML declaration + the namespaced
@@ -32,13 +43,12 @@ export function preservedRelsXml(
 ): string {
   return relationshipsPart(
     rels.map((rel) =>
-      relationship(rel.id, rel.type, escapeAttr(rel.target), rel.external ? {external: true} : {}),
+      relationship(rel.id, rel.type, rel.target, rel.external ? {external: true} : {}),
     ),
   );
 }
 
-// A `.rels` part for a generated part chain (pivot table → cache definition → cache records). Targets
-// are writer-controlled package paths, so no attribute escaping is needed.
+// A `.rels` part for a generated part chain (pivot table → cache definition → cache records).
 export function relsPartXml(rels: readonly {id: string; type: string; target: string}[]): string {
   return relationshipsPart(rels.map((rel) => relationship(rel.id, rel.type, rel.target)));
 }
