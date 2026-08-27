@@ -177,9 +177,16 @@ export function resolveStyleTable(tables: {
     return named === undefined ? xf : {...named, ...xf};
   });
 
-  // A label's xfId is its cellStyleXfs index, so the two zip index for index.
+  // A label's xfId is its cellStyleXfs index, so keying the labels by it puts that fact in the code
+  // rather than in a comment above a linear scan. First label wins, which is what scanning resolved
+  // to as well: a foreign file may name the same xfId twice, and neither reading is more right.
+  const labelsByXfId = new Map<number, StyleLabel>();
+  for (const label of labels) {
+    if (!labelsByXfId.has(label.xfId)) labelsByXfId.set(label.xfId, label);
+  }
+
   const namedStyles: NamedCellStyle[] = namedXfs.map((xf, index) => {
-    const label = labels.find((entry) => entry.xfId === index);
+    const label = labelsByXfId.get(index);
     const style: {-readonly [K in keyof NamedCellStyle]?: NamedCellStyle[K]} = {};
     assignStyleFacets(style, xf);
     if (label?.name !== undefined) style.name = label.name;

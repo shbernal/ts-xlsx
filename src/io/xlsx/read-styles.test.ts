@@ -129,6 +129,25 @@ test("a named style's label reaches the model, name and builtinId both", () => {
   );
 });
 
+test('a duplicated xfId is titled by the first label that claims it', () => {
+  // A foreign file may name the same base twice. Neither label is more right than the other, so the
+  // rule is simply stated and locked here: first declaration wins, and the second is dropped rather
+  // than layered over it.
+  const table = parseStyleTable(
+    '<styleSheet>' +
+      '<cellStyleXfs count="1"><xf/></cellStyleXfs>' +
+      '<cellStyles count="2">' +
+      '<cellStyle name="First" xfId="0" builtinId="0"/>' +
+      '<cellStyle name="Second" xfId="0" builtinId="16"/>' +
+      '</cellStyles>' +
+      '</styleSheet>',
+  );
+  assert.deepEqual(
+    table.namedStyles.map((style) => [style.name, style.builtinId]),
+    [['First', 0]],
+  );
+});
+
 test('a label out of order titles the entry its xfId names, not the one it was declared at', () => {
   // The labels zip against cellStyleXfs by xfId, not by document position, so a file listing them in
   // any other order must still title the right base, and an unlabelled base must stay unlabelled
