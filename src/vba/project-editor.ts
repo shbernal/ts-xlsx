@@ -10,10 +10,20 @@
 // pure-TS path (ADR 0019). These splices are safe precisely because they leave every module's p-code
 // exactly as its own compiler wrote it.
 
-import {readU16, readU32} from './bytes.ts';
+import {readU16} from './bytes.ts';
 import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {CompoundFile} from './cfb.ts';
 import {type Decoder, decoderForCodePage, type Encoder, encoderForCodePage} from './codepage.ts';
+import {
+  dirRecords,
+  REC_MODULE_NAME,
+  REC_MODULE_STREAMNAME,
+  REC_MODULE_TERMINATOR,
+  REC_MODULES_COUNT,
+  REC_REFERENCE_NAME,
+  REC_REFERENCE_NAME_UNICODE,
+  REC_REFERENCE_REGISTERED,
+} from './dir-records.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
 import {compressContainer, decompressContainer} from './ms-ovba.ts';
 import {parseVbaProject} from './project.ts';
@@ -23,22 +33,6 @@ const DIR_STREAM = 'dir';
 const PROJECT_STREAM = 'PROJECT';
 const PROJECTWM_STREAM = 'PROJECTwm';
 const VBA_STORAGE = 'VBA';
-
-// `dir`-record ids the remove-module splice reads to delimit a module's record block ([MS-OVBA] 2.3.4.2);
-// every other record is preserved verbatim. MODULES_COUNT is decremented as a block is removed.
-const REC_MODULE_NAME = 0x0019;
-const REC_MODULE_STREAMNAME = 0x001a;
-const REC_MODULE_TERMINATOR = 0x002b;
-const REC_PROJECT_VERSION = 0x0009; // its uncounted 2-byte VersionMinor trails the counted payload
-const REC_MODULES_COUNT = 0x000f;
-
-// `dir`-record ids the add-reference splice builds ([MS-OVBA] 2.3.4.2.2). REFERENCENAME's Unicode half
-// is a *literal* 0x003E marker, not a nested record id, but it is laid out as its own Id+Size+data TLV,
-// so a generic walk (and this splice) sees REFERENCENAME as two chained records, exactly like
-// MODULE_NAME/MODULE_NAME_UNICODE. Verified against a real Excel-authored dir stream (2026-07-23).
-const REC_REFERENCE_NAME = 0x0016;
-const REC_REFERENCE_NAME_UNICODE = 0x003e;
-const REC_REFERENCE_REGISTERED = 0x000d;
 
 /**
  * Remove a standard module from an existing `vbaProject.bin`, returning new bytes that carry every
@@ -275,17 +269,7 @@ function buildReferenceDirRecords(ref: NormalizedReference, encode: Encoder): nu
 // through unchanged.
 function insertReferenceDirRecords(dir: Uint8Array, records: readonly number[]): Uint8Array {
   let insertAt = -1;
-  let pos = 0;
-  while (pos + 6 <= dir.length) {
-    const recordStart = pos;
-    const id = readU16(dir, pos);
-    const size = readU32(dir, pos + 2);
-    const dataStart = pos + 6;
-    if (dataStart + size > dir.length) {
-      throw new VbaParseError(`dir record 0x${id.toString(16)} overruns while adding a reference`);
-    }
-    pos = dataStart + size;
-    if (id === REC_PROJECT_VERSION) pos += 2; // uncounted VersionMinor (u16)
+  for (const {id, recordStart} of dirRecords(dir, 'overruns while adding a reference')) {
     if (id === REC_MODULES_COUNT) {
       insertAt = recordStart;
       break;
@@ -313,18 +297,10 @@ function removeModuleDirRecord(dir: Uint8Array, streamName: string, codePage: nu
   let removeStart = -1;
   let removeEnd = -1;
   let currentStream: string | undefined;
-  let pos = 0;
-  while (pos + 6 <= dir.length) {
-    const recordStart = pos;
-    const id = readU16(dir, pos);
-    const size = readU32(dir, pos + 2);
-    const dataStart = pos + 6;
-    if (dataStart + size > dir.length) {
-      throw new VbaParseError(`dir record 0x${id.toString(16)} overruns while removing a module`);
-    }
-    pos = dataStart + size;
-    if (id === REC_PROJECT_VERSION) pos += 2; // uncounted VersionMinor (u16)
-
+  for (const {id, recordStart, dataStart, size, end} of dirRecords(
+    dir,
+    'overruns while removing a module',
+  )) {
     if (id === REC_MODULES_COUNT) {
       if (size < 2) throw new VbaParseError('PROJECTMODULES MODULES_COUNT record is malformed');
       countAt = dataStart;
@@ -335,7 +311,7 @@ function removeModuleDirRecord(dir: Uint8Array, streamName: string, codePage: nu
     } else if (id === REC_MODULE_TERMINATOR) {
       if (currentStream === streamName) {
         removeStart = blockStart;
-        removeEnd = pos;
+        removeEnd = end;
       }
       currentStream = undefined;
       blockStart = -1;

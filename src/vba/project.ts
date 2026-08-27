@@ -9,6 +9,16 @@
 import {readU16, readU32} from './bytes.ts';
 import {CompoundFile} from './cfb.ts';
 import {type Decoder, decoderForCodePage} from './codepage.ts';
+import {
+  dirRecords,
+  REC_MODULE_NAME,
+  REC_MODULE_OFFSET,
+  REC_MODULE_STREAMNAME,
+  REC_MODULE_TERMINATOR,
+  REC_MODULE_TYPE_DOCUMENT,
+  REC_MODULE_TYPE_PROCEDURAL,
+  REC_PROJECT_CODEPAGE,
+} from './dir-records.ts';
 import {VbaParseError} from './errors.ts';
 import {decompressContainer} from './ms-ovba.ts';
 
@@ -81,20 +91,6 @@ export function vbaProjectSignatureKind(relType: string): VbaProjectSignatureKin
   return SIGNATURE_KIND_BY_REL_SEGMENT[relType.slice(relType.lastIndexOf('/') + 1)];
 }
 
-// `dir`-stream record ids we consume ([MS-OVBA] 2.3.4.2). Every other record is skipped by the uniform
-// TLV walk; its Size field already accounts for its payload, so skipping is just advancing past it.
-const REC_PROJECT_CODEPAGE = 0x0003;
-const REC_MODULE_NAME = 0x0019;
-const REC_MODULE_STREAMNAME = 0x001a;
-const REC_MODULE_TYPE_PROCEDURAL = 0x0021;
-const REC_MODULE_TYPE_DOCUMENT = 0x0022;
-const REC_MODULE_OFFSET = 0x0031;
-const REC_MODULE_TERMINATOR = 0x002b;
-// PROJECTVERSION carries VersionMajor (u32) + VersionMinor (u16) after its fixed Size=4 field, but Size
-// only accounts for the 4-byte major. The extra 2-byte minor is uncounted, so a uniform TLV walk
-// misaligns here by 2 bytes unless it is skipped explicitly.
-const REC_PROJECT_VERSION = 0x0009;
-
 interface PendingModule {
   name?: Uint8Array;
   streamName?: Uint8Array;
@@ -113,17 +109,7 @@ export function parseVbaProject(bin: Uint8Array): VbaProject {
   const rawModules: PendingModule[] = [];
   let pending: PendingModule = {};
 
-  // The dir stream is a flat sequence of TLV records: Id(u16) Size(u32) data[Size].
-  let pos = 0;
-  while (pos + 6 <= dir.length) {
-    const id = readU16(dir, pos);
-    const size = readU32(dir, pos + 2);
-    const dataStart = pos + 6;
-    if (dataStart + size > dir.length)
-      throw new VbaParseError(`dir record 0x${id.toString(16)} overruns stream`);
-    pos = dataStart + size;
-    if (id === REC_PROJECT_VERSION) pos += 2; // uncounted VersionMinor (u16)
-
+  for (const {id, dataStart, size} of dirRecords(dir, 'overruns stream')) {
     switch (id) {
       case REC_PROJECT_CODEPAGE:
         if (size >= 2) codePage = readU16(dir, dataStart);
