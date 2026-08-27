@@ -12,6 +12,7 @@
 import {decodeCellRef, encodeAddress} from './address.ts';
 import {type CommentThread, commentThreadGuid, commentThreadOffset} from './comment-thread.ts';
 import {replaceContents} from './containers.ts';
+import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
 export class WorksheetComments {
   // Quoted by the duplicate-id refusal, which has to say *which* sheet already holds the id.
@@ -65,6 +66,30 @@ export class WorksheetComments {
   at(reference: string): CommentThread | undefined {
     const anchor = anchorRef(reference);
     return this.#threads.find((thread) => thread.ref === anchor);
+  }
+
+  /**
+   * Re-anchor every conversation through a row or column splice. A thread hangs off exactly one cell,
+   * so it moves as a point, not a rectangle, and a thread whose cell the splice deleted is dropped
+   * along with its messages. Both halves matter: a cell's legacy note is cell state and travels with
+   * the cell, so a thread left behind would put a note on one cell and its conversation on another,
+   * a pairing the writer emits and Excel refuses.
+   */
+  shift(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+    const survivors: CommentThread[] = [];
+    for (const thread of this.#threads) {
+      const {col, row} = decodeCellRef(thread.ref);
+      const line = axis === 'row' ? row : col;
+      if (isDeletedSpan(line, line, start, count)) continue;
+      const moved = shiftIndex(line, start, count, delta);
+      if (moved === line) {
+        survivors.push(thread);
+        continue;
+      }
+      const ref = axis === 'row' ? encodeAddress(col, moved) : encodeAddress(moved, row);
+      survivors.push({...thread, ref});
+    }
+    replaceContents(this.#threads, survivors);
   }
 
   // The reader's channel: a sheet read from a file arrives with its threads already validated by

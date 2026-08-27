@@ -725,6 +725,54 @@ export const grid = {
     };
   },
 
+  // Anchor a data validation, a conditional format, a comment thread and an autofilter over the same
+  // block, splice the row axis, write, and read the package back → the anchors as the reloaded file
+  // reports them, beside the cell the moved content landed on. `inserted` puts a row above the block;
+  // `deleted` removes the block's every row. Everything bound to a range must travel with the cells it
+  // covers, and an anchor whose rows are gone must go with them rather than re-pointing at survivors.
+  spliceReanchorsRangeBoundOverlays() {
+    const AUTHOR = '{39236F6F-643D-4654-8264-DD21C8472F7F}';
+    const anchored = () => {
+      const wb = new Workbook();
+      wb.addPerson({id: AUTHOR, displayName: 'Ada Lovelace', providerId: 'AD'});
+      const s = wb.addWorksheet('S');
+      s.getCell('B5').value = 'anchored';
+      s.addDataValidation('B5:B6', {type: 'list', formulae: ['"a,b"']});
+      s.addConditionalFormatting({ref: 'B5:B6', rules: [{type: 'dataBar', priority: 1}]});
+      s.autoFilter = 'B5:C6';
+      s.addCommentThread({
+        ref: 'B5',
+        resolved: false,
+        comments: [
+          {
+            id: '{11111111-2222-3333-4444-555555555555}',
+            personId: AUTHOR,
+            text: 'about the block',
+            mentions: [],
+          },
+        ],
+      });
+      return wb;
+    };
+    const report = (wb: WorkbookInstance, movedTo: string) => {
+      const s = readXlsx(writeXlsx(wb)).getWorksheet('S')!;
+      return {
+        movedValue: s.getCell(movedTo).value,
+        validationRefs: s.dataValidations.map((entry) => entry.sqref),
+        formattingRefs: s.conditionalFormattings.map((entry) => entry.ref),
+        autoFilterRef: s.autoFilter?.ref ?? null,
+        threadRefs: s.commentThreads.map((thread) => thread.ref),
+      };
+    };
+
+    const insertedWb = anchored();
+    insertedWb.getWorksheet('S')!.insertRow(1, ['header']);
+    const deletedWb = anchored();
+    deletedWb.getWorksheet('S')!.spliceRows(5, 2);
+
+    return {inserted: report(insertedWb, 'B6'), deleted: report(deletedWb, 'B5')};
+  },
+
   spliceShiftsRefs() {
     const wb = new Workbook();
     const s = wb.addWorksheet('S');

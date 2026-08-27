@@ -1,0 +1,240 @@
+// A splice moves everything anchored to the grid, not only the cells. The four participants that live
+// outside the cell grid (data validations, conditional formats, comment threads, the autofilter) are
+// the ones a splice used to leave behind, pointing a dropdown or a highlight rule at whatever moved
+// into their place. These lock the re-anchoring on both axes.
+
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+
+import type {CommentThread} from './comment-thread.ts';
+import {Workbook} from './workbook.ts';
+import type {Worksheet} from './worksheet.ts';
+
+// A distinct id per thread, in the only spelling the format accepts: brace-wrapped, upper-case,
+// `8-4-4-4-12` hex. The authoring path rejects a readable placeholder.
+let nextThread = 0;
+const threadAt = (ref: string): CommentThread => ({
+  ref,
+  resolved: false,
+  comments: [
+    {
+      id: `{${String(++nextThread).padStart(8, '0')}-0000-4000-8000-000000000000}`,
+      text: `about ${ref}`,
+      mentions: [],
+    },
+  ],
+});
+
+// A sheet carrying one of each range-bound overlay over the same block, so a single splice exercises
+// all four and any that fails to move stands out beside the three that did.
+function anchoredSheet(): Worksheet {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.getCell('B5').value = 'x';
+  sheet.addDataValidation('B5:B6', {type: 'list', formulae: ['"a,b"']});
+  sheet.addConditionalFormatting({ref: 'B5:B6', rules: [{type: 'dataBar', priority: 1}]});
+  sheet.autoFilter = 'B5:C6';
+  sheet.addCommentThread(threadAt('B5'));
+  return sheet;
+}
+
+const anchors = (sheet: Worksheet) => ({
+  validation: sheet.dataValidations.map((entry) => entry.sqref),
+  formatting: sheet.conditionalFormattings.map((entry) => entry.ref),
+  filter: sheet.autoFilter?.ref,
+  threads: sheet.commentThreads.map((thread) => thread.ref),
+});
+
+test('an insert above carries every range-bound overlay down with the cells it covers', () => {
+  const sheet = anchoredSheet();
+  sheet.insertRow(1, ['hdr']);
+
+  assert.equal(sheet.getCell('B6').value, 'x');
+  assert.deepEqual(anchors(sheet), {
+    validation: ['B6:B7'],
+    formatting: ['B6:B7'],
+    filter: 'B6:C7',
+    threads: ['B6'],
+  });
+});
+
+test('a delete above carries every range-bound overlay up with the cells it covers', () => {
+  const sheet = anchoredSheet();
+  sheet.spliceRows(1, 2);
+
+  assert.equal(sheet.getCell('B3').value, 'x');
+  assert.deepEqual(anchors(sheet), {
+    validation: ['B3:B4'],
+    formatting: ['B3:B4'],
+    filter: 'B3:C4',
+    threads: ['B3'],
+  });
+});
+
+test('an overlay whose every anchor row is deleted goes with the rows', () => {
+  const sheet = anchoredSheet();
+  sheet.spliceRows(5, 2);
+
+  assert.deepEqual(anchors(sheet), {
+    validation: [],
+    formatting: [],
+    filter: undefined,
+    threads: [],
+  });
+});
+
+test('an insert left carries every range-bound overlay right with the cells it covers', () => {
+  const sheet = anchoredSheet();
+  sheet.insertColumn(1, ['hdr']);
+
+  assert.equal(sheet.getCell('C5').value, 'x');
+  assert.deepEqual(anchors(sheet), {
+    validation: ['C5:C6'],
+    formatting: ['C5:C6'],
+    filter: 'C5:D6',
+    threads: ['C5'],
+  });
+});
+
+test('a delete left carries every range-bound overlay left with the cells it covers', () => {
+  const sheet = anchoredSheet();
+  sheet.spliceColumns(1, 1);
+
+  assert.equal(sheet.getCell('A5').value, 'x');
+  assert.deepEqual(anchors(sheet), {
+    validation: ['A5:A6'],
+    formatting: ['A5:A6'],
+    filter: 'A5:B6',
+    threads: ['A5'],
+  });
+});
+
+test('an overlay whose every anchor column is deleted goes with the columns', () => {
+  const sheet = anchoredSheet();
+  sheet.spliceColumns(2, 2);
+
+  assert.deepEqual(anchors(sheet), {
+    validation: [],
+    formatting: [],
+    filter: undefined,
+    threads: [],
+  });
+});
+
+test('a splice below an overlay leaves it alone', () => {
+  const sheet = anchoredSheet();
+  sheet.insertRow(9, ['later']);
+
+  assert.deepEqual(anchors(sheet), {
+    validation: ['B5:B6'],
+    formatting: ['B5:B6'],
+    filter: 'B5:C6',
+    threads: ['B5'],
+  });
+});
+
+test('a whole-column sqref survives a row splice with its spelling intact', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.addDataValidation('B:B', {type: 'list', formulae: ['"a,b"']});
+  sheet.addConditionalFormatting({ref: 'D:D', rules: [{type: 'dataBar', priority: 1}]});
+  sheet.insertRow(1, ['hdr']);
+
+  // Not `B2:B1048577`: a column covers every row, so a row splice cannot move it, and re-spelling it
+  // would rewrite a foreign file's own wording for no gain.
+  assert.equal(sheet.dataValidations[0]?.sqref, 'B:B');
+  assert.equal(sheet.conditionalFormattings[0]?.ref, 'D:D');
+});
+
+test('a whole-row sqref shifts through a row splice and stays row-shaped', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.addDataValidation('5:5', {type: 'list', formulae: ['"a,b"']});
+  sheet.insertRow(1, ['hdr']);
+
+  assert.equal(sheet.dataValidations[0]?.sqref, '6:6');
+});
+
+test('each area of a multi-area sqref shifts on its own', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.addDataValidation('A1:C1 A3:C3 A9:C9', {type: 'list', formulae: ['"a,b"']});
+  // Deletes row 3 outright and pulls row 9 up by one; row 1 is above the cut and stays put.
+  sheet.spliceRows(3, 1);
+
+  assert.equal(sheet.dataValidations[0]?.sqref, 'A1:C1 A8:C8');
+});
+
+test('a single-cell sqref shifts without growing into a range', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.addDataValidation('B5', {type: 'list', formulae: ['"a,b"']});
+  sheet.insertRow(1, ['hdr']);
+
+  assert.equal(sheet.dataValidations[0]?.sqref, 'B6');
+});
+
+test('a shifted validation answers a point lookup from its new geometry', () => {
+  const sheet = anchoredSheet();
+  sheet.insertRow(1, ['hdr']);
+
+  assert.equal(sheet.dataValidationAt('B5'), undefined);
+  assert.equal(sheet.dataValidationAt('B6')?.type, 'list');
+});
+
+test("a thread and its cell's note stay on the same cell through a splice", () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.getCell('B5').note = 'legacy note';
+  sheet.addCommentThread(threadAt('B5'));
+  sheet.insertRow(1, ['hdr']);
+
+  // A note is cell state and travels with the cell; the thread anchored to the same cell has to make
+  // the same move, or the writer emits a conversation on one cell and its fallback note on another.
+  assert.equal(sheet.getCell('B6').note, 'legacy note');
+  assert.equal(sheet.commentThreads[0]?.ref, 'B6');
+});
+
+test('a column splice inside a filter re-measures its criteria against the new left edge', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.autoFilter = {
+    ref: 'B1:E10',
+    columns: [
+      {colId: 0, criteria: {kind: 'values', values: ['keep'], blank: false}},
+      {colId: 2, criteria: {kind: 'values', values: ['shift'], blank: false}},
+    ],
+  };
+  // Column C is the filter's colId 1; deleting it narrows the range and pulls colId 2 down to 1.
+  sheet.spliceColumns(3, 1);
+
+  assert.equal(sheet.autoFilter?.ref, 'B1:D10');
+  assert.deepEqual(
+    sheet.autoFilter?.columns.map((column) => column.colId),
+    [0, 1],
+  );
+});
+
+test('a criterion on a deleted column goes with the column', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.autoFilter = {
+    ref: 'B1:E10',
+    columns: [
+      {colId: 1, criteria: {kind: 'values', values: ['doomed'], blank: false}},
+      {colId: 3, criteria: {kind: 'values', values: ['survivor'], blank: false}},
+    ],
+  };
+  sheet.spliceColumns(3, 1);
+
+  assert.deepEqual(sheet.autoFilter?.columns, [
+    {colId: 2, criteria: {kind: 'values', values: ['survivor'], blank: false}},
+  ]);
+});
+
+test('a row splice leaves a filter criterion addressed as it was', () => {
+  const sheet = new Workbook().addWorksheet('S');
+  sheet.autoFilter = {
+    ref: 'B5:E10',
+    columns: [{colId: 2, criteria: {kind: 'values', values: ['keep'], blank: false}}],
+  };
+  sheet.insertRow(1, ['hdr']);
+
+  assert.equal(sheet.autoFilter?.ref, 'B6:E11');
+  assert.deepEqual(
+    sheet.autoFilter?.columns.map((column) => column.colId),
+    [2],
+  );
+});

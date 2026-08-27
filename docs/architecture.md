@@ -152,6 +152,17 @@ break lists) are plain mutable objects with no accessors and no behaviour, so th
 delegate and grouping them would change the public API to no end. The line count is the symptom the
 rule watches for, not the rule; a slice that is not one costs more than the lines it removes.
 
+`GridEdits` owns that splice arithmetic for *everything* anchored to the grid, which is a wider set
+than the cell rows: line metadata, merges, tables, anchored images and shared-formula anchors move
+with the cells, and so do the four things bound to a range that live outside the cell grid entirely:
+data validations, conditional formats, comment threads and the sheet's autofilter. The invariant
+is the general one, not a list that happened to be complete once: an overlay left behind re-points a
+dropdown or a highlight rule at cells nobody chose, and the writer emits that without complaint. The
+single coordinate rule they all share is `core/grid-shift.ts`, and every participant answers the same
+two questions through it: where does this land, and did the delete swallow it whole? A range the
+delete swallowed whole takes its entry with it rather than clamping onto the cut line, because
+dropping a rule is legible and silently re-aiming one is not.
+
 ### Inside `src/io/xlsx/`: three kinds of module, deliberately flat
 
 Thirty-odd files in one directory reads like something nobody got round to organising, and the

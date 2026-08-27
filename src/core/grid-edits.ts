@@ -1,23 +1,32 @@
 // Structural-edit machinery: the splice arithmetic that inserts or deletes whole rows and columns
 // and keeps everything anchored to the grid moving in step: line metadata, merged ranges, tables,
-// anchored images, and shared-formula clones. It is isolated from Worksheet because it is pure grid
+// anchored images, shared-formula clones, and the range-bound overlays (data validations, conditional
+// formats, comment threads, the autofilter). It is isolated from Worksheet because it is pure grid
 // mechanics: it holds the sheet's storage containers by reference and mutates them in place, and
 // touches none of the public cell API. Worksheet builds the cells an insert introduces, then hands
 // the pre-built rows (or the raw column values) here for the shift.
 
 import {decodeRange, encodeAddress, tryDecodeCellRef} from './address.ts';
+import {type AutoFilter, shiftAutoFilter} from './autofilter.ts';
 import {Cell, copyCellContent} from './cell.ts';
+import type {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
 import {replaceContents} from './containers.ts';
+import type {DataValidationOverlay} from './data-validation-overlay.ts';
+import {shiftIndex} from './grid-shift.ts';
 import {type AnchoredImage, type AnchorPoint, type ImageAnchor, isOneCellAnchor} from './image.ts';
 import type {MergeRect} from './merge.ts';
 import type {Table} from './table.ts';
 import {type CellValue, isSharedFormulaValue, type SharedFormulaValue} from './value.ts';
+import type {WorksheetComments} from './worksheet-comments.ts';
 import type {ColumnProperties, RowProperties} from './worksheet.ts';
 
-// The shift rule shared by every re-anchoring pass: a coordinate before the edit stays put, one at or
-// after the edited span shifts by `delta`, and one inside a deleted span clamps to the cut line (`start`).
-function shiftIndex(v: number, start: number, count: number, delta: number): number {
-  return v < start ? v : v >= start + count ? v + delta : start;
+/**
+ * The sheet's autofilter, reached as a slot rather than held by reference like the containers beside
+ * it: it is a single replaceable value, and a splice that deletes every filtered line clears it.
+ */
+export interface AutoFilterSlot {
+  get(): AutoFilter | undefined;
+  set(next: AutoFilter | undefined): void;
 }
 
 // The sheet's mutable storage, shared by reference with Worksheet. Never reassigned, only mutated in
@@ -30,6 +39,10 @@ interface GridStorage {
   readonly mergeRects: MergeRect[];
   readonly tables: Table[];
   readonly images: AnchoredImage[];
+  readonly dataValidations: DataValidationOverlay;
+  readonly conditionalFormattings: ConditionalFormattingOverlay;
+  readonly comments: WorksheetComments;
+  readonly autoFilter: AutoFilterSlot;
 }
 
 export class GridEdits {
@@ -40,6 +53,10 @@ export class GridEdits {
   readonly #mergeRects: MergeRect[];
   readonly #tables: Table[];
   readonly #images: AnchoredImage[];
+  readonly #dataValidations: DataValidationOverlay;
+  readonly #conditionalFormattings: ConditionalFormattingOverlay;
+  readonly #comments: WorksheetComments;
+  readonly #autoFilter: AutoFilterSlot;
 
   constructor(storage: GridStorage) {
     this.#rows = storage.rows;
@@ -49,12 +66,16 @@ export class GridEdits {
     this.#mergeRects = storage.mergeRects;
     this.#tables = storage.tables;
     this.#images = storage.images;
+    this.#dataValidations = storage.dataValidations;
+    this.#conditionalFormattings = storage.conditionalFormattings;
+    this.#comments = storage.comments;
+    this.#autoFilter = storage.autoFilter;
   }
 
   // Apply a delete-then-insert to the row grid: surviving rows below the edit shift by
   // `inserted.length - count`, deleted rows drop out, and the pre-built inserted rows land at `start`.
-  // Row metadata and merged ranges shift the same way, so a formatting-only row or a covered merge
-  // stays aligned with the data it describes.
+  // Row metadata, merged ranges and everything else anchored to the grid shift the same way, so a
+  // formatting-only row, a covered merge or a dropdown stays aligned with the data it describes.
   spliceRows(start: number, count: number, inserted: Map<number, Cell>[]): void {
     const delta = inserted.length - count;
     const shifted = new Map<number, Map<number, Cell>>();
@@ -73,12 +94,13 @@ export class GridEdits {
     this.#shiftTables('row', start, count, delta);
     this.#shiftImages('row', start, count, delta);
     this.#reanchorSharedFormulas('row', start, count, delta);
+    this.#shiftRangeBoundOverlays('row', start, count, delta);
   }
 
   // Apply a delete-then-insert to the column grid: cells left of the edit stay, cells at or beyond the
   // deleted span shift by `inserts.length - count` carrying their content, and the inserted column
-  // values materialise as fresh cells at `start`. Column metadata, merges, tables, images, and
-  // shared-formula clones re-anchor the same way.
+  // values materialise as fresh cells at `start`. Column metadata, merges, tables, images,
+  // shared-formula clones and the range-bound overlays re-anchor the same way.
   spliceColumns(start: number, count: number, inserts: CellValue[][]): void {
     const delta = inserts.length - count;
     for (const [row, cols] of this.#rows) {
@@ -108,6 +130,22 @@ export class GridEdits {
     this.#shiftTables('col', start, count, delta);
     this.#shiftImages('col', start, count, delta);
     this.#reanchorSharedFormulas('col', start, count, delta);
+    this.#shiftRangeBoundOverlays('col', start, count, delta);
+  }
+
+  // Re-anchor the four things bound to a range that live outside the cell grid: data validations,
+  // conditional formats, comment threads, and the sheet's autofilter. Each owns its own arithmetic:
+  // an overlay knows whether it holds a rectangle or a point, and the autofilter knows that its
+  // criteria are addressed relative to its own left edge. This pass only routes the splice to them
+  // and lets a deleted anchor take its entry with it.
+  #shiftRangeBoundOverlays(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+    this.#dataValidations.shift(axis, start, count, delta);
+    this.#conditionalFormattings.shift(axis, start, count, delta);
+    this.#comments.shift(axis, start, count, delta);
+    const filter = this.#autoFilter.get();
+    if (filter !== undefined) {
+      this.#autoFilter.set(shiftAutoFilter(filter, axis, start, count, delta));
+    }
   }
 
   // Rebuild a row's cells at a new row index. `Cell` fixes its position at construction, so a moved

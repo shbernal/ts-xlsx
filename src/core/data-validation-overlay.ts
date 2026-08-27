@@ -4,12 +4,13 @@
 // on Worksheet, since a validation's storage (a rule plus its decoded ranges) is a self-contained unit
 // Worksheet only ever adds to, reads, or clears wholesale.
 
+import {replaceContents} from './containers.ts';
 import {
   cloneDataValidation,
   type DataValidation,
   type DataValidationEntry,
 } from './data-validation.ts';
-import {decodeSqrefRects, type MergeRect} from './merge.ts';
+import {decodeSqrefRects, type MergeRect, shiftSqref} from './merge.ts';
 
 export class DataValidationOverlay {
   readonly #entries: DataValidationEntry[] = [];
@@ -55,6 +56,26 @@ export class DataValidationOverlay {
       }
     }
     return undefined;
+  }
+
+  /**
+   * Re-anchor every rule through a row or column splice, so a dropdown stays on the cells it was
+   * attached to rather than on whatever moved into their place. A rule whose every target area fell
+   * inside a deleted span is dropped with them.
+   */
+  shift(axis: 'row' | 'col', start: number, count: number, delta: number): void {
+    const entries: DataValidationEntry[] = [];
+    const rects: {rects: readonly MergeRect[]; rule: DataValidation}[] = [];
+    for (const entry of this.#entries) {
+      const sqref = shiftSqref(entry.sqref, axis, start, count, delta);
+      if (sqref === undefined) continue;
+      entries.push({...entry, sqref});
+      // The decoded rectangles are what `at()` answers from, so they are re-derived here rather than
+      // shifted alongside: a stale index would report the pre-splice geometry.
+      rects.push({rects: decodeSqrefRects(sqref), rule: entry.rule});
+    }
+    replaceContents(this.#entries, entries);
+    replaceContents(this.#rects, rects);
   }
 
   /** Drop every validation, leaving the overlay empty. */

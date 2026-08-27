@@ -9,6 +9,7 @@
 
 import {AuthoringError} from '../errors.ts';
 import {type CellPosition, decodeCellRef, encodeAddress, type GridRect} from './address.ts';
+import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 import type {CellStyle} from './style.ts';
 import type {CellValue} from './value.ts';
 
@@ -374,10 +375,9 @@ export class Table {
    */
   shiftRows(start: number, count: number, delta: number): boolean {
     // A table whose every row lies within the deleted span has nothing left to occupy.
-    if (this.#anchorRow >= start && this.#bottom < start + count) return false;
-    const shift = (v: number): number => (v < start ? v : v >= start + count ? v + delta : start);
-    const top = shift(this.#anchorRow);
-    const bottom = shift(this.#bottom);
+    if (isDeletedSpan(this.#anchorRow, this.#bottom, start, count)) return false;
+    const top = shiftIndex(this.#anchorRow, start, count, delta);
+    const bottom = shiftIndex(this.#bottom, start, count, delta);
     const span = bottom - top + 1;
     const fixedRows = (this.headerRow ? 1 : 0) + (this.totalsRow ? 1 : 0);
     const dataRows = span - fixedRows;

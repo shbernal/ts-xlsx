@@ -321,6 +321,15 @@ export class Worksheet {
       mergeRects: this.#mergeRects,
       tables: this.#tables,
       images: this.#images.anchors,
+      dataValidations: this.#dataValidations,
+      conditionalFormattings: this.#conditionalFormattings,
+      comments: this.#comments,
+      autoFilter: {
+        get: () => this.#autoFilter,
+        set: (next) => {
+          this.#autoFilter = next;
+        },
+      },
     });
   }
 

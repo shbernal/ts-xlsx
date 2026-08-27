@@ -8,8 +8,9 @@
 // there. Reasoning about "what does a merge do to the grid" meant reading both. The storage arrives as
 // a parameter, so these stay pure functions of the rects and rows handed in.
 
-import {decodeRange, type GridRect} from './address.ts';
+import {decodeRange, type GridRect, numberToColumn} from './address.ts';
 import type {Cell} from './cell.ts';
+import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
 /** A merged region, as the {@link GridRect} every range-shaped thing in the library is. */
 export type MergeRect = GridRect;
@@ -67,4 +68,59 @@ export function decodeSqrefRects(sqref: string): MergeRect[] {
     });
   }
   return rects;
+}
+
+/**
+ * Re-anchor an OOXML `sqref` through a splice of `count` lines at `start` on `axis`, the inverse of
+ * {@link decodeSqrefRects}. Returns `undefined` when the splice deleted every area the `sqref` named:
+ * an empty `sqref` is not writable, so the entry holding it goes too.
+ *
+ * Each space-separated area shifts on its own, and one the splice does not move is returned as the
+ * *original text*. That matters for a file the library did not author: `B:B` and `B1:B1048576` decode
+ * identically, so a re-encode would rewrite a foreign spelling and cost the byte-clean round trip.
+ */
+export function shiftSqref(
+  sqref: string,
+  axis: 'row' | 'col',
+  start: number,
+  count: number,
+  delta: number,
+): string | undefined {
+  const areas: string[] = [];
+  for (const area of sqref.split(/\s+/)) {
+    if (area === '') continue;
+    const shifted = shiftSqrefArea(area, axis, start, count, delta);
+    if (shifted !== undefined) areas.push(shifted);
+  }
+  return areas.length > 0 ? areas.join(' ') : undefined;
+}
+
+function shiftSqrefArea(
+  area: string,
+  axis: 'row' | 'col',
+  start: number,
+  count: number,
+  delta: number,
+): string | undefined {
+  const {top, left, bottom, right} = decodeRange(area);
+  const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
+  // An area unbounded on the spliced axis covers every line of it, so the splice cannot move it: `B:B`
+  // after a row insert is still `B:B`, never `B2:B1048577`.
+  if (lo === undefined || hi === undefined) return area;
+  if (isDeletedSpan(lo, hi, start, count)) return undefined;
+  const movedLo = shiftIndex(lo, start, count, delta);
+  const movedHi = shiftIndex(hi, start, count, delta);
+  if (movedLo === lo && movedHi === hi) return area;
+  const [tl, br] =
+    axis === 'row'
+      ? [encodeCorner(left, movedLo), encodeCorner(right, movedHi)]
+      : [encodeCorner(movedLo, top), encodeCorner(movedHi, bottom)];
+  // A single-cell area stays a single cell: `B5` must not come back as `B6:B6`.
+  return area.includes(':') ? `${tl}:${br}` : tl;
+}
+
+// One corner of a shifted area. An axis the original left unbounded stays unbounded, so a whole-row
+// area re-encodes as `6:8` rather than acquiring columns it never named.
+function encodeCorner(col: number | undefined, row: number | undefined): string {
+  return `${col !== undefined ? numberToColumn(col) : ''}${row !== undefined ? row : ''}`;
 }

@@ -1,5 +1,6 @@
 import {AuthoringError} from '../errors.ts';
-import {decodeRange} from './address.ts';
+import {decodeRange, encodeAddress} from './address.ts';
+import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
 /**
  * A worksheet's autofilter: the filtered region plus any per-column criteria narrowing it. A bare
@@ -105,4 +106,44 @@ function canonicalizeColumn(column: FilterColumn, width: number): FilterColumn {
     }
   }
   return column;
+}
+
+/**
+ * Re-anchor a filter through a splice of `count` lines at `start` on `axis`, or drop it (`undefined`)
+ * when the splice deleted every line it covered.
+ *
+ * A row splice only moves the range. A column splice moves its left edge too, and a criterion is
+ * addressed by its offset from that edge rather than by an absolute column, so every offset is
+ * re-measured against the new edge and a criterion whose column was deleted goes with the column.
+ * Left alone, those offsets would keep their old numbers and silently re-point each filter at a
+ * neighbouring column.
+ */
+export function shiftAutoFilter(
+  filter: AutoFilter,
+  axis: 'row' | 'col',
+  start: number,
+  count: number,
+  delta: number,
+): AutoFilter | undefined {
+  const {top, left, bottom, right} = decodeRange(filter.ref);
+  // Unreachable for a stored filter: canonicalizeAutoFilter refuses anything but a bounded rectangle.
+  if (top === undefined || left === undefined || bottom === undefined || right === undefined) {
+    return filter;
+  }
+  const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
+  if (isDeletedSpan(lo, hi, start, count)) return undefined;
+  const movedLo = shiftIndex(lo, start, count, delta);
+  const movedHi = shiftIndex(hi, start, count, delta);
+  if (axis === 'row') {
+    const ref = `${encodeAddress(left, movedLo)}:${encodeAddress(right, movedHi)}`;
+    return {ref, columns: filter.columns};
+  }
+  const ref = `${encodeAddress(movedLo, top)}:${encodeAddress(movedHi, bottom)}`;
+  const columns: FilterColumn[] = [];
+  for (const column of filter.columns) {
+    const absolute = left + column.colId;
+    if (isDeletedSpan(absolute, absolute, start, count)) continue;
+    columns.push({...column, colId: shiftIndex(absolute, start, count, delta) - movedLo});
+  }
+  return {ref, columns};
 }
