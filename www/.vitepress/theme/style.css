@@ -1,0 +1,97 @@
+/*
+ * The site's palette, and the lattice it is built on.
+ *
+ * Almost everything here is expressed through VitePress's own custom properties rather than
+ * against its class names. That is what makes this a palette rather than a fork: the default
+ * theme keeps deciding layout, spacing and dark-mode behaviour, and this file only tells it
+ * which colours to use. Under /docs/ that restraint is the whole point, because the docs are
+ * the bulk of the site and the default layout is what makes 248 pages navigable.
+ *
+ * Not in scripts/format.ts's target list, and it must not be added: oxfmt formats the
+ * TypeScript this repo writes, and pointing it at CSS would be a second formatter's job done
+ * by a tool nobody asked to do it.
+ *
+ * Every colour below is stated in both themes. A token whose only definition sits inside
+ * `.dark` renders as the browser default in the other one, which is the failure this
+ * arrangement exists to make impossible to introduce quietly.
+ */
+
+:root {
+  /*
+   * The green of the spreadsheet lineage, at the lightness each role actually needs.
+   * Measured against the ground each is used on, not against each other: brand-1 is link
+   * text on white (6.45:1), brand-2 is its hover (4.95:1), and brand-3 is a solid button
+   * background, so it is judged with white text on it (8.03:1).
+   */
+  --vp-c-brand-1: #146c43;
+  --vp-c-brand-2: #178050;
+  --vp-c-brand-3: #125c39;
+  --vp-c-brand-soft: rgba(20, 108, 67, 0.14);
+
+  /*
+   * One warning hue and no more. Amber against the green, and dark enough to be read as
+   * text on white (6.33:1) rather than only as a background behind something else.
+   */
+  --xlsx-c-warn: #8a5300;
+  --xlsx-c-warn-soft: rgba(138, 83, 0, 0.12);
+
+  /*
+   * The lattice, drawn rather than fetched: two repeating gradients cost no request and stay
+   * crisp at any zoom, where an image of a grid would be a resolution to be wrong at. A cell
+   * border is one hairline, so it is drawn at the lightest weight that survives a non-retina
+   * screen, and its pitch is a plausible cell, wide enough to read as a spreadsheet and
+   * small enough not to read as graph paper.
+   */
+  --xlsx-grid-line: rgba(20, 108, 67, 0.1);
+  --xlsx-grid-pitch: 84px 30px;
+  --xlsx-lattice: linear-gradient(to right, var(--xlsx-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--xlsx-grid-line) 1px, transparent 1px);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #146c43, #3aa878);
+}
+
+.dark {
+  /*
+   * The same hue lifted onto the dark ground, not a different accent: #146c43 on #1b1b1f is
+   * below 3:1 and unreadable as link text. Measured on #1b1b1f, brand-1 is 8.25:1 and
+   * brand-2 is 10.65:1; brand-3 carries white text at 6.50:1.
+   */
+  --vp-c-brand-1: #5cc79a;
+  --vp-c-brand-2: #8adcba;
+  --vp-c-brand-3: #1a6b45;
+  --vp-c-brand-soft: rgba(92, 199, 154, 0.16);
+
+  --xlsx-c-warn: #e5a94a;
+  --xlsx-c-warn-soft: rgba(229, 169, 74, 0.14);
+
+  --xlsx-grid-line: rgba(92, 199, 154, 0.09);
+
+  --vp-home-hero-name-background: linear-gradient(120deg, #5cc79a, #a7e6cb);
+}
+
+/*
+ * The home page starts on the lattice and fades off it, so the page begins on a grid rather
+ * than being made of one.
+ *
+ * On a pseudo-element, because the mask that does the fading would otherwise apply to the
+ * content as well as to the background. `.VPHome` is the one class name reached for from the
+ * default theme, and deliberately the least load-bearing one available: if a release renames
+ * it the lattice stops being drawn and nothing else moves, which is the failure a purely
+ * cosmetic rule is allowed to have. A layout override in the same place would not be.
+ */
+.VPHome {
+  position: relative;
+}
+
+.VPHome::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 32rem;
+  background-image: var(--xlsx-lattice);
+  background-size: var(--xlsx-grid-pitch);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+  pointer-events: none;
+}

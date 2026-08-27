@@ -12,6 +12,9 @@ re-export shim and nothing else.
 www/
   .vitepress/
     config.ts       the site config; reads facts, restates none
+    theme/
+      index.ts      extends the default theme; the one place components are registered
+      style.css     the palette and the lattice
   scripts/
     repo.ts         package.json facts: name, description, repository and blob urls
     docs-source.ts  reads and validates docs/; throws on any drift
@@ -52,3 +55,26 @@ reaching a reader. ADR-0039 records why it is arranged this way.
   in the site.
 - **Repository facts are read, not typed.** Anything true of the repository comes from
   `scripts/repo.ts`, which reads `package.json`.
+- **The default theme is extended, never replaced.** The documentation is the bulk of the
+  site and the default layout is what makes 248 pages navigable. Colour is expressed through
+  VitePress's own custom properties; a class name of theirs is reached for only where nothing
+  else will do, and only for something cosmetic enough that a rename costs a background
+  rather than a layout.
+
+## The look
+
+The motif is the grid, because a spreadsheet already is one: a rectangular lattice with
+typographic content, which is also what a page layout is. Four rules follow from that, and
+they are here rather than in the stylesheet because three of them have nothing to style yet.
+
+- **The lattice is drawn, never fetched.** Two repeating gradients, at the pitch and weight
+  of a cell. `--xlsx-lattice` is the recipe; the home page is where it is used.
+- **A number is set like a numeric cell.** Monospace, tabular figures, right-aligned in its
+  container. That covers the counts and the byte sizes a page quotes.
+- **A divider is the weight of a cell border**, not a bar.
+- **No screenshot of Excel, and no picture of a rendered workbook.** The playground renders a
+  real one. A picture would make the same claim with the evidence removed.
+
+One accent and one warning hue, no more, both defined in light and dark with the measured
+contrast beside them. A token defined only under `.dark` renders as a browser default in the
+other theme, so every one of them is stated twice on purpose.
