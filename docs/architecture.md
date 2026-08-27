@@ -262,6 +262,25 @@ declared, which trades a surface the compiler checks for one it merely believes.
 `AssertNever` proof above spending its own guarantee. A slice that is not one costs more than the
 lines it removes, and so does an abstraction.
 
+The plumbing *underneath* those accessors was costed separately and also declined, which is worth
+stating because it looks like the cheaper half of the same idea. Four members are byte-identical
+between the two handles modulo which coordinate they name: the private read and write helpers, and
+the `values` getter and setter. Lifting them into a shared module needs the pair of stores the
+handle reads through, `peek` (which never fabricates) and `ensure` (which materialises on first
+write), as an object the handle holds. That object and its two closures are then allocated per handle, and a
+handle is constructed on every `getRow`/`getColumn` and once per step of `rows()`/`columns()`, so
+iterating twenty thousand rows and reading one property measured about 17% slower. Formatting is
+created on write and never on read precisely so a handle costs nothing; paying three allocations to
+build one contradicts that.
+
+The allocation-free shape is a base class, and it fails the other constraint: `gen-docs.ts` reads
+class members, so `values` moving to a base would drop out of the reference unless `Row` and
+`Column` redeclare it, at which point nothing is shared. Written out, the free-function version came
+to thirty-two lines inserted against thirty-two removed, plus a sixty-line module. The read and
+write helpers became pass-throughs that exist only to spell the store's name, and the `values`
+setter became a closure forwarding to the call it replaced. The repetition is four small methods;
+the abstraction was four small functions behind an interface, and it did not read better.
+
 The xlsx reader and writer, the two largest pieces here, are each a cluster rather than a
 monolith, split along the OOXML package's own divisions so a change touches one part:
 
