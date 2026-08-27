@@ -76,6 +76,9 @@
     "build": "pnpm run clean && tsc -p tsconfig.build.json && tsc -p tsconfig.build.dts.json",
     "size": "node scripts/size-budget.ts",
     "smoke:dist": "node scripts/smoke-dist.ts",
+    "site:dev": "vitepress dev www",
+    "site:build": "vitepress build www",
+    "site:preview": "vitepress preview www",
     "docs": "node scripts/gen-docs.ts",
     "docs:check": "node scripts/gen-docs.ts && git add --intent-to-add -- docs/api && git diff --exit-code -- docs/api",
     "constitution:check": "node scripts/check-constitution.ts",
@@ -83,7 +86,7 @@
     "entries:check": "node scripts/check-entries.ts",
     "source-text:check": "node scripts/check-source-text.ts",
     "chars:check": "charcheck",
-    "lint": "node node_modules/oxlint/bin/oxlint src scripts test tools charcheck.config.ts --type-aware --deny-warnings --report-unused-disable-directives",
+    "lint": "node node_modules/oxlint/bin/oxlint src scripts test tools www charcheck.config.ts --type-aware --deny-warnings --report-unused-disable-directives",
     "lint:fix": "pnpm run lint --fix",
     "format": "node scripts/format.ts --write",
     "format:check": "node scripts/format.ts --check",
@@ -91,6 +94,7 @@
     "typecheck:src": "tsc --noEmit -p tsconfig.json",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "typecheck:dist": "tsc --noEmit -p tsconfig.dist.json",
+    "typecheck:site": "tsc --noEmit -p www/tsconfig.json",
     "test:src": "node --test \"src/**/*.test.ts\"",
     "coverage": "node scripts/coverage.ts",
     "corpus": "node test/corpus/run.ts",
@@ -114,7 +118,9 @@
     "oxfmt": "^0.64.0",
     "oxlint": "^1.80.0",
     "oxlint-tsgolint": "7.0.2001",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.41"
   },
   "engines": {
     "node": ">=24"

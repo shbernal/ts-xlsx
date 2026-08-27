@@ -33,7 +33,7 @@ import {fileURLToPath} from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** The trees we author by hand or generate into. `skills` is published, so it is source too. */
-const ROOTS = ['src', 'scripts', 'test', 'tools', 'docs', 'skills'];
+const ROOTS = ['src', 'scripts', 'test', 'tools', 'docs', 'skills', 'www'];
 
 /** Build output and dependencies are nobody's source; `.tmp` is scratch by construction. */
 const SKIP_DIRS = new Set(['node_modules', '.git', '.tmp', 'dist', 'bin', 'obj']);

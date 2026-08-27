@@ -32,6 +32,7 @@ const TARGETS = [
   'scripts/**/*.ts',
   'test/**/*.ts',
   'tools/**/*.ts',
+  'www/**/*.ts',
   'charcheck.config.ts',
 ];
 

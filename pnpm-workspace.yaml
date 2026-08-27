@@ -7,6 +7,11 @@
 # needs no build step, it arrives prebuilt in lefthook-<os>-<arch>, so denying
 # this costs only the hook install we did not want.
 allowBuilds:
+  # Vite's transform pipeline, pulled in under vitepress. Its postinstall does one thing:
+  # resolve the prebuilt platform binary from the optional @esbuild/<os>-<arch> package and
+  # put it where the shim expects it. Deny it and the site build fails at the first import
+  # with a binary-not-found error, so there is no version of this that is off.
+  esbuild: true
   lefthook: false
 # `ooxml-validate` is the schema oracle this repo's OOXML gate is built on and `charcheck`
 # is the banned-character gate; both are published from repos of the same author. The

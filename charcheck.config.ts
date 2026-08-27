@@ -64,7 +64,11 @@ export default defineConfig({
       // that seeded this rule never reached and which hold 161 findings between them. Widening the
       // glob before recasting that prose would only redden the gate. Do the sweep first, then add
       // those three by name; do not reach for a bare `*.md`, which would pull the plans back in.
-      include: ['docs/**/*.md', 'test/**/*.md', 'tools/**/*.md'],
+      // `www/*.md` is the site's own pages, prose a reader meets on the way in. The glob is
+      // one level deep on purpose: `www/docs/` is the generated mirror of `docs/`, whose
+      // source the same rule already checks, so scanning the copy would report every finding
+      // twice and name the file nobody should edit.
+      include: ['docs/**/*.md', 'test/**/*.md', 'tools/**/*.md', 'www/*.md'],
     },
     {
       id: 'no-em-dash-in-source',
@@ -90,6 +94,11 @@ export default defineConfig({
         'tools/**/*.ts',
         'tools/**/*.json',
         'tools/**/*.ps1',
+        // The site has no templates, so a component's labels, its empty states and its error
+        // text all live in a `.ts` file. That is prose a reader meets; it is simply prose
+        // that happens to be a string literal, which is the argument this rule already makes
+        // for the error messages in `src/`.
+        'www/**/*.ts',
       ],
       // A probe record is evidence, not prose we may reword later. `verdict` and `description`
       // are what the author concluded on the day Excel was asked, and both the probe spec and

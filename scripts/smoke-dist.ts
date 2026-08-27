@@ -71,7 +71,9 @@ function closure(entry: string): Set<string> {
     reached.add(file);
     const source = readFileSync(file, 'utf8');
     for (const match of source.matchAll(RELATIVE_SPECIFIER)) {
-      pending.push(normalize(join(dirname(file), match[1] as string)));
+      const specifier = match[1];
+      if (specifier === undefined) continue;
+      pending.push(normalize(join(dirname(file), specifier)));
     }
   }
   return reached;

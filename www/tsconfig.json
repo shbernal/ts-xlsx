@@ -1,0 +1,14 @@
+{
+  "//": "Type-safety gate for the website under www/. Extends the same strict config as src/, and overrides only what a site needs: the DOM.",
+  "extends": "../tsconfig.json",
+  "//tsBuildInfoFile": "Its own file, never the inherited one. See the note in tsconfig.json.",
+  "//types": "`node` stays on, against the instinct to keep it away from browser code. www/ is one project holding two kinds of module: the VitePress config and www/scripts/ read package.json at build time, and the components run in a tab. Splitting the directory into two tsconfig projects to hide `node` from the second buys a second buildinfo and a second entry in every gate's file list, and it guards against an import Vite already fails the build on, since it cannot bundle node:fs for a browser. One project, and the bundler is the check.",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "tsBuildInfoFile": "../node_modules/.cache/ts-xlsx/www.tsbuildinfo"
+  },
+  "include": ["**/*.ts"],
+  "//exclude": "www/docs/ is the generated mirror and .vitepress/cache and dist are build output; none of the three is authored here.",
+  "exclude": ["docs", ".vitepress/cache", ".vitepress/dist"]
+}

@@ -7,6 +7,13 @@ dist/
 # Coverage
 coverage/
 
+# The website's derived state. www/docs/ is the generated mirror of the tracked docs/
+# tree: it is rewritten whole on every build, so a copy in history would be a second
+# place to fix a typo.
+www/docs/
+www/.vitepress/cache/
+www/.vitepress/dist/
+
 # Dependencies
 node_modules/
 

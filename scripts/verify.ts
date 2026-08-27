@@ -40,7 +40,7 @@ const TSC = resolve(ROOT, 'node_modules/typescript/bin/tsc');
 const CHARCHECK = resolve(ROOT, 'node_modules/charcheck/dist/cli.js');
 
 /** What `lint` covers; must stay in step with the `lint` package script. */
-const LINT_TARGETS = ['src', 'scripts', 'test', 'tools', 'charcheck.config.ts'];
+const LINT_TARGETS = ['src', 'scripts', 'test', 'tools', 'www', 'charcheck.config.ts'];
 // CLAUDE.md §2 admits no warnings, and oxlint exits 0 on them. Nothing in .oxlintrc.jsonc is set
 // to "warn" today, so this changes no current outcome. It is here so that the first rule adopted
 // at warning severity, to stage a migration, is still a gate rather than a message.
@@ -211,15 +211,17 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
     // --quick mode, because the check is ~0.7 s against the whole 511 files, so scoping it to
     // changed files would buy nothing and add a second definition of the file set.
     {name: 'format', steps: [{command: NODE, args: ['scripts/format.ts', '--check']}]},
-    // Both projects in one gate, deliberately sequential: two `tsc` processes each
+    // Every project in one gate, deliberately sequential: two `tsc` processes each
     // re-reading all of src/ are the worst-contending pair in the set, and pitting them
     // against each other cost more than running them back to back (2.1 s + 2.4 s serial
-    // vs 4.7 s + 2.6 s when concurrent).
+    // vs 4.7 s + 2.6 s when concurrent). The site's project is small and reads none of
+    // src/, so it rides along here rather than earning a gate and a process slot.
     {
       name: 'typecheck',
       steps: [
         {command: NODE, args: [TSC, '--noEmit', '-p', 'tsconfig.json']},
         {command: NODE, args: [TSC, '--noEmit', '-p', 'tsconfig.test.json']},
+        {command: NODE, args: [TSC, '--noEmit', '-p', 'www/tsconfig.json']},
       ],
     },
   );
