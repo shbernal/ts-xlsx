@@ -556,6 +556,69 @@ test('addTable leaves a totals column with no built-in aggregate blank', () => {
   assert.equal(sheet.getCell('B3').value, null, 'a column with no aggregate stays blank');
 });
 
+test('a custom totals column writes its stored formula verbatim, and nothing without one', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [
+      {name: 'Item', totalsRowLabel: 'Total'},
+      {
+        name: 'Ratio',
+        totalsRowFunction: 'custom',
+        totalsRowFormula: 'SUM(T[Ratio])/COUNTA(T[Item])',
+      },
+      {name: 'Spare', totalsRowFunction: 'custom'},
+    ],
+    rowCount: 1, // totals row is row 3
+    totalsRow: true,
+  });
+
+  assert.equal(sheet.getCell('A3').value, 'Total');
+  assert.deepEqual(
+    sheet.getCell('B3').value,
+    {formula: 'SUM(T[Ratio])/COUNTA(T[Item])'},
+    "a custom total is the column's own formula, not a SUBTOTAL",
+  );
+  assert.equal(
+    sheet.getCell('C3').value,
+    null,
+    'a custom column with no stored formula has nothing to write',
+  );
+});
+
+test('a header cell holding a value survives re-registration, blank siblings do not', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.getCell('B1').value = 'Renamed by hand';
+  sheet.addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'Item'}, {name: 'Amount'}],
+    rowCount: 1,
+  });
+
+  assert.equal(sheet.getCell('A1').value, 'Item', 'the empty header cell is filled');
+  assert.equal(
+    sheet.getCell('B1').value,
+    'Renamed by hand',
+    'text that drifted from the column name is authoritative',
+  );
+});
+
+test('a table declaring a frame does not materialise cells it did not declare', () => {
+  const sheet = new Worksheet('S', 1);
+  sheet.addTable({
+    name: 'T',
+    ref: 'A1',
+    columns: [{name: 'Item'}],
+    rowCount: 1,
+    headerRow: false,
+  });
+
+  assert.equal(sheet.hasCell(1, 1), false, 'a headerless table writes no header');
+  assert.equal(sheet.hasCell(2, 1), false, 'and asking about its frame creates no cells');
+});
+
 test('addTable does not clobber a pre-set totals cell: round-trip re-registration is idempotent', () => {
   const sheet = new Worksheet('S', 1);
   sheet.getCell('B3').value = 99; // a cell already sitting where the totals aggregate would land

@@ -39,7 +39,7 @@ import {Range, rangeFrom} from './range.ts';
 import {buildRowCells, rowPlacements} from './row-input.ts';
 import {Row} from './row.ts';
 import type {CellStyle, Color, Fill} from './style.ts';
-import {Table, type TableOptions, TOTALS_ROW_SUBTOTAL_CODE} from './table.ts';
+import {Table, type TableOptions} from './table.ts';
 import type {CellValue} from './value.ts';
 import {WorksheetComments} from './worksheet-comments.ts';
 import {WORKSHEET_MODEL_FACETS} from './worksheet-model.ts';
@@ -525,78 +525,20 @@ export class Worksheet {
    * @throws {AuthoringError} if the name, columns, or geometry are invalid.
    */
   addTable(options: TableOptions): Table {
-    const table = new Table(
-      options,
-      (row, col, value, style) => {
+    const table = new Table(options, {
+      // The guard the materialiser reads through must not create the cell it asks about, so it goes
+      // through `hasCell` rather than `#cellAt`.
+      holdsValue: (row, col) => this.hasCell(row, col) && this.#cellAt(row, col).value != null,
+      writeCell: (row, col, value, style) => {
         const cell = this.#cellAt(row, col);
         cell.value = value;
         if (style !== undefined) applyCellStyle(cell, style);
       },
       // Insert one empty grid row at `row`; the splice re-pins this table (growing its data rows) and
       // shifts the totals row and everything below down by one.
-      (row) => this.spliceRows(row, 0, []),
-    );
+      insertRow: (row) => this.spliceRows(row, 0, []),
+    });
     this.#tables.push(table);
-
-    // A table's declared range includes its header row, and Excel treats the column metadata and
-    // the cells under it as one fact: a header row that is empty in the grid is corruption, and
-    // Excel repairs the file on open, discarding the column names entirely. The caller already
-    // named the columns once in the table definition, so materialising them here is what makes the
-    // obvious API call produce a file that opens.
-    //
-    // Only *empty* header cells are filled. Reading a workbook re-registers each table through this
-    // method after the sheet's cells are loaded, and those cells are authoritative: they may carry
-    // rich text, a style, or text that drifted from the column name, none of which a re-declaration
-    // may clobber. An empty cell has no such content to lose.
-    if (table.headerRow) {
-      const {top, left} = table.region;
-      table.columns.forEach((column, index) => {
-        const col = left + index;
-        if (this.hasCell(top, col) && this.#cellAt(top, col).value != null) return;
-        this.#cellAt(top, col).value = column.name;
-      });
-    }
-
-    // Materialize the totals row Excel renders on open, so our files show it immediately rather than a
-    // blank strip until the user interacts. A labelled column writes its label string; an aggregate
-    // column writes the `SUBTOTAL(code, Table[Column])` formula Excel would compute. Unlike the header
-    // row, this is a UX-parity nicety, not a validity fix. Excel opens a declared-but-empty totals row
-    // without repair; matching its on-open rendering is still the point.
-    //
-    // Same round-trip guard as the header row: only *empty* cells are filled. Reading a file
-    // re-registers the table after its cells are loaded, so a materialized totals cell (ours, Excel's,
-    // or a hand-set override) is authoritative and must survive untouched, keeping the round-trip
-    // idempotent. The formula carries no cached result; Excel computes an uncached formula cell on open,
-    // so the row shows real values without the library pretending to be a calc engine. A `custom` column
-    // writes its stored `totalsRowFormula` verbatim; a `none` column (or a `custom` with no stored
-    // formula) has nothing to write (see {@link TOTALS_ROW_SUBTOTAL_CODE}) and stays blank.
-    if (table.totalsRow) {
-      const {left, bottom} = table.region;
-      table.columns.forEach((column, index) => {
-        const col = left + index;
-        if (this.hasCell(bottom, col) && this.#cellAt(bottom, col).value != null) return;
-        if (column.totalsRowLabel !== undefined) {
-          this.#cellAt(bottom, col).value = column.totalsRowLabel;
-          return;
-        }
-        if (column.totalsRowFunction !== undefined) {
-          const code = TOTALS_ROW_SUBTOTAL_CODE[column.totalsRowFunction];
-          if (code !== undefined) {
-            this.#cellAt(bottom, col).value = {
-              formula: `SUBTOTAL(${code},${table.name}[${column.name}])`,
-            };
-          } else if (
-            column.totalsRowFunction === 'custom' &&
-            column.totalsRowFormula !== undefined
-          ) {
-            // A `custom` total is the column's own stored formula, not a SUBTOTAL. Excel stores it
-            // without a leading `=`, which is the formula string a cell value expects.
-            this.#cellAt(bottom, col).value = {formula: column.totalsRowFormula};
-          }
-        }
-      });
-    }
-
     return table;
   }
 

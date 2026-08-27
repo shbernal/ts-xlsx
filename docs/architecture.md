@@ -146,7 +146,20 @@ example of a candidate that fails it: `exportImages`/`importImages` reach five d
 `Worksheet` is still over the thousand lines after those two, and deliberately so. What is left on
 it is the grid and the things that reach into the grid constantly: tables and pivots materialise
 header and totals rows and re-pin themselves through `GridEdits` on every splice, so lifting them
-would produce a tables-and-grid overlay, which is the theme example above with a different name. The
+would produce a tables-and-grid overlay, which is the theme example above with a different name.
+
+What that materialising *is*, though, belongs to the table, and lives there. `Worksheet.addTable`
+hands the new table a `TableGrid`, the three-call channel a registered table holds into the grid
+(does this cell hold a value, write this cell, open a row here), and the table fills its own header
+and totals cells as the last act of construction. The knowledge that an empty header row is
+corruption Excel repairs on open, that a totals aggregate is a `SUBTOTAL` under a code from
+`TOTALS_ROW_SUBTOTAL_CODE`, and that a `custom` total is the column's own stored formula, is the
+table's, not the sheet's. The round-trip guard is the load-bearing part: reading a workbook
+re-registers every table after its cells are loaded, so only an *empty* cell may be filled. A cell
+holding rich text, a style, or text that drifted from the column name is authoritative, and
+clobbering it would be silent data loss on every file that has a table, with no schema error to
+catch it. That is why the channel asks whether a cell holds a value rather than handing over the
+sheet: a materialiser that could reach `#cellAt` would create the very cells it was asking about. The
 page-layout fields (`view`, `pageSetup`, `printOptions`, `pageMargins`, `headerFooter`, and the two
 break lists) are plain mutable objects with no accessors and no behaviour, so there is nothing to
 delegate and grouping them would change the public API to no end. The line count is the symptom the

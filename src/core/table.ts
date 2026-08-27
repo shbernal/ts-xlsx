@@ -18,22 +18,30 @@ import type {CellValue} from './value.ts';
  * optional; only the ones set are applied, leaving the rest of each cell's style untouched. */
 export type TableColumnStyle = Readonly<CellStyle>;
 
-/** Writes a value into the owning worksheet's grid at a 1-based row/column, applying the column's
- * style (if any) to the cell: the hook a {@link Table} uses to materialise the cells of a row
- * appended through {@link Table.addRow}. A worksheet supplies it when it registers the table; a table
- * built standalone has none and cannot write cell values. */
-export type TableCellWriter = (
-  row: number,
-  col: number,
-  value: CellValue,
-  style?: TableColumnStyle,
-) => void;
-
-/** Inserts one empty row into the owning worksheet's grid at a 1-based `row`, shifting that row and
- * everything below it down by one: the hook a {@link Table} with a totals row uses to open a slot
- * for an appended data row above the totals. Relocating the totals row lives in the grid, so a
- * standalone table has no inserter and cannot append past a totals row. */
-export type TableRowInserter = (row: number) => void;
+/**
+ * The channel a registered table holds into its owning worksheet's grid. A worksheet supplies it
+ * when it registers the table; a table built standalone (a unit test, a bare model) has none, so it
+ * can be inspected but cannot materialise or append cells, and appending throws rather than
+ * silently dropping the values.
+ *
+ * All three coordinates are 1-based.
+ */
+export interface TableGrid {
+  /**
+   * Whether the cell at this position already holds a value. The materialiser's round-trip guard
+   * asks this and nothing else: it must not create the cell, because asking whether a table's frame
+   * is already filled would otherwise fill the grid with the empty cells it was asking about.
+   */
+  holdsValue(row: number, col: number): boolean;
+  /** Write a value, applying the column's style (if any) to the cell. */
+  writeCell(row: number, col: number, value: CellValue, style?: TableColumnStyle): void;
+  /**
+   * Insert one empty row at `row`, shifting that row and everything below it down by one: how a
+   * table with a totals row opens a slot for an appended data row above the totals. Relocating the
+   * totals row lives in the grid, which is why this is the grid's job and not the table's.
+   */
+  insertRow(row: number): void;
+}
 
 /**
  * A table's visual style (`<tableStyleInfo>`): the named style to apply plus the banding/highlight
@@ -253,16 +261,9 @@ export class Table {
   #anchorRow: number;
   #dataRowCount: number;
 
-  // Set by the worksheet that registers this table so an appended row can be written into the grid.
-  // A table constructed standalone (a unit test, a bare model) has none: appending values then
-  // throws rather than silently dropping them.
-  readonly #writeCell: TableCellWriter | undefined;
+  readonly #grid: TableGrid | undefined;
 
-  // Supplied alongside #writeCell by the registering worksheet. A totals-row table appends by
-  // inserting a grid row above the totals; a standalone table has neither hook.
-  readonly #insertRow: TableRowInserter | undefined;
-
-  constructor(options: TableOptions, writeCell?: TableCellWriter, insertRow?: TableRowInserter) {
+  constructor(options: TableOptions, grid?: TableGrid) {
     validateTableName(options.name);
     if (options.columns.length === 0) {
       throw new AuthoringError(`table "${options.name}" must declare at least one column`);
@@ -297,14 +298,15 @@ export class Table {
     this.#anchorCol = col;
     this.#anchorRow = row;
     this.#dataRowCount = options.rowCount;
-    this.#writeCell = writeCell;
-    this.#insertRow = insertRow;
+    this.#grid = grid;
 
     if (this.#rowSpan < 1) {
       throw new AuthoringError(
         `table "${this.name}" has no rows: it needs a header row or at least one data row`,
       );
     }
+
+    if (grid !== undefined) this.#materializeFrame(grid);
   }
 
   get columnCount(): number {
@@ -338,32 +340,100 @@ export class Table {
     // otherwise the first free row under the table.
     const target = this.#anchorRow + (this.headerRow ? 1 : 0) + this.#dataRowCount;
 
+    const grid = this.#grid;
     if (this.totalsRow) {
-      if (this.#insertRow === undefined) {
+      if (grid === undefined) {
         throw new AuthoringError(
           `table "${this.name}" is not attached to a worksheet: cannot relocate its totals row to append a data row`,
         );
       }
       // Opening a grid slot at the totals row shifts the totals down and grows this table by one
       // through the sheet's own table re-pinning, so #dataRowCount is not bumped again here.
-      this.#insertRow(target);
-      values.forEach((value, index) => {
-        this.#writeCell?.(target, this.#anchorCol + index, value, this.columns[index]?.style);
-      });
+      grid.insertRow(target);
+      this.#writeRow(grid, target, values);
       return;
     }
 
     if (values.length > 0) {
-      if (this.#writeCell === undefined) {
+      if (grid === undefined) {
         throw new AuthoringError(
           `table "${this.name}" is not attached to a worksheet: cannot write appended row values`,
         );
       }
-      values.forEach((value, index) => {
-        this.#writeCell?.(target, this.#anchorCol + index, value, this.columns[index]?.style);
-      });
+      this.#writeRow(grid, target, values);
     }
     this.#dataRowCount += 1;
+  }
+
+  #writeRow(grid: TableGrid, row: number, values: readonly CellValue[]): void {
+    values.forEach((value, index) => {
+      grid.writeCell(row, this.#anchorCol + index, value, this.columns[index]?.style);
+    });
+  }
+
+  // Fill the header and totals cells this table's own declaration implies, without clobbering
+  // anything already there. It runs once, at the end of construction, because a table's frame is
+  // part of what declaring the table means: a worksheet that registers one gets the cells with it,
+  // and a table built standalone has no grid and so materialises nothing.
+  //
+  // Two independent findings below, kept apart because the reasons differ. The header fill is a
+  // validity fix; the totals fill is a rendering-parity nicety. Both share one round-trip guard:
+  // only an *empty* cell is filled.
+  #materializeFrame(grid: TableGrid): void {
+    // A table's declared range includes its header row, and Excel treats the column metadata and
+    // the cells under it as one fact: a header row that is empty in the grid is corruption, and
+    // Excel repairs the file on open, discarding the column names entirely. The caller already
+    // named the columns once in the table definition, so materialising them here is what makes the
+    // obvious API call produce a file that opens.
+    //
+    // Only *empty* header cells are filled. Reading a workbook re-registers each table after the
+    // sheet's cells are loaded, and those cells are authoritative: they may carry rich text, a
+    // style, or text that drifted from the column name, none of which a re-declaration may clobber.
+    // An empty cell has no such content to lose.
+    if (this.headerRow) {
+      const {top, left} = this.region;
+      this.columns.forEach((column, index) => {
+        const col = left + index;
+        if (grid.holdsValue(top, col)) return;
+        grid.writeCell(top, col, column.name);
+      });
+    }
+
+    // Materialize the totals row Excel renders on open, so our files show it immediately rather than a
+    // blank strip until the user interacts. A labelled column writes its label string; an aggregate
+    // column writes the `SUBTOTAL(code, Table[Column])` formula Excel would compute. Unlike the header
+    // row, this is a UX-parity nicety, not a validity fix. Excel opens a declared-but-empty totals row
+    // without repair; matching its on-open rendering is still the point.
+    //
+    // Same round-trip guard as the header row: only *empty* cells are filled. Reading a file
+    // re-registers the table after its cells are loaded, so a materialized totals cell (ours, Excel's,
+    // or a hand-set override) is authoritative and must survive untouched, keeping the round-trip
+    // idempotent. The formula carries no cached result; Excel computes an uncached formula cell on open,
+    // so the row shows real values without the library pretending to be a calc engine. A `custom` column
+    // writes its stored `totalsRowFormula` verbatim; a `none` column (or a `custom` with no stored
+    // formula) has nothing to write (see {@link TOTALS_ROW_SUBTOTAL_CODE}) and stays blank.
+    if (this.totalsRow) {
+      const {left, bottom} = this.region;
+      this.columns.forEach((column, index) => {
+        const col = left + index;
+        if (grid.holdsValue(bottom, col)) return;
+        if (column.totalsRowLabel !== undefined) {
+          grid.writeCell(bottom, col, column.totalsRowLabel);
+          return;
+        }
+        if (column.totalsRowFunction === undefined) return;
+        const code = TOTALS_ROW_SUBTOTAL_CODE[column.totalsRowFunction];
+        if (code !== undefined) {
+          grid.writeCell(bottom, col, {
+            formula: `SUBTOTAL(${code},${this.name}[${column.name}])`,
+          });
+        } else if (column.totalsRowFunction === 'custom' && column.totalsRowFormula !== undefined) {
+          // A `custom` total is the column's own stored formula, not a SUBTOTAL. Excel stores it
+          // without a leading `=`, which is the formula string a cell value expects.
+          grid.writeCell(bottom, col, {formula: column.totalsRowFormula});
+        }
+      });
+    }
   }
 
   /**
