@@ -206,6 +206,10 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
   gates.push(
     lint,
     {name: 'test:src', steps: [{command: NODE, args: ['--test', 'src/**/*.test.ts']}]},
+    // Its own gate rather than a widened glob on the one above. A gate's name is what a
+    // failure reports, and "test:src failed" pointing at a module under www/ would be a lie.
+    // The site's tests build and read real workbooks, so they belong in --quick too.
+    {name: 'test:site', steps: [{command: NODE, args: ['--test', 'www/**/*.test.ts']}]},
     // Its own gate, not a step of `lint`: they are two tools now, and a combined gate
     // reports one failure without saying which of them produced it. Whole-tree even in
     // --quick mode, because the check is ~0.7 s against the whole 511 files, so scoping it to

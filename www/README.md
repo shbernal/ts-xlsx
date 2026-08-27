@@ -20,6 +20,7 @@ www/
     docs-source.ts  reads and validates docs/; throws on any drift
     sync-docs.ts    writes www/docs/, the mirror
     check.ts        the drift gate: the validation with nothing written
+  playground/       what the playground does, as pure modules with a test beside each
   index.md          the home page
   docs/             GENERATED from docs/. Git-ignored. Never edit a file here.
 ```
@@ -31,6 +32,7 @@ pnpm run site:dev        # sync, then hot-reload at http://localhost:5173/ts-xls
 pnpm run site:build      # sync, then what CI publishes
 pnpm run site:preview    # serve the built site
 pnpm run site:check      # the drift gate, on its own
+pnpm run test:site       # the playground's own tests
 pnpm run typecheck:site  # tsc over www/**/*.ts
 ```
 
@@ -60,6 +62,23 @@ reaching a reader. ADR-0039 records why it is arranged this way.
   VitePress's own custom properties; a class name of theirs is reached for only where nothing
   else will do, and only for something cosmetic enough that a rename costs a background
   rather than a layout.
+
+## The playground
+
+`playground/` holds everything the playground does and none of how it looks: the sample
+workbooks as builder functions, the write/read/round-trip lanes, the emitted package as a
+listable part tree, a worksheet as a bounded grid model, and the three quantities the page
+puts on screen. Every module is pure, every one has a test beside it, and none of them names
+a DOM type. That is what makes the components boring, which is the point: a component here
+cannot be typechecked past its markup, so anything that could be wrong belongs below it.
+
+Two rules the modules keep, because breaking either would put a lie on the page:
+
+- **A lane returns a result, it does not throw.** A thrown error in a page is a blank panel,
+  and a reader who learns that this library refuses their file by name has learned something
+  true about it.
+- **A timing measures the library call and nothing else.** A number that includes the
+  caller's own work is a number that lies.
 
 ## The look
 
