@@ -394,6 +394,18 @@ export function assignStyleFacets(target: CellStyle, source: Readonly<CellStyle>
   for (const facet of CELL_STYLE_FACETS) copyFacet(target, source, facet);
 }
 
+/**
+ * The {@link CellStyle} facets of `source` as a plain tuple of their own, for a source that carries
+ * more than the facets (a column's properties also hold width, hidden and outline state). The
+ * projection counterpart to {@link assignStyleFacets}, driven by the same list, so a facet added to
+ * the tuple reaches a `<col>` style without anyone remembering to widen a literal.
+ */
+export function pickStyleFacets(source: Readonly<CellStyle>): CellStyle {
+  const facets: CellStyle = {};
+  assignStyleFacets(facets, source);
+  return facets;
+}
+
 // A single facet key at a time, so the write's key type is one member (not the whole union) and
 // `target[key] = source[key]` typechecks without a cast: the correlated-key access TS can't verify
 // when the key is a union.

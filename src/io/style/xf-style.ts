@@ -24,10 +24,15 @@ import {
  * not present on the reconstructed cell.
  *
  * It *derives* the facets rather than listing them, so a seventh facet added to `CellStyle` reaches
- * both readers the moment it joins. Re-declaring them here, the shape this replaced, meant a new
+ * every codec the moment it joins. Re-declaring them here, the shape this replaced, meant a new
  * facet silently stopped at the model and never appeared in a file we read back.
+ *
+ * Read-only throughout: an xf is a resolved snapshot, assembled once and then only consulted. Both
+ * readers already build theirs through an explicitly-mutable draft (`{-readonly [K in keyof
+ * XfStyle]?: …}`), so the constraint costs nothing and stops a consumer editing a table entry that
+ * other cells share.
  */
-export interface XfStyle extends CellStyle {
+export interface XfStyle extends Readonly<CellStyle> {
   readonly quotePrefix?: boolean;
   /** The `xfId` link into the named-style layer (`cellStyleXfs`); absent for the Normal default (0). */
   readonly xfId?: number;

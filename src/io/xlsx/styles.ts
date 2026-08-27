@@ -43,6 +43,7 @@ import {
   numberText,
   XML_DECLARATION,
 } from '../../xml/xml.ts';
+import type {XfStyle} from '../style/xf-style.ts';
 import {colorAttrs} from './color-xml.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 
@@ -70,20 +71,6 @@ const DEFAULT_FONT_BODY =
 // The empty border: all five edges present but styleless. A border that overrides no edge
 // serialises to exactly this, so it interns to the default border id 0 rather than a new one.
 const DEFAULT_BORDER = '<border><left/><right/><top/><bottom/><diagonal/></border>';
-
-/** A cell's style facets as the writer composes them: cell overrides atop row/column defaults. */
-export interface CellStyle {
-  readonly fill?: Fill | undefined;
-  readonly numFmt?: string | undefined;
-  readonly font?: Font | undefined;
-  readonly border?: Border | undefined;
-  readonly alignment?: Alignment | undefined;
-  readonly protection?: Protection | undefined;
-  /** The quote-prefix flag: an attribute on the xf, not a shared sub-table entry. */
-  readonly quotePrefix?: boolean | undefined;
-  /** The `xfId` link into `cellStyleXfs`: the named cell style this format inherits from (0 = Normal). */
-  readonly xfId?: number | undefined;
-}
 
 // One interned cell format. `fillId` 0 is no fill; `numFmtId` 0 is the General format;
 // `fontId` 0 is the default font; `borderId` 0 is the empty border. `alignment` and `protection`
@@ -265,7 +252,7 @@ export class StyleRegistry {
    * The `<cellXfs>` index for a composed cell/row/column style. A style with no facet needs
    * no entry and resolves to the default xf 0, so its owner emits no `s` attribute at all.
    */
-  styleId(style: CellStyle): number {
+  styleId(style: XfStyle): number {
     const format = this.#composeFormat(style, style.xfId ?? 0);
     // An all-default format that links to no named style needs no entry and resolves to xf 0, so its
     // owner emits no `s` attribute. A non-zero xfId is itself information (the cell inherits a named
@@ -285,7 +272,7 @@ export class StyleRegistry {
   // Compose a style's facets into an interned {@link CellFormat}, interning each fill/font/border/
   // number-format into its shared sub-table. Shared by the cell-format path ({@link styleId}) and the
   // named-style path ({@link seedNamedStyles}), which differ only in which table the result lands in.
-  #composeFormat(style: CellStyle, xfId: number): CellFormat {
+  #composeFormat(style: XfStyle, xfId: number): CellFormat {
     // A `none` pattern is the reserved fill 0; a gradient is always a real, interned fill.
     const paints =
       style.fill !== undefined && (style.fill.type === 'gradient' || style.fill.pattern !== 'none');

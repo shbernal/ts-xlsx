@@ -10,7 +10,7 @@ import type {Cell} from '../../core/cell.ts';
 import {DEFAULT_DATE_NUMFMT, dateToSerial} from '../../core/date.ts';
 import {mangleFormula} from '../../core/formula.ts';
 import {NAMED_STYLE_ID} from '../../core/internal.ts';
-import type {Fill} from '../../core/style.ts';
+import {CELL_STYLE_FACETS, type CellStyle, type Fill, pickStyleFacets} from '../../core/style.ts';
 import {
   detectValueType,
   type FormulaResult,
@@ -40,6 +40,7 @@ import {
 } from '../../xml/xml.ts';
 import {relativePartPath} from '../opc/part-paths.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
+import type {XfStyle} from '../style/xf-style.ts';
 import {conditionalFormattingsExtXml, conditionalFormattingsXml} from './conditional-formatting.ts';
 import {dataValidationsExtXml, dataValidationsXml} from './data-validation.ts';
 import {type HyperlinkPlan, hyperlinksXml} from './hyperlinks.ts';
@@ -69,7 +70,7 @@ import {
   sheetPrXml,
   sheetViewsXml,
 } from './sheet-properties.ts';
-import type {CellStyle, StyleRegistry} from './styles.ts';
+import type {StyleRegistry} from './styles.ts';
 import {x14Ext} from './x14-ext.ts';
 
 /**
@@ -319,27 +320,45 @@ export function renderRow(
 
 // Compose a cell's full style by resolving each facet cell-over-row-over-column, so a cell that
 // overrides one facet still carries the row's fill and the column's other facets rather than silently
-// dropping them: the per-facet precedence Excel applies. The row contributes only a fill today;
-// quote-prefix and the named-style link are cell-only, with no row/column default to inherit.
+// dropping them: the per-facet precedence Excel applies.
+//
+// Cell-over-column is the default, taken from the facet registry, so a seventh facet added to
+// `CellStyle` composes correctly on the day it joins. The two facets that resolve against more than
+// that overwrite themselves afterwards rather than being exempted from the loop: the loop stays the
+// exhaustive half, and a special case has to be written down to exist. Quote-prefix and the
+// named-style link are cell-only, with no row/column default to inherit, and are deliberately not
+// facets.
 function composeCellStyle(
   cell: Cell,
   rowFill: Fill | undefined,
   colDef: ColumnProperties | undefined,
-): CellStyle {
-  return {
-    fill: cell.fill ?? rowFill ?? colDef?.fill,
-    // A bare Date carries no format of its own, so it renders as a raw serial and reads back as a
-    // number unless we apply a date format. An explicit cell/column format wins.
-    numFmt: cell.numFmt ?? colDef?.numFmt ?? dateDefaultNumFmt(cell.value),
-    font: cell.font ?? colDef?.font,
-    border: cell.border ?? colDef?.border,
-    alignment: cell.alignment ?? colDef?.alignment,
-    protection: cell.protection ?? colDef?.protection,
-    quotePrefix: cell.quotePrefix,
-    // Preserved so a round-trip keeps the cell tied to its named style rather than flattening it into
-    // a purely-direct format.
-    xfId: cell[NAMED_STYLE_ID],
-  };
+): XfStyle {
+  const style: {-readonly [K in keyof XfStyle]?: XfStyle[K]} = {};
+  for (const facet of CELL_STYLE_FACETS) inheritFacet(style, facet, cell, colDef);
+  // A row carries a fill and nothing else, so it sits between the cell and the column on this one
+  // facet alone.
+  style.fill = cell.fill ?? rowFill ?? colDef?.fill;
+  // A bare Date carries no format of its own, so it renders as a raw serial and reads back as a
+  // number unless we apply a date format. An explicit cell/column format wins.
+  style.numFmt = cell.numFmt ?? colDef?.numFmt ?? dateDefaultNumFmt(cell.value);
+  if (cell.quotePrefix !== undefined) style.quotePrefix = cell.quotePrefix;
+  // Preserved so a round-trip keeps the cell tied to its named style rather than flattening it into
+  // a purely-direct format.
+  const xfId = cell[NAMED_STYLE_ID];
+  if (xfId !== undefined) style.xfId = xfId;
+  return style;
+}
+
+// One facet at a time, so `target[key] = a[key] ?? b[key]` typechecks without a cast: the
+// correlated-key access TS cannot verify when the key is the whole union. The same shape, and the
+// same reason, as `copyFacet` in `core/style.ts`.
+function inheritFacet<K extends keyof CellStyle>(
+  target: CellStyle,
+  key: K,
+  cell: Readonly<CellStyle>,
+  colDef: Readonly<CellStyle> | undefined,
+): void {
+  target[key] = cell[key] ?? colDef?.[key];
 }
 
 // Assemble the worksheet's single `<extLst>` from every x14 extension the sheet carries, or '' when it
@@ -587,14 +606,7 @@ function colBody(properties: ColumnProperties, styles: StyleRegistry): string | 
   // The column's style facets are carried as its own `<col>` style; its populated cells inherit
   // them via the composition above, and this `style` makes Excel apply them to the column's empty
   // cells too.
-  const style = styles.styleId({
-    fill: properties.fill,
-    numFmt: properties.numFmt,
-    font: properties.font,
-    border: properties.border,
-    alignment: properties.alignment,
-    protection: properties.protection,
-  });
+  const style = styles.styleId(pickStyleFacets(properties));
   if (style !== 0) {
     attrs += ` style="${style}"`;
     meaningful = true;
@@ -759,12 +771,7 @@ function cellXml(
 // count here. Row/column-inherited formatting is likewise excluded; only the cell's own facets do.
 function hasOwnStyle(cell: Cell): boolean {
   return (
-    cell.fill !== undefined ||
-    cell.numFmt !== undefined ||
-    cell.font !== undefined ||
-    cell.border !== undefined ||
-    cell.alignment !== undefined ||
-    cell.protection !== undefined ||
+    CELL_STYLE_FACETS.some((facet) => cell[facet] !== undefined) ||
     cell.quotePrefix === true ||
     cell[NAMED_STYLE_ID] !== undefined
   );
