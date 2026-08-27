@@ -312,6 +312,26 @@ function readSheetPrinterSettings(
 // A sheet's anchored images live in a drawing part reached through the sheet's own relationships: a
 // relationship of type `.../drawing` names the drawing part, whose own relationships map each
 // picture's embed id to a media part under `xl/media/`. Each anchor becomes a workbook image (deduped
+// One workbook image per media part, however many places in the package point at that part. A sheet's
+// background and a drawing's picture routinely name the same bytes, and modelling them as two images
+// would write the media twice on the way out, so the map is the property both callers depend on and
+// is what makes the re-write byte-count-stable. `undefined` means the part named a target the package
+// does not carry, which is a broken relationship the caller skips over rather than fails on.
+function internImage(
+  workbook: Workbook,
+  pkg: PackageAccessors,
+  imageIdByMediaPath: Map<string, number>,
+  mediaPath: string,
+): number | undefined {
+  const known = imageIdByMediaPath.get(mediaPath);
+  if (known !== undefined) return known;
+  const bytes = pkg.partBytes(mediaPath);
+  if (bytes === undefined) return undefined;
+  const id = workbook.addImage({buffer: bytes, extension: extensionOf(mediaPath)});
+  imageIdByMediaPath.set(mediaPath, id);
+  return id;
+}
+
 // by media path) placed back on the sheet at its two-cell anchor.
 function readSheetImages(
   sheetRels: PartRelationships,
@@ -320,7 +340,7 @@ function readSheetImages(
   sheet: Worksheet,
   imageIdByMediaPath: Map<string, number>,
 ): void {
-  const {partText, partBytes} = pkg;
+  const {partText} = pkg;
   const drawingPath = sheetRels.targetPath('drawing');
   if (drawingPath === undefined) return;
   const drawingXml = partText(drawingPath);
@@ -336,13 +356,8 @@ function readSheetImages(
     const embedded = drawingRels.byId(anchor.embed);
     if (embedded === undefined) continue;
     const mediaPath = drawingRels.pathOf(embedded.target);
-    let id = imageIdByMediaPath.get(mediaPath);
-    if (id === undefined) {
-      const bytes = partBytes(mediaPath);
-      if (bytes === undefined) continue;
-      id = workbook.addImage({buffer: bytes, extension: extensionOf(mediaPath)});
-      imageIdByMediaPath.set(mediaPath, id);
-    }
+    const id = internImage(workbook, pkg, imageIdByMediaPath, mediaPath);
+    if (id === undefined) continue;
     const rot = anchor.rotation !== undefined ? {rotation: anchor.rotation} : {};
     if (anchor.to !== undefined) {
       const mode = anchor.editAs !== undefined ? {editAs: anchor.editAs} : {};
@@ -367,14 +382,8 @@ function readSheetBackground(
 ): void {
   const mediaPath = sheetRels.targetPath('image');
   if (mediaPath === undefined) return;
-  let id = imageIdByMediaPath.get(mediaPath);
-  if (id === undefined) {
-    const bytes = pkg.partBytes(mediaPath);
-    if (bytes === undefined) return;
-    id = workbook.addImage({buffer: bytes, extension: extensionOf(mediaPath)});
-    imageIdByMediaPath.set(mediaPath, id);
-  }
-  sheet.addBackgroundImage(id);
+  const id = internImage(workbook, pkg, imageIdByMediaPath, mediaPath);
+  if (id !== undefined) sheet.addBackgroundImage(id);
 }
 
 // Capture the worksheet-level references to package content the model does not interpret, so a

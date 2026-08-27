@@ -3,9 +3,9 @@
 // `styles`) is a Begin/End record pair around its entries, so the pass tracks which collection it is
 // inside: `BrtXF` appears in two of them and is meaningless without that context.
 //
-// The resolution *rules* are deliberately not restated here: number-format ids go through the XML
-// reader's `numFmtCodeFor`, and each facet is emitted with the same "only when it differs from the
-// default" discipline the XML path uses. That is what makes the binary and XML readings of one
+// The resolution *rules* are deliberately not restated here: number-format ids go through
+// `numFmtCodeFor` in `../style/xf-style.ts`, the shared layer both codecs sit above, and each facet is
+// emitted with the same "only when it differs from the default" discipline the XML path uses. That is what makes the binary and XML readings of one
 // workbook the same model rather than two similar ones: a bottom vertical alignment, a locked cell,
 // or a General number format is written explicitly in BIFF12 and omitted in XML, so the binary side
 // has to drop exactly what the XML side never had.

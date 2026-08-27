@@ -614,8 +614,8 @@ function rowAttrs(
   if (properties.hidden) attrs += ' hidden="1"';
   attrs += outlineAttr('outlineLevel', properties.outlineLevel);
   // The collapse toggle is set explicitly by the author, or derived onto a summary row whose whole
-  // detail group is hidden (see {@link collapsedSummaryRows}). It rides the summary row, never the
-  // detail rows.
+  // detail group is hidden (the `collapsedSummaries` set {@link scanRowOutline} builds). It rides the
+  // summary row, never the detail rows.
   if (properties.collapsed || collapsedSummary) attrs += ' collapsed="1"';
   // A row-level fill is a default format for the row's cells; customFormat="1" is what makes
   // Excel honour the row's `s`, and a cell without its own `s` then inherits it.
