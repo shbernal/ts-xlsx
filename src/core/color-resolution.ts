@@ -10,7 +10,7 @@
 // rewriting every cell as a literal ARGB, which would bloat the styles table, break the link to the
 // theme (recolouring the workbook would stop working), and change what the file means.
 
-import type {Color} from './style.ts';
+import {type Color, parseArgb} from './style.ts';
 import {DEFAULT_THEME_COLOR_SCHEME, THEME_COLOR_SLOTS, type ThemeColorScheme} from './theme.ts';
 
 /**
@@ -83,8 +83,16 @@ export function resolveColor(
   return applyTint(base, tint);
 }
 
+// Resolution is a read path over foreign data, so a value that does not parse resolves to nothing
+// rather than to a half-parsed colour; the writer's counterpart throws, because there a malformed
+// value is a caller's bug. Uppercasing here is what settles the casing the three encodings disagree
+// on: a resolved colour is one concrete ARGB however it was spelled.
+function resolveArgb(value: string): string | undefined {
+  return parseArgb(value)?.toUpperCase();
+}
+
 function resolveBase(color: Color, context: ColorResolutionContext): string | undefined {
-  if (color.argb !== undefined) return normalizeArgb(color.argb);
+  if (color.argb !== undefined) return resolveArgb(color.argb);
   if (color.theme !== undefined) {
     const slot = THEME_COLOR_SLOTS[color.theme];
     if (slot === undefined) return undefined;
@@ -99,20 +107,12 @@ function resolveBase(color: Color, context: ColorResolutionContext): string | un
         ? custom[color.indexed]
         : DEFAULT_INDEXED_COLORS[color.indexed];
     if (entry === undefined) return undefined;
-    const normalized = normalizeArgb(entry);
-    return normalized === undefined ? undefined : `FF${normalized.slice(2)}`;
+    // The palette's leading `00` is not an alpha channel, so the entry is re-opacified rather than
+    // carried through (see {@link DEFAULT_INDEXED_COLORS}).
+    const parsed = resolveArgb(entry);
+    return parsed === undefined ? undefined : `FF${parsed.slice(2)}`;
   }
   return undefined;
-}
-
-// Accept the shapes a colour value legitimately arrives in (6-hex RGB, 8-hex ARGB, either with a
-// leading '#') and reject anything else rather than returning a half-parsed value. This is a *read*
-// path over foreign data, so a malformed entry resolves to nothing; the writer's own normaliser
-// throws, because there the malformed value is a caller's bug.
-function normalizeArgb(value: string): string | undefined {
-  const hex = value.startsWith('#') ? value.slice(1) : value;
-  const argb = hex.length === 6 ? `FF${hex}` : hex;
-  return /^[0-9a-fA-F]{8}$/.test(argb) ? argb.toUpperCase() : undefined;
 }
 
 /**

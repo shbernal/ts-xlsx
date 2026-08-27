@@ -185,6 +185,14 @@ test('a "#"-prefixed 6-hex RGB is both stripped and promoted to opaque ARGB', ()
   assert.match(styles.toXml(), /<fgColor rgb="FF00FF00"\/>/);
 });
 
+test('a lowercase ARGB is written back exactly as it arrived', () => {
+  const styles = new StyleRegistry();
+  styles.styleId({fill: solid('ff00ff00')});
+  // The writer shares its ARGB grammar with the resolver, which uppercases; this one must not, or a
+  // foreign file's own casing stops surviving a read-write round trip.
+  assert.match(styles.toXml(), /<fgColor rgb="ff00ff00"\/>/);
+});
+
 test('an ARGB that is neither 6 nor 8 hex digits is rejected at the API surface', () => {
   const styles = new StyleRegistry();
   // A malformed colour silently renders as flat black in Excel; fail loud instead of writing it.

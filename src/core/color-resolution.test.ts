@@ -17,6 +17,14 @@ test('an explicit argb resolves to itself, keeping its declared alpha', () => {
   assert.equal(resolveColor({argb: '#336699'}), 'FF336699');
 });
 
+test('resolution uppercases, where the writer preserves the casing it was given', () => {
+  // The one thing the two callers of the shared ARGB grammar do differently, locked from this side:
+  // a resolved colour is a concrete value callers compare, so it settles on one casing. The writer's
+  // counterpart must not, or a foreign file stops round-tripping byte for byte.
+  assert.equal(resolveColor({argb: 'ff3366aa'}), 'FF3366AA');
+  assert.equal(resolveColor({argb: '#3366aa'}), 'FF3366AA');
+});
+
 test('a malformed argb resolves to nothing rather than a half-parsed value', () => {
   assert.equal(resolveColor({argb: 'nope'}), undefined);
   assert.equal(resolveColor({argb: 'FF33669'}), undefined);

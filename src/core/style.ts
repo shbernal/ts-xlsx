@@ -40,6 +40,31 @@ export interface Color {
 }
 
 /**
+ * Parse a colour written in any of the shapes the API accepts into the bare 8-hex ARGB OOXML wants,
+ * or `undefined` if it is not one of them.
+ *
+ * Two conveniences are accepted, and nothing else: a leading `#` is a CSS habit and is stripped
+ * (`'#FFBFBFBF'` → `'FFBFBFBF'`), and a 6-hex RGB is promoted with a fully-opaque alpha (`'00FF00'` →
+ * `'FF00FF00'`), the common case of a colour written without its alpha channel. Casing is preserved,
+ * so a foreign file's lowercase value round-trips as it arrived.
+ *
+ * This states the grammar once for both directions. What a malformed value *means* differs by
+ * direction and is decided by the caller: on read it is foreign data and resolves to nothing, on
+ * write it is a caller's bug and throws (see `normalizeArgb` in `io/xlsx/color-xml.ts`). Neither can
+ * be a silently half-parsed value, because Excel does not report a malformed `rgb` at all; it
+ * renders flat black.
+ *
+ * `normalizeThemeColor` in `core/theme.ts` asks a similar question and stays separate: a theme
+ * slot is `<a:srgbClr val>`, which DrawingML gives no alpha channel, so the two differ in exactly the
+ * thing this one exists to add.
+ */
+export function parseArgb(value: string): string | undefined {
+  const hex = value.startsWith('#') ? value.slice(1) : value;
+  const argb = hex.length === 6 ? `FF${hex}` : hex;
+  return /^[0-9a-fA-F]{8}$/.test(argb) ? argb : undefined;
+}
+
+/**
  * Fill pattern kinds, as OOXML's `ST_PatternType` enumerates them. `none` is the
  * absence of a fill; `solid` paints the whole cell with the foreground colour (the
  * common case). The remaining hatch patterns are carried for fidelity on read.

@@ -11,25 +11,17 @@
 // read pipeline reached into the write pipeline. Nothing about decoding `<color>` belongs to the
 // interning table; it just happened to be where the first caller was.
 
-import type {Color} from '../../core/style.ts';
+import {type Color, parseArgb} from '../../core/style.ts';
 import {numFinite, numInteger} from '../../xml/xml-read.ts';
 
-// OOXML wants a bare 8-hex ARGB (alpha + RGB). This single choke point, through which every
-// fill/font/border/tab colour flows, accepts two developer conveniences and rejects the rest loudly,
-// because a malformed rgb value does not error in Excel: it silently renders as flat black.
-//   - A leading '#' is a CSS habit and is stripped ('#FFBFBFBF' → 'FFBFBFBF').
-//   - A 6-hex RGB is promoted to ARGB with a fully-opaque alpha ('00FF00' → 'FF00FF00'), the common
-//     case of a colour written without its alpha channel.
-// Anything not then exactly 8 hex digits is a programming error at the API surface, so it throws with
-// the offending value rather than writing corrupt XML. Casing is preserved so foreign files round-trip.
-//
-// `normalizeThemeColor` in `core/theme.ts` asks a similar question and stays a separate function:
-// a theme slot is `<a:srgbClr val>`, which DrawingML gives no alpha channel, so the two differ in
-// exactly the thing this one exists to add. One function with a flag for that would be worse.
+// The write side of the ARGB grammar `parseArgb` states: this is the single choke point through
+// which every fill/font/border/tab colour flows on its way into the file, so a value that does not
+// parse is a programming error at the API surface and throws with the offending value rather than
+// writing corrupt XML. Excel does not report a malformed `rgb`; it silently renders flat black,
+// which is why this is loud and the reader's counterpart is silent.
 function normalizeArgb(argb: string): string {
-  const hex = argb.startsWith('#') ? argb.slice(1) : argb;
-  const rgb = hex.length === 6 ? `FF${hex}` : hex;
-  if (!/^[0-9a-fA-F]{8}$/.test(rgb)) {
+  const rgb = parseArgb(argb);
+  if (rgb === undefined) {
     throw new SyntaxError(
       `Invalid ARGB colour ${JSON.stringify(argb)}: expected 6 or 8 hexadecimal digits`,
     );
