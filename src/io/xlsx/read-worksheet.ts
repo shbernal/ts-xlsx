@@ -328,11 +328,6 @@ export function parseWorksheet(
           case 'customFilter':
             autoFilter.addCustom(attrs);
             break;
-          default:
-            // A run's `<rPr>` child (`<b/>`, `<sz>`, `<color>`, `<rFont>`, …) sets one font facet; it
-            // is self-closing, so it is read here on open. Nothing else uses the default branch.
-            cell.runs.applyProperty(local, attrs);
-            break;
         }
       },
       onText(chunk) {

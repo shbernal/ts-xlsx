@@ -139,6 +139,26 @@ test('parseSharedStrings reconstructs a foreign rich <si> into runs, not flatten
   });
 });
 
+// What `parseSharedStrings` uniquely owns once the run grammar moved into the shared machine: what
+// committing one `<si>` means. One `<r>` anywhere makes the entry rich, and a bare `<t>` beside the
+// runs is not silently promoted into one.
+test('an <si> holding both a bare <t> and runs commits as rich text', () => {
+  const [entry] = parseSharedStrings('<sst><si><t>bare</t><r><t>run</t></r></si></sst>');
+  assert.deepEqual(entry, {richText: [{text: 'run'}]});
+});
+
+test('a run boundary is not a text boundary: two runs stay two entries of one string', () => {
+  const [entry] = parseSharedStrings('<sst><si><r><t>a</t><t>b</t></r><r><t>c</t></r></si></sst>');
+  assert.deepEqual(entry, {richText: [{text: 'ab'}, {text: 'c'}]});
+});
+
+test('each <si> starts clean, so a rich entry does not leak into the plain one after it', () => {
+  const entries = parseSharedStrings(
+    '<sst><si><r><rPr><b/></rPr><t>rich</t></r></si><si><t>plain</t></si></sst>',
+  );
+  assert.deepEqual(entries, [{richText: [{text: 'rich', font: {bold: true}}]}, 'plain']);
+});
+
 test('a t="s" cell pointing at a foreign rich <si> reads back as rich text', () => {
   // Author a plain package, then graft a rich shared-strings pool and a t="s" cell onto it: the
   // markup Excel writes but our writer only produces on round-trip.

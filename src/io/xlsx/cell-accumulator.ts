@@ -23,12 +23,7 @@ import type {
   SharedFormulaValue,
 } from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {
-  boolStrict,
-  decodeSpreadsheetText,
-  numInteger,
-  type XmlAttributes,
-} from '../../xml/xml-read.ts';
+import {boolStrict, numInteger, type XmlAttributes} from '../../xml/xml-read.ts';
 import {applyXfToCell, type XfStyle} from '../style/xf-style.ts';
 import {
   decodeCellContent,
@@ -62,26 +57,21 @@ export class CellAccumulator {
   #sharedClone = false;
   #dataTable: DataTableDeclaration | null = null;
   #valueText = '';
-  #inlineText = '';
   #hasFormula = false;
   #hasValue = false;
-  readonly #runs = new RunAccumulator();
+  readonly #runs: RunAccumulator;
   // Masters always precede their clones (Excel keeps the master top-left), so a clone resolves against
   // a map filled as the sheet streams: the master's formula translated to the clone's position.
   readonly #masters = new Map<number, {formula: string; col: number; row: number}>();
 
-  // The element machine's own state: whether an `<is>` is open, whether the current element's text
-  // is being gathered, and what has been gathered of it.
-  #inInlineString = false;
+  // The element machine's own state: whether the current element's text is being gathered, and what
+  // has been gathered of it. The `<is>`/`<r>`/`<rPr>`/`<t>` half of the grammar, and the capture
+  // that goes with it, belongs to {@link RunAccumulator}, which the pooled-string reader drives too.
   #capture = false;
   #text = '';
 
-  // Whether `<r>`/`<rPr>` open a rich-text run. The buffered reader reads them; the row stream
-  // deliberately does not, so a rich inline string flattens to its concatenated text there.
-  readonly #richRuns: boolean;
-
   constructor(options: {readonly richRuns: boolean}) {
-    this.#richRuns = options.richRuns;
+    this.#runs = new RunAccumulator({container: 'is', readRuns: options.richRuns});
   }
 
   /** This cell's `<c r>` address (`"B3"`), or '' when it carried none. */
@@ -99,11 +89,6 @@ export class CellAccumulator {
     return this.#col;
   }
 
-  /** The rich-text run accumulator, driven by the surrounding parser's `<r>`/`<rPr>` handling. */
-  get runs(): RunAccumulator {
-    return this.#runs;
-  }
-
   // Begin a new `<c>`: record its address/type/style and clear every per-cell gathered field so the
   // last cell's formula, value, runs, or shared/data-table declaration cannot bleed into this one.
   #beginCell(attrs: XmlAttributes): void {
@@ -118,7 +103,6 @@ export class CellAccumulator {
     this.#row = decoded?.row ?? -1;
     this.#formula = '';
     this.#valueText = '';
-    this.#inlineText = '';
     this.#runs.beginContainer();
     this.#hasFormula = false;
     this.#hasValue = false;
@@ -156,25 +140,6 @@ export class CellAccumulator {
     this.#hasValue = true;
   }
 
-  // Begin an `<is>`: clear the inline string and open a fresh run container, so a rich value built
-  // from a previous cell's runs keeps its own array.
-  #beginInlineString(): void {
-    this.#inlineText = '';
-    this.#runs.beginContainer();
-  }
-
-  // Route a `<t>`'s text: to the open run when one is active, otherwise to the inline string when the
-  // parser is inside an `<is>`. A run takes precedence, since a run is also inside the inline string.
-  //
-  // The `_xHHHH_` decode happens here, on one whole `<t>`. It cannot move up into the SAX text
-  // callback: that fires once per run of character data and an entity splits a run, so `_x00` and
-  // `01_` can arrive separately and a per-chunk decode would miss the escape in exactly those
-  // strings that happen to contain an `&`.
-  #appendText(text: string): void {
-    const decoded = decodeSpreadsheetText(text);
-    if (!this.#runs.appendText(decoded) && this.#inInlineString) this.#inlineText += decoded;
-  }
-
   /**
    * The text gathered since the current element opened. A caller reads it for the elements it
    * captures itself (see {@link capture}); the machine reads it for its own.
@@ -196,13 +161,11 @@ export class CellAccumulator {
   openElement(local: string, attrs: XmlAttributes, selfClosing: boolean): boolean {
     this.#text = '';
     this.#capture = false;
+    // The string half of the grammar first: `<is>` and everything under it is the run machine's.
+    if (this.#runs.open(local, attrs, selfClosing)) return true;
     switch (local) {
       case 'c':
         this.#beginCell(attrs);
-        return true;
-      case 'is':
-        this.#inInlineString = true;
-        this.#beginInlineString();
         return true;
       case 'f':
         // A self-closing `<f/>` fires no close, so nothing will consume the capture it just armed.
@@ -212,20 +175,6 @@ export class CellAccumulator {
       case 'v':
         this.#capture = !selfClosing;
         return true;
-      case 't':
-        this.#capture = true;
-        return true;
-      case 'r':
-        // A run inside a rich inline string. Its `<rPr>` (if any) and `<t>` follow.
-        if (!this.#richRuns) return false;
-        if (this.#inInlineString) this.#runs.beginRun();
-        return true;
-      case 'rPr':
-        // The run's formatting bundle; its self-closing children reach `runs.applyProperty` through
-        // the caller's own default branch, which is the only thing that branch is for.
-        if (!this.#richRuns) return false;
-        this.#runs.beginProperties();
-        return true;
       default:
         return false;
     }
@@ -233,6 +182,7 @@ export class CellAccumulator {
 
   /** Feed one run of character data. Ignored unless something is capturing. */
   appendChunk(chunk: string): void {
+    this.#runs.text(chunk);
     if (this.#capture) this.#text += chunk;
   }
 
@@ -249,22 +199,15 @@ export class CellAccumulator {
   }
 
   #closeElement(local: string): 'cell' | 'claimed' | 'other' {
+    // A closing `</is>` completes the inline string, but a cell reads it at `</c>` rather than here,
+    // so 'container' is nothing more to this caller than 'claimed'.
+    if (this.#runs.close(local) !== 'other') return 'claimed';
     switch (local) {
       case 'f':
         this.#setFormula(this.#text);
         return 'claimed';
       case 'v':
         this.#setValue(this.#text);
-        return 'claimed';
-      case 't':
-        this.#appendText(this.#text);
-        return 'claimed';
-      case 'r':
-        if (!this.#richRuns) return 'other';
-        this.#runs.endRun();
-        return 'claimed';
-      case 'is':
-        this.#inInlineString = false;
         return 'claimed';
       case 'c':
         return 'cell';
@@ -352,7 +295,7 @@ export class CellAccumulator {
       formula: this.#formula,
       hasValue: this.#hasValue,
       valueText: this.#valueText,
-      inlineText: this.#inlineText,
+      inlineText: this.#runs.plainText,
       richTextRuns: this.#runs.runs,
     };
     return decodeCellContent(raw, sharedStrings, style?.numFmt);

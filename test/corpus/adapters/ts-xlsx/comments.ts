@@ -2,6 +2,7 @@
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
+import {canonicalJson} from '../../canonical-json.ts';
 import {messageOf} from '../../thrown.ts';
 import type {Untyped} from '../../untyped.ts';
 import {commentThreadFacts, packagePartFacts, partMapOf} from './package-facts.ts';
@@ -13,6 +14,7 @@ import {
   type WorkbookInstance,
   writeXlsx,
 } from './runtime.ts';
+import {reloadPatched} from './xml-probes.ts';
 
 export const comments = {
   // Author a control character into each of the other places cell text is carried, a legacy note's
@@ -252,6 +254,47 @@ export const comments = {
       parts: packagePartFacts(partMapOf(bytes)),
       deterministic: Buffer.compare(Buffer.from(bytes), Buffer.from(writeXlsx(workbook))) === 0,
       model: commentThreadFacts(readXlsx(bytes), ['B2', '$B$2', 'D4']),
+    };
+  },
+  // Read one and the same rich string twice, once pooled in a `<si>` and once inline in an `<is>`,
+  // and report each reading -> { pooled, inline, identical }. The two are separate grammars in the
+  // format and were separate copies of one grammar in the reader, kept in step only by a comment
+  // saying they agreed. Nothing measured it: each reader is exercised through its own path, so a
+  // drift would surface as the same cell content reading two ways, decided by an encoding choice the
+  // author never made.
+  richStringPooledVersusInlineReport() {
+    const runs =
+      '<r><rPr><b/><sz val="14"/><color rgb="FFFF0000"/><rFont val="Arial"/></rPr><t>bold red</t></r>' +
+      '<r><t xml:space="preserve"> plain </t></r>' +
+      '<r><rPr><i/><u/></rPr><t>italic</t></r>';
+
+    const wb = new Workbook();
+    wb.addWorksheet('S').getCell('A1').value = 'placeholder';
+    const bytes = writeXlsx(wb);
+
+    // Both packages are the same bytes with one cell rewritten, so anything that differs between the
+    // two readings came from the `<si>`/`<is>` split and nothing else.
+    const pooled = reloadPatched(bytes, {
+      'xl/worksheets/sheet1.xml': (xml) =>
+        xml.replace(/<c r="A1"[^>]*>[\s\S]*?<\/c>/, '<c r="A1" t="s"><v>0</v></c>'),
+      'xl/sharedStrings.xml': () =>
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="1" uniqueCount="1">' +
+        `<si>${runs}</si></sst>`,
+    });
+    const inline = reloadPatched(bytes, {
+      'xl/worksheets/sheet1.xml': (xml) =>
+        xml.replace(/<c r="A1"[^>]*>[\s\S]*?<\/c>/, `<c r="A1" t="inlineStr"><is>${runs}</is></c>`),
+    });
+
+    const readingOf = (wbk: WorkbookInstance) =>
+      JSON.stringify(canonicalJson(wbk.getWorksheet('S')!.getCell('A1').value));
+    const pooledReading = readingOf(pooled);
+    const inlineReading = readingOf(inline);
+    return {
+      pooled: pooledReading,
+      inline: inlineReading,
+      identical: pooledReading === inlineReading,
     };
   },
 };
