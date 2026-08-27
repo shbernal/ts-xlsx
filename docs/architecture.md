@@ -294,6 +294,21 @@ write helpers became pass-throughs that exist only to spell the store's name, an
 setter became a closure forwarding to the call it replaced. The repetition is four small methods;
 the abstraction was four small functions behind an interface, and it did not read better.
 
+The same test was applied to `DataValidationOverlay` and `ConditionalFormattingOverlay` and reached
+the same answer for a different reason. About fifteen lines are byte-identical between them: an
+`add` that clones, an `entries` getter, a `shift` that maps every entry through `shiftSqref` and
+drops what comes back `undefined`, and a `clear`. A shared base needs a type parameter, an accessor
+for whichever field holds the sqref, and an injected clone function, and even then the two are not
+symmetric: `DataValidationOverlay` also maintains a decoded-rectangle index that `at()` answers
+point lookups from and that `shift` must re-derive, and the conditional-formatting overlay has
+neither. A base class would carry one subclass's collection discipline while the other's sat outside
+it, which is the slice-that-is-not-one test failing again.
+
+If that is ever taken up, the honest shape is not a base class but a free function both `shift`
+methods call, `shiftSqrefEntries(entries, refOf, withRef, axis, start, count, delta)`. That is the
+part which is genuinely one rule, and it is the part where a drift would silently re-aim a
+validation or a highlight at cells nobody chose.
+
 The xlsx reader and writer, the two largest pieces here, are each a cluster rather than a
 monolith, split along the OOXML package's own divisions so a change touches one part:
 
@@ -301,7 +316,10 @@ monolith, split along the OOXML package's own divisions so a change touches one 
   with `read.ts` keeping `readXlsx` and the workbook-level wiring. `rich-runs.ts` owns the
   `<r>`/`<rPr>`/`<t>` run accumulator the worksheet and shared-strings parsers share;
   `cell-accumulator.ts` owns the per-cell gathering state machine the buffered and streaming
-  readers both drive (ADR-0004).
+  readers both drive (ADR-0004). Every other parser that gathers an element's text across
+  open/text/close events does it through `TextCapture` in `src/xml/xml-read.ts`, which exists
+  because nine hand-rolled copies each had to remember that a self-closing `<x/>` fires no close and
+  a latch nothing closes is a latch that eats the next element's text.
 - **write** (`src/io/xlsx/`): `package-plan.ts` (the part-graph plan layer), `workbook-xml.ts`
   and `worksheet-xml.ts` (the serialisers), `relationships.ts` (the SpreadsheetML relationship-type
   vocabulary), with `write.ts` keeping `writeXlsx` and the `buildPackageParts` orchestrator.
@@ -311,6 +329,39 @@ package: `inflate.ts` (the bounded inflater), `sniff-format.ts` (the magic-byte 
 typed rejection), `read-opc.ts` (resolving relationships and walking a part closure), `rels.ts`
 (emitting a `.rels` part), `part-paths.ts`, and the package namespaces. Beneath even that,
 `src/xml/` holds escaping, emission and the SAX reader.
+
+### The write boundary is where a value stops being a value and becomes bytes
+
+A `PageSetup`, a `Color`, a `ConditionalFormattingRule` and a dozen shapes like them are plain data
+the model stores verbatim, with no accessor to validate through. That is deliberate: making them
+classes to catch a mistake would change the public surface of every one to guard a moment that has
+not happened yet, and a `Color` that never reaches a file never had a problem. So the check belongs
+at the single point where the value becomes bytes, and `src/xml/xml.ts` states all three forms of it:
+
+- **A number is refused if the format cannot spell it.** `assertWritableNumber`, and the
+  `numberText` / `numAttr` pair that call it. Every numeric attribute in OOXML is `xsd:double`,
+  `xsd:unsignedInt` or a bounded flavour, and no lexical space has a form for a NaN or an infinity,
+  so writing one produces a package Excel reports as damaged. The refusal is also exported on its own
+  because a value can be unwritable and still be *read* on the way to the bytes: the collapsed-row
+  scan compares outline levels to walk a group, and against `-Infinity` every comparison holds and
+  the walk never ends.
+- **A token from a closed enumeration is checked, not escaped.** `checkedToken`, against the
+  `is*` guard in `src/core/` that owns that enumeration. Escaping a bogus token yields a well-formed
+  document Excel still rejects, which buries the mistake in the file instead of raising it at the
+  call.
+- **A free string is escaped.** `escapeAttr` / `escapeText` / `textAttr`, plus
+  `escapeSpreadsheetText` for the measured set of elements where Excel decodes `_xHHHH_`. A
+  character XML cannot carry at all is refused, because there is no faithful representation and a
+  sheet named `Sheet_x0001_A` is a different name rather than a rendering of the one asked for.
+
+The read side is the same grammar with one asymmetry, and stating it is what makes the pair
+trustworthy. `enumToken`, `numFinite`, `numInteger` and the `bool*` family in `xml-read.ts` *drop*
+what they cannot read, where the writer throws. A file the library did not write is allowed to be
+wrong, and losing one attribute beats losing the sheet; a value an author supplied is a mistake at
+the call. Both halves lean on one guard per enumeration, so what the reader accepts is always
+something the writer can write back. Where that leaves a model fragment unwritable anyway, the
+reader drops the fragment: a `<cfRule>` whose type is not in `ST_CfType` is dropped whole rather than
+half-read, because `type` is the attribute every other field is read relative to.
 
 ## How a failure is reported
 
