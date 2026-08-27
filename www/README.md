@@ -11,20 +11,34 @@ re-export shim and nothing else.
 ```
 www/
   .vitepress/
-    config.ts     the site config; reads facts from package.json, restates none
+    config.ts       the site config; reads facts, restates none
   scripts/
-    repo.ts       package.json facts: name, description, repository and blob urls
-  index.md        the home page
+    repo.ts         package.json facts: name, description, repository and blob urls
+    docs-source.ts  reads and validates docs/; throws on any drift
+    sync-docs.ts    writes www/docs/, the mirror
+    check.ts        the drift gate: the validation with nothing written
+  index.md          the home page
+  docs/             GENERATED from docs/. Git-ignored. Never edit a file here.
 ```
 
 ## Working on it
 
 ```bash
-pnpm run site:dev        # hot-reloaded at http://localhost:5173/ts-xlsx/
-pnpm run site:build      # what CI publishes
+pnpm run site:dev        # sync, then hot-reload at http://localhost:5173/ts-xlsx/
+pnpm run site:build      # sync, then what CI publishes
 pnpm run site:preview    # serve the built site
+pnpm run site:check      # the drift gate, on its own
 pnpm run typecheck:site  # tsc over www/**/*.ts
 ```
+
+## Where the documentation comes from
+
+The tracked `docs/` tree is the source and `www/docs/` is a mirror of it, rewritten whole on
+every build. `docs/docs.json` is the reading order, and every `.md` under `docs/` must be
+claimed by exactly one group in it. Titles and descriptions are derived from the prose, so no
+page carries frontmatter. Anything that would let the two disagree, a page nothing reaches, a
+link that resolves to nothing, a heading that is missing, fails `site:check` rather than
+reaching a reader. ADR-0039 records why it is arranged this way.
 
 ## The rules this directory follows
 

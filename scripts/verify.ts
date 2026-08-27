@@ -246,6 +246,10 @@ async function gateSet(mode: Mode): Promise<Gate[]> {
           {command: NODE, args: ['scripts/check-layering.ts']},
           {command: NODE, args: ['scripts/check-entries.ts']},
           {command: NODE, args: ['scripts/check-source-text.ts']},
+          // The docs tree and the site cannot disagree quietly: every page reachable, every
+          // link resolvable, every title derivable. Sub-second, where the site build that
+          // would also catch it is half a minute.
+          {command: NODE, args: ['www/scripts/check.ts']},
           // Whole-tree, where the pre-commit hook sees only the index: a --no-verify commit
           // must not be how an em dash reaches the docs.
           {command: NODE, args: [CHARCHECK]},

@@ -1,0 +1,28 @@
+{
+  "//": "The order a reader meets docs/. Nothing else: the site's name and description are read from package.json, because a fact typed in two files is a fact that will disagree with itself.",
+  "//coverage": "Every .md under docs/ must be claimed exactly once, by a `pages` entry or by a `tree`. A page claimed by neither fails the build, so a new page cannot be published unlisted, and a page claimed twice fails too. A `tree` enumerates the rest of its directory in sorted order, which is what lets 240 generated and hand-written notes stay navigable without being typed out here.",
+  "//slugs": "A directory's README.md is named `<dir>/index` and served at the directory root.",
+  "navigation": [
+    {
+      "group": "Overview",
+      "pages": ["architecture", "migrating-from-exceljs", "agent-correctness-playbook"]
+    },
+    {
+      "group": "API reference",
+      "pages": ["api/index"],
+      "tree": "api"
+    },
+    {
+      "group": "Decisions",
+      "pages": ["decisions/index"],
+      "tree": "decisions",
+      "collapsed": true
+    },
+    {
+      "group": "Evidence",
+      "pages": ["knowledge/specs/index"],
+      "tree": "knowledge/specs",
+      "collapsed": true
+    }
+  ]
+}

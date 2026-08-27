@@ -11,7 +11,7 @@ import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 /** Resolved from this file, not from `process.cwd()`, so the scripts run from anywhere. */
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 interface PackageJson {
   readonly name: string;
@@ -34,4 +34,9 @@ export const branch = 'master';
 /** A link to a file that lives in the repository and is deliberately not published here. */
 export function blobUrl(path: string): string {
   return `${repoUrl}/blob/${branch}/${path}`;
+}
+
+/** The same, for a directory. GitHub serves those under `/tree/`, and a blob url only redirects. */
+export function treeUrl(path: string): string {
+  return `${repoUrl}/tree/${branch}/${path.replace(/\/$/, '')}`;
 }

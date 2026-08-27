@@ -249,8 +249,16 @@
     {
       // CLI entry points: printing is what they are for. 47 findings, no defects. tools/ is not in
       // this list — it reports zero, writing through `process.stdout` instead — so the rule stays on
-      // there and a future `console.log` in a tool has to be a decision rather than a habit.
-      "files": ["scripts/**/*.ts", "charcheck.config.ts"],
+      // there and a future `console.log` in a tool has to be a decision rather than a habit. The two
+      // site scripts are named one by one rather than as `www/scripts/**`, because the other two
+      // files in that directory are libraries the site config imports, and a report from one of them
+      // would be a defect rather than output.
+      "files": [
+        "scripts/**/*.ts",
+        "www/scripts/check.ts",
+        "www/scripts/sync-docs.ts",
+        "charcheck.config.ts",
+      ],
       "rules": {"eslint/no-console": "off"},
     },
     {

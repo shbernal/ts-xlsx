@@ -101,9 +101,10 @@ resolved to VML and `c:` to nothing at all, which also meant `explain` could not
 spreadsheet diagnostic, since `ooxml-validate` writes those as `/x:worksheet[1]/…`. Vendor
 0.0.4 or later; **0.0.3 on ClawHub is broken and ships no database at all.**
 
-**Strict is available now**, which the vendored set deliberately excluded. `ooxml.mjs diff
-<qname>` answers "will this still be valid in Strict" for a name. Nothing in this repo targets
-Strict, since Excel emits Transitional, so this is upside, not a new obligation.
+**Strict is available now**, which the vendored set deliberately excluded.
+`ooxml.mjs diff <qname>` answers "will this still be valid in Strict" for a name. Nothing in
+this repo targets Strict, since Excel emits Transitional, so this is upside, not a new
+obligation.
 
 **Two breadcrumbs now dangle.** [ADR 0010](./0010-agent-correctness-dispatch.md) and
 [ADR 0033](./0033-the-ooxml-oracle-is-a-shared-package.md) cite `schemas/README.md` for the

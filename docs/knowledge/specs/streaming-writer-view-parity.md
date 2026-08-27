@@ -14,7 +14,7 @@ configuration is fixed at creation time and cannot be changed later, so the natu
 
 > Spec note, not a corpus case: probing the current streaming writer shows the worksheet's `views` is
 > exposed as a **getter only**, so assigning to it after creation throws a `TypeError`
-> ("Cannot set property views of #<WorksheetWriter> which has only a getter") rather than accepting
+> (`Cannot set property views of #<WorksheetWriter> which has only a getter`) rather than accepting
 > and then dropping the value. So there is no silent wrong-output to baseline: the after-creation
 > authoring path does not exist at all. Views supplied as an `addWorksheet(name, { views })`
 > construction option *do* work and emit a correct `<pane>`, verified. The durable value is the

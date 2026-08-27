@@ -515,6 +515,21 @@ weight growing further.
 The [API reference](api/README.md) is generated straight from the root barrel, so it cannot
 describe a shape the compiler wouldn't accept.
 
+## The website
+
+`www/` is a VitePress site, and this tree is its source. `www/docs/` is a generated mirror of
+`docs/`, git-ignored and rewritten whole on every build, so a page is authored once, here,
+where the gates already read it. `docs/docs.json` carries the reading order; a group either
+names its pages or declares a `tree` that takes the rest of a directory, and every `.md`
+under `docs/` has to be claimed exactly once. Titles come from the first `#` heading and
+descriptions from the first paragraph that reads as a sentence, so no page carries
+frontmatter.
+
+Drift between the two is a build error rather than a warning, which is the whole reason the
+mirror is generated: an unreachable page, a manifest entry with no file, a link that resolves
+to nothing, a missing heading, or markdown the site cannot compile each fail
+`node www/scripts/check.ts`, which runs in the `invariants` gate. ADR-0039.
+
 ## The VBA subsystem
 
 Macro-enabled workbooks (`.xlsm`/`.xltm`) carry their VBA as a single opaque part,
@@ -606,6 +621,7 @@ The stack is deliberately small and each choice is recorded as an ADR under
 - **Zip and XML write path.** `fflate`, plus a hand-written SAX reader with bounded allocation
   on every parser path. ADR-0003.
 - **Docs generated from the types.** ADR-0006.
+- **The website generated from the docs tree.** ADR-0039.
 - **Spec reference.** Vendored OOXML schemas plus Microsoft Learn MCP. ADR-0007.
 - **VBA subsystem.** Read view, ADR-0016; pure-TS structural edits, ADR-0018/0019; source
   authoring moved to the offline `tools/vba-compiler` after the "recompile cookie" premise was
