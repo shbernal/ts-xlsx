@@ -29,6 +29,7 @@ import type {
 } from '../../core/worksheet.ts';
 import {AuthoringError, InternalError} from '../../errors.ts';
 import {
+  assertWritableNumber,
   escapeAttr,
   escapeSpreadsheetText,
   escapeText,
@@ -513,9 +514,19 @@ function sheetFormatPr(
   }
   // A non-standard default row height is only honoured by Excel when customHeight is set.
   if (properties.defaultRowHeight !== undefined) attrs += ' customHeight="1"';
-  if (outlineLevel.col > 0) attrs += ` outlineLevelCol="${outlineLevel.col}"`;
-  if (outlineLevel.row > 0) attrs += ` outlineLevelRow="${outlineLevel.row}"`;
+  attrs += outlineAttr('outlineLevelCol', outlineLevel.col);
+  attrs += outlineAttr('outlineLevelRow', outlineLevel.row);
   return `<sheetFormatPr${attrs}/>`;
+}
+
+// An outline depth is written only above the default of zero. That zero test answers whether the
+// level is worth recording, not whether it can be recorded at all, and keeping the two apart is what
+// makes an unwritable level loud: `NaN > 0` is false, so a gate on its own would drop it silently
+// while `Infinity` sailed through into an `xsd:unsignedInt` attribute.
+function outlineAttr(name: string, level: number | undefined): string {
+  if (level === undefined) return '';
+  const text = numberText(level);
+  return level > 0 ? ` ${name}="${text}"` : '';
 }
 
 // The deepest column outline level the sheet declares: the `outlineLevelCol` its `<sheetFormatPr>`
@@ -563,8 +574,9 @@ function colBody(properties: ColumnProperties, styles: StyleRegistry): string | 
     attrs += ' hidden="1"';
     meaningful = true;
   }
-  if (properties.outlineLevel !== undefined && properties.outlineLevel > 0) {
-    attrs += ` outlineLevel="${properties.outlineLevel}"`;
+  const outline = outlineAttr('outlineLevel', properties.outlineLevel);
+  if (outline !== '') {
+    attrs += outline;
     meaningful = true;
   }
   if (properties.collapsed) {
@@ -599,9 +611,7 @@ function rowAttrs(
   if (properties.height !== undefined)
     attrs += ` ht="${numberText(properties.height)}" customHeight="1"`;
   if (properties.hidden) attrs += ' hidden="1"';
-  if (properties.outlineLevel !== undefined && properties.outlineLevel > 0) {
-    attrs += ` outlineLevel="${properties.outlineLevel}"`;
-  }
+  attrs += outlineAttr('outlineLevel', properties.outlineLevel);
   // The collapse toggle is set explicitly by the author, or derived onto a summary row whose whole
   // detail group is hidden (see {@link collapsedSummaryRows}). It rides the summary row, never the
   // detail rows.
@@ -635,6 +645,10 @@ function scanRowOutline(sheet: Worksheet): RowOutline {
   let maxLevel = 0;
   for (const {number, properties} of sheet.rows()) {
     const rowLevel = properties?.outlineLevel ?? 0;
+    // Refused here and not only where the attribute is written, because the walk below compares
+    // levels to find a group's end: against `-Infinity` every comparison holds and the walk runs off
+    // the sheet forever, and against `NaN` none does and the group ends before it starts.
+    assertWritableNumber(rowLevel);
     level.set(number, rowLevel);
     hidden.set(number, properties?.hidden ?? false);
     if (rowLevel > maxLevel) maxLevel = rowLevel;

@@ -11,7 +11,7 @@ import {
   isOneCellAnchor,
 } from '../../core/image.ts';
 import {localName, numFinite, parseXml} from '../../xml/xml-read.ts';
-import {XML_DECLARATION} from '../../xml/xml.ts';
+import {numAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {DRAWINGML_NS, XDR_NS} from './namespaces.ts';
@@ -106,7 +106,7 @@ function oneCellAnchorXml(
   return (
     '<xdr:oneCellAnchor>' +
     `<xdr:from>${anchorPointXml(from)}</xdr:from>` +
-    `<xdr:ext cx="${ext.cx}" cy="${ext.cy}"/>` +
+    `<xdr:ext${numAttr('cx', ext.cx)}${numAttr('cy', ext.cy)}/>` +
     picXml(embedId, id, rotation) +
     '<xdr:clientData/>' +
     '</xdr:oneCellAnchor>'
@@ -114,7 +114,7 @@ function oneCellAnchorXml(
 }
 
 function picXml(embedId: string, id: number, rotation: number | undefined): string {
-  const xfrm = rotation !== undefined ? `<a:xfrm rot="${rotation}"/>` : '';
+  const xfrm = rotation !== undefined ? `<a:xfrm${numAttr('rot', rotation)}/>` : '';
   return (
     '<xdr:pic>' +
     `<xdr:nvPicPr><xdr:cNvPr id="${id}" name="Picture ${id}"/>` +
@@ -126,10 +126,15 @@ function picXml(embedId: string, id: number, rotation: number | undefined): stri
   );
 }
 
+// The grid point's four numbers are all author-reachable through `addImageAnchor`, and each is an
+// `xsd:int` or an EMU offset with no spelling for a non-finite value, so they are refused on the same
+// terms as the extent above. That they are elements rather than attributes changes nothing.
 function anchorPointXml(point: AnchorPoint): string {
   return (
-    `<xdr:col>${point.col}</xdr:col><xdr:colOff>${point.colOff ?? 0}</xdr:colOff>` +
-    `<xdr:row>${point.row}</xdr:row><xdr:rowOff>${point.rowOff ?? 0}</xdr:rowOff>`
+    `<xdr:col>${numberText(point.col)}</xdr:col>` +
+    `<xdr:colOff>${numberText(point.colOff ?? 0)}</xdr:colOff>` +
+    `<xdr:row>${numberText(point.row)}</xdr:row>` +
+    `<xdr:rowOff>${numberText(point.rowOff ?? 0)}</xdr:rowOff>`
   );
 }
 

@@ -13,6 +13,7 @@
 
 import {type Color, parseArgb} from '../../core/style.ts';
 import {numFinite, numInteger} from '../../xml/xml-read.ts';
+import {numberText} from '../../xml/xml.ts';
 
 // The write side of the ARGB grammar `parseArgb` states: this is the single choke point through
 // which every fill/font/border/tab colour flows on its way into the file, so a value that does not
@@ -33,9 +34,9 @@ function normalizeArgb(argb: string): string {
 export function colorAttrs(color: Color): string {
   const parts: string[] = [];
   if (color.argb !== undefined) parts.push(`rgb="${normalizeArgb(color.argb)}"`);
-  if (color.theme !== undefined) parts.push(`theme="${color.theme}"`);
-  if (color.tint !== undefined) parts.push(`tint="${color.tint}"`);
-  if (color.indexed !== undefined) parts.push(`indexed="${color.indexed}"`);
+  if (color.theme !== undefined) parts.push(`theme="${numberText(color.theme)}"`);
+  if (color.tint !== undefined) parts.push(`tint="${numberText(color.tint)}"`);
+  if (color.indexed !== undefined) parts.push(`indexed="${numberText(color.indexed)}"`);
   return parts.join(' ');
 }
 

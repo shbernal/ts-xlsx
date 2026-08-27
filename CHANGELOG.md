@@ -12,6 +12,25 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: a number that OOXML cannot spell is now refused at the write, everywhere.** A
+  `NaN` or an infinity reaching `pageSetup.scale`/`fitToWidth`/`fitToHeight`/`paperSize`, a page
+  break's `id`/`max`, a `Color`'s `theme`/`tint`/`indexed`, a conditional-formatting rule's
+  `rank`/`stdDev`, an image anchor's extent, rotation or grid point, the workbook window rect, or a
+  row or column `outlineLevel` throws `AuthoringError` instead of writing `NaN` into an
+  `xsd:double` or `xsd:unsignedInt` attribute. Those calls used to "succeed" and produce a package
+  Excel reports as damaged, so the failure moved to the moment the mistake was made. `numberText`
+  already took this stance for a font size; the rest of the write path now shares it, and the
+  shared numeric-attribute helper `attr` is renamed `numAttr` to sit beside `boolAttr`.
+
+### Fixed
+
+- **A non-finite row `outlineLevel` no longer hangs the writer.** The scan that derives which
+  summary rows terminate a fully-collapsed group walks outward comparing outline levels; against
+  `-Infinity` every comparison held, so the walk ran off the sheet and never returned. It is now
+  refused with the rest of its family, before the walk starts.
+
 ## [2.0.0] — 2026-08-27
 
 A major, because four documented breaks land together. None of them is a redesign: each is a

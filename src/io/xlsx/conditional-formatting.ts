@@ -29,7 +29,7 @@ import {
   numInteger,
   parseXml,
 } from '../../xml/xml-read.ts';
-import {boolAttr, escapeAttr, escapeText, stripFormulaEquals} from '../../xml/xml.ts';
+import {boolAttr, escapeAttr, escapeText, numberText, stripFormulaEquals} from '../../xml/xml.ts';
 import {colorAttrs, parseColor} from './color-xml.ts';
 // The x14/xm extension namespaces and ext-URI GUIDs are declared inline on the `<ext>` elements
 // exactly as Excel writes them, so no worksheet-root xmlns is needed. `CF_EXT_URI` scopes the
@@ -190,8 +190,8 @@ function ruleXml(
   if (rule.operator !== undefined) attrs.push(`operator="${escapeAttr(rule.operator)}"`);
   if (rule.text !== undefined) attrs.push(`text="${escapeAttr(rule.text)}"`);
   if (rule.timePeriod !== undefined) attrs.push(`timePeriod="${escapeAttr(rule.timePeriod)}"`);
-  if (rule.rank !== undefined) attrs.push(`rank="${rule.rank}"`);
-  if (rule.stdDev !== undefined) attrs.push(`stdDev="${rule.stdDev}"`);
+  if (rule.rank !== undefined) attrs.push(`rank="${numberText(rule.rank)}"`);
+  if (rule.stdDev !== undefined) attrs.push(`stdDev="${numberText(rule.stdDev)}"`);
 
   let body = SCALE_TYPES.has(rule.type) ? scaleXml(rule) : formulaeXml(rule.formulae);
   // A data bar with x14-only facets links to its extension by the id assigned in dataBarExtLinks; the

@@ -14,7 +14,7 @@ import type {
 } from '../../core/page-setup.ts';
 import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
 import type {OutlineProperties, SheetView, Worksheet} from '../../core/worksheet.ts';
-import {attr, boolAttr, escapeAttr, escapeSpreadsheetText, numberText} from '../../xml/xml.ts';
+import {boolAttr, escapeAttr, escapeSpreadsheetText, numAttr, numberText} from '../../xml/xml.ts';
 import {colorAttrs} from './color-xml.ts';
 
 // `<sheetViews>` holds the sheet's single view. A frozen view adds a `<pane>` recording the split
@@ -214,10 +214,10 @@ export function pageMarginsXml(margins: PageMargins): string {
 // even when no scaling attribute is set: the reference is the only thing the model has to carry.
 export function pageSetupXml(pageSetup: PageSetup, printerSettingsRelId: string | null): string {
   const attrs =
-    attr('paperSize', pageSetup.paperSize) +
-    attr('scale', pageSetup.scale) +
-    attr('fitToWidth', pageSetup.fitToWidth) +
-    attr('fitToHeight', pageSetup.fitToHeight) +
+    numAttr('paperSize', pageSetup.paperSize) +
+    numAttr('scale', pageSetup.scale) +
+    numAttr('fitToWidth', pageSetup.fitToWidth) +
+    numAttr('fitToHeight', pageSetup.fitToHeight) +
     (pageSetup.pageOrder !== undefined ? ` pageOrder="${pageSetup.pageOrder}"` : '') +
     (pageSetup.orientation !== undefined ? ` orientation="${pageSetup.orientation}"` : '') +
     (printerSettingsRelId !== null ? ` r:id="${printerSettingsRelId}"` : '');
@@ -236,8 +236,7 @@ export function pageBreaksXml(
   if (breaks.length === 0) return '';
   const brks = breaks
     .map((brk) => {
-      const maxAttr = brk.max !== undefined ? ` max="${brk.max}"` : '';
-      return `<brk id="${brk.id}"${maxAttr} man="1"/>`;
+      return `<brk${numAttr('id', brk.id)}${numAttr('max', brk.max)} man="1"/>`;
     })
     .join('');
   return `<${element} count="${breaks.length}" manualBreakCount="${breaks.length}">${brks}</${element}>`;

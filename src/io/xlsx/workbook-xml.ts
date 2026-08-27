@@ -5,7 +5,7 @@
 import {mangleFormula, quoteSheetName} from '../../core/formula.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
-import {escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
+import {escapeAttr, escapeText, numAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import {extensionOf, relativePartPath, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {imageContentType} from './images.ts';
@@ -273,7 +273,10 @@ function bookViewsXml(workbook: Workbook): string {
       ? ` visibility="${view.visibility}"`
       : '') +
     (view.minimized ? ' minimized="1"' : '') +
-    ` xWindow="${view.x}" yWindow="${view.y}" windowWidth="${view.width}" windowHeight="${view.height}"` +
+    numAttr('xWindow', view.x) +
+    numAttr('yWindow', view.y) +
+    numAttr('windowWidth', view.width) +
+    numAttr('windowHeight', view.height) +
     (activeTab === 0 ? '' : ` activeTab="${activeTab}"`);
   return `<bookViews><workbookView${attrs}/></bookViews>`;
 }

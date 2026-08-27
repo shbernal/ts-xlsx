@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {AuthoringError} from '../errors.ts';
-import {escapeAttr, escapeSpreadsheetText, escapeText, textElement} from './xml.ts';
+import {escapeAttr, escapeSpreadsheetText, escapeText, numAttr, textElement} from './xml.ts';
 
 // The three classes of character XML 1.0 cannot carry, one representative each.
 const CONTROL = '\u0001';
@@ -83,4 +83,16 @@ test('the refusal names the code point and where it is', () => {
       return true;
     },
   );
+});
+
+test('numAttr omits an unset value and writes a finite one', () => {
+  assert.equal(numAttr('scale', undefined), '');
+  assert.equal(numAttr('scale', 0), ' scale="0"');
+  assert.equal(numAttr('tint', -0.25), ' tint="-0.25"');
+});
+
+test('numAttr refuses a number OOXML cannot spell', () => {
+  for (const value of [Number.NaN, Infinity, -Infinity]) {
+    assert.throws(() => numAttr('scale', value), AuthoringError);
+  }
 });

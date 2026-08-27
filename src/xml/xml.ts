@@ -181,9 +181,34 @@ export function boolAttr(name: string, value: boolean | undefined): string {
 /**
  * A numeric attribute rendered with a leading space (` name="42"`), or '' when the value is undefined
  * so that a count an author never set stays out of the element rather than fabricating a default.
+ *
+ * The value goes through {@link numberText}, so a non-finite one is refused here rather than written
+ * as `NaN`. Every attribute on this path is `xsd:double` or `xsd:unsignedInt`, neither of which has a
+ * spelling for it, so the alternative is a package Excel reports as damaged.
+ *
+ * @throws {AuthoringError} when the value is not finite.
  */
-export function attr(name: string, value: number | undefined): string {
-  return value === undefined ? '' : ` ${name}="${value}"`;
+export function numAttr(name: string, value: number | undefined): string {
+  return value === undefined ? '' : ` ${name}="${numberText(value)}"`;
+}
+
+/**
+ * Refuse a number OOXML cannot spell. Every numeric attribute in the format is `xsd:double`,
+ * `xsd:unsignedInt` or a bounded flavour of one, and none of those lexical spaces has a form for a
+ * NaN or an infinity, so a value that reaches the file as `NaN` is a package Excel reports as
+ * damaged.
+ *
+ * Exported for the callers that must refuse before they write. A number can be unwritable and still
+ * be read on the way to the bytes: compared, summed, walked. A comparison against `NaN` or an
+ * infinity silently takes the wrong branch long before the value would have been serialised.
+ *
+ * @throws {AuthoringError} naming the value.
+ */
+export function assertWritableNumber(value: number): void {
+  if (Number.isFinite(value)) return;
+  throw new AuthoringError(
+    `cannot write a non-finite number (${value}): it has no OOXML representation`,
+  );
 }
 
 /**
@@ -191,11 +216,7 @@ export function attr(name: string, value: number | undefined): string {
  * has no OOXML numeric representation, so the writer refuses it rather than emit `NaN`.
  */
 export function numberText(value: number): string {
-  if (!Number.isFinite(value)) {
-    throw new AuthoringError(
-      `cannot write a non-finite number (${value}): it has no OOXML representation`,
-    );
-  }
+  assertWritableNumber(value);
   return String(value);
 }
 
