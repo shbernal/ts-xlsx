@@ -30,6 +30,7 @@ import {PassThrough, type Readable, type Writable} from 'node:stream';
 
 import {Zip, ZipDeflate} from 'fflate';
 
+import {concat} from '../../bytes.ts';
 import {encodeAddress} from '../../core/address.ts';
 import type {AutoFilter} from '../../core/autofilter.ts';
 import type {Cell} from '../../core/cell.ts';
@@ -503,15 +504,4 @@ function streamZipPackage(
     }
     zip.end();
   });
-}
-
-function concat(chunks: readonly Uint8Array[]): Uint8Array {
-  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return out;
 }

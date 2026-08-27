@@ -12,6 +12,9 @@
 // is indistinguishable from the unchecked read: V8 already bounds-checks the load, so the branch is
 // free. `ms-ovba.ts` calls `readU16` once per copy token, so that difference is not academic.
 
+// Joining chunks is not a VBA concern; the CFB reader is simply one of three callers.
+export {concat} from '../bytes.ts';
+
 import {VbaParseError} from './errors.ts';
 
 function truncated(at: number, need: number, length: number): VbaParseError {
@@ -51,17 +54,4 @@ export function decodeUtf16le(bytes: Uint8Array): string {
     s += String.fromCharCode(readU16(bytes, i));
   }
   return s;
-}
-
-/** Join byte chunks into one buffer. */
-export function concat(chunks: Uint8Array[]): Uint8Array {
-  let total = 0;
-  for (const c of chunks) total += c.length;
-  const out = new Uint8Array(total);
-  let off = 0;
-  for (const c of chunks) {
-    out.set(c, off);
-    off += c.length;
-  }
-  return out;
 }

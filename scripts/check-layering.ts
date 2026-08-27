@@ -35,6 +35,11 @@ const RULES: readonly Rule[] = [
     because: 'the failure taxonomy is below every layer that throws through it',
   },
   {
+    layer: 'src/bytes.ts',
+    forbidden: ['src/core', 'src/io', 'src/xml', 'src/vba', 'src/customui'],
+    because: 'joining byte chunks is below every layer that assembles them',
+  },
+  {
     layer: 'src/xml',
     forbidden: ['src/core', 'src/io', 'src/vba', 'src/customui'],
     because: 'XML escaping and parsing know nothing about spreadsheets',

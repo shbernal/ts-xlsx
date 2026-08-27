@@ -15,6 +15,7 @@
 
 import {type FlateError, Unzip, type UnzipFile, UnzipInflate} from 'fflate';
 
+import {concat} from '../../bytes.ts';
 import {PackageReadError} from './errors.ts';
 
 // Compressed input is pushed in slices this size so decompressed output arrives in
@@ -60,7 +61,7 @@ export function inflatePackage(data: Uint8Array, cap: number): Record<string, Ui
       }
       chunks.push(chunk);
       size += chunk.length;
-      if (final) files[file.name] = join(chunks, size);
+      if (final) files[file.name] = concat(chunks, size);
     };
     // `start()` reports an unsupported compression method through `ondata` above, then
     // throws trying to build the missing decoder. Keep the reported error (its message
@@ -82,15 +83,4 @@ export function inflatePackage(data: Uint8Array, cap: number): Record<string, Ui
 
   if (failure) throw failure;
   return files;
-}
-
-function join(chunks: Uint8Array[], size: number): Uint8Array {
-  if (chunks.length === 1) return chunks[0] as Uint8Array;
-  const out = new Uint8Array(size);
-  let at = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, at);
-    at += chunk.length;
-  }
-  return out;
 }

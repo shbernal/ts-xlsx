@@ -37,7 +37,7 @@ import {
 import {TABLE_STYLE_ELEMENT_TYPES, type TableStyle} from '../../core/table-style.ts';
 import {AuthoringError} from '../../errors.ts';
 import {decodeEntities} from '../../xml/xml-read.ts';
-import {assertRepresentable, escapeAttr, XML_DECLARATION} from '../../xml/xml.ts';
+import {assertRepresentable, escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {colorAttrs} from './color-xml.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 
@@ -645,15 +645,15 @@ function alignmentAttrs(alignment: Alignment): string {
     );
   }
   if (alignment.textRotation !== undefined && alignment.textRotation !== 0) {
-    parts.push(`textRotation="${numberAttr(alignment.textRotation)}"`);
+    parts.push(`textRotation="${numberText(alignment.textRotation)}"`);
   }
   if (alignment.wrapText) parts.push('wrapText="1"');
   if (alignment.indent !== undefined && alignment.indent !== 0) {
-    parts.push(`indent="${numberAttr(alignment.indent)}"`);
+    parts.push(`indent="${numberText(alignment.indent)}"`);
   }
   if (alignment.shrinkToFit) parts.push('shrinkToFit="1"');
   if (alignment.readingOrder !== undefined && alignment.readingOrder !== 0) {
-    parts.push(`readingOrder="${numberAttr(alignment.readingOrder)}"`);
+    parts.push(`readingOrder="${numberText(alignment.readingOrder)}"`);
   }
   return parts.join(' ');
 }
@@ -695,11 +695,11 @@ export function fontXml(font: Font, nameTag: 'name' | 'rFont' = 'name'): string 
       `<vertAlign val="${checkedToken(font.vertAlign, isFontVerticalAlignment, 'font vertical alignment')}"/>`,
     );
   }
-  if (font.size !== undefined) parts.push(`<sz val="${numberAttr(font.size)}"/>`);
+  if (font.size !== undefined) parts.push(`<sz val="${numberText(font.size)}"/>`);
   if (font.color !== undefined) parts.push(`<color ${colorAttrs(font.color)}/>`);
   if (font.name !== undefined) parts.push(`<${nameTag} val="${escapeAttr(font.name)}"/>`);
-  if (font.family !== undefined) parts.push(`<family val="${numberAttr(font.family)}"/>`);
-  if (font.charset !== undefined) parts.push(`<charset val="${numberAttr(font.charset)}"/>`);
+  if (font.family !== undefined) parts.push(`<family val="${numberText(font.family)}"/>`);
+  if (font.charset !== undefined) parts.push(`<charset val="${numberText(font.charset)}"/>`);
   if (font.scheme !== undefined && font.scheme !== 'none')
     parts.push(`<scheme val="${checkedToken(font.scheme, isFontScheme, 'font scheme')}"/>`);
   return parts.join('');
@@ -732,7 +732,7 @@ function dxfXml(style: DifferentialStyle): string {
 function gradientFillXml(fill: GradientFill): string {
   const attrs =
     (fill.gradient === 'path' ? ' type="path"' : '') +
-    (fill.degree ? ` degree="${numberAttr(fill.degree)}"` : '') +
+    (fill.degree ? ` degree="${numberText(fill.degree)}"` : '') +
     insetAttr('left', fill.left) +
     insetAttr('right', fill.right) +
     insetAttr('top', fill.top) +
@@ -740,14 +740,14 @@ function gradientFillXml(fill: GradientFill): string {
   const stops = fill.stops
     .map(
       (stop) =>
-        `<stop position="${numberAttr(stop.position)}"><color ${colorAttrs(stop.color)}/></stop>`,
+        `<stop position="${numberText(stop.position)}"><color ${colorAttrs(stop.color)}/></stop>`,
     )
     .join('');
   return `<gradientFill${attrs}>${stops}</gradientFill>`;
 }
 
 function insetAttr(name: string, value: number | undefined): string {
-  return value ? ` ${name}="${numberAttr(value)}"` : '';
+  return value ? ` ${name}="${numberText(value)}"` : '';
 }
 
 // `<u/>` is single underline (the same as an explicit "single"); the named variants carry a
@@ -756,13 +756,6 @@ function underlineXml(underline: UnderlineStyle | undefined): string {
   if (underline === undefined || underline === false || underline === 'none') return '';
   if (underline === true || underline === 'single') return '<u/>';
   return `<u val="${checkedToken(underline, isNamedUnderlineStyle, 'underline style')}"/>`;
-}
-
-function numberAttr(value: number): string {
-  if (!Number.isFinite(value)) {
-    throw new AuthoringError(`cannot serialise a non-finite font metric (${value})`);
-  }
-  return String(value);
 }
 
 // Serialise a border in ECMA-376 CT_Border child order (left, right, top, bottom, diagonal).

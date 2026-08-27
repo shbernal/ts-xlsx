@@ -7,7 +7,7 @@ import {Workbook} from '../core/workbook.ts';
 import {editXlsxVbaAddReference, editXlsxVbaRemoveModule} from '../io/xlsx/edit-vba.ts';
 import {readXlsx} from '../io/xlsx/read.ts';
 import {writeXlsx} from '../io/xlsx/write.ts';
-import {concat, decodeUtf16le, readU16, readU32} from './bytes.ts';
+import {decodeUtf16le, readU16, readU32} from './bytes.ts';
 import {type CfbNode, writeCompoundFile} from './cfb-writer.ts';
 import {CompoundFile} from './cfb.ts';
 import {VbaAuthorError, VbaParseError} from './errors.ts';
@@ -1382,12 +1382,4 @@ test('decodeUtf16le drops a trailing half code unit rather than reading past it'
   assert.equal(decodeUtf16le(Uint8Array.of(0x56, 0x00, 0x42, 0x00, 0x41, 0x00)), 'VBA');
   assert.equal(decodeUtf16le(Uint8Array.of(0x56, 0x00, 0x42)), 'V');
   assert.equal(decodeUtf16le(new Uint8Array()), '');
-});
-
-test('concat joins chunks in order and copes with none', () => {
-  assert.deepEqual(
-    concat([Uint8Array.of(1, 2), new Uint8Array(), Uint8Array.of(3)]),
-    Uint8Array.of(1, 2, 3),
-  );
-  assert.deepEqual(concat([]), new Uint8Array());
 });
