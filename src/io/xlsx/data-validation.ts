@@ -14,12 +14,12 @@
 // form is tagged `extended` so it is written back there; the two forms are parsed and serialised by
 // prefix so neither reader mistakes one for the other.
 
-import type {
-  DataValidation,
-  DataValidationEntry,
-  DataValidationErrorStyle,
-  DataValidationOperator,
-  DataValidationType,
+import {
+  type DataValidation,
+  type DataValidationEntry,
+  isDataValidationErrorStyle,
+  isDataValidationOperator,
+  isDataValidationType,
 } from '../../core/data-validation.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {boolStrict, coerceNumericLiteral, localName, parseXml} from '../../xml/xml-read.ts';
@@ -172,11 +172,16 @@ function buildRule(
   formulae: readonly string[],
 ): DataValidation | undefined {
   const {type} = attrs;
-  if (type === undefined) return undefined;
+  // A type outside `ST_DataValidationType` does not name a constraint this model can hold, and the
+  // type is the rule's identity: there is nothing left to keep, so the whole entry is dropped.
+  if (type === undefined || !isDataValidationType(type)) return undefined;
 
-  const rule: DataValidation = {type: type as DataValidationType};
+  const rule: DataValidation = {type};
   if (attrs.operator !== undefined) {
-    rule.operator = attrs.operator as DataValidationOperator;
+    // An operator, unlike the type, is a facet of a rule that stands without it. An unrecognised one
+    // is dropped and the rule kept, the same "store only what the source carried" rule the boolean
+    // and integer readers follow.
+    if (isDataValidationOperator(attrs.operator)) rule.operator = attrs.operator;
   } else if (TYPED.has(type)) {
     // Excel omits `operator="between"` because it is the default for a typed rule; restore it so a
     // reader sees the operator the rule actually enforces.
@@ -185,8 +190,9 @@ function buildRule(
   if (boolStrict(attrs.allowBlank)) rule.allowBlank = true;
   if (boolStrict(attrs.showInputMessage)) rule.showInputMessage = true;
   if (boolStrict(attrs.showErrorMessage)) rule.showErrorMessage = true;
-  if (attrs.errorStyle !== undefined)
-    rule.errorStyle = attrs.errorStyle as DataValidationErrorStyle;
+  // Likewise a facet: an unrecognised errorStyle costs the rule its alert level, not its identity.
+  if (attrs.errorStyle !== undefined && isDataValidationErrorStyle(attrs.errorStyle))
+    rule.errorStyle = attrs.errorStyle;
   if (attrs.error !== undefined) rule.error = attrs.error;
   if (attrs.errorTitle !== undefined) rule.errorTitle = attrs.errorTitle;
   if (attrs.prompt !== undefined) rule.prompt = attrs.prompt;

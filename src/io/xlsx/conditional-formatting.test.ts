@@ -3,6 +3,7 @@ import {test} from 'node:test';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
+import type {CfValueObjectType} from '../../core/conditional-formatting.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
@@ -490,4 +491,44 @@ test('aboveAverage="false" reads as below-average; garbage stays above, absence 
   assert.equal(read(' aboveAverage="1"'), true);
   assert.equal(read(' aboveAverage="yes"'), true, 'a default-true attribute reads garbage as on');
   assert.equal(read(''), undefined, 'an absent attribute stays absent, not present-and-true');
+});
+
+test('a cfvo whose type is not a schema token reads back as num, the schema default', () => {
+  const part =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetData/>' +
+    '<conditionalFormatting sqref="A1:A3"><cfRule type="colorScale" priority="1"><colorScale>' +
+    '<cfvo type="nonsense" val="0"/><cfvo type="max"/>' +
+    '<color rgb="FFFFFFFF"/><color rgb="FF638EC6"/>' +
+    '</colorScale></cfRule></conditionalFormatting></worksheet>';
+  const rule = readParts({sheet1: part}).getWorksheet('S')?.conditionalFormattings[0]?.rules[0];
+
+  assert.deepEqual(
+    rule?.cfvo?.map((v) => v.type),
+    ['num', 'max'],
+    'the unrecognised anchor falls back rather than leaving the scale a member short',
+  );
+  assert.equal(rule?.cfvo?.[0]?.value, 0, 'and still carries its value');
+});
+
+test('every schema token of the cfvo type union round-trips unchanged', () => {
+  const types: CfValueObjectType[] = ['num', 'percent', 'max', 'min', 'percentile', 'formula'];
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').addConditionalFormatting({
+    ref: 'A1:A9',
+    rules: types.map((type, index) => ({
+      type: 'dataBar',
+      priority: index + 1,
+      color: {argb: 'FF638EC6'},
+      cfvo: [{type, value: type === 'formula' ? '$A$1' : 1}, {type: 'max'}],
+    })),
+  });
+
+  const rules = readXlsx(writeXlsx(workbook)).getWorksheet('S')?.conditionalFormattings[0]?.rules;
+  assert.deepEqual(
+    rules?.map((rule) => rule.cfvo?.[0]?.type),
+    types,
+    'no legal anchor type is narrowed away',
+  );
 });

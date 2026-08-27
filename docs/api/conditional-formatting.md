@@ -12,9 +12,21 @@ One anchor of a colour-scale, data-bar, or icon-set scale: a "conditional format
 
 ```ts
 interface CfValueObject {
-  type: 'num' | 'percent' | 'max' | 'min' | 'percentile' | 'formula';
+  type: CfValueObjectType;
   value?: number | string;
 }
+```
+
+---
+
+### `CfValueObjectType`
+
+<sub>type</sub>
+
+How a [`CfValueObject`](./conditional-formatting.md#cfvalueobject) reads its `value`: `ST_CfvoType` verbatim.
+
+```ts
+type CfValueObjectType = 'num' | 'percent' | 'max' | 'min' | 'percentile' | 'formula';
 ```
 
 ---

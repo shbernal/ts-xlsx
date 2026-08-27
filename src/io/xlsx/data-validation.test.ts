@@ -3,6 +3,12 @@ import {test} from 'node:test';
 
 import {strFromU8, strToU8, unzipSync, zipSync} from 'fflate';
 
+import type {
+  DataValidation,
+  DataValidationErrorStyle,
+  DataValidationOperator,
+  DataValidationType,
+} from '../../core/data-validation.ts';
 import {Workbook} from '../../core/workbook.ts';
 import {readXlsx} from './read.ts';
 import {writeXlsx} from './write.ts';
@@ -231,4 +237,111 @@ test('an extended typed validation round-trips both operands through <xm:f> wrap
 
   const dv = readXlsx(pkg).getWorksheet('S')?.dataValidationAt('A5');
   assert.deepEqual(dv?.formulae, [1, 9], 'both numeric operands survive the extended round-trip');
+});
+
+test('a validation whose type is not a schema token is dropped, and its neighbours survive', () => {
+  const part =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetData/>' +
+    '<dataValidations count="3">' +
+    '<dataValidation type="list" sqref="A1"><formula1>"a,b"</formula1></dataValidation>' +
+    '<dataValidation type="nonsense" sqref="A2"><formula1>1</formula1></dataValidation>' +
+    '<dataValidation type="whole" operator="equal" sqref="A3"><formula1>7</formula1></dataValidation>' +
+    '</dataValidations></worksheet>';
+  const sheet = readSheetPart(part).getWorksheet('S');
+
+  assert.equal(sheet?.dataValidationAt('A2'), undefined, 'the unknown type carries no rule');
+  assert.equal(sheet?.dataValidationAt('A1')?.type, 'list');
+  assert.equal(sheet?.dataValidationAt('A3')?.type, 'whole');
+});
+
+test('a validation with an unknown operator keeps its type and loses only the operator', () => {
+  const part =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetData/>' +
+    '<dataValidations count="1">' +
+    '<dataValidation type="whole" operator="nonsense" sqref="A1">' +
+    '<formula1>1</formula1></dataValidation></dataValidations></worksheet>';
+  const dv = readSheetPart(part).getWorksheet('S')?.dataValidationAt('A1');
+
+  assert.equal(dv?.type, 'whole', 'the rule survives its bad facet');
+  assert.equal(dv?.operator, undefined, 'and does not claim an operator nothing checked');
+  assert.deepEqual(dv?.formulae, [1]);
+});
+
+test('a validation with an unknown errorStyle keeps its type and loses only the errorStyle', () => {
+  const part =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetData/>' +
+    '<dataValidations count="1">' +
+    '<dataValidation type="list" errorStyle="nonsense" error="no" sqref="A1">' +
+    '<formula1>"a,b"</formula1></dataValidation></dataValidations></worksheet>';
+  const dv = readSheetPart(part).getWorksheet('S')?.dataValidationAt('A1');
+
+  assert.equal(dv?.type, 'list');
+  assert.equal(dv?.errorStyle, undefined);
+  assert.equal(dv?.error, 'no', 'the message beside it is untouched');
+});
+
+test('an extended validation inherits the same narrowing as a standard one', () => {
+  const part =
+    '<?xml version="1.0"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetData/>' +
+    '<extLst><ext uri="{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF}" ' +
+    'xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">' +
+    '<x14:dataValidations count="1" xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main">' +
+    '<x14:dataValidation type="nonsense"><x14:formula1><xm:f>Sheet2!$D$3</xm:f>' +
+    '</x14:formula1><xm:sqref>A1</xm:sqref></x14:dataValidation></x14:dataValidations></ext>' +
+    '</extLst></worksheet>';
+
+  assert.equal(readSheetPart(part).getWorksheet('S')?.dataValidationAt('A1'), undefined);
+});
+
+test('every schema token of every validation union round-trips unchanged', () => {
+  const types: DataValidationType[] = [
+    'none',
+    'list',
+    'whole',
+    'decimal',
+    'date',
+    'time',
+    'textLength',
+    'custom',
+  ];
+  const operators: DataValidationOperator[] = [
+    'between',
+    'notBetween',
+    'equal',
+    'notEqual',
+    'greaterThan',
+    'lessThan',
+    'greaterThanOrEqual',
+    'lessThanOrEqual',
+  ];
+  const errorStyles: DataValidationErrorStyle[] = ['stop', 'warning', 'information'];
+
+  const workbook = new Workbook();
+  const sheet = workbook.addWorksheet('S');
+  let row = 1;
+  const expected = new Map<string, DataValidation>();
+  for (const type of types)
+    for (const operator of operators)
+      for (const errorStyle of errorStyles) {
+        const ref = `A${row++}`;
+        const rule: DataValidation = {type, operator, errorStyle, formulae: [1, 9]};
+        sheet.addDataValidation(ref, rule);
+        expected.set(ref, rule);
+      }
+
+  const read = readXlsx(writeXlsx(workbook)).getWorksheet('S');
+  for (const [ref, rule] of expected) {
+    const back = read?.dataValidationAt(ref);
+    assert.equal(back?.type, rule.type, `${ref} type`);
+    assert.equal(back?.operator, rule.operator, `${ref} operator`);
+    assert.equal(back?.errorStyle, rule.errorStyle, `${ref} errorStyle`);
+  }
 });

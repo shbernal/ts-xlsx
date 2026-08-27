@@ -13,10 +13,11 @@
 // the extras, the two linked by a shared id. The reader folds the extension back onto the classic
 // rule, so the gradient flag and the two extra colours survive a round-trip rather than being dropped.
 
-import type {
-  CfValueObject,
-  ConditionalFormatting,
-  ConditionalFormattingRule,
+import {
+  type CfValueObject,
+  type ConditionalFormatting,
+  type ConditionalFormattingRule,
+  isCfValueObjectType,
 } from '../../core/conditional-formatting.ts';
 import type {Color} from '../../core/style.ts';
 import {
@@ -488,7 +489,11 @@ function finalizeRule(draft: RuleDraft): ConditionalFormattingRule {
 }
 
 function parseCfvo(attrs: Record<string, string>): CfValueObject {
-  const type = (attrs.type ?? 'num') as CfValueObject['type'];
+  // An anchor whose type is absent reads as `num`, the schema's default; an anchor whose type is
+  // unrecognised takes the same fallback rather than being dropped, because an anchor missing from a
+  // scale would leave the rule with fewer than the anchors its type requires.
+  const raw = attrs.type;
+  const type = raw !== undefined && isCfValueObjectType(raw) ? raw : 'num';
   const cfvo: CfValueObject = {type};
   if (attrs.val !== undefined) {
     // A `formula` anchor's value is an expression and stays a string; the rest are numeric.

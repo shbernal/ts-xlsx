@@ -9,13 +9,32 @@
 
 import type {Color, DifferentialStyle} from './style.ts';
 
+/** How a {@link CfValueObject} reads its `value`: `ST_CfvoType` verbatim. */
+export type CfValueObjectType = 'num' | 'percent' | 'max' | 'min' | 'percentile' | 'formula';
+
+// Keyed by the union so the compiler refuses a foreign key and an omitted member alike, which is
+// what lets a reader narrow a `<cfvo type>` out of a foreign file instead of asserting one.
+const CF_VALUE_OBJECT_TYPES: Record<CfValueObjectType, true> = {
+  num: true,
+  percent: true,
+  max: true,
+  min: true,
+  percentile: true,
+  formula: true,
+};
+
+/** Narrow a raw `<cfvo type>` token to a known {@link CfValueObjectType}. */
+export function isCfValueObjectType(value: string): value is CfValueObjectType {
+  return Object.hasOwn(CF_VALUE_OBJECT_TYPES, value);
+}
+
 /**
  * One anchor of a colour-scale, data-bar, or icon-set scale: a "conditional format value object".
  * `type` names how `value` is read: a literal `num`, a `percent`/`percentile` of the range, a
  * `formula`, or the range's own `min`/`max` (which carry no value).
  */
 export interface CfValueObject {
-  type: 'num' | 'percent' | 'max' | 'min' | 'percentile' | 'formula';
+  type: CfValueObjectType;
   value?: number | string;
 }
 

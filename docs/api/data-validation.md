@@ -87,10 +87,12 @@ type DataValidationOperator =
 <sub>type</sub>
 
 The kind of constraint a validation enforces. `list` is a dropdown; `custom` is an arbitrary
-boolean formula; the rest bound a typed value (`whole`/`decimal`/`date`/`time`/`textLength`).
+boolean formula; `none` constrains nothing and exists only to carry the rule's messages; the rest
+bound a typed value (`whole`/`decimal`/`date`/`time`/`textLength`).
 
 ```ts
 type DataValidationType =
+  | 'none'
   | 'list'
   | 'whole'
   | 'decimal'
