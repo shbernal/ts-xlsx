@@ -21,6 +21,7 @@ import {
   isDataValidationOperator,
   isDataValidationType,
 } from '../../core/data-validation.ts';
+import {decodeSqrefRects} from '../../core/merge.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {
   boolStrict,
@@ -286,6 +287,10 @@ export function applyDataValidations(
   entries: readonly DataValidationEntry[],
 ): void {
   for (const {sqref, rule, extended} of entries) {
+    // A `sqref` no area of which decodes names no cells to validate, and re-emitting it would put the
+    // file's own unreadable text back on the wire. Dropped here, at the reader's boundary, so the
+    // authoring guard behind `addDataValidation` stays a guard rather than a control-flow path.
+    if (decodeSqrefRects(sqref).length === 0) continue;
     sheet.addDataValidation(sqref, rule, extended ? {extended: true} : {});
   }
 }

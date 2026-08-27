@@ -10,6 +10,12 @@
 // column; a whole-column reference (`$A:$A`) has no row. Legacy code let those
 // absent axes decay into `NaN`/`"undefined"` and leak into serialized addresses
 // (`"$undefined$1"`, `"NaN:NaN"`), the exact defect the corpus locks against.
+//
+// The decoders come in two arities and two temperaments. `decodeAddress`/`decodeCellRef`/
+// `decodeRange` face a caller and throw, because a reference a caller supplied is a mistake at the
+// call. `tryDecodeCellRef`/`tryDecodeRange` face a file and return `undefined`, because a file this
+// library did not write is allowed to be wrong and losing one attribute beats losing the sheet.
+// Read-side code uses the second pair and nothing else; the rule and the reasoning are `xml-read.ts`'s.
 
 /** Excel's column bounds: `A` (1) through `XFD` (16384). */
 export const MAX_COLUMN = 16384;
@@ -187,18 +193,62 @@ export function decodeCellRef(reference: string): CellPosition {
   return {col, row};
 }
 
+// The tolerant half of the decoders, and the read side's only door to them.
+//
+// `xml-read.ts` states the rule these honour: a file the library did not write is allowed to be
+// wrong, and losing one attribute beats losing the sheet. Every other foreign scalar already has
+// its tolerant reader (`numInteger`, `boolTristate`, `enumToken`); a reference had none, so a
+// malformed `r`/`ref`/`sqref` in an untrusted package aborted the whole read with a native
+// `RangeError` or `SyntaxError`, outside the `XlsxError` taxonomy one `catch` clause answers.
+//
+// "Tolerant" here means *a reference naming something that can exist*, not merely one that parses:
+// `A0` and `A1048577` parse fine and then blow up at the grid, which is the same failure one step
+// later. Bounds are part of the question, so they are part of the answer.
+//
+// The authoring decoders above keep throwing. `getCell('A0')` from a caller is a mistake at the
+// call, and the taxonomy deliberately reserves a native error for a single scalar out of range.
+
+/** Whether a row number a reference produced can name a line of the grid. Columns need no
+ * companion: `columnToNumber` already refuses letters past `XFD`, so a decoded column is in
+ * bounds or the decode threw. */
+function rowCanExist(row: number | undefined): boolean {
+  return row === undefined || (Number.isInteger(row) && row >= 1 && row <= MAX_ROW);
+}
+
 /**
  * {@link decodeCellRef} for a reference that came out of a file rather than out of a caller:
- * `undefined` for anything that does not name one cell, whether it is a range, a bare row or
- * column, or outright garbage. A foreign producer writes all four, and none of them is worth
- * throwing over when the reading code's answer is simply "then there is nothing here".
+ * `undefined` for anything that does not name one cell that can exist: a range, a bare row or
+ * column, a position off the grid (`A0`, `XFE1`), or outright garbage. A foreign producer writes
+ * all of them, and none is worth throwing over when the reading code's answer is simply "then
+ * there is nothing here".
  */
 export function tryDecodeCellRef(reference: string): CellPosition | undefined {
+  let position: CellPosition;
   try {
-    return decodeCellRef(reference);
+    position = decodeCellRef(reference);
   } catch {
     return undefined;
   }
+  return rowCanExist(position.row) ? position : undefined;
+}
+
+/**
+ * {@link decodeRange} for a reference that came out of a file: `undefined` for anything that does
+ * not name a region that can exist. The sibling of {@link tryDecodeCellRef} on the other arity: a
+ * `ref` or one area of a `sqref` is as likely to be malformed as a cell's `r`, and the reader's
+ * answer to both is the same one.
+ *
+ * An axis neither endpoint mentions stays `undefined`, exactly as in `decodeRange`: a whole-column
+ * range is unbounded, not unreadable, and a caller that needs a bounded rectangle says so itself.
+ */
+export function tryDecodeRange(reference: string): RangeAddress | undefined {
+  let range: RangeAddress;
+  try {
+    range = decodeRange(reference);
+  } catch {
+    return undefined;
+  }
+  return rowCanExist(range.top) && rowCanExist(range.bottom) ? range : undefined;
 }
 
 /**

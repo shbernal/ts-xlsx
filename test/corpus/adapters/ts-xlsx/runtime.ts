@@ -27,6 +27,7 @@ export const loadModule = <T>(rel: string): Promise<T> =>
 
 export const {decodeAddress, decodeRange, encodeAddress, MAX_COLUMN, MAX_ROW} =
   await loadModule<typeof import('../../../../src/core/address.ts')>('core/address');
+export const {XlsxError} = await loadModule<typeof import('../../../../src/errors.ts')>('errors');
 export const {detectValueType, isRichTextValue} =
   await loadModule<typeof import('../../../../src/core/value.ts')>('core/value');
 export const {Workbook} =

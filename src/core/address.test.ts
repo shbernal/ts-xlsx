@@ -8,8 +8,10 @@ import {
   decodeRange,
   encodeAddress,
   MAX_COLUMN,
+  MAX_ROW,
   numberToColumn,
   tryDecodeCellRef,
+  tryDecodeRange,
 } from './address.ts';
 
 test('numberToColumn covers the Excel range boundaries', () => {
@@ -79,6 +81,33 @@ test('tryDecodeCellRef answers undefined where decodeCellRef throws, on either e
   assert.deepEqual(tryDecodeCellRef('B2'), {col: 2, row: 2});
   for (const reference of [...NOT_ONE_CELL, 'XFE1']) {
     assert.equal(tryDecodeCellRef(reference), undefined, `"${reference}" names no one cell`);
+  }
+});
+
+// The read side's question is not "does this parse" but "can this cell exist": `A0` and one row past
+// the last parse cleanly and then throw at the grid, which is the same abort one step later.
+test('tryDecodeCellRef refuses a reference that parses but names no possible cell', () => {
+  assert.deepEqual(tryDecodeCellRef(`XFD${MAX_ROW}`), {col: MAX_COLUMN, row: MAX_ROW});
+  for (const reference of ['A0', `A${MAX_ROW + 1}`, 'ZZZZ1']) {
+    assert.equal(tryDecodeCellRef(reference), undefined, `"${reference}" is off the grid`);
+  }
+});
+
+test('tryDecodeRange answers undefined where decodeRange throws', () => {
+  assert.equal(tryDecodeRange('B2:D6')?.dimensions, 'B2:D6');
+  for (const reference of ['junk!!', 'ZZZZ0:!!', '', ':']) {
+    assert.equal(tryDecodeRange(reference), undefined, `"${reference}" names no region`);
+  }
+});
+
+// An axis neither endpoint mentions is unbounded, not unreadable: a whole-column range is a
+// legitimate reference, and a caller that needs a bounded rectangle checks the corners itself.
+test('tryDecodeRange keeps an unbounded range and refuses one off the grid', () => {
+  assert.equal(tryDecodeRange('A:A')?.dimensions, 'A:A');
+  assert.equal(tryDecodeRange('1:1')?.dimensions, '1:1');
+  assert.equal(tryDecodeRange(`A1:XFD${MAX_ROW}`)?.bottom, MAX_ROW);
+  for (const reference of ['A0:B2', `A1:B${MAX_ROW + 1}`, 'A1:ZZZZ2']) {
+    assert.equal(tryDecodeRange(reference), undefined, `"${reference}" leaves the grid`);
   }
 });
 

@@ -301,6 +301,8 @@ export function applyNotes(sheet: Worksheet, comments: ReadonlyMap<string, Parse
   );
   for (const [ref, comment] of comments) {
     if (comment.threadId !== undefined && headIds.has(comment.threadId)) continue;
+    // A `ref` naming no cell that can exist costs its note, not the sheet.
+    if (tryDecodeCellRef(ref) === undefined) continue;
     sheet.getCell(ref).note = comment.text;
   }
 }

@@ -8,7 +8,7 @@
 // there. Reasoning about "what does a merge do to the grid" meant reading both. The storage arrives as
 // a parameter, so these stay pure functions of the rects and rows handed in.
 
-import {decodeRange, type GridRect, numberToColumn} from './address.ts';
+import {type GridRect, numberToColumn, tryDecodeRange} from './address.ts';
 import type {Cell} from './cell.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
@@ -54,12 +54,15 @@ export function clearCoveredValues(rows: Map<number, Map<number, Cell>>, rect: M
 
 /** Decode an OOXML `sqref` (one or more space-separated ranges) into containment rectangles. A whole
  * column or row leaves one axis unbounded, so its missing edges open to `Infinity` rather than
- * clamping: a cell anywhere down the column still resolves inside it. */
+ * clamping: a cell anywhere down the column still resolves inside it. An area that names no region
+ * that can exist contributes no rectangle, the reader's rule for every other foreign attribute. */
 export function decodeSqrefRects(sqref: string): MergeRect[] {
   const rects: MergeRect[] = [];
   for (const part of sqref.split(/\s+/)) {
     if (part === '') continue;
-    const {top, left, bottom, right} = decodeRange(part);
+    const decoded = tryDecodeRange(part);
+    if (decoded === undefined) continue;
+    const {top, left, bottom, right} = decoded;
     rects.push({
       top: top ?? 1,
       left: left ?? 1,
@@ -102,7 +105,11 @@ function shiftSqrefArea(
   count: number,
   delta: number,
 ): string | undefined {
-  const {top, left, bottom, right} = decodeRange(area);
+  const decoded = tryDecodeRange(area);
+  // An area this library cannot read is one it cannot move either, and the `sqref` it came from is
+  // still the file's own text: return it untouched rather than dropping a region on a guess.
+  if (decoded === undefined) return area;
+  const {top, left, bottom, right} = decoded;
   const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
   // An area unbounded on the spliced axis covers every line of it, so the splice cannot move it: `B:B`
   // after a row insert is still `B:B`, never `B2:B1048577`.

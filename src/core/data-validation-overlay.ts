@@ -4,6 +4,7 @@
 // on Worksheet, since a validation's storage (a rule plus its decoded ranges) is a self-contained unit
 // Worksheet only ever adds to, reads, or clears wholesale.
 
+import {AuthoringError} from '../errors.ts';
 import {replaceContents} from './containers.ts';
 import {
   cloneDataValidation,
@@ -26,15 +27,24 @@ export class DataValidationOverlay {
    * (`<x14:dataValidation>`), the carrier Excel uses for a list source on another sheet and other
    * shapes the standard element cannot express. The reader sets it for a rule found in that form so a
    * round-trip writes it back there instead of silently corrupting the cross-sheet reference.
+   *
+   * @throws {AuthoringError} when `sqref` names no area at all. A rule attached to nothing covers no
+   * cell and is written back as the same unreadable text, so it is a mistake worth surfacing at the
+   * call. The reader does not reach this: it drops such an entry at its own boundary, where a foreign
+   * file's malformed attribute is supposed to be dropped.
    */
   add(sqref: string, rule: DataValidation, options: {extended?: boolean} = {}): void {
+    const rects = decodeSqrefRects(sqref);
+    if (rects.length === 0) {
+      throw new AuthoringError(`data validation range "${sqref}" names no cells`);
+    }
     // One defensive copy, shared by the serialisable entry and the lookup index, so the getter never
     // hands back a reference into the caller's object.
     const stored = cloneDataValidation(rule);
     const entry: DataValidationEntry = {sqref, rule: stored};
     if (options.extended) entry.extended = true;
     this.#entries.push(entry);
-    this.#rects.push({rects: decodeSqrefRects(sqref), rule: stored});
+    this.#rects.push({rects, rule: stored});
   }
 
   /** The data validations on this sheet, each bound to its target range, in insertion order. */

@@ -3,7 +3,7 @@
 // (the cell being read, shared-formula masters, an autofilter draft, the current page-break axis) so
 // each element commits its state as it closes. Style indices resolve through the parsed style table.
 
-import {decodeRange, MAX_COLUMN, MAX_ROW} from '../../core/address.ts';
+import {MAX_COLUMN, MAX_ROW, tryDecodeRange} from '../../core/address.ts';
 import {
   type CustomFilterPredicate,
   type FilterColumn,
@@ -171,12 +171,15 @@ class AutoFilterAccumulator {
   // are dropped here so the strict setter never trips on hostile input.
   commit(sheet: Worksheet): void {
     if (this.#ref === null) return;
-    try {
-      const {left, right} = decodeRange(this.#ref);
-      const width = left !== undefined && right !== undefined ? right - left + 1 : 0;
+    const decoded = tryDecodeRange(this.#ref);
+    const left = decoded?.left;
+    const right = decoded?.right;
+    // A filter needs a bounded rectangle, so an unbounded or unreadable range leaves the sheet
+    // without one; `canonicalizeAutoFilter` would refuse it anyway, and refusing here keeps the
+    // authoring guard a guard rather than a control-flow path.
+    if (left !== undefined && right !== undefined) {
+      const width = right - left + 1;
       sheet.autoFilter = {ref: this.#ref, columns: this.#columns.filter((c) => c.colId < width)};
-    } catch {
-      // unbounded or malformed autofilter range in the source file: ignore it
     }
     this.#ref = null;
     this.#columns = [];

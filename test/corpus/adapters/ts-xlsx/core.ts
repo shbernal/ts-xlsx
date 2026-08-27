@@ -17,6 +17,7 @@ import {
   Workbook,
   type WorkbookInstance,
   writeXlsx,
+  XlsxError,
 } from './runtime.ts';
 import {
   buildFrom,
@@ -25,7 +26,12 @@ import {
   normalizeStreamValue,
   UnsupportedSpecError,
 } from './spec-model.ts';
-import {buildReadInput, classifyReadError, type ReadInputKind} from './xml-probes.ts';
+import {
+  buildReadInput,
+  classifyReadError,
+  type ReadInputKind,
+  reloadPatched,
+} from './xml-probes.ts';
 
 export const core = {
   // Classify a reader input by format family and report the typed error (or success) it produces:
@@ -695,5 +701,104 @@ export const core = {
         .map((c: Untyped) => c.ref);
     }
     return {ok: true, byteLength: buffer.byteLength ?? buffer.length, survivingCells};
+  },
+  // Patch one reference-bearing attribute of a written package with a value no cell, area or region
+  // can have, then read the result back -> one row per mutation
+  // { mutation, threw, isXlsxError, errorName, keptSiblingCell, sheetsRead }. A `.xlsx` the library
+  // did not write is allowed to be wrong: a malformed `r`/`ref`/`sqref` must cost the element that
+  // carried it, never the sheet, and must never surface as a native RangeError/SyntaxError from
+  // outside the XlsxError taxonomy one `catch` clause is supposed to answer.
+  malformedReferenceReport() {
+    const wb = new Workbook();
+    const sheet = wb.addWorksheet('S');
+    sheet.getCell('A1').value = 'keep';
+    sheet.getCell('B2').value = 'target';
+    sheet.getCell('D1').value = {text: 'go', hyperlink: 'https://example.com/'};
+    sheet.getCell('H1').note = 'a note';
+    sheet.addDataValidation('E1:E5', {type: 'list', allowBlank: true, formulae: ['"a,b"']});
+    sheet.addTable({name: 'T', ref: 'J1', columns: [{name: 'H'}], rowCount: 1});
+    sheet.autoFilter = 'A1:B2';
+    const bytes = writeXlsx(wb);
+
+    // Each mutation names the attribute it corrupts and the part that carries it. The values are the
+    // three ways a reference can be wrong that the tolerant decoders now answer for: off the grid on
+    // the row axis (`A0`), off it on the column axis (`ZZZZ1`), and unparseable (`junk!!`).
+    const mutations: {name: string; part: string; patch: (xml: string) => string}[] = [
+      {
+        name: 'cell r off the grid (A0)',
+        part: 'xl/worksheets/sheet1.xml',
+        patch: (xml) => xml.replace('r="B2"', 'r="A0"'),
+      },
+      {
+        name: 'cell r past the last column (ZZZZ1)',
+        part: 'xl/worksheets/sheet1.xml',
+        patch: (xml) => xml.replace('r="B2"', 'r="ZZZZ1"'),
+      },
+      {
+        name: 'cell r unparseable (junk!!)',
+        part: 'xl/worksheets/sheet1.xml',
+        patch: (xml) => xml.replace('r="B2"', 'r="junk!!"'),
+      },
+      {
+        name: 'dataValidation sqref off the grid',
+        part: 'xl/worksheets/sheet1.xml',
+        patch: (xml) => xml.replace('sqref="E1:E5"', 'sqref="ZZZZ0"'),
+      },
+      {
+        name: 'autoFilter ref off the grid',
+        part: 'xl/worksheets/sheet1.xml',
+        patch: (xml) => xml.replace(/<autoFilter ref="[^"]*"/, '<autoFilter ref="ZZZZ0"'),
+      },
+      {
+        name: 'hyperlink ref unparseable',
+        part: 'xl/worksheets/sheet1.xml',
+        patch: (xml) => xml.replace(/(<hyperlink ref=")[^"]*/, '$1junk!!'),
+      },
+      {
+        name: 'table ref unparseable',
+        part: 'xl/tables/table1.xml',
+        patch: (xml) => xml.replace(/(ref=")[^"]*/, '$1ZZZZ0:!!'),
+      },
+      {
+        name: 'comment ref off the grid',
+        part: 'xl/comments1.xml',
+        patch: (xml) => xml.replace(/(<comment ref=")[^"]*/, '$1ZZZZ0'),
+      },
+    ];
+
+    return mutations.map((mutation) => {
+      try {
+        const back = reloadPatched(bytes, {[mutation.part]: mutation.patch});
+        const s = back.getWorksheet('S')!;
+        return {
+          mutation: mutation.name,
+          threw: false,
+          isXlsxError: null,
+          errorName: null,
+          keptSiblingCell: s.getCell('A1').value,
+          sheetsRead: back.worksheets.length,
+          // One census per read, so a case can name both halves of the contract: the corrupted
+          // element is absent, and every feature it did not touch is still there.
+          model: {
+            targetCell: s.getCell('B2').value,
+            validations: s.dataValidations.length,
+            tables: s.tables.length,
+            autoFilter: s.autoFilter?.ref ?? null,
+            hyperlink: (s.getCell('D1').value as {hyperlink?: string} | null)?.hyperlink ?? null,
+            note: s.getCell('H1').note ?? null,
+          },
+        };
+      } catch (error) {
+        return {
+          mutation: mutation.name,
+          threw: true,
+          isXlsxError: error instanceof XlsxError,
+          errorName: (error as Error)?.constructor?.name ?? null,
+          keptSiblingCell: null,
+          sheetsRead: 0,
+          model: null,
+        };
+      }
+    });
   },
 };

@@ -10,7 +10,7 @@
 // external relationship makes a strict consumer resolve both the rel and the location and render the
 // destination doubled.
 
-import {decodeRange, type RangeAddress} from '../../core/address.ts';
+import {tryDecodeRange} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {localName, parseXml} from '../../xml/xml-read.ts';
@@ -132,9 +132,12 @@ export function applyHyperlinks(
     if (target === undefined) continue;
     // A hyperlink may span a range (`ref="D1:H1"`); Excel anchors the link at the range's top-left
     // cell. Decode once so a multi-cell link folds onto that anchor rather than asking the sheet for
-    // a range address it cannot resolve. A ref that does not decode is skipped, not fatal.
-    const decoded = decodeRefSafe(link.ref);
-    if (decoded === undefined) continue;
+    // a range address it cannot resolve. A ref that does not name a cell is skipped, not fatal.
+    const decoded = tryDecodeRange(link.ref);
+    // An unbounded ref (`A:A`) decodes but names no anchor, so it is dropped alongside the garbage:
+    // there is no single cell to hang the link on.
+    if (decoded === undefined || decoded.tl.col === undefined || decoded.tl.row === undefined)
+      continue;
     const cell = sheet.getCell(decoded.tl.address);
     // The visible label is the cell's own value: a plain string, or rich text when the label
     // carried per-run formatting. Any other value kind has no textual label, so it reads as empty.
@@ -151,18 +154,6 @@ export function applyHyperlinks(
       ...(spansRange ? {range: link.ref} : {}),
     };
     cell.value = value;
-  }
-}
-
-// A hyperlink's `ref` decoded to a range (a single-cell ref decodes to a range whose corners
-// coincide), so the caller can both anchor on the top-left and tell whether the link spans further.
-// Returns undefined for a ref that does not decode, so a malformed hyperlink is dropped rather than
-// crashing the load.
-function decodeRefSafe(ref: string): RangeAddress | undefined {
-  try {
-    return decodeRange(ref);
-  } catch {
-    return undefined;
   }
 }
 

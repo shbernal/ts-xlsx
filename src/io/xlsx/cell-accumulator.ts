@@ -14,7 +14,7 @@
 // what is genuinely its own -- what committing a cell means, and whether rich runs are read at all
 // -- and falls through to this for the rest.
 
-import {decodeAddress, encodeAddress} from '../../core/address.ts';
+import {encodeAddress, tryDecodeCellRef} from '../../core/address.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
 import type {
   CellValue,
@@ -107,12 +107,13 @@ export class CellAccumulator {
   // Begin a new `<c>`: record its address/type/style and clear every per-cell gathered field so the
   // last cell's formula, value, runs, or shared/data-table declaration cannot bleed into this one.
   #beginCell(attrs: XmlAttributes): void {
-    this.#ref = attrs.r ?? '';
     this.#type = attrs.t ?? '';
     this.#style = numInteger(attrs.s, 0) ?? -1;
-    // -1 is a sentinel the shared-formula translation reads, not a failure path, so an axis the
-    // reference omits stays -1 rather than raising.
-    const decoded = this.#ref === '' ? undefined : decodeAddress(this.#ref);
+    // A `<c>` whose `r` names no cell that can exist (`A0`, `ZZZZ1`, `junk!!`) is treated as one
+    // with no address at all: dropped, the way any unreadable foreign attribute is, instead of
+    // aborting the sheet. -1 is the sentinel the shared-formula translation reads for that state.
+    const decoded = tryDecodeCellRef(attrs.r ?? '');
+    this.#ref = decoded === undefined ? '' : (attrs.r ?? '');
     this.#col = decoded?.col ?? -1;
     this.#row = decoded?.row ?? -1;
     this.#formula = '';

@@ -363,6 +363,25 @@ something the writer can write back. Where that leaves a model fragment unwritab
 reader drops the fragment: a `<cfRule>` whose type is not in `ST_CfType` is dropped whole rather than
 half-read, because `type` is the attribute every other field is read relative to.
 
+A **reference** is a foreign scalar like any other, and has its own tolerant pair in
+`core/address.ts`: `tryDecodeCellRef` and `tryDecodeRange`, returning `undefined` where
+`decodeCellRef` / `decodeRange` throw. Read-side code uses those two and nothing else, so a
+malformed `r`, `ref` or `sqref` costs the element that carried it and never the sheet: the cell is
+skipped, and the validation, hyperlink, table, filter or note is dropped. They answer "can this
+name something that exists", not merely "does this parse", because `A0` and a row past the last
+parse cleanly and then throw at the grid, which is the same abort one step later. Bounds are part
+of the question, so they are part of the answer. An axis a range omits stays unbounded rather than
+unreadable: `A:A` is a legitimate reference, and a caller needing a bounded rectangle checks the
+corners itself.
+
+That leaves each feature to decide what "drop" means for it, and both readings are in the tree.
+A table is dropped *whole* when its `ref` is unreadable, for the `<cfRule>` reason: the anchor is
+the coordinate every other field is read relative to. A `sqref` is dropped *per area*, because its
+areas are independent and one unreadable area says nothing about its neighbours. Where the
+authoring path shares the code, the guard stays on the authoring side and the reader filters before
+reaching it, so `addDataValidation` still refuses a range naming no cells while a file carrying one
+simply loses that validation.
+
 ## How a failure is reported
 
 Every error the library raises deliberately descends from `XlsxError` (`src/errors.ts`), so one

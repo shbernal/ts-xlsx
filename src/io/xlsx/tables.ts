@@ -7,7 +7,7 @@
 // range height minus the header row (present unless `headerRowCount="0"`) and the totals row (present
 // only when `totalsRowCount` is positive), so reconstructing one from the other is lossless.
 
-import {decodeRange, encodeAddress} from '../../core/address.ts';
+import {encodeAddress, tryDecodeRange} from '../../core/address.ts';
 import {
   isTotalsRowFunction,
   type Table,
@@ -193,7 +193,12 @@ export function parseTable(xml: string): TableOptions | undefined {
 
   if (name === undefined || ref === undefined || columns.length === 0) return undefined;
 
-  const {top, left, bottom} = decodeRange(ref);
+  // The `ref` is the coordinate every other field is read relative to, so a table whose anchor is
+  // unreadable is dropped whole rather than rebuilt around a guessed origin. Re-encoding it here is
+  // also what keeps the `Table` constructor's authoring-facing throw out of the reader's path.
+  const decoded = tryDecodeRange(ref);
+  if (decoded === undefined) return undefined;
+  const {top, left, bottom} = decoded;
   if (top === undefined || left === undefined || bottom === undefined) return undefined;
 
   const headerRow = headerRowCount !== 0;
