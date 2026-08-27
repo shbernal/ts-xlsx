@@ -309,6 +309,15 @@ methods call, `shiftSqrefEntries(entries, refOf, withRef, axis, start, count, de
 part which is genuinely one rule, and it is the part where a drift would silently re-aim a
 validation or a highlight at cells nobody chose.
 
+**Costed and declined once, on the grounds that the rule was better placed elsewhere.** The rule at
+risk is "a `sqref` whose every area the splice deleted takes its entry with it", and that rule lives
+in `shiftSqref`, not in either caller: `src/core/merge.test.ts` now pins it there, along with the
+byte-clean guarantee that an unmoved area comes back as its own text. What the free function would
+extract from the callers is three lines, and it would need a `refOf`/`withRef` pair only because the
+two spell the field differently (`sqref` against `ref`), while the validation overlay would still
+keep its loop to re-derive the rectangle index. More indirection than it removes; taken up only if a
+third `sqref`-bound overlay appears.
+
 The xlsx reader and writer, the two largest pieces here, are each a cluster rather than a
 monolith, split along the OOXML package's own divisions so a change touches one part:
 

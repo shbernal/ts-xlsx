@@ -12,7 +12,7 @@ import {Cell, copyCellContent} from './cell.ts';
 import type {ConditionalFormattingOverlay} from './conditional-formatting-overlay.ts';
 import {replaceContents} from './containers.ts';
 import type {DataValidationOverlay} from './data-validation-overlay.ts';
-import {shiftIndex} from './grid-shift.ts';
+import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 import {type AnchoredImage, type AnchorPoint, type ImageAnchor, isOneCellAnchor} from './image.ts';
 import type {MergeRect} from './merge.ts';
 import type {Table} from './table.ts';
@@ -216,7 +216,7 @@ export class GridEdits {
         continue;
       }
       const [lo, hi] = axis === 'row' ? [top, bottom] : [left, right];
-      if (lo >= start && hi < start + count) continue;
+      if (isDeletedSpan(lo, hi, start, count)) continue;
       const rect: MergeRect =
         axis === 'row'
           ? {top: shift(top), left, bottom: shift(bottom), right}
