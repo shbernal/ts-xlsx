@@ -133,6 +133,58 @@ export interface StyleRegistryOptions {
   readonly declaredDefaultFont?: Font;
 }
 
+/**
+ * One de-duplicating table of serialised style fragments: the entries in id order, and the key each
+ * was first interned under. Fills, fonts, borders, number formats and differential styles are all
+ * this same shape, differing only in the id their first entry is numbered from and in what they use
+ * as a key, so stating the array/map invariant once leaves one place it can break rather than five.
+ *
+ * The key is not always the entry. A fill is keyed by a signature over the model and stores the XML
+ * that signature serialises to; a font is keyed by its body and stores that body wrapped in
+ * `<font>`. Where the two coincide, the caller passes the same string twice.
+ */
+class InternTable {
+  readonly #entries: string[] = [];
+  readonly #idByKey = new Map<string, number>();
+  readonly #base: number;
+
+  constructor(base: number) {
+    this.#base = base;
+  }
+
+  get entries(): readonly string[] {
+    return this.#entries;
+  }
+
+  get size(): number {
+    return this.#entries.length;
+  }
+
+  /** The id for `key`, appending `entry` at the next id on first sight. */
+  intern(key: string, entry: string): number {
+    const existing = this.#idByKey.get(key);
+    if (existing !== undefined) return existing;
+    const id = this.#base + this.#entries.length;
+    this.#entries.push(entry);
+    this.#idByKey.set(key, id);
+    return id;
+  }
+
+  /**
+   * Append a preserved entry at the next id, keeping it verbatim and *not* deduping it away.
+   *
+   * A seeded entry still becomes reusable: an authored entry identical to it interns to this id
+   * rather than appending a copy. It does not displace an earlier entry already holding the key,
+   * which is what keeps the first of two identical seeds the one everything resolves to.
+   */
+  seed(entry: string): number {
+    const id = this.#base + this.#entries.length;
+    this.#entries.push(entry);
+    if (!this.#idByKey.has(entry)) this.#idByKey.set(entry, id);
+    return id;
+  }
+}
+
 export class StyleRegistry {
   // The `<font>` body emitted as id 0.
   readonly #defaultFontBody: string;
@@ -151,21 +203,17 @@ export class StyleRegistry {
     );
   }
 
-  // Custom fill xml fragments, in id order; the emitted id is RESERVED_FILL_COUNT + index.
-  readonly #fillXml: string[] = [];
-  readonly #fillIdBySignature = new Map<string, number>();
+  // Custom fill xml fragments, keyed by a signature over the fill they serialise.
+  readonly #fills = new InternTable(RESERVED_FILL_COUNT);
 
-  // Custom number-format codes, in id order; the emitted id is CUSTOM_NUMFMT_BASE + index.
-  readonly #numFmtCodes: string[] = [];
-  readonly #numFmtIdByCode = new Map<string, number>();
+  // Custom number-format codes, each its own key.
+  readonly #numFmts = new InternTable(CUSTOM_NUMFMT_BASE);
 
-  // Custom font xml fragments, in id order; the emitted id is RESERVED_FONT_COUNT + index.
-  readonly #fontXml: string[] = [];
-  readonly #fontIdBySignature = new Map<string, number>();
+  // Custom font elements, keyed by the body they wrap.
+  readonly #fonts = new InternTable(RESERVED_FONT_COUNT);
 
-  // Custom border xml fragments, in id order; the emitted id is RESERVED_BORDER_COUNT + index.
-  readonly #borderXml: string[] = [];
-  readonly #borderIdBySignature = new Map<string, number>();
+  // Custom border xml fragments, each its own key.
+  readonly #borders = new InternTable(RESERVED_BORDER_COUNT);
 
   // xf 0 is the default (no fill/font/border/alignment/protection, General format); further entries append as styles appear.
   readonly #formats: CellFormat[] = [DEFAULT_FORMAT];
@@ -182,8 +230,7 @@ export class StyleRegistry {
   // Differential styles (`<dxfs>`) that conditional formatting references by index. Fragments read
   // from a file are seeded first and kept verbatim so a foreign rule's dxfId stays valid; a style
   // authored on a rule is serialised and appended after them, dedup'd by its fragment.
-  readonly #dxfXml: string[] = [];
-  readonly #dxfIndexByFragment = new Map<string, number>();
+  readonly #dxfs = new InternTable(0);
 
   // A custom indexed-color palette (`<colors><indexedColors>`) read from a file, each entry a verbatim
   // `<rgbColor rgb="…"/>`. Preserved and re-emitted unchanged so cells/fonts/borders that reference a
@@ -289,12 +336,7 @@ export class StyleRegistry {
    * round-trip of our own can catch, because the file stays perfectly valid and merely renders wrong.
    */
   seedDifferentialStyles(fragments: readonly string[]): void {
-    for (const fragment of fragments) {
-      const index = this.#dxfXml.length;
-      this.#dxfXml.push(fragment);
-      // A seeded fragment can still be reused by an authored style identical to it, so index it too.
-      if (!this.#dxfIndexByFragment.has(fragment)) this.#dxfIndexByFragment.set(fragment, index);
-    }
+    for (const fragment of fragments) this.#dxfs.seed(fragment);
   }
 
   /**
@@ -369,34 +411,15 @@ export class StyleRegistry {
    */
   differentialStyleId(style: DifferentialStyle): number {
     const fragment = dxfXml(style);
-    let index = this.#dxfIndexByFragment.get(fragment);
-    if (index === undefined) {
-      index = this.#dxfXml.length;
-      this.#dxfXml.push(fragment);
-      this.#dxfIndexByFragment.set(fragment, index);
-    }
-    return index;
+    return this.#dxfs.intern(fragment, fragment);
   }
 
   #internFill(fill: Fill): number {
-    const signature = fillSignature(fill);
-    let id = this.#fillIdBySignature.get(signature);
-    if (id === undefined) {
-      id = RESERVED_FILL_COUNT + this.#fillXml.length;
-      this.#fillXml.push(patternFillXml(fill, {solidBgFallback: true}));
-      this.#fillIdBySignature.set(signature, id);
-    }
-    return id;
+    return this.#fills.intern(fillSignature(fill), patternFillXml(fill, {solidBgFallback: true}));
   }
 
   #internNumFmt(code: string): number {
-    let id = this.#numFmtIdByCode.get(code);
-    if (id === undefined) {
-      id = CUSTOM_NUMFMT_BASE + this.#numFmtCodes.length;
-      this.#numFmtCodes.push(code);
-      this.#numFmtIdByCode.set(code, id);
-    }
-    return id;
+    return this.#numFmts.intern(code, code);
   }
 
   // A font whose partial carries no facet that differs from the default contributes nothing
@@ -404,43 +427,30 @@ export class StyleRegistry {
   #internFont(font: Font): number {
     const xml = fontXml(font);
     if (xml === '' || this.#font0Bodies.has(xml)) return 0;
-    let id = this.#fontIdBySignature.get(xml);
-    if (id === undefined) {
-      id = RESERVED_FONT_COUNT + this.#fontXml.length;
-      this.#fontXml.push(`<font>${xml}</font>`);
-      this.#fontIdBySignature.set(xml, id);
-    }
-    return id;
+    return this.#fonts.intern(xml, `<font>${xml}</font>`);
   }
 
   // A border that overrides no edge serialises to the empty default border and maps to id 0;
   // otherwise its serialised form is interned and dedup'd like a fill or font.
   #internBorder(border: Border): number {
     const xml = borderXml(border);
-    if (xml === DEFAULT_BORDER) return 0;
-    let id = this.#borderIdBySignature.get(xml);
-    if (id === undefined) {
-      id = RESERVED_BORDER_COUNT + this.#borderXml.length;
-      this.#borderXml.push(xml);
-      this.#borderIdBySignature.set(xml, id);
-    }
-    return id;
+    return xml === DEFAULT_BORDER ? 0 : this.#borders.intern(xml, xml);
   }
 
   /** Serialise the accumulated table into a complete, valid styles.xml part. */
   toXml(): string {
-    const fillCount = RESERVED_FILL_COUNT + this.#fillXml.length;
+    const fillCount = RESERVED_FILL_COUNT + this.#fills.size;
     const fills =
       '<fill><patternFill patternType="none"/></fill>' +
       '<fill><patternFill patternType="gray125"/></fill>' +
-      this.#fillXml.join('');
+      this.#fills.entries.join('');
     const cellXfs = this.#formats.map((format) => xfXml(format, format.xfId)).join('');
     const cellStyleXfs = this.#cellStyleXfs.map((format) => xfXml(format, null)).join('');
     const cellStyles = this.#cellStyleNames.map(cellStyleTag).join('');
-    const fontCount = RESERVED_FONT_COUNT + this.#fontXml.length;
-    const fonts = `<font>${this.#defaultFontBody}</font>${this.#fontXml.join('')}`;
-    const borderCount = RESERVED_BORDER_COUNT + this.#borderXml.length;
-    const borders = DEFAULT_BORDER + this.#borderXml.join('');
+    const fontCount = RESERVED_FONT_COUNT + this.#fonts.size;
+    const fonts = `<font>${this.#defaultFontBody}</font>${this.#fonts.entries.join('')}`;
+    const borderCount = RESERVED_BORDER_COUNT + this.#borders.size;
+    const borders = DEFAULT_BORDER + this.#borders.entries.join('');
     return (
       XML_DECLARATION +
       `<styleSheet xmlns="${SPREADSHEETML_NS}"${this.#foreignNamespaceAttrs()}>` +
@@ -526,21 +536,21 @@ export class StyleRegistry {
   // is still emitted as a self-closing count="0" element, the shape Excel writes; a populated one
   // lists the seeded (foreign) fragments first, then any authored styles, preserving every index.
   #dxfsXml(): string {
-    if (this.#dxfXml.length === 0) return '<dxfs count="0"/>';
-    return `<dxfs count="${this.#dxfXml.length}">${this.#dxfXml.join('')}</dxfs>`;
+    if (this.#dxfs.size === 0) return '<dxfs count="0"/>';
+    return `<dxfs count="${this.#dxfs.size}">${this.#dxfs.entries.join('')}</dxfs>`;
   }
 
   // <numFmts> is the first child of <styleSheet> and is omitted entirely when no custom
   // format was used, matching how Excel writes an all-built-in workbook.
   #numFmtsXml(): string {
-    if (this.#numFmtCodes.length === 0) return '';
-    const entries = this.#numFmtCodes
+    if (this.#numFmts.size === 0) return '';
+    const entries = this.#numFmts.entries
       .map(
         (code, i) =>
           `<numFmt numFmtId="${CUSTOM_NUMFMT_BASE + i}" formatCode="${escapeFormatCode(code)}"/>`,
       )
       .join('');
-    return `<numFmts count="${this.#numFmtCodes.length}">${entries}</numFmts>`;
+    return `<numFmts count="${this.#numFmts.size}">${entries}</numFmts>`;
   }
 }
 
