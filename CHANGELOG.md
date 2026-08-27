@@ -41,6 +41,15 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Fixed
 
+- **A self-closing `<t/>`, `<text/>`, `<xm:f/>` or `<totalsRowFormula/>` can no longer leave a text
+  capture latched.** Nine parsers gathered an element's character data across the open/text/close
+  events without honouring the documented fact that a self-closing element fires no close. Nothing
+  was observably wrong: the next open happened to clear the buffer before anything read it. That was
+  the order of two resets, not a property anyone chose, on a path that reads untrusted input. The
+  capture is now one shared state machine that takes `selfClosing`, so it is structural. It also
+  scopes each capture to the element that opened it, so a nested element inside a document property
+  no longer ends that property's text early.
+
 - **A conditional-formatting block with no rules is omitted rather than emitted empty.**
   `CT_ConditionalFormatting` requires at least one `<cfRule>`, so `addConditionalFormatting({ref,
   rules: []})` used to write a schema-invalid element.

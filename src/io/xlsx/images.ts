@@ -11,7 +11,7 @@ import {
   isImageEditAs,
   isOneCellAnchor,
 } from '../../core/image.ts';
-import {enumToken, localName, numFinite, parseXml} from '../../xml/xml-read.ts';
+import {enumToken, localName, numFinite, parseXml, TextCapture} from '../../xml/xml-read.ts';
 import {checkedToken, numAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
@@ -180,12 +180,11 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
   // Depth inside <xdr:pic>, so the anchor-level <xdr:ext> is not confused with the <a:ext> nested in
   // a picture's spPr transform (both have local name "ext").
   let picDepth = 0;
-  // Which coordinate child is open, so its text lands on the right field; '' between children.
-  let coord = '';
-  let text = '';
+  // The coordinate child currently streaming in, so its text lands on the right field.
+  const coord = new TextCapture(COORDINATES);
 
   parseXml(xml, {
-    onOpen(name, attrs) {
+    onOpen(name, attrs, selfClosing) {
       const local = localName(name);
       if (local === 'twoCellAnchor' || local === 'oneCellAnchor') {
         from = blankPoint();
@@ -211,20 +210,19 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
       } else if (local === 'blip') {
         const value = attrs['r:embed'] ?? attrs.embed;
         if (value !== undefined) embed = value;
-      } else if (target !== null && COORDINATES.has(local)) {
-        coord = local;
-        text = '';
+      } else if (target !== null) {
+        coord.open(local, selfClosing);
       }
     },
     onText(chunk) {
-      if (coord !== '') text += chunk;
+      coord.text(chunk);
     },
     onClose(name) {
       const local = localName(name);
-      if (target !== null && coord === local && COORDINATES.has(local)) {
+      const text = coord.close(local);
+      if (text !== undefined) {
         const value = numFinite(text);
-        if (value !== undefined) setCoordinate(target, local, value);
-        coord = '';
+        if (target !== null && value !== undefined) setCoordinate(target, local, value);
       } else if (local === 'from' || local === 'to') {
         target = null;
       } else if (local === 'pic') {

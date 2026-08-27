@@ -36,6 +36,7 @@ import {
   numInteger,
   openElements,
   parseXml,
+  TextCapture,
 } from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {extensionOf} from '../opc/part-paths.ts';
@@ -758,30 +759,28 @@ const CORE_PROPERTY_LOCAL_NAMES = new Set([
 ]);
 
 function applyCoreProperties(workbook: Workbook, xml: string): void {
-  let capture = '';
-  let text = '';
+  const capture = new TextCapture(CORE_PROPERTY_LOCAL_NAMES);
   parseXml(xml, {
-    onOpen(name) {
-      const local = localName(name);
-      capture = CORE_PROPERTY_LOCAL_NAMES.has(local) ? local : '';
-      text = '';
+    onOpen(name, _attrs, selfClosing) {
+      capture.open(localName(name), selfClosing);
     },
     onText(chunk) {
-      if (capture !== '') text += chunk;
+      capture.text(chunk);
     },
     onClose(name) {
-      if (capture === '' || localName(name) !== capture) return;
-      if (capture === 'title') workbook.properties.title = text;
-      else if (capture === 'creator') workbook.properties.creator = text;
-      else if (capture === 'lastModifiedBy') workbook.properties.lastModifiedBy = text;
+      const local = localName(name);
+      const text = capture.close(local);
+      if (text === undefined) return;
+      if (local === 'title') workbook.properties.title = text;
+      else if (local === 'creator') workbook.properties.creator = text;
+      else if (local === 'lastModifiedBy') workbook.properties.lastModifiedBy = text;
       else {
         const date = new Date(text);
         if (!Number.isNaN(date.getTime())) {
-          if (capture === 'created') workbook.properties.created = date;
+          if (local === 'created') workbook.properties.created = date;
           else workbook.properties.modified = date;
         }
       }
-      capture = '';
     },
   });
 }
@@ -790,20 +789,17 @@ function applyCoreProperties(workbook: Workbook, xml: string): void {
 // one. Everything else in app.xml is either derived (`TitlesOfParts`) or this library's own
 // (`Application`), so nothing here reads more than the single element.
 function applyAppProperties(workbook: Workbook, xml: string): void {
-  let capture = false;
-  let text = '';
+  const capture = new TextCapture('Company');
   parseXml(xml, {
-    onOpen(name) {
-      capture = localName(name) === 'Company';
-      text = '';
+    onOpen(name, _attrs, selfClosing) {
+      capture.open(localName(name), selfClosing);
     },
     onText(chunk) {
-      if (capture) text += chunk;
+      capture.text(chunk);
     },
     onClose(name) {
-      if (!capture || localName(name) !== 'Company') return;
-      workbook.properties.company = text;
-      capture = false;
+      const text = capture.close(localName(name));
+      if (text !== undefined) workbook.properties.company = text;
     },
   });
 }

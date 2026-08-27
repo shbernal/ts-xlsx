@@ -417,3 +417,59 @@ export function enumToken<T extends string>(
 ): T | undefined {
   return val !== undefined && isMember(val) ? val : undefined;
 }
+
+/**
+ * Gathers one element's character data across the open/text/close events a SAX parse delivers it in.
+ *
+ * Nine parsers used to open-code this: latch a flag and clear a buffer on the open, append every
+ * chunk while latched, consume the buffer and unlatch on the close. Six spellings of one idea, and
+ * none of them honoured the one thing {@link SaxHandlers.onOpen} warns about. A self-closing `<x/>`
+ * fires no matching close, so `<t/>`, `<text/>`, `<xm:f/>` and `<totalsRowFormula/>`, all legal and
+ * all written by real files, latched a capture that nothing would ever close. What kept that from
+ * corrupting anything was the order the next open happened to reset things in, which is an accident
+ * rather than a property anyone chose, on a path that reads untrusted input. Taking `selfClosing`
+ * here makes it structural, once.
+ *
+ * The other thing the open-coded versions disagreed on is what an unrelated element opening
+ * mid-capture should do. Ending the capture is never what a caller wants: the text belongs to the
+ * element that opened it, and a nested or sibling element is not that element. So an open that is
+ * not for a captured name leaves an capture in progress alone, and {@link close} answers only for
+ * the element that started it.
+ *
+ * Decoding stays outside. A `<t>` needs `decodeSpreadsheetText` over the whole element and never
+ * over a chunk, an `<xm:f>` needs nothing, and a coordinate needs a number: the caller knows which.
+ */
+export class TextCapture {
+  readonly #names: ReadonlySet<string>;
+  #capturing: string | undefined;
+  #text = '';
+
+  /** @param names the element local name, or the set of names this instance may capture. */
+  constructor(names: string | Iterable<string>) {
+    this.#names = new Set(typeof names === 'string' ? [names] : names);
+  }
+
+  /** Whether a capture is currently open. */
+  get capturing(): boolean {
+    return this.#capturing !== undefined;
+  }
+
+  /** Begin capturing `local` if it is one of this instance's names and is not self-closing. */
+  open(local: string, selfClosing: boolean): void {
+    if (selfClosing || !this.#names.has(local)) return;
+    this.#capturing = local;
+    this.#text = '';
+  }
+
+  /** Feed a chunk of character data; ignored when no capture is open. */
+  text(chunk: string): void {
+    if (this.#capturing !== undefined) this.#text += chunk;
+  }
+
+  /** The gathered text when `local` closes the captured element, else `undefined`. Unlatches. */
+  close(local: string): string | undefined {
+    if (this.#capturing !== local) return undefined;
+    this.#capturing = undefined;
+    return this.#text;
+  }
+}

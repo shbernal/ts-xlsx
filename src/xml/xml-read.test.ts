@@ -10,6 +10,7 @@ import {
   numInteger,
   openElements,
   parseXml,
+  TextCapture,
   type XmlAttributes,
   xmlEvents,
 } from './xml-read.ts';
@@ -305,4 +306,61 @@ test('numFinite reads a measurement, integer or not, and refuses what is not fin
   }
   assert.equal(numFinite('-0.5', 0), undefined, 'and honours the floor');
   assert.equal(numFinite('9007199254740993', 0), 9007199254740992, 'a measurement may be huge');
+});
+
+// Gather every text a capture yields over one document, so a test reads as the XML it is about.
+function captured(xml: string, names: string | Iterable<string>): string[] {
+  const capture = new TextCapture(names);
+  const out: string[] = [];
+  parseXml(xml, {
+    onOpen(name, _attrs, selfClosing) {
+      capture.open(localName(name), selfClosing);
+    },
+    onText(chunk) {
+      capture.text(chunk);
+    },
+    onClose(name) {
+      const text = capture.close(localName(name));
+      if (text !== undefined) out.push(text);
+    },
+  });
+  return out;
+}
+
+test('TextCapture gathers an element text across the chunks it arrives in', () => {
+  assert.deepEqual(captured('<r><t>a &amp; b</t><t>second</t></r>', 't'), ['a & b', 'second']);
+});
+
+test('TextCapture ignores a self-closing element, which will never fire a close', () => {
+  assert.deepEqual(captured('<r><t/><t>after</t></r>', 't'), ['after']);
+  // The regression this exists to make impossible: a latch nothing closes, leaking the following
+  // element's text into the empty one.
+  const capture = new TextCapture('t');
+  capture.open('t', true);
+  capture.text('stray');
+  assert.equal(capture.capturing, false);
+  assert.equal(capture.close('t'), undefined);
+});
+
+test('TextCapture leaves a capture in progress alone when an unrelated element opens', () => {
+  assert.deepEqual(captured('<t>before<b/>after</t>', 't'), ['beforeafter']);
+});
+
+test('TextCapture answers only for the element that started the capture', () => {
+  const capture = new TextCapture(['f', 'sqref']);
+  capture.open('f', false);
+  capture.text('A1>0');
+  assert.equal(capture.close('sqref'), undefined, 'a sibling name does not consume it');
+  assert.equal(capture.close('f'), 'A1>0');
+  assert.equal(capture.close('f'), undefined, 'and it unlatches');
+});
+
+test('TextCapture over a set tells the caller which element it captured, by the close it answers', () => {
+  assert.deepEqual(
+    captured('<cp><title>T</title><ignored>X</ignored><creator>C</creator></cp>', [
+      'title',
+      'creator',
+    ]),
+    ['T', 'C'],
+  );
 });

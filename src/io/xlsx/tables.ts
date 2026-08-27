@@ -16,7 +16,7 @@ import {
   type TableStyleInfo,
   type TotalsRowFunction,
 } from '../../core/table.ts';
-import {boolPresent, localName, numInteger, parseXml} from '../../xml/xml-read.ts';
+import {boolPresent, localName, numInteger, parseXml, TextCapture} from '../../xml/xml-read.ts';
 import {boolAttr, escapeAttr, escapeText, XML_DECLARATION} from '../../xml/xml.ts';
 import {NS} from './relationships.ts';
 
@@ -112,12 +112,11 @@ export function parseTable(xml: string): TableOptions | undefined {
 
   // A `<totalsRowFormula>` is a text child of the current `<tableColumn>`, so it is captured across
   // open/text/close rather than from an attribute. `calculatedColumnFormula` is a sibling child of
-  // the same type (CT_TableFormula), so guard on the exact element to avoid capturing its text.
-  let inTotalsFormula = false;
-  let totalsFormula = '';
+  // the same type (CT_TableFormula), which is why the capture answers only for its own element.
+  const totalsFormula = new TextCapture('totalsRowFormula');
 
   parseXml(xml, {
-    onOpen(elementName, attrs) {
+    onOpen(elementName, attrs, selfClosing) {
       switch (localName(elementName)) {
         case 'table':
           // OOXML makes `displayName` the required identifier and `name` an optional alias; the
@@ -174,22 +173,21 @@ export function parseTable(xml: string): TableOptions | undefined {
           break;
         }
         case 'totalsRowFormula':
-          inTotalsFormula = true;
-          totalsFormula = '';
+          totalsFormula.open('totalsRowFormula', selfClosing);
           break;
       }
     },
     onText(text) {
-      if (inTotalsFormula) totalsFormula += text;
+      totalsFormula.text(text);
     },
     onClose(elementName) {
-      if (localName(elementName) !== 'totalsRowFormula') return;
-      inTotalsFormula = false;
+      const formula = totalsFormula.close(localName(elementName));
+      if (formula === undefined) return;
       // Attach to the column currently being parsed, the last one pushed. Excel writes the child
       // only for `totalsRowFunction="custom"`, so a formula on any other column is meaningless, but
       // preserving whatever the part carried keeps the round-trip faithful rather than second-guessing.
       const column = columns[columns.length - 1];
-      if (column !== undefined) column.totalsRowFormula = totalsFormula;
+      if (column !== undefined) column.totalsRowFormula = formula;
     },
   });
 

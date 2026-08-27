@@ -37,6 +37,7 @@ import {
   numFinite,
   numInteger,
   parseXml,
+  TextCapture,
 } from '../../xml/xml-read.ts';
 import {
   boolAttr,
@@ -347,8 +348,7 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
   let block: ConditionalFormatting | undefined;
   let draft: RuleDraft | undefined;
   let scale: ScaleKind | undefined;
-  let capturingFormula = false;
-  let formulaText = '';
+  const formulaCapture = new TextCapture('formula');
 
   // Classic data-bar rules that named an extension, paired with the id they linked on, plus the
   // extensions gathered from the worksheet <extLst>. The two are married after the pass: the
@@ -357,8 +357,7 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
   const extById = new Map<string, DataBarExt>();
   let x14Ext: DataBarExt | undefined;
   let x14ExtId: string | undefined;
-  let capturingX14Id = false;
-  let x14IdText = '';
+  const x14IdCapture = new TextCapture('id');
 
   parseXml(xml, {
     onOpen(name, attrs, selfClosing) {
@@ -367,8 +366,7 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
         // The `<x14:id>` a classic data bar carries to name its extension: capture its text into the
         // open draft. The rest are the worksheet extension's own elements.
         if (ln === 'id' && draft !== undefined) {
-          capturingX14Id = true;
-          x14IdText = '';
+          x14IdCapture.open(ln, selfClosing);
         } else if (ln === 'cfRule') {
           x14Ext = attrs.type === 'dataBar' && attrs.id !== undefined ? emptyExt() : undefined;
           x14ExtId = attrs.id;
@@ -407,20 +405,19 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
         if (scale === 'dataBar') draft.color = color;
         else draft.colors.push(color);
       } else if (draft !== undefined && ln === 'formula') {
-        capturingFormula = true;
-        formulaText = '';
+        formulaCapture.open(ln, selfClosing);
       }
     },
     onText(chunk) {
-      if (capturingFormula) formulaText += chunk;
-      if (capturingX14Id) x14IdText += chunk;
+      formulaCapture.text(chunk);
+      x14IdCapture.text(chunk);
     },
     onClose(name) {
       const ln = localName(name);
       if (name.includes(':')) {
-        if (ln === 'id' && capturingX14Id) {
-          if (draft !== undefined) draft.x14Id = x14IdText;
-          capturingX14Id = false;
+        const id = x14IdCapture.close(ln);
+        if (id !== undefined) {
+          if (draft !== undefined) draft.x14Id = id;
         } else if (ln === 'cfRule' && x14Ext !== undefined && x14ExtId !== undefined) {
           extById.set(x14ExtId, x14Ext);
           x14Ext = undefined;
@@ -428,9 +425,9 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
         }
         return;
       }
-      if (ln === 'formula' && capturingFormula) {
-        if (draft !== undefined) draft.formulae.push(coerceNumericLiteral(formulaText));
-        capturingFormula = false;
+      const formula = formulaCapture.close(ln);
+      if (formula !== undefined) {
+        if (draft !== undefined) draft.formulae.push(coerceNumericLiteral(formula));
       } else if (ln === 'dataBar' || ln === 'colorScale' || ln === 'iconSet') {
         scale = undefined;
       } else if (ln === 'cfRule' && draft !== undefined) {

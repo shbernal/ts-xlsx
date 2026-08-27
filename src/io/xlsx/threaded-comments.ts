@@ -48,6 +48,7 @@ import {
   localName,
   numInteger,
   parseXml,
+  TextCapture,
   type XmlAttributes,
 } from '../../xml/xml-read.ts';
 import {escapeAttr, escapeSpreadsheetText, textAttr, XML_DECLARATION} from '../../xml/xml.ts';
@@ -141,31 +142,33 @@ export function parseThreadedComments(xml: string): ParsedThreadedComment[] {
   const messages: ParsedThreadedComment[] = [];
   let open: XmlAttributes | undefined;
   let mentions: ParsedMention[] = [];
-  let inText = false;
   let text = '';
+  const capture = new TextCapture('text');
   parseXml(
     xml,
     {
-      onOpen(name, attrs) {
+      onOpen(name, attrs, selfClosing) {
         const local = localName(name);
         if (local === 'threadedComment') {
           open = attrs;
           text = '';
           mentions = [];
-        } else if (local === 'text' && open !== undefined) {
-          inText = true;
-        } else if (local === 'mention' && open !== undefined) {
-          const mention = mentionFrom(attrs);
-          if (mention !== undefined) mentions.push(mention);
+        } else if (open !== undefined) {
+          capture.open(local, selfClosing);
+          if (local === 'mention') {
+            const mention = mentionFrom(attrs);
+            if (mention !== undefined) mentions.push(mention);
+          }
         }
       },
       onText(chunk) {
-        if (inText) text += chunk;
+        capture.text(chunk);
       },
       onClose(name) {
         const local = localName(name);
-        if (local === 'text') {
-          inText = false;
+        const body = capture.close(local);
+        if (body !== undefined) {
+          text = body;
         } else if (local === 'threadedComment') {
           if (open !== undefined) {
             const message = threadedCommentFrom(open, text, mentions);

@@ -2,7 +2,7 @@
 // Split out of read.ts beside its sibling parsers (read-styles.ts, rich-runs.ts) so read.ts stays
 // orchestration; the run structure it decodes is owned by RunAccumulator, shared with inline strings.
 
-import {decodeSpreadsheetText, localName, parseXml} from '../../xml/xml-read.ts';
+import {decodeSpreadsheetText, localName, parseXml, TextCapture} from '../../xml/xml-read.ts';
 import type {SharedString} from './cell-value.ts';
 import {RunAccumulator} from './rich-runs.ts';
 
@@ -19,10 +19,9 @@ export function parseSharedStrings(xml: string): SharedString[] {
   let plain = '';
   const runs = new RunAccumulator();
   let isRich = false;
-  let capture = false;
-  let text = '';
+  const capture = new TextCapture('t');
   parseXml(xml, {
-    onOpen(name, attrs) {
+    onOpen(name, attrs, selfClosing) {
       const local = localName(name);
       switch (local) {
         case 'si':
@@ -38,8 +37,7 @@ export function parseSharedStrings(xml: string): SharedString[] {
           runs.beginProperties();
           break;
         case 't':
-          capture = true;
-          text = '';
+          capture.open(local, selfClosing);
           break;
         default:
           runs.applyProperty(local, attrs);
@@ -47,7 +45,7 @@ export function parseSharedStrings(xml: string): SharedString[] {
       }
     },
     onText(chunk) {
-      if (capture) text += chunk;
+      capture.text(chunk);
     },
     onClose(name) {
       const local = localName(name);
@@ -56,9 +54,10 @@ export function parseSharedStrings(xml: string): SharedString[] {
           // A `<t>` inside a run is that run's text; a bare `<t>` directly in the `<si>` is plain.
           // The `_xHHHH_` decode happens on the whole `<t>`, never on a SAX chunk. See
           // {@link decodeSpreadsheetText}.
+          const text = capture.close(local);
+          if (text === undefined) break;
           const decoded = decodeSpreadsheetText(text);
           if (!runs.appendText(decoded)) plain += decoded;
-          capture = false;
           break;
         }
         case 'r':

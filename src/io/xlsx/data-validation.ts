@@ -22,7 +22,13 @@ import {
   isDataValidationType,
 } from '../../core/data-validation.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
-import {boolStrict, coerceNumericLiteral, localName, parseXml} from '../../xml/xml-read.ts';
+import {
+  boolStrict,
+  coerceNumericLiteral,
+  localName,
+  parseXml,
+  TextCapture,
+} from '../../xml/xml-read.ts';
 import {checkedToken, escapeAttr, escapeText, stripFormulaEquals, textAttr} from '../../xml/xml.ts';
 // The x14/xm extension namespaces and `DATA_VALIDATION_EXT_URI` are declared inline on the elements
 // that need them, exactly as Excel writes them, so the block is self-contained and the worksheet root
@@ -220,14 +226,12 @@ function buildRule(
 export function parseExtendedDataValidations(xml: string): DataValidationEntry[] {
   const entries: DataValidationEntry[] = [];
   let current: {attrs: Record<string, string>; formulae: string[]; sqref: string} | undefined;
-  // Which operand an `<xm:f>` feeds (set by the enclosing `<x14:formula1>`/`<x14:formula2>`), and
-  // which child element's text is currently being gathered.
+  // Which operand an `<xm:f>` feeds, set by the enclosing `<x14:formula1>`/`<x14:formula2>`.
   let slot: number | undefined;
-  let capture: 'formula' | 'sqref' | undefined;
-  let text = '';
+  const capture = new TextCapture(['f', 'sqref']);
 
   parseXml(xml, {
-    onOpen(name, attrs) {
+    onOpen(name, attrs, selfClosing) {
       const ln = localName(name);
       const prefixed = name.includes(':');
       // A `<x14:dataValidation>`; its attributes (type, flags, messages) build the rule.
@@ -237,25 +241,22 @@ export function parseExtendedDataValidations(xml: string): DataValidationEntry[]
         slot = 0;
       } else if (current !== undefined && prefixed && ln === 'formula2') {
         slot = 1;
-      } else if (current !== undefined && ln === 'f') {
-        capture = 'formula';
-        text = '';
-      } else if (current !== undefined && ln === 'sqref') {
-        capture = 'sqref';
-        text = '';
+      } else if (current !== undefined) {
+        capture.open(ln, selfClosing);
       }
     },
     onText(chunk) {
-      if (capture !== undefined) text += chunk;
+      capture.text(chunk);
     },
     onClose(name) {
       const ln = localName(name);
-      if (ln === 'f' && capture === 'formula') {
-        if (current !== undefined && slot !== undefined) current.formulae[slot] = text;
-        capture = undefined;
-      } else if (ln === 'sqref' && capture === 'sqref') {
-        if (current !== undefined) current.sqref = text;
-        capture = undefined;
+      const text = capture.close(ln);
+      if (text !== undefined) {
+        if (ln === 'f') {
+          if (current !== undefined && slot !== undefined) current.formulae[slot] = text;
+        } else if (current !== undefined) {
+          current.sqref = text;
+        }
       } else if ((ln === 'formula1' || ln === 'formula2') && name.includes(':')) {
         slot = undefined;
       } else if (ln === 'dataValidation' && name.includes(':') && current !== undefined) {
