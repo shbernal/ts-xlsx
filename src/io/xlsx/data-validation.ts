@@ -23,7 +23,7 @@ import {
 } from '../../core/data-validation.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {boolStrict, coerceNumericLiteral, localName, parseXml} from '../../xml/xml-read.ts';
-import {escapeAttr, escapeText, stripFormulaEquals} from '../../xml/xml.ts';
+import {checkedToken, escapeAttr, escapeText, stripFormulaEquals, textAttr} from '../../xml/xml.ts';
 // The x14/xm extension namespaces and `DATA_VALIDATION_EXT_URI` are declared inline on the elements
 // that need them, exactly as Excel writes them, so the block is self-contained and the worksheet root
 // needs no extra namespace declaration.
@@ -62,16 +62,20 @@ export function dataValidationsExtXml(entries: readonly DataValidationEntry[]): 
 // part of this shared prefix.
 function ruleAttrs(rule: DataValidation): string {
   return (
-    ` type="${rule.type}"` +
-    (rule.errorStyle !== undefined ? ` errorStyle="${rule.errorStyle}"` : '') +
-    (rule.operator !== undefined ? ` operator="${rule.operator}"` : '') +
+    ` type="${checkedToken(rule.type, isDataValidationType, 'data validation type')}"` +
+    (rule.errorStyle === undefined
+      ? ''
+      : ` errorStyle="${checkedToken(rule.errorStyle, isDataValidationErrorStyle, 'data validation error style')}"`) +
+    (rule.operator === undefined
+      ? ''
+      : ` operator="${checkedToken(rule.operator, isDataValidationOperator, 'data validation operator')}"`) +
     (rule.allowBlank ? ' allowBlank="1"' : '') +
     (rule.showInputMessage ? ' showInputMessage="1"' : '') +
     (rule.showErrorMessage ? ' showErrorMessage="1"' : '') +
-    (rule.errorTitle !== undefined ? ` errorTitle="${escapeAttr(rule.errorTitle)}"` : '') +
-    (rule.error !== undefined ? ` error="${escapeAttr(rule.error)}"` : '') +
-    (rule.promptTitle !== undefined ? ` promptTitle="${escapeAttr(rule.promptTitle)}"` : '') +
-    (rule.prompt !== undefined ? ` prompt="${escapeAttr(rule.prompt)}"` : '')
+    textAttr('errorTitle', rule.errorTitle) +
+    textAttr('error', rule.error) +
+    textAttr('promptTitle', rule.promptTitle) +
+    textAttr('prompt', rule.prompt)
   );
 }
 

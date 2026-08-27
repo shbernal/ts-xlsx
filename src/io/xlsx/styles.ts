@@ -35,9 +35,14 @@ import {
   type UnderlineStyle,
 } from '../../core/style.ts';
 import {TABLE_STYLE_ELEMENT_TYPES, type TableStyle} from '../../core/table-style.ts';
-import {AuthoringError} from '../../errors.ts';
 import {decodeEntities} from '../../xml/xml-read.ts';
-import {assertRepresentable, escapeAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
+import {
+  assertRepresentable,
+  checkedToken,
+  escapeAttr,
+  numberText,
+  XML_DECLARATION,
+} from '../../xml/xml.ts';
 import {colorAttrs} from './color-xml.ts';
 import {MARKUP_COMPATIBILITY_NS, SPREADSHEETML_NS} from './namespaces.ts';
 
@@ -606,26 +611,6 @@ function xfXml(format: CellFormat, xfId: number | null): string {
 function cellStyleTag(entry: {name: string; builtinId?: number; xfId: number}): string {
   const builtin = entry.builtinId === undefined ? '' : ` builtinId="${entry.builtinId}"`;
   return `<cellStyle name="${escapeAttr(entry.name)}" xfId="${entry.xfId}"${builtin}/>`;
-}
-
-// Reject an enum-typed style token the writer would otherwise emit verbatim. The public types already
-// forbid an out-of-contract value (VerticalAlignment, BorderStyle, FillPatternType, …), so this fires
-// only for a value smuggled past the types by an untyped caller. But the writer must never serialise
-// it: it would be schema-invalid OOXML that Excel silently tolerates yet the library's own reader
-// (which narrows every such token through the same guard) discards on read-back. Rejecting at the write
-// boundary keeps the writer symmetric with the reader, garbage out refused exactly as garbage in, so
-// a value the writer accepts is always one that round-trips.
-function checkedToken(
-  value: string,
-  isValid: (candidate: string) => boolean,
-  kind: string,
-): string {
-  if (!isValid(value)) {
-    throw new AuthoringError(
-      `Invalid ${kind} ${JSON.stringify(value)}: not a value the OOXML enumeration allows`,
-    );
-  }
-  return value;
 }
 
 // Serialise a cell's alignment as `<alignment>` attributes in ECMA-376 CT_CellAlignment order.

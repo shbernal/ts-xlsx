@@ -14,7 +14,7 @@ import {decodeRange, type RangeAddress} from '../../core/address.ts';
 import {type HyperlinkValue, isHyperlinkValue, isRichTextValue} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {localName, parseXml} from '../../xml/xml-read.ts';
-import {escapeAttr} from '../../xml/xml.ts';
+import {escapeAttr, textAttr} from '../../xml/xml.ts';
 import type {SheetRelIds} from './package-plan.ts';
 
 /** A hyperlink gathered from a sheet for serialisation: the cell it sits on, its target, and an
@@ -82,9 +82,8 @@ export function hyperlinksXml(links: readonly HyperlinkPlan[]): string {
   const items = links
     .map((link) => {
       const rid = link.relId !== undefined ? ` r:id="${link.relId}"` : '';
-      const location =
-        link.location !== undefined ? ` location="${escapeAttr(link.location)}"` : '';
-      const tooltip = link.tooltip !== undefined ? ` tooltip="${escapeAttr(link.tooltip)}"` : '';
+      const location = textAttr('location', link.location);
+      const tooltip = textAttr('tooltip', link.tooltip);
       return `<hyperlink ref="${escapeAttr(link.ref)}"${rid}${location}${tooltip}/>`;
     })
     .join('');

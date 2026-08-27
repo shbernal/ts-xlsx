@@ -179,6 +179,44 @@ export function boolAttr(name: string, value: boolean | undefined): string {
 }
 
 /**
+ * A free-string attribute rendered with a leading space (` name="a &amp; b"`), or '' when the value
+ * is undefined. The third of the trio with {@link boolAttr} and {@link numAttr}: the value is prose
+ * the caller chose, so it is escaped rather than checked.
+ *
+ * A token from a closed OOXML enumeration is the other case and goes through {@link checkedToken}
+ * instead. Escaping a bogus token would produce a well-formed document that Excel still rejects,
+ * which hides the mistake in the file rather than raising it at the call.
+ */
+export function textAttr(name: string, value: string | undefined): string {
+  return value === undefined ? '' : ` ${name}="${escapeAttr(value)}"`;
+}
+
+/**
+ * Refuse a token from a closed OOXML enumeration that the writer would otherwise emit verbatim, and
+ * return it unchanged when it belongs. The public types already forbid an out-of-contract value, so
+ * this fires only for one smuggled past them by an untyped caller, a `JSON.parse`, or a cast.
+ *
+ * The writer must never serialise such a value: it would be schema-invalid OOXML that Excel
+ * sometimes tolerates yet the library's own reader, which narrows every such token through the same
+ * guard, discards on read-back. Refusing at the write boundary keeps the two symmetric, garbage out
+ * refused exactly as garbage in, so a value the writer accepts is always one that round-trips.
+ *
+ * @throws {AuthoringError} naming the value and the enumeration.
+ */
+export function checkedToken(
+  value: string,
+  isValid: (candidate: string) => boolean,
+  kind: string,
+): string {
+  if (!isValid(value)) {
+    throw new AuthoringError(
+      `Invalid ${kind} ${JSON.stringify(value)}: not a value the OOXML enumeration allows`,
+    );
+  }
+  return value;
+}
+
+/**
  * A numeric attribute rendered with a leading space (` name="42"`), or '' when the value is undefined
  * so that a count an author never set stays out of the element rather than fabricating a default.
  *

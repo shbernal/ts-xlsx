@@ -793,7 +793,7 @@ interface WorkbookView {
   /** 0-based index into {@link Workbook.worksheets} of the sheet selected on open. */
   activeTab: number;
   /** Window visibility; omit for a normally visible window. */
-  visibility?: 'visible' | 'hidden' | 'veryHidden';
+  visibility?: Visibility;
   /** Whether the document window opens minimised; omit for a restored window. */
   minimized?: boolean;
 }

@@ -45,9 +45,27 @@ import {WorksheetComments} from './worksheet-comments.ts';
 import {WORKSHEET_MODEL_FACETS} from './worksheet-model.ts';
 import {WorksheetPictures} from './worksheet-pictures.ts';
 
+/**
+ * Whether a thing Excel can hide is showing: a sheet's tab, or the document window itself.
+ *
+ * One type for two schema enumerations. `ST_SheetState` and `ST_Visibility` are declared separately
+ * in ECMA-376 and carry the same three tokens with the same meanings, and `veryHidden` means the same
+ * thing in both: hidden, and not offered in the unhide list.
+ */
+export type Visibility = 'visible' | 'hidden' | 'veryHidden';
+
+// Keyed by the union so the compiler refuses a foreign key and an omitted member alike, which is what
+// lets the reader narrow a token out of a foreign file instead of asserting one.
+const VISIBILITIES: Record<Visibility, true> = {visible: true, hidden: true, veryHidden: true};
+
+/** Narrow a raw `<sheet state>` or `<workbookView visibility>` token to a known {@link Visibility}. */
+export function isVisibility(value: string): value is Visibility {
+  return Object.hasOwn(VISIBILITIES, value);
+}
+
 export interface WorksheetState {
   /** Sheet visibility, as Excel models it. Defaults to `visible`. */
-  readonly state: 'visible' | 'hidden' | 'veryHidden';
+  readonly state: Visibility;
 }
 
 /** Format defaults applied to every row/column that carries no explicit override. */

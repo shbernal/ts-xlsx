@@ -34,6 +34,7 @@ import {
   escapeSpreadsheetText,
   escapeText,
   numberText,
+  textAttr,
   textElement,
   XML_DECLARATION,
 } from '../../xml/xml.ts';
@@ -797,8 +798,8 @@ function cellFormulaXml(
       `ref="${escapeAttr(value.ref)}"` +
       ` dt2D="${value.dataTable2D ? 1 : 0}"` +
       ` dtr="${value.dataTableRow ? 1 : 0}"` +
-      (value.r1 !== undefined ? ` r1="${escapeAttr(value.r1)}"` : '') +
-      (value.r2 !== undefined ? ` r2="${escapeAttr(value.r2)}"` : '');
+      textAttr('r1', value.r1) +
+      textAttr('r2', value.r2);
     return formulaBodyXml(ref, s, `<f t="dataTable" ${attrs}/>`, value.result);
   }
   if (isFormulaValue(value)) {

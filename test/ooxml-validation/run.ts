@@ -76,6 +76,36 @@ async function writeBufferedWorkbook(file: string): Promise<void> {
     ],
     rowCount: 1,
   });
+  // Every attribute the writer checks against a closed OOXML enumeration, so the oracle rules on the
+  // tokens rather than the guard merely agreeing with itself: page orientation and order, three
+  // cfRule types with their operator/timePeriod/iconSet spellings, a hyperlink's free-string
+  // attributes, a hidden tab, and a non-default window visibility.
+  sheet.pageSetup.orientation = 'landscape';
+  sheet.pageSetup.pageOrder = 'overThenDown';
+  sheet.addConditionalFormatting({
+    ref: 'B2:B20',
+    rules: [
+      {type: 'cellIs', operator: 'greaterThan', formulae: [10], priority: 1},
+      {type: 'timePeriod', timePeriod: 'lastWeek', priority: 2},
+      {
+        type: 'iconSet',
+        iconSet: '3TrafficLights1',
+        cfvo: [
+          {type: 'percent', value: 0},
+          {type: 'percent', value: 33},
+          {type: 'percent', value: 67},
+        ],
+        priority: 3,
+      },
+    ],
+  });
+  sheet.getCell('A5').value = {
+    text: 'link',
+    hyperlink: 'https://example.invalid/',
+    tooltip: 'a tooltip & an ampersand',
+  };
+  workbook.addWorksheet('Hidden', {state: 'veryHidden'});
+  workbook.view.visibility = 'hidden';
   await writeFile(file, writeXlsx(workbook));
 }
 

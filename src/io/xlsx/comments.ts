@@ -23,7 +23,7 @@ import {tryDecodeCellRef} from '../../core/address.ts';
 import type {CommentThread} from '../../core/comment-thread.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {decodeSpreadsheetText, localName, numInteger, parseXml} from '../../xml/xml-read.ts';
-import {escapeAttr, escapeText, textElement, XML_DECLARATION} from '../../xml/xml.ts';
+import {escapeText, textAttr, textElement, XML_DECLARATION} from '../../xml/xml.ts';
 import {MARKUP_COMPATIBILITY_NS, REVISION_NS, SPREADSHEETML_NS} from './namespaces.ts';
 
 /** A comment bound for `comments{n}.xml`, paired with the coordinates the VML anchor needs. */
@@ -139,7 +139,7 @@ export function commentsXml(comments: readonly CommentCell[]): string {
     .map((comment) => {
       const {threadId} = comment;
       const authorId = threadId === undefined ? noteAuthorId : authorIdByThreadId.get(threadId);
-      const uid = threadId === undefined ? '' : ` xr:uid="${escapeAttr(threadId)}"`;
+      const uid = textAttr('xr:uid', threadId);
       return (
         `<comment ref="${comment.ref}" authorId="${authorId}"${uid}>` +
         `<text><r>${textElement(comment.text)}</r></text>` +

@@ -48,7 +48,7 @@ import type {WorkbookProtection} from './workbook-protection.ts';
 import {WorkbookStyleTables} from './workbook-styles.ts';
 import {type DeclaredThemeSchemes, WorkbookTheme} from './workbook-theme.ts';
 import {WorkbookVbaProject} from './workbook-vba.ts';
-import {Worksheet, type WorksheetState} from './worksheet.ts';
+import {type Visibility, Worksheet, type WorksheetState} from './worksheet.ts';
 
 /**
  * A workbook-level reference to package content the model does not model: a pivot cache
@@ -112,7 +112,7 @@ export interface WorkbookView {
   /** 0-based index into {@link Workbook.worksheets} of the sheet selected on open. */
   activeTab: number;
   /** Window visibility; omit for a normally visible window. */
-  visibility?: 'visible' | 'hidden' | 'veryHidden';
+  visibility?: Visibility;
   /** Whether the document window opens minimised; omit for a restored window. */
   minimized?: boolean;
 }

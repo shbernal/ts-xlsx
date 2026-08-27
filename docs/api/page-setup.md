@@ -67,6 +67,34 @@ interface PageMargins {
 
 ---
 
+### `PageOrder`
+
+<sub>type</sub>
+
+The order pages are numbered and printed in across a sheet wider and taller than one page.
+
+```ts
+type PageOrder = 'downThenOver' | 'overThenDown';
+```
+
+---
+
+### `PageOrientation`
+
+<sub>type</sub>
+
+Paper orientation, as `<pageSetup orientation>` carries it.
+
+`ST_Orientation` has a third member, `default`, which means "whatever the printer decides" and is
+indistinguishable from the attribute being absent. The model spells that absence as an unset field,
+so a file carrying `default` reads back with no orientation and writes back without the attribute.
+
+```ts
+type PageOrientation = 'portrait' | 'landscape';
+```
+
+---
+
 ### `PageSetup`
 
 <sub>interface</sub>
@@ -89,9 +117,9 @@ interface PageSetup {
   /** Fixed print zoom as a percentage; Excel honours it only when `fitToPage` is off. */
   scale?: number;
   /** Paper orientation. */
-  orientation?: 'portrait' | 'landscape';
+  orientation?: PageOrientation;
   /** Order pages are numbered/printed in across a multi-page sheet. */
-  pageOrder?: 'downThenOver' | 'overThenDown';
+  pageOrder?: PageOrder;
   /**
    * Paper size as Excel's 1-based enumeration index (e.g. `9` = A4, `1` = US Letter). Carried as an
    * opaque integer: the model does not map it to physical dimensions, only preserves whatever the

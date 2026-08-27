@@ -10,8 +10,8 @@ test('a stored conditional formatting does not alias the caller-supplied object 
     ref: 'A1:A3',
     rules: [
       {
-        type: 'cellIs',
-        operator: 'greaterThan',
+        type: 'cellIs' as const,
+        operator: 'greaterThan' as const,
         formulae: [3],
         cfvo: [{type: 'num' as const, value: 0}],
       },
@@ -33,7 +33,7 @@ test('cloneConditionalFormatting deep-copies rules, formulae, cfvo, colours, and
     ref: 'B2:B10',
     rules: [
       {
-        type: 'colorScale',
+        type: 'colorScale' as const,
         cfvo: [{type: 'min' as const}, {type: 'max' as const}],
         colors: [{argb: 'FFFF0000'}, {argb: 'FF00FF00'}],
         style: {

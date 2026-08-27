@@ -50,7 +50,7 @@ import {
   parseXml,
   type XmlAttributes,
 } from '../../xml/xml-read.ts';
-import {escapeAttr, escapeSpreadsheetText, XML_DECLARATION} from '../../xml/xml.ts';
+import {escapeAttr, escapeSpreadsheetText, textAttr, XML_DECLARATION} from '../../xml/xml.ts';
 import {THREADED_COMMENTS_NS} from './namespaces.ts';
 
 /** A registered author of threaded comments: one `<person>` of `xl/persons/person.xml`. */
@@ -338,9 +338,8 @@ export function threadedCommentsXml(threads: readonly CommentThread[]): string {
 // one field here that carries what a human typed, so it is the one that can hold a character XML has no
 // syntax for. An id or a `dT` that held one is malformed input, and refusing it is the honest answer.
 function threadedCommentXml(ref: string, comment: Comment, tail: string): string {
-  const date = comment.date === undefined ? '' : ` dT="${escapeAttr(comment.date)}"`;
-  const person =
-    comment.personId === undefined ? '' : ` personId="${escapeAttr(comment.personId)}"`;
+  const date = textAttr('dT', comment.date);
+  const person = textAttr('personId', comment.personId);
   return (
     `<threadedComment ref="${escapeAttr(ref)}"${date}${person} id="${escapeAttr(comment.id)}"${tail}>` +
     `<text>${escapeSpreadsheetText(comment.text)}</text>` +
@@ -387,9 +386,8 @@ function writableOffset(value: number): boolean {
  */
 export function personsXml(persons: readonly Person[]): string {
   const entries = persons.map((person) => {
-    const userId = person.userId === undefined ? '' : ` userId="${escapeAttr(person.userId)}"`;
-    const providerId =
-      person.providerId === undefined ? '' : ` providerId="${escapeAttr(person.providerId)}"`;
+    const userId = textAttr('userId', person.userId);
+    const providerId = textAttr('providerId', person.providerId);
     return (
       `<person displayName="${escapeAttr(person.displayName)}"` +
       ` id="${escapeAttr(person.id)}"${userId}${providerId}/>`

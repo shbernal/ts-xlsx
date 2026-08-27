@@ -37,10 +37,14 @@ export {
 export {Column} from '../core/column.ts';
 export type {Comment, CommentThread, Mention, MentionRef, Person} from '../core/comment-thread.ts';
 export type {
+  CfTimePeriod,
   CfValueObject,
   CfValueObjectType,
   ConditionalFormatting,
+  ConditionalFormattingOperator,
   ConditionalFormattingRule,
+  ConditionalFormattingType,
+  IconSetType,
 } from '../core/conditional-formatting.ts';
 export type {
   DataValidation,
@@ -68,6 +72,8 @@ export type {
   HeaderFooter,
   PageBreak,
   PageMargins,
+  PageOrder,
+  PageOrientation,
   PageSetup,
   PrintOptions,
 } from '../core/page-setup.ts';
@@ -194,6 +200,7 @@ export {
   type RowInput,
   type RowProperties,
   type SheetView,
+  type Visibility,
   Worksheet,
   type WorksheetModel,
   type WorksheetProperties,

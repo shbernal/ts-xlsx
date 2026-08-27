@@ -11,7 +11,14 @@ import {
   isCustomFilterOperator,
 } from '../../core/autofilter.ts';
 import {INTERNAL} from '../../core/internal.ts';
-import type {PageBreak, PageMargins, PageSetup, PrintOptions} from '../../core/page-setup.ts';
+import {
+  isPageOrder,
+  isPageOrientation,
+  type PageBreak,
+  type PageMargins,
+  type PageSetup,
+  type PrintOptions,
+} from '../../core/page-setup.ts';
 import {
   SHEET_PROTECTION_FLAGS,
   type SheetProtection,
@@ -25,6 +32,7 @@ import {
   boolStrict,
   boolTristate,
   decodeSpreadsheetText,
+  enumToken,
   localName,
   numFinite,
   numInteger,
@@ -516,10 +524,8 @@ function applyPageSetup(pageSetup: PageSetup, attrs: XmlAttributes): void {
   if (fitToWidth !== undefined) pageSetup.fitToWidth = fitToWidth;
   const fitToHeight = numInteger(attrs.fitToHeight, 0);
   if (fitToHeight !== undefined) pageSetup.fitToHeight = fitToHeight;
-  if (attrs.pageOrder === 'downThenOver' || attrs.pageOrder === 'overThenDown') {
-    pageSetup.pageOrder = attrs.pageOrder;
-  }
-  if (attrs.orientation === 'portrait' || attrs.orientation === 'landscape') {
-    pageSetup.orientation = attrs.orientation;
-  }
+  const pageOrder = enumToken(attrs.pageOrder, isPageOrder);
+  if (pageOrder !== undefined) pageSetup.pageOrder = pageOrder;
+  const orientation = enumToken(attrs.orientation, isPageOrientation);
+  if (orientation !== undefined) pageSetup.orientation = orientation;
 }

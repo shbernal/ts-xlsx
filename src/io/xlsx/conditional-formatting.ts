@@ -16,20 +16,37 @@
 import {
   type CfValueObject,
   type ConditionalFormatting,
+  type ConditionalFormattingOperator,
   type ConditionalFormattingRule,
+  type ConditionalFormattingType,
+  type IconSetType,
   isCfValueObjectType,
+  isConditionalFormattingOperator,
+  isConditionalFormattingType,
+  isIconSetType,
+  isCfTimePeriod,
+  type CfTimePeriod,
 } from '../../core/conditional-formatting.ts';
 import type {Color} from '../../core/style.ts';
 import {
   boolPresent,
   boolStrict,
   coerceNumericLiteral,
+  enumToken,
   localName,
   numFinite,
   numInteger,
   parseXml,
 } from '../../xml/xml-read.ts';
-import {boolAttr, escapeAttr, escapeText, numberText, stripFormulaEquals} from '../../xml/xml.ts';
+import {
+  boolAttr,
+  checkedToken,
+  escapeAttr,
+  escapeText,
+  numberText,
+  stripFormulaEquals,
+  textAttr,
+} from '../../xml/xml.ts';
 import {colorAttrs, parseColor} from './color-xml.ts';
 // The x14/xm extension namespaces and ext-URI GUIDs are declared inline on the `<ext>` elements
 // exactly as Excel writes them, so no worksheet-root xmlns is needed. `CF_EXT_URI` scopes the
@@ -148,7 +165,7 @@ function x14DataBarXml(ref: string, rule: ConditionalFormattingRule, guid: strin
 // An x14 scale anchor. A `min`/`max` carries no value and self-closes; the rest wrap their value in an
 // `<xm:f>` (the extension form stores every anchor value as a formula).
 function x14CfvoXml(cfvo: CfValueObject): string {
-  const type = escapeAttr(cfvo.type);
+  const type = checkedToken(cfvo.type, isCfValueObjectType, 'conditional format value type');
   if (cfvo.value === undefined) return `<x14:cfvo type="${type}"/>`;
   return `<x14:cfvo type="${type}"><xm:f>${escapeText(String(cfvo.value))}</xm:f></x14:cfvo>`;
 }
@@ -165,6 +182,10 @@ function blockXml(
   extLinks: ReadonlyMap<ConditionalFormattingRule, string>,
 ): string {
   const rules = cf.rules.map((rule) => ruleXml(rule, styles, priority, extLinks)).join('');
+  // `CT_ConditionalFormatting` requires at least one `<cfRule>`, so a block with none is omitted
+  // rather than emitted empty. A caller can author one, and the reader produces one when every rule
+  // in a foreign block named a type the enumeration does not allow.
+  if (rules === '') return '';
   return `<conditionalFormatting sqref="${escapeAttr(cf.ref)}">${rules}</conditionalFormatting>`;
 }
 
@@ -178,7 +199,9 @@ function ruleXml(
   // Keep the running counter ahead of any explicit priority so later auto-assigned ones stay unique.
   priority.next = Math.max(priority.next, p) + 1;
 
-  const attrs = [`type="${escapeAttr(rule.type)}"`];
+  const attrs = [
+    `type="${checkedToken(rule.type, isConditionalFormattingType, 'conditional formatting type')}"`,
+  ];
   const dxfId = resolveDxfId(rule, styles);
   if (dxfId !== undefined) attrs.push(`dxfId="${dxfId}"`);
   attrs.push(`priority="${p}"`);
@@ -187,9 +210,15 @@ function ruleXml(
   if (rule.equalAverage) attrs.push('equalAverage="1"');
   if (rule.bottom) attrs.push('bottom="1"');
   if (rule.percent) attrs.push('percent="1"');
-  if (rule.operator !== undefined) attrs.push(`operator="${escapeAttr(rule.operator)}"`);
+  if (rule.operator !== undefined) {
+    attrs.push(
+      `operator="${checkedToken(rule.operator, isConditionalFormattingOperator, 'conditional formatting operator')}"`,
+    );
+  }
   if (rule.text !== undefined) attrs.push(`text="${escapeAttr(rule.text)}"`);
-  if (rule.timePeriod !== undefined) attrs.push(`timePeriod="${escapeAttr(rule.timePeriod)}"`);
+  if (rule.timePeriod !== undefined) {
+    attrs.push(`timePeriod="${checkedToken(rule.timePeriod, isCfTimePeriod, 'time period')}"`);
+  }
   if (rule.rank !== undefined) attrs.push(`rank="${numberText(rule.rank)}"`);
   if (rule.stdDev !== undefined) attrs.push(`stdDev="${numberText(rule.stdDev)}"`);
 
@@ -250,7 +279,10 @@ function colorScaleXml(rule: ConditionalFormattingRule): string {
 }
 
 function iconSetXml(rule: ConditionalFormattingRule): string {
-  const name = rule.iconSet !== undefined ? ` iconSet="${escapeAttr(rule.iconSet)}"` : '';
+  const name =
+    rule.iconSet === undefined
+      ? ''
+      : ` iconSet="${checkedToken(rule.iconSet, isIconSetType, 'icon set')}"`;
   const anchors = (rule.cfvo ?? []).map(cfvoXml).join('');
   return `<iconSet${name}>${anchors}</iconSet>`;
 }
@@ -258,8 +290,9 @@ function iconSetXml(rule: ConditionalFormattingRule): string {
 // One scale anchor. `min`/`max` carry no value; the rest state theirs in `val` (a formula anchor's
 // value is its formula text, escaped like any attribute).
 function cfvoXml(cfvo: CfValueObject): string {
-  const val = cfvo.value !== undefined ? ` val="${escapeAttr(String(cfvo.value))}"` : '';
-  return `<cfvo type="${escapeAttr(cfvo.type)}"${val}/>`;
+  const type = checkedToken(cfvo.type, isCfValueObjectType, 'conditional format value type');
+  const val = cfvo.value === undefined ? '' : textAttr('val', String(cfvo.value));
+  return `<cfvo type="${type}"${val}/>`;
 }
 
 // Which scale element a parsed `<color>` belongs to: a data bar names one bar colour, a colour scale
@@ -270,12 +303,12 @@ type ScaleKind = (typeof SCALE_KINDS)[number];
 // finalised into a ConditionalFormattingRule on the closing tag. The array/collection fields are
 // always present here (empty until filled) and pruned to `undefined` when empty at finalisation.
 interface RuleDraft {
-  type: string;
+  type: ConditionalFormattingType | undefined;
   priority: number | undefined;
   stopIfTrue: boolean;
-  operator: string | undefined;
+  operator: ConditionalFormattingOperator | undefined;
   text: string | undefined;
-  timePeriod: string | undefined;
+  timePeriod: CfTimePeriod | undefined;
   rank: number | undefined;
   stdDev: number | undefined;
   percent: boolean;
@@ -283,7 +316,7 @@ interface RuleDraft {
   aboveAverage: boolean | undefined;
   equalAverage: boolean;
   dxfId: string | undefined;
-  iconSet: string | undefined;
+  iconSet: IconSetType | undefined;
   formulae: (string | number)[];
   cfvo: CfValueObject[];
   colors: Color[];
@@ -355,7 +388,8 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
         // A rule with no operands (e.g. duplicateValues) is a self-closing element that fires no
         // close event, so it must be finalised here; one with children waits for its </cfRule>.
         if (selfClosing) {
-          block.rules.push(finalizeRule(newDraft(attrs)));
+          const rule = finalizeRule(newDraft(attrs));
+          if (rule !== undefined) block.rules.push(rule);
         } else {
           draft = newDraft(attrs);
           scale = undefined;
@@ -365,7 +399,7 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
         (ln === 'dataBar' || ln === 'colorScale' || ln === 'iconSet')
       ) {
         scale = ln;
-        if (ln === 'iconSet' && attrs.iconSet !== undefined) draft.iconSet = attrs.iconSet;
+        if (ln === 'iconSet') draft.iconSet = enumToken(attrs.iconSet, isIconSetType);
       } else if (draft !== undefined && ln === 'cfvo') {
         draft.cfvo.push(parseCfvo(attrs));
       } else if (draft !== undefined && ln === 'color') {
@@ -401,8 +435,10 @@ export function parseConditionalFormattings(xml: string): ConditionalFormatting[
         scale = undefined;
       } else if (ln === 'cfRule' && draft !== undefined) {
         const rule = finalizeRule(draft);
-        if (block !== undefined) block.rules.push(rule);
-        if (draft.x14Id !== undefined) linked.push({rule, id: draft.x14Id});
+        if (rule !== undefined) {
+          if (block !== undefined) block.rules.push(rule);
+          if (draft.x14Id !== undefined) linked.push({rule, id: draft.x14Id});
+        }
         draft = undefined;
       } else if (ln === 'conditionalFormatting' && block !== undefined) {
         blocks.push(block);
@@ -440,12 +476,12 @@ export function parseDxfs(stylesXml: string): string[] {
 
 function newDraft(attrs: Record<string, string>): RuleDraft {
   return {
-    type: attrs.type ?? '',
+    type: enumToken(attrs.type, isConditionalFormattingType),
     priority: numFinite(attrs.priority),
     stopIfTrue: boolStrict(attrs.stopIfTrue),
-    operator: attrs.operator,
+    operator: enumToken(attrs.operator, isConditionalFormattingOperator),
     text: attrs.text,
-    timePeriod: attrs.timePeriod,
+    timePeriod: enumToken(attrs.timePeriod, isCfTimePeriod),
     rank: numFinite(attrs.rank),
     stdDev: numFinite(attrs.stdDev),
     percent: boolStrict(attrs.percent),
@@ -476,7 +512,11 @@ function parseIndexAttr(value: string | undefined): string | undefined {
   return dxfIndex(value) === undefined ? undefined : value;
 }
 
-function finalizeRule(draft: RuleDraft): ConditionalFormattingRule {
+// A rule whose `type` the enumeration does not allow is dropped whole rather than half-read: `type`
+// is the one attribute `<cfRule>` requires, every other field is read relative to it, and a rule the
+// writer would refuse to emit is not one worth building a model for.
+function finalizeRule(draft: RuleDraft): ConditionalFormattingRule | undefined {
+  if (draft.type === undefined) return undefined;
   const rule: ConditionalFormattingRule = {type: draft.type};
   if (draft.priority !== undefined) rule.priority = draft.priority;
   if (draft.stopIfTrue) rule.stopIfTrue = true;

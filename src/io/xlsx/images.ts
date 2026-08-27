@@ -8,10 +8,11 @@ import {
   type Extent,
   type ImageAnchor,
   type ImageEditAs,
+  isImageEditAs,
   isOneCellAnchor,
 } from '../../core/image.ts';
-import {localName, numFinite, parseXml} from '../../xml/xml-read.ts';
-import {numAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
+import {enumToken, localName, numFinite, parseXml} from '../../xml/xml-read.ts';
+import {checkedToken, numAttr, numberText, XML_DECLARATION} from '../../xml/xml.ts';
 import {RELATIONSHIPS_NS} from '../opc/namespaces.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {DRAWINGML_NS, XDR_NS} from './namespaces.ts';
@@ -85,7 +86,7 @@ function twoCellAnchorXml(
   id: number,
 ): string {
   return (
-    `<xdr:twoCellAnchor editAs="${editAs}">` +
+    `<xdr:twoCellAnchor editAs="${checkedToken(editAs, isImageEditAs, 'image anchor edit mode')}">` +
     `<xdr:from>${anchorPointXml(from)}</xdr:from>` +
     `<xdr:to>${anchorPointXml(to)}</xdr:to>` +
     picXml(embedId, id, rotation) +
@@ -163,8 +164,6 @@ function blankPoint(): PointDraft {
   return {col: 0, row: 0, colOff: 0, rowOff: 0};
 }
 
-const EDIT_AS = new Set<string>(['oneCell', 'twoCell', 'absolute']);
-
 /** Parse a drawing part into its image anchors (both `<xdr:twoCellAnchor>` and `<xdr:oneCellAnchor>`).
  * Anchors that are not pictures (a chart, a shape) carry no `<a:blip r:embed>` and are skipped, so a
  * mixed drawing yields only its images. */
@@ -194,8 +193,7 @@ export function parseDrawing(xml: string): ParsedImageAnchor[] {
         ext = undefined;
         rotation = undefined;
         embed = undefined;
-        const mode = attrs.editAs;
-        editAs = mode !== undefined && EDIT_AS.has(mode) ? (mode as ImageEditAs) : undefined;
+        editAs = enumToken(attrs.editAs, isImageEditAs);
       } else if (local === 'pic') {
         picDepth++;
       } else if (local === 'xfrm' && picDepth > 0) {

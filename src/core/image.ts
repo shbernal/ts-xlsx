@@ -26,6 +26,15 @@ export const PX_TO_EMU = 9525;
  * defaults to `oneCell` when the attribute is omitted. */
 export type ImageEditAs = 'oneCell' | 'twoCell' | 'absolute';
 
+// Keyed by the union so the compiler refuses a foreign key and an omitted member alike, which is what
+// lets the reader narrow a token out of a foreign file instead of asserting one.
+const IMAGE_EDIT_AS: Record<ImageEditAs, true> = {oneCell: true, twoCell: true, absolute: true};
+
+/** Narrow a raw `<xdr:twoCellAnchor editAs>` token to a known {@link ImageEditAs}. */
+export function isImageEditAs(value: string): value is ImageEditAs {
+  return Object.hasOwn(IMAGE_EDIT_AS, value);
+}
+
 /** A fixed image size in EMUs: the extent of a one-cell anchor, which pixel dimensions convert into
  * via {@link PX_TO_EMU}. */
 export interface Extent {

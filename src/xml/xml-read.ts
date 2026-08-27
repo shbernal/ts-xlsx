@@ -402,3 +402,18 @@ export function coerceNumericLiteral(text: string): string | number {
   const trimmed = text.trim();
   return /^-?\d+(?:\.\d+)?$/.test(trimmed) ? Number(trimmed) : text;
 }
+
+// The third kind of attribute, after the booleans and the numbers, and dropped on the same terms: a
+// token from a closed OOXML enumeration. `checkedToken` in `./xml.ts` is the write-side half of the
+// same grammar, and the pair is deliberately asymmetric in what it does when the token is foreign.
+// The reader drops it, because a file it did not write is allowed to be wrong and losing one
+// attribute beats losing the sheet. The writer throws, because a value an author supplied is a
+// mistake at the call and the file it would produce is one Excel refuses to open.
+
+/** Narrow an enumerated attribute through its guard; `undefined` when absent or not a member. */
+export function enumToken<T extends string>(
+  val: string | undefined,
+  isMember: (candidate: string) => candidate is T,
+): T | undefined {
+  return val !== undefined && isMember(val) ? val : undefined;
+}

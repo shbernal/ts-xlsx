@@ -5,6 +5,34 @@
 // unset field is omitted and a round-trip never fabricates one.
 
 /**
+ * Paper orientation, as `<pageSetup orientation>` carries it.
+ *
+ * `ST_Orientation` has a third member, `default`, which means "whatever the printer decides" and is
+ * indistinguishable from the attribute being absent. The model spells that absence as an unset field,
+ * so a file carrying `default` reads back with no orientation and writes back without the attribute.
+ */
+export type PageOrientation = 'portrait' | 'landscape';
+
+// Keyed by the union so the compiler refuses a foreign key and an omitted member alike, which is what
+// lets the reader narrow a token out of a foreign file instead of asserting one.
+const PAGE_ORIENTATIONS: Record<PageOrientation, true> = {portrait: true, landscape: true};
+
+/** Narrow a raw `<pageSetup orientation>` token to a known {@link PageOrientation}. */
+export function isPageOrientation(value: string): value is PageOrientation {
+  return Object.hasOwn(PAGE_ORIENTATIONS, value);
+}
+
+/** The order pages are numbered and printed in across a sheet wider and taller than one page. */
+export type PageOrder = 'downThenOver' | 'overThenDown';
+
+const PAGE_ORDERS: Record<PageOrder, true> = {downThenOver: true, overThenDown: true};
+
+/** Narrow a raw `<pageSetup pageOrder>` token to a known {@link PageOrder}. */
+export function isPageOrder(value: string): value is PageOrder {
+  return Object.hasOwn(PAGE_ORDERS, value);
+}
+
+/**
  * Print-scaling and orientation settings. These map onto two OOXML elements: `fitToPage` is the
  * `<pageSetUpPr>` flag (a `<sheetPr>` child) that switches Excel from fixed-zoom to fit-to-page
  * scaling, while the rest are `<pageSetup>` attributes. Excel honours `scale` only when `fitToPage`
@@ -22,9 +50,9 @@ export interface PageSetup {
   /** Fixed print zoom as a percentage; Excel honours it only when `fitToPage` is off. */
   scale?: number;
   /** Paper orientation. */
-  orientation?: 'portrait' | 'landscape';
+  orientation?: PageOrientation;
   /** Order pages are numbered/printed in across a multi-page sheet. */
-  pageOrder?: 'downThenOver' | 'overThenDown';
+  pageOrder?: PageOrder;
   /**
    * Paper size as Excel's 1-based enumeration index (e.g. `9` = A4, `1` = US Letter). Carried as an
    * opaque integer: the model does not map it to physical dimensions, only preserves whatever the

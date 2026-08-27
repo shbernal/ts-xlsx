@@ -2,6 +2,28 @@
 
 <!-- Generated from the public types by `pnpm run docs`. Do not edit by hand. -->
 
+### `CfTimePeriod`
+
+<sub>type</sub>
+
+The window a `timePeriod` rule matches against, relative to the day the sheet is recalculated.
+
+```ts
+type CfTimePeriod =
+  | 'today'
+  | 'yesterday'
+  | 'tomorrow'
+  | 'last7Days'
+  | 'thisMonth'
+  | 'lastMonth'
+  | 'nextMonth'
+  | 'thisWeek'
+  | 'lastWeek'
+  | 'nextWeek';
+```
+
+---
+
 ### `CfValueObject`
 
 <sub>interface</sub>
@@ -48,6 +70,34 @@ interface ConditionalFormatting {
 
 ---
 
+### `ConditionalFormattingOperator`
+
+<sub>type</sub>
+
+How a `cellIs` or text rule compares, as `ST_ConditionalFormattingOperator` enumerates it.
+
+Overlaps `import ('./data-validation.ts').DataValidationOperator` in four members and diverges
+in the rest: this one has the text comparisons a validation has no use for, and spells "does not
+contain" as `notContains` where nothing else in the format does.
+
+```ts
+type ConditionalFormattingOperator =
+  | 'lessThan'
+  | 'lessThanOrEqual'
+  | 'equal'
+  | 'notEqual'
+  | 'greaterThanOrEqual'
+  | 'greaterThan'
+  | 'between'
+  | 'notBetween'
+  | 'containsText'
+  | 'notContains'
+  | 'beginsWith'
+  | 'endsWith';
+```
+
+---
+
 ### `ConditionalFormattingRule`
 
 <sub>interface</sub>
@@ -58,13 +108,13 @@ still preserves `type`, `priority`, `operator`, `formulae`, and `dxfId` across a
 
 ```ts
 interface ConditionalFormattingRule {
-  type: string;
+  type: ConditionalFormattingType;
   /** Evaluation precedence; lower wins. Excel requires one, so the writer supplies it when absent. */
   priority?: number;
   /** Halt evaluation of lower-priority rules on any cell this rule matches. */
   stopIfTrue?: boolean;
   /** cellIs / text comparison operator (`greaterThan`, `between`, `beginsWith`, …). */
-  operator?: string;
+  operator?: ConditionalFormattingOperator;
   /** Formula operands: cellIs bounds, an expression predicate, a containsText target formula, … */
   formulae?: (string | number)[];
   /** The literal a containsText / beginsWith / endsWith rule searches for. */
@@ -86,7 +136,7 @@ interface ConditionalFormattingRule {
   /** A dataBar's axis colour (the zero line between positive and negative bars). An x14 property. */
   axisColor?: Color;
   /** An iconSet's named icon family (e.g. `3TrafficLights1`). */
-  iconSet?: string;
+  iconSet?: IconSetType;
   /** top10 rank cutoff. */
   rank?: number;
   /** top10: the rank is a percentage rather than a count. */
@@ -100,6 +150,75 @@ interface ConditionalFormattingRule {
   /** aboveAverage: match beyond this many standard deviations. */
   stdDev?: number;
   /** timePeriod window (`today`, `lastWeek`, …). */
-  timePeriod?: string;
+  timePeriod?: CfTimePeriod;
 }
+```
+
+---
+
+### `ConditionalFormattingType`
+
+<sub>type</sub>
+
+What a rule tests, as `<cfRule type>` carries it: `ST_CfType` verbatim.
+
+Closed, and stated in full rather than left as `string`, even though the library models only some
+of these in depth. Depth of modelling and legality are different questions: a `timePeriod` rule
+whose operands the library never inspects still round-trips, while a token outside this list is one
+Excel refuses to open, so it is refused on the way in and on the way out alike.
+
+```ts
+type ConditionalFormattingType =
+  | 'expression'
+  | 'cellIs'
+  | 'colorScale'
+  | 'dataBar'
+  | 'iconSet'
+  | 'top10'
+  | 'uniqueValues'
+  | 'duplicateValues'
+  | 'containsText'
+  | 'notContainsText'
+  | 'beginsWith'
+  | 'endsWith'
+  | 'containsBlanks'
+  | 'notContainsBlanks'
+  | 'containsErrors'
+  | 'notContainsErrors'
+  | 'timePeriod'
+  | 'aboveAverage';
+```
+
+---
+
+### `IconSetType`
+
+<sub>type</sub>
+
+The named icon family an `iconSet` rule draws from, as `ST_IconSetType` enumerates it. The leading
+digit is the number of icons, which is also how many [`CfValueObject`](./conditional-formatting.md#cfvalueobject) anchors the rule needs.
+
+The 2009 extension adds three more families (`3Stars`, `3Triangles`, `5Boxes`) under its own
+namespace. They are absent here because the classic `<iconSet>` element this list types cannot
+carry them; a file using one states it in the extension, which the library round-trips verbatim.
+
+```ts
+type IconSetType =
+  | '3Arrows'
+  | '3ArrowsGray'
+  | '3Flags'
+  | '3TrafficLights1'
+  | '3TrafficLights2'
+  | '3Signs'
+  | '3Symbols'
+  | '3Symbols2'
+  | '4Arrows'
+  | '4ArrowsGray'
+  | '4RedToBlack'
+  | '4Rating'
+  | '4TrafficLights'
+  | '5Arrows'
+  | '5ArrowsGray'
+  | '5Rating'
+  | '5Quarters';
 ```

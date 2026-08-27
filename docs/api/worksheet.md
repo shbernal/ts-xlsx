@@ -134,6 +134,22 @@ interface SheetView {
 
 ---
 
+### `Visibility`
+
+<sub>type</sub>
+
+Whether a thing Excel can hide is showing: a sheet's tab, or the document window itself.
+
+One type for two schema enumerations. `ST_SheetState` and `ST_Visibility` are declared separately
+in ECMA-376 and carry the same three tokens with the same meanings, and `veryHidden` means the same
+thing in both: hidden, and not offered in the unhide list.
+
+```ts
+type Visibility = 'visible' | 'hidden' | 'veryHidden';
+```
+
+---
+
 ### `Worksheet`
 
 <sub>class</sub>
@@ -1048,6 +1064,6 @@ interface WorksheetProperties {
 ```ts
 interface WorksheetState {
   /** Sheet visibility, as Excel models it. Defaults to `visible`. */
-  readonly state: 'visible' | 'hidden' | 'veryHidden';
+  readonly state: Visibility;
 }
 ```

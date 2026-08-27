@@ -14,6 +14,21 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Changed
 
+- **BREAKING: an out-of-enumeration token is refused at the write and dropped at the read.** A
+  `<pageSetup>` orientation or page order, a `<dataValidation>` type/operator/error style, a
+  `<cfRule>` type/operator/time period/icon set/anchor type, a sheet tab or document window
+  visibility, and a two-cell image anchor's edit mode each go through the same check the style
+  facets have always had: a value outside the enumeration throws `AuthoringError` naming the value.
+  Such a value was previously interpolated raw, so a caller reaching past the types with untyped
+  JavaScript, a `JSON.parse`, or a cast could close the attribute and the element behind it and
+  choose the rest of the document. Reading is the mirror: a foreign token in a file is dropped
+  rather than stored, so what the reader accepts is always something the writer can write back.
+- **BREAKING: `ConditionalFormattingRule`'s four enumerated fields are unions, not `string`.**
+  `type`, `operator`, `timePeriod` and `iconSet` now have the closed types ECMA-376 gives them
+  (`ConditionalFormattingType`, `ConditionalFormattingOperator`, `CfTimePeriod`, `IconSetType`, all
+  exported). A rule type the library does not model in depth still round-trips, exactly as before;
+  a token no Excel would open no longer does. A file carrying one loses that rule on read rather
+  than carrying it to a write that would refuse it.
 - **BREAKING: a number that OOXML cannot spell is now refused at the write, everywhere.** A
   `NaN` or an infinity reaching `pageSetup.scale`/`fitToWidth`/`fitToHeight`/`paperSize`, a page
   break's `id`/`max`, a `Color`'s `theme`/`tint`/`indexed`, a conditional-formatting rule's
@@ -26,6 +41,9 @@ ExcelJS-to-`ts-xlsx` rewrite — is recorded in `git log` and the [ADR series](d
 
 ### Fixed
 
+- **A conditional-formatting block with no rules is omitted rather than emitted empty.**
+  `CT_ConditionalFormatting` requires at least one `<cfRule>`, so `addConditionalFormatting({ref,
+  rules: []})` used to write a schema-invalid element.
 - **A non-finite row `outlineLevel` no longer hangs the writer.** The scan that derives which
   summary rows terminate a fully-collapsed group walks outward comparing outline levels; against
   `-Infinity` every comparison held, so the walk ran off the sheet and never returned. It is now

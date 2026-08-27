@@ -5,16 +5,25 @@
 
 import {encodeAddress} from '../../core/address.ts';
 import type {AutoFilter, FilterColumn, FilterCriteria} from '../../core/autofilter.ts';
-import type {
-  HeaderFooter,
-  PageBreak,
-  PageMargins,
-  PageSetup,
-  PrintOptions,
+import {
+  type HeaderFooter,
+  isPageOrder,
+  isPageOrientation,
+  type PageBreak,
+  type PageMargins,
+  type PageSetup,
+  type PrintOptions,
 } from '../../core/page-setup.ts';
 import {SHEET_PROTECTION_FLAGS, type SheetProtection} from '../../core/protection.ts';
 import type {OutlineProperties, SheetView, Worksheet} from '../../core/worksheet.ts';
-import {boolAttr, escapeAttr, escapeSpreadsheetText, numAttr, numberText} from '../../xml/xml.ts';
+import {
+  boolAttr,
+  checkedToken,
+  escapeAttr,
+  escapeSpreadsheetText,
+  numAttr,
+  numberText,
+} from '../../xml/xml.ts';
 import {colorAttrs} from './color-xml.ts';
 
 // `<sheetViews>` holds the sheet's single view. A frozen view adds a `<pane>` recording the split
@@ -218,8 +227,12 @@ export function pageSetupXml(pageSetup: PageSetup, printerSettingsRelId: string 
     numAttr('scale', pageSetup.scale) +
     numAttr('fitToWidth', pageSetup.fitToWidth) +
     numAttr('fitToHeight', pageSetup.fitToHeight) +
-    (pageSetup.pageOrder !== undefined ? ` pageOrder="${pageSetup.pageOrder}"` : '') +
-    (pageSetup.orientation !== undefined ? ` orientation="${pageSetup.orientation}"` : '') +
+    (pageSetup.pageOrder === undefined
+      ? ''
+      : ` pageOrder="${checkedToken(pageSetup.pageOrder, isPageOrder, 'page order')}"`) +
+    (pageSetup.orientation === undefined
+      ? ''
+      : ` orientation="${checkedToken(pageSetup.orientation, isPageOrientation, 'page orientation')}"`) +
     (printerSettingsRelId !== null ? ` r:id="${printerSettingsRelId}"` : '');
   return attrs === '' ? '' : `<pageSetup${attrs}/>`;
 }

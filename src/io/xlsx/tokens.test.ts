@@ -1,0 +1,153 @@
+// A token from a closed OOXML enumeration is checked on the way out and dropped on the way in.
+//
+// Every attribute here is typed as a union on the public surface, so an out-of-union value reaches
+// the writer only through untyped JavaScript, a `JSON.parse`, or a cast. That is not a reason to
+// interpolate it: the compiler having been bypassed is exactly the case the runtime is for, and the
+// document a bogus token produces is not merely invalid but structurally broken, since nothing
+// escapes the quote a caller can put in it.
+
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+
+import {strFromU8, unzipSync, zipSync} from 'fflate';
+
+import {Workbook} from '../../core/workbook.ts';
+import {AuthoringError} from '../../errors.ts';
+import {readXlsx} from './read.ts';
+import {writeXlsx} from './write.ts';
+
+// The shape of the attack: a value that closes the attribute and the element behind it.
+const ESCAPE = 'x"/><x/><y a="';
+
+function sheeted(): Workbook {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').getCell('A1').value = 1;
+  return workbook;
+}
+
+function refuses(mutate: (workbook: Workbook) => void): void {
+  const workbook = sheeted();
+  mutate(workbook);
+  assert.throws(() => writeXlsx(workbook), AuthoringError);
+}
+
+function partsOf(workbook: Workbook): Record<string, string> {
+  const unzipped = unzipSync(writeXlsx(workbook));
+  const out: Record<string, string> = {};
+  for (const [name, bytes] of Object.entries(unzipped)) out[name] = strFromU8(bytes);
+  return out;
+}
+
+test('<pageSetup> refuses a foreign orientation or page order', () => {
+  refuses((wb) => {
+    Object.assign(wb.getWorksheet('S')!.pageSetup, {orientation: ESCAPE});
+  });
+  refuses((wb) => {
+    Object.assign(wb.getWorksheet('S')!.pageSetup, {pageOrder: 'sideways'});
+  });
+});
+
+test('<dataValidation> refuses a foreign type, operator or error style', () => {
+  for (const facet of [{type: ESCAPE}, {operator: 'sortOf'}, {errorStyle: 'boom'}]) {
+    refuses((wb) => {
+      wb.getWorksheet('S')!.addDataValidation('A1', {type: 'whole', ...facet} as never);
+    });
+  }
+});
+
+test('<cfRule> refuses a foreign type, operator, time period, icon set or anchor type', () => {
+  const rules = [
+    {type: ESCAPE, priority: 1},
+    {type: 'cellIs', operator: 'sortOf', priority: 1},
+    {type: 'timePeriod', timePeriod: 'lastFortnight', priority: 1},
+    {type: 'iconSet', iconSet: '9Arrows', priority: 1},
+    {type: 'colorScale', cfvo: [{type: 'middling'}], priority: 1},
+  ];
+  for (const rule of rules) {
+    refuses((wb) => {
+      wb.getWorksheet('S')!.addConditionalFormatting({ref: 'A1:A5', rules: [rule]} as never);
+    });
+  }
+});
+
+test('a sheet tab and the document window refuse a foreign visibility', () => {
+  refuses((wb) => {
+    Object.assign(wb.getWorksheet('S')!, {state: ESCAPE});
+  });
+  refuses((wb) => {
+    Object.assign(wb.view, {visibility: 'translucent'});
+  });
+});
+
+test('a two-cell image anchor refuses a foreign edit mode', () => {
+  refuses((wb) => {
+    const id = wb.addImage({
+      buffer: Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      extension: 'png',
+    });
+    wb.getWorksheet('S')!.addImageAnchor(id, {
+      from: {col: 0, row: 0},
+      to: {col: 2, row: 2},
+      editAs: ESCAPE as never,
+    });
+  });
+});
+
+test('the tokens the enumerations do allow still round-trip', () => {
+  const wb = sheeted();
+  const sheet = wb.getWorksheet('S')!;
+  sheet.pageSetup.orientation = 'landscape';
+  sheet.pageSetup.pageOrder = 'overThenDown';
+  sheet.addDataValidation('A1', {
+    type: 'whole',
+    operator: 'greaterThan',
+    errorStyle: 'warning',
+    formulae: [1],
+  });
+  sheet.addConditionalFormatting({
+    ref: 'A1:A5',
+    rules: [{type: 'timePeriod', timePeriod: 'lastWeek', priority: 1}],
+  });
+  wb.addWorksheet('Hidden', {state: 'veryHidden'});
+  wb.view.visibility = 'hidden';
+
+  const back = readXlsx(writeXlsx(wb));
+  const sheetBack = back.getWorksheet('S');
+  assert.equal(sheetBack?.pageSetup.orientation, 'landscape');
+  assert.equal(sheetBack?.pageSetup.pageOrder, 'overThenDown');
+  assert.equal(sheetBack?.dataValidations[0]?.rule.operator, 'greaterThan');
+  assert.equal(sheetBack?.conditionalFormattings[0]?.rules[0]?.timePeriod, 'lastWeek');
+  assert.equal(back.getWorksheet('Hidden')?.state, 'veryHidden');
+  assert.equal(back.view.visibility, 'hidden');
+});
+
+test('a foreign token in a file is dropped on read rather than carried into a write that refuses it', () => {
+  const wb = sheeted();
+  wb.getWorksheet('S')!.pageSetup.orientation = 'landscape';
+  const parts = partsOf(wb);
+  const doctored = (parts['xl/worksheets/sheet1.xml'] as string)
+    .replace('orientation="landscape"', 'orientation="sideways"')
+    .replace(
+      '<pageSetup',
+      '<conditionalFormatting sqref="A1:A5"><cfRule type="frobnicate" priority="1"/>' +
+        '</conditionalFormatting><pageSetup',
+    );
+  const files: Record<string, Uint8Array> = {};
+  for (const [name, text] of Object.entries(parts)) {
+    files[name] = new TextEncoder().encode(name === 'xl/worksheets/sheet1.xml' ? doctored : text);
+  }
+
+  const back = readXlsx(zipSync(files));
+  const sheet = back.getWorksheet('S');
+  assert.equal(sheet?.pageSetup.orientation, undefined, 'the foreign orientation is dropped');
+  assert.deepEqual(
+    sheet?.conditionalFormattings[0]?.rules,
+    [],
+    'the foreign rule is dropped whole',
+  );
+  // Why dropped and not preserved: what the reader accepts, the writer must be able to write. The
+  // block it leaves behind carries no rule, and `CT_ConditionalFormatting` requires one, so the
+  // writer omits the element rather than emitting it empty.
+  const rewritten = strFromU8(unzipSync(writeXlsx(back))['xl/worksheets/sheet1.xml'] as Uint8Array);
+  assert.ok(!rewritten.includes('<conditionalFormatting'));
+});

@@ -5,7 +5,15 @@
 import {mangleFormula, quoteSheetName} from '../../core/formula.ts';
 import {WORKBOOK_PROTECTION_CREDENTIAL_ATTRS} from '../../core/workbook-protection.ts';
 import type {Workbook, WorkbookProperties} from '../../core/workbook.ts';
-import {escapeAttr, escapeText, numAttr, XML_DECLARATION} from '../../xml/xml.ts';
+import {isVisibility} from '../../core/worksheet.ts';
+import {
+  checkedToken,
+  escapeAttr,
+  escapeText,
+  numAttr,
+  textAttr,
+  XML_DECLARATION,
+} from '../../xml/xml.ts';
 import {extensionOf, relativePartPath, THEME_PART_PATH} from '../opc/part-paths.ts';
 import {relationship, relationshipsPart} from '../opc/rels.ts';
 import {imageContentType} from './images.ts';
@@ -240,7 +248,10 @@ export function workbookXml(
   const sheets = workbook.worksheets;
   const entries = sheets
     .map((sheet, i) => {
-      const state = sheet.state === 'visible' ? '' : ` state="${sheet.state}"`;
+      const state =
+        sheet.state === 'visible'
+          ? ''
+          : ` state="${checkedToken(sheet.state, isVisibility, 'sheet visibility')}"`;
       return `<sheet name="${escapeAttr(sheet.name)}" sheetId="${sheet.id}"${state} r:id="rId${i + 1}"/>`;
     })
     .join('');
@@ -269,9 +280,9 @@ function bookViewsXml(workbook: Workbook): string {
   const view = workbook.view;
   const activeTab = workbook.activeTabIndex;
   const attrs =
-    (view.visibility !== undefined && view.visibility !== 'visible'
-      ? ` visibility="${view.visibility}"`
-      : '') +
+    (view.visibility === undefined || view.visibility === 'visible'
+      ? ''
+      : ` visibility="${checkedToken(view.visibility, isVisibility, 'window visibility')}"`) +
     (view.minimized ? ' minimized="1"' : '') +
     numAttr('xWindow', view.x) +
     numAttr('yWindow', view.y) +
@@ -376,7 +387,7 @@ function definedNamesXml(workbook: Workbook): string {
       name.scope === undefined
         ? ''
         : ` localSheetId="${sheets.findIndex((sheet) => sheet.name === name.scope)}"`;
-    const commentAttr = name.comment === undefined ? '' : ` comment="${escapeAttr(name.comment)}"`;
+    const commentAttr = textAttr('comment', name.comment);
     const hiddenAttr = name.hidden ? ' hidden="1"' : '';
     return (
       `<definedName name="${escapeAttr(name.name)}"${scopeAttr}${commentAttr}${hiddenAttr}>` +

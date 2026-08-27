@@ -28,8 +28,15 @@ import {
   type WorkbookProtectionCredentialAttr,
 } from '../../core/workbook-protection.ts';
 import {type DefinedName, Workbook, type WorkbookView} from '../../core/workbook.ts';
-import type {Worksheet, WorksheetState} from '../../core/worksheet.ts';
-import {boolStrict, localName, numInteger, openElements, parseXml} from '../../xml/xml-read.ts';
+import {isVisibility, type Worksheet, type WorksheetState} from '../../core/worksheet.ts';
+import {
+  boolStrict,
+  enumToken,
+  localName,
+  numInteger,
+  openElements,
+  parseXml,
+} from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {extensionOf} from '../opc/part-paths.ts';
 import {
@@ -632,7 +639,10 @@ export function parseWorkbookSheets(xml: string): SheetEntry[] {
       name: attrs.name ?? '',
       relId: attrs['r:id'] ?? '',
     };
-    if (attrs.state === 'hidden' || attrs.state === 'veryHidden') entry.state = attrs.state;
+    // `visible` is the schema default and the model's, so it is dropped rather than stored: keeping
+    // it would put a `state="visible"` attribute into a file Excel writes without one.
+    const state = enumToken(attrs.state, isVisibility);
+    if (state !== undefined && state !== 'visible') entry.state = state;
     sheets.push(entry);
   }
   return sheets;
@@ -690,9 +700,8 @@ export function applyWorkbookView(view: WorkbookView, xml: string): void {
     if (height !== undefined) view.height = height;
     const activeTab = numInteger(attrs.activeTab, 0);
     if (activeTab !== undefined) view.activeTab = activeTab;
-    if (attrs.visibility === 'hidden' || attrs.visibility === 'veryHidden') {
-      view.visibility = attrs.visibility;
-    }
+    const visibility = enumToken(attrs.visibility, isVisibility);
+    if (visibility !== undefined && visibility !== 'visible') view.visibility = visibility;
     if (boolStrict(attrs.minimized)) view.minimized = true;
     return;
   }

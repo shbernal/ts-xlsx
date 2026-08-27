@@ -39,18 +39,198 @@ export interface CfValueObject {
 }
 
 /**
+ * What a rule tests, as `<cfRule type>` carries it: `ST_CfType` verbatim.
+ *
+ * Closed, and stated in full rather than left as `string`, even though the library models only some
+ * of these in depth. Depth of modelling and legality are different questions: a `timePeriod` rule
+ * whose operands the library never inspects still round-trips, while a token outside this list is one
+ * Excel refuses to open, so it is refused on the way in and on the way out alike.
+ */
+export type ConditionalFormattingType =
+  | 'expression'
+  | 'cellIs'
+  | 'colorScale'
+  | 'dataBar'
+  | 'iconSet'
+  | 'top10'
+  | 'uniqueValues'
+  | 'duplicateValues'
+  | 'containsText'
+  | 'notContainsText'
+  | 'beginsWith'
+  | 'endsWith'
+  | 'containsBlanks'
+  | 'notContainsBlanks'
+  | 'containsErrors'
+  | 'notContainsErrors'
+  | 'timePeriod'
+  | 'aboveAverage';
+
+const CONDITIONAL_FORMATTING_TYPES: Record<ConditionalFormattingType, true> = {
+  expression: true,
+  cellIs: true,
+  colorScale: true,
+  dataBar: true,
+  iconSet: true,
+  top10: true,
+  uniqueValues: true,
+  duplicateValues: true,
+  containsText: true,
+  notContainsText: true,
+  beginsWith: true,
+  endsWith: true,
+  containsBlanks: true,
+  notContainsBlanks: true,
+  containsErrors: true,
+  notContainsErrors: true,
+  timePeriod: true,
+  aboveAverage: true,
+};
+
+/** Narrow a raw `<cfRule type>` token to a known {@link ConditionalFormattingType}. */
+export function isConditionalFormattingType(value: string): value is ConditionalFormattingType {
+  return Object.hasOwn(CONDITIONAL_FORMATTING_TYPES, value);
+}
+
+/**
+ * How a `cellIs` or text rule compares, as `ST_ConditionalFormattingOperator` enumerates it.
+ *
+ * Overlaps {@link import('./data-validation.ts').DataValidationOperator} in four members and diverges
+ * in the rest: this one has the text comparisons a validation has no use for, and spells "does not
+ * contain" as `notContains` where nothing else in the format does.
+ */
+export type ConditionalFormattingOperator =
+  | 'lessThan'
+  | 'lessThanOrEqual'
+  | 'equal'
+  | 'notEqual'
+  | 'greaterThanOrEqual'
+  | 'greaterThan'
+  | 'between'
+  | 'notBetween'
+  | 'containsText'
+  | 'notContains'
+  | 'beginsWith'
+  | 'endsWith';
+
+const CONDITIONAL_FORMATTING_OPERATORS: Record<ConditionalFormattingOperator, true> = {
+  lessThan: true,
+  lessThanOrEqual: true,
+  equal: true,
+  notEqual: true,
+  greaterThanOrEqual: true,
+  greaterThan: true,
+  between: true,
+  notBetween: true,
+  containsText: true,
+  notContains: true,
+  beginsWith: true,
+  endsWith: true,
+};
+
+/** Narrow a raw `<cfRule operator>` token to a known {@link ConditionalFormattingOperator}. */
+export function isConditionalFormattingOperator(
+  value: string,
+): value is ConditionalFormattingOperator {
+  return Object.hasOwn(CONDITIONAL_FORMATTING_OPERATORS, value);
+}
+
+/** The window a `timePeriod` rule matches against, relative to the day the sheet is recalculated. */
+export type CfTimePeriod =
+  | 'today'
+  | 'yesterday'
+  | 'tomorrow'
+  | 'last7Days'
+  | 'thisMonth'
+  | 'lastMonth'
+  | 'nextMonth'
+  | 'thisWeek'
+  | 'lastWeek'
+  | 'nextWeek';
+
+const CF_TIME_PERIODS: Record<CfTimePeriod, true> = {
+  today: true,
+  yesterday: true,
+  tomorrow: true,
+  last7Days: true,
+  thisMonth: true,
+  lastMonth: true,
+  nextMonth: true,
+  thisWeek: true,
+  lastWeek: true,
+  nextWeek: true,
+};
+
+/** Narrow a raw `<cfRule timePeriod>` token to a known {@link CfTimePeriod}. */
+export function isCfTimePeriod(value: string): value is CfTimePeriod {
+  return Object.hasOwn(CF_TIME_PERIODS, value);
+}
+
+/**
+ * The named icon family an `iconSet` rule draws from, as `ST_IconSetType` enumerates it. The leading
+ * digit is the number of icons, which is also how many {@link CfValueObject} anchors the rule needs.
+ *
+ * The 2009 extension adds three more families (`3Stars`, `3Triangles`, `5Boxes`) under its own
+ * namespace. They are absent here because the classic `<iconSet>` element this list types cannot
+ * carry them; a file using one states it in the extension, which the library round-trips verbatim.
+ */
+export type IconSetType =
+  | '3Arrows'
+  | '3ArrowsGray'
+  | '3Flags'
+  | '3TrafficLights1'
+  | '3TrafficLights2'
+  | '3Signs'
+  | '3Symbols'
+  | '3Symbols2'
+  | '4Arrows'
+  | '4ArrowsGray'
+  | '4RedToBlack'
+  | '4Rating'
+  | '4TrafficLights'
+  | '5Arrows'
+  | '5ArrowsGray'
+  | '5Rating'
+  | '5Quarters';
+
+const ICON_SET_TYPES: Record<IconSetType, true> = {
+  '3Arrows': true,
+  '3ArrowsGray': true,
+  '3Flags': true,
+  '3TrafficLights1': true,
+  '3TrafficLights2': true,
+  '3Signs': true,
+  '3Symbols': true,
+  '3Symbols2': true,
+  '4Arrows': true,
+  '4ArrowsGray': true,
+  '4RedToBlack': true,
+  '4Rating': true,
+  '4TrafficLights': true,
+  '5Arrows': true,
+  '5ArrowsGray': true,
+  '5Rating': true,
+  '5Quarters': true,
+};
+
+/** Narrow a raw `<iconSet iconSet>` token to a known {@link IconSetType}. */
+export function isIconSetType(value: string): value is IconSetType {
+  return Object.hasOwn(ICON_SET_TYPES, value);
+}
+
+/**
  * A single conditional-formatting rule. `type` is the OOXML cfRule type; the remaining fields carry
  * the operands that type needs and are absent otherwise. A rule the library does not model in depth
  * still preserves `type`, `priority`, `operator`, `formulae`, and `dxfId` across a round-trip.
  */
 export interface ConditionalFormattingRule {
-  type: string;
+  type: ConditionalFormattingType;
   /** Evaluation precedence; lower wins. Excel requires one, so the writer supplies it when absent. */
   priority?: number;
   /** Halt evaluation of lower-priority rules on any cell this rule matches. */
   stopIfTrue?: boolean;
   /** cellIs / text comparison operator (`greaterThan`, `between`, `beginsWith`, …). */
-  operator?: string;
+  operator?: ConditionalFormattingOperator;
   /** Formula operands: cellIs bounds, an expression predicate, a containsText target formula, … */
   formulae?: (string | number)[];
   /** The literal a containsText / beginsWith / endsWith rule searches for. */
@@ -72,7 +252,7 @@ export interface ConditionalFormattingRule {
   /** A dataBar's axis colour (the zero line between positive and negative bars). An x14 property. */
   axisColor?: Color;
   /** An iconSet's named icon family (e.g. `3TrafficLights1`). */
-  iconSet?: string;
+  iconSet?: IconSetType;
   /** top10 rank cutoff. */
   rank?: number;
   /** top10: the rank is a percentage rather than a count. */
@@ -86,7 +266,7 @@ export interface ConditionalFormattingRule {
   /** aboveAverage: match beyond this many standard deviations. */
   stdDev?: number;
   /** timePeriod window (`today`, `lastWeek`, …). */
-  timePeriod?: string;
+  timePeriod?: CfTimePeriod;
 }
 
 /** A set of rules bound to the range(s) they cover. `ref` is an OOXML `sqref`: one or more
