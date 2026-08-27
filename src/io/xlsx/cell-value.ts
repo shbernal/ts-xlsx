@@ -14,7 +14,7 @@ import {
   type RichTextRun,
   type RichTextValue,
 } from '../../core/value.ts';
-import {boolStrict, decodeSpreadsheetText} from '../../xml/xml-read.ts';
+import {boolStrict, decodeSpreadsheetText, numFinite} from '../../xml/xml-read.ts';
 
 /**
  * One entry of the shared-strings pool. A `<si>` built from a bare `<t>` is a plain string; a `<si>`
@@ -95,8 +95,17 @@ function decodeValue(
       return boolStrict(valueText);
     case 'e':
       return isErrorCode(valueText) ? {error: valueText} : valueText;
-    default:
-      return hasValue ? Number(valueText) : null;
+    default: {
+      if (!hasValue) return null;
+      // The same grammar the numeric *attributes* read through, for the same reason: a bare
+      // `Number()` turns a token it cannot parse into `NaN`, which is a number and so satisfies
+      // every guard downstream. The writer already refuses to emit a `<v>` for a non-finite number,
+      // so `NaN` was only ever a claim the model held for one step before the next write dropped it;
+      // reading it as no value reaches the same file with no lie in the middle. A blank `<v>` goes
+      // the same way rather than becoming `Number('')`'s zero: Excel writes no `<v>` at all for an
+      // empty cell, so a present-but-empty one is malformed, and "nothing" is the honest reading.
+      return numFinite(valueText) ?? null;
+    }
   }
 }
 
@@ -108,7 +117,7 @@ export function decodeFormulaResult(
   type: string,
   valueText: string,
   numFmt?: string,
-): FormulaResult {
+): FormulaResult | undefined {
   const result = decodeResult(type, valueText);
   return typeof result === 'number' && numFmt !== undefined && isDateFormat(numFmt)
     ? serialToDate(result)
@@ -118,7 +127,7 @@ export function decodeFormulaResult(
 // The formula-result subset of `decodeValue`: a cached result is only ever a string, boolean,
 // error, or number, never a shared-string index, inline string, or Strict-mode date, so this
 // handles just those cases rather than the full cell-value grammar.
-function decodeResult(type: string, valueText: string): FormulaResult {
+function decodeResult(type: string, valueText: string): FormulaResult | undefined {
   switch (type) {
     case 'str':
       // The cached result of a string formula is a cell value, and Excel escapes and decodes it as
@@ -131,6 +140,8 @@ function decodeResult(type: string, valueText: string): FormulaResult {
     case 'e':
       return isErrorCode(valueText) ? {error: valueText} : valueText;
     default:
-      return Number(valueText);
+      // Narrowed exactly as a plain numeric cell is: an unparseable cached result is no cached
+      // result, which is the state the cell would have reached anyway on the next write.
+      return numFinite(valueText);
   }
 }

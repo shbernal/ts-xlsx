@@ -209,7 +209,11 @@ function ruleXml(
 // file's dxf table, which the writer re-emits verbatim. Scale rules never carry one.
 function resolveDxfId(rule: ConditionalFormattingRule, styles: StyleRegistry): number | undefined {
   if (SCALE_TYPES.has(rule.type)) return undefined;
-  if (rule.dxfId !== undefined) return Number(rule.dxfId);
+  // `dxfId` is a public `string`, so an authored rule can carry anything. It is read through the
+  // same predicate the reader uses, so a value the reader would have refused is not one an author
+  // can smuggle in: without this the rule emits `dxfId="NaN"` into styles-referencing XML.
+  const preserved = dxfIndex(rule.dxfId);
+  if (preserved !== undefined) return preserved;
   if (rule.style !== undefined) return styles.differentialStyleId(rule.style);
   return undefined;
 }
@@ -459,11 +463,17 @@ function newDraft(attrs: Record<string, string>): RuleDraft {
   };
 }
 
+// The one reading of a `dxfId`, shared by the reader that preserves one and the writer that emits
+// one, so the two cannot come to disagree about what a usable index is: a slot in the dxf table is a
+// non-negative integer or it is nothing.
+function dxfIndex(value: string | undefined): number | undefined {
+  return numInteger(value, 0);
+}
+
 // dxfId is preserved as the raw string (not renumbered) so it keeps pointing at the same slot in the
-// dxf table on re-write; it must still be a non-negative integer, so a malformed value is dropped
-// rather than later coercing to `dxfId="NaN"` in {@link resolveDxfId}.
+// dxf table on re-write; a malformed value is dropped rather than later coercing to `dxfId="NaN"`.
 function parseIndexAttr(value: string | undefined): string | undefined {
-  return numInteger(value, 0) === undefined ? undefined : value;
+  return dxfIndex(value) === undefined ? undefined : value;
 }
 
 function finalizeRule(draft: RuleDraft): ConditionalFormattingRule {

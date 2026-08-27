@@ -532,3 +532,45 @@ test('every schema token of the cfvo type union round-trips unchanged', () => {
     'no legal anchor type is narrowed away',
   );
 });
+
+test('an authored dxfId that is not an index is refused rather than written as dxfId="NaN"', () => {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').addConditionalFormatting({
+    ref: 'A1:A3',
+    rules: [
+      {type: 'cellIs', operator: 'greaterThan', priority: 1, formulae: [1], dxfId: 'x'},
+      {type: 'cellIs', operator: 'greaterThan', priority: 2, formulae: [2], dxfId: '-1'},
+      {type: 'cellIs', operator: 'greaterThan', priority: 3, formulae: [3], dxfId: '0'},
+    ],
+  });
+  const xml = sheetXml(writeXlsx(workbook));
+
+  assert.doesNotMatch(
+    xml,
+    /dxfId="(NaN|x|-1)"/,
+    'the same predicate the reader uses applies on the way out',
+  );
+  assert.equal([...xml.matchAll(/dxfId="/g)].length, 1, 'only the real index survives');
+  assert.match(xml, /dxfId="0"/);
+});
+
+test('a rule whose dxfId is unusable falls through to the style authored beside it', () => {
+  const workbook = new Workbook();
+  workbook.addWorksheet('S').addConditionalFormatting({
+    ref: 'A1:A3',
+    rules: [
+      {
+        type: 'cellIs',
+        operator: 'greaterThan',
+        priority: 1,
+        formulae: [1],
+        dxfId: 'x',
+        style: {font: {bold: true}},
+      },
+    ],
+  });
+  const pkg = writeXlsx(workbook);
+
+  assert.match(sheetXml(pkg), /dxfId="0"/, 'the interned style takes the slot');
+  assert.match(stylesXml(pkg), /<dxfs count="1">/);
+});

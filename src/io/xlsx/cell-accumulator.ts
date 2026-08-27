@@ -16,7 +16,12 @@
 
 import {decodeAddress, encodeAddress} from '../../core/address.ts';
 import {translateFormula, unmangleFunctions} from '../../core/formula.ts';
-import type {CellValue, DataTableFormulaValue, SharedFormulaValue} from '../../core/value.ts';
+import type {
+  CellValue,
+  DataTableFormulaValue,
+  FormulaResult,
+  SharedFormulaValue,
+} from '../../core/value.ts';
 import type {Worksheet} from '../../core/worksheet.ts';
 import {
   boolStrict,
@@ -301,9 +306,7 @@ export class CellAccumulator {
         ...(boolStrict(this.#dataTable.dtr) ? {dataTableRow: true} : {}),
         ...(this.#dataTable.r1 !== undefined ? {r1: this.#dataTable.r1} : {}),
         ...(this.#dataTable.r2 !== undefined ? {r2: this.#dataTable.r2} : {}),
-        ...(this.#hasValue
-          ? {result: decodeFormulaResult(this.#type, this.#valueText, style?.numFmt)}
-          : {}),
+        ...this.cachedResult(style),
       };
     }
     if (this.#hasFormula && this.#formulaShared && this.#formulaSi >= 0) {
@@ -320,13 +323,21 @@ export class CellAccumulator {
           sharedFormula: encodeAddress(master.col, master.row),
           formula: unmangleFunctions(translated),
           // A clone's cached result honours the cell's date format the same way a plain formula's does.
-          ...(this.#hasValue
-            ? {result: decodeFormulaResult(this.#type, this.#valueText, style?.numFmt)}
-            : {}),
+          ...this.cachedResult(style),
         };
       }
     }
     return this.decode(sharedStrings, style);
+  }
+
+  // The `result` property of a formula-shaped value, or nothing. A cached `<v>` the decoder cannot
+  // read is no cached result, so the key is omitted rather than set to `undefined`: the value is
+  // then indistinguishable from a formula cell that carried no `<v>` at all, which is what the
+  // writer will emit for it either way.
+  private cachedResult(style: XfStyle | undefined): {result?: FormulaResult} {
+    if (!this.#hasValue) return {};
+    const result = decodeFormulaResult(this.#type, this.#valueText, style?.numFmt);
+    return result === undefined ? {} : {result};
   }
 
   // Decode the gathered pieces into a plain cell value, resolving the shared pool and date formats but

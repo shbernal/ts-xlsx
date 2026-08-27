@@ -77,6 +77,55 @@ test('an inline string reads the same both ways, flattened on the streaming side
   );
 });
 
+test('a <v> that is not a number reads as no value, identically both ways', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = 'seed';
+  const patched = patchSheetBody(
+    writeXlsx(wb),
+    '<c r="A1" s="0"><v>abc</v></c>' +
+      '<c r="B1"><v></v></c>' +
+      '<c r="C1"><v>Infinity</v></c>' +
+      '<c r="D1"><v>12.5</v></c>',
+  );
+
+  const sheet = readXlsx(patched).getWorksheet('S')!;
+  assert.equal(sheet.getCell('A1').value, null, 'unparseable text is not NaN');
+  assert.equal(sheet.getCell('B1').value, null, 'and a blank <v> is not zero');
+  assert.equal(sheet.getCell('C1').value, null, 'nor is a non-finite spelling a number');
+  assert.equal(sheet.getCell('D1').value, 12.5, 'a real number is untouched');
+
+  // The two readers agree on "no value" and spell it differently by contract: a data read yields
+  // only cells that carry something, so the three that decode to null drop out of the stream.
+  const streamed = [...readSheetRows(patched)][0]?.cells ?? [];
+  assert.deepEqual(
+    streamed.map((cell) => [cell.address, cell.value]),
+    [['D1', 12.5]],
+  );
+});
+
+test('a malformed numeric cell survives a re-write as a cell, carrying no value', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').numFmt = '0.00';
+  const patched = patchSheetBody(writeXlsx(wb), '<c r="A1" s="1"><v>abc</v></c>');
+
+  const rewritten = writeXlsx(readXlsx(patched));
+  const xml = strFromU8(unzipSync(rewritten)['xl/worksheets/sheet1.xml']!);
+  assert.match(xml, /<c r="A1" s="\d+"\/>/, 'the cell and its style are kept');
+  assert.doesNotMatch(xml, /NaN/);
+});
+
+test('a formula whose cached <v> is unparseable keeps its formula and caches nothing', () => {
+  const wb = new Workbook();
+  wb.addWorksheet('S').getCell('A1').value = {formula: 'B1*2', result: 85};
+  const patched = patchSheetBody(writeXlsx(wb), '<c r="A1"><f>B1*2</f><v>abc</v></c>');
+
+  const value = readXlsx(patched).getWorksheet('S')!.getCell('A1').value;
+  assert.deepEqual(value, {formula: 'B1*2'}, 'no `result` key, not a NaN one');
+
+  const streamed = [...readSheetRows(patched)][0]?.cells ?? [];
+  assert.deepEqual(streamed[0]?.value, {formula: 'B1*2'}, 'and the two readers agree');
+});
+
 // Replace the whole `<sheetData>` body of the first worksheet part with one authored row.
 function patchSheetBody(data: Uint8Array, cells: string): Uint8Array {
   // Round-tripping through the reader would re-pool the strings, so the bytes are edited directly.
