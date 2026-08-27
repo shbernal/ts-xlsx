@@ -99,11 +99,14 @@ const SINGLE_REF = /^\$?([A-Z]*)\$?(\d*)$/;
 // bare (`Sheet1!`). Group 1 = quoted body, group 2 = bare name, group 3 = the rest.
 const SHEET_PREFIX = /^(?:(?:'((?:[^']|'')*)')|([^'!]+))!(.*)$/;
 
-/** Convert a 1-based column number to its letters (`1 → "A"`, `27 → "AA"`). */
+/** Convert a 1-based column number to its letters (`1 → "A"`, `27 → "AA"`).
+ *
+ * @throws {RangeError} unless `n` is an integer in `1..MAX_COLUMN`. */
 export function numberToColumn(n: number): string {
-  if (!Number.isInteger(n) || n < 1 || n > MAX_COLUMN) {
-    throw new RangeError(`column ${n} is out of bounds: Excel supports 1..${MAX_COLUMN}`);
-  }
+  // Through the guard rather than a second copy of its four lines: the note above
+  // `assertColumnInBounds` says these two refuse the same mistake in the same words, and a call is
+  // how that is true rather than how two literals happen to agree.
+  assertColumnInBounds(n);
   let letters = '';
   let remaining = n;
   while (remaining > 0) {
@@ -135,15 +138,23 @@ export function columnToNumber(letters: string): number {
   return n;
 }
 
+/**
+ * One corner of a range, as its reference text. An axis the corner omits contributes nothing, so a
+ * whole-row corner spells `6` and a whole-column one spells `B`, rather than acquiring the other
+ * axis from a sentinel. That is the honesty rule this module's header states, and letting an absent
+ * axis decay into text is exactly how `"$undefined$1"` and `"NaN:NaN"` used to reach a file.
+ *
+ * The unbounded counterpart to {@link encodeAddress}, which names one cell and so requires both.
+ */
+export function encodeCornerRef(col: number | undefined, row: number | undefined): string {
+  return `${col !== undefined ? numberToColumn(col) : ''}${row !== undefined ? row : ''}`;
+}
+
 /** Build a {@link CellAddress} corner straight from optional numeric axes: the address string is
  * assembled from the parts we already hold, so no encode-then-decode round-trip is needed. An axis the
  * corner omits stays `undefined`; both absent yields the empty address (`""`). */
 function makeCellAddress(col: number | undefined, row: number | undefined): CellAddress {
-  return {
-    address: `${col !== undefined ? numberToColumn(col) : ''}${row !== undefined ? row : ''}`,
-    col,
-    row,
-  };
+  return {address: encodeCornerRef(col, row), col, row};
 }
 
 /**

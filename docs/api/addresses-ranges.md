@@ -134,6 +134,8 @@ Convert a 1-based column number to its letters (`1 → "A"`, `27 → "AA"`).
 function numberToColumn(n: number): string;
 ```
 
+**Throws:** `RangeError` unless `n` is an integer in `1..MAX_COLUMN`.
+
 ---
 
 ### `RangeAddress`

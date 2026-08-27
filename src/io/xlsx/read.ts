@@ -31,12 +31,12 @@ import {type DefinedName, Workbook, type WorkbookView} from '../../core/workbook
 import {isVisibility, type Worksheet, type WorksheetState} from '../../core/worksheet.ts';
 import {
   boolStrict,
+  capturedText,
   enumToken,
   localName,
   numInteger,
   openElements,
   parseXml,
-  TextCapture,
 } from '../../xml/xml-read.ts';
 import {UnsupportedFormatError} from '../opc/errors.ts';
 import {extensionOf} from '../opc/part-paths.ts';
@@ -309,9 +309,6 @@ function readSheetPrinterSettings(
   return path === undefined ? undefined : pkg.partBytes(path);
 }
 
-// A sheet's anchored images live in a drawing part reached through the sheet's own relationships: a
-// relationship of type `.../drawing` names the drawing part, whose own relationships map each
-// picture's embed id to a media part under `xl/media/`. Each anchor becomes a workbook image (deduped
 // One workbook image per media part, however many places in the package point at that part. A sheet's
 // background and a drawing's picture routinely name the same bytes, and modelling them as two images
 // would write the media twice on the way out, so the map is the property both callers depend on and
@@ -332,6 +329,9 @@ function internImage(
   return id;
 }
 
+// A sheet's anchored images live in a drawing part reached through the sheet's own relationships: a
+// relationship of type `.../drawing` names the drawing part, whose own relationships map each
+// picture's embed id to a media part under `xl/media/`. Each anchor becomes a workbook image (deduped
 // by media path) placed back on the sheet at its two-cell anchor.
 function readSheetImages(
   sheetRels: PartRelationships,
@@ -768,47 +768,25 @@ const CORE_PROPERTY_LOCAL_NAMES = new Set([
 ]);
 
 function applyCoreProperties(workbook: Workbook, xml: string): void {
-  const capture = new TextCapture(CORE_PROPERTY_LOCAL_NAMES);
-  parseXml(xml, {
-    onOpen(name, _attrs, selfClosing) {
-      capture.open(localName(name), selfClosing);
-    },
-    onText(chunk) {
-      capture.text(chunk);
-    },
-    onClose(name) {
-      const local = localName(name);
-      const text = capture.close(local);
-      if (text === undefined) return;
-      if (local === 'title') workbook.properties.title = text;
-      else if (local === 'creator') workbook.properties.creator = text;
-      else if (local === 'lastModifiedBy') workbook.properties.lastModifiedBy = text;
-      else {
-        const date = new Date(text);
-        if (!Number.isNaN(date.getTime())) {
-          if (local === 'created') workbook.properties.created = date;
-          else workbook.properties.modified = date;
-        }
+  for (const {local, text} of capturedText(xml, CORE_PROPERTY_LOCAL_NAMES)) {
+    if (local === 'title') workbook.properties.title = text;
+    else if (local === 'creator') workbook.properties.creator = text;
+    else if (local === 'lastModifiedBy') workbook.properties.lastModifiedBy = text;
+    else {
+      // An unparseable date is dropped rather than stored as an Invalid Date, which would write
+      // back as the string `Invalid Date` and lose the property for good.
+      const date = new Date(text);
+      if (!Number.isNaN(date.getTime())) {
+        if (local === 'created') workbook.properties.created = date;
+        else workbook.properties.modified = date;
       }
-    },
-  });
+    }
+  }
 }
 
 // `Company` is the one document property OOXML keeps in the extended part rather than the core
 // one. Everything else in app.xml is either derived (`TitlesOfParts`) or this library's own
 // (`Application`), so nothing here reads more than the single element.
 function applyAppProperties(workbook: Workbook, xml: string): void {
-  const capture = new TextCapture('Company');
-  parseXml(xml, {
-    onOpen(name, _attrs, selfClosing) {
-      capture.open(localName(name), selfClosing);
-    },
-    onText(chunk) {
-      capture.text(chunk);
-    },
-    onClose(name) {
-      const text = capture.close(localName(name));
-      if (text !== undefined) workbook.properties.company = text;
-    },
-  });
+  for (const {text} of capturedText(xml, 'Company')) workbook.properties.company = text;
 }

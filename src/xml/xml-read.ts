@@ -473,3 +473,41 @@ export class TextCapture {
     return this.#text;
   }
 }
+
+/**
+ * Yield each named element's text as that element closes, as `{local, text}`.
+ *
+ * The third member of the pull-shaped family beside {@link openElements} ("scan opens, read
+ * attributes") and {@link closeEmptyElements}: this one is "capture these elements' text, tell me
+ * each as it closes". A parser whose whole job is reading a handful of text elements out of a part
+ * writes a `for..of` over it instead of a {@link parseXml} handler triple whose open and text arms
+ * are the same three lines every time.
+ *
+ * It is deliberately not for every {@link TextCapture} caller. A parser that interleaves capture
+ * with per-element state of its own (a `<dataValidation>` gathering formulae, a `<tableColumn>`
+ * attaching a totals formula to the column it is inside) needs the open and attribute events too,
+ * and stays bespoke; forcing it through here would trade a handler triple for a second pass.
+ *
+ * A self-closing `<x/>` carries no text and fires no close, so it yields nothing, which is the
+ * behaviour {@link TextCapture} exists to make structural rather than a branch each caller
+ * remembers.
+ *
+ * Throws {@link XmlParseError} on malformed markup.
+ */
+export function* capturedText(
+  source: string,
+  names: string | Iterable<string>,
+): Generator<{local: string; text: string}> {
+  const capture = new TextCapture(names);
+  for (const event of xmlEvents(source)) {
+    if (event.kind === 'open') {
+      capture.open(localName(event.name), event.selfClosing);
+    } else if (event.kind === 'text') {
+      capture.text(event.text);
+    } else {
+      const local = localName(event.name);
+      const text = capture.close(local);
+      if (text !== undefined) yield {local, text};
+    }
+  }
+}

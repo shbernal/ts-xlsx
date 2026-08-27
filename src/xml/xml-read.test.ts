@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 
 import {
+  capturedText,
   closeEmptyElements,
   decodeEntities,
   decodeSpreadsheetText,
@@ -76,6 +77,47 @@ test('parseXml runs an onOpen-only handler, ignoring the omitted onText/onClose'
     },
   });
   assert.deepEqual(opened, ['a', 'b']);
+});
+
+test('capturedText yields each named element text as it closes, in document order', () => {
+  const source =
+    '<cp:coreProperties><dc:title>T</dc:title><x>skip</x><dc:creator>C</dc:creator></cp:coreProperties>';
+  assert.deepEqual(
+    [...capturedText(source, ['title', 'creator'])],
+    [
+      {local: 'title', text: 'T'},
+      {local: 'creator', text: 'C'},
+    ],
+  );
+});
+
+test('capturedText joins the chunks an entity splits a value into', () => {
+  // A run of character data ends at an entity, so `a & b` arrives as three text events. The value a
+  // caller reads must be the whole element text, not its first fragment.
+  assert.deepEqual([...capturedText('<t>a &amp; b</t>', 't')], [{local: 't', text: 'a & b'}]);
+});
+
+test('capturedText yields an empty element as empty text, and a self-closing one not at all', () => {
+  // `<x/>` fires no close, and carries no text to report. Distinguishing the two is the branch
+  // TextCapture exists to make structural rather than something each caller remembers.
+  assert.deepEqual([...capturedText('<t></t>', 't')], [{local: 't', text: ''}]);
+  assert.deepEqual([...capturedText('<t/>', 't')], []);
+});
+
+test('capturedText takes a single name as well as a set, and ignores namespace prefixes', () => {
+  assert.deepEqual(
+    [...capturedText('<Properties><vt:Company>ACME</vt:Company></Properties>', 'Company')],
+    [{local: 'Company', text: 'ACME'}],
+  );
+});
+
+test('capturedText is lazy, so a caller can stop at the element it wanted', () => {
+  let first: string | undefined;
+  for (const {text} of capturedText('<r><t>one</t><t>two</t></r>', 't')) {
+    first = text;
+    break;
+  }
+  assert.equal(first, 'one');
 });
 
 test('openElements with no filter yields every start, skipping text and close', () => {

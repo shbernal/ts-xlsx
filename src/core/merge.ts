@@ -8,7 +8,7 @@
 // there. Reasoning about "what does a merge do to the grid" meant reading both. The storage arrives as
 // a parameter, so these stay pure functions of the rects and rows handed in.
 
-import {type GridRect, numberToColumn, tryDecodeRange} from './address.ts';
+import {encodeCornerRef, type GridRect, tryDecodeRange} from './address.ts';
 import type {Cell} from './cell.ts';
 import {isDeletedSpan, shiftIndex} from './grid-shift.ts';
 
@@ -120,14 +120,8 @@ function shiftSqrefArea(
   if (movedLo === lo && movedHi === hi) return area;
   const [tl, br] =
     axis === 'row'
-      ? [encodeCorner(left, movedLo), encodeCorner(right, movedHi)]
-      : [encodeCorner(movedLo, top), encodeCorner(movedHi, bottom)];
+      ? [encodeCornerRef(left, movedLo), encodeCornerRef(right, movedHi)]
+      : [encodeCornerRef(movedLo, top), encodeCornerRef(movedHi, bottom)];
   // A single-cell area stays a single cell: `B5` must not come back as `B6:B6`.
   return area.includes(':') ? `${tl}:${br}` : tl;
-}
-
-// One corner of a shifted area. An axis the original left unbounded stays unbounded, so a whole-row
-// area re-encodes as `6:8` rather than acquiring columns it never named.
-function encodeCorner(col: number | undefined, row: number | undefined): string {
-  return `${col !== undefined ? numberToColumn(col) : ''}${row !== undefined ? row : ''}`;
 }
