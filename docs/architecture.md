@@ -323,12 +323,19 @@ monolith, split along the OOXML package's own divisions so a change touches one 
 
 - **read** (`src/io/xlsx/`): `read-styles.ts` (`styles.xml`), `read-worksheet.ts` (one sheet),
   with `read.ts` keeping `readXlsx` and the workbook-level wiring. `rich-runs.ts` owns the
-  `<r>`/`<rPr>`/`<t>` run accumulator the worksheet and shared-strings parsers share;
-  `cell-accumulator.ts` owns the per-cell gathering state machine the buffered and streaming
-  readers both drive (ADR-0004). Every other parser that gathers an element's text across
-  open/text/close events does it through `TextCapture` in `src/xml/xml-read.ts`, which exists
-  because nine hand-rolled copies each had to remember that a self-closing `<x/>` fires no close and
-  a latch nothing closes is a latch that eats the next element's text.
+  `<r>`/`<rPr>`/`<t>` element machine the worksheet and shared-strings parsers share, taking the
+  container name (`is` or `si`) as a constructor argument, since that is the only thing that differs
+  between a rich string Excel pooled and the same string written inline; `cell-accumulator.ts` owns
+  the per-cell gathering state machine the buffered and streaming readers both drive (ADR-0004).
+  Both are *machines*, not bags of state calls, and for one reason: a grammar two readers spell out
+  separately is kept in step by convention rather than by mechanism, and the drift it admits reads
+  the same content two ways depending on which encoding the producer happened to choose. Every other
+  parser that gathers an element's text across open/text/close events does it through `TextCapture`
+  in `src/xml/xml-read.ts`, which exists because nine hand-rolled copies each had to remember that a
+  self-closing `<x/>` fires no close and a latch nothing closes is a latch that eats the next
+  element's text. `capturedText` is its pull shape, for a parser whose whole job is reading a handful
+  of text elements out of a part; a parser that interleaves capture with per-element state of its own
+  stays bespoke.
 - **write** (`src/io/xlsx/`): `package-plan.ts` (the part-graph plan layer), `workbook-xml.ts`
   and `worksheet-xml.ts` (the serialisers), `relationships.ts` (the SpreadsheetML relationship-type
   vocabulary), with `write.ts` keeping `writeXlsx` and the `buildPackageParts` orchestrator.
@@ -336,7 +343,8 @@ monolith, split along the OOXML package's own divisions so a change touches one 
 Neither cluster owns the container it rides in. `src/io/opc/` holds what is true of *any* OOXML
 package: `inflate.ts` (the bounded inflater), `sniff-format.ts` (the magic-byte probe and the
 typed rejection), `read-opc.ts` (resolving relationships and walking a part closure), `rels.ts`
-(emitting a `.rels` part), `part-paths.ts`, and the package namespaces. Beneath even that,
+(emitting a `.rels` part, escaping its own attributes rather than asking each caller to),
+`part-paths.ts`, and the package namespaces. Beneath even that,
 `src/xml/` holds escaping, emission and the SAX reader.
 
 ### The write boundary is where a value stops being a value and becomes bytes
