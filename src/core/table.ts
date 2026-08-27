@@ -127,22 +127,22 @@ export type TotalsRowFunction =
   | 'custom'
   | 'none';
 
-const TOTALS_ROW_FUNCTIONS: ReadonlySet<string> = new Set<TotalsRowFunction>([
-  'average',
-  'countNums',
-  'count',
-  'max',
-  'min',
-  'stdDev',
-  'sum',
-  'var',
-  'custom',
-  'none',
-]);
+const TOTALS_ROW_FUNCTIONS: Record<TotalsRowFunction, true> = {
+  average: true,
+  countNums: true,
+  count: true,
+  max: true,
+  min: true,
+  stdDev: true,
+  sum: true,
+  var: true,
+  custom: true,
+  none: true,
+};
 
 /** Narrow a raw `totalsRowFunction` attribute to a known {@link TotalsRowFunction}. */
 export function isTotalsRowFunction(value: string): value is TotalsRowFunction {
-  return TOTALS_ROW_FUNCTIONS.has(value);
+  return Object.hasOwn(TOTALS_ROW_FUNCTIONS, value);
 }
 
 /** One column of a table: a header name and its optional totals-row behaviour. */

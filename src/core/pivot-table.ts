@@ -39,23 +39,23 @@ export type PivotMetric =
   | 'var'
   | 'varp';
 
-const PIVOT_METRICS: ReadonlySet<string> = new Set<PivotMetric>([
-  'sum',
-  'count',
-  'countNums',
-  'average',
-  'max',
-  'min',
-  'product',
-  'stdDev',
-  'stdDevp',
-  'var',
-  'varp',
-]);
+const PIVOT_METRICS: Record<PivotMetric, true> = {
+  sum: true,
+  count: true,
+  countNums: true,
+  average: true,
+  max: true,
+  min: true,
+  product: true,
+  stdDev: true,
+  stdDevp: true,
+  var: true,
+  varp: true,
+};
 
 /** Narrow a raw `subtotal` attribute (or any string) to a known {@link PivotMetric}. */
 function isPivotMetric(value: string): value is PivotMetric {
-  return PIVOT_METRICS.has(value);
+  return Object.hasOwn(PIVOT_METRICS, value);
 }
 
 /** Map an OOXML `<dataField subtotal="…">` value back to its metric. The attribute is absent for
@@ -170,9 +170,12 @@ export class PivotTable {
 
   constructor(options: PivotTableOptions) {
     const metric = options.metric ?? 'sum';
-    if (!PIVOT_METRICS.has(metric)) {
+    // `Object.hasOwn` rather than `isPivotMetric`: the guard would narrow `metric` to `never` in this
+    // branch, and the message it throws needs the offending value. The check earns its place against
+    // untyped callers, for whom the declared `PivotMetric` is not a check at all.
+    if (!Object.hasOwn(PIVOT_METRICS, metric)) {
       throw new AuthoringError(
-        `unsupported pivot metric "${metric}": expected one of ${[...PIVOT_METRICS].join(', ')}`,
+        `unsupported pivot metric "${metric}": expected one of ${Object.keys(PIVOT_METRICS).join(', ')}`,
       );
     }
     this.metric = metric;

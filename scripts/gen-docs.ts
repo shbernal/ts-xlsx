@@ -83,6 +83,14 @@ function bodyOf(node: ast.Node): ast.Node | undefined {
  * wrote, parameter line breaks and all, instead of the printer's normalization, and the
  * generator needs no emit machinery. Starting at `getStart` drops leading trivia, so the JSDoc
  * above a declaration stays out of the code block that renders it.
+ *
+ * The cost lands on a type alias that *derives* its members rather than spelling them: a public
+ * `type T = (typeof TOKENS)[number]` reaches the reference as exactly that expression, where the
+ * spelled-out union would have listed what a caller may pass. That is why the closed-token unions in
+ * `core/` are written out and guarded by a `Record<Union, true>` (see `core/style.ts`) instead of
+ * being derived from an `as const` list, which would otherwise be the stronger shape. Teaching this
+ * to expand an alias whose target is a union of literals would lift the constraint; until a case
+ * makes that worth its own change, the constraint is stated in both places rather than discovered.
  */
 function printSignature(node: ast.Node, sourceFile: ast.SourceFile): string {
   const body = bodyOf(node);

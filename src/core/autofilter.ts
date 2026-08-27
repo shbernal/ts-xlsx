@@ -59,18 +59,18 @@ export type CustomFilterOperator =
   | 'greaterThan'
   | 'greaterThanOrEqual';
 
-const CUSTOM_FILTER_OPERATORS: ReadonlySet<string> = new Set<CustomFilterOperator>([
-  'equal',
-  'notEqual',
-  'lessThan',
-  'lessThanOrEqual',
-  'greaterThan',
-  'greaterThanOrEqual',
-]);
+const CUSTOM_FILTER_OPERATORS: Record<CustomFilterOperator, true> = {
+  equal: true,
+  notEqual: true,
+  lessThan: true,
+  lessThanOrEqual: true,
+  greaterThan: true,
+  greaterThanOrEqual: true,
+};
 
 /** Narrow a raw `operator` attribute to a known {@link CustomFilterOperator}. */
 export function isCustomFilterOperator(value: string): value is CustomFilterOperator {
-  return CUSTOM_FILTER_OPERATORS.has(value);
+  return Object.hasOwn(CUSTOM_FILTER_OPERATORS, value);
 }
 
 /**
